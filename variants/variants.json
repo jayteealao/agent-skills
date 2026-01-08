@@ -1,0 +1,33 @@
+{
+  "name": "agent-skills-variants",
+  "metadata": {
+    "description": "CLAUDE.md variants for different development contexts",
+    "version": "1.1.0"
+  },
+  "variants": [
+    {
+      "name": "Android",
+      "source": "./Android",
+      "version": "1.1.0",
+      "description": "Android/Kotlin development instructions"
+    },
+    {
+      "name": "Generic",
+      "source": "./Generic",
+      "version": "1.1.0",
+      "description": "General-purpose development instructions"
+    },
+    {
+      "name": "Python",
+      "source": "./Python",
+      "version": "1.1.0",
+      "description": "Python development instructions"
+    },
+    {
+      "name": "Typescript",
+      "source": "./Typescript",
+      "version": "1.1.0",
+      "description": "TypeScript/JavaScript development instructions"
+    }
+  ]
+}
