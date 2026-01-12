@@ -1,10 +1,10 @@
 {
   "name": "agent-behavior-patterns",
-  "version": "1.0.0",
-  "description": "Skills for common agent behavior patterns: sound notifications, TUI testing, design documents, and changelog audits",
+  "version": "1.1.0",
+  "description": "40+ agent behavior patterns for workflow, development, testing, and quality best practices",
   "author": {
     "name": "jayte"
   },
   "license": "MIT",
-  "keywords": ["agent-behavior", "workflow", "testing", "documentation", "release-management"]
+  "keywords": ["patterns", "best-practices", "workflow", "development", "testing", "quality", "productivity"]
 }
