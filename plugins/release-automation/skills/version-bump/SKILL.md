@@ -28,177 +28,133 @@ Use configuration from `detect-project-type`:
 
 ### 2. Read Current Version
 
-Use the appropriate version adapter for each version file.
-
-See [Version Adapters Reference](../../docs/version-adapters.md) for adapter implementations.
+Use the Read tool to read the primary version file and extract the version. See [Version Adapters Reference](../../docs/version-adapters.md) for detailed adapter implementations.
 
 **For JSON files (package.json, plugin.json):**
-```bash
-current_version=$(jq -r '.version' package.json)
-```
+1. Use Read tool to read the JSON file
+2. Parse JSON content to extract the "version" field value
+3. Store the extracted version as current_version
 
 **For TOML files (Cargo.toml, pyproject.toml):**
-```bash
-# Cargo.toml
-current_version=$(grep '^version = ' Cargo.toml | sed 's/version = "\(.*\)"/\1/')
-
-# pyproject.toml [project] section
-current_version=$(grep -A 10 '^\[project\]' pyproject.toml | grep '^version = ' | sed 's/version = "\(.*\)"/\1/')
-
-# pyproject.toml [tool.poetry] section
-current_version=$(grep -A 10 '^\[tool.poetry\]' pyproject.toml | grep '^version = ' | sed 's/version = "\(.*\)"/\1/')
-```
+1. Use Read tool to read the TOML file
+2. For Cargo.toml: Search for line starting with "version = " in the [package] section
+3. For pyproject.toml: Search in [project] or [tool.poetry] section for "version = "
+4. Extract the version value from between the quotes
+5. Store as current_version
 
 **For Python __version__.py files:**
-```bash
-current_version=$(grep '^__version__ = ' src/mypackage/__version__.py | sed 's/__version__ = "\(.*\)"/\1/')
-```
+1. Use Read tool to read the __version__.py file
+2. Search for line starting with "__version__ = "
+3. Extract the version string from between the quotes
+4. Store as current_version
 
 **For text files (VERSION, version.txt):**
-```bash
-current_version=$(cat VERSION | tr -d '[:space:]')
-```
+1. Use Read tool to read the file
+2. The entire file content (with whitespace trimmed) is the version
+3. Store as current_version
 
 **For Gradle files:**
-```bash
-# gradle.properties
-current_version=$(grep '^version=' gradle.properties | cut -d'=' -f2)
-
-# build.gradle
-current_version=$(grep "^version = " build.gradle | sed "s/version = '\(.*\)'/\1/")
-```
+1. Use Read tool to read gradle.properties or build.gradle
+2. For gradle.properties: Search for line "version=" and extract value after the =
+3. For build.gradle: Search for line "version = " and extract value from between quotes
+4. Store as current_version
 
 **For Maven pom.xml:**
-```bash
-current_version=$(grep '<version>' pom.xml | head -1 | sed 's/.*<version>\(.*\)<\/version>.*/\1/')
-```
+1. Use Read tool to read pom.xml
+2. Search for the first <version> tag in the project section
+3. Extract the version value between <version> and </version> tags
+4. Store as current_version
 
 **For Go projects (git tags only):**
-```bash
-current_version=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
-```
+1. Use Bash tool: `git describe --tags --abbrev=0 2>/dev/null`
+2. If successful, remove the 'v' prefix if present (e.g., "v1.2.3" → "1.2.3")
+3. If no tags exist, use "0.0.0" as default
+4. Store as current_version
 
 **For multiple version files:**
-- Read from primary file (first in list)
-- Verify all files have same version (if not, warn user)
-
-```bash
-primary_version=$(jq -r '.version' package.json)
-secondary_version=$(grep '^__version__ = ' src/mypackage/__version__.py | sed 's/__version__ = "\(.*\)"/\1/')
-
-if [ "$primary_version" != "$secondary_version" ]; then
-  echo "⚠️  Version mismatch: package.json ($primary_version) != __version__.py ($secondary_version)"
-  echo "Using primary version: $primary_version"
-fi
-
-current_version="$primary_version"
-```
+1. Read version from the primary file (first in list) using appropriate method above
+2. Read version from each secondary file using appropriate method
+3. Compare all versions - if they don't match, warn the user with version mismatch details
+4. Use the primary file's version as current_version
 
 ### 3. Find Last Release Tag
 
-Use tag pattern from configuration:
+Use the tag pattern from project configuration to find the most recent release tag:
 
-```bash
-# Get tag pattern from config (e.g., "v{version}", "{package}-v{version}")
-tag_pattern="v{version}"  # from config
+1. Get the tag_pattern from project configuration (e.g., "v{version}", "{package}-v{version}")
+2. Convert the pattern to a git tag search pattern:
+   - `v{version}` → search for `v*`
+   - `{package}-v{version}` → search for `{package}-v*`
+3. Use Bash tool to list tags: `git tag -l "v*" --sort=-version:refname` (adjust pattern as needed)
+4. Take the first (most recent) tag from the sorted list
+5. Store as last_tag
 
-# Convert pattern to grep pattern
-# v{version} → v*
-# {package}-v{version} → {package}-v*
-
-# For standard v{version} pattern
-git tag -l "v*" --sort=-version:refname | head -n 1
-
-# For plugin pattern: my-plugin-v{version}
-git tag -l "my-plugin-v*" --sort=-version:refname | head -n 1
-
-# For monorepo pattern: {package}-v{version}
-package_name="my-lib"
-git tag -l "${package_name}-v*" --sort=-version:refname | head -n 1
-```
-
-If no tag exists:
+**If no tag exists:**
 - This is likely the first release
 - Use current version from file as baseline
-- Return bump type as "none" (initial release)
+- The bump type will be "initial" (not a bump, but initial release)
 
 ### 4. Analyze Commits Since Last Release
 
-Get commits between last tag and HEAD:
+Get the list of commits to analyze for version bump determination:
 
-```bash
-if [ -n "$last_tag" ]; then
-  # Commits since last tag
-  git log ${last_tag}..HEAD --oneline --no-merges
-else
-  # All commits (first release)
-  git log --oneline --no-merges
-fi
-```
+1. If last_tag exists:
+   - Use Bash: `git log {last_tag}..HEAD --format="%s" --no-merges` to get commit messages since the tag
+2. If no last_tag (first release):
+   - Use Bash: `git log --format="%s" --no-merges` to get all commit messages
+3. Store the list of commit messages for parsing
 
 ### 5. Parse Conventional Commits
 
-If `conventional_commits` is enabled (default: true), parse commit messages:
+If `conventional_commits` is enabled in configuration (default: true), analyze each commit message:
 
-**Major Bump Indicators:**
-- Commit body contains `BREAKING CHANGE:` or `BREAKING-CHANGE:`
-- Commit type followed by `!` (e.g., `feat!:`, `fix!:`, `refactor!:`)
+**Major Bump Indicators (breaking changes):**
+- Commit message contains `BREAKING CHANGE:` or `BREAKING-CHANGE:` anywhere
+- Commit type followed by exclamation mark: `feat!:`, `fix!:`, `refactor!:`, etc.
 
-**Minor Bump Indicators:**
-- Commit type `feat:` or `feat(scope):`
+**Minor Bump Indicators (new features):**
+- Commit starts with `feat:` or `feat(scope):`
 
-**Patch Bump Indicators:**
-- Commit type `fix:` or `fix(scope):`
+**Patch Bump Indicators (bug fixes and other):**
+- Commit starts with `fix:` or `fix(scope):`
 - Other conventional types: `chore:`, `docs:`, `style:`, `refactor:`, `test:`, `perf:`
 
-```bash
-breaking_count=0
-feat_count=0
-fix_count=0
+**Analysis Process:**
+1. Initialize counters: breaking_count=0, feat_count=0, fix_count=0
+2. For each commit message in the list:
+   - Check if it contains "BREAKING CHANGE:" or "BREAKING-CHANGE:", increment breaking_count
+   - Check if it matches pattern `*!:*` (type with exclamation), increment breaking_count
+   - Check if it starts with "feat:" or "feat(*", increment feat_count
+   - Check if it starts with "fix:" or "fix(*", increment fix_count
+3. Store the counts for use in determining bump type
 
-while IFS= read -r commit; do
-  # Extract commit message
-  message=$(echo "$commit" | cut -d' ' -f2-)
-
-  # Check for breaking changes
-  if echo "$message" | grep -qE "(BREAKING[- ]CHANGE:|^[a-z]+!:)"; then
-    ((breaking_count++))
-  fi
-
-  # Check for features
-  if echo "$message" | grep -qE "^feat(\(.+\))?:"; then
-    ((feat_count++))
-  fi
-
-  # Check for fixes
-  if echo "$message" | grep -qE "^fix(\(.+\))?:"; then
-    ((fix_count++))
-  fi
-done < <(git log ${last_tag}..HEAD --oneline --no-merges)
-```
-
-If `conventional_commits` is disabled:
-- All commits → patch bump (unless explicit version type provided)
+**If `conventional_commits` is disabled:**
+- Default to patch bump for any commits (unless explicit version type was provided by user)
 
 ### 6. Determine Bump Type
 
-Apply precedence rules:
+Apply precedence rules to determine the semantic version bump:
 
-```bash
-if [ -n "$explicit_version_type" ] && [ "$explicit_version_type" != "auto" ]; then
-  # User explicitly specified version type
-  bump_type="$explicit_version_type"
-elif [ $breaking_count -gt 0 ]; then
-  bump_type="major"
-elif [ $feat_count -gt 0 ]; then
-  bump_type="minor"
-elif [ $fix_count -gt 0 ]; then
-  bump_type="patch"
-else
-  # No conventional commits, default to patch
-  bump_type="patch"
-fi
-```
+1. **If user provided explicit version type** (major/minor/patch via argument):
+   - Use the explicit type, ignoring commit analysis
+   - Set bump_type to the user's choice
+   - Add reasoning: "Explicit {type} bump requested by user"
+
+2. **Else if breaking_count > 0:**
+   - Set bump_type = "major"
+   - Add reasoning: "{breaking_count} breaking change(s) detected → major bump"
+
+3. **Else if feat_count > 0:**
+   - Set bump_type = "minor"
+   - Add reasoning: "{feat_count} feature(s) added → minor bump"
+
+4. **Else if fix_count > 0 or any other commits exist:**
+   - Set bump_type = "patch"
+   - Add reasoning: "{fix_count} fix(es) applied → patch bump" or "Commits detected → patch bump (default)"
+
+5. **Else (no commits since last tag):**
+   - Set bump_type = "none"
+   - Add reasoning: "No new commits since last release"
 
 **Special case: Initial release (no last tag):**
 - If current version is 0.x.x, treat as pre-1.0 (no bump needed)
@@ -207,58 +163,48 @@ fi
 
 ### 7. Calculate New Version
 
-Parse current version and increment:
+Parse the current version and calculate the new version based on bump type:
 
-```bash
-# Parse semantic version X.Y.Z
-IFS='.' read -r major minor patch <<< "$current_version"
+1. **Parse the current version** (format: X.Y.Z):
+   - Split current_version by '.' to get major, minor, patch numbers
+   - If patch has pre-release metadata (e.g., "3-alpha"), extract only the numeric part
+   - Store major, minor, patch as integers
 
-# Remove any pre-release or build metadata (-alpha, +build, etc.)
-patch=$(echo "$patch" | sed 's/[^0-9].*//')
+2. **Calculate new version based on bump_type:**
+   - **If bump_type is "major":**
+     - Increment major by 1
+     - Reset minor and patch to 0
+     - new_version = "{major+1}.0.0"
 
-# Calculate new version based on bump type
-case "$bump_type" in
-  "major")
-    new_major=$((major + 1))
-    new_version="${new_major}.0.0"
-    ;;
-  "minor")
-    new_minor=$((minor + 1))
-    new_version="${major}.${new_minor}.0"
-    ;;
-  "patch")
-    new_patch=$((patch + 1))
-    new_version="${major}.${minor}.${new_patch}"
-    ;;
-  "none")
-    new_version="$current_version"
-    ;;
-esac
-```
+   - **If bump_type is "minor":**
+     - Keep major unchanged
+     - Increment minor by 1
+     - Reset patch to 0
+     - new_version = "{major}.{minor+1}.0"
+
+   - **If bump_type is "patch":**
+     - Keep major and minor unchanged
+     - Increment patch by 1
+     - new_version = "{major}.{minor}.{patch+1}"
+
+   - **If bump_type is "none" or "initial":**
+     - Keep version unchanged
+     - new_version = current_version
+
+3. Store new_version for output
 
 ### 8. Generate Reasoning
 
-Create human-readable explanation:
+Create a human-readable list explaining the version bump decision:
 
-```bash
-reasoning=()
-
-if [ $breaking_count -gt 0 ]; then
-  reasoning+=("$breaking_count breaking change(s) detected → major bump")
-fi
-
-if [ $feat_count -gt 0 ]; then
-  reasoning+=("$feat_count feature(s) added → minor bump")
-fi
-
-if [ $fix_count -gt 0 ]; then
-  reasoning+=("$fix_count fix(es) applied → patch bump")
-fi
-
-if [ ${#reasoning[@]} -eq 0 ]; then
-  reasoning+=("No conventional commits found → patch bump (default)")
-fi
-```
+1. Initialize an empty reasoning list
+2. Add reasoning based on what was detected:
+   - If breaking_count > 0: Add "{breaking_count} breaking change(s) detected → major bump"
+   - If feat_count > 0: Add "{feat_count} feature(s) added → minor bump"
+   - If fix_count > 0: Add "{fix_count} fix(es) applied → patch bump"
+3. If multiple bump indicators exist, add a note about precedence (e.g., "Major bump takes precedence")
+4. If no conventional commits were found, add "No conventional commits found → patch bump (default)"
+5. If explicit version type was provided, add "Explicit {type} bump requested by user"
 
 ## Output Format
 

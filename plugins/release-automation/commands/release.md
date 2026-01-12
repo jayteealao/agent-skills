@@ -83,33 +83,31 @@ The command executes through 7 orchestrated phases:
 
 2. **Detect Project Type and Load Configuration**
 
-   Invoke `detect-project-type` skill to analyze project:
-   ```
-   Skill: detect-project-type
-   Input:
-     - config_path: {from --config arg if provided}
-     - package_name: {from --package arg if provided}
-   ```
+   Use the Skill tool to invoke the `detect-project-type` skill. Pass any relevant arguments from the command line (--config path, --package name).
 
-   The skill returns:
-   - Project type (nodejs/python/rust/go/java/generic/claude-plugin/monorepo)
-   - Configuration source (explicit or auto-detected)
-   - Version files with adapters
-   - Changelog file path
-   - Tag pattern
-   - Documentation files
-   - Hooks (pre/post release)
-   - Validation settings
+   The `detect-project-type` skill will:
+   - Analyze the project directory structure
+   - Detect the project type (nodejs/python/rust/go/java/generic/claude-plugin/monorepo)
+   - Load or generate appropriate release configuration
+   - Return the configuration including:
+     - Project type
+     - Version files and adapters
+     - Changelog file path
+     - Tag pattern
+     - Documentation files
+     - Validation settings
+
+   Store the returned configuration for use in subsequent phases.
 
 3. **Display Project Configuration**
 
-   Show detected/loaded configuration to user:
+   After the skill completes, summarize the detected configuration for the user:
    ```
    Detected project configuration:
    - Project type: {project_type}
    - Version files: {version_files}
    - Tag pattern: {tag_pattern}
-   - Configuration: {config_source}
+   - Configuration source: {config_source}
    ```
 
 4. **Handle Configuration Errors**
@@ -175,19 +173,20 @@ The command executes through 7 orchestrated phases:
 
 1. **Invoke Version Bump Skill**
 
-   ```
-   Skill: version-bump
-   Input:
-     - project_config: {from Phase 1}
-     - version-type: {from-args or "auto"}
-   ```
+   Use the Skill tool to invoke the `version-bump` skill. Provide context about:
+   - The project configuration obtained from Phase 1
+   - The version type from command arguments (major/minor/patch) or "auto" for automatic detection
 
-   Returns:
-   - current_version
-   - new_version
-   - bump_type (major/minor/patch)
-   - reasoning (commit analysis)
-   - last_tag
+   The `version-bump` skill will:
+   - Read the current version from version files
+   - Analyze git commits since the last release tag
+   - Calculate the appropriate semantic version bump
+   - Return:
+     - current_version
+     - new_version
+     - bump_type (major/minor/patch)
+     - reasoning (commit analysis)
+     - last_tag
 
 2. **Display Version Bump**
 
@@ -231,19 +230,19 @@ The command executes through 7 orchestrated phases:
 
 1. **Invoke Changelog Update Skill**
 
-   ```
-   Skill: changelog-update
-   Input:
-     - scope: {confirmed-scope}
-     - version: {confirmed-version}
-     - custom-message: {from --message arg if provided}
-   ```
+   Use the Skill tool to invoke the `changelog-update` skill. Provide context about:
+   - The project configuration from Phase 1
+   - The confirmed version from Phase 2
+   - Any custom message from --message argument
 
-   Returns:
-   - changelog_path
-   - new_entry (formatted markdown)
-   - commit_message (for git commit)
-   - categories (added/changed/fixed counts)
+   The `changelog-update` skill will:
+   - Generate or update changelog entry from git commits
+   - Format the entry appropriately
+   - Return:
+     - changelog_path
+     - new_entry (formatted markdown)
+     - commit_message (for git commit)
+     - categories (added/changed/fixed counts)
 
 2. **Display Generated Changelog**
 
@@ -293,19 +292,19 @@ The command executes through 7 orchestrated phases:
 
 1. **Invoke Documentation Sync Skill**
 
-   ```
-   Skill: documentation-sync
-   Input:
-     - scope: {confirmed-scope}
-     - old_version: {current_version}
-     - new_version: {confirmed-version}
-   ```
+   Use the Skill tool to invoke the `documentation-sync` skill. Provide context about:
+   - The project configuration from Phase 1
+   - The old version (current_version)
+   - The new version (confirmed version from Phase 2)
 
-   Returns:
-   - files_updated (list)
-   - changes (detailed diff per file)
-   - warnings (missing references, etc.)
-   - git_diff (full diff output)
+   The `documentation-sync` skill will:
+   - Update version numbers in all configured version files
+   - Update version references in documentation files
+   - Return:
+     - files_updated (list)
+     - changes (detailed diff per file)
+     - warnings (missing references, etc.)
+     - git_diff (full diff output)
 
 2. **Display Changes**
 
@@ -350,20 +349,20 @@ The command executes through 7 orchestrated phases:
 
 1. **Invoke Pre-Release Validation Skill**
 
-   ```
-   Skill: pre-release-validation
-   Input:
-     - scope: {confirmed-scope}
-     - new_version: {confirmed-version}
-     - changelog_path: {changelog_path}
-     - modified_files: {list from Phase 4}
-   ```
+   Use the Skill tool to invoke the `pre-release-validation` skill. Provide context about:
+   - The project configuration from Phase 1
+   - The new version (confirmed version)
+   - The changelog path
+   - The list of modified files from Phase 4
 
-   Returns:
-   - valid (true/false)
-   - errors (blocking issues)
-   - warnings (non-blocking issues)
-   - checks_passed / checks_total
+   The `pre-release-validation` skill will:
+   - Run comprehensive validation checks before committing
+   - Check for common issues (duplicate versions, malformed files, etc.)
+   - Return:
+     - valid (true/false)
+     - errors (blocking issues)
+     - warnings (non-blocking issues)
+     - checks_passed / checks_total
 
 2. **Display Validation Results**
 
@@ -433,23 +432,24 @@ The command executes through 7 orchestrated phases:
 
 1. **Invoke Git Release Workflow Skill**
 
-   ```
-   Skill: git-release-workflow
-   Input:
-     - scope: {confirmed-scope}
-     - version: {confirmed-version}
-     - commit_message: {from Phase 3}
-     - files_to_stage: {modified files from Phases 3 & 4}
-   ```
+   Use the Skill tool to invoke the `git-release-workflow` skill. Provide context about:
+   - The project configuration from Phase 1
+   - The confirmed version
+   - The commit message from Phase 3
+   - The files to stage from Phases 3 & 4
 
-   Returns:
-   - commit_hash
-   - tag_name
-   - files_committed
-   - branch
-   - remote_url
-   - push_command
-   - success
+   The `git-release-workflow` skill will:
+   - Stage the modified files
+   - Create a commit with proper attribution
+   - Create an annotated tag for the release
+   - Return:
+     - commit_hash
+     - tag_name
+     - files_committed
+     - branch
+     - remote_url
+     - push_command
+     - success
 
 2. **Display Commit Results**
 
