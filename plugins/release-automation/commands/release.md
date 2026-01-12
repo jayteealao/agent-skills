@@ -1,6 +1,6 @@
 ---
-description: Orchestrate complete release workflow with version bumping, changelog generation, documentation updates, and git operations
-argument-hint: "[scope] [version-type] [--message \"Custom message\"]"
+description: Orchestrate complete release workflow for any project type with version bumping, changelog generation, and git operations
+argument-hint: "[version-type] [--message \"Custom message\"] [--package \"name\"] [--config \"path\"]"
 allowed-tools:
   - Bash
   - Read
@@ -14,34 +14,53 @@ allowed-tools:
 
 # Release Automation Command
 
-Comprehensive release workflow automation that handles version bumping, changelog generation, documentation synchronization, validation, and git operations across three release scopes: marketplace, per-plugin, and variants.
+Comprehensive release workflow automation for **any project type**: Node.js, Python, Rust, Go, Java, generic projects, Claude Code plugins, and monorepos. Handles version bumping, changelog generation, documentation synchronization, validation, and git operations with configurable patterns and hooks.
 
 ## Usage
 
 ```bash
-# Auto-detect scope and version from git changes
+# Auto-detect project type and version bump
 /release
 
-# Explicit scope
-/release marketplace
-/release plugin:daily-carry
-/release variants
-
-# Specify version bump type
-/release marketplace patch
-/release plugin:daily-carry minor
+# Explicit version bump type
+/release minor
+/release major
+/release patch
 
 # Custom commit message
-/release marketplace patch --message "Fix schema validation"
+/release --message "Special release with custom message"
+
+# Monorepo: release specific package
+/release --package "my-lib"
+
+# Custom configuration file
+/release --config ".releaserc.json"
+
+# Combine options
+/release minor --package "my-lib" --message "Breaking changes"
 ```
 
 ## Arguments
 
-- **scope** (optional): "marketplace" | "plugin:<name>" | "variants" | "auto" (default)
-  - Auto-detection analyzes git changes to determine scope
 - **version-type** (optional): "major" | "minor" | "patch" | "auto" (default)
   - Auto-detection uses conventional commits to determine bump type
+  - Explicit type overrides auto-detection
 - **--message** (optional): Custom commit message (overrides changelog generation)
+- **--package** (optional): Package name for monorepo releases
+- **--config** (optional): Path to custom configuration file (default: `.release-config.json`)
+
+## Project Type Support
+
+The command automatically detects and supports:
+
+- **Node.js/npm**: `package.json` versioning
+- **Python**: `pyproject.toml`, `setup.py`, `__version__.py`
+- **Rust**: `Cargo.toml` versioning
+- **Go**: Git tag-based versioning
+- **Java/Gradle**: `build.gradle`, `gradle.properties`, `pom.xml`
+- **Generic**: `VERSION`, `version.txt` files
+- **Claude Code Plugins**: `.claude-plugin/plugin.json`
+- **Monorepos**: Multiple packages with independent versions
 
 ## Release Workflow
 
@@ -49,42 +68,60 @@ The command executes through 7 orchestrated phases:
 
 ---
 
-## Phase 1: Detection & Validation
+## Phase 1: Project Detection & Configuration
 
-**Objective:** Determine release scope, validate git state, and handle uncommitted changes.
+**Objective:** Detect project type, load configuration, and validate git state.
 
 ### Steps
 
 1. **Parse Command Arguments**
 
-   Extract scope, version-type, and custom message from command line:
+   Extract version-type, package, config, and custom message from command line:
    ```
-   args: [scope] [version-type] [--message "text"]
+   args: [version-type] [--package "name"] [--config "path"] [--message "text"]
    ```
 
-2. **Detect Release Scope** (if not explicitly provided)
+2. **Detect Project Type and Load Configuration**
 
-   Invoke `detect-release-scope` skill to analyze git changes:
+   Invoke `detect-project-type` skill to analyze project:
    ```
-   Skill: detect-release-scope
+   Skill: detect-project-type
+   Input:
+     - config_path: {from --config arg if provided}
+     - package_name: {from --package arg if provided}
    ```
 
    The skill returns:
-   - Primary scope (marketplace/plugin/variants)
-   - Confidence level
-   - Evidence (file change counts per scope)
-   - Warnings (branch, conflicts, etc.)
+   - Project type (nodejs/python/rust/go/java/generic/claude-plugin/monorepo)
+   - Configuration source (explicit or auto-detected)
+   - Version files with adapters
+   - Changelog file path
+   - Tag pattern
+   - Documentation files
+   - Hooks (pre/post release)
+   - Validation settings
 
-3. **Handle Ambiguous Detection**
+3. **Display Project Configuration**
 
-   If confidence is "ambiguous", prompt user to choose:
+   Show detected/loaded configuration to user:
+   ```
+   Detected project configuration:
+   - Project type: {project_type}
+   - Version files: {version_files}
+   - Tag pattern: {tag_pattern}
+   - Configuration: {config_source}
+   ```
+
+4. **Handle Configuration Errors**
+
+   If project type is "unknown" or configuration has errors:
    ```
    AskUserQuestion:
-   - Question: "Multiple scopes detected. Which release do you want to create?"
+   - Question: "Could not detect project type. What would you like to do?"
    - Options:
-     - Marketplace release
-     - Plugin: {detected-plugins}
-     - Variants release
+     - Create .release-config.json manually
+     - Specify project type
+     - Cancel release
    ```
 
 4. **Validate Git State**
@@ -123,9 +160,10 @@ The command executes through 7 orchestrated phases:
 
 ### Phase 1 Output
 
-- Confirmed release scope
+- Project type detected and configuration loaded
 - Clean or handled git state
 - Current branch validated
+- Ready for version determination
 
 ---
 
@@ -140,7 +178,7 @@ The command executes through 7 orchestrated phases:
    ```
    Skill: version-bump
    Input:
-     - scope: {confirmed-scope}
+     - project_config: {from Phase 1}
      - version-type: {from-args or "auto"}
    ```
 
@@ -493,11 +531,11 @@ The command executes through 7 orchestrated phases:
 
    ```
    ═══════════════════════════════════════════════════════════
-   🎉 Release {scope} v{version} completed successfully!
+   🎉 Release v{version} completed successfully!
    ═══════════════════════════════════════════════════════════
 
    Release Details:
-   - Scope: {scope}
+   - Project: {project_type}
    - Version: {current_version} → {confirmed-version}
    - Bump: {bump_type}
    - Commit: {commit_hash}
@@ -506,14 +544,15 @@ The command executes through 7 orchestrated phases:
 
    Files Updated:
    - {changelog_path}
-   - {version_file}
-   - {other_files...}
+   - {version_files...}
+   - {documentation_files...}
 
    Next Steps:
    {if-github}
    - Create GitHub release: https://github.com/{owner}/{repo}/releases/new?tag={tag_name}
    {endif}
    - Verify release on remote
+   - Publish package (if applicable): {publish_command}
    - Announce release to users
    ```
 
@@ -596,58 +635,122 @@ For each phase, if an error occurs:
 
 ## Examples
 
-### Example 1: Plugin Release (Auto-Detected)
+### Example 1: Node.js Package (Auto-Detected)
 
 ```bash
+# In a Node.js project with package.json
 /release
 
-# Phase 1: Detects "plugin:daily-carry" from git changes
-# Phase 2: Calculates v1.1.0 → v1.2.0 (minor bump from feat: commits)
-# Phase 3: Generates changelog from 5 commits
-# Phase 4: Updates plugin.json, README, marketplace.json
+# Phase 1: Detects project_type = "nodejs"
+# Phase 2: Calculates v1.5.0 → v1.6.0 (minor bump from feat: commits)
+# Phase 3: Generates changelog from commits
+# Phase 4: Updates package.json, package-lock.json, README.md
 # Phase 5: All validations pass
-# Phase 6: Commits, creates tag "daily-carry-v1.2.0", pushes
-# Phase 7: Verifies and displays success summary
+# Phase 6: Runs pre-release hook (npm test), commits, tags "v1.6.0", pushes
+# Phase 7: Runs post-release hook (npm publish), displays success
 ```
 
-### Example 2: Marketplace Patch Release
+### Example 2: Python Package with Explicit Patch
 
 ```bash
-/release marketplace patch --message "Fix schema validation"
+# In a Python project with pyproject.toml
+/release patch
 
-# Phase 1: Scope = "marketplace" (explicit)
-# Phase 2: v1.0.0 → v1.0.1 (patch bump, explicit)
+# Phase 1: Detects project_type = "python"
+# Phase 2: v2.1.0 → v2.1.1 (explicit patch bump)
+# Phase 3: Updates CHANGELOG.md
+# Phase 4: Updates pyproject.toml, src/mypackage/__version__.py, README.md
+# Phase 5: Validates (all checks pass)
+# Phase 6: Runs pre-release hook (python -m build), commits, tags "v2.1.1", pushes
+# Phase 7: Success, runs post-release hook (twine upload dist/*)
+```
+
+### Example 3: Rust Crate with Custom Message
+
+```bash
+# In a Rust project with Cargo.toml
+/release --message "Security fix for CVE-2026-XXXX"
+
+# Phase 1: Detects project_type = "rust"
+# Phase 2: v0.8.5 → v0.8.6 (auto-detected patch bump)
 # Phase 3: Uses custom message for changelog
-# Phase 4: Updates marketplace.json and README
-# Phase 5: Validates
-# Phase 6: Commits + tags "marketplace-v1.0.1"
+# Phase 4: Updates Cargo.toml, Cargo.lock, README.md
+# Phase 5: Validates (cargo check passes)
+# Phase 6: Runs pre-release hook (cargo test), commits, tags "v0.8.6", pushes
+# Phase 7: Success, suggests cargo publish
+```
+
+### Example 4: Go Module
+
+```bash
+# In a Go project with go.mod
+/release minor
+
+# Phase 1: Detects project_type = "go"
+# Phase 2: v1.3.0 → v1.4.0 (explicit minor bump)
+# Phase 3: Updates CHANGELOG.md
+# Phase 4: No version files to update (Go uses git tags)
+#          Updates README.md with new version
+# Phase 5: Validates (go mod verify passes)
+# Phase 6: Commits, tags "v1.4.0", pushes
 # Phase 7: Success
 ```
 
-### Example 3: First Plugin Release
+### Example 5: Monorepo Package
 
 ```bash
-/release plugin:new-plugin
+# In a monorepo with multiple packages
+/release --package "my-lib"
 
-# Phase 1: Scope = "plugin:new-plugin" (explicit)
-# Phase 2: No tag exists → defaults to v1.0.0
-# Phase 3: Creates new CHANGELOG.md with initial entry
-# Phase 4: Updates plugin.json, creates README entries
+# Phase 1: Detects project_type = "monorepo", selects package "my-lib"
+# Phase 2: v2.0.0 → v2.1.0 (minor bump)
+# Phase 3: Updates packages/my-lib/CHANGELOG.md
+# Phase 4: Updates packages/my-lib/package.json, root README.md
+# Phase 5: Validates package-specific checks
+# Phase 6: Commits, tags "my-lib-v2.1.0", pushes
+# Phase 7: Success
+```
+
+### Example 6: Generic Project with VERSION File
+
+```bash
+# In a generic project with VERSION file
+/release
+
+# Phase 1: Detects project_type = "generic", finds VERSION file
+# Phase 2: 3.2.1 → 3.3.0 (minor bump from conventional commits)
+# Phase 3: Updates CHANGELOG.md
+# Phase 4: Updates VERSION file, README.md
+# Phase 5: Runs custom validation script
+# Phase 6: Commits, tags "v3.3.0", pushes
+# Phase 7: Success
+```
+
+### Example 7: Claude Code Plugin (Backward Compatible)
+
+```bash
+# In a Claude Code plugin directory
+/release
+
+# Phase 1: Detects project_type = "claude-plugin"
+# Phase 2: v1.1.0 → v1.2.0 (minor bump)
+# Phase 3: Updates CHANGELOG.md
+# Phase 4: Updates .claude-plugin/plugin.json, README.md, marketplace.json
 # Phase 5: Validates (all checks pass)
-# Phase 6: Commits + tags "new-plugin-v1.0.0"
-# Phase 7: Offers GitHub release creation
+# Phase 6: Commits, tags "my-plugin-v1.2.0", pushes
+# Phase 7: Success
 ```
 
 ## Integration with Skills
 
 This command orchestrates 6 skills (all marked `user-invocable: false`):
 
-1. **detect-release-scope** - Phase 1
-2. **version-bump** - Phase 2
-3. **changelog-update** - Phase 3
-4. **documentation-sync** - Phase 4
-5. **pre-release-validation** - Phase 5
-6. **git-release-workflow** - Phase 6
+1. **detect-project-type** - Phase 1 (replaces detect-release-scope)
+2. **version-bump** - Phase 2 (enhanced with adapters)
+3. **changelog-update** - Phase 3 (configurable formats)
+4. **documentation-sync** - Phase 4 (generic file updates)
+5. **pre-release-validation** - Phase 5 (project-specific checks)
+6. **git-release-workflow** - Phase 6 (configurable patterns + hooks)
 
 Phase 7 is handled directly by the command (verification and summary).
 
@@ -656,12 +759,30 @@ Phase 7 is handled directly by the command (verification and summary).
 - Git repository with configured remote
 - Conventional commit format (recommended for auto-detection)
 - Appropriate git push permissions
-- Valid JSON in all configuration files
+- Project-specific requirements:
+  - Node.js: `jq` for JSON manipulation
+  - Python: `python` for validation
+  - Rust: `cargo` (optional, for validation)
+  - Go: `go` (optional, for validation)
+
+## Configuration
+
+Optional `.release-config.json` file for customization:
+- Version files and adapters
+- Changelog format and location
+- Tag pattern and message templates
+- Pre/post release hooks
+- Custom validations
+- Skip specific validation checks
+
+See [Configuration Reference](../../docs/configuration.md) for full schema.
 
 ## Notes
 
+- **Breaking Changes from v1.x**: Scope argument removed, project type auto-detected
 - All git operations follow safe practices (no force push unless explicit)
 - Linear git history maintained (direct commits, no merge commits)
 - Co-Authored-By attribution included in all commits
 - Annotated tags used for rich metadata
 - User confirmation required at critical decision points
+- Backward compatible with Claude Code plugins

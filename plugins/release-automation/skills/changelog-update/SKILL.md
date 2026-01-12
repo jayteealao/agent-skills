@@ -1,6 +1,6 @@
 ---
 name: changelog-update
-description: Generate changelog entries from commits following keep-a-changelog format
+description: Generate changelog entries from commits for any project type
 user-invocable: false
 ---
 
@@ -8,25 +8,39 @@ user-invocable: false
 
 ## Purpose
 
-Generates changelog entries from git commits, categorizes changes into Added/Changed/Fixed/Breaking sections following keep-a-changelog format, and updates or creates the appropriate changelog file for the release scope.
+Generates changelog entries from git commits, categorizes changes into Added/Changed/Fixed/Breaking sections following configurable changelog format (default: keep-a-changelog), and updates or creates the changelog file for any project type.
 
 ## Input Context
 
 Requires:
-- **Scope**: One of "marketplace", "plugin:<name>", or "variants"
+- **Project Configuration**: Output from `detect-project-type` skill
 - **Version**: New version number (e.g., "1.2.0")
 - **Custom Message** (optional): User-provided commit message overrides auto-generation
+- **Last Tag**: Git tag of previous release (optional)
 
 ## Workflow
 
-### 1. Determine Changelog File Path
+### 1. Load Changelog Configuration
 
-Based on scope:
-- **Marketplace**: `CHANGELOG.md` (root directory)
-- **Plugin**: `plugins/{name}/CHANGELOG.md`
-- **Variants**: `variants/CHANGELOG.md`
+Use configuration from `detect-project-type`:
+- `changelog_file` - Path to changelog file (default: `CHANGELOG.md`)
+- `changelog_format` - Format to use (default: `keep-a-changelog`)
+- `tag_pattern` - For finding commits since last tag
 
-Check if file exists. If not, create with initial structure:
+### 2. Determine Changelog File Path
+
+Use `changelog_file` from configuration:
+
+```bash
+changelog_file="CHANGELOG.md"  # from config, can be:
+# - CHANGELOG.md (standard)
+# - HISTORY.md (alternative)
+# - CHANGES.rst (Python projects)
+# - NEWS.md (GNU projects)
+# - {package}/CHANGELOG.md (monorepos)
+```
+
+Check if file exists. If not, create with initial structure based on format:
 ```markdown
 # Changelog
 
@@ -35,16 +49,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ```
 
-### 2. Gather Commits
+### 3. Gather Commits
 
 Get commits since last release tag:
 ```bash
-git log {last-tag}..HEAD --oneline --no-merges
+if [ -n "$last_tag" ]; then
+  git log ${last_tag}..HEAD --oneline --no-merges
+else
+  # First release - get all commits
+  git log --oneline --no-merges
+fi
 ```
 
-If no last tag (first release), get all commits for the scope:
+For monorepo projects, optionally filter commits by package directory:
 ```bash
-git log --oneline --no-merges -- {scope-path}
+# Filter commits that touched this package only
+git log ${last_tag}..HEAD --oneline --no-merges -- packages/my-lib/
 ```
 
 ### 3. Categorize Commits

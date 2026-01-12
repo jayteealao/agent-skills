@@ -1,6 +1,6 @@
 ---
 name: git-release-workflow
-description: Execute git commit, tag, and push operations for releases
+description: Execute git commit, tag, and push operations with configurable patterns for any project type
 user-invocable: false
 ---
 
@@ -8,19 +8,61 @@ user-invocable: false
 
 ## Purpose
 
-Executes the git operations for a release: staging modified files, creating a commit with proper formatting and attribution, creating an annotated git tag, and preparing for push. This skill handles the final git workflow step of the release process.
+Executes the git operations for a release: running pre-release hooks, staging modified files, creating a commit with proper formatting and attribution, creating an annotated git tag with configurable patterns, and running post-release hooks. Works with any project type.
 
 ## Input Context
 
 Requires:
-- **Scope**: One of "marketplace", "plugin:<name>", or "variants"
+- **Project Configuration**: Output from `detect-project-type` skill
 - **Version**: New version string (e.g., "1.2.0")
 - **Commit Message**: Pre-formatted commit message (from changelog-update skill)
 - **Files to Stage**: List of modified files to include in commit
 
 ## Workflow
 
-### 1. Stage Modified Files
+### 1. Load Configuration
+
+Use configuration from `detect-project-type`:
+- `tag_pattern` - Pattern for git tag (e.g., "v{version}", "{package}-v{version}")
+- `tag_message` - Message template for annotated tag
+- `commit_message_template` - Template for commit message
+- `pre_release_hook` - Script to run before git operations (optional)
+- `post_release_hook` - Script to run after successful push (optional)
+
+### 2. Run Pre-Release Hook
+
+If `preReleaseHook` is configured, execute it before any git operations:
+
+```bash
+if [ -n "$pre_release_hook" ]; then
+  echo "Running pre-release hook: $pre_release_hook"
+
+  if [ -x "$pre_release_hook" ]; then
+    # Run hook and capture output
+    if ! hook_output=$($pre_release_hook 2>&1); then
+      # Hook failed - abort release
+      echo "✗ Pre-release hook failed:"
+      echo "$hook_output"
+      exit 1
+    else
+      echo "✓ Pre-release hook succeeded"
+      echo "$hook_output"
+    fi
+  else
+    echo "⚠️  Pre-release hook not executable: $pre_release_hook"
+    exit 1
+  fi
+fi
+```
+
+**Common pre-release hook use cases:**
+- Run tests: `npm test`, `cargo test`, `go test ./...`
+- Build project: `npm run build`, `cargo build --release`
+- Run linters: `npm run lint`, `cargo clippy`
+- Generate documentation: `npm run docs`
+- Validate package: `npm pack --dry-run`, `twine check dist/*`
+
+### 3. Stage Modified Files
 
 Stage all files that were modified during the release process:
 
@@ -67,27 +109,54 @@ Capture commit hash:
 git rev-parse HEAD
 ```
 
-### 3. Create Annotated Git Tag
+### 5. Create Annotated Git Tag
 
-Create an annotated tag (not lightweight) following the scope-based naming pattern:
+Create an annotated tag (not lightweight) using configurable pattern from configuration:
 
-**Tag naming:**
-- Marketplace: `marketplace-v{version}`
-- Plugin: `{plugin-name}-v{version}`
-- Variants: `variants-v{version}`
-
+**Build tag name from pattern:**
 ```bash
-git tag -a "{scope}-v{version}" -m "Release {scope} v{version}"
+# Get pattern from config (e.g., "v{version}", "{package}-v{version}")
+tag_pattern="v{version}"  # from config
+
+# Replace placeholders
+tag_name="${tag_pattern//\{version\}/$new_version}"
+
+# For monorepo/plugins, also replace {package}
+if [[ "$tag_pattern" == *"{package}"* ]]; then
+  tag_name="${tag_name//\{package\}/$package_name}"
+fi
+
+# Examples:
+# Pattern: "v{version}" → Tag: "v1.2.0"
+# Pattern: "release-{version}" → Tag: "release-1.2.0"
+# Pattern: "{package}-v{version}" → Tag: "my-lib-v1.2.0"
 ```
 
-**Annotation message** should be concise:
-```
-Release {scope} v{version}
-```
-
-Verify tag created:
+**Build tag message from template:**
 ```bash
-git tag -l "{scope}-v{version}"
+# Get template from config (default: "Release v{version}")
+tag_message_template="Release v{version}"  # from config
+
+# Replace placeholders
+tag_message="${tag_message_template//\{version\}/$new_version}"
+tag_message="${tag_message//\{package\}/$package_name}"
+
+# Example: "Release v1.2.0"
+```
+
+**Create tag:**
+```bash
+git tag -a "$tag_name" -m "$tag_message"
+```
+
+**Verify tag created:**
+```bash
+if git tag -l "$tag_name" | grep -q "$tag_name"; then
+  echo "✓ Created tag: $tag_name"
+else
+  echo "✗ Failed to create tag: $tag_name"
+  exit 1
+fi
 ```
 
 ### 4. Prepare Push Information
@@ -115,7 +184,42 @@ Or if using `--force-with-lease` after rebase:
 git push origin {branch} --follow-tags --force-with-lease
 ```
 
-### 5. Generate Summary
+### 6. Run Post-Release Hook (After Push)
+
+**Note:** This section is executed by the `/release` command AFTER successful push, not within this skill.
+
+If `postReleaseHook` is configured, execute it after git push succeeds:
+
+```bash
+if [ -n "$post_release_hook" ]; then
+  echo "Running post-release hook: $post_release_hook"
+
+  if [ -x "$post_release_hook" ]; then
+    # Run hook and capture output
+    if ! hook_output=$($post_release_hook 2>&1); then
+      # Hook failed - warn but don't abort (release already pushed)
+      echo "⚠️  Post-release hook failed:"
+      echo "$hook_output"
+      # Continue anyway - release is already public
+    else
+      echo "✓ Post-release hook succeeded"
+      echo "$hook_output"
+    fi
+  else
+    echo "⚠️  Post-release hook not executable: $post_release_hook"
+  fi
+fi
+```
+
+**Common post-release hook use cases:**
+- Publish package: `npm publish`, `cargo publish`, `twine upload dist/*`
+- Deploy to CDN/hosting: `netlify deploy`, `vercel --prod`
+- Send notifications: `./scripts/notify-slack.sh`, `./scripts/post-to-discord.sh`
+- Update documentation site: `./scripts/deploy-docs.sh`
+- Trigger CI/CD: `curl -X POST $CI_WEBHOOK_URL`
+- Create GitHub release: `gh release create $TAG_NAME`
+
+### 7. Generate Summary
 
 Collect information for post-release summary:
 - Commit hash (short: first 7 characters)

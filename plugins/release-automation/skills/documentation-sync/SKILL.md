@@ -1,6 +1,6 @@
 ---
 name: documentation-sync
-description: Synchronize version numbers across documentation and configuration files
+description: Synchronize version numbers across any project type using version file adapters
 user-invocable: false
 ---
 
@@ -8,208 +8,483 @@ user-invocable: false
 
 ## Purpose
 
-Updates version references across all relevant documentation and configuration files for a given release scope. Ensures consistency between JSON metadata files, README documentation, and marketplace listings.
+Updates version numbers in version files (using appropriate adapters) and documentation files for any project type. Supports Node.js, Python, Rust, Go, Java, generic projects, and Claude Code plugins. Handles multiple version files and documentation references.
 
 ## Input Context
 
 Requires:
-- **Scope**: One of "marketplace", "plugin:<name>", or "variants"
+- **Project Configuration**: Output from `detect-project-type` skill
 - **Old Version**: Previous version string (e.g., "1.1.0")
 - **New Version**: New version string (e.g., "1.2.0")
 
 ## Workflow
 
-### 1. Build File List
+### 1. Load Project Configuration
 
-Based on scope, determine which files need version updates:
+Use configuration from `detect-project-type`:
+- `version_files` - List of version files with adapters
+- `documentation_files` - Files to search for version references
+- `project_type` - Determines file update strategy
 
-**Marketplace Scope:**
-- `.claude-plugin/marketplace.json` → `version` field
-- Root `README.md` → version badge/references
+### 2. Update Version Files
 
-**Plugin Scope (e.g., plugin:daily-carry):**
-- `plugins/{name}/.claude-plugin/plugin.json` → `version` field
-- `plugins/{name}/README.md` → version references
-- `.claude-plugin/marketplace.json` → update plugin entry version
-- Root `README.md` → plugin version references (if present)
+For each version file, use the appropriate adapter to update the version.
 
-**Variants Scope:**
-- `variants/variants.json` → `metadata.version` field
-- `variants/variants.json` → update individual variant versions
-- Root `README.md` → variants version references
+See [Version Adapters Reference](../../docs/version-adapters.md) for implementation details.
 
-### 2. Update JSON Files
+**JSON files (package.json, plugin.json, etc.):**
+```bash
+file="package.json"
+old_version="1.1.0"
+new_version="1.2.0"
 
-For each JSON file:
-1. Read and parse JSON
-2. Update version field(s):
-   - Marketplace: `version` at root level
-   - Plugin: `version` at root level
-   - Variants: `metadata.version` and optionally `variants[].version`
-3. Format JSON with 2-space indentation
-4. Write back to file
+# Update using jq
+jq --indent 2 ".version = \"$new_version\"" "$file" > tmp.json && mv tmp.json "$file"
 
-**Example for plugin.json:**
-```json
-{
-  "name": "daily-carry",
-  "version": "1.2.0",  ← updated
-  "description": "..."
-}
+# Verify update
+updated_version=$(jq -r '.version' "$file")
+if [ "$updated_version" = "$new_version" ]; then
+  echo "✓ Updated $file: $old_version → $new_version"
+else
+  echo "✗ Failed to update $file"
+fi
 ```
 
-### 3. Update Markdown Files
+**TOML files (Cargo.toml, pyproject.toml):**
+```bash
+file="Cargo.toml"
 
-For each markdown file:
-1. Read file contents
-2. Replace version strings using context-aware patterns:
-   - Version badges: `![Version](https://img.shields.io/badge/version-1.1.0-blue)` → `1.2.0`
-   - Installation commands: `v1.1.0` → `v1.2.0`
-   - Plugin listings: `daily-carry (v1.1.0)` → `daily-carry (v1.2.0)`
-   - Git tags: `daily-carry-v1.1.0` → `daily-carry-v1.2.0`
-3. Be conservative: only replace in version-specific contexts (not arbitrary strings)
-4. Write back to file
+# Update version in [package] section
+sed -i '/^\[package\]/,/^\[/ s/^version = ".*"/version = "'"$new_version"'"/' "$file"
 
-**Search patterns:**
-- `version-{old-version}` → `version-{new-version}`
-- `v{old-version}` → `v{new-version}` (when followed by space, `)`, or end of line)
-- `{plugin-name} (v{old-version})` → `{plugin-name} (v{new-version})`
+# For pyproject.toml [project] section
+sed -i '/^\[project\]/,/^\[/ s/^version = ".*"/version = "'"$new_version"'"/' pyproject.toml
 
-### 4. Special Case: Marketplace.json Plugin Entries
+# For pyproject.toml [tool.poetry] section
+sed -i '/^\[tool.poetry\]/,/^\[/ s/^version = ".*"/version = "'"$new_version"'"/' pyproject.toml
 
-When updating a plugin, also update its entry in marketplace.json:
-
-```json
-{
-  "plugins": [
-    {
-      "name": "daily-carry",
-      "version": "1.2.0",  ← updated
-      "description": "...",
-      "source": "./plugins/daily-carry"
-    }
-  ]
-}
+# Verify
+updated_version=$(grep '^version = ' "$file" | head -1 | sed 's/version = "\(.*\)"/\1/')
 ```
 
-### 5. Verify Updates
+**Python __version__.py files:**
+```bash
+file="src/mypackage/__version__.py"
 
-After all updates:
-1. Re-read each modified file
-2. Verify new version appears and old version is removed
-3. Check JSON is valid (can be parsed)
-4. Generate git diff to show changes
+# Update __version__ variable
+sed -i 's/^__version__ = ".*"/__version__ = "'"$new_version"'"/' "$file"
+
+# Verify
+updated_version=$(grep '^__version__ = ' "$file" | sed 's/__version__ = "\(.*\)"/\1/')
+```
+
+**Text files (VERSION, version.txt):**
+```bash
+file="VERSION"
+
+# Simply write new version
+echo "$new_version" > "$file"
+
+# Verify
+updated_version=$(cat "$file" | tr -d '[:space:]')
+```
+
+**Gradle files:**
+```bash
+# gradle.properties
+sed -i 's/^version=.*/version='"$new_version"'/' gradle.properties
+
+# build.gradle (single quotes)
+sed -i "s/^version = '.*'/version = '${new_version}'/" build.gradle
+
+# build.gradle (double quotes)
+sed -i 's/^version = ".*"/version = "'"$new_version"'"/' build.gradle
+```
+
+**Maven pom.xml:**
+```bash
+# Replace first <version> tag (project version)
+sed -i '0,/<version>.*<\/version>/s//<version>'"$new_version"'<\/version>/' pom.xml
+```
+
+**Multiple version files:**
+Update all files in sequence, tracking successes and failures:
+
+```bash
+updated_files=()
+failed_files=()
+
+for version_file_config in "${version_files[@]}"; do
+  file_path="${version_file_config[path]}"
+  adapter="${version_file_config[adapter]}"
+
+  # Update using appropriate adapter
+  case "$adapter" in
+    "json")
+      jq --indent 2 ".version = \"$new_version\"" "$file_path" > tmp.json && mv tmp.json "$file_path"
+      ;;
+    "toml")
+      # ... toml update logic
+      ;;
+    "python-file")
+      # ... python file update logic
+      ;;
+    # ... other adapters
+  esac
+
+  # Verify update succeeded
+  if verify_version_updated "$file_path" "$new_version"; then
+    updated_files+=("$file_path")
+  else
+    failed_files+=("$file_path")
+  fi
+done
+```
+
+### 3. Update Documentation Files
+
+Search documentation files for version references and update them.
+
+Use `documentation_files` from configuration (default: `["README.md"]`, supports globs).
+
+**Find all documentation files:**
+```bash
+doc_files=()
+
+for pattern in "${documentation_files[@]}"; do
+  # Expand glob patterns
+  if [[ "$pattern" == *"*"* ]]; then
+    # Use find for glob patterns like "docs/**/*.md"
+    while IFS= read -r file; do
+      doc_files+=("$file")
+    done < <(find . -path "./$pattern" -type f)
+  else
+    # Direct file path
+    if [ -f "$pattern" ]; then
+      doc_files+=("$pattern")
+    fi
+  done
+done
+```
+
+**For each documentation file, perform context-aware version replacement:**
+
+```bash
+for doc_file in "${doc_files[@]}"; do
+  echo "Processing $doc_file..."
+
+  # Create backup
+  cp "$doc_file" "${doc_file}.bak"
+
+  # Perform replacements (context-aware)
+
+  # 1. Version badges (shields.io, etc.)
+  sed -i "s/version-${old_version//./-}/version-${new_version//./-}/g" "$doc_file"
+  sed -i "s/v${old_version}-/v${new_version}-/g" "$doc_file"
+
+  # 2. Installation commands
+  # npm install package@1.1.0 → package@1.2.0
+  sed -i "s/@${old_version}/@${new_version}/g" "$doc_file"
+
+  # pip install package==1.1.0 → package==1.2.0
+  sed -i "s/==${old_version}/==${new_version}/g" "$doc_file"
+
+  # cargo add package@1.1.0 → package@1.2.0
+  # (already covered by @version pattern)
+
+  # 3. Git tag references
+  # v1.1.0 → v1.2.0 (when followed by space, ), or end of line)
+  sed -i "s/v${old_version}\([^0-9]\)/v${new_version}\1/g" "$doc_file"
+  sed -i "s/v${old_version}$/v${new_version}/g" "$doc_file"
+
+  # 4. Standalone version numbers in specific contexts
+  # "Version 1.1.0" → "Version 1.2.0"
+  sed -i "s/Version ${old_version}/Version ${new_version}/g" "$doc_file"
+  sed -i "s/version ${old_version}/version ${new_version}/g" "$doc_file"
+
+  # 5. In code blocks (more conservative - only in known safe contexts)
+  # Only replace if part of package reference
+  sed -i "s/\"${old_version}\"/\"${new_version}\"/g" "$doc_file"
+  sed -i "s/'${old_version}'/'${new_version}'/g" "$doc_file"
+
+  # Count changes
+  changes=$(diff -u "${doc_file}.bak" "$doc_file" | grep '^[-+]' | wc -l)
+
+  if [ $changes -gt 0 ]; then
+    echo "✓ Updated $doc_file ($changes lines changed)"
+    rm "${doc_file}.bak"
+  else
+    echo "  No version references found in $doc_file"
+    mv "${doc_file}.bak" "$doc_file"  # Restore original
+  fi
+done
+```
+
+**Conservative replacement strategy:**
+- Only replace version strings in known safe contexts
+- Avoid replacing arbitrary numbers (could be dates, IDs, etc.)
+- Use word boundaries and context markers
+- Verify replacements made sense (count changes, show diff)
+
+### 4. Project-Specific Updates
+
+Some project types have additional files to update:
+
+**Node.js (package-lock.json):**
+```bash
+if [ -f "package-lock.json" ]; then
+  # Update version in lockfile (both root and package entry)
+  jq ".version = \"$new_version\"" package-lock.json > tmp.json && mv tmp.json package-lock.json
+  jq ".packages[\"\"].version = \"$new_version\"" package-lock.json > tmp.json && mv tmp.json package-lock.json
+fi
+```
+
+**Python (setuptools-scm):**
+If using setuptools-scm, version is managed by git tags - no file updates needed.
+
+**Rust (Cargo.lock):**
+If exists, update with:
+```bash
+cargo update --workspace
+```
+
+**Go:**
+No files to update - versions managed by git tags only.
+
+### 5. Generate Git Diff
+
+Create a summary of all changes:
+
+```bash
+# Stage all modified files
+git add -u
+
+# Generate diff
+git diff --cached > /tmp/release-diff.patch
+
+# Display summary
+echo "Files modified:"
+git diff --cached --name-only
+
+echo ""
+echo "Diff summary:"
+git diff --cached --stat
+```
+
+### 6. Validation
+
+Verify all updates were successful:
+
+```bash
+validation_errors=()
+
+# Check each version file
+for file in "${updated_files[@]}"; do
+  actual_version=$(read_version_from_file "$file")
+
+  if [ "$actual_version" != "$new_version" ]; then
+    validation_errors+=("$file: expected $new_version, got $actual_version")
+  fi
+done
+
+# If any errors, return them
+if [ ${#validation_errors[@]} -gt 0 ]; then
+  echo "✗ Validation failed:"
+  printf '%s\n' "${validation_errors[@]}"
+  exit 1
+fi
+```
 
 ## Output Format
 
 Return:
 
-```
+```json
 {
   "files_updated": [
-    "plugins/daily-carry/.claude-plugin/plugin.json",
-    "plugins/daily-carry/README.md",
-    ".claude-plugin/marketplace.json",
-    "README.md"
+    "package.json",
+    "README.md",
+    "docs/installation.md"
   ],
-  "changes": {
-    "plugins/daily-carry/.claude-plugin/plugin.json": {
-      "field": "version",
-      "old_value": "1.1.0",
-      "new_value": "1.2.0"
-    },
-    ".claude-plugin/marketplace.json": {
-      "field": "plugins[0].version",
-      "old_value": "1.1.0",
-      "new_value": "1.2.0"
+  "version_files": [
+    {
+      "path": "package.json",
+      "old_version": "1.1.0",
+      "new_version": "1.2.0",
+      "adapter": "json",
+      "success": true
     }
-  },
-  "warnings": [
-    "Could not find version reference in README.md"
   ],
-  "git_diff": "diff --git a/plugins/daily-carry/.claude-plugin/plugin.json..."
+  "documentation_files": [
+    {
+      "path": "README.md",
+      "changes": 5,
+      "patterns_matched": ["version badge", "installation command", "git tag reference"]
+    },
+    {
+      "path": "docs/installation.md",
+      "changes": 2,
+      "patterns_matched": ["installation command"]
+    }
+  ],
+  "warnings": [],
+  "git_diff_summary": {
+    "files_changed": 3,
+    "insertions": 8,
+    "deletions": 8
+  }
 }
 ```
 
 ## Examples
 
-### Example 1: Plugin Release
+### Example 1: Node.js Project
 
 **Input:**
-- Scope: `plugin:daily-carry`
+- Project type: `nodejs`
 - Old version: `1.1.0`
 - New version: `1.2.0`
+- Version files: `["package.json"]`
+- Documentation files: `["README.md"]`
 
-**Files Updated:**
-1. `plugins/daily-carry/.claude-plugin/plugin.json`
-   - Changed `"version": "1.1.0"` → `"version": "1.2.0"`
-
-2. `plugins/daily-carry/README.md`
-   - Changed `daily-carry (v1.1.0)` → `daily-carry (v1.2.0)`
-
-3. `.claude-plugin/marketplace.json`
-   - Changed plugin entry `"version": "1.1.0"` → `"version": "1.2.0"`
-
-4. Root `README.md` (if plugin listed)
-   - Changed `daily-carry v1.1.0` → `daily-carry v1.2.0`
+**Operations:**
+1. Update `package.json`: `"version": "1.1.0"` → `"version": "1.2.0"`
+2. Update `package-lock.json` (if exists)
+3. Update `README.md`: version badge, install command
 
 **Output:**
-```
+```json
 {
-  "files_updated": [
-    "plugins/daily-carry/.claude-plugin/plugin.json",
-    "plugins/daily-carry/README.md",
-    ".claude-plugin/marketplace.json",
-    "README.md"
-  ],
-  "changes": {
-    "plugins/daily-carry/.claude-plugin/plugin.json": {
-      "field": "version",
-      "old_value": "1.1.0",
-      "new_value": "1.2.0"
+  "files_updated": ["package.json", "package-lock.json", "README.md"],
+  "version_files": [
+    {
+      "path": "package.json",
+      "old_version": "1.1.0",
+      "new_version": "1.2.0",
+      "success": true
     }
-  },
-  "warnings": [],
-  "git_diff": "..."
+  ],
+  "documentation_files": [
+    {
+      "path": "README.md",
+      "changes": 3,
+      "patterns_matched": ["version badge", "npm install"]
+    }
+  ]
 }
 ```
 
-### Example 2: Marketplace Release
+### Example 2: Python Project with Multiple Version Files
 
 **Input:**
-- Scope: `marketplace`
-- Old version: `1.0.0`
-- New version: `1.1.0`
+- Project type: `python`
+- Old version: `2.1.0`
+- New version: `3.0.0`
+- Version files:
+  - `pyproject.toml`
+  - `src/mypackage/__version__.py`
 
-**Files Updated:**
-1. `.claude-plugin/marketplace.json`
-   - Changed `"version": "1.0.0"` → `"version": "1.1.0"`
+**Operations:**
+1. Update `pyproject.toml` [project] section
+2. Update `src/mypackage/__version__.py`
+3. Update `README.md` references
 
-2. Root `README.md`
-   - Changed version badge or references
+**Output:**
+```json
+{
+  "version_files": [
+    {
+      "path": "pyproject.toml",
+      "old_version": "2.1.0",
+      "new_version": "3.0.0",
+      "adapter": "toml",
+      "success": true
+    },
+    {
+      "path": "src/mypackage/__version__.py",
+      "old_version": "2.1.0",
+      "new_version": "3.0.0",
+      "adapter": "python-file",
+      "success": true
+    }
+  ]
+}
+```
 
-### Example 3: Variants Release
+### Example 3: Rust Crate
 
 **Input:**
-- Scope: `variants`
-- Old version: `1.1.0`
-- New version: `2.0.0`
+- Project type: `rust`
+- Old version: `0.3.1`
+- New version: `0.3.2`
+- Version files: `["Cargo.toml"]`
 
-**Files Updated:**
-1. `variants/variants.json`
-   - Changed `"metadata": { "version": "1.1.0" }` → `"version": "2.0.0"`
-   - Optionally update individual variant versions
+**Operations:**
+1. Update `Cargo.toml` [package].version
+2. Run `cargo update` to update `Cargo.lock`
+3. Update documentation
 
-2. Root `README.md`
-   - Changed `Variants v1.1.0` → `Variants v2.0.0`
+### Example 4: Go Module
+
+**Input:**
+- Project type: `go`
+- Old version: `1.5.0`
+- New version: `1.6.0`
+- Version files: `[]` (versions via tags only)
+
+**Operations:**
+1. No version files to update (Go uses git tags)
+2. Update README.md and docs with new version references
+
+**Output:**
+```json
+{
+  "version_files": [],
+  "documentation_files": [
+    {
+      "path": "README.md",
+      "changes": 2,
+      "patterns_matched": ["version reference", "go get command"]
+    }
+  ],
+  "notes": ["Go project: version managed via git tags only"]
+}
+```
 
 ## Error Handling
 
-- **File not found**: Return warning (non-blocking) if expected file doesn't exist
-- **JSON parse error**: Return error (blocking) if JSON file is malformed
-- **Write permission error**: Return error (blocking) if file cannot be written
-- **No changes made**: Return warning if no version strings were found to update
-- **Partial updates**: If some files update successfully and others fail, return partial success with errors
+**File update failure:**
+```json
+{
+  "version_files": [
+    {
+      "path": "package.json",
+      "success": false,
+      "error": "Permission denied"
+    }
+  ]
+}
+```
+
+**Version mismatch after update:**
+```json
+{
+  "warnings": [
+    "package.json: expected 1.2.0 after update, but still reads 1.1.0",
+    "File may need manual review"
+  ]
+}
+```
+
+**Documentation file not found:**
+```json
+{
+  "warnings": [
+    "Documentation file not found: docs/installation.md",
+    "Specified in configuration but does not exist"
+  ]
+}
+```
 
 ## Integration Notes
 
@@ -218,10 +493,7 @@ This skill is invoked by the `/release` command in Phase 4. The command will:
 2. Allow user to review before proceeding
 3. Stage all modified files for commit in Phase 6
 
-## Conservative Update Strategy
+## Reference Documentation
 
-To avoid unintended replacements:
-- Only update version strings in known contexts (JSON fields, version badges, plugin listings)
-- Do NOT replace arbitrary occurrences of version numbers in prose
-- Verify each file can be parsed/read after update
-- Generate detailed diff for user review
+- [Version Adapters Reference](../../docs/version-adapters.md) - Adapter implementation details
+- [Configuration Reference](../../docs/configuration.md) - Configuring version and documentation files

@@ -1,10 +1,10 @@
 {
   "name": "release-automation",
-  "version": "1.1.0",
-  "description": "Automated release workflow with version bumping, changelog generation, and git operations",
+  "version": "2.0.0",
+  "description": "Automated release workflow for any project type with version bumping, changelog generation, documentation sync, and git operations. Supports Node.js, Python, Rust, Go, Java, generic projects, monorepos, and Claude Code plugins.",
   "author": {
     "name": "jayte"
   },
   "license": "MIT",
-  "keywords": ["release", "versioning", "changelog", "git", "automation"]
+  "keywords": ["release", "versioning", "changelog", "git", "automation", "nodejs", "python", "rust", "go", "java", "semver", "conventional-commits", "monorepo"]
 }
