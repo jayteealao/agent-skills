@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills-marketplace",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "A curated collection of Claude Code skills and plugins for developers",
   "owner": {
     "name": "jayte"
@@ -16,10 +16,10 @@
     },
     {
       "name": "release-automation",
-      "description": "Automated release workflow with version bumping, changelog generation, and git operations",
+      "description": "Automated release workflow for any project type with version bumping, changelog generation, documentation sync, and git operations. Supports Node.js, Python, Rust, Go, Java, generic projects, monorepos, and Claude Code plugins.",
       "source": "./plugins/release-automation",
       "category": "automation",
-      "version": "1.1.0"
+      "version": "2.0.0"
     }
   ]
 }
