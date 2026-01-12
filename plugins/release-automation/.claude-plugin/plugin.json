@@ -1,0 +1,10 @@
+{
+  "name": "release-automation",
+  "version": "1.0.0",
+  "description": "Automated release workflow with version bumping, changelog generation, and git operations",
+  "author": {
+    "name": "jayte"
+  },
+  "license": "MIT",
+  "keywords": ["release", "versioning", "changelog", "git", "automation"]
+}

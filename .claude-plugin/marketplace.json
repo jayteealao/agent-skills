@@ -1,0 +1,32 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "agent-skills-marketplace",
+  "version": "1.0.0",
+  "description": "A curated collection of Claude Code skills and plugins for developers",
+  "owner": {
+    "name": "jayte"
+  },
+  "plugins": [
+    {
+      "name": "daily-carry",
+      "description": "Essential daily-use skills: Portainer deployment management and Tech Research Enforcer for verified coding answers",
+      "source": "./plugins/daily-carry",
+      "category": "deployment",
+      "version": "1.0.0"
+    },
+    {
+      "name": "agent-behavior-patterns",
+      "description": "40+ agent behavior patterns for workflow, development, testing, and quality best practices",
+      "source": "./plugins/agent-behavior-patterns",
+      "category": "productivity",
+      "version": "1.0.0"
+    },
+    {
+      "name": "release-automation",
+      "description": "Automated release workflow with version bumping, changelog generation, and git operations",
+      "source": "./plugins/release-automation",
+      "category": "automation",
+      "version": "1.0.0"
+    }
+  ]
+}
