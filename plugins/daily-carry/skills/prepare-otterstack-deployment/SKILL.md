@@ -58,6 +58,54 @@ Find all variables referenced in compose file:
 grep -oE '\$\{[A-Z_][A-Z0-9_]*\}' docker-compose.yml | sort -u
 ```
 
+### Network Detection
+
+Detect networks defined in the Docker Compose file to ensure proper container connectivity:
+
+**Find network definitions:**
+```bash
+grep -A 5 "^networks:" docker-compose.yml
+```
+
+**Extract network names:**
+```bash
+# Get all network names from the networks section
+grep -A 10 "^networks:" docker-compose.yml | grep -E "^  [a-z]" | awk '{print $1}' | sed 's/:$//'
+```
+
+**Identify default network:**
+1. If networks section exists, use the first network listed as default
+2. If no networks section, Docker Compose creates a default network named `{project}_default`
+3. Recommend explicit network definition for clarity
+
+**Check service network attachments:**
+```bash
+# Find services that specify networks
+grep -B 5 "networks:" docker-compose.yml | grep -E "^  [a-z]" | awk '{print $1}' | sed 's/:$//'
+```
+
+**Network configuration requirements:**
+- All services should attach to the same network for inter-service communication
+- Network name should use variable substitution: `${NETWORK_NAME:-app-network}`
+- Network should be defined explicitly at the bottom of compose file
+
+**Example network configuration:**
+```yaml
+services:
+  web:
+    networks:
+      - ${NETWORK_NAME:-app-network}
+
+  api:
+    networks:
+      - ${NETWORK_NAME:-app-network}
+
+networks:
+  app-network:
+    name: ${NETWORK_NAME:-app-network}
+    external: false
+```
+
 ### Scan Dockerfile
 
 Check for ARG and ENV declarations:
@@ -320,6 +368,107 @@ build:  # ✅ Explicit context
   dockerfile: Dockerfile
 ```
 
+### 6. Missing Network Definition
+
+**Check:**
+```bash
+# Check if networks are defined
+grep "^networks:" docker-compose.yml
+
+# Check if services specify network
+grep -A 2 "services:" docker-compose.yml | grep "networks:"
+```
+
+**Problem**: Services on different networks (or default networks) may have connectivity issues in complex deployments. OtterStack needs to know which network containers communicate on.
+
+**Solution**: Define an explicit network and use variable substitution for flexibility.
+
+**Before:**
+```yaml
+services:
+  web:
+    image: myapp:latest
+    # No network specified - uses auto-generated default
+```
+
+**After:**
+```yaml
+services:
+  web:
+    image: myapp:latest
+    networks:
+      - ${NETWORK_NAME:-app-network}
+
+networks:
+  app-network:
+    name: ${NETWORK_NAME:-app-network}
+    external: false
+```
+
+## Traefik Exposure Detection
+
+For services that need to be publicly accessible, detect existing Traefik configuration and prepare for enhanced labels:
+
+### Scan for Traefik Labels
+
+**Check for Traefik-enabled services:**
+```bash
+grep -B 5 "traefik.enable" docker-compose.yml | grep -E "^  [a-z].*:" | sed 's/:$//'
+```
+
+**Extract router names:**
+```bash
+grep "traefik.http.routers" docker-compose.yml | sed -E 's/.*traefik\.http\.routers\.([^.]+)\..*/\1/' | sort -u
+```
+
+**Identify exposed services:**
+For each service with Traefik labels:
+1. Extract service name from docker-compose.yml structure
+2. Extract router name from labels
+3. Check if domain variable is used (e.g., `${API_DOMAIN}`)
+4. Note the exposed port from loadbalancer configuration
+
+### Required Traefik Configuration
+
+Services exposed via Traefik should have these labels at minimum:
+
+```yaml
+labels:
+  - "traefik.enable=true"
+  # Routing
+  - "traefik.http.routers.{service}.rule=Host(`${SERVICE_DOMAIN}`)"
+  - "traefik.http.routers.{service}.entrypoints=web,websecure"
+  # TLS
+  - "traefik.http.routers.{service}.tls=true"
+  - "traefik.http.routers.{service}.tls.certresolver=myresolver"
+  # Load balancer
+  - "traefik.http.services.{service}.loadbalancer.server.port={PORT}"
+  # CrowdSec middleware (security)
+  - "traefik.http.routers.{service}.middlewares=crowdsec-{service}@docker"
+  - "traefik.http.middlewares.crowdsec-{service}.plugin.crowdsec-bouncer.enabled=true"
+  - "traefik.http.middlewares.crowdsec-{service}.plugin.crowdsec-bouncer.crowdseclapikey=${CROWDSEC_API_KEY}"
+```
+
+### Environment Variables for Exposure
+
+For each exposed service, these environment variables are required:
+
+1. **`${SERVICE}_DOMAIN`** - The domain name for the service (e.g., `API_DOMAIN=api.example.com`)
+   - Type: String (domain format)
+   - Validation: Must be a valid domain without protocol
+   - Example: `aperture.example.com`, `api.myapp.io`
+
+2. **`CROWDSEC_API_KEY`** - CrowdSec bouncer API key for security middleware
+   - Type: String (sensitive)
+   - Validation: Non-empty string
+   - Shared across all exposed services
+   - Obtain from: CrowdSec dashboard → Bouncers → Add bouncer
+
+3. **`NETWORK_NAME`** - The Docker network name for Traefik communication
+   - Type: String
+   - Default: Detected from compose file or `app-network`
+   - Traefik must be on the same network to route traffic
+
 ## Output Format
 
 Generate a readiness report following this template:
@@ -332,6 +481,50 @@ Generate a readiness report following this template:
 - Health checks defined for all services
 - Uses environment: section for variables
 - No hardcoded container names
+
+### 🌐 Networks Detected
+
+**Default network:** `app-network`
+
+**All networks:**
+- `app-network` (default)
+- `traefik-network` (external, for Traefik communication)
+
+**Service attachments:**
+- `web` → app-network, traefik-network
+- `api` → app-network, traefik-network
+- `db` → app-network (internal only)
+
+**Recommendations:**
+- Add `NETWORK_NAME` environment variable for flexibility
+- Ensure Traefik is on `traefik-network` for routing
+
+### 🔒 Traefik Exposure
+
+**Exposed services:**
+
+1. **API Service** (`api`)
+   - Router: `aperture-api`
+   - Port: 8080
+   - Domain variable: `API_DOMAIN`
+   - CrowdSec: Enabled
+
+2. **Web Service** (`web`)
+   - Router: `aperture-web`
+   - Port: 3000
+   - Domain variable: `WEB_DOMAIN`
+   - CrowdSec: Enabled
+
+**Required for exposure:**
+- `API_DOMAIN` - Domain for API service (e.g., api.example.com)
+- `WEB_DOMAIN` - Domain for web service (e.g., app.example.com)
+- `CROWDSEC_API_KEY` - CrowdSec bouncer key (shared)
+- `NETWORK_NAME` - Network for Traefik communication
+
+**Traefik configuration:**
+- TLS enabled with Let's Encrypt (certresolver: myresolver)
+- HTTP and HTTPS entrypoints
+- CrowdSec bouncer middleware for DDoS protection
 
 ### ⚠️  Issues Found
 

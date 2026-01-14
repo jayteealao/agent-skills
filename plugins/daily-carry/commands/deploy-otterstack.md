@@ -65,20 +65,37 @@ Invoke the prepare-otterstack-deployment skill on the current directory.
 
 The skill will:
 - Scan for environment variables in the compose file, Dockerfile, and application code
-- Check 5 critical OtterStack requirements:
+- Detect Docker networks and identify the default network
+- Detect Traefik-exposed services and required configuration
+- Check 6 critical OtterStack requirements:
   1. No hardcoded container names
   2. Uses environment: section (not env_file:)
   3. No static Traefik priority labels
   4. Health checks defined
   5. Docker Compose syntax validation
+  6. Network configuration (explicit or default)
 - Detect common failure patterns:
   1. Native module bindings (Node.js)
   2. Database path permissions
   3. Migration file paths
   4. IPv6/IPv4 health check conflicts
   5. Missing build context
+  6. Missing network definition
 
-After the skill completes, review the readiness report for blocking issues.
+After the skill completes:
+1. Review the readiness report for blocking issues
+2. Parse the "Networks Detected" section:
+   - Extract the default network name
+   - Store detected networks list
+   - Note services attached to each network
+3. Parse the "Traefik Exposure" section:
+   - Extract list of exposed services (if any)
+   - For each exposed service, note:
+     - Service name
+     - Router name
+     - Port number
+     - Required domain variable name (e.g., API_DOMAIN)
+   - Check if CROWDSEC_API_KEY is required
 ```
 
 Present the results to the user with an interactive prompt:
@@ -135,6 +152,52 @@ If "Local" was selected:
 - Set command prefix: SSH_PREFIX="" and OTTERSTACK_CMD="otterstack"
 ```
 
+**Traefik Exposure Configuration** (if exposed services detected in Phase 2):
+
+```markdown
+If the "Traefik Exposure" section from Phase 2 contains exposed services:
+
+For each exposed service:
+  Use AskUserQuestion to prompt:
+
+  Question: "What domain should the ${SERVICE_NAME} service use?"
+  Header: "Domain for ${SERVICE_NAME}"
+  Options: (text input)
+
+  Validate the input:
+  - Must be a valid domain format (e.g., api.example.com)
+  - Must not include protocol (http:// or https://)
+  - Must not be empty
+
+  Store domain in: ${SERVICE_NAME}_DOMAIN variable
+  Example: For "api" service, store in API_DOMAIN
+
+After collecting all domains, prompt for CrowdSec:
+
+Use AskUserQuestion to prompt:
+
+Question: "Enter your CrowdSec API key for the bouncer"
+Header: "Security"
+Options: (text input with password masking if possible)
+
+Note: "CrowdSec provides DDoS protection and bot blocking for your exposed services. Get your API key from CrowdSec dashboard → Bouncers → Add bouncer"
+
+Validate the input:
+- Must not be empty
+- Store in: CROWDSEC_API_KEY variable
+
+Display summary:
+```
+Traefik Configuration Summary:
+- Exposed services: ${EXPOSED_SERVICE_COUNT}
+${for each service}
+  - ${SERVICE_NAME}: ${DOMAIN}
+${end for}
+- CrowdSec protection: Enabled
+- TLS/HTTPS: Enabled (Let's Encrypt)
+```
+```
+
 ### Phase 4: Setup
 
 Configure the OtterStack project and environment variables:
@@ -174,6 +237,26 @@ Configure environment variables:
   - Run: `${SSH_PREFIX} ${OTTERSTACK_CMD} env scan ${PROJECT_NAME}`
   - This will interactively prompt for missing variables
 
+Add network configuration:
+- Set the NETWORK_NAME variable using the default network detected in Phase 2:
+  ```bash
+  ${SSH_PREFIX} ${OTTERSTACK_CMD} env set ${PROJECT_NAME} NETWORK_NAME="${DEFAULT_NETWORK}"
+  ```
+- Display: "Network configured: ${DEFAULT_NETWORK}"
+
+Add domain variables (if Traefik exposure was configured in Phase 3):
+- For each exposed service, set the domain variable collected in Phase 3:
+  ```bash
+  ${SSH_PREFIX} ${OTTERSTACK_CMD} env set ${PROJECT_NAME} API_DOMAIN="${API_DOMAIN}"
+  ${SSH_PREFIX} ${OTTERSTACK_CMD} env set ${PROJECT_NAME} WEB_DOMAIN="${WEB_DOMAIN}"
+  # ... repeat for each service
+  ```
+- Set the CrowdSec API key:
+  ```bash
+  ${SSH_PREFIX} ${OTTERSTACK_CMD} env set ${PROJECT_NAME} CROWDSEC_API_KEY="${CROWDSEC_API_KEY}"
+  ```
+- Display: "Traefik domains and security configured"
+
 List configured environment variables:
 ```bash
 ${SSH_PREFIX} ${OTTERSTACK_CMD} env list ${PROJECT_NAME}
@@ -191,6 +274,91 @@ Options:
 If "Edit variables first":
 - Display: "Use this command to edit variables: ${SSH_PREFIX} ${OTTERSTACK_CMD} env set ${PROJECT_NAME} KEY=VALUE"
 - Prompt: "Type 'ready' when done, or 'cancel' to abort."
+```
+
+### Phase 4.5: Traefik Label Preparation
+
+Generate and apply comprehensive Traefik labels for exposed services (only if services were marked for exposure in Phase 3):
+
+```markdown
+If Traefik exposure was configured in Phase 3:
+
+Display: "Preparing Traefik labels with CrowdSec security..."
+
+For each exposed service, generate labels using this template:
+```yaml
+labels:
+  - "traefik.enable=true"
+  # Routing
+  - "traefik.http.routers.{router-name}.rule=Host(\`\${SERVICE_DOMAIN}\`)"
+  - "traefik.http.routers.{router-name}.entrypoints=web,websecure"
+  # TLS with Let's Encrypt
+  - "traefik.http.routers.{router-name}.tls=true"
+  - "traefik.http.routers.{router-name}.tls.certresolver=myresolver"
+  # Load balancer
+  - "traefik.http.services.{router-name}.loadbalancer.server.port={PORT}"
+  # CrowdSec middleware for DDoS protection
+  - "traefik.http.routers.{router-name}.middlewares=crowdsec-{router-name}@docker"
+  - "traefik.http.middlewares.crowdsec-{router-name}.plugin.crowdsec-bouncer.enabled=true"
+  - "traefik.http.middlewares.crowdsec-{router-name}.plugin.crowdsec-bouncer.crowdseclapikey=\${CROWDSEC_API_KEY}"
+```
+
+Replace {router-name}, {SERVICE_DOMAIN}, and {PORT} with actual values from Phase 2 and Phase 3.
+
+Example for API service:
+```yaml
+labels:
+  - "traefik.enable=true"
+  - "traefik.http.routers.aperture-api.rule=Host(\`\${API_DOMAIN}\`)"
+  - "traefik.http.routers.aperture-api.entrypoints=web,websecure"
+  - "traefik.http.routers.aperture-api.tls=true"
+  - "traefik.http.routers.aperture-api.tls.certresolver=myresolver"
+  - "traefik.http.services.aperture-api.loadbalancer.server.port=8080"
+  - "traefik.http.routers.aperture-api.middlewares=crowdsec-aperture-api@docker"
+  - "traefik.http.middlewares.crowdsec-aperture-api.plugin.crowdsec-bouncer.enabled=true"
+  - "traefik.http.middlewares.crowdsec-aperture-api.plugin.crowdsec-bouncer.crowdseclapikey=\${CROWDSEC_API_KEY}"
+```
+
+Display the generated labels to the user:
+```
+Generated Traefik Labels:
+========================
+
+Service: api
+Router: aperture-api
+Domain: ${API_DOMAIN}
+Port: 8080
+Security: CrowdSec enabled
+
+[Show complete label configuration above]
+```
+
+Use AskUserQuestion to confirm:
+
+Question: "Review the generated Traefik labels. These will be applied to your docker-compose.yml. Proceed?"
+Header: "Labels"
+Options:
+  1. "Apply labels (Recommended)" - Update compose file with generated labels
+  2. "Show full configuration" - Display complete docker-compose.yml section
+  3. "Skip (use existing)" - Continue with existing labels in compose file
+  4. "Cancel deployment" - Abort
+
+If "Apply labels" selected:
+  - Use the Edit tool to update docker-compose.yml
+  - Add the generated labels to each exposed service's labels section
+  - Preserve existing labels that don't conflict
+  - Ensure service has `networks: - ${NETWORK_NAME}` configuration
+  - Display: "Updated docker-compose.yml with Traefik labels"
+
+If "Show full configuration" selected:
+  - Display the complete service section from docker-compose.yml with new labels
+  - Ask again: "Apply these labels?"
+
+If "Skip" selected:
+  - Display warning: "Using existing labels. Ensure they include CrowdSec middleware and correct domain variables."
+  - Continue to deployment
+
+Note: The updated docker-compose.yml will be committed after successful deployment in Phase 7.
 ```
 
 ### Phase 5: Deployment
