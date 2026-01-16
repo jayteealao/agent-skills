@@ -4,6 +4,33 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.4.0 - 2026-01-16
+
+### Added
+- **session-workflow v1.1.0**: Added 5 autonomous research agents for intelligent planning
+- **session-workflow**: Codebase Mapper agent - Deep codebase analysis for similar features and patterns
+- **session-workflow**: Web Research agent - Industry best practices and security patterns from web sources
+- **session-workflow**: Design Options Generator - Synthesizes codebase + industry patterns into design alternatives
+- **session-workflow**: Risk Analyzer - Systematic risk identification with likelihood × impact scoring
+- **session-workflow**: Edge Case Generator - Comprehensive edge cases across 10 categories with OWASP patterns
+
+### Changed
+- **spec-crystallize**: Enhanced research phase to spawn Codebase Mapper + Web Research agents automatically
+- **spec-crystallize**: Enhanced edge case generation to spawn Edge Case Generator agent automatically
+- **spec-crystallize**: Updated output template with embedded research summaries and links to full reports
+- **research-plan**: Enhanced research phase to spawn Codebase Mapper + Web Research agents in parallel
+- **research-plan**: Enhanced design options phase to spawn Design Options Generator agent
+- **research-plan**: Enhanced risk analysis phase to spawn Risk Analyzer agent
+- **research-plan**: Updated output template with embedded research summaries from all agents
+
+### Technical Details
+- Research agents spawn automatically during command workflows
+- Full research reports saved to `.claude/<SESSION_SLUG>/research/` directory
+- Main spec/plan documents include embedded summaries with links to full reports
+- Agent composition: Design Options, Risk Analyzer, Edge Case Generator call Codebase Mapper + Web Research
+- Graceful degradation: Commands continue if agents fail or time out
+- Parallel execution: Codebase Mapper + Web Research run in parallel for efficiency
+
 ## Version 1.3.0 - 2026-01-16
 
 ### Added

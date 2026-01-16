@@ -1,7 +1,7 @@
 {
   "name": "session-workflow",
-  "version": "1.0.0",
-  "description": "Comprehensive software engineering workflows: 43 commands covering code review, operational excellence, observability, and incident response",
+  "version": "1.1.0",
+  "description": "Comprehensive software engineering workflows with autonomous research agents: 43 commands, 5 research agents covering code review, operational excellence, observability, and incident response",
   "author": "Claude Code Community",
   "license": "MIT",
   "repository": {
@@ -151,6 +151,33 @@
       "category": "observability"
     }
   },
+  "agents": {
+    "codebase-mapper": {
+      "description": "Deep codebase analysis to find similar features, patterns, and integration points",
+      "agent_type": "Explore",
+      "category": "research"
+    },
+    "web-research": {
+      "description": "Research industry best practices, security patterns, and design approaches from web sources",
+      "agent_type": "general-purpose",
+      "category": "research"
+    },
+    "design-options": {
+      "description": "Generate design approaches with trade-off analysis by synthesizing codebase and industry patterns",
+      "agent_type": "general-purpose",
+      "category": "research"
+    },
+    "risk-analyzer": {
+      "description": "Systematically identify risks with mitigations, detection methods, and prioritization",
+      "agent_type": "general-purpose",
+      "category": "research"
+    },
+    "edge-case-generator": {
+      "description": "Generate comprehensive edge cases across 10 categories with security patterns",
+      "agent_type": "general-purpose",
+      "category": "research"
+    }
+  },
   "categories": {
     "code-review": {
       "name": "Code Review",
@@ -181,6 +208,11 @@
       "name": "Setup",
       "description": "Initial setup commands for observability infrastructure",
       "count": 1
+    },
+    "research": {
+      "name": "Research",
+      "description": "Autonomous research agents for codebase analysis, industry patterns, design options, risk analysis, and edge cases",
+      "count": 5
     }
   },
   "technologies": [
@@ -214,9 +246,11 @@
   "statistics": {
     "total_commands": 43,
     "total_skills": 1,
+    "total_agents": 5,
     "total_lines": 81300,
     "code_review_commands": 30,
     "operational_commands": 10,
-    "workflow_commands": 3
+    "workflow_commands": 3,
+    "research_agents": 5
   }
 }

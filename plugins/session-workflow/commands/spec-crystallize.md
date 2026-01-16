@@ -95,31 +95,89 @@ From INPUTS and session context, infer:
    - `mixed`: Balanced (default)
    - Infer from STAKEHOLDERS or default to `mixed`
 
-## Step 3: Research the codebase (lightweight)
+## Step 3: Research Phase (Enhanced with Subagents)
 
-Use Glob, Grep, and Read tools to:
+### Step 3a: Create research directory
 
+Create `.claude/<SESSION_SLUG>/research/` directory if it doesn't exist.
+
+### Step 3b: Spawn Codebase Mapper Agent
+
+Spawn the codebase-mapper agent to systematically research the codebase:
+
+```
+Task: Spawn codebase-mapper agent
+
+Input parameters:
+- feature_description: {Extracted from INPUTS}
+- component_type: {Inferred from INPUTS - API, UI, data model, worker, etc.}
+- scope: {SCOPE value}
+- target: {TARGET value}
+- constraints: {CONSTRAINTS if provided}
+- frameworks: {Inferred from codebase or session context}
+- session_slug: {SESSION_SLUG}
+
+Expected output: `.claude/<SESSION_SLUG>/research/codebase-mapper.md`
+```
+
+The Codebase Mapper will:
+1. Find 2-3 similar features in the codebase
+2. Document naming conventions and architectural patterns
+3. Map integration points (auth, database, APIs, events)
+4. Identify error handling patterns with existing error codes
+5. Find risk hotspots (auth, money, PII, public APIs)
+6. Provide recommendations for aligning with existing patterns
+
+### Step 3c: Spawn Web Research Agent (Optional)
+
+If the feature involves:
+- Security patterns (auth, encryption, rate limiting)
+- Industry standards (OAuth, SAML, REST best practices)
+- Performance optimization (caching, scaling)
+- External integrations (payment gateways, third-party APIs)
+
+Then spawn the web-research agent:
+
+```
+Task: Spawn web-research agent
+
+Input parameters:
+- research_topics: {Extract from feature description - e.g., "API rate limiting patterns", "OAuth 2.0 best practices"}
+- context: {Feature description}
+- focus_areas: {e.g., security, performance, scalability}
+- tech_stack: {Frameworks from session or codebase}
+- depth: quick (5 min for spec-crystallize)
+- session_slug: {SESSION_SLUG}
+
+Expected output: `.claude/<SESSION_SLUG>/research/web-research.md`
+```
+
+The Web Research agent will:
+1. Find industry best practices and recommendations
+2. Identify OWASP security patterns (if applicable)
+3. Discover known vulnerabilities or common pitfalls
+4. Provide comparison of approaches with pros/cons
+5. Link to authoritative sources and documentation
+
+### Step 3d: Wait for agents and read results
+
+Wait for agents to complete (or continue if they fail gracefully).
+
+Read research outputs:
+- `.claude/<SESSION_SLUG>/research/codebase-mapper.md` - Extract key findings
+- `.claude/<SESSION_SLUG>/research/web-research.md` (if created) - Extract key recommendations
+
+**Fallback:** If agents fail or time out, continue with basic Glob/Grep/Read research:
 1. **Find similar flows/components**
    - Search for related features, similar user flows, or comparable UI components
    - Identify naming conventions and patterns to align with
 
 2. **Identify impacted surfaces**
-   - UI components that need changes
-   - API endpoints that need creation/modification
-   - Data models affected
-   - Background jobs or workers
-   - Configuration files
-   - Permission/authorization logic
+   - UI components, API endpoints, data models, background jobs, config, permissions
 
 3. **Document findings**
    - Note relevant file paths and line numbers
    - Capture existing terminology and patterns
-   - Identify potential integration points
-
-**Important:** Keep research lightweight (5-10 minutes max). Focus on:
-- Finding 2-3 similar examples to align with
-- Understanding the surface area of changes
-- Identifying obvious blockers or dependencies
 
 ## Step 4: Analyze inputs and extract requirements
 
@@ -131,6 +189,37 @@ Parse INPUTS to identify:
 - Non-functional requirements
 - Edge cases mentioned
 - Acceptance criteria hints
+
+## Step 4.5: Spawn Edge Case Generator Agent
+
+After analyzing inputs and before generating the final spec, spawn the edge-case-generator agent:
+
+```
+Task: Spawn edge-case-generator agent
+
+Input parameters:
+- requirements: {Extracted functional and non-functional requirements}
+- data_model: {Entities, fields, relationships inferred from requirements and research}
+- api_contracts: {API endpoints and schemas from requirements}
+- session_slug: {SESSION_SLUG}
+- existing_errors: {From codebase-mapper.md if available}
+- security_context: {From web-research.md if available}
+
+Expected output: `.claude/<SESSION_SLUG>/research/edge-cases.md`
+```
+
+The Edge Case Generator will:
+1. Generate edge cases across 10 categories (empty/null, boundaries, invalid formats, race conditions, security, state transitions, resource limits, network failures, data inconsistency, localization)
+2. Apply OWASP security patterns (SQL injection, XSS, CSRF)
+3. Align with existing error codes from codebase-mapper
+4. Define expected behavior for each edge case
+5. Provide test case templates
+6. Prioritize by risk (P0-P3)
+
+Wait for agent to complete, then read `.claude/<SESSION_SLUG>/research/edge-cases.md` to extract:
+- Top 10-15 edge cases for Section 5 of spec
+- Error codes and HTTP status codes for error handling table
+- Security edge cases for NFRs
 
 ## Step 5: Generate the spec
 
@@ -377,29 +466,74 @@ Keep this list to prevent scope creep during implementation:
 - Risk 1: {Description} - Mitigation: {How to reduce}
 - Risk 2: {Description} - Mitigation: {How to reduce}
 
-## 10) Codebase Research Notes
+## 10) Research Summary
 
-Based on lightweight codebase exploration:
+### Codebase Analysis (from codebase-mapper agent)
 
-**Similar existing features:**
-- {Feature/Component}: {File path} - {How it's similar, patterns to reuse}
-- {Feature/Component}: {File path} - {How it's similar, patterns to reuse}
+**Similar Features Found**:
+- {Feature 1}: {Pattern summary} (`{file_path}:{line}`)
+- {Feature 2}: {Pattern summary} (`{file_path}:{line}`)
+- {Feature 3}: {Pattern summary} (`{file_path}:{line}`)
 
-**Impacted files (preliminary):**
-- UI: {List of component files that will need changes}
-- API: {List of endpoint/controller files that will need changes}
-- Data: {List of model/migration files that will need changes}
-- Jobs: {List of job/worker files that will need changes}
-- Config: {List of config files that will need changes}
-- Tests: {List of test files that will need creation/updates}
+**Key Patterns**:
+- **Naming**: {Convention description with examples}
+- **Architecture**: {Layer structure and organization}
+- **Error Handling**: {Error pattern with codes}
+- **Integration**: {How features integrate with auth, DB, APIs}
 
-**Naming conventions observed:**
-- Pattern 1: {Description}
-- Pattern 2: {Description}
+**Risk Hotspots Identified**:
+- {Hotspot 1}: {Description of risk area}
+- {Hotspot 2}: {Description of risk area}
 
-**Integration points:**
-- {Service/Module}: Will need to integrate at {location}
-- {Service/Module}: Potential conflict with {what}
+**Impacted Files (Preliminary)**:
+- UI: {Component files}
+- API: {Endpoint/controller files}
+- Data: {Model/migration files}
+- Jobs: {Job/worker files}
+- Config: {Config files}
+- Tests: {Test files}
+
+[Full codebase analysis: research/codebase-mapper.md](../research/codebase-mapper.md)
+
+### Industry Best Practices (from web-research agent)
+
+{Include this section only if web-research agent was spawned}
+
+**Key Recommendations**:
+- {Recommendation 1}: {Summary} - Source: [{source}]({URL})
+- {Recommendation 2}: {Summary} - Source: [{source}]({URL})
+- {Recommendation 3}: {Summary} - Source: [{source}]({URL})
+
+**Security Considerations**:
+- {Security finding 1} (OWASP)
+- {Security finding 2}
+
+**Performance Insights**:
+- {Performance finding 1} (benchmark: {numbers})
+- {Performance finding 2}
+
+[Full web research: research/web-research.md](../research/web-research.md)
+
+### Edge Cases (from edge-case-generator agent)
+
+**Critical Edge Cases (P0/P1)**:
+- {Edge case 1}: {Expected behavior} - Error: `{ERROR_CODE}` (HTTP {status})
+- {Edge case 2}: {Expected behavior} - Error: `{ERROR_CODE}` (HTTP {status})
+- {Edge case 3}: {Expected behavior} - Error: `{ERROR_CODE}` (HTTP {status})
+- {Edge case 4}: {Expected behavior} - Error: `{ERROR_CODE}` (HTTP {status})
+- {Edge case 5}: {Expected behavior} - Error: `{ERROR_CODE}` (HTTP {status})
+
+**Security Edge Cases (P0)**:
+- SQL Injection: {Mitigation approach}
+- XSS: {Mitigation approach}
+- CSRF: {Mitigation approach}
+
+**Test Coverage Needed**:
+- Unit tests: {count} edge cases (P0, P1)
+- Integration tests: {count} edge cases
+- Security tests: {count} edge cases
+
+[Full edge case catalog: research/edge-cases.md](../research/edge-cases.md)
 
 ---
 

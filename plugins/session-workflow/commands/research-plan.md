@@ -147,44 +147,103 @@ From INPUTS, session context, milestone scope (if applicable), and any existing 
    - Default to `yes`
    - If `no`, the plan must be fully concrete with no unknowns
 
-## Step 3: RESEARCH PHASE (do this before proposing solutions)
+## Step 4: RESEARCH PHASE (Enhanced with Subagents)
 
-**CRITICAL**: Spend significant time researching the codebase before planning. This is not optional.
+**CRITICAL**: Comprehensive research before planning is not optional.
 
-Use Glob, Grep, and Read tools extensively to:
+### Step 4a: Create research directory
 
-### 3.1: Identify impacted components
-- **Entrypoints**: API handlers, jobs, UI routes, CLIs
-- **Data stores**: Tables, collections, queues, schemas
-- **Integrations**: Third-party APIs, external services
+Create `.claude/<SESSION_SLUG>/research/` directory if it doesn't exist.
 
-### 3.2: Map dependencies
+### Step 4b: Spawn Codebase Mapper + Web Research Agents IN PARALLEL
+
+**IMPORTANT**: Run these agents in parallel for efficiency.
+
+**Codebase Mapper Agent**:
+```
+Task: Spawn codebase-mapper agent
+
+Input parameters:
+- feature_description: {Extracted from INPUTS or spec}
+- component_type: {Inferred from WORK_TYPE and INPUTS}
+- scope: {SCOPE value}
+- target: {TARGET value}
+- constraints: {CONSTRAINTS if provided}
+- frameworks: {Inferred from codebase or session context}
+- session_slug: {SESSION_SLUG}
+
+Expected output: `.claude/<SESSION_SLUG>/research/codebase-mapper.md`
+```
+
+**Web Research Agent**:
+```
+Task: Spawn web-research agent
+
+Input parameters:
+- research_topics: {Extract from feature description, WORK_TYPE, and technical context}
+  Examples:
+  - For new_feature: "Best practices for {feature_type}", "Security patterns for {use_case}"
+  - For error_report: "Known issues with {technology}", "Common causes of {error_type}"
+  - For refactor: "Refactoring patterns for {code_smell}", "Safe refactoring techniques"
+  - For incident: "Recovery strategies for {failure_mode}", "Incident response best practices"
+- context: {Feature description and goals}
+- focus_areas: {Inferred from WORK_TYPE and RISK_TOLERANCE}
+  - new_feature → security, performance, scalability
+  - error_report → known bugs, CVEs, debugging techniques
+  - refactor → safe refactoring, testing strategies
+  - incident → mitigation, recovery, prevention
+- tech_stack: {Frameworks from session or codebase}
+- depth: medium (7 min for research-plan)
+- session_slug: {SESSION_SLUG}
+
+Expected output: `.claude/<SESSION_SLUG>/research/web-research.md`
+```
+
+### Step 4c: Wait for agents and read results
+
+Wait for both agents to complete (or continue if they fail gracefully).
+
+Read research outputs:
+- `.claude/<SESSION_SLUG>/research/codebase-mapper.md` - Extract:
+  - Similar features and patterns (for Section 2 of plan)
+  - Naming conventions and architectural patterns
+  - Integration points and dependencies
+  - Error handling patterns
+  - Risk hotspots
+
+- `.claude/<SESSION_SLUG>/research/web-research.md` - Extract:
+  - Industry best practices (for Section 2 of plan)
+  - Security considerations
+  - Performance insights
+  - Technology comparisons
+  - Case studies
+
+### Step 4d: Fallback research (if agents fail)
+
+If agents fail or time out, do manual research using Glob, Grep, and Read:
+
+**4d.1: Identify impacted components**
+- Entrypoints: API handlers, jobs, UI routes, CLIs
+- Data stores: Tables, collections, queues, schemas
+- Integrations: Third-party APIs, external services
+
+**4d.2: Map dependencies**
 - What calls what (high level call graph)
 - What invariants must hold (contracts, assumptions)
 - Critical paths (auth, payments, data integrity)
 
-### 3.3: Identify "existing way of doing this here"
-- **Naming patterns**: How similar features/modules are named
-- **Error handling**: Pattern for errors, logging, retries
-- **Config style**: How configuration is managed
-- **Abstractions**: What base classes, interfaces, utilities exist
-- **Test style**: How tests are structured and named
+**4d.3: Identify "existing way of doing this here"**
+- Naming patterns, error handling, config style, abstractions, test style
 
-### 3.4: Identify risk hotspots
-- **Auth/money/PII**: Sensitive code paths
-- **Concurrency**: Async boundaries, race conditions
-- **Migrations**: Schema changes, data migrations, backward compatibility
-- **Public APIs**: Changes that affect external consumers
+**4d.4: Identify risk hotspots**
+- Auth/money/PII, concurrency, migrations, public APIs
 
-### 3.5: Find similar examples (critical)
-Search for 2-3 existing features/modules that are most similar to what you're building/fixing:
-- Note file paths and structure
-- Identify patterns to replicate
-- Understand why they're structured that way
+**4d.5: Find similar examples**
+- 2-3 existing features/modules most similar to what you're building/fixing
 
-**Research output**: Document all findings with file paths and line numbers. This forms the "Current System Snapshot" section.
+**Research output**: Document all findings with file paths and line numbers for "Current System Snapshot" section.
 
-## Step 4: Choose and apply WORK_TYPE playbook
+## Step 5: Choose and apply WORK_TYPE playbook
 
 Based on WORK_TYPE, follow the appropriate playbook analysis:
 
@@ -258,9 +317,49 @@ Required analysis (similar to ERROR_REPORT but with urgency focus):
 - **Permanent fix**: What needs to change long-term
 - **Prevention**: What failed in detection/prevention
 
-## Step 5: Generate options (2-3)
+## Step 6: Generate options (Enhanced with Design Options Agent)
 
-Present 2-3 implementation approaches with different trade-offs:
+### Step 6a: Spawn Design Options Generator Agent
+
+Spawn the design-options agent to systematically generate and compare design approaches:
+
+```
+Task: Spawn design-options agent
+
+Input parameters:
+- requirements: {Feature description and goals from INPUTS/spec}
+- constraints: {CONSTRAINTS from Step 3}
+- risk_tolerance: {RISK_TOLERANCE from Step 3}
+- session_slug: {SESSION_SLUG}
+- existing_patterns: {Summarize key findings from codebase-mapper.md}
+- best_practices: {Summarize key findings from web-research.md}
+
+Expected output: `.claude/<SESSION_SLUG>/research/design-options.md`
+```
+
+The Design Options Generator will:
+1. Call codebase-mapper agent (if not already run) to get existing patterns
+2. Call web-research agent (if not already run) to get industry approaches
+3. Generate 2-3 distinct design options (minimal, balanced, robust)
+4. Evaluate using decision matrix (complexity, risk, maintenance, scalability, cost)
+5. Provide clear recommendation with rationale
+6. Document what's NOT being done and why
+
+### Step 6b: Wait for agent and read results
+
+Wait for design-options agent to complete.
+
+Read `.claude/<SESSION_SLUG>/research/design-options.md` to extract:
+- 2-3 design options with trade-off analysis
+- Decision matrix comparison
+- Recommended approach with rationale
+- What's NOT being done
+
+Use these findings for Section 3 "Options Considered" of the plan.
+
+### Step 6c: Fallback (if agent fails)
+
+If design-options agent fails, manually generate 2-3 implementation approaches:
 - Option 1: Minimal/simple approach
 - Option 2: Balanced approach
 - Option 3: Robust/comprehensive approach (if relevant)
@@ -271,7 +370,7 @@ For each option:
 - Risk level (low/medium/high)
 - When to choose it
 
-## Step 6: Recommend one approach
+## Step 7: Recommend one approach
 
 Pick the best option based on:
 - RISK_TOLERANCE
@@ -281,7 +380,7 @@ Pick the best option based on:
 
 Provide clear rationale and explicitly state what you're NOT doing (to avoid overengineering).
 
-## Step 7: Create step-by-step implementation plan
+## Step 8: Create step-by-step implementation plan
 
 Break down into small, verifiable checkpoints. For each step:
 - **Goal**: What this step achieves
@@ -295,7 +394,7 @@ Steps should be:
 - Independently testable
 - Revertible if needed
 
-## Step 8: Define comprehensive test plan
+## Step 9: Define comprehensive test plan
 
 Specify tests across all layers:
 - **Unit tests**: Which functions/classes need unit tests
@@ -304,7 +403,7 @@ Specify tests across all layers:
 - **Regression tests**: For bug fixes or refactors
 - **Non-functional tests**: Performance, security, load tests if relevant
 
-## Step 9: Define observability & operability
+## Step 10: Define observability & operability
 
 - **Logs**: What to add/change (include redaction notes for PII)
 - **Metrics**: What to track (ensure bounded cardinality)
@@ -312,23 +411,64 @@ Specify tests across all layers:
 - **Alerts**: Only if justified (avoid alert fatigue)
 - **Health checks**: For new services/critical paths
 
-## Step 10: Define rollout & rollback
+## Step 11: Define rollout & rollback
 
 - **Rollout strategy**: Feature flags, canary, gradual rollout
 - **Backward compatibility**: What old clients/services need to keep working
 - **Rollback steps**: How to revert if things go wrong
 - **Data migration**: If schema/data changes, how to migrate safely
 
-## Step 11: Create risk register
+## Step 12: Create risk register (Enhanced with Risk Analyzer Agent)
 
-Identify top 3-7 risks:
+### Step 12a: Spawn Risk Analyzer Agent
+
+Spawn the risk-analyzer agent to systematically identify and assess risks:
+
+```
+Task: Spawn risk-analyzer agent
+
+Input parameters:
+- approach: {Chosen design approach from Step 7}
+- implementation_plan: {Step-by-step plan from Step 8}
+- constraints: {CONSTRAINTS from Step 3}
+- risk_tolerance: {RISK_TOLERANCE from Step 3}
+- session_slug: {SESSION_SLUG}
+- integration_points: {From codebase-mapper.md}
+- security_context: {From web-research.md}
+
+Expected output: `.claude/<SESSION_SLUG>/research/risk-analysis.md`
+```
+
+The Risk Analyzer will:
+1. Identify risks across 8 categories (data integrity, auth, performance, ops, security, privacy, availability, dependencies)
+2. Assess likelihood (1-5) and impact (1-5) for each risk
+3. Calculate risk scores (likelihood × impact)
+4. Propose concrete mitigations (preventive, detective, corrective)
+5. Define detection methods (metrics, alerts, logs, tests)
+6. Prioritize by risk score (P0-P3)
+
+### Step 12b: Wait for agent and read results
+
+Wait for risk-analyzer agent to complete.
+
+Read `.claude/<SESSION_SLUG>/research/risk-analysis.md` to extract:
+- Top 3-5 highest priority risks (risk score ≥ 12)
+- Concrete mitigations for each risk
+- Detection methods (alerts, metrics, tests)
+- Residual risks after mitigation
+
+Use these findings for Section 9 "Risk Register" of the plan.
+
+### Step 12c: Fallback (if agent fails)
+
+If risk-analyzer agent fails, manually identify top 3-7 risks:
 - **Risk description**
 - **Likelihood**: low/medium/high
 - **Impact**: low/medium/high
 - **Mitigation**: How to reduce risk
 - **Detection**: How to detect if risk materializes
 
-## Step 12: Generate the research plan document
+## Step 13: Generate the research plan document
 
 Create plan file with milestone-aware naming:
 - If MILESTONE is `mvp`: `.claude/<SESSION_SLUG>/plan/research-plan-mvp.md`
@@ -339,7 +479,7 @@ Create plan file with milestone-aware naming:
 
 Include full structure (see OUTPUT FORMAT below) with milestone clearly marked in frontmatter and title.
 
-## Step 13: Update session README
+## Step 14: Update session README
 
 Update `.claude/<SESSION_SLUG>/README.md`:
 1. Find the artifacts section
@@ -349,7 +489,7 @@ Update `.claude/<SESSION_SLUG>/README.md`:
    - {YYYY-MM-DD}: Created research plan via `/research-plan`
    ```
 
-## Step 14: Output summary
+## Step 15: Output summary
 
 Print a summary with key findings and next steps.
 
@@ -440,97 +580,140 @@ Example:
 
 ## 2) Current System Snapshot (From Research)
 
-### Relevant Modules/Files
+### Codebase Analysis (from codebase-mapper agent)
 
-{List key files with brief descriptions}
+**Similar Features Found:**
+- {Feature 1}: {Pattern summary} (`{file_path}:{line}`)
+- {Feature 2}: {Pattern summary} (`{file_path}:{line}`)
+- {Feature 3}: {Pattern summary} (`{file_path}:{line}`)
 
-Example:
-- `src/routes/upload.ts:1-200` - Existing file upload handler (images only currently)
-- `src/lib/csv-parser.ts:1-150` - CSV parsing utility (used in exports)
-- `src/models/Customer.ts:1-80` - Customer data model
-- `src/jobs/ProcessImportJob.ts:1-120` - Background job infrastructure
+**Key Patterns:**
+- **Naming**: {Convention description with examples}
+- **Architecture**: {Layer structure and organization}
+- **Error Handling**: {Error pattern with existing codes}
+- **Integration**: {How features integrate with auth, DB, APIs, events}
 
-### Existing Patterns to Follow
+**Risk Hotspots Identified:**
+- {Hotspot 1}: {Description of risk area}
+- {Hotspot 2}: {Description of risk area}
 
-{Document naming, error handling, config, abstraction patterns found}
+**Relevant Modules/Files:**
+- `{file_path}` - {Description and relevance}
+- `{file_path}` - {Description and relevance}
+- `{file_path}` - {Description and relevance}
 
-Example:
-- **Naming**: Upload routes follow pattern `/api/{resource}/upload`
-- **Error handling**: Controllers use `ApiError` class with status codes (see `src/lib/errors.ts`)
-- **Async jobs**: Background processing uses BullMQ (see `src/jobs/` directory)
-- **Testing**: Integration tests in `tests/integration/{feature}.test.ts`
+[Full codebase analysis: research/codebase-mapper.md](../research/codebase-mapper.md)
+
+### Industry Best Practices (from web-research agent)
+
+**Key Recommendations:**
+- {Recommendation 1}: {Summary} - Source: [{source}]({URL})
+- {Recommendation 2}: {Summary} - Source: [{source}]({URL})
+- {Recommendation 3}: {Summary} - Source: [{source}]({URL})
+
+**Security Considerations:**
+- {Security finding 1} (OWASP)
+- {Security finding 2}
+
+**Performance Insights:**
+- {Performance finding 1} (benchmark: {numbers})
+- {Performance finding 2}
+
+**Technology Comparisons:**
+- {Technology A vs B}: {Key trade-offs}
+
+[Full web research: research/web-research.md](../research/web-research.md)
 
 ### Key Invariants and Contracts
 
-{List critical assumptions, contracts, constraints}
+{List critical assumptions, contracts, constraints from research}
 
 Example:
-- Customer email must be unique (enforced at DB level, `customers` table unique constraint)
-- All uploads require authentication (middleware in `src/middleware/auth.ts`)
-- File uploads max 50MB (configured in `src/config/upload.ts`)
+- Customer email must be unique (enforced at DB level)
+- All uploads require authentication
+- File uploads max 50MB
 
 ### Dependencies & Touchpoints
 
-{Map what calls what, what integrates with what}
+{Map what calls what, what integrates with what - from codebase-mapper}
 
 Example:
 - Upload system depends on: S3 storage, Redis queue, PostgreSQL
 - Customers model touched by: API routes, admin panel, reports system
-- Changes will affect: API docs (auto-generated), client SDK
-
-### Risk Hotspots
-
-{Identify sensitive areas}
-
-Example:
-- **PII**: Customer data includes email, name, phone - need redaction in logs
-- **Data integrity**: Duplicate detection critical - could create billing issues
-- **Concurrency**: Multiple uploads of same file could race - need idempotency
-- **Public API**: `/api/customers/upload` is used by mobile app - need versioning
+- Changes will affect: API docs, client SDK
 
 ---
 
-## 3) Options Considered
+## 3) Options Considered (from design-options agent)
 
-### Option 1: {Name - e.g., "Synchronous Processing"}
-
-**Summary:**
-{2-3 sentences}
-
-**Pros:**
-- {Benefit 1}
-- {Benefit 2}
-
-**Cons:**
-- {Downside 1}
-- {Downside 2}
-
-**Risk Level:** {low/medium/high}
-
-**When to Choose:**
-{Conditions under which this option is best}
-
-### Option 2: {Name - e.g., "Async Job Processing"}
+### Option 1: {Name} ⭐ RECOMMENDED (if recommended)
 
 **Summary:**
 {2-3 sentences}
 
 **Pros:**
-- {Benefit 1}
-- {Benefit 2}
+- ✅ {Benefit 1}
+- ✅ {Benefit 2}
+- ✅ {Benefit 3}
 
 **Cons:**
-- {Downside 1}
-- {Downside 2}
+- ❌ {Downside 1}
+- ❌ {Downside 2}
 
-**Risk Level:** {low/medium/high}
+**Trade-offs:**
+- **Complexity**: {Low/Medium/High} - {Details}
+- **Risk**: {Low/Medium/High} - {Details}
+- **Maintenance**: {Low/Medium/High} - {Details}
+- **Scalability**: {Low/Medium/High} - {Details}
+- **Cost**: {Low/Medium/High} - {Details}
+
+**Codebase Fit**: {Score 1-5}/5 - {Why}
+**Best Practice Fit**: {Score 1-5}/5 - {Why}
 
 **When to Choose:**
 {Conditions under which this option is best}
 
-### Option 3: {Name - e.g., "Streaming + Chunked Processing"} (if applicable)
+### Option 2: {Name}
+
+**Summary:**
+{2-3 sentences}
+
+**Pros:**
+- ✅ {Benefit 1}
+- ✅ {Benefit 2}
+
+**Cons:**
+- ❌ {Downside 1}
+- ❌ {Downside 2}
+
+**Trade-offs:**
+- **Complexity**: {Low/Medium/High} - {Details}
+- **Risk**: {Low/Medium/High} - {Details}
+- **Maintenance**: {Low/Medium/High} - {Details}
+
+**Codebase Fit**: {Score 1-5}/5 - {Why}
+**Best Practice Fit**: {Score 1-5}/5 - {Why}
+
+**When to Choose:**
+{Conditions under which this option is best}
+
+### Option 3: {Name} (if applicable)
 
 {Repeat structure}
+
+### Decision Matrix
+
+| Criterion | Option 1 | Option 2 | Option 3 |
+|-----------|----------|----------|----------|
+| Complexity | {rating} | {rating} | {rating} |
+| Risk | {rating} | {rating} | {rating} |
+| Maintenance | {rating} | {rating} | {rating} |
+| Scalability | {rating} | {rating} | {rating} |
+| Cost | {rating} | {rating} | {rating} |
+| Codebase Fit | {score}/5 | {score}/5 | {score}/5 |
+| Best Practice Fit | {score}/5 | {score}/5 | {score}/5 |
+
+[Full design options analysis: research/design-options.md](../research/design-options.md)
 
 ---
 
@@ -747,16 +930,53 @@ logger.info('customer_csv_parsed', {
 
 ---
 
-## 9) Risk Register
+## 9) Risk Register (from risk-analyzer agent)
 
-| Risk | Likelihood | Impact | Mitigation | Detection |
-|------|------------|--------|------------|-----------|
-| Duplicate detection fails, creates duplicate customers | Medium | High | Thorough testing with realistic data; add DB constraint as backup | Monitor `duplicates_found` metric, check customer complaints |
-| Large CSV files cause memory issues | Low | High | Stream processing, limit file size to 50MB, async jobs | Monitor memory usage, P95 duration metric |
-| CSV injection attack (formula injection) | Low | Medium | Sanitize cell values, escape formulas | Security testing, alert on suspicious patterns |
-| Race condition on concurrent uploads | Medium | Medium | Add upload locking by user, idempotency keys | Integration tests with concurrent requests |
-| Data loss if job fails mid-processing | Low | High | Transactional batch inserts, job retry logic | Monitor job failure rate, manual data validation |
-| Performance degradation under load | Medium | Medium | Async processing, rate limiting, load testing | P95 duration alerts, queue depth monitoring |
+### Top Risks (Risk Score ≥ 12)
+
+| # | Risk | Likelihood | Impact | Risk Score | Mitigation | Detection |
+|---|------|------------|--------|------------|------------|-----------|
+| 1 | {Risk 1 title} | {1-5} ({rating}) | {1-5} ({rating}) | **{score}** | {Mitigation summary} | {Detection method} |
+| 2 | {Risk 2 title} | {1-5} ({rating}) | {1-5} ({rating}) | **{score}** | {Mitigation summary} | {Detection method} |
+| 3 | {Risk 3 title} | {1-5} ({rating}) | {1-5} ({rating}) | **{score}** | {Mitigation summary} | {Detection method} |
+| 4 | {Risk 4 title} | {1-5} ({rating}) | {1-5} ({rating}) | **{score}** | {Mitigation summary} | {Detection method} |
+| 5 | {Risk 5 title} | {1-5} ({rating}) | {1-5} ({rating}) | **{score}** | {Mitigation summary} | {Detection method} |
+
+**Legend**:
+- Likelihood: 1=Very Unlikely, 2=Unlikely, 3=Possible, 4=Likely, 5=Very Likely
+- Impact: 1=Minimal, 2=Low, 3=Moderate, 4=High, 5=Critical
+- Risk Score = Likelihood × Impact (1-25)
+
+### Risk Mitigation Roadmap
+
+**Pre-Launch (P0 - Risk Score 20-25)**:
+- [ ] {Mitigation 1 for highest risk}
+- [ ] {Mitigation 2 for highest risk}
+
+**Pre-GA (P1 - Risk Score 12-19)**:
+- [ ] {Mitigation 1 for high risk}
+- [ ] {Mitigation 2 for high risk}
+- [ ] {Mitigation 3 for high risk}
+
+**Post-GA (P2 - Risk Score 6-11)**:
+- [ ] {Mitigation 1 for medium risk}
+- [ ] {Mitigation 2 for medium risk}
+
+### Detection & Monitoring
+
+**Alerts to Create**:
+- {Alert 1}: {Condition} → {Notification channel}
+- {Alert 2}: {Condition} → {Notification channel}
+
+**Metrics to Track**:
+- {Metric 1}: {Purpose and threshold}
+- {Metric 2}: {Purpose and threshold}
+
+**Tests to Write**:
+- {Test type 1}: {Risk coverage}
+- {Test type 2}: {Risk coverage}
+
+[Full risk analysis: research/risk-analysis.md](../research/risk-analysis.md)
 
 ---
 
