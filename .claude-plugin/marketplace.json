@@ -23,7 +23,7 @@
     },
     {
       "name": "session-workflow",
-      "description": "Comprehensive software engineering workflows with autonomous research agents: 43 commands, 5 research agents covering code review, operational excellence, observability, and incident response",
+      "description": "Comprehensive software engineering workflows with autonomous research agents: 51 commands, 5 research agents covering code review, operational excellence, observability, and incident response",
       "source": "./plugins/session-workflow",
       "category": "development",
       "version": "1.1.0"

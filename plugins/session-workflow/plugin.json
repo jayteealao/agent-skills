@@ -1,7 +1,7 @@
 {
   "name": "session-workflow",
   "version": "1.1.0",
-  "description": "Comprehensive software engineering workflows with autonomous research agents: 43 commands, 5 research agents covering code review, operational excellence, observability, and incident response",
+  "description": "Comprehensive software engineering workflows with autonomous research agents: 51 commands, 5 research agents covering code review, operational excellence, observability, and incident response",
   "author": "Claude Code Community",
   "license": "MIT",
   "repository": {
@@ -20,6 +20,34 @@
     "devops"
   ],
   "commands": {
+    "start-session": {
+      "description": "Start a new development session with goal tracking",
+      "category": "workflow"
+    },
+    "spec-crystallize": {
+      "description": "Convert ambiguous requests into implementable specifications",
+      "category": "workflow"
+    },
+    "research-plan": {
+      "description": "Create evidence-based implementation plan with research-first approach",
+      "category": "workflow"
+    },
+    "scope-triage": {
+      "description": "Triage feature scope into MVP and follow-up milestones",
+      "category": "workflow"
+    },
+    "decision-record": {
+      "description": "Document architectural decisions and trade-offs",
+      "category": "workflow"
+    },
+    "work": {
+      "description": "Log implementation progress and track work done",
+      "category": "workflow"
+    },
+    "write-docs": {
+      "description": "Generate comprehensive documentation for features",
+      "category": "workflow"
+    },
     "setup-wide-logging": {
       "description": "Implement wide-event observability with tail sampling",
       "category": "setup"
@@ -90,6 +118,58 @@
     },
     "review:frontend-accessibility": {
       "description": "Frontend-specific accessibility review for SPAs",
+      "category": "code-review"
+    },
+    "review:architecture": {
+      "description": "Architecture and system design review",
+      "category": "code-review"
+    },
+    "review:correctness": {
+      "description": "Logic correctness and business rule validation review",
+      "category": "code-review"
+    },
+    "review:cost": {
+      "description": "Infrastructure and operational cost review",
+      "category": "code-review"
+    },
+    "review:docs": {
+      "description": "Documentation quality and completeness review",
+      "category": "code-review"
+    },
+    "review:maintainability": {
+      "description": "Code maintainability and readability review",
+      "category": "code-review"
+    },
+    "review:overengineering": {
+      "description": "Overengineering and unnecessary complexity detection",
+      "category": "code-review"
+    },
+    "review:performance": {
+      "description": "General performance optimization review",
+      "category": "code-review"
+    },
+    "review:privacy": {
+      "description": "Privacy compliance and data protection review",
+      "category": "code-review"
+    },
+    "review:reliability": {
+      "description": "Reliability, fault tolerance, and resilience review",
+      "category": "code-review"
+    },
+    "review:scalability": {
+      "description": "Scalability and capacity planning review",
+      "category": "code-review"
+    },
+    "review:style-consistency": {
+      "description": "Code style and consistency review",
+      "category": "code-review"
+    },
+    "review:supply-chain": {
+      "description": "Supply chain security and dependency review",
+      "category": "code-review"
+    },
+    "review:testing": {
+      "description": "Test coverage and quality review",
       "category": "code-review"
     },
     "repro-harness": {
@@ -192,7 +272,7 @@
     "deployment": {
       "name": "Deployment",
       "description": "Risk assessment, compatibility checking, rollout planning, and production readiness",
-      "count": 7
+      "count": 6
     },
     "operations": {
       "name": "Operations",
@@ -201,8 +281,8 @@
     },
     "workflow": {
       "name": "Workflow",
-      "description": "Session management and handoff documentation",
-      "count": 2
+      "description": "Session management, spec generation, planning, and documentation",
+      "count": 9
     },
     "setup": {
       "name": "Setup",
@@ -244,13 +324,16 @@
     "quick-reference": "docs/quick-reference.md"
   },
   "statistics": {
-    "total_commands": 43,
+    "total_commands": 51,
     "total_skills": 1,
     "total_agents": 5,
     "total_lines": 81300,
     "code_review_commands": 30,
-    "operational_commands": 10,
-    "workflow_commands": 3,
+    "incident_response_commands": 3,
+    "deployment_commands": 6,
+    "operations_commands": 2,
+    "workflow_commands": 9,
+    "setup_commands": 1,
     "research_agents": 5
   }
 }
