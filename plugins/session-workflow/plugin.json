@@ -1,6 +1,6 @@
 {
   "name": "session-workflow",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Comprehensive software engineering workflows with autonomous research agents: 51 commands, 5 research agents covering code review, operational excellence, observability, and incident response",
   "author": "Claude Code Community",
   "license": "MIT",

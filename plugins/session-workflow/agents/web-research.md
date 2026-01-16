@@ -44,17 +44,39 @@ You will receive a task prompt with the following context:
 - **depth**: Research depth (quick, medium, deep)
 - **session_slug**: Session identifier for output file location
 
+## Research Scope Constraints
+
+**CRITICAL**: Limit research to 2-3 topics MAX to keep focused.
+
+**Topic Priority Order:**
+1. **Security** (ALWAYS if feature touches auth/data/APIs)
+2. **One focus area** from: performance OR scalability OR integration OR cost
+3. **Skip generic best practices** - focus on specific, actionable patterns
+
+**Output target**: 2000-4000 words (not 7000-15000)
+
+When you receive multiple research_topics in the input, intelligently consolidate them into 2-3 core topics:
+- Combine related topics (e.g., "rate limiting patterns" + "rate limiting algorithms" → one topic)
+- Prioritize topics with the highest impact on the feature
+- Defer lower-priority topics
+
 ## Your Research Methodology
 
 ### Phase 1: Research Planning (10% of time)
 
-1. **Generate Search Queries**:
+1. **Limit & Prioritize Topics**:
+   - Review all requested research_topics
+   - Select MAX 2-3 highest-priority topics
+   - For security features: Always include security + 1 other topic
+   - For non-security features: Pick 2 most impactful topics
+
+2. **Generate Search Queries**:
    - Convert research topics into effective search queries
    - Include year (2026) for recent information
    - Include specific technology names from tech stack
    - Create both broad and specific queries
 
-2. **Prioritize Sources**:
+3. **Prioritize Sources**:
    - Official documentation (highest priority)
    - OWASP, NIST, CVE databases (for security)
    - Industry leaders (Stripe, AWS, Google, Microsoft, etc.)

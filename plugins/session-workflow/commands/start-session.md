@@ -124,58 +124,86 @@ If any CRITICAL information is unclear or needs confirmation, use AskUserQuestio
 
 ## Step 5: Determine "entrypoint artifacts" by WORK_TYPE
 
-Based on WORK_TYPE, determine which artifacts need to be created first:
+Based on WORK_TYPE, determine which artifacts need to be created first.
+
+**With simplified file structure, all content goes into the core files:**
 
 **error_report:**
-- `incidents/repro-harness.md`
-- `plan/research-plan.md`
-- `work/work.md`
+- `plan.md` (research plan section)
+- `work.md` (work log)
+- `reviews.md` (repro harness, correctness review)
 
 **incident:**
-- `incidents/repro-harness.md`
-- `plan/research-plan.md`
-- `work/work.md`
-- `incidents/rca.md`
-- `incidents/postmortem-actions.md`
+- `plan.md` (research plan, RCA, postmortem actions)
+- `work.md` (work log)
+- `reviews.md` (repro harness, security review, reliability review)
 
 **new_feature:**
-- `spec/spec-crystallize.md`
-- `plan/research-plan.md`
-- `work/work.md`
+- `plan.md` (spec + research plan sections)
+- `work.md` (work log)
+- `reviews.md` (review findings)
 
 **refactor:**
-- `plan/research-plan.md`
-- `work/work.md`
-- `reviews/review-refactor-safety.md`
+- `plan.md` (research plan section)
+- `work.md` (work log)
+- `reviews.md` (refactor-safety review)
 
 **greenfield_app:**
-- `spec/spec-crystallize.md`
-- `plan/scope-triage.md`
-- `plan/research-plan.md`
-- `work/work.md`
+- `plan.md` (spec + scope triage + research plan sections)
+- `work.md` (work log)
+- `reviews.md` (architecture review, testing review)
 
 ## Step 6: Create session folder tree
 
-Create the following folder structure under `.claude/<SESSION_SLUG>/`:
+Create the following **simplified** folder structure under `.claude/<SESSION_SLUG>/`:
 
 ```
 .claude/<SESSION_SLUG>/
   README.md
-  spec/
-  plan/
-  decisions/
-  work/
-  reviews/
-  risk/
-  testing/
-  ship/
-  runbooks/
-  ops/
-  incidents/
-  stewardship/
+  plan.md
+  work.md
+  reviews.md
+  research/
 ```
 
-All folders are created regardless of WORK_TYPE to maintain consistency.
+**Files:**
+- `README.md` - Session metadata and navigation
+- `plan.md` - Combined file for specs, implementation plans, and decisions
+- `work.md` - Work log with checkpoints
+- `reviews.md` - All review findings consolidated
+- `research/` - Directory for autonomous agent outputs (codebase-mapper, web-research, etc.)
+
+This simplified structure (5 items vs 13+ directories) reduces overhead for hobby projects while maintaining organization.
+
+**Initialize core files:**
+
+Create `plan.md` with:
+```markdown
+# {TITLE}
+
+*This file consolidates specs, implementation plans, scope triage, and architectural decisions for this session.*
+
+---
+```
+
+Create `work.md` with:
+```markdown
+# Work Log: {TITLE}
+
+**Started:** {YYYY-MM-DD}
+**Status:** In Progress
+
+---
+```
+
+Create `reviews.md` with:
+```markdown
+# Reviews: {TITLE}
+
+*This file consolidates all review findings (security, performance, correctness, etc.) for this session.*
+
+---
+```
 
 ## Step 7: Generate session README.md
 
@@ -218,47 +246,17 @@ Create `.claude/<SESSION_SLUG>/README.md` with the following structure:
 
 ## Artifacts
 
-### Spec
-- [ ] [spec-crystallize.md](./spec/spec-crystallize.md)
+### Planning & Specs
+- [ ] [plan.md](./plan.md) - Specs, implementation plans, scope triage, and decisions
 
-### Plan
-- [ ] [research-plan.md](./plan/research-plan.md)
-- [ ] [scope-triage.md](./plan/scope-triage.md)
+### Work Log
+- [ ] [work.md](./work.md) - Implementation checkpoints and progress
 
-### Decisions
-- [ ] [decision-record.md](./decisions/decision-record.md)
+### Reviews & Quality
+- [ ] [reviews.md](./reviews.md) - All review findings (security, performance, correctness, etc.)
 
-### Work
-- [ ] [work.md](./work/work.md)
-
-### Reviews
-- [ ] [Review artifacts](./reviews/)
-
-### Risk & Compatibility
-- [ ] [risk-assess.md](./risk/risk-assess.md)
-- [ ] [compat-check.md](./risk/compat-check.md)
-
-### Testing
-- [ ] [test-matrix.md](./testing/test-matrix.md)
-
-### Shipping
-- [ ] [ship-plan.md](./ship/ship-plan.md)
-- [ ] [release-notes.md](./ship/release-notes.md)
-
-### Ops & Handoff
-- [ ] [prod-readiness.md](./ops/prod-readiness.md)
-- [ ] [handoff.md](./ops/handoff.md)
-- [ ] [slo-check.md](./ops/slo-check.md)
-- [ ] [telemetry-audit.md](./ops/telemetry-audit.md)
-
-### Incidents
-- [ ] [repro-harness.md](./incidents/repro-harness.md)
-- [ ] [rca.md](./incidents/rca.md)
-- [ ] [postmortem-actions.md](./incidents/postmortem-actions.md)
-
-### Stewardship
-- [ ] [debt-register.md](./stewardship/debt-register.md)
-- [ ] [refactor-followups.md](./stewardship/refactor-followups.md)
+### Research
+- [ ] [research/](./research/) - Autonomous agent outputs (codebase analysis, web research)
 
 ## How to Navigate This Session
 
@@ -430,18 +428,10 @@ EXPLANATION: We need to add CSV bulk import functionality to the app. Users shou
 ## 1) File Tree Created
 .claude/csv-bulk-import/
 ├── README.md
-├── spec/
-├── plan/
-├── decisions/
-├── work/
-├── reviews/
-├── risk/
-├── testing/
-├── ship/
-├── runbooks/
-├── ops/
-├── incidents/
-└── stewardship/
+├── plan.md
+├── work.md
+├── reviews.md
+└── research/
 
 ## 2) Session README.md Location
 Path: `.claude/csv-bulk-import/README.md`
@@ -451,9 +441,9 @@ Entry appended to `.claude/README.md` (chronological order):
 - [csv-bulk-import](./csv-bulk-import/README.md) — 2026-01-15: CSV bulk import with preview and idempotent commit
 
 ## 4) Entry Artifacts to Produce First (ordered)
-1. .claude/csv-bulk-import/spec/spec-crystallize.md
-2. .claude/csv-bulk-import/plan/research-plan.md
-3. .claude/csv-bulk-import/work/work.md
+1. .claude/csv-bulk-import/plan.md (spec section)
+2. .claude/csv-bulk-import/plan.md (research plan section)
+3. .claude/csv-bulk-import/work.md (work log)
 
 ## 5) Next Command to Run (pre-filled)
 

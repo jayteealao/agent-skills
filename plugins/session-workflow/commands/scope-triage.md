@@ -505,8 +505,10 @@ related:
 1. Review this triage with stakeholders
 2. Get alignment on recommended MVP (Option B)
 3. If spec doesn't exist yet, run `/spec-crystallize` for MVP scope only
-4. Run `/research-plan` for MVP implementation
+4. Run `/research-plan MILESTONE:mvp` for MVP implementation
+   - Plan will be saved to: `plan/research-plan.md` (milestone noted in frontmatter)
 5. Run `/work` to begin MVP implementation
+6. After MVP completion, run `/research-plan MILESTONE:m1` for next milestone
 
 ---
 
@@ -565,7 +567,10 @@ INPUTS: {MVP features only - focused scope}
 
 {If spec exists:}
 /research-plan
+MILESTONE: mvp
 INPUTS: Implement MVP as defined in scope triage (Option B)
+
+Note: Plan will be saved to `plan/research-plan.md` with milestone in frontmatter
 ```
 
 # IMPORTANT: Scope Cutting Principles

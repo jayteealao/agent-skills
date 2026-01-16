@@ -9,6 +9,10 @@ arguments:
   - name: SCOPE
     description: 'Evaluation scope: service | feature | infrastructure | database'
     required: false
+  - name: MODE
+    description: 'Deployment context: hobby (side projects, 3 categories) | production (enterprise, 7 categories)'
+    required: false
+    default: hobby
 examples:
   - command: /prod-readiness "Payment API"
     description: Evaluate payment API for production readiness
@@ -54,7 +58,28 @@ If `FEATURE` and `SCOPE` provided, parse them. Otherwise, ask:
 - Monitoring dashboards
 - Existing runbooks
 
-## Step 2: Production Readiness Checklist
+## Step 2: Determine Readiness Scope
+
+**If MODE = 'hobby':**
+- Check 3 core categories only (Observability Basics, Safety Basics, Security Basics)
+- Target output: 150-200 lines
+- Focus: Essential checks for side projects
+- Skip: SLOs, runbooks, chaos engineering, audit logs, compliance
+- Output to: `.claude/<SESSION_SLUG>/reviews.md` (append)
+
+**If MODE = 'production':**
+- Check all 7 categories (full enterprise rigor)
+- Target output: 800-1000 lines
+- Focus: Complete production readiness
+- Output to: `.claude/<SESSION_SLUG>/reviews/review-prod-readiness.md`
+
+---
+
+## Step 3: Production Readiness Checklist
+
+### If MODE = 'hobby' - Skip to Hobby Mode Checklist (see below)
+
+### If MODE = 'production' - Evaluate Across 7 Categories
 
 Evaluate across **7 categories**. Each item gets a status:
 - ✅ **PASS**: Meets production standards
@@ -1742,6 +1767,177 @@ Timeline:
 14:30 UTC - On-call investigating
 ```
 ```
+
+---
+
+# HOBBY MODE CHECKLIST (MODE = 'hobby')
+
+If MODE = 'hobby', use this simplified 3-category checklist instead of the 7-category production checklist above.
+
+## Hobby Category 1: Observability Basics
+
+**Can you see what's happening when things break?**
+
+**Logging:**
+- [ ] Error logging in place (logger.error() for failures)
+- [ ] Key events logged (create, update, delete operations)
+- [ ] No PII in logs (emails, passwords, tokens redacted)
+- [ ] Log level appropriate (errors as ERROR, important events as INFO)
+
+**Metrics:**
+- [ ] Request count tracked (total requests)
+- [ ] Error rate tracked (failed requests / total)
+- [ ] Response time tracked (P95 or average latency)
+
+**Skip for hobby projects:**
+- Distributed tracing (Jaeger, Zipkin)
+- SLOs and SLIs
+- Dashboards and alerting systems
+- Runbooks
+
+**Status:** ✅ PASS | ⚠️ WARN | ❌ FAIL
+
+---
+
+## Hobby Category 2: Safety Basics
+
+**Can you deploy safely and rollback if needed?**
+
+**Rollout:**
+- [ ] Feature flag wraps new code (can disable feature quickly)
+- [ ] Changes tested locally (manual testing completed)
+- [ ] Deployment plan documented (1-2 sentences on how to deploy)
+- [ ] Know how to check if deployment succeeded (health endpoint, manual check)
+
+**Rollback:**
+- [ ] Feature flag can disable feature immediately
+- [ ] Database migrations are reversible (have down migration)
+- [ ] Know how to revert deployment (rollback procedure documented)
+- [ ] No data loss on rollback (migrations are safe)
+
+**Skip for hobby projects:**
+- Canary deployments
+- Blue-green deployment
+- Circuit breakers
+- Chaos engineering / fault injection
+- Load testing
+
+**Status:** ✅ PASS | ⚠️ WARN | ❌ FAIL
+
+---
+
+## Hobby Category 3: Security Basics
+
+**Are the obvious security risks covered?**
+
+**Secrets Management:**
+- [ ] No secrets in code (no hardcoded passwords, API keys)
+- [ ] Environment variables for API keys and secrets
+- [ ] Sensitive data encrypted at rest (if storing credit cards, SSNs, etc.)
+- [ ] Database credentials not in source control
+
+**Auth/Authz:**
+- [ ] Authentication required for protected routes
+- [ ] User permissions validated (authorization checks in place)
+- [ ] CSRF protection enabled (for forms and state-changing requests)
+- [ ] Session tokens secure (HTTPOnly, Secure flags if applicable)
+
+**Input Validation:**
+- [ ] User input sanitized (prevent XSS)
+- [ ] SQL injection protected (using parameterized queries or ORM)
+- [ ] File upload validation (check file types, size limits)
+- [ ] Rate limiting on public endpoints (prevent abuse)
+
+**Skip for hobby projects:**
+- Audit logs
+- Compliance (SOC2, GDPR, HIPAA)
+- Penetration testing
+- Security scanning in CI/CD
+- Web application firewall (WAF)
+
+**Status:** ✅ PASS | ⚠️ WARN | ❌ FAIL
+
+---
+
+## Hobby Mode Output Format
+
+Append to `.claude/<SESSION_SLUG>/reviews.md`:
+
+```markdown
+---
+
+# Production Readiness: {Feature} (Hobby Mode)
+
+**Date:** {YYYY-MM-DD}
+**Feature:** {Feature name}
+**Scope:** Hobby/side project deployment
+
+## 1. Observability Basics
+
+**Logging:**
+- [✅/⚠️/❌] Error logging in place
+- [✅/⚠️/❌] Key events logged
+- [✅/⚠️/❌] No PII in logs
+
+**Metrics:**
+- [✅/⚠️/❌] Request count tracked
+- [✅/⚠️/❌] Error rate tracked
+- [✅/⚠️/❌] Response time tracked
+
+**Status:** {PASS / WARN / FAIL}
+**Notes:** {Any findings or recommendations}
+
+## 2. Safety Basics
+
+**Rollout:**
+- [✅/⚠️/❌] Feature flag in place
+- [✅/⚠️/❌] Tested locally
+- [✅/⚠️/❌] Deployment plan documented
+
+**Rollback:**
+- [✅/⚠️/❌] Feature flag can disable
+- [✅/⚠️/❌] Migrations reversible
+- [✅/⚠️/❌] Rollback procedure documented
+
+**Status:** {PASS / WARN / FAIL}
+**Notes:** {Any findings or recommendations}
+
+## 3. Security Basics
+
+**Secrets:**
+- [✅/⚠️/❌] No secrets in code
+- [✅/⚠️/❌] Environment variables used
+- [✅/⚠️/❌] Sensitive data encrypted
+
+**Auth/Authz:**
+- [✅/⚠️/❌] Auth required
+- [✅/⚠️/❌] Permissions validated
+- [✅/⚠️/❌] CSRF protection
+
+**Input Validation:**
+- [✅/⚠️/❌] Input sanitized
+- [✅/⚠️/❌] SQL injection protected
+- [✅/⚠️/❌] XSS protection
+
+**Status:** {PASS / WARN / FAIL}
+**Notes:** {Any findings or recommendations}
+
+---
+
+## Summary
+
+**Overall Status:** {READY / NOT READY / NEEDS WORK}
+
+**Blockers:** {List critical issues or "None"}
+
+**Warnings:** {List important issues or "None"}
+
+**Next Steps:** {Deploy / Fix blockers and re-evaluate}
+```
+
+**Result:** 150-200 lines for hobby mode (vs 2,076 lines production mode)
+
+---
 
 ## Step 3: Generate Production Readiness Report
 

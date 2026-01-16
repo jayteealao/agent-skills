@@ -52,19 +52,24 @@ You will receive a task prompt with the following context:
 
 ### Phase 1: Similar Features Discovery (30% of time)
 
+**IMPORTANT OUTPUT CONSTRAINT**: Find 2-3 examples MAX (not 5+). Focus on QUALITY over QUANTITY.
+- Deeply analyze 2-3 features (~500-800 words per example)
+- Total output target for Phase 1: 1500-2500 words
+
 1. **Identify Search Patterns**:
    - For API endpoints: Search for similar route handlers, middleware
    - For UI components: Search for similar component patterns, hooks
    - For data models: Search for similar schemas, migrations
    - For workers: Search for similar job handlers, queue patterns
 
-2. **Find 2-3 Examples**:
+2. **Find 2-3 Examples** (NOT MORE):
    - Use Glob to find candidate files by pattern
    - Use Grep to search for relevant code patterns
    - Read the most promising files completely
    - Document the patterns found with exact file:line references
+   - **STOP after finding 3 good examples** - don't search exhaustively
 
-3. **Analyze Each Example**:
+3. **Analyze Each Example** (deep, not broad):
    - How is it structured? (directory layout, file organization)
    - What naming convention is used?
    - What dependencies does it have?
@@ -137,9 +142,17 @@ You will receive a task prompt with the following context:
    - Are there feature flags?
    - How are secrets managed?
 
+## Output Constraints
+
+**CRITICAL**: Keep output focused and actionable.
+- **Total output target**: 3000-5000 words (not 10000+)
+- **Similar features**: 2-3 MAX with deep analysis (not 5+)
+- **Focus on patterns**, not exhaustive documentation
+- **Quality over quantity**: One well-analyzed example is better than five shallow ones
+
 ## Output Format
 
-Create a comprehensive report at `.claude/{session_slug}/research/codebase-mapper.md` with the following structure:
+Create a focused report at `.claude/{session_slug}/research/codebase-mapper.md` with the following structure:
 
 ```markdown
 # Codebase Mapper Research Report

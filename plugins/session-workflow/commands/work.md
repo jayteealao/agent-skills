@@ -35,6 +35,11 @@ args:
   REVIEW_CHAIN:
     description: Comma-separated list of review commands to run when done
     required: false
+  TRACKING_LEVEL:
+    description: How much detail to track in work log (hobby=simple checkpoints, detailed=full tracking)
+    required: false
+    choices: [hobby, detailed]
+    default: hobby
 ---
 
 # ROLE
@@ -383,14 +388,57 @@ Save Decision Note to `.claude/<SESSION_SLUG>/decisions/decision-{date}-{slug}.m
 
 # WORK LOG FORMAT
 
-Create/append to work log with milestone-aware naming:
-- If working on MVP: `.claude/<SESSION_SLUG>/work/work-mvp.md`
-- If working on M1: `.claude/<SESSION_SLUG>/work/work-m1.md`
-- If working on M2: `.claude/<SESSION_SLUG>/work/work-m2.md`
-- If working on M3: `.claude/<SESSION_SLUG>/work/work-m3.md`
-- If no milestones: `.claude/<SESSION_SLUG>/work/work.md`
+Create/append to work log:
+- Always use: `.claude/<SESSION_SLUG>/work.md` (single file, milestone noted in frontmatter)
 
-Format:
+## Format Based on TRACKING_LEVEL
+
+### If TRACKING_LEVEL = 'hobby' (DEFAULT) - Simplified Format:
+
+```markdown
+# Work Log: {Title}
+
+**Started:** {YYYY-MM-DD}
+**Completed:** {YYYY-MM-DD} (or "In Progress")
+**Milestone:** {MVP | M1 | M2 | M3 | Full Scope} (if applicable)
+
+---
+
+## Checkpoint 1: {Intent/Title}
+
+**Files:**
+- `{file_path}` - {What changed}
+- `{file_path}` - {What changed}
+
+**Tests:**
+- {Test description 1}
+- {Test description 2}
+
+**Status:** ✅ Done | 🚧 In Progress | ❌ Blocked
+
+---
+
+## Checkpoint 2: {Intent/Title}
+
+{Repeat structure}
+
+---
+
+## Next Steps (if incomplete)
+
+- [ ] {Remaining task 1}
+- [ ] {Remaining task 2}
+
+---
+
+*Session: [{SESSION_SLUG}](../README.md)*
+```
+
+**Result:** Simple checkpoints, 50-100 lines per work log
+
+---
+
+### If TRACKING_LEVEL = 'detailed' - Full Tracking Format:
 
 ```markdown
 ---
@@ -405,9 +453,7 @@ target: {TARGET}
 status: in_progress | completed | blocked
 related:
   session: ../README.md
-  plan: ../plan/research-plan-{milestone}.md
-  spec: ../spec/spec-crystallize.md
-  triage: ../plan/scope-triage.md (if exists)
+  plan: ../plan/plan.md
 ---
 
 # Work Log: {Title} [{MILESTONE}]
@@ -417,14 +463,6 @@ related:
 **Started:** {YYYY-MM-DD}
 **Last Updated:** {YYYY-MM-DD}
 **Milestone:** {MVP | M1 | M2 | M3 | Full Scope}
-
-{If M1+, add context:}
-**Previous Milestones Completed:**
-- MVP: See [work-mvp.md](./work-mvp.md) - {one-line summary}
-{If M2+:}
-- M1: See [work-m1.md](./work-m1.md) - {one-line summary}
-{If M3:}
-- M2: See [work-m2.md](./work-m2.md) - {one-line summary}
 
 ---
 
