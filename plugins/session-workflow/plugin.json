@@ -1,0 +1,222 @@
+{
+  "name": "session-workflow",
+  "version": "1.0.0",
+  "description": "Comprehensive software engineering workflows: 43 commands covering code review, operational excellence, observability, and incident response",
+  "author": "Claude Code Community",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/session-workflow"
+  },
+  "keywords": [
+    "code-review",
+    "observability",
+    "incident-response",
+    "deployment",
+    "security",
+    "performance",
+    "accessibility",
+    "sre",
+    "devops"
+  ],
+  "commands": {
+    "setup-wide-logging": {
+      "description": "Implement wide-event observability with tail sampling",
+      "category": "setup"
+    },
+    "review:security": {
+      "description": "Security vulnerability review (auth, secrets, injection)",
+      "category": "code-review"
+    },
+    "review:accessibility": {
+      "description": "WCAG 2.1 AA accessibility review",
+      "category": "code-review"
+    },
+    "review:frontend-performance": {
+      "description": "Frontend performance review (bundle size, rendering)",
+      "category": "code-review"
+    },
+    "review:backend-concurrency": {
+      "description": "Backend concurrency review (race conditions, locking)",
+      "category": "code-review"
+    },
+    "review:infra": {
+      "description": "Infrastructure review (IAM, network, compute)",
+      "category": "code-review"
+    },
+    "review:infra-security": {
+      "description": "Infrastructure security review",
+      "category": "code-review"
+    },
+    "review:ci": {
+      "description": "CI/CD pipeline review",
+      "category": "code-review"
+    },
+    "review:release": {
+      "description": "Release engineering review",
+      "category": "code-review"
+    },
+    "review:ux-copy": {
+      "description": "UX copy review (clarity, tone, consistency)",
+      "category": "code-review"
+    },
+    "review:logging": {
+      "description": "Logging safety, privacy, and quality review",
+      "category": "code-review"
+    },
+    "review:observability": {
+      "description": "Complete observability review (logs, metrics, tracing)",
+      "category": "code-review"
+    },
+    "review:api-contracts": {
+      "description": "API contract stability review",
+      "category": "code-review"
+    },
+    "review:migrations": {
+      "description": "Database migration safety review",
+      "category": "code-review"
+    },
+    "review:data-integrity": {
+      "description": "Data consistency and integrity review",
+      "category": "code-review"
+    },
+    "review:dx": {
+      "description": "Developer experience review",
+      "category": "code-review"
+    },
+    "review:refactor-safety": {
+      "description": "Refactor semantic drift detection",
+      "category": "code-review"
+    },
+    "review:frontend-accessibility": {
+      "description": "Frontend-specific accessibility review for SPAs",
+      "category": "code-review"
+    },
+    "repro-harness": {
+      "description": "Create bug reproduction harness with deterministic tests",
+      "category": "incident-response"
+    },
+    "rca": {
+      "description": "Root cause analysis with 5 Whys methodology",
+      "category": "incident-response"
+    },
+    "postmortem-actions": {
+      "description": "Convert RCA to trackable action items",
+      "category": "incident-response"
+    },
+    "risk-assess": {
+      "description": "Release risk assessment",
+      "category": "deployment"
+    },
+    "compat-check": {
+      "description": "API/database/event compatibility checking",
+      "category": "deployment"
+    },
+    "test-matrix": {
+      "description": "Behavior-driven test strategy design",
+      "category": "deployment"
+    },
+    "ship-plan": {
+      "description": "Staged rollout planning (canary, blue-green)",
+      "category": "deployment"
+    },
+    "prod-readiness": {
+      "description": "Production readiness review (2am debug story)",
+      "category": "deployment"
+    },
+    "telemetry-audit": {
+      "description": "Telemetry PII/cardinality/cost audit",
+      "category": "deployment"
+    },
+    "debt-register": {
+      "description": "Technical debt backlog with priority matrix",
+      "category": "operations"
+    },
+    "refactor-followups": {
+      "description": "Staged refactor planning",
+      "category": "operations"
+    },
+    "handoff": {
+      "description": "Handoff documentation for different audiences",
+      "category": "workflow"
+    },
+    "close-session": {
+      "description": "Session closure with artifact tracking",
+      "category": "workflow"
+    }
+  },
+  "skills": {
+    "wide-event-observability": {
+      "description": "Design and implement wide-event logging with tail sampling",
+      "category": "observability"
+    }
+  },
+  "categories": {
+    "code-review": {
+      "name": "Code Review",
+      "description": "Comprehensive code review commands for security, performance, accessibility, and more",
+      "count": 30
+    },
+    "incident-response": {
+      "name": "Incident Response",
+      "description": "Bug reproduction, root cause analysis, and postmortem action planning",
+      "count": 3
+    },
+    "deployment": {
+      "name": "Deployment",
+      "description": "Risk assessment, compatibility checking, rollout planning, and production readiness",
+      "count": 7
+    },
+    "operations": {
+      "name": "Operations",
+      "description": "Technical debt management and refactor planning",
+      "count": 2
+    },
+    "workflow": {
+      "name": "Workflow",
+      "description": "Session management and handoff documentation",
+      "count": 2
+    },
+    "setup": {
+      "name": "Setup",
+      "description": "Initial setup commands for observability infrastructure",
+      "count": 1
+    }
+  },
+  "technologies": [
+    "Node.js",
+    "Express",
+    "Fastify",
+    "Koa",
+    "TypeScript",
+    "React",
+    "Vue",
+    "Angular",
+    "Terraform",
+    "Kubernetes",
+    "PostgreSQL",
+    "MySQL",
+    "MongoDB",
+    "Datadog",
+    "CloudWatch",
+    "GitHub Actions",
+    "GitLab CI"
+  ],
+  "requirements": {
+    "claude-code": ">=1.0.0"
+  },
+  "documentation": {
+    "readme": "README.md",
+    "docs": "docs/",
+    "examples": "examples/",
+    "quick-reference": "docs/quick-reference.md"
+  },
+  "statistics": {
+    "total_commands": 43,
+    "total_skills": 1,
+    "total_lines": 81300,
+    "code_review_commands": 30,
+    "operational_commands": 10,
+    "workflow_commands": 3
+  }
+}
