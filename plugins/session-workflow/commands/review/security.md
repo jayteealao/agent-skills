@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "src/api/**/*.ts")
     required: false
-  CONTEXT:
-    description: Threat model notes, auth model, trust boundaries, data sensitivity
-    required: false
 ---
 
 # ROLE

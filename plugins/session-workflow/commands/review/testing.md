@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "src/**/*.test.ts")
     required: false
-  CONTEXT:
-    description: Test strategy (unit/integration/e2e), runtime constraints, CI notes
-    required: false
 ---
 
 # ROLE

@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "src/**/*.ts")
     required: false
-  CONTEXT:
-    description: Refactoring intent, expected behavior changes, equivalence constraints
-    required: false
 ---
 
 # ROLE

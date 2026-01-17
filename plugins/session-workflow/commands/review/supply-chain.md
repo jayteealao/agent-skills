@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "package.json, Dockerfile")
     required: false
-  CONTEXT:
-    description: Deploy model; dependency policy; allowed registries; signing policy
-    required: false
 ---
 
 # ROLE

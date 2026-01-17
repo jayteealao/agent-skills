@@ -1,10 +1,10 @@
 # Session Workflow Plugin
 
-**Version**: 1.0.0
-**Author**: Claude Code
+**Version**: 1.3.0
+**Author**: Claude Code Community
 **License**: MIT
 
-A comprehensive Claude Code plugin providing 43 commands and 1 skill for software engineering workflows, covering code review, operational excellence, observability, incident response, and session management.
+A hobby-focused Claude Code plugin providing 46 commands, 5 research agents, and 1 skill for software engineering workflows. Optimized for side projects with simplified outputs, fast research (5-7 min), and essential code review coverage.
 
 ---
 
@@ -27,10 +27,13 @@ The Session Workflow Plugin provides a complete toolkit for software engineering
 
 ### What's Included
 
-**43 Commands**:
-- 30 code review commands covering security, performance, accessibility, infrastructure, and more
-- 10 operational commands for incident response, risk assessment, and production readiness
-- 3 workflow commands for handoffs, postmortems, and session management
+**46 Commands** (hobby-focused, simplified outputs):
+- 30 code review commands (security, performance, accessibility, maintainability, etc.)
+- 9 workflow commands (session management, spec generation, planning, documentation)
+- 3 deployment commands (compatibility checking, test planning, production readiness)
+- 2 operations commands (technical debt tracking, refactor planning)
+- 1 incident response command (bug reproduction)
+- 1 setup command (observability infrastructure)
 
 **1 Skill**:
 - Wide-event observability design based on industry best practices

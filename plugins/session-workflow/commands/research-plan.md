@@ -40,11 +40,6 @@ args:
     description: Whether assumptions are allowed in the plan (default yes)
     required: false
     choices: [yes, no]
-  RESEARCH_DEPTH:
-    description: How much research to perform before planning (none=manual only, quick=codebase-mapper, deep=all agents)
-    required: false
-    choices: [none, quick, deep]
-    default: quick
 ---
 
 # ROLE
@@ -152,16 +147,7 @@ From INPUTS, session context, milestone scope (if applicable), and any existing 
    - Default to `yes`
    - If `no`, the plan must be fully concrete with no unknowns
 
-8. **RESEARCH_DEPTH** (if not provided)
-   - Infer from WORK_TYPE:
-     - `error_report` → `quick` (find similar bug fixes quickly)
-     - `new_feature` → `quick` (find patterns, can upgrade to deep if needed)
-     - `greenfield_app` → `deep` (comprehensive research for new systems)
-     - `refactor` → `quick` (understand existing patterns)
-     - `incident` → `none` (speed matters, manual research only)
-   - Default: `quick`
-
-## Step 4: RESEARCH PHASE (Configurable by Depth)
+## Step 4: RESEARCH PHASE
 
 **CRITICAL**: Comprehensive research before planning is not optional.
 
@@ -169,88 +155,32 @@ From INPUTS, session context, milestone scope (if applicable), and any existing 
 
 Create `.claude/<SESSION_SLUG>/research/` directory if it doesn't exist.
 
-### Step 4b: Execute research based on RESEARCH_DEPTH
+### Step 4b: Execute research
 
-**If RESEARCH_DEPTH = 'none':**
-- Skip all agent spawning
-- Do manual lightweight research with Glob, Grep, and Read (2-3 minutes)
-- Find 2-3 similar patterns with file:line citations
-- Document findings for "Research Findings" section
-- Proceed to Step 5
+Spawn **codebase-mapper agent** (5-7 minutes):
+```
+Input parameters:
+- feature_description: {Extracted from INPUTS or spec}
+- component_type: {Inferred from WORK_TYPE and INPUTS}
+- scope: {SCOPE value}
+- target: {TARGET value}
+- constraints: {CONSTRAINTS if provided}
+- frameworks: {Inferred from codebase or session context}
+- session_slug: {SESSION_SLUG}
 
-**If RESEARCH_DEPTH = 'quick' (DEFAULT):**
-- Spawn **codebase-mapper agent ONLY** (5-7 minutes)
-- Input parameters:
-  ```
-  - feature_description: {Extracted from INPUTS or spec}
-  - component_type: {Inferred from WORK_TYPE and INPUTS}
-  - scope: {SCOPE value}
-  - target: {TARGET value}
-  - constraints: {CONSTRAINTS if provided}
-  - frameworks: {Inferred from codebase or session context}
-  - session_slug: {SESSION_SLUG}
+Expected output: `.claude/<SESSION_SLUG>/research/codebase-mapper.md`
+```
 
-  Expected output: `.claude/<SESSION_SLUG>/research/codebase-mapper.md`
-  ```
-- Wait for completion and read the output
-- Skip web-research and design-options agents
-- Proceed to Step 5
+Wait for completion, read the output, and proceed to Step 5.
 
-**If RESEARCH_DEPTH = 'deep':**
-- Spawn **codebase-mapper + web-research agents IN PARALLEL** (7-10 minutes)
-- **Codebase Mapper Agent** parameters:
-  ```
-  - feature_description: {Extracted from INPUTS or spec}
-  - component_type: {Inferred from WORK_TYPE and INPUTS}
-  - scope: {SCOPE value}
-  - target: {TARGET value}
-  - constraints: {CONSTRAINTS if provided}
-  - frameworks: {Inferred from codebase or session context}
-  - session_slug: {SESSION_SLUG}
+### Step 4c: Read research results
 
-  Expected output: `.claude/<SESSION_SLUG>/research/codebase-mapper.md`
-  ```
-- **Web Research Agent** parameters:
-  ```
-  - research_topics: {Extract from feature description, WORK_TYPE, and technical context}
-    Examples:
-    - For new_feature: "Best practices for {feature_type}", "Security patterns for {use_case}"
-    - For error_report: "Known issues with {technology}", "Common causes of {error_type}"
-    - For refactor: "Refactoring patterns for {code_smell}", "Safe refactoring techniques"
-  - context: {Feature description and goals}
-  - focus_areas: {Inferred from WORK_TYPE and RISK_TOLERANCE - MAX 2 areas}
-    - new_feature → security + (performance OR scalability)
-    - error_report → known bugs + debugging techniques
-    - refactor → safe refactoring + testing strategies
-  - tech_stack: {Frameworks from session or codebase}
-  - depth: medium (7 min for research-plan)
-  - session_slug: {SESSION_SLUG}
-
-  Expected output: `.claude/<SESSION_SLUG>/research/web-research.md`
-  ```
-- Wait for both agents to complete (or continue if they fail gracefully)
-- Read both research outputs
-- Optionally spawn **risk-analyzer** agent if RISK_TOLERANCE = low (see Step 12)
-- Proceed to Step 5
-
-### Step 4c: Read available research results
-
-Read whatever research artifacts were generated:
-
-If codebase-mapper ran:
-- Read `.claude/<SESSION_SLUG>/research/codebase-mapper.md` and extract:
-  - Similar features and patterns
-  - Naming conventions and architectural patterns
-  - Integration points and dependencies
-  - Error handling patterns
-  - Risk hotspots
-
-If web-research ran (deep mode only):
-- Read `.claude/<SESSION_SLUG>/research/web-research.md` and extract:
-  - Industry best practices
-  - Security considerations
-  - Performance insights
-  - Technology comparisons
+Read `.claude/<SESSION_SLUG>/research/codebase-mapper.md` and extract:
+- Similar features and patterns
+- Naming conventions and architectural patterns
+- Integration points and dependencies
+- Error handling patterns
+- Risk hotspots
 
 ### Step 4d: Fallback research (if agents fail)
 
@@ -353,44 +283,13 @@ Required analysis (similar to ERROR_REPORT but with urgency focus):
 
 ## Step 6: Generate options
 
-### Step 6a: Generate design options
+### Step 6a: Generate implementation approach
 
-**If RESEARCH_DEPTH = 'deep':**
-- Spawn the design-options agent to systematically generate and compare design approaches:
-  ```
-  Task: Spawn design-options agent
-
-  Input parameters:
-  - requirements: {Feature description and goals from INPUTS/spec}
-  - constraints: {CONSTRAINTS from Step 3}
-  - risk_tolerance: {RISK_TOLERANCE from Step 3}
-  - session_slug: {SESSION_SLUG}
-  - existing_patterns: {Summarize key findings from codebase-mapper.md}
-  - best_practices: {Summarize key findings from web-research.md}
-
-  Expected output: `.claude/<SESSION_SLUG>/research/design-options.md`
-  ```
-- Wait for agent and read results
-- Extract: 2-3 design options with trade-off analysis, decision matrix, recommended approach
-- Use these findings for Section 2 "Implementation Approach" of the plan
-
-**If RESEARCH_DEPTH = 'quick' or 'none':**
-- Skip design-options agent (keep plan focused and simple)
-- Manually generate 1 straightforward implementation approach based on codebase patterns
-- Document the approach in Section 2 of the plan
-
-### Step 6b: Fallback (if agent fails in deep mode)
-
-If design-options agent fails, manually generate 2-3 implementation approaches:
-- Option 1: Minimal/simple approach
-- Option 2: Balanced approach
-- Option 3: Robust/comprehensive approach (if relevant)
-
-For each option:
-- Summary (2-3 sentences)
-- Pros / Cons
-- Risk level (low/medium/high)
-- When to choose it
+Manually generate 1 straightforward implementation approach based on codebase patterns:
+- Review findings from codebase-mapper.md
+- Identify the simplest approach that aligns with existing patterns
+- Document approach: Summary, pros/cons, key dependencies
+- Use this for Section 2 "Implementation Approach" of the plan
 
 ## Step 7: Recommend one approach
 
@@ -442,7 +341,6 @@ Specify tests across all layers:
 
 ## Step 12: Create risk register
 
-**If RESEARCH_DEPTH = 'deep' AND RISK_TOLERANCE = 'low':**
 - Spawn the risk-analyzer agent to systematically identify and assess risks:
   ```
   Task: Spawn risk-analyzer agent
@@ -462,7 +360,6 @@ Specify tests across all layers:
 - Extract top 3-5 highest priority risks with mitigations
 - Use for optional "Risk Analysis" section in plan
 
-**If RESEARCH_DEPTH = 'quick' or 'none' OR RISK_TOLERANCE = 'medium'/'high':**
 - Skip risk-analyzer agent
 - Manually identify top 3-5 risks based on research findings:
 - **Risk description**
@@ -482,7 +379,6 @@ milestone: mvp  # or m1, m2, m3, full
 ---
 ```
 
-Include structure based on RESEARCH_DEPTH (see OUTPUT FORMAT below).
 
 ## Step 14: Update session README
 
@@ -500,7 +396,6 @@ Print a summary with key findings and next steps.
 
 # OUTPUT FORMAT
 
-Create `.claude/<SESSION_SLUG>/plan/research-plan.md` with structure based on RESEARCH_DEPTH:
 
 ## Core Structure (ALL modes)
 
@@ -543,12 +438,10 @@ related:
 
 ## 1) Research Findings
 
-{If RESEARCH_DEPTH = 'none', keep minimal:}
 **Manual Research:**
 - {Pattern 1 found}: `{file_path}:{line}`
 - {Pattern 2 found}: `{file_path}:{line}`
 
-{If RESEARCH_DEPTH = 'quick' (codebase-mapper ran):}
 **Similar Features Found:**
 - {Feature 1}: {Pattern summary} (`{file_path}:{line}`)
 - {Feature 2}: {Pattern summary} (`{file_path}:{line}`)
@@ -564,7 +457,6 @@ related:
 
 [Full codebase analysis: research/codebase-mapper.md](../research/codebase-mapper.md)
 
-{If RESEARCH_DEPTH = 'deep' (codebase-mapper + web-research ran):}
 **Similar Features Found:**
 - {Feature 1}: {Pattern summary} (`{file_path}:{line}`)
 - {Feature 2}: {Pattern summary} (`{file_path}:{line}`)
@@ -602,7 +494,6 @@ related:
 - ❌ {Feature A} - {Reason: defer to later / out of scope / unnecessary}
 - ❌ {Feature B} - {Reason}
 
-{If RESEARCH_DEPTH = 'deep' and design-options agent ran:}
 **Options Considered:**
 - **Option 1: {Name}** ⭐ RECOMMENDED
   - Pros: {Benefit 1}, {Benefit 2}
@@ -661,7 +552,6 @@ related:
 
 ## 5) Detailed Test Plan (optional)
 
-{Include ONLY if RESEARCH_DEPTH = 'deep' OR complex testing needed}
 
 **Unit Tests:**
 - `{test_file_path}` - {Test scenarios}
@@ -707,7 +597,6 @@ related:
 
 ---
 
-*Plan generated: {YYYY-MM-DD} | Research depth: {RESEARCH_DEPTH}*
 *Session: [{SESSION_SLUG}](../README.md)*
 ```
 
@@ -717,7 +606,6 @@ related:
 - Reduced from 11 sections to 5 core + 2 optional
 - Target length: 200-400 lines (vs 800-1000 previously)
 - Sections 5-6 are truly optional (only when needed)
-- Research findings adapt based on RESEARCH_DEPTH
 - Facts/Assumptions/Unknowns merged into Task Overview and Implementation Approach
 - Options Considered moved into Implementation Approach (only shown if deep research)
 - Detailed risk register moved to optional section (or simplified in Section 4)

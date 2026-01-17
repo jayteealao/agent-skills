@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "src/components/**/*.tsx")
     required: false
-  CONTEXT:
-    description: Target WCAG level (A/AA/AAA), known screen reader requirements, user base
-    required: false
 ---
 
 # ROLE

@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "src/services/**/*.ts")
     required: false
-  CONTEXT:
-    description: Concurrency model, database type, expected load, known race conditions
-    required: false
 ---
 
 # ROLE

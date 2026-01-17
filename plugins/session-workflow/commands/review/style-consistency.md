@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "src/**/*.ts")
     required: false
-  CONTEXT:
-    description: Lint/format/type rules; preferred idioms; existing style guide if any
-    required: false
 ---
 
 # ROLE

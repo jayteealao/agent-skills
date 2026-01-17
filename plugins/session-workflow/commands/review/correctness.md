@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "src/**/*.ts")
     required: false
-  CONTEXT:
-    description: Intended behavior, invariants, constraints, known edge cases
-    required: false
 ---
 
 # ROLE

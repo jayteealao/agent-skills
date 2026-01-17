@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "src/**/*.ts")
     required: false
-  CONTEXT:
-    description: What data is sensitive; retention policies; analytics policy
-    required: false
 ---
 
 # ROLE

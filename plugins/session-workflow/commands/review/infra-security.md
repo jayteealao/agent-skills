@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "terraform/**/*.tf", "k8s/**/*.yaml")
     required: false
-  CONTEXT:
-    description: Cloud provider (AWS/GCP/Azure), environment (dev/staging/prod), compliance requirements
-    required: false
 ---
 
 # ROLE

@@ -15,9 +15,6 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "docs/**/*.md")
     required: false
-  CONTEXT:
-    description: Who is the reader? (devs/users/operators); release notes expectations
-    required: false
 ---
 
 # ROLE

@@ -1,7 +1,7 @@
 {
   "name": "session-workflow",
-  "version": "1.2.0",
-  "description": "Comprehensive software engineering workflows with autonomous research agents: 51 commands, 5 research agents covering code review, operational excellence, observability, and incident response",
+  "version": "1.3.0",
+  "description": "Hobby-focused software engineering workflows: 46 commands, 5 research agents covering code review, workflow management, and observability",
   "author": "Claude Code Community",
   "license": "MIT",
   "repository": {
@@ -176,18 +176,6 @@
       "description": "Create bug reproduction harness with deterministic tests",
       "category": "incident-response"
     },
-    "rca": {
-      "description": "Root cause analysis with 5 Whys methodology",
-      "category": "incident-response"
-    },
-    "postmortem-actions": {
-      "description": "Convert RCA to trackable action items",
-      "category": "incident-response"
-    },
-    "risk-assess": {
-      "description": "Release risk assessment",
-      "category": "deployment"
-    },
     "compat-check": {
       "description": "API/database/event compatibility checking",
       "category": "deployment"
@@ -196,16 +184,8 @@
       "description": "Behavior-driven test strategy design",
       "category": "deployment"
     },
-    "ship-plan": {
-      "description": "Staged rollout planning (canary, blue-green)",
-      "category": "deployment"
-    },
     "prod-readiness": {
-      "description": "Production readiness review (2am debug story)",
-      "category": "deployment"
-    },
-    "telemetry-audit": {
-      "description": "Telemetry PII/cardinality/cost audit",
+      "description": "Production readiness review (hobby projects)",
       "category": "deployment"
     },
     "debt-register": {
@@ -266,13 +246,13 @@
     },
     "incident-response": {
       "name": "Incident Response",
-      "description": "Bug reproduction, root cause analysis, and postmortem action planning",
-      "count": 3
+      "description": "Bug reproduction with repro-harness command",
+      "count": 1
     },
     "deployment": {
       "name": "Deployment",
-      "description": "Risk assessment, compatibility checking, rollout planning, and production readiness",
-      "count": 6
+      "description": "Compatibility checking, test planning, and production readiness for hobby projects",
+      "count": 3
     },
     "operations": {
       "name": "Operations",
@@ -324,13 +304,13 @@
     "quick-reference": "docs/quick-reference.md"
   },
   "statistics": {
-    "total_commands": 51,
+    "total_commands": 46,
     "total_skills": 1,
     "total_agents": 5,
-    "total_lines": 81300,
+    "total_lines": 35000,
     "code_review_commands": 30,
-    "incident_response_commands": 3,
-    "deployment_commands": 6,
+    "incident_response_commands": 1,
+    "deployment_commands": 3,
     "operations_commands": 2,
     "workflow_commands": 9,
     "setup_commands": 1,

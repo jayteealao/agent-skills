@@ -32,11 +32,6 @@ args:
     description: Output style for the spec
     required: false
     choices: [engineering, product, mixed]
-  RESEARCH_DEPTH:
-    description: How much research to perform before spec generation (none=manual only, quick=codebase-mapper, deep=all agents)
-    required: false
-    choices: [none, quick, deep]
-    default: quick
 ---
 
 # ROLE
@@ -100,73 +95,40 @@ From INPUTS and session context, infer:
    - `mixed`: Balanced (default)
    - Infer from STAKEHOLDERS or default to `mixed`
 
-7. **RESEARCH_DEPTH** (if not provided)
-   - Default: `quick` (codebase-mapper only)
-   - Use `deep` if INPUTS mentions security, compliance, or complex integrations
-   - Use `none` if the feature is very simple (typo fix, copy change)
-
-## Step 3: Research Phase (Configurable by Depth)
+## Step 3: Research Phase
 
 ### Step 3a: Create research directory
 
 Create `.claude/<SESSION_SLUG>/research/` directory if it doesn't exist.
 
-### Step 3b: Execute research based on RESEARCH_DEPTH
+### Step 3b: Execute research
 
-**If RESEARCH_DEPTH = 'none':**
-- Skip all agent spawning
-- Do basic Glob/Grep/Read research (2-3 minutes):
-  - Find 1-2 similar features with file:line references
-  - Note naming conventions
-  - Identify relevant files
-- Proceed to Step 4
+Spawn **codebase-mapper agent** (5-7 minutes):
+```
+Task: Spawn codebase-mapper agent
 
-**If RESEARCH_DEPTH = 'quick' (DEFAULT):**
-- Spawn **codebase-mapper agent ONLY** (5-7 minutes):
-  ```
-  Task: Spawn codebase-mapper agent
+Input parameters:
+- feature_description: {Extracted from INPUTS}
+- component_type: {Inferred from INPUTS - API, UI, data model, worker, etc.}
+- scope: {SCOPE value}
+- target: {TARGET value}
+- constraints: {CONSTRAINTS if provided}
+- frameworks: {Inferred from codebase or session context}
+- session_slug: {SESSION_SLUG}
 
-  Input parameters:
-  - feature_description: {Extracted from INPUTS}
-  - component_type: {Inferred from INPUTS - API, UI, data model, worker, etc.}
-  - scope: {SCOPE value}
-  - target: {TARGET value}
-  - constraints: {CONSTRAINTS if provided}
-  - frameworks: {Inferred from codebase or session context}
-  - session_slug: {SESSION_SLUG}
+Expected output: `.claude/<SESSION_SLUG>/research/codebase-mapper.md`
+```
 
-  Expected output: `.claude/<SESSION_SLUG>/research/codebase-mapper.md`
-  ```
-- Wait for agent completion and read output
-- Skip web-research and edge-case-generator
-- Proceed to Step 4
+Wait for agent completion and read output, then proceed to Step 4.
 
-**If RESEARCH_DEPTH = 'deep':**
-- Spawn **codebase-mapper agent** (same as quick mode)
-- If feature involves security, standards, or complex integrations, also spawn **web-research agent**:
-  ```
-  Task: Spawn web-research agent
+### Step 3c: Read research results
 
-  Input parameters:
-  - research_topics: {Extract from feature description - MAX 2-3 topics}
-  - context: {Feature description}
-  - focus_areas: {e.g., security + one other area}
-  - tech_stack: {Frameworks from session or codebase}
-  - depth: quick (5 min for spec-crystallize)
-  - session_slug: {SESSION_SLUG}
+Read `.claude/<SESSION_SLUG>/research/codebase-mapper.md` for key findings:
+- Similar features and patterns
+- Existing terminology and conventions
+- Integration points and dependencies
 
-  Expected output: `.claude/<SESSION_SLUG>/research/web-research.md`
-  ```
-- Wait for agents to complete and read outputs
-- Continue to Step 4
-
-### Step 3c: Read available research results
-
-Read whatever research artifacts were generated:
-- If codebase-mapper ran: Read `.claude/<SESSION_SLUG>/research/codebase-mapper.md` for key findings
-- If web-research ran: Read `.claude/<SESSION_SLUG>/research/web-research.md` for key recommendations
-
-**Fallback:** If agents fail or time out, do manual research with Glob/Grep/Read:
+**Fallback:** If agent fails or times out, do manual research with Glob/Grep/Read:
 1. **Find similar flows/components**
    - Search for related features, similar user flows, or comparable UI components
    - Identify naming conventions and patterns to align with
@@ -189,32 +151,13 @@ Parse INPUTS to identify:
 - Edge cases mentioned
 - Acceptance criteria hints
 
-## Step 4.5: Generate Edge Cases
+## Step 4.5: Identify Edge Cases
 
-**If RESEARCH_DEPTH = 'deep':**
-- Spawn the edge-case-generator agent:
-  ```
-  Task: Spawn edge-case-generator agent
-
-  Input parameters:
-  - requirements: {Extracted functional and non-functional requirements}
-  - data_model: {Entities, fields, relationships inferred from requirements and research}
-  - api_contracts: {API endpoints and schemas from requirements}
-  - session_slug: {SESSION_SLUG}
-  - existing_errors: {From codebase-mapper.md if available}
-  - security_context: {From web-research.md if available}
-
-  Expected output: `.claude/<SESSION_SLUG>/research/edge-cases.md`
-  ```
-- Wait for agent completion and read output
-- Extract top 10-15 edge cases for Section 5 of spec
-
-**If RESEARCH_DEPTH = 'quick' or 'none':**
-- Skip edge-case-generator agent
-- Manually identify 5-10 edge cases based on:
-  - Common patterns (empty/null, invalid formats, boundaries)
-  - Security basics (if applicable)
-  - Error codes from codebase-mapper (if available)
+Manually identify 5-10 edge cases based on:
+- Common patterns (empty/null, invalid formats, boundaries)
+- Security basics (if applicable)
+- Error codes from codebase-mapper (if available)
+- Failure modes mentioned in requirements
 
 ## Step 5: Generate the spec
 
