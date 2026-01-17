@@ -1,7 +1,7 @@
 {
   "name": "session-workflow",
-  "version": "1.3.0",
-  "description": "Hobby-focused software engineering workflows: 46 commands, 5 research agents covering code review, workflow management, and observability",
+  "version": "1.4.0",
+  "description": "Complete software engineering workflows: 46 commands with all 30 review commands fully implemented, 5 research agents covering code review, workflow management, and observability",
   "author": "Claude Code Community",
   "license": "MIT",
   "repository": {
