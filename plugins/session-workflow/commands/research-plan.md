@@ -147,6 +147,117 @@ From INPUTS, session context, milestone scope (if applicable), and any existing 
    - Default to `yes`
    - If `no`, the plan must be fully concrete with no unknowns
 
+## Step 3.5: Pre-Research Interview (Multi-Round)
+
+**CRITICAL**: Ask clarifying questions to understand planning context before research begins.
+
+This is a **multi-round interview** to uncover non-obvious details and clarify planning ambiguities.
+
+### Create interview directory
+
+Create `.claude/<SESSION_SLUG>/interview/` directory if it doesn't exist.
+
+### Round 1: Planning Context Clarification
+
+Use **AskUserQuestion** to ask 2-4 targeted questions based on INPUTS, WORK_TYPE, and session context:
+
+**Question categories to consider:**
+1. **Work Type Validation**: "I inferred this is a {WORK_TYPE}. Is that correct, or should I approach this differently?"
+2. **Success Criteria**: "What does 'done' look like for this work? What are the key metrics or outcomes?"
+3. **Constraints Clarification**: "Are there critical constraints I should know about (performance, backward compatibility, timeline)?"
+4. **Risk Tolerance**: "For risky decisions, should I prefer {conservative/safe} or {aggressive/fast}?"
+5. **Scope Boundaries**: "Is {aspect X} in scope, or should I defer that?"
+
+**Example questions:**
+- "You mentioned [goal]. Does this need to work for [edge case Y], or can we start simpler?"
+- "Should this implementation prioritize [speed] or [robustness]?"
+- "Are there specific patterns or approaches you want me to follow or avoid?"
+- "What's the most important thing to get right vs. what can we iterate on later?"
+
+Store Round 1 answers.
+
+### Round 2: Non-Obvious Planning Details (Conditional)
+
+Based on Round 1 answers and WORK_TYPE, ask **2-3 deeper questions** about:
+
+**Question categories:**
+1. **Implementation Approach**: "Should I use {approach A} or {approach B} for {aspect}?"
+2. **Testing Strategy**: "What level of test coverage is expected (basic/comprehensive)?"
+3. **Rollout Expectations**: "Should this use feature flags, or can we ship directly?"
+4. **Data Handling**: "How should we handle existing data during this change?"
+5. **Backward Compatibility**: "Do we need to maintain compatibility with {old version/API}?"
+
+**When to ask Round 2:**
+- If Round 1 revealed multiple valid approaches
+- If INPUTS is vague on implementation strategy
+- If WORK_TYPE has significant design choices (refactor, new feature, greenfield)
+
+**When to skip Round 2:**
+- If Round 1 answers were comprehensive
+- If INPUTS or spec already provides clear direction
+- If WORK_TYPE is straightforward (bug fix with clear reproduction)
+
+Store Round 2 answers (if conducted).
+
+### Round 3: Final Planning Validation (Optional)
+
+**Only if needed**, ask 1-2 final questions to:
+- Resolve critical trade-offs that impact the plan structure
+- Validate assumptions about complexity or risk
+- Confirm approach for high-risk decisions
+
+**When to skip Round 3:**
+- Most cases - only use if truly necessary
+
+Store Round 3 answers (if conducted).
+
+### Store Interview Results
+
+Create `.claude/<SESSION_SLUG>/interview/research-plan-interview.md`:
+
+```markdown
+---
+command: /research-plan
+session_slug: {SESSION_SLUG}
+date: {YYYY-MM-DD}
+interview_stage: pre-research
+work_type: {WORK_TYPE}
+---
+
+# Pre-Research Interview
+
+## Round 1: Planning Context
+
+**Q1: {Question}**
+A: {User's answer}
+
+**Q2: {Question}**
+A: {User's answer}
+
+{...}
+
+## Round 2: Non-Obvious Planning Details
+
+{If conducted}
+
+## Round 3: Final Planning Validation
+
+{If conducted}
+
+## Key Planning Insights
+
+- {Insight 1 from interview}
+- {Insight 2 from interview}
+- {Insight 3 from interview}
+```
+
+**Use these answers** when:
+- Choosing WORK_TYPE playbook (Step 5)
+- Generating implementation approaches (Step 6)
+- Creating step-by-step plan (Step 8)
+- Defining test strategy (Step 9)
+- Defining rollout strategy (Step 11)
+
 ## Step 4: RESEARCH PHASE
 
 **CRITICAL**: Comprehensive research before planning is not optional.
@@ -206,6 +317,122 @@ If agents fail or time out, do manual research using Glob, Grep, and Read:
 - 2-3 existing features/modules most similar to what you're building/fixing
 
 **Research output**: Document all findings with file paths and line numbers for "Current System Snapshot" section.
+
+## Step 4.5: Post-Research Interview (Multi-Round)
+
+**CRITICAL**: Validate research findings and clarify planning gaps discovered during research.
+
+This is a **multi-round interview** to ensure research insights align with user expectations and planning needs.
+
+### Round 1: Research Findings Validation
+
+Present **key research findings** and ask **2-3 validation questions**:
+
+**Present findings:**
+- "I found {count} similar features/patterns: {list with file paths}"
+- "The codebase uses {pattern X} for {purpose}"
+- "Integration points identified: {list}"
+- "Risk hotspots: {list}"
+- "Existing {similar feature} follows {approach}"
+
+**Ask validation questions:**
+1. **Pattern Alignment**: "I found that {similar work} uses {pattern/approach}. Should we follow the same pattern?"
+2. **Gap Identification**: "I couldn't find examples of {specific aspect}. Should we create something new or adapt {existing approach}?"
+3. **Approach Validation**: "Based on research, I'm leaning toward {approach X}. Does this align with your expectations?"
+4. **Complexity Confirmation**: "Research suggests this will touch {count} components. Is that the right scope?"
+
+**Example questions:**
+- "I found two different patterns for {aspect}: {A} and {B}. Which should we follow?"
+- "The research shows that similar features use {technology/pattern}. Should we stick with that?"
+- "I discovered {finding} which suggests {implication}. Does this change your priorities?"
+- "Research indicates {risk X}. Are you comfortable with that, or should we take a different approach?"
+
+Store Round 1 answers.
+
+### Round 2: Planning Direction Clarification (Conditional)
+
+If research revealed **multiple valid approaches, gaps, or conflicts**, ask **1-3 targeted questions**:
+
+**Question categories:**
+1. **Approach Selection**: "I identified {count} options: {A}, {B}, {C}. Which direction should I plan for?"
+2. **Risk Trade-offs**: "Option {A} is safer but slower. Option {B} is faster but riskier. Which do you prefer?"
+3. **Missing Patterns**: "There's no existing pattern for {aspect}. Should I design a new one or adapt {similar pattern}?"
+4. **Scope Refinement**: "Research shows {finding} which could expand scope. Should I include that or defer it?"
+5. **Compatibility Decisions**: "Existing code uses {old pattern}. Should the plan migrate everything or maintain compatibility?"
+
+**When to ask Round 2:**
+- If research found multiple valid implementation approaches
+- If risks or trade-offs need user input
+- If scope boundaries are unclear after research
+- If backward compatibility decisions are needed
+
+**When to skip Round 2:**
+- If research clearly points to one approach
+- If pre-research interview already covered these decisions
+- If spec or requirements already define the direction
+
+Store Round 2 answers (if conducted).
+
+### Round 3: Final Planning Confirmation (Optional)
+
+**Only if needed**, ask 1-2 final questions to:
+- Confirm high-impact architectural decisions
+- Validate complexity estimates if significantly different than expected
+- Resolve final ambiguities before generating the plan
+
+Store Round 3 answers (if conducted).
+
+### Update Interview Document
+
+Append to `.claude/<SESSION_SLUG>/interview/research-plan-interview.md`:
+
+```markdown
+---
+
+## Post-Research Interview
+
+### Research Summary Presented
+- Similar patterns/features: {list}
+- Approaches identified: {list}
+- Integration points: {list}
+- Risk hotspots: {list}
+- Gaps found: {list}
+
+### Round 1: Research Validation
+
+**Q1: {Question}**
+A: {User's answer}
+
+**Q2: {Question}**
+A: {User's answer}
+
+{...}
+
+### Round 2: Planning Direction Clarification
+
+{If conducted}
+
+### Round 3: Final Planning Confirmation
+
+{If conducted}
+
+### Key Planning Decisions
+
+- {Decision 1 based on post-research interview}
+- {Decision 2 based on post-research interview}
+- {Decision 3 based on post-research interview}
+
+### Confirmed Approach
+
+{1-2 sentence summary of the validated approach based on interview answers}
+```
+
+**Use these answers** when:
+- Applying WORK_TYPE playbook (Step 5)
+- Generating implementation approach (Step 6)
+- Recommending approach (Step 7)
+- Creating implementation steps (Step 8)
+- Defining risks and mitigations (Step 12)
 
 ## Step 5: Choose and apply WORK_TYPE playbook
 
@@ -369,6 +596,11 @@ Specify tests across all layers:
 - **Detection**: How to detect if risk materializes
 
 ## Step 13: Generate the research plan document
+
+**IMPORTANT**: Incorporate insights from both interview stages:
+- Use pre-research interview answers for planning context, constraints, and success criteria
+- Use post-research interview answers for approach selection, risk tolerance, and design decisions
+- Reference interview document for key decisions: `.claude/<SESSION_SLUG>/interview/research-plan-interview.md`
 
 Create plan file at: `.claude/<SESSION_SLUG>/plan/research-plan.md` (always the same name)
 
@@ -624,6 +856,12 @@ After creating the plan, print:
 ## Plan Location
 Saved to: `.claude/{SESSION_SLUG}/plan/research-plan.md`
 
+## Interview Summary
+- Pre-research rounds conducted: {1-3}
+- Post-research rounds conducted: {1-3}
+- Key decisions captured: {count}
+- Interview document: `.claude/{SESSION_SLUG}/interview/research-plan-interview.md`
+
 ## Research Summary
 - Files researched: {count}
 - Similar patterns found: {count}
@@ -645,17 +883,21 @@ SESSION_SLUG: {SESSION_SLUG}
 CHECKPOINT: Starting implementation of {feature/fix title}
 ```
 
-# IMPORTANT: Research-First Approach
+# IMPORTANT: Interview-Driven Research-First Planning
 
-This command emphasizes **research over guessing**:
-1. **Spend time exploring the codebase** before proposing solutions
-2. **Find and reference existing patterns** - don't invent new ones
-3. **Cite evidence** - always include file paths and line numbers
-4. **Separate facts from assumptions** - be explicit about unknowns
-5. **Keep plans executable** - small steps, clear criteria
-6. **Think about operations** - observability, rollout, rollback
+This command emphasizes **interview + research over guessing**:
+1. **Conduct multi-round interviews** before and after research to clarify user intent:
+   - Pre-research: Understand planning context, constraints, and success criteria
+   - Post-research: Validate findings, select approaches, resolve conflicts
+2. **Spend time exploring the codebase** before proposing solutions
+3. **Find and reference existing patterns** - don't invent new ones (validate with post-research interview)
+4. **Cite evidence** - always include file paths and line numbers
+5. **Separate facts from assumptions** - be explicit about unknowns, clarify with interviews
+6. **Keep plans executable** - small steps, clear criteria
+7. **Think about operations** - observability, rollout, rollback
+8. **Store interview results** in `.claude/<SESSION_SLUG>/interview/research-plan-interview.md` for future reference
 
-The plan should feel grounded in the actual codebase, not generic advice.
+The plan should feel grounded in the actual codebase AND validated against user expectations, not generic advice.
 
 # EXAMPLE USAGE
 

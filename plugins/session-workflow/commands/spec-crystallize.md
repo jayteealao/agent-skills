@@ -95,6 +95,107 @@ From INPUTS and session context, infer:
    - `mixed`: Balanced (default)
    - Infer from STAKEHOLDERS or default to `mixed`
 
+## Step 2.5: Pre-Research Interview (Multi-Round)
+
+**CRITICAL**: Ask clarifying questions to understand user intent before research begins.
+
+This is a **multi-round interview** to uncover non-obvious details and clarify ambiguities.
+
+### Create interview directory
+
+Create `.claude/<SESSION_SLUG>/interview/` directory if it doesn't exist.
+
+### Round 1: Core Requirements Clarification
+
+Use **AskUserQuestion** to ask 2-4 targeted questions based on INPUTS analysis:
+
+**Question categories to consider:**
+1. **Problem Scope**: "What specific user problem are we solving that existing features don't address?"
+2. **Success Definition**: "How will we know this feature is successful? What metrics or user feedback matter most?"
+3. **Critical Constraints**: "Are there non-negotiable technical, business, or timeline constraints I should know about?"
+4. **User Context**: "Who are the primary users and what's their current workaround or pain point?"
+
+**Example questions:**
+- "You mentioned [feature X]. Should this work for [edge case Y], or is that explicitly out of scope?"
+- "When you say [ambiguous term], do you mean [interpretation A] or [interpretation B]?"
+- "I see we need [capability]. Does this need to support [advanced use case] or just [basic use case]?"
+
+Store Round 1 answers.
+
+### Round 2: Non-Obvious Details (Conditional)
+
+Based on Round 1 answers, ask **2-3 deeper questions** about:
+
+**Question categories:**
+1. **Edge Cases**: "What should happen when [boundary condition]?"
+2. **Integration Assumptions**: "Should this integrate with [existing system X] or work standalone?"
+3. **Trade-offs**: "Would you prefer [fast + simple] or [slower + robust]?"
+4. **Data Handling**: "What happens to existing data when [scenario]?"
+
+**When to ask Round 2:**
+- If Round 1 revealed significant ambiguities
+- If INPUTS is vague on critical details
+- If you need to choose between multiple valid approaches
+
+**When to skip Round 2:**
+- If Round 1 answers were comprehensive
+- If INPUTS is already detailed and clear
+
+Store Round 2 answers (if conducted).
+
+### Round 3: Final Validation (Optional)
+
+**Only if needed**, ask 1-2 final questions to:
+- Resolve remaining critical ambiguities
+- Confirm assumptions that would significantly impact the spec
+- Validate understanding of complex requirements
+
+**When to skip Round 3:**
+- Most cases - only use if truly necessary
+
+Store Round 3 answers (if conducted).
+
+### Store Interview Results
+
+Create `.claude/<SESSION_SLUG>/interview/spec-crystallize-interview.md`:
+
+```markdown
+---
+command: /spec-crystallize
+session_slug: {SESSION_SLUG}
+date: {YYYY-MM-DD}
+interview_stage: pre-research
+---
+
+# Pre-Research Interview
+
+## Round 1: Core Requirements
+
+**Q1: {Question}**
+A: {User's answer}
+
+**Q2: {Question}**
+A: {User's answer}
+
+{...}
+
+## Round 2: Non-Obvious Details
+
+{If conducted}
+
+## Round 3: Final Validation
+
+{If conducted}
+
+## Key Insights
+
+- {Insight 1 from interview}
+- {Insight 2 from interview}
+- {Insight 3 from interview}
+```
+
+**Use these answers** when generating the spec in Step 5.
+
 ## Step 3: Research Phase
 
 ### Step 3a: Create research directory
@@ -140,6 +241,109 @@ Read `.claude/<SESSION_SLUG>/research/codebase-mapper.md` for key findings:
    - Note relevant file paths and line numbers
    - Capture existing terminology and patterns
 
+## Step 3.5: Post-Research Interview (Multi-Round)
+
+**CRITICAL**: Validate research findings and clarify gaps discovered during research.
+
+This is a **multi-round interview** to ensure research insights align with user expectations.
+
+### Round 1: Research Findings Validation
+
+Present **key research findings** and ask **2-3 validation questions**:
+
+**Present findings:**
+- "I found {count} similar features: {list with file paths}"
+- "The codebase uses {pattern X} for {purpose}"
+- "Integration points identified: {list}"
+
+**Ask validation questions:**
+1. **Pattern Alignment**: "I found we handle {similar feature} using {pattern}. Should we follow the same approach for your feature?"
+2. **Gap Identification**: "I didn't find examples of {specific aspect}. Is this a new capability, or should I look elsewhere?"
+3. **Priority Validation**: "Research suggests {approach X} aligns with our architecture. Does this match your vision?"
+
+**Example questions:**
+- "I found that similar features use {technology/pattern}. Should we stick with that, or is there a reason to diverge?"
+- "The research shows {finding}, but you mentioned {requirement}. How should we reconcile this?"
+- "I found {conflicting patterns A and B} in the codebase. Which aligns better with your goals?"
+
+Store Round 1 answers.
+
+### Round 2: Ambiguity Resolution (Conditional)
+
+If research revealed **conflicting patterns, missing examples, or gaps**, ask **1-3 targeted questions**:
+
+**Question categories:**
+1. **Conflicting Patterns**: "I found two approaches: {A} and {B}. Which should we follow?"
+2. **Missing Examples**: "I couldn't find {specific pattern}. Should we create a new pattern or adapt {existing approach}?"
+3. **Design Direction**: "Based on research, I'm leaning toward {approach}. Does this align with your expectations?"
+4. **Risk Trade-offs**: "Research shows {risk X}. Are you comfortable with {mitigation}, or should we take a different approach?"
+
+**When to ask Round 2:**
+- If research found conflicting patterns
+- If critical examples are missing
+- If user's requirements seem to conflict with codebase norms
+
+**When to skip Round 2:**
+- If research was conclusive and aligned with requirements
+- If Round 1 validation covered all gaps
+
+Store Round 2 answers (if conducted).
+
+### Round 3: Final Confirmation (Optional)
+
+**Only if needed**, ask 1-2 final questions to:
+- Confirm high-risk architectural decisions
+- Validate complex design choices
+- Ensure critical assumptions are correct
+
+Store Round 3 answers (if conducted).
+
+### Update Interview Document
+
+Append to `.claude/<SESSION_SLUG>/interview/spec-crystallize-interview.md`:
+
+```markdown
+---
+
+## Post-Research Interview
+
+### Research Summary Presented
+- Similar features: {list}
+- Patterns identified: {list}
+- Integration points: {list}
+- Gaps found: {list}
+
+### Round 1: Research Validation
+
+**Q1: {Question}**
+A: {User's answer}
+
+**Q2: {Question}**
+A: {User's answer}
+
+{...}
+
+### Round 2: Ambiguity Resolution
+
+{If conducted}
+
+### Round 3: Final Confirmation
+
+{If conducted}
+
+### Key Decisions
+
+- {Decision 1 based on post-research interview}
+- {Decision 2 based on post-research interview}
+- {Decision 3 based on post-research interview}
+```
+
+**Use these answers** when generating the spec in Step 5, particularly for:
+- Implementation approach selection
+- Pattern alignment decisions
+- Edge case handling
+- Integration strategy
+
 ## Step 4: Analyze inputs and extract requirements
 
 Parse INPUTS to identify:
@@ -160,6 +364,11 @@ Manually identify 5-10 edge cases based on:
 - Failure modes mentioned in requirements
 
 ## Step 5: Generate the spec
+
+**IMPORTANT**: Incorporate insights from both interview stages:
+- Use pre-research interview answers for requirements, constraints, and user journeys
+- Use post-research interview answers for implementation approach and pattern alignment
+- Reference interview document for key decisions: `.claude/<SESSION_SLUG>/interview/spec-crystallize-interview.md`
 
 Create or append to `.claude/<SESSION_SLUG>/plan.md` with the following structure:
 
@@ -460,6 +669,12 @@ Print a summary:
 ## Spec Location
 Saved to: `.claude/{SESSION_SLUG}/plan.md` (spec section)
 
+## Interview Summary
+- Pre-research rounds conducted: {1-3}
+- Post-research rounds conducted: {1-3}
+- Key insights captured: {count}
+- Interview document: `.claude/{SESSION_SLUG}/interview/spec-crystallize-interview.md`
+
 ## Key Findings from Research
 - Similar features found: {count}
 - Impacted surfaces: {UI, API, Data, Jobs, Config, Permissions}
@@ -487,16 +702,20 @@ TARGET: {TARGET}
 GOAL: Plan implementation of {feature title} based on crystallized spec
 ```
 
-# IMPORTANT: Inference and Research
+# IMPORTANT: Interview-Driven Spec Crystallization
 
 This command should:
 1. **Infer SESSION_SLUG** from most recent session if not provided (read last entry from `.claude/README.md` - sessions are in chronological order)
-2. **Infer defaults** from session README and INPUTS
-3. **Do lightweight codebase research** to ground the spec in reality
-4. **Align with existing patterns** rather than inventing new ones
-5. **Flag conflicts** in INPUTS as "Decision Needed"
-6. **Keep spec testable** - every requirement should be verifiable
-7. **Avoid overengineering** - default to simplest solution
+2. **Conduct multi-round interviews** before and after research to clarify user intent:
+   - Pre-research: Understand requirements, constraints, and non-obvious details
+   - Post-research: Validate findings, resolve conflicts, confirm design direction
+3. **Infer defaults** from session README, INPUTS, and interview answers
+4. **Do lightweight codebase research** to ground the spec in reality
+5. **Align with existing patterns** rather than inventing new ones (validate with post-research interview)
+6. **Flag conflicts** in INPUTS or research as questions in the interview
+7. **Keep spec testable** - every requirement should be verifiable
+8. **Avoid overengineering** - default to simplest solution
+9. **Store interview results** in `.claude/<SESSION_SLUG>/interview/spec-crystallize-interview.md` for future reference
 
 # OUTPUT STYLE VARIANTS
 

@@ -4,6 +4,45 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.6.0 - 2026-01-17
+
+### Added
+- **session-workflow**: Multi-round interview stages for spec-crystallize and research-plan commands
+  - Pre-research interview: Clarifying questions asked before codebase research begins
+  - Post-research interview: Validation questions asked after research to confirm approach
+  - Support for 1-3 rounds of questions per interview stage
+  - Interview results stored in `.claude/<SESSION_SLUG>/interview/` directory
+
+### Enhanced
+- **session-workflow/spec-crystallize**: Added Step 2.5 (Pre-Research Interview) and Step 3.5 (Post-Research Interview)
+  - Round 1: Core requirements clarification (problem scope, success definition, constraints, user context)
+  - Round 2: Non-obvious details (edge cases, integration assumptions, trade-offs, data handling)
+  - Round 3: Final validation (optional, only if critical ambiguities remain)
+  - Interview insights incorporated into spec generation
+
+- **session-workflow/research-plan**: Added Step 3.5 (Pre-Research Interview) and Step 4.5 (Post-Research Interview)
+  - Round 1: Planning context clarification (work type validation, success criteria, constraints, risk tolerance)
+  - Round 2: Non-obvious planning details (implementation approach, testing strategy, rollout expectations)
+  - Round 3: Final planning validation (optional, only if needed)
+  - Interview insights used for approach selection, risk analysis, and step-by-step planning
+
+### Technical Details
+- Interview stages use AskUserQuestion tool for interactive multi-round questioning
+- Questions are contextual based on INPUTS, session context, and research findings
+- Each interview stage supports conditional rounds (Round 2-3 only if needed)
+- Interview results stored in markdown format with Q&A structure
+- Pre-research interviews focus on clarifying requirements and constraints
+- Post-research interviews focus on validating findings and resolving conflicts
+- Interview answers incorporated into spec/plan generation workflow
+- Summary output includes interview round counts and document location
+
+### Use Cases
+- **Ambiguous requirements**: Multi-round interviews extract non-obvious details before planning
+- **Complex features**: Post-research interviews help choose between multiple valid approaches
+- **Risk validation**: Interview stages allow user to confirm risk tolerance and trade-offs
+- **Pattern alignment**: Post-research interviews validate whether to follow existing patterns or diverge
+- **Scope clarification**: Iterative questioning helps define precise boundaries
+
 ## Version 1.5.0 - 2026-01-17
 
 ### Enhanced
