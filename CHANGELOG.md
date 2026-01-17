@@ -4,6 +4,59 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.5.0 - 2026-01-17
+
+### Enhanced
+- **session-workflow**: Significantly expanded 4 review commands with comprehensive examples and guidance
+  - `review:scalability` - Enhanced from 8.6KB to 40KB (5x expansion) with detailed bottleneck analysis
+  - `review:accessibility` - Enhanced from 5KB to 36KB (7x expansion) with WCAG 2.1 comprehensive patterns
+  - `review:dx` - Enhanced from 5.5KB to 36KB (7x expansion) with developer experience best practices
+  - `review:ux-copy` - Enhanced from 4.8KB to 35KB (7x expansion) with tone and clarity guidelines
+
+### Added
+- **session-workflow/review:scalability**: 9 comprehensive checklist categories with scale impact estimates
+  - Algorithmic complexity analysis with O(n) vs O(n²) examples
+  - Database query optimization with N+1 detection
+  - Caching strategy patterns and cache stampede prevention
+  - Horizontal scaling impediments identification
+  - Resource leak and connection pooling analysis
+  - Multi-tenancy scalability patterns
+  - Background job processing best practices
+
+- **session-workflow/review:accessibility**: 10 comprehensive WCAG 2.1 checklist categories
+  - Keyboard navigation patterns and focus management
+  - Screen reader compatibility with ARIA patterns
+  - Alt text and image accessibility guidelines
+  - Form accessibility with validation patterns
+  - Color contrast and visual accessibility standards
+  - Semantic HTML and landmark usage
+  - Dynamic content announcement patterns
+
+- **session-workflow/review:dx**: 10 developer experience checklist categories
+  - Documentation quality assessment (README, CONTRIBUTING, API docs)
+  - Error message clarity with actionable guidance
+  - Local development setup automation (Docker, native)
+  - Build and test performance optimization
+  - CI/CD pipeline efficiency patterns
+  - Helpful scripts and tooling recommendations
+  - Dependency management and security auditing
+
+- **session-workflow/review:ux-copy**: 10 UX copy quality checklist categories
+  - Error message transformation (blame → helpful)
+  - Terminology consistency analysis and style guides
+  - Clarity and understandability patterns
+  - Actionability and user recovery guidance
+  - Tone and voice consistency principles
+  - Button label and CTA best practices
+  - Empty state and zero data patterns
+
+### Technical Details
+- Added 700+ code examples across enhanced commands showing problems and fixes
+- Each enhanced command now includes 25-40KB of comprehensive guidance
+- Consistent structure: ROLE → NON-NEGOTIABLES → CHECKLIST → WORKFLOW → OUTPUT FORMAT
+- Evidence-first review methodology with severity ratings (BLOCKER/HIGH/MED/LOW/NIT)
+- File:line references for all findings with user/developer impact analysis
+
 ## Version 1.4.0 - 2026-01-16
 
 ### Added
