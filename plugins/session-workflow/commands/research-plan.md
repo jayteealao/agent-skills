@@ -49,11 +49,13 @@ You are a senior staff engineer doing research-first planning. Your output must 
 
 1. **Evidence-only**: When referencing code, always cite file paths + line ranges (or exact identifiers) and quote minimal snippets.
 2. **Research first, then plan**:
+   - ALWAYS spawn ALL 5 research agents in parallel (codebase-mapper, web-research, design-options, risk-analyzer, edge-case-generator)
+   - Synthesize findings from all agents into cohesive understanding
    - Locate existing patterns in the codebase
    - Find nearest similar feature/bug/module and summarize what to reuse
    - Identify constraints implied by architecture, tests, CI, deployments
 3. **Separate FACTS vs ASSUMPTIONS vs QUESTIONS**:
-   - FACTS: Directly supported by inputs/code
+   - FACTS: Directly supported by inputs/code/research
    - ASSUMPTIONS: Educated guesses (label clearly)
    - QUESTIONS: Only those that change the plan
 4. **Keep the plan executable**:
@@ -61,6 +63,10 @@ You are a senior staff engineer doing research-first planning. Your output must 
    - Specify tests/checks to run per step
 5. **Prefer minimal-change solutions** unless WORK_TYPE demands redesign
 6. **Always include**: Testing strategy, observability impact, rollout/rollback
+7. **Web research is mandatory**: Always research security (OWASP, CVE) and compare dependencies
+8. **Justify every dependency**: Use 2-3 alternative comparison with sources
+9. **Research iteratively**: Follow up on gaps with additional searches (limit: 2 rounds)
+10. **Self-review is mandatory**: Review generated plan for errors, edge cases, and overengineering BEFORE finalizing
 
 # WORKFLOW
 
@@ -308,9 +314,13 @@ A: {User's answer}
 
 Create `.claude/<SESSION_SLUG>/research/` directory if it doesn't exist.
 
-### Step 4b: Execute research
+### Step 4b: Execute comprehensive research (ALL 5 agents in parallel)
 
-Spawn **codebase-mapper agent** (5-7 minutes):
+**CRITICAL**: ALWAYS spawn ALL 5 research agents for comprehensive analysis.
+
+Spawn all agents in parallel:
+
+1. **codebase-mapper agent** (5-7 minutes):
 ```
 Input parameters:
 - feature_description: {Extracted from INPUTS or spec}
@@ -324,41 +334,113 @@ Input parameters:
 Expected output: `.claude/<SESSION_SLUG>/research/codebase-mapper.md`
 ```
 
-Wait for completion, read the output, and proceed to Step 5.
+2. **web-research agent** (5-7 minutes):
+```
+Input parameters:
+- research_topics: {Derived from spec + dependencies}
+  * ALWAYS: Security best practices for {feature_type}
+  * ALWAYS: OWASP guidelines, CVE checks for {tech_stack}
+  * ALWAYS: Dependency comparison for top 2-3 libraries
+  * CONDITIONAL: Performance patterns, case studies, cost analysis
+- context: {Feature description from spec}
+- focus_areas: [security, dependencies, performance, scalability]
+- tech_stack: {From spec or inferred from codebase}
+- depth: medium
+- session_slug: {SESSION_SLUG}
 
-### Step 4c: Read research results
+Expected output: `.claude/<SESSION_SLUG>/research/web-research.md`
+```
 
-Read `.claude/<SESSION_SLUG>/research/codebase-mapper.md` and extract:
-- Similar features and patterns
-- Naming conventions and architectural patterns
-- Integration points and dependencies
-- Error handling patterns
-- Risk hotspots
+3. **design-options agent** (5-7 minutes):
+```
+Input parameters:
+- spec: {Feature requirements from spec.md}
+- codebase_patterns: {Summary from codebase-mapper}
+- industry_patterns: {Summary from web-research}
+- constraints: {CONSTRAINTS from Step 3}
+- session_slug: {SESSION_SLUG}
 
-### Step 4d: Fallback research (if agents fail)
+Expected output: `.claude/<SESSION_SLUG>/research/design-options.md`
+```
 
-If agents fail or time out, do manual research using Glob, Grep, and Read:
+4. **risk-analyzer agent** (5-7 minutes):
+```
+Input parameters:
+- feature_description: {From spec.md}
+- design_approaches: {High-level options to consider}
+- constraints: {CONSTRAINTS}
+- risk_tolerance: {RISK_TOLERANCE}
+- session_slug: {SESSION_SLUG}
 
-**4d.1: Identify impacted components**
-- Entrypoints: API handlers, jobs, UI routes, CLIs
-- Data stores: Tables, collections, queues, schemas
-- Integrations: Third-party APIs, external services
+Expected output: `.claude/<SESSION_SLUG>/research/risk-analysis.md`
+```
 
-**4d.2: Map dependencies**
-- What calls what (high level call graph)
-- What invariants must hold (contracts, assumptions)
-- Critical paths (auth, payments, data integrity)
+5. **edge-case-generator agent** (5-7 minutes):
+```
+Input parameters:
+- feature_description: {From spec.md}
+- context: {Session and implementation context}
+- session_slug: {SESSION_SLUG}
 
-**4d.3: Identify "existing way of doing this here"**
-- Naming patterns, error handling, config style, abstractions, test style
+Expected output: `.claude/<SESSION_SLUG>/research/edge-cases.md`
+```
 
-**4d.4: Identify risk hotspots**
-- Auth/money/PII, concurrency, migrations, public APIs
+Wait for ALL 5 agents to complete (timeout: 15 minutes) before proceeding to Step 4c.
 
-**4d.5: Find similar examples**
-- 2-3 existing features/modules most similar to what you're building/fixing
+### Step 4c: Read and synthesize all research findings
 
-**Research output**: Document all findings with file paths and line numbers for "Current System Snapshot" section.
+**CRITICAL**: Synthesize findings from ALL 5 agents into a cohesive understanding.
+
+1. **Read codebase-mapper.md** and extract:
+   - Similar features (2-3 examples with patterns)
+   - Naming conventions and architectural patterns
+   - Integration points and dependencies
+   - Error handling patterns
+   - Risk hotspots
+
+2. **Read web-research.md** and extract:
+   - Security findings: OWASP guidelines, CVEs, security advisories
+   - Dependency comparisons: Library alternatives with pros/cons
+   - Performance benchmarks (if applicable)
+   - Case studies: Real-world implementations
+   - Best practices: Industry standards and recommendations
+
+3. **Read design-options.md** and extract:
+   - 2-3 design approaches with trade-off analysis
+   - Recommended approach with justification
+   - Decision matrix
+   - Alignment with codebase patterns
+
+4. **Read risk-analysis.md** and extract:
+   - Top 5-7 risks with likelihood × impact scores
+   - Mitigations for each risk
+   - Detection methods
+   - Risk prioritization
+
+5. **Read edge-cases.md** and extract:
+   - Comprehensive edge case catalog (10 categories)
+   - Security edge cases (OWASP patterns)
+   - Error scenarios and handling strategies
+   - Boundary conditions
+
+6. **Synthesize findings**:
+   - Cross-reference codebase patterns with industry best practices
+   - Validate design options against risk analysis
+   - Ensure dependencies address edge cases
+   - Create unified view of: patterns + risks + options + edge cases
+
+### Step 4d: Follow-up research (if gaps identified)
+
+If initial research reveals gaps or ambiguities:
+1. Identify missing information:
+   - Incomplete dependency comparison
+   - Unclear security considerations
+   - Missing implementation examples
+2. Generate targeted follow-up queries
+3. Execute 1-2 additional web searches (limit: 2 rounds total)
+4. Consolidate findings into research documents
+
+Skip if initial research is comprehensive.
 
 ## Step 4.5: Post-Research Interview (Multi-Round)
 
@@ -613,6 +695,32 @@ Pick the best option based on:
 
 Provide clear rationale and explicitly state what you're NOT doing (to avoid overengineering).
 
+## Step 7.5: Analyze dependencies and justify choices
+
+For each major dependency in the chosen approach:
+1. **Identify 2-3 alternative libraries/approaches** using web-research.md and codebase-mapper.md findings
+2. **Compare alternatives** with decision matrix (pros/cons, performance, security, community)
+3. **Justify your choice** with sources from web research
+4. **Document security status** (CVEs, advisories) from web-research.md
+5. **Check if dependency exists in codebase** (reuse) or is new (justify addition)
+6. **Note if "build vs buy"** - could we implement this ourselves simply vs adding a dependency?
+
+For EACH dependency, prepare:
+- Comparison table with 2-3 alternatives
+- Justification with web sources (articles, benchmarks, docs)
+- Security analysis (CVE findings, OWASP guidelines)
+- Performance benchmarks (if applicable)
+- Case studies (if found in web research)
+
+This analysis will populate the **Technology Choices section** (Section 3) in Step 13.
+
+**Example dependency analysis**:
+- Dependency: `express-validator` for input validation
+- Alternatives: joi, yup, express-validator
+- Chosen: express-validator (already in codebase, integrates with Express middleware, good CVE record)
+- Security: No active CVEs, follows OWASP input validation guidelines
+- Sources: [npm comparison](URL), [OWASP guide](URL)
+
 ## Step 8: Create step-by-step implementation plan
 
 Break down into small, verifiable checkpoints. For each step:
@@ -687,7 +795,7 @@ Specify tests across all layers:
 - Use post-research interview answers for approach selection, risk tolerance, and design decisions
 - Reference interview document for key decisions: `.claude/<SESSION_SLUG>/interview/research-plan-interview.md`
 
-Create plan file at: `.claude/<SESSION_SLUG>/plan/research-plan.md` (always the same name)
+Create plan file at: `.claude/<SESSION_SLUG>/plan.md`
 
 If milestone exists from scope-triage, note it in frontmatter:
 ```yaml
@@ -697,11 +805,72 @@ milestone: mvp  # or m1, m2, m3, full
 ```
 
 
+## Step 13.5: Self-review and refine the generated plan
+
+**CRITICAL**: Review the generated plan for errors, edge cases, and overengineering BEFORE finalizing.
+
+### Review Checklist:
+
+1. **Error Detection**:
+   - Check for logical errors in implementation steps
+   - Verify all file paths and references are correct
+   - Validate code examples for syntax errors
+   - Ensure step dependencies are in correct order
+   - Confirm all acceptance criteria are testable
+
+2. **Edge Case Coverage**:
+   - Review edge-cases.md findings
+   - Check if plan addresses all critical edge cases from research
+   - Verify error handling for boundary conditions
+   - Ensure concurrent access scenarios are handled
+   - Validate input validation covers edge cases
+
+3. **Overengineering Detection**:
+   - Identify unnecessary abstractions or patterns
+   - Flag premature optimizations
+   - Check for over-complex solutions to simple problems
+   - Verify dependencies are justified (not adding libraries for trivial tasks)
+   - Ensure YAGNI principle is followed
+
+4. **Missing Critical Elements**:
+   - Security considerations from web-research.md and risk-analysis.md
+   - Performance implications from research
+   - Rollback and error recovery procedures
+   - Testing strategy for edge cases
+   - Observability for monitoring issues
+
+### If Issues Found:
+
+1. **Research gaps**: Execute targeted follow-up research
+   - Re-query web-research if security/best practices unclear
+   - Review codebase-mapper if patterns misunderstood
+   - Check design-options for alternative approaches
+
+2. **Fix identified issues**:
+   - Correct logical errors in steps
+   - Add missing edge case handling
+   - Simplify overengineered solutions
+   - Remove unnecessary dependencies
+   - Strengthen security measures
+
+3. **Regenerate affected sections** of plan.md:
+   - Update Implementation Steps section
+   - Revise Technology Choices if dependencies changed
+   - Update Success Criteria & Risks
+   - Modify Test Plan if edge cases expanded
+
+4. **Verify improvements**:
+   - Re-run review checklist on updated sections
+   - Ensure fixes don't introduce new issues
+   - Confirm plan is now error-free and comprehensive
+
+**Output**: Refined plan.md with all issues addressed
+
 ## Step 14: Update session README
 
 Update `.claude/<SESSION_SLUG>/README.md`:
 1. Find the artifacts section
-2. Check off `[ ]` → `[x]` for `plan/research-plan.md`
+2. Check off `[ ]` → `[x]` for `plan.md`
 3. Add to "Recent Activity" section:
    ```markdown
    - {YYYY-MM-DD}: Created research plan via `/research-plan`
@@ -729,7 +898,7 @@ target: {TARGET}
 risk_tolerance: {RISK_TOLERANCE}
 related:
   session: ../README.md
-  spec: ../spec/spec-crystallize.md (if exists)
+  spec: ../spec.md (if exists)
   triage: ../plan/scope-triage.md (if exists)
 ---
 
@@ -822,7 +991,85 @@ related:
 
 ---
 
-## 3) Implementation Steps
+## 3) Technology Choices & Dependency Justification
+
+**CRITICAL**: Justify EVERY major dependency with research-backed comparison.
+
+### Core Dependencies
+
+#### Dependency 1: {Library Name} v{Version}
+
+**Purpose**: {What problem it solves in 1-2 sentences}
+
+**Alternatives Considered**:
+
+| Library | Pros | Cons | Performance | Security | Community | Decision |
+|---------|------|------|-------------|----------|-----------|----------|
+| **{Option A}** ⭐ | ✅ {Pro 1}<br>✅ {Pro 2} | ❌ {Con 1} | {Benchmark or N/A} | {CVEs or status} | {GitHub stars, activity} | **CHOSEN** |
+| {Option B} | ✅ {Pro 1} | ❌ {Con 1}<br>❌ {Con 2} | {Benchmark} | {CVEs} | {GitHub stars} | Rejected: {Reason} |
+| {Option C} | ✅ {Pro 1} | ❌ {Con 1} | {Benchmark} | {CVEs} | {GitHub stars} | Rejected: {Reason} |
+
+**Why {Option A}**:
+{2-3 sentence justification backed by research}
+
+**Sources**:
+- [Comparison Article]({URL}) - {Date}
+- [Benchmark]({URL}) - {Date}
+- [Official Docs]({URL})
+
+**Security Considerations**:
+- CVEs: {None found / List with mitigations}
+- OWASP: {Relevant guideline}
+- Security advisories: {Status}
+
+---
+
+#### Dependency 2: {Library Name}
+{Repeat structure for each major dependency}
+
+---
+
+### Security Research Summary
+
+**OWASP Guidelines for {Feature Type}**:
+1. {Guideline 1} - Source: [{OWASP Resource}]({URL})
+2. {Guideline 2} - Source: [{OWASP Resource}]({URL})
+
+**CVE Findings**:
+- {Dependency A}: {No CVEs / CVE-XXXX-YYYY (mitigated by X)}
+- {Dependency B}: {Status}
+
+**Security Checklist** (from web research):
+- [ ] Authentication: {Requirement}
+- [ ] Authorization: {Requirement}
+- [ ] Input validation: {Requirement}
+- [ ] {OWASP-specific items}
+
+---
+
+### Performance Research (if applicable)
+
+**Benchmarks Found**:
+- {Library A}: {Throughput}, {Latency p99}
+- {Library B}: {Throughput}, {Latency p99}
+
+**Optimization Techniques**:
+1. {Technique 1} - Source: [{Article}]({URL})
+2. {Technique 2} - Source: [{Article}]({URL})
+
+---
+
+### Case Studies (if found)
+
+**{Company}: {Feature}**
+- Approach: {What they did}
+- Results: {Metrics}
+- Lessons: {Key takeaway}
+- Source: [{Article}]({URL})
+
+---
+
+## 4) Implementation Steps
 
 ### Step 1: {Title}
 
@@ -843,7 +1090,7 @@ related:
 
 ---
 
-## 4) Success Criteria & Key Risks
+## 5) Success Criteria & Key Risks
 
 **Success Criteria:**
 1. ✅ {Measurable criterion 1}
@@ -867,7 +1114,7 @@ related:
 
 {OPTIONAL SECTIONS - Only include when relevant}
 
-## 5) Detailed Test Plan (optional)
+## 6) Detailed Test Plan (optional)
 
 
 **Unit Tests:**
@@ -884,7 +1131,7 @@ related:
 
 ---
 
-## 6) Observability & Rollout (optional)
+## 7) Observability & Rollout (optional)
 
 {Include ONLY if production deployment OR high-risk changes}
 
@@ -939,7 +1186,7 @@ After creating the plan, print:
 # Research Plan Complete
 
 ## Plan Location
-Saved to: `.claude/{SESSION_SLUG}/plan/research-plan.md`
+Saved to: `.claude/{SESSION_SLUG}/plan.md`
 
 ## Interview Summary
 - Pre-research rounds conducted: {3-5}

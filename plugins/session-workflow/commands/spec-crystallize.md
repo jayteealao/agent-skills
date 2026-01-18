@@ -38,8 +38,10 @@ args:
 You are a spec author. Your job is to convert ambiguous inputs into an implementable specification that engineering can execute and QA can verify.
 
 # SPEC RULES
+- Keep spec minimal (1,000-1,500 words) - detailed planning belongs in /research-plan
+- Focus on WHAT, not HOW (requirements, not implementation steps)
 - Separate: Requirements vs Design vs Open Questions
-- Prefer testable language: "Given/When/Then", measurable thresholds, explicit error cases
+- Prefer testable language: "Given/When/Then", measurable thresholds
 - Default to least scope that still solves the user problem (avoid overengineering)
 - If inputs conflict, propose a resolution and mark it as "Decision Needed"
 
@@ -449,21 +451,18 @@ Manually identify 5-10 edge cases based on:
 
 ## Step 5: Generate the spec
 
-**IMPORTANT**: Incorporate insights from both interview stages:
+**IMPORTANT**: Keep spec minimal and focused (1,000-1,500 words target).
+- Include: WHAT needs to be built, WHO uses it, WHY now
+- Exclude: HOW to build it (belongs in research-plan)
+- Detailed error handling, edge cases, patterns, risks → research-plan
+- Focus on requirements and acceptance criteria, not implementation details
+
+Incorporate insights from both interview stages:
 - Use pre-research interview answers for requirements, constraints, and user journeys
 - Use post-research interview answers for implementation approach and pattern alignment
 - Reference interview document for key decisions: `.claude/<SESSION_SLUG>/interview/spec-crystallize-interview.md`
 
-Create or append to `.claude/<SESSION_SLUG>/plan.md` with the following structure:
-
-**Note:** If `plan.md` already exists (from a previous planning step), append this spec to it with a clear separator:
-```markdown
----
-
-# Spec: {Title}
-```
-
-If creating new file, start with:
+Create `.claude/<SESSION_SLUG>/spec.md` with the following structure:
 
 ```markdown
 ---
@@ -507,46 +506,32 @@ Define key terms to prevent naming drift and align with codebase conventions:
 
 ### Journey 1: {Primary use case}
 
-**Primary path:**
 1. User does X
 2. System responds with Y
 3. User sees Z
-4. ...
 
-**Failure paths:**
-- If A fails, then B
-- If validation error on C, show D
-- ...
+### Journey 2: {Secondary use case (if needed)}
 
-### Journey 2: {Secondary use case}
-
-{Repeat structure}
-
-### Journey 3: {Edge case journey}
-
-{Repeat structure}
+1. User does A
+2. System responds with B
+3. User sees C
 
 ## 3) Requirements
 
 ### Functional Requirements
 
 - **FR1**: {Requirement in testable language}
-  - Rationale: {Why this is needed}
-  - Impact: {What surfaces are affected}
-
 - **FR2**: {Requirement}
-  - Rationale: {Why}
-  - Impact: {What}
-
-{Continue for all functional requirements}
+- **FR3**: {Requirement}
+- **FR4**: {Requirement}
+- **FR5**: {Requirement}
+{Limit to top 5-7 functional requirements}
 
 ### Non-Functional Requirements
 
-- **NFR1**: Performance - {Specific threshold, e.g., "API response < 200ms p95"}
-- **NFR2**: Security - {Specific requirement, e.g., "All inputs sanitized against XSS"}
-- **NFR3**: Privacy - {Data handling requirement}
-- **NFR4**: Reliability - {Uptime/error rate requirement}
-- **NFR5**: Scalability - {Expected load, growth projections}
+- **NFR1**: Security - {Specific requirement, e.g., "All inputs sanitized against XSS"}
+- **NFR2**: Performance - {Specific threshold, e.g., "API response < 200ms p95"}
+{Add only critical non-functional requirements}
 
 ### Permissions & Roles
 
@@ -558,98 +543,30 @@ Define key terms to prevent naming drift and align with codebase conventions:
 
 ## 4) Implementation Surface
 
-### UI Changes (if applicable)
-
-**New components:**
-- Component 1: {Description, location}
-- Component 2: {Description, location}
-
-**Modified components:**
-- {Path/Component}: {What changes}
-
-**States & transitions:**
-- State 1 → State 2 (on action X)
-- Error states: {List error UI states}
-
-### API Changes (if applicable)
-
-#### New Endpoints
+### API Endpoints (if applicable)
 
 **POST /api/v1/resource**
 - Purpose: {What it does}
-- Request:
-  ```json
-  {
-    "field1": "string",
-    "field2": 123
-  }
-  ```
-- Response (200):
-  ```json
-  {
-    "id": "uuid",
-    "status": "created"
-  }
-  ```
-- Errors:
-  - 400: Invalid input (validation errors)
-  - 401: Unauthorized
-  - 403: Forbidden
-  - 409: Resource already exists
-  - 500: Server error
+- Key fields: field1 (string), field2 (integer)
 
-#### Modified Endpoints
+**GET /api/v1/resource/:id**
+- Purpose: {What it does}
+- Returns: {Brief description}
 
-**PATCH /api/v1/resource/:id**
-- Changes: {What's being added/modified}
-- New fields: {List new request/response fields}
+### Data Model (if applicable)
 
-### Data Model Changes (if applicable)
-
-**New tables/collections:**
+**New tables:**
 - Table: `resources`
-  - Columns: id (uuid), name (string), created_at (timestamp), ...
-  - Indexes: idx_name, idx_created_at
-  - Relationships: belongs_to user, has_many items
+  - Key columns: id, name, created_at
+  - Relationships: belongs_to user
 
-**Modified tables/collections:**
+**Modified tables:**
 - Table: `users`
-  - New columns: preference_x (boolean, default: false)
-  - Migrations needed: Yes
+  - New columns: preference_x (boolean)
 
-### Background Jobs (if applicable)
+{Note: Detailed error codes, background jobs, config belong in implementation plan}
 
-- Job: `ProcessResourceJob`
-  - Trigger: When resource created
-  - Frequency: On-demand
-  - Duration: ~5 seconds
-  - Failure handling: Retry 3x with exponential backoff
-
-### Configuration (if applicable)
-
-New config values needed:
-- `FEATURE_ENABLED`: boolean, default false
-- `MAX_UPLOAD_SIZE`: integer, default 10485760 (10MB)
-
-### Permissions/Authorization (if applicable)
-
-New permission checks:
-- `can_create_resource`: Check user role is admin or owner
-- `can_view_resource`: Check user owns resource or is admin
-
-## 5) Edge Cases & Error Handling
-
-| Edge Case | Expected Behavior | Error Code/Message |
-|-----------|-------------------|-------------------|
-| Empty input | Reject with validation error | 400: "Field X is required" |
-| Duplicate submission | Return existing resource (idempotent) | 200: Returns existing |
-| Invalid format | Parse error with helpful message | 400: "Expected JSON" |
-| Rate limit exceeded | Throttle with retry-after | 429: "Rate limit exceeded, retry after 60s" |
-| Partial failure | Rollback and return error | 500: "Operation failed, no changes made" |
-| Concurrent modification | Last-write-wins or optimistic locking | 409: "Resource modified, refresh and retry" |
-| Missing dependencies | Graceful degradation or error | 503: "Service temporarily unavailable" |
-
-## 6) Acceptance Criteria (Testable)
+## 5) Acceptance Criteria (Testable)
 
 Write as Given/When/Then for easy conversion to tests:
 
@@ -673,49 +590,14 @@ Write as Given/When/Then for easy conversion to tests:
 - When: POST /api/v1/resource with duplicate data
 - Then: 200 OK, returns existing resource, no duplicate created
 
-**AC5: Edge case - {Specific edge case}**
+**AC5: {Critical test case}**
 - Given: {Precondition}
 - When: {Action}
 - Then: {Expected result}
 
-{Continue for all critical acceptance criteria, including negative cases}
+{Limit to 5-7 most critical acceptance criteria}
 
-## 7) Out of Scope / Deferred Ideas
-
-Keep this list to prevent scope creep during implementation:
-
-- {Idea 1}: Deferred because {reason} - consider for future iteration
-- {Idea 2}: Out of scope because {reason}
-- {Idea 3}: Not needed for MVP, revisit in phase 2
-
-**Note:** For open questions, use inline `TODO:` comments in relevant sections instead of a separate table.
-Example: "TODO: Decide auth method (OAuth vs JWT) - recommend OAuth for third-party integration"
-
-## 8) Implementation Notes
-
-**Key Patterns to Follow:**
-{If codebase-mapper ran, reference the patterns:}
-- Follow naming conventions from `{similar_file_path}`
-- Use error handling pattern from `{example_path}`
-- See [full codebase analysis](../research/codebase-mapper.md) for details
-
-**Key Risks:**
-{Merge top 2-3 risks from research or analysis:}
-- Risk 1: {Description} - Mitigation: {How to reduce}
-- Risk 2: {Description} - Mitigation: {How to reduce}
-
-**Dependencies:**
-{Only if blocking:}
-- {External API/service}: Required for {what}
-- {Team/resource}: Blocked on {what}
-
-{If research agents ran:}
-**Research Links:**
-- [Codebase Analysis](../research/codebase-mapper.md) - Similar patterns and conventions
-{If web-research ran:}
-- [Web Research](../research/web-research.md) - Industry best practices and security
-{If edge-case-generator ran:}
-- [Edge Cases](../research/edge-cases.md) - Comprehensive edge case analysis
+**Note:** Detailed edge cases, error handling, implementation patterns belong in `/research-plan`
 
 ---
 
@@ -736,7 +618,7 @@ Example: "TODO: Decide auth method (OAuth vs JWT) - recommend OAuth for third-pa
 
 Update `.claude/<SESSION_SLUG>/README.md`:
 1. Find the artifacts section
-2. Check off `[ ]` → `[x]` for `plan.md` (spec section)
+2. Check off `[ ]` → `[x]` for `spec.md`
 3. Add a "Recent Activity" section at the top if it doesn't exist:
    ```markdown
    ## Recent Activity
@@ -751,7 +633,7 @@ Print a summary:
 # Spec Crystallized
 
 ## Spec Location
-Saved to: `.claude/{SESSION_SLUG}/plan.md` (spec section)
+Saved to: `.claude/{SESSION_SLUG}/spec.md`
 
 ## Interview Summary
 - Pre-research rounds conducted: {3-5}
@@ -781,9 +663,7 @@ Saved to: `.claude/{SESSION_SLUG}/plan.md` (spec section)
 
 /research-plan
 SESSION_SLUG: {SESSION_SLUG}
-SCOPE: {SCOPE}
-TARGET: {TARGET}
-GOAL: Plan implementation of {feature title} based on crystallized spec
+INPUTS: Use requirements from spec.md to create extensively researched implementation plan
 ```
 
 # IMPORTANT: Interview-Driven Spec Crystallization

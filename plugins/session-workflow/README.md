@@ -1,10 +1,10 @@
 # Session Workflow Plugin
 
-**Version**: 1.3.0
+**Version**: 1.7.0
 **Author**: Claude Code Community
 **License**: MIT
 
-A hobby-focused Claude Code plugin providing 46 commands, 5 research agents, and 1 skill for software engineering workflows. Optimized for side projects with simplified outputs, fast research (5-7 min), and essential code review coverage.
+A hobby-focused Claude Code plugin providing 46 commands, 5 research agents, and 1 skill for software engineering workflows. Features minimal specifications (spec.md), extensively researched plans (plan.md) with web-validated dependencies and security checks, and comprehensive code review coverage.
 
 ---
 
@@ -507,19 +507,41 @@ claude --skill wide-event-observability "Design logging for payment API"
    - Document goals in README.md
    - Track artifacts as you work
 
-2. During Session
+2. Crystallize Specification
+   /spec-crystallize
+   ├─ Convert ambiguous request into minimal spec
+   ├─ 10-round interview (5 pre-research + 5 post-research)
+   ├─ Output: .claude/<session-slug>/spec.md (1,000-1,500 words)
+   └─ Focus on WHAT to build (requirements, acceptance criteria)
+
+3. Create Research-Based Plan
+   /research-plan
+   ├─ Spawn ALL 5 research agents in parallel:
+   │  • codebase-mapper (find reusable components, patterns)
+   │  • web-research (libraries, security, OWASP, CVE checks)
+   │  • design-options (synthesize approaches with trade-offs)
+   │  • risk-analyzer (identify risks with mitigations)
+   │  • edge-case-generator (comprehensive edge cases)
+   ├─ Synthesize findings into cohesive plan
+   ├─ Justify EVERY dependency (2-3 alternatives comparison)
+   ├─ Self-review for errors, edge cases, overengineering
+   ├─ Output: .claude/<session-slug>/plan.md
+   └─ Focus on HOW to build (implementation steps, dependencies)
+
+4. During Implementation
    - Update session README with progress
    - Document technical decisions
    - Track blockers and follow-ups
+   - Run code reviews (/review:security, /review:performance, etc.)
 
-3. Create Handoff
+5. Create Handoff
    /handoff
    ├─ Choose audience (reviewers/oncall/cross-functional/leadership)
    ├─ Document critical paths
    ├─ Provide deployment steps
    └─ Document rollback procedure
 
-4. Close Session
+6. Close Session
    /close-session
    ├─ Set STATUS (Done/Paused/Abandoned)
    ├─ Summarize OUTCOME (1-3 sentences)

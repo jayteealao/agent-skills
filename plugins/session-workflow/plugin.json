@@ -1,6 +1,6 @@
 {
   "name": "session-workflow",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Complete software engineering workflows: 46 commands with all 30 review commands fully implemented, 5 research agents covering code review, workflow management, and observability",
   "author": "Claude Code Community",
   "license": "MIT",
@@ -25,11 +25,11 @@
       "category": "workflow"
     },
     "spec-crystallize": {
-      "description": "Convert ambiguous requests into implementable specifications",
+      "description": "Convert ambiguous requests into minimal, implementable specifications (spec.md) with essential requirements and acceptance criteria",
       "category": "workflow"
     },
     "research-plan": {
-      "description": "Create evidence-based implementation plan with research-first approach",
+      "description": "Create extensively researched implementation plans (plan.md) with web-validated dependencies, security checks, and codebase pattern analysis using 5 autonomous research agents",
       "category": "workflow"
     },
     "scope-triage": {

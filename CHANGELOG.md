@@ -4,6 +4,103 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.7.0 - 2026-01-18
+
+### Changed - Breaking
+- **session-workflow/spec-crystallize**: Output location changed from `.claude/<SESSION_SLUG>/plan.md` to `.claude/<SESSION_SLUG>/spec.md`
+  - **BREAKING**: Existing workflows referencing `plan.md` for specs will need to update to `spec.md`
+  - Spec now focuses on WHAT to build (requirements, acceptance criteria) instead of HOW
+  - Reduced spec length from 2,000-4,000 words to 1,000-1,500 words (minimal, essential sections only)
+  - Template simplified from 9 sections to 6 sections:
+    - Kept: Summary, Glossary, User Journeys, Requirements, Implementation Surface, Acceptance Criteria
+    - Removed: Edge Cases (moved to research-plan), Out of Scope (merged into Summary), Implementation Notes (moved to research-plan)
+  - Simplified User Journeys to 1-2 primary paths (removed detailed failure enumeration)
+  - Simplified Requirements to top 5-7 FRs + critical NFRs only
+  - Simplified Implementation Surface to key APIs + basic data model only
+
+- **session-workflow/research-plan**: Output location changed from `.claude/<SESSION_SLUG>/plan/research-plan.md` to `.claude/<SESSION_SLUG>/plan.md`
+  - **BREAKING**: Existing workflows referencing `plan/research-plan.md` will need to update to `plan.md`
+  - Plan now focuses on HOW to build with extensive research (implementation steps, dependencies, patterns, risks)
+
+### Added
+- **session-workflow/research-plan**: ALL 5 research agents now spawn in parallel (previously only codebase-mapper)
+  - **codebase-mapper**: Find reusable components, patterns, naming conventions, integration points
+  - **web-research**: Research libraries, security (OWASP, CVE), best practices, case studies, performance benchmarks
+  - **design-options**: Synthesize 2-3 design approaches with trade-off analysis from codebase + industry patterns
+  - **risk-analyzer**: Identify top 5-7 risks with likelihood × impact, mitigations, detection methods
+  - **edge-case-generator**: Generate comprehensive edge cases across 10 categories with security patterns
+  - Comprehensive synthesis step (Step 4c) to read and stitch findings from all 5 agents
+  - Iterative follow-up research capability (Step 4d) for gaps (limit: 2 rounds)
+
+- **session-workflow/research-plan**: Self-review and refinement step (Step 13.5) added BEFORE finalizing plan
+  - **Error Detection**: Check for logical errors, verify file paths, validate code examples, ensure correct step dependencies
+  - **Edge Case Coverage**: Review edge-cases.md findings, verify error handling, validate input validation
+  - **Overengineering Detection**: Identify unnecessary abstractions, flag premature optimizations, ensure YAGNI principle
+  - **Missing Critical Elements**: Security considerations, performance implications, rollback procedures, testing strategy
+  - Re-research and regenerate affected sections if issues found
+  - Quality assurance summary in final output
+
+- **session-workflow/research-plan**: Technology Choices & Dependency Justification section (new Section 3)
+  - **Dependency analysis** (Step 7.5): Identify 2-3 alternatives per dependency, create decision matrix with pros/cons
+  - **Comparison tables**: Performance, security (CVE status), community metrics, decision rationale
+  - **Security research summary**: OWASP guidelines for feature type, CVE findings with mitigations, security checklist
+  - **Performance research**: Benchmarks found, optimization techniques with sources
+  - **Case studies**: Real-world implementations with results and lessons learned
+  - All dependencies justified with web sources (articles, benchmarks, official docs)
+  - Note if dependency exists in codebase (reuse) or is new (justify addition)
+
+### Enhanced
+- **session-workflow/research-plan**: Updated GLOBAL RULES to mandate comprehensive research
+  - Rule 2: "ALWAYS spawn ALL 5 research agents in parallel"
+  - Rule 7: "Web research is mandatory: Always research security (OWASP, CVE) and compare dependencies"
+  - Rule 8: "Justify every dependency: Use 2-3 alternative comparison with sources"
+  - Rule 9: "Research iteratively: Follow up on gaps with additional searches (limit: 2 rounds)"
+  - Rule 10: "Self-review is mandatory: Review generated plan for errors, edge cases, and overengineering BEFORE finalizing"
+
+- **session-workflow/spec-crystallize**: Updated SPEC RULES for clarity
+  - Added: "Keep spec minimal (1,000-1,500 words) - detailed planning belongs in /research-plan"
+  - Added: "Focus on WHAT, not HOW (requirements, not implementation steps)"
+
+- **session-workflow**: Updated command descriptions in plugin.json
+  - **spec-crystallize**: "Convert ambiguous requests into minimal, implementable specifications (spec.md) with essential requirements and acceptance criteria"
+  - **research-plan**: "Create extensively researched implementation plans (plan.md) with web-validated dependencies, security checks, and codebase pattern analysis using 5 autonomous research agents"
+
+- **session-workflow/README.md**: Updated Session Management Workflow section
+  - Added Step 2: Crystallize Specification (/spec-crystallize) with spec.md output
+  - Added Step 3: Create Research-Based Plan (/research-plan) with plan.md output and all 5 agents
+  - Updated description to highlight minimal specs, extensively researched plans, web-validated dependencies
+
+### Technical Details
+- Separation of concerns: spec.md (WHAT) vs plan.md (HOW)
+- Research time: ~15 minutes for all 5 agents in parallel (5-7 min each with 15 min timeout)
+- Research artifacts stored in `.claude/<SESSION_SLUG>/research/` directory:
+  - codebase-mapper.md
+  - web-research.md
+  - design-options.md
+  - risk-analysis.md
+  - edge-cases.md
+- Self-review step can trigger re-research and section regeneration
+- Technology Choices section synthesizes web-research.md and codebase-mapper.md findings
+- All dependencies require security validation (CVE checks, OWASP compliance)
+- Session README artifact tracking updated to reference spec.md and plan.md
+
+### Use Cases
+- **Clear separation**: Specs stay minimal (WHAT), plans get detailed (HOW with research)
+- **Dependency validation**: Every library justified with alternatives, security status, performance benchmarks
+- **Security-first**: Mandatory OWASP and CVE research for all dependencies
+- **Quality assurance**: Self-review catches errors, edge cases, overengineering before finalization
+- **Codebase alignment**: Codebase-mapper ensures patterns match existing code style
+- **Risk awareness**: Risk-analyzer identifies and prioritizes risks with mitigations
+- **Comprehensive edge cases**: Edge-case-generator covers 10 categories including security patterns
+
+### Migration Guide
+For existing sessions using v1.6.0:
+1. **Spec files**: Rename `.claude/<session>/plan.md` → `.claude/<session>/spec.md` if it contains specifications
+2. **Plan files**: Rename `.claude/<session>/plan/research-plan.md` → `.claude/<session>/plan.md`
+3. **Cross-references**: Update any markdown links referencing old paths
+4. **Session README**: Update artifact tracking to reference spec.md and plan.md
+5. **New research artifacts**: Expect 5 research documents in `.claude/<session>/research/` directory
+
 ## Version 1.6.0 - 2026-01-17
 
 ### Added
