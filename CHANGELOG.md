@@ -10,29 +10,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - **session-workflow**: Multi-round interview stages for spec-crystallize and research-plan commands
   - Pre-research interview: Clarifying questions asked before codebase research begins
   - Post-research interview: Validation questions asked after research to confirm approach
-  - Support for 1-3 rounds of questions per interview stage
+  - Support for 3-5 rounds of questions per interview stage (structured, comprehensive questioning)
   - Interview results stored in `.claude/<SESSION_SLUG>/interview/` directory
 
 ### Enhanced
 - **session-workflow/spec-crystallize**: Added Step 2.5 (Pre-Research Interview) and Step 3.5 (Post-Research Interview)
-  - Round 1: Core requirements clarification (problem scope, success definition, constraints, user context)
-  - Round 2: Non-obvious details (edge cases, integration assumptions, trade-offs, data handling)
-  - Round 3: Final validation (optional, only if critical ambiguities remain)
+  - **Pre-Research (3-5 rounds)**:
+    - Round 1: Core requirements clarification (problem scope, success definition, constraints, user context)
+    - Round 2: Non-obvious details (edge cases, integration assumptions, trade-offs, data handling)
+    - Round 3: Deeper clarification (prioritization, user experience, future considerations, dependencies)
+    - Round 4: Edge case exploration (error handling, boundary conditions, concurrent access)
+    - Round 5: Final validation (critical ambiguities, assumptions, complex requirements, alignment)
+  - **Post-Research (3-5 rounds)**:
+    - Round 1: Research validation (pattern alignment, gap identification, approach validation)
+    - Round 2: Ambiguity resolution (conflicting patterns, missing examples, design direction)
+    - Round 3: Implementation details (performance expectations, data persistence, testing strategy)
+    - Round 4: Risk and security (security requirements, rollback strategy, gradual rollout)
+    - Round 5: Final confirmation (architectural decisions, design choices, pattern alignment)
   - Interview insights incorporated into spec generation
 
 - **session-workflow/research-plan**: Added Step 3.5 (Pre-Research Interview) and Step 4.5 (Post-Research Interview)
-  - Round 1: Planning context clarification (work type validation, success criteria, constraints, risk tolerance)
-  - Round 2: Non-obvious planning details (implementation approach, testing strategy, rollout expectations)
-  - Round 3: Final planning validation (optional, only if needed)
+  - **Pre-Research (3-5 rounds)**:
+    - Round 1: Planning context clarification (work type validation, success criteria, constraints, risk tolerance)
+    - Round 2: Non-obvious planning details (implementation approach, testing strategy, rollout expectations)
+    - Round 3: Implementation strategy (incremental vs. big bang, technology choices, code quality, refactoring scope)
+    - Round 4: Operational considerations (monitoring, rollout plan, rollback requirements, dependencies)
+    - Round 5: Final planning validation (trade-offs, complexity, risk, priorities)
+  - **Post-Research (3-5 rounds)**:
+    - Round 1: Research validation (pattern alignment, gap identification, approach validation, scope confirmation)
+    - Round 2: Planning direction clarification (approach selection, risk trade-offs, missing patterns, scope refinement)
+    - Round 3: Pattern alignment (consistency vs. innovation, legacy code, architectural decisions)
+    - Round 4: Risk and complexity (complexity budget, risk assessment, technical debt)
+    - Round 5: Final planning confirmation (architectural decisions, complexity estimates, ambiguities, vision alignment)
   - Interview insights used for approach selection, risk analysis, and step-by-step planning
 
 ### Technical Details
 - Interview stages use AskUserQuestion tool for interactive multi-round questioning
 - Questions are contextual based on INPUTS, session context, and research findings
-- Each interview stage supports conditional rounds (Round 2-3 only if needed)
+- Each interview stage conducts 3-5 structured rounds with specific focus areas per round
 - Interview results stored in markdown format with Q&A structure
-- Pre-research interviews focus on clarifying requirements and constraints
-- Post-research interviews focus on validating findings and resolving conflicts
+- Pre-research interviews (5 rounds): Requirements → Details → Clarification → Edge Cases → Validation
+- Post-research interviews (5 rounds): Research Validation → Ambiguity Resolution → Implementation/Pattern Details → Risk/Complexity → Final Confirmation
 - Interview answers incorporated into spec/plan generation workflow
 - Summary output includes interview round counts and document location
 

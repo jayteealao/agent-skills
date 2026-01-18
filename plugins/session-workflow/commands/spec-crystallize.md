@@ -99,7 +99,7 @@ From INPUTS and session context, infer:
 
 **CRITICAL**: Ask clarifying questions to understand user intent before research begins.
 
-This is a **multi-round interview** to uncover non-obvious details and clarify ambiguities.
+This is a **multi-round interview (3-5 rounds)** to uncover non-obvious details and clarify ambiguities.
 
 ### Create interview directory
 
@@ -107,7 +107,7 @@ Create `.claude/<SESSION_SLUG>/interview/` directory if it doesn't exist.
 
 ### Round 1: Core Requirements Clarification
 
-Use **AskUserQuestion** to ask 2-4 targeted questions based on INPUTS analysis:
+Use **AskUserQuestion** to ask 2-3 targeted questions based on INPUTS analysis:
 
 **Question categories to consider:**
 1. **Problem Scope**: "What specific user problem are we solving that existing features don't address?"
@@ -141,19 +141,40 @@ Based on Round 1 answers, ask **2-3 deeper questions** about:
 - If Round 1 answers were comprehensive
 - If INPUTS is already detailed and clear
 
-Store Round 2 answers (if conducted).
+Store Round 2 answers.
 
-### Round 3: Final Validation (Optional)
+### Round 3: Deeper Clarification
 
-**Only if needed**, ask 1-2 final questions to:
-- Resolve remaining critical ambiguities
+Ask **1-3 questions** to explore deeper aspects:
+
+**Question categories:**
+1. **Prioritization**: "If we had to ship a minimal version first, what's the must-have vs. nice-to-have?"
+2. **User Experience**: "What should the user experience feel like? Fast? Safe? Simple?"
+3. **Future Considerations**: "Are there future features this should be designed to support?"
+4. **Dependencies**: "Does this depend on anything being built first, or can it stand alone?"
+
+Store Round 3 answers.
+
+### Round 4: Edge Case Exploration
+
+Ask **1-2 questions** about potential edge cases and error scenarios:
+
+**Question categories:**
+1. **Error Handling**: "What should happen when [error scenario]? Fail loud or fail gracefully?"
+2. **Boundary Conditions**: "What are the limits? (max size, max users, rate limits, etc.)"
+3. **Concurrent Access**: "Can multiple users/processes access this simultaneously? How should conflicts be handled?"
+
+Store Round 4 answers.
+
+### Round 5: Final Validation
+
+Ask **1-2 final questions** to:
+- Resolve any remaining critical ambiguities
 - Confirm assumptions that would significantly impact the spec
 - Validate understanding of complex requirements
+- Ensure alignment on scope and priorities
 
-**When to skip Round 3:**
-- Most cases - only use if truly necessary
-
-Store Round 3 answers (if conducted).
+Store Round 5 answers.
 
 ### Store Interview Results
 
@@ -181,11 +202,31 @@ A: {User's answer}
 
 ## Round 2: Non-Obvious Details
 
-{If conducted}
+**Q1: {Question}**
+A: {User's answer}
 
-## Round 3: Final Validation
+{...}
 
-{If conducted}
+## Round 3: Deeper Clarification
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
+
+## Round 4: Edge Case Exploration
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
+
+## Round 5: Final Validation
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
 
 ## Key Insights
 
@@ -245,7 +286,7 @@ Read `.claude/<SESSION_SLUG>/research/codebase-mapper.md` for key findings:
 
 **CRITICAL**: Validate research findings and clarify gaps discovered during research.
 
-This is a **multi-round interview** to ensure research insights align with user expectations.
+This is a **multi-round interview (3-5 rounds)** to ensure research insights align with user expectations.
 
 ### Round 1: Research Findings Validation
 
@@ -287,16 +328,39 @@ If research revealed **conflicting patterns, missing examples, or gaps**, ask **
 - If research was conclusive and aligned with requirements
 - If Round 1 validation covered all gaps
 
-Store Round 2 answers (if conducted).
+Store Round 2 answers.
 
-### Round 3: Final Confirmation (Optional)
+### Round 3: Implementation Details
 
-**Only if needed**, ask 1-2 final questions to:
+Ask **1-3 questions** about implementation specifics:
+
+**Question categories:**
+1. **Performance Expectations**: "Are there specific performance requirements? (response time, throughput, etc.)"
+2. **Data Persistence**: "How long should data be retained? Any archival or cleanup requirements?"
+3. **Testing Strategy**: "What level of testing coverage is expected? Should we focus on unit, integration, or E2E?"
+
+Store Round 3 answers.
+
+### Round 4: Risk and Security
+
+Ask **1-2 questions** about risk tolerance and security:
+
+**Question categories:**
+1. **Security Requirements**: "Are there specific security concerns? (PII handling, encryption, audit logs)"
+2. **Rollback Strategy**: "If something goes wrong in production, what's the acceptable rollback plan?"
+3. **Gradual Rollout**: "Should this use feature flags or go live to everyone at once?"
+
+Store Round 4 answers.
+
+### Round 5: Final Confirmation
+
+Ask **1-2 final questions** to:
 - Confirm high-risk architectural decisions
-- Validate complex design choices
-- Ensure critical assumptions are correct
+- Validate complex design choices based on research
+- Ensure critical assumptions about patterns and integrations are correct
+- Verify alignment on chosen approach
 
-Store Round 3 answers (if conducted).
+Store Round 5 answers.
 
 ### Update Interview Document
 
@@ -325,11 +389,31 @@ A: {User's answer}
 
 ### Round 2: Ambiguity Resolution
 
-{If conducted}
+**Q1: {Question}**
+A: {User's answer}
 
-### Round 3: Final Confirmation
+{...}
 
-{If conducted}
+### Round 3: Implementation Details
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
+
+### Round 4: Risk and Security
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
+
+### Round 5: Final Confirmation
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
 
 ### Key Decisions
 
@@ -670,8 +754,8 @@ Print a summary:
 Saved to: `.claude/{SESSION_SLUG}/plan.md` (spec section)
 
 ## Interview Summary
-- Pre-research rounds conducted: {1-3}
-- Post-research rounds conducted: {1-3}
+- Pre-research rounds conducted: {3-5}
+- Post-research rounds conducted: {3-5}
 - Key insights captured: {count}
 - Interview document: `.claude/{SESSION_SLUG}/interview/spec-crystallize-interview.md`
 

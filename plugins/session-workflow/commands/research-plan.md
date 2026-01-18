@@ -151,7 +151,7 @@ From INPUTS, session context, milestone scope (if applicable), and any existing 
 
 **CRITICAL**: Ask clarifying questions to understand planning context before research begins.
 
-This is a **multi-round interview** to uncover non-obvious details and clarify planning ambiguities.
+This is a **multi-round interview (3-5 rounds)** to uncover non-obvious details and clarify planning ambiguities.
 
 ### Create interview directory
 
@@ -159,7 +159,7 @@ Create `.claude/<SESSION_SLUG>/interview/` directory if it doesn't exist.
 
 ### Round 1: Planning Context Clarification
 
-Use **AskUserQuestion** to ask 2-4 targeted questions based on INPUTS, WORK_TYPE, and session context:
+Use **AskUserQuestion** to ask 2-3 targeted questions based on INPUTS, WORK_TYPE, and session context:
 
 **Question categories to consider:**
 1. **Work Type Validation**: "I inferred this is a {WORK_TYPE}. Is that correct, or should I approach this differently?"
@@ -197,19 +197,41 @@ Based on Round 1 answers and WORK_TYPE, ask **2-3 deeper questions** about:
 - If INPUTS or spec already provides clear direction
 - If WORK_TYPE is straightforward (bug fix with clear reproduction)
 
-Store Round 2 answers (if conducted).
+Store Round 2 answers.
 
-### Round 3: Final Planning Validation (Optional)
+### Round 3: Implementation Strategy
 
-**Only if needed**, ask 1-2 final questions to:
+Ask **1-3 questions** about implementation preferences:
+
+**Question categories:**
+1. **Incremental vs. Big Bang**: "Should we break this into smaller shippable increments, or build it all at once?"
+2. **Technology Choices**: "Are there specific libraries, frameworks, or tools you want to use or avoid?"
+3. **Code Quality**: "What's more important: shipping fast or comprehensive test coverage and documentation?"
+4. **Refactoring Scope**: "Should we clean up existing code while implementing this, or keep changes minimal?"
+
+Store Round 3 answers.
+
+### Round 4: Operational Considerations
+
+Ask **1-2 questions** about operations and deployment:
+
+**Question categories:**
+1. **Monitoring**: "What metrics or logs are most important to track for this work?"
+2. **Rollout Plan**: "Should this roll out gradually (feature flags, canary) or all at once?"
+3. **Rollback Requirements**: "If we need to rollback, what's the acceptable downtime or data loss?"
+4. **Dependencies**: "Are there any external services or teams we need to coordinate with?"
+
+Store Round 4 answers.
+
+### Round 5: Final Planning Validation
+
+Ask **1-2 final questions** to:
 - Resolve critical trade-offs that impact the plan structure
 - Validate assumptions about complexity or risk
 - Confirm approach for high-risk decisions
+- Ensure alignment on priorities and scope
 
-**When to skip Round 3:**
-- Most cases - only use if truly necessary
-
-Store Round 3 answers (if conducted).
+Store Round 5 answers.
 
 ### Store Interview Results
 
@@ -238,11 +260,31 @@ A: {User's answer}
 
 ## Round 2: Non-Obvious Planning Details
 
-{If conducted}
+**Q1: {Question}**
+A: {User's answer}
 
-## Round 3: Final Planning Validation
+{...}
 
-{If conducted}
+## Round 3: Implementation Strategy
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
+
+## Round 4: Operational Considerations
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
+
+## Round 5: Final Planning Validation
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
 
 ## Key Planning Insights
 
@@ -322,7 +364,7 @@ If agents fail or time out, do manual research using Glob, Grep, and Read:
 
 **CRITICAL**: Validate research findings and clarify planning gaps discovered during research.
 
-This is a **multi-round interview** to ensure research insights align with user expectations and planning needs.
+This is a **multi-round interview (3-5 rounds)** to ensure research insights align with user expectations and planning needs.
 
 ### Round 1: Research Findings Validation
 
@@ -371,16 +413,39 @@ If research revealed **multiple valid approaches, gaps, or conflicts**, ask **1-
 - If pre-research interview already covered these decisions
 - If spec or requirements already define the direction
 
-Store Round 2 answers (if conducted).
+Store Round 2 answers.
 
-### Round 3: Final Planning Confirmation (Optional)
+### Round 3: Pattern Alignment
 
-**Only if needed**, ask 1-2 final questions to:
-- Confirm high-impact architectural decisions
+Ask **1-3 questions** about following existing patterns:
+
+**Question categories:**
+1. **Consistency vs. Innovation**: "I found pattern {X} is used elsewhere. Should we follow it strictly, or is this a good time to improve it?"
+2. **Legacy Code**: "The existing code uses {old approach}. Should we maintain consistency or modernize?"
+3. **Architectural Decisions**: "I see both {approach A} and {approach B} in the codebase. Which should be the standard going forward?"
+
+Store Round 3 answers.
+
+### Round 4: Risk and Complexity
+
+Ask **1-2 questions** about risk tolerance and complexity:
+
+**Question categories:**
+1. **Complexity Budget**: "This could be done simply in {X steps} or more robustly in {Y steps}. What's your preference?"
+2. **Risk Assessment**: "Research revealed risk: {X}. Are you comfortable with mitigation: {Y}, or should we take a safer approach?"
+3. **Technical Debt**: "We could ship faster with {acceptable debt} or slower with {clean implementation}. Which matters more?"
+
+Store Round 4 answers.
+
+### Round 5: Final Planning Confirmation
+
+Ask **1-2 final questions** to:
+- Confirm high-impact architectural decisions based on research
 - Validate complexity estimates if significantly different than expected
 - Resolve final ambiguities before generating the plan
+- Ensure chosen approach aligns with user's vision
 
-Store Round 3 answers (if conducted).
+Store Round 5 answers.
 
 ### Update Interview Document
 
@@ -410,11 +475,31 @@ A: {User's answer}
 
 ### Round 2: Planning Direction Clarification
 
-{If conducted}
+**Q1: {Question}**
+A: {User's answer}
 
-### Round 3: Final Planning Confirmation
+{...}
 
-{If conducted}
+### Round 3: Pattern Alignment
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
+
+### Round 4: Risk and Complexity
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
+
+### Round 5: Final Planning Confirmation
+
+**Q1: {Question}**
+A: {User's answer}
+
+{...}
 
 ### Key Planning Decisions
 
@@ -857,8 +942,8 @@ After creating the plan, print:
 Saved to: `.claude/{SESSION_SLUG}/plan/research-plan.md`
 
 ## Interview Summary
-- Pre-research rounds conducted: {1-3}
-- Post-research rounds conducted: {1-3}
+- Pre-research rounds conducted: {3-5}
+- Post-research rounds conducted: {3-5}
 - Key decisions captured: {count}
 - Interview document: `.claude/{SESSION_SLUG}/interview/research-plan-interview.md`
 
