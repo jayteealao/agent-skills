@@ -21,7 +21,7 @@ examples:
 
 # Technical Debt Register
 
-You are a technical debt curator who converts **review findings into actionable backlog items** with clear priorities, ROI justification, and realistic effort estimates. Your goal: create a **prioritized debt register** that helps teams decide what to fix, what to defer, and what to ignore.
+You are a technical debt curator who converts **review findings into actionable backlog items** with clear priorities, ROI justification, and realistic effort estimates. Your goal: create a **prioritized debt register** that helps areas decide what to fix, what to defer, and what to ignore.
 
 ## Philosophy: Not All Debt Deserves Fixing
 
@@ -311,7 +311,7 @@ These items deliver high value with minimal effort. **Fix these first.**
 - [ ] Login p95 latency < 100ms
 - [ ] No increase in write latency
 
-**Owner:** @database-team
+**Owner:** database work
 **Location:** `database/schema.sql`
 
 ---
@@ -338,7 +338,7 @@ These items deliver high value with minimal effort. **Fix these first.**
 - [ ] Only 2 SQL queries (orders + items, not N+1)
 - [ ] Mobile app no longer times out
 
-**Owner:** @backend-team
+**Owner:** backend work
 **Location:** `src/controllers/orders.ts:45`
 
 ---
@@ -366,7 +366,7 @@ These items deliver high value with minimal effort. **Fix these first.**
 - [ ] Checkout works when recommendations down
 - [ ] Alert when circuit opens
 
-**Owner:** @backend-team
+**Owner:** backend work
 **Location:** `src/services/recommendations.ts`
 
 ---
@@ -393,7 +393,7 @@ These items deliver high value with minimal effort. **Fix these first.**
 - [ ] Test duration < 2s
 - [ ] No setTimeout or sleep()
 
-**Owner:** @test-team
+**Owner:** testing work
 **Location:** `tests/payment.test.ts:123`
 
 ---
@@ -421,7 +421,7 @@ These items deliver high value with minimal effort. **Fix these first.**
 - [ ] Log bill < $500/month
 - [ ] All errors still logged
 
-**Owner:** @observability-team
+**Owner:** observability work
 **Location:** `src/middleware/logger.ts`
 ```
 
@@ -585,7 +585,7 @@ These items are **not worth fixing**. Ignore them.
 
 **Why skip:**
 - Each service is independent
-- Standardizing requires coordinating 5 teams
+- Standardizing requires coordinating 5 areas
 - Effort: 1 week per service × 10 services = 10 weeks
 - Benefit: Minimal (logs work fine)
 
@@ -699,7 +699,7 @@ The `users` table has 500k rows but no index on `email` column. Every login quer
 - [ ] Login p95 latency < 100ms
 - [ ] No increase in write latency
 
-**Owner:** @database-team
+**Owner:** database work
 
 **Implementation plan:**
 ```sql
@@ -747,7 +747,7 @@ Order list endpoint loads orders, then makes 1 query per order for items (N+1). 
 - [ ] Mobile app no longer times out
 - [ ] Load test passes: 1000 concurrent users
 
-**Owner:** @backend-team
+**Owner:** backend work
 
 **Implementation:**
 ```typescript
@@ -808,7 +808,7 @@ When recommendation service is down, checkout fails (cascade failure). Need circ
 - [ ] Alert fires when circuit opens
 - [ ] Runbook created: docs/runbooks/recommendations.md
 
-**Owner:** @backend-team
+**Owner:** backend work
 
 **Implementation:**
 ```typescript
@@ -846,7 +846,7 @@ async function getRecommendations(userId: string) {
 #### DEBT-006: Split payment service into microservice
 
 **Category:** Architecture
-**Impact:** HIGH - Blocks 3 teams working on payments
+**Impact:** HIGH - Blocks 3 areas working on payments
 **Effort:** LARGE (5 days)
 **Priority:** P1
 
@@ -855,7 +855,7 @@ Payment logic is embedded in monolith. Need to extract to separate service for i
 
 **ROI:**
 - Cost: 5 days
-- Benefit: Unblocks 3 teams, enables independent deploys, improves scalability
+- Benefit: Unblocks 3 areas, enables independent deploys, improves scalability
 - Payback: 2 weeks
 
 **Location:** `src/services/payment/**`
@@ -876,7 +876,7 @@ Payment logic is embedded in monolith. Need to extract to separate service for i
 - [ ] Zero downtime migration (gradual traffic shift)
 - [ ] Rollback tested
 
-**Owner:** @architecture-team
+**Owner:** architecture work
 
 **Implementation plan:**
 1. Week 1: Create new service skeleton
@@ -942,7 +942,7 @@ Group C: Testing (8 days)
 - DEBT-012: Add integration tests [3d]
 - DEBT-013: Add contract tests [3d]
 
-All groups can run in parallel by different team members.
+All groups can run in parallel by different contributors.
 ```
 
 ---
@@ -975,7 +975,7 @@ All groups can run in parallel by different team members.
 
 **Goal:** Fix critical architecture and reliability issues
 **Effort:** 15 days
-**Value:** Unblock 3 teams, improve scalability, reduce incidents
+**Value:** Unblock 3 areas, improve scalability, reduce incidents
 
 **Items:**
 - DEBT-006: Split payment service [5d]
@@ -1012,7 +1012,7 @@ All groups can run in parallel by different team members.
 - Quarterly debt audit
 
 **Celebrate wins:**
-- Announce completed debt items in team meeting
+- Announce completed debt items in project meeting
 - Track cost savings (e.g., "$24k/year saved from log optimization")
 - Measure impact (e.g., "2 fewer incidents/month")
 
@@ -1101,7 +1101,7 @@ All groups can run in parallel by different team members.
 - [ ] Connection leak detection: all connections released
 
 **Location:** `src/database/pool.ts`
-**Owner:** @backend-team
+**Owner:** backend work
 ```
 
 ---

@@ -77,7 +77,7 @@ From CONTEXT, session context, and any existing artifacts, infer:
 
 2. **DECISION_DRIVERS** (if not provided)
    - Extract from CONTEXT or session constraints
-   - Common drivers: simplicity, security, performance, cost, maintainability, time-to-market, team expertise
+   - Common drivers: simplicity, security, performance, cost, maintainability, time-to-market, project expertise
    - Rank by importance
 
 3. **STATUS** (if not provided)

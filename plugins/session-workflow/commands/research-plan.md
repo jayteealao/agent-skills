@@ -320,7 +320,7 @@ Create `.claude/<SESSION_SLUG>/research/` directory if it doesn't exist.
 
 Spawn all agents in parallel:
 
-1. **codebase-mapper agent** (5-7 minutes):
+1. **codebase-mapper agent** (research scope: codebase exploration):
 ```
 Input parameters:
 - feature_description: {Extracted from INPUTS or spec}
@@ -334,7 +334,7 @@ Input parameters:
 Expected output: `.claude/<SESSION_SLUG>/research/codebase-mapper.md`
 ```
 
-2. **web-research agent** (5-7 minutes):
+2. **web-research agent** (research scope: codebase exploration):
 ```
 Input parameters:
 - research_topics: {Derived from spec + dependencies}
@@ -351,7 +351,7 @@ Input parameters:
 Expected output: `.claude/<SESSION_SLUG>/research/web-research.md`
 ```
 
-3. **design-options agent** (5-7 minutes):
+3. **design-options agent** (research scope: codebase exploration):
 ```
 Input parameters:
 - spec: {Feature requirements from spec.md}
@@ -363,7 +363,7 @@ Input parameters:
 Expected output: `.claude/<SESSION_SLUG>/research/design-options.md`
 ```
 
-4. **risk-analyzer agent** (5-7 minutes):
+4. **risk-analyzer agent** (research scope: codebase exploration):
 ```
 Input parameters:
 - feature_description: {From spec.md}
@@ -375,7 +375,7 @@ Input parameters:
 Expected output: `.claude/<SESSION_SLUG>/research/risk-analysis.md`
 ```
 
-5. **edge-case-generator agent** (5-7 minutes):
+5. **edge-case-generator agent** (research scope: codebase exploration):
 ```
 Input parameters:
 - feature_description: {From spec.md}
@@ -385,7 +385,7 @@ Input parameters:
 Expected output: `.claude/<SESSION_SLUG>/research/edge-cases.md`
 ```
 
-Wait for ALL 5 agents to complete (timeout: 15 minutes) before proceeding to Step 4c.
+Wait for ALL 5 agents to complete (comprehensive codebase and web research) before proceeding to Step 4c.
 
 ### Step 4c: Read and synthesize all research findings
 
@@ -731,7 +731,7 @@ Break down into small, verifiable checkpoints. For each step:
 - **"Done when" criteria**: Clear completion criteria
 
 Steps should be:
-- Small (1-4 hours each ideally)
+- Small (~50-200 LOC per step ideally)
 - Independently testable
 - Revertible if needed
 

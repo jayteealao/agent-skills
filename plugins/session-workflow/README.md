@@ -1,10 +1,10 @@
 # Session Workflow Plugin
 
-**Version**: 1.7.0
+**Version**: 1.8.0
 **Author**: Claude Code Community
 **License**: MIT
 
-A hobby-focused Claude Code plugin providing 46 commands, 5 research agents, and 1 skill for software engineering workflows. Features minimal specifications (spec.md), extensively researched plans (plan.md) with web-validated dependencies and security checks, and comprehensive code review coverage.
+A hobbyist-focused Claude Code plugin providing 46 commands, 5 research agents, and 1 skill for software engineering workflows. Uses complexity metrics (LOC, files touched, dependencies) instead of time estimates. Single developer perspective with no organizational role concepts. Features minimal specifications (spec.md), extensively researched plans (plan.md) with web-validated dependencies and security checks, and comprehensive code review coverage.
 
 ---
 
@@ -23,7 +23,7 @@ A hobby-focused Claude Code plugin providing 46 commands, 5 research agents, and
 
 ## 🎯 Overview
 
-The Session Workflow Plugin provides a complete toolkit for software engineering teams to maintain high code quality, operational excellence, and effective incident response. Built on real-world production patterns from Node.js/TypeScript/React ecosystems.
+The Session Workflow Plugin provides a complete toolkit for software engineers to maintain high code quality, operational excellence, and effective incident response. Built on real-world production patterns from Node.js/TypeScript/React ecosystems.
 
 ### What's Included
 
@@ -192,7 +192,6 @@ Create handoff documentation:
 
 ```bash
 claude /handoff
-AUDIENCE: oncall
 CHANGE: "Payment API v2 migration"
 CRITICAL_PATHS: checkout,subscriptions
 ROLLBACK_PLAN: feature-flag
@@ -268,7 +267,7 @@ PR_OR_COMMIT: https://github.com/org/repo/pull/456
 
 ### Workflow Commands (3 total)
 
-- `/handoff` - Handoff docs for reviewers/oncall/cross-functional/leadership
+- `/handoff` - Documentation for others reviewing, deploying, or maintaining your changes
 - `/close-session` - Session closure with artifact tracking
 - `/postmortem-actions` - Convert incident findings to action items
 
@@ -458,11 +457,12 @@ claude --skill wide-event-observability "Design logging for payment API"
    ├─ Check metric cardinality
    └─ Assess cost impact
 
-7. Handoff Documentation
+7. Documentation
    /handoff
-   ├─ For oncall: deployment steps, monitoring, rollback
-   ├─ For reviewers: where to start, test commands
-   └─ For leadership: impact, timeline, risks
+   ├─ Where to start reviewing
+   ├─ How to test and deploy
+   ├─ Monitoring and rollback procedures
+   └─ Known risks and complexity
 ```
 
 ### Complete Observability Setup Workflow
@@ -534,12 +534,12 @@ claude --skill wide-event-observability "Design logging for payment API"
    - Track blockers and follow-ups
    - Run code reviews (/review:security, /review:performance, etc.)
 
-5. Create Handoff
+5. Create Documentation
    /handoff
-   ├─ Choose audience (reviewers/oncall/cross-functional/leadership)
-   ├─ Document critical paths
-   ├─ Provide deployment steps
-   └─ Document rollback procedure
+   ├─ Document critical paths and where to start
+   ├─ Provide deployment steps and testing
+   ├─ Document rollback procedure
+   └─ Include complexity indicators (LOC, files, risks)
 
 6. Close Session
    /close-session
@@ -582,33 +582,33 @@ Comprehensive documentation is available in the `/docs` directory:
 
 ## 🎯 Use Cases
 
-### For Individual Contributors
+### Development & Code Quality
 
 - **Code Review**: Get detailed security, performance, and accessibility feedback
 - **Bug Fixes**: Create reproduction harnesses and validate fixes
 - **Refactoring**: Ensure semantic safety during refactors
 - **Learning**: Understand best practices through detailed examples
 
-### For Tech Leads
+### Planning & Architecture
 
 - **Risk Assessment**: Evaluate release risks before deployment
 - **Technical Debt**: Maintain prioritized debt register
 - **Architecture Review**: Validate design decisions
-- **Mentoring**: Use examples to teach team members
+- **Design Decisions**: Document architectural choices and trade-offs
 
-### For SREs/Oncall
+### Operations & Reliability
 
-- **Incident Response**: Structured RCA and action planning
-- **Runbooks**: Create comprehensive operational runbooks
+- **Incident Response**: Structured debugging and action planning
+- **Runbooks**: Create operational documentation
 - **Production Readiness**: Validate services before production
 - **Observability**: Design effective monitoring and alerting
 
-### For Engineering Managers
+### Documentation & Knowledge
 
-- **Handoff Documentation**: Ensure knowledge transfer across teams
+- **Documentation**: Create clear notes for others (or future you)
 - **Session Tracking**: Track work sessions and artifacts
-- **Team Visibility**: Share progress with stakeholders
-- **Quality Gates**: Establish code review standards
+- **Project Updates**: Document progress and share status
+- **Quality Standards**: Establish code review guidelines
 
 ---
 
@@ -844,7 +844,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - [ ] Machine learning for severity prediction
 - [ ] Automated fix suggestions
 - [ ] Historical trend analysis
-- [ ] Team metrics dashboard
+- [ ] Project metrics dashboard
 - [ ] Custom command templates
 
 ---

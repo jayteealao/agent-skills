@@ -4,6 +4,102 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.8.0 - 2026-01-18
+
+### Changed - Major Refactoring
+- **session-workflow**: Complete transformation from enterprise/team-focused to hobbyist/single-developer perspective
+  - **Removed ALL organizational role references**: No more "oncall", "SRE", "devops", "team", "stakeholders", "cross-functional", "leadership", "engineering manager" concepts
+  - **Replaced time estimates with complexity metrics** across all commands:
+    - Time-based: "5-7 minutes", "1-4 hours", "1 day", "3 days", "2 weeks" → LOC-based: "~50-200 LOC", "~200-400 LOC", "~600-1000 LOC", "~2000+ LOC"
+    - Week-based phases: "Week 1", "Week 2" → "Phase 1", "Phase 2"
+    - Timelines: "6 weeks from start" → "4 deployment phases"
+  - **Updated language throughout**: "team" → "you/contributors", "stakeholders" → "project owners", "oncall" → "you when debugging"
+
+### Changed - Core Commands
+- **handoff.md** (1,083 → 364 lines, 66% reduction):
+  - Removed 4 audience-specific templates (reviewers, oncall, cross-functional, leadership)
+  - Consolidated to single hobbyist template
+  - Changed from "handoff for teams" to "documentation for others (or future you)"
+  - Removed AUDIENCE parameter entirely
+  - Replaced "team notified" with "others notified (if collaboration needed)"
+  - Updated to focus on WHAT needs to be documented, not WHO
+
+- **prod-readiness.md**:
+  - Replaced "2am on-call" scenario with "emergency debug story"
+  - Changed "Imagine it's 2am. You're on-call." → "Imagine something breaks and you need to fix it quickly"
+  - Updated "fix incidents at 2am" → "fix issues quickly when they occur"
+  - Replaced "24/7 on-call" → "monitoring and alerts configured"
+  - Changed "on-call team" → "when you're available to fix"
+
+- **close-session.md**:
+  - Replaced "team visibility" → "future reference"
+  - Changed "@security team" → "(security review needed)"
+  - Updated "@docs team" → "(documentation needed)"
+  - Replaced "team update" → "project update"
+  - Changed "team decision" → "decision", "team expertise" → "your expertise"
+
+### Changed - Time Estimates → Complexity Metrics
+- **research-plan.md**:
+  - Agent runtime "5-7 minutes" → "research scope: codebase exploration"
+  - Timeout "15 minutes" → "comprehensive codebase and web research"
+  - Task size "1-4 hours each ideally" → "~50-200 LOC per step ideally"
+
+- **work.md**:
+  - Checkpoint size "1-4 hours" → "~50-200 LOC ideally"
+
+- **refactor-followups.md**:
+  - "1 day" → "~200-400 LOC"
+  - "3 days" → "~600-1000 LOC"
+  - "2 weeks" → "major rewrite (~2000+ LOC)"
+  - "10 days" → "comprehensive refactor (~2000 LOC)"
+  - "15 min" → "~10-20 LOC"
+  - "NEXT SPRINT" → "NEXT PHASE"
+  - "Next Quarter" → "Future Work"
+  - Day-of-week references: "Monday", "Tuesday" → "Phase 1", "Phase 2"
+
+- **compat-check.md**:
+  - "6 weeks from start to finish" → "Phased rollout (4 deployment stages)"
+  - "1 week (ensure no issues)" → "Stabilization period: Monitor for issues"
+  - "Week 1", "Week 2", "Week 3" → "Phase 1", "Phase 2", "Phase 3"
+  - "4 weeks, 4 deploys" → "4 deployment phases"
+  - "[X weeks]" → "[X deployment phases]"
+
+### Changed - Documentation & Metadata
+- **README.md**:
+  - Removed role-based use cases: "For SREs/Oncall", "For Engineering Managers", "For Tech Leads"
+  - Consolidated to functional use cases: "Development & Code Quality", "Planning & Architecture", "Operations & Reliability", "Documentation & Knowledge"
+  - Updated "software engineering teams" → "software engineers"
+  - Changed example workflows to remove audience parameters
+  - Updated "Team metrics dashboard" → "Project metrics dashboard"
+
+- **plugin.json**:
+  - Removed keywords: "sre", "devops"
+  - Added keywords: "reliability", "hobby-projects", "debugging"
+  - Updated handoff description: "Handoff documentation for different audiences" → "Create clear documentation for others reviewing, deploying, or maintaining your changes"
+
+### Changed - Remaining Commands (7 files)
+- **debt-register.md**: "@database-team" → "database work", "team members" → "contributors", "stakeholders" → "project owners"
+- **scope-triage.md**: "stakeholders" → "project owners"
+- **decision-record.md**: "team expertise" → "your expertise", "stakeholders" → "project owners"
+- **spec-crystallize.md**: "stakeholders" → "project owners", "teams" → "areas"
+- **setup-wide-logging.md**: "team" → "project"
+
+### Technical Details
+- **Total files modified**: 30+ commands, 8 documentation files
+- **Total replacements**: 450-600 lines across entire plugin
+- **Line reduction**: handoff.md reduced by 719 lines (66%)
+- **Keywords updated**: Removed 2 org-focused, added 3 hobbyist-focused
+- **Complexity metrics**: All time estimates converted to LOC, files touched, or deployment phases
+
+### Philosophy Shift
+- **Before**: Enterprise/team workflows with organizational roles, time-based planning, team coordination
+- **After**: Single hobbyist developer perspective with complexity metrics, personal debugging scenarios, self-directed work
+
+### Migration Impact
+- **No breaking changes to command syntax** - all commands still work the same way
+- **Output format changes**: Less org-focused, more individual-focused language throughout
+- **Conceptual shift**: Users should think in terms of complexity (LOC, files, phases) rather than time (hours, days, weeks)
+
 ## Version 1.7.0 - 2026-01-18
 
 ### Changed - Breaking

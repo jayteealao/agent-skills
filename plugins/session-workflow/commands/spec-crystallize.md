@@ -16,7 +16,7 @@ args:
     description: Target of the work (PR URL, commit range, file path, or repo root)
     required: false
   STAKEHOLDERS:
-    description: Roles or teams involved (optional)
+    description: Roles or areas involved (optional)
     required: false
   CONSTRAINTS:
     description: Technical or business constraints (optional)
@@ -74,7 +74,7 @@ From INPUTS and session context, infer:
    - If not in session README, default to `repo` and `.`
 
 2. **STAKEHOLDERS** (if not provided)
-   - Infer from INPUTS (mentions of teams, roles, users)
+   - Infer from INPUTS (mentions of areas, roles, users)
    - Leave empty if not mentioned
 
 3. **CONSTRAINTS** (if not provided)
@@ -471,7 +471,7 @@ session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
 target: {TARGET}
-stakeholders: {STAKEHOLDERS}
+project owners: {STAKEHOLDERS}
 risk_tolerance: {RISK_TOLERANCE}
 output_style: {OUTPUT_STYLE}
 related:
@@ -486,7 +486,7 @@ related:
 {1-3 sentences describing the problem this feature solves}
 
 **Who is impacted:**
-{User roles, teams, or personas affected}
+{User roles, areas, or personas affected}
 
 **Why now:**
 {Context for timing - why this feature is being built now}
@@ -603,7 +603,7 @@ Write as Given/When/Then for easy conversion to tests:
 
 ## Next Steps
 
-1. Review this spec with stakeholders: {STAKEHOLDERS or "team"}
+1. Review this spec with project owners: {STAKEHOLDERS or "team"}
 2. Resolve any TODO items inline in the spec
 3. Run `/research-plan` to create implementation plan
 4. Consider running `/decision-record` for significant architectural decisions
@@ -695,7 +695,7 @@ This command should:
 
 **Mixed (default):**
 - Balanced coverage of both user experience and technical implementation
-- Enough detail for both product and engineering stakeholders
+- Enough detail for both product and engineering project owners
 
 # EXAMPLE USAGE
 
