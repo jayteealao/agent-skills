@@ -1434,7 +1434,7 @@ featureFlags.set('refactored_order_processor', { enabled: false });
 **What to improve:**
 - Add more integration tests before structural refactorings
 - Test on staging longer (24h vs 2h)
-- Communicate refactoring plan to team earlier
+- Communicate refactoring plan with others earlier
 
 **Recommendations for next refactoring:**
 - Always start with mechanical (rename, extract constants)

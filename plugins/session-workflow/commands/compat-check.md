@@ -1178,7 +1178,7 @@ Generate comprehensive report at `.claude/<SESSION_SLUG>/compatibility-<change-s
 
 ## Sign-off
 
-[Stakeholder approvals]
+[Project owner approvals (if needed)]
 ```
 
 ## Summary

@@ -247,7 +247,7 @@ Based on checklist evaluation, produce a report:
 1. [Important issue 1]
 2. [Important issue 2]
 
-**Estimated time to production-ready:** [X days/weeks]
+**Estimated time to production-ready:** [X LOC or complexity]
 
 ## Category Scores
 
@@ -277,9 +277,9 @@ Based on checklist evaluation, produce a report:
 - ⚠️ Missing business metrics
 
 **Recommendations:**
-1. Add OpenTelemetry tracing (2 days)
-2. Run load test to calibrate alert thresholds (1 day)
-3. Add revenue/conversion metrics (1 day)
+1. Add OpenTelemetry tracing (~200 LOC)
+2. Run load test to calibrate alert thresholds (~50-100 LOC)
+3. Add revenue/conversion metrics (~50-100 LOC)
 
 ### Safety Patterns (5/10)
 
@@ -291,9 +291,9 @@ Based on checklist evaluation, produce a report:
 - ⚠️ Retries without exponential backoff
 
 **Recommendations:**
-1. Add 5s timeout to all external calls (4 hours)
-2. Implement circuit breaker with opossum (1 day)
-3. Replace fixed-delay retries with exponential backoff (4 hours)
+1. Add 5s timeout to all external calls (~30-50 LOC)
+2. Implement circuit breaker with opossum (~50-100 LOC)
+3. Replace fixed-delay retries with exponential backoff (~30-50 LOC)
 
 [Continue for all categories...]
 
@@ -303,7 +303,7 @@ Based on checklist evaluation, produce a report:
 
 1. **Add timeouts to external API calls**
    - Owner: @alice
-   - Effort: 4 hours
+   - Effort: ~30-50 LOC
    - Due: 2024-01-16
    - Files: src/services/stripe.ts, src/services/ml.ts
 
@@ -315,7 +315,7 @@ Based on checklist evaluation, produce a report:
 
 3. **Create runbook for common incidents**
    - Owner: @charlie
-   - Effort: 2 days
+   - Effort: ~200 LOC
    - Due: 2024-01-18
    - Files: docs/runbooks/payment-api.md
 
@@ -343,14 +343,14 @@ Based on checklist evaluation, produce a report:
 - [ ] Alerts tested (trigger manually)
 
 **Launch stages:**
-1. Week 1: Fix all blockers (P0 items)
-2. Week 2: Load testing and alert tuning
-3. Week 3: Canary deployment (1% traffic)
-4. Week 4: Gradual rollout to 100%
+1. Phase 1: Fix all blockers (P0 items)
+2. Phase 2: Load testing and alert tuning
+3. Phase 3: Canary deployment (1% traffic)
+4. Phase 4: Gradual rollout to 100%
 
 **Sign-off:**
 - Engineering: [Name, Date]
-- SRE: [Name, Date]
+- Reviewer: [Name, Date]
 - Security: [Name, Date]
 ```
 
@@ -504,7 +504,7 @@ Run through checklist:
 - ✅ Backup restoration tested monthly
 - ✅ Audit logs for all auth events
 - ✅ Zero-downtime migrations
-- ⚠️ Backup retention 30 days (should be 90)
+- ⚠️ Backup retention 30 deployment phases (should be 90)
 
 **Security:**
 - ✅ Secrets in Vault
@@ -530,7 +530,7 @@ Run through checklist:
 **Summary:**
 - **Status:** READY
 - **Minor improvements:**
-  1. Extend backup retention to 90 days (compliance)
+  1. Extend backup retention to 90 deployment phases (compliance)
 - **Score:** 68/70 (97%)
 
 ## Production Readiness Philosophy

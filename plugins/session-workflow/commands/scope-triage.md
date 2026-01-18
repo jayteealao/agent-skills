@@ -142,7 +142,7 @@ For MVP, define:
 ### 4.4: Demo script
 - Exact steps a user would take
 - Shows core value
-- Takes < 5 minutes to demo
+- Quick to demonstrate
 
 ## Step 5: Define subsequent milestones
 
@@ -329,7 +329,7 @@ related:
 
 {3-7 total acceptance criteria}
 
-### Demo Script (< 5 minutes)
+### Demo Script (Brief)
 
 **Setup:**
 {Any setup needed}

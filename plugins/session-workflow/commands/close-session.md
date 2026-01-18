@@ -550,7 +550,7 @@ OUTCOME: Completed payment processing migration to Stripe v2 API. Blocked on leg
 PR_OR_COMMIT: https://github.com/myorg/myapp/pull/789
 ROLL_OUT: none
 FOLLOW_UPS:
-  - Legal review of PCI compliance docs (ETA: 1 week) (legal review needed)
+  - Legal review of PCI compliance docs (ETA: next deployment phase) (legal review needed)
   - Security penetration test after legal approval (security review needed)
   - Load testing with 10k req/s target (infrastructure work)
 ARTIFACTS_COMPLETED:
@@ -589,7 +589,7 @@ ARTIFACTS_COMPLETED:
 
 ### Follow-ups
 
-- Legal review of PCI compliance docs (ETA: 1 week) (legal review needed)
+- Legal review of PCI compliance docs (ETA: next deployment phase) (legal review needed)
 - Security penetration test after legal approval (security review needed)
 - Load testing with 10k req/s target (infrastructure work)
 
@@ -633,13 +633,13 @@ ARTIFACTS_COMPLETED:
 
 ### Key Accomplishments
 
-1. **Completed comprehensive evaluation** of GraphQL vs REST for our use case, documenting tradeoffs in schema complexity, caching, and team expertise
+1. **Completed comprehensive evaluation** of GraphQL vs REST for our use case, documenting tradeoffs in schema complexity, caching, and your expertise
 
 2. **Built functional prototype** with Apollo Server demonstrating federated schema across 3 services
 
 3. **Documented migration plan** with 4-phase rollout strategy (deprecated but preserved for future reference)
 
-4. **Team decision to abandon** - GraphQL benefits don't outweigh migration costs given timeline and team expertise constraints
+4. **Decision to abandon** - GraphQL benefits don't outweigh migration costs given timeline and your expertise constraints
 
 ### Deliverables
 
@@ -692,7 +692,7 @@ ARTIFACTS_COMPLETED:
 
 ### 6. Make Follow-ups Actionable
 - ❌ "Need to do more testing"
-- ✅ "Load test with 10k req/s target (@platform team, ETA: 1 week)"
+- ✅ "Load test with 10k req/s target (infrastructure work, ETA: next deployment phase)"
 
 ### 7. Use Consistent Status Tags
 - Always use `[DONE]`, `[PAUSED]`, `[ABANDONED]` in brackets

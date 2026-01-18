@@ -225,7 +225,7 @@ Ask **1-2 questions** about operations and deployment:
 1. **Monitoring**: "What metrics or logs are most important to track for this work?"
 2. **Rollout Plan**: "Should this roll out gradually (feature flags, canary) or all at once?"
 3. **Rollback Requirements**: "If we need to rollback, what's the acceptable downtime or data loss?"
-4. **Dependencies**: "Are there any external services or teams we need to coordinate with?"
+4. **Dependencies**: "Are there any external services or external dependencies?"
 
 Store Round 4 answers.
 

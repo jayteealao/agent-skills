@@ -15,7 +15,7 @@ args:
   TARGET:
     description: Target of the work (PR URL, commit range, file path, or repo root)
     required: false
-  STAKEHOLDERS:
+  PROJECT_OWNERS:
     description: Roles or areas involved (optional)
     required: false
   CONSTRAINTS:
@@ -73,7 +73,7 @@ From INPUTS and session context, infer:
    - Default to values from session README
    - If not in session README, default to `repo` and `.`
 
-2. **STAKEHOLDERS** (if not provided)
+2. **PROJECT_OWNERS** (if not provided)
    - Infer from INPUTS (mentions of areas, roles, users)
    - Leave empty if not mentioned
 
@@ -95,7 +95,7 @@ From INPUTS and session context, infer:
    - `engineering`: Technical, API-focused, data model emphasis
    - `product`: User journey focus, UX emphasis, less technical detail
    - `mixed`: Balanced (default)
-   - Infer from STAKEHOLDERS or default to `mixed`
+   - Infer from PROJECT_OWNERS or default to `mixed`
 
 ## Step 2.5: Pre-Research Interview (Multi-Round)
 
@@ -247,7 +247,7 @@ Create `.claude/<SESSION_SLUG>/research/` directory if it doesn't exist.
 
 ### Step 3b: Execute research
 
-Spawn **codebase-mapper agent** (5-7 minutes):
+Spawn **codebase-mapper agent** (research scope: codebase exploration):
 ```
 Task: Spawn codebase-mapper agent
 
@@ -471,7 +471,7 @@ session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
 target: {TARGET}
-project owners: {STAKEHOLDERS}
+project owners: {PROJECT_OWNERS}
 risk_tolerance: {RISK_TOLERANCE}
 output_style: {OUTPUT_STYLE}
 related:
@@ -603,7 +603,7 @@ Write as Given/When/Then for easy conversion to tests:
 
 ## Next Steps
 
-1. Review this spec with project owners: {STAKEHOLDERS or "team"}
+1. Review this spec with project owners: {project owners or "contributors"}
 2. Resolve any TODO items inline in the spec
 3. Run `/research-plan` to create implementation plan
 4. Consider running `/decision-record` for significant architectural decisions
