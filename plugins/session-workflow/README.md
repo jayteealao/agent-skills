@@ -1,6 +1,6 @@
 # Session Workflow Plugin
 
-**Version**: 1.8.0
+**Version**: 1.8.1
 **Author**: Claude Code Community
 **License**: MIT
 

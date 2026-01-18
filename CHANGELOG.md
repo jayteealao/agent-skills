@@ -4,6 +4,71 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.8.1 - 2026-01-18
+
+### Fixed - Comprehensive Recheck
+After initial 1.8.0 transformation, conducted comprehensive recheck of all 46 commands and found/fixed remaining organizational role and time estimate references.
+
+**Organizational Role Removals** (14 additional instances found and fixed):
+- **compat-check.md**: `[Stakeholder approvals]` → `[Project owner approvals (if needed)]`
+- **debt-register.md**: "on-call time saved" → "debugging time saved", all team references → work types
+- **decision-record.md**: "cross-functional" → "broader audience", "leadership" → "executive"
+- **prod-readiness.md**: "SRE:" → "Reviewer:", Week 1-4 → Phase 1-4
+- **spec-crystallize.md**: **STAKEHOLDERS → PROJECT_OWNERS** (parameter renamed throughout, breaking change in parameter name only)
+- **setup-wide-logging.md**: "for Team" → "for You", "guide for team" → "debugging guide"
+- **close-session.md**: "@platform team" → "infrastructure work"
+- **research-plan.md**: "teams we need to coordinate with" → "external dependencies"
+- **refactor-followups.md**: "Communicate to team" → "Communicate with others"
+- **test-matrix.md**: `[Stakeholder approvals]` → `[Project owner approvals (if needed)]`
+
+**Time Estimate Removals** (60+ additional instances found and fixed):
+
+*debt-register.md* (most extensive cleanup):
+- Effort sizing: "< 1 day" → "~10-100 LOC", "1-3 days" → "~100-500 LOC", "> 3 days" → "~500+ LOC"
+- Specific estimates: "2 hours" → "~10-20 LOC", "4 hours" → "~30-50 LOC", "1 day" → "~50-100 LOC"
+- Large efforts: "5 days" → "~400-500 LOC", "7 days" → "~700 LOC", "87 days total" → "~8700 LOC total"
+- ROI metrics: "hours/week" → "effort saved", "hours/day" → "daily effort saved", "hours/month" → "monthly effort saved"
+- Cost terminology: "days developer time" → "LOC complexity"
+- Payback: "weeks" → "deployment phases"
+
+*prod-readiness.md*:
+- Launch timeline: "Week 1", "Week 2", "Week 3", "Week 4" → "Phase 1", "Phase 2", "Phase 3", "Phase 4"
+- Task effort: "(1 day)" → "(~50-100 LOC)", "(2 days)" → "(~200 LOC)", "Effort: 4 hours" → "Effort: ~30-50 LOC"
+- Backup retention: "30 days" → "30 deployment phases", "90 days" → "90 deployment phases"
+- General estimates: "X days/weeks" → "X LOC or complexity"
+
+*close-session.md*:
+- "ETA: 1 week" → "ETA: next deployment phase" (2 instances)
+
+*repro-harness.md*:
+- "Can be understood in <5 minutes" → "Can be understood quickly"
+
+*scope-triage.md*:
+- "Takes < 5 minutes to demo" → "Quick to demonstrate"
+- "Demo Script (< 5 minutes)" → "Demo Script (Brief)"
+
+*spec-crystallize.md*:
+- "(5-7 minutes)" → "(research scope: codebase exploration)"
+
+**Verification Results**:
+- ✅ Org role references: 0 (reduced from 14 found in recheck)
+- ✅ Team references: 0 (reduced from 13 found in recheck)
+- ✅ Time estimates (non-technical): 0 (reduced from 60+ found in recheck)
+
+**Preserved**:
+- Technical metrics: CI duration, alert thresholds, performance benchmarks
+- Code variable names: `account_age_days`, `effort_days`
+- Idiomatic expressions: "day 1", "24/7", "24 hours"
+
+**Files Modified**: 12 command files updated in recheck pass
+
+**Total Transformation Summary** (1.8.0 + 1.8.1):
+- Files modified: 28 total (16 in v1.8.0, 12 additional in v1.8.1)
+- Org role removals: 100+ instances across both versions
+- Time estimate conversions: 120+ instances across both versions
+- handoff.md reduction: 66% (719 lines removed)
+- Net line change: -623 lines
+
 ## Version 1.8.0 - 2026-01-18
 
 ### Changed - Major Refactoring
