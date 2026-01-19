@@ -1,10 +1,10 @@
 {
   "name": "session-workflow",
-  "version": "1.1.0",
-  "description": "Comprehensive software engineering workflows with autonomous research agents: 51 commands, 5 research agents covering code review, operational excellence, observability, and incident response",
+  "version": "1.8.1",
+  "description": "Hobbyist-focused software engineering workflows: 46 commands, 5 research agents, complexity metrics (LOC) instead of time estimates, no org/team concepts, single developer perspective",
   "author": {
     "name": "jayte"
   },
   "license": "MIT",
-  "keywords": ["code-review", "observability", "incident-response", "deployment", "security", "performance", "accessibility", "sre", "devops", "research", "agents"]
+  "keywords": ["code-review", "observability", "debugging", "deployment", "security", "performance", "accessibility", "reliability", "hobby-projects", "research", "agents"]
 }
