@@ -1,10 +1,79 @@
 {
   "name": "session-workflow",
-  "version": "1.8.1",
-  "description": "Hobbyist-focused software engineering workflows: 46 commands, 5 research agents, complexity metrics (LOC) instead of time estimates, no org/team concepts, single developer perspective",
+  "version": "1.9.0",
+  "description": "Hobbyist-focused software engineering workflows with comprehensive planning, research agents, and code review specialists. 45 commands, 17 agents (research, workflow, review), 5 skills, complexity metrics (LOC) instead of time estimates.",
   "author": {
     "name": "jayte"
   },
   "license": "MIT",
-  "keywords": ["code-review", "observability", "debugging", "deployment", "security", "performance", "accessibility", "reliability", "hobby-projects", "research", "agents"]
+  "keywords": [
+    "workflows",
+    "planning",
+    "code-review",
+    "research-agents",
+    "observability",
+    "debugging",
+    "deployment",
+    "security",
+    "performance",
+    "accessibility",
+    "reliability",
+    "hobby-projects"
+  ],
+  "commands": {
+    "workflows:plan": {
+      "description": "Transform feature descriptions into well-structured plans with parallel research agents",
+      "category": "workflow"
+    },
+    "workflows:work": {
+      "description": "Execute work plans with todo tracking in .claude/todos/work/",
+      "category": "workflow"
+    },
+    "workflows:plan-review": {
+      "description": "Review plans with 3 parallel reviewer agents (architecture, performance, security)",
+      "category": "workflow"
+    },
+    "workflows:deepen-plan": {
+      "description": "Enhance plans with parallel research, skill discovery, and learnings",
+      "category": "workflow"
+    }
+  },
+  "agents": {
+    "research": {
+      "best-practices-researcher": "Research industry best practices for implementation approaches",
+      "framework-docs-researcher": "Research framework documentation and patterns",
+      "git-history-analyzer": "Analyze git history for patterns and insights",
+      "repo-research-analyst": "Analyze repository structure and patterns",
+      "codebase-mapper": "Map and understand codebase structure",
+      "web-research": "Research topics on the web",
+      "design-options": "Generate and analyze design options",
+      "risk-analyzer": "Analyze risks and mitigation strategies",
+      "edge-case-generator": "Generate edge cases for testing"
+    },
+    "workflow": {
+      "spec-flow-analyzer": "Analyze spec flow and requirements"
+    },
+    "review": {
+      "code-simplicity-reviewer": "Review code for simplicity and clarity",
+      "senior-code-reviewer": "Comprehensive code review from senior perspective",
+      "framework-conventions-reviewer": "Review code against framework conventions",
+      "architecture-strategist": "Analyze architectural decisions and patterns",
+      "performance-oracle": "Analyze and optimize performance",
+      "security-sentinel": "Security audit and vulnerability assessment",
+      "pattern-recognition-specialist": "Identify patterns and anti-patterns in code"
+    }
+  },
+  "skills": {
+    "wide-event-observability": "Wide event logging and observability patterns",
+    "framework-conventions-guide": "Framework-native conventions for opinionated frameworks",
+    "test-patterns": "Patterns for unit testing, integration testing, and coverage",
+    "refactoring-patterns": "Safe, systematic refactoring patterns",
+    "error-analysis": "Error analysis, root cause analysis, and fix patterns"
+  },
+  "statistics": {
+    "total_commands": 45,
+    "total_agents": 17,
+    "total_skills": 5,
+    "workflow_commands": 4
+  }
 }

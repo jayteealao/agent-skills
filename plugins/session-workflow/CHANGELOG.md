@@ -5,6 +5,57 @@ All notable changes to the session-workflow plugin will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-01-21
+
+### Added
+- **Workflows Namespace**: New `workflows:*` command namespace with 4 comprehensive planning commands
+  - `workflows:plan` - Transform feature descriptions into well-structured plans with parallel research agents
+  - `workflows:work` - Execute work plans with todo tracking in .claude/todos/work/
+  - `workflows:plan-review` - Review plans with 3 parallel reviewer agents (architecture, performance, security)
+  - `workflows:deepen-plan` - Enhance plans with parallel research, skill discovery, and learnings
+
+- **12 New Agents** organized into subdirectories:
+  - **research/** (4 new): best-practices-researcher, framework-docs-researcher, git-history-analyzer, repo-research-analyst
+  - **workflow/** (1 new): spec-flow-analyzer
+  - **review/** (7 new): code-simplicity-reviewer, senior-code-reviewer, framework-conventions-reviewer, architecture-strategist, performance-oracle, security-sentinel, pattern-recognition-specialist
+
+- **4 New Skills** with comprehensive reference documentation:
+  - `framework-conventions-guide` - Framework-native conventions for opinionated frameworks (Django, Laravel, Next.js, Rails, etc.)
+  - `test-patterns` - Unit testing, integration testing, test data factories, coverage strategies
+  - `refactoring-patterns` - Extract, rename, move, and simplification patterns with safety checks
+  - `error-analysis` - Error categorization, root cause analysis, log patterns, fix patterns
+
+### Changed
+- **Agent Organization**: Agents now organized into subdirectories (research/, workflow/, review/) for better discoverability
+- **Moved 5 existing agents** to research/: codebase-mapper, web-research, design-options, risk-analyzer, edge-case-generator
+
+### Removed
+- **5 Legacy Commands**: Replaced by workflows namespace
+  - `start-session` → replaced by `workflows:plan`
+  - `close-session` → no longer needed
+  - `spec-crystallize` → merged into `workflows:plan`
+  - `research-plan` → merged into `workflows:plan`
+  - `work` → replaced by `workflows:work`
+
+### Statistics
+- **Total Commands**: 45 (46 - 5 deleted + 4 added)
+- **Total Agents**: 17 (5 existing + 12 new)
+- **Total Skills**: 5 (1 existing + 4 new)
+- **Workflow Commands**: 4
+
+### Migration Guide from v1.8.x
+```bash
+# Old workflow
+/start-session "feature name"
+/spec-crystallize
+/research-plan
+/work
+
+# New workflow
+/workflows:plan "feature name"    # Creates plan in .claude/plans/
+/workflows:work .claude/plans/feature-name.md
+```
+
 ## [1.4.0] - 2026-01-17
 
 ### Completed
