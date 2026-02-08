@@ -1,5 +1,6 @@
 ---
 name: review:architecture
+user-invocable: false
 description: Review code for architectural issues including boundaries, dependencies, and layering
 args:
   SESSION_SLUG:

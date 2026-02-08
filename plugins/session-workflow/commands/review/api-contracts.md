@@ -1,5 +1,6 @@
 ---
 name: review:api-contracts
+user-invocable: false
 description: Review API contracts for stability, correctness, and usability for consumers
 usage: /review:api-contracts [SCOPE] [TARGET] [PATHS] [CONTEXT]
 arguments:

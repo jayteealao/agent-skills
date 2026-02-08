@@ -1,5 +1,6 @@
 ---
 name: review:migrations
+user-invocable: false
 description: Review database migrations for safety, compatibility, and operability in production
 usage: /review:migrations [SCOPE] [TARGET] [PATHS] [CONTEXT]
 arguments:

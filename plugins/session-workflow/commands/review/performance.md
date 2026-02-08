@@ -1,5 +1,6 @@
 ---
 name: review:performance
+user-invocable: false
 description: Review code for algorithmic and system-level performance issues
 args:
   SESSION_SLUG:

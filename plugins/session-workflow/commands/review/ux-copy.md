@@ -1,5 +1,6 @@
 ---
 name: review:ux-copy
+user-invocable: false
 description: Review user-facing text for clarity, consistency, actionability, and helpful error recovery
 usage: /review:ux-copy [SCOPE] [TARGET] [PATHS] [CONTEXT]
 arguments:

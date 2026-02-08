@@ -1,5 +1,6 @@
 ---
 name: review:overengineering
+user-invocable: false
 description: Review code for unnecessary complexity, abstractions, and YAGNI violations
 args:
   SESSION_SLUG:

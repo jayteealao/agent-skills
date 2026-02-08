@@ -1,5 +1,6 @@
 ---
 name: review:release
+user-invocable: false
 description: Review changes for safe shipping with clear versioning, rollout, migration, and rollback plans
 args:
   SESSION_SLUG:

@@ -1,5 +1,6 @@
 ---
 name: review:scalability
+user-invocable: false
 description: Review code for scalability issues under higher load, larger datasets, and more tenants
 usage: /review:scalability [SCOPE] [TARGET] [PATHS] [CONTEXT]
 arguments:

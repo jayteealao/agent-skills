@@ -1,5 +1,6 @@
 ---
 name: review:refactor-safety
+user-invocable: false
 description: Hunt semantic drift in refactors to ensure behavior equivalence and prevent subtle bugs
 args:
   SESSION_SLUG:

@@ -1,5 +1,6 @@
 ---
 name: review:docs
+user-invocable: false
 description: Review documentation completeness and accuracy for behavior/config/API changes
 args:
   SESSION_SLUG:

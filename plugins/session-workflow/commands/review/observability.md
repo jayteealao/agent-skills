@@ -1,5 +1,6 @@
 ---
 name: review:observability
+user-invocable: false
 description: Review observability completeness - logs, metrics, tracing, error reporting, alertability, and runbook hooks
 usage: /review:observability [SCOPE] [TARGET] [PATHS]
 arguments:

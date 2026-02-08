@@ -1,5 +1,6 @@
 ---
 name: review:ci
+user-invocable: false
 description: Review CI/CD pipelines for security, correctness, and deployment safety
 args:
   SESSION_SLUG:

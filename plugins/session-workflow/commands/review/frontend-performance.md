@@ -1,5 +1,6 @@
 ---
 name: review:frontend-performance
+user-invocable: false
 description: Review frontend changes for bundle size, rendering efficiency, and user-perceived latency
 usage: /review:frontend-performance [SCOPE] [TARGET] [PATHS] [CONTEXT]
 arguments:

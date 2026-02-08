@@ -1,5 +1,6 @@
 ---
 name: review:security
+user-invocable: false
 description: Review code for vulnerabilities, insecure defaults, and missing security controls
 args:
   SESSION_SLUG:

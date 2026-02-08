@@ -1,5 +1,6 @@
 ---
 name: review:infra-security
+user-invocable: false
 description: Review infrastructure code for security issues in IAM, networking, secrets, and configuration
 args:
   SESSION_SLUG:

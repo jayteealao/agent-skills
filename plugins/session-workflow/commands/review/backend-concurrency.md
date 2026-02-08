@@ -1,5 +1,6 @@
 ---
 name: review:backend-concurrency
+user-invocable: false
 description: Review backend code for race conditions, atomicity violations, locking issues, and idempotency bugs
 args:
   SESSION_SLUG:

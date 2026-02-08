@@ -1,5 +1,6 @@
 ---
 name: review:infra
+user-invocable: false
 description: Review infrastructure and deployment config for safety, least privilege, and operational clarity
 args:
   SESSION_SLUG:

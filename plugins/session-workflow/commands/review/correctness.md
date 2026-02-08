@@ -1,5 +1,6 @@
 ---
 name: review:correctness
+user-invocable: false
 description: Review code for logic flaws, broken invariants, edge-case failures, and correctness issues
 args:
   SESSION_SLUG:

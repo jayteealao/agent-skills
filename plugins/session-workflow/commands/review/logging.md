@@ -1,5 +1,6 @@
 ---
 name: review:logging
+user-invocable: false
 description: Review logging for secrets exposure, PII leaks, wide-event patterns, and query-optimized observability
 usage: /review:logging [SCOPE] [TARGET] [PATHS]
 arguments:

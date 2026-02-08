@@ -1,5 +1,6 @@
 ---
 name: review:maintainability
+user-invocable: false
 description: Review code for long-term readability, ease of change, and reduced change amplification
 args:
   SESSION_SLUG:
