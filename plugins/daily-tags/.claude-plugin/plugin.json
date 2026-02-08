@@ -1,0 +1,10 @@
+{
+  "name": "daily-tags",
+  "version": "0.1.0",
+  "description": "DailyTags plugin",
+  "author": {
+    "name": "jayte"
+  },
+  "license": "MIT",
+  "keywords": []
+}
