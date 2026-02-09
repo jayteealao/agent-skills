@@ -5,6 +5,33 @@ All notable changes to the session-workflow plugin will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-02-08
+
+### Added
+- **Parallel Review Execution**: All 7 review skills (`review:all`, `review:quick`, `review:pre-merge`, `review:security`, `review:architecture`, `review:infra`, `review:ux`) now spawn each review command as an independent parallel Task agent instead of routing through a single serial agent
+- **Senior Review Specialist Agent**: New `senior-review-specialist` agent for use in plan-review and other workflows
+- **3 New Commands**: `debug`, `generate-tests`, `triage`
+- **Compound Workflow**: New `workflows:compound` command for multi-step compound workflows
+- **2 New Skills**:
+  - `compound-docs` — Solution documentation for cross-session learning with YAML schema and templates
+  - `file-todos` — File-based todo tracking with templates
+
+### Changed
+- **Review Commands Unlocked**: Removed `disable-model-invocation: true` from all 30 review commands, enabling them to be executed as autonomous Task agents while remaining non-user-invocable
+- **Review Skills Rewritten**: Replaced `agent: senior-review-specialist` delegation with fan-out/fan-in parallel execution pattern — each skill spawns N Task agents (one per review command) and merges deduplicated, severity-sorted results
+- **Plugin Manifest Simplified**: Removed inline commands/agents/skills/statistics sections from `.claude-plugin/plugin.json` in favor of auto-discovery
+- **Version**: Bumped to 2.0.0 (breaking: review skills no longer use agent delegation)
+
+### Removed
+- **Legacy Files**: Removed `Idea.md`, `vision.md`, and old root `plugin.json` manifest (superseded by `.claude-plugin/plugin.json`)
+
+### Statistics
+- **Total Commands**: 49 (45 + 4 new)
+- **Total Agents**: 17 (+ senior-review-specialist)
+- **Total Skills**: 7 (5 existing + compound-docs + file-todos)
+- **Review Skills**: 7 (all parallelized)
+- **Review Commands**: 30 (all model-executable)
+
 ## [1.9.0] - 2026-01-21
 
 ### Added

@@ -23,10 +23,10 @@
     },
     {
       "name": "session-workflow",
-      "description": "Hobbyist-focused software engineering workflows: 46 commands, 5 research agents, complexity metrics (LOC) instead of time estimates, no org/team concepts, single developer perspective",
+      "description": "Hobbyist-focused software engineering workflows with parallel code review, knowledge compounding, and research agents. 49 commands, 17 agents, 7 skills, file-based todo tracking, and solution documentation for cross-session learning.",
       "source": "./plugins/session-workflow",
       "category": "development",
-      "version": "1.9.0"
+      "version": "2.0.0"
     },
     {
       "name": "daily-tags",
