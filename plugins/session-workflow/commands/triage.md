@@ -146,7 +146,7 @@ After all items processed:
    ls .claude/todos/*-ready-*.md
    ```
 
-2. Start working on approved items with `/workflows:work`
+2. Start working on approved items
 
 3. As you work, update todo status:
    - Ready -> Complete (rename file: ready -> complete, update frontmatter)
@@ -157,7 +157,7 @@ Present options:
 ```markdown
 What would you like to do next?
 
-1. Run /workflows:work to start on ready todos
+1. Work on ready todos
 2. Commit the todo files
 3. Nothing for now
 ```
@@ -188,7 +188,7 @@ Every time you present a todo as a header, include:
 - Make yes/next/custom decisions
 - Update todo files (rename, frontmatter, work log)
 - Do NOT implement fixes or write code
-- That's for /workflows:work phase
+- That's for the work phase
 
 ## Integration
 
@@ -197,5 +197,3 @@ Every time you present a todo as a header, include:
 
 ### Commands
 - **/debug** - Creates todos that feed into triage
-- **/workflows:work** - Execute on triaged/approved todos
-- **/workflows:compound** - Document solutions after work is done

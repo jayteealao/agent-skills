@@ -23,10 +23,10 @@
     },
     {
       "name": "session-workflow",
-      "description": "Hobbyist-focused software engineering workflows with parallel code review, knowledge compounding, and research agents. 49 commands, 17 agents, 7 skills, file-based todo tracking, and solution documentation for cross-session learning.",
+      "description": "Specialized code review system with file-based todo integration. 44 commands, 8 review agents, 13 skills with auto-todo output, and file-based todo tracking for actionable review findings.",
       "source": "./plugins/session-workflow",
       "category": "development",
-      "version": "2.0.0"
+      "version": "2.1.0"
     },
     {
       "name": "daily-tags",

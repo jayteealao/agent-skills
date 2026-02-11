@@ -1,24 +1,21 @@
 {
   "name": "session-workflow",
-  "version": "2.0.0",
-  "description": "Hobbyist-focused software engineering workflows with comprehensive planning, research agents, code review specialists, and knowledge compounding. 49 commands, 17 agents (research, workflow, review), 7 skills, file-based todo tracking, and solution documentation for cross-session learning.",
+  "version": "2.1.0",
+  "description": "Specialized code review system with file-based todo integration. 44 commands (30 review + 14 utility), 8 review agents, 13 skills (7 review with auto-todo output, 6 general-purpose), and file-based todo tracking for actionable review findings.",
   "author": {
     "name": "jayte"
   },
   "license": "MIT",
   "keywords": [
-    "workflows",
-    "planning",
     "code-review",
-    "research-agents",
+    "review-agents",
+    "file-todos",
     "observability",
     "debugging",
-    "deployment",
     "security",
     "performance",
     "accessibility",
     "reliability",
-    "knowledge-compounding",
     "todo-tracking",
     "hobby-projects"
   ]

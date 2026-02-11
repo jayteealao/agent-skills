@@ -5,6 +5,46 @@ All notable changes to the session-workflow plugin will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-02-11
+
+### Added
+- **File-Todo Integration**: All 7 review skills (`review:all`, `review:quick`, `review:pre-merge`, `review:security`, `review:architecture`, `review:infra`, `review:ux`) now auto-create pending file-todos in `.claude/todos/` after merging findings
+- **Severity-to-Priority Mapping**: BLOCKER/HIGH → p1, MED → p2, LOW → p3, NIT → skipped
+- **Triage Pipeline**: Review findings flow directly into `/triage` for approval, creating a review → triage → resolve workflow
+
+### Removed
+- **Workflow Commands** (5): `workflows:plan`, `workflows:work`, `workflows:deepen-plan`, `workflows:plan-review`, `workflows:compound` — use external compound-engineering plugin instead
+- **Compound-Docs Skill**: `compound-docs` skill with schema, templates, and references — consumed only by `workflows:compound`
+- **Research Agents** (9): `best-practices-researcher`, `framework-docs-researcher`, `repo-research-analyst`, `git-history-analyzer`, `codebase-mapper`, `web-research`, `design-options`, `risk-analyzer`, `edge-case-generator`
+- **Workflow Agent** (1): `spec-flow-analyzer`
+- **Workflow References**: Cleaned `/workflows:*` references from `triage`, `debug`, and `file-todos` commands/skills
+
+### Changed
+- **Plugin Description**: Updated to reflect review-focused identity with file-todos integration
+- **Plugin Keywords**: Removed workflow/planning/research/compounding keywords, added file-todos and review-agents
+
+### Statistics
+- **Total Commands**: 44 (49 - 5 workflow commands)
+- **Total Agents**: 8 (17 - 9 research - 1 workflow + 1 senior-review-specialist)
+- **Total Skills**: 13 (7 review + file-todos + error-analysis + 4 general-purpose; compound-docs removed)
+- **Review Skills**: 7 (all with file-todo output)
+- **Review Commands**: 30 (unchanged)
+
+### Migration Guide from v2.0.0
+```bash
+# Old workflow (removed)
+/workflows:plan "feature name"
+/workflows:work .claude/plans/feature-name.md
+/workflows:compound
+
+# New workflow
+# Use external compound-engineering plugin for planning/execution
+# Session-workflow focuses on reviews:
+/review:quick           # → auto-creates todos in .claude/todos/
+/triage                 # → approve/skip findings
+# Then work on approved todos directly
+```
+
 ## [2.0.0] - 2026-02-08
 
 ### Added

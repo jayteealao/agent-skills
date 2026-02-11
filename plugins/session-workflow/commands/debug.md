@@ -267,8 +267,6 @@ Present final summary:
 
 1. Apply hotfix: [file:line]
 2. Run `/triage` to review and prioritize todos
-3. Run `/workflows:work` to execute on ready todos
-4. Use `/workflows:compound` to document the solution after fixing
 ```
 
 ## Integration
@@ -281,10 +279,3 @@ This command integrates with:
 
 ### Commands
 - **/triage** - Triage action items if prioritization needs adjustment
-- **/workflows:work** - Execute on ready todos
-- **/workflows:compound** - Document the solution after fixing
-
-## Related Commands
-
-- `/triage` - Triage findings and create todos
-- `/workflows:compound` - Document the fix after resolving

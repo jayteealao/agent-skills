@@ -33,3 +33,67 @@ Combine all 5 agent reports into a single focused review:
 - Sort by severity (BLOCKER > HIGH > MED > LOW > NIT)
 - Merge file summaries across all reports
 - Produce unified assessment: Ship / Don't Ship
+
+## After Merge: Create Todos
+
+Convert each finding (except NIT) from the merged report into a pending file-todo.
+
+### Setup
+1. Create `.claude/todos/` if it doesn't exist
+2. Find next issue ID: `ls .claude/todos/ 2>/dev/null | grep -oE '^[0-9]+' | sort -n | tail -1` (start at 001 if empty)
+
+### Severity → Priority
+| Severity | Priority |
+|----------|----------|
+| BLOCKER/HIGH | → p1 |
+| MED          | → p2 |
+| LOW          | → p3 |
+| NIT          | → skip |
+
+### Per Finding
+Create `.claude/todos/{id}-pending-{priority}-{kebab-title}.md`:
+
+```yaml
+---
+status: pending
+priority: {p1|p2|p3}
+issue_id: "{id}"
+tags: [review-quick, {category-kebab}, {severity-lower}]
+dependencies: []
+---
+```
+
+```markdown
+# {Finding Title}
+
+## Problem Statement
+{What is wrong and why it matters}
+
+## Findings
+{Evidence: file:line references, code snippets, failure scenarios}
+
+## Proposed Solution
+{Remediation from the review}
+
+## Acceptance Criteria
+- [ ] Fix implemented
+- [ ] Tests added
+- [ ] No regressions
+
+## Work Log
+### {date} - Created from Review
+**Source:** /review:quick
+**Severity:** {severity}
+**Finding ID:** {original ID from merged report}
+```
+
+### After Todos Created
+
+Output the merged review report as normal, then append:
+```
+---
+## Todos Created
+**Total:** {count} in `.claude/todos/` | **Skipped:** {nit-count} NITs
+
+Next: Run `/triage` to review and approve findings
+```

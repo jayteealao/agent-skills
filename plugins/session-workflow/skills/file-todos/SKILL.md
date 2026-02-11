@@ -183,7 +183,7 @@ Work logs serve as:
 
 | Trigger | Flow | Tool |
 |---------|------|------|
-| Code review | `/workflows:review` -> Findings -> `/triage` -> Todos | Review agent + skill |
+| Code review | `/review:*` -> Findings -> `/triage` -> Todos | Review skill + file-todos |
 | Planning | Brainstorm -> Create todo -> Work -> Complete | Skill |
 | Debugging | `/debug` -> Analysis -> Auto-create todos | Debug command + skill |
 | Feedback | Discussion -> Create todo -> Triage -> Work | Skill + slash |
