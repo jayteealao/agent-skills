@@ -1,7 +1,7 @@
 {
   "name": "session-workflow",
-  "version": "2.1.0",
-  "description": "Specialized code review system with file-based todo integration. 44 commands (30 review + 14 utility), 8 review agents, 13 skills (7 review with auto-todo output, 6 general-purpose), and file-based todo tracking for actionable review findings.",
+  "version": "3.0.0",
+  "description": "Code review system with 30 individual review commands, 7 aggregate review commands, and a smart review skill that auto-selects and dispatches relevant commands as parallel agents. All 30 review commands are user-invocable and model-safe. No file-todo output.",
   "author": {
     "name": "jayte"
   },
@@ -9,14 +9,14 @@
   "keywords": [
     "code-review",
     "review-agents",
-    "file-todos",
+    "smart-dispatch",
+    "parallel-review",
     "observability",
     "debugging",
     "security",
     "performance",
     "accessibility",
     "reliability",
-    "todo-tracking",
     "hobby-projects"
   ]
 }

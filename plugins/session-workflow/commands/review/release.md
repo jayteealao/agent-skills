@@ -1,6 +1,6 @@
 ---
 name: review:release
-user-invocable: false
+disable-model-invocation: true
 description: Review changes for safe shipping with clear versioning, rollout, migration, and rollback plans
 args:
   SESSION_SLUG:

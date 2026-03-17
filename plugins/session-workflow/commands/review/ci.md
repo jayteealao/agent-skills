@@ -1,6 +1,6 @@
 ---
 name: review:ci
-user-invocable: false
+disable-model-invocation: true
 description: Review CI/CD pipelines for security, correctness, and deployment safety
 args:
   SESSION_SLUG:

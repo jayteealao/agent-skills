@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills-marketplace",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "description": "A curated collection of Claude Code skills and plugins for developers",
   "owner": {
     "name": "jayte"
@@ -23,10 +23,10 @@
     },
     {
       "name": "session-workflow",
-      "description": "Specialized code review system with file-based todo integration. 44 commands, 8 review agents, 13 skills with auto-todo output, and file-based todo tracking for actionable review findings.",
+      "description": "Code review system with 30 individual review commands, 7 aggregate review commands, and a smart review skill that auto-selects and dispatches relevant commands as parallel agents. All 30 review commands are user-invocable and model-safe.",
       "source": "./plugins/session-workflow",
       "category": "development",
-      "version": "2.1.0"
+      "version": "3.0.0"
     },
     {
       "name": "daily-tags",
@@ -34,6 +34,20 @@
       "source": "./plugins/daily-tags",
       "category": "productivity",
       "version": "0.1.0"
+    },
+    {
+      "name": "diataxis",
+      "description": "Documentation writing and review skills based on the Diátaxis framework. Seven skills covering all four documentation quadrants (tutorial, how-to, reference, explanation), plus README landing pages, a doc planner, and a docs reviewer.",
+      "source": "./plugins/diataxis",
+      "category": "documentation",
+      "version": "1.0.0"
+    },
+    {
+      "name": "sdlc-workflow",
+      "description": "SDLC workflow commands for structured feature delivery. 11 commands covering the full software delivery lifecycle: intake → shape → slice → plan → implement → verify → review → handoff → ship → retro, plus a next-step routing helper.",
+      "source": "./plugins/sdlc-workflow",
+      "category": "productivity",
+      "version": "1.0.0"
     }
   ]
 }

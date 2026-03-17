@@ -1,0 +1,164 @@
+---
+name: wf-intake
+description: Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.
+argument-hint: <task description>
+disable-model-invocation: true
+---
+
+You are running the `wf-intake` lifecycle workflow command.
+
+# Purpose
+Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.
+
+# Workflow storage contract
+- Store every artifact under `.ai/workflows/<slug>/`.
+- Maintain `.ai/workflows/<slug>/00-index.md` as the workflow control file.
+- Never leave the canonical result only in chat; always write the stage file first.
+- If the stage cannot finish because answers are missing, still write the stage file with `Status: Awaiting input` and list the exact unanswered questions.
+- Keep a cumulative product-owner log at `.ai/workflows/<slug>/po-answers.md`.
+- Keep the slug stable after intake unless the product owner explicitly renames it.
+
+# `00-index.md` minimum fields
+Ensure these fields exist and stay current:
+- title
+- slug
+- current-stage
+- stage-status
+- updated-at
+- selected-slice-or-focus
+- open-questions
+- recommended-next-stage
+- recommended-next-command
+- recommended-next-invocation
+- workflow-files
+
+# Slug and argument contract
+- Intake: if the user does not pass a slug, derive one from the task title or problem statement in lowercase kebab-case.
+- Non-intake: the first argument is the workflow slug.
+- The second argument, if present, is the primary slice or focus selector.
+- Any trailing text is supplemental context.
+- If a non-intake command is invoked without a slug, try to infer the most recent active workflow from `.ai/workflows/*/00-index.md`.
+- If multiple workflows are plausible, use AskUserQuestion or similar elicitation tooling to let the user choose. If no such tool exists, ask directly in chat.
+
+# Product-owner interaction rules
+- Prefer `AskUserQuestion`, `AskUserQuestionTool`, or an equivalent elicitation / MCP question tool when available.
+- If that tool is unavailable, ask directly in chat using short numbered questions.
+- Every answer must be appended to `.ai/workflows/<slug>/po-answers.md` with a timestamp and the stage name.
+- When a stage is marked as mandatory-question stage, do not finalize it until the required questions are asked. If answers are not yet available, write `Status: Awaiting input` and stop cleanly.
+- Keep questions scoped to things that materially affect scope, acceptance, sequencing, rollout, non-goals, or risk.
+
+# Freshness and external research rules
+- Always perform a targeted freshness pass before finalizing any stage where external knowledge could change the answer or implementation.
+- Use web search first.
+- Then open, fetch, or otherwise inspect the most authoritative sources available.
+- Prefer official documentation, release notes, changelogs, migration guides, security advisories, incident reports, RFCs, and primary issue trackers.
+- For every dependency, framework, API, platform, library, runtime, or standard that matters to the work, check for:
+  - current recommended patterns
+  - breaking changes or migration notes
+  - known issues, regressions, or incident reports
+  - security, privacy, or reliability concerns when relevant
+- Record the research under `## Freshness Research` in the stage file with:
+  - source
+  - why it matters
+  - takeaway
+- If web search or page fetch/open is unavailable, say so explicitly in the file and note the residual uncertainty.
+
+# Claude / Codex multi-agent research rules
+- When the task spans multiple domains, split research in parallel where the client supports it.
+- For Claude, prefer the built-in `Explore` agent or parallel subagents for narrow research briefs when useful.
+- Good parallel splits include:
+  - existing architecture and code paths
+  - dependency and standards freshness
+  - tests and observability surface
+  - rollout, migration, and risk hotspots
+- Do not spin up subagents for trivial work.
+
+# Scope rules
+- Reuse earlier workflow files instead of re-deriving settled decisions.
+- Do not silently broaden scope.
+- Do not collapse multiple lifecycle stages into one unless the user explicitly asks.
+- If earlier files conflict, surface the conflict in the stage file.
+
+# Chat return contract
+After writing files, return only this compact summary:
+- `slug: <slug>`
+- `wrote: <path>`
+- `next: <exact slash command with slug>`
+- up to 3 short blocker bullets only if needed
+
+This is a mandatory-question stage.
+
+Inputs available in Claude-style commands:
+- Full raw request: `$ARGUMENTS`
+- First token if the user supplied one: `$0`
+
+Do this in order:
+1. Parse the request and derive the workflow slug.
+2. Create `.ai/workflows/<slug>/`, `00-index.md`, and `po-answers.md` if missing.
+3. Ask 3 to 7 focused product-owner questions covering:
+   - desired outcome and who benefits
+   - concrete success criteria
+   - explicit non-goals
+   - timeline, compliance, operational, or platform constraints
+   - already-decided technical constraints or vendor choices
+4. Capture the answers in `po-answers.md`.
+5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
+6. Write the intake brief without designing the implementation.
+7. Update `00-index.md` so the recommended next command is `/wf-shape <slug>` unless intake is blocked waiting for answers.
+8. Write `.ai/workflows/<slug>/01-intake.md`.
+
+Write `01-intake.md` with this structure:
+
+# Intake
+
+## Metadata
+- Slug:
+- Status:
+- Created:
+- Updated:
+- Raw Request:
+
+## Restated Request
+
+## Intended Outcome
+
+## Primary User / Actor
+
+## Known Constraints
+- ...
+
+## Assumptions
+- ...
+
+## Product Owner Questions Asked
+- ...
+
+## Product Owner Answers
+- ...
+
+## Unknowns / Open Questions
+- ...
+
+## Dependencies / External Factors
+- ...
+
+## Risks if Misunderstood
+- ...
+
+## Success Criteria
+- ...
+
+## Out of Scope for Now
+- ...
+
+## Freshness Research
+- Source:
+  Why it matters:
+  Takeaway:
+
+## Recommended Next Stage
+- Stage:
+- Command:
+- Invocation:
+
+If required answers are still missing, mark `Status: Awaiting input` and set the recommended next command to rerun `/wf-intake <same-slug>` after answers arrive.

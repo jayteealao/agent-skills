@@ -1,6 +1,6 @@
 ---
 name: review:correctness
-user-invocable: false
+disable-model-invocation: true
 description: Review code for logic flaws, broken invariants, edge-case failures, and correctness issues
 args:
   SESSION_SLUG:

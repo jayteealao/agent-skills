@@ -1,6 +1,6 @@
 ---
 name: review:security
-user-invocable: false
+disable-model-invocation: true
 description: Review code for vulnerabilities, insecure defaults, and missing security controls
 args:
   SESSION_SLUG:

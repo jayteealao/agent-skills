@@ -4,6 +4,37 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.9.0 - 2026-03-17
+
+### Added
+- **diataxis v1.0.0**: New plugin — 7 documentation skills based on the Diátaxis framework
+  - `diataxis:plan` — classifies doc requests, proposes a docs map, returns a prioritised writing plan
+  - `diataxis:tutorial` — learning-oriented lessons with strict boundary discipline
+  - `diataxis:how-to` — goal-oriented task guides for competent users
+  - `diataxis:reference` — neutral, structured, scannable technical reference (API, CLI, config, schema)
+  - `diataxis:explanation` — conceptual content: design rationale, architecture overviews, trade-offs, context
+  - `diataxis:readme` — repository README as a front door that orients and routes, not a full manual
+  - `diataxis:review` — audits one doc or a whole docs set against Diátaxis; returns prioritised concrete fixes
+
+- **sdlc-workflow v1.0.0**: New plugin — 11 commands covering the full software delivery lifecycle
+  - Stages: `wf-intake` → `wf-shape` → `wf-slice` → `wf-plan` → `wf-implement` → `wf-verify` → `wf-review` → `wf-handoff` → `wf-ship` → `wf-retro` + `wf-next` routing helper
+  - All artifacts stored under `.ai/workflows/<slug>/` with `00-index.md` as control file
+  - All commands have `disable-model-invocation: true`
+
+### Changed
+- **session-workflow v3.0.0** (breaking): Major review system overhaul
+  - All 30 review commands are now user-invocable (removed `user-invocable: false`)
+  - All 30 review commands have `disable-model-invocation: true` — safe for agent dispatch
+  - File-todo output removed from all review commands
+  - 7 aggregate review commands added (review:all, review:quick, review:pre-merge, review:security, review:architecture, review:infra, review:ux) — run inline without spawning subagents
+  - 7 old review skill files removed (replaced by the new aggregate commands)
+  - New smart `review` skill: analyses scope, selects relevant commands, spawns parallel agents, aggregates results
+
+### Marketplace
+- Added `diataxis` entry (category: documentation, v1.0.0)
+- Added `sdlc-workflow` entry (category: productivity, v1.0.0)
+- Updated `session-workflow` entry to v3.0.0 with new description
+
 ## Version 1.8.1 - 2026-01-18
 
 ### Fixed - Comprehensive Recheck

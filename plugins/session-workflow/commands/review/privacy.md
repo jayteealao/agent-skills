@@ -1,6 +1,6 @@
 ---
 name: review:privacy
-user-invocable: false
+disable-model-invocation: true
 description: Review data handling for PII collection, storage, transmission, and privacy compliance
 args:
   SESSION_SLUG:

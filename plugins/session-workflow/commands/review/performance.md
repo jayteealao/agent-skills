@@ -1,6 +1,6 @@
 ---
 name: review:performance
-user-invocable: false
+disable-model-invocation: true
 description: Review code for algorithmic and system-level performance issues
 args:
   SESSION_SLUG:

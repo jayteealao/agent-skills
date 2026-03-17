@@ -1,6 +1,6 @@
 ---
 name: review:dx
-user-invocable: false
+disable-model-invocation: true
 description: Review developer experience - make the project easier to build, run, debug, and contribute to
 usage: /review:dx [SCOPE] [TARGET] [PATHS] [CONTEXT]
 arguments:

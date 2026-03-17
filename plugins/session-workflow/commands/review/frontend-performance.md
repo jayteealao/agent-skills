@@ -1,6 +1,6 @@
 ---
 name: review:frontend-performance
-user-invocable: false
+disable-model-invocation: true
 description: Review frontend changes for bundle size, rendering efficiency, and user-perceived latency
 usage: /review:frontend-performance [SCOPE] [TARGET] [PATHS] [CONTEXT]
 arguments:

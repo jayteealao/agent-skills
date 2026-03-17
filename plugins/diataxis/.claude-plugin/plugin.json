@@ -1,0 +1,20 @@
+{
+  "name": "diataxis",
+  "version": "1.0.0",
+  "description": "Documentation writing and review skills based on the Diátaxis framework. Seven skills covering all four documentation quadrants (tutorial, how-to, reference, explanation), plus README landing pages, a doc planner, and a docs reviewer that audits against Diátaxis principles.",
+  "author": {
+    "name": "jayte"
+  },
+  "license": "MIT",
+  "keywords": [
+    "documentation",
+    "diataxis",
+    "tutorial",
+    "how-to",
+    "reference",
+    "explanation",
+    "readme",
+    "docs-review",
+    "writing"
+  ]
+}

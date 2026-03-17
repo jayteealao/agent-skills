@@ -5,6 +5,37 @@ All notable changes to the session-workflow plugin will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-03-17
+
+### Changed — Breaking
+- **All 30 review commands**: Removed `user-invocable: false` — all `/review:*` commands are now directly invocable from the slash-command palette
+- **All 30 review commands**: Added `disable-model-invocation: true` — the main model cannot silently chain these; they run only inside explicit agent spawns or via direct user invocation
+- **All review commands**: Stripped all "Create Todos" workflow steps and "Todos Created" console summary sections — review commands no longer write file-todos
+
+### Added
+- **7 aggregate review commands** (inline, no subagents):
+  - `review:quick` — 5 lenses: Correctness Essentials, Style Consistency, Developer Experience, UX Copy Quality, Overengineering Check
+  - `review:pre-merge` — 5 lenses: Correctness, Test Quality, Security, Refactor Safety, Maintainability; verdict: MERGE / MERGE WITH COMMENTS / DON'T MERGE
+  - `review:security` — 5 lenses: Vulnerabilities, Privacy & PII, Infra Security, Data Integrity, Supply Chain; 5 automatic BLOCKERs
+  - `review:architecture` — 4 lenses: Architecture & Design, Performance, Scalability, API Contracts; builds mental architecture model before scanning
+  - `review:infra` — 6 lenses: Infra Config, CI/CD Pipeline, Release Management, DB Migrations, Logging Quality, Observability; verdicts: Ready / Needs Attention / Not Production Ready
+  - `review:ux` — 4 lenses: Accessibility (WCAG 2.1 AA), Frontend Accessibility (SPA), Frontend Performance, UX Copy; BLOCKERs include keyboard traps, missing alt, unlabelled fields, AA contrast failures
+  - `review:all` — 6 domains × 5 sub-categories covering all 30 review dimensions inline
+
+- **Smart `review` skill** — analyses the change set or given scope, selects relevant commands based on file types and content signals, spawns one parallel agent per selected command, then aggregates and deduplicates results into a unified report:
+  - Always-run: `review:correctness` + `review:security`
+  - Signal-based: SQL → data-integrity + migrations; async → backend-concurrency; React/Vue/Angular → frontend-performance + frontend-accessibility + ux-copy; Terraform/k8s → infra + infra-security; CI config → ci; migrations → migrations; test files → testing; observability → observability + logging; etc.
+  - Min 2 / max 12 commands per invocation
+
+### Removed
+- **7 review skill files** (`review-all`, `review-architecture`, `review-infra`, `review-pre-merge`, `review-quick`, `review-security`, `review-ux`) — functionality replaced by the 7 new inline aggregate commands above
+
+### Statistics
+- **Total Commands**: 51 (44 previous + 7 new aggregate commands)
+- **User-invocable review commands**: 37 (30 individual + 7 aggregate)
+- **Skills**: 7 (review skill added; 7 aggregate review skills removed; net −6)
+- **File-todo output**: Removed from all commands
+
 ## [2.1.0] - 2026-02-11
 
 ### Added

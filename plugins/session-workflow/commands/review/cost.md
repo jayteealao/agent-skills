@@ -1,6 +1,6 @@
 ---
 name: review:cost
-user-invocable: false
+disable-model-invocation: true
 description: Review code for changes that increase cloud infrastructure costs
 usage: /review:cost [SCOPE] [TARGET] [PATHS] [CONTEXT]
 arguments:
