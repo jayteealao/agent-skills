@@ -4,6 +4,22 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.10.0 - 2026-03-20
+
+### Changed
+- **session-workflow v3.1.0**: Pruned to core review focus
+  - Removed all 7 review agents (`agents/review/`) — the smart `review` skill dispatches commands directly as parallel subagents, no agent definitions needed
+  - Removed 13 non-review commands (compat-check, debt-register, debug, decision-record, generate-tests, handoff, prod-readiness, refactor-followups, repro-harness, scope-triage, test-matrix, triage, write-docs)
+  - Removed 2 skills (file-todos, framework-conventions-guide) and top-level senior-review-specialist agent
+  - Retained: 30 review commands, 7 aggregate review commands, `review` skill, `setup-wide-logging` command, error-analysis, refactoring-patterns, test-patterns, wide-event-observability skills
+  - Updated marketplace description to reflect focused scope
+
+### Marketplace
+- Updated `session-workflow` entry to v3.1.0 with revised description
+- Marketplace bumped to v1.10.0
+
+---
+
 ## Version 1.9.0 - 2026-03-17
 
 ### Added

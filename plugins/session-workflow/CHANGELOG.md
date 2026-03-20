@@ -5,6 +5,19 @@ All notable changes to the session-workflow plugin will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-03-20
+
+### Removed
+- **All 7 review agents** (`agents/review/`): architecture-strategist, code-simplicity-reviewer, framework-conventions-reviewer, pattern-recognition-specialist, performance-oracle, security-sentinel, senior-code-reviewer — agents directory deleted entirely
+- **13 non-review commands**: compat-check, debt-register, debug, decision-record, generate-tests, handoff, prod-readiness, refactor-followups, repro-harness, scope-triage, test-matrix, triage, write-docs
+- **2 skills**: file-todos, framework-conventions-guide
+- **Top-level agent**: senior-review-specialist
+
+### Notes
+The plugin is now focused exclusively on code review and deep analysis. The review skill dispatches commands as parallel agents without needing dedicated agent definitions — commands run directly inside spawned subagents.
+
+---
+
 ## [3.0.0] - 2026-03-17
 
 ### Changed — Breaking
