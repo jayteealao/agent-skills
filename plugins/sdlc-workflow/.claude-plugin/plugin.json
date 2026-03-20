@@ -1,7 +1,7 @@
 {
   "name": "sdlc-workflow",
-  "version": "3.0.0",
-  "description": "SDLC workflow commands for structured feature delivery. 11 commands covering the full software delivery lifecycle: intake → shape → slice → plan → implement → verify → review → handoff → ship → retro, plus a next-step routing helper. All artifacts stored under .ai/workflows/<slug>/.",
+  "version": "4.0.0",
+  "description": "Full SDLC workflow with integrated code review. 11 lifecycle commands (intake → ship → retro) plus 30 individual review commands and 7 aggregate review commands. wf-review intelligently selects and dispatches review commands as parallel sonnet sub-agents, each writing findings to file, then aggregates into a unified verdict. All artifacts stored under .ai/workflows/<slug>/.",
   "author": {
     "name": "jayte"
   },
@@ -14,9 +14,10 @@
     "sprint",
     "product",
     "agile",
-    "intake",
-    "shape",
-    "implement",
-    "ship"
+    "code-review",
+    "smart-dispatch",
+    "parallel-review",
+    "security",
+    "correctness"
   ]
 }

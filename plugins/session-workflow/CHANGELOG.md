@@ -5,6 +5,20 @@ All notable changes to the session-workflow plugin will be documented in this fi
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-03-20
+
+### Removed
+- **All 30 individual review commands** (`commands/review/`) — moved to sdlc-workflow plugin
+- **All 7 aggregate review commands** (`review-all`, `review-architecture`, `review-infra`, `review-pre-merge`, `review-quick`, `review-security`, `review-ux`) — moved to sdlc-workflow plugin
+- **Review skill** (`skills/review/SKILL.md`) — replaced by intelligent dispatch in sdlc-workflow's `wf-review`
+
+### Remaining
+Plugin now contains only analysis and observability tools:
+- **Commands:** `setup-wide-logging`
+- **Skills:** error-analysis, refactoring-patterns, test-patterns, wide-event-observability
+
+---
+
 ## [3.1.0] - 2026-03-20
 
 ### Removed

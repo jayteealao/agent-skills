@@ -1,22 +1,17 @@
 {
   "name": "session-workflow",
-  "version": "3.0.0",
-  "description": "Code review system with 30 individual review commands, 7 aggregate review commands, and a smart review skill that auto-selects and dispatches relevant commands as parallel agents. All 30 review commands are user-invocable and model-safe. No file-todo output.",
+  "version": "4.0.0",
+  "description": "Analysis and observability skills: error-analysis, refactoring-patterns, test-patterns, wide-event-observability. Plus setup-wide-logging command. Review commands moved to sdlc-workflow plugin.",
   "author": {
     "name": "jayte"
   },
   "license": "MIT",
   "keywords": [
-    "code-review",
-    "review-agents",
-    "smart-dispatch",
-    "parallel-review",
+    "error-analysis",
+    "refactoring",
+    "test-patterns",
     "observability",
-    "debugging",
-    "security",
-    "performance",
-    "accessibility",
-    "reliability",
-    "hobby-projects"
+    "wide-event-logging",
+    "debugging"
   ]
 }

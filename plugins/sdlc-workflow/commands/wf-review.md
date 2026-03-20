@@ -1,6 +1,6 @@
 ---
 name: wf-review
-description: Review the diff like a senior engineer and decide whether the work is ready for handoff.
+description: Intelligent review dispatch. Reads workflow artifacts and diff, selects relevant review commands, spawns one parallel sonnet sub-agent per command (each writes its findings to file), then aggregates and deduplicates into a unified review verdict.
 argument-hint: <slug> [slice]
 disable-model-invocation: true
 ---
@@ -13,83 +13,262 @@ You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `02-shape.md`, `05-implement.md`, `06-verify.md` |
-| Produces | `07-review.md` |
+| Produces | `07-review.md` + `07-review-<command>.md` per selected command |
 | Next | `/wf-handoff <slug> <selected-slice>` (if approved) or `/wf-implement <slug> <selected-slice>` (if changes needed) |
 
 # CRITICAL — execution discipline
-You are a **workflow orchestrator**, not a problem solver.
-- Do NOT fix issues you find — only report and prioritise them. Fixes belong in `/wf-implement`.
+You are a **review dispatch orchestrator**, not a problem solver.
+- Do NOT fix issues — only report and prioritise them. Fixes belong in `/wf-implement`.
 - Do NOT handoff or ship — those are later stages.
-- Your job is to **review the diff and produce a verdict with prioritised findings**.
+- Do NOT run the reviews yourself — you **select commands and dispatch sub-agents**. Each sub-agent runs one review command independently.
+- Your job is: **orient → gather change stats → select commands → dispatch sub-agents → aggregate → write verdict**.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
-- Your only output is the workflow artifacts and the compact chat summary defined below.
-- If you catch yourself about to start fixing code, STOP and return to the next unfinished workflow step.
+- If you catch yourself about to start reviewing code directly, STOP — spawn a sub-agent instead.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
 3. **Check prerequisites:**
-   - `05-implement.md` and `06-verify.md` must exist. If missing → STOP. Tell the user which command to run first.
-   - If `06-verify.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve it first.
-   - If `current-stage` in the index is already past review → WARN: "Stage 7 (review) has already been completed. Running it again will overwrite `07-review.md`. Proceed?"
-4. **Read** `02-shape.md`, `05-implement.md`, `06-verify.md`, and `po-answers.md`.
+   - `05-implement.md` must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug> <slice>` first."
+   - `06-verify.md` is recommended but not strictly required — the review can proceed without it if the user explicitly skipped verify.
+   - If `06-verify.md` exists and shows `Status: Awaiting input` → STOP. Tell the user to resolve it first.
+   - If `current-stage` in the index is already past review → WARN: "Stage 7 (review) has already been completed. Running it again will overwrite review files. Proceed?"
+4. **Read** `02-shape.md`, `03-slice.md` (if exists), `04-plan.md` (or `04-plan-<slice>.md`), `05-implement.md`, `06-verify.md` (if exists), and `po-answers.md`.
 5. **Resolve the slice**: If a slice was passed as the second argument, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
 6. **Carry forward** `open-questions` from the index.
 
-# Parallel review (use sub-agents when supported)
-When the diff spans multiple concerns, launch parallel review sub-agents:
-- **Explore sub-agent 1:** Scan for correctness issues — logic flaws, edge cases, regressions, data integrity.
-- **Explore sub-agent 2:** Scan for quality issues — maintainability, naming, duplication, unnecessary complexity.
-- **Sub-agent 3:** If the change touches security-sensitive areas (auth, crypto, PII, SQL, file I/O), run a focused security scan.
-- **Sub-agent 4:** If external API contracts or dependency behavior matter, run a freshness pass.
-- Merge findings, deduplicate, and prioritise. Do not spin up sub-agents for small, single-concern diffs.
-
 # Purpose
-Review the diff like a senior engineer and decide whether the work is ready for handoff.
+Intelligent review dispatch. Analyse the change set, select which of the 30 review commands are relevant, launch one parallel sonnet sub-agent per selected command, then aggregate all findings into a unified review verdict.
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - If the stage cannot finish, write the stage file with `Status: Awaiting input` and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
-- Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract
 After writing files, return ONLY:
 - `slug: <slug>`
-- `wrote: <path>`
+- `wrote: <paths>` (list all review files written)
+- `verdict: <Ship / Ship with caveats / Don't Ship>`
 - `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
-Do this in order:
-1. Inspect the current diff or the files changed (using parallel sub-agents if multi-concern).
-2. Review for correctness, missed edge cases, regressions, maintainability, security, performance, data integrity, and observability.
-3. If external dependency behavior or current best practices matter to the review, run a small freshness pass and record it.
-4. Produce a prioritized review verdict.
-5. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
-6. Update `00-index.md` accordingly.
-7. Write `.ai/workflows/<slug>/07-review.md`.
+---
 
-# Adaptive routing — evaluate what's actually next
-After completing the review, evaluate the findings and present the user with ALL viable options:
+# Step 1: Gather Change Statistics
 
-**Option A: Handoff** → `/wf-handoff <slug> <selected-slice>`
-Use when: No blocking issues. The implementation is approved (possibly with minor nice-to-have notes).
+From `05-implement.md`, extract the files changed and the nature of changes. Also run:
 
-**Option B: Fix and re-implement** → `/wf-implement <slug> <selected-slice>`
-Use when: There are blocking issues that must be fixed. Clearly list what needs changing.
+```bash
+# Changed file list
+git diff --name-only HEAD
 
-**Option C: Skip handoff, go to Ship** → `/wf-ship <slug> <selected-slice>`
-Use when: The handoff stage adds no value — e.g., the user IS the reviewer and deployer, there's no team to hand off to, and the PR description is not needed.
+# Diff stats
+git diff --stat HEAD
 
-**Option D: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
-Use when: This slice is approved AND there are more slices to implement. Check `03-slice.md` for the next unfinished slice. If the next slice already has a plan, suggest implement; otherwise suggest plan.
+# Full diff for pattern analysis
+git diff HEAD
+```
 
-Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
+Extract:
+- **File types changed** — extensions and directory patterns
+- **Change size** — total lines added/removed
+- **Change type signals** — new files vs modifications vs deletions
+- **Content signals** — patterns in the diff (SQL queries, auth checks, migrations, React components, Terraform, etc.)
 
-Write `07-review.md` with this structure:
+---
+
+# Step 2: Select Review Commands
+
+Each command maps to `${CLAUDE_PLUGIN_ROOT}/commands/review/<name>.md`.
+
+### Core (always include for any code change)
+- `correctness` — logic, invariants, edge cases
+- `security` — vulnerabilities, insecure defaults
+
+### By File Type
+
+**Backend source** (`.ts`, `.js`, `.mjs`, `.py`, `.go`, `.java`, `.cs`, `.rb`, `.php`, `.rs`, `.kt`, `.swift`, `.scala`, `.ex`, `.exs`):
+- `testing` — if test files are absent or coverage looks thin
+- `maintainability` — if any function is long or complex
+
+**Backend with concurrency signals** (async/await, goroutines, threads, mutex, locks, Promise, channels, `@Async`, `CompletableFuture`, `select`, `sync.`, `atomic`):
+- `backend-concurrency`
+
+**Refactor signals** (large deletion-to-addition ratio, PR mentions "refactor"/"restructure"/"rename"/"extract"/"move"):
+- `refactor-safety`
+- `maintainability`
+
+**Architecture signals** (new directories, new top-level modules, new service files, changed import graphs, new `index.*` files):
+- `architecture`
+- `overengineering` — if new abstractions or generic patterns appear
+
+**Performance signals** (SQL queries, ORM calls, loops over collections, `ORDER BY`/`GROUP BY`, caching, algorithms, `reduce`/`map`/`filter` over large arrays):
+- `performance`
+
+**Scalability signals** (queue consumers, background jobs, batch operations, fan-out, multi-tenant, horizontal scaling):
+- `scalability`
+
+**API/contract signals** (route definitions, OpenAPI/Swagger, REST handlers, GraphQL schemas, gRPC proto, SDK entry points, versioned paths `/v1/`):
+- `api-contracts`
+
+**Data persistence signals** (DB queries, ORM models, schema definitions, `INSERT`/`UPDATE`/`DELETE`, transactions):
+- `data-integrity`
+
+**Migration files** (`migrations/`, `db/migrate/`, `alembic/versions/`, `flyway/`, `*_migration.*`):
+- `migrations`
+- `data-integrity` (if not already selected)
+
+**Privacy/PII signals** (user profiles, auth code, personal data fields, payment processing, GDPR, logging in auth/payment paths):
+- `privacy`
+
+**Supply chain signals** (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, lockfiles, new external imports):
+- `supply-chain`
+
+**Infrastructure signals** (Dockerfile, `docker-compose.*`, Terraform `*.tf`, Pulumi, Helm, CloudFormation, K8s YAML, Ansible):
+- `infra`
+- `infra-security`
+
+**CI/CD signals** (`.github/workflows/*.yml`, `.gitlab-ci.yml`, Jenkinsfile, Makefile deploy targets):
+- `ci`
+
+**Release signals** (CHANGELOG.md, version fields, git tags, release configs):
+- `release`
+
+**Logging signals** (log statements, logger config, structured logging):
+- `logging`
+
+**Observability signals** (metrics, OpenTelemetry, Prometheus, alerting rules, health checks):
+- `observability`
+
+**Cost signals** (cloud SDK calls, paid API integrations, storage operations, AI/ML inference):
+- `cost`
+
+**Frontend source** (`.tsx`, `.jsx`, `.vue`, `.svelte`, `.html`, `.css`, `.scss`):
+- `accessibility`
+- `frontend-accessibility`
+- `frontend-performance`
+- `ux-copy`
+
+**Documentation signals** (`*.md`, `*.mdx`, `*.rst`, `docs/`, docstrings):
+- `docs`
+
+**Style signals** (any code change with naming convention inconsistencies):
+- `style-consistency` — only if inconsistency is apparent
+
+**DX signals** (scripts, Makefile, README, CONTRIBUTING, dev tooling config):
+- `dx` — only if developer-facing tooling is affected
+
+### Selection Constraints
+- **Minimum**: 2 commands (always `correctness` + `security`)
+- **Maximum**: 12 — prefer depth over breadth for focused changes
+- **User focus override**: if the user specified a focus ("check security"), include those + `correctness`, drop unrelated
+- **Config/docs-only**: drop `correctness`/`backend-concurrency`/`testing`; keep `security`, `docs`, relevant infra/release
+- **Test-only changes**: keep `testing`, `correctness`; drop most others
+
+### Output the Selection (before dispatching)
+
+Print to chat:
+```
+## Review Scope
+- Slug: {slug}
+- Slice: {slice}
+- Files changed: {N} files, +{added} -{removed} lines
+- File types: {list}
+- Change signals detected: {list}
+
+## Commands Selected ({N})
+1. `{command}` — {reason}
+2. `{command}` — {reason}
+...
+```
+
+---
+
+# Step 3: Dispatch Parallel Sub-Agents (sonnet)
+
+For EACH selected command, spawn a **sonnet** sub-agent. All agents run in parallel.
+
+**Each sub-agent receives this prompt:**
+
+```
+Execute the review command at `${CLAUDE_PLUGIN_ROOT}/commands/review/{command-name}.md`.
+
+Scope: git diff HEAD (or the specific files from the implementation)
+Workflow slug: {slug}
+Selected slice: {slice}
+
+Read the command file and follow its WORKFLOW exactly. Perform the review for the given scope.
+
+IMPORTANT: Write your complete review findings to the file:
+  `.ai/workflows/{slug}/07-review-{command-name}.md`
+
+Use this structure for the file:
+# Review: {command-name}
+
+## Metadata
+- Slug: {slug}
+- Command: {command-name}
+- Slice: {slice}
+- Updated: {timestamp}
+
+## Findings
+| ID | Sev | Conf | File:Line | Issue |
+|----|-----|------|-----------|-------|
+(all findings with severity BLOCKER/HIGH/MED/LOW/NIT and confidence High/Med/Low)
+
+## Detailed Findings
+### {ID}: {Title} [{SEVERITY}]
+**Location:** `{file}:{line-range}`
+**Evidence:**
+```
+{snippet}
+```
+**Issue:** {description}
+**Fix:** {suggestion for HIGH+}
+**Severity:** {level} | **Confidence:** {High/Med/Low}
+
+## Summary
+- Total findings: {N}
+- Blockers: {N}
+- Status: {Clean / Issues Found / Blockers Found}
+
+Write the file, then return a brief summary of what you found.
+```
+
+Wait for ALL sub-agents to complete before proceeding.
+
+---
+
+# Step 4: Aggregate and Deduplicate
+
+After all sub-agents finish:
+
+1. **Read every `07-review-<command>.md` file** they wrote.
+2. **Collect all findings** — every row with an ID, severity, file:line, and description.
+3. **Identify duplicates** — two findings are duplicates if:
+   - Same `file:line` (or overlapping line range)
+   - Same root cause, even if different categories (e.g., missing validation flagged as both "correctness" and "injection vector")
+   - One is a symptom and another is the root cause
+4. **Merge duplicates:**
+   - Keep the highest severity
+   - Keep the most specific evidence (longest snippet, most precise line range)
+   - Combine category labels (e.g., "Correctness + Security")
+   - Keep the most actionable fix
+5. **Sort by severity:** BLOCKER → HIGH → MED → LOW → NIT, then alphabetically by file path within each level.
+6. **Determine verdict:**
+   - Any BLOCKER → **Don't Ship**
+   - HIGH issues only → **Ship with caveats** (if the HIGHs are addressable as follow-ups)
+   - MED/LOW/NIT only → **Ship**
+   - Clean → **Ship**
+
+---
+
+# Step 5: Write Review Files
+
+Write the master `07-review.md`:
 
 # Review
 
@@ -98,31 +277,88 @@ Write `07-review.md` with this structure:
 - Status:
 - Updated:
 - Selected Slice:
+- Commands Run: {N} — {comma-separated list}
+- Sub-Review Files: {list of 07-review-<command>.md paths}
 
-## Review Verdict
+## Verdict
 
-## Blocking Issues
-- ...
+**{Ship / Ship with caveats / Don't Ship}**
 
-## Should-Fix Issues
-- ...
+{3-4 sentence rationale. Name the most critical finding. State whether any blockers exist.}
 
-## Nice-to-Have Improvements
-- ...
+## Domain Coverage
 
-## What Looks Good
-- ...
+| Domain | Command | Status |
+|--------|---------|--------|
+| {domain} | `{command}` | {Clean / Issues / Blockers} |
 
-## Open Questions
-- ...
+## All Findings (Deduplicated)
 
-## Freshness Research
-- Source:
-  Why it matters:
-  Takeaway:
+| ID | Sev | Conf | Source | File:Line | Issue |
+|----|-----|------|--------|-----------|-------|
+
+**Total:** BLOCKER: {X} | HIGH: {X} | MED: {X} | LOW: {X} | NIT: {X}
+*(After dedup: {N} findings merged from {M} raw findings across {K} commands)*
+
+## Findings (Detailed)
+
+### {ID}: {Title} [{SEVERITY}]
+
+**Location:** `{file}:{line-range}`
+**Source:** {command(s) that flagged this}
+
+**Evidence:**
+```
+{snippet}
+```
+
+**Issue:** {description}
+
+**Fix:** {suggestion for HIGH+}
+
+**Severity:** {level} | **Confidence:** {High/Med/Low}
+
+## Recommendations
+
+### Must Fix (BLOCKER/HIGH)
+{List with finding IDs and estimated effort}
+
+### Should Fix (MED)
+{List}
+
+### Consider (LOW/NIT)
+{List}
 
 ## Recommended Next Stage
 - **Option A:** `/wf-handoff <slug> <slice>` — approved [reason]
-- **Option B:** `/wf-implement <slug> <slice>` — fix blocking issues [reason, if applicable]
+- **Option B:** `/wf-implement <slug> <slice>` — fix blocking issues [list what needs fixing]
 - **Option C:** `/wf-ship <slug> <slice>` — skip handoff [reason, if applicable]
 - **Option D:** `/wf-plan <slug> <next-slice>` — next slice [reason, if applicable]
+
+---
+
+# Step 6: Update Index and Return
+
+1. Update `00-index.md`:
+   - `current-stage: review`
+   - `stage-status: Complete`
+   - Add all `07-review*.md` files to `workflow-files`
+   - Set `recommended-next-invocation` based on the verdict (handoff if approved, implement if blockers)
+2. Return the compact chat summary with verdict and options.
+
+# Adaptive routing — evaluate what's actually next
+After completing the review, evaluate the findings and present the user with ALL viable options:
+
+**Option A: Handoff** → `/wf-handoff <slug> <selected-slice>`
+Use when: No blocking issues. Approved (possibly with minor notes).
+
+**Option B: Fix and re-implement** → `/wf-implement <slug> <selected-slice>`
+Use when: There are blocking issues. List what needs changing.
+
+**Option C: Skip handoff, go to Ship** → `/wf-ship <slug> <selected-slice>`
+Use when: No team to hand off to, no PR description needed.
+
+**Option D: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
+Use when: This slice is approved AND more slices remain. Check `03-slice.md`.
+
+Write ALL viable options into `## Recommended Next Stage`.
