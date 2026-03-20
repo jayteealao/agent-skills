@@ -14,7 +14,8 @@ You are running `wf-handoff`, **stage 8 of 10** in the SDLC lifecycle.
 |---|---|
 | Requires | `05-implement.md`, `06-verify.md`, `07-review.md` |
 | Produces | `08-handoff.md` |
-| Next | `/wf-ship <slug> <selected-slice>` |
+| Next | `/wf-ship <slug> <selected-slice>` (default) |
+| Skip-to | `/wf-retro <slug>` if shipping is handled externally or not applicable |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -46,22 +47,38 @@ Turn the completed and reviewed work into a PR-ready handoff package with review
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel Explore/subagents for multi-domain research when supported. Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract
 After writing files, return ONLY:
 - `slug: <slug>`
 - `wrote: <path>`
-- `next: <exact slash command with slug>`
+- `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
 Do this in order:
 1. Summarize the problem, solution, affected areas, verification evidence, risks, and follow-ups in reviewer-friendly language.
 2. If release behavior depends on current external platform guidance or vendor changes, run a targeted freshness pass.
-3. Recommend `/wf-ship <slug> <selected-slice>` next.
+3. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 4. Update `00-index.md` accordingly.
 5. Write `.ai/workflows/<slug>/08-handoff.md`.
+
+# Adaptive routing — evaluate what's actually next
+After completing this stage, evaluate the handoff and present the user with ALL viable options:
+
+**Option A (default): Ship** → `/wf-ship <slug> <selected-slice>`
+Use when: The work needs deployment planning, rollout strategy, and rollback guidance.
+
+**Option B: Skip to Retro** → `/wf-retro <slug>`
+Use when: Shipping is handled entirely outside this workflow (e.g., CI/CD auto-deploys on merge, or shipping is someone else's responsibility). The handoff document IS the final deliverable.
+
+**Option C: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
+Use when: This slice is handed off AND there are more slices. Check `03-slice.md` for the next unfinished slice. Ship/retro can wait until all slices are done.
+
+**Option D: Fix** → `/wf-implement <slug> <selected-slice>`
+Use when: While writing the handoff, you realized something is wrong or missing.
+
+Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
 Write `08-handoff.md` with this structure:
 
@@ -109,6 +126,6 @@ Write `08-handoff.md` with this structure:
   Takeaway:
 
 ## Recommended Next Stage
-- Stage:
-- Command:
-- Invocation:
+- **Option A (default):** `/wf-ship <slug> <slice>` — [reason]
+- **Option B:** `/wf-retro <slug>` — skip ship [reason, if applicable]
+- **Option C:** `/wf-plan <slug> <next-slice>` — next slice [reason, if applicable]

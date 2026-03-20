@@ -14,7 +14,8 @@ You are running `wf-slice`, **stage 3 of 10** in the SDLC lifecycle.
 |---|---|
 | Requires | `01-intake.md`, `02-shape.md` |
 | Produces | `03-slice.md` |
-| Next | `/wf-plan <slug> <best-first-slice>` |
+| Next | `/wf-plan <slug> <best-first-slice>` (default) |
+| Alt | `/wf-plan <slug> all` to plan all slices in parallel |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -51,7 +52,7 @@ Break a shaped work item into thin, independently verifiable vertical slices.
 After writing files, return ONLY:
 - `slug: <slug>`
 - `wrote: <path>`
-- `next: <exact slash command with slug>`
+- `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
 Do this in order:
@@ -60,8 +61,23 @@ Do this in order:
 3. Break the work into small vertical slices that can be implemented and verified independently.
 4. Put risk-reduction and uncertainty-reduction early.
 5. Identify the best first slice.
-6. Update `00-index.md` so the recommended next command is `/wf-plan <slug> <best-first-slice>`.
-7. Write `.ai/workflows/<slug>/03-slice.md`.
+6. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
+7. Update `00-index.md` with the recommended default option.
+8. Write `.ai/workflows/<slug>/03-slice.md`.
+
+# Adaptive routing — evaluate what's actually next
+After completing this stage, evaluate the slices and present the user with ALL viable options:
+
+**Option A (default): Plan best-first slice** → `/wf-plan <slug> <best-first-slice>`
+Use when: Standard flow. Work through slices one at a time, starting with the highest-risk or highest-value slice.
+
+**Option B: Plan all slices in parallel** → `/wf-plan <slug> all`
+Use when: Slices are independent enough that planning them all upfront is efficient. Useful for: well-understood domains, clearly separated concerns, time-boxed sprints where you want the full picture.
+
+**Option C: Revisit Shape** → `/wf-shape <slug>`
+Use when: Slicing revealed that the spec is too vague, contradictory, or missing key information to decompose properly.
+
+Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
 Write `03-slice.md` with this structure:
 
@@ -98,6 +114,6 @@ Write `03-slice.md` with this structure:
   Takeaway:
 
 ## Recommended Next Stage
-- Stage:
-- Command:
-- Invocation:
+- **Option A (default):** `/wf-plan <slug> <best-first-slice>` — [reason]
+- **Option B:** `/wf-plan <slug> all` — plan all slices in parallel [reason, if applicable]
+- **Option C:** `/wf-shape <slug>` — revisit shape [reason, if applicable]

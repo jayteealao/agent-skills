@@ -36,6 +36,14 @@ You are a **workflow orchestrator**, not a problem solver.
 5. **Resolve the slice**: If a slice was passed as the second argument, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
 6. **Carry forward** `open-questions` from the index.
 
+# Parallel review (use sub-agents when supported)
+When the diff spans multiple concerns, launch parallel review sub-agents:
+- **Explore sub-agent 1:** Scan for correctness issues — logic flaws, edge cases, regressions, data integrity.
+- **Explore sub-agent 2:** Scan for quality issues — maintainability, naming, duplication, unnecessary complexity.
+- **Sub-agent 3:** If the change touches security-sensitive areas (auth, crypto, PII, SQL, file I/O), run a focused security scan.
+- **Sub-agent 4:** If external API contracts or dependency behavior matter, run a freshness pass.
+- Merge findings, deduplicate, and prioritise. Do not spin up sub-agents for small, single-concern diffs.
+
 # Purpose
 Review the diff like a senior engineer and decide whether the work is ready for handoff.
 
@@ -46,24 +54,40 @@ Review the diff like a senior engineer and decide whether the work is ready for 
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel Explore/subagents for multi-domain research when supported. Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract
 After writing files, return ONLY:
 - `slug: <slug>`
 - `wrote: <path>`
-- `next: <exact slash command with slug>`
+- `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
 Do this in order:
-1. Inspect the current diff or the files changed.
+1. Inspect the current diff or the files changed (using parallel sub-agents if multi-concern).
 2. Review for correctness, missed edge cases, regressions, maintainability, security, performance, data integrity, and observability.
 3. If external dependency behavior or current best practices matter to the review, run a small freshness pass and record it.
 4. Produce a prioritized review verdict.
-5. Recommend `/wf-handoff <slug> <selected-slice>` if approved, otherwise `/wf-implement <slug> <selected-slice>`.
+5. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 6. Update `00-index.md` accordingly.
 7. Write `.ai/workflows/<slug>/07-review.md`.
+
+# Adaptive routing — evaluate what's actually next
+After completing the review, evaluate the findings and present the user with ALL viable options:
+
+**Option A: Handoff** → `/wf-handoff <slug> <selected-slice>`
+Use when: No blocking issues. The implementation is approved (possibly with minor nice-to-have notes).
+
+**Option B: Fix and re-implement** → `/wf-implement <slug> <selected-slice>`
+Use when: There are blocking issues that must be fixed. Clearly list what needs changing.
+
+**Option C: Skip handoff, go to Ship** → `/wf-ship <slug> <selected-slice>`
+Use when: The handoff stage adds no value — e.g., the user IS the reviewer and deployer, there's no team to hand off to, and the PR description is not needed.
+
+**Option D: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
+Use when: This slice is approved AND there are more slices to implement. Check `03-slice.md` for the next unfinished slice. If the next slice already has a plan, suggest implement; otherwise suggest plan.
+
+Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
 Write `07-review.md` with this structure:
 
@@ -98,6 +122,7 @@ Write `07-review.md` with this structure:
   Takeaway:
 
 ## Recommended Next Stage
-- Stage:
-- Command:
-- Invocation:
+- **Option A:** `/wf-handoff <slug> <slice>` — approved [reason]
+- **Option B:** `/wf-implement <slug> <slice>` — fix blocking issues [reason, if applicable]
+- **Option C:** `/wf-ship <slug> <slice>` — skip handoff [reason, if applicable]
+- **Option D:** `/wf-plan <slug> <next-slice>` — next slice [reason, if applicable]

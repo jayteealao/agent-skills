@@ -5,6 +5,29 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-03-20
+
+### Added
+- **Adaptive routing on every command** — each stage now evaluates what should come next instead of blindly pointing to the sequential successor. Every command presents multiple options (default, skip-to, revisit, blocked) with clear reasoning so the user can choose the best path forward.
+- **Parallel sub-agent planning (`wf-plan <slug> all`)** — plans all slices concurrently using one sub-agent per slice. Each sub-agent writes its plan directly to `04-plan-<slice>.md`. The main agent then reads all plans, runs a cohesion check for conflicts/gaps/integration points, and writes a master `04-plan.md`.
+- **Parallel sub-agent research** on research-heavy stages:
+  - `wf-shape`: parallel Explore agents for codebase + web freshness
+  - `wf-plan`: parallel Explore agents for code inspection + freshness per slice
+  - `wf-implement`: parallel Explore agents to re-check codebase state before editing
+  - `wf-verify`: parallel sub-agents for lint/typecheck, tests, accessibility, and freshness
+  - `wf-review`: parallel sub-agents for correctness, quality, security, and freshness
+  - `wf-ship`: parallel sub-agents for deployment target, dependency advisories, and CI/CD config
+  - `wf-retro`: parallel sub-agents for implementation analysis, review analysis, and repo config scanning
+- **Skip-to routes** documented in each command's pipeline table (e.g., intake can skip to plan for trivial tasks, implement can skip verify for docs-only changes, verify can skip review for solo projects)
+- **Next-slice awareness** on review, handoff, ship, and retro — these stages now check `03-slice.md` for remaining slices and offer "continue to next slice" as an option
+- **`wf-next` enhanced** to present ALL options from the current stage's recommendations, check for skip opportunities, and list remaining slices
+
+### Changed
+- **BREAKING: Chat return contract** now returns `options:` (multiple) instead of `next:` (single) for all commands except `wf-next`
+- Stage file `## Recommended Next Stage` section now contains multiple labeled options (Option A/B/C/D) instead of a single recommendation
+- `wf-plan` description updated to reflect dual-mode capability (single slice or all slices)
+- `wf-ship` prerequisites relaxed: `08-handoff.md` is now recommended but not strictly required (minimum is `05-implement.md`)
+
 ## [2.0.0] - 2026-03-20
 
 ### Changed

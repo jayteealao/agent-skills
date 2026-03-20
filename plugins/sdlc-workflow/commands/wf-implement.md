@@ -12,9 +12,10 @@ You are running `wf-implement`, **stage 5 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `02-shape.md`, `03-slice.md`, `04-plan.md` |
+| Requires | `02-shape.md`, `04-plan.md` (or `04-plan-<slice>.md`) |
 | Produces | `05-implement.md` |
-| Next | `/wf-verify <slug> <selected-slice>` |
+| Next | `/wf-verify <slug> <selected-slice>` (default) |
+| Skip-to | `/wf-review <slug> <slice>` if verification is trivial (e.g., docs-only, config-only, no testable behavior) |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator** running the implementation stage.
@@ -29,12 +30,18 @@ You are a **workflow orchestrator** running the implementation stage.
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
 3. **Check prerequisites:**
-   - `04-plan.md` must exist. If missing → STOP. Tell the user: "Run `/wf-plan <slug> <slice>` first."
-   - If `04-plan.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve it first.
+   - A plan must exist: either `04-plan.md` or `04-plan-<slice>.md`. If missing → STOP. Tell the user: "Run `/wf-plan <slug> <slice>` first."
+   - If the plan shows `Status: Awaiting input` → STOP. Tell the user to resolve it first.
    - If `current-stage` in the index is already past implement → WARN: "Stage 5 (implement) has already been completed. Running it again will overwrite `05-implement.md`. Proceed?"
-4. **Read** `02-shape.md`, `03-slice.md`, `04-plan.md`, and `po-answers.md`.
+4. **Read** `02-shape.md`, the relevant plan file(s), and `po-answers.md`. If `03-slice.md` exists, read it.
 5. **Resolve the slice**: If a slice was passed as the second argument, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
 6. **Carry forward** `open-questions` from the index.
+
+# Parallel research (use sub-agents when supported)
+Before implementing, if the plan touches multiple distinct areas:
+- **Explore sub-agent 1:** Re-check the current state of the files listed in the plan. Confirm they haven't changed since planning.
+- **Explore sub-agent 2:** If external APIs or dependencies are involved, run a quick freshness check to confirm the plan's assumptions still hold.
+- Merge findings. If the codebase has diverged significantly from what the plan assumed, note this and adapt.
 
 # Purpose
 Implement one selected planned slice with the smallest coherent diff that fits the repo and current best practices.
@@ -46,24 +53,41 @@ Implement one selected planned slice with the smallest coherent diff that fits t
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel Explore/subagents for multi-domain research when supported. Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract
 After writing files, return ONLY:
 - `slug: <slug>`
 - `wrote: <path>`
-- `next: <exact slash command with slug>`
+- `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
 Do this in order:
-1. Re-check the current code before editing.
+1. Re-check the current code before editing (using Explore sub-agents if multi-domain).
 2. If the implementation depends on evolving external APIs, libraries, or patterns, run a freshness pass immediately before editing.
 3. Implement only the selected slice.
 4. Update tests, docs, types, configs, or migrations only where required for this slice.
 5. Summarize the exact change set.
-6. Update `00-index.md` so the recommended next command is `/wf-verify <slug> <selected-slice>`.
-7. Write `.ai/workflows/<slug>/05-implement.md`.
+6. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
+7. Update `00-index.md` accordingly.
+8. Write `.ai/workflows/<slug>/05-implement.md`.
+
+# Adaptive routing — evaluate what's actually next
+After completing this stage, evaluate the implementation and present the user with ALL viable options:
+
+**Option A (default): Verify** → `/wf-verify <slug> <selected-slice>`
+Use when: The implementation touches testable behavior — code, logic, UI, APIs, data flows.
+
+**Option B: Skip to Review** → `/wf-review <slug> <selected-slice>`
+Use when: The change is purely declarative with no testable behavior — docs-only, config-only, comment-only, renaming. Verification would produce no meaningful signal.
+
+**Option C: Revisit Plan** → `/wf-plan <slug> <selected-slice>`
+Use when: During implementation you discovered the plan is wrong — missed files, wrong assumptions, or the approach doesn't work. Document what you found before going back.
+
+**Option D: Blocked** → explain what's blocking
+Use when: Implementation cannot proceed due to external blockers (missing credentials, unreleased dependency, pending infrastructure).
+
+Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
 Write `05-implement.md` with this structure:
 
@@ -96,6 +120,6 @@ Write `05-implement.md` with this structure:
   Takeaway:
 
 ## Recommended Next Stage
-- Stage:
-- Command:
-- Invocation:
+- **Option A (default):** `/wf-verify <slug> <slice>` — [reason]
+- **Option B:** `/wf-review <slug> <slice>` — skip verify [reason, if applicable]
+- **Option C:** `/wf-plan <slug> <slice>` — revisit plan [reason, if applicable]

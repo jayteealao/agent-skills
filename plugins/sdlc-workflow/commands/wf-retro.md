@@ -35,6 +35,13 @@ You are a **workflow orchestrator**, not a problem solver.
 4. **Read the full workflow trail** — every stage file that exists, plus `po-answers.md`.
 5. **Carry forward** `open-questions` from the index.
 
+# Parallel analysis (use sub-agents when supported)
+When the workflow trail is large or spans multiple domains:
+- **Sub-agent 1:** Analyze the implementation and verification stages for process friction and missed assumptions.
+- **Sub-agent 2:** Analyze the review and handoff stages for communication gaps and quality issues.
+- **Sub-agent 3:** Scan the repo's CLAUDE.md, AGENTS.md, hooks, and CI config for improvement opportunities based on the workflow experience.
+- Merge findings and deduplicate. Do not spin up sub-agents for simple, single-slice workflows.
+
 # Purpose
 Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation.
 
@@ -45,22 +52,39 @@ Extract reusable lessons and turn them into concrete improvements to prompts, ho
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel Explore/subagents for multi-domain research when supported. Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract
 After writing files, return ONLY:
 - `slug: <slug>`
 - `wrote: <path>`
-- `next: workflow complete`
+- `next: workflow complete` (or options if follow-up is warranted)
 - ≤3 short blocker bullets if needed
 
 Do this in order:
 1. Identify what worked, what caused friction, and what should be codified.
 2. Suggest concrete updates for AGENTS.md, CLAUDE.md, hooks, test coverage, CI checks, and command prompts.
 3. Prioritize by impact and effort.
-4. Mark the workflow as complete in `00-index.md` unless follow-up work is being opened.
-5. Write `.ai/workflows/<slug>/10-retro.md`.
+4. **Evaluate adaptive routing** (see below) and write options into `## Recommended Next Stage`.
+5. Mark the workflow as complete in `00-index.md` unless follow-up work is being opened.
+6. Write `.ai/workflows/<slug>/10-retro.md`.
+
+# Adaptive routing — evaluate what's actually next
+After completing the retro, evaluate whether the workflow is truly done:
+
+**Option A (default): Complete** → workflow finished
+Use when: All slices are shipped, no follow-up work is warranted.
+
+**Option B: Open follow-up workflow** → `/wf-intake <new-task-description>`
+Use when: The retro identified follow-up work significant enough to warrant its own workflow (e.g., "we deferred X and it should be done next sprint").
+
+**Option C: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
+Use when: The retro is running mid-workflow (e.g., after shipping one slice) and there are more slices.
+
+**Option D: Apply retro improvements** → suggest specific file edits
+Use when: The retro identified quick-win improvements to repo instructions, hooks, or CI that the user might want to apply now. List them as actionable suggestions but do NOT apply them.
+
+Write ALL viable options into `## Recommended Next Stage` so the user can choose.
 
 Write `10-retro.md` with this structure:
 
@@ -103,6 +127,7 @@ Drop:
 - ...
 
 ## Recommended Next Stage
-- Stage: complete
-- Command: none
-- Invocation: none
+- **Option A (default):** Workflow complete
+- **Option B:** `/wf-intake <follow-up>` — [reason, if applicable]
+- **Option C:** `/wf-plan <slug> <next-slice>` — next slice [reason, if applicable]
+- **Option D:** Apply improvements — [list quick wins, if applicable]

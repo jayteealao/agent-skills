@@ -14,7 +14,8 @@ You are running `wf-intake`, **stage 1 of 10** in the SDLC lifecycle.
 |---|---|
 | Requires | *(nothing — this is the first stage)* |
 | Produces | `01-intake.md` |
-| Next | `/wf-shape <slug>` |
+| Next | `/wf-shape <slug>` (default) |
+| Skip-to | `/wf-plan <slug>` if the task is trivially scoped and needs no shaping or slicing |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -50,7 +51,7 @@ Convert a rough request into a clear intake brief, create the workflow folder, c
 After writing files, return ONLY:
 - `slug: <slug>`
 - `wrote: <path>`
-- `next: <exact slash command with slug>`
+- `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
 **This is a mandatory-question stage.** Do not finalize until the required questions are asked.
@@ -69,8 +70,23 @@ Do this in order:
 4. Capture the answers in `po-answers.md`.
 5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
 6. Write the intake brief without designing the implementation.
-7. Update `00-index.md` so the recommended next command is `/wf-shape <slug>` unless intake is blocked waiting for answers.
-8. Write `.ai/workflows/<slug>/01-intake.md`.
+7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
+8. Update `00-index.md` with the recommended default option.
+9. Write `.ai/workflows/<slug>/01-intake.md`.
+
+# Adaptive routing — evaluate what's actually next
+After completing this stage, do NOT blindly recommend `/wf-shape`. Evaluate the intake and present the user with ALL viable options:
+
+**Option A (default): Shape** → `/wf-shape <slug>`
+Use when: The task has ambiguity in behavior, acceptance criteria, or scope. Most tasks should go here.
+
+**Option B: Skip to Plan** → `/wf-plan <slug>`
+Use when: The task is a well-understood, single-scope fix (e.g., "bump version X", "rename variable Y", "fix typo in Z"). No behavior ambiguity, no slicing needed. Criteria: ≤3 files likely touched, single acceptance criterion, no edge cases worth capturing.
+
+**Option C: Blocked — re-run intake** → `/wf-intake <slug>`
+Use when: Required PO answers are still missing. Mark `Status: Awaiting input`.
+
+Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
 Write `01-intake.md` with this structure:
 
@@ -122,8 +138,8 @@ Write `01-intake.md` with this structure:
   Takeaway:
 
 ## Recommended Next Stage
-- Stage:
-- Command:
-- Invocation:
+- **Option A (default):** `/wf-shape <slug>` — [reason]
+- **Option B:** `/wf-<other> <slug>` — [reason, if applicable]
+- **Option C:** Blocked — [what's missing]
 
 If required answers are still missing, mark `Status: Awaiting input` and set the recommended next command to rerun `/wf-intake <same-slug>` after answers arrive.

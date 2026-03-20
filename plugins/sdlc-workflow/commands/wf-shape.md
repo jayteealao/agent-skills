@@ -14,7 +14,8 @@ You are running `wf-shape`, **stage 2 of 10** in the SDLC lifecycle.
 |---|---|
 | Requires | `01-intake.md` |
 | Produces | `02-shape.md` |
-| Next | `/wf-slice <slug>` |
+| Next | `/wf-slice <slug>` (default) |
+| Skip-to | `/wf-plan <slug>` if the shaped spec is a single coherent unit that does not benefit from slicing |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -35,6 +36,12 @@ You are a **workflow orchestrator**, not a problem solver.
 4. **Read** `01-intake.md` and `po-answers.md`.
 5. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
 
+# Parallel research (use sub-agents when supported)
+When the shaped spec touches multiple domains, launch parallel sub-agents:
+- **Explore agent 1:** Scan the existing codebase for affected modules, existing patterns, conventions, and test structure relevant to the shaped work.
+- **Explore agent 2:** Web search for freshness on external dependencies, APIs, frameworks, or standards mentioned in the intake.
+- Merge findings into the stage file. Do not spin up sub-agents for trivial or single-domain work.
+
 # Purpose
 Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.
 
@@ -52,7 +59,7 @@ Turn the intake brief into a compact implementable mini-spec with explicit accep
 After writing files, return ONLY:
 - `slug: <slug>`
 - `wrote: <path>`
-- `next: <exact slash command with slug>`
+- `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
 **Mandatory-question stage** when acceptance, user behavior, or non-goals are still ambiguous.
@@ -60,10 +67,28 @@ After writing files, return ONLY:
 Do this in order:
 1. Reuse any settled decisions from intake rather than re-asking them.
 2. Ask product-owner questions only for unresolved behavior, acceptance, non-goals, or sequencing that materially changes the spec.
-3. Run freshness research for external dependencies, patterns, APIs, standards, and known issues that could change the spec.
+3. Run freshness research (using parallel sub-agents if multi-domain) for external dependencies, patterns, APIs, standards, and known issues that could change the spec.
 4. Produce a small behavior-focused mini-spec.
-5. Update `00-index.md` so the recommended next command is `/wf-slice <slug>` unless shaping is blocked waiting for answers.
-6. Write `.ai/workflows/<slug>/02-shape.md`.
+5. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
+6. Update `00-index.md` with the recommended default option.
+7. Write `.ai/workflows/<slug>/02-shape.md`.
+
+# Adaptive routing — evaluate what's actually next
+After completing this stage, do NOT blindly recommend `/wf-slice`. Evaluate the shaped spec and present the user with ALL viable options:
+
+**Option A (default): Slice** → `/wf-slice <slug>`
+Use when: The spec covers multiple distinct areas, has more than one acceptance criterion cluster, or would benefit from incremental delivery.
+
+**Option B: Skip to Plan** → `/wf-plan <slug>`
+Use when: The shaped spec is a single coherent unit — one clear scope, one acceptance path, no meaningful way to split it further. Criteria: single concern, ≤5 files likely touched, one delivery unit.
+
+**Option C: Revisit Intake** → `/wf-intake <slug>`
+Use when: Shaping revealed that the intake brief is wrong, missing key constraints, or fundamentally misunderstands the problem.
+
+**Option D: Blocked — re-run shape** → `/wf-shape <slug>`
+Use when: Required PO answers are still missing.
+
+Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
 Write `02-shape.md` with this structure:
 
@@ -114,6 +139,6 @@ Write `02-shape.md` with this structure:
   Takeaway:
 
 ## Recommended Next Stage
-- Stage:
-- Command:
-- Invocation:
+- **Option A (default):** `/wf-slice <slug>` — [reason]
+- **Option B:** `/wf-plan <slug>` — [reason, if single-scope]
+- **Option C:** `/wf-intake <slug>` — revisit intake [reason, if applicable]
