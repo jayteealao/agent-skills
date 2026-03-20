@@ -12,7 +12,7 @@ You are running `wf-handoff`, **stage 8 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `05-implement.md`, `06-verify.md`, `07-review.md` |
+| Requires | `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md`, `07-review.md` |
 | Produces | `08-handoff.md` |
 | Next | `/wf-ship <slug> <selected-slice>` (default) |
 | Skip-to | `/wf-retro <slug>` if shipping is handled externally or not applicable |
@@ -29,12 +29,18 @@ You are a **workflow orchestrator**, not a problem solver.
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
-3. **Check prerequisites:**
-   - `05-implement.md`, `06-verify.md`, and `07-review.md` must exist. If missing → STOP. Tell the user which command to run first.
+3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
+4. **Check prerequisites:**
+   - `05-implement-<slice-slug>.md` and `07-review.md` must exist. `06-verify-<slice-slug>.md` is recommended. If missing → STOP. Tell the user which command to run first.
    - If `07-review.md` shows `Status: Awaiting input` or contains blocking issues → STOP. Tell the user to resolve review findings via `/wf-implement` first.
-   - If `current-stage` in the index is already past handoff → WARN: "Stage 8 (handoff) has already been completed. Running it again will overwrite `08-handoff.md`. Proceed?"
-4. **Read** `05-implement.md`, `06-verify.md`, `07-review.md`, and `po-answers.md`.
-5. **Resolve the slice**: If a slice was passed as the second argument, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
+   - If `current-stage` in the index is already past handoff → WARN before overwriting.
+5. **Read the slice's full context:**
+   - `03-slice-<slice-slug>.md` — slice definition
+   - `04-plan-<slice-slug>.md` — what was planned
+   - `05-implement-<slice-slug>.md` — what was built
+   - `06-verify-<slice-slug>.md` (if exists) — verification results
+   - `07-review.md` — review verdict and findings
+   - `po-answers.md`
 6. **Carry forward** `open-questions` from the index.
 
 # Purpose

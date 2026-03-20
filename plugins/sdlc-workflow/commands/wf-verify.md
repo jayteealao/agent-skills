@@ -12,8 +12,8 @@ You are running `wf-verify`, **stage 6 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `02-shape.md`, `04-plan.md`, `05-implement.md` |
-| Produces | `06-verify.md` |
+| Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md` |
+| Produces | `06-verify-<slice-slug>.md` + updates `06-verify.md` master |
 | Next | `/wf-review <slug> <selected-slice>` (if passing) or `/wf-implement <slug> <selected-slice>` (if fixes needed) |
 | Skip-to | `/wf-handoff <slug> <slice>` if review is unnecessary (solo project, trivial change, already peer-reviewed externally) |
 
@@ -29,12 +29,17 @@ You are a **workflow orchestrator**, not a problem solver.
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
-3. **Check prerequisites:**
-   - `05-implement.md` must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug> <slice>` first."
-   - If `05-implement.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve it first.
-   - If `current-stage` in the index is already past verify → WARN: "Stage 6 (verify) has already been completed. Running it again will overwrite `06-verify.md`. Proceed?"
-4. **Read** `02-shape.md`, `04-plan.md` (or `04-plan-<slice>.md`), `05-implement.md`, and `po-answers.md`.
-5. **Resolve the slice**: If a slice was passed as the second argument, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
+3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
+4. **Check prerequisites:**
+   - `05-implement-<slice-slug>.md` must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug> <slice-slug>` first."
+   - If it shows `Status: Awaiting input` → STOP.
+   - If `06-verify-<slice-slug>.md` already exists → WARN: "This slice has already been verified. Running again will overwrite. Proceed?"
+5. **Read the slice's full context:**
+   - `03-slice-<slice-slug>.md` — acceptance criteria to verify against
+   - `04-plan-<slice-slug>.md` — what was planned (to check deviations)
+   - `05-implement-<slice-slug>.md` — what was actually implemented
+   - `02-shape.md` — overall spec context
+   - `po-answers.md`
 6. **Carry forward** `open-questions` from the index.
 
 # Parallel verification (use sub-agents when supported)
@@ -68,11 +73,12 @@ Do this in order:
 1. Confirm the selected slice.
 2. Determine the relevant verification commands from the repo.
 3. Run or evaluate the most relevant checks (using parallel sub-agents if multi-concern): lint, typecheck, tests, build, smoke tests, manual checks.
-4. Compare the results with the acceptance criteria from `02-shape.md`.
+4. Compare the results with the acceptance criteria from `03-slice-<slice-slug>.md` and `02-shape.md`.
 5. If verification reveals gaps caused by external dependency behavior or standards drift, run a freshness pass and record it.
 6. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
-7. Update `00-index.md` accordingly.
-8. Write `.ai/workflows/<slug>/06-verify.md`.
+7. **Write `06-verify-<slice-slug>.md`** (per-slice file, see template below).
+8. **Write/update `06-verify.md`** (master index with links to all per-slice verify files).
+9. Update `00-index.md` accordingly and add files to `workflow-files`.
 
 # Adaptive routing — evaluate what's actually next
 After completing verification, evaluate the results and present the user with ALL viable options:
@@ -91,15 +97,42 @@ Use when: Verification revealed a fundamental flaw in the approach, not just a b
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
-Write `06-verify.md` with this structure:
+Write `06-verify.md` (master index):
 
-# Verify
+# Verify Index
 
 ## Metadata
 - Slug:
 - Status:
 - Updated:
-- Selected Slice:
+- Slices Verified: {N} of {total}
+
+## Verify Files
+| Slice | Verify File | Result | Implement | Plan |
+|-------|-------------|--------|-----------|------|
+| `<slice-slug>` | [06-verify-<slice-slug>.md](./06-verify-<slice-slug>.md) | Pass/Fail | [05-implement-<slice-slug>.md](./05-implement-<slice-slug>.md) | [04-plan-<slice-slug>.md](./04-plan-<slice-slug>.md) |
+
+## Recommended Next Stage
+- **Option A:** `/wf-review <slug> <slice-slug>` — [reason]
+
+---
+
+Write `06-verify-<slice-slug>.md` (per-slice verify):
+
+# Verify: <slice-name>
+
+## Metadata
+- Slug: <workflow-slug>
+- Slice: `<slice-slug>`
+- Status: Complete
+- Updated:
+
+## Cross-Links
+- **Master verify index:** [06-verify.md](./06-verify.md)
+- **Slice definition:** [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md)
+- **Plan:** [04-plan-<slice-slug>.md](./04-plan-<slice-slug>.md)
+- **Implementation:** [05-implement-<slice-slug>.md](./05-implement-<slice-slug>.md)
+- **Review (when created):** [07-review.md](./07-review.md)
 
 ## Verification Summary
 
@@ -107,7 +140,7 @@ Write `06-verify.md` with this structure:
 - command/check: result
 
 ## Acceptance Criteria Status
-- criterion: met / partially met / not met / unverified
+- criterion (from slice definition): met / partially met / not met / unverified
 
 ## Issues Found
 - severity: issue
@@ -123,6 +156,6 @@ Write `06-verify.md` with this structure:
 ## Recommendation
 
 ## Recommended Next Stage
-- **Option A:** `/wf-review <slug> <slice>` — [reason]
-- **Option B:** `/wf-implement <slug> <slice>` — fix issues [reason, if applicable]
-- **Option C:** `/wf-handoff <slug> <slice>` — skip review [reason, if applicable]
+- **Option A:** `/wf-review <slug> <slice-slug>` — [reason]
+- **Option B:** `/wf-implement <slug> <slice-slug>` — fix issues [reason, if applicable]
+- **Option C:** `/wf-handoff <slug> <slice-slug>` — skip review [reason, if applicable]

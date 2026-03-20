@@ -1,6 +1,6 @@
 {
   "name": "sdlc-workflow",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "Full SDLC workflow with integrated code review. 11 lifecycle commands (intake → ship → retro) plus 30 individual review commands and 7 aggregate review commands. wf-review intelligently selects and dispatches review commands as parallel sonnet sub-agents, each writing findings to file, then aggregates into a unified verdict. All artifacts stored under .ai/workflows/<slug>/.",
   "author": {
     "name": "jayte"

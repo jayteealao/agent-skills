@@ -12,7 +12,7 @@ You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `02-shape.md`, `05-implement.md`, `06-verify.md` |
+| Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (recommended) |
 | Produces | `07-review.md` + `07-review-<command>.md` per selected command |
 | Next | `/wf-handoff <slug> <selected-slice>` (if approved) or `/wf-implement <slug> <selected-slice>` (if changes needed) |
 
@@ -28,13 +28,20 @@ You are a **review dispatch orchestrator**, not a problem solver.
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
-3. **Check prerequisites:**
-   - `05-implement.md` must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug> <slice>` first."
-   - `06-verify.md` is recommended but not strictly required — the review can proceed without it if the user explicitly skipped verify.
-   - If `06-verify.md` exists and shows `Status: Awaiting input` → STOP. Tell the user to resolve it first.
-   - If `current-stage` in the index is already past review → WARN: "Stage 7 (review) has already been completed. Running it again will overwrite review files. Proceed?"
-4. **Read** `02-shape.md`, `03-slice.md` (if exists), `04-plan.md` (or `04-plan-<slice>.md`), `05-implement.md`, `06-verify.md` (if exists), and `po-answers.md`.
-5. **Resolve the slice**: If a slice was passed as the second argument, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
+3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
+4. **Check prerequisites:**
+   - `05-implement-<slice-slug>.md` must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug> <slice-slug>` first."
+   - `06-verify-<slice-slug>.md` is recommended but not strictly required — review can proceed without it if the user explicitly skipped verify.
+   - If `06-verify-<slice-slug>.md` exists and shows `Status: Awaiting input` → STOP.
+   - If `current-stage` in the index is already past review → WARN before overwriting.
+5. **Read the slice's full context:**
+   - `03-slice-<slice-slug>.md` — acceptance criteria and scope
+   - `04-plan-<slice-slug>.md` — what was planned
+   - `05-implement-<slice-slug>.md` — what was built
+   - `06-verify-<slice-slug>.md` (if exists) — verification results
+   - `02-shape.md` — overall spec
+   - `03-slice.md` — master slice index (for sibling context)
+   - `po-answers.md`
 6. **Carry forward** `open-questions` from the index.
 
 # Purpose

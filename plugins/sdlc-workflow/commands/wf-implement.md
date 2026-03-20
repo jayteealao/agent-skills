@@ -1,7 +1,7 @@
 ---
 name: wf-implement
-description: Implement one selected planned slice with the smallest coherent diff that fits the repo and current best practices.
-argument-hint: <slug> [slice]
+description: Implement one selected planned slice. Writes per-slice implementation record with cross-links to slice definition and plan.
+argument-hint: <slug> [slice-slug]
 disable-model-invocation: true
 ---
 
@@ -12,10 +12,10 @@ You are running `wf-implement`, **stage 5 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `02-shape.md`, `04-plan.md` (or `04-plan-<slice>.md`) |
-| Produces | `05-implement.md` |
-| Next | `/wf-verify <slug> <selected-slice>` (default) |
-| Skip-to | `/wf-review <slug> <slice>` if verification is trivial (e.g., docs-only, config-only, no testable behavior) |
+| Requires | `02-shape.md`, `04-plan-<slice-slug>.md` (or `04-plan.md` for single-scope) |
+| Produces | `05-implement-<slice-slug>.md` + updates `05-implement.md` master |
+| Next | `/wf-verify <slug> <slice-slug>` (default) |
+| Skip-to | `/wf-review <slug> <slice-slug>` if verification is trivial |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator** running the implementation stage.
@@ -27,24 +27,29 @@ You are a **workflow orchestrator** running the implementation stage.
 - If you catch yourself about to skip ahead to verification or review, STOP and return to the next unfinished workflow step.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice-slug**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
-3. **Check prerequisites:**
-   - A plan must exist: either `04-plan.md` or `04-plan-<slice>.md`. If missing → STOP. Tell the user: "Run `/wf-plan <slug> <slice>` first."
-   - If the plan shows `Status: Awaiting input` → STOP. Tell the user to resolve it first.
-   - If `current-stage` in the index is already past implement → WARN: "Stage 5 (implement) has already been completed. Running it again will overwrite `05-implement.md`. Proceed?"
-4. **Read** `02-shape.md`, the relevant plan file(s), and `po-answers.md`. If `03-slice.md` exists, read it.
-5. **Resolve the slice**: If a slice was passed as the second argument, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
-6. **Carry forward** `open-questions` from the index.
+3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
+4. **Check prerequisites:**
+   - A plan must exist for this slice: either `04-plan-<slice-slug>.md` or `04-plan.md`. If missing → STOP. Tell the user: "Run `/wf-plan <slug> <slice-slug>` first."
+   - If the plan shows `Status: Awaiting input` → STOP.
+   - Check if `05-implement-<slice-slug>.md` already exists → WARN: "This slice has already been implemented. Running again will overwrite. Proceed?"
+5. **Read the slice's full context:**
+   - `03-slice-<slice-slug>.md` — the slice definition with acceptance criteria
+   - `04-plan-<slice-slug>.md` — the implementation plan
+   - `02-shape.md` — the shaped spec for overall context
+   - `po-answers.md`
+6. **Read sibling implementations:** Check for any existing `05-implement-<other-slice>.md` files. Note what has already been implemented so you don't duplicate work or create conflicts.
+7. **Carry forward** `open-questions` from the index.
 
 # Parallel research (use sub-agents when supported)
 Before implementing, if the plan touches multiple distinct areas:
-- **Explore sub-agent 1:** Re-check the current state of the files listed in the plan. Confirm they haven't changed since planning.
-- **Explore sub-agent 2:** If external APIs or dependencies are involved, run a quick freshness check to confirm the plan's assumptions still hold.
-- Merge findings. If the codebase has diverged significantly from what the plan assumed, note this and adapt.
+- **Explore sub-agent 1:** Re-check the current state of the files listed in the plan. Confirm they haven't changed since planning (especially if sibling slices were implemented between plan and now).
+- **Explore sub-agent 2:** If external APIs or dependencies are involved, run a quick freshness check.
+- Merge findings. If the codebase has diverged (e.g., a sibling slice changed shared files), note this and adapt.
 
 # Purpose
-Implement one selected planned slice with the smallest coherent diff that fits the repo and current best practices.
+Implement one selected planned slice with the smallest coherent diff that fits the repo and current best practices. Write a per-slice implementation record with cross-links.
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
@@ -58,46 +63,83 @@ Implement one selected planned slice with the smallest coherent diff that fits t
 # Chat return contract
 After writing files, return ONLY:
 - `slug: <slug>`
-- `wrote: <path>`
+- `wrote: <paths>` (per-slice file + master update)
 - `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
 Do this in order:
-1. Re-check the current code before editing (using Explore sub-agents if multi-domain).
+1. Re-check the current code before editing (using Explore sub-agents if needed). Pay special attention to files that sibling slice implementations may have changed.
 2. If the implementation depends on evolving external APIs, libraries, or patterns, run a freshness pass immediately before editing.
 3. Implement only the selected slice.
 4. Update tests, docs, types, configs, or migrations only where required for this slice.
 5. Summarize the exact change set.
-6. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
-7. Update `00-index.md` accordingly.
-8. Write `.ai/workflows/<slug>/05-implement.md`.
+6. **Write `05-implement-<slice-slug>.md`** (per-slice file, see template below).
+7. **Write/update `05-implement.md`** (master index, see template below).
+8. **Update cross-links** in the slice definition (`03-slice-<slice-slug>.md`) and plan (`04-plan-<slice-slug>.md`) to point to the new implementation file.
+9. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
+10. Update `00-index.md` accordingly and add files to `workflow-files`.
 
 # Adaptive routing — evaluate what's actually next
-After completing this stage, evaluate the implementation and present the user with ALL viable options:
+After completing, evaluate and present ALL viable options:
 
-**Option A (default): Verify** → `/wf-verify <slug> <selected-slice>`
-Use when: The implementation touches testable behavior — code, logic, UI, APIs, data flows.
+**Option A (default): Verify** → `/wf-verify <slug> <slice-slug>`
+Use when: The implementation touches testable behavior.
 
-**Option B: Skip to Review** → `/wf-review <slug> <selected-slice>`
-Use when: The change is purely declarative with no testable behavior — docs-only, config-only, comment-only, renaming. Verification would produce no meaningful signal.
+**Option B: Skip to Review** → `/wf-review <slug> <slice-slug>`
+Use when: Purely declarative change with no testable behavior.
 
-**Option C: Revisit Plan** → `/wf-plan <slug> <selected-slice>`
-Use when: During implementation you discovered the plan is wrong — missed files, wrong assumptions, or the approach doesn't work. Document what you found before going back.
+**Option C: Revisit Plan** → `/wf-plan <slug> <slice-slug>`
+Use when: The plan was wrong — missed files, wrong assumptions.
 
-**Option D: Blocked** → explain what's blocking
-Use when: Implementation cannot proceed due to external blockers (missing credentials, unreleased dependency, pending infrastructure).
+**Option D: Blocked** → explain what's blocking.
 
-Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
+---
 
-Write `05-implement.md` with this structure:
+Write `05-implement.md` (master index):
 
-# Implement
+# Implement Index
 
 ## Metadata
 - Slug:
 - Status:
 - Updated:
-- Selected Slice:
+- Slices Implemented: {N} of {total}
+
+## Implementation Files
+| Slice | Implement File | Status | Slice Def | Plan |
+|-------|----------------|--------|-----------|------|
+| `<slice-slug>` | [05-implement-<slice-slug>.md](./05-implement-<slice-slug>.md) | Complete | [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md) | [04-plan-<slice-slug>.md](./04-plan-<slice-slug>.md) |
+...
+
+## Cross-Slice Integration Notes
+- files shared between slice implementations
+- any conflicts resolved during implementation
+
+## Cumulative Change Summary
+- total files changed across all slices
+- total lines added/removed
+
+## Recommended Next Stage
+- **Option A (default):** `/wf-verify <slug> <slice-slug>` — [reason]
+
+---
+
+Write `05-implement-<slice-slug>.md` (per-slice implementation record):
+
+# Implement: <slice-name>
+
+## Metadata
+- Slug: <workflow-slug>
+- Slice: `<slice-slug>`
+- Status: Complete
+- Updated:
+
+## Cross-Links
+- **Master implement index:** [05-implement.md](./05-implement.md)
+- **Slice definition:** [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md)
+- **Plan:** [04-plan-<slice-slug>.md](./04-plan-<slice-slug>.md)
+- **Sibling implementations:** [05-implement-<other-1>.md](./05-implement-<other-1>.md), ...
+- **Verify (when created):** [06-verify-<slice-slug>.md](./06-verify-<slice-slug>.md)
 
 ## Summary of Changes
 - ...
@@ -105,8 +147,14 @@ Write `05-implement.md` with this structure:
 ## Files Changed
 - path: what changed and why
 
+## Shared Files (also touched by sibling slices)
+- path: what this slice changed, what sibling `<other-slice>` also changed, any conflict resolution notes
+
 ## Notes on Design Choices
 - ...
+
+## Deviations from Plan
+- what changed vs. what the plan specified, and why
 
 ## Anything Deferred
 - ...
@@ -120,6 +168,5 @@ Write `05-implement.md` with this structure:
   Takeaway:
 
 ## Recommended Next Stage
-- **Option A (default):** `/wf-verify <slug> <slice>` — [reason]
-- **Option B:** `/wf-review <slug> <slice>` — skip verify [reason, if applicable]
-- **Option C:** `/wf-plan <slug> <slice>` — revisit plan [reason, if applicable]
+- **Option A (default):** `/wf-verify <slug> <slice-slug>` — [reason]
+- **Option B:** `/wf-review <slug> <slice-slug>` — skip verify [reason, if applicable]
