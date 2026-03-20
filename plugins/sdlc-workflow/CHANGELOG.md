@@ -5,6 +5,27 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-20
+
+### Changed
+- **BREAKING: Full rewrite of all 11 commands with intelligent pipeline awareness**
+  - Every command now knows its stage number (e.g., "stage 4 of 10") and position in the pipeline
+  - Full pipeline map (`1·intake → 2·shape → ... → 10·retro`) shown at the top of every command
+  - Requires/Produces/Next table so the model knows exactly what files it depends on and what comes after
+- **Step 0 — Orient** added as a mandatory gating step in all commands:
+  - Reads `00-index.md` FIRST, before any other work
+  - Checks prerequisite files exist — STOPs with actionable error if missing (e.g., "Run `/wf-plan` first")
+  - Detects out-of-order execution — WARNs before overwriting a completed stage
+  - Checks for `Awaiting input` status on prior stages — STOPs and tells user to resolve pending questions
+  - Carries forward `selected-slice-or-focus` and `open-questions` from the index
+  - Intake specifically detects resume vs. fresh start vs. overwrite scenarios
+- **Compressed shared boilerplate** from ~61 duplicated lines per command to ~10 lines without losing any rules
+- `wf-next` simplified to focus on routing — reads index fields and returns the exact invocation
+
+### Removed
+- Redundant slug-and-argument-contract section (logic moved into Step 0 orient)
+- Verbose freshness/multi-agent/scope rule sections (compressed into compact workflow rules block)
+
 ## [1.1.0] - 2026-03-20
 
 ### Added
