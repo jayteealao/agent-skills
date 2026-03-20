@@ -27,7 +27,7 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice-slug** or the keyword `all`. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
    - `02-shape.md` must exist. If missing → STOP. Tell the user which command to run first.
    - If `03-slice.md` exists, read it and all `03-slice-<slice-slug>.md` files it links to. If it does not exist, this is a single-scope workflow. Proceed with single-plan mode.
@@ -88,7 +88,8 @@ After ALL slice sub-agents complete:
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- If the stage cannot finish, write the stage file with `Status: Awaiting input` and list unanswered questions.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
+- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
@@ -209,45 +210,50 @@ Use when: Planning revealed the spec is incomplete or contradictory.
 
 Write `04-plan.md` (master index):
 
+```yaml
+---
+schema: sdlc/v1
+type: plan-index
+slug: <slug>
+status: complete
+stage-number: 4
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+planning-mode: <single|all>
+slices-planned: <N>
+slices-total: <N>
+implementation-order: [<slice-slug>, <slice-slug>, ...]
+conflicts-found: <N>
+tags: []
+refs:
+  index: 00-index.md
+  slice-index: 03-slice.md
+next-command: wf-implement
+next-invocation: "/wf-implement <slug> <first-slice-slug>"
+---
+```
+
 # Plan Index
-
-## Metadata
-- Slug:
-- Status:
-- Updated:
-- Planning Mode: single | all
-- Slices Planned: {N} of {total}
-
-## Plan Files
-| Slice | Plan File | Status | Slice Def | Implement |
-|-------|-----------|--------|-----------|-----------|
-| `<slice-slug>` | [04-plan-<slice-slug>.md](./04-plan-<slice-slug>.md) | Complete | [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md) | *pending* |
-...
 
 ## Slice Plan Summaries
 ### `<slice-slug>`
 - Files to touch: ...
 - Strategy: ...
 - Key risk: ...
-- Dependencies on other slices: ...
 
 ## Cross-Cutting Concerns
-- concerns that appear in multiple slice plans
+- ...
 
 ## Integration Points Between Slices
-- where slice outputs connect
+- ...
 
 ## Recommended Implementation Order
 1. `<slice-slug>` — [reason]
-2. `<slice-slug>` — [reason]
 
 ## Conflicts Found
 - ...
 
 ## Freshness Research
-- Source:
-  Why it matters:
-  Takeaway:
 
 ## Recommended Next Stage
 - **Option A (default):** `/wf-implement <slug> <first-slice-slug>` — [reason]
@@ -257,22 +263,35 @@ Write `04-plan.md` (master index):
 
 Write `04-plan-<slice-slug>.md` (per-slice plan):
 
+```yaml
+---
+schema: sdlc/v1
+type: plan
+slug: <slug>
+slice-slug: <slice-slug>
+status: complete
+stage-number: 4
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+metric-files-to-touch: <N>
+metric-step-count: <N>
+has-blockers: false
+revision-count: 0
+tags: []
+refs:
+  index: 00-index.md
+  plan-index: 04-plan.md
+  slice-def: 03-slice-<slice-slug>.md
+  siblings: [04-plan-<other>.md, ...]
+  implement: 05-implement-<slice-slug>.md
+next-command: wf-implement
+next-invocation: "/wf-implement <slug> <slice-slug>"
+---
+```
+
 # Plan: <slice-name>
 
-## Metadata
-- Slug: <workflow-slug>
-- Slice: `<slice-slug>`
-- Status: Complete
-- Updated:
-
-## Cross-Links
-- **Master plan index:** [04-plan.md](./04-plan.md)
-- **Slice definition:** [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md)
-- **Sibling plans:** [04-plan-<other-1>.md](./04-plan-<other-1>.md), [04-plan-<other-2>.md](./04-plan-<other-2>.md), ...
-- **Implementation (when created):** [05-implement-<slice-slug>.md](./05-implement-<slice-slug>.md)
-
 ## Current State
-- what exists in the repo now for this slice's scope
 
 ## Likely Files / Areas to Touch
 - path/or/module: why
@@ -289,7 +308,7 @@ Write `04-plan-<slice-slug>.md` (per-slice plan):
 - ...
 
 ## Dependencies on Other Slices
-- `<other-slice-slug>`: what this plan assumes about it, link to [04-plan-<other>.md](./04-plan-<other>.md)
+- ...
 
 ## Assumptions
 - ...
@@ -298,9 +317,9 @@ Write `04-plan-<slice-slug>.md` (per-slice plan):
 - ...
 
 ## Freshness Research
-- Source:
-  Why it matters:
-  Takeaway:
+
+## Revision History
+*(appended by review-and-fix mode)*
 
 ## Recommended Next Stage
 - **Option A (default):** `/wf-implement <slug> <slice-slug>` — [reason]

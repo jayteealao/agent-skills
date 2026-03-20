@@ -28,7 +28,7 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
 4. **Check prerequisites:**
    - `05-implement-<slice-slug>.md` and `07-review.md` must exist. `06-verify-<slice-slug>.md` is recommended. If missing → STOP. Tell the user which command to run first.
@@ -48,7 +48,8 @@ Turn the completed and reviewed work into a PR-ready handoff package with review
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- If the stage cannot finish, write the stage file with `Status: Awaiting input` and list unanswered questions.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
+- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
@@ -88,13 +89,31 @@ Write ALL viable options (not just the default) into `## Recommended Next Stage`
 
 Write `08-handoff.md` with this structure:
 
-# Handoff
+```yaml
+---
+schema: sdlc/v1
+type: handoff
+slug: <slug>
+slice-slug: <slice-slug>
+status: complete
+stage-number: 8
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+pr-title: "<suggested PR title>"
+has-migration: <true|false>
+has-config-change: <true|false>
+tags: []
+refs:
+  index: 00-index.md
+  implement: 05-implement-<slice-slug>.md
+  verify: 06-verify-<slice-slug>.md
+  review: 07-review.md
+next-command: wf-ship
+next-invocation: "/wf-ship <slug> <slice-slug>"
+---
+```
 
-## Metadata
-- Slug:
-- Status:
-- Updated:
-- Selected Slice:
+# Handoff
 
 ## PR Title Options
 1. ...

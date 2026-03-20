@@ -28,7 +28,7 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
 4. **Check prerequisites:**
    - `05-implement-<slice-slug>.md` must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug> <slice-slug>` first."
@@ -55,7 +55,8 @@ Verify that the selected slice meets acceptance criteria and is ready for review
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- If the stage cannot finish, write the stage file with `Status: Awaiting input` and list unanswered questions.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
+- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
@@ -99,40 +100,64 @@ Write ALL viable options (not just the default) into `## Recommended Next Stage`
 
 Write `06-verify.md` (master index):
 
+```yaml
+---
+schema: sdlc/v1
+type: verify-index
+slug: <slug>
+status: in-progress
+stage-number: 6
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+slices-verified: <N>
+slices-total: <N>
+tags: []
+refs:
+  index: 00-index.md
+  implement-index: 05-implement.md
+next-command: wf-review
+next-invocation: "/wf-review <slug> <slice-slug>"
+---
+```
+
 # Verify Index
 
-## Metadata
-- Slug:
-- Status:
-- Updated:
-- Slices Verified: {N} of {total}
-
-## Verify Files
-| Slice | Verify File | Result | Implement | Plan |
-|-------|-------------|--------|-----------|------|
-| `<slice-slug>` | [06-verify-<slice-slug>.md](./06-verify-<slice-slug>.md) | Pass/Fail | [05-implement-<slice-slug>.md](./05-implement-<slice-slug>.md) | [04-plan-<slice-slug>.md](./04-plan-<slice-slug>.md) |
-
 ## Recommended Next Stage
-- **Option A:** `/wf-review <slug> <slice-slug>` — [reason]
 
 ---
 
 Write `06-verify-<slice-slug>.md` (per-slice verify):
 
+```yaml
+---
+schema: sdlc/v1
+type: verify
+slug: <slug>
+slice-slug: <slice-slug>
+status: complete
+stage-number: 6
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+result: <pass|fail|partial>
+metric-checks-run: <N>
+metric-checks-passed: <N>
+metric-acceptance-met: <N>
+metric-acceptance-total: <N>
+metric-issues-found: <N>
+tags: []
+refs:
+  index: 00-index.md
+  verify-index: 06-verify.md
+  slice-def: 03-slice-<slice-slug>.md
+  plan: 04-plan-<slice-slug>.md
+  implement: 05-implement-<slice-slug>.md
+  review: 07-review.md
+next-command: wf-review
+next-invocation: "/wf-review <slug> <slice-slug>"
+---
+```
+
 # Verify: <slice-name>
-
-## Metadata
-- Slug: <workflow-slug>
-- Slice: `<slice-slug>`
-- Status: Complete
-- Updated:
-
-## Cross-Links
-- **Master verify index:** [06-verify.md](./06-verify.md)
-- **Slice definition:** [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md)
-- **Plan:** [04-plan-<slice-slug>.md](./04-plan-<slice-slug>.md)
-- **Implementation:** [05-implement-<slice-slug>.md](./05-implement-<slice-slug>.md)
-- **Review (when created):** [07-review.md](./07-review.md)
 
 ## Verification Summary
 
@@ -140,7 +165,7 @@ Write `06-verify-<slice-slug>.md` (per-slice verify):
 - command/check: result
 
 ## Acceptance Criteria Status
-- criterion (from slice definition): met / partially met / not met / unverified
+- criterion: met / partially met / not met / unverified
 
 ## Issues Found
 - severity: issue
@@ -149,9 +174,6 @@ Write `06-verify-<slice-slug>.md` (per-slice verify):
 - ...
 
 ## Freshness Research
-- Source:
-  Why it matters:
-  Takeaway:
 
 ## Recommendation
 

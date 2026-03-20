@@ -27,7 +27,7 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
    - At minimum, `05-implement.md` should exist (there must be something to retro on). If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
    - `09-ship.md` is strongly recommended but not blocking — a retro can run after a cancelled or abandoned effort.
@@ -47,7 +47,8 @@ Extract reusable lessons and turn them into concrete improvements to prompts, ho
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- If the stage cannot finish, write the stage file with `Status: Awaiting input` and list unanswered questions.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
+- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
@@ -88,12 +89,28 @@ Write ALL viable options into `## Recommended Next Stage` so the user can choose
 
 Write `10-retro.md` with this structure:
 
-# Retro
+```yaml
+---
+schema: sdlc/v1
+type: retro
+slug: <slug>
+status: complete
+stage-number: 10
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+workflow-outcome: <completed|abandoned|partial>
+metric-improvement-count: <N>
+metric-stages-completed: <N>
+metric-stages-skipped: <N>
+tags: []
+refs:
+  index: 00-index.md
+next-command: ""
+next-invocation: ""
+---
+```
 
-## Metadata
-- Slug:
-- Status:
-- Updated:
+# Retro
 
 ## What Went Well
 - ...

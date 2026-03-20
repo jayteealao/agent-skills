@@ -39,9 +39,10 @@ Convert a rough request into a clear intake brief, create the workflow folder, c
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- If the stage cannot finish, write the stage file with `Status: Awaiting input` and list unanswered questions.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
+- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
-- `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
+- `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `open-questions`, `tags`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Use parallel Explore/subagents for multi-domain research when supported. Do not spin up subagents for trivial work.
@@ -60,7 +61,7 @@ Inputs: `$ARGUMENTS` (full raw request), `$0` (first token if supplied).
 
 Do this in order:
 1. Parse the request and derive the workflow slug.
-2. Create `.ai/workflows/<slug>/`, `00-index.md`, and `po-answers.md` if missing.
+2. Create `.ai/workflows/<slug>/` directory. Write `00-index.md` using the index template below. Create `po-answers.md` if missing.
 3. Ask 3 to 7 focused product-owner questions covering:
    - desired outcome and who benefits
    - concrete success criteria
@@ -88,16 +89,67 @@ Use when: Required PO answers are still missing. Mark `Status: Awaiting input`.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
+Write `00-index.md` with this structure:
+
+```yaml
+---
+schema: sdlc/v1
+type: index
+slug: <slug>
+title: "<human-readable title>"
+status: active
+current-stage: intake
+stage-number: 1
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+selected-slice: ""
+open-questions: []
+tags: []
+next-command: wf-shape
+next-invocation: "/wf-shape <slug>"
+workflow-files:
+  - 00-index.md
+  - 01-intake.md
+  - po-answers.md
+progress:
+  intake: in-progress
+  shape: not-started
+  slice: not-started
+  plan: not-started
+  implement: not-started
+  verify: not-started
+  review: not-started
+  handoff: not-started
+  ship: not-started
+  retro: not-started
+---
+```
+
+(No markdown body needed in the index — frontmatter IS the content.)
+
+---
+
 Write `01-intake.md` with this structure:
 
-# Intake
+```yaml
+---
+schema: sdlc/v1
+type: intake
+slug: <slug>
+status: complete
+stage-number: 1
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+tags: []
+refs:
+  index: 00-index.md
+  next: 02-shape.md
+next-command: wf-shape
+next-invocation: "/wf-shape <slug>"
+---
+```
 
-## Metadata
-- Slug:
-- Status:
-- Created:
-- Updated:
-- Raw Request:
+# Intake
 
 ## Restated Request
 
@@ -142,4 +194,4 @@ Write `01-intake.md` with this structure:
 - **Option B:** `/wf-<other> <slug>` — [reason, if applicable]
 - **Option C:** Blocked — [what's missing]
 
-If required answers are still missing, mark `Status: Awaiting input` and set the recommended next command to rerun `/wf-intake <same-slug>` after answers arrive.
+If required answers are still missing, set frontmatter `status: awaiting-input` and set `next-invocation` to rerun `/wf-intake <same-slug>` after answers arrive.

@@ -27,7 +27,7 @@ You are a **review dispatch orchestrator**, not a problem solver.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
 4. **Check prerequisites:**
    - `05-implement-<slice-slug>.md` must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug> <slice-slug>` first."
@@ -49,7 +49,8 @@ Intelligent review dispatch. Analyse the change set, select which of the 30 revi
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- If the stage cannot finish, write the stage file with `Status: Awaiting input` and list unanswered questions.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
+- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
@@ -212,14 +213,28 @@ Read the command file and follow its WORKFLOW exactly. Perform the review for th
 IMPORTANT: Write your complete review findings to the file:
   `.ai/workflows/{slug}/07-review-{command-name}.md`
 
-Use this structure for the file:
-# Review: {command-name}
+Use this structure for the file (YAML frontmatter first, then markdown):
 
-## Metadata
-- Slug: {slug}
-- Command: {command-name}
-- Slice: {slice}
-- Updated: {timestamp}
+```yaml
+---
+schema: sdlc/v1
+type: review-command
+slug: {slug}
+slice-slug: {slice}
+review-command: {command-name}
+status: complete
+updated-at: "{timestamp}"
+metric-findings-total: {N}
+metric-findings-blocker: {N}
+metric-findings-high: {N}
+result: clean | issues-found | blockers-found
+tags: []
+refs:
+  review-master: 07-review.md
+---
+```
+
+# Review: {command-name}
 
 ## Findings
 | ID | Sev | Conf | File:Line | Issue |
@@ -277,15 +292,39 @@ After all sub-agents finish:
 
 Write the master `07-review.md`:
 
-# Review
+```yaml
+---
+schema: sdlc/v1
+type: review
+slug: <slug>
+slice-slug: <slice-slug>
+status: complete
+stage-number: 7
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+verdict: <ship|ship-with-caveats|dont-ship>
+commands-run: [correctness, security, ...]
+metric-commands-run: <N>
+metric-findings-total: <N>
+metric-findings-raw: <N>
+metric-findings-blocker: <N>
+metric-findings-high: <N>
+metric-findings-med: <N>
+metric-findings-low: <N>
+metric-findings-nit: <N>
+tags: []
+refs:
+  index: 00-index.md
+  slice-def: 03-slice-<slice-slug>.md
+  implement: 05-implement-<slice-slug>.md
+  verify: 06-verify-<slice-slug>.md
+  sub-reviews: [07-review-correctness.md, 07-review-security.md, ...]
+next-command: <wf-handoff|wf-implement>
+next-invocation: "<based on verdict>"
+---
+```
 
-## Metadata
-- Slug:
-- Status:
-- Updated:
-- Selected Slice:
-- Commands Run: {N} — {comma-separated list}
-- Sub-Review Files: {list of 07-review-<command>.md paths}
+# Review
 
 ## Verdict
 
@@ -346,11 +385,12 @@ Write the master `07-review.md`:
 
 # Step 6: Update Index and Return
 
-1. Update `00-index.md`:
+1. Update `00-index.md` frontmatter:
    - `current-stage: review`
-   - `stage-status: Complete`
+   - `status: active`
+   - `progress.review: complete`
    - Add all `07-review*.md` files to `workflow-files`
-   - Set `recommended-next-invocation` based on the verdict (handoff if approved, implement if blockers)
+   - Set `next-command` and `next-invocation` based on verdict
 2. Return the compact chat summary with verdict and options.
 
 # Adaptive routing — evaluate what's actually next

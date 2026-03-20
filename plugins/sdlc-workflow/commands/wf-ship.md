@@ -27,7 +27,7 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **target or slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
    - At minimum `05-implement.md` must exist. `08-handoff.md` is strongly recommended. If neither exists → STOP. Tell the user which command to run first.
    - If `08-handoff.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve it first.
@@ -48,7 +48,8 @@ Assess release readiness, ask mandatory rollout questions, and define rollout pl
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- If the stage cannot finish, write the stage file with `Status: Awaiting input` and list unanswered questions.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
+- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
@@ -99,13 +100,29 @@ Write ALL viable options (not just the default) into `## Recommended Next Stage`
 
 Write `09-ship.md` with this structure:
 
-# Ship
+```yaml
+---
+schema: sdlc/v1
+type: ship
+slug: <slug>
+slice-slug: <slice-slug>
+status: complete
+stage-number: 9
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+go-nogo: <go|no-go|conditional-go>
+rollout-strategy: <immediate|staged|canary|feature-flag|maintenance-window>
+tags: []
+refs:
+  index: 00-index.md
+  handoff: 08-handoff.md
+  review: 07-review.md
+next-command: wf-retro
+next-invocation: "/wf-retro <slug>"
+---
+```
 
-## Metadata
-- Slug:
-- Status:
-- Updated:
-- Selected Slice / Target:
+# Ship
 
 ## Questions Asked This Stage
 - ...

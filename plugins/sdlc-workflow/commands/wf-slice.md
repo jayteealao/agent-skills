@@ -27,7 +27,7 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
    - `01-intake.md` and `02-shape.md` must exist. If missing → STOP. Tell the user which command to run first (e.g., "Run `/wf-shape <slug>` first.").
    - If `02-shape.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open shape questions first.
@@ -40,7 +40,8 @@ Break a shaped work item into thin, independently verifiable vertical slices. Wr
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- If the stage cannot finish, write the stage file with `Status: Awaiting input` and list unanswered questions.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
+- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
@@ -90,38 +91,48 @@ Write ALL viable options (not just the default) into `## Recommended Next Stage`
 
 Write `03-slice.md` (master index):
 
-# Slice Index
+```yaml
+---
+schema: sdlc/v1
+type: slice-index
+slug: <slug>
+status: complete
+stage-number: 3
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+total-slices: <N>
+best-first-slice: <slice-slug>
+tags: []
+slices:
+  - slug: <slice-slug>
+    status: defined
+    complexity: <xs|s|m|l|xl>
+    depends-on: []
+  - slug: <slice-slug>
+    status: defined
+    complexity: <xs|s|m|l|xl>
+    depends-on: [<other-slice-slug>]
+refs:
+  index: 00-index.md
+  shape: 02-shape.md
+next-command: wf-plan
+next-invocation: "/wf-plan <slug> <best-first-slice>"
+---
+```
 
-## Metadata
-- Slug:
-- Status:
-- Updated:
-- Focus Area:
-- Total Slices: {N}
+# Slice Index
 
 ## Slice Strategy
 
 ## Recommended Order
-1. `<slice-slug>` — [reason] → [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md)
-2. `<slice-slug>` — [reason] → [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md)
-...
-
-## Best First Slice
-- Slice: `<slice-slug>`
-- File: [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md)
-- Reason:
-
-## Slice Files
-| Slice | File | Status | Plan | Implement |
-|-------|------|--------|------|-----------|
-| `<slice-slug>` | [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md) | Defined | *pending* | *pending* |
-...
+1. `<slice-slug>` — [reason]
+2. `<slice-slug>` — [reason]
 
 ## Cross-Cutting Concerns
-- concerns that span multiple slices
+- ...
 
 ## Dependencies Between Slices
-- `<slice-a>` must complete before `<slice-b>` because ...
+- ...
 
 ## Deferred / Optional Slices
 - ...
@@ -140,19 +151,29 @@ Write `03-slice.md` (master index):
 
 Write `03-slice-<slice-slug>.md` (per-slice file):
 
+```yaml
+---
+schema: sdlc/v1
+type: slice
+slug: <slug>
+slice-slug: <slice-slug>
+status: defined
+stage-number: 3
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+complexity: <xs|s|m|l|xl>
+depends-on: [<other-slice-slugs>]
+tags: []
+refs:
+  index: 00-index.md
+  slice-index: 03-slice.md
+  siblings: [03-slice-<other>.md, ...]
+  plan: 04-plan-<slice-slug>.md
+  implement: 05-implement-<slice-slug>.md
+---
+```
+
 # Slice: <slice-name>
-
-## Metadata
-- Slug: <workflow-slug>
-- Slice: `<slice-slug>`
-- Status: Defined
-- Updated:
-
-## Cross-Links
-- **Master index:** [03-slice.md](./03-slice.md)
-- **Sibling slices:** [03-slice-<other-1>.md](./03-slice-<other-1>.md), [03-slice-<other-2>.md](./03-slice-<other-2>.md), ...
-- **Plan (when created):** [04-plan-<slice-slug>.md](./04-plan-<slice-slug>.md)
-- **Implementation (when created):** [05-implement-<slice-slug>.md](./05-implement-<slice-slug>.md)
 
 ## Goal
 
@@ -166,10 +187,7 @@ Write `03-slice-<slice-slug>.md` (per-slice file):
 - Given ... When ... Then ...
 
 ## Dependencies on Other Slices
-- `<other-slice-slug>`: what this slice needs from it, and whether it must complete first
+- `<other-slice-slug>`: what this slice needs from it
 
 ## Risks
 - ...
-
-## Estimated Complexity
-- T-shirt size or rough effort

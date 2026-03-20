@@ -24,7 +24,7 @@ You are a **routing helper**, not a problem solver.
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug**: If `$ARGUMENTS` provides a slug, use it. Otherwise, scan `.ai/workflows/*/00-index.md` for active workflows.
 2. **If multiple workflows exist** and no slug was given → list them with their `current-stage` and `stage-status`, then ask the user which one to continue. Use AskUserQuestion if available, otherwise ask in chat.
-3. **Read `00-index.md`** for the selected workflow. Parse ALL fields, especially `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`, `recommended-next-command`, `recommended-next-invocation`.
+3. **Read `00-index.md`** for the selected workflow. Parse the YAML frontmatter — especially `current-stage`, `status`, `selected-slice`, `open-questions`, `next-command`, `next-invocation`, `progress`, and `slices` (if present).
 4. **Read the current stage file** referenced by `current-stage` to check its `Status` field and `## Recommended Next Stage` section.
 
 # Purpose
@@ -32,7 +32,8 @@ Read the workflow index and tell the user the exact next command to run, carryin
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file.
-- `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
+- **All artifact files use YAML frontmatter** for machine-readable state. Parse frontmatter (between `---` markers) to read status, stage, slices, etc.
+- `00-index.md` frontmatter must have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `next-command`, `next-invocation`, `workflow-files`, `progress`.
 
 # Chat return contract
 After writing the routing note, return ONLY:
@@ -53,26 +54,32 @@ Do this in order:
 
 Write `90-next.md` with this structure:
 
+```yaml
+---
+schema: sdlc/v1
+type: routing
+slug: <slug>
+updated-at: "<iso-8601>"
+current-stage: <stage-name>
+stage-number: <N>
+status: <status from index>
+selected-slice: <slice-slug or "">
+is-blocked: <true|false>
+open-questions: [...]
+remaining-slices: [<slice-slugs>]
+next-command: <wf-X>
+next-invocation: "/wf-X <slug> <args>"
+refs:
+  index: 00-index.md
+---
+```
+
 # Next
-
-## Metadata
-- Slug:
-- Updated:
-
-## Current Stage
-
-## Stage Status
-
-## Open Questions
-- ...
 
 ## All Options
 - **Option A (default):** `/wf-<next> <slug>` — [reason]
 - **Option B:** `/wf-<alt> <slug>` — [reason, if applicable]
 - **Option C:** [skip/revisit option, if applicable]
-
-## Remaining Slices
-- [list unfinished slices if any]
 
 ## If Blocked
 - ...

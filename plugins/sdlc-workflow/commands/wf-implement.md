@@ -29,7 +29,7 @@ You are a **workflow orchestrator** running the implementation stage.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice-slug**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check for reviews mode:** If the second argument is literally `reviews` → this is a **review-fix** invocation. See "Reviews Mode" section below. Skip the rest of Step 0 and go directly to that section.
 4. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
 5. **Check prerequisites:**
@@ -55,7 +55,8 @@ Implement one selected planned slice with the smallest coherent diff that fits t
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- If the stage cannot finish, write the stage file with `Status: Awaiting input` and list unanswered questions.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
+- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
@@ -173,49 +174,69 @@ Use when: All findings were fixed and the change was already verified.
 
 Write `05-implement.md` (master index):
 
+```yaml
+---
+schema: sdlc/v1
+type: implement-index
+slug: <slug>
+status: in-progress
+stage-number: 5
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+slices-implemented: <N>
+slices-total: <N>
+metric-total-files-changed: <N>
+metric-total-lines-added: <N>
+metric-total-lines-removed: <N>
+tags: []
+refs:
+  index: 00-index.md
+  plan-index: 04-plan.md
+next-command: wf-verify
+next-invocation: "/wf-verify <slug> <slice-slug>"
+---
+```
+
 # Implement Index
 
-## Metadata
-- Slug:
-- Status:
-- Updated:
-- Slices Implemented: {N} of {total}
-
-## Implementation Files
-| Slice | Implement File | Status | Slice Def | Plan |
-|-------|----------------|--------|-----------|------|
-| `<slice-slug>` | [05-implement-<slice-slug>.md](./05-implement-<slice-slug>.md) | Complete | [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md) | [04-plan-<slice-slug>.md](./04-plan-<slice-slug>.md) |
-...
-
 ## Cross-Slice Integration Notes
-- files shared between slice implementations
-- any conflicts resolved during implementation
-
-## Cumulative Change Summary
-- total files changed across all slices
-- total lines added/removed
+- ...
 
 ## Recommended Next Stage
-- **Option A (default):** `/wf-verify <slug> <slice-slug>` — [reason]
 
 ---
 
 Write `05-implement-<slice-slug>.md` (per-slice implementation record):
 
+```yaml
+---
+schema: sdlc/v1
+type: implement
+slug: <slug>
+slice-slug: <slice-slug>
+status: complete
+stage-number: 5
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+metric-files-changed: <N>
+metric-lines-added: <N>
+metric-lines-removed: <N>
+metric-deviations-from-plan: <N>
+metric-review-fixes-applied: 0
+tags: []
+refs:
+  index: 00-index.md
+  implement-index: 05-implement.md
+  slice-def: 03-slice-<slice-slug>.md
+  plan: 04-plan-<slice-slug>.md
+  siblings: [05-implement-<other>.md, ...]
+  verify: 06-verify-<slice-slug>.md
+next-command: wf-verify
+next-invocation: "/wf-verify <slug> <slice-slug>"
+---
+```
+
 # Implement: <slice-name>
-
-## Metadata
-- Slug: <workflow-slug>
-- Slice: `<slice-slug>`
-- Status: Complete
-- Updated:
-
-## Cross-Links
-- **Master implement index:** [05-implement.md](./05-implement.md)
-- **Slice definition:** [03-slice-<slice-slug>.md](./03-slice-<slice-slug>.md)
-- **Plan:** [04-plan-<slice-slug>.md](./04-plan-<slice-slug>.md)
-- **Sibling implementations:** [05-implement-<other-1>.md](./05-implement-<other-1>.md), ...
-- **Verify (when created):** [06-verify-<slice-slug>.md](./06-verify-<slice-slug>.md)
 
 ## Summary of Changes
 - ...
@@ -224,13 +245,13 @@ Write `05-implement-<slice-slug>.md` (per-slice implementation record):
 - path: what changed and why
 
 ## Shared Files (also touched by sibling slices)
-- path: what this slice changed, what sibling `<other-slice>` also changed, any conflict resolution notes
+- ...
 
 ## Notes on Design Choices
 - ...
 
 ## Deviations from Plan
-- what changed vs. what the plan specified, and why
+- ...
 
 ## Anything Deferred
 - ...
@@ -239,9 +260,6 @@ Write `05-implement-<slice-slug>.md` (per-slice implementation record):
 - ...
 
 ## Freshness Research
-- Source:
-  Why it matters:
-  Takeaway:
 
 ## Recommended Next Stage
 - **Option A (default):** `/wf-verify <slug> <slice-slug>` — [reason]
