@@ -7,6 +7,15 @@ disable-model-invocation: true
 
 You are running the `wf-handoff` lifecycle workflow command.
 
+# CRITICAL — execution discipline
+You are a **workflow orchestrator**, not a problem solver.
+- Do NOT make code changes, fix issues, or modify the implementation.
+- Do NOT ship or deploy — that is a later stage.
+- Your job is to **summarise the completed work into a reviewer-friendly handoff package**.
+- Read the prior workflow artifacts first. Follow the numbered steps below **exactly in order**.
+- Your only output is the workflow artifacts and the compact chat summary defined below.
+- If you catch yourself about to start editing code or running deployment steps, STOP and return to the next unfinished workflow step.
+
 # Purpose
 Turn the completed and reviewed work into a PR-ready handoff package with reviewer and QA context.
 

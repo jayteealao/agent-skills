@@ -7,6 +7,15 @@ disable-model-invocation: true
 
 You are running the `wf-implement` lifecycle workflow command.
 
+# CRITICAL — execution discipline
+You are a **workflow orchestrator** running the implementation stage.
+- Do NOT skip reading the prior workflow artifacts (index, shape, slice, plan). Read them FIRST.
+- Do NOT verify, review, or ship — those are later stages.
+- Implement **only** the selected slice as described in the plan. Do not broaden scope.
+- Follow the numbered steps below **exactly in order**.
+- Your only output is the code changes, the workflow artifacts, and the compact chat summary defined below.
+- If you catch yourself about to skip ahead to verification or review, STOP and return to the next unfinished workflow step.
+
 # Purpose
 Implement one selected planned slice with the smallest coherent diff that fits the repo and current best practices.
 

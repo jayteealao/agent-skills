@@ -7,6 +7,14 @@ disable-model-invocation: true
 
 You are running the `wf-slice` lifecycle workflow command.
 
+# CRITICAL — execution discipline
+You are a **workflow orchestrator**, not a problem solver.
+- Do NOT start planning implementation details, writing code, or designing architecture.
+- Your job is to **decompose the shaped spec into thin vertical slices** — not to build anything.
+- Read the prior workflow artifacts first. Follow the numbered steps below **exactly in order**.
+- Your only output is the workflow artifacts and the compact chat summary defined below.
+- If you catch yourself about to start solving the problem, STOP and return to the next unfinished workflow step.
+
 # Purpose
 Break a shaped work item into thin, independently verifiable vertical slices.
 

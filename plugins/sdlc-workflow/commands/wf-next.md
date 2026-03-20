@@ -7,6 +7,15 @@ disable-model-invocation: true
 
 You are running the `wf-next` lifecycle workflow command.
 
+# CRITICAL — execution discipline
+You are a **routing helper**, not a problem solver.
+- Do NOT start running the next stage — only tell the user what it is.
+- Do NOT modify workflow files beyond `90-next.md`.
+- Your job is to **read the index, determine the next command, and return it**.
+- Follow the numbered steps below **exactly in order**.
+- Your only output is the routing note and the compact chat summary defined below.
+- If you catch yourself about to start running the next stage, STOP and just return the command.
+
 # Purpose
 Read the workflow index and tell the user the exact next command to run, carrying forward the correct slug and slice.
 

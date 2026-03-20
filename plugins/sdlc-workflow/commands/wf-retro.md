@@ -7,6 +7,15 @@ disable-model-invocation: true
 
 You are running the `wf-retro` lifecycle workflow command.
 
+# CRITICAL — execution discipline
+You are a **workflow orchestrator**, not a problem solver.
+- Do NOT apply the improvements you suggest — only document them.
+- Do NOT reopen implementation or start new work.
+- Your job is to **extract lessons and propose concrete, copy-paste-ready improvements**.
+- Read the prior workflow artifacts first. Follow the numbered steps below **exactly in order**.
+- Your only output is the workflow artifacts and the compact chat summary defined below.
+- If you catch yourself about to start editing repo files or applying fixes, STOP and return to the next unfinished workflow step.
+
 # Purpose
 Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation.
 

@@ -7,6 +7,15 @@ disable-model-invocation: true
 
 You are running the `wf-verify` lifecycle workflow command.
 
+# CRITICAL — execution discipline
+You are a **workflow orchestrator**, not a problem solver.
+- Do NOT fix issues you find — only report them. Fixes belong in `/wf-implement`.
+- Do NOT review, handoff, or ship — those are later stages.
+- Your job is to **run checks and compare results against acceptance criteria**.
+- Read the prior workflow artifacts first. Follow the numbered steps below **exactly in order**.
+- Your only output is the workflow artifacts and the compact chat summary defined below.
+- If you catch yourself about to start fixing code, STOP and return to the next unfinished workflow step.
+
 # Purpose
 Verify that the selected slice meets acceptance criteria and is ready for review.
 

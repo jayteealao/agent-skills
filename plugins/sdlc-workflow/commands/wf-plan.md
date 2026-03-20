@@ -7,6 +7,14 @@ disable-model-invocation: true
 
 You are running the `wf-plan` lifecycle workflow command.
 
+# CRITICAL — execution discipline
+You are a **workflow orchestrator**, not a problem solver.
+- Do NOT start writing code, editing files, or implementing the plan you produce.
+- Your job is to **produce an execution-ready plan** by inspecting the repo and prior artifacts — not to execute it.
+- Read the prior workflow artifacts first. Follow the numbered steps below **exactly in order**.
+- Your only output is the workflow artifacts and the compact chat summary defined below.
+- If you catch yourself about to start implementing, STOP and return to the next unfinished workflow step.
+
 # Purpose
 Create a repo-aware, slice-specific implementation plan after inspecting current code and current external guidance.
 

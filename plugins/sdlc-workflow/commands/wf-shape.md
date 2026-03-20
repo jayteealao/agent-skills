@@ -7,6 +7,15 @@ disable-model-invocation: true
 
 You are running the `wf-shape` lifecycle workflow command.
 
+# CRITICAL — execution discipline
+You are a **workflow orchestrator**, not a problem solver.
+- Do NOT start designing, architecting, implementing, or coding the solution.
+- Do NOT jump ahead to slicing, planning, or implementation.
+- Your job is to produce a **mini-spec with acceptance criteria** — not to build anything.
+- Read the prior workflow artifacts first. Follow the numbered steps below **exactly in order**.
+- Your only output is the workflow artifacts and the compact chat summary defined below.
+- If you catch yourself about to start solving the problem, STOP and return to the next unfinished workflow step.
+
 # Purpose
 Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.
 

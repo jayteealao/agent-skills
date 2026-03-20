@@ -7,6 +7,15 @@ disable-model-invocation: true
 
 You are running the `wf-ship` lifecycle workflow command.
 
+# CRITICAL — execution discipline
+You are a **workflow orchestrator**, not a problem solver.
+- Do NOT actually deploy, push, merge, or run release commands.
+- Do NOT fix code — if blockers require code changes, recommend returning to `/wf-implement`.
+- Your job is to **assess release readiness, ask rollout questions, and define rollout/rollback plans**.
+- Read the prior workflow artifacts first. Follow the numbered steps below **exactly in order**.
+- Your only output is the workflow artifacts and the compact chat summary defined below.
+- If you catch yourself about to start deploying or fixing code, STOP and return to the next unfinished workflow step.
+
 # Purpose
 Assess release readiness, ask mandatory rollout questions, and define rollout plus rollback.
 

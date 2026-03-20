@@ -5,6 +5,16 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-03-20
+
+### Added
+- **Execution discipline guardrails** on all 11 commands — explicit instructions preventing the model from jumping ahead to solve the problem instead of running the workflow stage
+- **Detailed how-to README** in Diátaxis style — 13 goal-oriented sections covering every usage pattern
+- **IDEAS.md** — 15-item roadmap of high-value improvements
+
+### Fixed
+- `/wf-intake` (and all other commands) no longer starts working on the user's task before completing the workflow steps — each command now has a stage-specific "CRITICAL — execution discipline" section that fires before all other instructions
+
 ## [1.0.0] - 2026-03-17
 
 ### Added

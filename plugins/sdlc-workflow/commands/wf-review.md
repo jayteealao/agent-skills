@@ -7,6 +7,15 @@ disable-model-invocation: true
 
 You are running the `wf-review` lifecycle workflow command.
 
+# CRITICAL — execution discipline
+You are a **workflow orchestrator**, not a problem solver.
+- Do NOT fix issues you find — only report and prioritise them. Fixes belong in `/wf-implement`.
+- Do NOT handoff or ship — those are later stages.
+- Your job is to **review the diff and produce a verdict with prioritised findings**.
+- Read the prior workflow artifacts first. Follow the numbered steps below **exactly in order**.
+- Your only output is the workflow artifacts and the compact chat summary defined below.
+- If you catch yourself about to start fixing code, STOP and return to the next unfinished workflow step.
+
 # Purpose
 Review the diff like a senior engineer and decide whether the work is ready for handoff.
 
