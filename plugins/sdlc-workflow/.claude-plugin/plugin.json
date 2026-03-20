@@ -1,7 +1,7 @@
 {
   "name": "sdlc-workflow",
-  "version": "4.3.0",
-  "description": "Full SDLC workflow with integrated code review. 11 lifecycle commands (intake → ship → retro) plus 30 individual review commands and 7 aggregate review commands. wf-review intelligently selects and dispatches review commands as parallel sonnet sub-agents, each writing findings to file, then aggregates into a unified verdict. All artifacts stored under .ai/workflows/<slug>/.",
+  "version": "5.0.0",
+  "description": "Complete SDLC workflow with integrated code review, analysis, and observability. 11 lifecycle commands (intake → ship → retro), 30 review commands, 7 aggregate reviews, 4 analysis skills (error-analysis, refactoring-patterns, test-patterns, wide-event-observability), and setup-wide-logging command. Absorbs all session-workflow content.",
   "author": {
     "name": "jayte"
   },
@@ -10,14 +10,13 @@
     "sdlc",
     "workflow",
     "feature-delivery",
-    "planning",
-    "sprint",
-    "product",
-    "agile",
     "code-review",
-    "smart-dispatch",
-    "parallel-review",
-    "security",
-    "correctness"
+    "error-analysis",
+    "refactoring",
+    "test-patterns",
+    "observability",
+    "wide-event-logging",
+    "planning",
+    "agile"
   ]
 }

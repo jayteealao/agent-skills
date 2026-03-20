@@ -5,6 +5,25 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.0] - 2026-03-20
+
+### Added
+- **4 analysis skills** absorbed from session-workflow:
+  - `error-analysis` — systematic error/stacktrace/log analysis with root cause identification (includes 4 reference docs: error-categorization, fix-patterns, log-patterns, root-cause-analysis)
+  - `refactoring-patterns` — safe, systematic refactoring patterns: extract, rename, move, simplify (includes 4 reference docs)
+  - `test-patterns` — test generation and organization patterns: unit, integration, factories, coverage (includes 4 reference docs)
+  - `wide-event-observability` — wide-event logging and tail sampling design for context-rich observability
+- **`setup-wide-logging` command** absorbed from session-workflow — sets up wide-event logging with tail sampling for Express/Koa/Fastify/Next.js with Pino/Winston/Bunyan
+
+### Removed
+- **session-workflow plugin deleted entirely** — all content now lives in sdlc-workflow
+
+### Integration notes
+- `error-analysis` skill is available during `wf-implement` and `wf-verify` for debugging failures
+- `refactoring-patterns` skill is available during `wf-implement` when the plan calls for refactoring
+- `test-patterns` skill is available during `wf-implement` and `wf-verify` for test generation
+- `wide-event-observability` skill and `setup-wide-logging` command support the observability review commands (`review/logging`, `review/observability`)
+
 ## [4.3.0] - 2026-03-20
 
 ### Changed
