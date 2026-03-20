@@ -1,7 +1,7 @@
 ---
 name: wf-implement
 description: Implement one selected planned slice. Writes per-slice implementation record with cross-links to slice definition and plan.
-argument-hint: <slug> [slice-slug]
+argument-hint: <slug> [slice-slug|reviews]
 disable-model-invocation: true
 ---
 
@@ -16,6 +16,7 @@ You are running `wf-implement`, **stage 5 of 10** in the SDLC lifecycle.
 | Produces | `05-implement-<slice-slug>.md` + updates `05-implement.md` master |
 | Next | `/wf-verify <slug> <slice-slug>` (default) |
 | Skip-to | `/wf-review <slug> <slice-slug>` if verification is trivial |
+| Special | `/wf-implement <slug> reviews` — fix review findings one by one |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator** running the implementation stage.
@@ -29,18 +30,19 @@ You are a **workflow orchestrator** running the implementation stage.
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice-slug**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse `current-stage`, `stage-status`, `selected-slice-or-focus`, `open-questions`.
-3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
-4. **Check prerequisites:**
+3. **Check for reviews mode:** If the second argument is literally `reviews` → this is a **review-fix** invocation. See "Reviews Mode" section below. Skip the rest of Step 0 and go directly to that section.
+4. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
+5. **Check prerequisites:**
    - A plan must exist for this slice: either `04-plan-<slice-slug>.md` or `04-plan.md`. If missing → STOP. Tell the user: "Run `/wf-plan <slug> <slice-slug>` first."
    - If the plan shows `Status: Awaiting input` → STOP.
    - Check if `05-implement-<slice-slug>.md` already exists → WARN: "This slice has already been implemented. Running again will overwrite. Proceed?"
-5. **Read the slice's full context:**
+6. **Read the slice's full context:**
    - `03-slice-<slice-slug>.md` — the slice definition with acceptance criteria
    - `04-plan-<slice-slug>.md` — the implementation plan
    - `02-shape.md` — the shaped spec for overall context
    - `po-answers.md`
-6. **Read sibling implementations:** Check for any existing `05-implement-<other-slice>.md` files. Note what has already been implemented so you don't duplicate work or create conflicts.
-7. **Carry forward** `open-questions` from the index.
+7. **Read sibling implementations:** Check for any existing `05-implement-<other-slice>.md` files. Note what has already been implemented so you don't duplicate work or create conflicts.
+8. **Carry forward** `open-questions` from the index.
 
 # Parallel research (use sub-agents when supported)
 Before implementing, if the plan touches multiple distinct areas:
@@ -92,6 +94,80 @@ Use when: Purely declarative change with no testable behavior.
 Use when: The plan was wrong — missed files, wrong assumptions.
 
 **Option D: Blocked** → explain what's blocking.
+
+# Reviews Mode — fix review findings one by one
+Triggered when: second argument is literally `reviews`.
+
+Example: `/wf-implement my-slug reviews`
+
+This mode reads the review findings from `07-review.md`, extracts all BLOCKER and HIGH findings (and optionally MED if the user requests), then fixes them **one at a time, sequentially** using sub-agents.
+
+Do this in order for reviews mode:
+1. **Read `07-review.md`** and all `07-review-<command>.md` files.
+2. **Extract the findings list.** Build an ordered list of findings to fix, sorted by severity (BLOCKER first, then HIGH, then MED if requested). Each finding has: ID, severity, file:line, issue description, suggested fix.
+3. **Resolve the slice-slug** from `selected-slice-or-focus` in the index (since the user didn't pass one explicitly).
+4. **Present the findings list** to the user before starting:
+   ```
+   ## Review Findings to Fix ({N} total)
+   1. [{ID}] {SEVERITY} — {title} @ {file}:{line}
+   2. [{ID}] {SEVERITY} — {title} @ {file}:{line}
+   ...
+   Starting sequential fixes...
+   ```
+5. **For each finding, sequentially (one at a time):**
+   a. **Spawn a single sub-agent (sonnet)** with this prompt:
+      ```
+      Fix the following review finding in the codebase:
+
+      Finding ID: {ID}
+      Severity: {severity}
+      Location: {file}:{line-range}
+      Issue: {issue description}
+      Suggested Fix: {fix suggestion}
+
+      Read the file(s) at the specified location. Understand the issue.
+      Apply the minimal fix that resolves the issue without introducing
+      new problems. Do NOT change anything beyond what is needed for this
+      specific finding.
+
+      After fixing, verify your change is correct:
+      - The fix addresses the specific issue described
+      - No new lint/type/test failures are introduced
+      - The surrounding code still makes sense
+
+      Return a brief summary of what you changed and whether the fix is confirmed correct.
+      ```
+   b. **Wait for the sub-agent to complete.**
+   c. **Verify the fix:** Read the changed file(s). Confirm the fix addresses the finding. Check for obvious regressions.
+   d. **Mark the finding as fixed** in the tracking list. Record:
+      - Finding ID
+      - Status: Fixed / Partially Fixed / Could Not Fix
+      - What was changed
+      - Any notes or caveats
+   e. **Move to the next finding.** Do NOT proceed to the next finding until the current one is verified.
+
+6. **After all findings are processed:**
+   a. Write/update `05-implement-<slice-slug>.md` with a `## Review Fixes Applied` section listing all findings and their resolution status.
+   b. Update `05-implement.md` master index.
+   c. **Update `07-review.md`:** Add a `## Fix Status` section at the bottom:
+      ```
+      ## Fix Status
+      | ID | Severity | Status | Notes |
+      |----|----------|--------|-------|
+      | {ID} | {sev} | Fixed / Partially Fixed / Could Not Fix | {notes} |
+      ```
+   d. Update `00-index.md`.
+
+7. **Evaluate adaptive routing:**
+
+**Option A (default): Re-verify** → `/wf-verify <slug> <slice-slug>`
+Use when: Fixes were applied. Need to confirm everything still passes.
+
+**Option B: Re-review** → `/wf-review <slug> <slice-slug>`
+Use when: Some findings could not be fixed and need re-assessment.
+
+**Option C: Handoff** → `/wf-handoff <slug> <slice-slug>`
+Use when: All findings were fixed and the change was already verified.
 
 ---
 

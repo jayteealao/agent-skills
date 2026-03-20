@@ -1,7 +1,7 @@
 ---
 name: wf-plan
 description: Create repo-aware implementation plans. Writes per-slice plan files with cross-links. Runs for a single slice or all slices in parallel using sub-agents.
-argument-hint: <slug> [slice-slug|all]
+argument-hint: <slug> [slice-slug|all] [review/fix instructions]
 disable-model-invocation: true
 ---
 
@@ -39,8 +39,9 @@ You are a **workflow orchestrator**, not a problem solver.
    - If second argument is a slice-slug → **single plan mode** for that slice. Read its `03-slice-<slice-slug>.md`.
    - If no second argument → use `selected-slice-or-focus` from the index. If still missing and slices exist, choose the best first slice from `03-slice.md` or ask the user.
    - If no slices exist → **single plan mode** for the entire shaped spec.
-6. **Check for existing sibling plans:** Read any existing `04-plan-<other-slice>.md` files so the current plan can be aware of what's already planned for other slices.
-7. **Carry forward** `open-questions` from the index.
+6. **Check for review-and-fix mode:** If there is supplemental text after the slug/slice (the third+ arguments), AND `04-plan-<slice-slug>.md` already exists → this is a **review-and-fix** invocation. The supplemental text contains feedback or fix instructions for the existing plan. See "Review-and-Fix Mode" below.
+7. **Check for existing sibling plans:** Read any existing `04-plan-<other-slice>.md` files so the current plan can be aware of what's already planned for other slices.
+8. **Carry forward** `open-questions` from the index.
 
 # Purpose
 Create repo-aware, slice-specific implementation plans after inspecting current code and current external guidance. Write per-slice plan files with cross-links to their slice definition, sibling plans, and future implementation files.
@@ -86,12 +87,34 @@ After writing files, return ONLY:
 - ≤3 short blocker bullets if needed
 
 Do this in order:
-1. Determine planning mode (single or all) from Step 0.
+1. Determine planning mode (single, all, or review-and-fix) from Step 0.
 2. **Single mode:** Inspect the repository using parallel Explore sub-agents. Run freshness research. Produce a minimal execution-ready plan. Write `04-plan-<slice-slug>.md`. Update master `04-plan.md`.
 3. **All mode:** Launch one sub-agent per slice. Wait for all to complete. Read their output files. Run the cohesion check. Write/update master `04-plan.md`. Update cross-links.
-4. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
-5. Update `00-index.md` accordingly and add all plan files to `workflow-files`.
-6. Write plan file(s).
+4. **Review-and-fix mode:** See "Review-and-Fix Mode" section below.
+5. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
+6. Update `00-index.md` accordingly and add all plan files to `workflow-files`.
+7. Write plan file(s).
+
+# Review-and-Fix Mode
+Triggered when: `04-plan-<slice-slug>.md` already exists AND supplemental text is provided.
+
+Example invocations:
+- `/wf-plan my-slug auth-flow the auth plan should use OAuth2 PKCE not basic auth`
+- `/wf-plan my-slug auth-flow the step ordering is wrong, DB migration must happen before API endpoint`
+- `/wf-plan my-slug auth-flow` ← no supplemental text = re-plan from scratch (normal single mode)
+
+Do this in order for review-and-fix:
+1. **Read the existing `04-plan-<slice-slug>.md`** in full.
+2. **Parse the review/fix instructions** from the supplemental text.
+3. **Re-inspect the codebase** if the fix instructions change which files or patterns are relevant (use Explore sub-agents).
+4. **Apply the feedback** to the existing plan — edit the sections that need changing while preserving everything that is still correct. Do NOT start from scratch unless the feedback is a complete rejection.
+5. **Add a `## Revision History` section** (or append to it if it already exists) at the bottom of the plan file, recording:
+   - Revision timestamp
+   - What was changed and why
+   - The original feedback that prompted the change
+6. **Re-check cohesion** with sibling plans if the changes affect cross-slice dependencies.
+7. **Update the master `04-plan.md`** summary for this slice if the strategy or key risks changed.
+8. Write the updated `04-plan-<slice-slug>.md`.
 
 # Adaptive routing — evaluate what's actually next
 After completing this stage, evaluate the plan(s) and present ALL viable options:

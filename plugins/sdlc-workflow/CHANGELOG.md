@@ -5,6 +5,20 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.2.0] - 2026-03-20
+
+### Added
+- **`wf-plan` review-and-fix mode** — re-invoke `/wf-plan <slug> <slice> <feedback>` with supplemental text to revise an existing plan without starting from scratch. The command reads the existing plan, applies the feedback, preserves unchanged sections, and appends a `## Revision History` entry documenting what changed and why.
+- **`wf-implement reviews` mode** — invoke `/wf-implement <slug> reviews` to fix review findings one by one:
+  - Reads `07-review.md` and all per-command review files
+  - Extracts BLOCKER and HIGH findings sorted by severity
+  - Presents the findings list before starting
+  - Spawns one sonnet sub-agent per finding **sequentially** (not parallel — each fix must be verified before the next starts)
+  - After each sub-agent completes, verifies the fix is correct and marks it Fixed / Partially Fixed / Could Not Fix
+  - Updates `05-implement-<slice>.md` with a `## Review Fixes Applied` section
+  - Updates `07-review.md` with a `## Fix Status` tracking table
+  - Recommends re-verify after all fixes are applied
+
 ## [4.1.0] - 2026-03-20
 
 ### Added
