@@ -1,0 +1,29 @@
+{
+  "description": "sdlc-workflow hooks: workflow discovery + auto-stage during implement",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/workflow-discovery.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/auto-stage.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}
