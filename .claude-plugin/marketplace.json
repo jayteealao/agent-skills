@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills-marketplace",
-  "version": "1.19.0",
+  "version": "1.26.0",
   "description": "A curated collection of Claude Code skills and plugins for developers",
   "owner": {
     "name": "jayte"
@@ -37,10 +37,10 @@
     },
     {
       "name": "sdlc-workflow",
-      "description": "Complete SDLC workflow with integrated code review, analysis, and observability. 11 lifecycle commands, 30 review commands, 7 aggregate reviews, 4 analysis skills (error-analysis, refactoring-patterns, test-patterns, wide-event-observability), and setup-wide-logging. Absorbs all session-workflow content.",
+      "description": "Complete SDLC workflow with integrated code review, Diátaxis documentation, analysis, observability, and git lifecycle. 11 lifecycle commands, 31 review commands, 7 aggregate reviews, 11 skills (analysis + Diátaxis), and setup-wide-logging.",
       "source": "./plugins/sdlc-workflow",
       "category": "productivity",
-      "version": "6.0.0"
+      "version": "7.6.0"
     }
   ]
 }

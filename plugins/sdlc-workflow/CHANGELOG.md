@@ -5,6 +5,131 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.6.0] - 2026-04-03
+
+### Added — Code Simplification review command (ported from built-in `/simplify`)
+- **`review/code-simplification`** — new review command covering three simplification lenses:
+  - **Lens 1: Code Reuse** — flags new code that duplicates existing utilities, helpers, or patterns in the codebase
+  - **Lens 2: Code Quality** — flags redundant state, parameter sprawl, copy-paste duplication, leaky abstractions, stringly-typed code, dead code, unnecessary comments
+  - **Lens 3: Efficiency** — flags unnecessary work, missed concurrency, hot-path bloat, no-op updates, TOCTOU anti-patterns, memory leaks, overly broad operations
+- **Report-only** — unlike the built-in `/simplify` which auto-fixes, this command diagnoses and reports. Fixes route through `/wf-implement`.
+- **Always dispatched by `wf-review`** — added to the core set alongside `correctness` and `security` (minimum 3 commands, up from 2)
+- **Always dispatched by `wf-review`** — added to the core set alongside `correctness` and `security` (minimum 3 commands, up from 2)
+- **AskUserQuestion triage gate on ALL review findings** — wf-review gains Step 4b after aggregation: ALL deduplicated findings (from every review command) are presented via AskUserQuestion. BLOCKER/HIGH presented individually (Fix/Defer/Dismiss), MED as multi-select batch, LOW/NIT listed in report only. Triage decisions recorded in master `07-review.md` and drive recommendations.
+- **Manual re-triage** — `/wf-review <slug> triage` re-reads `07-review.md`, presents only `deferred` and `untriaged` findings via AskUserQuestion, updates decisions in-place. Use to revisit deferred decisions at any point.
+
+### Changed
+- `wf-review` gains `triage` mode as second argument (`/wf-review <slug> triage`)
+- `wf-review` gains Step 4b (triage gate) between aggregation and verdict writing — applies to ALL findings
+- `wf-review` master `07-review.md` template gains `## Triage Decisions` section and deferred/dismissed categories in recommendations
+- `wf-review` Step 2 selection: core set now includes `code-simplification` (always dispatched)
+- `wf-review` minimum commands: 2 → 3
+- `wf-review` config/docs-only exception drops `code-simplification`; test-only exception keeps it
+- Review command count: 30 → 31
+
+## [7.5.0] - 2026-04-03
+
+### Added — PostToolUse hook for auto-staging during implement (D6)
+- **`hooks/scripts/auto-stage.sh`** — PostToolUse hook that auto-stages files after every Write/Edit during implement stage
+- Activates only when an active workflow has `current-stage: implement` AND `branch-strategy: dedicated` or `shared`
+- Fast bail-outs: opt-out flag (`.ai/.no-auto-stage`), no workflows dir, missing tools (yq/jq/git), no file path, workflow artifact files excluded
+- Best-effort staging — never blocks file writes (exit 0 always)
+- **`hooks/hooks.json`** updated with PostToolUse matcher for `Write|Edit` (5s timeout)
+
+## [7.4.0] - 2026-04-03
+
+### Changed — Standardize PO questions via AskUserQuestion (D5)
+- **`wf-intake`**: Branch strategy and appetite questions now use AskUserQuestion with structured options (dedicated/shared/none, small/medium/large). Freeform chat retained for requirements, constraints, and acceptance criteria.
+- **`wf-shape`**: Risk tolerance question uses AskUserQuestion (conservative/balanced/move-fast) when risk is unclear. Freeform chat retained for behavior, acceptance criteria, and non-goals.
+- **`wf-ship`**: Rollout strategy (immediate/staged/canary/feature-flag), merge strategy (rebase/squash/merge-commit), and go/no-go decision all use AskUserQuestion. Freeform chat retained for environment details and rollback tolerance.
+- **All 11 commands**: Workflow rule updated from "Prefer AskUserQuestion" to explicit guidance — use AskUserQuestion for multiple-choice, freeform chat for open-ended. Each command's rule text is tailored to its specific question types.
+
+## [7.3.0] - 2026-04-03
+
+### Added — SessionStart hook for workflow discovery (D3)
+- **`hooks/hooks.json`** — plugin hook registration for SessionStart event
+- **`hooks/scripts/workflow-discovery.sh`** — bash script that scans `.ai/workflows/*/00-index.md` for active workflows at session start
+- Outputs compact summary injected into Claude's context via `systemMessage`:
+  - Slug, title, current stage, status, selected slice
+  - Branch name with correct/wrong branch detection (compares git HEAD to workflow's `branch` field)
+  - PR URL if exists
+  - Recommended next command
+  - Open questions if any
+- Handles multiple active workflows, completed/abandoned filtering, missing directories, malformed frontmatter
+- Silent (no output) when no active workflows exist
+- Pure bash implementation — no `yq` or external YAML parser required
+- 10-second timeout to keep session start fast
+
+## [7.2.0] - 2026-04-03
+
+### Added — Task-based progress tracking (D1)
+- **6 commands now use TaskCreate/TaskUpdate** for structured progress tracking visible in the CLI spinner:
+  - `wf-implement` (normal): creates tasks from plan step-by-step items with dependency chains where steps are sequential
+  - `wf-implement` (reviews): creates tasks from review findings (BLOCKER/HIGH/MED), each with findingId and severity in metadata
+  - `wf-verify`: creates tasks for each check (lint, typecheck, tests) and acceptance criterion, with integration tests blocked by unit tests
+  - `wf-review`: creates tasks for each dispatched review command (independent/parallel), aggregation blocked by all dispatches
+  - `wf-handoff`: creates a strict sequential chain (read artifacts → summary → docs → push → PR → write artifact), inapplicable tasks deleted
+  - `wf-ship`: creates the full merge sequence chain (rollout questions → freshness → readiness → go/no-go → rebase → CI → merge → cleanup → write artifact), failures halt the chain via blockedBy
+- **Dependency tracking** with `addBlockedBy`: sequential steps are chained so downstream tasks stay blocked if a step fails. Independent steps (review findings, review commands) have no dependencies and can be worked in any order.
+- **Metadata convention**: all tasks carry `{ slug, stage, slice }` plus stage-specific fields (`findingId`, `severity`, `command`), enabling future cross-workflow querying
+- **Failed items recorded, not hidden**: when a step fails, its description is updated with the failure reason before marking completed. Inapplicable items use `TaskUpdate(status: "deleted")`
+
+### Changed
+- `wf-implement` step sequence renumbered (12 → 13 steps in normal mode, 6 → 7 steps in reviews mode)
+- `wf-verify` step sequence renumbered (9 → 10 steps)
+- `wf-handoff` step sequence renumbered (7 → 10 steps)
+- `wf-ship` step sequence renumbered (9 → 10 steps)
+- `wf-review` gains `# Task Tracking` section between chat return contract and Step 1
+
+## [7.1.0] - 2026-04-02
+
+### Added — Diátaxis documentation framework integration
+- **7 Diátaxis skills absorbed** from the diataxis plugin:
+  - `diataxis-doc-planner` — classifies docs into Diátaxis quadrants, proposes docs map and writing order
+  - `tutorial-writer` — learning-oriented step-by-step lessons for beginners
+  - `how-to-guide-writer` — goal-oriented guides for competent users
+  - `reference-writer` — neutral, scannable technical reference (API, CLI, config)
+  - `explanation-writer` — understanding-oriented content (why, trade-offs, architecture)
+  - `readme-writer` — README as landing page, not a quadrant
+  - `docs-reviewer` — audit docs against Diátaxis principles with prioritised fixes
+- **`wf-shape` now produces a Documentation Plan** — classifies what docs the feature needs using the Diátaxis model. Each entry specifies type, audience, what to cover, and boundary constraints. Frontmatter gains `docs-needed` and `docs-types` fields.
+- **`wf-handoff` now generates documentation** — reads the shape's docs plan and writes/updates docs using the appropriate Diátaxis writer skill for each type. Respects boundary discipline (won't mix types in one file). Frontmatter gains `has-docs-changes` and `docs-generated` fields. Template gains `## Documentation Changes` section.
+- **`review/docs` enhanced with Diátaxis structural review** — now classifies every doc page by actual type (not title), flags boundary violations (tutorial drifting into explanation, reference giving opinions, etc.), checks system completeness across all four quadrants, and gives specific rewrite recommendations ("split into separate page" not "improve clarity").
+
+### Changed
+- `wf-shape` template gains `## Documentation Plan` section and `docs-needed`/`docs-types` frontmatter
+- `wf-handoff` template gains `## Documentation Changes` section and `has-docs-changes`/`docs-generated` frontmatter
+- `review/docs` gains `## 0. Diátaxis Structural Review` checklist section before the existing checklist
+
+## [7.0.0] - 2026-04-02
+
+### Added — Git lifecycle integration
+- **Branch-aware workflow**: Intake now asks whether the work should happen on a dedicated feature branch. Three strategies: `dedicated` (full git lifecycle), `shared` (commits to current branch), `none` (no git management).
+- **`00-index.md` gains branch fields**: `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number` — tracked from intake through ship.
+- **`wf-implement` creates branches and commits atomically**:
+  - On first slice implementation, creates the feature branch (`feat/<slug>` by default) from `base-branch` if `branch-strategy: dedicated`.
+  - After each slice implementation, stages and commits all changes with `feat(<slug>): implement <slice-slug>`.
+  - Review fixes commit as `fix(<slug>): review fixes for <slice-slug>`.
+  - Nothing is pushed until handoff.
+- **`wf-handoff` pushes and creates PRs**: If `branch-strategy: dedicated`, pushes the branch and creates a PR via `gh pr create` using the handoff summary as the PR body. Records `pr-url` and `pr-number` in frontmatter and index.
+- **`wf-ship` rebases and merges**: If go-nogo is approved, rebases the feature branch onto the base branch and merges the PR. Supports three merge strategies: rebase-and-merge (default), squash-and-merge, merge commit. Checks CI status before merging. Handles rebase conflicts by recommending return to implement.
+- **Branch checks on verify and review**: Both stages confirm they're on the correct branch before running tests or generating diffs.
+- **`wf-next` reports branch mismatches**: Warns if you're on the wrong branch for the active workflow.
+- **Per-slice implement frontmatter gains `commit-sha`** for tracking which commit contains each slice's changes.
+- **Ship frontmatter gains** `merge-strategy`, `merge-sha`, `branch`, `base-branch`, `pr-url`, `pr-number`.
+- **Handoff frontmatter gains** `pr-url`, `pr-number`, `branch`, `base-branch`.
+
+### Changed
+- **`wf-ship` execution discipline relaxed**: No longer says "Do NOT merge" — now says "Do NOT fix code" while allowing rebase and merge as the final shipping action.
+- **`wf-handoff` execution discipline updated**: Now includes pushing and PR creation as part of its responsibilities.
+- Intake PO questions now include branch strategy as a standard question.
+
+### Design Decisions
+- **Merge requires explicit confirmation**: Ship always asks before merging — these are visible, irreversible actions.
+- **`--force-with-lease`** used for post-rebase push (not `--force`) to prevent overwriting others' work.
+- **Branch strategy is recorded once at intake** and read by all downstream stages — no repeated questioning.
+- **`shared` and `none` strategies** ensure the workflow works without git management for teams that handle branching externally.
+
 ## [6.0.0] - 2026-03-20
 
 ### Changed — BREAKING

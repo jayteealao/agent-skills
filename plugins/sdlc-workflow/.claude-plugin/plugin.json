@@ -1,7 +1,7 @@
 {
   "name": "sdlc-workflow",
-  "version": "6.0.0",
-  "description": "Complete SDLC workflow with integrated code review, analysis, and observability. 11 lifecycle commands (intake → ship → retro), 30 review commands, 7 aggregate reviews, 4 analysis skills (error-analysis, refactoring-patterns, test-patterns, wide-event-observability), and setup-wide-logging command. Absorbs all session-workflow content.",
+  "version": "7.6.0",
+  "description": "Complete SDLC workflow with integrated code review, Diátaxis documentation, analysis, observability, and git lifecycle. 11 lifecycle commands with branch-aware git operations, 31 review commands, 7 aggregate reviews, 11 skills (4 analysis + 7 Diátaxis doc writing/review), and setup-wide-logging command.",
   "author": {
     "name": "jayte"
   },
