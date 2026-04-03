@@ -5,6 +5,22 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.7.0] - 2026-04-03
+
+### Added — PreCompact hook and stage-boundary compaction guidance
+- **`hooks/scripts/pre-compact.sh`** — PreCompact hook that fires before every context compaction. Reads active workflow state from `00-index.md` (slug, stage, slice, branch, progress, open questions, next command) and outputs plain-text instructions telling the compaction model what to preserve in the summary.
+- **Stage-boundary compact recommendations** in adaptive routing for tier 1 transitions:
+  - `wf-plan` → implement: compact recommended (planning research is noise for coding)
+  - `wf-implement` → verify: compact recommended (debugging/file exploration is noise for testing)
+  - `wf-implement(reviews)` → re-verify/re-review: compact recommended (fix context is noise)
+  - `wf-review` → implement(reviews): compact recommended (dispatch chatter is noise for fixing)
+  - `wf-review` → next slice: compact recommended (previous slice lifecycle is noise)
+  - `wf-verify` → review: compact if lengthy (test output is noise for review dispatch)
+- **`hooks/hooks.json`** updated with PreCompact event registration (10s timeout, matches all triggers)
+
+### Changed
+- 5 commands gain "Compact recommended" annotations on routing options: `wf-plan`, `wf-implement`, `wf-verify`, `wf-review`
+
 ## [7.6.0] - 2026-04-03
 
 ### Added — Code Simplification review command (ported from built-in `/simplify`)

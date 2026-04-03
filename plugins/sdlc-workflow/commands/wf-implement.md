@@ -116,9 +116,11 @@ After completing, evaluate and present ALL viable options:
 
 **Option A (default): Verify** → `/wf-verify <slug> <slice-slug>`
 Use when: The implementation touches testable behavior.
+**Compact recommended before proceeding** — implementation details (debugging, file exploration, error resolution) are noise for verification. Tell the user: "Consider running `/compact` before `/wf-verify` — the PreCompact hook will preserve workflow state."
 
 **Option B: Skip to Review** → `/wf-review <slug> <slice-slug>`
 Use when: Purely declarative change with no testable behavior.
+**Compact recommended** — same reason as Option A.
 
 **Option C: Revisit Plan** → `/wf-plan <slug> <slice-slug>`
 Use when: The plan was wrong — missed files, wrong assumptions.
@@ -198,9 +200,11 @@ Do this in order for reviews mode:
 
 **Option A (default): Re-verify** → `/wf-verify <slug> <slice-slug>`
 Use when: Fixes were applied. Need to confirm everything still passes.
+**Compact recommended** — review fix context (finding details, sub-agent output) is noise for re-verification.
 
 **Option B: Re-review** → `/wf-review <slug> <slice-slug>`
 Use when: Some findings could not be fixed and need re-assessment.
+**Compact recommended** — fresh review needs clean context.
 
 **Option C: Handoff** → `/wf-handoff <slug> <slice-slug>`
 Use when: All findings were fixed and the change was already verified.

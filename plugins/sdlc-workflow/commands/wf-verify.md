@@ -98,6 +98,7 @@ After completing verification, evaluate the results and present the user with AL
 
 **Option A: Review** → `/wf-review <slug> <selected-slice>`
 Use when: All checks pass. Acceptance criteria are met. Ready for a code review.
+**Compact recommended if verify was lengthy** — test output and debugging context is noise for review dispatch.
 
 **Option B: Fix and re-implement** → `/wf-implement <slug> <selected-slice>`
 Use when: Tests fail, lint errors, type errors, or acceptance criteria are not met. Clearly describe what needs fixing.

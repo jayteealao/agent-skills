@@ -474,11 +474,13 @@ Use when: No blocking issues. Approved (possibly with minor notes).
 
 **Option B: Fix and re-implement** → `/wf-implement <slug> <selected-slice>`
 Use when: There are blocking issues. List what needs changing.
+**Compact recommended before proceeding** — review dispatch chatter (sub-agent outputs, aggregation, triage) is noise for fixing. Tell the user: "Consider running `/compact` before `/wf-implement` — the PreCompact hook will preserve workflow state and triage decisions are in `07-review.md`."
 
 **Option C: Skip handoff, go to Ship** → `/wf-ship <slug> <selected-slice>`
 Use when: No team to hand off to, no PR description needed.
 
 **Option D: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
 Use when: This slice is approved AND more slices remain. Check `03-slice.md`.
+**Compact recommended** — previous slice's full lifecycle (implement + verify + review) is noise for the next slice.
 
 Write ALL viable options into `## Recommended Next Stage`.
