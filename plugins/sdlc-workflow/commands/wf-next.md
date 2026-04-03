@@ -24,8 +24,9 @@ You are a **routing helper**, not a problem solver.
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug**: If `$ARGUMENTS` provides a slug, use it. Otherwise, scan `.ai/workflows/*/00-index.md` for active workflows.
 2. **If multiple workflows exist** and no slug was given → list them with their `current-stage` and `stage-status`, then ask the user which one to continue. Use AskUserQuestion if available, otherwise ask in chat.
-3. **Read `00-index.md`** for the selected workflow. Parse the YAML frontmatter — especially `current-stage`, `status`, `selected-slice`, `open-questions`, `next-command`, `next-invocation`, `progress`, and `slices` (if present).
+3. **Read `00-index.md`** for the selected workflow. Parse the YAML frontmatter — especially `current-stage`, `status`, `selected-slice`, `open-questions`, `next-command`, `next-invocation`, `progress`, `slices` (if present), `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`.
 4. **Read the current stage file** referenced by `current-stage` to check its `Status` field and `## Recommended Next Stage` section.
+5. **Check branch status:** If `branch-strategy` is `dedicated`, check whether the user is currently on the workflow branch (`git branch --show-current`). If they are on the wrong branch, include a warning in the routing output: "You are on `<current>` but this workflow uses `<branch>`. Switch before running the next command."
 
 # Purpose
 Read the workflow index and tell the user the exact next command to run, carrying forward the correct slug and slice.
@@ -64,6 +65,9 @@ current-stage: <stage-name>
 stage-number: <N>
 status: <status from index>
 selected-slice: <slice-slug or "">
+branch-strategy: <dedicated|shared|none>
+branch: "<branch or empty>"
+on-correct-branch: <true|false>
 is-blocked: <true|false>
 open-questions: [...]
 remaining-slices: [<slice-slugs>]

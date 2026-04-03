@@ -41,6 +41,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - `02-shape.md` — overall spec context
    - `po-answers.md`
 6. **Carry forward** `open-questions` from the index.
+7. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch (`git branch --show-current`). If not, switch to it. Verification must run against the implementation branch, not the base branch.
 
 # Parallel verification (use sub-agents when supported)
 When verification spans multiple concerns, launch parallel sub-agents:
@@ -59,7 +60,7 @@ Verify that the selected slice meets acceptance criteria and is ready for review
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
+- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
@@ -73,13 +74,24 @@ After writing files, return ONLY:
 Do this in order:
 1. Confirm the selected slice.
 2. Determine the relevant verification commands from the repo.
-3. Run or evaluate the most relevant checks (using parallel sub-agents if multi-concern): lint, typecheck, tests, build, smoke tests, manual checks.
-4. Compare the results with the acceptance criteria from `03-slice-<slice-slug>.md` and `02-shape.md`.
-5. If verification reveals gaps caused by external dependency behavior or standards drift, run a freshness pass and record it.
-6. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
-7. **Write `06-verify-<slice-slug>.md`** (per-slice file, see template below).
-8. **Write/update `06-verify.md`** (master index with links to all per-slice verify files).
-9. Update `00-index.md` accordingly and add files to `workflow-files`.
+3. **Create task list.** Read acceptance criteria from `03-slice-<slice-slug>.md`. Use TaskCreate for each check and criterion:
+   - Check tasks: `subject: "Run lint + typecheck"`, `activeForm: "Running lint and typecheck"`, `metadata: { slug, stage: "verify", slice: "<slice-slug>" }`. Similarly for unit tests, integration tests, build, etc.
+   - AC tasks: `subject: "AC: <criterion text>"`, `activeForm: "Verifying: <criterion>"`.
+   - Dependency: integration tests `addBlockedBy` unit tests. All other checks are independent.
+   - Final task: "Write 06-verify-<slice-slug>.md" — `addBlockedBy: [all check and AC tasks]`.
+4. **Run checks.** For each check task:
+   a. `TaskUpdate(taskId, status: "in_progress")`.
+   b. Run or evaluate the check (using parallel sub-agents if multi-concern): lint, typecheck, tests, build, smoke tests, manual checks.
+   c. `TaskUpdate(taskId, status: "completed")`. If the check failed, update description first: `TaskUpdate(taskId, description: "FAILED: <output summary>")` then mark completed. Do NOT fix — fixes belong in `/wf-implement`.
+5. **Verify acceptance criteria.** For each AC task:
+   a. `TaskUpdate(taskId, status: "in_progress")`.
+   b. Compare results with the criterion from `03-slice-<slice-slug>.md` and `02-shape.md`.
+   c. `TaskUpdate(taskId, status: "completed")`. If not met, update description: `TaskUpdate(taskId, description: "NOT MET: <reason>")`.
+6. If verification reveals gaps caused by external dependency behavior or standards drift, run a freshness pass and record it.
+7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
+8. Mark "Write 06-verify" task `in_progress`. **Write `06-verify-<slice-slug>.md`** (per-slice file, see template below). Mark `completed`.
+9. **Write/update `06-verify.md`** (master index with links to all per-slice verify files).
+10. Update `00-index.md` accordingly and add files to `workflow-files`.
 
 # Adaptive routing — evaluate what's actually next
 After completing verification, evaluate the results and present the user with ALL viable options:

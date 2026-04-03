@@ -20,11 +20,11 @@ You are running `wf-handoff`, **stage 8 of 10** in the SDLC lifecycle.
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT make code changes, fix issues, or modify the implementation.
-- Do NOT ship or deploy — that is a later stage.
-- Your job is to **summarise the completed work into a reviewer-friendly handoff package**.
+- Do NOT ship, merge, or deploy — that is a later stage.
+- Your job is to **summarise the completed work into a reviewer-friendly handoff package, push the branch, and create a pull request**.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
-- If you catch yourself about to start editing code or running deployment steps, STOP and return to the next unfinished workflow step.
+- If you catch yourself about to start editing code or merging, STOP and return to the next unfinished workflow step.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
@@ -52,7 +52,7 @@ Turn the completed and reviewed work into a PR-ready handoff package with review
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
+- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
@@ -64,11 +64,46 @@ After writing files, return ONLY:
 - ≤3 short blocker bullets if needed
 
 Do this in order:
-1. Summarize the problem, solution, affected areas, verification evidence, risks, and follow-ups in reviewer-friendly language.
-2. If release behavior depends on current external platform guidance or vendor changes, run a targeted freshness pass.
-3. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
-4. Update `00-index.md` accordingly.
-5. Write `.ai/workflows/<slug>/08-handoff.md`.
+1. **Read branch strategy** from `00-index.md` frontmatter: `branch-strategy`, `branch`, `base-branch`.
+2. **Create task list.** Use TaskCreate for the handoff sequence. All metadata: `{ slug, stage: "handoff", slice: "<slice-slug>" }`.
+   - T1: `subject: "Read prior artifacts"`, `activeForm: "Reading workflow artifacts"`.
+   - T2: `subject: "Write handoff summary"`, `activeForm: "Writing handoff summary"`, `addBlockedBy: ["T1"]`.
+   - T3: `subject: "Generate Diátaxis docs"`, `activeForm: "Generating documentation"`, `addBlockedBy: ["T2"]`. If `docs-needed: false`, this task will be deleted in step 5.
+   - T4: `subject: "Push branch to remote"`, `activeForm: "Pushing branch"`, `addBlockedBy: ["T3"]`. If `branch-strategy` is not `dedicated`, will be deleted.
+   - T5: `subject: "Create pull request"`, `activeForm: "Creating PR"`, `addBlockedBy: ["T4"]`. If `branch-strategy` is not `dedicated`, will be deleted.
+   - T6: `subject: "Write 08-handoff.md"`, `activeForm: "Writing handoff artifact"`, `addBlockedBy: ["T5"]`.
+3. Mark T1 `in_progress`. Read all prior artifacts needed for the summary. Mark T1 `completed`.
+4. Mark T2 `in_progress`. Summarize the problem, solution, affected areas, verification evidence, risks, and follow-ups in reviewer-friendly language. Mark T2 `completed`.
+5. Mark T3 `in_progress`. **Documentation generation (Diátaxis):**
+   a. Read `02-shape.md` and check the `## Documentation Plan` section and `docs-needed` / `docs-types` frontmatter.
+   b. If `docs-needed: true`, generate or update documentation for each identified doc type:
+      - **reference**: Write neutral, structured, scannable technical reference for new API surface, CLI commands, config keys, or schemas. Structure around the thing being documented. Use consistent patterns per item type. Examples illustrate, not teach.
+      - **how-to**: Write goal-oriented guides for competent users. Start with the outcome, use imperative steps, include verification. No teaching, no filler.
+      - **tutorial**: Write learning-oriented step-by-step lessons. Concrete destination, visible results early, minimal explanation, no choices. Only for major new capabilities aimed at new users.
+      - **explanation**: Write understanding-oriented content about why, trade-offs, and architecture. Discuss the subject, make connections, compare alternatives. No procedures.
+      - **readme**: Update the README as a landing page — value proposition, quickstart, documentation map. Do not let it become a dumping ground.
+   c. For each doc, respect Diátaxis boundaries — do NOT mix types. If a doc would need to cover both "how to" and "reference", split into two files.
+   d. Write generated docs to the appropriate location in the repo (as identified in the shape's docs plan). If no location was specified, write to `docs/` or update the existing file.
+   e. Include the doc paths in `## Documentation Changes` in the handoff file.
+   f. If `docs-needed: false` or no docs plan exists, `TaskUpdate(T3, status: "deleted")`. Note "No documentation changes" in the handoff.
+   g. Mark T3 `completed` (if not deleted).
+6. If release behavior depends on current external platform guidance or vendor changes, run a targeted freshness pass.
+7. Mark T4 `in_progress`. **Push and create PR (if `branch-strategy` is `dedicated`):**
+   a. Confirm you are on the workflow branch (`branch` field). If not, `git checkout <branch>`.
+   b. Push the branch to remote: `git push -u origin <branch>`.
+   c. Mark T4 `completed`. Mark T5 `in_progress`.
+   d. Create a pull request using `gh pr create`:
+      - Title: use the best PR title from the handoff summary
+      - Body: use the full handoff summary (Summary, Problem, Solution, Affected Areas, Verification Evidence, Risks, Follow-Up Work, Reviewer Focus Areas) formatted as the PR description
+      - Base: `<base-branch>` from the index
+      - Do NOT merge. The PR is for review.
+   e. Record the PR URL and number.
+   f. Update `00-index.md` with `pr-url` and `pr-number`. Mark T5 `completed`.
+   - If `branch-strategy` is `shared`: Push the branch but do NOT create a PR automatically — note in the handoff that the user should create the PR manually or use the handoff content. `TaskUpdate(T5, status: "deleted")`. Mark T4 `completed`.
+   - If `branch-strategy` is `none`: Skip push/PR entirely. `TaskUpdate(T4, status: "deleted")`. `TaskUpdate(T5, status: "deleted")`. The handoff document is the deliverable.
+8. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
+9. Update `00-index.md` accordingly.
+10. Mark T6 `in_progress`. Write `.ai/workflows/<slug>/08-handoff.md`. Mark T6 `completed`.
 
 # Adaptive routing — evaluate what's actually next
 After completing this stage, evaluate the handoff and present the user with ALL viable options:
@@ -100,8 +135,14 @@ stage-number: 8
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 pr-title: "<suggested PR title>"
+pr-url: "<url or empty if branch-strategy is not dedicated>"
+pr-number: <N or 0>
+branch: "<branch name>"
+base-branch: "<target branch>"
 has-migration: <true|false>
 has-config-change: <true|false>
+has-docs-changes: <true|false>
+docs-generated: [<list of doc paths written or updated>]
 tags: []
 refs:
   index: 00-index.md
@@ -138,6 +179,14 @@ next-invocation: "/wf-ship <slug> <slice-slug>"
 
 ## Risks / Caveats
 - ...
+
+## Documentation Changes
+List all docs written or updated by this handoff (from the Diátaxis docs plan in shape):
+- **Type**: reference / how-to / tutorial / explanation / readme
+- **Path**: where it was written
+- **What it covers**: ...
+
+If no docs changes: "None — [reason from shape docs plan]"
 
 ## Follow-Up Work
 - ...

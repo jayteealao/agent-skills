@@ -51,7 +51,7 @@ Turn the intake brief into a compact implementable mini-spec with explicit accep
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
+- **Use AskUserQuestion** for multiple-choice PO questions (risk tolerance, appetite, structured decisions). Use freeform chat for open-ended questions (behavior, acceptance criteria, non-goals). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Use parallel Explore/subagents for multi-domain research when supported. Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
@@ -67,12 +67,34 @@ After writing files, return ONLY:
 
 Do this in order:
 1. Reuse any settled decisions from intake rather than re-asking them.
-2. Ask product-owner questions only for unresolved behavior, acceptance, non-goals, or sequencing that materially changes the spec.
+2. Ask product-owner questions only for unresolved behavior, acceptance, non-goals, or sequencing that materially changes the spec. Use AskUserQuestion for structured choices where applicable:
+   ```
+   Question (if risk tolerance is unclear):
+     question: "What is the risk tolerance for this change?"
+     header: "Risk"
+     options:
+       - label: "Conservative"
+         description: "Minimize blast radius. Feature flags, extra validation, gradual rollout."
+       - label: "Balanced (Recommended)"
+         description: "Standard testing and review. Ship when verified."
+       - label: "Move fast"
+         description: "Minimal ceremony. Accept higher risk for speed."
+     multiSelect: false
+   ```
+   Use freeform chat questions for behavior, acceptance criteria, non-goals, and sequencing — these are too context-dependent for structured options.
 3. Run freshness research (using parallel sub-agents if multi-domain) for external dependencies, patterns, APIs, standards, and known issues that could change the spec.
 4. Produce a small behavior-focused mini-spec.
-5. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
-6. Update `00-index.md` with the recommended default option.
-7. Write `.ai/workflows/<slug>/02-shape.md`.
+5. **Documentation plan (Diátaxis):** Using the shaped spec, classify what documentation this feature needs. Apply the Diátaxis model:
+   - Does this introduce new API surface or config? → needs **reference** docs
+   - Does this add user-facing behavior? → needs a **how-to guide**
+   - Is this a major new capability for new users? → needs a **tutorial**
+   - Does this involve architectural decisions or trade-offs? → needs an **explanation** page
+   - Does this significantly change the project's capabilities? → needs a **README update**
+   - Write the classification into `## Documentation Plan` in the shape file. For each identified doc, note: type, target audience, what it must cover, what it must NOT cover (boundary discipline).
+   - If no user-facing docs are needed (pure internal refactor, test-only change), write "None required" with reasoning.
+6. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
+7. Update `00-index.md` with the recommended default option.
+8. Write `.ai/workflows/<slug>/02-shape.md`.
 
 # Adaptive routing — evaluate what's actually next
 After completing this stage, do NOT blindly recommend `/wf-slice`. Evaluate the shaped spec and present the user with ALL viable options:
@@ -102,6 +124,8 @@ status: complete
 stage-number: 2
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
+docs-needed: <true|false>
+docs-types: [<reference|how-to|tutorial|explanation|readme>]
 tags: []
 refs:
   index: 00-index.md
@@ -146,6 +170,16 @@ next-invocation: "/wf-slice <slug>"
 
 ## Definition of Done
 - ...
+
+## Documentation Plan
+Classify using Diátaxis. For each doc needed, specify:
+- **Type**: tutorial / how-to / reference / explanation / readme-update
+- **Audience**: beginner / competent user / maintainer
+- **Must cover**: ...
+- **Must NOT cover** (boundary): ...
+- **Target location**: where in the repo this doc should live
+
+If no docs needed: "None required — [reason]"
 
 ## Freshness Research
 - Source:

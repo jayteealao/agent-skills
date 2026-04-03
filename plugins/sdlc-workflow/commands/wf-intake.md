@@ -42,8 +42,8 @@ Convert a rough request into a clear intake brief, create the workflow folder, c
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
-- `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `open-questions`, `tags`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`.
-- Prefer AskUserQuestion for PO interaction; fall back to numbered chat questions. Append every answer to `po-answers.md` with timestamp and stage.
+- `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `open-questions`, `tags`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`.
+- **Use AskUserQuestion** for multiple-choice PO questions (branch strategy, rollout preference, merge strategy, go/no-go, risk tolerance). Use freeform chat for open-ended questions (requirements, constraints, acceptance criteria). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Use parallel Explore/subagents for multi-domain research when supported. Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
@@ -62,13 +62,46 @@ Inputs: `$ARGUMENTS` (full raw request), `$0` (first token if supplied).
 Do this in order:
 1. Parse the request and derive the workflow slug.
 2. Create `.ai/workflows/<slug>/` directory. Write `00-index.md` using the index template below. Create `po-answers.md` if missing.
-3. Ask 3 to 7 focused product-owner questions covering:
+3. Ask focused product-owner questions in two batches:
+   **Batch A — Structured questions (use AskUserQuestion):**
+   Call AskUserQuestion with these questions (adjust based on what's already known from `$ARGUMENTS`):
+   ```
+   Question 1:
+     question: "What branch strategy should this workflow use?"
+     header: "Branch"
+     options:
+       - label: "Dedicated (Recommended)"
+         description: "New feature branch, PR at handoff, rebase+merge at ship. Best for tracked, reviewable work."
+       - label: "Shared"
+         description: "Commits on current branch, no PR created. Good for quick fixes on an existing branch."
+       - label: "None"
+         description: "No git management. Workflow artifacts only, you handle commits yourself."
+     multiSelect: false
+
+   Question 2:
+     question: "What is the appetite for this work?"
+     header: "Appetite"
+     options:
+       - label: "Small"
+         description: "A few hours. Single file or minor change. No slicing needed."
+       - label: "Medium"
+         description: "A day or two. Multiple files, may benefit from slicing."
+       - label: "Large"
+         description: "Multiple days. Definitely needs slicing and incremental delivery."
+     multiSelect: false
+   ```
+   If the user chose "Dedicated" for branch strategy, follow up (in chat or a second AskUserQuestion) for:
+   - Preferred branch name (default: `feat/<slug>`)
+   - Base branch (default: `main` or `master`, whichever exists)
+
+   **Batch B — Freeform questions (in chat):**
+   Ask 2-5 additional questions covering:
    - desired outcome and who benefits
    - concrete success criteria
    - explicit non-goals
    - timeline, compliance, operational, or platform constraints
    - already-decided technical constraints or vendor choices
-4. Capture the answers in `po-answers.md`.
+4. Capture ALL answers (structured + freeform) in `po-answers.md`.
 5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
 6. Write the intake brief without designing the implementation.
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
@@ -103,6 +136,11 @@ stage-number: 1
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 selected-slice: ""
+branch-strategy: <dedicated|shared|none>
+branch: "<feat/slug or empty>"
+base-branch: "<main|master|develop>"
+pr-url: ""
+pr-number: 0
 open-questions: []
 tags: []
 next-command: wf-shape

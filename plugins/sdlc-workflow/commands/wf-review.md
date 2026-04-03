@@ -1,7 +1,7 @@
 ---
 name: wf-review
-description: Intelligent review dispatch. Reads workflow artifacts and diff, selects relevant review commands, spawns one parallel sonnet sub-agent per command (each writes its findings to file), then aggregates and deduplicates into a unified review verdict.
-argument-hint: <slug> [slice]
+description: Intelligent review dispatch. Reads workflow artifacts and diff, selects relevant review commands, spawns one parallel sonnet sub-agent per command (each writes its findings to file), then aggregates, deduplicates, and triages findings via AskUserQuestion into a unified review verdict. Re-run with "triage" to revisit deferred findings.
+argument-hint: <slug> [slice | triage]
 disable-model-invocation: true
 ---
 
@@ -25,6 +25,21 @@ You are a **review dispatch orchestrator**, not a problem solver.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
 - If you catch yourself about to start reviewing code directly, STOP — spawn a sub-agent instead.
 
+# TRIAGE MODE
+
+If the second argument is `triage` (e.g., `/wf-review my-feature triage`), skip the full review and jump directly to re-triage:
+
+1. **Resolve slug** from the first argument. Read `00-index.md` for `selected-slice`.
+2. **Read `07-review.md`** — parse the `## Triage Decisions` section. Collect all findings marked `deferred` or `untriaged`.
+3. **If no findings to triage** → print "No deferred or untriaged findings. Run `/wf-review <slug>` for a full review." and STOP.
+4. **Present for triage via AskUserQuestion** — follow the same protocol as Step 4b below, but only show `deferred` and `untriaged` findings.
+5. **Update `07-review.md`** — overwrite the `## Triage Decisions` section with updated decisions. Update `## Recommendations` to reflect new fix/defer/dismiss counts. Preserve all other sections.
+6. **Print summary** — show counts of fix/defer/dismiss and list findings newly marked for fixing.
+
+Then STOP — do not continue to the full review workflow.
+
+---
+
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
@@ -43,6 +58,7 @@ You are a **review dispatch orchestrator**, not a problem solver.
    - `03-slice.md` — master slice index (for sibling context)
    - `po-answers.md`
 6. **Carry forward** `open-questions` from the index.
+7. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch. Review diffs must be generated against the implementation branch. Use `git diff <base-branch>...<branch>` to get the full change set for review dispatch.
 
 # Purpose
 Intelligent review dispatch. Analyse the change set, select which of the 30 review commands are relevant, launch one parallel sonnet sub-agent per selected command, then aggregate all findings into a unified review verdict.
@@ -62,6 +78,21 @@ After writing files, return ONLY:
 - `verdict: <Ship / Ship with caveats / Don't Ship>`
 - `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
+
+---
+
+# Task Tracking
+
+After completing Step 2 (command selection), create a task list using TaskCreate before dispatching sub-agents:
+- One task per selected review command: `subject: "Review: {command}"`, `activeForm: "Dispatching {command} review"`, `metadata: { slug, stage: "review", slice: "<slice-slug>", command: "{command}" }`.
+- Review command tasks are independent — no `addBlockedBy` between them (they run as parallel sub-agents).
+- Add bookkeeping tasks:
+  - "Aggregate + deduplicate findings" — `addBlockedBy: [all review command tasks]`
+  - "Write 07-review.md + verdict" — `addBlockedBy: [aggregate task]`
+
+As each sub-agent returns its `07-review-<command>.md` file: `TaskUpdate(taskId, status: "completed")`.
+When starting aggregation: `TaskUpdate(aggregateTaskId, status: "in_progress")`. Mark `completed` when done.
+When writing final verdict: `TaskUpdate(writeTaskId, status: "in_progress")`. Mark `completed` when done.
 
 ---
 
@@ -95,6 +126,7 @@ Each command maps to `${CLAUDE_PLUGIN_ROOT}/commands/review/<name>.md`.
 ### Core (always include for any code change)
 - `correctness` — logic, invariants, edge cases
 - `security` — vulnerabilities, insecure defaults
+- `code-simplification` — missed reuse, unnecessary complexity, inefficiencies
 
 ### By File Type
 
@@ -170,11 +202,11 @@ Each command maps to `${CLAUDE_PLUGIN_ROOT}/commands/review/<name>.md`.
 - `dx` — only if developer-facing tooling is affected
 
 ### Selection Constraints
-- **Minimum**: 2 commands (always `correctness` + `security`)
+- **Minimum**: 3 commands (always `correctness` + `security` + `code-simplification`)
 - **Maximum**: 12 — prefer depth over breadth for focused changes
 - **User focus override**: if the user specified a focus ("check security"), include those + `correctness`, drop unrelated
-- **Config/docs-only**: drop `correctness`/`backend-concurrency`/`testing`; keep `security`, `docs`, relevant infra/release
-- **Test-only changes**: keep `testing`, `correctness`; drop most others
+- **Config/docs-only**: drop `correctness`/`backend-concurrency`/`testing`/`code-simplification`; keep `security`, `docs`, relevant infra/release
+- **Test-only changes**: keep `testing`, `correctness`, `code-simplification`; drop most others
 
 ### Output the Selection (before dispatching)
 
@@ -288,6 +320,33 @@ After all sub-agents finish:
 
 ---
 
+# Step 4b: Triage ALL Findings via AskUserQuestion
+
+After deduplication, present ALL deduplicated findings to the user for triage using AskUserQuestion. This gives the user explicit control over what gets fixed, deferred, or dismissed.
+
+**For BLOCKER and HIGH findings** — present each individually:
+
+Use AskUserQuestion with one question per finding (batch up to 4 per call):
+- **header**: the finding ID (e.g., "CR-1", "CS-2", "SEC-3")
+- **question**: `"{Source command}: {one-line issue description} at {file}:{line}"`
+- Options:
+  - `Fix` / label: "Fix this", description: "Address in next implement pass"
+  - `Defer` / label: "Defer", description: "Revisit later — run /wf-review <slug> triage"
+  - `Dismiss` / label: "Not an issue", description: "False positive or intentional"
+
+**For MED findings** — present as a batch:
+
+Use AskUserQuestion with `multiSelect: true`:
+- **header**: "MED findings"
+- **question**: "Select which MED findings to address"
+- Options: one per MED finding, label is `{ID}: {title}`, description is `{file}:{line} — {one-line description}`
+
+**For LOW and NIT findings** — list in the report but do NOT prompt. Mention count in the triage summary.
+
+If there are no findings (all commands returned clean), skip this step.
+
+---
+
 # Step 5: Write Review Files
 
 Write the master `07-review.md`:
@@ -364,15 +423,29 @@ next-invocation: "<based on verdict>"
 
 **Severity:** {level} | **Confidence:** {High/Med/Low}
 
+## Triage Decisions
+
+| ID | Sev | Source | Decision | Notes |
+|----|-----|--------|----------|-------|
+| {ID} | {SEV} | {command} | {fix/defer/dismiss} | {user's reason or —} |
+
+{All BLOCKER/HIGH/MED findings from Step 4b. LOW/NIT listed as "untriaged".}
+
 ## Recommendations
 
-### Must Fix (BLOCKER/HIGH)
+### Must Fix (triaged "fix")
 {List with finding IDs and estimated effort}
 
-### Should Fix (MED)
+### Should Fix (MED triaged "fix")
 {List}
 
-### Consider (LOW/NIT)
+### Deferred (triaged "defer")
+{List — re-triage later via `/wf-review <slug> triage`}
+
+### Dismissed
+{List with finding IDs and reason}
+
+### Consider (LOW/NIT — not triaged)
 {List}
 
 ## Recommended Next Stage
