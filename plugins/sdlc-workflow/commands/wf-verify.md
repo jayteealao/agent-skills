@@ -85,17 +85,95 @@ Prompt the agent with ALL of the following:
 - Report coverage percentage for the files this slice changed
 - Flag any new code paths with 0% coverage
 
-### Functional sub-agent 3 — UI & Accessibility (only if the slice touches frontend/UI)
+### Functional sub-agent 3 — Interactive & Visual Verification (when acceptance criteria require it)
 
-Launch ONLY if the slice modifies frontend code, templates, styles, or UI components. Prompt with:
+Launch when `02-shape.md` → `## Verification Strategy` or `04-plan-<slice>.md` → `## Test / Verification Plan` identifies acceptance criteria that need interactive verification. This is how you verify the feature **actually works the way a human would experience it** — automated tests prove code correctness, but interactive verification proves the user-visible behavior.
 
-**Visual verification:**
-- If Storybook or similar exists, check that affected component stories still render
-- If snapshot tests exist, check for expected vs. unexpected snapshot changes
-- If E2E tests exist (Playwright, Cypress, Selenium), run the relevant subset
+Prompt the agent with ALL of the following. Adapt to the project's platform:
 
-**Accessibility checks:**
-- If an accessibility linter exists (eslint-plugin-jsx-a11y, axe-core), run it on affected components
+**Web applications — tool selection (in priority order):**
+
+1. **dev-browser** (preferred) — check if installed: `command -v dev-browser`. If not installed, tell the user:
+   > "Interactive web verification requires `dev-browser`. Install with: `npm install -g dev-browser && dev-browser install`. See https://github.com/SawyerHood/dev-browser"
+
+   If available, use dev-browser for all web verification. It provides Playwright's full Page API in a sandboxed QuickJS runtime with persistent pages across scripts:
+   ```bash
+   dev-browser --headless <<'SCRIPT'
+   const page = await browser.getPage("verify");
+   await page.goto("http://localhost:3000", { waitUntil: "domcontentloaded" });
+   // interact with the page
+   await page.click("button#submit");
+   await page.waitForSelector(".success-message");
+   // capture screenshot evidence
+   const buf = await page.screenshot();
+   await saveScreenshot(buf, "verify-criterion-name.png");
+   // get AI-friendly DOM snapshot for reasoning
+   const snapshot = await page.snapshotForAI();
+   console.log(JSON.stringify(snapshot));
+   SCRIPT
+   ```
+   - Use **persistent named pages** (`browser.getPage("verify")`) to maintain state across multiple verification scripts (e.g., login once, then verify multiple pages)
+   - Use `page.snapshotForAI()` to get LLM-optimized DOM snapshots for reasoning about page structure
+   - Screenshots are saved to `~/.dev-browser/tmp/` — copy them to the evidence directory
+   - Use `--connect` flag instead of `--headless` if the user has a running Chrome with remote debugging enabled
+
+2. **Chrome MCP tools** (fallback) — if `mcp__claude-in-chrome__*` tools are available in the session:
+   - Use `mcp__claude-in-chrome__navigate` to load pages
+   - Use `mcp__claude-in-chrome__read_page` to inspect content
+   - Use `mcp__claude-in-chrome__computer` for interactions (click, type)
+   - Use `mcp__claude-in-chrome__get_page_text` to read page content
+   - Use `mcp__claude-in-chrome__read_console_messages` to check for errors
+   - Use `mcp__claude-in-chrome__read_network_requests` to verify API calls
+
+3. **Playwright directly** (if configured in the project) — run existing Playwright test suites or write inline scripts
+
+**Web verification flow:**
+- Start the dev server if not already running (`npm run dev`, `yarn dev`, etc.)
+- For each interactive acceptance criterion:
+  - Navigate to the relevant page/route
+  - Perform the user actions described in the criterion (click, type, navigate, submit forms)
+  - Capture a screenshot as evidence
+  - **Read the screenshot** to confirm the expected visual state (correct content rendered, layout intact, no error states, expected UI elements visible)
+  - Check the browser console for errors
+  - Check network requests if the criterion involves API calls: verify correct requests sent, responses received
+- Run any existing Playwright/Cypress E2E test suites that cover the affected area
+- Run accessibility checks: axe-core scan via Playwright (`@axe-core/playwright`), eslint-plugin-jsx-a11y, or built-in browser accessibility audit
+
+**Android applications (adb / Maestro):**
+- Build and install the app: `./gradlew installDebug` or equivalent
+- Launch the app on emulator or connected device: `adb shell am start -n <package>/<activity>`
+- For each interactive acceptance criterion:
+  - If Maestro flows exist for this feature, run them: `maestro test <flow>.yaml`
+  - If no Maestro flow exists, use adb commands to navigate: `adb shell input tap`, `adb shell input text`, `adb shell input keyevent`
+  - Capture a screenshot: `adb shell screencap /sdcard/verify-<criterion>.png && adb pull /sdcard/verify-<criterion>.png`
+  - **Read the screenshot** to confirm the expected visual state
+  - Check logcat for errors: `adb logcat -d *:E` filtered to the app's package
+  - If Maestro assertions are available: `assertVisible`, `assertNotVisible`, `assertText`
+- Run any existing Maestro test suites: `maestro test maestro/`
+
+**iOS applications:**
+- Build and install on simulator: `xcodebuild` or `flutter run`
+- Use `xcrun simctl` for simulator interaction, screenshots: `xcrun simctl io booted screenshot verify-<criterion>.png`
+- Run existing XCUITest or Detox test suites if available
+
+**CLI / terminal applications:**
+- Run the command with the relevant inputs
+- Capture stdout/stderr as evidence
+- Verify output matches expected format and content
+- Test error cases: wrong arguments, missing files, permission errors
+
+**Desktop applications:**
+- Launch the app and use available automation tools (PyAutoGUI, Playwright for Electron, etc.)
+- Capture screenshots of the relevant UI states
+
+**For ALL platforms — evidence protocol:**
+1. For each interactive criterion, produce: a screenshot or output capture, a pass/fail determination, and a brief explanation of what was observed
+2. If a screenshot shows unexpected behavior, describe exactly what is wrong
+3. Store evidence files in `.ai/workflows/<slug>/verify-evidence/` (create the directory if needed)
+4. Reference evidence files in the verification report
+
+**Accessibility checks (all UI platforms):**
+- If an accessibility linter exists, run it on affected components
 - Check that new/modified interactive elements have appropriate ARIA attributes, labels, keyboard handling
 - Verify color contrast, focus indicators, and screen reader compatibility if tools are available
 
@@ -216,7 +294,10 @@ metric-checks-run: <N>
 metric-checks-passed: <N>
 metric-acceptance-met: <N>
 metric-acceptance-total: <N>
+metric-interactive-checks-run: <N>
+metric-interactive-checks-passed: <N>
 metric-issues-found: <N>
+evidence-dir: ".ai/workflows/<slug>/verify-evidence/"
 tags: []
 refs:
   index: 00-index.md
@@ -234,11 +315,24 @@ next-invocation: "/wf-review <slug> <slice-slug>"
 
 ## Verification Summary
 
-## Checks Run
-- command/check: result
+## Automated Checks Run
+- command/check: result (pass/fail, summary)
+
+## Interactive Verification Results
+For each criterion that required interactive verification:
+- **Criterion**: what was being verified
+- **Platform & tool**: what was used (Playwright, Maestro, adb, browser automation, etc.)
+- **Steps performed**: what actions were taken
+- **Evidence**: path to screenshot/recording/output (`verify-evidence/<filename>`)
+- **Observation**: what was seen in the screenshot/output
+- **Result**: pass / fail / partial — with explanation
+
+If no interactive verification was needed: "Automated only — [reason]"
 
 ## Acceptance Criteria Status
 - criterion: met / partially met / not met / unverified
+- verification method: automated / interactive / manual
+- evidence: test output / screenshot path / console output
 
 ## Issues Found
 - severity: issue

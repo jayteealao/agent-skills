@@ -73,6 +73,15 @@ Prompt the agent with ALL of the following. It must report findings for each sec
 - What is the testing convention? (unit per module? integration per feature? E2E per user flow?)
 - What areas have thin or missing test coverage relevant to this work?
 
+**Interactive & visual verification tooling:**
+- Is `dev-browser` installed? (`command -v dev-browser`) — preferred tool for web app verification. Provides sandboxed Playwright API with persistent pages, screenshots, and AI-friendly DOM snapshots. If not installed and the project is a web app, note: "recommend installing dev-browser (`npm install -g dev-browser && dev-browser install`)"
+- What E2E/UI test frameworks exist? (Playwright, Cypress, Maestro, Detox, Appium, Selenium, etc.) — check config files and test directories
+- What device/emulator tooling is available? (adb for Android, iOS Simulator, connected devices)
+- Are Chrome MCP tools available in the session? (`mcp__claude-in-chrome__*` — navigate, read_page, computer, screenshots)
+- Are there screenshot comparison or visual regression tools configured? (Percy, Chromatic, Playwright visual comparisons, `adb shell screencap`)
+- What manual/smoke test scripts or checklists exist in the repo? (check `docs/`, `scripts/`, `testing/`, `QA/`)
+- Is there a dev server, preview environment, or local emulator setup for interactive testing?
+
 ### Explore sub-agent 2 — External Dependencies & Freshness
 
 Prompt the agent with ALL of the following:
@@ -204,6 +213,11 @@ next-invocation: "/wf-slice <slug>"
 
 ## Acceptance Criteria
 - Given ... When ... Then ...
+- For each criterion, classify verification method:
+  - `automated` — unit/integration test can prove it
+  - `interactive` — requires running the app and verifying visually or through device interaction (browser, emulator, device)
+  - `manual` — requires human judgement or external system check
+- Interactive criteria MUST specify: what tool/method to use (Playwright, Maestro, adb, browser automation, etc.), what to look for, and how to capture evidence (screenshot, recording, console output)
 
 ## Non-Functional Requirements
 - ...
@@ -228,6 +242,23 @@ next-invocation: "/wf-slice <slug>"
 
 ## Definition of Done
 - ...
+
+## Verification Strategy
+Classify how each acceptance criterion and edge case will be verified:
+
+**Automated checks** (CI/test suite can run these):
+- ...
+
+**Interactive verification** (requires running the app and observing behavior):
+- Platform: web / Android / iOS / desktop / CLI
+- Tool: Playwright / Maestro / adb / browser automation / dev-server + manual / other
+- What to verify: describe the user flow and expected visual/behavioral outcome
+- Evidence capture: screenshot / screen recording / console output / network trace
+
+**Human-in-the-loop checks** (requires human judgement):
+- ...
+
+If purely backend/library with no UI: "Automated only — no interactive verification needed. [reason]"
 
 ## Documentation Plan
 Classify using Diátaxis. For each doc needed, specify:

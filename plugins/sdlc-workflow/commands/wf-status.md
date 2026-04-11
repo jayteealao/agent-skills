@@ -1,0 +1,147 @@
+---
+name: wf-status
+description: Read-only dashboard across all workflows. Reads every .ai/workflows/*/00-index.md, parses frontmatter, and renders a grouped status table. No side effects. Optional slug argument for single-workflow detail view.
+argument-hint: [slug]
+---
+
+You are running `wf-status`, the **dashboard** for all SDLC workflows.
+
+# Pipeline
+1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+
+This command does NOT advance any workflow. It is purely read-only — no files are written, no state is changed.
+
+# CRITICAL — execution discipline
+You are a **dashboard renderer**, not a problem solver.
+- Do NOT modify any workflow files. Do NOT write any artifacts.
+- Do NOT start running stages, fixing issues, or advancing workflows.
+- Your job is to **read all workflow indexes and render a status dashboard**.
+- Follow the numbered steps below **exactly in order**.
+- If you catch yourself about to modify anything, STOP. This command is read-only.
+
+# Step 0 — Discover workflows
+1. **Glob** for all `.ai/workflows/*/00-index.md` files in the project.
+2. If **none found** → tell the user: "No workflows found. Start one with `/wf-intake <description>`." STOP.
+3. If `$ARGUMENTS` contains a slug → switch to **detail mode** for that single workflow (see Detail Mode below).
+4. If no arguments → **dashboard mode** across all workflows.
+
+# Dashboard Mode (no arguments)
+
+Read every `00-index.md` found. For each, parse YAML frontmatter for:
+- `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`
+- `selected-slice-or-focus`, `open-questions`
+- `recommended-next-command`, `recommended-next-invocation`
+- `branch-strategy`, `branch`, `pr-url`, `pr-number`
+- `progress` (if present — e.g., `slices-implemented: 2, slices-total: 5`)
+
+**Classify each workflow into one of three groups:**
+
+1. **Active** — `status` is `in-progress`, `planning`, `implementing`, or any non-terminal, non-blocked status
+2. **Blocked** — `status` is `awaiting-input`, OR `open-questions` is non-empty, OR any prerequisite stage shows awaiting-input
+3. **Completed** — `status` is `complete`, `shipped`, or `abandoned`
+
+**Staleness check:** If `updated-at` is more than 7 days ago, append `(stale)` to the status. Calculate this by running: `date -u +%s` for current time and parsing `updated-at`.
+
+**Render the dashboard:**
+
+```
+## Active Workflows ({count})
+
+| Slug | Title | Stage | Status | Slice | Updated | Next |
+|------|-------|-------|--------|-------|---------|------|
+| <slug> | <title> | <N>·<stage-name> | <status> | <slice or —> | <YYYY-MM-DD> | `<next-invocation>` |
+
+## Blocked ({count})
+
+| Slug | Title | Stage | Blocker | Open Qs | Since |
+|------|-------|-------|---------|---------|-------|
+| <slug> | <title> | <N>·<stage-name> | <reason> | <count> | <YYYY-MM-DD> |
+
+## Completed ({count})
+
+| Slug | Title | Outcome | Stages | Completed |
+|------|-------|---------|--------|-----------|
+| <slug> | <title> | <status> | <N>/10 | <YYYY-MM-DD> |
+```
+
+**After the tables, add a quick-actions section:**
+
+```
+## Quick Actions
+- Resume most recent: `<next-invocation of most recently updated active workflow>`
+- See routing for <slug>: `/wf-next <slug>`
+```
+
+If there are workflows with `branch-strategy: dedicated`, add a branch summary:
+
+```
+## Branch Summary
+| Slug | Branch | Base | PR |
+|------|--------|------|----|
+| <slug> | <branch> | <base-branch> | <pr-url or "not created"> |
+```
+
+# Detail Mode (slug argument provided)
+
+When `/wf-status <slug>` is invoked:
+
+1. **Read `00-index.md`** for the specified slug. If not found → "Workflow `<slug>` not found." STOP.
+2. **Read the `workflow-files` list** from frontmatter and check which files actually exist on disk.
+3. **Read each existing stage file's frontmatter** — parse `status`, `created-at`, `updated-at`, and key metrics from each.
+4. **Render the detail view:**
+
+```
+# Workflow: <title>
+**Slug:** <slug> | **Status:** <status> | **Updated:** <updated-at>
+
+## Stage Progress
+| # | Stage | File | Status | Created | Updated |
+|---|-------|------|--------|---------|---------|
+| 1 | intake | 01-intake.md | ✓ complete | <date> | <date> |
+| 2 | shape | 02-shape.md | ✓ complete | <date> | <date> |
+| 3 | slice | 03-slice.md | ✓ complete | <date> | <date> |
+| 4 | plan | 04-plan.md | → in-progress | <date> | <date> |
+| 5 | implement | — | · pending | — | — |
+| ... | | | | | |
+
+## Slice Progress (if sliced)
+| Slice | Plan | Implement | Verify | Review | Handoff | Ship |
+|-------|------|-----------|--------|--------|---------|------|
+| <slice-slug> | ✓ | → | · | · | · | · |
+| <slice-slug> | ✓ | ✓ | ✓ | → | · | · |
+
+## Key Metrics
+- Files changed: <from implement records>
+- Lines added/removed: <from implement records>
+- Review findings: <from review records>
+- Acceptance criteria met: <from verify records>
+- Interactive checks passed: <from verify records>
+
+## Open Questions
+- <question 1>
+- <question 2>
+(or "None")
+
+## Branch Info
+- Strategy: <branch-strategy>
+- Branch: <branch> (base: <base-branch>)
+- PR: <pr-url or "not created">
+- Current branch: <git branch --show-current> <warning if mismatched>
+
+## Next
+- **Default:** `<recommended-next-invocation>`
+- **Options:** (read from current stage file's ## Recommended Next Stage)
+```
+
+5. For the **slice progress matrix**, glob for all `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`, `06-verify-*.md`, `07-review-*.md` (per-slice review files if they exist), `08-handoff.md` files. Mark each cell:
+   - `✓` — file exists and status is complete
+   - `→` — file exists and status is in-progress or awaiting-input
+   - `✗` — file exists and status is failed
+   - `·` — file does not exist (pending)
+
+6. For **branch info**, run `git branch --show-current` and compare with the workflow's `branch` field. Warn if mismatched.
+
+# Chat return contract
+Return ONLY the rendered dashboard or detail view. No preamble, no explanations beyond the tables. The dashboard IS the output.
+
+If the user is clearly trying to resume work (e.g., returning after a break), end with a suggestion: "Run `/wf-next <slug>` for routing details, or the next command directly."

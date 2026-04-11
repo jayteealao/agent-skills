@@ -107,7 +107,7 @@ Launch ONLY if the slice touches a second distinct domain (e.g., frontend + back
 - Where is the contract defined? (OpenAPI spec, protobuf files, TypeScript shared types, JSON schema)
 - What happens if the contract changes? (breaking change propagation, versioning strategy, backward compatibility requirements)
 
-### Explore sub-agent 3 — Test Infrastructure
+### Explore sub-agent 3 — Test & Verification Infrastructure
 
 Prompt the agent with ALL of the following:
 
@@ -131,6 +131,16 @@ Prompt the agent with ALL of the following:
 - What assertion style is used? (expect/assert, BDD given/when/then, table-driven tests)
 - How are mocks/stubs created? (jest.mock, sinon, dependency injection, test doubles)
 - How are async operations tested? (async/await, done callbacks, fake timers, test servers)
+
+**Interactive & visual verification tooling:**
+- Is `dev-browser` installed? (`command -v dev-browser`) — preferred tool for web app interactive verification (sandboxed Playwright API, persistent pages, screenshots, `page.snapshotForAI()`). If not installed and the project is a web app, note this as a gap and recommend: `npm install -g dev-browser && dev-browser install`
+- Identify E2E/UI test frameworks: Playwright (check `playwright.config.*`), Cypress (`cypress.config.*`), Maestro (`maestro/`, `.maestro/`, `*.yaml` flows), Detox, Appium
+- Identify device/emulator tooling: Is `adb` available for Android? Is there an emulator configured? Are there connected device profiles?
+- Are Chrome MCP tools available? (`mcp__claude-in-chrome__*` — fallback for web verification if dev-browser is not installed)
+- Check for screenshot/visual regression infrastructure: Percy, Chromatic, Playwright `toHaveScreenshot()`, Maestro `assertVisible`/`takeScreenshot`, `adb shell screencap`
+- Check for dev server / preview environment scripts: `npm run dev`, `npm run preview`, Android `./gradlew installDebug`, iOS build schemes
+- Look for existing smoke test scripts, QA checklists, or manual test plans in the repo
+- **Report which acceptance criteria from `02-shape.md` → `## Verification Strategy` need interactive verification and what tools are available to do it**
 
 ### Web research sub-agent — Dependencies & External Knowledge
 
@@ -391,7 +401,21 @@ next-invocation: "/wf-implement <slug> <slice-slug>"
 1. ...
 
 ## Test / Verification Plan
-- ...
+
+### Automated checks
+- lint/typecheck: ...
+- unit tests: ...
+- integration tests: ...
+
+### Interactive verification (human-in-the-loop)
+For each acceptance criterion tagged `interactive` in the shape's verification strategy:
+- **What to verify**: describe the user-visible behavior
+- **Platform & tool**: Android (adb + Maestro) / Web (Playwright / browser automation) / iOS / Desktop / CLI
+- **Steps**: exact commands or tool invocations to run the app, navigate to the feature, and observe the behavior
+- **Evidence capture**: how to capture proof it works — screenshot (`adb shell screencap`, Playwright `page.screenshot()`, Maestro `takeScreenshot`), screen recording, console output, network trace
+- **Pass criteria**: what the screenshot/output must show for this to be considered verified
+
+If no interactive verification needed: "Automated only — [reason]"
 
 ## Risks / Watchouts
 - ...

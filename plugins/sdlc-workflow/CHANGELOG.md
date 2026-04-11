@@ -5,6 +5,41 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.11.0] - 2026-04-11
+
+### Added — `wf-status` dashboard command
+- **`wf-status`** — new read-only command that renders a grouped dashboard across all workflows. No side effects, no artifacts written.
+  - **Dashboard mode** (`/wf-status`): Globs all `.ai/workflows/*/00-index.md`, parses frontmatter, groups workflows into Active / Blocked / Completed tables with slug, title, stage, status, slice, last updated, next command. Includes staleness detection (>7 days), branch summary for dedicated-branch workflows, and quick-actions section.
+  - **Detail mode** (`/wf-status <slug>`): Single-workflow deep view with stage progress table (✓/→/✗/· per stage), slice progress matrix (plan through ship per slice), key metrics (files changed, review findings, acceptance criteria, interactive checks), open questions, branch info with mismatch warnings, and next-step options.
+- Plugin description updated to reflect 12 lifecycle commands (10 stages + wf-next + wf-status).
+
+## [7.10.0] - 2026-04-11
+
+### Added — dev-browser as preferred web verification tool
+- **`wf-verify`** — web verification now uses a prioritized tool chain: (1) `dev-browser` (preferred — sandboxed Playwright, persistent pages, `page.snapshotForAI()`, screenshots to `~/.dev-browser/tmp/`), (2) Chrome MCP tools (`mcp__claude-in-chrome__*`) as fallback, (3) Playwright directly if configured. Includes installation prompt if dev-browser is not available and the project is a web app.
+- **`wf-verify`** — web verification section includes complete dev-browser usage patterns: heredoc scripts, persistent named pages, `--headless` vs `--connect` modes, AI-friendly DOM snapshots.
+- **`wf-shape`** — exploration sub-agent now checks for `dev-browser` availability and recommends installation for web projects.
+- **`wf-plan`** — test infrastructure sub-agent now checks for `dev-browser` and Chrome MCP tools, reports gaps for web projects.
+- All three commands replace vague "agent-browser/dev-browser" references with concrete tool detection and usage patterns.
+
+## [7.9.0] - 2026-04-11
+
+### Added — Interactive & visual verification (human-in-the-loop testing)
+- **`wf-shape`** — new `## Verification Strategy` section in the shape template classifying each acceptance criterion as `automated`, `interactive`, or `manual`. Interactive criteria must specify platform, tool, and evidence capture method.
+- **`wf-shape`** — exploration sub-agent 1 now discovers interactive verification tooling: E2E frameworks (Playwright, Maestro, Detox, Cypress), device tooling (adb, emulators), browser automation (chrome MCP tools, agent-browser/dev-browser), screenshot/visual regression infrastructure, dev server scripts, and QA checklists.
+- **`wf-shape`** — acceptance criteria template now requires verification method classification per criterion.
+- **`wf-plan`** — test infrastructure sub-agent now discovers interactive verification tooling and maps it to acceptance criteria from the shape's verification strategy.
+- **`wf-plan`** — `## Test / Verification Plan` template split into automated checks and interactive verification sections with per-criterion platform, tool, steps, evidence capture, and pass criteria.
+- **`wf-verify`** — replaced narrow "UI & Accessibility" sub-agent with comprehensive "Interactive & Visual Verification" sub-agent covering:
+  - **Web**: Playwright / browser automation — start dev server, navigate, interact, screenshot, read screenshot, check console/network
+  - **Android**: adb / Maestro — build, install, launch, run flows, screencap, read screenshot, check logcat
+  - **iOS**: xcrun simctl / XCUITest / Detox — build, screenshot, run existing test suites
+  - **CLI**: run commands, capture stdout/stderr, verify output format
+  - **Desktop**: automation tools, screenshot capture
+  - **Evidence protocol**: screenshot per criterion, stored in `.ai/workflows/<slug>/verify-evidence/`, referenced in report
+- **`wf-verify`** — template gains `## Interactive Verification Results` section with per-criterion evidence chain (tool, steps, screenshot path, observation, result).
+- **`wf-verify`** — frontmatter gains `metric-interactive-checks-run`, `metric-interactive-checks-passed`, `evidence-dir` fields.
+
 ## [7.8.0] - 2026-04-11
 
 ### Changed — Extensive sub-agent exploration playbooks across the pipeline
