@@ -56,10 +56,41 @@ You are a **workflow orchestrator** running the implementation stage.
    - If `branch-strategy` is `none` → skip all branch management.
 
 # Parallel research (use sub-agents when supported)
-Before implementing, if the plan touches multiple distinct areas:
-- **Explore sub-agent 1:** Re-check the current state of the files listed in the plan. Confirm they haven't changed since planning (especially if sibling slices were implemented between plan and now).
-- **Explore sub-agent 2:** If external APIs or dependencies are involved, run a quick freshness check.
-- Merge findings. If the codebase has diverged (e.g., a sibling slice changed shared files), note this and adapt.
+Before implementing, launch parallel sub-agents to verify the plan is still accurate. Do not spin up sub-agents for trivial single-file changes.
+
+### Explore sub-agent 1 — Pre-Implementation Codebase Verification
+
+Prompt the agent with ALL of the following. It must report findings for each section:
+
+**Plan drift detection:**
+- For each file listed in `04-plan-<slice-slug>.md` → `## Likely Files / Areas to Touch`, read the current version and compare against the plan's assumptions
+- Check `git log --oneline --since="<plan-created-at>"` on each affected file — has it been modified since the plan was written?
+- If sibling slices were implemented between plan and now, read their `05-implement-<other>.md` to understand what changed
+- Flag any file that has moved, been renamed, deleted, or significantly refactored since planning
+
+**Current state of the implementation target:**
+- Read each file that will be modified. Report: current line count, key functions/classes, any TODO/FIXME/HACK comments in the affected area
+- Check for merge conflicts or uncommitted changes in the affected files (`git status`, `git diff` on those paths)
+- Verify that imports, types, and interfaces the plan depends on still exist and have the same signatures
+
+**Convention verification:**
+- Read 2–3 recently modified files in the same module/directory to confirm the coding conventions the plan assumed (naming, error handling, logging patterns) haven't changed
+- Check for new linting rules, config changes, or dependency updates that affect the implementation approach
+
+### Explore sub-agent 2 — Dependency & API Freshness (only if external dependencies are involved)
+
+Launch ONLY if the plan involves external APIs, third-party libraries, or cross-service communication. Prompt with:
+
+**Dependency state:**
+- Check if any dependency versions in the manifest changed since planning
+- Web search for breaking changes, deprecations, or security advisories published since the plan was written
+- Verify that API endpoints, SDK methods, or library functions the plan references still exist and have the same signatures in the project's version
+
+**Cross-service state:**
+- If the slice communicates with another service (API, queue, database), check that service's current schema/contract hasn't changed
+- Check for new environment variables, config keys, or feature flags that affect the integration
+
+Merge findings. If the codebase has diverged significantly, note specific deviations in the implementation record and adapt the plan steps before implementing.
 
 # Purpose
 Implement one selected planned slice with the smallest coherent diff that fits the repo and current best practices. Write a per-slice implementation record with cross-links.

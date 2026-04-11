@@ -40,7 +40,7 @@
       "description": "Complete SDLC workflow with integrated code review, Diátaxis documentation, analysis, observability, and git lifecycle. 11 lifecycle commands, 31 review commands, 7 aggregate reviews, 11 skills (analysis + Diátaxis), and setup-wide-logging.",
       "source": "./plugins/sdlc-workflow",
       "category": "productivity",
-      "version": "7.7.0"
+      "version": "7.8.0"
     }
   ]
 }

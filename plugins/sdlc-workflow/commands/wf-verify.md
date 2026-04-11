@@ -44,12 +44,71 @@ You are a **workflow orchestrator**, not a problem solver.
 7. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch (`git branch --show-current`). If not, switch to it. Verification must run against the implementation branch, not the base branch.
 
 # Parallel verification (use sub-agents when supported)
-When verification spans multiple concerns, launch parallel sub-agents:
-- **Sub-agent 1:** Run lint, typecheck, and build checks.
-- **Sub-agent 2:** Run unit and integration tests.
-- **Sub-agent 3:** If the change touches UI/frontend, run accessibility or visual checks.
-- **Sub-agent 4:** If external dependency freshness could affect test results, run a freshness check.
-- Merge all results. Do not spin up sub-agents when a single test command covers everything.
+When verification spans multiple concerns, launch parallel sub-agents. Do not spin up sub-agents when a single test command covers everything.
+
+### Functional sub-agent 1 — Static Analysis & Build
+
+Prompt the agent with ALL of the following:
+
+**Lint & format checks:**
+- Detect the project's linter(s) from config files (`.eslintrc*`, `biome.json`, `ruff.toml`, `.golangci.yml`, `Cargo.toml [lints]`, etc.)
+- Run the lint command: `npm run lint`, `ruff check .`, `golangci-lint run`, `cargo clippy`, etc.
+- Report: pass/fail, count of errors vs. warnings, which errors are in files this slice changed vs. pre-existing
+
+**Type checking:**
+- Detect the type system (`tsconfig.json`, `mypy.ini`, `pyright`, Go compiler, Rust compiler)
+- Run the type check: `npx tsc --noEmit`, `mypy .`, `go build ./...`, `cargo check`, etc.
+- Report: pass/fail, type errors in slice-affected files vs. pre-existing
+
+**Build verification:**
+- Run the project build command: `npm run build`, `go build ./...`, `cargo build`, `make`, etc.
+- Report: success/failure, build warnings, output artifact verification
+
+### Functional sub-agent 2 — Test Execution
+
+Prompt the agent with ALL of the following:
+
+**Unit tests:**
+- Identify which test files cover the slice's affected code (grep for imports of affected modules in test files)
+- Run those specific tests first with verbose output
+- Then run the full unit test suite to check for regressions
+- Report: total/passed/failed/skipped, any failures with full error output, test duration
+
+**Integration tests:**
+- Identify integration test suites that cover the affected area
+- Run them with verbose output
+- Report: total/passed/failed/skipped, any failures with full error output
+- Note any tests that are flaky (check git log for recent skip/unskip patterns)
+
+**Coverage (if available):**
+- Run tests with coverage enabled if the project has it configured
+- Report coverage percentage for the files this slice changed
+- Flag any new code paths with 0% coverage
+
+### Functional sub-agent 3 — UI & Accessibility (only if the slice touches frontend/UI)
+
+Launch ONLY if the slice modifies frontend code, templates, styles, or UI components. Prompt with:
+
+**Visual verification:**
+- If Storybook or similar exists, check that affected component stories still render
+- If snapshot tests exist, check for expected vs. unexpected snapshot changes
+- If E2E tests exist (Playwright, Cypress, Selenium), run the relevant subset
+
+**Accessibility checks:**
+- If an accessibility linter exists (eslint-plugin-jsx-a11y, axe-core), run it on affected components
+- Check that new/modified interactive elements have appropriate ARIA attributes, labels, keyboard handling
+- Verify color contrast, focus indicators, and screen reader compatibility if tools are available
+
+### Web research sub-agent 4 — Freshness Impact on Test Results (only if external dependencies could affect tests)
+
+Launch ONLY if test results could be affected by external dependency state changes. Prompt with:
+
+**Dependency drift:**
+- If any test failures occur, check whether the failing library/API has released breaking changes since the plan was written
+- Web search for known test compatibility issues with the project's dependency versions
+- Check if test fixtures or mock data reference external schemas/APIs that may have changed
+
+Merge all sub-agent results. For each check, record: command run, pass/fail, relevant output. Do NOT fix issues — only report them.
 
 # Purpose
 Verify that the selected slice meets acceptance criteria and is ready for review.

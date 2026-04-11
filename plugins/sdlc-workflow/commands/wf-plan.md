@@ -63,25 +63,111 @@ You are a **workflow orchestrator**, not a problem solver.
 Create repo-aware, slice-specific implementation plans after inspecting current code and current external guidance. Write per-slice plan files with cross-links to their slice definition, sibling plans, and future implementation files.
 
 # Parallel research (use sub-agents for ALL planning)
-Planning is research-intensive. Use parallel sub-agents to gather information before writing the plan:
+Planning is research-intensive. Launch parallel sub-agents to gather information before writing the plan. Do not spin up sub-agents for trivial or single-file work.
 
-**For single-plan mode:**
-- **Explore sub-agent 1:** Scan the codebase for files, modules, patterns, conventions, and test structure relevant to the selected slice.
-- **Explore sub-agent 2:** If the slice touches a second distinct domain (e.g., frontend + backend), scan that domain separately.
-- **Web research sub-agent:** Freshness pass on external dependencies, APIs, migration paths, or standards that affect the plan.
-- Merge all sub-agent findings into the plan.
+**For single-plan mode — launch ALL of these in parallel:**
+
+### Explore sub-agent 1 — Affected Code Deep Dive
+
+Prompt the agent with ALL of the following. It must report findings for each section:
+
+**Files & modules the slice will touch:**
+- For each file listed in the slice definition's `## Likely Files / Areas to Touch`, read it and report: current size, key exports/classes/functions, recent git activity (`git log -5 --oneline <file>`)
+- Identify which functions/methods will need modification vs. which are new
+- Check for generated or auto-derived files that would be affected (types generated from schemas, ORM models from migrations, route tables from decorators)
+
+**Call graph & dependency chain:**
+- For each module the slice touches, trace **inbound callers** — use grep for imports/requires of that module across the codebase
+- Trace **outbound dependencies** — what does the module import, call, or instantiate?
+- Identify **shared state** — global variables, singletons, caches, database connections, event buses that the slice code participates in
+- Map the request/data flow through the affected code: entry point → middleware/interceptors → handler → service → repository/store → response
+
+**Existing patterns & conventions in the affected area:**
+- Read 3–5 representative files in the same directory/module. Report: naming conventions (files, functions, variables, CSS classes), error handling pattern (try/catch, Result types, error middleware), dependency injection style, logging approach
+- Check for linting rules, prettier config, or editorconfig that constrain code style
+- Look for README or CONTRIBUTING docs in the affected directory
+
+**Integration surfaces:**
+- What events, hooks, callbacks, or pub/sub channels does the affected area participate in?
+- What middleware, interceptors, decorators, or higher-order wrappers exist on the affected code path?
+- What configuration (env vars, config files, feature flags) controls the affected behavior?
+- Are there database migrations, schema files, or seed data that would need updating?
+
+### Explore sub-agent 2 — Second Domain (only if the slice crosses domain boundaries)
+
+Launch ONLY if the slice touches a second distinct domain (e.g., frontend + backend, CLI + library, API + worker, infra + application). Prompt with:
+
+**Domain-specific structure:**
+- Map the second domain's directory structure, entry points, and organizational pattern
+- Identify the public API surface between the two domains (shared types, API contracts, message schemas, event definitions)
+- Read 3–5 representative files in the second domain for conventions
+
+**Cross-domain contract:**
+- How do the two domains communicate? (HTTP API, gRPC, message queue, shared DB, file system, IPC)
+- Where is the contract defined? (OpenAPI spec, protobuf files, TypeScript shared types, JSON schema)
+- What happens if the contract changes? (breaking change propagation, versioning strategy, backward compatibility requirements)
+
+### Explore sub-agent 3 — Test Infrastructure
+
+Prompt the agent with ALL of the following:
+
+**Test framework & configuration:**
+- Identify the test framework(s) in use (Jest, Vitest, pytest, Go testing, etc.) and their configuration files
+- Find test configuration: timeouts, parallelism settings, coverage thresholds, custom matchers/assertions
+
+**Existing test coverage for the affected area:**
+- Find all test files that cover the modules the slice will touch (grep for imports of affected modules in test files)
+- Classify each test file: unit, integration, E2E, snapshot, contract
+- Run the existing tests for the affected area if possible (`npm test -- --grep <pattern>`, `pytest -k <pattern>`, etc.) — report pass/fail/skip counts
+- Identify **gaps**: which functions/branches in the affected area have NO test coverage?
+
+**Test helpers & infrastructure:**
+- List test factories, fixtures, builders, and mock utilities (file paths and what they provide)
+- Identify test database setup/teardown patterns (in-memory DB, docker containers, test transactions, seed data)
+- Check for test environment configuration (`.env.test`, test config files, CI-specific test settings)
+- Look for shared test utilities that the new tests should reuse rather than reinvent
+
+**Test patterns in use:**
+- What assertion style is used? (expect/assert, BDD given/when/then, table-driven tests)
+- How are mocks/stubs created? (jest.mock, sinon, dependency injection, test doubles)
+- How are async operations tested? (async/await, done callbacks, fake timers, test servers)
+
+### Web research sub-agent — Dependencies & External Knowledge
+
+Prompt the agent with ALL of the following:
+
+**Dependency freshness:**
+- Check the project's package manifest for versions of dependencies the slice touches
+- Web search for the **latest stable version** of each — note if the project is behind and whether upgrading matters for this slice
+- Check for **deprecation notices** or **breaking changes** between the project's version and current
+
+**API & library patterns:**
+- Web search for official documentation of each dependency/API the slice interacts with
+- Verify that patterns in the codebase match the library's **recommended approach** for the project's version
+- Check for **migration guides** if the slice involves upgrading or if the current version is approaching EOL
+
+**Security & known issues:**
+- Web search for recent CVEs or security advisories affecting dependencies the slice touches
+- Check GitHub issues on relevant dependency repos for known bugs that could affect this slice
+- Note any advisories that require specific mitigations in the plan
+
+Merge ALL sub-agent findings into the plan under `## Current State`, `## Likely Files / Areas to Touch`, and `## Freshness Research`.
 
 **For parallel plan mode (`all`):**
 Launch one sub-agent PER SLICE. Each sub-agent:
 1. Receives: the slug, its slice-slug, the `03-slice-<slice-slug>.md` content, `02-shape.md` content, and the output path `.ai/workflows/<slug>/04-plan-<slice-slug>.md`.
 2. Also receives: the list of all other slice-slugs so it can note dependencies.
-3. Explores the codebase for its slice's relevant files, patterns, and test structure.
-4. Runs a freshness pass if its slice depends on external knowledge.
-5. **Writes its plan directly to `.ai/workflows/<slug>/04-plan-<slice-slug>.md`** using the per-slice template below.
+3. Runs **all four exploration playbooks above** (affected code, second domain if applicable, test infrastructure, web research) scoped to its slice.
+4. **Writes its plan directly to `.ai/workflows/<slug>/04-plan-<slice-slug>.md`** using the per-slice template below.
 
 After ALL slice sub-agents complete:
 1. **Read every `04-plan-<slice-slug>.md` file** they wrote.
-2. **Cohesion check:** Look for conflicts, duplicated work, shared dependencies, ordering constraints, or integration gaps between slice plans.
+2. **Cohesion check** — specifically look for:
+   - Files that appear in multiple slice plans (shared modification conflict risk)
+   - Database migrations or schema changes that conflict or must be ordered
+   - Shared test fixtures or mocks that one slice creates and another assumes
+   - API contract changes in one slice that break assumptions in another
+   - Configuration or environment variable changes that interact
 3. **Write/update the master `04-plan.md`** with summaries, cross-cutting concerns, and recommended implementation order.
 4. **Update cross-links** in each per-slice plan to reference sibling plans.
 5. If cohesion issues are severe, flag them and recommend revisiting `/wf-slice` before implementing.

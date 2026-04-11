@@ -37,10 +37,67 @@ You are a **workflow orchestrator**, not a problem solver.
 5. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
 
 # Parallel research (use sub-agents when supported)
-When the shaped spec touches multiple domains, launch parallel sub-agents:
-- **Explore agent 1:** Scan the existing codebase for affected modules, existing patterns, conventions, and test structure relevant to the shaped work.
-- **Explore agent 2:** Web search for freshness on external dependencies, APIs, frameworks, or standards mentioned in the intake.
-- Merge findings into the stage file. Do not spin up sub-agents for trivial or single-domain work.
+When the shaped spec touches multiple domains, launch parallel sub-agents. Do not spin up sub-agents for trivial or single-domain work.
+
+### Explore sub-agent 1 — Codebase Architecture & Integration Surface
+
+Prompt the agent with ALL of the following. It must report findings for each section:
+
+**Directory & module structure:**
+- Map the top-level directory structure and identify the organizational pattern (monorepo, feature folders, layer-based, domain-driven)
+- Identify the entry points (main/index/app/server files) and trace how the request reaches the area this work will touch
+- List the key modules/packages/namespaces involved and their public API surfaces (exports, exposed functions, classes, types)
+
+**Existing patterns & conventions:**
+- Identify naming conventions (files, functions, variables, CSS classes, DB columns) — look at 3-5 representative files in the affected area
+- Identify error handling patterns (try/catch style, Result types, error middleware, custom error classes)
+- Identify dependency injection or service location patterns (constructors, providers, containers, global singletons)
+- Identify configuration patterns (env vars, config files, feature flags, secrets management)
+- Identify logging/observability patterns (structured logging, log levels, tracing, metrics)
+
+**Integration surfaces:**
+- What code **calls into** the affected area? (callers, consumers, dependents — use grep for imports/requires of affected modules)
+- What does the affected area **call out to**? (downstream dependencies, external services, databases, message queues, caches)
+- What events, hooks, callbacks, or pub/sub channels does the affected area participate in?
+- What middleware, interceptors, or decorators wrap the affected code path?
+
+**Data flow:**
+- Trace the primary data flow: input source → validation → transformation → persistence → response
+- Identify data models/schemas/types involved (DB schemas, API request/response types, domain models)
+- Identify serialization boundaries (JSON parse/stringify, protobuf, ORM hydration)
+
+**Test structure:**
+- What test framework is in use? (Jest, Vitest, pytest, Go testing, etc.)
+- Where do tests live relative to source? (co-located `__tests__/`, centralized `tests/`, `*_test.go` beside source)
+- What test helpers, factories, fixtures, and mocks exist? (list file paths)
+- What is the testing convention? (unit per module? integration per feature? E2E per user flow?)
+- What areas have thin or missing test coverage relevant to this work?
+
+### Explore sub-agent 2 — External Dependencies & Freshness
+
+Prompt the agent with ALL of the following:
+
+**Dependency versions & compatibility:**
+- Check the project's package manifest (package.json, requirements.txt, go.mod, Cargo.toml, etc.) for the versions of dependencies this work touches
+- Web search for the **latest stable version** of each relevant dependency — note if the project is behind and whether upgrading is needed or risky
+- Check for **deprecation notices** or **breaking changes** between the project's version and the latest
+
+**Library documentation & patterns:**
+- Web search for the official documentation of each dependency/API this work interacts with
+- Verify that the patterns currently used in the codebase match the library's **recommended approach** for the project's version
+- Check for **migration guides** if the work involves upgrading or if the current version is approaching EOL
+
+**Security advisories:**
+- Web search for recent CVEs or security advisories affecting the dependencies this work touches
+- Check GitHub issues/security advisories for the relevant repositories
+- Note any advisories that affect the approach or require specific mitigations
+
+**Ecosystem context:**
+- Check GitHub issues and PRs on the relevant dependency repos for known bugs that could affect this work
+- Check if there are community-recommended alternatives or complementary libraries that the shaped spec should consider
+- Search for relevant blog posts, release announcements, or RFC documents that affect architectural decisions
+
+Merge all sub-agent findings into the stage file under `## Affected Areas`, `## Dependencies / Sequencing Notes`, and `## Freshness Research`.
 
 # Purpose
 Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.

@@ -5,6 +5,35 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.8.0] - 2026-04-11
+
+### Changed — Extensive sub-agent exploration playbooks across the pipeline
+- **`wf-shape`** — replaced vague 3-line sub-agent instructions with detailed exploration playbook:
+  - Explore sub-agent 1: 5 sections (directory/module structure, existing patterns/conventions, integration surfaces, data flow, test structure) each with 3–5 specific investigation items
+  - Explore sub-agent 2: 4 sections (dependency versions/compatibility, library documentation/patterns, security advisories, ecosystem context) each with 3–4 specific items
+- **`wf-plan`** — replaced vague single-plan instructions with 4 detailed sub-agent playbooks:
+  - Explore sub-agent 1 (Affected Code Deep Dive): files/modules, call graph/dependency chain, existing patterns, integration surfaces
+  - Explore sub-agent 2 (Second Domain): domain-specific structure, cross-domain contract — launched only when slice crosses domain boundaries
+  - Explore sub-agent 3 (Test Infrastructure): framework/config, existing coverage, test helpers, test patterns
+  - Web research sub-agent: dependency freshness, API/library patterns, security/known issues
+  - Enhanced parallel plan mode with specific cohesion check items (shared files, migrations, test fixtures, API contracts, config)
+- **`wf-implement`** — replaced vague 3-line pre-implementation check with 2 detailed sub-agent playbooks:
+  - Explore sub-agent 1 (Pre-Implementation Codebase Verification): plan drift detection, current state verification, convention verification
+  - Explore sub-agent 2 (Dependency & API Freshness): dependency state, cross-service state — launched only when external dependencies involved
+- **`wf-verify`** — replaced vague 4-line sub-agent list with 4 detailed functional sub-agent playbooks:
+  - Functional sub-agent 1 (Static Analysis & Build): lint/format, type checking, build verification with specific commands per ecosystem
+  - Functional sub-agent 2 (Test Execution): unit tests, integration tests, coverage — with targeted then full-suite strategy
+  - Functional sub-agent 3 (UI & Accessibility): visual verification, accessibility checks — launched only for frontend changes
+  - Web research sub-agent 4 (Freshness Impact): dependency drift, known issues — launched only when external deps could affect tests
+- **`wf-ship`** — replaced vague 3-line sub-agent list with 3 detailed sub-agent playbooks:
+  - Web research sub-agent 1 (Deployment Target & Platform Status): platform health, version requirements, breaking changes
+  - Web research sub-agent 2 (Dependency Security & Advisories): CVEs since implementation, known issues affecting release
+  - Explore sub-agent 3 (CI/CD & Release Infrastructure): CI config, release scripts, rollback capability
+- **`wf-retro`** — replaced vague 3-line sub-agent list with 3 detailed analysis sub-agent playbooks:
+  - Analysis sub-agent 1 (Implementation & Verification Friction): plan drift, verification effectiveness, time/iteration analysis
+  - Analysis sub-agent 2 (Review & Handoff Quality): findings analysis, handoff completeness, communication gaps
+  - Explore sub-agent 3 (Repo Infrastructure Improvement): CLAUDE.md/AGENTS.md gaps, hook/automation opportunities, test/CI gaps
+
 ## [7.7.0] - 2026-04-03
 
 ### Added — PreCompact hook and stage-boundary compaction guidance

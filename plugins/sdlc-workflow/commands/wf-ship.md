@@ -36,11 +36,61 @@ You are a **workflow orchestrator**, not a problem solver.
 6. **Carry forward** `open-questions` from the index.
 
 # Parallel research (use sub-agents when supported)
-Ship decisions often need current external information. Launch parallel sub-agents:
-- **Web research sub-agent 1:** Check deployment target for current advisories, outages, version requirements, or breaking changes.
-- **Web research sub-agent 2:** Check external dependencies for new security advisories or known issues since the plan was written.
-- **Explore sub-agent:** Scan the repo's CI/CD config, deployment scripts, and release infrastructure to confirm the rollout plan is feasible.
-- Do not spin up sub-agents for simple internal deployments.
+Ship decisions often need current external information. Launch parallel sub-agents. Do not spin up sub-agents for simple internal deployments with no external dependencies.
+
+### Web research sub-agent 1 — Deployment Target & Platform Status
+
+Prompt the agent with ALL of the following:
+
+**Platform health:**
+- Web search for current status/outage pages of the deployment target (AWS status, Vercel status, npm registry status, PyPI status, etc.)
+- Check for scheduled maintenance windows that overlap with the planned release window
+- Search for recent incidents or degradations that could affect deployment
+
+**Platform version requirements:**
+- Check if the deployment target has updated runtime requirements (Node.js version, Python version, OS version)
+- Web search for deprecation notices on the deployment platform that affect this project
+- Verify that the project's runtime version is still supported by the target platform
+
+**Breaking changes & migration requirements:**
+- Web search for recent platform changelog entries that affect the deployment method or configuration
+- Check if CI/CD pipeline plugins or actions have new required versions
+- Look for new security requirements (e.g., new signing requirements, token format changes, MFA enforcement)
+
+### Web research sub-agent 2 — Dependency Security & Advisories
+
+Prompt the agent with ALL of the following:
+
+**Security advisories since implementation:**
+- Web search for CVEs published since the implementation was written (`05-implement-<slice>.md` `created-at`) affecting project dependencies
+- Check GitHub Security Advisories for the dependency repositories
+- Search for npm/pip/cargo audit findings: `npm audit`, `pip-audit`, `cargo audit`
+
+**Known issues affecting release:**
+- Check GitHub issues on key dependency repos for bugs that could manifest in production but not in tests
+- Search for regression reports in the dependency versions the project uses
+- Look for community reports of deployment failures with the same dependency stack
+
+### Explore sub-agent 3 — CI/CD & Release Infrastructure
+
+Prompt the agent with ALL of the following:
+
+**CI/CD configuration:**
+- Read CI config files (`.github/workflows/*.yml`, `.gitlab-ci.yml`, `Jenkinsfile`, `.circleci/config.yml`, `Dockerfile`, `docker-compose*.yml`)
+- Identify the deployment pipeline: build → test → deploy stages, required checks, approval gates
+- Check if the CI config has changed since the implementation was committed
+
+**Release infrastructure:**
+- Identify release scripts (`scripts/deploy*`, `scripts/release*`, `Makefile` targets, `package.json` scripts)
+- Check for feature flag configuration files or services the rollout plan depends on
+- Verify that environment variable requirements for deployment are documented and available
+
+**Rollback capability:**
+- Identify the rollback mechanism: git revert, deployment rollback command, blue-green switch, feature flag toggle
+- Estimate rollback time based on the deployment method
+- Check if database migrations are reversible (look for `down` migrations, rollback scripts)
+
+Merge all sub-agent findings into `## Release Readiness`, `## Key Release Risks`, and `## Freshness Research`.
 
 # Purpose
 Assess release readiness, ask mandatory rollout questions, and define rollout plus rollback.
