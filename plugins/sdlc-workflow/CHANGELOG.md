@@ -5,6 +5,20 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.12.0] - 2026-04-12
+
+### Added — `wf-resume` context recovery command
+- **`wf-resume`** — new command that reads the full workflow trail (all stage files + `po-answers.md`) and distills it into a dense ~500-word context brief for resuming after a break, onboarding a sub-agent, or recovering context in a new session.
+  - Reads every existing stage file's frontmatter and body, extracting: key decisions, acceptance criteria status, deviations, test results, open findings, blockers
+  - Synthesizes `po-answers.md` into only the decisions that constrain future work (discards superseded decisions)
+  - Checks branch state and warns if user is on wrong branch
+  - Builds slice progress matrix if sliced
+  - Strict token budget: ~200 words for early workflows, up to 600 for complex multi-slice workflows with review findings
+  - Writes `90-resume.md` as a persistent artifact sub-agents can reference
+  - Chat output IS the brief — no preamble, no footer, maximum signal density
+  - Unlike `wf-next` (reads only index, returns next command) and `wf-status` (reads indexes across workflows, renders dashboard), `wf-resume` reads ALL artifacts in one workflow and distills the full decision history
+- Plugin description updated to reflect 13 lifecycle commands.
+
 ## [7.11.0] - 2026-04-11
 
 ### Added — `wf-status` dashboard command
