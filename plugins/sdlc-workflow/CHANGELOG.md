@@ -5,6 +5,51 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.0.0] - 2026-04-12
+
+### Added — Design quality system (5 commands + 14 skills + 13 reference files)
+
+Based on [impeccable-style-universal](https://impeccable.style) v2.1.1 by Anthropic (Apache 2.0), adapted for the SDLC workflow pipeline.
+
+#### 5 Design Commands (namespaced under `wf-design:`)
+- **`wf-design`** — top-level design brief command. Discovery interview + UX strategy → `02b-design.md` artifact. Slots between shape (stage 2) and slice (stage 3) in the pipeline. Includes codebase exploration sub-agent for existing design system, component library, and tech stack discovery.
+- **`wf-design:setup`** — one-time design context setup. Gathers brand personality, audience, aesthetic direction, accessibility requirements. Writes `.impeccable.md` to project root. All design commands and skills require this context.
+- **`wf-design:critique`** — scored UX review using Nielsen's 10 heuristics (0-40 scale), cognitive load assessment, persona-based testing, and automated anti-pattern detection via `npx impeccable`. Produces `06b-critique.md` with prioritized `/design-*` skill recommendations.
+- **`wf-design:audit`** — scored technical quality audit across 5 dimensions (accessibility, performance, theming, responsive, anti-patterns) on a 0-20 scale with P0-P3 severity ratings. Produces `06c-audit.md`.
+- **`wf-design:extract`** — design system extraction: identifies reusable components, design tokens, and patterns, then extracts, enriches, and migrates to a shared design system.
+
+#### 14 Design Skills (composable refinement tools)
+- **`design-bolder`** — amplify bland designs with more visual impact
+- **`design-quieter`** — tone down aggressive designs to refined sophistication
+- **`design-colorize`** — add strategic color to monochromatic interfaces
+- **`design-typeset`** — fix typography hierarchy, font choices, readability
+- **`design-layout`** — improve spacing, visual rhythm, and composition
+- **`design-animate`** — add purposeful animations and micro-interactions
+- **`design-delight`** — add moments of joy, personality, and polish
+- **`design-clarify`** — improve UX copy, error messages, labels, instructions
+- **`design-distill`** — strip designs to their essence, remove complexity
+- **`design-harden`** — production-ready: error handling, i18n, edge cases, onboarding
+- **`design-optimize`** — diagnose and fix UI performance issues
+- **`design-adapt`** — make designs responsive across devices and contexts
+- **`design-overdrive`** — push interfaces past conventional limits (shaders, spring physics, 60fps)
+- **`design-polish`** — final quality pass: alignment, spacing, consistency, micro-details
+
+#### 13 Design Reference Files (bundled in `reference/design/`)
+- `design-guidelines.md` — core design principles, anti-patterns, AI slop detection, Context Gathering Protocol
+- `typography.md`, `color-and-contrast.md`, `spatial-design.md`, `motion-design.md`, `interaction-design.md`, `responsive-design.md`, `ux-writing.md` — deep reference material for each design dimension
+- `craft.md`, `extract.md` — workflow reference for build and extraction flows
+- `cognitive-load.md`, `heuristics-scoring.md`, `personas.md` — evaluation frameworks for critique
+
+#### Architecture
+- **Commands** produce SDLC artifacts with YAML frontmatter (workflow stages)
+- **Skills** modify code directly without workflow ceremony (composable refinement)
+- **critique and audit** generate ordered action plans dispatching design skills by name
+- **Pipeline integration**: `wf-intake → wf-shape → wf-design → wf-slice → wf-plan → wf-implement → [design-* skills] → wf-design:audit → wf-design:critique → [design-* fixes] → design-polish → wf-verify → ...`
+
+### Changed
+- Plugin description updated to reflect 18 lifecycle commands and 25 skills
+- Added design, ux, accessibility, typography, responsive keywords
+
 ## [7.12.0] - 2026-04-12
 
 ### Added — `wf-resume` context recovery command
