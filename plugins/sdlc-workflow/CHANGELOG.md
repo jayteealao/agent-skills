@@ -5,6 +5,29 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.2.0] - 2026-04-12
+
+### Added
+
+- **`wf-announce` command** — Post-ship communication utility. Generates stakeholder-facing announcements tailored by audience (engineering, product, users) from workflow artifacts. Pulls from `08-handoff.md` and `09-ship.md` to draft plain-language, jargon-free copy with distinct voice and structure per audience: technical details and rollback plans for eng, business value and metrics impact for product, benefit-oriented what's-new for users. Writes `announce.md` to the workflow directory. Includes writing rules (active voice, no filler, specific over vague, scannable formatting) and audience selection via AskUserQuestion.
+
+## [8.1.0] - 2026-04-12
+
+### Added
+
+- **`wf-sync` command** — Reality reconciliation for workflows. Cross-references all code files, test files, branches, PRs, and dependencies mentioned in workflow artifacts against the actual codebase state. Produces a `00-sync.md` sync report with health rating (in-sync / minor-drift / significant-drift / stale), per-category status tables, drift details, and recommended actions. Especially valuable mid-flight (stages 4–7) when long-running workflows can go stale from teammate merges, library releases, or config changes.
+
+- **`wf-validate` hook** (PreToolUse: Write) — Structural integrity gate for workflow files. Validates every write to `.ai/workflows/` before it happens:
+  - Slug stability: frontmatter `slug` must match the workflow directory name
+  - Required fields: `schema` (must be `sdlc/v1`), `type`, and `slug` must be present
+  - Stage file naming: must follow `NN-stagename.md` convention (with support for substages like `02b-design.md` and utility files like `risk-register.md`)
+  - Blocks non-conforming writes with structured error messages fed back to Claude for self-correction
+
+### Changed
+
+- Hook count: 3 → 4 (added PreToolUse alongside existing SessionStart, PostToolUse, PreCompact)
+- Lifecycle command count: 18 → 20 (added wf-sync; wf-validate is a hook, not a command, but the total reflects the new sync command plus the count correction for previously uncounted wf-skip and wf-amend stubs)
+
 ## [8.0.0] - 2026-04-12
 
 ### Added — Design quality system (5 commands + 14 skills + 13 reference files)
