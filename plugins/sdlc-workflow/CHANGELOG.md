@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.6.0] - 2026-04-13
+
+### Changed
+
+- **`wf-announce` — Diátaxis integration, channel formatting, doc linking.** Three additions: (1) New Step 2 checks `08-handoff.md → ## Documentation Changes` for existing docs and `02-shape.md` frontmatter for planned-but-missing docs, then invokes the appropriate Diátaxis skill (`how-to-guide-writer`, `reference-writer`, `tutorial-writer`, `explanation-writer`, `readme-writer`) before drafting — so announcements always have docs to link to. (2) Audience question now paired with a channel question (Slack/chat, Email, GitHub Release, wiki/Notion) that shapes tone and length. (3) Each announcement draft now includes a Docs section linking to generated/existing docs, plus channel-specific formatting rules (Slack = 5–8 lines + emoji ok, Email = prose + headers, GitHub Release = markdown + code blocks, wiki = full structured format).
+
 ## [8.5.0] - 2026-04-13
 
 ### Changed
