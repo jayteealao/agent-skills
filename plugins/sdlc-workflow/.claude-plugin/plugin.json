@@ -1,6 +1,6 @@
 {
   "name": "sdlc-workflow",
-  "version": "8.3.0",
+  "version": "8.4.0",
   "description": "Complete SDLC workflow with integrated code review, design quality, Diátaxis documentation, analysis, observability, and git lifecycle. 21 lifecycle commands (10 stages + 5 wf-design commands + wf-next + wf-status + wf-resume + wf-sync + wf-announce) with branch-aware git operations, wf-validate pre-write hook, 31 review commands, 7 aggregate reviews, 25 skills (14 design + 4 analysis + 7 Diátaxis), and setup-wide-logging command.",
   "author": {
     "name": "jayte"

@@ -202,12 +202,29 @@ After writing files, return ONLY:
 
 Do this in order:
 1. Determine planning mode from Step 0.
-2. **Single plan mode (new):** Inspect the repository using parallel Explore sub-agents. Run freshness research. Produce a minimal execution-ready plan. Write `04-plan-<slice-slug>.md`. Update master `04-plan.md`.
-3. **Parallel plan mode (new, all):** Launch one sub-agent per slice. Wait for all to complete. Read their output files. Run the cohesion check. Write/update master `04-plan.md`. Update cross-links.
-4. **Review-and-fix mode (any sub-mode):** See "Review-and-Fix Mode" section below.
-5. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
-6. Update `00-index.md` accordingly and add all plan files to `workflow-files`.
-7. Write plan file(s).
+2. **Discovery phase (new plans only — skip for review-and-fix modes):**
+   Before writing a plan, interview the user about implementation decisions that the shape and slice left open. Ask 8–12 questions across 2–3 rounds using AskUserQuestion (up to 4 per round).
+
+   **Rules:**
+   - Every question must be about *how to build this specific feature/slice* — reference files, modules, patterns, and tradeoffs discovered by the sub-agents.
+   - Do not re-ask anything already decided in shape or slice artifacts. Pre-fill known decisions and confirm only if the sub-agent findings contradict them.
+   - Questions must be impartial — present genuinely different implementation approaches, not a "right answer" with decoys.
+   - Later rounds should build on earlier answers and sub-agent findings.
+
+   **What to ask about:**
+   - **Implementation approach** — When the sub-agents found multiple viable patterns in the codebase, ask which to follow. When there's a choice between extending existing code vs. writing new code, surface that tradeoff. When a library offers multiple APIs for the same thing, ask which fits.
+   - **Sequencing and dependencies** — When steps could go in different orders, ask what the user wants first. When there are circular dependencies between slices, ask how to break the cycle. When a migration or schema change could happen early or late, surface the tradeoff.
+   - **Test strategy** — When the sub-agents found gaps in test coverage, ask what level of testing the user wants. When there's a choice between unit tests, integration tests, or E2E tests for a behavior, ask which matters most. When existing test patterns don't cover the new case well, ask about the approach.
+   - **Risk and unknowns** — When the sub-agents found deprecations, version mismatches, or security advisories, ask how to handle them. When an assumption in the shape might not hold based on codebase reality, surface it. When a step has unclear feasibility, ask whether to spike first or commit to the approach.
+
+   Append every answer to `po-answers.md` with timestamp and `stage: plan`.
+
+3. **Single plan mode (new):** Inspect the repository using parallel Explore sub-agents. Run freshness research. Run the discovery phase. Produce a minimal execution-ready plan. Write `04-plan-<slice-slug>.md`. Update master `04-plan.md`.
+4. **Parallel plan mode (new, all):** Launch one sub-agent per slice. Wait for all to complete. Read their output files. Run the cohesion check. Run the discovery phase (once, covering cross-cutting decisions). Write/update master `04-plan.md`. Update cross-links.
+5. **Review-and-fix mode (any sub-mode):** See "Review-and-Fix Mode" section below.
+6. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
+7. Update `00-index.md` accordingly and add all plan files to `workflow-files`.
+8. Write plan file(s).
 
 # Review-and-Fix Mode
 Triggered when an existing plan is re-invoked. Three sub-modes:

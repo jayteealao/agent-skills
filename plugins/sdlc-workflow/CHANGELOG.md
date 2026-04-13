@@ -5,11 +5,21 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.4.0] - 2026-04-13
+
+### Changed
+
+- **`wf-shape` — descriptive 20-question discovery framework.** Questions are not hardcoded — the agent generates them dynamically based on the specific feature from intake. The framework defines *what to ask about* in each round (what it does, how it behaves, what it looks like, what can go wrong, where the boundaries are) and *how to construct good questions* (feature-specific, impartial options, building on earlier answers). Later rounds adapt based on answers from earlier rounds.
+
+- **`wf-slice` — descriptive discovery phase (4–8 questions).** Replaced one-liner "ask a small set of questions" with descriptive guidance covering delivery order preferences, slice granularity, rollout coupling, and scope cuts. Questions generated dynamically from the shaped spec.
+
+- **`wf-plan` — descriptive discovery phase (8–12 questions).** Added user interview before writing new plans (skipped in review-and-fix modes). Covers implementation approach tradeoffs, sequencing decisions, test strategy, and risk/unknowns — all grounded in sub-agent codebase findings.
+
 ## [8.3.0] - 2026-04-13
 
 ### Changed
 
-- **`wf-shape` — 20-question feature discovery phase.** Replaced the vague "mandatory-question stage" with a structured 20-question interview using AskUserQuestion across 5 rounds of 4 questions each. All questions are about the specific feature being built (not abstract process themes): what it does (core action, inputs, outputs, trigger), how it behaves (post-action flow, undo, timing, dependencies), what it looks like (entry point, data volume, UI states, visual fit), what can go wrong (worst-case bugs, bad input, dep failure, access), and what the boundaries are (out of scope, migration, touch points, open questions). Questions use `[feature]` placeholder replaced with the actual feature name from intake. No leading options — all impartial with automatic "Other" for freeform answers.
+- **`wf-shape` — 20-question feature discovery phase.** Replaced the vague "mandatory-question stage" with a descriptive framework for a 20-question interview using AskUserQuestion across 5 rounds of 4. Questions are not hardcoded — the agent generates them dynamically based on the specific feature from intake. The framework defines *what to ask about* in each round (what it does, how it behaves, what it looks like, what can go wrong, where the boundaries are) and *how to construct good questions* (feature-specific, impartial options, building on earlier answers). Later rounds adapt based on answers from earlier rounds.
 
 ## [8.2.0] - 2026-04-12
 

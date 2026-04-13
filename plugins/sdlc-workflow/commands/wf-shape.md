@@ -132,294 +132,36 @@ After writing files, return ONLY:
 
 **Mandatory discovery phase — 20 impartial questions about the feature.**
 
-Ask ALL 20 questions across 5 rounds using AskUserQuestion (4 questions per round). These questions are about the specific feature being built — what it does, how it behaves, what it looks like, what can go wrong. Do NOT skip questions based on assumptions.
+Before writing the mini-spec, interview the user with 20 questions about the feature being built. The goal is to surface decisions, assumptions, and unknowns that the intake brief left ambiguous.
 
-Before starting: review `01-intake.md` and `po-answers.md`. For questions already answered in intake, pre-fill your understanding and ask the user to confirm or revise.
+**Rules:**
+- Ask exactly 20 questions across 5 rounds of 4 using AskUserQuestion.
+- Every question must be about *this specific feature* — reference it by name, use concrete details from the intake brief. No generic process questions.
+- Questions must be impartial — do not lead toward a particular answer. Options should represent genuinely different directions, not a "right answer" with decoys.
+- Options should be specific to the feature where possible. Fall back to general options only when the feature context doesn't suggest concrete alternatives.
+- If a question was already clearly answered in intake, pre-fill your understanding and ask the user to confirm or revise instead of asking from scratch.
+- Wait for each round's answers before generating the next round — later questions should build on earlier answers.
 
-**Adapting questions to the feature:** The questions below use `[feature]` as a placeholder. Replace it with the actual feature name/description from intake. Tailor option descriptions to be specific to the feature where possible — generic options are a fallback.
+**What to ask about (5 rounds):**
 
-**Round 1 — What does it do?**
-```
-AskUserQuestion:
-  - question: "What is the core action a user performs with [feature]?"
-    header: "Core action"
-    options:
-      - label: "Create / generate"
-        description: "User produces something new — a record, file, output, or artifact."
-      - label: "View / find / read"
-        description: "User looks up, searches for, or consumes existing information."
-      - label: "Edit / update / configure"
-        description: "User modifies something that already exists."
-      - label: "Trigger / execute / run"
-        description: "User kicks off a process, action, or workflow."
-    multiSelect: false
+Round 1 — **What does the feature do?** Nail down the core interaction: what action the user takes, what they provide as input, what they get back, and what triggers them to use it in the first place.
 
-  - question: "What inputs does [feature] need from the user?"
-    header: "Inputs"
-    options:
-      - label: "Structured form fields"
-        description: "Named fields with specific types — text, numbers, dates, dropdowns."
-      - label: "Freeform content"
-        description: "Open-ended text, code, or rich content the user authors."
-      - label: "File or data upload"
-        description: "User provides a file, image, dataset, or external data."
-      - label: "Selection from existing items"
-        description: "User picks from things that already exist in the system."
-    multiSelect: true
+Round 2 — **How does the feature behave?** Explore the dynamics: what happens after the main action, whether it's reversible, timing model (sync/async/real-time), and how it connects to other parts of the product.
 
-  - question: "What output or result does [feature] produce?"
-    header: "Output"
-    options:
-      - label: "Persisted data / record"
-        description: "Something saved to a database, file, or store that persists."
-      - label: "Visual display / report"
-        description: "Information rendered on screen — a view, chart, dashboard, or summary."
-      - label: "Downloadable artifact"
-        description: "A file, export, or document the user takes away."
-      - label: "Side effect / state change"
-        description: "Something changes elsewhere — a notification sent, a process started, a config applied."
-    multiSelect: true
+Round 3 — **What does the feature look like?** Clarify the surface area: where it lives in the product (page, modal, inline, CLI), how much data it handles, what distinct states the user sees (empty, loading, error, success), and whether it follows or breaks existing patterns.
 
-  - question: "When does a user reach for [feature] — what triggers them to use it?"
-    header: "Trigger"
-    options:
-      - label: "Explicit user intent"
-        description: "User deliberately navigates to it when they need it."
-      - label: "In response to an event"
-        description: "Something happened (error, notification, deadline) and the user reacts."
-      - label: "Part of a larger workflow"
-        description: "This is one step in a multi-step process the user is already doing."
-      - label: "Scheduled / periodic"
-        description: "User does this on a regular cadence — daily, weekly, per-release."
-    multiSelect: false
-```
+Round 4 — **What can go wrong?** Probe failure modes: worst-case impact of bugs, how invalid input is handled, what happens when dependencies fail, and who has access/permissions.
 
-**Round 2 — How does it behave?**
-```
-AskUserQuestion:
-  - question: "What happens immediately after the user completes the main action in [feature]?"
-    header: "After action"
-    options:
-      - label: "Confirmation and stay"
-        description: "Show success feedback, user stays on the same screen."
-      - label: "Navigate to result"
-        description: "Take the user to the thing they just created or changed."
-      - label: "Return to list / parent"
-        description: "Go back to where the user came from."
-      - label: "Next step in flow"
-        description: "Automatically advance to the next action in a sequence."
-    multiSelect: false
+Round 5 — **Where are the boundaries?** Define the edges: what's explicitly out of scope for v1, how to transition from old to new behavior, what existing code/data is touched, and what open questions remain.
 
-  - question: "Can the user undo or reverse what [feature] does?"
-    header: "Undo"
-    options:
-      - label: "Yes — immediate undo"
-        description: "User can reverse the action right away with no consequences."
-      - label: "Yes — but with caveats"
-        description: "Reversible, but some effects (notifications, logs) can't be undone."
-      - label: "No — destructive / permanent"
-        description: "Once done, it cannot be undone. Needs a confirmation step."
-      - label: "Not applicable"
-        description: "The action is read-only or idempotent — undo doesn't apply."
-    multiSelect: false
-
-  - question: "Does [feature] need to work offline, in real-time, or asynchronously?"
-    header: "Timing"
-    options:
-      - label: "Synchronous — instant response"
-        description: "Action completes immediately and result is shown inline."
-      - label: "Asynchronous — background processing"
-        description: "Action is submitted and result arrives later (polling, notification, email)."
-      - label: "Real-time / live"
-        description: "Data updates continuously while the user watches (WebSocket, SSE, polling)."
-      - label: "Offline-capable"
-        description: "Must work without network connectivity and sync later."
-    multiSelect: false
-
-  - question: "Does [feature] interact with or depend on other features in the product?"
-    header: "Dependencies"
-    options:
-      - label: "Standalone"
-        description: "Works independently — no other features need to exist or change."
-      - label: "Reads from other features"
-        description: "Consumes data or state produced by other parts of the system."
-      - label: "Writes to other features"
-        description: "Produces data or side effects that other parts of the system consume."
-      - label: "Tightly coupled"
-        description: "Cannot function without specific other features and vice versa."
-    multiSelect: false
-```
-
-**Round 3 — What does it look like?**
-```
-AskUserQuestion:
-  - question: "Where does [feature] live in the product — how does the user get to it?"
-    header: "Entry point"
-    options:
-      - label: "New page / screen"
-        description: "A dedicated page or screen the user navigates to."
-      - label: "Modal / dialog / overlay"
-        description: "Appears over the current screen without full navigation."
-      - label: "Inline / embedded"
-        description: "Lives within an existing page as a section, widget, or component."
-      - label: "CLI / API / headless"
-        description: "No visual UI — accessed via command line, API call, or automation."
-    multiSelect: false
-
-  - question: "How much data does [feature] show or handle at once?"
-    header: "Data volume"
-    options:
-      - label: "Single item"
-        description: "One record, one document, one thing at a time."
-      - label: "Short list (< 50 items)"
-        description: "A manageable list that fits on one screen."
-      - label: "Large dataset (100+ items)"
-        description: "Needs pagination, search, filtering, or virtualization."
-      - label: "Varies widely"
-        description: "Could be 1 item or 10,000 depending on the user and context."
-    multiSelect: false
-
-  - question: "Are there distinct states [feature] can be in that look different to the user?"
-    header: "States"
-    options:
-      - label: "Empty / first-use"
-        description: "Nothing exists yet — needs onboarding or a call-to-action."
-      - label: "Loading / processing"
-        description: "Data is being fetched or an action is in progress."
-      - label: "Error / failure"
-        description: "Something went wrong and the user needs to know what and why."
-      - label: "Success / completed"
-        description: "The action worked and the user sees the result."
-    multiSelect: true
-
-  - question: "Does [feature] need to match or extend an existing visual pattern in the product?"
-    header: "Visual fit"
-    options:
-      - label: "Yes — follow existing pattern"
-        description: "There's an existing screen or component this should look and feel like."
-      - label: "Yes — but adapted"
-        description: "Similar to something existing but with meaningful differences."
-      - label: "No — new pattern needed"
-        description: "Nothing like this exists in the product yet."
-      - label: "Not visual"
-        description: "Backend, API, or CLI — no visual design needed."
-    multiSelect: false
-```
-
-**Round 4 — What can go wrong?**
-```
-AskUserQuestion:
-  - question: "What is the worst thing that happens if [feature] has a bug?"
-    header: "Worst case"
-    options:
-      - label: "Data loss or corruption"
-        description: "User data is destroyed, overwritten, or silently made incorrect."
-      - label: "Wrong action taken"
-        description: "The system does something the user didn't intend and it has real consequences."
-      - label: "Feature doesn't work"
-        description: "User can't complete their task but no lasting damage is done."
-      - label: "Cosmetic / confusing"
-        description: "Looks wrong or is confusing but the underlying behavior is correct."
-    multiSelect: false
-
-  - question: "What happens when [feature] receives invalid or unexpected input?"
-    header: "Bad input"
-    options:
-      - label: "Validate and block"
-        description: "Reject the input immediately with a clear message about what's wrong."
-      - label: "Accept and sanitize"
-        description: "Clean up or normalize the input and proceed."
-      - label: "Warn but allow"
-        description: "Show a warning but let the user proceed if they choose to."
-      - label: "Depends on the field"
-        description: "Different inputs need different validation strategies."
-    multiSelect: false
-
-  - question: "What happens if an external dependency [feature] relies on is unavailable?"
-    header: "Dep failure"
-    options:
-      - label: "Show error, block action"
-        description: "Tell the user the dependency is down and prevent the action."
-      - label: "Degrade gracefully"
-        description: "Continue with reduced functionality — hide or disable the affected part."
-      - label: "Queue and retry"
-        description: "Accept the action and retry the dependency call in the background."
-      - label: "No external dependencies"
-        description: "This feature is self-contained — no external calls."
-    multiSelect: false
-
-  - question: "Who should be able to use [feature] — are there permission or access concerns?"
-    header: "Access"
-    options:
-      - label: "Everyone"
-        description: "All authenticated users can use this feature equally."
-      - label: "Role-based"
-        description: "Only users with specific roles or permissions can access it."
-      - label: "Owner-scoped"
-        description: "Users can only act on their own data — not other users' data."
-      - label: "Admin-only"
-        description: "Restricted to administrators or operators."
-    multiSelect: false
-```
-
-**Round 5 — What are the boundaries?**
-```
-AskUserQuestion:
-  - question: "What is explicitly out of scope for the first version of [feature]?"
-    header: "Out of scope"
-    options:
-      - label: "Advanced configuration"
-        description: "Power-user options, customization, or settings — keep it simple first."
-      - label: "Bulk / batch operations"
-        description: "Handling multiple items at once — start with one-at-a-time."
-      - label: "Integrations"
-        description: "Connecting to external services or systems — build standalone first."
-      - label: "Nothing — full scope"
-        description: "Everything described is in scope for v1."
-    multiSelect: true
-
-  - question: "How should [feature] handle the transition from current behavior to new behavior?"
-    header: "Migration"
-    options:
-      - label: "Clean cutover"
-        description: "Old behavior goes away, new behavior takes its place."
-      - label: "Parallel run"
-        description: "Both old and new exist temporarily so users can migrate gradually."
-      - label: "Backward compatible"
-        description: "New behavior is additive — old behavior continues to work unchanged."
-      - label: "No migration needed"
-        description: "This is net-new — there is no old behavior to transition from."
-    multiSelect: false
-
-  - question: "What existing code or data will [feature] need to read, modify, or replace?"
-    header: "Touch points"
-    options:
-      - label: "New tables / schemas / models"
-        description: "Needs new data storage that doesn't exist yet."
-      - label: "Existing data models"
-        description: "Reads from or writes to data structures that already exist."
-      - label: "Shared UI components"
-        description: "Uses or extends existing frontend components."
-      - label: "Needs codebase exploration"
-        description: "Not sure yet — the sub-agents should investigate."
-    multiSelect: true
-
-  - question: "Is there anything about [feature] you're unsure about or want to explore further before building?"
-    header: "Open Qs"
-    options:
-      - label: "Uncertain about the UX"
-        description: "Not sure what the right interaction pattern is — may need prototyping."
-      - label: "Uncertain about feasibility"
-        description: "Not sure if the approach will work technically — may need a spike."
-      - label: "Uncertain about scope"
-        description: "Not sure where to draw the line — worried about scope creep."
-      - label: "No — ready to proceed"
-        description: "The feature is well-understood and ready to be shaped into a spec."
-    multiSelect: true
-```
+**How to construct each question:**
+- `question`: A specific question about the feature. Reference the feature by name. E.g., "What should the export modal show when the user has no reports yet?" not "What happens in the empty state?"
+- `header`: Short label (max 12 chars) for the chip display.
+- `options`: 2–4 options. Each option should describe a concrete direction specific to the feature. The user can always pick "Other" for freeform input.
+- `multiSelect`: true when multiple options can coexist, false when they're mutually exclusive.
 
 After completing all 5 rounds, append every answer to `po-answers.md` with timestamp and `stage: shape`. Then proceed to the remaining steps.
-3. **Run all 5 discovery rounds above.** Do not skip rounds. Do not compress multiple rounds into one. Wait for each round's answers before proceeding to the next. If a question was already answered in intake, present your understanding and ask the user to confirm or revise.
+3. **Run all 5 discovery rounds.** Do not skip rounds. Do not compress multiple rounds into one. Wait for each round's answers before proceeding to the next — use earlier answers to sharpen later questions.
 4. Run freshness research (using parallel sub-agents if multi-domain) for external dependencies, patterns, APIs, standards, and known issues that could change the spec.
 5. Synthesize discovery answers into a small behavior-focused mini-spec.
 6. **Documentation plan (Diátaxis):** Using the shaped spec, classify what documentation this feature needs. Apply the Diátaxis model:

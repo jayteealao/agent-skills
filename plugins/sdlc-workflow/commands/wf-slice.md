@@ -63,7 +63,22 @@ Every slice gets its own file: `03-slice-<slice-slug>.md`. The slice-slug is a l
 The master `03-slice.md` is an **index** that links to each per-slice file and contains cross-cutting information.
 
 Do this in order:
-1. If slice boundaries depend on a business decision or rollout preference, ask the product owner a small set of questions before finalizing.
+1. **Discovery phase — ask about slicing strategy before cutting.**
+   Interview the user with 4–8 questions in 1–2 rounds using AskUserQuestion before finalizing slice boundaries.
+
+   **Rules:**
+   - Every question must be about *how to decompose this specific feature* — reference concrete parts of the shaped spec, not abstract slicing theory.
+   - Questions must be impartial — present genuinely different decomposition strategies without favoring one.
+   - Skip questions already answered in the shape or intake artifacts.
+
+   **What to ask about:**
+   - **Delivery order preferences** — Does the user want the riskiest part first or the most visible part first? Is there a demo date, milestone, or dependency that should drive which slice ships earliest?
+   - **Slice granularity** — Should slices be as thin as possible (more PRs, faster feedback) or chunked into larger coherent units (fewer context switches, less integration overhead)? What's the team's review capacity?
+   - **Rollout coupling** — Can slices ship independently to production, or do some need to land together? Are there feature flags, migrations, or API contracts that force certain things to be in the same slice?
+   - **Scope cuts** — Are there parts of the shaped spec the user would consider deferring entirely? Which acceptance criteria are must-have-now vs. nice-to-have-later?
+
+   Append every answer to `po-answers.md` with timestamp and `stage: slice`.
+
 2. Run freshness research only where external constraints affect slicing or order.
 3. Break the work into small vertical slices that can be implemented and verified independently.
 4. Assign each slice a **slice-slug** (lowercase kebab-case).
