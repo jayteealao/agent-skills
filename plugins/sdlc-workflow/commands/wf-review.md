@@ -124,90 +124,93 @@ Extract:
 
 Each command maps to `${CLAUDE_PLUGIN_ROOT}/commands/review/<name>.md`.
 
+**Selection philosophy:** Use the shape, slice, and implementation artifacts — not just raw diff patterns — to reason about what this change *is* and what reviews matter. A feature that adds async data fetching needs `backend-concurrency` even if the diff doesn't contain the word "mutex". Lean toward inclusion: a missed relevant review is worse than a redundant one. The max exists to prevent sprawl, not to cap thorough coverage.
+
 ### Core (always include for any code change)
 - `correctness` — logic, invariants, edge cases
 - `security` — vulnerabilities, insecure defaults
 - `code-simplification` — missed reuse, unnecessary complexity, inefficiencies
 
-### By File Type
+### Always include for any backend source change
+(`.ts`, `.js`, `.mjs`, `.py`, `.go`, `.java`, `.cs`, `.rb`, `.php`, `.rs`, `.kt`, `.swift`, `.scala`, `.ex`, `.exs`)
+- `testing` — always: new code needs test coverage assessment regardless of whether test files appear in the diff
+- `maintainability` — always: new or changed functions need readability and coupling review
+- `reliability` — always: error handling, retry logic, graceful degradation, fault tolerance
 
-**Backend source** (`.ts`, `.js`, `.mjs`, `.py`, `.go`, `.java`, `.cs`, `.rb`, `.php`, `.rs`, `.kt`, `.swift`, `.scala`, `.ex`, `.exs`):
-- `testing` — if test files are absent or coverage looks thin
-- `maintainability` — if any function is long or complex
-
-**Backend with concurrency signals** (async/await, goroutines, threads, mutex, locks, Promise, channels, `@Async`, `CompletableFuture`, `select`, `sync.`, `atomic`):
-- `backend-concurrency`
-
-**Refactor signals** (large deletion-to-addition ratio, PR mentions "refactor"/"restructure"/"rename"/"extract"/"move"):
-- `refactor-safety`
-- `maintainability`
-
-**Architecture signals** (new directories, new top-level modules, new service files, changed import graphs, new `index.*` files):
-- `architecture`
-- `overengineering` — if new abstractions or generic patterns appear
-
-**Performance signals** (SQL queries, ORM calls, loops over collections, `ORDER BY`/`GROUP BY`, caching, algorithms, `reduce`/`map`/`filter` over large arrays):
-- `performance`
-
-**Scalability signals** (queue consumers, background jobs, batch operations, fan-out, multi-tenant, horizontal scaling):
-- `scalability`
-
-**API/contract signals** (route definitions, OpenAPI/Swagger, REST handlers, GraphQL schemas, gRPC proto, SDK entry points, versioned paths `/v1/`):
-- `api-contracts`
-
-**Data persistence signals** (DB queries, ORM models, schema definitions, `INSERT`/`UPDATE`/`DELETE`, transactions):
-- `data-integrity`
-
-**Migration files** (`migrations/`, `db/migrate/`, `alembic/versions/`, `flyway/`, `*_migration.*`):
-- `migrations`
-- `data-integrity` (if not already selected)
-
-**Privacy/PII signals** (user profiles, auth code, personal data fields, payment processing, GDPR, logging in auth/payment paths):
-- `privacy`
-
-**Supply chain signals** (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, lockfiles, new external imports):
-- `supply-chain`
-
-**Infrastructure signals** (Dockerfile, `docker-compose.*`, Terraform `*.tf`, Pulumi, Helm, CloudFormation, K8s YAML, Ansible):
-- `infra`
-- `infra-security`
-
-**CI/CD signals** (`.github/workflows/*.yml`, `.gitlab-ci.yml`, Jenkinsfile, Makefile deploy targets):
-- `ci`
-
-**Release signals** (CHANGELOG.md, version fields, git tags, release configs):
-- `release`
-
-**Logging signals** (log statements, logger config, structured logging):
-- `logging`
-
-**Observability signals** (metrics, OpenTelemetry, Prometheus, alerting rules, health checks):
-- `observability`
-
-**Cost signals** (cloud SDK calls, paid API integrations, storage operations, AI/ML inference):
-- `cost`
-
-**Frontend source** (`.tsx`, `.jsx`, `.vue`, `.svelte`, `.html`, `.css`, `.scss`):
+### Always include for any frontend source change
+(`.tsx`, `.jsx`, `.vue`, `.svelte`, `.html`, `.css`, `.scss`)
 - `accessibility`
 - `frontend-accessibility`
 - `frontend-performance`
 - `ux-copy`
 
-**Documentation signals** (`*.md`, `*.mdx`, `*.rst`, `docs/`, docstrings):
+### Include based on what the feature does (reason from shape + slice, not just diff patterns)
+
+**The feature adds or modifies async, concurrent, or parallel behaviour** (async/await, goroutines, threads, Promise chains, event loops, message queues, workers, `@Async`, `CompletableFuture`, `select`, `sync.`, `atomic`, streaming, SSE, WebSocket):
+- `backend-concurrency`
+
+**The feature is a refactor, restructure, rename, or extraction** (large deletion-to-addition ratio, shape/slice describes "refactor"/"restructure"/"rename"/"extract"/"move"):
+- `refactor-safety`
+
+**The feature introduces new modules, services, packages, or architectural layers** (new directories, new top-level modules, new service files, changed import graphs, new `index.*` files, new `*Service`/`*Repository`/`*Controller` classes):
+- `architecture`
+- `overengineering` — if the shape describes generic/reusable abstractions or the diff introduces new base classes, generic utilities, or factory patterns
+
+**The feature touches data reads or writes, queries, or caching**:
+- `performance` — any DB query, ORM call, loop over a collection, sort/filter/aggregate, cache interaction, or algorithm over variable-size data
+- `data-integrity` — any DB write, ORM mutation, transaction, schema change, or data validation
+
+**The feature involves DB migrations** (`migrations/`, `db/migrate/`, `alembic/versions/`, `flyway/`, `*_migration.*`):
+- `migrations`
+- `data-integrity` (if not already selected)
+
+**The feature handles user data, authentication, or anything privacy-sensitive** (user profiles, auth flows, personal data fields, payment processing, GDPR/CCPA scope, session management, logging in auth/payment paths):
+- `privacy`
+
+**The feature adds or changes API surface** (route definitions, OpenAPI/Swagger, REST handlers, GraphQL schemas, gRPC proto, SDK entry points, versioned paths `/v1/`, webhook handlers):
+- `api-contracts`
+
+**The feature could affect throughput, queuing, or multi-tenancy at scale** (queue consumers, background jobs, batch operations, fan-out patterns, multi-tenant data isolation, horizontal scaling assumptions):
+- `scalability`
+
+**The feature adds or changes dependencies** (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, lockfiles, new external imports):
+- `supply-chain`
+
+**The feature touches infrastructure** (Dockerfile, `docker-compose.*`, Terraform `*.tf`, Pulumi, Helm, CloudFormation, K8s YAML, Ansible):
+- `infra`
+- `infra-security`
+
+**The feature modifies CI/CD pipelines** (`.github/workflows/*.yml`, `.gitlab-ci.yml`, Jenkinsfile, Makefile deploy targets):
+- `ci`
+
+**The feature involves a release, version bump, or changelog** (CHANGELOG.md, version fields, git tags, release configs):
+- `release`
+
+**The feature adds or changes logging behaviour** (log statements, logger config, structured logging setup):
+- `logging`
+
+**The feature adds or changes observability** (metrics, OpenTelemetry, Prometheus, alerting rules, health checks):
+- `observability`
+
+**The feature makes cloud/API calls that cost money** (cloud SDK calls, paid API integrations, storage operations, AI/ML inference):
+- `cost`
+
+**The feature touches documentation** (`*.md`, `*.mdx`, `*.rst`, `docs/`, docstrings):
 - `docs`
 
-**Style signals** (any code change with naming convention inconsistencies):
-- `style-consistency` — only if inconsistency is apparent
+**Style inconsistencies are visible in the diff** (mixed naming conventions, inconsistent patterns within the same file or module):
+- `style-consistency`
 
-**DX signals** (scripts, Makefile, README, CONTRIBUTING, dev tooling config):
-- `dx` — only if developer-facing tooling is affected
+**The feature changes developer-facing tooling** (scripts, Makefile, README, CONTRIBUTING, dev environment config):
+- `dx`
 
 ### Selection Constraints
 - **Minimum**: 3 commands (always `correctness` + `security` + `code-simplification`)
-- **Maximum**: 12 — prefer depth over breadth for focused changes
-- **User focus override**: if the user specified a focus ("check security"), include those + `correctness`, drop unrelated
-- **Config/docs-only**: drop `correctness`/`backend-concurrency`/`testing`/`code-simplification`; keep `security`, `docs`, relevant infra/release
+- **Maximum**: 15 — raise this limit only if the change genuinely spans many domains; do not artificially cap a thorough review
+- **User focus override**: if the user specified a focus ("check security"), always include those + `correctness`; suppress unrelated commands
+- **Config/docs-only changes**: drop `correctness`/`backend-concurrency`/`testing`/`code-simplification`; keep `security`, `docs`, relevant infra/release
 - **Test-only changes**: keep `testing`, `correctness`, `code-simplification`; drop most others
+- **When in doubt, include**: a false positive from an extra review command costs one sub-agent; a missed issue costs a production incident
 
 ### Output the Selection (before dispatching)
 

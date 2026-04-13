@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.5.0] - 2026-04-13
+
+### Changed
+
+- **`wf-review` — broader, smarter review command selection.** Two fixes: (1) `reliability` was present as a command file but had no signal mapping and would never be selected — now always included for backend source changes alongside `testing` and `maintainability`. (2) Selection logic shifted from "detect patterns in the raw diff" to "reason from what the feature does using shape and slice artifacts" — features described as async, data-mutating, or API-surface-changing now trigger the right commands even when the diff text doesn't contain the specific keywords. Max raised from 12 to 15. Added explicit "when in doubt, include" rule to invert the default from exclusion to inclusion.
+
 ## [8.4.0] - 2026-04-13
 
 ### Changed
