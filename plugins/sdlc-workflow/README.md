@@ -205,15 +205,15 @@ Selects relevant review domains from your diff and artifacts, dispatches paralle
 ### Step 8 — Handoff
 
 ```
-/wf-handoff dark-mode-toggle-settings css-token-setup
+/wf-handoff dark-mode-toggle-settings
 ```
 
-If your branch strategy is `dedicated`, this pushes the branch and creates a pull request using the handoff summary as the PR body. Returns the PR URL.
+No slice needed — handoff reads `03-slice.md` and automatically aggregates all complete slices into a single PR description. Run this once all intended slices on the branch are implemented and reviewed. If your branch strategy is `dedicated`, this also pushes the branch and creates the PR.
 
 ### Step 9 — Ship
 
 ```
-/wf-ship dark-mode-toggle-settings css-token-setup
+/wf-ship dark-mode-toggle-settings
 ```
 
 Asks about rollout strategy, rollback tolerance, and merge approach. Merges the PR. Records the merge SHA.
@@ -547,8 +547,8 @@ Every `wf-extend` invocation records an `extension-round: N` on new slice entrie
 | `/wf-implement <slug> [slice\|reviews]` | 5 | Execute plan, atomic commits | `05-implement.md` + per-slice |
 | `/wf-verify <slug> [slice]` | 6 | Acceptance criteria, test runs, evidence | `06-verify.md` + per-slice |
 | `/wf-review <slug> [slice\|triage]` | 7 | Multi-domain parallel review dispatch | `07-review.md` + per-command |
-| `/wf-handoff <slug> [slice]` | 8 | PR package, push branch, create PR | `08-handoff.md` |
-| `/wf-ship <slug> [slice]` | 9 | Go/no-go, merge, rollout plan | `09-ship.md` |
+| `/wf-handoff <slug> [slice-slug]` | 8 | Aggregates all complete slices into one PR package; `[slice-slug]` only for one-PR-per-slice workflows | `08-handoff.md` |
+| `/wf-ship <slug> [environment]` | 9 | Workflow-level go/no-go, merge, rollout plan; `[environment]` overrides deployment target | `09-ship.md` |
 | `/wf-retro <slug>` | 10 | Extract lessons, improvement actions | `10-retro.md` |
 
 ### Design quality commands

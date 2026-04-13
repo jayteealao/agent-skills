@@ -14,7 +14,7 @@ You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 |---|---|
 | Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (recommended) |
 | Produces | `07-review.md` + `07-review-<command>.md` per selected command |
-| Next | `/wf-handoff <slug> <selected-slice>` (if approved), `/wf-implement <slug> <selected-slice>` (if bugs to fix), `/wf-amend <slug> from-review` (if spec was wrong), or `/wf-extend <slug> from-review` (if new scope needed) |
+| Next | `/wf-handoff <slug>` (if approved + all slices complete), `/wf-implement <slug> <slice>` (if bugs to fix), `/wf-plan <slug> <next-slice>` (if more slices remain), `/wf-amend <slug> from-review` (if spec was wrong), or `/wf-extend <slug> from-review` (if new scope needed) |
 
 # CRITICAL — execution discipline
 You are a **review dispatch orchestrator**, not a problem solver.
@@ -453,10 +453,10 @@ next-invocation: "<based on verdict>"
 {List}
 
 ## Recommended Next Stage
-- **Option A:** `/wf-handoff <slug> <slice>` — approved [reason]
+- **Option A:** `/wf-handoff <slug>` — all slices complete, approved, ready for PR [reason]
 - **Option B:** `/wf-implement <slug> <slice>` — fix blocking issues [list what needs fixing]
-- **Option C:** `/wf-ship <slug> <slice>` — skip handoff [reason, if applicable]
-- **Option D:** `/wf-plan <slug> <next-slice>` — next slice [reason, if applicable]
+- **Option C:** `/wf-ship <slug>` — skip handoff [reason, if applicable]
+- **Option D:** `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>` — more slices to implement before handoff [reason, if applicable]
 - **Option E:** `/wf-extend <slug> from-review` — add new slices from findings [reason, if applicable]
 - **Option F:** `/wf-amend <slug> from-review` — correct the spec/approach of an existing slice [reason, if applicable]
 
@@ -475,15 +475,16 @@ next-invocation: "<based on verdict>"
 # Adaptive routing — evaluate what's actually next
 After completing the review, evaluate the findings and present the user with ALL viable options:
 
-**Option A: Handoff** → `/wf-handoff <slug> <selected-slice>`
-Use when: No blocking issues. Approved (possibly with minor notes).
+**Option A: Handoff** → `/wf-handoff <slug>`
+Use when: No blocking issues AND all intended slices on this branch are complete. Handoff aggregates all complete slices automatically.
+**If more slices remain** on this branch before handoff: use Option D (next slice) — implement remaining slices first, then run `/wf-handoff <slug>` once for the full PR.
 
 **Option B: Fix and re-implement** → `/wf-implement <slug> <selected-slice>`
 Use when: There are blocking issues. List what needs changing.
 **Compact recommended before proceeding** — review dispatch chatter (sub-agent outputs, aggregation, triage) is noise for fixing. Tell the user: "Consider running `/compact` before `/wf-implement` — the PreCompact hook will preserve workflow state and triage decisions are in `07-review.md`."
 
-**Option C: Skip handoff, go to Ship** → `/wf-ship <slug> <selected-slice>`
-Use when: No team to hand off to, no PR description needed.
+**Option C: Skip handoff, go to Ship** → `/wf-ship <slug>`
+Use when: No team to hand off to, no PR description needed, CI/CD handles the rest.
 
 **Option D: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
 Use when: This slice is approved AND more slices remain. Check `03-slice.md`.

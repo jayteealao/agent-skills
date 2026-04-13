@@ -1,7 +1,7 @@
 ---
 name: wf-handoff
-description: Turn the completed and reviewed work into a PR-ready handoff package with reviewer and QA context.
-argument-hint: <slug> [slice]
+description: Turn the completed and reviewed work into a PR-ready handoff package with reviewer and QA context. Aggregates ALL complete slices by default — pass a slice-slug only when each slice has its own separate PR.
+argument-hint: <slug> [slice-slug]
 disable-model-invocation: true
 ---
 
@@ -12,9 +12,9 @@ You are running `wf-handoff`, **stage 8 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md`, `07-review.md` |
-| Produces | `08-handoff.md` |
-| Next | `/wf-ship <slug> <selected-slice>` (default) |
+| Requires | `05-implement-<slug>.md` for each complete slice, `07-review.md` (most recent review) |
+| Produces | `08-handoff.md` — one document covering all complete slices (or one slice if explicitly scoped) |
+| Next | `/wf-ship <slug>` (default) |
 | Skip-to | `/wf-retro <slug>` if shipping is handled externally or not applicable |
 
 # CRITICAL — execution discipline
@@ -27,19 +27,21 @@ You are a **workflow orchestrator**, not a problem solver.
 - If you catch yourself about to start editing code or merging, STOP and return to the next unfinished workflow step.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
-3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
-4. **Check prerequisites:**
-   - `05-implement-<slice-slug>.md` and `07-review.md` must exist. `06-verify-<slice-slug>.md` is recommended. If missing → STOP. Tell the user which command to run first.
-   - If `07-review.md` shows `Status: Awaiting input` or contains blocking issues → STOP. Tell the user to resolve review findings via `/wf-implement` first.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+2. **Read `00-index.md`** — parse `current-stage`, `status`, `selected-slice-or-focus`, `open-questions`, `branch-strategy`, `branch`, `base-branch`.
+3. **Resolve handoff scope** — determines which slice artifacts this handoff covers:
+   - **Explicit slice mode**: A slice-slug was passed as the second argument → scope to that one slice only. Use this when each slice ships as its own separate PR. Skip to step 4 using that single slice.
+   - **Aggregate mode** (default — no second argument): Read `03-slice.md`. Collect every slice entry with `status: complete` or `status: in-progress`. These are the slices on the feature branch being handed off. If no complete/in-progress slices exist → STOP: "No implemented slices found. Run `/wf-implement <slug> <slice>` first."
+4. **Check prerequisites for each slice in scope:**
+   - `05-implement-<slice-slug>.md` must exist for every slice in scope. List any missing and STOP.
+   - `07-review.md` must exist (one per workflow, not per slice). If missing → STOP: "Run `/wf-review <slug>` first."
+   - If `07-review.md` shows blocking issues unresolved → STOP. Tell the user to resolve via `/wf-implement <slug> <slice> reviews` first.
    - If `current-stage` in the index is already past handoff → WARN before overwriting.
-5. **Read the slice's full context:**
-   - `03-slice-<slice-slug>.md` — slice definition
-   - `04-plan-<slice-slug>.md` — what was planned
-   - `05-implement-<slice-slug>.md` — what was built
-   - `06-verify-<slice-slug>.md` (if exists) — verification results
-   - `07-review.md` — review verdict and findings
+5. **Read full context:**
+   - `02-shape.md` — overall spec and docs plan
+   - `03-slice.md` — master index (slice statuses)
+   - For each slice in scope: `03-slice-<slug>.md`, `04-plan-<slug>.md`, `05-implement-<slug>.md`, `06-verify-<slug>.md` (if exists)
+   - `07-review.md` — review verdict and all findings
    - `po-answers.md`
 6. **Carry forward** `open-questions` from the index.
 
@@ -66,7 +68,7 @@ After writing files, return ONLY:
 
 Do this in order:
 1. **Read branch strategy** from `00-index.md` frontmatter: `branch-strategy`, `branch`, `base-branch`.
-2. **Create task list.** Use TaskCreate for the handoff sequence. All metadata: `{ slug, stage: "handoff", slice: "<slice-slug>" }`.
+2. **Create task list.** Use TaskCreate for the handoff sequence. All metadata: `{ slug, stage: "handoff", slices: "<comma-separated list of slice-slugs in scope>", mode: "<aggregate|single-slice>" }`.
    - T1: `subject: "Read prior artifacts"`, `activeForm: "Reading workflow artifacts"`.
    - T2: `subject: "Write handoff summary"`, `activeForm: "Writing handoff summary"`, `addBlockedBy: ["T1"]`.
    - T3: `subject: "Generate Diátaxis docs"`, `activeForm: "Generating documentation"`, `addBlockedBy: ["T2"]`. If `docs-needed: false`, this task will be deleted in step 5.
@@ -109,17 +111,17 @@ Do this in order:
 # Adaptive routing — evaluate what's actually next
 After completing this stage, evaluate the handoff and present the user with ALL viable options:
 
-**Option A (default): Ship** → `/wf-ship <slug> <selected-slice>`
-Use when: The work needs deployment planning, rollout strategy, and rollback guidance.
+**Option A (default): Ship** → `/wf-ship <slug>`
+Use when: The PR is created, all complete slices are covered, and the work needs deployment planning, rollout strategy, and rollback guidance.
 
 **Option B: Skip to Retro** → `/wf-retro <slug>`
 Use when: Shipping is handled entirely outside this workflow (e.g., CI/CD auto-deploys on merge, or shipping is someone else's responsibility). The handoff document IS the final deliverable.
 
-**Option C: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
-Use when: This slice is handed off AND there are more slices. Check `03-slice.md` for the next unfinished slice. Ship/retro can wait until all slices are done.
+**Option C: Implement remaining slices first** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
+Use when: `03-slice.md` shows slices still in `status: defined` that belong on this branch. Implement them, then re-run `/wf-handoff <slug>` to update the PR description with the full picture. Do NOT ship until all intended slices are complete.
 
 **Option D: Fix** → `/wf-implement <slug> <selected-slice>`
-Use when: While writing the handoff, you realized something is wrong or missing.
+Use when: While writing the handoff, you realised something is wrong or missing in a specific slice's implementation.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
@@ -130,7 +132,8 @@ Write `08-handoff.md` with this structure:
 schema: sdlc/v1
 type: handoff
 slug: <slug>
-slice-slug: <slice-slug>
+slice-slugs: [<slug-1>, <slug-2>, ...]   # all slices covered by this handoff
+handoff-mode: <aggregate|single-slice>   # aggregate = all complete slices; single-slice = explicit override
 status: complete
 stage-number: 8
 created-at: "<iso-8601>"
@@ -147,11 +150,11 @@ docs-generated: [<list of doc paths written or updated>]
 tags: []
 refs:
   index: 00-index.md
-  implement: 05-implement-<slice-slug>.md
-  verify: 06-verify-<slice-slug>.md
+  slice-index: 03-slice.md
+  implements: [05-implement-<slug-1>.md, 05-implement-<slug-2>.md, ...]
   review: 07-review.md
 next-command: wf-ship
-next-invocation: "/wf-ship <slug> <slice-slug>"
+next-invocation: "/wf-ship <slug>"
 ---
 ```
 
@@ -201,6 +204,7 @@ If no docs changes: "None — [reason from shape docs plan]"
   Takeaway:
 
 ## Recommended Next Stage
-- **Option A (default):** `/wf-ship <slug> <slice>` — [reason]
+- **Option A (default):** `/wf-ship <slug>` — [reason]
 - **Option B:** `/wf-retro <slug>` — skip ship [reason, if applicable]
-- **Option C:** `/wf-plan <slug> <next-slice>` — next slice [reason, if applicable]
+- **Option C:** `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>` — implement remaining slices before shipping [reason, if applicable]
+- **Option D:** `/wf-implement <slug> <slice>` — fix issue found while writing handoff [reason, if applicable]

@@ -5,6 +5,16 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.8.0] - 2026-04-14
+
+### Changed
+
+- **`wf-handoff` — aggregate-by-default, no slice argument required.** Redesigned from per-slice to PR-level. Without a slice argument, handoff now reads `03-slice.md` and aggregates all `status: complete` slices on the branch into a single PR description — which is how PRs actually work. Explicit `[slice-slug]` argument retained for the uncommon one-PR-per-slice pattern. `08-handoff.md` frontmatter updated: `slice-slug` (single) replaced by `slice-slugs` (array) and `handoff-mode: aggregate|single-slice`. The `refs.implements` field now lists all per-slice implement artifacts. Routing updated: handoff Option C changed from "next slice" (wrong level) to "implement remaining slices first, then re-run handoff". `next-invocation` no longer includes a slice.
+
+- **`wf-ship` — slug-level only, slice argument removed.** Ship operates on the PR and branch — never on a slice. The `[target-or-slice]` second argument is replaced with `[environment]` (optional override for deployment target, e.g. `staging`, `eu-west`). `slice-slug` removed from `09-ship.md` frontmatter; `environment` field added. Option E ("next slice") removed from adaptive routing — if more slices remain, that decision belongs at the review/handoff level, not ship. Prerequisite check tightened: `08-handoff.md` with `status: complete` is now required (was "recommended"). Task metadata updated to remove slice reference.
+
+- **`wf-review` — routing updated to match handoff/ship changes.** Option A now routes to `/wf-handoff <slug>` (no slice), with explicit guidance that handoff should run after all intended slices are complete. Option C routes to `/wf-ship <slug>`. Header table `Next` field updated with correct invocations for all four paths.
+
 ## [8.7.0] - 2026-04-13
 
 ### Added

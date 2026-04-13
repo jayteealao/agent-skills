@@ -1,7 +1,7 @@
 ---
 name: wf-ship
-description: Assess release readiness, ask mandatory rollout questions, and define rollout plus rollback.
-argument-hint: <slug> [target-or-slice]
+description: Assess release readiness, ask mandatory rollout questions, and define rollout plus rollback. Operates at the workflow level — reads 08-handoff.md, the PR, and the branch. No slice argument needed.
+argument-hint: <slug> [environment]
 disable-model-invocation: true
 ---
 
@@ -25,14 +25,14 @@ You are a **workflow orchestrator**, not a problem solver.
 - If you catch yourself about to start fixing code or deploying beyond the merge, STOP and return to the next unfinished workflow step.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **target or slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
-3. **Check prerequisites:**
-   - At minimum `05-implement.md` must exist. `08-handoff.md` is strongly recommended. If neither exists → STOP. Tell the user which command to run first.
-   - If `08-handoff.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve it first.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+2. **Resolve optional environment override**: If a second argument was passed (e.g., `staging`, `production`, `eu-west`), record it as `environment`. If omitted, derive the target environment from the deployment platform details in `08-handoff.md` or ask the user during the rollout questions.
+3. **Read `00-index.md`** — parse `current-stage`, `status`, `open-questions`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`.
+4. **Check prerequisites:**
+   - `08-handoff.md` must exist with `status: complete`. If missing → STOP: "Run `/wf-handoff <slug>` first — ship requires a completed handoff with PR details."
+   - If `08-handoff.md` shows any unresolved blocker findings → STOP. Tell the user to resolve via `/wf-implement <slug> <slice> reviews` first.
    - If `current-stage` in the index is already past ship → WARN: "Stage 9 (ship) has already been completed. Running it again will overwrite `09-ship.md`. Proceed?"
-4. **Read** `08-handoff.md` (if exists), `05-implement.md`, `07-review.md` (if exists), and `po-answers.md`.
-5. **Resolve the slice/target**: If a second argument was passed, use it. If not, use `selected-slice-or-focus` from the index.
+5. **Read** `08-handoff.md`, `07-review.md` (if exists), and `po-answers.md`.
 6. **Carry forward** `open-questions` from the index.
 
 # Parallel research (use sub-agents when supported)
@@ -117,7 +117,7 @@ After writing files, return ONLY:
 
 Do this in order:
 1. **Read branch strategy** from `00-index.md` frontmatter: `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`.
-2. **Create task list.** Use TaskCreate for the ship sequence. All metadata: `{ slug, stage: "ship", slice: "<slice-slug>" }`.
+2. **Create task list.** Use TaskCreate for the ship sequence. All metadata: `{ slug, stage: "ship", environment: "<environment or 'default'>" }`.
    - T1: `subject: "Ask rollout questions"`, `activeForm: "Asking rollout questions"`.
    - T2: `subject: "Run freshness research"`, `activeForm: "Researching release readiness"`, `addBlockedBy: ["T1"]`.
    - T3: `subject: "Write release readiness assessment"`, `activeForm: "Writing readiness assessment"`, `addBlockedBy: ["T2"]`.
@@ -216,9 +216,6 @@ Use when: Ship assessment found that verification evidence is stale or insuffici
 **Option D: Blocked — re-run ship** → `/wf-ship <slug>`
 Use when: Required rollout answers are still missing, OR merge was declined and needs to be retried later. Mark `Status: Awaiting input`.
 
-**Option E: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
-Use when: This slice shipped but there are more slices. Retro can wait until all slices ship.
-
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
 Write `09-ship.md` with this structure:
@@ -228,11 +225,11 @@ Write `09-ship.md` with this structure:
 schema: sdlc/v1
 type: ship
 slug: <slug>
-slice-slug: <slice-slug>
 status: complete
 stage-number: 9
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
+environment: "<production|staging|custom — from second argument or rollout questions>"
 go-nogo: <go|no-go|conditional-go>
 rollout-strategy: <immediate|staged|canary|feature-flag|maintenance-window>
 merge-strategy: <rebase|squash|merge|none>
@@ -288,5 +285,6 @@ next-invocation: "/wf-retro <slug>"
 
 ## Recommended Next Stage
 - **Option A (default):** `/wf-retro <slug>` — Go [reason]
-- **Option B:** `/wf-implement <slug> <slice>` — fix blockers [reason, if applicable]
-- **Option C:** `/wf-ship <slug>` — blocked, re-run when answers available [reason, if applicable]
+- **Option B:** `/wf-implement <slug> <slice>` — fix blockers or resolve rebase conflicts [reason, if applicable]
+- **Option C:** `/wf-verify <slug> <slice>` — re-verify if evidence was stale [reason, if applicable]
+- **Option D:** `/wf-ship <slug>` — blocked, re-run when answers available [reason, if applicable]
