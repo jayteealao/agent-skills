@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.3.0] - 2026-04-13
+
+### Changed
+
+- **`wf-shape` — 20-question feature discovery phase.** Replaced the vague "mandatory-question stage" with a structured 20-question interview using AskUserQuestion across 5 rounds of 4 questions each. All questions are about the specific feature being built (not abstract process themes): what it does (core action, inputs, outputs, trigger), how it behaves (post-action flow, undo, timing, dependencies), what it looks like (entry point, data volume, UI states, visual fit), what can go wrong (worst-case bugs, bad input, dep failure, access), and what the boundaries are (out of scope, migration, touch points, open questions). Questions use `[feature]` placeholder replaced with the actual feature name from intake. No leading options — all impartial with automatic "Other" for freeform answers.
+
 ## [8.2.0] - 2026-04-12
 
 ### Added
