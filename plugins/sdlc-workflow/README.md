@@ -1,530 +1,844 @@
-# SDLC-Workflow
+# SDLC Workflow
 
-A Claude Code plugin that gives your AI assistant a structured software delivery lifecycle. Instead of ad-hoc prompts that produce inconsistent results, every feature, fix, or spike moves through the same reproducible sequence of stages — each one writing a permanent, machine-readable artifact to your repo that the next stage reads.
-
-All artifacts use **YAML frontmatter** (`schema: sdlc/v1`) as the single source of machine-readable state. The markdown body is for human-readable narrative only. This means the same workflow files can power dashboards, kanban boards, dependency graphs, CI/CD gates, or any tool that reads YAML.
+A Claude Code plugin that gives your AI assistant a structured software delivery lifecycle. Every feature, fix, or spike moves through the same reproducible sequence of stages — each one writing a permanent, machine-readable artifact to your repo that the next stage reads.
 
 ---
 
-## Before you start
+## Contents
 
-**Prerequisites**
+1. [Understanding the system](#understanding-the-system) — concepts and methodology
+2. [Your first workflow](#your-first-workflow) — end-to-end tutorial
+3. [How to…](#how-to) — task-oriented guides
+4. [Tips and tricks](#tips-and-tricks)
+5. [Command reference](#command-reference)
+6. [Hooks](#hooks)
+7. [Artifact layout and schema](#artifact-layout-and-schema)
 
-- Claude Code with the sdlc-workflow plugin installed
-- A project with a git working directory (artifacts are written under `.ai/workflows/`)
-- Familiarity with running slash commands in Claude Code (`/command-name arguments`)
+---
 
-**What the plugin provides**
+## Understanding the system
 
-Eleven workflow commands, 30 individual review commands, 7 aggregate review commands, 4 analysis skills, and 1 setup command:
+### Why this exists
 
-| Command | Stage | Artifact written |
+When you ask an AI assistant to build a feature, the conversation ends and the context is gone. The next session starts blank. The AI made decisions — about architecture, scope, edge cases, test strategy — that have no record. When something breaks three weeks later, you can't trace why a particular approach was chosen.
+
+sdlc-workflow solves this by making the AI's reasoning **visible and persistent**. Every decision, every shaped requirement, every review finding, and every retrospective lesson lives in a YAML-fronted markdown file under `.ai/workflows/<slug>/`. These files are committed alongside your code. They are queryable, diffable, and readable by humans and machines long after the conversation ends.
+
+### The mental model: artifacts over memory
+
+The pipeline has ten stages. Each stage:
+- **Reads** what the previous stages wrote
+- **Thinks and asks** — interviews you via `AskUserQuestion` to fill in what the artifacts don't cover
+- **Writes** its own artifact with all machine-readable state in YAML frontmatter
+- **Recommends** what to run next (but you choose)
+
+You do not need to re-explain context between stages. The commands read it from the files.
+
+### The orchestrator discipline
+
+Every command in this plugin operates under a strict constraint: it is an **orchestrator**, not a problem-solver. This is deliberate.
+
+- `wf-shape` shapes a spec. It does not write code.
+- `wf-plan` produces a plan. It does not implement it.
+- `wf-review` dispatches reviewers. It does not fix findings.
+- `wf-implement` builds. It does not design.
+
+This separation keeps each artifact clean and prevents stages from collapsing into each other. A plan file describes intent. An implement file describes what was actually done. These are different documents. If the plan and implementation are written simultaneously, the plan becomes post-hoc rationalization.
+
+### Adaptive routing
+
+No two features take the same path. After completing a stage, every command presents **all viable next options** — not just the sequential next stage. You might see:
+
+- **Option A (default)** — the natural next stage
+- **Option B (skip-to)** — jump ahead for simple changes (e.g., intake → plan for trivial one-line fixes)
+- **Option C (revisit)** — go back when planning revealed the spec was incomplete
+- **Option D (parallel)** — plan or implement multiple slices concurrently
+
+A well-understood single-file fix can legitimately run `intake → plan → implement → verify → ship` without visiting shape, slice, or review. The system does not force you through stages that add no value for your specific change.
+
+### The pipeline
+
+```
+1·intake → 2·shape → 2b·design* → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+```
+
+\* Optional design brief stage for UI/UX features. Slots between shape and slice.
+
+| Stage | Purpose | Key artifact |
 |---|---|---|
-| `/wf-intake` | 1 — Intake | `01-intake.md` |
-| `/wf-shape` | 2 — Shape | `02-shape.md` |
-| `/wf-slice` | 3 — Slice | `03-slice.md` + `03-slice-<slug>.md` per slice |
-| `/wf-plan` | 4 — Plan | `04-plan.md` + `04-plan-<slug>.md` per slice |
-| `/wf-implement` | 5 — Implement | `05-implement.md` + `05-implement-<slug>.md` per slice |
-| `/wf-verify` | 6 — Verify | `06-verify.md` + `06-verify-<slug>.md` per slice |
-| `/wf-review` | 7 — Review | `07-review.md` + `07-review-<command>.md` per review command |
-| `/wf-handoff` | 8 — Handoff | `08-handoff.md` |
-| `/wf-ship` | 9 — Ship | `09-ship.md` |
-| `/wf-retro` | 10 — Retro | `10-retro.md` |
-| `/wf-next` | Routing helper | reads `00-index.md`, returns next command |
+| **Intake** | Capture requirements, establish scope, choose branch strategy | `01-intake.md` |
+| **Shape** | Interview to build a full mini-spec with edge cases, constraints, and docs plan | `02-shape.md` |
+| **Design** *(optional)* | UX brief — discovery interview, layout approach, key states, interaction model | `02b-design.md` |
+| **Slice** | Decompose shaped work into thin, independently deliverable vertical slices | `03-slice.md` + per-slice files |
+| **Plan** | Repo-aware implementation plan using parallel codebase exploration sub-agents | `04-plan.md` + per-slice files |
+| **Implement** | Execute the plan, commit atomically per slice, record deviations | `05-implement.md` + per-slice files |
+| **Verify** | Run acceptance criteria, automated tests, interactive checks, evidence capture | `06-verify.md` + per-slice files |
+| **Review** | Dispatch parallel review sub-agents, aggregate findings, triage with user | `07-review.md` + per-command files |
+| **Handoff** | PR-ready package — summary, evidence, docs, push branch, create PR | `08-handoff.md` |
+| **Ship** | Release readiness, go/no-go, merge strategy, rollout, rollback plan | `09-ship.md` |
+| **Retro** | Extract reusable lessons, produce concrete improvements for CLAUDE.md and hooks | `10-retro.md` |
 
-Every workflow also has a `00-index.md` control file (pure YAML frontmatter — no markdown body) and a `po-answers.md` answers log — both maintained automatically.
+### How the review system works
+
+`wf-review` is not a single reviewer. It is a **dispatch orchestrator** that selects from 31 individual review domains and launches one parallel sub-agent per domain. The sub-agents run concurrently, each writing its findings to a separate file. The orchestrator then aggregates, deduplicates (same `file:line` or same root cause), and triages findings with you through `AskUserQuestion`.
+
+Selection is artifact-driven, not keyword-driven. The orchestrator reads your shape and slice artifacts to understand *what the feature does*, then reasons about which review domains matter. A feature described as "adds async bulk import" triggers `backend-concurrency` and `data-integrity` even if the diff text contains neither word.
+
+Three finding severity levels gate routing:
+- **BLOCKER** → `Don't Ship` verdict → route to `wf-implement` for fixes
+- **HIGH only** → `Ship with caveats` verdict → route to `wf-implement` or handoff with noted issues
+- **MED/LOW/NIT** → `Ship` verdict → route to `wf-handoff`
+
+### How documentation is integrated (Diátaxis)
+
+The plugin applies the [Diátaxis framework](https://diataxis.fr) across the lifecycle:
+
+**At shape (stage 2):** the mini-spec includes a docs plan that classifies what documentation the feature needs by quadrant:
+
+| Change type | Diátaxis quadrant | Doc type |
+|---|---|---|
+| New API, config, CLI commands | Reference | Structured lookup |
+| New user-facing task capability | How-to guide | Goal-oriented steps |
+| Major new capability for new users | Tutorial | Learning by doing |
+| Architectural decisions, trade-offs | Explanation | Background and rationale |
+| Significant project change | README update | Front door |
+
+**At handoff (stage 8):** documentation is generated from the shape's docs plan before the announcement is drafted. The appropriate Diátaxis skill is invoked for each doc type planned at shape. Generated doc paths land in `08-handoff.md` frontmatter.
+
+**At announce (post-ship):** announcements automatically link to generated docs by channel — Slack/chat gets a short link, GitHub Release gets markdown blocks, wikis get embedded sections.
+
+**At review (stage 7):** the `docs` review command audits existing documentation against Diátaxis boundaries — flagging tutorials that drift into explanation, references that give opinions, and READMEs that have become manuals.
+
+### The re-entry model
+
+The pipeline is linear by design, but real development is cyclic. Three utility commands handle re-entry without overwriting completed work:
+
+| Need | Command |
+|---|---|
+| Implementation bugs found in review | `wf-implement <slug> reviews` — reads `07-review.md`, fixes BLOCKER/HIGH findings |
+| Spec or acceptance criteria were wrong | `wf-amend` — creates versioned correction artifacts alongside originals |
+| New scope needed (not bugs, not corrections) | `wf-extend` — appends new slices without touching completed slice files |
+
+`wf-amend` and `wf-extend` never modify any artifact with `status: complete`. The original record of what was done is always preserved.
 
 ---
 
-## How to start a new workflow
+## Your first workflow
 
-Run `/wf-intake` with a plain-language description of your task. You do not need a slug yet — the command derives one from your description.
+This tutorial walks you through a complete workflow for a simple feature. The goal is to learn the pattern, not master every option.
+
+**Scenario:** Add a dark mode toggle to the settings page.
+
+### Step 1 — Intake
 
 ```
 /wf-intake add dark mode toggle to settings page
 ```
 
-The command will:
+The command derives the slug (`dark-mode-toggle-settings`), asks you 3–7 questions about scope, success criteria, non-goals, and whether you want a dedicated git branch, then writes `01-intake.md` and `00-index.md`.
 
-1. Ask you 3–7 focused product-owner questions covering desired outcome, success criteria, non-goals, constraints, and **whether you want a dedicated feature branch** for this work.
-2. Create `.ai/workflows/dark-mode-toggle-settings/` and write `00-index.md` and `01-intake.md`.
-3. Return a compact summary ending with multiple options for what to run next (see adaptive routing below).
+You will see something like:
+```
+slug: dark-mode-toggle-settings
+wrote: 01-intake.md, 00-index.md
+options:
+  A (default): /wf-shape dark-mode-toggle-settings
+  B (skip to plan): /wf-plan dark-mode-toggle-settings — if scope is already fully clear
+```
 
-If you choose a dedicated branch, the workflow tracks `branch`, `base-branch`, and `branch-strategy` in the index. All downstream commands are branch-aware.
-
-**The slug** (`dark-mode-toggle-settings`) is derived from your description and stays fixed for the life of the workflow. Every subsequent command takes it as its first argument.
-
----
-
-## How to progress through a workflow stage by stage
-
-After each stage completes, the command presents multiple routing options — not just one. The default is the next sequential stage, but you may also see skip-to options for simpler tasks or revisit options if issues were found. Copy your chosen command and run it.
+### Step 2 — Shape
 
 ```
 /wf-shape dark-mode-toggle-settings
 ```
 
+This is the most interview-intensive stage. The command asks **20 questions across 5 rounds** — generated dynamically from your intake brief, not hardcoded. The five rounds cover:
+
+1. What does it do? (core interaction)
+2. How does it behave? (state, persistence, edge cases)
+3. What does it look like? (visual states, transitions)
+4. What can go wrong? (failure modes, graceful degradation)
+5. Where are the boundaries? (out-of-scope, future work)
+
+All answers are saved to `po-answers.md` — a cumulative product-owner log that subsequent stages read, so you never repeat yourself.
+
+### Step 3 — Slice
+
 ```
 /wf-slice dark-mode-toggle-settings
 ```
 
-```
-/wf-plan dark-mode-toggle-settings slice-1
-```
+The command interviews you (4–8 questions) about delivery order, slice granularity, rollout coupling, and scope cuts. For this feature it might propose two slices: `css-token-setup` (the CSS variable infrastructure) and `toggle-ui` (the UI component and persistence logic).
+
+### Step 4 — Plan
 
 ```
-/wf-implement dark-mode-toggle-settings slice-1
+/wf-plan dark-mode-toggle-settings css-token-setup
 ```
 
-Each stage reads the artifacts written by earlier stages. You do not need to re-explain context — the commands read `00-index.md` and the relevant stage files automatically.
+The command launches parallel explore sub-agents to inspect your codebase — affected files, call graphs, test infrastructure, dependency versions. It then asks you 8–12 questions about implementation approach decisions the sub-agents surfaced. The output is an execution-ready plan in `04-plan-css-token-setup.md`.
 
-**If you are not sure what to run next**, use the routing helper:
-
-```
-/wf-next dark-mode-toggle-settings
-```
-
-It reads `00-index.md` and returns all viable options with reasoning.
-
----
-
-## How adaptive routing works
-
-Every command evaluates what should actually come next instead of blindly pointing to the sequential successor. After completing a stage, you will see multiple labeled options:
-
-- **Option A (default)** — the natural next stage
-- **Option B (skip-to)** — jump ahead when the task is simple enough (e.g., intake can skip to plan for trivial fixes, verify can skip review for solo projects)
-- **Option C (revisit)** — go back to a prior stage if issues were found
-- **Option D (blocked)** — re-run the current stage after providing missing answers
-
-This means a well-understood single-file fix can go `intake → plan → implement → verify → ship` without forcing you through every stage.
-
----
-
-## How branch-based workflows work
-
-At intake, the workflow asks whether you want a **dedicated feature branch**. If you say yes, the entire workflow lifecycle maps onto git:
-
-| Stage | Git action |
-|---|---|
-| **Intake** | Records branch strategy, branch name (`feat/<slug>` default), and base branch |
-| **Implement** | Creates the branch (first slice only), switches to it, commits atomically per slice |
-| **Verify** | Confirms it's on the correct branch before running tests |
-| **Review** | Uses `git diff <base>...<branch>` for the full change set |
-| **Handoff** | Pushes the branch, creates a PR using the handoff summary as PR body |
-| **Ship** | Rebases onto base branch, merges the PR (rebase-and-merge, squash, or merge commit) |
-
-**Three branch strategies are supported:**
-
-| Strategy | Behavior |
-|---|---|
-| `dedicated` | Full lifecycle: branch creation → atomic commits → push → PR → rebase → merge |
-| `shared` | Commits go to whatever branch you're already on. No branch creation, no PR, no merge. |
-| `none` | No git operations at all. You manage git yourself. |
-
-**Atomic commits per slice** — each `/wf-implement` invocation commits its changes with a message like `feat(<slug>): implement <slice-slug>`. Review fixes commit as `fix(<slug>): review fixes for <slice-slug>`. Nothing is pushed until handoff.
-
-**The routing helper warns about branch mismatches** — if you run `/wf-next` while on the wrong branch, it tells you to switch before proceeding.
-
-**Merge strategy is chosen at ship time** — the workflow asks during ship's mandatory questions whether to rebase-and-merge (default), squash-and-merge, or create a merge commit. If rebase conflicts arise, ship stops and recommends returning to implement to resolve them.
-
----
-
-## How to work with slices
-
-`/wf-slice` breaks shaped work into thin, independently deliverable vertical slices. Once slices exist, downstream commands write **per-slice files** with cross-links:
-
-| Stage | Master file | Per-slice file |
-|---|---|---|
-| Slice | `03-slice.md` | `03-slice-<slug>.md` |
-| Plan | `04-plan.md` | `04-plan-<slug>.md` |
-| Implement | `05-implement.md` | `05-implement-<slug>.md` |
-| Verify | `06-verify.md` | `06-verify-<slug>.md` |
-
-Each per-slice file contains `refs` in its frontmatter linking to the master index, sibling slices, and upstream/downstream artifacts. Master files contain tables linking all per-slice files with their status.
+### Step 5 — Implement
 
 ```
-/wf-plan dark-mode-toggle-settings slice-2
-/wf-implement dark-mode-toggle-settings slice-2
-/wf-verify dark-mode-toggle-settings slice-2
+/wf-implement dark-mode-toggle-settings css-token-setup
 ```
 
-**To implement slices in sequence**, finish the full implement → verify → review → handoff → ship cycle on slice-1 before starting slice-2. The index tracks which slice is currently selected.
+The command executes the plan, commits changes atomically as `feat(dark-mode-toggle-settings): implement css-token-setup`, and records exactly what was built, what deviated from the plan, and why.
 
-**Sibling awareness** — when planning or implementing a slice, the command reads existing sibling plans/implementations to avoid conflicts on shared files and tracks shared file touches.
-
-**If you have a small change that does not need slicing**, pass a focus area instead of a slice identifier:
+### Step 6 — Verify
 
 ```
-/wf-plan dark-mode-toggle-settings css-variables-only
+/wf-verify dark-mode-toggle-settings css-token-setup
 ```
 
----
+Runs acceptance criteria against the implementation. For each criterion marked `interactive`, it identifies the right verification tool (Playwright, browser MCP, `adb`, Maestro) and runs it. Evidence is captured and written to `06-verify-css-token-setup.md`.
 
-## How to plan all slices in parallel
-
-Instead of planning one slice at a time, plan them all concurrently:
+### Step 7 — Review
 
 ```
-/wf-plan dark-mode-toggle-settings all
+/wf-review dark-mode-toggle-settings css-token-setup
 ```
 
-This spawns one sub-agent per slice. Each sub-agent writes its plan directly to `04-plan-<slice-slug>.md`. The main agent then reads all plans, runs a cohesion check for conflicts, gaps, and integration points, and writes the master `04-plan.md`.
+Selects relevant review domains from your diff and artifacts, dispatches parallel sub-agents, aggregates findings, triages BLOCKER/HIGH findings with you one at a time. Returns a `Ship / Ship with caveats / Don't Ship` verdict.
 
----
-
-## How to review and fix existing plans
-
-Re-invoking `/wf-plan` on an existing plan does not overwrite it — it auto-reviews. Three modes:
-
-**Auto-review (single slice):**
-```
-/wf-plan dark-mode-toggle-settings slice-1
-```
-Re-inspects the codebase, compares the plan against acceptance criteria, checks sibling plan cohesion, and fixes issues found. Reports "no issues" if the plan is current.
-
-**Review all slices:**
-```
-/wf-plan dark-mode-toggle-settings all
-```
-Launches parallel sub-agents to review every existing slice plan, cross-checks cohesion, fixes all issues.
-
-**Directed fix with feedback:**
-```
-/wf-plan dark-mode-toggle-settings slice-1 split the database migration into two steps
-```
-Applies your feedback surgically to the existing plan without starting from scratch.
-
-All modes append to `## Revision History` in each modified plan file.
-
----
-
-## How to pick up a workflow after a context gap
-
-If you lose your session or return to a workflow after a break, run the routing helper with the slug:
+### Step 8 — Handoff
 
 ```
-/wf-next dark-mode-toggle-settings
+/wf-handoff dark-mode-toggle-settings css-token-setup
 ```
 
-It reads the control file, determines the current stage and status, and returns all viable options. If you have forgotten the slug, omit it — the command searches `.ai/workflows/*/00-index.md` and either infers the most recent active workflow or asks you to choose.
+If your branch strategy is `dedicated`, this pushes the branch and creates a pull request using the handoff summary as the PR body. Returns the PR URL.
+
+### Step 9 — Ship
 
 ```
-/wf-next
+/wf-ship dark-mode-toggle-settings css-token-setup
 ```
 
----
+Asks about rollout strategy, rollback tolerance, and merge approach. Merges the PR. Records the merge SHA.
 
-## How to handle a mandatory-question stage
-
-Two stages — **intake** and **ship** — are mandatory-question stages. They will not finalize until you have answered the required questions.
-
-**Intake** asks about scope, acceptance criteria, non-goals, constraints, and branch strategy. If you run `/wf-intake` with no description, it will ask for one before proceeding.
-
-**Ship** asks about:
-- Target environment and release window
-- Rollout preference (immediate, staged, canary, feature flag, maintenance window)
-- Rollback tolerance and business risk
-- Stakeholder communication or compliance requirements
-- Merge strategy (if on a dedicated branch): rebase-and-merge, squash-and-merge, or merge commit
-
-If `branch-strategy` is `dedicated` and go-nogo is approved, ship rebases the feature branch onto the base branch and merges the PR. It asks for explicit confirmation before merging and checks CI status first. If rebase conflicts arise, ship stops and recommends returning to implement.
-
-If answers are not yet available when you run the command, it writes the stage file with `status: awaiting-input` in frontmatter, lists the exact unanswered questions, and stops. Return to it when you have the answers:
-
-```
-/wf-ship dark-mode-toggle-settings slice-1
-```
-
-The command resumes from where it stopped, reads your answers from the session, and completes the stage.
-
----
-
-## How to run a review with the workflow
-
-`/wf-review` is an intelligent review dispatch orchestrator. It does not review code directly — it selects and spawns sub-agents.
-
-```
-/wf-review dark-mode-toggle-settings slice-1
-```
-
-What happens:
-
-1. Reads workflow artifacts (shape, plan, implementation, verify) and gathers git diff statistics
-2. Selects relevant review commands based on file types and content signals (e.g., touches CSS → triggers `frontend-performance`; touches SQL → triggers `data-integrity` and `migrations`)
-3. Spawns one parallel sonnet sub-agent per selected command — each writes findings to `07-review-<command>.md`
-4. After all sub-agents complete, aggregates and deduplicates findings (same file:line or same root cause), keeps highest severity
-5. Writes the unified verdict to `07-review.md`
-
-The verdict uses three tiers:
-
-- **Blocking issues** — must fix before handoff
-- **Should-fix issues** — fix in this PR if possible
-- **Nice-to-have improvements** — can be follow-up work
-
-Frontmatter on `07-review.md` includes `verdict: ship|ship-with-caveats|dont-ship` and `metric-findings-*` counts for machine consumption.
-
-If there are blocking issues, the recommended next command returns to `/wf-implement`. If the review passes, it recommends `/wf-handoff`.
-
----
-
-## How to fix review findings automatically
-
-After a review produces findings, use the reviews mode to fix them:
-
-```
-/wf-implement dark-mode-toggle-settings reviews
-```
-
-This reads `07-review.md` and all per-command review files, extracts BLOCKER and HIGH findings sorted by severity, and spawns one sonnet sub-agent per finding **sequentially** (each fix is verified before the next starts). After completion:
-
-- Each finding is marked Fixed / Partially Fixed / Could Not Fix
-- `05-implement-<slice>.md` gets a `## Review Fixes Applied` section
-- `07-review.md` gets a `## Fix Status` tracking table
-- Recommends re-verify after all fixes are applied
-
----
-
-## How to generate a PR-ready handoff package
-
-`/wf-handoff` reads the implementation, verification, and review artifacts and produces a reviewer-friendly summary package: PR title options, problem/solution summary, affected areas, verification evidence, migration notes, risks, and reviewer focus areas.
-
-```
-/wf-handoff dark-mode-toggle-settings slice-1
-```
-
-**If `branch-strategy` is `dedicated`**, handoff also pushes the branch and creates a pull request automatically using `gh pr create`. The handoff summary becomes the PR body. The PR URL and number are recorded in both `08-handoff.md` and `00-index.md` frontmatter.
-
-**If `branch-strategy` is `shared`**, the branch is pushed but no PR is created — you manage that yourself.
-
-**If `branch-strategy` is `none`**, no git operations happen. The handoff document in `08-handoff.md` is the deliverable.
-
----
-
-## How to close out a completed workflow
-
-After shipping, run the retro to extract reusable lessons:
+### Step 10 — Retro
 
 ```
 /wf-retro dark-mode-toggle-settings
 ```
 
-It reads the full workflow trail and produces concrete improvement suggestions for your `CLAUDE.md`, hooks, test coverage, CI checks, and command prompts. It marks the workflow complete in `00-index.md`.
+Reads the full artifact trail, extracts lessons, and produces concrete suggested additions to your `CLAUDE.md`, hooks, test coverage, CI checks, and command configurations. Marks the workflow complete.
 
-Retro output is in `10-retro.md`. Each recommendation includes a priority and suggested text you can paste directly into your repo instruction files. Frontmatter includes `workflow-outcome: completed|abandoned|partial` and improvement metrics.
-
----
-
-## How to read and understand the control file
-
-Every workflow has a `00-index.md` at `.ai/workflows/<slug>/00-index.md`. It is pure YAML frontmatter — no markdown body. It is the single source of truth for workflow state.
-
-Key frontmatter fields:
-
-| Field | What it tells you |
-|---|---|
-| `schema` | Always `sdlc/v1` — for version detection and future migration |
-| `slug` | Stable identifier used in all command arguments |
-| `title` | Human-readable task name |
-| `status` | `active`, `complete`, `blocked`, `abandoned` |
-| `current-stage` | The stage most recently started |
-| `stage-number` | Numeric position (1–10) |
-| `selected-slice` | Which slice is currently active |
-| `open-questions` | Unanswered questions blocking progress |
-| `next-command` | Command name (e.g., `wf-shape`) |
-| `next-invocation` | Full slash command ready to copy and run |
-| `workflow-files` | List of all artifacts written so far |
-| `progress` | Map of every stage name → status (`not-started`, `in-progress`, `complete`, etc.) |
-| `slices` | Array of slice summaries (slug, status, complexity, depends-on) — present once slicing is done |
-| `branch-strategy` | `dedicated`, `shared`, or `none` |
-| `branch` | Feature branch name (e.g., `feat/dark-mode-toggle`) — empty if `none` |
-| `base-branch` | Branch to merge back into (e.g., `main`) |
-| `pr-url` | Pull request URL — set by handoff |
-| `pr-number` | Pull request number — set by handoff |
-
-**Status enums used across all files:** `not-started`, `in-progress`, `awaiting-input`, `complete`, `skipped`, `blocked`.
+**Then repeat** for `toggle-ui` — the second slice follows the same path from plan onward.
 
 ---
 
-## How to query workflow metadata programmatically
+## How to…
 
-All artifact state lives in YAML frontmatter, making it easy to query with standard tools.
+### … start a new workflow
 
-**Extract a single field with `yq`:**
-```bash
-yq --front-matter=extract '.status' .ai/workflows/dark-mode/00-index.md
+```
+/wf-intake <plain-language task description>
 ```
 
-**Get the full progress map:**
-```bash
-yq --front-matter=extract '.progress' .ai/workflows/dark-mode/00-index.md
+You do not need a slug yet. The command derives it from your description and creates the workflow directory. Every subsequent command takes the slug as its first argument.
+
+**If you already know the slug** (returning to an abandoned workflow):
+```
+/wf-intake existing-slug
 ```
 
-**List all slices and their status:**
-```bash
-yq --front-matter=extract '.slices[] | .slug + ": " + .status' .ai/workflows/dark-mode/00-index.md
+### … find out what to run next
+
+```
+/wf-next dark-mode-toggle-settings
 ```
 
-**Get review verdict and finding counts:**
-```bash
-yq --front-matter=extract '{"verdict": .verdict, "blockers": .["metric-findings-blocker"]}' .ai/workflows/dark-mode/07-review.md
+Reads `00-index.md` and returns all viable options with reasoning. If you have forgotten the slug:
+
+```
+/wf-next
 ```
 
-**Compatible parsers:** `yq --front-matter=extract`, Obsidian Dataview, MarkdownDB, gray-matter (Node.js), python-frontmatter, or any YAML parser that can split on `---` delimiters.
+The command searches all `.ai/workflows/*/00-index.md` files and either infers the active workflow or asks you to choose.
 
----
+### … see all workflow status at a glance
 
-## How to pass supplemental context to a command
+```
+/wf-status
+```
 
-Any text after the slug and optional slice is treated as supplemental context. Use it to direct the command's focus without re-running earlier stages.
+Reads every `00-index.md` in the project and renders a grouped dashboard — active, complete, blocked, and abandoned — with current stage, progress bars, and next invocation for each. No files are written.
+
+```
+/wf-status dark-mode-toggle-settings
+```
+
+Detail mode for a single workflow: shows every stage status, all artifacts, open questions, and the full recommended next command.
+
+### … recover context after a break
+
+```
+/wf-resume dark-mode-toggle-settings
+```
+
+Reads the full workflow trail and distills it into a ~500-word context brief. Written to `90-resume.md` and returned in chat. Designed for starting a new Claude Code session without re-reading all the artifact files manually.
+
+### … reconcile workflow state with reality
+
+```
+/wf-sync dark-mode-toggle-settings
+```
+
+Cross-references every code file, test file, branch, PR, and dependency referenced in workflow artifacts against the actual codebase. Especially useful mid-flight (stages 4–7) when long-running workflows can drift due to teammate merges, library releases, or config changes. Produces `00-sync.md` with a health rating (`in-sync / minor-drift / significant-drift / stale`) and per-category drift details.
+
+This command is **read-only and diagnostic** — it surfaces drift but does not fix it. You decide how to respond.
+
+### … pass supplemental context to a command
+
+Any text after the slug and optional slice is treated as supplemental context and applies to that invocation only:
 
 ```
 /wf-plan dark-mode-toggle-settings slice-1 prefer CSS custom properties over JS state, must work with existing Tailwind setup
 ```
 
 ```
-/wf-review dark-mode-toggle-settings slice-1 pay extra attention to SSR compatibility and hydration order
+/wf-review dark-mode-toggle-settings slice-1 pay extra attention to SSR compatibility
 ```
 
-The supplemental context is not persisted — it applies only to this invocation.
+### … plan all slices in parallel
 
----
+```
+/wf-plan dark-mode-toggle-settings all
+```
 
-## How to handle a stage that is not applicable
+Spawns one plan sub-agent per slice. Each sub-agent writes its plan directly. The main agent reads all plans, runs a cohesion check for shared-file conflicts and integration gaps, and writes the master `04-plan.md`.
 
-Some changes do not need every stage. For a documentation-only change, for example, you may not need `/wf-verify` or `/wf-review`.
+### … auto-review or fix an existing plan
 
-Run the stage anyway but pass a brief note as supplemental context:
+Re-invoking `/wf-plan` on an existing plan does not overwrite it — it enters review-and-fix mode automatically:
+
+| Invocation | What happens |
+|---|---|
+| `/wf-plan <slug> <slice>` (plan already exists) | **Auto-review** — re-inspects codebase, checks plan against acceptance criteria, fixes issues found |
+| `/wf-plan <slug> all` (all plans exist) | **Review-all** — parallel sub-agents review every plan, cross-checks cohesion |
+| `/wf-plan <slug> <slice> <feedback text>` | **Directed fix** — applies your feedback surgically, preserves everything unchanged |
+
+All modes append to `## Revision History` in each modified plan file.
+
+### … fix review findings automatically
+
+```
+/wf-implement dark-mode-toggle-settings reviews
+```
+
+Reads `07-review.md`, extracts BLOCKER and HIGH findings in severity order, spawns one sequential sonnet sub-agent per finding (each fix is verified before the next starts). After completion, marks each finding Fixed / Partially Fixed / Could Not Fix and appends a `## Review Fixes Applied` section to the implement file.
+
+### … re-triage deferred review findings
+
+After deferring some findings in a previous review:
+
+```
+/wf-review dark-mode-toggle-settings triage
+```
+
+Skips the full review. Reads `07-review.md → ## Triage Decisions`, collects all findings marked `deferred` or `untriaged`, and presents them for re-triage. Updates the triage section in-place.
+
+### … amend an existing workflow (spec was wrong)
+
+Use `wf-amend` when a review or retro reveals that the **spec, acceptance criteria, or fundamental approach** of an existing slice was incorrect — not that the code has bugs, and not that new scope is needed.
+
+```
+/wf-amend dark-mode-toggle-settings from-review
+```
+
+The command reads `07-review.md`, identifies findings that point to spec errors (not implementation bugs), asks 4–8 questions to understand the correction, then writes versioned amendment artifacts:
+
+- `02-shape-amend-1.md` — if the overall spec needs correcting
+- `03-slice-<slug>-amend-1.md` — if a slice's goal or acceptance criteria need correcting
+
+These files sit alongside originals. No existing artifact is overwritten. The original `03-slice-<slug>.md` gains `amended: true` and a reference to the amendment file in its frontmatter.
+
+After writing amendments, the command routes you to `wf-plan` directed-fix mode to update the plan to match the corrected spec.
+
+**Three source modes:**
+```
+/wf-amend dark-mode-toggle-settings from-review    # seed from 07-review.md findings
+/wf-amend dark-mode-toggle-settings from-retro     # seed from 10-retro.md
+/wf-amend dark-mode-toggle-settings                # describe the correction manually
+```
+
+### … add new slices to an existing workflow
+
+Use `wf-extend` when review or retro reveals **new scope** — missing capability that was never planned, not bugs in what was built and not corrections to the spec.
+
+```
+/wf-extend dark-mode-toggle-settings from-review
+```
+
+The command reads `07-review.md`, identifies findings that describe missing capability (not broken code), groups them into candidate slices, asks 4–8 questions about grouping and ordering, confirms the proposed slices with you, then:
+
+1. Writes new `03-slice-<new-slug>.md` files
+2. Appends new entries to `03-slice.md` non-destructively — existing entries and their `status: complete` flags are preserved
+3. Routes to `wf-plan` for the new slices
+
+```
+/wf-extend dark-mode-toggle-settings from-retro    # seed from retro findings
+/wf-extend dark-mode-toggle-settings               # describe new scope manually
+```
+
+**Key distinction from re-running wf-slice:** `wf-extend` appends; `wf-slice` replaces.
+
+### … add a design brief for a UI feature
+
+The design stage slots between shape (2) and slice (3):
+
+```
+/wf-design dark-mode-toggle-settings
+```
+
+Requires `.impeccable.md` in your project root (established by `wf-design:setup`). The command loads your design context (brand personality, aesthetic direction, design principles), scans the codebase for existing patterns, runs a UX discovery interview, and produces `02b-design.md` — a structured design brief with layout approach, key states, interaction model, and component inventory.
+
+**Four supporting design commands:**
+
+| Command | Purpose |
+|---|---|
+| `/wf-design:setup` | Establish project-wide design context in `.impeccable.md` (run once per project) |
+| `/wf-design:critique <slug>` | Independent expert critique of an existing design brief |
+| `/wf-design:audit <slug>` | Technical audit — accessibility, performance, theming, responsive design |
+| `/wf-design:extract <slug>` | Extract reusable design tokens and component specs from an existing implementation |
+
+### … generate announcements after shipping
+
+```
+/wf-announce dark-mode-toggle-settings
+```
+
+Reads `08-handoff.md`, `09-ship.md`, `01-intake.md`, and `02-shape.md`. Checks for any planned docs from the shape's docs plan that weren't generated at handoff and invokes the appropriate Diátaxis skill to fill the gap. Then asks which audience and which channels:
+
+**Audiences:** `eng`, `product`, `users`, `all`
+
+**Channels and their formatting rules:**
+| Channel | Format |
+|---|---|
+| Slack/chat | 5–8 lines, emoji ok, link to PR/docs |
+| Email | Prose paragraphs with headers, no jargon |
+| GitHub Release | Markdown with code blocks, changelog-style |
+| Wiki/Notion | Full structured format — context, changes, migration notes, docs |
+
+Each draft includes a **Docs** section linking to the generated documentation for that audience's context.
+
+### … handle a stage that does not apply
+
+For a docs-only change that doesn't need verification or review:
 
 ```
 /wf-verify dark-mode-docs docs-only no code changed
 ```
 
-The command will produce a minimal artifact noting the stage was acknowledged but not substantively applicable, which keeps the workflow trail complete and `00-index.md` accurate.
+The command produces a minimal artifact acknowledging the stage was not substantively applicable — keeping `00-index.md` accurate without forcing empty ceremony. Then use skip-to routing to jump forward.
 
-Alternatively, use adaptive routing — each command's skip-to options let you jump forward when stages are not needed.
+### … query workflow state programmatically
+
+All state lives in YAML frontmatter — queryable with standard tools:
+
+```bash
+# Get current stage and status
+yq --front-matter=extract '.current-stage + ": " + .status' .ai/workflows/dark-mode/00-index.md
+
+# List all slices with their status
+yq --front-matter=extract '.slices[] | .slug + ": " + .status' .ai/workflows/dark-mode/00-index.md
+
+# Get review verdict and blocker count
+yq --front-matter=extract '{"verdict": .verdict, "blockers": .["metric-findings-blocker"]}' .ai/workflows/dark-mode/07-review.md
+
+# Find all workflows in a given state
+for f in .ai/workflows/*/00-index.md; do
+  yq --front-matter=extract '"'" + "$f" + '": " + .status' "$f"
+done
+```
+
+Compatible parsers: `yq --front-matter=extract`, Obsidian Dataview, MarkdownDB, `gray-matter` (Node.js), `python-frontmatter`, or any YAML parser that splits on `---` delimiters.
 
 ---
 
-## How to run a freshness pass manually
+## Tips and tricks
 
-Every command performs a freshness pass automatically when external knowledge could affect the output. If you want to force an explicit freshness pass — for example, before planning work that touches a rapidly evolving dependency — run the relevant stage with a freshness hint:
+### The `/compact` command is your friend
+
+Review dispatch, planning research, and implementation all generate significant context. Before moving to the next slice or to fix mode, run `/compact`. The PreCompact hook automatically preserves all workflow state in the artifact files, so the context is available even after compression.
+
+The review command reminds you explicitly: "Consider running `/compact` before `/wf-implement` — triage decisions are in `07-review.md`."
+
+### Let the routing helper navigate between sessions
+
+If you start a session without remembering where you left off:
 
 ```
-/wf-plan dark-mode-toggle-settings slice-1 run full freshness pass on CSS color-scheme property and prefers-color-scheme media query support
+/wf-next
 ```
 
-The freshness results are written into the stage file under `## Freshness Research` with source, relevance, and takeaway for each item checked.
+No slug needed. It finds your active workflow and returns the next command ready to copy and run.
+
+### Use supplemental context to focus without re-shaping
+
+If a review revealed a specific concern but you don't want to re-run the full review:
+
+```
+/wf-plan dark-mode-toggle-settings toggle-ui focus the test plan on keyboard accessibility and prefers-color-scheme media query edge cases
+```
+
+The supplemental text is visible to the command but not persisted — it guides this invocation only.
+
+### wf-sync before planning long-running features
+
+On a feature that will span multiple days, run `wf-sync` before starting each new planning or implementation session. Teammate merges, dependency updates, and config changes can silently invalidate plan assumptions. The sync report surfaces these before you've written code against stale assumptions.
+
+```
+/wf-sync dark-mode-toggle-settings
+```
+
+### Use po-answers.md as the decision audit trail
+
+Every answer you give to `AskUserQuestion` during the workflow is appended to `po-answers.md` with a timestamp and the stage that asked it. This file becomes the product-owner decision log for the change. When a PR reviewer asks "why was X designed this way?", the answer is in `po-answers.md`.
+
+### Commit the `.ai/workflows/` directory with your code
+
+The workflow artifacts form the permanent record of how and why a change was made. Committing them alongside the code means you can `git log` the decision trail, diff the spec against what was implemented, and onboard teammates to why specific choices were made. The `schema: sdlc/v1` field is designed for future migrations and tooling.
+
+### Use wf-plan directed-fix instead of re-shaping
+
+If implementation revealed that one step in the plan was wrong:
+
+```
+/wf-plan dark-mode-toggle-settings toggle-ui use localStorage for theme persistence, not a cookie — cookies don't work for pre-render SSR
+```
+
+This surgically updates the plan without triggering the full planning research cycle. Much faster than re-running shape or slice.
+
+### Fresh reviews with /wf-review triage
+
+After fixing BLOCKER findings in implement, don't re-run the full review — re-triage what was deferred:
+
+```
+/wf-review dark-mode-toggle-settings triage
+```
+
+This revisits only deferred and untriaged findings. If the BLOCKER fixes introduced new issues, *then* run a full re-review.
+
+### Design context is project-wide
+
+`.impeccable.md` is set up once per project with `/wf-design:setup` and reused by every subsequent `wf-design` invocation. You don't re-establish brand personality or aesthetic direction for each feature — it flows through from the project-level file.
+
+### Extension rounds are tracked
+
+Every `wf-extend` invocation records an `extension-round: N` on new slice entries. You can see which slices were part of the original design and which were added later — and when — directly from the `03-slice.md` frontmatter. This matters for post-ship analysis of how well initial scoping predicted final scope.
 
 ---
 
-## Artifact layout reference
+## Command reference
 
-All artifacts for a workflow live under a single directory:
+### Pipeline stages
 
-```
-.ai/workflows/<slug>/
-├── 00-index.md                  # Control file — pure YAML frontmatter, no body
-├── 01-intake.md                 # Intake brief, acceptance criteria, non-goals
-├── 02-shape.md                  # Mini-spec, edge cases, constraints
-├── 03-slice.md                  # Slice master index
-├── 03-slice-<slug>.md           # Per-slice definition (one per slice)
-├── 04-plan.md                   # Plan master index
-├── 04-plan-<slug>.md            # Per-slice implementation plan
-├── 05-implement.md              # Implement master index
-├── 05-implement-<slug>.md       # Per-slice implementation record
-├── 06-verify.md                 # Verify master index
-├── 06-verify-<slug>.md          # Per-slice verification evidence
-├── 07-review.md                 # Review master verdict
-├── 07-review-<command>.md       # Per-command review findings
-├── 08-handoff.md                # PR-ready package, reviewer focus areas
-├── 09-ship.md                   # Release readiness, rollout and rollback plan
-├── 10-retro.md                  # Lessons, concrete improvement actions
-├── 90-next.md                   # Routing helper output (if wf-next was run)
-└── po-answers.md                # Cumulative product-owner answers log
-```
+| Command | Stage | Purpose | Artifact |
+|---|---|---|---|
+| `/wf-intake <description>` | 1 | Capture scope, criteria, branch strategy | `01-intake.md` |
+| `/wf-shape <slug>` | 2 | 20-question feature interview, mini-spec, docs plan | `02-shape.md` |
+| `/wf-design <slug>` | 2b *(optional)* | UX brief — layout, states, interaction model | `02b-design.md` |
+| `/wf-slice <slug>` | 3 | Decompose into vertical slices | `03-slice.md` + per-slice |
+| `/wf-plan <slug> [slice\|all] [feedback]` | 4 | Repo-aware implementation plan | `04-plan.md` + per-slice |
+| `/wf-implement <slug> [slice\|reviews]` | 5 | Execute plan, atomic commits | `05-implement.md` + per-slice |
+| `/wf-verify <slug> [slice]` | 6 | Acceptance criteria, test runs, evidence | `06-verify.md` + per-slice |
+| `/wf-review <slug> [slice\|triage]` | 7 | Multi-domain parallel review dispatch | `07-review.md` + per-command |
+| `/wf-handoff <slug> [slice]` | 8 | PR package, push branch, create PR | `08-handoff.md` |
+| `/wf-ship <slug> [slice]` | 9 | Go/no-go, merge, rollout plan | `09-ship.md` |
+| `/wf-retro <slug>` | 10 | Extract lessons, improvement actions | `10-retro.md` |
 
-Every file starts with YAML frontmatter containing `schema: sdlc/v1` and all machine-readable state. The markdown body below the frontmatter is for human-readable narrative only. Commit these files alongside your code — they form a permanent, machine-readable record of how and why a change was made.
+### Design quality commands
 
----
+All require `.impeccable.md` established by `/wf-design:setup`.
 
-## Review commands reference
+| Command | Purpose |
+|---|---|
+| `/wf-design:setup` | Project-wide design context (run once) |
+| `/wf-design:critique <slug>` | Expert UX critique of a design brief |
+| `/wf-design:audit <slug>` | Accessibility, performance, theming, responsive check |
+| `/wf-design:extract <slug>` | Extract reusable design tokens and component specs |
 
-`/wf-review` dispatches from a library of 30 individual review commands and 7 aggregate bundles:
+### Re-entry and correction commands
 
-**Individual commands** (each covers one domain):
-accessibility, api-contracts, architecture, backend-concurrency, ci, correctness, cost, data-integrity, docs, dx, frontend-accessibility, frontend-performance, infra, infra-security, logging, maintainability, migrations, observability, overengineering, performance, privacy, refactor-safety, release, reliability, scalability, security, style-consistency, supply-chain, testing, ux-copy
+| Command | Use when |
+|---|---|
+| `/wf-amend <slug> [from-review\|from-retro]` | Spec/AC/approach of an existing slice was wrong |
+| `/wf-extend <slug> [from-review\|from-retro]` | New scope (not bugs, not corrections) needs adding |
 
-**Aggregate commands** (each runs a curated subset):
+### Utility commands
+
+| Command | Purpose |
+|---|---|
+| `/wf-next [slug]` | Routing helper — returns next viable command(s) |
+| `/wf-status [slug]` | Read-only dashboard across all workflows |
+| `/wf-resume [slug]` | ~500-word context brief for resuming after a break |
+| `/wf-sync [slug]` | Reality reconciliation — surface drift between artifacts and codebase |
+| `/wf-announce <slug> [audience]` | Generate stakeholder announcements with Diátaxis doc links |
+
+### Review domains (31 individual commands)
+
+Available as standalone commands and dispatched automatically by `wf-review`:
+
+**Always selected for any code change:** `correctness`, `security`, `code-simplification`
+
+**Always selected for backend source changes:** `testing`, `maintainability`, `reliability`
+
+**Always selected for frontend source changes:** `accessibility`, `frontend-accessibility`, `frontend-performance`, `ux-copy`
+
+**Selected by feature type (from shape/slice artifacts):**
+
+| Domain | Trigger |
+|---|---|
+| `backend-concurrency` | Async, concurrent, parallel behaviour |
+| `refactor-safety` | Refactor, restructure, rename, extraction |
+| `architecture` | New modules, services, architectural layers |
+| `overengineering` | Generic abstractions, base classes, factory patterns |
+| `performance` | DB queries, loops over collections, cache interactions |
+| `data-integrity` | DB writes, mutations, transactions, schema changes |
+| `migrations` | DB migration files |
+| `privacy` | User data, auth flows, PII, payment processing |
+| `api-contracts` | Route definitions, OpenAPI, GraphQL schemas, gRPC |
+| `scalability` | Queue consumers, batch ops, multi-tenant data |
+| `supply-chain` | Added or changed dependencies |
+| `infra` | Dockerfile, Terraform, Helm, K8s, Ansible |
+| `infra-security` | Infrastructure-level security configuration |
+| `ci` | CI/CD pipeline changes |
+| `release` | CHANGELOG, version fields, release configs |
+| `logging` | New or changed log statements |
+| `observability` | Metrics, OpenTelemetry, Prometheus, health checks |
+| `cost` | Cloud/API calls that incur spend |
+| `docs` | Documentation files, docstrings |
+| `style-consistency` | Mixed naming conventions within a file or module |
+| `dx` | Developer-facing tooling, scripts, README |
+
+**Aggregate bundles (curated subsets):**
+
 | Command | What it covers |
 |---|---|
 | `/review-all` | Full sweep across all domains |
 | `/review-quick` | Fast check — correctness, security, testing |
 | `/review-pre-merge` | Pre-merge gate — correctness, security, testing, api-contracts, migrations |
 | `/review-security` | Security-focused — security, infra-security, supply-chain, privacy |
-| `/review-architecture` | Structure-focused — architecture, scalability, maintainability, reliability |
+| `/review-architecture` | Structure — architecture, scalability, maintainability, reliability |
 | `/review-infra` | Infrastructure — infra, infra-security, ci, cost, observability |
 | `/review-ux` | User experience — ux-copy, accessibility, frontend-accessibility, frontend-performance |
 
-You do not need to call these directly — `/wf-review` selects the relevant ones automatically based on your diff. But they are available as standalone commands if you want a targeted review outside the workflow.
+### Analysis skills
 
----
+Available during implementation and verification:
 
-## Analysis skills reference
-
-Four analysis skills are available during implementation and verification:
-
-| Skill | When to use |
+| Skill | Purpose |
 |---|---|
-| `error-analysis` | Systematic error/stacktrace/log analysis with root cause identification |
+| `error-analysis` | Root cause identification from errors, stack traces, logs |
 | `refactoring-patterns` | Safe refactoring: extract, rename, move, simplify |
 | `test-patterns` | Test generation: unit, integration, factories, coverage strategies |
 | `wide-event-observability` | Wide-event logging and tail sampling design |
 
-The `setup-wide-logging` command sets up wide-event logging with tail sampling for Express/Koa/Fastify/Next.js with Pino/Winston/Bunyan.
+The `setup-wide-logging` command configures wide-event logging for Express/Koa/Fastify/Next.js with Pino/Winston/Bunyan.
 
----
+### Design quality skills
 
-## How documentation is handled (Diátaxis)
+Fourteen design quality skills — invoked directly by `/wf-design` commands and available standalone. All require `.impeccable.md` established by `/wf-design:setup`.
 
-The workflow integrates the Diátaxis documentation framework across three stages:
+| Skill | Purpose |
+|---|---|
+| `design-polish` | Final quality pass — alignment, spacing, micro-detail inconsistencies before shipping |
+| `design-animate` | Purposeful animations, micro-interactions, and motion effects |
+| `design-bolder` | Amplify safe or generic designs — more impact, more visual interest |
+| `design-quieter` | Tone down visually aggressive or overstimulating designs |
+| `design-colorize` | Add strategic colour to monochromatic or low-engagement interfaces |
+| `design-delight` | Add moments of personality, joy, and unexpected touches |
+| `design-distill` | Strip to essence — remove unnecessary complexity, clarify purpose |
+| `design-clarify` | Improve UX copy, error messages, microcopy, labels, and instructions |
+| `design-layout` | Fix layout, spacing, visual rhythm, and weak visual hierarchy |
+| `design-typeset` | Fix typography — font choices, hierarchy, sizing, weight, readability |
+| `design-adapt` | Adapt designs across screen sizes, devices, and platforms (responsive) |
+| `design-optimize` | Diagnose and fix UI performance — loading speed, rendering, animations |
+| `design-harden` | Technical quality checks — accessibility, performance, theming, responsive |
+| `design-overdrive` | Push past conventional limits — shaders, spring physics, scroll-driven reveals |
 
-**At shape (stage 2)** — the mini-spec includes a `## Documentation Plan` that classifies what docs the feature needs:
+These skills are the same set provided by the `impeccable` plugin. When both are installed, the design skills are shared.
 
-| If the change... | Doc type needed | Diátaxis quadrant |
-|---|---|---|
-| Introduces new API surface, config, CLI commands | Reference | Cognition × Applying |
-| Adds user-facing behavior or task capability | How-to guide | Action × Applying |
-| Is a major new capability aimed at new users | Tutorial | Action × Acquiring |
-| Involves architectural decisions or trade-offs | Explanation | Cognition × Acquiring |
-| Significantly changes project capabilities | README update | Landing page |
-
-**At review (stage 7)** — `review/docs` audits existing documentation against Diátaxis principles:
-- Classifies every doc page by what it actually does (not its title)
-- Flags boundary violations: tutorial drifting into explanation, reference giving opinions, how-to teaching basics, README becoming a dumping ground
-- Checks system completeness across all four quadrants
-- Recommends specific splits ("move parameter tables into reference") not vague advice
-
-**At handoff (stage 8)** — documentation is generated or updated using the shape's docs plan:
-- Each identified doc type is written following its Diátaxis constraints
-- Boundary discipline is enforced — one type per file, split rather than mix
-- Generated doc paths are recorded in `08-handoff.md` frontmatter (`docs-generated`) and included in the PR
-
-Seven documentation skills are available:
+### Documentation skills (Diátaxis)
 
 | Skill | Purpose |
 |---|---|
 | `diataxis-doc-planner` | Classify docs into quadrants, propose docs map and writing order |
-| `tutorial-writer` | Step-by-step lessons where learners build something concrete |
-| `how-to-guide-writer` | Goal-oriented guides for competent users getting work done |
-| `reference-writer` | Neutral, structured, scannable technical reference for lookup |
-| `explanation-writer` | Understanding-oriented content about why, trade-offs, architecture |
-| `readme-writer` | README as front door — routes to deeper docs, not a manual |
+| `tutorial-writer` | Learning-oriented: step-by-step, builds something concrete |
+| `how-to-guide-writer` | Task-oriented: goal-driven steps for competent users |
+| `reference-writer` | Information-oriented: neutral, structured, scannable lookup |
+| `explanation-writer` | Understanding-oriented: why, trade-offs, architecture |
+| `readme-writer` | Front door: routes to deeper docs, not a manual |
 | `docs-reviewer` | Audit docs against Diátaxis principles with prioritised fixes |
 
 ---
 
-## Command argument syntax
+## Hooks
+
+The plugin installs four hooks that run automatically — no configuration required. They fire in the background and never block normal operation.
+
+### SessionStart — workflow discovery
+
+**Script:** `hooks/scripts/workflow-discovery.sh`
+
+Fires at the start of every Claude Code session. Scans `.ai/workflows/*/00-index.md` for active (non-complete, non-abandoned) workflows and injects a compact summary into Claude's system context for the session. This means Claude always knows what workflow you were working on, what stage it's at, what slice is active, and what the next command is — without you having to explain it.
+
+If multiple active workflows exist, all summaries are injected. If the current git branch doesn't match the workflow's expected branch, the summary includes a `WRONG BRANCH` warning.
+
+**Requires:** `yq` installed on your system (`brew install yq` or `apt-get install yq`). If `yq` is not available, the hook exits silently — no error, no injection.
+
+### PreToolUse (Write) — workflow file validation
+
+**Script:** `hooks/scripts/validate-workflow-write.sh`
+
+Fires before every Write tool call that targets a `.ai/workflows/` file. Validates four structural invariants before allowing the write:
+
+| Check | What it validates |
+|---|---|
+| **Schema version** | `schema` field must be `sdlc/v1` |
+| **Required fields** | `type`, `slug` must be present in frontmatter |
+| **Slug stability** | The `slug` value in frontmatter must match the workflow directory name |
+| **Stage file naming** | File name must follow `NN-stagename.md` convention (or `NNb-` substage, or non-numbered utility files like `po-answers.md`) |
+
+If any check fails, the write is **blocked** and a structured error message is fed back to Claude — prompting self-correction before the file is written. This prevents corrupted artifacts that would break future stage reads.
+
+Edit operations (partial changes) pass through validation — only full Write calls are validated.
+
+### PostToolUse (Write/Edit) — auto-stage
+
+**Script:** `hooks/scripts/auto-stage.sh`
+
+Fires after every Write or Edit tool call. When a workflow is in the **implement stage** with `branch-strategy: dedicated` or `shared`, it automatically runs `git add <file>` on the changed file — keeping the git staging area current with implementation progress. This supports the atomic-commit-per-slice pattern: when `wf-implement` is ready to commit, all the relevant files are already staged.
+
+**Opt out:** Create `.ai/.no-auto-stage` in your project root. The hook checks for this flag on every run and exits immediately if found.
+
+The hook is naturally inactive outside of the implement stage — it checks the workflow's `current-stage` field before doing anything.
+
+**Requires:** `yq`, `jq`, and `git`.
+
+### PreCompact — context preservation
+
+**Script:** `hooks/scripts/pre-compact.sh`
+
+Fires before Claude Code's context compaction. Reads every active workflow's `00-index.md` and outputs detailed preservation instructions to the compaction model, telling it what state must survive in the summary:
+
+- Active workflow slug, current stage, and selected slice
+- Branch name and strategy
+- All open questions (blocking — losing these means re-asking you)
+- Progress map across all 10 stages
+- Recommended next command and full invocation
+- Any triage decisions, PO answers, or architectural choices made in this session
+
+Without this hook, compaction might summarise away the workflow state — the artifact files would still be on disk, but Claude would need to re-read them from scratch to reorient. The hook ensures the summary carries enough context for immediate orientation after compaction.
+
+This is why `/compact` is safe to run during a workflow — the hook protects the critical state.
+
+**Requires:** `yq`, `jq`.
+
+### Hook dependency: yq
+
+All hooks depend on `yq` for YAML frontmatter parsing. If `yq` is not installed, the SessionStart and PreCompact hooks will exit silently (no workflow context in sessions, no compaction preservation). The PreToolUse validation hook also degrades gracefully. Install it:
+
+```bash
+# macOS
+brew install yq
+
+# Ubuntu/Debian
+apt-get install yq
+
+# Or via pip
+pip install yq
+
+# Or download binary from https://github.com/mikefarah/yq/releases
+```
+
+---
+
+## Artifact layout and schema
+
+### Workflow directory structure
+
+All artifacts for a workflow live under a single directory:
+
+```
+.ai/workflows/<slug>/
+├── 00-index.md                  # Control file — pure YAML frontmatter, no body
+├── 00-sync.md                   # Sync report (written by wf-sync if run)
+├── 01-intake.md
+├── 02-shape.md
+├── 02b-design.md                # Design brief (optional)
+├── 02-shape-amend-1.md          # Shape amendment (written by wf-amend if run)
+├── 03-slice.md                  # Slice master index
+├── 03-slice-<slug>.md           # Per-slice definition
+├── 03-slice-<slug>-amend-1.md   # Slice amendment (written by wf-amend if run)
+├── 04-plan.md                   # Plan master index
+├── 04-plan-<slug>.md            # Per-slice plan
+├── 05-implement.md              # Implement master index
+├── 05-implement-<slug>.md       # Per-slice implement record
+├── 06-verify.md                 # Verify master index
+├── 06-verify-<slug>.md          # Per-slice verification evidence
+├── 07-review.md                 # Review master verdict
+├── 07-review-<command>.md       # Per-command review findings
+├── 08-handoff.md
+├── 09-ship.md
+├── 10-retro.md
+├── announce.md                  # Written by wf-announce if run
+├── 90-next.md                   # Written by wf-next if run
+├── 90-resume.md                 # Written by wf-resume if run
+└── po-answers.md                # Cumulative product-owner answers log
+```
+
+Every file starts with YAML frontmatter (`schema: sdlc/v1`) containing all machine-readable state. Commit these files alongside your code — they form a permanent, queryable record of how and why a change was made.
+
+### Control file fields (`00-index.md`)
+
+| Field | Description |
+|---|---|
+| `schema` | Always `sdlc/v1` |
+| `slug` | Stable identifier, matches directory name |
+| `title` | Human-readable task name |
+| `status` | `active` / `complete` / `blocked` / `abandoned` |
+| `current-stage` | Most recently started stage |
+| `stage-number` | Numeric position (1–10) |
+| `selected-slice-or-focus` | Currently active slice |
+| `open-questions` | Unanswered questions blocking progress |
+| `next-command` | Command name (e.g., `wf-shape`) |
+| `next-invocation` | Full slash command ready to copy and run |
+| `workflow-files` | List of all artifacts written |
+| `progress` | Map of all 10 stage names → `not-started / in-progress / complete / skipped / blocked` |
+| `slices` | Array of slice summaries (slug, status, complexity, depends-on) |
+| `branch-strategy` | `dedicated` / `shared` / `none` |
+| `branch` | Feature branch name (`feat/<slug>` default) |
+| `base-branch` | Branch to merge back into |
+| `pr-url` | Pull request URL (set by handoff) |
+| `pr-number` | Pull request number (set by handoff) |
+
+### Stage-specific frontmatter fields
+
+| File type | Extra fields |
+|---|---|
+| `02-shape.md` | `docs-needed`, `docs-types` (Diátaxis types array) |
+| `03-slice-<slug>.md` | `slice-slug`, `complexity` (xs/s/m/l/xl), `depends-on`, `amended`, `amendment-refs` |
+| `03-slice-<slug>.md` (extension) | `source`, `source-ref`, `extension-round` |
+| `04-plan-<slug>.md` | `metric-files-to-touch`, `metric-step-count`, `has-blockers`, `revision-count` |
+| `05-implement-<slug>.md` | `metric-files-changed`, `metric-lines-added`, `metric-lines-removed`, `metric-deviations-from-plan`, `commit-sha` |
+| `06-verify-<slug>.md` | `result` (pass/fail/partial), `metric-checks-run`, `metric-checks-passed`, `metric-acceptance-met` |
+| `07-review-<cmd>.md` | `review-command`, `metric-findings-total`, `metric-findings-blocker`, `metric-findings-high`, `result` |
+| `07-review.md` | `verdict` (ship/ship-with-caveats/dont-ship), `commands-run`, all `metric-findings-*` counts |
+| `08-handoff.md` | `pr-title`, `pr-url`, `pr-number`, `branch`, `base-branch`, `has-migration`, `has-docs-changes`, `docs-generated` |
+| `09-ship.md` | `go-nogo` (go/no-go/conditional-go), `rollout-strategy`, `merge-strategy`, `merge-sha` |
+| `10-retro.md` | `workflow-outcome` (completed/abandoned/partial), `metric-improvement-count`, `metric-stages-completed` |
+| `02-shape-amend-N.md` | `amendment-number`, `amends`, `source`, `source-ref`, `affected-slices` |
+| `03-slice-<slug>-amend-N.md` | `amendment-number`, `amends`, `original-status`, `plan-needs-update` |
+| `00-sync.md` | `health` (in-sync/minor-drift/significant-drift/stale), drift category tables |
+
+All `metric-*` fields are numeric — designed for aggregation, dashboards, and CI/CD gate evaluation.
+
+### Command argument syntax
 
 ```
 /wf-<stage> <slug> [slice-or-focus] [supplemental context...]
@@ -532,55 +846,17 @@ Seven documentation skills are available:
 
 | Part | Required | Notes |
 |---|---|---|
-| `slug` | Yes (except intake) | Derived automatically by intake; stable thereafter |
-| `slice-or-focus` | No | Required for plan/implement/verify once slices exist. Use `all` with wf-plan to plan all slices. Use `reviews` with wf-implement to fix review findings. |
+| `slug` | Yes (except intake) | Derived by intake; stable thereafter |
+| `slice-or-focus` | No (required once slices exist for plan/implement/verify) | Use `all` with wf-plan; `reviews` with wf-implement; `triage` with wf-review |
 | `supplemental context` | No | Free text; applies to this invocation only |
 
-**Intake only** takes a plain-language task description instead of a slug:
-
+Intake only takes a task description instead of a slug:
 ```
 /wf-intake <plain-language task description>
 ```
 
----
+### Status enum
 
-## Frontmatter schema reference
+Used consistently across all artifact frontmatter:
 
-Every artifact file follows this pattern:
-
-```yaml
----
-schema: sdlc/v1          # Always present — version detection
-type: <type>              # intake, shape, slice-index, slice, plan-index, plan, etc.
-slug: <workflow-slug>     # Matches directory name
-status: <status>          # not-started | in-progress | awaiting-input | complete | skipped | blocked
-stage-number: <n>         # 1–10
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-tags: []
-refs:                     # Cross-links to related files
-  index: 00-index.md
-  prev: <previous-stage>.md
-  next: <next-stage>.md
-next-command: <command>
-next-invocation: "/wf-<command> <slug>"
----
-```
-
-**Stage-specific fields:**
-
-| Stage | Extra frontmatter fields |
-|---|---|
-| Index (`00-index.md`) | `progress` (map of all 10 stages → status), `slices` (array), `workflow-files`, `selected-slice`, `open-questions`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number` |
-| Shape | `docs-needed`, `docs-types` (array of Diátaxis types needed) |
-| Slice per-file | `slice-slug`, `complexity`, `depends-on` |
-| Plan per-file | `metric-files-to-touch`, `metric-step-count`, `has-blockers`, `revision-count` |
-| Implement per-file | `metric-files-changed`, `metric-lines-added`, `metric-lines-removed`, `metric-deviations-from-plan`, `metric-review-fixes-applied`, `commit-sha` |
-| Verify per-file | `result` (pass/fail/partial), `metric-checks-run`, `metric-checks-passed`, `metric-acceptance-met`, `metric-issues-found` |
-| Review per-command | `review-command`, `metric-findings-total`, `metric-findings-blocker`, `metric-findings-high`, `result` |
-| Review master | `verdict` (ship/ship-with-caveats/dont-ship), `commands-run`, all `metric-findings-*` counts |
-| Handoff | `pr-title`, `pr-url`, `pr-number`, `branch`, `base-branch`, `has-migration`, `has-config-change`, `has-docs-changes`, `docs-generated` (array of doc paths) |
-| Ship | `go-nogo` (go/no-go/conditional-go), `rollout-strategy`, `merge-strategy` (rebase/squash/merge/none), `merge-sha`, `branch`, `base-branch`, `pr-url`, `pr-number` |
-| Retro | `workflow-outcome` (completed/abandoned/partial), `metric-improvement-count`, `metric-stages-completed`, `metric-stages-skipped` |
-
-All `metric-*` prefixed fields are numeric measurements designed for aggregation and dashboards.
+`not-started` / `in-progress` / `awaiting-input` / `complete` / `skipped` / `blocked`
