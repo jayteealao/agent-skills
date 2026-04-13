@@ -14,7 +14,7 @@ You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 |---|---|
 | Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (recommended) |
 | Produces | `07-review.md` + `07-review-<command>.md` per selected command |
-| Next | `/wf-handoff <slug> <selected-slice>` (if approved) or `/wf-implement <slug> <selected-slice>` (if changes needed) |
+| Next | `/wf-handoff <slug> <selected-slice>` (if approved), `/wf-implement <slug> <selected-slice>` (if bugs to fix), `/wf-amend <slug> from-review` (if spec was wrong), or `/wf-extend <slug> from-review` (if new scope needed) |
 
 # CRITICAL — execution discipline
 You are a **review dispatch orchestrator**, not a problem solver.
@@ -457,6 +457,8 @@ next-invocation: "<based on verdict>"
 - **Option B:** `/wf-implement <slug> <slice>` — fix blocking issues [list what needs fixing]
 - **Option C:** `/wf-ship <slug> <slice>` — skip handoff [reason, if applicable]
 - **Option D:** `/wf-plan <slug> <next-slice>` — next slice [reason, if applicable]
+- **Option E:** `/wf-extend <slug> from-review` — add new slices from findings [reason, if applicable]
+- **Option F:** `/wf-amend <slug> from-review` — correct the spec/approach of an existing slice [reason, if applicable]
 
 ---
 
@@ -486,5 +488,11 @@ Use when: No team to hand off to, no PR description needed.
 **Option D: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
 Use when: This slice is approved AND more slices remain. Check `03-slice.md`.
 **Compact recommended** — previous slice's full lifecycle (implement + verify + review) is noise for the next slice.
+
+**Option E: Extend scope** → `/wf-extend <slug> from-review`
+Use when: Review findings reveal **missing capability** rather than broken implementation — scope that was never built, not code that is wrong. Signal: findings describe "X should also do Y" or "there is no handler for Z" rather than "X does Y incorrectly". Use this over wf-implement when the work required is net-new rather than corrective.
+
+**Option F: Amend spec** → `/wf-amend <slug> from-review`
+Use when: Review findings reveal that the **slice definition or acceptance criteria were themselves wrong** — the implementation did what it was told, but what it was told to do was incorrect. Signal: multiple findings stem from the same incorrect assumption in the spec, or a finding says the approach is fundamentally wrong rather than buggy.
 
 Write ALL viable options into `## Recommended Next Stage`.

@@ -5,6 +5,18 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.7.0] - 2026-04-13
+
+### Added
+
+- **`wf-amend` command** — Spec correction utility. Corrects the *definition* of existing slices — goal, acceptance criteria, scope boundaries, or fundamental approach — without overwriting completed work. Three source modes: `from-review` (extracts spec errors from `07-review.md` findings), `from-retro` (extracts corrections from `10-retro.md`), or manual. Creates versioned amendment artifacts (`02-shape-amend-<N>.md`, `03-slice-<slug>-amend-<N>.md`) alongside originals. Tracks what changed vs. the original and what implementation work is still valid. Routes to `wf-plan` directed-fix mode for the corrected plan. Distinct from `wf-extend` (new scope) and `wf-implement` (bug fixes).
+
+- **`wf-extend` command** — Scope expansion utility. Adds net-new slices to any workflow — in-progress or completed — without modifying existing slice files or any `status: complete` entries. Three source modes: `from-review` (extracts missing-capability findings from `07-review.md`), `from-retro` (extracts follow-up work from `10-retro.md`), or general (user describes new scope). Runs a focused 4–8 question discovery interview, confirms proposed slices, then appends new `03-slice-<new-slug>.md` files and updates the master `03-slice.md` non-destructively (extension round tracking, dependency ordering, insertion position). Routes to `wf-plan` for new slices.
+
+### Changed
+
+- **`wf-review` — adaptive routing extended with amend and extend options.** Two new routing options added to the post-review decision tree: Option E (`/wf-extend <slug> from-review`) for when findings reveal missing capability rather than broken code; Option F (`/wf-amend <slug> from-review`) for when findings reveal the spec itself was wrong. Both options also added to the `## Recommended Next Stage` template in `07-review.md`. Header table updated to surface all four next-command possibilities.
+
 ## [8.6.0] - 2026-04-13
 
 ### Changed
