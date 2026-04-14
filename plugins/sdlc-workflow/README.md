@@ -569,6 +569,12 @@ All require `.impeccable.md` established by `/wf-design:setup`.
 | `/wf-amend <slug> [from-review\|from-retro]` | Spec/AC/approach of an existing slice was wrong |
 | `/wf-extend <slug> [from-review\|from-retro]` | New scope (not bugs, not corrections) needs adding |
 
+### Discovery commands
+
+| Command | Purpose |
+|---|---|
+| `/wf-ideate [focus-area] [count]` | Scan codebase with 6 parallel lenses, generate 30+ candidates, adversarially filter, rank survivors — produces `.ai/ideation/` artifact ready for `/wf-intake` |
+
 ### Utility commands
 
 | Command | Purpose |

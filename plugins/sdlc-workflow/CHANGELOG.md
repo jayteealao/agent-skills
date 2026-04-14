@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.9.0] - 2026-04-13
+
+### Added
+
+- **`wf-ideate` command — proactive codebase ideation.** Pre-pipeline utility that scans the codebase with six parallel sub-agents across distinct lenses (code quality & technical debt, performance & scalability, security & privacy, developer experience, feature completeness, architecture & design patterns), then generates 30+ raw improvement candidates. Each candidate is challenged by a mandatory 5-test adversarial filter (real evidence, not already in progress, effort justified, specific enough to intake, right level vs. symptom). Surviving candidates are scored as `(impact_value × feasibility) / effort_value` and ranked. Results are presented via `AskUserQuestion` with multiSelect, and the full ranked+culled list is written to `.ai/ideation/<focus>-<timestamp>.md`. Optional arguments: `[focus-area]` to narrow to a single lens, `[count]` to cap the output list. Inverts the normal flow — surfaces what you might not have thought to ask about, then feeds directly into `/wf-intake`.
+
 ## [8.8.0] - 2026-04-14
 
 ### Changed
