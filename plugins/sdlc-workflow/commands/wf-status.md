@@ -2,6 +2,7 @@
 name: wf-status
 description: Read-only dashboard across all workflows. Reads every .ai/workflows/*/00-index.md, parses frontmatter, and renders a grouped status table. No side effects. Optional slug argument for single-workflow detail view.
 argument-hint: [slug]
+disable-model-invocation: true
 ---
 
 You are running `wf-status`, the **dashboard** for all SDLC workflows.

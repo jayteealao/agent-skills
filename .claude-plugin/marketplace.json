@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills-marketplace",
-  "version": "1.34.0",
+  "version": "1.39.0",
   "description": "A curated collection of Claude Code skills and plugins for developers",
   "owner": {
     "name": "jayte"
@@ -37,10 +37,10 @@
     },
     {
       "name": "sdlc-workflow",
-      "description": "Complete SDLC workflow with integrated code review, design quality (5 wf-design commands + 14 design skills from impeccable-style), Diátaxis documentation, analysis, observability, and git lifecycle. 24 lifecycle commands, wf-validate pre-write hook, 31 review commands, 7 aggregate reviews, 25 skills (14 design + 4 analysis + 7 Diátaxis), and setup-wide-logging.",
+      "description": "Complete SDLC workflow with integrated code review, design quality (5 wf-design commands + 14 design skills), Diátaxis documentation, analysis, observability, and git lifecycle. 29 lifecycle commands including wf-how (5-mode Q&A), wf-ideate (6-lens scanning), 4 standalone workflows (wf-hotfix, wf-update-deps, wf-docs, wf-refactor), wf-validate pre-write hook, 31 review commands, 7 aggregate reviews, 25 skills, and setup-wide-logging. v8.14: wf-hotfix (incident-response), wf-update-deps (dep audit + tier-prioritized updates), wf-docs (Diátaxis doc audit + generation), wf-refactor (behavior-preserving refactoring with test baseline).",
       "source": "./plugins/sdlc-workflow",
       "category": "productivity",
-      "version": "8.9.0"
+      "version": "8.15.0"
     }
   ]
 }

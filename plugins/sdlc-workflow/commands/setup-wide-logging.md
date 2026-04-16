@@ -18,6 +18,7 @@ examples:
     description: Set up wide-event logging for Express with Pino
   - command: /setup-wide-logging fastify winston
     description: Set up wide-event logging for Fastify with Winston
+disable-model-invocation: true
 ---
 
 # Setup Wide-Event Logging

@@ -5,6 +5,50 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.15.0] - 2026-04-16
+
+### Fixed
+
+- **`disable-model-invocation: true` missing from 10 command files.** `wf-resume`, `wf-status`, `setup-wide-logging`, and all 7 aggregate review bundle commands (`review-all`, `review-quick`, `review-pre-merge`, `review-security`, `review-architecture`, `review-infra`, `review-ux`) were missing the frontmatter flag. Without it, invoking these commands created isolated model invocations with no access to the current conversation context — meaning `wf-resume` could not see the session it was supposed to resume. All command files now consistently include `disable-model-invocation: true`.
+
+## [8.14.0] - 2026-04-16
+
+### Added
+
+- **`wf-hotfix` command — compressed incident-response workflow.** Six-stage pipeline (brief → diagnose → plan → implement → verify → ship) with a hard scope lock: the plan is capped at 5 steps, changes beyond the identified root cause require explicit approval, and escalation to a full `/wf-intake` workflow is enforced when the fix touches more than 3 files or requires architectural changes. Replaces the 5-round PO interview with at most 3 questions. Always branches from the production/default branch (`hotfix/<slug>`). Parallel Explore sub-agents for root-cause diagnosis and blast-radius mapping. Artifacts land in `.ai/workflows/hotfix-<slug>/` with `workflow-type: hotfix` in the index.
+
+- **`wf-update-deps` command — dependency audit and update workflow.** Scans all package manifests (npm, pip, go.mod, Cargo.toml, pom.xml, pubspec.yaml), runs the package manager's built-in audit commands, then launches parallel web research sub-agents (batched 3–5 packages each) to check latest versions, changelogs, breaking changes, migration guides, and CVEs per dependency. Updates are grouped into four tiers and implemented in order: P0 security (one at a time, commit per package), P1 major-with-migration (one at a time with migration steps), P2 safe-batch (minor/patch in a single commit), Hold (documented with revisit condition). Never mixes tiers in a single commit. Blocked packages are documented without touching application code. Supports `--security-only` and `--audit-only` flags. Artifacts land in `.ai/dep-updates/<run-id>/`.
+
+- **`wf-docs` command — documentation audit and Diátaxis generation.** Four-pass workflow: discover (inventory all markdown, README, API docs, docstrings), audit (parallel sub-agents check each doc for accuracy vs. codebase, Diátaxis quadrant fit, and freshness), plan (gaps grouped by priority: broken P0 → missing P1 → wrong-quadrant P2 → stale P3), generate (invokes the appropriate Diátaxis skill for each planned action). For `slug` mode, reads the workflow's `02-shape.md → ## Documentation Plan` and fulfills it before adding new docs. Supports `--audit-only` flag to stop after planning. Audit artifacts land in `.ai/docs/<run-id>/`; generated docs are written in-place to project paths.
+
+- **`wf-refactor` command — behavior-preserving refactoring with test baseline.** Five-stage pipeline (brief → baseline → plan → implement → verify) built around a non-negotiable constraint: external behavior must be identical before and after. The baseline stage captures the complete ground truth before any code changes — exported API surface, all callers in the codebase, test pass/fail counts, and coverage gaps — in `rf-baseline.md`. The plan stage researches the target refactoring pattern via web search. Implementation executes one step at a time with a per-step green check; if a test that was passing before now fails, the refactoring is fixed, not the test. Verify does a full before/after comparison against the baseline. Routes to `/wf-review <slug> refactor-safety` after passing. Artifacts land in `.ai/workflows/refactor-<slug>/` with `workflow-type: refactor`.
+
+## [8.13.0] - 2026-04-16
+
+### Changed
+
+- **`wf-shape` sub-agent 2, `wf-plan` web research sub-agent — expanded to cover best practices, gotchas, and performance pitfalls.** Both sub-agents previously only checked dependency versions, official docs, and CVEs. Two new research sections added to each: (1) **Implementation best practices** — searches for established patterns, community consensus on how to implement the feature type correctly, anti-patterns on official docs and engineering blogs, relevant RFCs and platform guidelines, and whether the implied approach is idiomatic or considered an anti-pattern in the current ecosystem. (2) **Known gotchas and performance pitfalls** — searches for common performance traps specific to the feature type (re-renders, N+1, layout thrash, bundle size, memory leaks), community "lessons learned" and postmortems, and known library quirks. Merge instructions updated to require that best practices and gotcha findings directly influence acceptance criteria (at shape) and implementation steps (at plan), not just land in `## Freshness Research` as passive records.
+
+## [8.12.0] - 2026-04-16
+
+### Changed
+
+- **`wf-shape` — web search sub-agent now fires by default (opt-out, not opt-in).** The previous gate ("When the shaped spec touches multiple domains") meant Explore sub-agent 2 almost never launched — most features are single-domain. Replaced with explicit opt-out criteria: skip only if ALL five conditions are true (zero new external dependencies, no changes to existing dependency API surface, not security-sensitive, no browser/platform APIs, no external API integrations). When in doubt: always launch. Step 4 instruction updated to reference the new skip criteria rather than the old "if multi-domain" condition.
+
+- **`wf-plan` — web research sub-agent now fires by default (opt-out, not opt-in).** The previous top-level "Do not spin up sub-agents for trivial or single-file work" gate was being applied too broadly, causing the web research agent to be skipped unless the user explicitly requested it in arguments. Top-level gate changed to "skip criteria are per-agent and intentionally narrow — do not apply a blanket trivial exemption." Web research sub-agent section now opens with "Launch this sub-agent for every slice" and lists narrow opt-out conditions: pure refactoring with no dependency changes, config/env-only changes, or text/copy/i18n changes only. Explicit "Do NOT skip because the slice feels small" rule added.
+
+## [8.11.0] - 2026-04-16
+
+### Changed
+
+- **`wf-plan` Explore sub-agent 1 — reuse scan added.** Before planning new implementations, Explore sub-agent 1 now searches the wider codebase for existing utilities and capabilities that partially or fully cover what the slice needs to build. For each slice goal and scope, it greps for keywords, type names, and domain terms across the full codebase; searches for similar logic (data transformations, validation, API wrappers, error handling, business rules); and looks for base classes, mixins, or higher-order functions that could be composed rather than reimplemented. Each candidate is reported with file:line, description, match quality, and a recommendation: reuse as-is / reuse with modification / extract into shared utility / implement fresh. Explicit "No reuse candidates found" required if nothing is found. Per-slice plan template updated with a `## Reuse Opportunities` section between `## Current State` and `## Likely Files / Areas to Touch`.
+
+## [8.10.0] - 2026-04-16
+
+### Added
+
+- **`wf-how` command — five-mode question-answering and research system.** Standalone command that answers questions about the codebase, workflow artifacts, and external research topics without advancing workflow state. Routes automatically across five modes based on question signals: Mode A (Quick) — single Explore sub-agent for narrow single-function/file questions; Mode B (Codebase Explain) — 1 agent for simple questions, 2–4 parallel Explore agents + synthesis for complex architectural questions; Mode C (Deep Research) — 6–8 parallel web research agents targeting 200+ sources with a synthesis pass; Mode D (Workflow Explain) — reads target artifact(s) and explains commitments, rationale, and implications; Mode E (Findings Explain) — structured explanation of review and verification findings with root-cause clusters and recommended fix order. Step 0 parses args for explicit flags (`--research`, `--quick`), slug+artifact shortcuts (`<slug> plan`), and natural language signals. Every mode offers a Diátaxis output option (Explanation, Reference, or How-to). Artifacts written to `.ai/workflows/<slug>/90-how-*.md` when a workflow is active, `.ai/research/<topic>-<ts>.md` otherwise.
+
 ## [8.9.0] - 2026-04-13
 
 ### Added

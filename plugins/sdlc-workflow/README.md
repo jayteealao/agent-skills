@@ -14,6 +14,10 @@ A Claude Code plugin that gives your AI assistant a structured software delivery
 6. [Hooks](#hooks)
 7. [Artifact layout and schema](#artifact-layout-and-schema)
 
+> **v8.10.0** adds `wf-how` — a five-mode question-answering and research command. See [How the question-answering system works](#how-the-question-answering-system-works-wf-how) and the [How to…](#how-to) entries below.
+>
+> **v8.14.0** adds four standalone workflow entry points: `wf-hotfix` (compressed incident-response pipeline), `wf-update-deps` (dependency audit and update), `wf-docs` (documentation audit and Diátaxis generation), and `wf-refactor` (behavior-preserving refactoring with test baseline). See the [Standalone workflows](#standalone-workflows) reference and [How to…](#how-to) entries below.
+
 ---
 
 ## Understanding the system
@@ -120,6 +124,28 @@ The pipeline is linear by design, but real development is cyclic. Three utility 
 | New scope needed (not bugs, not corrections) | `wf-extend` — appends new slices without touching completed slice files |
 
 `wf-amend` and `wf-extend` never modify any artifact with `status: complete`. The original record of what was done is always preserved.
+
+### How the question-answering system works (wf-how)
+
+`wf-how` is a standalone command that answers questions about the codebase, workflow artifacts, and external research topics. It runs at any point in the pipeline without advancing workflow state. It routes automatically across five modes based on what you ask:
+
+| Mode | When it activates | Fan-out |
+|------|------------------|---------|
+| **Quick (A)** | Narrow question about a single function, class, or file | None — one Explore sub-agent reads and answers directly |
+| **Codebase Explain (B)** | "How does X work?" — architectural or flow question | Simple: 1 agent. Complex: 2–4 parallel Explore agents → 1 synthesis agent |
+| **Deep Research (C)** | Industry practices, ecosystem surveys, comparative analysis | 6–8 parallel web research agents (target: 200+ sources) → 1 synthesis agent |
+| **Workflow Explain (D)** | "What does my plan say?" — explain a specific artifact | 1 reader/explainer agent |
+| **Findings Explain (E)** | "Explain the review findings" — understand what findings mean | 1 findings explainer agent |
+
+**Routing is automatic.** The command parses your question for signals — research vocabulary triggers Mode C, narrow scope triggers Mode A, artifact references trigger Mode D or E. State your question naturally and let the command decide. If it guesses wrong, redirect it in chat.
+
+**Every mode offers a Diátaxis output option.** After producing the explanation, the command asks whether you want it saved as a structured doc — Explanation, Reference, or How-to. Defaults by mode: Quick → none, Codebase/Workflow/Findings → Explanation, Deep Research → Reference.
+
+**Artifacts are written to:**
+- `.ai/research/<topic>-<ts>.md` — for codebase explanations and deep research
+- `.ai/workflows/<slug>/90-how-<artifact>.md` — for workflow artifact explanations
+- `.ai/workflows/<slug>/90-findings-explain.md` — for findings explanations
+- `.ai/workflows/<slug>/90-how-<topic>.md` — for quick answers when a workflow is active
 
 ---
 
@@ -231,6 +257,22 @@ Reads the full artifact trail, extracts lessons, and produces concrete suggested
 ---
 
 ## How to…
+
+### … discover what to work on next
+
+```
+/wf-ideate
+```
+
+Scans the codebase with **6 parallel sub-agents** across quality, performance, security, developer experience, feature completeness, and architecture lenses. Generates 30+ raw candidate ideas, then runs an adversarial filter — culling speculative ideas, in-progress duplicates, unjustifiable effort, vague scope, and symptom-level findings. Ranks survivors by impact-to-effort ratio and presents them as a numbered list ready to feed into `/wf-intake`.
+
+```
+/wf-ideate security        # focus on the security lens only
+/wf-ideate dx 5            # DX lens, return top 5 ideas
+/wf-ideate performance 20  # performance lens, top 20
+```
+
+Output goes to `.ai/ideation/<focus>-<timestamp>.md`. Use `AskUserQuestion` to select which ideas to act on; the command gives you the exact `/wf-intake` command for each selected idea.
 
 ### … start a new workflow
 
@@ -425,6 +467,88 @@ Reads `08-handoff.md`, `09-ship.md`, `01-intake.md`, and `02-shape.md`. Checks f
 
 Each draft includes a **Docs** section linking to the generated documentation for that audience's context.
 
+### … ask how something works in the codebase
+
+```
+/wf-how how does the auth middleware check permissions?
+/wf-how what triggers a re-render in the data table component?
+```
+
+Routes to **Mode B (Codebase Explain)**. For narrow questions (single function or module), a single Explore sub-agent reads the relevant code and writes a direct explanation. For architectural or flow questions spanning multiple files, the command decomposes the question into 2–4 exploration angles, spawns parallel Explore sub-agents (one per angle), then synthesizes their findings into a structured explanation:
+
+- **Overview** — what this is and why it exists
+- **Key Concepts** — the central types, services, and abstractions
+- **How It Works** — the flow with `file:line` references and mermaid diagrams where useful
+- **Where Things Live** — a file map for someone about to work in this area
+- **Gotchas** — non-obvious behavior, historical artifacts, sharp edges
+
+Result is saved to `.ai/research/<topic>-<ts>.md`. A Diátaxis explanation doc is offered as an option.
+
+### … commission deep research on a topic
+
+```
+/wf-how --research distributed tracing approaches for microservices
+/wf-how --research state of the art in zero-downtime database migrations
+```
+
+Routes to **Mode C (Deep Research)**. Decomposes the question into 6–8 source-type research angles, then spawns all agents in parallel — one each for official specs, academic papers, practitioner blogs, GitHub repos, community forums, recent news, conference talks, and books. Each agent runs 25–35 searches and returns structured source lists.
+
+A synthesis agent deduplicates across all findings (target: 200+ unique sources), reconciles contradictions, and produces:
+
+- **Executive Summary** — 3–5 evidence-backed bullet findings
+- **State of the Art** — what the field currently recommends
+- **Key Debates** — where practitioners genuinely disagree
+- **Practical Takeaways** — what to actually do in this codebase
+- **Full Citation Index** — tiered by relevance (Primary / Supporting / Tangential)
+
+Result is saved to `.ai/research/<topic>-<ts>.md`. A Diátaxis reference doc is offered as an option.
+
+### … understand what a workflow plan or artifact says
+
+```
+/wf-how dark-mode-toggle-settings plan
+/wf-how dark-mode-toggle-settings shape
+/wf-how dark-mode-toggle-settings slice css-token-setup
+```
+
+Routes to **Mode D (Workflow Explain)**. Reads the target artifact(s) plus `po-answers.md` and produces a plain-language explanation:
+
+- **What This Says** — what the artifact actually captures
+- **Key Commitments** — locked-in decisions that can't change without a `wf-amend`
+- **Why These Decisions** — rationale from po-answers and shape context
+- **Open Questions** — unresolved items still in the artifact
+- **Implications for Next Steps** — what the next stage must know
+
+Especially useful when resuming a workflow after a long break, onboarding a collaborator, or understanding why a particular approach was chosen. Result is saved to `.ai/workflows/<slug>/90-how-<artifact>.md`.
+
+### … understand review or implementation findings
+
+```
+/wf-how dark-mode-toggle-settings review
+/wf-how dark-mode-toggle-settings findings
+```
+
+Routes to **Mode E (Findings Explain)**. Reads `07-review.md`, per-command review files, `06-verify.md`, and `02-shape.md` (for acceptance criteria context), then produces a structured explanation of what the findings actually mean:
+
+- **Finding Summary** — plain-language explanation of each finding (not a restatement)
+- **Why It Matters** — concrete risk if each BLOCKER/HIGH finding goes unaddressed
+- **What It Would Take to Fix** — scope signal only, not implementation steps
+- **Related Finding Clusters** — findings that share a root cause or are better fixed together
+- **Recommended Priority Order** — fix this first, then this, with reasoning
+
+The `findings` target includes both review findings and verification failures. The `review` target reads review only. After reading the explanation, route to `/wf-implement <slug> reviews` to fix the findings.
+
+### … ask a quick code question
+
+```
+/wf-how --quick what does UserService.findById return when the user is deleted?
+/wf-how --quick what is the shape of the CartItem type?
+```
+
+Forces **Mode A (Quick)**. Spawns a single Explore sub-agent that reads the relevant code and answers directly. No fan-out, no synthesis step. For focused questions about a specific function, type, or return value where you don't need an architectural explanation.
+
+If an active workflow is in progress, the answer is saved to `.ai/workflows/<slug>/90-how-<topic>.md`. Otherwise it goes to `.ai/research/<topic>-<ts>.md`. For very short answers, chat-only output with no artifact.
+
 ### … handle a stage that does not apply
 
 For a docs-only change that doesn't need verification or review:
@@ -523,6 +647,100 @@ After fixing BLOCKER findings in implement, don't re-run the full review — re-
 
 This revisits only deferred and untriaged findings. If the BLOCKER fixes introduced new issues, *then* run a full re-review.
 
+### Use wf-how before planning to understand unfamiliar subsystems
+
+If a plan requires touching code you've never worked with before, run `wf-how` before `/wf-plan` to get the lay of the land:
+
+```
+/wf-how how does the payment processing pipeline work?
+/wf-plan my-feature-slug payment-slice
+```
+
+The codebase explanation gives the planning sub-agents pre-built context that they would otherwise have to discover themselves — reducing exploration time and improving plan quality for unfamiliar areas.
+
+### Use wf-how --research to anchor technical decisions
+
+Before committing to an architectural approach, commission research:
+
+```
+/wf-how --research approaches to optimistic UI updates with server-side validation
+```
+
+The citation index gives you 200+ sources to cite in `po-answers.md` when the review asks "why was this approach chosen?" Helps distinguish informed decisions from guesses.
+
+### … handle a production incident
+
+```
+/wf-hotfix auth tokens expiring after deploy
+```
+
+Starts a compressed incident-response workflow: derives the slug (`hotfix-auth-tokens-expiring-after-deploy`), asks **at most 3 questions** (what's broken, impact scope, recent changes), creates a dedicated `hotfix/<slug>` branch from production, then launches parallel Explore sub-agents for root-cause diagnosis and blast-radius mapping.
+
+The pipeline compresses 10 stages into 6 — **brief → diagnose → plan → implement → verify → ship** — with a hard scope lock: the plan is limited to 5 steps maximum, and any change beyond the identified root cause requires explicit approval. If the fix requires touching more than 3 files or any architectural changes, the command stops and recommends escalating to `/wf-intake`.
+
+```
+/wf-hotfix hotfix-auth-tokens-slug   # resume an in-progress hotfix
+```
+
+Artifacts land in `.ai/workflows/hotfix-<slug>/` alongside normal workflows.
+
+### … update dependencies
+
+```
+/wf-update-deps                 # scan and update all deps
+/wf-update-deps react           # update a single package
+/wf-update-deps --security-only # update only CVE-affected packages
+/wf-update-deps --audit-only    # scan and plan without implementing
+```
+
+Scans all package manifests, then launches **parallel web research sub-agents** (one batch per 3–5 packages) that check latest versions, breaking changes, migration guides, CVEs, and upgrade gotchas. Updates are grouped by risk tier and implemented in order:
+
+| Tier | Condition | Strategy |
+|------|-----------|----------|
+| **P0 — Security** | Active CVE, fix available | One at a time, commit per package |
+| **P1 — Major** | Breaking changes in changelog | One at a time with migration steps |
+| **P2 — Safe** | Minor/patch, no breaking changes | Batched in a single commit |
+| **Hold** | Runtime incompatible or peer conflict | Documented with revisit condition |
+
+Never mixes tiers in a single commit. If a P2 batch update breaks tests, it bisects to the culprit and marks it blocked without touching application code.
+
+Artifacts land in `.ai/dep-updates/<run-id>/` (separate from workflow directories).
+
+### … audit and update documentation
+
+```
+/wf-docs                          # audit and update all project docs
+/wf-docs dark-mode-toggle-settings # generate docs for a workflow's changes
+/wf-docs --audit-only             # gap analysis only, no writing
+/wf-docs docs/api                 # scope to a specific directory
+```
+
+Runs a four-pass documentation lifecycle:
+
+1. **Discover** — inventories every markdown file, README, API doc, and inline docstring in scope
+2. **Audit** — parallel sub-agents read each doc against the current codebase, checking accuracy (do code examples still work?), Diátaxis quadrant fit (is a reference doc giving opinions?), and freshness (how long since the code changed?)
+3. **Plan** — gaps and violations grouped by priority: broken (P0) → missing (P1) → wrong quadrant (P2) → stale (P3)
+4. **Generate** — invokes the appropriate Diátaxis skill for each planned action (`tutorial-writer`, `how-to-guide-writer`, `reference-writer`, `explanation-writer`, `readme-writer`)
+
+For `slug` mode, the command reads the workflow's `02-shape.md → ## Documentation Plan` — the doc plan written when the feature was shaped — and fulfills it before adding anything new. Audit artifacts land in `.ai/docs/<run-id>/`. Generated docs are written in-place to their project paths.
+
+### … refactor safely
+
+```
+/wf-refactor extract auth logic into service layer
+/wf-refactor simplify deeply nested payment validation
+```
+
+Structures a refactoring session around a non-negotiable constraint: **external behavior must be identical before and after**. The pipeline is:
+
+1. **Brief** — 3–5 questions: what to refactor, why, what API surface is frozen, what tests exist
+2. **Baseline** — parallel sub-agents capture the complete ground truth before any code changes: exported API surface, all callers in the codebase, test pass/fail counts, and coverage gaps
+3. **Plan** — incremental steps, each leaving the codebase in a green state; max 1 step per commit
+4. **Implement** — executes one step at a time; if a test that was passing before now fails → the refactor is fixed, never the test
+5. **Verify** — full before/after comparison: same tests pass, API surface identical, all callers still compile
+
+Coverage gaps found at baseline are surfaced before any code changes. If significant gaps exist, the command asks whether to add tests first. After verify, routes to `/wf-review <slug> refactor-safety` for the specialized refactoring safety review.
+
 ### Design context is project-wide
 
 `.impeccable.md` is set up once per project with `/wf-design:setup` and reused by every subsequent `wf-design` invocation. You don't re-establish brand personality or aesthetic direction for each feature — it flows through from the project-level file.
@@ -569,11 +787,15 @@ All require `.impeccable.md` established by `/wf-design:setup`.
 | `/wf-amend <slug> [from-review\|from-retro]` | Spec/AC/approach of an existing slice was wrong |
 | `/wf-extend <slug> [from-review\|from-retro]` | New scope (not bugs, not corrections) needs adding |
 
-### Discovery commands
+### Discovery and research commands
 
 | Command | Purpose |
 |---|---|
 | `/wf-ideate [focus-area] [count]` | Scan codebase with 6 parallel lenses, generate 30+ candidates, adversarially filter, rank survivors — produces `.ai/ideation/` artifact ready for `/wf-intake` |
+| `/wf-how <question>` | Auto-route question across 5 modes: quick code answer (A), codebase exploration (B), deep web research (C), workflow artifact explanation (D), or findings explanation (E) |
+| `/wf-how <slug> plan\|shape\|slice\|review\|findings` | Shortcut to Mode D or E — explain a specific workflow artifact or findings set for the given slug |
+| `/wf-how --research <question>` | Force Mode C — commission 6–8 parallel web research agents targeting 200+ sources |
+| `/wf-how --quick <question>` | Force Mode A — single Explore agent, direct answer, no fan-out |
 
 ### Utility commands
 
@@ -584,6 +806,17 @@ All require `.impeccable.md` established by `/wf-design:setup`.
 | `/wf-resume [slug]` | ~500-word context brief for resuming after a break |
 | `/wf-sync [slug]` | Reality reconciliation — surface drift between artifacts and codebase |
 | `/wf-announce <slug> [audience]` | Generate stakeholder announcements with Diátaxis doc links |
+
+### Standalone workflows
+
+Self-contained workflows with their own lifecycle that do not require an existing feature workflow. Each produces its own artifact directory.
+
+| Command | Purpose | Artifact location |
+|---|---|---|
+| `/wf-hotfix <description>` | Compressed incident-response pipeline (6 stages, scope-locked, max 5 steps) | `.ai/workflows/hotfix-<slug>/` |
+| `/wf-update-deps [package\|--security-only\|--audit-only]` | Scan all deps for staleness and CVEs, research each via web search, update by risk tier | `.ai/dep-updates/<run-id>/` |
+| `/wf-docs [slug\|--audit-only\|path]` | Discover, audit, and generate project documentation using Diátaxis skills | `.ai/docs/<run-id>/` |
+| `/wf-refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
 
 ### Review domains (31 individual commands)
 
@@ -771,32 +1004,52 @@ pip install yq
 All artifacts for a workflow live under a single directory:
 
 ```
-.ai/workflows/<slug>/
-├── 00-index.md                  # Control file — pure YAML frontmatter, no body
-├── 00-sync.md                   # Sync report (written by wf-sync if run)
-├── 01-intake.md
-├── 02-shape.md
-├── 02b-design.md                # Design brief (optional)
-├── 02-shape-amend-1.md          # Shape amendment (written by wf-amend if run)
-├── 03-slice.md                  # Slice master index
-├── 03-slice-<slug>.md           # Per-slice definition
-├── 03-slice-<slug>-amend-1.md   # Slice amendment (written by wf-amend if run)
-├── 04-plan.md                   # Plan master index
-├── 04-plan-<slug>.md            # Per-slice plan
-├── 05-implement.md              # Implement master index
-├── 05-implement-<slug>.md       # Per-slice implement record
-├── 06-verify.md                 # Verify master index
-├── 06-verify-<slug>.md          # Per-slice verification evidence
-├── 07-review.md                 # Review master verdict
-├── 07-review-<command>.md       # Per-command review findings
-├── 08-handoff.md
-├── 09-ship.md
-├── 10-retro.md
-├── announce.md                  # Written by wf-announce if run
-├── 90-next.md                   # Written by wf-next if run
-├── 90-resume.md                 # Written by wf-resume if run
-└── po-answers.md                # Cumulative product-owner answers log
+.ai/
+├── workflows/<slug>/
+│   ├── 00-index.md                      # Control file — pure YAML frontmatter, no body
+│   ├── 00-sync.md                       # Sync report (written by wf-sync if run)
+│   ├── 01-intake.md
+│   ├── 02-shape.md
+│   ├── 02b-design.md                    # Design brief (optional)
+│   ├── 02-shape-amend-1.md              # Shape amendment (written by wf-amend if run)
+│   ├── 03-slice.md                      # Slice master index
+│   ├── 03-slice-<slug>.md               # Per-slice definition
+│   ├── 03-slice-<slug>-amend-1.md       # Slice amendment (written by wf-amend if run)
+│   ├── 04-plan.md                       # Plan master index
+│   ├── 04-plan-<slug>.md                # Per-slice plan
+│   ├── 05-implement.md                  # Implement master index
+│   ├── 05-implement-<slug>.md           # Per-slice implement record
+│   ├── 06-verify.md                     # Verify master index
+│   ├── 06-verify-<slug>.md              # Per-slice verification evidence
+│   ├── 07-review.md                     # Review master verdict
+│   ├── 07-review-<command>.md           # Per-command review findings
+│   ├── 08-handoff.md
+│   ├── 09-ship.md
+│   ├── 10-retro.md
+│   ├── announce.md                      # Written by wf-announce if run
+│   ├── 90-next.md                       # Written by wf-next if run
+│   ├── 90-resume.md                     # Written by wf-resume if run
+│   ├── 90-how-<topic>.md                # Written by wf-how (Modes A/D) — codebase/artifact explanations
+│   ├── 90-findings-explain.md           # Written by wf-how (Mode E) — findings explanation
+│   └── po-answers.md                    # Cumulative product-owner answers log
+├── ideation/
+│   └── <focus>-<timestamp>.md           # Written by wf-ideate — ranked improvement candidates
+├── research/
+│   └── <topic>-<timestamp>.md           # Written by wf-how (Modes B/C) — codebase and web research
+├── dep-updates/<run-id>/
+│   ├── scan.md                          # Dependency inventory and audit results
+│   ├── research.md                      # Per-package web research findings + priority groups
+│   ├── plan.md                          # Update plan by risk tier (P0 security → P1 major → P2 safe → hold)
+│   ├── implement.md                     # Record of what was updated, blocked, and committed
+│   └── verify.md                        # Post-update test results
+└── docs/<run-id>/
+    ├── discover.md                      # Documentation inventory
+    ├── audit.md                         # Per-file accuracy, quadrant, and freshness findings
+    ├── plan.md                          # Prioritized action plan (create/update/rewrite/delete)
+    └── generate.md                      # Record of docs written and review notes
 ```
+
+Hotfix and refactor workflows use the standard `.ai/workflows/` tree with `workflow-type: hotfix` or `workflow-type: refactor` in `00-index.md` frontmatter, and `hf-`/`rf-` prefixed artifact names instead of numbered stage files.
 
 Every file starts with YAML frontmatter (`schema: sdlc/v1`) containing all machine-readable state. Commit these files alongside your code — they form a permanent, queryable record of how and why a change was made.
 
@@ -841,6 +1094,8 @@ Every file starts with YAML frontmatter (`schema: sdlc/v1`) containing all machi
 | `02-shape-amend-N.md` | `amendment-number`, `amends`, `source`, `source-ref`, `affected-slices` |
 | `03-slice-<slug>-amend-N.md` | `amendment-number`, `amends`, `original-status`, `plan-needs-update` |
 | `00-sync.md` | `health` (in-sync/minor-drift/significant-drift/stale), drift category tables |
+| `90-how-<topic>.md` / `90-findings-explain.md` | `type` (how-quick/how-codebase/how-research/how-workflow/how-findings), `question`, `mode` (A–E), `source-count` (Mode C only), `diataxis-output`, `diataxis-path` |
+| `.ai/research/<topic>.md` | Same fields as above — no `schema: sdlc/v1`, not subject to the validate-write hook |
 
 All `metric-*` fields are numeric — designed for aggregation, dashboards, and CI/CD gate evaluation.
 

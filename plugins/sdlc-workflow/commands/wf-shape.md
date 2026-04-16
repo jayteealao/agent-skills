@@ -37,7 +37,16 @@ You are a **workflow orchestrator**, not a problem solver.
 5. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
 
 # Parallel research (use sub-agents when supported)
-When the shaped spec touches multiple domains, launch parallel sub-agents. Do not spin up sub-agents for trivial or single-domain work.
+Always launch Explore sub-agent 1 and Explore sub-agent 2. Launch additional sub-agents for cross-domain work.
+
+**Sub-agent 2 (web search) skip criteria — skip ONLY if ALL of the following are true:**
+- The feature introduces zero new external dependencies
+- The feature makes no changes to existing dependency usage (no new API surface, no version changes)
+- The affected area is not security-sensitive (auth, tokens, crypto, CORS, CSP, input sanitization)
+- No browser/platform APIs involved (Web APIs, mobile OS APIs, CSS features)
+- No external API integrations (no REST, GraphQL, OAuth, webhooks, third-party SDKs)
+
+**When in doubt: always launch sub-agent 2.** Web search is fast and frequently surfaces breaking changes, CVEs, and better patterns that change the spec before implementation begins.
 
 ### Explore sub-agent 1 — Codebase Architecture & Integration Surface
 
@@ -106,7 +115,18 @@ Prompt the agent with ALL of the following:
 - Check if there are community-recommended alternatives or complementary libraries that the shaped spec should consider
 - Search for relevant blog posts, release announcements, or RFC documents that affect architectural decisions
 
-Merge all sub-agent findings into the stage file under `## Affected Areas`, `## Dependencies / Sequencing Notes`, and `## Freshness Research`.
+**Implementation best practices:**
+- Web search for established patterns and community consensus on how to implement this type of feature correctly — look at official guides, framework docs, and opinionated style guides
+- Search for known anti-patterns and common mistakes for this kind of feature — especially on official docs, web.dev, engineering blogs, and dev community posts (dev.to, css-tricks, Stack Overflow)
+- Note any RFCs, W3C specs, platform guidelines, or accessibility standards that prescribe behavior for this feature type
+- Identify whether the approach the shaped spec is heading toward is considered idiomatic, legacy, or controversial in the current ecosystem
+
+**Known gotchas & performance pitfalls:**
+- Web search for common performance traps specific to this feature type (e.g., unnecessary re-renders, N+1 queries, layout thrash, bundle size impact, memory leaks, cold-start latency)
+- Search for community "lessons learned", "what I wish I knew", or postmortems involving this kind of feature — these surface the non-obvious failure modes
+- Note any known limitations, quirks, or required workarounds the spec should explicitly account for before acceptance criteria are written
+
+Merge all sub-agent findings into the stage file under `## Affected Areas`, `## Dependencies / Sequencing Notes`, and `## Freshness Research`. Best practices and gotcha findings should directly inform acceptance criteria and edge cases in the spec — surface them to the synthesizer.
 
 # Purpose
 Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.
@@ -162,7 +182,7 @@ Round 5 — **Where are the boundaries?** Define the edges: what's explicitly ou
 
 After completing all 5 rounds, append every answer to `po-answers.md` with timestamp and `stage: shape`. Then proceed to the remaining steps.
 3. **Run all 5 discovery rounds.** Do not skip rounds. Do not compress multiple rounds into one. Wait for each round's answers before proceeding to the next — use earlier answers to sharpen later questions.
-4. Run freshness research (using parallel sub-agents if multi-domain) for external dependencies, patterns, APIs, standards, and known issues that could change the spec.
+4. Run freshness research via Explore sub-agent 2 (see skip criteria above) for external dependencies, patterns, APIs, standards, and known issues that could change the spec.
 5. Synthesize discovery answers into a small behavior-focused mini-spec.
 6. **Documentation plan (Diátaxis):** Using the shaped spec, classify what documentation this feature needs. Apply the Diátaxis model:
    - Does this introduce new API surface or config? → needs **reference** docs

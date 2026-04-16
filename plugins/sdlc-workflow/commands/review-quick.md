@@ -15,6 +15,7 @@ args:
   PATHS:
     description: Optional file path globs to focus review (e.g., "src/**/*.ts")
     required: false
+disable-model-invocation: true
 ---
 
 # ROLE

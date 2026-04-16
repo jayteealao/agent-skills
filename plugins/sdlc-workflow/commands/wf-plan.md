@@ -63,7 +63,7 @@ You are a **workflow orchestrator**, not a problem solver.
 Create repo-aware, slice-specific implementation plans after inspecting current code and current external guidance. Write per-slice plan files with cross-links to their slice definition, sibling plans, and future implementation files.
 
 # Parallel research (use sub-agents for ALL planning)
-Planning is research-intensive. Launch parallel sub-agents to gather information before writing the plan. Do not spin up sub-agents for trivial or single-file work.
+Planning is research-intensive. Launch parallel sub-agents to gather information before writing the plan. Each sub-agent has its own skip criteria below — do not apply a blanket "trivial" exemption to skip all sub-agents. Skip criteria are per-agent and intentionally narrow.
 
 **For single-plan mode — launch ALL of these in parallel:**
 
@@ -86,6 +86,19 @@ Prompt the agent with ALL of the following. It must report findings for each sec
 - Read 3–5 representative files in the same directory/module. Report: naming conventions (files, functions, variables, CSS classes), error handling pattern (try/catch, Result types, error middleware), dependency injection style, logging approach
 - Check for linting rules, prettier config, or editorconfig that constrain code style
 - Look for README or CONTRIBUTING docs in the affected directory
+
+**Reuse opportunities:**
+- Read the slice definition's `## Goal` and `## Scope (In)` sections. For each new function, class, utility, or capability the slice needs to implement, search the wider codebase for existing code that partially or fully covers the same need:
+  - Grep for keywords, type names, and domain terms from the slice definition across the full codebase (not just the affected directory)
+  - Search for similar logic: data transformations, validation routines, formatting utilities, API call wrappers, error handling patterns, and business rule checks that appear to overlap with what the slice needs to build
+  - Look for base classes, mixins, abstract types, or higher-order functions that could be extended or composed rather than reimplemented from scratch
+  - Check existing services, helpers, and utility modules for methods that expose the needed capability under a different name or at a slightly different abstraction level
+- For each candidate reuse opportunity found, report:
+  - File path and function/class/method name
+  - What it does and how closely it matches what the slice needs
+  - Whether it would require modification for this slice — and if so, whether that modification would be backward-compatible with existing callers
+  - Recommendation: **reuse as-is** / **reuse with modification** / **extract into shared utility then use** / **implement fresh** (with reason)
+- If nothing relevant exists: state that explicitly — "No reuse candidates found for [capability]." Do not skip this section.
 
 **Integration surfaces:**
 - What events, hooks, callbacks, or pub/sub channels does the affected area participate in?
@@ -144,6 +157,13 @@ Prompt the agent with ALL of the following:
 
 ### Web research sub-agent — Dependencies & External Knowledge
 
+**Launch this sub-agent for every slice.** Skip ONLY if ALL of the following are true for this slice:
+- Pure refactoring (rename, extract, move) — zero dependency changes, zero new API surface
+- OR config/env file changes only (no library usage changes)
+- OR text/copy/i18n changes only
+
+Do NOT skip because the slice "feels small" or "seems simple." Small slices frequently touch versioned dependencies or security-sensitive areas that need freshness checks. When in doubt: launch it.
+
 Prompt the agent with ALL of the following:
 
 **Dependency freshness:**
@@ -161,7 +181,19 @@ Prompt the agent with ALL of the following:
 - Check GitHub issues on relevant dependency repos for known bugs that could affect this slice
 - Note any advisories that require specific mitigations in the plan
 
-Merge ALL sub-agent findings into the plan under `## Current State`, `## Likely Files / Areas to Touch`, and `## Freshness Research`.
+**Implementation best practices:**
+- Web search for established patterns and community consensus on how to implement this slice's specific capability — look at official docs, framework guides, and opinionated style guides
+- Search for known anti-patterns and common mistakes for this kind of implementation — especially on official docs, Stack Overflow, engineering blogs, and community posts
+- Note any RFCs, platform specs, or framework conventions that prescribe the correct approach (e.g., framework-specific patterns, API design rules, mobile OS guidelines)
+- Identify whether the approach currently implied by the plan is idiomatic, legacy, or considered an anti-pattern in the current ecosystem
+
+**Known gotchas & performance pitfalls:**
+- Web search for common performance issues specific to this implementation type (re-renders, N+1 queries, layout thrash, bundle size, memory leaks, cold-start latency, lock contention)
+- Search for community reports of surprising behavior, subtle bugs, or edge cases in the libraries and APIs this slice uses
+- Look for "lessons learned" or postmortem posts involving this kind of feature — these surface the non-obvious failure modes that acceptance criteria often miss
+- Note any known limitations or required workarounds the plan steps should account for
+
+Merge ALL sub-agent findings into the plan under `## Current State`, `## Likely Files / Areas to Touch`, and `## Freshness Research`. Best practices and gotcha findings should directly shape the implementation steps — surface them so the plan avoids known failure modes before any code is written.
 
 **For parallel plan mode (`all`):**
 Launch one sub-agent PER SLICE. Each sub-agent:
@@ -408,6 +440,11 @@ next-invocation: "/wf-implement <slug> <slice-slug>"
 # Plan: <slice-name>
 
 ## Current State
+
+## Reuse Opportunities
+<!-- From Explore sub-agent 1 reuse scan. Format per candidate:
+- `path/to/file.ts` → `functionName()` — what it does, match quality, recommendation (reuse as-is / modify / extract / implement fresh)
+If none found: "No reuse candidates identified." -->
 
 ## Likely Files / Areas to Touch
 - path/or/module: why
