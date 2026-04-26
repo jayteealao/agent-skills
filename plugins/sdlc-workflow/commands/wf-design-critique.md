@@ -42,7 +42,7 @@ You are a **design evaluator**, not a fixer.
 1. **Read `.impeccable.md`** from the project root.
 2. If `.impeccable.md` does not exist or does not contain a `## Design Context` section → WARN: "No design context found. Critique will be less precise without brand personality, audience, and aesthetic direction. Consider running `/wf-design:setup` first." Proceed anyway — critique is still valuable without context.
 3. If `.impeccable.md` exists, extract: Users, Brand Personality, Aesthetic Direction, Design Principles.
-4. **Read design guidelines:** Read `${CLAUDE_PLUGIN_ROOT}/reference/design/design-guidelines.md`.
+4. **Read design guidelines:** Read `../reference/design/design-guidelines.md`.
 
 # Step 2 — Gather Assessments
 

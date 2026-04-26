@@ -17,7 +17,7 @@ Push an interface past conventional limits. This isn't just about visual effects
 
 ## MANDATORY PREPARATION
 
-Read the [design guidelines](${CLAUDE_PLUGIN_ROOT}/reference/design/design-guidelines.md) which contain design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if `.impeccable.md` exists in the project root, read it for design context. If no design context exists yet, tell the user to run `/wf-design:setup` first.
+Read the [design guidelines](../../reference/design/design-guidelines.md) which contain design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if `.impeccable.md` exists in the project root, read it for design context. If no design context exists yet, tell the user to run `/wf-design:setup` first.
 
 **EXTRA IMPORTANT FOR THIS SKILL**: Context determines what "extraordinary" means. A particle system on a creative portfolio is impressive. The same particle system on a settings page is embarrassing. But a settings page with instant optimistic saves and animated state transitions? That's extraordinary too. Understand the project's personality and goals before deciding what's appropriate.
 

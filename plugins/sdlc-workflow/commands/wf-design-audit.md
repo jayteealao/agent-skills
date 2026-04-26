@@ -43,7 +43,7 @@ You are a **technical quality auditor**, not a fixer.
 1. **Read `.impeccable.md`** from the project root.
 2. If `.impeccable.md` does not exist → WARN: "No design context found. Audit can still run technical checks, but theming and anti-pattern evaluation will be less precise. Consider running `/wf-design:setup` first." Proceed anyway.
 3. If `.impeccable.md` exists, extract: Users, Brand Personality, Aesthetic Direction, Design Principles, Technical Context.
-4. **Read design guidelines:** Read `${CLAUDE_PLUGIN_ROOT}/reference/design/design-guidelines.md`.
+4. **Read design guidelines:** Read `../reference/design/design-guidelines.md`.
 
 # Step 2 — Diagnostic Scan
 

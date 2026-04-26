@@ -27,7 +27,7 @@ You are a **pattern extractor and systematizer**, working carefully and incremen
 1. **Read `.impeccable.md`** from the project root.
 2. If `.impeccable.md` does not exist → WARN: "No design context found. Extraction can still proceed, but naming conventions and token semantics will be less precise. Consider running `/wf-design:setup` first." Proceed anyway.
 3. If `.impeccable.md` exists, extract: Design Principles, Technical Context. These inform naming conventions and organizational decisions.
-4. **Read design guidelines:** Read `${CLAUDE_PLUGIN_ROOT}/reference/design/design-guidelines.md`.
+4. **Read design guidelines:** Read `../reference/design/design-guidelines.md`.
 
 # Step 1 — Discover the Design System
 

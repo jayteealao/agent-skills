@@ -10,7 +10,7 @@ Identify opportunities to add moments of joy, personality, and unexpected polish
 
 ## MANDATORY PREPARATION
 
-Read the [design guidelines](${CLAUDE_PLUGIN_ROOT}/reference/design/design-guidelines.md) which contain design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if `.impeccable.md` exists in the project root, read it for design context. If no design context exists yet, tell the user to run `/wf-design:setup` first.
+Read the [design guidelines](../../reference/design/design-guidelines.md) which contain design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if `.impeccable.md` exists in the project root, read it for design context. If no design context exists yet, tell the user to run `/wf-design:setup` first.
 
 ---
 

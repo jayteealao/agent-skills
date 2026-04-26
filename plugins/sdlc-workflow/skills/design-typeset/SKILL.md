@@ -10,7 +10,7 @@ Assess and improve typography that feels generic, inconsistent, or poorly struct
 
 ## MANDATORY PREPARATION
 
-Read the [design guidelines](${CLAUDE_PLUGIN_ROOT}/reference/design/design-guidelines.md) which contain design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if `.impeccable.md` exists in the project root, read it for design context. If no design context exists yet, tell the user to run `/wf-design:setup` first.
+Read the [design guidelines](../../reference/design/design-guidelines.md) which contain design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if `.impeccable.md` exists in the project root, read it for design context. If no design context exists yet, tell the user to run `/wf-design:setup` first.
 
 ---
 
@@ -47,7 +47,7 @@ Analyze what's weak or generic about the current type:
 
 ## Plan Typography Improvements
 
-Consult the [typography reference](${CLAUDE_PLUGIN_ROOT}/reference/design/typography.md) for detailed guidance on scales, pairing, and loading strategies.
+Consult the [typography reference](../../reference/design/typography.md) for detailed guidance on scales, pairing, and loading strategies.
 
 Create a systematic plan:
 

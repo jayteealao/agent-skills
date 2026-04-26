@@ -43,7 +43,7 @@ You are a **workflow orchestrator**, not a problem solver.
 3. If `.impeccable.md` exists and contains design context, extract: Users, Brand Personality, Aesthetic Direction, Design Principles.
 
 # Step 2 — Load Design Guidelines
-Read `${CLAUDE_PLUGIN_ROOT}/reference/design/design-guidelines.md` for the project's design reference material. These guidelines inform the discovery interview and design brief.
+Read `../reference/design/design-guidelines.md` for the project's design reference material. These guidelines inform the discovery interview and design brief.
 
 # Step 3 — Exploration Sub-Agent
 Launch an Explore sub-agent to scan the codebase for design-relevant context. Prompt the agent with ALL of the following:
@@ -139,8 +139,8 @@ What copy, labels, empty state messages, error messages, and microcopy are neede
 
 **8. Recommended References**
 Based on the brief, list which design reference files would be most valuable during implementation. Always include:
-- `${CLAUDE_PLUGIN_ROOT}/reference/design/spatial-design.md` for layout and spacing
-- `${CLAUDE_PLUGIN_ROOT}/reference/design/typography.md` for type hierarchy
+- `../reference/design/spatial-design.md` for layout and spacing
+- `../reference/design/typography.md` for type hierarchy
 
 Then add based on the brief's needs:
 - Complex interactions or forms? → `interaction-design.md`
@@ -203,8 +203,8 @@ next-invocation: "/wf-slice <slug>"
 ## Content Requirements
 
 ## Recommended References
-- `${CLAUDE_PLUGIN_ROOT}/reference/design/spatial-design.md`
-- `${CLAUDE_PLUGIN_ROOT}/reference/design/typography.md`
+- `../reference/design/spatial-design.md`
+- `../reference/design/typography.md`
 - ...
 
 ## Open Questions

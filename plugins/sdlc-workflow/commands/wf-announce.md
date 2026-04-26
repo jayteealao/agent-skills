@@ -87,11 +87,11 @@ For each doc type that was planned but not yet generated, determine whether it i
 
 **2c — Invoke needed skills:**
 For each missing doc type identified above, invoke the appropriate skill by reading its SKILL.md and executing it:
-- `${CLAUDE_PLUGIN_ROOT}/skills/how-to-guide-writer/SKILL.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/reference-writer/SKILL.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/tutorial-writer/SKILL.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/explanation-writer/SKILL.md`
-- `${CLAUDE_PLUGIN_ROOT}/skills/readme-writer/SKILL.md`
+- `../skills/how-to-guide-writer/SKILL.md`
+- `../skills/reference-writer/SKILL.md`
+- `../skills/tutorial-writer/SKILL.md`
+- `../skills/explanation-writer/SKILL.md`
+- `../skills/readme-writer/SKILL.md`
 
 Pass the skill the feature context from the shape and handoff artifacts. Write generated docs to the location specified in the shape's doc plan, or `docs/` if unspecified. Record each generated doc path so it can be linked in the announcement.
 

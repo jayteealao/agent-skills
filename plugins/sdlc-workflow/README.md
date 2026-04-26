@@ -1,6 +1,8 @@
 # SDLC Workflow
 
-A Claude Code plugin that gives your AI assistant a structured software delivery lifecycle. Every feature, fix, or spike moves through the same reproducible sequence of stages — each one writing a permanent, machine-readable artifact to your repo that the next stage reads.
+A workflow plugin for Claude Code with generated Codex packaging. Every feature, fix, or spike moves through the same reproducible sequence of stages — each one writing a permanent, machine-readable artifact to your repo that the next stage reads.
+
+Codex support is generated from the Claude source files. The generated Codex plugin exposes the canonical workflow commands through skill wrappers under `.codex-generated/skills/`, so the workflow logic stays in `commands/` and `skills/` instead of being maintained twice.
 
 ---
 
@@ -918,7 +920,9 @@ These skills are the same set provided by the `impeccable` plugin. When both are
 
 ## Hooks
 
-The plugin installs four hooks that run automatically — no configuration required. They fire in the background and never block normal operation.
+The Claude plugin installs four hooks that run automatically — no configuration required. They fire in the background and never block normal operation.
+
+The generated Codex plugin currently does **not** enable hooks. The workflow and generated skills are installable in Codex, but the hook layer remains Claude-only until Codex hook path behavior is validated well enough to avoid shipping a broken runtime path.
 
 ### SessionStart — workflow discovery
 

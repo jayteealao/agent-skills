@@ -1,0 +1,49 @@
+{
+  "name": "sdlc-workflow",
+  "version": "8.15.0",
+  "description": "Complete SDLC workflow with integrated code review, design quality, Diátaxis documentation, analysis, observability, and git lifecycle. 25 lifecycle commands (10 stages + 5 wf-design commands + wf-next + wf-status + wf-resume + wf-sync + wf-announce + wf-amend + wf-extend + wf-ideate + wf-how) with branch-aware git operations, wf-validate pre-write hook, 31 review commands, 7 aggregate reviews, 25 skills (14 design + 4 analysis + 7 Diátaxis), and setup-wide-logging command. wf-how routes across five modes: quick code answers, codebase exploration (parallel Explore agents + synthesis), deep web research (6–8 agents, 200+ sources), workflow artifact explanation, and findings explanation — with optional Diátaxis output. wf-plan includes reuse scan: Explore sub-agent 1 searches the wider codebase for existing utilities and capabilities before planning new implementations. v8.12–8.13: wf-shape and wf-plan web search sub-agents fire by default (opt-out not opt-in) and cover implementation best practices, anti-patterns, gotchas, and performance pitfalls. v8.14: four standalone workflow entry points — wf-hotfix (6-stage incident-response, scope-locked), wf-update-deps (scan+research+tier-prioritized dependency updates), wf-docs (Diátaxis-aware documentation audit and generation), wf-refactor (behavior-preserving refactoring with test baseline and incremental green steps).",
+  "author": {
+    "name": "jayte",
+    "url": "https://github.com/jayteealao"
+  },
+  "license": "MIT",
+  "keywords": [
+    "sdlc",
+    "workflow",
+    "feature-delivery",
+    "code-review",
+    "error-analysis",
+    "refactoring",
+    "test-patterns",
+    "observability",
+    "wide-event-logging",
+    "planning",
+    "agile",
+    "design",
+    "ux",
+    "accessibility",
+    "typography",
+    "responsive"
+  ],
+  "skills": "./.codex-generated/skills/",
+  "homepage": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow",
+  "repository": "https://github.com/jayteealao/agent-skills",
+  "interface": {
+    "displayName": "SDLC Workflow",
+    "shortDescription": "Structured feature delivery, review, and handoff workflows",
+    "longDescription": "Guided SDLC orchestration for intake, shaping, slicing, planning, implementation, verification, review, handoff, shipping, and retrospectives. Codex exposes the canonical Claude workflow commands through generated skill wrappers so the workflow stays installable without forking the source plugin.",
+    "developerName": "jayte",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow",
+    "defaultPrompt": [
+      "Start a new SDLC workflow for this feature request.",
+      "Run the next SDLC stage for my active workflow.",
+      "Review this workflow slice and summarize the findings."
+    ],
+    "brandColor": "#0F766E"
+  }
+}

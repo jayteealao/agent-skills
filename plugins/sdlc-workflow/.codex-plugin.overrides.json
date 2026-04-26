@@ -1,0 +1,38 @@
+{
+  "homepage": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow",
+  "repository": "https://github.com/jayteealao/agent-skills",
+  "author": {
+    "url": "https://github.com/jayteealao"
+  },
+  "codex": {
+    "generatedSkillsPath": "./.codex-generated/skills/",
+    "includeHooks": false
+  },
+  "interface": {
+    "displayName": "SDLC Workflow",
+    "shortDescription": "Structured feature delivery, review, and handoff workflows",
+    "longDescription": "Guided SDLC orchestration for intake, shaping, slicing, planning, implementation, verification, review, handoff, shipping, and retrospectives. Codex exposes the canonical Claude workflow commands through generated skill wrappers so the workflow stays installable without forking the source plugin.",
+    "developerName": "jayte",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow",
+    "defaultPrompt": [
+      "Start a new SDLC workflow for this feature request.",
+      "Run the next SDLC stage for my active workflow.",
+      "Review this workflow slice and summarize the findings."
+    ],
+    "brandColor": "#0F766E"
+  },
+  "marketplace": {
+    "name": "agent-skills-marketplace",
+    "displayName": "Agent Skills Marketplace",
+    "category": "Productivity",
+    "policy": {
+      "installation": "AVAILABLE",
+      "authentication": "ON_INSTALL"
+    }
+  }
+}

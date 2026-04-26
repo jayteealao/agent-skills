@@ -10,7 +10,7 @@ Assess and improve layout and spacing that feels monotonous, crowded, or structu
 
 ## MANDATORY PREPARATION
 
-Read the [design guidelines](${CLAUDE_PLUGIN_ROOT}/reference/design/design-guidelines.md) which contain design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if `.impeccable.md` exists in the project root, read it for design context. If no design context exists yet, tell the user to run `/wf-design:setup` first.
+Read the [design guidelines](../../reference/design/design-guidelines.md) which contain design principles, anti-patterns, and the **Context Gathering Protocol**. Follow the protocol before proceeding — if `.impeccable.md` exists in the project root, read it for design context. If no design context exists yet, tell the user to run `/wf-design:setup` first.
 
 ---
 
@@ -47,7 +47,7 @@ Analyze what's weak about the current spatial design:
 
 ## Plan Layout Improvements
 
-Consult the [spatial design reference](${CLAUDE_PLUGIN_ROOT}/reference/design/spatial-design.md) for detailed guidance on grids, rhythm, and container queries.
+Consult the [spatial design reference](../../reference/design/spatial-design.md) for detailed guidance on grids, rhythm, and container queries.
 
 Create a systematic plan:
 
