@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Backend Concurrency"
+  short_description: "Review backend code for race conditions, atomicity violations, locking issues, and idempotency bugs"
+  default_prompt: "Use $review-backend-concurrency for this workflow."
+policy:
+  allow_implicit_invocation: false

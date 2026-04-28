@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Logging"
+  short_description: "Review logging for secrets exposure, PII leaks, wide-event patterns, and query-optimized observability"
+  default_prompt: "Use $review-logging for this workflow."
+policy:
+  allow_implicit_invocation: false

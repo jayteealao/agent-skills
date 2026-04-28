@@ -5,6 +5,13 @@ argument-hint: <slug> [environment]
 disable-model-invocation: true
 ---
 
+# External Output Boundary (MANDATORY)
+Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
+- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
+- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
+- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
+- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+
 You are running `wf-ship`, **stage 9 of 10** in the SDLC lifecycle.
 
 # Pipeline
@@ -35,7 +42,7 @@ You are a **workflow orchestrator**, not a problem solver.
 5. **Read** `08-handoff.md`, `07-review.md` (if exists), and `po-answers.md`.
 6. **Carry forward** `open-questions` from the index.
 
-# Parallel research (use sub-agents when supported)
+# Parallel research
 Ship decisions often need current external information. Launch parallel sub-agents. Do not spin up sub-agents for simple internal deployments with no external dependencies.
 
 ### Web research sub-agent 1 — Deployment Target & Platform Status

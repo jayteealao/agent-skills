@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Intake"
+  short_description: "Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug."
+  default_prompt: "Use $wf-intake for this workflow."
+policy:
+  allow_implicit_invocation: false

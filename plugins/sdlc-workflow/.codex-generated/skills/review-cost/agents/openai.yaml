@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Cost"
+  short_description: "Review code for changes that increase cloud infrastructure costs"
+  default_prompt: "Use $review-cost for this workflow."
+policy:
+  allow_implicit_invocation: false

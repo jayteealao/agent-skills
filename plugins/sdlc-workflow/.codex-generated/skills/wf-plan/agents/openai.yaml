@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Plan"
+  short_description: "Create or review-and-fix implementation plans. First invocation creates plans. Re-invocation auto-reviews against current codebase and artifacts, fixes issues found. Supports single slice, all slices (parallel), or explicit feedback."
+  default_prompt: "Use $wf-plan for this workflow."
+policy:
+  allow_implicit_invocation: false

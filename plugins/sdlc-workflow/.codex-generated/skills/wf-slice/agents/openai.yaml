@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Slice"
+  short_description: "Break a shaped work item into thin, independently verifiable vertical slices. Writes a master index and one file per slice."
+  default_prompt: "Use $wf-slice for this workflow."
+policy:
+  allow_implicit_invocation: false

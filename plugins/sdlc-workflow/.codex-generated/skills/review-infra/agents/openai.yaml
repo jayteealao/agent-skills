@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Infra"
+  short_description: "Infrastructure review covering deployment config, CI/CD, release management, migrations, logging, and observability in a single pass"
+  default_prompt: "Use $review-infra for this workflow."
+policy:
+  allow_implicit_invocation: false

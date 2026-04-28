@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Overengineering"
+  short_description: "Review code for unnecessary complexity, abstractions, and YAGNI violations"
+  default_prompt: "Use $review-overengineering for this workflow."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Ux"
+  short_description: "UX review covering accessibility, frontend accessibility, frontend performance, and UX copy in a single pass"
+  default_prompt: "Use $review-ux for this workflow."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Migrations"
+  short_description: "Review database migrations for safety, compatibility, and operability in production"
+  default_prompt: "Use $review-migrations for this workflow."
+policy:
+  allow_implicit_invocation: false

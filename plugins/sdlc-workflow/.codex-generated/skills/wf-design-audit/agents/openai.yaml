@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Design Audit"
+  short_description: "Run technical quality checks across accessibility, performance, theming, responsive design, and anti-patterns. Generates a scored report (0-20) with P0-P3 severity ratings."
+  default_prompt: "Use $wf-design-audit for this workflow."
+policy:
+  allow_implicit_invocation: false

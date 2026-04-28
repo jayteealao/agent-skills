@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Design Setup"
+  short_description: "Establish design context for the project — gather brand personality, audience, aesthetic direction, and write .impeccable.md. One-time setup that all design commands and skills require."
+  default_prompt: "Use $wf-design-setup for this workflow."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Observability"
+  short_description: "Review observability completeness - logs, metrics, tracing, error reporting, alertability, and runbook hooks"
+  default_prompt: "Use $review-observability for this workflow."
+policy:
+  allow_implicit_invocation: false

@@ -5,6 +5,13 @@ argument-hint: <slug> [focus area]
 disable-model-invocation: true
 ---
 
+# External Output Boundary (MANDATORY)
+Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
+- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
+- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
+- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
+- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+
 You are running `wf-slice`, **stage 3 of 10** in the SDLC lifecycle.
 
 # Pipeline
@@ -47,7 +54,7 @@ Break a shaped work item into thin, independently verifiable vertical slices. Wr
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel Explore/subagents for multi-domain research when supported. Do not spin up subagents for trivial work.
+- Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract

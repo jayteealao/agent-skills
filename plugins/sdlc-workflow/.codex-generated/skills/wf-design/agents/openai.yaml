@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Design"
+  short_description: "Create a design brief for a feature — discovery interview, UX strategy, layout approach, key states, interaction model. Produces 02b-design.md artifact. Slots between shape and slice."
+  default_prompt: "Use $wf-design for this workflow."
+policy:
+  allow_implicit_invocation: false

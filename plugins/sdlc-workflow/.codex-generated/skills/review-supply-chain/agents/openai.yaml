@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Supply Chain"
+  short_description: "Review dependency and build integrity risks, lockfiles, build scripts, and artifact provenance"
+  default_prompt: "Use $review-supply-chain for this workflow."
+policy:
+  allow_implicit_invocation: false

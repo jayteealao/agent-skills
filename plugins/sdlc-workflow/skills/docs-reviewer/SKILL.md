@@ -1,6 +1,6 @@
 ---
-name: diataxis:review
-description: Use when the user asks to review, audit, improve, classify, or reorganise existing documentation — for a single page or a whole docs set. Evaluates docs against Diátaxis principles: type fit, boundary discipline, user fit, structure, and quality. Returns concrete prioritised fixes and, where needed, recommends splitting overloaded pages. Triggers on phrases like "review my docs", "audit the documentation", "what's wrong with this guide", "improve this README", "tell me what's wrong".
+name: "diataxis:review"
+description: 'Use when the user asks to review, audit, improve, classify, or reorganise existing documentation — for a single page or a whole docs set. Evaluates docs against Diátaxis principles: type fit, boundary discipline, user fit, structure, and quality. Returns concrete prioritised fixes and, where needed, recommends splitting overloaded pages. Triggers on phrases like "review my docs", "audit the documentation", "what''s wrong with this guide", "improve this README", "tell me what''s wrong".'
 ---
 
 # Documentation reviewer

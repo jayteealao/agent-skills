@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Correctness"
+  short_description: "Review code for logic flaws, broken invariants, edge-case failures, and correctness issues"
+  default_prompt: "Use $review-correctness for this workflow."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Architecture"
+  short_description: "Architecture review covering design quality, performance, scalability, and API contracts in a single pass"
+  default_prompt: "Use $review-architecture for this workflow."
+policy:
+  allow_implicit_invocation: false

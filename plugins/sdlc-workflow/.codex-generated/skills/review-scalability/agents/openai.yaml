@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Scalability"
+  short_description: "Review code for scalability issues under higher load, larger datasets, and more tenants"
+  default_prompt: "Use $review-scalability for this workflow."
+policy:
+  allow_implicit_invocation: false

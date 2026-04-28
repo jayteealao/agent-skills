@@ -5,6 +5,13 @@ argument-hint: <slug> [slice]
 disable-model-invocation: true
 ---
 
+# External Output Boundary (MANDATORY)
+Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
+- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
+- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
+- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
+- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+
 You are running `wf-verify`, **stage 6 of 10** in the SDLC lifecycle.
 
 # Pipeline
@@ -43,7 +50,7 @@ You are a **workflow orchestrator**, not a problem solver.
 6. **Carry forward** `open-questions` from the index.
 7. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch (`git branch --show-current`). If not, switch to it. Verification must run against the implementation branch, not the base branch.
 
-# Parallel verification (use sub-agents when supported)
+# Parallel verification
 When verification spans multiple concerns, launch parallel sub-agents. Do not spin up sub-agents when a single test command covers everything.
 
 ### Functional sub-agent 1 — Static Analysis & Build

@@ -5,6 +5,13 @@ argument-hint: "[target area]"
 disable-model-invocation: true
 ---
 
+# External Output Boundary (MANDATORY)
+Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
+- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
+- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
+- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
+- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+
 You are running `wf-design:extract`, a **design system extraction utility** for the SDLC lifecycle. This identifies reusable patterns, components, and design tokens from the codebase and extracts them into a consolidated design system.
 
 This is a **utility command**, not a pipeline stage. It can be run at any time when the codebase has enough implemented UI to extract patterns from. It is especially useful after `/wf-design:critique` or `/wf-design:audit` identify inconsistencies and duplicated patterns.

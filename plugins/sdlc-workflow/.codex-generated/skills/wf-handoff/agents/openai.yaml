@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Handoff"
+  short_description: "Turn the completed and reviewed work into a PR-ready handoff package with reviewer and QA context. Aggregates ALL complete slices by default — pass a slice-slug only when each slice has its own separate PR."
+  default_prompt: "Use $wf-handoff for this workflow."
+policy:
+  allow_implicit_invocation: false

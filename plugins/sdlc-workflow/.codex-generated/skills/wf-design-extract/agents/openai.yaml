@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Design Extract"
+  short_description: "Identify reusable patterns, components, and design tokens from the codebase and extract them into a consolidated design system for systematic reuse."
+  default_prompt: "Use $wf-design-extract for this workflow."
+policy:
+  allow_implicit_invocation: false

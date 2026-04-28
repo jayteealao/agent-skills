@@ -1,0 +1,6 @@
+interface:
+  display_name: "Setup Wide Logging"
+  short_description: "Set up wide-event logging with tail sampling to replace scattered logs with canonical log lines"
+  default_prompt: "Use $setup-wide-logging for this workflow."
+policy:
+  allow_implicit_invocation: false

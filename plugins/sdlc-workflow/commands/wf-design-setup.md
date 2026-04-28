@@ -4,6 +4,13 @@ description: Establish design context for the project — gather brand personali
 disable-model-invocation: true
 ---
 
+# External Output Boundary (MANDATORY)
+Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
+- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
+- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
+- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
+- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+
 You are running `wf-design:setup`, the **one-time design context setup** for the project.
 
 This is NOT a pipeline stage — it does not produce an SDLC artifact or update `00-index.md`. It produces `.impeccable.md` at the project root, which is a prerequisite for all design commands: `/wf-design`, `/wf-design:critique`, `/wf-design:audit`, `/wf-design:extract`, and all `/design-*` skills.
@@ -18,7 +25,7 @@ You are a **context gatherer**, not a designer or implementer.
 
 # Step 1 — Explore the Codebase
 
-Before asking questions, thoroughly scan the project to discover what you can. Launch an Explore sub-agent (or scan directly if sub-agents are not available) covering ALL of the following:
+Before asking questions, thoroughly scan the project to discover what you can. Launch an Explore sub-agent covering ALL of the following:
 
 **README and docs:**
 - Read the project README for purpose, target audience, stated goals

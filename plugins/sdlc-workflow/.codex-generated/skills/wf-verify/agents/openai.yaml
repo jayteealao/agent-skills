@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Verify"
+  short_description: "Verify that the selected slice meets acceptance criteria and is ready for review."
+  default_prompt: "Use $wf-verify for this workflow."
+policy:
+  allow_implicit_invocation: false

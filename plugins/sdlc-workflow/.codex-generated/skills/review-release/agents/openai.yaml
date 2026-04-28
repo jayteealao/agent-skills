@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Release"
+  short_description: "Review changes for safe shipping with clear versioning, rollout, migration, and rollback plans"
+  default_prompt: "Use $review-release for this workflow."
+policy:
+  allow_implicit_invocation: false

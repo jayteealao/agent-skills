@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Architecture Focused"
+  short_description: "Review code for architectural issues including boundaries, dependencies, and layering"
+  default_prompt: "Use $review-architecture-focused for this workflow."
+policy:
+  allow_implicit_invocation: false

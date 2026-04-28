@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Ux Copy"
+  short_description: "Review user-facing text for clarity, consistency, actionability, and helpful error recovery"
+  default_prompt: "Use $review-ux-copy for this workflow."
+policy:
+  allow_implicit_invocation: false

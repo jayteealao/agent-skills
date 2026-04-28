@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF How"
+  short_description: "Ask how something works in the codebase, commission deep multi-source web research (200+ sources), get quick code answers, explain workflow plans and decisions, or understand implementation and review findings. Routes automatically across five modes — Quick (Mode A), Codebase Explore (Mode B, fan-out to parallel Explore agents + synthesis), Deep Research (Mode C, 6–8 parallel web research agents, 200+ sources), Workflow Explain (Mode D), and Findings Explain (Mode E) — with optional Diátaxis artifact output at the end of every mode."
+  default_prompt: "Use $wf-how for this workflow."
+policy:
+  allow_implicit_invocation: false

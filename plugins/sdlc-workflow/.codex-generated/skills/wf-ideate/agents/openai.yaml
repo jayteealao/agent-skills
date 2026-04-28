@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Ideate"
+  short_description: "Proactive codebase ideation. Scans the codebase with parallel sub-agents across six lenses (quality, performance, security, DX, feature gaps, architecture), generates 30+ improvement candidates, applies adversarial filtering to cull weak or speculative ideas (with explanations), ranks survivors by impact/effort, and writes .ai/ideation/ artifacts ready to feed into wf-intake. Inverts the normal pattern — surfaces what you might not have thought to ask about."
+  default_prompt: "Use $wf-ideate for this workflow."
+policy:
+  allow_implicit_invocation: false

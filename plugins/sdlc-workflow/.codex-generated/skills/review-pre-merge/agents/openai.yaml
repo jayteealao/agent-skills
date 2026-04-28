@@ -1,0 +1,6 @@
+interface:
+  display_name: "Review Pre Merge"
+  short_description: "Pre-merge code review covering correctness, testing, security, refactor safety, and maintainability"
+  default_prompt: "Use $review-pre-merge for this workflow."
+policy:
+  allow_implicit_invocation: false

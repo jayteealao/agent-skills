@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Status"
+  short_description: "Read-only dashboard across all workflows. Reads every .ai/workflows/*/00-index.md, parses frontmatter, and renders a grouped status table. No side effects. Optional slug argument for single-workflow detail view."
+  default_prompt: "Use $wf-status for this workflow."
+policy:
+  allow_implicit_invocation: false

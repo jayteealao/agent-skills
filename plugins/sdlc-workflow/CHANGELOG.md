@@ -5,6 +5,18 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.16.0] - 2026-04-28
+
+### Changed
+
+- **Parallel sub-agent dispatch is now the unconditional expectation across all workflow stages.** Removed `(use sub-agents when supported)` headings from `wf-implement`, `wf-retro`, `wf-shape`, `wf-ship`, and `wf-verify`; removed `when supported` qualifiers from the parallel-research footer guidance in `wf-intake`, `wf-shape`, and `wf-slice`; and removed the `(or scan directly if sub-agents are not available)` parenthetical from `wf-design-setup`. The `wf-design-critique` "If sub-agents are not available... complete each assessment sequentially" fallback was deleted entirely; the preceding sentence now requires parallel dispatch as the only path. Both Claude Code and Codex support concurrent sub-agent dispatch — the hedging language was masking that and giving the model permission to serialize parallelizable work.
+
+- **Codex adapter compatibility rule rewritten from defensive fallback to positive directive.** The boilerplate emitted by `scripts/generate-codex-plugin.mjs` for every generated skill no longer says "if delegation is unavailable... perform the review steps locally or sequentially and state that adaptation." The replacement reads: "When the canonical source asks for parallel sub-agents, dispatch them in parallel. Codex supports concurrent sub-agent dispatch; do not serialize work that the source intends to fan out." Regenerating propagated the change to all 67 `.codex-generated/skills/*/SKILL.md` adapters.
+
+### Fixed
+
+- **Generator no longer strips the word `parallel` from skill descriptions.** `sanitizeCodexDescription` previously rewrote `parallel sonnet sub-agent` -> `review worker`, collapsing both the model-name translation and the parallelism qualifier in one substitution. The rewrite now produces `parallel review worker`, preserving the parallel-dispatch intent in Codex frontmatter descriptions while still translating the Claude-only model name.
+
 ## [8.15.0] - 2026-04-16
 
 ### Fixed
