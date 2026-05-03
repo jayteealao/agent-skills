@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills-marketplace",
-  "version": "1.40.0",
+  "version": "1.42.0",
   "description": "A curated collection of Claude Code skills and plugins for developers",
   "owner": {
     "name": "jayte"
@@ -37,10 +37,10 @@
     },
     {
       "name": "sdlc-workflow",
-      "description": "Complete SDLC workflow with integrated code review, design quality (5 wf-design commands + 14 design skills), Diátaxis documentation, analysis, observability, and git lifecycle. 29 lifecycle commands including wf-how (5-mode Q&A), wf-ideate (6-lens scanning), 4 standalone workflows (wf-hotfix, wf-update-deps, wf-docs, wf-refactor), wf-validate pre-write hook, 31 review commands, 7 aggregate reviews, 25 skills, and setup-wide-logging. v8.14: wf-hotfix (incident-response), wf-update-deps (dep audit + tier-prioritized updates), wf-docs (Diátaxis doc audit + generation), wf-refactor (behavior-preserving refactoring with test baseline).",
+      "description": "Complete SDLC workflow with integrated code review, design quality (5 wf-design commands + 14 design skills), Diátaxis documentation, analysis, observability, and git lifecycle. 31 lifecycle commands including wf-how (5-mode Q&A), wf-ideate (6-lens scanning), 6 standalone workflows (wf-hotfix, wf-update-deps, wf-docs, wf-refactor, wf-quick, wf-rca), wf-validate pre-write hook, 31 review commands, 7 aggregate reviews, 25 skills, and setup-wide-logging. v8.17: wf-quick (compressed planning into one artifact, routes to /wf-implement). v8.18: wf-rca (read-only root-cause analysis with parallel diagnosis sub-agents; synthesizes minimal 02-shape.md so /wf-plan works directly; recommends /wf-plan, /wf-quick, /wf-hotfix, or human-triage based on confidence and blast radius).",
       "source": "./plugins/sdlc-workflow",
       "category": "productivity",
-      "version": "8.16.0"
+      "version": "8.18.0"
     }
   ]
 }

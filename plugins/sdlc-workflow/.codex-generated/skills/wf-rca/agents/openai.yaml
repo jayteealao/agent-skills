@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Rca"
+  short_description: "Root-cause analysis workflow. Investigates a reported issue using parallel diagnosis sub-agents, writes a structured RCA artifact with confidence, blast radius, and suggested fix shape, then recommends the right downstream command (/wf-plan for non-trivial work, /wf-quick for small fixes, /wf-hotfix for active incidents). Does NOT write a fix. Synthesizes a minimal 02-shape.md so /wf-plan can consume the workflow directory without modification."
+  default_prompt: "Use $wf-rca for this workflow."
+policy:
+  allow_implicit_invocation: false

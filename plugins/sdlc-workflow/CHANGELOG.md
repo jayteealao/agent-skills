@@ -5,6 +5,18 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.18.0] - 2026-05-03
+
+### Added
+
+- **`wf-rca` command — read-only root-cause analysis workflow.** Investigates a reported issue using three parallel diagnosis sub-agents (code path investigation, recent change correlation, blast radius), writes a structured RCA artifact at `.ai/workflows/rca-<slug>/01-rca.md` with eleven sections including symptom, scope, investigation summary, root cause (with `file:line` evidence), contributing factors, blast radius, suggested fix shape (1-3 lines of *direction*, not a plan), verification criteria, and confidence ratings for both the root cause and the fix shape. Does NOT write a fix and does NOT switch branches — investigation is strictly read-only. Synthesizes a minimal `02-shape.md` from the RCA so `/wf-plan <slug>` can consume the workflow directory without modification, treating `01-rca.md` as the deeper investigation context. Routing recommendation logic: `impact: critical` + production + medium-or-better confidence + small fix shape -> `/wf-hotfix`; small fix shape (≤3 files, ≤5 steps, no new dependency, no architecture change) -> `/wf-quick`; anything else -> `/wf-plan`; `confidence: low` + `blast-radius: high` -> `human-triage` (escalation, no auto-route). Tripwires (warn-and-continue): low confidence, high blast radius, multiple plausible root causes, concurrent open PR touching the implicated path, same buggy pattern repeating elsewhere. Tripwires record what fired in the artifact; they never block writing the RCA. Recommendation surfaces alternates with priority order; the user makes the final routing call. Distinct from `wf-hotfix` (which diagnoses *and* fixes), the `error-analysis` skill (general RCA toolkit, no workflow integration), and `wf-how` (explanation/Q&A, not investigation).
+
+## [8.17.0] - 2026-04-28
+
+### Added
+
+- **`wf-quick` command — compressed planning workflow for small intentional changes.** Collapses the first five lifecycle stages (intake, shape, design, slice, plan) into a single `01-quick.md` artifact written in one pass, then routes to `/wf-implement` so the standard execute-verify-review-handoff-ship lifecycle takes over from stage 5 onward. Asks at most 2 questions in chat (no `AskUserQuestion`, no separate `po-answers.md` — answers inline into the artifact). Parallel Explore sub-agents gather codebase grounding (files in scope, nearby patterns, reuse candidates, recent churn) and optional web freshness (skipped if the change is purely internal). Design is **never auto-included**; if `--design` is passed it adds 3-5 design notes, otherwise the section records a recommendation to run `/wf-design` as a follow-up when UI surface is touched. Slicing is skipped by definition (single-slice). Tripwires (warn-and-continue, never block): >3 files touched, >5 implementation steps, new external dependency, architectural change, >2 unanswered open questions. When a tripwire fires the plan is still written but a `Tripwire breaches` section records what tripped and recommends `/wf-intake` for the next change. Default branch is `quick/<slug>`; `branch-strategy: none` is honored when the user is mid-task on an existing branch. Artifacts land in `.ai/workflows/quick-<slug>/` with `workflow-type: quick` in the index. Distinct from `wf-hotfix` (incident response, production-branch base, hard scope lock) and `wf-refactor` (behavior-preserving refactoring with test baseline).
+
 ## [8.16.0] - 2026-04-28
 
 ### Changed

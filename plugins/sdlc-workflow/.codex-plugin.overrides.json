@@ -5,7 +5,7 @@
     "url": "https://github.com/jayteealao"
   },
   "codex": {
-    "version": "8.16.0-codex.1",
+    "version": "8.18.0-codex.1",
     "generatedSkillsPath": "./.codex-generated/skills/",
     "includeHooks": false
   },

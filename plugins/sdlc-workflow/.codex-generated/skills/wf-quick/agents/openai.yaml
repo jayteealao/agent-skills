@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Quick"
+  short_description: "Compressed planning workflow for small intentional changes. Collapses intake, shape, design, slice, and plan into a single artifact in one pass. Routes to /wf-implement for the standard execute-verify-review-handoff-ship lifecycle. Use when the change is small enough that the full 5-stage planning ceremony is overkill but you still want a recorded plan, a branch, and the standard implementation/review pipeline."
+  default_prompt: "Use $wf-quick for this workflow."
+policy:
+  allow_implicit_invocation: false
