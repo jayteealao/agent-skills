@@ -20,6 +20,7 @@ You are running `wf-verify`, **stage 6 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md` |
+| Optional inputs | `02c-craft.md` (mock fidelity inventory must be re-verified), `04b-instrument.md` (signals must fire), `04c-experiment.md` (flag/cohort/metrics must work), `05c-benchmark.md` baseline (compare-mode re-run), `augmentations:` list in `00-index.md` (every entry triggers a type-specific re-check — see Step 0.6) |
 | Produces | `06-verify-<slice-slug>.md` + updates `06-verify.md` master |
 | Next | `/wf-review <slug> <selected-slice>` (if passing) or `/wf-implement <slug> <selected-slice>` (if fixes needed) |
 | Skip-to | `/wf-handoff <slug> <slice>` if review is unnecessary (solo project, trivial change, already peer-reviewed externally) |
@@ -37,18 +38,40 @@ You are a **workflow orchestrator**, not a problem solver.
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
-4. **Check prerequisites:**
-   - `05-implement-<slice-slug>.md` must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug> <slice-slug>` first."
-   - If it shows `Status: Awaiting input` → STOP.
-   - If `06-verify-<slice-slug>.md` already exists → WARN: "This slice has already been verified. Running again will overwrite. Proceed?"
-5. **Read the slice's full context:**
-   - `03-slice-<slice-slug>.md` — acceptance criteria to verify against
-   - `04-plan-<slice-slug>.md` — what was planned (to check deviations)
-   - `05-implement-<slice-slug>.md` — what was actually implemented
-   - `02-shape.md` — overall spec context
-   - `po-answers.md`
-6. **Carry forward** `open-questions` from the index.
-7. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch (`git branch --show-current`). If not, switch to it. Verification must run against the implementation branch, not the base branch.
+4. **Determine workflow source mode** from `00-index.md` `workflow-type`:
+   - `workflow-type: quick` → **compressed mode**. Source: `01-quick.md` (acceptance criteria + plan in single doc) + `05-implement.md`. No per-slice files.
+   - `workflow-type: rca` / `investigate` → **forwarded mode**. Source: `01-rca.md` / `01-investigate.md` (rich context) + synthesized `02-shape.md` + `05-implement-<slice-slug>.md` if planning ran.
+   - `workflow-type: feature` (default) or unset → **standard mode**.
+5. **Check prerequisites by mode:**
+   - **Compressed mode**: `05-implement.md` (or `05-implement-<slice-slug>.md` if a slice was added) must exist. Acceptance criteria source is `01-quick.md`.
+   - **Forwarded mode**: `05-implement-<slice-slug>.md` (or `05-implement.md`) must exist. Acceptance criteria source is the synthesized `02-shape.md` plus the rich `01-rca.md` / `01-investigate.md`.
+   - **Standard mode**: `05-implement-<slice-slug>.md` must exist.
+   - All modes: if implement record shows `Status: Awaiting input` → STOP.
+   - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → WARN: "This has already been verified. Running again will overwrite. Proceed?"
+6. **Read the source context by mode:**
+   - **Compressed mode**: `01-quick.md` (acceptance criteria + plan) + `05-implement.md`.
+   - **Forwarded mode**: `01-rca.md` or `01-investigate.md` + `02-shape.md` (synthesized) + `04-plan.md` (if exists) + `05-implement-<slice-slug>.md`.
+   - **Standard mode**:
+     - `03-slice-<slice-slug>.md` — acceptance criteria to verify against
+     - `04-plan-<slice-slug>.md` — what was planned (to check deviations)
+     - `05-implement-<slice-slug>.md` — what was actually implemented
+     - `02-shape.md` — overall spec context
+   - All modes also read `po-answers.md` if it exists.
+7. **Read augmentation verification context (optional):**
+   `02c-craft.md` if present — extract `## Mock fidelity inventory`. Each item is an additional acceptance criterion that verify must check. Cross-reference `05-implement-<slice-slug>.md` → `## Visual Contract Honored` to confirm each item was honored in code.
+
+   Read the `augmentations:` list in `00-index.md`. For each entry, read the referenced artifact and apply the type-specific re-check:
+
+   | Type | Re-check during verify |
+   |---|---|
+   | `design-<sub>` | Read `design-notes/<sub>-<timestamp>.md` → `## Verification needed`. Re-run those specific checks (e.g., `harden` → re-run a11y; `optimize` → re-run perf; `adapt` → re-run responsive across breakpoints). |
+   | `design-audit` | Read `07-design-audit.md`. Re-check that all "critical" or "high" findings have been resolved in code. |
+   | `design-critique` | Read `07-design-critique.md`. Note any prescriptive feedback that should have been actioned. |
+   | `instrument` | Read `04b-instrument.md`. For each designed signal, confirm the implementation actually emits the log/metric/trace. Run the affected code path and observe the signal fires (live or via tests). Report any missing signals. |
+   | `experiment` | Read `04c-experiment.md`. Confirm: (a) feature flag is wired correctly; (b) cohort split logic produces the documented distribution; (c) primary/secondary/guardrail metrics fire on the expected events; (d) rollback path works. |
+   | `benchmark` (status: baseline) | Run `/wf-benchmark <slug>` in compare mode. Compare results against the baseline numbers in `05c-benchmark.md`. Flag regressions exceeding the documented tripwires (>10% CPU / >25% memory by default). |
+8. **Carry forward** `open-questions` from the index.
+9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch (`git branch --show-current`). If not, switch to it. Verification must run against the implementation branch, not the base branch.
 
 # Parallel verification
 When verification spans multiple concerns, launch parallel sub-agents. Do not spin up sub-agents when a single test command covers everything.
@@ -184,7 +207,37 @@ Prompt the agent with ALL of the following. Adapt to the project's platform:
 - Check that new/modified interactive elements have appropriate ARIA attributes, labels, keyboard handling
 - Verify color contrast, focus indicators, and screen reader compatibility if tools are available
 
-### Web research sub-agent 4 — Freshness Impact on Test Results (only if external dependencies could affect tests)
+### Functional sub-agent 4 — Augmentation Re-verification (only if `02c-craft.md` or `00-index.md` `augmentations:` list is non-empty)
+
+Launch ONLY if any of these exist: `02c-craft.md`, or any entry in `00-index.md` `augmentations:` list. This sub-agent enforces contracts that the standard test suites do not catch.
+
+Prompt with:
+
+**Mock fidelity inventory check (when `02c-craft.md` is present):**
+- Read `02c-craft.md` → `## Mock fidelity inventory`. For each item, check `05-implement-<slice-slug>.md` → `## Visual Contract Honored` to find its disposition (honored or deviation).
+- For "honored" items: open the cited file:line and verify the item is actually implemented as described. Do not trust the implementation record blindly.
+- For "deviation" items: surface the deviation in the verify report. Deviations are not failures by default — they may be valid trade-offs — but they must be visible.
+- Visual spot-check: load the affected page/route in the browser tool selected above. Compare screenshot against `02c-craft.md` → `## North-star mock` (path to image). Report any composition, hierarchy, or signature-move regressions.
+
+**Augmentation type-specific checks (for each entry in `augmentations:` list):**
+
+| Type | Check |
+|---|---|
+| `design-harden` | Run a11y scan (axe-core or framework equivalent) on `files-modified`. Report any new WCAG AA violations. |
+| `design-optimize` | Re-measure performance (Lighthouse / DevTools profile / framework perf test) on the modified surface. Compare against the documented improvements. Flag regressions. |
+| `design-adapt` | Re-test responsive behavior at the documented breakpoints. Confirm mobile + tablet + desktop work. |
+| `design-colorize` / `design-typeset` / `design-polish` / `design-bolder` / `design-quieter` / `design-delight` / etc. | Visual diff against the augmentation's `## What changed` section. Confirm changes are present and no regressions to surrounding UI. |
+| `design-audit` | Read `07-design-audit.md`. Re-check that "critical" / "high" findings are resolved. |
+| `design-critique` | Read `07-design-critique.md`. Note actioned-vs-unactioned recommendations. |
+| `instrument` | Read `04b-instrument.md`. For each designed signal, exercise the affected code path and confirm the log/metric/trace fires (via tests, live observation, or grep on log output). Report any missing signals. |
+| `experiment` | Read `04c-experiment.md`. Confirm: feature flag is wired, cohort split produces documented distribution, all metrics (primary/secondary/guardrail) fire on the right events, rollback path works. |
+| `benchmark` (status: baseline) | Run `/wf-benchmark <slug>` in compare mode. Compare against `05c-benchmark.md` baseline. Flag regressions exceeding documented tripwires (default >10% CPU / >25% memory). |
+
+**Reporting:**
+- Pass: all mock fidelity items honored, all augmentation type-checks pass, no critical findings outstanding.
+- Fail: list each failure with severity. These become BLOCKER or HIGH issues for `wf-review`.
+
+### Web research sub-agent 5 — Freshness Impact on Test Results (only if external dependencies could affect tests)
 
 Launch ONLY if test results could be affected by external dependency state changes. Prompt with:
 
@@ -312,7 +365,7 @@ refs:
   slice-def: 03-slice-<slice-slug>.md
   plan: 04-plan-<slice-slug>.md
   implement: 05-implement-<slice-slug>.md
-  review: 07-review.md
+  review: 07-review-<slice-slug>.md
 next-command: wf-review
 next-invocation: "/wf-review <slug> <slice-slug>"
 ---
@@ -343,6 +396,17 @@ If no interactive verification was needed: "Automated only — [reason]"
 
 ## Issues Found
 - severity: issue
+
+## Augmentation Verification (only if `02c-craft.md` or `augmentations:` list is non-empty)
+- **Mock fidelity items** (from `02c-craft.md`): <N honored / <N deviations / <N unhonored>
+  - <item>: <pass/fail> at <file:line>, evidence: <screenshot path or test output>
+- **Per-augmentation re-checks** (one row per `augmentations:` entry):
+  - <type> (artifact: <path>): <pass/regression>, evidence: <path>
+- **Outstanding design findings** (from `07-design-audit.md` / `07-design-critique.md`): <N critical / <N high>
+  - <finding>: <resolved/outstanding>
+- **Instrumentation signal coverage** (from `04b-instrument.md`): <N firing / <N missing>
+- **Experiment wiring** (from `04c-experiment.md`): <pass/fail> — flag, cohort, metrics, rollback
+- **Benchmark compare-mode delta** (from `05c-benchmark.md`): <within tripwires / regression>
 
 ## Gaps / Unverified Areas
 - ...

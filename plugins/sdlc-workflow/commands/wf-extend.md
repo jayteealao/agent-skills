@@ -40,14 +40,14 @@ You are a **scope expander**, not a problem solver.
 
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, use AskUserQuestion to list options.
 2. **Resolve the mode** from `$ARGUMENTS` (second argument, if present):
-   - `from-review` — extract new scope from `07-review.md` findings
+   - `from-review` — extract new scope from `07-review-*.md` findings (every per-slice review file is read; missing capability typically spans slices)
    - `from-retro` — extract new scope from `10-retro.md` findings
    - Nothing — general extension (user will describe new scope)
 3. **Read `00-index.md`** — parse `title`, `slug`, `current-stage`, `status`, `selected-slice-or-focus`, `workflow-files`.
 4. **Read `03-slice.md`** — parse the `slices:` array. For each slice entry, note its `slug`, `status`, and `depends-on`. This is the existing slice inventory — it must not be broken.
 5. **Read all `03-slice-<slug>.md` files** referenced in `workflow-files`. Note which are `status: complete`, `status: in-progress`, `status: defined`.
 6. **Read source artifacts** based on mode:
-   - `from-review`: read `07-review.md` — full findings, triage decisions, recommendations
+   - `from-review`: glob and read every `07-review-*.md` file in the workflow directory (one per reviewed slice). Aggregate full findings, triage decisions, and recommendations across all of them — extension candidates often emerge from siblings' reviews.
    - `from-retro`: read `10-retro.md` — action items, follow-up work, tech debt
    - General: read `02-shape.md` and `po-answers.md` for context about the original scope
 7. **Summarise current state to chat:**
@@ -65,7 +65,7 @@ Depending on mode:
 
 ## `from-review` mode
 
-Read `07-review.md` → `## Recommendations` and `## Triage Decisions`. Identify findings that represent **missing capability** rather than implementation bugs:
+Read every `07-review-<slice-slug>.md` file → `## Recommendations` and `## Triage Decisions` of each. Identify findings that represent **missing capability** rather than implementation bugs (note which source slice flagged each candidate):
 
 Signs that a finding warrants a new slice (not a bug fix):
 - Finding says "this feature should also do X, but X was never scoped"
@@ -149,13 +149,13 @@ updated-at: "<ISO 8601>"
 complexity: <xs|s|m|l|xl>
 depends-on: [<existing-slice-slug-if-any>, ...]
 source: <from-review | from-retro | extension>
-source-ref: <07-review.md | 10-retro.md | "user description">
+source-ref: <07-review-<slice-slug>.md | 10-retro.md | "user description">
 extension-round: <N>  # 1 for first wf-extend call, 2 for second, etc.
 tags: []
 refs:
   index: 00-index.md
   slice-index: 03-slice.md
-  source: <07-review.md | 10-retro.md | "">
+  source: <07-review-<slice-slug>.md | 10-retro.md | "">
   plan: 04-plan-<new-slug>.md
   implement: 05-implement-<new-slug>.md
 ---

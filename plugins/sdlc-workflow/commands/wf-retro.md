@@ -20,6 +20,7 @@ You are running `wf-retro`, **stage 10 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `09-ship.md` (strongly recommended), plus as many prior stage files as exist |
+| Optional inputs | All design artifacts (`02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`) — already covered by "every stage file that exists" but call out explicitly: design decisions and augmentation outcomes are valid retro inputs |
 | Produces | `10-retro.md` |
 | Next | Workflow complete. No further stages. |
 
@@ -39,7 +40,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - At minimum, `05-implement.md` should exist (there must be something to retro on). If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
    - `09-ship.md` is strongly recommended but not blocking — a retro can run after a cancelled or abandoned effort.
    - If `current-stage` in the index shows the workflow is already complete → WARN: "This workflow has already been retrospected. Running retro again will overwrite `10-retro.md`. Proceed?"
-4. **Read the full workflow trail** — every stage file that exists, plus `po-answers.md`.
+4. **Read the full workflow trail** — every stage file that exists, plus `po-answers.md`. This includes design artifacts: `02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`. Retro should reflect on design decisions (was the chosen color strategy right? did the mock fidelity inventory hold?) and augmentation outcomes (did `harden` catch real issues? did `optimize` deliver measurable gains?), not just engineering ones.
 5. **Carry forward** `open-questions` from the index.
 
 # Parallel analysis
@@ -69,7 +70,7 @@ Prompt the agent with ALL of the following:
 Prompt the agent with ALL of the following:
 
 **Review findings analysis:**
-- Read `07-review.md` and all `07-review-<command>.md` files
+- Glob and read every `07-review-*.md` file in the workflow directory — there is one master review per slice plus per-command sub-reviews (e.g., `07-review-<slice-slug>-<command>.md`). Aggregate findings across all slices.
 - Classify findings: how many were real bugs vs. style nits vs. false positives?
 - Were BLOCKER/HIGH findings things that should have been caught by tests, linting, or planning?
 - Did the review miss anything that was later found in ship or production?

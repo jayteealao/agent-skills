@@ -467,7 +467,7 @@ Given what this artifact says, what does the next stage need to know or do? What
 
 1. Resolve slug from args or from the single active workflow (Step 0).
 2. Read:
-   - `07-review.md` + all `07-review-<cmd>.md` files (if review stage exists)
+   - Glob every `07-review-*.md` file (per-slice master reviews + per-command sub-reviews) if any review stage has run for any slice
    - `06-verify.md` + any files in `verify-evidence/` (if verify stage exists)
    - `05-implement.md` (for implementation context)
    - `02-shape.md` (for acceptance criteria context — what was the goal?)

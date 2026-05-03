@@ -5,6 +5,18 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.30.0] - 2026-05-03
+
+### Changed
+
+- **Per-slice review artifacts.** `wf-review` now writes `07-review-<slice-slug>.md` (master verdict) and `07-review-<slice-slug>-<command>.md` (per-command sub-reviews) instead of a single workflow-wide `07-review.md` and `07-review-<command>.md`. Running review on a second slice no longer overwrites the first slice's review — every reviewed slice keeps its own master verdict and per-command findings on disk.
+- **`wf-handoff` aggregates per-slice reviews.** Handoff now requires `07-review-<slice-slug>.md` for *every* slice in scope and STOPs with the offending slice slug(s) listed if any slice's `verdict` is `dont-ship` or has unresolved blockers in frontmatter (`metric-findings-blocker > 0` without a `## Fix Status` resolution). The `refs.review` pointer in `08-handoff.md` frontmatter is replaced by `refs.reviews: [<list>]`.
+- **Consumers updated.** `wf-implement` reviews mode reads the slice-scoped review file (and accepts an explicit slice argument); `wf-amend from-review` reads the per-slice file (or aggregates siblings for cross-slice spec errors); `wf-extend from-review` globs every per-slice review since missing-capability findings often span slices; `wf-retro` and `wf-how findings` glob across all per-slice review files; `wf-ship` reads every per-slice review for changelog completeness; `wf-skip review` now writes a slice-scoped stub and requires a resolvable slice slug; `wf-status` matrix and frontmatter `refs.review` updated. README and frontmatter schema reference table updated.
+
+### Why
+
+Each slice review previously **overwrote** `07-review.md` and every `07-review-<command>.md`, because filenames were not slice-scoped (every other stage from `03-slice` through `06-verify` already had `<slice-slug>` in the filename). Multi-slice features that ran review per slice without committing in between lost prior verdicts and triage state, and `wf-handoff` could only see "the most recent review" rather than aggregating across the slices it was about to bundle into one PR. Slice-scoping the filename makes 07 consistent with surrounding stages and lets handoff enforce a per-slice ship gate.
+
 ## [8.18.0] - 2026-05-03
 
 ### Added

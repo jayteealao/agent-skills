@@ -40,7 +40,7 @@ You are a **spec corrector**, not a problem solver.
 
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, use AskUserQuestion to list options.
 2. **Resolve the mode** from `$ARGUMENTS` (second argument, if present):
-   - `from-review` — seed amendment from `07-review.md` findings
+   - `from-review` — seed amendment from `07-review-<slice-slug>.md` findings (slice resolved from `selected-slice-or-focus`, or pass a slice-slug as the third argument)
    - `from-retro` — seed amendment from `10-retro.md` findings
    - A `<slice-slug>` — amend a specific slice directly
    - Nothing — general amendment (will ask user what to amend)
@@ -49,7 +49,7 @@ You are a **spec corrector**, not a problem solver.
    - `02-shape.md`
    - `03-slice.md` (master slice index)
    - All `03-slice-<slug>.md` files listed in `workflow-files`
-   - `07-review.md` (if `from-review` mode or exists)
+   - `07-review-<slice-slug>.md` for the resolved slice (if `from-review` mode); for general/cross-slice amendments, glob all `07-review-*.md` files for context
    - `10-retro.md` (if `from-retro` mode or exists)
    - Any existing `02-shape-amend-*.md` or `03-slice-*-amend-*.md` files (to determine amendment number)
 5. **Determine amendment counter** — count existing `*-amend-*.md` files. New amendments are numbered `amend-<N+1>`.
@@ -61,7 +61,7 @@ You are a **spec corrector**, not a problem solver.
 Depending on mode:
 
 **`from-review` mode:**
-Read `07-review.md`. Extract findings where the issue is not an implementation bug but a *fundamental problem with the spec or approach*. Signs of this:
+Read `07-review-<slice-slug>.md` for the resolved slice. If multiple review files are relevant (rare — typically when one spec error affects siblings), read each and aggregate. Extract findings where the issue is not an implementation bug but a *fundamental problem with the spec or approach*. Signs of this:
 - Finding says "acceptance criterion is contradictory" or "scope is ambiguous"
 - Finding says "the approach assumed X but X is not available/correct"
 - Multiple BLOCKER or HIGH findings all stem from the same incorrect assumption in the slice definition
@@ -131,7 +131,7 @@ amendment-number: <N>
 created-at: "<ISO 8601>"
 amends: 02-shape.md
 source: <from-review | from-retro | manual>
-source-ref: <07-review.md | 10-retro.md | "user description">
+source-ref: <07-review-<slice-slug>.md | 10-retro.md | "user description">
 affected-slices: [<slice-slug>, ...]
 tags: []
 refs:
@@ -173,7 +173,7 @@ amendment-number: <N>
 created-at: "<ISO 8601>"
 amends: 03-slice-<slice-slug>.md
 source: <from-review | from-retro | manual>
-source-ref: <07-review.md | 10-retro.md | "user description">
+source-ref: <07-review-<slice-slug>.md | 10-retro.md | "user description">
 original-status: <status from the original slice file>
 plan-needs-update: <true | false>
 tags: []

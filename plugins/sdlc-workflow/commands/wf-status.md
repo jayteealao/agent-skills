@@ -141,7 +141,7 @@ When `/wf-status <slug>` is invoked:
 - **Options:** (read from current stage file's ## Recommended Next Stage)
 ```
 
-5. For the **slice progress matrix**, glob for all `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`, `06-verify-*.md`, `07-review-*.md` (per-slice review files if they exist), `08-handoff.md` files. Mark each cell:
+5. For the **slice progress matrix**, glob for all `03-slice-*.md`, `04-plan-*.md`, `05-implement-*.md`, `06-verify-*.md`, `07-review-*.md` (per-slice review files — `07-review-<slice-slug>.md` is the master per slice; `07-review-<slice-slug>-<command>.md` are per-command sub-reviews, exclude those from the matrix), `08-handoff.md` files. Mark each cell:
    - `✓` — file exists and status is complete
    - `→` — file exists and status is in-progress or awaiting-input
    - `✗` — file exists and status is failed

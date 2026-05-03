@@ -19,7 +19,8 @@ You are running `wf-handoff`, **stage 8 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `05-implement-<slug>.md` for each complete slice, `07-review.md` (most recent review) |
+| Requires | `05-implement-<slice-slug>.md` AND `07-review-<slice-slug>.md` for every slice in scope (handoff aggregates one review per slice — there is no longer a single workflow-wide `07-review.md`) |
+| Optional inputs | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `augmentations:` list (every augmentation gets reviewer-visible context in the handoff package — translated to product/user language per External Output Boundary) |
 | Produces | `08-handoff.md` — one document covering all complete slices (or one slice if explicitly scoped) |
 | Next | `/wf-ship <slug>` (default) |
 | Skip-to | `/wf-retro <slug>` if shipping is handled externally or not applicable |
@@ -40,17 +41,33 @@ You are a **workflow orchestrator**, not a problem solver.
    - **Explicit slice mode**: A slice-slug was passed as the second argument → scope to that one slice only. Use this when each slice ships as its own separate PR. Skip to step 4 using that single slice.
    - **Aggregate mode** (default — no second argument): Read `03-slice.md`. Collect every slice entry with `status: complete` or `status: in-progress`. These are the slices on the feature branch being handed off. If no complete/in-progress slices exist → STOP: "No implemented slices found. Run `/wf-implement <slug> <slice>` first."
 4. **Check prerequisites for each slice in scope:**
-   - `05-implement-<slice-slug>.md` must exist for every slice in scope. List any missing and STOP.
-   - `07-review.md` must exist (one per workflow, not per slice). If missing → STOP: "Run `/wf-review <slug>` first."
-   - If `07-review.md` shows blocking issues unresolved → STOP. Tell the user to resolve via `/wf-implement <slug> <slice> reviews` first.
+   - `05-implement-<slice-slug>.md` must exist for every slice in scope. List any missing and STOP: "Run `/wf-implement <slug> <slice>` for each missing slice."
+   - `07-review-<slice-slug>.md` must exist for every slice in scope. List any missing and STOP: "Run `/wf-review <slug> <slice>` for each missing slice — every slice in the handoff scope must have its own review."
+   - For each `07-review-<slice-slug>.md`, parse the `verdict:` and `metric-findings-blocker:` fields in the YAML frontmatter. If ANY slice's verdict is `dont-ship`, or any slice has `metric-findings-blocker > 0` with no resolution recorded in `## Fix Status`, STOP. Print the offending slice slug(s) and tell the user to resolve via `/wf-implement <slug> <slice> reviews` first.
    - If `current-stage` in the index is already past handoff → WARN before overwriting.
 5. **Read full context:**
    - `02-shape.md` — overall spec and docs plan
    - `03-slice.md` — master index (slice statuses)
-   - For each slice in scope: `03-slice-<slug>.md`, `04-plan-<slug>.md`, `05-implement-<slug>.md`, `06-verify-<slug>.md` (if exists)
-   - `07-review.md` — review verdict and all findings
+   - For each slice in scope: `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (if exists), `07-review-<slice-slug>.md` (review verdict and all findings for that slice)
    - `po-answers.md`
-6. **Carry forward** `open-questions` from the index.
+6. **Read augmentation context (optional — surfaces all augmentation work for the reviewer):**
+   Read `02b-design.md` and `02c-craft.md` if present for register, anti-goals, and visual contract. The mock fidelity inventory items are user-visible changes the PR description should highlight (translated to product language).
+
+   Read the `augmentations:` list in `00-index.md`. Every entry must appear in the handoff package's `## Design Changes` and/or `## Reviewer Focus Areas` section. Per-type translation:
+
+   | Type | Reviewer-visible mention (in product language) |
+   |---|---|
+   | `design-harden` | "Accessibility improvements applied — N components updated, axe-core scan clean" |
+   | `design-optimize` | "Performance improvements — measured Xms reduction in [metric]" |
+   | `design-adapt` | "Improved mobile/tablet/dark-mode behavior" |
+   | `design-colorize` / `design-typeset` / `design-polish` etc. | "Visual refresh of [surface area]" |
+   | `design-audit` / `design-critique` | "Design quality review pass — N findings addressed" |
+   | `instrument` | "Added observability — N signals (logs/metrics/traces) for previously unobserved code paths" |
+   | `experiment` | "Wrapped behind feature flag with cohort split for measured rollout" |
+   | `benchmark` | "Performance baseline taken; verify-stage comparison: <within tripwires / regression>" |
+
+   Do NOT cite workflow artifact paths or sub-command names in any external-facing field of the handoff package or PR.
+7. **Carry forward** `open-questions` from the index.
 
 # Purpose
 Turn the completed and reviewed work into a PR-ready handoff package with reviewer and QA context.
@@ -159,7 +176,7 @@ refs:
   index: 00-index.md
   slice-index: 03-slice.md
   implements: [05-implement-<slug-1>.md, 05-implement-<slug-2>.md, ...]
-  review: 07-review.md
+  reviews: [07-review-<slug-1>.md, 07-review-<slug-2>.md, ...]
 next-command: wf-ship
 next-invocation: "/wf-ship <slug>"
 ---
@@ -175,6 +192,16 @@ next-invocation: "/wf-ship <slug>"
 ## Problem
 
 ## Solution
+
+## Augmentations Applied (only if `augmentations:` list is non-empty)
+List every augmentation in user-facing language. Do NOT cite workflow artifact paths or sub-command names — translate per the External Output Boundary. Group by category for readability:
+
+**Design improvements**: <list — accessibility, performance, responsive, visual refresh, etc.>
+**Observability**: <list — N new signals for previously unobserved code paths>
+**Experimentation**: <list — feature flag wiring, cohort split, metrics>
+**Performance**: <list — baseline taken, compare-mode results>
+
+For each: include user-visible effect and the verification evidence path.
 
 ## Affected Areas
 - ...

@@ -1,265 +1,236 @@
 ---
 name: wf-design
-description: Create a design brief for a feature — discovery interview, UX strategy, layout approach, key states, interaction model. Produces 02b-design.md artifact. Slots between shape and slice.
-argument-hint: [slug]
+description: Unified design command for the SDLC workflow. Three invocation modes: (1) /wf-design <slug> — runs the design stage (2b) for an active workflow; (2) /wf-design <slug> <sub-command> — runs a specific design sub-command in workflow context; (3) /wf-design <sub-command> — freestanding design work with no workflow context required. 22 sub-commands: shape, craft, audit, critique, extract, animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset, adapt, setup, teach.
+argument-hint: "[slug] [shape|craft|audit|critique|extract|animate|bolder|clarify|colorize|delight|distill|harden|layout|onboard|optimize|overdrive|polish|quieter|typeset|adapt|setup|teach] [target]"
 disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
 Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+- Internal context includes workflow artifact paths (`.ai/workflows/...`), stage names or numbers, slash-command names, sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought.
+- External-facing outputs include commit messages, branch names, PR titles/bodies, release notes, changelog entries, user documentation, code comments, and any file outside the private workflow artifact directories.
+- Before writing, committing, pushing, or publishing anything, perform a leak check and remove internal workflow references.
 
-You are running `wf-design`, the **design brief stage** in the SDLC lifecycle. This stage slots between shape and slice.
+You are running `wf-design`, the **unified design command** for the SDLC lifecycle.
 
-# Pipeline
-1·intake → 2·shape → **2b·design** → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+# What this command does
 
-| | Detail |
+Runs design sub-commands in three modes:
+- **Workflow + stage 2b** (`/wf-design <slug>`): run the design stage for an active workflow
+- **Workflow + sub-command** (`/wf-design <slug> <sub-command>`): run a specific design sub-command in workflow context
+- **Freestanding** (`/wf-design <sub-command>`): run a design sub-command without a workflow
+
+# Valid sub-commands
+
+| Sub-command | Purpose |
 |---|---|
-| Requires | `02-shape.md` |
-| Produces | `02b-design.md` |
-| Next | `/wf-slice <slug>` (default) |
-| Skip-to | `/wf-plan <slug>` if the shaped spec is a single coherent unit that does not benefit from slicing |
+| `shape` | Design brief with discovery interview + imagegen probes → writes 02b-design.md |
+| `craft` | Design-to-code: build gate, visual direction, implementation, critique pass |
+| `audit` | Technical quality scan (a11y, performance, theming, responsive, anti-patterns) |
+| `critique` | Prescriptive design feedback on decisions and direction |
+| `extract` | Reverse-engineer design tokens and patterns from existing code |
+| `animate` | Add purposeful motion and micro-interactions |
+| `bolder` | Increase visual presence, hierarchy, and conviction |
+| `clarify` | Reduce cognitive load and improve scannability |
+| `colorize` | Introduce strategic color to a monochromatic design |
+| `delight` | Add moments of joy, surprise, and personality |
+| `distill` | Remove complexity to the essential core |
+| `harden` | Accessibility and robustness improvements |
+| `layout` | Spatial structure, grid, alignment, and responsive behavior |
+| `onboard` | Empty states and first-run experience design |
+| `optimize` | Performance improvements |
+| `overdrive` | Technically extraordinary visual effects |
+| `polish` | Finishing details and state completeness |
+| `quieter` | Reduce noise and visual complexity |
+| `typeset` | Typography quality: font selection, scale, hierarchy |
+| `adapt` | Context adaptation: responsive, platform, dark mode |
+| `setup` | Create PRODUCT.md and DESIGN.md from a discovery interview |
+| `teach` | Update or improve existing context files |
 
-# CRITICAL — execution discipline
-You are a **workflow orchestrator**, not a problem solver.
-- Do NOT start implementing, coding, or building anything.
-- Do NOT jump ahead to slicing, planning, or implementation.
-- Your job is to produce a **design brief** — a structured artifact that guides implementation through discovery, not guesswork.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
-- Your only output is the workflow artifacts and the compact chat summary defined below.
-- If you catch yourself about to start solving the problem or writing code, STOP and return to the next unfinished workflow step.
+# Step 0 — Mode Resolution (MANDATORY)
 
-# Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
-3. **Check prerequisites:**
-   - `02-shape.md` must exist. If missing → STOP. Tell the user: "Run `/wf-shape <slug>` first."
-   - If `02-shape.md` shows `status: awaiting-input` → STOP. Tell the user to resolve the open shape questions first.
-   - If `02b-design.md` already exists → WARN: "Design brief has already been created. Running it again will overwrite `02b-design.md`. Proceed?" Use AskUserQuestion if available, otherwise ask in chat.
-4. **Read** `02-shape.md` and `po-answers.md`.
-5. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
+Parse `$ARGUMENTS` to determine the invocation mode.
 
-# Step 1 — Design Context Check (MANDATORY)
-1. **Read `.impeccable.md`** from the project root.
-2. If `.impeccable.md` does not exist or does not contain a `## Design Context` section → STOP. Tell the user:
-   > "Design context has not been established. Run `/wf-design:setup` first to gather brand personality, audience, and aesthetic direction. All design commands require this context."
-3. If `.impeccable.md` exists and contains design context, extract: Users, Brand Personality, Aesthetic Direction, Design Principles.
+**Known sub-commands** (for argument matching):
+`shape`, `craft`, `audit`, `critique`, `extract`, `animate`, `bolder`, `clarify`, `colorize`, `delight`, `distill`, `harden`, `layout`, `onboard`, `optimize`, `overdrive`, `polish`, `quieter`, `typeset`, `adapt`, `setup`, `teach`
 
-# Step 2 — Load Design Guidelines
-Read `../reference/design/design-guidelines.md` for the project's design reference material. These guidelines inform the discovery interview and design brief.
+**Resolution logic**:
 
-# Step 3 — Exploration Sub-Agent
-Launch an Explore sub-agent to scan the codebase for design-relevant context. Prompt the agent with ALL of the following:
+1. **Zero arguments**: STOP. Output usage:
+   ```
+   Usage:
+     /wf-design <slug>                    Run design stage 2b for a workflow
+     /wf-design <slug> <sub-command>      Run sub-command in workflow context
+     /wf-design <sub-command>             Freestanding design sub-command
 
-**Design system & component library:**
-- Search for existing component libraries or shared UI directories (e.g., `components/`, `ui/`, `design-system/`, `shared/`)
-- Identify existing components: buttons, cards, inputs, modals, navigation, layout primitives
-- Check for a component catalog or Storybook configuration
+   Sub-commands: shape · craft · audit · critique · extract · animate · bolder ·
+   clarify · colorize · delight · distill · harden · layout · onboard · optimize ·
+   overdrive · polish · quieter · typeset · adapt · setup · teach
+   ```
 
-**Design tokens & CSS approach:**
-- Search for design token files (CSS custom properties, SCSS variables, Tailwind config, theme files, token JSON)
-- Identify the CSS methodology in use: CSS Modules, Tailwind, styled-components, CSS-in-JS, vanilla CSS, utility classes
-- Map existing color palettes, spacing scales, typography scales, shadow definitions, border-radius values
-- Check for dark mode / theming infrastructure
+2. **One argument**:
+   - If arg 0 matches a **known sub-command** → **Mode C: freestanding** with that sub-command. No slug.
+   - If `.ai/workflows/<arg0>/00-index.md` exists → **Mode A: workflow stage 2b**. Slug = arg 0. Sub-command = `shape`.
+   - Otherwise → STOP. "Unknown sub-command and no workflow found for `<arg0>`. Run `/wf-design` with no arguments for usage."
 
-**Current visual patterns:**
-- Read 3-5 representative UI files to understand current visual approach: layout patterns, spacing conventions, typography usage, color usage
-- Identify any existing design inconsistencies or pattern divergence
-- Check for responsive design approach: breakpoints, container queries, fluid values
+3. **Two or more arguments**:
+   - If arg 1 matches a **known sub-command**: check if `.ai/workflows/<arg0>/00-index.md` exists.
+     - If yes → **Mode B: workflow + sub-command**. Slug = arg 0, sub-command = arg 1.
+     - If no → STOP. "No workflow `<arg0>` found. Did you mean freestanding `/wf-design <arg1>`?"
+   - If arg 1 does NOT match a sub-command:
+     - Check if `.ai/workflows/<arg0>/00-index.md` exists → **Mode B** with sub-command = `shape` and remaining args as target description.
+     - Otherwise → STOP. "Unknown sub-command `<arg1>`. Valid sub-commands: [list]."
 
-**Tech stack:**
-- Identify the frontend framework: React, Vue, Svelte, Angular, Astro, plain HTML, etc.
-- Identify the styling approach and build tools
-- Check for animation libraries, icon systems, image handling
+**Record the resolved mode, slug (if any), and sub-command before proceeding.**
 
-**Brand assets:**
-- Search for logos, favicons, brand colors, font files
-- Check for existing brand documentation or style guides
+# Sub-command categories (used for stage gating)
 
-Report findings for each section. Note gaps where the project lacks design infrastructure.
+| Category | Sub-commands | Workflow context behavior |
+|---|---|---|
+| **Context** | `setup`, `teach` | Always allowed at any stage. Modify PRODUCT.md / DESIGN.md only. |
+| **Planning** | `shape` | Requires `02-shape.md`. Writes `02b-design.md`. Routes to `craft`. |
+| **Contract** | `craft` | Requires `02b-design.md`. Writes `02c-craft.md` (visual contract — NOT code). Routes to `/wf-implement`. |
+| **Read-only inspection** | `extract` | Allowed at any stage. Writes `design-notes/extract-<timestamp>.md`. |
+| **Review** | `audit`, `critique` | Requires `current-stage` ∈ {`implement`, `verify`, `review`, `handoff`, `ship`}. Writes `07-design-audit.md` or `07-design-critique.md`. |
+| **Transformation** | `animate`, `bolder`, `clarify`, `colorize`, `delight`, `distill`, `harden`, `layout`, `onboard`, `optimize`, `overdrive`, `polish`, `quieter`, `typeset`, `adapt` | Requires `current-stage` ∈ {`implement`, `verify`, `review`, `handoff`}. Modifies code. Registers as augmentation in `00-index.md`. Writes `design-notes/<sub>-<timestamp>.md`. |
 
-# Step 4 — Phase 1: Discovery Interview
-**Do NOT write any code or make any design decisions during this phase.** Your only job is to understand the feature deeply enough to make excellent design decisions in Phase 2.
+**The transformation rule**: you cannot transform code that does not exist yet. Block with a clear message and offer the alternative path (e.g., "use `/wf-design <slug> shape` to plan the design before implementation, or `/wf-design <subcommand>` freestanding for ad-hoc work").
 
-First, review the acceptance criteria, desired behavior, and user context from `02-shape.md`. Many questions below may already be answered by the shape. **Skip questions already answered by the shape** — do not re-ask what is already settled.
+# Step 1 — Workflow Context (Modes A and B only)
 
-Ask remaining questions in conversation, adapting based on answers. Don't dump them all at once; have a natural dialogue. STOP and call the AskUserQuestion tool to clarify.
+If mode is A or B:
 
-### Purpose & Context (skip if covered by shape)
-- What is the user's state of mind when they reach this feature? (Rushed? Exploring? Anxious? Focused?)
-- What does success look like visually? What should the user see and feel when the feature is working?
+1. Read `.ai/workflows/<slug>/00-index.md`. Parse frontmatter: `title`, `current-stage`, `status`, `branch`, `open-questions`, `augmentations`.
+2. **Check workflow status**: if `status: closed` → STOP. "Workflow `<slug>` is closed. Use `/wf-resume <slug>` to reopen or `/wf-intake` to start a new workflow."
+3. **Check prerequisites for `shape` sub-command**:
+   - `02-shape.md` must exist. If missing → STOP. "Run `/wf-shape <slug>` first to define scope before design."
+   - If `02b-design.md` already exists → WARN: "Design brief already exists. Running `shape` again will overwrite `02b-design.md`. Proceed?"
+4. **Check prerequisites for `craft` sub-command**:
+   - `02b-design.md` must exist. If missing → STOP. "Run `/wf-design <slug> shape` first to confirm the design brief before craft."
+   - If `02c-craft.md` already exists → WARN: "Visual contract already exists. Running `craft` again will overwrite `02c-craft.md`. Proceed?"
+5. **Stage gate for review sub-commands** (`audit`, `critique`):
+   - If `current-stage` ∈ {`intake`, `shape`, `design`, `slice`, `plan`} → STOP. "Cannot run `<sub-command>` at stage `<current-stage>`. There is no implementation to review yet. Run `/wf-implement <slug>` first, or use `/wf-design <sub-command>` freestanding to review existing code outside the workflow."
+6. **Stage gate for transformation sub-commands** (the 15 in the table above):
+   - If `current-stage` ∈ {`intake`, `shape`, `design`, `slice`, `plan`} → STOP. "Cannot run `<sub-command>` at stage `<current-stage>`. There is no code to transform yet. Options: (a) use `/wf-design <slug> shape` to plan the design before implementation, (b) run `/wf-implement <slug>` first, then re-run this command, (c) use `/wf-design <sub-command>` freestanding for ad-hoc design work outside the workflow."
+   - If `current-stage` is `ship` or workflow is `complete` → WARN. "Workflow has shipped. Transformation will modify shipped code. Proceed?"
+7. **Read relevant artifacts**: `02-shape.md` (if shape sub-command), `02b-design.md` (if craft or any transformation), `02c-craft.md` (if available, for transformations).
+8. Carry forward `open-questions` and `selected-slice` from index.
 
-### Content & Data
-- What content or data does this feature display or collect?
-- What are the realistic ranges? (Minimum, typical, maximum — e.g., 0 items, 5 items, 500 items)
-- What are the visual edge cases? (Empty state, error state, first-time use, power user with lots of data)
-- Is any content dynamic? What changes and how often?
+# Step 2 — Load Design Skill
 
-### Design Goals
-- What's the single most important thing a user should do or understand here?
-- What should this feel like? (Fast/efficient? Calm/trustworthy? Fun/playful? Premium/refined?)
-- Are there existing patterns in the product this should be consistent with?
-- Are there specific examples (inside or outside the product) that capture the visual direction you're going for?
+Load the `design` skill (at `skills/design/SKILL.md`) and execute the preflight protocol:
 
-### Constraints
-- Are there content constraints? (Localization, dynamic text length, user-generated content)
-- Mobile/responsive requirements beyond what the shape specifies?
-- Accessibility requirements beyond WCAG AA?
+1. **Context gate**: read PRODUCT.md (project root → `.agents/context/` → `docs/`). If missing or invalid (< 200 chars, contains `[TODO]`):
+   - If sub-command is `setup` or `teach` → proceed (these commands create/update PRODUCT.md).
+   - Otherwise → STOP. "Design context is missing. Run `/wf-design setup` to create PRODUCT.md first."
 
-### Anti-Goals
-- What should this NOT look like? What would be a wrong visual direction?
-- What's the biggest risk of getting the design wrong?
+2. **Register detection**: determine brand or product from task cue, surface in focus, or PRODUCT.md `## Register` field. Load `skills/design/reference/brand.md` or `skills/design/reference/product.md`.
 
-Append every answer to `po-answers.md` with timestamp and stage (`design`).
+3. **Codebase inspection sub-agents** (skip for `audit`, `critique`, `extract`, `setup`, `teach`):
+   Run the 4 parallel sub-agents defined in `skills/design/SKILL.md`:
+   - Token scanner
+   - Framework + component detector
+   - Context loader
+   - Surface ranger
+   
+   Skip if sub-agent output is already in this session's history.
 
-# Step 5 — Phase 2: Design Brief
-After the interview, synthesize everything — the shape file, design context from `.impeccable.md`, codebase exploration findings, design guidelines, and interview answers — into a structured design brief.
+4. **State preflight** (Codex-style):
+   ```
+   WF_DESIGN_PREFLIGHT:
+     mode=workflow|freestanding
+     sub-command=<name>
+     stage=<current-stage or "n/a">
+     stage-gate=pass|blocked:<reason>
+     context=pass|missing
+     register=brand|product
+     codebase=pass|skipped
+     image_gate=pending|pass|skipped:<reason>  (resolved in shape/craft)
+     mutation=blocked|open
+   ```
+   `mutation=open` rules:
+   - **Code mutation** (transformation sub-commands, freestanding `craft`): only after image_gate resolves AND stage-gate passes
+   - **Artifact mutation** (workflow-context `craft` writing `02c-craft.md`, `audit` writing report, etc.): allowed once stage-gate passes
+   - **Context mutation** (`setup`, `teach` writing PRODUCT.md/DESIGN.md): allowed unconditionally
+   - **Read-only** (`extract`): no mutation; produces report only
 
-Present the brief to the user for confirmation before writing the artifact. STOP and call the AskUserQuestion tool to get explicit confirmation. If the user disagrees with any part, revisit the relevant discovery questions.
+   Do NOT edit any file until the appropriate mutation gate is open.
 
-### Brief Structure
+# Step 3 — Load Sub-command Reference
 
-**1. Feature Summary** (2-3 sentences)
-What this is, who it's for, what it needs to accomplish. Reference the acceptance criteria from the shape.
+Load the reference file for the resolved sub-command from `skills/design/reference/<sub-command>.md`. Follow it exactly.
 
-**2. Primary User Action**
-The single most important thing a user should do or understand here.
+The reference file is the authoritative instruction for the sub-command. The steps above are prerequisite scaffolding only.
 
-**3. Design Direction**
-How this should feel. What aesthetic approach fits. Reference the project's design context from `.impeccable.md` and explain how this feature should express the brand personality and design principles. Commit to a BOLD direction — not "modern and clean" but a specific, memorable approach.
+# Step 4 — Workflow Artifact Output (Modes A and B only)
 
-**4. Layout Strategy**
-High-level spatial approach: what gets emphasis, what's secondary, how information flows. Describe the visual hierarchy and rhythm, not specific CSS. Reference existing layout patterns from the codebase exploration where consistency matters.
+After the sub-command completes, write workflow artifacts according to category:
 
-**5. Key States**
-List every state the feature needs: default, empty, loading, error, success, edge cases. For each, note what the user needs to see and feel. Empty states should teach the interface, not just say "nothing here."
+| Sub-command | Artifact written | `00-index.md` updates |
+|---|---|---|
+| `setup`, `teach` | PRODUCT.md / DESIGN.md (project root) | none |
+| `shape` | `02b-design.md` | `current-stage: design`, `next-command: /wf-design craft`, `next-invocation: /wf-design <slug> craft` |
+| `craft` | `02c-craft.md` (visual contract — NOT code) | `current-stage: design` (unchanged), `next-command: /wf-implement`, `next-invocation: /wf-implement <slug>` |
+| `extract` | `design-notes/extract-<timestamp>.md` + `design-notes/tokens-extracted.css` | none |
+| `audit` | `07-design-audit.md` | append to `augmentations:` list |
+| `critique` | `07-design-critique.md` | append to `augmentations:` list |
+| Transformations (15) | `design-notes/<sub-command>-<timestamp>.md` documenting changes made | append to `augmentations:` list with `<sub-command>:<timestamp>` |
 
-**6. Interaction Model**
-How users interact with this feature. What happens on click, hover, scroll? What feedback do they get? What's the flow from entry to completion? Use progressive disclosure: start simple, reveal sophistication through interaction.
+**Augmentation registration** (for transformations, audit, critique):
 
-**7. Content Requirements**
-What copy, labels, empty state messages, error messages, and microcopy are needed. Note any dynamic content and its realistic ranges.
+Add an entry to the `augmentations:` list in `00-index.md` frontmatter:
 
-**8. Recommended References**
-Based on the brief, list which design reference files would be most valuable during implementation. Always include:
-- `../reference/design/spatial-design.md` for layout and spacing
-- `../reference/design/typography.md` for type hierarchy
+```yaml
+augmentations:
+  - type: design-<sub-command>
+    artifact: design-notes/<sub-command>-<timestamp>.md   # or 07-design-audit.md, 07-design-critique.md
+    created-at: <timestamp>
+    files-modified: [list of code files changed]   # transformations only
+```
 
-Then add based on the brief's needs:
-- Complex interactions or forms? → `interaction-design.md`
-- Animation or transitions? → `motion-design.md`
-- Color-heavy or themed? → `color-and-contrast.md`
-- Responsive requirements? → `responsive-design.md`
-- Heavy on copy, labels, or errors? → `ux-writing.md`
+If the `augmentations:` field does not yet exist in `00-index.md`, create it.
 
-**9. Open Questions**
-Anything unresolved that the implementer should resolve during build.
-
-# Step 6 — Write Artifact
-Once the brief is confirmed, write `02b-design.md` to `.ai/workflows/<slug>/02b-design.md`.
-
-**Timestamps must be real:** Run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
+**Transformation artifact contract** (`design-notes/<sub-command>-<timestamp>.md`):
 
 ```yaml
 ---
 schema: sdlc/v1
-type: design
+type: design-augmentation
+sub-command: <name>
 slug: <slug>
-status: confirmed
-stage-number: 2.5
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-design-context: .impeccable.md
-recommended-references:
-  - typography.md
-  - spatial-design.md
-tags: []
-refs:
-  index: 00-index.md
-  shape: 02-shape.md
-  next: 03-slice.md
-next-command: wf-slice
-next-invocation: "/wf-slice <slug>"
+created-at: <timestamp>
+register: <brand|product>
+files-modified: [list]
 ---
 ```
 
-# Design Brief: <feature name>
+Body sections:
+1. **What changed** — bullet list of specific changes per file
+2. **Why** — design rationale (one paragraph)
+3. **Reference followed** — which design reference doc guided this work
+4. **Verification needed** — what `wf-verify` should re-check (visual regression? a11y? perf?)
+5. **Anti-patterns avoided** — confirm none of the absolute bans were introduced
 
-## Feature Summary
+This artifact lets `wf-review` and `wf-handoff` see exactly what design augmentations were applied during implement.
 
-## Primary User Action
+# Step 5 — Hand off to user
 
-## Design Direction
+Compact chat summary (≤ 8 lines):
 
-## Layout Strategy
+```
+wf-design <sub-command> complete: <slug or "freestanding">
+Register: <brand|product>
+Image gate: <pass|skipped:<reason>>
+[For workflow modes]: Artifact: .ai/workflows/<slug>/<artifact>
+[For workflow modes]: Next: <next-invocation>
+```
 
-## Key States
-- **Default**: ...
-- **Empty**: ...
-- **Loading**: ...
-- **Error**: ...
-- **Success**: ...
-- **Edge Cases**: ...
+# Command reference summary
 
-## Interaction Model
-
-## Content Requirements
-
-## Recommended References
-- `../reference/design/spatial-design.md`
-- `../reference/design/typography.md`
-- ...
-
-## Open Questions
-
-## Questions Asked This Stage
-
-## Answers Captured This Stage
-
-## Recommended Next Stage
-
-# Step 7 — Update 00-index.md
-Update `00-index.md` frontmatter:
-- Set `current-stage` to `design` (or `slice` if design is complete and the user wants to proceed).
-- Set `stage-status` to `complete`.
-- Update `updated-at` with the real timestamp.
-- Add `02b-design.md` to `workflow-files`.
-- Set `recommended-next-command` and `recommended-next-invocation` based on adaptive routing.
-
-# Workflow rules
-- Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
-- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
-- Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
-- `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
-- Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
-
-# Chat return contract
-After writing files, return ONLY:
-- `slug: <slug>`
-- `wrote: <path>`
-- `options:` (list all viable next options — see Adaptive Routing below)
-- <=3 short blocker bullets if needed
-
-# Adaptive routing — evaluate what's actually next
-After completing this stage, evaluate the design brief and present the user with ALL viable options:
-
-**Option A (default): Slice** → `/wf-slice <slug>`
-Use when: The spec covers multiple distinct areas, has more than one acceptance criterion cluster, or would benefit from incremental delivery.
-
-**Option B: Skip to Plan** → `/wf-plan <slug>`
-Use when: The shaped spec is a single coherent unit — one clear scope, one acceptance path, no meaningful way to split it further. Criteria: single concern, <=5 files likely touched, one delivery unit.
-
-**Option C: Revisit Shape** → `/wf-shape <slug>`
-Use when: The design interview revealed that the shape spec is incomplete or contradictory — the problem definition needs rework before design can be finalized.
-
-**Option D: Revisit Design Context** → `/wf-design:setup`
-Use when: The design interview revealed that the project's design context (`.impeccable.md`) is missing critical information or is stale.
-
-Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
+This command is the unified successor to:
+- The previous `wf-design` command (design stage 2b → now `shape` sub-command)
+- `wf-design-audit` → now `wf-design <slug> audit`
+- `wf-design-critique` → now `wf-design <slug> critique`
+- `wf-design-extract` → now `wf-design <slug> extract`
+- `wf-design-setup` → now `wf-design setup` (freestanding)
+- 14 standalone `design-*` skills → now `wf-design <sub-command>` (freestanding or workflow-scoped)

@@ -20,6 +20,7 @@ You are running `wf-plan`, **stage 4 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `02-shape.md`, `03-slice.md` + `03-slice-<slice-slug>.md` (if slices exist) |
+| Optional inputs | `02b-design.md` (visual surface scope, recommended references), `02c-craft.md` (visual contract — plan must include steps to honor mock fidelity inventory and implementation contract) |
 | Produces | `04-plan.md` (master) + `04-plan-<slice-slug>.md` per planned slice |
 | Next | `/wf-implement <slug> <slice-slug>` (default) |
 | Skip-to | `/wf-implement <slug> <slice-slug>` directly if plan is trivial |
@@ -41,6 +42,9 @@ You are a **workflow orchestrator**, not a problem solver.
    - If any prerequisite shows `Status: Awaiting input` → STOP.
    - If `current-stage` in the index is already past plan → WARN before overwriting.
 4. **Read** `02-shape.md`, `03-slice.md` (if exists), the relevant `03-slice-<slice-slug>.md` file(s), and `po-answers.md`.
+4b. **Read design context if present** (optional):
+   - `02b-design.md` — register, recommended references, anti-goals. Plan steps for UI work should reference the recommended design reference docs (e.g., "follow `skills/design/reference/typeset.md` for type scale").
+   - `02c-craft.md` — visual contract. The `## Mock fidelity inventory` items must be reflected as concrete plan steps. The `## Implementation contract` lists token choices, component decisions, and motion specs the plan must follow. The plan should NOT contradict the visual contract; if it must, surface the conflict for resolution before implementation.
 5. **Determine planning mode** (order matters — check top to bottom):
 
    **a) `all` with existing plans → review-all mode:**

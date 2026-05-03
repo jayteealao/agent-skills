@@ -20,6 +20,7 @@ You are running `wf-ship`, **stage 9 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `08-handoff.md` (recommended) or at minimum `05-implement.md` |
+| Optional inputs | `augmentations:` list in `00-index.md` (every augmentation type gets changelog entries — translated to user language per External Output Boundary) |
 | Produces | `09-ship.md` |
 | Next | `/wf-retro <slug>` (if ready) or `/wf-implement <slug> <slice>` (if blockers need code changes) |
 
@@ -39,8 +40,20 @@ You are a **workflow orchestrator**, not a problem solver.
    - `08-handoff.md` must exist with `status: complete`. If missing → STOP: "Run `/wf-handoff <slug>` first — ship requires a completed handoff with PR details."
    - If `08-handoff.md` shows any unresolved blocker findings → STOP. Tell the user to resolve via `/wf-implement <slug> <slice> reviews` first.
    - If `current-stage` in the index is already past ship → WARN: "Stage 9 (ship) has already been completed. Running it again will overwrite `09-ship.md`. Proceed?"
-5. **Read** `08-handoff.md`, `07-review.md` (if exists), and `po-answers.md`.
-6. **Carry forward** `open-questions` from the index.
+5. **Read** `08-handoff.md`, every `07-review-*.md` (one per shipped slice — glob the workflow directory), and `po-answers.md`. The `## Design Changes` section in `08-handoff.md` lists user-visible design improvements — these must appear in changelog/release-notes entries. Per-slice reviews provide the per-slice risk and follow-up context the changelog should reflect.
+6. **Read augmentations for changelog completeness (optional):**
+   Every entry in `augmentations:` list deserves a changelog line, translated to user language. Common mappings:
+   - `design-harden` → "Improved keyboard navigation and screen-reader support"
+   - `design-optimize` → "Reduced page load time by Xms"
+   - `design-adapt` → "Improved mobile and tablet layout" / "Added dark mode"
+   - `design-colorize` / `design-typeset` / `design-polish` → "Refreshed visual design across [surface]"
+   - `design-audit` / `design-critique` → "Quality pass on UI surface" (only if findings were resolved)
+   - `instrument` → "Added detailed monitoring for [feature/area]" (or omit from external changelog if internal-only observability)
+   - `experiment` → "Rolled out to N% of users" (or omit from changelog if internal-only A/B test setup)
+   - `benchmark` → typically not user-visible; omit from changelog unless performance changed measurably for users.
+
+   Do NOT cite workflow artifact paths or sub-command names in any external output.
+7. **Carry forward** `open-questions` from the index.
 
 # Parallel research
 Ship decisions often need current external information. Launch parallel sub-agents. Do not spin up sub-agents for simple internal deployments with no external dependencies.
@@ -249,7 +262,7 @@ tags: []
 refs:
   index: 00-index.md
   handoff: 08-handoff.md
-  review: 07-review.md
+  reviews: [07-review-<slug-1>.md, 07-review-<slug-2>.md, ...]
 next-command: wf-retro
 next-invocation: "/wf-retro <slug>"
 ---

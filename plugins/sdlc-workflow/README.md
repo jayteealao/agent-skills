@@ -79,7 +79,7 @@ A well-understood single-file fix can legitimately run `intake → plan → impl
 | **Plan** | Repo-aware implementation plan using parallel codebase exploration sub-agents | `04-plan.md` + per-slice files |
 | **Implement** | Execute the plan, commit atomically per slice, record deviations | `05-implement.md` + per-slice files |
 | **Verify** | Run acceptance criteria, automated tests, interactive checks, evidence capture | `06-verify.md` + per-slice files |
-| **Review** | Dispatch parallel review sub-agents, aggregate findings, triage with user | `07-review.md` + per-command files |
+| **Review** | Dispatch parallel review sub-agents, aggregate findings, triage with user | `07-review-<slice-slug>.md` + per-slice per-command files |
 | **Handoff** | PR-ready package — summary, evidence, docs, push branch, create PR | `08-handoff.md` |
 | **Ship** | Release readiness, go/no-go, merge strategy, rollout, rollback plan | `09-ship.md` |
 | **Retro** | Extract reusable lessons, produce concrete improvements for CLAUDE.md and hooks | `10-retro.md` |
@@ -121,7 +121,7 @@ The pipeline is linear by design, but real development is cyclic. Three utility 
 
 | Need | Command |
 |---|---|
-| Implementation bugs found in review | `wf-implement <slug> reviews` — reads `07-review.md`, fixes BLOCKER/HIGH findings |
+| Implementation bugs found in review | `wf-implement <slug> [slice] reviews` — reads `07-review-<slice-slug>.md`, fixes BLOCKER/HIGH findings |
 | Spec or acceptance criteria were wrong | `wf-amend` — creates versioned correction artifacts alongside originals |
 | New scope needed (not bugs, not corrections) | `wf-extend` — appends new slices without touching completed slice files |
 
@@ -373,7 +373,7 @@ All modes append to `## Revision History` in each modified plan file.
 /wf-implement dark-mode-toggle-settings reviews
 ```
 
-Reads `07-review.md`, extracts BLOCKER and HIGH findings in severity order, spawns one sequential sonnet sub-agent per finding (each fix is verified before the next starts). After completion, marks each finding Fixed / Partially Fixed / Could Not Fix and appends a `## Review Fixes Applied` section to the implement file.
+Reads `07-review-<slice-slug>.md` (slice resolved from `selected-slice-or-focus` or passed as a third argument), extracts BLOCKER and HIGH findings in severity order, spawns one sequential sonnet sub-agent per finding (each fix is verified before the next starts). After completion, marks each finding Fixed / Partially Fixed / Could Not Fix and appends a `## Review Fixes Applied` section to the implement file.
 
 ### … re-triage deferred review findings
 
@@ -383,7 +383,7 @@ After deferring some findings in a previous review:
 /wf-review dark-mode-toggle-settings triage
 ```
 
-Skips the full review. Reads `07-review.md → ## Triage Decisions`, collects all findings marked `deferred` or `untriaged`, and presents them for re-triage. Updates the triage section in-place.
+Skips the full review. Reads `07-review-<slice-slug>.md → ## Triage Decisions` for the resolved slice, collects all findings marked `deferred` or `untriaged`, and presents them for re-triage. Updates the triage section in-place.
 
 ### … amend an existing workflow (spec was wrong)
 
@@ -393,7 +393,7 @@ Use `wf-amend` when a review or retro reveals that the **spec, acceptance criter
 /wf-amend dark-mode-toggle-settings from-review
 ```
 
-The command reads `07-review.md`, identifies findings that point to spec errors (not implementation bugs), asks 4–8 questions to understand the correction, then writes versioned amendment artifacts:
+The command reads `07-review-<slice-slug>.md` (or aggregates relevant siblings if the spec error spans slices), identifies findings that point to spec errors (not implementation bugs), asks 4–8 questions to understand the correction, then writes versioned amendment artifacts:
 
 - `02-shape-amend-1.md` — if the overall spec needs correcting
 - `03-slice-<slug>-amend-1.md` — if a slice's goal or acceptance criteria need correcting
@@ -404,7 +404,7 @@ After writing amendments, the command routes you to `wf-plan` directed-fix mode 
 
 **Three source modes:**
 ```
-/wf-amend dark-mode-toggle-settings from-review    # seed from 07-review.md findings
+/wf-amend dark-mode-toggle-settings from-review    # seed from 07-review-<slice>.md findings
 /wf-amend dark-mode-toggle-settings from-retro     # seed from 10-retro.md
 /wf-amend dark-mode-toggle-settings                # describe the correction manually
 ```
@@ -417,7 +417,7 @@ Use `wf-extend` when review or retro reveals **new scope** — missing capabilit
 /wf-extend dark-mode-toggle-settings from-review
 ```
 
-The command reads `07-review.md`, identifies findings that describe missing capability (not broken code), groups them into candidate slices, asks 4–8 questions about grouping and ordering, confirms the proposed slices with you, then:
+The command reads every `07-review-<slice-slug>.md` in the workflow (extension candidates often span sibling reviews), identifies findings that describe missing capability (not broken code), groups them into candidate slices, asks 4–8 questions about grouping and ordering, confirms the proposed slices with you, then:
 
 1. Writes new `03-slice-<new-slug>.md` files
 2. Appends new entries to `03-slice.md` non-destructively — existing entries and their `status: complete` flags are preserved
@@ -530,7 +530,7 @@ Especially useful when resuming a workflow after a long break, onboarding a coll
 /wf-how dark-mode-toggle-settings findings
 ```
 
-Routes to **Mode E (Findings Explain)**. Reads `07-review.md`, per-command review files, `06-verify.md`, and `02-shape.md` (for acceptance criteria context), then produces a structured explanation of what the findings actually mean:
+Routes to **Mode E (Findings Explain)**. Globs every `07-review-*.md` (per-slice masters and per-command sub-reviews), reads `06-verify.md`, and `02-shape.md` (for acceptance criteria context), then produces a structured explanation of what the findings actually mean:
 
 - **Finding Summary** — plain-language explanation of each finding (not a restatement)
 - **Why It Matters** — concrete risk if each BLOCKER/HIGH finding goes unaddressed
@@ -572,8 +572,13 @@ yq --front-matter=extract '.current-stage + ": " + .status' .ai/workflows/dark-m
 # List all slices with their status
 yq --front-matter=extract '.slices[] | .slug + ": " + .status' .ai/workflows/dark-mode/00-index.md
 
-# Get review verdict and blocker count
-yq --front-matter=extract '{"verdict": .verdict, "blockers": .["metric-findings-blocker"]}' .ai/workflows/dark-mode/07-review.md
+# Get review verdict and blocker count for a specific slice
+yq --front-matter=extract '{"verdict": .verdict, "blockers": .["metric-findings-blocker"]}' .ai/workflows/dark-mode/07-review-<slice-slug>.md
+
+# Aggregate verdicts across all reviewed slices (filter to master files via type frontmatter)
+for f in .ai/workflows/dark-mode/07-review-*.md; do
+  yq --front-matter=extract 'select(.type == "review") | "\(.["slice-slug"]): \(.verdict) (blockers=\(.["metric-findings-blocker"]))"' "$f"
+done
 
 # Find all workflows in a given state
 for f in .ai/workflows/*/00-index.md; do
@@ -591,7 +596,7 @@ Compatible parsers: `yq --front-matter=extract`, Obsidian Dataview, MarkdownDB, 
 
 Review dispatch, planning research, and implementation all generate significant context. Before moving to the next slice or to fix mode, run `/compact`. The PreCompact hook automatically preserves all workflow state in the artifact files, so the context is available even after compression.
 
-The review command reminds you explicitly: "Consider running `/compact` before `/wf-implement` — triage decisions are in `07-review.md`."
+The review command reminds you explicitly: "Consider running `/compact` before `/wf-implement` — triage decisions are in `07-review-<slice-slug>.md`."
 
 ### Let the routing helper navigate between sessions
 
@@ -766,7 +771,7 @@ Every `wf-extend` invocation records an `extension-round: N` on new slice entrie
 | `/wf-plan <slug> [slice\|all] [feedback]` | 4 | Repo-aware implementation plan | `04-plan.md` + per-slice |
 | `/wf-implement <slug> [slice\|reviews]` | 5 | Execute plan, atomic commits | `05-implement.md` + per-slice |
 | `/wf-verify <slug> [slice]` | 6 | Acceptance criteria, test runs, evidence | `06-verify.md` + per-slice |
-| `/wf-review <slug> [slice\|triage]` | 7 | Multi-domain parallel review dispatch | `07-review.md` + per-command |
+| `/wf-review <slug> [slice\|triage]` | 7 | Multi-domain parallel review dispatch (per-slice) | `07-review-<slice>.md` + per-slice per-command |
 | `/wf-handoff <slug> [slice-slug]` | 8 | Aggregates all complete slices into one PR package; `[slice-slug]` only for one-PR-per-slice workflows | `08-handoff.md` |
 | `/wf-ship <slug> [environment]` | 9 | Workflow-level go/no-go, merge, rollout plan; `[environment]` overrides deployment target | `09-ship.md` |
 | `/wf-retro <slug>` | 10 | Extract lessons, improvement actions | `10-retro.md` |
@@ -1025,8 +1030,8 @@ All artifacts for a workflow live under a single directory:
 │   ├── 05-implement-<slug>.md           # Per-slice implement record
 │   ├── 06-verify.md                     # Verify master index
 │   ├── 06-verify-<slug>.md              # Per-slice verification evidence
-│   ├── 07-review.md                     # Review master verdict
-│   ├── 07-review-<command>.md           # Per-command review findings
+│   ├── 07-review-<slug>.md              # Per-slice review master verdict (one per reviewed slice)
+│   ├── 07-review-<slug>-<command>.md    # Per-slice per-command review findings
 │   ├── 08-handoff.md
 │   ├── 09-ship.md
 │   ├── 10-retro.md
@@ -1090,8 +1095,8 @@ Every file starts with YAML frontmatter (`schema: sdlc/v1`) containing all machi
 | `04-plan-<slug>.md` | `metric-files-to-touch`, `metric-step-count`, `has-blockers`, `revision-count` |
 | `05-implement-<slug>.md` | `metric-files-changed`, `metric-lines-added`, `metric-lines-removed`, `metric-deviations-from-plan`, `commit-sha` |
 | `06-verify-<slug>.md` | `result` (pass/fail/partial), `metric-checks-run`, `metric-checks-passed`, `metric-acceptance-met` |
-| `07-review-<cmd>.md` | `review-command`, `metric-findings-total`, `metric-findings-blocker`, `metric-findings-high`, `result` |
-| `07-review.md` | `verdict` (ship/ship-with-caveats/dont-ship), `commands-run`, all `metric-findings-*` counts |
+| `07-review-<slug>-<cmd>.md` | `slice-slug`, `review-command`, `metric-findings-total`, `metric-findings-blocker`, `metric-findings-high`, `result` |
+| `07-review-<slug>.md` | `slice-slug`, `verdict` (ship/ship-with-caveats/dont-ship), `commands-run`, all `metric-findings-*` counts |
 | `08-handoff.md` | `pr-title`, `pr-url`, `pr-number`, `branch`, `base-branch`, `has-migration`, `has-docs-changes`, `docs-generated` |
 | `09-ship.md` | `go-nogo` (go/no-go/conditional-go), `rollout-strategy`, `merge-strategy`, `merge-sha` |
 | `10-retro.md` | `workflow-outcome` (completed/abandoned/partial), `metric-improvement-count`, `metric-stages-completed` |

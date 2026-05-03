@@ -20,7 +20,8 @@ You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (recommended) |
-| Produces | `07-review.md` + `07-review-<command>.md` per selected command |
+| Optional inputs | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `07-design-audit.md`, `07-design-critique.md`, `augmentations:` list in `00-index.md` |
+| Produces | `07-review-<slice-slug>.md` + `07-review-<slice-slug>-<command>.md` per selected command (per-slice scoping — running review on a different slice does NOT overwrite a sibling slice's files) |
 | Next | `/wf-handoff <slug>` (if approved + all slices complete), `/wf-implement <slug> <slice>` (if bugs to fix), `/wf-plan <slug> <next-slice>` (if more slices remain), `/wf-amend <slug> from-review` (if spec was wrong), or `/wf-extend <slug> from-review` (if new scope needed) |
 
 # CRITICAL — execution discipline
@@ -36,11 +37,11 @@ You are a **review dispatch orchestrator**, not a problem solver.
 
 If the second argument is `triage` (e.g., `/wf-review my-feature triage`), skip the full review and jump directly to re-triage:
 
-1. **Resolve slug** from the first argument. Read `00-index.md` for `selected-slice`.
-2. **Read `07-review.md`** — parse the `## Triage Decisions` section. Collect all findings marked `deferred` or `untriaged`.
-3. **If no findings to triage** → print "No deferred or untriaged findings. Run `/wf-review <slug>` for a full review." and STOP.
+1. **Resolve slug** from the first argument. Read `00-index.md` for `selected-slice`. If a slice slug is the third argument (e.g., `/wf-review my-feature triage auth-flow`), use it; otherwise use `selected-slice`. If neither is set, ask the user which slice to triage.
+2. **Read `07-review-<slice-slug>.md`** — parse the `## Triage Decisions` section. Collect all findings marked `deferred` or `untriaged`.
+3. **If no findings to triage** → print "No deferred or untriaged findings. Run `/wf-review <slug> <slice>` for a full review." and STOP.
 4. **Present for triage via AskUserQuestion** — follow the same protocol as Step 4b below, but only show `deferred` and `untriaged` findings.
-5. **Update `07-review.md`** — overwrite the `## Triage Decisions` section with updated decisions. Update `## Recommendations` to reflect new fix/defer/dismiss counts. Preserve all other sections.
+5. **Update `07-review-<slice-slug>.md`** — overwrite the `## Triage Decisions` section with updated decisions. Update `## Recommendations` to reflect new fix/defer/dismiss counts. Preserve all other sections.
 6. **Print summary** — show counts of fix/defer/dismiss and list findings newly marked for fixing.
 
 Then STOP — do not continue to the full review workflow.
@@ -51,11 +52,16 @@ Then STOP — do not continue to the full review workflow.
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
-4. **Check prerequisites:**
-   - `05-implement-<slice-slug>.md` must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug> <slice-slug>` first."
-   - `06-verify-<slice-slug>.md` is recommended but not strictly required — review can proceed without it if the user explicitly skipped verify.
-   - If `06-verify-<slice-slug>.md` exists and shows `Status: Awaiting input` → STOP.
-   - If `current-stage` in the index is already past review → WARN before overwriting.
+4. **Check prerequisites (workflow-type-aware):**
+   Read `workflow-type` from `00-index.md`. Recognize three modes:
+   - **Compressed mode** (`workflow-type: quick`): the implement record is `05-implement.md` (no slice slug). Acceptance criteria source is `01-quick.md`. No per-slice plan/slice files exist.
+   - **Forwarded mode** (`workflow-type: rca` / `investigate`): rich context lives in `01-rca.md` / `01-investigate.md`; `02-shape.md` is synthesized; `04-plan.md` exists if planning ran.
+   - **Standard mode**: per-slice files (`03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`).
+
+   In all modes, an implement record (slice or master) must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug>` first."
+   `06-verify-<slice-slug>.md` (or `06-verify.md`) is recommended but not strictly required — review can proceed without it if verify was skipped.
+   If verify shows `Status: Awaiting input` → STOP.
+   If `07-review-<slice-slug>.md` already exists for the resolved slice → WARN before overwriting that file. Sibling slices' review files are never touched.
 5. **Read the slice's full context:**
    - `03-slice-<slice-slug>.md` — acceptance criteria and scope
    - `04-plan-<slice-slug>.md` — what was planned
@@ -64,8 +70,23 @@ Then STOP — do not continue to the full review workflow.
    - `02-shape.md` — overall spec
    - `03-slice.md` — master slice index (for sibling context)
    - `po-answers.md`
-6. **Carry forward** `open-questions` from the index.
-7. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch. Review diffs must be generated against the implementation branch. Use `git diff <base-branch>...<branch>` to get the full change set for review dispatch.
+6. **Read augmentation context (optional — workflow may have any combination):**
+   Read the `augmentations:` list in `00-index.md` if present, plus the artifacts each entry references. Per-type guidance:
+
+   | Type | What review must do |
+   |---|---|
+   | `design-<sub>` | Read `design-notes/<sub>-<timestamp>.md`. The documented design changes are intentional — do NOT flag them as unexpected. Validate them: did they achieve their stated goal? |
+   | `design-audit` | Read `07-design-audit.md`. Treat as already-known findings; merge with new findings during dispatch. |
+   | `design-critique` | Read `07-design-critique.md`. Same as above. |
+   | `instrument` | Read `04b-instrument.md`. Review the instrumentation as a first-class deliverable: are signals appropriate, is PII handled, is the framework usage correct? |
+   | `experiment` | Read `04c-experiment.md`. Review the experiment infrastructure: is the cohort logic correct, are metrics appropriate, is the rollback path safe? |
+   | `benchmark` | Read `05c-benchmark.md`. Cross-reference with `06-verify` compare-mode results. If verify flagged regressions, surface them as review findings. |
+
+   Also read `02b-design.md` and `02c-craft.md` if present for register, anti-goals, and visual contract — review must check anti-goals were honored.
+
+   Cross-reference `06-verify-<slice-slug>.md` → `## Augmentation Verification` to see which augmentation re-checks failed — those become BLOCKER or HIGH review findings automatically.
+7. **Carry forward** `open-questions` from the index.
+8. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch. Review diffs must be generated against the implementation branch. Use `git diff <base-branch>...<branch>` to get the full change set for review dispatch.
 
 # Purpose
 Intelligent review dispatch. Analyse the change set, select which of the 30 review commands are relevant, launch one parallel sonnet sub-agent per selected command, then aggregate all findings into a unified review verdict.
@@ -96,9 +117,9 @@ After completing Step 2 (command selection), create a task list using TaskCreate
 - Review command tasks are independent — no `addBlockedBy` between them (they run as parallel sub-agents).
 - Add bookkeeping tasks:
   - "Aggregate + deduplicate findings" — `addBlockedBy: [all review command tasks]`
-  - "Write 07-review.md + verdict" — `addBlockedBy: [aggregate task]`
+  - "Write 07-review-<slice-slug>.md + verdict" — `addBlockedBy: [aggregate task]`
 
-As each sub-agent returns its `07-review-<command>.md` file: `TaskUpdate(taskId, status: "completed")`.
+As each sub-agent returns its `07-review-<slice-slug>-<command>.md` file: `TaskUpdate(taskId, status: "completed")`.
 When starting aggregation: `TaskUpdate(aggregateTaskId, status: "in_progress")`. Mark `completed` when done.
 When writing final verdict: `TaskUpdate(writeTaskId, status: "in_progress")`. Mark `completed` when done.
 
@@ -254,7 +275,7 @@ Selected slice: {slice}
 Read the command file and follow its WORKFLOW exactly. Perform the review for the given scope.
 
 IMPORTANT: Write your complete review findings to the file:
-  `.ai/workflows/{slug}/07-review-{command-name}.md`
+  `.ai/workflows/{slug}/07-review-{slice-slug}-{command-name}.md`
 
 Use this structure for the file (YAML frontmatter first, then markdown):
 
@@ -273,7 +294,7 @@ metric-findings-high: {N}
 result: clean | issues-found | blockers-found
 tags: []
 refs:
-  review-master: 07-review.md
+  review-master: 07-review-{slice-slug}.md
 ---
 ```
 
@@ -311,7 +332,7 @@ Wait for ALL sub-agents to complete before proceeding.
 
 After all sub-agents finish:
 
-1. **Read every `07-review-<command>.md` file** they wrote.
+1. **Read every `07-review-<slice-slug>-<command>.md` file** they wrote.
 2. **Collect all findings** — every row with an ID, severity, file:line, and description.
 3. **Identify duplicates** — two findings are duplicates if:
    - Same `file:line` (or overlapping line range)
@@ -360,7 +381,7 @@ If there are no findings (all commands returned clean), skip this step.
 
 # Step 5: Write Review Files
 
-Write the master `07-review.md`:
+Write the master `07-review-<slice-slug>.md`:
 
 ```yaml
 ---
@@ -388,7 +409,7 @@ refs:
   slice-def: 03-slice-<slice-slug>.md
   implement: 05-implement-<slice-slug>.md
   verify: 06-verify-<slice-slug>.md
-  sub-reviews: [07-review-correctness.md, 07-review-security.md, ...]
+  sub-reviews: [07-review-<slice-slug>-correctness.md, 07-review-<slice-slug>-security.md, ...]
 next-command: <wf-handoff|wf-implement>
 next-invocation: "<based on verdict>"
 ---
@@ -475,7 +496,7 @@ next-invocation: "<based on verdict>"
    - `current-stage: review`
    - `status: active`
    - `progress.review: complete`
-   - Add all `07-review*.md` files to `workflow-files`
+   - Add the slice-scoped `07-review-<slice-slug>.md` and every `07-review-<slice-slug>-<command>.md` file to `workflow-files` (do NOT remove sibling slices' review files — they remain valid)
    - Set `next-command` and `next-invocation` based on verdict
 2. Return the compact chat summary with verdict and options.
 
@@ -488,7 +509,7 @@ Use when: No blocking issues AND all intended slices on this branch are complete
 
 **Option B: Fix and re-implement** → `/wf-implement <slug> <selected-slice>`
 Use when: There are blocking issues. List what needs changing.
-**Compact recommended before proceeding** — review dispatch chatter (sub-agent outputs, aggregation, triage) is noise for fixing. Tell the user: "Consider running `/compact` before `/wf-implement` — the PreCompact hook will preserve workflow state and triage decisions are in `07-review.md`."
+**Compact recommended before proceeding** — review dispatch chatter (sub-agent outputs, aggregation, triage) is noise for fixing. Tell the user: "Consider running `/compact` before `/wf-implement` — the PreCompact hook will preserve workflow state and triage decisions are in `07-review-<slice-slug>.md`."
 
 **Option C: Skip handoff, go to Ship** → `/wf-ship <slug>`
 Use when: No team to hand off to, no PR description needed, CI/CD handles the rest.

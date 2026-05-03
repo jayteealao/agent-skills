@@ -20,6 +20,7 @@ You are running `wf-slice`, **stage 3 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `01-intake.md`, `02-shape.md` |
+| Optional inputs | `02b-design.md` (design brief informs slice boundaries — states, edge cases, surfaces) |
 | Produces | `03-slice.md` (master index) + `03-slice-<slice-slug>.md` per slice |
 | Next | `/wf-plan <slug> <best-first-slice>` (default) |
 | Alt | `/wf-plan <slug> all` to plan all slices in parallel |
@@ -40,7 +41,9 @@ You are a **workflow orchestrator**, not a problem solver.
    - If `02-shape.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open shape questions first.
    - If `current-stage` in the index is already past slice → WARN: "Stage 3 (slice) has already been completed. Running it again will overwrite slice files. Proceed?"
 4. **Read** `01-intake.md`, `02-shape.md`, and `po-answers.md`.
-5. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
+5. **Read design brief if present** (optional):
+   - `02b-design.md` if it exists — extract the content inventory, state list (empty/error/loading/first-run), and visual direction. Slice boundaries should respect state transitions (e.g., empty state vs populated state may be separate slices) and visual surface boundaries (e.g., main view vs settings drawer).
+6. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
 
 # Purpose
 Break a shaped work item into thin, independently verifiable vertical slices. Write a master slice index and one detailed file per slice.
