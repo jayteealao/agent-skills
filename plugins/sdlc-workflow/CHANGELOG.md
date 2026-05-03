@@ -5,6 +5,17 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.30.1] - 2026-05-03
+
+### Added
+
+- **`wf-implement` now loads design references named in `02b-design.md`.** When the design brief's YAML frontmatter has `recommended-references: [name1, name2, ...]` (e.g., `[colorize, typeset, harden]`), wf-implement resolves each entry to `skills/design/reference/<name>.md` and reads it alongside the brief. The loaded references serve as **read-only design rationale** for implementation judgment — they explain the *why* behind ambiguous contract items (token choices, motion specs, hierarchy rules). They do NOT expand scope: implement still honors the visual contract in `02c-craft.md` exactly. Missing references log a one-line warning and the step continues. Closes a wiring gap from v8.29's design-aware artifact consumption: prior to this version, the brief's "Recommended references" section was produced by `/wf-design shape` but never consumed downstream.
+
+### Fixed
+
+- **`reference/shape.md` typo.** The "Recommended references" template listed `typography.md`, but the actual reference file is `typeset.md`. Briefs generated from the unfixed template would have pointed at a non-existent reference; the v8.30.1 wf-implement load step now warns on this rather than silently ignoring, but new briefs produced from the corrected template won't trigger the warning.
+- **`reference/shape.md` mandates frontmatter mirror.** The template now requires the recommended-references list to also appear as a `recommended-references:` YAML frontmatter array in `02b-design.md`, so wf-implement can parse it deterministically rather than scraping markdown bullets.
+
 ## [8.30.0] - 2026-05-03
 
 ### Changed
