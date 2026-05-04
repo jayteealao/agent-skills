@@ -1,8 +1,6 @@
 ---
-name: wf-update-deps
 description: Dependency update workflow. Scans package manifests for outdated and vulnerable dependencies, researches each via web search, plans updates grouped by risk, implements, and verifies.
 argument-hint: [package-name|--security-only|--audit-only]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)

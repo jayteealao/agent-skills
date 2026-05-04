@@ -41,6 +41,11 @@ const ALLOWLIST_FILES = new Set([
   'IDEAS-2.md',
   'IDEAS-3.md',
   'MATTPOCOCK-LEARNINGS.md',
+  // Skill manifests are descriptive documentation, not callsites: they
+  // legitimately reference their own slash invocation in prose. The orphan
+  // scan's job is to catch *callers* of removed commands, which by
+  // definition are not skill files.
+  'SKILL.md',
 ]);
 
 function sha256(s) {
@@ -87,7 +92,7 @@ function verifyRouter(routerKey) {
         `[${routerKey}] body hash mismatch for ${entry.referencePath}\n` +
         `   expected: ${entry.bodyHash}\n` +
         `   got:      ${actualHash}\n` +
-        `   (re-run scripts/migrate-review.mjs if the body change was intentional)`,
+        `   (re-run scripts/migrate-router.mjs --router ${routerKey} if the body change was intentional)`,
       );
     }
   }
@@ -132,6 +137,14 @@ function findOrphanedReferences() {
     /\/review:[a-z][a-z-]*/g,
     // /review pass <aggregate> (v8.32 syntax, replaced by /review sweep in v9.0.0-alpha.1)
     /\/review pass (?:all|architecture|infra|pre-merge|quick|security|ux)\b/g,
+    // /wf-* legacy commands removed by v9.0.0-alpha.2 PR-2 (rolled into /wf-quick).
+    // Three negative lookaheads:
+    //   - [A-Za-z0-9_-]: keeps /wf-quick from matching inside /wf-quickly.
+    //   - /:            keeps /wf-quick from matching inside path strings
+    //                   like skills/wf-quick/reference/.
+    //   - \s+KEYS:      makes /wf-quick rca (the v9 dispatch form) skip,
+    //                   so only legacy callsites trigger.
+    /\/wf-(?:quick|rca|investigate|discover|hotfix|update-deps|docs|refactor|ideate|intake)(?![A-Za-z0-9_/-])(?!\s+(?:quick|rca|investigate|discover|hotfix|update-deps|docs|refactor|ideate|intake)\b)/g,
   ];
 
   function walk(dir) {

@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Hotfix"
-  short_description: "Compressed incident-response workflow for production fixes. Skips intake interviews and slicing — goes directly from diagnosis to minimal fix to ship."
-  default_prompt: "Use $wf-hotfix for this workflow."
-policy:
-  allow_implicit_invocation: false

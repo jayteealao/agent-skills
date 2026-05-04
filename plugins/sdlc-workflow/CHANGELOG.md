@@ -5,6 +5,52 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.0.0-alpha.2] - 2026-05-04
+
+### Removed (BREAKING)
+
+- **All 10 standalone `/wf-X` commands rolling under `/wf-quick` are deleted** (PR-2 of `ROUTER-MIGRATION-PLAN.md`). The deleted commands are:
+  - `/wf-quick`, `/wf-rca`, `/wf-investigate`, `/wf-discover`, `/wf-hotfix`, `/wf-update-deps`, `/wf-docs`, `/wf-refactor`, `/wf-ideate`, `/wf-intake`.
+- **Each command's body is now a reference under `skills/wf-quick/reference/<key>.md`.** The `/wf-quick` skill at `skills/wf-quick/SKILL.md` is the single entry point; it parses the first positional token as a sub-command key, loads the matching reference body, and follows it verbatim.
+- **No shims.** Mirroring v9.0.0-alpha.1's break-the-surface posture for `/review`, the legacy `/wf-X` slash commands are gone. Typing them returns "command not found." Migration table below.
+- **8 stale `.codex-generated/skills/wf-{quick,rca,hotfix,update-deps,docs,refactor,ideate,intake}/` mirrors deleted.** They reflected the legacy command surface; the Codex generator update (PR-5 of the router migration) will emit one Codex skill per router instead.
+
+### Changed
+
+- **Skill-mode dispatch for the 10 sub-commands.** `/wf-quick <key> <args>` is the single user-facing entry point. The first positional token must be one of: `quick`, `rca`, `investigate`, `discover`, `hotfix`, `update-deps`, `docs`, `refactor`, `ideate`, `intake`. Bare `/wf-quick` renders the menu instead of picking a default. There is no implicit "first arg = slug" mode (mirroring `/review`'s strict dimension-or-`sweep` parsing).
+- **No `sweep` mode for `/wf-quick`.** The 10 sub-commands are orthogonal entry points (root-cause analysis ≠ ideation ≠ dependency upgrade), not different lenses on a shared target. The `aggregates` field in `skills/wf-quick/router-metadata.json` is intentionally empty; there is no parallel sub-agent dispatch path. Only `/review` has sweeps.
+- **Cross-references rewritten.** Every internal slash invocation referencing the 10 deleted commands (in remaining `commands/wf-*.md` files, `README.md`, and the relocated reference bodies themselves) was rewritten in lockstep: `/wf-rca` → `/wf-quick rca`, `/wf-intake` → `/wf-quick intake`, etc. The `scripts/relocate-wf-quick.mjs` rewriter is idempotent (path-boundary lookbehind avoids corrupting `skills/wf-quick/...` paths; "already-rewritten key" lookahead avoids `/wf-quick quick quick`) and is kept in tree as the audit trail.
+- **`scripts/migrate-review.mjs` renamed to `scripts/migrate-router.mjs` and parameterized by `--router <key>`.** The PR-1 manifest builder for `/review` now serves both routers and is reusable for PR-3/PR-4. Default `--router` is `review` for backward compat.
+- **`scripts/verify-routing-resolution.mjs` resolves skill-mode routers.** When `commands/<router>.md` does not exist (the post-v9 shape), the verifier loads `skills/<router>/SKILL.md` instead. Defaults `tests/<router>-fixtures.json` for non-`review` routers.
+- **`scripts/verify-router-migration.mjs` orphan scan extended.** Adds a `/wf-{quick,rca,investigate,discover,hotfix,update-deps,docs,refactor,ideate,intake}` legacy-pattern. Two negative lookaheads prevent false positives: a `/` lookahead skips path strings like `skills/wf-quick/reference/`, and a `\s+KEYS\b` lookahead skips the v9 dispatch form `/wf-quick rca`. `SKILL.md` is added to the file allowlist (skill manifests are descriptive documentation, not callsites). Both routers + the orphan scan PASS in CI on the migrated branch.
+- **New script `scripts/relocate-wf-quick.mjs`.** One-shot relocator (Phase 1 moves command bodies to `skills/wf-quick/reference/`; Phase 2 walks the plugin tree and rewrites external cross-refs). Kept as audit trail like `rewrite-review-refs.mjs`.
+
+### Added
+
+- **`tests/wf-quick-fixtures.json`** — 6 routing-resolution fixtures (5 dispatch forms + 1 menu fallback).
+- **`skills/wf-quick/{SKILL.md,router-metadata.json,migration-manifest.json}`** + 10 reference bodies under `skills/wf-quick/reference/`.
+
+### Migration
+
+| Old invocation (any version ≤ v9.0.0-alpha.1) | New invocation (v9.0.0-alpha.2+) |
+|---|---|
+| `/wf-quick <args>` | `/wf-quick quick <args>` |
+| `/wf-rca <args>` | `/wf-quick rca <args>` |
+| `/wf-investigate <args>` | `/wf-quick investigate <args>` |
+| `/wf-discover <args>` | `/wf-quick discover <args>` |
+| `/wf-hotfix <args>` | `/wf-quick hotfix <args>` |
+| `/wf-update-deps <args>` | `/wf-quick update-deps <args>` |
+| `/wf-docs <args>` | `/wf-quick docs <args>` |
+| `/wf-refactor <args>` | `/wf-quick refactor <args>` |
+| `/wf-ideate <args>` | `/wf-quick ideate <args>` |
+| `/wf-intake <args>` | `/wf-quick intake <args>` |
+
+### Notes
+
+- **`intake` placement.** The original `/wf-intake` was Stage 1 of the canonical 10-stage SDLC lifecycle; the underlying reference body still is. Routing it under `/wf-quick intake` is a routing decision per `ROUTER-MIGRATION-PLAN.md`'s decomposition (which grouped 10 standalone entry points under one router), not a semantic re-classification. Stage 1 still kicks off the lifecycle; the slash-form is `/wf-quick intake` instead of `/wf-intake`.
+- **PR-3 and PR-4 still pending.** PR-3 collapses `/wf-meta` (10 navigation commands like `/wf-status`, `/wf-resume`, `/wf-sync`, etc.); PR-4 collapses the `/wf` lifecycle (13 stage commands). Both are planned for the v9 alpha line before v9.0.0 stable is cut.
+- **Why a 9.0.0-alpha.2 bump and not -beta or -rc.** The shim-removal pattern is identical to v9.0.0-alpha.1 (BREAKING for any caller with macros / muscle memory keyed off the legacy slash). Pre-release tag stays `alpha` because PR-3 and PR-4 will land further breaking changes before v9 is stable.
+
 ## [9.0.0-alpha.1] - 2026-05-04
 
 ### Removed (BREAKING)

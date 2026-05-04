@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Refactor"
-  short_description: "Structured refactoring workflow. Captures behavior baseline before touching code, plans incremental green steps, implements with per-step verification, and confirms behavior is identical after."
-  default_prompt: "Use $wf-refactor for this workflow."
-policy:
-  allow_implicit_invocation: false

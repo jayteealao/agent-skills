@@ -101,7 +101,7 @@ Parse `$ARGUMENTS` to determine the invocation mode.
 If mode is A or B:
 
 1. Read `.ai/workflows/<slug>/00-index.md`. Parse frontmatter: `title`, `current-stage`, `status`, `branch`, `open-questions`, `augmentations`.
-2. **Check workflow status**: if `status: closed` → STOP. "Workflow `<slug>` is closed. Use `/wf-resume <slug>` to reopen or `/wf-intake` to start a new workflow."
+2. **Check workflow status**: if `status: closed` → STOP. "Workflow `<slug>` is closed. Use `/wf-resume <slug>` to reopen or `/wf-quick quick intake` to start a new workflow."
 3. **Check prerequisites for `shape` sub-command**:
    - `02-shape.md` must exist. If missing → STOP. "Run `/wf-shape <slug>` first to define scope before design."
    - If `02b-design.md` already exists → WARN: "Design brief already exists. Running `shape` again will overwrite `02b-design.md`. Proceed?"

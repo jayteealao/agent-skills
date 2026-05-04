@@ -1,8 +1,6 @@
 ---
-name: wf-rca
-description: Root-cause analysis workflow. Investigates a reported issue using parallel diagnosis sub-agents, writes a structured RCA artifact with confidence, blast radius, and suggested fix shape, then recommends the right downstream command (/wf-plan for non-trivial work, /wf-quick for small fixes, /wf-hotfix for active incidents). Does NOT write a fix. Synthesizes a minimal 02-shape.md so /wf-plan can consume the workflow directory without modification.
+description: Root-cause analysis workflow. Investigates a reported issue using parallel diagnosis sub-agents, writes a structured RCA artifact with confidence, blast radius, and suggested fix shape, then recommends the right downstream command (/wf-plan for non-trivial work, /wf-quick quick for small fixes, /wf-quick hotfix for active incidents). Does NOT write a fix. Synthesizes a minimal 02-shape.md so /wf-plan can consume the workflow directory without modification.
 argument-hint: <description-or-slug>
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -15,14 +13,14 @@ Workflow artifacts and command internals are private implementation context. Nev
 You are running `wf-rca`, a **root-cause analysis workflow** that investigates an issue and recommends the right downstream command, without writing a fix.
 
 # Pipeline
-`1·symptom` → `2·investigate` → `3·synthesize` → `/wf-plan` | `/wf-quick` | `/wf-hotfix`
+`1·symptom` → `2·investigate` → `3·synthesize` → `/wf-plan` | `/wf-quick quick` | `/wf-quick hotfix`
 
 | | Detail |
 |---|---|
 | Requires | Nothing — starts fresh. Pass an error description, stack trace, or an existing slug to resume. |
 | Produces | `01-rca.md` (full RCA), `02-shape.md` (synthesized minimal shape so /wf-plan works), `00-index.md` |
 | Skips | No fix, no plan, no shape interview. The RCA *is* the shape. |
-| Next | `/wf-plan <slug>` (default — non-trivial fixes), `/wf-quick <slug>` (small fixes), `/wf-hotfix <slug>` (active production incidents). The artifact recommends one based on the diagnosis. |
+| Next | `/wf-plan <slug>` (default — non-trivial fixes), `/wf-quick quick <slug>` (small fixes), `/wf-quick hotfix <slug>` (active production incidents). The artifact recommends one based on the diagnosis. |
 | Escalate | If root cause is genuinely uncertain (confidence: low) AND blast radius is high → surface `human triage required` and stop without recommending a routing path. |
 
 # CRITICAL — investigation discipline
@@ -116,7 +114,7 @@ symptom: <one-line description>
 impact: <critical|high|medium|low>
 root-cause-confidence: <high|medium|low>
 blast-radius: <low|medium|high|skipped>
-recommended-next: </wf-plan|/wf-quick|/wf-hotfix|human-triage>
+recommended-next: </wf-plan|/wf-quick quick|/wf-quick hotfix|human-triage>
 status: ready-for-fix-routing
 created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
 ---
@@ -152,11 +150,11 @@ Secondary issues that made the bug worse, harder to detect, or harder to recover
 - **Possibly affected (silent):** other code paths or persisted data that may be corrupt or behaving unexpectedly because of this same root cause.
 - **Same pattern elsewhere:** other locations in the codebase where the same flawed pattern exists and should be checked or fixed alongside this work.
 
-If sub-agent 3 was skipped, write: "Blast radius investigation skipped — symptom is local to <component>. If the fix turns out to require changes outside <component>, run `/wf-rca` again or escalate to `/wf-intake`."
+If sub-agent 3 was skipped, write: "Blast radius investigation skipped — symptom is local to <component>. If the fix turns out to require changes outside <component>, run `/wf-quick rca` again or escalate to `/wf-quick intake`."
 
 ## 7. Suggested fix shape
 
-**Direction, not a plan.** 1 to 3 lines naming the area and the approach. Do NOT enumerate implementation steps — that belongs in `/wf-plan` or `/wf-quick`. Examples of the right shape:
+**Direction, not a plan.** 1 to 3 lines naming the area and the approach. Do NOT enumerate implementation steps — that belongs in `/wf-plan` or `/wf-quick quick`. Examples of the right shape:
 
 > "Fix the off-by-one in `cart/total.ts:checkout()` — apply discount before tax, not after. One-line change. Add a regression test in `cart.test.ts`."
 
@@ -184,8 +182,8 @@ Pick **one** primary recommendation based on the diagnosis. Routing logic:
 
 | Conditions | Recommendation |
 |---|---|
-| `impact: critical` AND production-affecting AND root-cause-confidence ≥ medium AND blast-radius ≤ medium AND suggested-fix-shape is small | `/wf-hotfix <slug>` |
-| Suggested fix shape touches ≤3 files, ≤5 steps, no new dependency, no architecture change | `/wf-quick <slug>` |
+| `impact: critical` AND production-affecting AND root-cause-confidence ≥ medium AND blast-radius ≤ medium AND suggested-fix-shape is small | `/wf-quick hotfix <slug>` |
+| Suggested fix shape touches ≤3 files, ≤5 steps, no new dependency, no architecture change | `/wf-quick quick <slug>` |
 | Anything else — including any architectural change, new dependency, cross-cutting work, or blast radius is `high` | `/wf-plan <slug>` |
 | `root-cause-confidence: low` AND `blast-radius: high` | **`human-triage`** — recommend escalation, do not auto-route |
 
@@ -227,7 +225,7 @@ created-at: <timestamp>
 ```markdown
 # Shape (synthesized from RCA)
 
-This shape was generated by `/wf-rca` from the diagnosis in `01-rca.md`. The full investigation context, evidence, and fix-shape rationale lives there — read it before planning.
+This shape was generated by `/wf-quick rca` from the diagnosis in `01-rca.md`. The full investigation context, evidence, and fix-shape rationale lives there — read it before planning.
 
 ## Problem
 
@@ -252,7 +250,7 @@ This shape was generated by `/wf-rca` from the diagnosis in `01-rca.md`. The ful
 <list any items from Section 9 (Confidence) that the user still needs to decide; or "none">
 ```
 
-If the recommended next command is `/wf-quick` or `/wf-hotfix`, still write `02-shape.md` — those commands ignore it, but it preserves the option for the user to switch routing to `/wf-plan` later without losing the synthesis.
+If the recommended next command is `/wf-quick quick` or `/wf-quick hotfix`, still write `02-shape.md` — those commands ignore it, but it preserves the option for the user to switch routing to `/wf-plan` later without losing the synthesis.
 
 # Step 5 — Write `00-index.md`
 
@@ -308,8 +306,8 @@ If the recommendation is `human-triage`, replace the `Recommended next:` line wi
 # Routing notes (read carefully)
 
 - **`/wf-plan <slug>` is the cleanest downstream path** — it reads the synthesized `02-shape.md` and the workflow directory without any modification. Use this as the default unless the diagnosis clearly fits hotfix or quick.
-- **`/wf-quick <slug>` and `/wf-hotfix <slug>`** are designed to start fresh workflows. They will detect the existing `00-index.md` and warn about a collision. To use them after `wf-rca`, the user can either: (a) accept the collision warning and proceed manually, copying the relevant context from `01-rca.md` into the fresh workflow's brief; or (b) run `/wf-plan <slug>` instead, which preserves continuity and is usually fine even for small fixes. The recommendation surfaces the cleanest option for the diagnosis.
-- **Future enhancement:** `/wf-quick` and `/wf-hotfix` may add an "inherit from RCA" mode that consumes an existing `01-rca.md`. Until then, `/wf-plan` is the seamless path.
+- **`/wf-quick quick <slug>` and `/wf-quick hotfix <slug>`** are designed to start fresh workflows. They will detect the existing `00-index.md` and warn about a collision. To use them after `wf-rca`, the user can either: (a) accept the collision warning and proceed manually, copying the relevant context from `01-rca.md` into the fresh workflow's brief; or (b) run `/wf-plan <slug>` instead, which preserves continuity and is usually fine even for small fixes. The recommendation surfaces the cleanest option for the diagnosis.
+- **Future enhancement:** `/wf-quick quick` and `/wf-quick hotfix` may add an "inherit from RCA" mode that consumes an existing `01-rca.md`. Until then, `/wf-plan` is the seamless path.
 
 # What this command is NOT
 

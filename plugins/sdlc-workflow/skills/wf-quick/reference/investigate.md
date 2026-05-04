@@ -1,8 +1,6 @@
 ---
-name: wf-investigate
-description: Investment discovery workflow. Surveys a codebase domain for improvement opportunities using parallel sub-agents, ranks candidates by estimated ROI, and recommends a next command for the highest-value investment. Does NOT commit to building anything and does NOT write application code. Synthesizes a minimal 02-shape.md for the top candidate so /wf-intake or /wf-quick can continue without re-investigation.
+description: Investment discovery workflow. Surveys a codebase domain for improvement opportunities using parallel sub-agents, ranks candidates by estimated ROI, and recommends a next command for the highest-value investment. Does NOT commit to building anything and does NOT write application code. Synthesizes a minimal 02-shape.md for the top candidate so /wf-quick intake or /wf-quick quick can continue without re-investigation.
 argument-hint: <domain-or-description>
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -15,14 +13,14 @@ Workflow artifacts and command internals are private implementation context. Nev
 You are running `wf-investigate`, an **investment discovery workflow** that surveys a domain for improvement opportunities, ranks them, and recommends a next command — without committing to build anything.
 
 # Pipeline
-`1·surface` → `2·investigate` → `3·rank` → `/wf-intake` | `/wf-quick` | `/wf-discover`
+`1·surface` → `2·investigate` → `3·rank` → `/wf-quick intake` | `/wf-quick quick` | `/wf-quick discover`
 
 | | Detail |
 |---|---|
 | Requires | Nothing — starts fresh. Pass a domain description or an existing slug to resume. |
 | Produces | `01-investigate.md` (ranked candidates), `02-shape.md` (forwarding contract for top candidate), `00-index.md` |
 | Skips | No fix, no plan, no implementation. The investigation *is* the output. |
-| Next | `/wf-intake <description>` (medium/large investment), `/wf-quick <description>` (small investment), `/wf-discover <problem>` (when problem itself is unvalidated) |
+| Next | `/wf-quick intake <description>` (medium/large investment), `/wf-quick quick <description>` (small investment), `/wf-quick discover <problem>` (when problem itself is unvalidated) |
 | Escalate | If all candidates are low-confidence AND no runtime data exists → recommend `/wf-profile <area>` or `/wf-benchmark <slug>` to gather quantitative data first |
 
 # CRITICAL — investigation discipline
@@ -103,7 +101,7 @@ Prompt with ALL of the following:
   - **Impact**: `low` (internal tooling, rare path, cosmetic), `medium` (affects a common path, improves dev velocity, reduces error rate), `high` (affects user-facing latency or reliability on a critical path, unblocks growth)
   - **ROI score**: `high` (high impact, small/medium effort), `medium` (medium impact, small effort OR high impact, large effort), `low` (low impact any effort)
 - Identify the top 5 candidates by ROI score.
-- For the top candidate, recommend a routing: `/wf-quick` if effort=small, `/wf-intake` if effort=medium+, `/wf-discover` if the problem is still unvalidated (no clear user or business signal).
+- For the top candidate, recommend a routing: `/wf-quick quick` if effort=small, `/wf-quick intake` if effort=medium+, `/wf-quick discover` if the problem is still unvalidated (no clear user or business signal).
 
 Return as structured text:
 - `ranked_candidates`: list of `{id, area, type, effort, impact, roi_score, routing_recommendation, one_line_rationale}`
@@ -124,7 +122,7 @@ domain: <area investigated>
 investigation-type: <performance|reliability|tech-debt|feature-gap|scaling|dx>
 top-candidate: <id of top-ranked candidate>
 candidate-count: <N>
-recommended-next: </wf-intake|/wf-quick|/wf-discover>
+recommended-next: </wf-quick intake|/wf-quick quick|/wf-quick discover>
 confidence: <high|medium|low>
 status: ready-for-routing
 created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
@@ -143,7 +141,7 @@ A ranked table of all identified opportunities:
 
 | Rank | Area | Type | Effort | Impact | ROI | File:line | Routing |
 |------|------|------|--------|--------|-----|-----------|---------|
-| 1 | <area> | <type> | <effort> | <impact> | <high/med/low> | <path:line> | `/wf-intake` or `/wf-quick` |
+| 1 | <area> | <type> | <effort> | <impact> | <high/med/low> | <path:line> | `/wf-quick intake` or `/wf-quick quick` |
 
 List up to 10 candidates. Below rank 5, summarize without deep-dives.
 
@@ -159,7 +157,7 @@ One subsection per candidate for ranks 1–3:
 - **Suggested approach:** 1–3 lines naming the technique and area. NOT implementation steps.
 - **Effort:** small | medium | large (with one-line justification)
 - **Impact:** low | medium | high (with one-line justification)
-- **Routing:** `/wf-quick <description>` or `/wf-intake <description>`
+- **Routing:** `/wf-quick quick <description>` or `/wf-quick intake <description>`
 
 ## 4. Routing recommendation
 
@@ -169,9 +167,9 @@ Routing logic:
 
 | Conditions | Recommendation |
 |---|---|
-| Top candidate: `effort: small`, `impact: medium+`, mechanism is clear | `/wf-quick <description>` |
-| Top candidate: `effort: medium+` OR architecture change OR schema change | `/wf-intake <description>` |
-| All candidates `confidence: low` OR no user/business signal found | `/wf-discover <problem>` — validate the problem before investing |
+| Top candidate: `effort: small`, `impact: medium+`, mechanism is clear | `/wf-quick quick <description>` |
+| Top candidate: `effort: medium+` OR architecture change OR schema change | `/wf-quick intake <description>` |
+| All candidates `confidence: low` OR no user/business signal found | `/wf-quick discover <problem>` — validate the problem before investing |
 | `investigation-type: performance` AND no runtime data exists | Add note: run `/wf-profile <area>` to sharpen estimates before proceeding |
 
 ## 5. Confidence & data gaps
@@ -186,7 +184,7 @@ Tripwires are **warn-and-continue** — record them, do NOT refuse to write the 
 
 - **No-signal domain:** No bottlenecks, tech debt, or opportunities found — domain may be in good shape, or the scope was too narrow.
 - **All candidates low-confidence:** Static analysis only, no runtime data, all claims are speculative.
-- **Bug found:** Investigation surfaced a defect, not an opportunity — route to `/wf-rca` instead of an investment workflow.
+- **Bug found:** Investigation surfaced a defect, not an opportunity — route to `/wf-quick rca` instead of an investment workflow.
 - **Scope explosion:** Sub-agents returned >20 candidates — surface that prioritization help is needed; do not list all 20.
 - **Concurrent work conflict:** An open PR or active workflow already addresses the top candidate.
 
@@ -196,7 +194,7 @@ For each fired tripwire, write one line: `[tripwire-name]: <what specifically tr
 
 # Step 4 — Synthesize `02-shape.md`
 
-Write a minimal `02-shape.md` for the **top candidate only**, so `/wf-intake <slug>` or `/wf-quick <slug>` can consume the workflow directory without modification. This file is a *forwarding contract*, not a full shape.
+Write a minimal `02-shape.md` for the **top candidate only**, so `/wf-quick intake <slug>` or `/wf-quick quick <slug>` can consume the workflow directory without modification. This file is a *forwarding contract*, not a full shape.
 
 **`02-shape.md` frontmatter:**
 ```yaml
@@ -216,7 +214,7 @@ created-at: <timestamp>
 ```markdown
 # Shape (synthesized from investigation)
 
-This shape was generated by `/wf-investigate` from the top-ranked candidate in `01-investigate.md`. Read that file for full context, rankings, and rationale.
+This shape was generated by `/wf-quick investigate` from the top-ranked candidate in `01-investigate.md`. Read that file for full context, rankings, and rationale.
 
 ## Problem
 
@@ -293,14 +291,14 @@ If all candidates are `low-confidence`, prefix with:
 
 # Routing notes
 
-- **`/wf-intake <description>` is the cleanest downstream path** for medium/large investments — it starts a fresh workflow consuming the synthesized `02-shape.md` as initial context.
-- **`/wf-quick <description>`** is right for small, well-understood investments where the mechanism is clear and scope is ≤3 files.
-- **`/wf-discover <problem>`** is the right call when the investigation surfaced opportunity areas but the underlying problem has no external validation — don't build a solution to a problem you haven't confirmed is real.
+- **`/wf-quick intake <description>` is the cleanest downstream path** for medium/large investments — it starts a fresh workflow consuming the synthesized `02-shape.md` as initial context.
+- **`/wf-quick quick <description>`** is right for small, well-understood investments where the mechanism is clear and scope is ≤3 files.
+- **`/wf-quick discover <problem>`** is the right call when the investigation surfaced opportunity areas but the underlying problem has no external validation — don't build a solution to a problem you haven't confirmed is real.
 - **`/wf-profile <area>`** sharpens confidence on performance candidates before committing to them. Run it between `wf-investigate` and `wf-intake` when static analysis isn't conclusive.
 
 # What this command is NOT
 
 - **Not a planner** — `wf-investigate` produces an investment ranking and a routing recommendation. It does not write implementation plans, tasks, or code.
-- **Not a debugger** — if a bug was found during investigation, route to `/wf-rca`. Investigation is for identifying *opportunities*, not *defects*.
-- **Not a discovery validator** — if the underlying problem has no user or market signal, run `/wf-discover` first. `wf-investigate` assumes the domain is worth looking at; `wf-discover` answers whether the domain is worth it.
+- **Not a debugger** — if a bug was found during investigation, route to `/wf-quick rca`. Investigation is for identifying *opportunities*, not *defects*.
+- **Not a discovery validator** — if the underlying problem has no user or market signal, run `/wf-quick discover` first. `wf-investigate` assumes the domain is worth looking at; `wf-discover` answers whether the domain is worth it.
 - **Not a profiler** — static analysis is its primary lens. For quantitative runtime data, use the `wf-profile` skill or `/wf-benchmark`.

@@ -29,7 +29,7 @@ You are a **context synthesizer**, not a problem solver.
 
 # Step 0 — Discover and read
 
-1. **Resolve the slug** from `$ARGUMENTS`. If no slug given, scan `.ai/workflows/*/00-index.md` for active workflows. If exactly one → use it. If multiple → list them with current stage and ask the user which one. If none → "No workflows found. Start one with `/wf-intake <description>`." STOP.
+1. **Resolve the slug** from `$ARGUMENTS`. If no slug given, scan `.ai/workflows/*/00-index.md` for active workflows. If exactly one → use it. If multiple → list them with current stage and ask the user which one. If none → "No workflows found. Start one with `/wf-quick quick intake <description>`." STOP.
 
 2. **Read `00-index.md`** — parse full frontmatter: `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice-or-focus`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
 

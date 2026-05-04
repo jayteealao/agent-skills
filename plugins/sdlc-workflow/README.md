@@ -160,7 +160,7 @@ This tutorial walks you through a complete workflow for a simple feature. The go
 ### Step 1 — Intake
 
 ```
-/wf-intake add dark mode toggle to settings page
+/wf-quick quick intake add dark mode toggle to settings page
 ```
 
 The command derives the slug (`dark-mode-toggle-settings`), asks you 3–7 questions about scope, success criteria, non-goals, and whether you want a dedicated git branch, then writes `01-intake.md` and `00-index.md`.
@@ -263,30 +263,30 @@ Reads the full artifact trail, extracts lessons, and produces concrete suggested
 ### … discover what to work on next
 
 ```
-/wf-ideate
+/wf-quick quick ideate
 ```
 
-Scans the codebase with **6 parallel sub-agents** across quality, performance, security, developer experience, feature completeness, and architecture lenses. Generates 30+ raw candidate ideas, then runs an adversarial filter — culling speculative ideas, in-progress duplicates, unjustifiable effort, vague scope, and symptom-level findings. Ranks survivors by impact-to-effort ratio and presents them as a numbered list ready to feed into `/wf-intake`.
+Scans the codebase with **6 parallel sub-agents** across quality, performance, security, developer experience, feature completeness, and architecture lenses. Generates 30+ raw candidate ideas, then runs an adversarial filter — culling speculative ideas, in-progress duplicates, unjustifiable effort, vague scope, and symptom-level findings. Ranks survivors by impact-to-effort ratio and presents them as a numbered list ready to feed into `/wf-quick quick intake`.
 
 ```
-/wf-ideate security        # focus on the security lens only
-/wf-ideate dx 5            # DX lens, return top 5 ideas
-/wf-ideate performance 20  # performance lens, top 20
+/wf-quick quick ideate security        # focus on the security lens only
+/wf-quick quick ideate dx 5            # DX lens, return top 5 ideas
+/wf-quick quick ideate performance 20  # performance lens, top 20
 ```
 
-Output goes to `.ai/ideation/<focus>-<timestamp>.md`. Use `AskUserQuestion` to select which ideas to act on; the command gives you the exact `/wf-intake` command for each selected idea.
+Output goes to `.ai/ideation/<focus>-<timestamp>.md`. Use `AskUserQuestion` to select which ideas to act on; the command gives you the exact `/wf-quick quick intake` command for each selected idea.
 
 ### … start a new workflow
 
 ```
-/wf-intake <plain-language task description>
+/wf-quick quick intake <plain-language task description>
 ```
 
 You do not need a slug yet. The command derives it from your description and creates the workflow directory. Every subsequent command takes the slug as its first argument.
 
 **If you already know the slug** (returning to an abandoned workflow):
 ```
-/wf-intake existing-slug
+/wf-quick quick intake existing-slug
 ```
 
 ### … find out what to run next
@@ -678,15 +678,15 @@ The citation index gives you 200+ sources to cite in `po-answers.md` when the re
 ### … handle a production incident
 
 ```
-/wf-hotfix auth tokens expiring after deploy
+/wf-quick quick hotfix auth tokens expiring after deploy
 ```
 
 Starts a compressed incident-response workflow: derives the slug (`hotfix-auth-tokens-expiring-after-deploy`), asks **at most 3 questions** (what's broken, impact scope, recent changes), creates a dedicated `hotfix/<slug>` branch from production, then launches parallel Explore sub-agents for root-cause diagnosis and blast-radius mapping.
 
-The pipeline compresses 10 stages into 6 — **brief → diagnose → plan → implement → verify → ship** — with a hard scope lock: the plan is limited to 5 steps maximum, and any change beyond the identified root cause requires explicit approval. If the fix requires touching more than 3 files or any architectural changes, the command stops and recommends escalating to `/wf-intake`.
+The pipeline compresses 10 stages into 6 — **brief → diagnose → plan → implement → verify → ship** — with a hard scope lock: the plan is limited to 5 steps maximum, and any change beyond the identified root cause requires explicit approval. If the fix requires touching more than 3 files or any architectural changes, the command stops and recommends escalating to `/wf-quick quick intake`.
 
 ```
-/wf-hotfix hotfix-auth-tokens-slug   # resume an in-progress hotfix
+/wf-quick quick hotfix hotfix-auth-tokens-slug   # resume an in-progress hotfix
 ```
 
 Artifacts land in `.ai/workflows/hotfix-<slug>/` alongside normal workflows.
@@ -694,10 +694,10 @@ Artifacts land in `.ai/workflows/hotfix-<slug>/` alongside normal workflows.
 ### … update dependencies
 
 ```
-/wf-update-deps                 # scan and update all deps
-/wf-update-deps react           # update a single package
-/wf-update-deps --security-only # update only CVE-affected packages
-/wf-update-deps --audit-only    # scan and plan without implementing
+/wf-quick quick update-deps                 # scan and update all deps
+/wf-quick quick update-deps react           # update a single package
+/wf-quick quick update-deps --security-only # update only CVE-affected packages
+/wf-quick quick update-deps --audit-only    # scan and plan without implementing
 ```
 
 Scans all package manifests, then launches **parallel web research sub-agents** (one batch per 3–5 packages) that check latest versions, breaking changes, migration guides, CVEs, and upgrade gotchas. Updates are grouped by risk tier and implemented in order:
@@ -716,10 +716,10 @@ Artifacts land in `.ai/dep-updates/<run-id>/` (separate from workflow directorie
 ### … audit and update documentation
 
 ```
-/wf-docs                          # audit and update all project docs
-/wf-docs dark-mode-toggle-settings # generate docs for a workflow's changes
-/wf-docs --audit-only             # gap analysis only, no writing
-/wf-docs docs/api                 # scope to a specific directory
+/wf-quick docs                          # audit and update all project docs
+/wf-quick docs dark-mode-toggle-settings # generate docs for a workflow's changes
+/wf-quick docs --audit-only             # gap analysis only, no writing
+/wf-quick docs docs/api                 # scope to a specific directory
 ```
 
 Runs a four-pass documentation lifecycle:
@@ -734,8 +734,8 @@ For `slug` mode, the command reads the workflow's `02-shape.md → ## Documentat
 ### … refactor safely
 
 ```
-/wf-refactor extract auth logic into service layer
-/wf-refactor simplify deeply nested payment validation
+/wf-quick quick refactor extract auth logic into service layer
+/wf-quick quick refactor simplify deeply nested payment validation
 ```
 
 Structures a refactoring session around a non-negotiable constraint: **external behavior must be identical before and after**. The pipeline is:
@@ -764,7 +764,7 @@ Every `wf-extend` invocation records an `extension-round: N` on new slice entrie
 
 | Command | Stage | Purpose | Artifact |
 |---|---|---|---|
-| `/wf-intake <description>` | 1 | Capture scope, criteria, branch strategy | `01-intake.md` |
+| `/wf-quick quick intake <description>` | 1 | Capture scope, criteria, branch strategy | `01-intake.md` |
 | `/wf-shape <slug>` | 2 | 20-question feature interview, mini-spec, docs plan | `02-shape.md` |
 | `/wf-design <slug>` | 2b *(optional)* | UX brief — layout, states, interaction model | `02b-design.md` |
 | `/wf-slice <slug>` | 3 | Decompose into vertical slices | `03-slice.md` + per-slice |
@@ -798,7 +798,7 @@ All require `.impeccable.md` established by `/wf-design:setup`.
 
 | Command | Purpose |
 |---|---|
-| `/wf-ideate [focus-area] [count]` | Scan codebase with 6 parallel lenses, generate 30+ candidates, adversarially filter, rank survivors — produces `.ai/ideation/` artifact ready for `/wf-intake` |
+| `/wf-quick quick ideate [focus-area] [count]` | Scan codebase with 6 parallel lenses, generate 30+ candidates, adversarially filter, rank survivors — produces `.ai/ideation/` artifact ready for `/wf-quick quick intake` |
 | `/wf-how <question>` | Auto-route question across 5 modes: quick code answer (A), codebase exploration (B), deep web research (C), workflow artifact explanation (D), or findings explanation (E) |
 | `/wf-how <slug> plan\|shape\|slice\|review\|findings` | Shortcut to Mode D or E — explain a specific workflow artifact or findings set for the given slug |
 | `/wf-how --research <question>` | Force Mode C — commission 6–8 parallel web research agents targeting 200+ sources |
@@ -820,10 +820,10 @@ Self-contained workflows with their own lifecycle that do not require an existin
 
 | Command | Purpose | Artifact location |
 |---|---|---|
-| `/wf-hotfix <description>` | Compressed incident-response pipeline (6 stages, scope-locked, max 5 steps) | `.ai/workflows/hotfix-<slug>/` |
-| `/wf-update-deps [package\|--security-only\|--audit-only]` | Scan all deps for staleness and CVEs, research each via web search, update by risk tier | `.ai/dep-updates/<run-id>/` |
-| `/wf-docs [slug\|--audit-only\|path]` | Discover, audit, and generate project documentation using Diátaxis skills | `.ai/docs/<run-id>/` |
-| `/wf-refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
+| `/wf-quick quick hotfix <description>` | Compressed incident-response pipeline (6 stages, scope-locked, max 5 steps) | `.ai/workflows/hotfix-<slug>/` |
+| `/wf-quick quick update-deps [package\|--security-only\|--audit-only]` | Scan all deps for staleness and CVEs, research each via web search, update by risk tier | `.ai/dep-updates/<run-id>/` |
+| `/wf-quick docs [slug\|--audit-only\|path]` | Discover, audit, and generate project documentation using Diátaxis skills | `.ai/docs/<run-id>/` |
+| `/wf-quick quick refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
 
 ### Review domains (31 dimensions)
 
@@ -1122,7 +1122,7 @@ All `metric-*` fields are numeric — designed for aggregation, dashboards, and 
 
 Intake only takes a task description instead of a slug:
 ```
-/wf-intake <plain-language task description>
+/wf-quick quick intake <plain-language task description>
 ```
 
 ### Status enum

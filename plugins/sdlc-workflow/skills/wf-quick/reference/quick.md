@@ -1,8 +1,6 @@
 ---
-name: wf-quick
 description: Compressed planning workflow for small intentional changes. Collapses intake, shape, design, slice, and plan into a single artifact in one pass. Routes to /wf-implement for the standard execute-verify-review-handoff-ship lifecycle. Use when the change is small enough that the full 5-stage planning ceremony is overkill but you still want a recorded plan, a branch, and the standard implementation/review pipeline.
 argument-hint: <description-or-slug>
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -23,7 +21,7 @@ You are running `wf-quick`, a **compressed planning workflow** for small intenti
 | Produces | `01-quick.md` (compressed brief + shape + plan) and `00-index.md` |
 | Skips | Stage 2 (shape standalone), stage 2b (design), stage 3 (slice), stage 4 (plan standalone) — all merged into `01-quick.md`. Design is **never auto-included**; user must opt in by passing `--design`. |
 | Next | `/wf-implement <slug>` (full lifecycle takes over from stage 5 onward) |
-| Escalate | If during planning the work no longer fits the wf-quick envelope, **warn and continue** — record the breach in the artifact and recommend `/wf-intake <description>` for next time. Do not refuse. |
+| Escalate | If during planning the work no longer fits the wf-quick envelope, **warn and continue** — record the breach in the artifact and recommend `/wf-quick intake <description>` for next time. Do not refuse. |
 
 # CRITICAL — scope discipline
 You are a **compressed-planning orchestrator**, not an incident responder and not a feature shaper.
@@ -109,7 +107,7 @@ One paragraph: what the user wants and why. ≤3 acceptance criteria as a bullet
 
 If `--design` was passed, include 3-5 bullets of design notes (visual hierarchy, copy, interaction). Otherwise write exactly:
 
-> Design step skipped. If the change touches UI surface, run `/wf-design <slug>` after `/wf-implement` completes — or restart with `/wf-intake <description>` for a full design pass before implementation.
+> Design step skipped. If the change touches UI surface, run `/wf-design <slug>` after `/wf-implement` completes — or restart with `/wf-quick intake <description>` for a full design pass before implementation.
 
 If you observe that the change *does* touch UI surface (HTML/CSS/JSX/SwiftUI/Compose components, copy strings, layout files) but `--design` was not passed → still skip design, but add a one-line "**UI touched — design skipped:** consider `/wf-design <slug>` follow-up" warning to the "Skipped" section. Do not block.
 
@@ -140,7 +138,7 @@ A short list of what was deliberately not done in this compressed flow:
 
 ## 7. Tripwire breaches (only if any fired)
 
-A "wf-quick envelope" section listing any tripwires that fired during planning. Tripwires are **warn-and-continue** — do NOT refuse to write the plan. Just record the breach so the user has the data to decide whether to keep going or restart with `/wf-intake`. Tripwires:
+A "wf-quick envelope" section listing any tripwires that fired during planning. Tripwires are **warn-and-continue** — do NOT refuse to write the plan. Just record the breach so the user has the data to decide whether to keep going or restart with `/wf-quick intake`. Tripwires:
 
 - **>3 files touched** in the planned changes.
 - **>5 implementation steps** required.
@@ -150,7 +148,7 @@ A "wf-quick envelope" section listing any tripwires that fired during planning. 
 
 For each tripwire that fired, write one line: `[tripwire-name]: <what specifically tripped it>`. Then add a single closing line:
 
-> One or more wf-quick tripwires fired. The plan is still valid, but the work has grown beyond the wf-quick envelope. Consider restarting with `/wf-intake <description>` for a full workflow next time. Run `/wf-implement <slug>` to proceed with the current plan.
+> One or more wf-quick tripwires fired. The plan is still valid, but the work has grown beyond the wf-quick envelope. Consider restarting with `/wf-quick intake <description>` for a full workflow next time. Run `/wf-implement <slug>` to proceed with the current plan.
 
 # Step 3 — Write `00-index.md`
 
@@ -191,12 +189,12 @@ Steps: <N> implementation steps planned
 Tripwires: <none | comma-separated list of tripwire names>
 Skipped: design (always), slicing (always)<, web freshness if applicable>
 Next: /wf-implement <slug>
-Restart bigger: /wf-intake <description>
+Restart bigger: /wf-quick intake <description>
 ```
 
 If any tripwire fired, prefix the summary with one extra line:
 
-> ⚠ Plan is valid but exceeds wf-quick envelope. Consider /wf-intake for the next change like this.
+> ⚠ Plan is valid but exceeds wf-quick envelope. Consider /wf-quick intake for the next change like this.
 
 # Compact and crash-safe behavior
 

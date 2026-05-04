@@ -37,7 +37,7 @@ You are a **workflow orchestrator**, not a problem solver.
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
-   - `01-intake.md` must exist. If missing → STOP. Tell the user: "Run `/wf-intake` first."
+   - `01-intake.md` must exist. If missing → STOP. Tell the user: "Run `/wf-quick quick intake` first."
    - If `01-intake.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open intake questions first.
    - If `current-stage` in the index is already past shape → WARN: "Stage 2 (shape) has already been completed. Running it again will overwrite `02-shape.md`. Proceed?" Use AskUserQuestion if available, otherwise ask in chat.
 4. **Read** `01-intake.md` and `po-answers.md`.
@@ -212,7 +212,7 @@ Use when: The spec covers multiple distinct areas, has more than one acceptance 
 **Option B: Skip to Plan** → `/wf-plan <slug>`
 Use when: The shaped spec is a single coherent unit — one clear scope, one acceptance path, no meaningful way to split it further. Criteria: single concern, ≤5 files likely touched, one delivery unit.
 
-**Option C: Revisit Intake** → `/wf-intake <slug>`
+**Option C: Revisit Intake** → `/wf-quick quick intake <slug>`
 Use when: Shaping revealed that the intake brief is wrong, missing key constraints, or fundamentally misunderstands the problem.
 
 **Option D: Blocked — re-run shape** → `/wf-shape <slug>`
@@ -318,4 +318,4 @@ If no docs needed: "None required — [reason]"
 ## Recommended Next Stage
 - **Option A (default):** `/wf-slice <slug>` — [reason]
 - **Option B:** `/wf-plan <slug>` — [reason, if single-scope]
-- **Option C:** `/wf-intake <slug>` — revisit intake [reason, if applicable]
+- **Option C:** `/wf-quick quick intake <slug>` — revisit intake [reason, if applicable]

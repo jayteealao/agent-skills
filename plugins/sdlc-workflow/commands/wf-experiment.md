@@ -43,7 +43,7 @@ You are an **experiment designer**, not an implementer.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug** from `$ARGUMENTS`. Must match an existing workflow directory.
-   - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf-intake <description>`."
+   - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf-quick quick intake <description>`."
    - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf-shape <slug>` first."
 2. **Check for existing experiment:**
    - If `04c-experiment.md` already exists → WARN: "An experiment design already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"

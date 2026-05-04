@@ -1,8 +1,6 @@
 ---
-name: wf-intake
 description: Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.
 argument-hint: <task description>
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -125,7 +123,7 @@ Use when: The task has ambiguity in behavior, acceptance criteria, or scope. Mos
 **Option B: Skip to Plan** → `/wf-plan <slug>`
 Use when: The task is a well-understood, single-scope fix (e.g., "bump version X", "rename variable Y", "fix typo in Z"). No behavior ambiguity, no slicing needed. Criteria: ≤3 files likely touched, single acceptance criterion, no edge cases worth capturing.
 
-**Option C: Blocked — re-run intake** → `/wf-intake <slug>`
+**Option C: Blocked — re-run intake** → `/wf-quick intake <slug>`
 Use when: Required PO answers are still missing. Mark `Status: Awaiting input`.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
@@ -240,4 +238,4 @@ next-invocation: "/wf-shape <slug>"
 - **Option B:** `/wf-<other> <slug>` — [reason, if applicable]
 - **Option C:** Blocked — [what's missing]
 
-If required answers are still missing, set frontmatter `status: awaiting-input` and set `next-invocation` to rerun `/wf-intake <same-slug>` after answers arrive.
+If required answers are still missing, set frontmatter `status: awaiting-input` and set `next-invocation` to rerun `/wf-quick intake <same-slug>` after answers arrive.

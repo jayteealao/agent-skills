@@ -1,8 +1,6 @@
 ---
-name: wf-docs
 description: Documentation audit and generation workflow. Discovers existing docs, audits them against the codebase and Diátaxis principles, plans what to create/update/remove, and generates using Diátaxis skills.
 argument-hint: [slug|--audit-only|path]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)

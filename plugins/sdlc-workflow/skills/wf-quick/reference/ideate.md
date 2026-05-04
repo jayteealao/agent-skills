@@ -1,8 +1,6 @@
 ---
-name: wf-ideate
 description: Proactive codebase ideation. Scans the codebase with parallel sub-agents across six lenses (quality, performance, security, DX, feature gaps, architecture), generates 30+ improvement candidates, applies adversarial filtering to cull weak or speculative ideas (with explanations), ranks survivors by impact/effort, and writes .ai/ideation/ artifacts ready to feed into wf-intake. Inverts the normal pattern — surfaces what you might not have thought to ask about.
 argument-hint: "[focus-area] [count]"
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -19,13 +17,13 @@ You are running `wf-ideate`, a **pre-pipeline ideation utility** for the SDLC li
 [wf-ideate] → wf-intake → 1·intake → 2·shape → ... → 10·retro
 ```
 
-This command does NOT start or advance any workflow. It discovers improvement opportunities in the codebase and produces ranked, evidence-grounded idea candidates that are ready to feed directly into `/wf-intake`. Run it when you want to find what's worth working on next, rather than starting from a blank brief.
+This command does NOT start or advance any workflow. It discovers improvement opportunities in the codebase and produces ranked, evidence-grounded idea candidates that are ready to feed directly into `/wf-quick intake`. Run it when you want to find what's worth working on next, rather than starting from a blank brief.
 
 | | Detail |
 |---|---|
 | Requires | A git project (reads codebase, git log, existing workflow artifacts) |
 | Produces | `.ai/ideation/<focus>-<timestamp>.md` — ranked idea list with adversarial filter records |
-| Next | `/wf-intake <idea-title>` — kick off a workflow for any chosen idea |
+| Next | `/wf-quick intake <idea-title>` — kick off a workflow for any chosen idea |
 
 # CRITICAL — execution discipline
 You are an **opportunity discoverer and adversarial filter**, not a problem solver.
@@ -236,7 +234,7 @@ Evidence: <file:line or file range from sub-agent findings>
 Description: <2–3 sentences — what's wrong, what fixing it looks like, why now>
 Effort: xs | s | m | l | xl
 Impact: low | medium | high | critical
-Entry: /wf-intake <slug-suggestion> | /wf-extend <existing-slug>
+Entry: /wf-quick intake <slug-suggestion> | /wf-extend <existing-slug>
 ```
 
 ---
@@ -295,7 +293,7 @@ Raw candidates: <N>  |  Culled by filter: <N>  |  Survivors: <N>  |  Showing: <N
 ### #1 — <Title> [<Category>] [Impact: <level>] [Effort: <level>]
 **Evidence:** `<file:line>`
 <Description>
-**Entry:** `/wf-intake <slug-suggestion>`
+**Entry:** `/wf-quick intake <slug-suggestion>`
 
 ### #2 — ...
 ```
@@ -315,8 +313,8 @@ Question:
 For each selected idea, offer the exact intake command to run:
 ```
 Ready to start:
-  /wf-intake <slug-suggestion-1>   # Idea #N — <Title>
-  /wf-intake <slug-suggestion-2>   # Idea #N — <Title>
+  /wf-quick intake <slug-suggestion-1>   # Idea #N — <Title>
+  /wf-quick intake <slug-suggestion-2>   # Idea #N — <Title>
 ```
 
 ---
@@ -368,7 +366,7 @@ culled:
 
 <Description>
 
-**To act on this:** `/wf-intake <slug-suggestion>`
+**To act on this:** `/wf-quick intake <slug-suggestion>`
 
 ---
 
@@ -389,9 +387,9 @@ Each idea above maps directly to a `wf-intake` command. Copy the entry command f
 
 If you want to re-run ideation with a different focus or count:
 ```
-/wf-ideate security          # security lens only
-/wf-ideate performance 5     # performance lens, top 5
-/wf-ideate dx 20             # DX lens, top 20
+/wf-quick ideate security          # security lens only
+/wf-quick ideate performance 5     # performance lens, top 5
+/wf-quick ideate dx 20             # DX lens, top 20
 ```
 
 ---
@@ -401,4 +399,4 @@ Return ONLY:
 - `wrote: .ai/ideation/<filename>`
 - `ideas: <N> survivors from <M> raw candidates`
 - The ranked list (Step 5 format)
-- `options:` — one `/wf-intake` invocation per idea selected by the user, or "Run `/wf-ideate` again with a focus area for deeper coverage"
+- `options:` — one `/wf-quick intake` invocation per idea selected by the user, or "Run `/wf-quick ideate` again with a focus area for deeper coverage"

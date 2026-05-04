@@ -30,8 +30,8 @@ This is a **standalone command**, not tied to any workflow. It writes to `.ai/pr
 | Requires | Nothing — works standalone. Pass a code area, function name, file path, or endpoint. |
 | Produces | `.ai/profiles/profile-<timestamp>-<slug>/01-profile.md` — the profiling analysis |
 | Does NOT | Start a workflow, write any workflow artifact, modify application code. |
-| Next | `/wf-investigate <domain>` — to rank this profiling finding among other investment opportunities |
-| Alt next | `/wf-intake <description>` — if the profiling surfaced a clear high-value optimization |
+| Next | `/wf-quick quick investigate <domain>` — to rank this profiling finding among other investment opportunities |
+| Alt next | `/wf-quick quick intake <description>` — if the profiling surfaced a clear high-value optimization |
 
 # CRITICAL — scope discipline
 - Do NOT modify application code. Do NOT optimize anything. Analysis only.
@@ -98,9 +98,9 @@ Based on this profiling result, suggest one of:
 
 | Signal | Recommendation |
 |--------|----------------|
-| Clear high-ROI hotspot found, mechanism understood | `/wf-quick <description>` — small targeted optimization |
-| High-ROI hotspot found but scope is medium+ | `/wf-intake <description>` — full workflow for this investment |
-| Multiple hotspots found, need ranking | `/wf-investigate <domain>` — rank all opportunities before committing |
+| Clear high-ROI hotspot found, mechanism understood | `/wf-quick quick <description>` — small targeted optimization |
+| High-ROI hotspot found but scope is medium+ | `/wf-quick quick intake <description>` — full workflow for this investment |
+| Multiple hotspots found, need ranking | `/wf-quick quick investigate <domain>` — rank all opportunities before committing |
 | Hotspots found but no clear improvement path | Run dynamic profiling with `<tool>` to get runtime data before deciding |
 | No significant hotspots found | Domain appears healthy — consider profiling a different area or accepting current performance |
 

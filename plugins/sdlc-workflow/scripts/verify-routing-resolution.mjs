@@ -79,13 +79,24 @@ ${invocation}`;
 
 async function main() {
   const opts = parseArgs();
-  const routerPath = join(PLUGIN_ROOT, 'commands', `${opts.router}.md`);
+  // Skill-mode routers (v9.0.0-alpha.1+) live at skills/<key>/SKILL.md with no
+  // commands/<key>.md file. Command-mode routers (legacy v8.x) live at
+  // commands/<key>.md. Resolve in skill-first order so post-v9 callers Just Work.
+  const skillPath = join(PLUGIN_ROOT, 'skills', opts.router, 'SKILL.md');
+  const commandPath = join(PLUGIN_ROOT, 'commands', `${opts.router}.md`);
+  const routerPath = existsSync(skillPath) ? skillPath : commandPath;
+  // Default fixtures path: review uses the historical migration-fixtures.json
+  // (kept as-is so existing CI invocations don't break). Other routers default
+  // to tests/<router>-fixtures.json. --fixtures overrides either default.
+  const defaultFixtures = opts.router === 'review'
+    ? join(PLUGIN_ROOT, 'tests', 'migration-fixtures.json')
+    : join(PLUGIN_ROOT, 'tests', `${opts.router}-fixtures.json`);
   const fixturesPath = opts.fixtures
     ? resolve(opts.fixtures)
-    : join(PLUGIN_ROOT, 'tests', 'migration-fixtures.json');
+    : defaultFixtures;
 
   if (!existsSync(routerPath)) {
-    console.error(`Router file not found: ${routerPath}`);
+    console.error(`Router file not found: tried ${skillPath} and ${commandPath}`);
     process.exit(1);
   }
   if (!existsSync(fixturesPath)) {

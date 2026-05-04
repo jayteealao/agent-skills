@@ -1,0 +1,43 @@
+{
+  "router": "/wf-quick",
+  "description": "Routing-resolution fixtures for the /wf-quick skill (v9.0.0-alpha.2+). Each invocation should resolve to skills/wf-quick/reference/<key>.md based on the first positional token.",
+  "fixtures": [
+    {
+      "id": "wf-quick-rca-incident",
+      "purpose": "rca sub-command with two positional args (incident slug + date).",
+      "invocation": "/wf-quick rca payment-timeout 2026-04-30",
+      "expectedReferencePath": "skills/wf-quick/reference/rca.md"
+    },
+    {
+      "id": "wf-quick-quick-slug",
+      "purpose": "Original /wf-quick semantics now reached via the explicit 'quick' key.",
+      "invocation": "/wf-quick quick add-rate-limiting",
+      "expectedReferencePath": "skills/wf-quick/reference/quick.md"
+    },
+    {
+      "id": "wf-quick-intake-task",
+      "purpose": "Stage 1 of the full lifecycle, dispatched via /wf-quick intake.",
+      "invocation": "/wf-quick intake support OAuth callback flow",
+      "expectedReferencePath": "skills/wf-quick/reference/intake.md"
+    },
+    {
+      "id": "wf-quick-update-deps-hyphen-key",
+      "purpose": "Hyphenated key (update-deps) parses correctly.",
+      "invocation": "/wf-quick update-deps",
+      "expectedReferencePath": "skills/wf-quick/reference/update-deps.md"
+    },
+    {
+      "id": "wf-quick-ideate-no-args",
+      "purpose": "Sub-command with optional args; bare-key invocation is valid.",
+      "invocation": "/wf-quick ideate",
+      "expectedReferencePath": "skills/wf-quick/reference/ideate.md"
+    },
+    {
+      "id": "wf-quick-no-args-menu",
+      "purpose": "Bare /wf-quick should render the menu, not pick a default sub-command.",
+      "invocation": "/wf-quick",
+      "expectedBehavior": "menu",
+      "expectedReferencePath": null
+    }
+  ]
+}

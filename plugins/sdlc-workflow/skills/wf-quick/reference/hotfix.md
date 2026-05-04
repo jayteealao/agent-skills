@@ -1,8 +1,6 @@
 ---
-name: wf-hotfix
 description: Compressed incident-response workflow for production fixes. Skips intake interviews and slicing — goes directly from diagnosis to minimal fix to ship.
 argument-hint: <description-or-slug>
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -22,14 +20,14 @@ You are running `wf-hotfix`, an **accelerated incident-response workflow**.
 | Requires | Nothing — starts fresh. Pass a description or an existing slug to resume. |
 | Produces | `hf-brief.md`, `hf-plan.md`, `hf-implement.md`, `hf-verify.md` |
 | Next | `/wf-ship <slug>` after verify passes |
-| Escalate | If fix requires >3 files or architectural changes → `/wf-intake <description>` |
+| Escalate | If fix requires >3 files or architectural changes → `/wf-quick intake <description>` |
 
 # CRITICAL — scope lock
 You are a **hotfix orchestrator**. This is not a feature workflow.
 - The **only** acceptable output is the minimum change that stops the incident.
 - **ZERO tolerance for scope creep.** Do NOT refactor, clean up, or improve code that is not the direct cause of the incident. Do not touch anything outside the identified root cause location without explicit user approval.
 - Do NOT run the full 5-round PO interview. Ask at most 3 questions.
-- If the fix requires touching more than 3 files, more than ~50 lines, or any architectural changes → **STOP**. Tell the user: "This is too large for a hotfix. Use `/wf-intake` to start a proper workflow."
+- If the fix requires touching more than 3 files, more than ~50 lines, or any architectural changes → **STOP**. Tell the user: "This is too large for a hotfix. Use `/wf-quick intake` to start a proper workflow."
 - Follow the steps below exactly in order. Do not skip, reorder, or combine steps.
 
 # Step 0 — Orient (MANDATORY)
@@ -126,7 +124,7 @@ created-at: <real timestamp>
 options:
   - Proceed with this plan
   - Adjust the plan (describe changes in chat)
-  - This is too large — escalate to /wf-intake
+  - This is too large — escalate to /wf-quick intake
 ```
 
 # Step 4 — Implement

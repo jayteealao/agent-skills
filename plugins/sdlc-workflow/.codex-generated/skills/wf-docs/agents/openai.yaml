@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Docs"
-  short_description: "Documentation audit and generation workflow. Discovers existing docs, audits them against the codebase and Diátaxis principles, plans what to create/update/remove, and generates using Diátaxis skills."
-  default_prompt: "Use $wf-docs for this workflow."
-policy:
-  allow_implicit_invocation: false
