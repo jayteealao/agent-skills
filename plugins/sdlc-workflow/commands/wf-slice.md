@@ -20,7 +20,7 @@ You are running `wf-slice`, **stage 3 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `01-intake.md`, `02-shape.md` |
-| Optional inputs | `02b-design.md` (design brief informs slice boundaries — states, edge cases, surfaces) |
+| Conditional inputs (mandatory when present) | `02b-design.md` (design brief — states, edge cases, surfaces MUST inform slice boundaries); `02c-craft.md` (visual contract — distinct visual surfaces in the mock fidelity inventory MUST be reflected in slice boundaries; see Step 0.5 for the per-surface justification escape hatch when surfaces are intentionally grouped) |
 | Produces | `03-slice.md` (master index) + `03-slice-<slice-slug>.md` per slice |
 | Next | `/wf-plan <slug> <best-first-slice>` (default) |
 | Alt | `/wf-plan <slug> all` to plan all slices in parallel |
@@ -41,8 +41,10 @@ You are a **workflow orchestrator**, not a problem solver.
    - If `02-shape.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open shape questions first.
    - If `current-stage` in the index is already past slice → WARN: "Stage 3 (slice) has already been completed. Running it again will overwrite slice files. Proceed?"
 4. **Read** `01-intake.md`, `02-shape.md`, and `po-answers.md`.
-5. **Read design brief if present** (optional):
-   - `02b-design.md` if it exists — extract the content inventory, state list (empty/error/loading/first-run), and visual direction. Slice boundaries should respect state transitions (e.g., empty state vs populated state may be separate slices) and visual surface boundaries (e.g., main view vs settings drawer).
+5. **Read design artifacts — mandatory when present** (file existence is optional; consumption is required):
+   - `02b-design.md` — **mandatory when present.** If the file exists, you MUST read it and slice boundaries MUST reflect its content. Extract the content inventory, state list (empty/error/loading/first-run), and visual direction. State transitions (e.g., empty state vs populated state) and visual surface boundaries (e.g., main view vs settings drawer) MUST inform slice boundaries — either each distinct state/surface gets its own slice, or the master `03-slice.md` `## Slice Strategy` MUST justify the grouping with one sentence per state/surface.
+   - `02c-craft.md` — **mandatory when present.** If the file exists, you MUST read it and the resulting slice boundaries MUST honor it. Extract the `## Mock fidelity inventory` and any per-surface notes. Distinct visual surfaces (e.g., card vs detail vs drawer) and signature interactions MUST be reflected as slice boundaries — either each surface gets its own slice, or the master `03-slice.md` `## Slice Strategy` MUST explicitly justify (with one sentence per surface) why surfaces were grouped into a shared slice. Do NOT re-decompose around token choices, motion specs, or implementation details — those belong to plan/implement. If 02c-craft introduces surfaces or states not present in the shape or 02b-design, surface that as an open question on the master index rather than silently expanding scope.
+   - If neither file exists, skip this step and proceed normally.
 6. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
 
 # Purpose
@@ -59,6 +61,7 @@ Break a shaped work item into thin, independently verifiable vertical slices. Wr
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
+- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 
 # Chat return contract
 After writing files, return ONLY:

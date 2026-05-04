@@ -20,7 +20,7 @@ You are running `wf-ship`, **stage 9 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `08-handoff.md` (recommended) or at minimum `05-implement.md` |
-| Optional inputs | `augmentations:` list in `00-index.md` (every augmentation type gets changelog entries — translated to user language per External Output Boundary) |
+| Conditional inputs (mandatory when present) | `augmentations:` list in `00-index.md` — every augmentation entry MUST get a changelog entry (translated to user language per External Output Boundary). The release notes are incomplete if any augmentation is omitted. |
 | Produces | `09-ship.md` |
 | Next | `/wf-retro <slug>` (if ready) or `/wf-implement <slug> <slice>` (if blockers need code changes) |
 
@@ -125,6 +125,7 @@ Assess release readiness, ask mandatory rollout questions, and define rollout pl
 - **Use AskUserQuestion** for multiple-choice PO questions (rollout strategy, merge strategy, go/no-go). Use freeform chat for open-ended questions (environment details, rollback tolerance, stakeholder requirements). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
+- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 
 # Chat return contract
 After writing files, return ONLY:

@@ -20,7 +20,7 @@ You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (recommended) |
-| Optional inputs | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `07-design-audit.md`, `07-design-critique.md`, `augmentations:` list in `00-index.md` |
+| Conditional inputs (mandatory when present) | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `07-design-audit.md`, `07-design-critique.md`, `augmentations:` list in `00-index.md` — every artifact that exists MUST be checked by the relevant review (e.g., 02c-craft.md anti-goals MUST be honored; 04b-instrument.md signals MUST be present; 05c-benchmark.md baseline MUST not regress; every augmentation MUST get a type-specific re-check). |
 | Produces | `07-review-<slice-slug>.md` + `07-review-<slice-slug>-<command>.md` per selected command (per-slice scoping — running review on a different slice does NOT overwrite a sibling slice's files) |
 | Next | `/wf-handoff <slug>` (if approved + all slices complete), `/wf-implement <slug> <slice>` (if bugs to fix), `/wf-plan <slug> <next-slice>` (if more slices remain), `/wf-amend <slug> from-review` (if spec was wrong), or `/wf-extend <slug> from-review` (if new scope needed) |
 
@@ -99,6 +99,7 @@ Intelligent review dispatch. Analyse the change set, select which of the 30 revi
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
+- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 
 # Chat return contract
 After writing files, return ONLY:

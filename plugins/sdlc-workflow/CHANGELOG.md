@@ -5,6 +5,35 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.31.0] - 2026-05-04
+
+### Changed
+
+- **No-optional-artifacts policy across the lifecycle.** Every stage's preamble table row historically titled `Optional inputs` was renamed to **`Conditional inputs (mandatory when present)`** across `wf-slice`, `wf-plan`, `wf-implement`, `wf-verify`, `wf-review`, `wf-handoff`, `wf-ship`, and `wf-retro`. A uniform new bullet was added to each command's `# Workflow rules` section: *"Conditional inputs are mandatory when present. If any file listed in the Conditional inputs row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut."*
+- **Per-row consumption text strengthened with explicit MUST language.** Where the prior wording was advisory (e.g., "design brief", "mock fidelity inventory becomes acceptance criteria"), each entry now binds the stage to specific behavior:
+  - `wf-implement`: 02b register/color strategy/anti-goals MUST be honored; 02c inventory items MUST be honored as acceptance criteria; 04b signals MUST be added to code; 04c flag/cohort wiring MUST be added; 05c baseline MUST NOT regress; every augmentation MUST be consumed per type.
+  - `wf-verify`: 02c mock fidelity inventory MUST be re-verified; 04b signals MUST fire; 04c flag/cohort/metrics MUST work; 05c compare-mode re-run REQUIRED; every augmentation MUST trigger a type-specific re-check.
+  - `wf-handoff`: every conditional artifact MUST contribute reviewer-visible context to the handoff package; the handoff is incomplete if any present artifact is omitted.
+  - `wf-review`: every present artifact MUST be checked by the relevant review (anti-goals, signals, baselines, augmentation re-checks).
+  - `wf-ship`: every augmentation entry MUST get a changelog entry; release notes are incomplete if any augmentation is omitted.
+  - `wf-retro`: every design artifact that exists on disk MUST be reflected in the retro.
+  - `wf-plan`: 02b visual surface scope and recommended references MUST be reflected in plan steps; 02c plan MUST include explicit steps to honor every mock fidelity inventory item.
+- **`wf-slice` now consumes `02c-craft.md`** (was missing entirely from slice's input list — an artifact of the canonical routing assumption that craft happens *after* slice/plan, even though the actual `wf-design` routing lets craft run anytime after `02b-design.md` exists). Slice now binds consumption of both `02b-design.md` AND `02c-craft.md`: distinct states (from 02b) and distinct visual surfaces (from 02c) MUST become slice boundaries, or the master `03-slice.md` `## Slice Strategy` MUST justify any grouping with one sentence per state/surface. Slice still does NOT re-decompose around token choices, motion specs, or implementation details — those remain plan/implement territory.
+
+### Added
+
+- **Scope-creep guardrail in `wf-slice`.** If `02c-craft.md` introduces surfaces or states not present in `02-shape.md` or `02b-design.md`, slice surfaces this as an open question on the master index rather than silently expanding the scope. Matches the existing CRITICAL discipline ("Do not silently broaden scope").
+
+### Why
+
+The "Optional inputs" framing across the lifecycle was overloaded: it meant *the file may not exist on disk*, but said nothing about what to do once it did. In practice the wording allowed silent omission — a stage could see `02c-craft.md` or `04b-instrument.md` on disk, ignore it, and emit a passing artifact that quietly diverged from the visual contract or instrumentation plan. Renaming the row to `Conditional inputs (mandatory when present)` and adding a uniform `# Workflow rules` clause splits the two concerns explicitly: **existence is optional; consumption is required.** This closes a class of contract drift that was hard to detect because no individual stage was technically violating its prior wording — the wording itself was the bug.
+
+### Notes
+
+- This is **not** a breaking change for workflows that lacked these artifacts. Stages without 02b/02c/04b/04c/05c/augmentations on disk behave identically to v8.30.x. The strengthened policy only takes effect when the artifacts are actually present.
+- The escape hatch for slicing intent is in the body, not the policy: where multiple states/surfaces share a slice, the master `03-slice.md` `## Slice Strategy` records the per-state/per-surface justification. This converts what would have been silent omission into deliberate, auditable consolidation.
+- Two stages were intentionally excluded from the rename: `wf-intake` and `wf-shape` have no Conditional inputs rows (intake is the entry point; shape consumes only intake as a Required input).
+
 ## [8.30.1] - 2026-05-03
 
 ### Added

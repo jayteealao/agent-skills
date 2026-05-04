@@ -20,7 +20,7 @@ You are running `wf-implement`, **stage 5 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | One of: (a) standard mode — `02-shape.md` + `04-plan-<slice-slug>.md` (or `04-plan.md` for single-scope); (b) compressed mode (`workflow-type: quick`) — `01-quick.md`; (c) forwarded mode (`workflow-type: rca` / `investigate`) — `02-shape.md` (synthesized) + optional `04-plan.md`. Other workflow-types (`hotfix`, `rf`, `dep-update`, `docs`) use their own implement commands. |
-| Optional inputs | `02b-design.md` (design brief), `02c-craft.md` (visual contract — mock fidelity inventory becomes acceptance criteria), `04b-instrument.md` (instrumentation signals to add), `04c-experiment.md` (feature flag/cohort wiring to add), `05c-benchmark.md` (baseline — do not regress), `augmentations:` list in `00-index.md` (every entry is consumed per type — see Step 0.7) |
+| Conditional inputs (mandatory when present) | `02b-design.md` (design brief — register, color strategy, anti-goals MUST be honored), `02c-craft.md` (visual contract — mock fidelity inventory items MUST be honored as acceptance criteria), `04b-instrument.md` (instrumentation signals MUST be added to the code), `04c-experiment.md` (feature flag/cohort wiring MUST be added), `05c-benchmark.md` (baseline — implementation MUST NOT regress), `augmentations:` list in `00-index.md` (every entry MUST be consumed per type — see Step 0.7) |
 | Produces | `05-implement-<slice-slug>.md` + updates `05-implement.md` master |
 | Next | `/wf-verify <slug> <slice-slug>` (default) |
 | Skip-to | `/wf-review <slug> <slice-slug>` if verification is trivial |
@@ -142,6 +142,7 @@ Implement one selected planned slice with the smallest coherent diff that fits t
 - **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
+- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 
 # Chat return contract
 After writing files, return ONLY:

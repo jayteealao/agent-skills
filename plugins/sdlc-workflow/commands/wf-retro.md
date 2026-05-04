@@ -20,7 +20,7 @@ You are running `wf-retro`, **stage 10 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `09-ship.md` (strongly recommended), plus as many prior stage files as exist |
-| Optional inputs | All design artifacts (`02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`) — already covered by "every stage file that exists" but call out explicitly: design decisions and augmentation outcomes are valid retro inputs |
+| Conditional inputs (mandatory when present) | All design artifacts (`02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`) — every artifact that exists on disk MUST be reflected in the retro. Design decisions and augmentation outcomes are first-class retro inputs, not optional commentary. |
 | Produces | `10-retro.md` |
 | Next | Workflow complete. No further stages. |
 
@@ -120,6 +120,7 @@ Extract reusable lessons and turn them into concrete improvements to prompts, ho
 - **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
+- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 
 # Chat return contract
 After writing files, return ONLY:

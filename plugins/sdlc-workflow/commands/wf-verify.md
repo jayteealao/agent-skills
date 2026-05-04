@@ -20,7 +20,7 @@ You are running `wf-verify`, **stage 6 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md` |
-| Optional inputs | `02c-craft.md` (mock fidelity inventory must be re-verified), `04b-instrument.md` (signals must fire), `04c-experiment.md` (flag/cohort/metrics must work), `05c-benchmark.md` baseline (compare-mode re-run), `augmentations:` list in `00-index.md` (every entry triggers a type-specific re-check — see Step 0.6) |
+| Conditional inputs (mandatory when present) | `02c-craft.md` (mock fidelity inventory MUST be re-verified), `04b-instrument.md` (signals MUST fire), `04c-experiment.md` (flag/cohort/metrics MUST work), `05c-benchmark.md` baseline (compare-mode re-run REQUIRED), `augmentations:` list in `00-index.md` (every entry MUST trigger a type-specific re-check — see Step 0.6) |
 | Produces | `06-verify-<slice-slug>.md` + updates `06-verify.md` master |
 | Next | `/wf-review <slug> <selected-slice>` (if passing) or `/wf-implement <slug> <selected-slice>` (if fixes needed) |
 | Skip-to | `/wf-handoff <slug> <slice>` if review is unnecessary (solo project, trivial change, already peer-reviewed externally) |
@@ -261,6 +261,7 @@ Verify that the selected slice meets acceptance criteria and is ready for review
 - **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
+- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 
 # Chat return contract
 After writing files, return ONLY:

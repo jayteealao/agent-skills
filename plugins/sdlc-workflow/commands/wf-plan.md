@@ -20,7 +20,7 @@ You are running `wf-plan`, **stage 4 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `02-shape.md`, `03-slice.md` + `03-slice-<slice-slug>.md` (if slices exist) |
-| Optional inputs | `02b-design.md` (visual surface scope, recommended references), `02c-craft.md` (visual contract — plan must include steps to honor mock fidelity inventory and implementation contract) |
+| Conditional inputs (mandatory when present) | `02b-design.md` (visual surface scope and recommended references MUST be reflected in plan steps), `02c-craft.md` (visual contract — plan MUST include explicit steps to honor every mock fidelity inventory item and the implementation contract) |
 | Produces | `04-plan.md` (master) + `04-plan-<slice-slug>.md` per planned slice |
 | Next | `/wf-implement <slug> <slice-slug>` (default) |
 | Skip-to | `/wf-implement <slug> <slice-slug>` directly if plan is trivial |
@@ -235,6 +235,7 @@ After ALL slice sub-agents complete:
 - **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
+- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 
 # Chat return contract
 After writing files, return ONLY:

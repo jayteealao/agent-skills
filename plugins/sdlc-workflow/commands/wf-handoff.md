@@ -20,7 +20,7 @@ You are running `wf-handoff`, **stage 8 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `05-implement-<slice-slug>.md` AND `07-review-<slice-slug>.md` for every slice in scope (handoff aggregates one review per slice — there is no longer a single workflow-wide `07-review.md`) |
-| Optional inputs | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `augmentations:` list (every augmentation gets reviewer-visible context in the handoff package — translated to product/user language per External Output Boundary) |
+| Conditional inputs (mandatory when present) | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `augmentations:` list — each MUST contribute reviewer-visible context to the handoff package (translated to product/user language per External Output Boundary). The handoff is incomplete if any present artifact is omitted from the package. |
 | Produces | `08-handoff.md` — one document covering all complete slices (or one slice if explicitly scoped) |
 | Next | `/wf-ship <slug>` (default) |
 | Skip-to | `/wf-retro <slug>` if shipping is handled externally or not applicable |
@@ -82,6 +82,7 @@ Turn the completed and reviewed work into a PR-ready handoff package with review
 - **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
+- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 
 # Chat return contract
 After writing files, return ONLY:
