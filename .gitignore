@@ -17,3 +17,10 @@ Thumbs.db
 
 # Scratch / reference repos
 .scratch/
+plugins/sdlc-workflow/INVESTIGATIVE-COMMANDS-PLAN.md
+plugins/sdlc-workflow/MATTPOCOCK-LEARNINGS.md
+plugins/sdlc-workflow/WF-DESIGN-UNIFIED-PLAN.md
+
+# Node
+node_modules/
+plugins/sdlc-workflow/tests/transcripts/

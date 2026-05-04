@@ -1,0 +1,10 @@
+# Enforce LF for all text files in this plugin so the migration-manifest.json
+# body hashes verify identically on Windows and Linux. Without this, a Windows
+# clone with core.autocrlf=true would get CRLF in the working tree and the
+# verifier would compare manifest LF-hashes against CRLF bodies.
+* text=auto eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+*.sh text eol=lf

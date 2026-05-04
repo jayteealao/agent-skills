@@ -5,6 +5,22 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.32.0] - 2026-05-04
+
+### Changed
+
+- **`/review` is now a router** (PR-1 of the router-migration plan in `ROUTER-MIGRATION-PLAN.md`). The 7 aggregate review commands (`/review-all`, `/review-architecture`, `/review-infra`, `/review-pre-merge`, `/review-quick`, `/review-security`, `/review-ux`) and the 31 per-dimension review commands (`/review:accessibility` … `/review:ux-copy`) collapse into a single `/review` command backed by reference files in `skills/review/reference/`.
+  - **New invocation forms.** `/review <dimension>` runs a per-dimension review (e.g. `/review security pr 123`). `/review pass <aggregate>` runs a multi-dimension aggregate (e.g. `/review pass architecture worktree`). The `pass` keyword disambiguates the three names that exist as both a dimension and an aggregate (`architecture`, `infra`, `security`).
+  - **All 38 old commands continue to work as before.** Each old command file at its original path was replaced with a 10-line pinned shim that redirects to the new router invocation. `/review-architecture worktree`, `/review:security pr 123`, etc. invoke the router under the hood. Existing docs, macros, and muscle memory are unaffected.
+  - **Body preservation guarantee.** Each reference file's body is byte-equal to the corresponding old command's body. The migrator records each body's SHA-256 in `skills/review/migration-manifest.json`, and `scripts/verify-router-migration.mjs` checks every body and shim frontmatter against that manifest. The check runs in CI on every PR touching `commands/` or `skills/`.
+  - **New scripts.** `scripts/migrate-review.mjs` (one-shot relocator), `scripts/router-shim.mjs` (reusable shim generator, adapted from impeccable's `pin.mjs`), `scripts/verify-router-migration.mjs` (Layer 1 static-equivalence verifier), `scripts/replay-fixtures.mjs` (Layer 2 behavioral-equivalence harness using the Claude Agent SDK).
+  - **GitHub Action.** `.github/workflows/verify-router-migration.yml` runs the verifier on every PR.
+  - **Rationale.** Generalizes the `wf-design` consolidation already shipped in v8.27 to the rest of the plugin's command surface. PR-1 replaces 38 user-facing slash commands with 1 router + 38 thin shims. Subsequent PRs (per the migration plan) collapse `/wf-quick`, `/wf-meta`, and `/wf` lifecycle commands the same way. End-state surface drops from ~73 user-invocable commands to ~5 routers + thin shims; users with old muscle memory keep working unaffected via the shims.
+
+### Why
+
+Slash-menu pollution was load-bearing pain: 73 sdlc-workflow commands shared the global `/`-namespace alongside every other plugin's commands, each one auto-loaded into context every session. The impeccable plugin proved the router pattern (1 trigger surface, references loaded on demand, redirect shims for backwards compat); `wf-design` shipped the same pattern in this plugin at v8.27. PR-1 is the second router (and the larger payoff per PR — 38 → 1 vs wf-design's 22 → 1). The migration is provably non-semantic at the body level; the verifier reduces to byte-comparison against a recorded manifest.
+
 ## [8.31.0] - 2026-05-04
 
 ### Changed

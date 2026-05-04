@@ -1,0 +1,26 @@
+name: Verify router migration
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/sdlc-workflow/commands/**'
+      - 'plugins/sdlc-workflow/skills/**'
+      - 'plugins/sdlc-workflow/scripts/verify-router-migration.mjs'
+      - 'plugins/sdlc-workflow/scripts/router-shim.mjs'
+      - '.github/workflows/verify-router-migration.yml'
+  push:
+    branches: [master, main]
+    paths:
+      - 'plugins/sdlc-workflow/commands/**'
+      - 'plugins/sdlc-workflow/skills/**'
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Verify router migration (Layer 1 static equivalence)
+        run: node plugins/sdlc-workflow/scripts/verify-router-migration.mjs

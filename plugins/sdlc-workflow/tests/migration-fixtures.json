@@ -1,0 +1,42 @@
+{
+  "router": "/review",
+  "description": "Layer 2 behavioral-equivalence fixtures for the /review router (PR-1).",
+  "fixtures": [
+    {
+      "id": "review-security-pr",
+      "purpose": "Per-dimension review via the new router; happy path.",
+      "old": "/review:security pr 123",
+      "new": "/review security pr 123",
+      "expectedReadAtMostOneExtra": "skills/review/reference/security.md"
+    },
+    {
+      "id": "review-aggregate-architecture",
+      "purpose": "Aggregate that name-collides with a dimension; must reach the aggregate, not the dimension.",
+      "old": "/review-architecture worktree",
+      "new": "/review pass architecture worktree",
+      "expectedReadAtMostOneExtra": "skills/review/reference/_aggregate-architecture.md"
+    },
+    {
+      "id": "review-aggregate-all",
+      "purpose": "Aggregate with no name collision; both `/review all` and `/review pass all` should resolve.",
+      "old": "/review-all",
+      "new": "/review pass all",
+      "expectedReadAtMostOneExtra": "skills/review/reference/_aggregate-all.md"
+    },
+    {
+      "id": "review-correctness-file",
+      "purpose": "Per-dimension review with file-scope target.",
+      "old": "/review:correctness file src/payments/charge.ts",
+      "new": "/review correctness file src/payments/charge.ts",
+      "expectedReadAtMostOneExtra": "skills/review/reference/correctness.md"
+    },
+    {
+      "id": "review-no-args-menu",
+      "purpose": "No-arg invocation should render the menu and ask, not pick a default.",
+      "old": "/review-quick",
+      "new": "/review",
+      "expectedBehavior": "menu",
+      "expectedReadAtMostOneExtra": null
+    }
+  ]
+}
