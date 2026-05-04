@@ -454,7 +454,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-supply-chain-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:supply-chain
+command: /review supply-chain
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -1466,7 +1466,7 @@ The goal is to secure the supply chain without blocking legitimate work.
 
 # WHEN TO USE
 
-Run `/review:supply-chain` when:
+Run `/review supply-chain` when:
 - Before merging dependency changes
 - Before releases (comprehensive check)
 - After security incidents (verify fixes)

@@ -335,7 +335,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-testing-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:testing
+command: /review testing
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -1098,7 +1098,7 @@ The goal is reliable test coverage that catches bugs without flakiness.
 
 # WHEN TO USE
 
-Run `/review:testing` when:
+Run `/review testing` when:
 - Before merging features (verify tests exist)
 - After bug fixes (ensure regression tests added)
 - When CI is flaky (identify flakiness sources)

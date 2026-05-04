@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Dx"
-  short_description: "Review developer experience - make the project easier to build, run, debug, and contribute to"
-  default_prompt: "Use $review-dx for this workflow."
-policy:
-  allow_implicit_invocation: false

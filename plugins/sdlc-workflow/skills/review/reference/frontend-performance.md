@@ -762,7 +762,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-frontend-performance-<YYYY-MM-DD>.
 
 ```markdown
 ---
-command: /review:frontend-performance
+command: /review frontend-performance
 session_slug: <SESSION_SLUG>
 scope: <SCOPE>
 target: <TARGET>

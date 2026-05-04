@@ -346,7 +346,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-maintainability-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:maintainability
+command: /review maintainability
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -1205,7 +1205,7 @@ The goal is to ship maintainable code, not to achieve perfect architecture.
 
 # WHEN TO USE
 
-Run `/review:maintainability` when:
+Run `/review maintainability` when:
 - Before merging features (catch mixed concerns early)
 - After refactors (verify improvement)
 - When code reviews mention "hard to follow"

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Ci"
-  short_description: "Review CI/CD pipelines for security, correctness, and deployment safety"
-  default_prompt: "Use $review-ci for this workflow."
-policy:
-  allow_implicit_invocation: false

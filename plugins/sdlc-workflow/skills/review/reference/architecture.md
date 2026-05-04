@@ -632,7 +632,7 @@ For HIGH and BLOCKER findings:
 
 ## Step 8: Generate review report
 
-Create `.claude/<SESSION_SLUG>/reviews/review-architecture-{YYYY-MM-DD}.md`
+Create `.claude/<SESSION_SLUG>/reviews/review sweep architecture-{YYYY-MM-DD}.md`
 
 ## Step 9: Update session README
 
@@ -644,11 +644,11 @@ Print summary with critical findings.
 
 # OUTPUT FORMAT
 
-Create `.claude/<SESSION_SLUG>/reviews/review-architecture-{YYYY-MM-DD}.md`:
+Create `.claude/<SESSION_SLUG>/reviews/review sweep architecture-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:architecture
+command: /review architecture
 session_slug: {SESSION_SLUG}
 scope: {SCOPE}
 target: {TARGET}
@@ -787,7 +787,7 @@ After creating review, print:
 # Architecture Review Complete
 
 ## Review Location
-Saved to: `.claude/{SESSION_SLUG}/reviews/review-architecture-{YYYY-MM-DD}.md`
+Saved to: `.claude/{SESSION_SLUG}/reviews/review sweep architecture-{YYYY-MM-DD}.md`
 
 ## Merge Recommendation
 **{BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS}**

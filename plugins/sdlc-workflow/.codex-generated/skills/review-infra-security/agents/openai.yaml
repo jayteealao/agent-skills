@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Infra Security"
-  short_description: "Review infrastructure code for security issues in IAM, networking, secrets, and configuration"
-  default_prompt: "Use $review-infra-security for this workflow."
-policy:
-  allow_implicit_invocation: false

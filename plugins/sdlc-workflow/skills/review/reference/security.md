@@ -505,7 +505,7 @@ For each vulnerability:
 
 ## Step 8: Generate review report
 
-Create `.claude/<SESSION_SLUG>/reviews/review-security-{YYYY-MM-DD}.md`
+Create `.claude/<SESSION_SLUG>/reviews/review sweep security-{YYYY-MM-DD}.md`
 
 ## Step 9: Update session README
 
@@ -517,11 +517,11 @@ Print summary with critical vulnerabilities.
 
 # OUTPUT FORMAT
 
-Create `.claude/<SESSION_SLUG>/reviews/review-security-{YYYY-MM-DD}.md`:
+Create `.claude/<SESSION_SLUG>/reviews/review sweep security-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:security
+command: /review security
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -1563,7 +1563,7 @@ After creating review, print:
 # Security Review Complete
 
 ## Review Location
-Saved to: `.claude/{SESSION_SLUG}/reviews/review-security-{YYYY-MM-DD}.md`
+Saved to: `.claude/{SESSION_SLUG}/reviews/review sweep security-{YYYY-MM-DD}.md`
 
 ## Merge Recommendation
 **{BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS}**
@@ -1638,7 +1638,7 @@ The goal is to ship secure code, not to achieve a perfect security score.
 
 # WHEN TO USE
 
-Run `/review:security` when:
+Run `/review security` when:
 - Before merging features (especially auth, data handling)
 - Before releases (comprehensive security check)
 - After security incidents (verify fixes)

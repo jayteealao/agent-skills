@@ -1,310 +1,113 @@
 {
-  "router": "/review",
-  "description": "Code review router. Per-dimension reviews (security, correctness, ...) plus 7 aggregates (all, architecture, infra, pre-merge, quick, security, ux).",
-  "shims": [
-    {
-      "oldPath": "commands/review-all.md",
-      "subcommand": "pass all",
-      "kind": "aggregate",
-      "key": "all",
-      "description": "Comprehensive code review covering all 30 review dimensions — correctness, security, architecture, infrastructure, quality, and UX — in a single thorough pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-architecture.md",
-      "subcommand": "pass architecture",
-      "kind": "aggregate",
-      "key": "architecture",
-      "description": "Architecture review covering design quality, performance, scalability, and API contracts in a single pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-infra.md",
-      "subcommand": "pass infra",
-      "kind": "aggregate",
-      "key": "infra",
-      "description": "Infrastructure review covering deployment config, CI/CD, release management, migrations, logging, and observability in a single pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-pre-merge.md",
-      "subcommand": "pass pre-merge",
-      "kind": "aggregate",
-      "key": "pre-merge",
-      "description": "Pre-merge code review covering correctness, testing, security, refactor safety, and maintainability",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-quick.md",
-      "subcommand": "pass quick",
-      "kind": "aggregate",
-      "key": "quick",
-      "description": "Quick code review covering correctness, style consistency, developer experience, UX copy, and overengineering in a single pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-security.md",
-      "subcommand": "pass security",
-      "kind": "aggregate",
-      "key": "security",
-      "description": "Security-focused review covering vulnerabilities, privacy, infra security, data integrity, and supply chain in a single pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-ux.md",
-      "subcommand": "pass ux",
-      "kind": "aggregate",
-      "key": "ux",
-      "description": "UX review covering accessibility, frontend accessibility, frontend performance, and UX copy in a single pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/accessibility.md",
-      "subcommand": "accessibility",
-      "kind": "dimension",
-      "key": "accessibility",
-      "description": "Review UI changes for keyboard and assistive technology usability, avoid ARIA misuse",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/api-contracts.md",
-      "subcommand": "api-contracts",
-      "kind": "dimension",
-      "key": "api-contracts",
-      "description": "Review API contracts for stability, correctness, and usability for consumers",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/architecture.md",
-      "subcommand": "architecture",
-      "kind": "dimension",
-      "key": "architecture",
-      "description": "Review code for architectural issues including boundaries, dependencies, and layering",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/backend-concurrency.md",
-      "subcommand": "backend-concurrency",
-      "kind": "dimension",
-      "key": "backend-concurrency",
-      "description": "Review backend code for race conditions, atomicity violations, locking issues, and idempotency bugs",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/ci.md",
-      "subcommand": "ci",
-      "kind": "dimension",
-      "key": "ci",
-      "description": "Review CI/CD pipelines for security, correctness, and deployment safety",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/code-simplification.md",
-      "subcommand": "code-simplification",
-      "kind": "dimension",
-      "key": "code-simplification",
-      "description": "Review code for missed reuse, quality issues, and inefficiencies — the three simplification lenses",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/correctness.md",
-      "subcommand": "correctness",
-      "kind": "dimension",
-      "key": "correctness",
-      "description": "Review code for logic flaws, broken invariants, edge-case failures, and correctness issues",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/cost.md",
-      "subcommand": "cost",
-      "kind": "dimension",
-      "key": "cost",
-      "description": "Review code for changes that increase cloud infrastructure costs",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/data-integrity.md",
-      "subcommand": "data-integrity",
-      "kind": "dimension",
-      "key": "data-integrity",
-      "description": "Review data integrity - ensure stored data remains correct over time, across failures, retries, and concurrent writes",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/docs.md",
-      "subcommand": "docs",
-      "kind": "dimension",
-      "key": "docs",
-      "description": "Review documentation completeness and accuracy for behavior/config/API changes",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/dx.md",
-      "subcommand": "dx",
-      "kind": "dimension",
-      "key": "dx",
-      "description": "Review developer experience - make the project easier to build, run, debug, and contribute to",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/frontend-accessibility.md",
-      "subcommand": "frontend-accessibility",
-      "kind": "dimension",
-      "key": "frontend-accessibility",
-      "description": "Review frontend code for accessibility issues in modern SPAs (React, Vue, Angular)",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/frontend-performance.md",
-      "subcommand": "frontend-performance",
-      "kind": "dimension",
-      "key": "frontend-performance",
-      "description": "Review frontend changes for bundle size, rendering efficiency, and user-perceived latency",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/infra-security.md",
-      "subcommand": "infra-security",
-      "kind": "dimension",
-      "key": "infra-security",
-      "description": "Review infrastructure code for security issues in IAM, networking, secrets, and configuration",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/infra.md",
-      "subcommand": "infra",
-      "kind": "dimension",
-      "key": "infra",
-      "description": "Review infrastructure and deployment config for safety, least privilege, and operational clarity",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/logging.md",
-      "subcommand": "logging",
-      "kind": "dimension",
-      "key": "logging",
-      "description": "Review logging for secrets exposure, PII leaks, wide-event patterns, and query-optimized observability",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/maintainability.md",
-      "subcommand": "maintainability",
-      "kind": "dimension",
-      "key": "maintainability",
-      "description": "Review code for long-term readability, ease of change, and reduced change amplification",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/migrations.md",
-      "subcommand": "migrations",
-      "kind": "dimension",
-      "key": "migrations",
-      "description": "Review database migrations for safety, compatibility, and operability in production",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/observability.md",
-      "subcommand": "observability",
-      "kind": "dimension",
-      "key": "observability",
-      "description": "Review observability completeness - logs, metrics, tracing, error reporting, alertability, and runbook hooks",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/overengineering.md",
-      "subcommand": "overengineering",
-      "kind": "dimension",
-      "key": "overengineering",
-      "description": "Review code for unnecessary complexity, abstractions, and YAGNI violations",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/performance.md",
-      "subcommand": "performance",
-      "kind": "dimension",
-      "key": "performance",
-      "description": "Review code for algorithmic and system-level performance issues",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/privacy.md",
-      "subcommand": "privacy",
-      "kind": "dimension",
-      "key": "privacy",
-      "description": "Review data handling for PII collection, storage, transmission, and privacy compliance",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/refactor-safety.md",
-      "subcommand": "refactor-safety",
-      "kind": "dimension",
-      "key": "refactor-safety",
-      "description": "Hunt semantic drift in refactors to ensure behavior equivalence and prevent subtle bugs",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/release.md",
-      "subcommand": "release",
-      "kind": "dimension",
-      "key": "release",
-      "description": "Review changes for safe shipping with clear versioning, rollout, migration, and rollback plans",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/reliability.md",
-      "subcommand": "reliability",
-      "kind": "dimension",
-      "key": "reliability",
-      "description": "Review code for reliability, failure modes, and operational safety under partial outages",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/scalability.md",
-      "subcommand": "scalability",
-      "kind": "dimension",
-      "key": "scalability",
-      "description": "Review code for scalability issues under higher load, larger datasets, and more tenants",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/security.md",
-      "subcommand": "security",
-      "kind": "dimension",
-      "key": "security",
-      "description": "Review code for vulnerabilities, insecure defaults, and missing security controls",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/style-consistency.md",
-      "subcommand": "style-consistency",
-      "kind": "dimension",
-      "key": "style-consistency",
-      "description": "Enforce consistency with existing codebase style and language idioms to reduce cognitive load",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/supply-chain.md",
-      "subcommand": "supply-chain",
-      "kind": "dimension",
-      "key": "supply-chain",
-      "description": "Review dependency and build integrity risks, lockfiles, build scripts, and artifact provenance",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/testing.md",
-      "subcommand": "testing",
-      "kind": "dimension",
-      "key": "testing",
-      "description": "Review test quality, coverage, and reliability to ensure changes are well-verified",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/ux-copy.md",
-      "subcommand": "ux-copy",
-      "kind": "dimension",
-      "key": "ux-copy",
-      "description": "Review user-facing text for clarity, consistency, actionability, and helpful error recovery",
-      "argumentHint": "[scope] [target]"
-    }
-  ]
+  "skill": "review",
+  "description": "Code review skill. 31 per-dimension reviews (correctness, security, performance, ...) plus 7 named multi-dimension sweeps (each dispatches one sub-agent per dimension in its composition). Single dimension: /review <dim>. Sweep: /review sweep <aggregate>.",
+  "dimensions": [
+    "accessibility",
+    "api-contracts",
+    "architecture",
+    "backend-concurrency",
+    "ci",
+    "code-simplification",
+    "correctness",
+    "cost",
+    "data-integrity",
+    "docs",
+    "dx",
+    "frontend-accessibility",
+    "frontend-performance",
+    "infra-security",
+    "infra",
+    "logging",
+    "maintainability",
+    "migrations",
+    "observability",
+    "overengineering",
+    "performance",
+    "privacy",
+    "refactor-safety",
+    "release",
+    "reliability",
+    "scalability",
+    "security",
+    "style-consistency",
+    "supply-chain",
+    "testing",
+    "ux-copy"
+  ],
+  "aggregates": {
+    "all": [
+      "accessibility",
+      "api-contracts",
+      "architecture",
+      "backend-concurrency",
+      "ci",
+      "code-simplification",
+      "correctness",
+      "cost",
+      "data-integrity",
+      "docs",
+      "dx",
+      "frontend-accessibility",
+      "frontend-performance",
+      "infra",
+      "infra-security",
+      "logging",
+      "maintainability",
+      "migrations",
+      "observability",
+      "overengineering",
+      "performance",
+      "privacy",
+      "refactor-safety",
+      "release",
+      "reliability",
+      "scalability",
+      "security",
+      "style-consistency",
+      "supply-chain",
+      "testing",
+      "ux-copy"
+    ],
+    "architecture": [
+      "architecture",
+      "performance",
+      "scalability",
+      "api-contracts"
+    ],
+    "infra": [
+      "infra",
+      "ci",
+      "release",
+      "migrations",
+      "logging",
+      "observability"
+    ],
+    "pre-merge": [
+      "correctness",
+      "testing",
+      "security",
+      "refactor-safety",
+      "maintainability"
+    ],
+    "quick": [
+      "correctness",
+      "style-consistency",
+      "dx",
+      "ux-copy",
+      "overengineering"
+    ],
+    "security": [
+      "security",
+      "privacy",
+      "infra-security",
+      "data-integrity",
+      "supply-chain"
+    ],
+    "ux": [
+      "accessibility",
+      "frontend-accessibility",
+      "frontend-performance",
+      "ux-copy"
+    ]
+  }
 }

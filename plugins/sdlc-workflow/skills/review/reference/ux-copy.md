@@ -865,7 +865,7 @@ grep -r "500\|404\|Exception\|Error:\|Failed:" --include="*.tsx"
 
 ## Step 9: Generate UX copy review report
 
-Create `.claude/<SESSION_SLUG>/reviews/review-ux-copy-<YYYY-MM-DD>.md` with:
+Create `.claude/<SESSION_SLUG>/reviews/review sweep ux-copy-<YYYY-MM-DD>.md` with:
 - Copy quality assessment
 - Terminology consistency analysis
 - Tone evaluation
@@ -875,7 +875,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-ux-copy-<YYYY-MM-DD>.md` with:
 ## Step 10: Update session README
 
 ```bash
-echo "- [UX Copy Review](reviews/review-ux-copy-$(date +%Y-%m-%d).md)" >> .claude/<SESSION_SLUG>/README.md
+echo "- [UX Copy Review](reviews/review sweep ux-copy-$(date +%Y-%m-%d).md)" >> .claude/<SESSION_SLUG>/README.md
 ```
 
 ## Step 11: Output summary
@@ -884,11 +884,11 @@ Print summary with critical copy issues and recommended improvements.
 
 # OUTPUT FORMAT
 
-Create `.claude/<SESSION_SLUG>/reviews/review-ux-copy-<YYYY-MM-DD>.md`:
+Create `.claude/<SESSION_SLUG>/reviews/review sweep ux-copy-<YYYY-MM-DD>.md`:
 
 ```markdown
 ---
-command: /review:ux-copy
+command: /review ux-copy
 session_slug: <SESSION_SLUG>
 scope: <SCOPE>
 target: <TARGET>
@@ -1286,7 +1286,7 @@ After creating the review file, print to console:
 # UX Copy Review Complete
 
 ## Review Location
-Saved to: `.claude/<SESSION_SLUG>/reviews/review-ux-copy-<YYYY-MM-DD>.md`
+Saved to: `.claude/<SESSION_SLUG>/reviews/review sweep ux-copy-<YYYY-MM-DD>.md`
 
 ## Merge Recommendation
 **<BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS>**

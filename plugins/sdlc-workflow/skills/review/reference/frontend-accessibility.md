@@ -1078,7 +1078,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-frontend-accessibility-{YYYY-MM-DD
 
 ```markdown
 ---
-command: /review:frontend-accessibility
+command: /review frontend-accessibility
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -1961,7 +1961,7 @@ Not generic HTML accessibility (heading structure, image alt text) - those are c
 
 # WHEN TO USE
 
-Run `/review:frontend-accessibility` when:
+Run `/review frontend-accessibility` when:
 - Before releases (WCAG compliance check)
 - After adding custom components (buttons, inputs, modals)
 - After form changes (validation, errors)

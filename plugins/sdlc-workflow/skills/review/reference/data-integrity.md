@@ -1101,7 +1101,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-data-integrity-<YYYY-MM-DD>.md`:
 
 ```markdown
 ---
-command: /review:data-integrity
+command: /review data-integrity
 session_slug: <SESSION_SLUG>
 scope: <SCOPE>
 target: <TARGET>

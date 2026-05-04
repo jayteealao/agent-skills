@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Maintainability"
-  short_description: "Review code for long-term readability, ease of change, and reduced change amplification"
-  default_prompt: "Use $review-maintainability for this workflow."
-policy:
-  allow_implicit_invocation: false

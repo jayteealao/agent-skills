@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Security"
-  short_description: "Security-focused review covering vulnerabilities, privacy, infra security, data integrity, and supply chain in a single pass"
-  default_prompt: "Use $review-security for this workflow."
-policy:
-  allow_implicit_invocation: false

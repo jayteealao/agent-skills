@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Reliability"
-  short_description: "Review code for reliability, failure modes, and operational safety under partial outages"
-  default_prompt: "Use $review-reliability for this workflow."
-policy:
-  allow_implicit_invocation: false

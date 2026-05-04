@@ -5,6 +5,53 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.0.0-alpha.1] - 2026-05-04
+
+### Removed (BREAKING)
+
+- **All 38 legacy `/review-*` and `/review:*` slash commands are deleted.** PR-1 (v8.32.0) introduced the `/review` router and kept the old commands alive as 10-line redirect shims for backwards compatibility. v9.0.0-alpha.1 removes the shims entirely. The deleted commands are:
+  - 7 aggregates: `/review-all`, `/review-architecture`, `/review-infra`, `/review-pre-merge`, `/review-quick`, `/review-security`, `/review-ux`
+  - 31 dimensions: `/review:accessibility`, `/review:api-contracts`, …, `/review:ux-copy` (all 31 named under `commands/review/`)
+- **`/review` slash command is also deleted.** The router file at `commands/review.md` is gone. All review work is now done by the `review` **skill** at `skills/review/SKILL.md`. Claude Code resolves `/review <args>` to the skill automatically when no command file exists at that path; the skill is also auto-triggered on review/audit requests via its description match.
+- **7 curated aggregate reference bodies deleted** (`skills/review/reference/_aggregate-*.md`, ~2,062 lines combined). These were standalone compressed-rubric review prompts (one per aggregate) — `_aggregate-quick.md` had its own 5 "Lenses" condensed-correctness/style/DX/UX/overengineering review, etc. Replaced by parallel sub-agent dispatch (see *Changed* below).
+- **All 38 stale `.codex-generated/skills/review-*/` mirrors deleted.** They reflected the legacy command surface; the Codex generator update (PR-5 of the router migration) will emit one `review` skill per router rather than per-dimension.
+- **Dead scripts deleted:** `scripts/router-shim.mjs`, `scripts/replay-fixtures.mjs`, `scripts/sdk-smoke.mjs`. Their PR-1 jobs (shim generation, baseline-vs-migrated transcript diff, OAuth smoke check) no longer apply.
+
+### Changed
+
+- **Skill-mode dispatch with parallel sub-agents for sweeps.** The `review` skill (`skills/review/SKILL.md`) is now the single entry point. Two modes:
+  - **Single-dimension** — `/review <dimension>` (e.g. `/review security pr 123`): the skill reads `reference/<dimension>.md` and runs the rubric inline. Behavior is the same as v8.32 single-dimension.
+  - **Sweep** — `/review sweep <aggregate>` (e.g. `/review sweep architecture worktree`): the skill resolves the aggregate's **composition** (a list of dimension keys) from `router-metadata.json`, then **dispatches one Task sub-agent per dimension in parallel** in a single assistant message. After all sub-agents return, the skill synthesizes their findings — deduplicating by (file:line + root cause), normalizing severity onto the canonical BLOCKER/HIGH/MED/LOW/NIT scale, triaging BLOCKER + HIGH with the user via `AskUserQuestion`, and writing the per-slice review artifacts (`07-review-<slice>-<dimension>.md` per dispatched dimension and `07-review-<slice>.md` for the master verdict) per the v8.30 contract.
+  - **Tradeoff:** sweep is more thorough than the v8.32 curated aggregate (each dimension runs its full rubric, not the compressed lens version) but more expensive (N LLM contexts vs one). Use single-dimension when the axis is known; use sweep for defensive breadth.
+- **`sweep` keyword replaces `pass`.** v8.32 used `/review pass <aggregate>` to disambiguate aggregate vs dimension on overlapping names (`architecture`, `infra`, `security`). v9.0.0-alpha.1 renames to `/review sweep <aggregate>`, signalling cost (parallel sub-agent dispatch) more honestly.
+- **Aggregate compositions are policy data.** `skills/review/router-metadata.json` carries an `aggregates: { <name>: [<dim>, …] }` map; editing the file is how you change which dimensions a sweep dispatches. The verifier rejects compositions that reference unknown dimensions.
+- **Compositions match the actual coverage of the deleted aggregate bodies**, not the README descriptions (which had drifted). For example, `quick` is `[correctness, style-consistency, dx, ux-copy, overengineering]` (matches `_aggregate-quick.md`'s 5 Lenses) — not `[correctness, security, testing]` as the old README claimed. The README has been updated to match.
+- **Reference body cross-references rewritten.** Instructions inside the dimension reference files previously said things like *"now run `/review-security`"* — body-byte-equal preservation from PR-1 carried this through. Bodies now use the new skill syntax (`/review security`, `/review sweep security`). The body-preservation invariant from PR-1 (each reference body byte-equal to the original command) is **intentionally retired**; the migration manifest tracks current-state hashes for drift detection rather than historical equivalence.
+- **`scripts/migrate-review.mjs` simplified.** Now rebuilds `migration-manifest.json` and `router-metadata.json` from current reference content. The PR-1 job of relocating bodies from `commands/` is complete and removed.
+- **`scripts/verify-router-migration.mjs` simplified and stricter.** Dropped Check 2 (shim coverage) since shims are gone. Added an **orphan reference scan** that walks every plugin `*.md` (outside the changelog/IDEAS allowlist) and fails CI if any legacy `/review-X` or `/review:X` string remains. The hash-based body integrity check (Check 1) and the metadata sanity check (Check 2 in the new ordering) remain.
+- **`scripts/verify-routing-resolution.mjs` simplified and generic.** Dropped the shim-redirect branch (no shims to redirect). Now takes `--router <key>` and loads the router file at runtime so PR-2/3/4 can reuse the script unchanged.
+- **`tests/migration-fixtures.json` simplified.** Each fixture now has a single `invocation` + `expectedReferencePath` instead of the PR-1 `old`/`new` pair.
+- **`router-metadata.json` schema simplified.** Replaces the PR-1 `shims` array (referencing deleted paths) with `aggregates: [...]` and `dimensions: [...]` lists keyed off the reference filenames.
+- **README's "Aggregate bundles" table rewritten** to use `/review pass <aggregate>` syntax. Review domains section reworded to use `/review <dimension>` syntax.
+
+### Added
+
+- **`scripts/rewrite-review-refs.mjs`** — one-off bulk rewriter that performed the body cross-reference migration described above. Idempotent; kept in tree as the audit trail.
+
+### Why a 9.0.0 major bump
+
+Removing the 38 shim commands is an API break for any downstream user with macros, docs, or muscle memory keyed off `/review-*` or `/review:*`. SemVer demands a major-version signal. The `-alpha.1` pre-release tag indicates the v9 line is not yet stable — PR-2 through PR-5 of `ROUTER-MIGRATION-PLAN.md` will land further breaking changes (collapsing `/wf-quick`, `/wf-meta`, and the `/wf` lifecycle) before v9.0.0 stable is cut.
+
+### Migration
+
+| Old invocation (any version ≤ v8.32) | New invocation (v9.0.0-alpha.1+) |
+|---|---|
+| `/review-all` (pre-v8.32) → `/review pass all` (v8.32) | `/review sweep all` |
+| `/review-{architecture,infra,pre-merge,quick,security,ux}` → `/review pass {…}` | `/review sweep {…}` |
+| `/review:<dimension>` (31 of them) → `/review <dimension>` (v8.32) | `/review <dimension>` (unchanged from v8.32) |
+
+`architecture`, `infra`, and `security` exist as both a dimension and an aggregate. `/review architecture` resolves to the dimension; use `/review sweep architecture` to reach the aggregate.
+
 ## [8.32.0] - 2026-05-04
 
 ### Changed

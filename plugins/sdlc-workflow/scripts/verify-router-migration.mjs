@@ -1,21 +1,21 @@
 #!/usr/bin/env node
 /**
- * Layer 1 static-equivalence verifier for the router migration.
+ * Layer 1 static-equivalence verifier for the /review skill (v9.0.0-alpha.1+).
  *
- * For each router that has a skills/<router>/migration-manifest.json, checks:
+ * For each router/skill that has a skills/<key>/migration-manifest.json, checks:
  *
- *   1. Body preservation:   skills/<router>/reference/<key>.md body matches
- *                           manifest entry's bodyHash (byte-equal to original).
- *   2. Shim coverage:       each manifest entry's oldPath exists, contains the
- *                           shim marker, and has identical description +
- *                           argument-hint to the manifest.
- *   3. Router resolves all keys: each shim entry's subcommand has a corresponding
- *                           reference file on disk.
- *   4. No orphaned references: any /<old-cmd> string in plugin docs resolves to
- *                           an existing shim, an existing router invocation, or
- *                           the changelog allowlist.
+ *   1. Body integrity:        skills/<key>/reference/<dim>.md body matches
+ *                             manifest entry's bodyHash. Catches silent drift.
+ *   2. Composition validity:  every aggregate listed in router-metadata.json
+ *                             references only dimensions that exist as a
+ *                             reference file. Sweeps cannot dispatch to a
+ *                             missing dimension key.
+ *   3. No orphaned references: any /<old-cmd> string in plugin docs resolves
+ *                             to a documented invocation, or to the changelog
+ *                             allowlist. Flags legacy /review-X, /review:X,
+ *                             and /review pass X usage.
  *
- * Exit code 0 = pass, 1 = fail. Prints a summary on completion.
+ * Exit code 0 = pass, 1 = fail.
  *
  * Usage:
  *   node plugins/sdlc-workflow/scripts/verify-router-migration.mjs
@@ -29,9 +29,9 @@ import { createHash } from 'node:crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..');
-const PIN_MARKER = '<!-- sdlc-workflow-pinned-shim -->';
+
 const ALLOWLIST_FILES = new Set([
-  // Files where references to old slash commands are intentional history (changelogs etc.)
+  // Files where references to old slash commands are intentional history.
   'CHANGELOG.md',
   'ROUTER-MIGRATION-PLAN.md',
   'WF-DESIGN-UNIFIED-PLAN.md',
@@ -44,8 +44,6 @@ const ALLOWLIST_FILES = new Set([
 ]);
 
 function sha256(s) {
-  // Normalize line endings before hashing so the manifest verifies identically
-  // across Windows (autocrlf=true) and Linux clones. The migrator does the same.
   const normalized = s.replace(/\r\n/g, '\n');
   return createHash('sha256').update(normalized, 'utf-8').digest('hex');
 }
@@ -56,24 +54,12 @@ function splitFrontmatter(text) {
   return { frontmatter: m[1], body: m[2] };
 }
 
-function readField(fm, key) {
-  const re = new RegExp(`^${key}\\s*:\\s*(.*)$`, 'm');
-  const m = fm.match(re);
-  if (!m) return null;
-  let v = m[1].trim();
-  if (v.startsWith('"') && v.endsWith('"')) {
-    try { return JSON.parse(v); } catch { return v.slice(1, -1); }
-  }
-  if (v.startsWith("'") && v.endsWith("'")) return v.slice(1, -1);
-  return v;
-}
-
 function discoverRouters() {
   const skillsDir = join(PLUGIN_ROOT, 'skills');
   if (!existsSync(skillsDir)) return [];
-  return readdirSync(skillsDir).filter((d) => {
-    return existsSync(join(skillsDir, d, 'migration-manifest.json'));
-  });
+  return readdirSync(skillsDir).filter((d) =>
+    existsSync(join(skillsDir, d, 'migration-manifest.json'))
+  );
 }
 
 function verifyRouter(routerKey) {
@@ -82,7 +68,7 @@ function verifyRouter(routerKey) {
   const manifest = JSON.parse(readFileSync(join(skillDir, 'migration-manifest.json'), 'utf-8'));
   const routerMeta = JSON.parse(readFileSync(join(skillDir, 'router-metadata.json'), 'utf-8'));
 
-  // Check 1: body preservation
+  // Check 1: body integrity
   for (const entry of manifest.entries) {
     const refAbs = join(PLUGIN_ROOT, entry.referencePath);
     if (!existsSync(refAbs)) {
@@ -100,62 +86,74 @@ function verifyRouter(routerKey) {
       failures.push(
         `[${routerKey}] body hash mismatch for ${entry.referencePath}\n` +
         `   expected: ${entry.bodyHash}\n` +
-        `   got:      ${actualHash}`,
+        `   got:      ${actualHash}\n` +
+        `   (re-run scripts/migrate-review.mjs if the body change was intentional)`,
       );
     }
   }
 
-  // Check 2: shim coverage
-  for (const shim of routerMeta.shims) {
-    const shimAbs = join(PLUGIN_ROOT, shim.oldPath);
-    if (!existsSync(shimAbs)) {
-      failures.push(`[${routerKey}] shim path missing: ${shim.oldPath}`);
+  // Check 2: composition validity — every aggregate references known dimensions
+  const dimSet = new Set(routerMeta.dimensions || []);
+  for (const [agg, composition] of Object.entries(routerMeta.aggregates || {})) {
+    if (!Array.isArray(composition)) {
+      failures.push(`[${routerKey}] aggregate "${agg}" composition is not an array`);
       continue;
     }
-    const shimContent = readFileSync(shimAbs, 'utf-8');
-    if (!shimContent.includes(PIN_MARKER)) {
-      failures.push(`[${routerKey}] not a shim (missing marker): ${shim.oldPath}`);
+    if (composition.length === 0) {
+      failures.push(`[${routerKey}] aggregate "${agg}" composition is empty`);
       continue;
     }
-    const split = splitFrontmatter(shimContent);
-    if (!split) {
-      failures.push(`[${routerKey}] shim has no frontmatter: ${shim.oldPath}`);
-      continue;
-    }
-    const desc = readField(split.frontmatter, 'description');
-    const hint = readField(split.frontmatter, 'argument-hint');
-    if (desc !== shim.description) {
-      failures.push(`[${routerKey}] shim description drift: ${shim.oldPath}\n   expected: ${JSON.stringify(shim.description).slice(0, 100)}\n   got:      ${JSON.stringify(desc).slice(0, 100)}`);
-    }
-    if (hint !== shim.argumentHint) {
-      failures.push(`[${routerKey}] shim argument-hint drift: ${shim.oldPath}\n   expected: ${shim.argumentHint}\n   got:      ${hint}`);
+    for (const d of composition) {
+      if (!dimSet.has(d)) {
+        failures.push(`[${routerKey}] aggregate "${agg}" references unknown dimension "${d}"`);
+      }
     }
   }
 
-  // Check 3: router resolves all keys
-  // For /review, each shim's key (with kind) should map to a reference file:
-  //   kind=aggregate -> reference/_aggregate-<key>.md
-  //   kind=dimension -> reference/<key>.md
-  const referenceFiles = new Set(readdirSync(join(skillDir, 'reference')));
-  for (const shim of routerMeta.shims) {
-    const expectedRef =
-      shim.kind === 'aggregate' ? `_aggregate-${shim.key}.md` : `${shim.key}.md`;
-    if (!referenceFiles.has(expectedRef)) {
-      failures.push(
-        `[${routerKey}] shim ${shim.oldPath} expects reference ${expectedRef} (not found)`,
-      );
+  // Check 3: leftover legacy aggregate reference files
+  const refFiles = readdirSync(join(skillDir, 'reference'));
+  for (const f of refFiles) {
+    if (f.startsWith('_aggregate-')) {
+      failures.push(`[${routerKey}] legacy aggregate reference present: ${f} (v9.0.0-alpha.1 removed these; delete and re-run migrator)`);
     }
   }
 
-  // Check 4: orphaned references in plugin docs
-  // (Light-touch: walk markdown files, look for slash commands that no longer resolve.)
-  // Skipped in this initial implementation — significant value but high noise during dev.
-  // Wired up but disabled by default; pass --strict to enable.
-  if (process.argv.includes('--strict')) {
-    // TODO: walk *.md, regex /\/(review-[a-z-]+|review\/[a-z-]+|wf-[a-z-]+)/, check resolves.
-    // For PR-1, deferred until /wf and /wf-quick land so the resolve set is complete.
-  }
+  return failures;
+}
 
+function findOrphanedReferences() {
+  // Walks all *.md files under the plugin tree and flags any references to
+  // legacy slash commands or keywords that no longer have a target.
+  const failures = [];
+  const legacyPatterns = [
+    // /review-<aggregate> with hyphen (pre-v8.32)
+    /\/review-(?:all|architecture|infra|pre-merge|quick|security|ux)\b/g,
+    // /review:<dimension> with colon (pre-v8.32)
+    /\/review:[a-z][a-z-]*/g,
+    // /review pass <aggregate> (v8.32 syntax, replaced by /review sweep in v9.0.0-alpha.1)
+    /\/review pass (?:all|architecture|infra|pre-merge|quick|security|ux)\b/g,
+  ];
+
+  function walk(dir) {
+    for (const name of readdirSync(dir, { withFileTypes: true })) {
+      if (name.isDirectory()) {
+        if (name.name === 'node_modules' || name.name === '.git' || name.name === '.codex-generated') continue;
+        walk(join(dir, name.name));
+      } else if (name.isFile() && name.name.endsWith('.md')) {
+        if (ALLOWLIST_FILES.has(name.name)) continue;
+        const path = join(dir, name.name);
+        const text = readFileSync(path, 'utf-8');
+        for (const re of legacyPatterns) {
+          re.lastIndex = 0;
+          let match;
+          while ((match = re.exec(text)) !== null) {
+            failures.push(`[orphan] ${path.replace(PLUGIN_ROOT, '<plugin>')}: "${match[0]}"`);
+          }
+        }
+      }
+    }
+  }
+  walk(PLUGIN_ROOT);
   return failures;
 }
 
@@ -176,12 +174,23 @@ function main() {
     const failures = verifyRouter(r);
     if (failures.length === 0) {
       const manifest = JSON.parse(readFileSync(join(PLUGIN_ROOT, 'skills', r, 'migration-manifest.json'), 'utf-8'));
-      console.log(`  PASS — ${manifest.entries.length} reference(s), all bodies + shims verified.`);
+      const meta = JSON.parse(readFileSync(join(PLUGIN_ROOT, 'skills', r, 'router-metadata.json'), 'utf-8'));
+      console.log(`  PASS — ${manifest.entries.length} dimension reference(s), ${Object.keys(meta.aggregates || {}).length} aggregate(s), all bodies + compositions verified.`);
     } else {
       console.log(`  FAIL — ${failures.length} issue(s):`);
       for (const f of failures) console.log(`    - ${f}`);
       totalFailures += failures.length;
     }
+  }
+
+  console.log(`\n== Orphan reference scan ==`);
+  const orphans = findOrphanedReferences();
+  if (orphans.length === 0) {
+    console.log(`  PASS — no legacy /review-X, /review:X, or /review pass X references outside allowlist.`);
+  } else {
+    console.log(`  FAIL — ${orphans.length} orphan(s):`);
+    for (const f of orphans) console.log(`    - ${f}`);
+    totalFailures += orphans.length;
   }
 
   console.log('');

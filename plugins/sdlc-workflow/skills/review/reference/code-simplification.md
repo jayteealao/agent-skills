@@ -170,7 +170,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-code-simplification-{YYYY-MM-DD}.m
 
 ```markdown
 ---
-command: /review:code-simplification
+command: /review code-simplification
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -357,7 +357,7 @@ Code is clean — proceed to next stage.
 
 # WHEN TO USE
 
-Run `/review:code-simplification` when:
+Run `/review code-simplification` when:
 - After any implementation (always included in `wf-review` dispatch)
 - When code feels "first-draft" and could be tightened
 - After fixing review findings (check if fixes introduced new complexity)

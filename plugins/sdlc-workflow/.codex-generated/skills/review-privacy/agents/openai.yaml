@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Privacy"
-  short_description: "Review data handling for PII collection, storage, transmission, and privacy compliance"
-  default_prompt: "Use $review-privacy for this workflow."
-policy:
-  allow_implicit_invocation: false

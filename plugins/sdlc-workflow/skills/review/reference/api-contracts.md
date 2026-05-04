@@ -663,7 +663,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-api-contracts-<YYYY-MM-DD>.md`:
 
 ```markdown
 ---
-command: /review:api-contracts
+command: /review api-contracts
 session_slug: <SESSION_SLUG>
 scope: <SCOPE>
 target: <TARGET>

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Refactor Safety"
-  short_description: "Hunt semantic drift in refactors to ensure behavior equivalence and prevent subtle bugs"
-  default_prompt: "Use $review-refactor-safety for this workflow."
-policy:
-  allow_implicit_invocation: false

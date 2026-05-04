@@ -825,9 +825,9 @@ Self-contained workflows with their own lifecycle that do not require an existin
 | `/wf-docs [slug\|--audit-only\|path]` | Discover, audit, and generate project documentation using Diátaxis skills | `.ai/docs/<run-id>/` |
 | `/wf-refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
 
-### Review domains (31 individual commands)
+### Review domains (31 dimensions)
 
-Available as standalone commands and dispatched automatically by `wf-review`:
+Invoke a single domain as `/review <dimension>` (skill auto-trigger or explicit `/review` invocation). Dispatched automatically by `wf-review` based on artifact analysis. The `review` skill body lives at [`skills/review/SKILL.md`](./skills/review/SKILL.md); each dimension's rubric is at `skills/review/reference/<dimension>.md`.
 
 **Always selected for any code change:** `correctness`, `security`, `code-simplification`
 
@@ -861,17 +861,17 @@ Available as standalone commands and dispatched automatically by `wf-review`:
 | `style-consistency` | Mixed naming conventions within a file or module |
 | `dx` | Developer-facing tooling, scripts, README |
 
-**Aggregate bundles (curated subsets):**
+**Multi-dimension sweeps:** `/review sweep <aggregate>` dispatches one parallel reviewer sub-agent per dimension in the aggregate's composition, then synthesizes a unified verdict. The `sweep` keyword disambiguates the three names (`architecture`, `infra`, `security`) that exist as both a dimension and an aggregate. Compositions live in [`skills/review/router-metadata.json`](./skills/review/router-metadata.json) and can be edited without code changes.
 
-| Command | What it covers |
+| Sweep | Dimensions dispatched in parallel |
 |---|---|
-| `/review-all` | Full sweep across all domains |
-| `/review-quick` | Fast check — correctness, security, testing |
-| `/review-pre-merge` | Pre-merge gate — correctness, security, testing, api-contracts, migrations |
-| `/review-security` | Security-focused — security, infra-security, supply-chain, privacy |
-| `/review-architecture` | Structure — architecture, scalability, maintainability, reliability |
-| `/review-infra` | Infrastructure — infra, infra-security, ci, cost, observability |
-| `/review-ux` | User experience — ux-copy, accessibility, frontend-accessibility, frontend-performance |
+| `/review sweep all` | All 31 dimensions (broadest, most expensive) |
+| `/review sweep quick` | correctness, style-consistency, dx, ux-copy, overengineering |
+| `/review sweep pre-merge` | correctness, testing, security, refactor-safety, maintainability |
+| `/review sweep security` | security, privacy, infra-security, data-integrity, supply-chain |
+| `/review sweep architecture` | architecture, performance, scalability, api-contracts |
+| `/review sweep infra` | infra, ci, release, migrations, logging, observability |
+| `/review sweep ux` | accessibility, frontend-accessibility, frontend-performance, ux-copy |
 
 ### Analysis skills
 

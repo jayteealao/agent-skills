@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Frontend Performance"
-  short_description: "Review frontend changes for bundle size, rendering efficiency, and user-perceived latency"
-  default_prompt: "Use $review-frontend-performance for this workflow."
-policy:
-  allow_implicit_invocation: false

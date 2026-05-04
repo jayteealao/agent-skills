@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Infra Focused"
-  short_description: "Review infrastructure and deployment config for safety, least privilege, and operational clarity"
-  default_prompt: "Use $review-infra-focused for this workflow."
-policy:
-  allow_implicit_invocation: false

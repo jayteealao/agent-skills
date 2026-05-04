@@ -1151,7 +1151,7 @@ For each issue:
 
 ## Step 8: Generate review report
 
-Create `.claude/<SESSION_SLUG>/reviews/review-infra-security-{YYYY-MM-DD}.md`
+Create `.claude/<SESSION_SLUG>/reviews/review sweep infra-security-{YYYY-MM-DD}.md`
 
 ## Step 9: Update session README
 
@@ -1163,11 +1163,11 @@ Print summary with critical misconfigurations.
 
 # OUTPUT FORMAT
 
-Create `.claude/<SESSION_SLUG>/reviews/review-infra-security-{YYYY-MM-DD}.md`:
+Create `.claude/<SESSION_SLUG>/reviews/review sweep infra-security-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:infra-security
+command: /review infra-security
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -1547,7 +1547,7 @@ After creating review, print:
 # Infrastructure Security Review Complete
 
 ## Review Location
-Saved to: `.claude/{SESSION_SLUG}/reviews/review-infra-security-{YYYY-MM-DD}.md`
+Saved to: `.claude/{SESSION_SLUG}/reviews/review sweep infra-security-{YYYY-MM-DD}.md`
 
 ## Security Posture
 **{SECURE | MOSTLY_SECURE | VULNERABLE | CRITICAL_ISSUES}**
@@ -1610,7 +1610,7 @@ The goal is to catch **"one misconfiguration = full breach"** issues before prod
 
 # WHEN TO USE
 
-Run `/review:infra-security` when:
+Run `/review infra-security` when:
 - Before production deployments (catch misconfigurations)
 - After infrastructure changes (IAM, networking, storage)
 - Before security audits (SOC 2, pen tests)

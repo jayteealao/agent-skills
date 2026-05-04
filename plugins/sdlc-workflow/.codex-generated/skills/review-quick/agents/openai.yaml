@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Quick"
-  short_description: "Quick code review covering correctness, style consistency, developer experience, UX copy, and overengineering in a single pass"
-  default_prompt: "Use $review-quick for this workflow."
-policy:
-  allow_implicit_invocation: false

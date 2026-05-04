@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Frontend Accessibility"
-  short_description: "Review frontend code for accessibility issues in modern SPAs (React, Vue, Angular)"
-  default_prompt: "Use $review-frontend-accessibility for this workflow."
-policy:
-  allow_implicit_invocation: false

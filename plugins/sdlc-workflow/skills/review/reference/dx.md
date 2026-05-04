@@ -1218,7 +1218,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-dx-<YYYY-MM-DD>.md`:
 
 ```markdown
 ---
-command: /review:dx
+command: /review dx
 session_slug: <SESSION_SLUG>
 scope: <SCOPE>
 target: <TARGET>

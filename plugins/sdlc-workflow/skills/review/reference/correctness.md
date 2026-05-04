@@ -335,7 +335,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-correctness-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:correctness
+command: /review correctness
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -995,7 +995,7 @@ The goal is to catch bugs before production, not to be pedantic about style.
 
 # WHEN TO USE
 
-Run `/review:correctness` when:
+Run `/review correctness` when:
 - Implementing critical logic (auth, payments, data mutations)
 - After bug fixes (verify edge cases are handled)
 - Before production deploys (catch crashes, data loss)

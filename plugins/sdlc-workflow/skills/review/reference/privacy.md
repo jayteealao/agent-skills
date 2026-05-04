@@ -483,7 +483,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-privacy-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:privacy
+command: /review privacy
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -1810,7 +1810,7 @@ The goal is to build trustworthy products that respect user privacy.
 
 # WHEN TO USE
 
-Run `/review:privacy` when:
+Run `/review privacy` when:
 - Before merging features that handle PII
 - Before releases (ensure compliance)
 - After privacy incidents (verify fixes)

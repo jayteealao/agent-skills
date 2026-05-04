@@ -318,7 +318,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-style-consistency-{YYYY-MM-DD}.md`
 
 ```markdown
 ---
-command: /review:style-consistency
+command: /review style-consistency
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -983,7 +983,7 @@ The goal is consistency for reduced cognitive load, not stylistic perfection.
 
 # WHEN TO USE
 
-Run `/review:style-consistency` when:
+Run `/review style-consistency` when:
 - Before merging features (catch style drift early)
 - Onboarding new contributors (teach conventions)
 - After external contributions (ensure consistency)

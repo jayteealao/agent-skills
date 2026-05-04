@@ -1,184 +1,144 @@
 {
-  "generatedAt": "2026-05-04T11:02:40.411Z",
+  "generatedAt": "2026-05-04T20:19:57.637Z",
   "entries": [
     {
-      "oldPath": "commands/review-all.md",
-      "referencePath": "skills/review/reference/_aggregate-all.md",
-      "bodyHash": "26b3fb03d4ccfc63d8bb119aac851f551ce9df7843e08bded0454601c249d953",
-      "bodyBytes": 37940,
-      "description": "Comprehensive code review covering all 30 review dimensions — correctness, security, architecture, infrastructure, quality, and UX — in a single thorough pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-architecture.md",
-      "referencePath": "skills/review/reference/_aggregate-architecture.md",
-      "bodyHash": "da11a05e77abf47652e1437acf0490e6e57f867b877df5a2b265baa7f5c7f032",
-      "bodyBytes": 16425,
-      "description": "Architecture review covering design quality, performance, scalability, and API contracts in a single pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-infra.md",
-      "referencePath": "skills/review/reference/_aggregate-infra.md",
-      "bodyHash": "db9ae1205d5932576d062c4d826342f5a0bbfa47754fc6da72f870c8e394833e",
-      "bodyBytes": 16548,
-      "description": "Infrastructure review covering deployment config, CI/CD, release management, migrations, logging, and observability in a single pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-pre-merge.md",
-      "referencePath": "skills/review/reference/_aggregate-pre-merge.md",
-      "bodyHash": "61dce35f476004e30783b7e40fdb75e5fb97c093450ed5fee79e1be3ce2f58d4",
-      "bodyBytes": 8144,
-      "description": "Pre-merge code review covering correctness, testing, security, refactor safety, and maintainability",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-quick.md",
-      "referencePath": "skills/review/reference/_aggregate-quick.md",
-      "bodyHash": "e9dd07bf2505512a4c5b6ae6a99fd4c0b3c311c5d7418374c0bc9cfc94d6a7b9",
-      "bodyBytes": 8461,
-      "description": "Quick code review covering correctness, style consistency, developer experience, UX copy, and overengineering in a single pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-security.md",
-      "referencePath": "skills/review/reference/_aggregate-security.md",
-      "bodyHash": "7965b37fa3c6087608aa0e612baf89924808c74456e5e4f5fe71742a0f41ca3d",
-      "bodyBytes": 14672,
-      "description": "Security-focused review covering vulnerabilities, privacy, infra security, data integrity, and supply chain in a single pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review-ux.md",
-      "referencePath": "skills/review/reference/_aggregate-ux.md",
-      "bodyHash": "2d11f2964553766d6bd6b336e02747c5f9f13518d7e315f4826e8415c020057d",
-      "bodyBytes": 19738,
-      "description": "UX review covering accessibility, frontend accessibility, frontend performance, and UX copy in a single pass",
-      "argumentHint": "[scope] [target]"
-    },
-    {
-      "oldPath": "commands/review/accessibility.md",
+      "key": "accessibility",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/accessibility.md",
-      "bodyHash": "57d012101bbbcbbaa412068dd82c4a48d703a22675243ebe56ca7b65b6a92779",
+      "bodyHash": "00c79b11d73212e779c82395d247c28cb1123050b151242a21976332cb75d1b1",
       "bodyBytes": 36734,
       "description": "Review UI changes for keyboard and assistive technology usability, avoid ARIA misuse",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/api-contracts.md",
+      "key": "api-contracts",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/api-contracts.md",
-      "bodyHash": "f6401578a4942653a25cad6a6b43fd9746a79b3cf51a06341d9cd1e1343d9d10",
+      "bodyHash": "98230a6b28242f683bae18574d5dc154849ce8d9ab2d38feac368d5fb7b87162",
       "bodyBytes": 23392,
       "description": "Review API contracts for stability, correctness, and usability for consumers",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/architecture.md",
+      "key": "architecture",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/architecture.md",
-      "bodyHash": "497370f9d0859bdd466ea541d081fb7e3c0af5996c5df053f2402be5ceee7729",
-      "bodyBytes": 23495,
+      "bodyHash": "ac371e5229b886fad52e04c5f00516e4bff6d68f08bfb4455962360549577437",
+      "bodyBytes": 23513,
       "description": "Review code for architectural issues including boundaries, dependencies, and layering",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/backend-concurrency.md",
+      "key": "backend-concurrency",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/backend-concurrency.md",
-      "bodyHash": "2191db6e2288ff5630bc9a3f0cbd9fe98f918ce72b157bf5ce9662d29a612b0d",
+      "bodyHash": "39c6c0f9ed2912ca70ea202aa8f04cb95facf2f87626a5d2bea5d4d7528e1169",
       "bodyBytes": 43112,
       "description": "Review backend code for race conditions, atomicity violations, locking issues, and idempotency bugs",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/ci.md",
+      "key": "ci",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/ci.md",
-      "bodyHash": "fb37dfb47a3159f3eb35432c6bcf2225aa1b1c2b79ae35971e4244468c602e03",
+      "bodyHash": "5a0689eec6b079c80f6e090ecb1db5667c50cf8b5cb3c2d1b5f42d40e2d556d5",
       "bodyBytes": 22239,
       "description": "Review CI/CD pipelines for security, correctness, and deployment safety",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/code-simplification.md",
+      "key": "code-simplification",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/code-simplification.md",
-      "bodyHash": "7d6cd747adc3cb87cc8fd0f3ab59778489415fe00399d34fab8a0ace3392c4ce",
+      "bodyHash": "0d7c6d043abdc0c50841169c5416e28198651b5c0f48edd290d0fc5c1c8521bc",
       "bodyBytes": 13283,
       "description": "Review code for missed reuse, quality issues, and inefficiencies — the three simplification lenses",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/correctness.md",
+      "key": "correctness",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/correctness.md",
-      "bodyHash": "ed6235fc2de497ed988cb76e4def4982e3e8b9bbcf9b56ab825620d61fe01d59",
+      "bodyHash": "afa2ce82f1b7ac2427423564cad1d4e21b0218eeca0791da04c582bbb34a4e5c",
       "bodyBytes": 29310,
       "description": "Review code for logic flaws, broken invariants, edge-case failures, and correctness issues",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/cost.md",
+      "key": "cost",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/cost.md",
-      "bodyHash": "5315eba7bcacfc0acbd03b95e985c20b50571056071069a4ceb9fe7873b2e933",
+      "bodyHash": "29fbcf36c1ec7732f0abd0847d21caf905cae62dac53afdefc73e8122e1fda46",
       "bodyBytes": 27055,
       "description": "Review code for changes that increase cloud infrastructure costs",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/data-integrity.md",
+      "key": "data-integrity",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/data-integrity.md",
-      "bodyHash": "0e6fbef723d2039998394286edcf65e3336f7a64f86e39c0897f397f604797f3",
+      "bodyHash": "d7dcdef83f4b3d8d69e2b27492f1ebed9955269dbcdd8a360cae9d7c3bd89878",
       "bodyBytes": 33464,
       "description": "Review data integrity - ensure stored data remains correct over time, across failures, retries, and concurrent writes",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/docs.md",
+      "key": "docs",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/docs.md",
-      "bodyHash": "3b05a96d6d2905adb5125ffa91b2354faa38af3def54c1ea17ed564cd4215120",
+      "bodyHash": "8656833e02340100572874428bebb077537827a2f23b59f38ae60f87a92c682a",
       "bodyBytes": 33239,
       "description": "Review documentation completeness and accuracy for behavior/config/API changes",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/dx.md",
+      "key": "dx",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/dx.md",
-      "bodyHash": "988d474ee344f124d0ab8d912c4b547b334d2284f03b45a82f0baeeab1cba599",
+      "bodyHash": "8979a3af37df1c32c3e6901952f9acfb49330c1b2a75a21150cbbbce272b9ac2",
       "bodyBytes": 36238,
       "description": "Review developer experience - make the project easier to build, run, debug, and contribute to",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/frontend-accessibility.md",
+      "key": "frontend-accessibility",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/frontend-accessibility.md",
-      "bodyHash": "7dc60f61e9f3dc8152cd34c75a418aca9dd563cc3bef16d301cf65fa240421a0",
+      "bodyHash": "f8f316cca82bb48396d4495e5b4a2ce65913df2177f055965154a52e59a9ee12",
       "bodyBytes": 52900,
       "description": "Review frontend code for accessibility issues in modern SPAs (React, Vue, Angular)",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/frontend-performance.md",
+      "key": "frontend-performance",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/frontend-performance.md",
-      "bodyHash": "62b20931f6b6670156cbdd66fc2f37b6b3dc2c5516e7067c72198f052ac1a033",
+      "bodyHash": "d674472f2423c87266ec85b09b5e8fa3e794fe592ebd917d1d90a60b54a641bd",
       "bodyBytes": 24707,
       "description": "Review frontend changes for bundle size, rendering efficiency, and user-perceived latency",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/infra-security.md",
+      "key": "infra-security",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/infra-security.md",
-      "bodyHash": "13c1c21f0cbd1541e659218dbb15298c9a5444ccb693ae474a3e6b0a439acec7",
-      "bodyBytes": 43278,
+      "bodyHash": "ba3fc4eb935ce6205cd6780072a451577b18707213bb91b6402e54870b458fd6",
+      "bodyBytes": 43296,
       "description": "Review infrastructure code for security issues in IAM, networking, secrets, and configuration",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/infra.md",
+      "key": "infra",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/infra.md",
-      "bodyHash": "f198f001d27e5398d1a3adc27023ce6f7bfc118d8edbb3012f355ff0d263338e",
-      "bodyBytes": 23090,
+      "bodyHash": "9a997f326feb92a244e709252aa8bf0d834e6fe7ba32e9083903c8e17d38ebc2",
+      "bodyBytes": 23108,
       "description": "Review infrastructure and deployment config for safety, least privilege, and operational clarity",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/logging.md",
+      "key": "logging",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/logging.md",
       "bodyHash": "9bce17e138c540c971417503ad66a0f230a19a4dafb4c780204fe27cd2d38e95",
       "bodyBytes": 33845,
@@ -186,23 +146,26 @@
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/maintainability.md",
+      "key": "maintainability",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/maintainability.md",
-      "bodyHash": "2486bb46693659fc7a9e148a5bd63fbba653fd4c09f4dcb6f7d666f0fa3f60d1",
+      "bodyHash": "49925ca0ca43f1746298d101288e36cd08aa2ddb891a0a356bb8ef0e2b3fc843",
       "bodyBytes": 35719,
       "description": "Review code for long-term readability, ease of change, and reduced change amplification",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/migrations.md",
+      "key": "migrations",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/migrations.md",
-      "bodyHash": "0bb3539a18495d17a779c6a4c978812e045e633187c5598cebd3ce7b4a0e5fac",
+      "bodyHash": "b7420aa4a4f26622fdcb183d8ec8ae1a49ff6cfaca72d45f3a55e6b71fc25c86",
       "bodyBytes": 21570,
       "description": "Review database migrations for safety, compatibility, and operability in production",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/observability.md",
+      "key": "observability",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/observability.md",
       "bodyHash": "f151aa35398271676b303f4b3f8f1e2314cd25385547f8dfe04eed11fdb6246e",
       "bodyBytes": 54070,
@@ -210,98 +173,110 @@
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/overengineering.md",
+      "key": "overengineering",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/overengineering.md",
-      "bodyHash": "5868f10ede01182f36daeb0420cff503ca92a293cb95e8e6c1206df68ec37181",
+      "bodyHash": "7ba2382ccfd92ddf2238135ea87e2f476a018e00dd006f903747c381c2ccf657",
       "bodyBytes": 21633,
       "description": "Review code for unnecessary complexity, abstractions, and YAGNI violations",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/performance.md",
+      "key": "performance",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/performance.md",
-      "bodyHash": "c1c294bd0c201a759cd88975455731f9382042b3ccc79a1821c8784a10fa8866",
+      "bodyHash": "21e84ceabe46f1ea627f8324035e2ce269b7b8be84aaf5edf87d050606686162",
       "bodyBytes": 20261,
       "description": "Review code for algorithmic and system-level performance issues",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/privacy.md",
+      "key": "privacy",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/privacy.md",
-      "bodyHash": "150bc78e4da593662ef72f8f9050dbcf1160f71df9ae4732cc8986344930eaae",
+      "bodyHash": "9a4c34ca59867ac945b3757a4f8be4653bd2e6fa9d1a583e268a4aa30b4a3c91",
       "bodyBytes": 50522,
       "description": "Review data handling for PII collection, storage, transmission, and privacy compliance",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/refactor-safety.md",
+      "key": "refactor-safety",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/refactor-safety.md",
-      "bodyHash": "7c220b4e8dacac40dfacec0e177e70a43969b36f77e10807d41385e5ba58f006",
+      "bodyHash": "aba127f72b534fe7cd3b54ad64ebf63872cabb27f22ac24524850deefe97397c",
       "bodyBytes": 52065,
       "description": "Hunt semantic drift in refactors to ensure behavior equivalence and prevent subtle bugs",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/release.md",
+      "key": "release",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/release.md",
-      "bodyHash": "159ae34a9c4a4b247a9a21b92b9ed5a9dc1f7083c2b7f6ace6da597955d4a4cf",
+      "bodyHash": "45088ac58875a2862c11d1a53d5bb0e1611709c3e7516108ae6b7756f88e30bd",
       "bodyBytes": 21473,
       "description": "Review changes for safe shipping with clear versioning, rollout, migration, and rollback plans",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/reliability.md",
+      "key": "reliability",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/reliability.md",
-      "bodyHash": "71c589b95cae05300d0d382b12c1c287c4f62374dfd6cd5ce9fa600f19660d39",
+      "bodyHash": "7190bb21347bbce76419a8e306b61aee961c349497711e91772ead237d369c39",
       "bodyBytes": 22051,
       "description": "Review code for reliability, failure modes, and operational safety under partial outages",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/scalability.md",
+      "key": "scalability",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/scalability.md",
-      "bodyHash": "275f83b248bcb004a0986ae0272b3983f80a26164502a6276c5d92ddce50fc89",
+      "bodyHash": "15af6b602bd36540503bd97e1a6b124b5ffcf2bafdfb2c3cc0e3448ef37e8ee0",
       "bodyBytes": 40773,
       "description": "Review code for scalability issues under higher load, larger datasets, and more tenants",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/security.md",
+      "key": "security",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/security.md",
-      "bodyHash": "29d7a0bb13b2be3913ab276f5a765a7fe1131b8f5a2af4bddd079fd77e136270",
-      "bodyBytes": 46695,
+      "bodyHash": "565a10502dd7f6aa2dda4b80ed741b3368cd4880032d0b3ce3dbc3388e485cbb",
+      "bodyBytes": 46713,
       "description": "Review code for vulnerabilities, insecure defaults, and missing security controls",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/style-consistency.md",
+      "key": "style-consistency",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/style-consistency.md",
-      "bodyHash": "4e2b292130029e62da65a53a625968b00acdb6b0c0344df0fbdb7c7879f1d506",
+      "bodyHash": "41c1ee00dfa55134c0a4a792ed9b57093d148744a635d989976655fb6aac6d94",
       "bodyBytes": 29146,
       "description": "Enforce consistency with existing codebase style and language idioms to reduce cognitive load",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/supply-chain.md",
+      "key": "supply-chain",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/supply-chain.md",
-      "bodyHash": "21ed4c08ec8dbf9f90fd1fd0a7c0e3060c2f48930f2f9e9f5b85673618871af8",
+      "bodyHash": "a2d2266e7afc7b63239a66c45b90ca9f7f924782dee6c0219112ce0400b7630d",
       "bodyBytes": 37973,
       "description": "Review dependency and build integrity risks, lockfiles, build scripts, and artifact provenance",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/testing.md",
+      "key": "testing",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/testing.md",
-      "bodyHash": "9510da1fb6bc9bab722f5d6929b1c242735f34dfb777df99231177b40a7d7f29",
+      "bodyHash": "31bfc329128a2d556efda063c12f1c9c2d6cc9f69e26f8219abecf33aae5068b",
       "bodyBytes": 32702,
       "description": "Review test quality, coverage, and reliability to ensure changes are well-verified",
       "argumentHint": "[scope] [target]"
     },
     {
-      "oldPath": "commands/review/ux-copy.md",
+      "key": "ux-copy",
+      "kind": "dimension",
       "referencePath": "skills/review/reference/ux-copy.md",
-      "bodyHash": "409f9a2ab74a59f9b75a4dca5547fc11c3547029ea3acc97223caf94f07ab057",
-      "bodyBytes": 35736,
+      "bodyHash": "667c50b9e8e8b83e12540a4abac5f205d6c8bbef7684bf66f37f015e43ad56e9",
+      "bodyBytes": 35760,
       "description": "Review user-facing text for clarity, consistency, actionability, and helpful error recovery",
       "argumentHint": "[scope] [target]"
     }

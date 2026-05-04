@@ -1091,7 +1091,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-backend-concurrency-{YYYY-MM-DD}.m
 
 ```markdown
 ---
-command: /review:backend-concurrency
+command: /review backend-concurrency
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -1558,7 +1558,7 @@ The goal is to catch **"works in dev, breaks under load"** bugs before productio
 
 # WHEN TO USE
 
-Run `/review:backend-concurrency` when:
+Run `/review backend-concurrency` when:
 - Before releases (production load is higher)
 - After money/inventory operations added
 - After database queries changed

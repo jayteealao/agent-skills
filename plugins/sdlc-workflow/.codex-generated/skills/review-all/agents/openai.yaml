@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review All"
-  short_description: "Comprehensive code review covering all 30 review dimensions — correctness, security, architecture, infrastructure, quality, and UX — in a single thorough pass"
-  default_prompt: "Use $review-all for this workflow."
-policy:
-  allow_implicit_invocation: false

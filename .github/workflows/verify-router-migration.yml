@@ -6,7 +6,7 @@ on:
       - 'plugins/sdlc-workflow/commands/**'
       - 'plugins/sdlc-workflow/skills/**'
       - 'plugins/sdlc-workflow/scripts/verify-router-migration.mjs'
-      - 'plugins/sdlc-workflow/scripts/router-shim.mjs'
+      - 'plugins/sdlc-workflow/scripts/migrate-review.mjs'
       - '.github/workflows/verify-router-migration.yml'
   push:
     branches: [master, main]

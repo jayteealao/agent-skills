@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Docs"
-  short_description: "Review documentation completeness and accuracy for behavior/config/API changes"
-  default_prompt: "Use $review-docs for this workflow."
-policy:
-  allow_implicit_invocation: false

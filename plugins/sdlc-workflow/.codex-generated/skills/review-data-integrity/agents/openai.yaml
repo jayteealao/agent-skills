@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Data Integrity"
-  short_description: "Review data integrity - ensure stored data remains correct over time, across failures, retries, and concurrent writes"
-  default_prompt: "Use $review-data-integrity for this workflow."
-policy:
-  allow_implicit_invocation: false

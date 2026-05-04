@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Accessibility"
-  short_description: "Review UI changes for keyboard and assistive technology usability, avoid ARIA misuse"
-  default_prompt: "Use $review-accessibility for this workflow."
-policy:
-  allow_implicit_invocation: false

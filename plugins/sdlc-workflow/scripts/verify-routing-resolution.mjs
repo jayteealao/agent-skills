@@ -3,21 +3,17 @@
  * Layer 2 routing-resolution verifier.
  *
  * For each fixture in tests/migration-fixtures.json, asks Claude (via the Agent
- * SDK) to apply the /review router's parsing rule to two invocations and report
- * which reference file each would load:
+ * SDK) to apply the router's parsing rule to the invocation and report which
+ * reference file it would load. The resolved path must equal the fixture's
+ * expectedReferencePath.
  *
- *   - the OLD invocation (which goes through a pinned shim that redirects)
- *   - the NEW invocation (which goes directly to the router)
+ * Generic across routers: pass --router <key> to load
+ * commands/<key>.md as the routing rule and the matching fixtures file.
  *
- * Both must resolve to the same reference file. This catches routing bugs that
- * Layer 1 (byte-equal body checks) cannot — for example, a router parsing rule
- * that mishandles the `pass` keyword for an aggregate.
- *
- * Usage:
  *   node plugins/sdlc-workflow/scripts/verify-routing-resolution.mjs
+ *   node plugins/sdlc-workflow/scripts/verify-routing-resolution.mjs --router review
  *
- * Uses local OAuth (no API key required). Each fixture costs ~2 cheap Haiku
- * calls; the whole sweep runs in well under a minute.
+ * Uses local OAuth (no API key required). Each fixture costs ~1 cheap Haiku call.
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -28,32 +24,23 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..');
 
-const ROUTER_PATH = join(PLUGIN_ROOT, 'commands', 'review.md');
-const FIXTURES_PATH = join(PLUGIN_ROOT, 'tests', 'migration-fixtures.json');
-
-function readShim(oldPath) {
-  // Resolve "commands/review-all.md" or "commands/review/security.md" from the
-  // fixture's `old` invocation: e.g. `/review-all` -> commands/review-all.md
-  // and `/review:security` -> commands/review/security.md.
-  return readFileSync(join(PLUGIN_ROOT, oldPath), 'utf-8');
-}
-
-function shimPathForOldInvocation(oldInvocation) {
-  // /review-all   -> commands/review-all.md
-  // /review:security -> commands/review/security.md
-  // /review:frontend-accessibility -> commands/review/frontend-accessibility.md
-  const tokens = oldInvocation.trim().split(/\s+/);
-  const head = tokens[0]; // "/review-all" or "/review:security"
-  if (!head.startsWith('/')) throw new Error(`bad invocation: ${oldInvocation}`);
-  const stripped = head.slice(1);
-  if (stripped.includes(':')) {
-    const [_, rest] = stripped.split(':');
-    return `commands/review/${rest}.md`;
+function parseArgs() {
+  const args = process.argv.slice(2);
+  const opts = { router: 'review' };
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--router') opts.router = args[++i];
+    else if (args[i] === '--fixtures') opts.fixtures = args[++i];
   }
-  return `commands/${stripped}.md`;
+  return opts;
 }
 
-const ROUTER_CONTENT = readFileSync(ROUTER_PATH, 'utf-8');
+function extractRoutingSection(routerText) {
+  // Pull out everything from "# Step 0" through end-of-file. That's the
+  // routing rule the router applies. Falls back to the full body if the
+  // markers are missing.
+  const m = routerText.match(/(# Step 0[\s\S]+)$/);
+  return m ? m[1] : routerText;
+}
 
 async function askModel(prompt) {
   let text = '';
@@ -72,101 +59,77 @@ async function askModel(prompt) {
   return text.trim();
 }
 
-const RESOLVE_INSTR = `You are emulating a routing dispatcher. Apply the following routing rules verbatim
-to the given user invocation and output ONLY the relative path of the reference file
-that would be read, with no commentary, explanation, prefix, or markdown.
+function buildPrompt({ routingSection, invocation }) {
+  return `You are emulating a routing dispatcher. Apply the routing rules below verbatim
+to the user invocation and output ONLY the relative path of the reference file
+that would be read, with no commentary, prefix, or markdown.
 
-OUTPUT FORMAT: a single line of text, exactly one of:
-  skills/review/reference/<key>.md
-  skills/review/reference/_aggregate-<key>.md
+OUTPUT FORMAT: a single line of text — a path like
+  skills/<router>/reference/<key>.md
+or, if the invocation is empty / asks the dispatcher to render a menu, the
+literal string:
+  <menu>
 
-ROUTER RULES (excerpt from commands/review.md):
-- Parse \\$ARGUMENTS. The first positional token determines the subcommand.
-- If first token is "pass", the second token is an aggregate key. Reference: skills/review/reference/_aggregate-<key>.md.
-- Otherwise, the first token is a dimension key. Reference: skills/review/reference/<key>.md.
-- When a dimension key collides with an aggregate name (architecture, infra, security), a bare /review <name> resolves to the dimension. /review pass <name> reaches the aggregate.
-
-USER INVOCATION:
-`;
-
-const SHIM_INSTR = `You are emulating a routing dispatcher. The user typed a legacy slash command.
-The legacy command file is a "pinned shim" whose content is below. The shim
-contains a redirect line of the form: "Invoke \`/review <subcommand>\`...". Apply
-the redirect to determine the new router invocation, then apply the routing rules
-to determine the reference file.
-
-OUTPUT FORMAT: a single line of text, exactly one of:
-  skills/review/reference/<key>.md
-  skills/review/reference/_aggregate-<key>.md
-
-ROUTING RULES (after the redirect):
-- The redirect produces a new invocation like "/review <args>".
-- If the first arg after /review is "pass", the second arg is an aggregate key. Reference: skills/review/reference/_aggregate-<key>.md.
-- Otherwise the first arg is a dimension key. Reference: skills/review/reference/<key>.md.
-
-LEGACY SHIM FILE CONTENT:
----SHIM-START---
-{SHIM}
----SHIM-END---
+ROUTING RULES (excerpted from the router file):
+${routingSection}
 
 USER INVOCATION:
-`;
+${invocation}`;
+}
 
 async function main() {
-  const fx = JSON.parse(readFileSync(FIXTURES_PATH, 'utf-8'));
+  const opts = parseArgs();
+  const routerPath = join(PLUGIN_ROOT, 'commands', `${opts.router}.md`);
+  const fixturesPath = opts.fixtures
+    ? resolve(opts.fixtures)
+    : join(PLUGIN_ROOT, 'tests', 'migration-fixtures.json');
+
+  if (!existsSync(routerPath)) {
+    console.error(`Router file not found: ${routerPath}`);
+    process.exit(1);
+  }
+  if (!existsSync(fixturesPath)) {
+    console.error(`Fixtures file not found: ${fixturesPath}`);
+    process.exit(1);
+  }
+
+  const routerText = readFileSync(routerPath, 'utf-8');
+  const routingSection = extractRoutingSection(routerText);
+  const fx = JSON.parse(readFileSync(fixturesPath, 'utf-8'));
+
   let pass = 0;
   const failures = [];
 
   for (const fixture of fx.fixtures) {
     process.stdout.write(`> ${fixture.id} ... `);
 
-    // For "no-args" fixtures the new invocation has no positional after /review;
-    // the router renders the menu rather than resolving a reference. Treat the
-    // expected reference as null and just confirm the model says so.
-    const isMenuFixture = fixture.expectedBehavior === 'menu';
-
-    let newResolved = null;
-    let oldResolved = null;
+    let resolved;
     try {
-      if (isMenuFixture) {
-        // For menu fixtures we don't ask the model — both old and new should
-        // produce the menu, which is a behavior, not a reference path. We rely
-        // on Layer 1 checks (the router file's text contains the menu rendering
-        // instruction).
-        newResolved = '<menu>';
-        oldResolved = '<menu>';
-      } else {
-        // NEW: feed router rules + invocation, ask for reference path.
-        newResolved = (await askModel(RESOLVE_INSTR + fixture.new)).trim();
-
-        // OLD: locate the shim, embed it, ask the model to redirect-then-resolve.
-        const shimPath = shimPathForOldInvocation(fixture.old);
-        const shim = readFileSync(join(PLUGIN_ROOT, shimPath), 'utf-8');
-        oldResolved = (await askModel(SHIM_INSTR.replace('{SHIM}', shim) + fixture.old)).trim();
-      }
+      resolved = await askModel(buildPrompt({ routingSection, invocation: fixture.invocation }));
     } catch (err) {
       console.log(`ERROR: ${err.message}`);
       failures.push(`[${fixture.id}] ${err.message}`);
       continue;
     }
 
-    // Normalize trailing punctuation / quotes the model might add.
     const norm = (s) => s.replace(/^[`"'\s]+|[`"'\s.]+$/g, '');
-    newResolved = norm(newResolved);
-    oldResolved = norm(oldResolved);
+    resolved = norm(resolved);
 
-    if (newResolved === oldResolved) {
-      console.log(`PASS  -> ${newResolved}`);
+    const expected =
+      fixture.expectedBehavior === 'menu' ? '<menu>' : norm(fixture.expectedReferencePath || '');
+
+    if (resolved === expected) {
+      console.log(`PASS  -> ${resolved}`);
       pass++;
     } else {
       console.log(`FAIL`);
-      console.log(`    new(${fixture.new}) -> ${newResolved}`);
-      console.log(`    old(${fixture.old}) -> ${oldResolved}`);
-      failures.push(`[${fixture.id}] new=${newResolved} vs old=${oldResolved}`);
+      console.log(`    invocation(${fixture.invocation}) -> ${resolved}`);
+      console.log(`    expected:                          ${expected}`);
+      failures.push(`[${fixture.id}] got=${resolved} want=${expected}`);
     }
   }
 
-  console.log(`\n${pass}/${fx.fixtures.length} fixtures resolved equivalently.`);
+  console.log(`\n${pass}/${fx.fixtures.length} fixtures resolved correctly.`);
   if (failures.length > 0) {
     for (const f of failures) console.error(`  - ${f}`);
     process.exit(1);

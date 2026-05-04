@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Performance"
-  short_description: "Review code for algorithmic and system-level performance issues"
-  default_prompt: "Use $review-performance for this workflow."
-policy:
-  allow_implicit_invocation: false

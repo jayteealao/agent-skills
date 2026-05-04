@@ -340,7 +340,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-docs-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:docs
+command: /review docs
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -1201,7 +1201,7 @@ The goal is complete, accurate, usable documentation.
 
 # WHEN TO USE
 
-Run `/review:docs` when:
+Run `/review docs` when:
 - Before merging features (ensure docs added)
 - Before releases (verify changelog complete)
 - After API changes (verify docs updated)

@@ -507,7 +507,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-release-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:release
+command: /review release
 session_slug: {SESSION_SLUG}
 scope: {SCOPE}
 completed: {YYYY-MM-DD}

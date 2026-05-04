@@ -717,7 +717,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-refactor-safety-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:refactor-safety
+command: /review refactor-safety
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -1879,7 +1879,7 @@ The goal is to catch **"looks the same, behaves differently"** bugs before they 
 
 # WHEN TO USE
 
-Run `/review:refactor-safety` when:
+Run `/review refactor-safety` when:
 - PR is labeled "refactor" or "cleanup"
 - Code structure changed but "behavior same"
 - After large refactors (extracting modules, renaming, restructuring)

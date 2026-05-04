@@ -618,7 +618,7 @@ For each issue:
 
 ## Step 6: Generate review report
 
-Create `.claude/<SESSION_SLUG>/reviews/review-infra-{YYYY-MM-DD}.md`
+Create `.claude/<SESSION_SLUG>/reviews/review sweep infra-{YYYY-MM-DD}.md`
 
 ## Step 7: Update session README
 
@@ -630,11 +630,11 @@ Print summary with critical findings.
 
 # OUTPUT FORMAT
 
-Create `.claude/<SESSION_SLUG>/reviews/review-infra-{YYYY-MM-DD}.md`:
+Create `.claude/<SESSION_SLUG>/reviews/review sweep infra-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:infra
+command: /review infra
 session_slug: {SESSION_SLUG}
 scope: {SCOPE}
 completed: {YYYY-MM-DD}
@@ -782,7 +782,7 @@ After creating review, print:
 # Infrastructure Review Complete
 
 ## Review Location
-Saved to: `.claude/{SESSION_SLUG}/reviews/review-infra-{YYYY-MM-DD}.md`
+Saved to: `.claude/{SESSION_SLUG}/reviews/review sweep infra-{YYYY-MM-DD}.md`
 
 ## Merge Recommendation
 **{BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS}**

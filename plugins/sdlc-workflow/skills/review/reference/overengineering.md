@@ -213,7 +213,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-overengineering-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
-command: /review:overengineering
+command: /review overengineering
 session_slug: {SESSION_SLUG}
 date: {YYYY-MM-DD}
 scope: {SCOPE}
@@ -756,7 +756,7 @@ The goal is to ship simple, maintainable code, not to block all abstractions.
 
 # WHEN TO USE
 
-Run `/review:overengineering` when:
+Run `/review overengineering` when:
 - Implementing new features (before merge)
 - After refactors (to verify simplification)
 - When code reviews mention "complexity"

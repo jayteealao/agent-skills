@@ -1,20 +1,115 @@
 ---
-name: review-references
-description: Reference library loaded by the /review router. Not user-invocable; do not auto-trigger.
-user-invocable: false
+name: review
+description: Code review skill. Use to review code for correctness, security, performance, architecture, scalability, accessibility, UX, infrastructure, observability, supply chain, privacy, data integrity, refactor safety, maintainability, testing, and 16+ other dimensions. Single-dimension reviews (`/review <dim>`) run inline against one rubric. Multi-dimension sweeps (`/review sweep <aggregate>` — all, architecture, infra, pre-merge, quick, security, ux) dispatch one reviewer sub-agent per dimension in parallel and synthesize a unified verdict. Auto-trigger on review/audit requests scoped to a PR, worktree, diff, file, or repo.
 ---
 
-# Review reference library
+# External Output Boundary (MANDATORY)
+Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
+- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
+- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
+- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
+- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
 
-This skill is **not user-invocable** and is **not auto-triggered**. It is loaded on demand by the `/review` command in `plugins/sdlc-workflow/commands/review.md`.
+You are the **code review skill** for the SDLC workflow plugin. Two modes of operation:
 
-Each file under `reference/` is the original body of a former `/review-*` (aggregate) or `/review:*` (per-dimension) command, relocated here unchanged at migration time. The router parses the first positional argument and reads the matching file:
+- **Single-dimension** — `/review <dimension>` (e.g. `/review security pr 123`): read one reference file and execute its rubric inline.
+- **Sweep** — `/review sweep <aggregate>` (e.g. `/review sweep architecture worktree`): dispatch one reviewer sub-agent per dimension in the aggregate's composition, collect findings in parallel, synthesize a unified verdict.
 
-- `reference/_aggregate-<key>.md` — multi-dimension aggregate (loaded by `/review pass <key>`).
-- `reference/<key>.md` — single-dimension review (loaded by `/review <key>`).
+# Step 0 — Resolve the request
 
-`router-metadata.json` is the single source of truth for the router's keys, the shim redirects, and the per-key descriptions.
+Parse the user's invocation. Extract:
 
-`migration-manifest.json` records each original body's SHA-256 at migration time. The verifier `scripts/verify-router-migration.mjs` checks every reference body still matches its recorded hash, so any unintended drift after the migration is caught in CI.
+- **mode**: `single-dimension` or `sweep`
+- **key**: the dimension key (single mode) or aggregate key (sweep mode)
+- **scope**: `pr` / `worktree` / `diff` / `file` / `repo`
+- **target**: PR URL or number, commit range, file path, etc.
+- **paths**: optional file glob filter
 
-Do not edit the reference files for the *purpose* of the migration. After PR-1 (router introduction), substantive review-body edits are normal and expected — when one happens, regenerate `migration-manifest.json` so it tracks the new hash, otherwise the verifier fires on every PR.
+Mode resolution rules:
+
+- If the first positional token is the literal word **`sweep`**, mode is `sweep` and the next token is the **aggregate key**.
+- Otherwise, the first non-scope token is treated as a **dimension key** (single-dimension mode).
+- If no key is found, render the menu (below) and ask the user which review they want.
+- Three names exist as both a dimension and an aggregate (`architecture`, `infra`, `security`). The dimension wins on a bare invocation; use `/review sweep <name>` to reach the aggregate.
+
+**Aggregate keys** — resolved at runtime via `${CLAUDE_PLUGIN_ROOT}/skills/review/router-metadata.json` `aggregates.<key>`:
+
+| Aggregate | What it dispatches (one sub-agent per dimension) |
+|---|---|
+| `all` | Every dimension (~31 sub-agents — broadest sweep, most expensive) |
+| `architecture` | architecture, performance, scalability, api-contracts |
+| `infra` | infra, ci, release, migrations, logging, observability |
+| `pre-merge` | correctness, testing, security, refactor-safety, maintainability |
+| `quick` | correctness, style-consistency, dx, ux-copy, overengineering |
+| `security` | security, privacy, infra-security, data-integrity, supply-chain |
+| `ux` | accessibility, frontend-accessibility, frontend-performance, ux-copy |
+
+**Dimension keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/review/reference/<key>.md`:
+
+`accessibility`, `api-contracts`, `architecture`, `backend-concurrency`, `ci`, `code-simplification`, `correctness`, `cost`, `data-integrity`, `docs`, `dx`, `frontend-accessibility`, `frontend-performance`, `infra`, `infra-security`, `logging`, `maintainability`, `migrations`, `observability`, `overengineering`, `performance`, `privacy`, `refactor-safety`, `release`, `reliability`, `scalability`, `security`, `style-consistency`, `supply-chain`, `testing`, `ux-copy`.
+
+# Step 1a — Single-dimension execution
+
+1. Read the reference file in full from `${CLAUDE_PLUGIN_ROOT}/skills/review/reference/<key>.md`.
+2. Treat its content as your instructions for this invocation. Do not summarize, paraphrase, or skip — follow it verbatim.
+3. The reference's `args:` frontmatter describes how it consumes scope/target/paths/session-slug.
+4. When a workflow slice is active, write findings to `.ai/workflows/<slug>/07-review-<slice>-<dimension>.md` per the v8.30 per-slice review contract.
+
+# Step 1b — Sweep execution (parallel sub-agent dispatch)
+
+1. **Resolve the composition.** Read `${CLAUDE_PLUGIN_ROOT}/skills/review/router-metadata.json` and look up `aggregates.<aggregate-key>` to get the array of dimension keys to dispatch.
+
+2. **Prepare one Task invocation per dimension.** For each dimension key D in the composition:
+   - `subagent_type`: `general-purpose`
+   - `description`: `"review-{D}"` (3-5 words, satisfies the Task tool's description constraint)
+   - `prompt`: a self-contained prompt assembled as:
+     1. The dimension reference body (read from `skills/review/reference/{D}.md`).
+     2. Concrete scope context: scope mode, target, paths, session slug.
+     3. Output instruction: produce findings in the standard schema (severity + confidence + file:line + evidence + suggested fix).
+     4. Artifact instruction: when a workflow slice is active, write `.ai/workflows/<slug>/07-review-<slice>-{D}.md` with the findings; otherwise return them inline only.
+
+3. **Dispatch in parallel.** Issue ONE assistant message containing all N `Task` tool calls. Sequential dispatch defeats the purpose of sweep mode and is forbidden.
+
+4. **Wait for all sub-agents to return.** Do not begin synthesis until every dispatched sub-agent has completed (or timed out).
+
+5. **Synthesize** the sub-agent outputs:
+   - **Collect** each sub-agent's findings list.
+   - **Deduplicate** by `(file:line + root cause)`. When two dimensions flag the same root issue, keep the most specific severity and merge the rationales into one finding tagged with both dimension names.
+   - **Normalize** severity to `BLOCKER` / `HIGH` / `MED` / `LOW` / `NIT`. If a sub-agent used a different scale (Critical/Major/Minor, P0/P1/P2/P3, Blocker/Major/Trivial), map onto the canonical five-level scale before merging.
+   - **Triage** all `BLOCKER` and `HIGH` findings interactively with the user via `AskUserQuestion`. For each, present finding text + impact + suggested fix; let the user accept (will fix), defer (acknowledge but ship), or reject (false positive).
+   - **Determine the verdict**:
+     - `Ship` — no `BLOCKER`, no `HIGH`
+     - `Ship with caveats` — `HIGH` only (no `BLOCKER`)
+     - `Don't ship` — any `BLOCKER`
+   - **Write the master artifact** when a workflow slice is active: `.ai/workflows/<slug>/07-review-<slice>.md` with verdict, all metric counts, the deduplicated finding list, and triage decisions.
+
+# Step 2 — Output to the user
+
+Whether single-dimension or sweep, the final user-visible output:
+
+```markdown
+# {Single-dimension | Sweep} Review — {key}
+
+**Verdict:** {Ship / Ship with caveats / Don't ship}
+**Reviewed:** {scope} / {target}
+**Files:** {N} changed, +{lines} -{lines}
+
+## Findings ({total})
+BLOCKER: {n} | HIGH: {n} | MED: {n} | LOW: {n} | NIT: {n}
+
+## Critical (BLOCKER + HIGH)
+[finding details — file:line, evidence, suggested fix, dimension(s) that flagged it]
+
+## Other findings
+[grouped by severity, then by dimension]
+
+## Triage decisions
+[what the user accepted, deferred, or rejected — sweep mode only]
+```
+
+# Notes
+
+- **Sweep is more thorough and more expensive than single-dimension.** Single dispatches one reviewer over a broad rubric; sweep dispatches N reviewers each with their own rubric. Use single-dimension when you know which axis to investigate; use sweep when you want defensive breadth.
+- **Auto-trigger.** This skill is invoked when the user asks for a code review, security audit, or similar. The harness picks the skill via the `description:` keyword match. The user can also invoke explicitly by typing `/review <args>` — Claude Code resolves bare slash invocations to skills when no command file exists at that path.
+- **Legacy syntax removed.** The `/review-X` (aggregate, hyphen), `/review:X` (dimension, colon), and `/review pass X` (v8.32 disambiguation) forms were removed in v9.0.0-alpha.1. See `CHANGELOG.md`.
+- **Composition is policy data.** Aggregate compositions live in `router-metadata.json` and are hand-maintained. Editing the file changes which dimensions a sweep dispatches. The verifier (`scripts/verify-router-migration.mjs`) rejects compositions that reference unknown dimensions.

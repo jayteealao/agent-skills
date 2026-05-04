@@ -959,7 +959,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-accessibility-<YYYY-MM-DD>.md`:
 
 ```markdown
 ---
-command: /review:accessibility
+command: /review accessibility
 session_slug: <SESSION_SLUG>
 scope: <SCOPE>
 target: <TARGET>

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Api Contracts"
-  short_description: "Review API contracts for stability, correctness, and usability for consumers"
-  default_prompt: "Use $review-api-contracts for this workflow."
-policy:
-  allow_implicit_invocation: false

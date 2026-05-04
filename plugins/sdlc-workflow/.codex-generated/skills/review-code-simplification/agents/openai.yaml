@@ -1,6 +1,0 @@
-interface:
-  display_name: "Review Code Simplification"
-  short_description: "Review code for missed reuse, quality issues, and inefficiencies — the three simplification lenses"
-  default_prompt: "Use $review-code-simplification for this workflow."
-policy:
-  allow_implicit_invocation: false

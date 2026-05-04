@@ -1133,7 +1133,7 @@ Create `.claude/<SESSION_SLUG>/reviews/review-scalability-<YYYY-MM-DD>.md`:
 
 ```markdown
 ---
-command: /review:scalability
+command: /review scalability
 session_slug: <SESSION_SLUG>
 scope: <SCOPE>
 target: <TARGET>
