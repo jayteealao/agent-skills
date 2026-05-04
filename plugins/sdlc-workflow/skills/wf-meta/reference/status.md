@@ -1,8 +1,6 @@
 ---
-name: wf-status
 description: Read-only dashboard across all workflows. Reads every .ai/workflows/*/00-index.md, parses frontmatter, and renders a grouped status table. No side effects. Optional slug argument for single-workflow detail view.
 argument-hint: [slug]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -77,7 +75,7 @@ Read every `00-index.md` found. For each, parse YAML frontmatter for:
 ```
 ## Quick Actions
 - Resume most recent: `<next-invocation of most recently updated active workflow>`
-- See routing for <slug>: `/wf-next <slug>`
+- See routing for <slug>: `/wf-meta next <slug>`
 ```
 
 If there are workflows with `branch-strategy: dedicated`, add a branch summary:
@@ -91,7 +89,7 @@ If there are workflows with `branch-strategy: dedicated`, add a branch summary:
 
 # Detail Mode (slug argument provided)
 
-When `/wf-status <slug>` is invoked:
+When `/wf-meta status <slug>` is invoked:
 
 1. **Read `00-index.md`** for the specified slug. If not found → "Workflow `<slug>` not found." STOP.
 2. **Read the `workflow-files` list** from frontmatter and check which files actually exist on disk.
@@ -152,4 +150,4 @@ When `/wf-status <slug>` is invoked:
 # Chat return contract
 Return ONLY the rendered dashboard or detail view. No preamble, no explanations beyond the tables. The dashboard IS the output.
 
-If the user is clearly trying to resume work (e.g., returning after a break), end with a suggestion: "Run `/wf-next <slug>` for routing details, or the next command directly."
+If the user is clearly trying to resume work (e.g., returning after a break), end with a suggestion: "Run `/wf-meta next <slug>` for routing details, or the next command directly."

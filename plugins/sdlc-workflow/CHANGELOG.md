@@ -5,6 +5,50 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.0.0-alpha.3] - 2026-05-05
+
+### Removed (BREAKING)
+
+- **All 10 standalone `/wf-X` lifecycle-navigation commands rolling under `/wf-meta` are deleted** (PR-3 of `ROUTER-MIGRATION-PLAN.md`). The deleted commands are:
+  - `/wf-next`, `/wf-status`, `/wf-resume`, `/wf-sync`, `/wf-amend`, `/wf-extend`, `/wf-skip`, `/wf-close`, `/wf-how`, `/wf-announce`.
+- **Each command's body is now a reference under `skills/wf-meta/reference/<key>.md`.** The `/wf-meta` skill at `skills/wf-meta/SKILL.md` is the single entry point.
+- **No shims.** Same break-the-surface posture as v9.0.0-alpha.1 (`/review`) and v9.0.0-alpha.2 (`/wf-quick`).
+- **8 stale `.codex-generated/skills/wf-{next,status,resume,sync,amend,extend,how,announce}/` mirrors deleted.** Codex generator update will land in PR-5.
+
+### Changed
+
+- **Skill-mode dispatch for the 10 sub-commands.** `/wf-meta <key> <args>` is the single entry point. The first positional token must be one of: `next`, `status`, `resume`, `sync`, `amend`, `extend`, `skip`, `close`, `how`, `announce`. Bare `/wf-meta` renders the menu.
+- **No `sweep` mode for `/wf-meta`.** The 10 sub-commands are orthogonal meta-controls (status check ≠ amend ≠ close), not different lenses on a shared target. The `aggregates` field in `skills/wf-meta/router-metadata.json` is intentionally empty.
+- **Distinction from `/wf-quick`.** `/wf-quick` *starts* new workflows (intake, RCA, hotfix, etc.); `/wf-meta` *navigates and manages* existing ones. The split is intentional and matches the original `ROUTER-MIGRATION-PLAN.md` decomposition.
+- **Cross-references rewritten in lockstep.** Every `/wf-X` invocation in the wf-meta family was retargeted to `/wf-meta X`. The bulk-rewrite hit 8 external docs (`commands/wf-design.md`, `commands/wf-review.md`, `README.md`, plus 5 wf-quick reference bodies that had referenced `/wf-status` etc.). The 5 wf-quick reference body hashes drifted as a result; `skills/wf-quick/migration-manifest.json` was refreshed to capture the new state.
+- **`scripts/verify-router-migration.mjs` orphan scan extended** to the wf-meta family, with the same path-boundary + idempotency lookahead scheme PR-2 introduced.
+
+### Added
+
+- **`scripts/relocate-wf-meta.mjs`** — one-shot relocator + bulk rewriter for the 10 wf-meta commands. Same idempotent / path-safe regex as `relocate-wf-quick.mjs`. Kept in tree as audit trail.
+- **`tests/wf-meta-fixtures.json`** — 8 routing-resolution fixtures (7 dispatch forms + 1 menu fallback).
+- **`skills/wf-meta/{SKILL.md,router-metadata.json,migration-manifest.json}`** + 10 reference bodies under `skills/wf-meta/reference/`.
+
+### Migration
+
+| Old invocation (any version ≤ v9.0.0-alpha.2) | New invocation (v9.0.0-alpha.3+) |
+|---|---|
+| `/wf-next <args>` | `/wf-meta next <args>` |
+| `/wf-status <args>` | `/wf-meta status <args>` |
+| `/wf-resume <args>` | `/wf-meta resume <args>` |
+| `/wf-sync <args>` | `/wf-meta sync <args>` |
+| `/wf-amend <args>` | `/wf-meta amend <args>` |
+| `/wf-extend <args>` | `/wf-meta extend <args>` |
+| `/wf-skip <args>` | `/wf-meta skip <args>` |
+| `/wf-close <args>` | `/wf-meta close <args>` |
+| `/wf-how <args>` | `/wf-meta how <args>` |
+| `/wf-announce <args>` | `/wf-meta announce <args>` |
+
+### Notes
+
+- **PR-4 still pending.** Collapses the `/wf` lifecycle (13 stage commands like `/wf-shape`, `/wf-slice`, `/wf-plan`, `/wf-implement`, `/wf-verify`, `/wf-review`, `/wf-handoff`, `/wf-ship`, `/wf-retro`, plus the 4 augmentation/perf commands `/wf-instrument`, `/wf-experiment`, `/wf-benchmark`, `/wf-profile`). Once PR-4 lands, the only remaining top-level `/wf-*` slash commands will be `/wf-quick`, `/wf-meta`, `/wf`, and `/wf-design`.
+- **Why a 9.0.0-alpha.3 bump.** Same shim-removal break-the-surface pattern as alpha.1 and alpha.2. Pre-release tag stays `alpha` until PR-4 lands.
+
 ## [9.0.0-alpha.2] - 2026-05-04
 
 ### Removed (BREAKING)

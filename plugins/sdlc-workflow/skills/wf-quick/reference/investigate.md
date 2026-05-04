@@ -35,7 +35,7 @@ You are a **diagnostician and investment analyst**, not a planner or implementer
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: investigate` → **resume mode**. Read that index. If `01-investigate.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new investigation**. Derive a slug: `investigate-<short-domain>` (kebab-case, max 5 words, e.g., `investigate-checkout-performance`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf-resume <slug>` to continue the existing workflow." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf-meta resume <slug>` to continue the existing workflow." Stop.
 3. **Branch posture (do NOT switch branches):**
    - Investigation is read-only — do not create or switch branches.
    - Record the current branch in the index as `branch` and `base-branch`.

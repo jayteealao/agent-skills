@@ -1,8 +1,6 @@
 ---
-name: wf-how
 description: Ask how something works in the codebase, commission deep multi-source web research (200+ sources), get quick code answers, explain workflow plans and decisions, or understand implementation and review findings. Routes automatically across five modes — Quick (Mode A), Codebase Explore (Mode B, fan-out to parallel Explore agents + synthesis), Deep Research (Mode C, 6–8 parallel web research agents, 200+ sources), Workflow Explain (Mode D), and Findings Explain (Mode E) — with optional Diátaxis artifact output at the end of every mode.
 argument-hint: <question> | <slug> plan|shape|slice|review|findings | --research <question> | --quick <question>
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -613,7 +611,7 @@ slug: <slug>
 wrote: .ai/workflows/<slug>/90-findings-explain.md
 options:
   /wf-implement <slug> reviews   — fix findings now
-  /wf-amend <slug>               — amend scope if findings reveal spec gaps
-  /wf-extend <slug> from-review  — add missing capabilities as new slices
+  /wf-meta amend <slug>               — amend scope if findings reveal spec gaps
+  /wf-meta extend <slug> from-review  — add missing capabilities as new slices
 ```
 Then the findings explanation.

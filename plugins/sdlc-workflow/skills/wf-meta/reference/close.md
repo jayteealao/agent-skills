@@ -1,8 +1,6 @@
 ---
-name: wf-close
 description: Close or archive a workflow without completing the full lifecycle. Marks the workflow as closed in 00-index.md, writes a 99-close.md record with the reason and context, warns about open branches and PRs, and optionally cleans up the branch. Does NOT delete workflow artifacts. Use for: cancelled work, work superseded by another approach, indefinitely deferred work, or work completed entirely outside the workflow.
 argument-hint: <slug> [cancelled|superseded|deferred|completed-externally|merged-into]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -140,7 +138,7 @@ If no branch and no PR: write "No branch or PR to clean up."
 
 Only if `close-reason: deferred` or `close-reason: superseded`. Write what someone would need to do to restart this work:
 
-> To resume: run `/wf-quick quick intake <description>` with the same description, or restore `status: in-progress` in `00-index.md` and run `/wf-resume <slug>` to pick up where this left off. All prior artifacts are intact at `.ai/workflows/<slug>/`.
+> To resume: run `/wf-quick quick intake <description>` with the same description, or restore `status: in-progress` in `00-index.md` and run `/wf-meta resume <slug>` to pick up where this left off. All prior artifacts are intact at `.ai/workflows/<slug>/`.
 
 Otherwise write: "Not applicable — workflow is closed permanently."
 
@@ -184,7 +182,7 @@ Manual actions needed:
 
 If `deferred`, suffix with:
 
-> Workflow deferred. To resume: `/wf-resume <slug>` or `/wf-quick quick intake <description>`.
+> Workflow deferred. To resume: `/wf-meta resume <slug>` or `/wf-quick quick intake <description>`.
 
 If `completed-externally`, suffix with:
 
@@ -192,7 +190,7 @@ If `completed-externally`, suffix with:
 
 # What this command is NOT
 
-- **Not a delete** — `/wf-close` archives in place. All artifacts remain under `.ai/workflows/<slug>/`. To truly remove them, delete the directory manually after closing.
-- **Not a skip** — use `/wf-skip <slug> <stage>` to bypass a specific stage while continuing the workflow. `/wf-close` ends the workflow entirely.
-- **Not a retro** — `/wf-retro` runs after a successful ship and extracts lessons. `/wf-close` is for early or unplanned termination. If you want to run a retro on a cancelled effort, run `/wf-retro <slug>` separately before closing — or close first and reference the close record in the retro.
+- **Not a delete** — `/wf-meta close` archives in place. All artifacts remain under `.ai/workflows/<slug>/`. To truly remove them, delete the directory manually after closing.
+- **Not a skip** — use `/wf-meta skip <slug> <stage>` to bypass a specific stage while continuing the workflow. `/wf-meta close` ends the workflow entirely.
+- **Not a retro** — `/wf-retro` runs after a successful ship and extracts lessons. `/wf-meta close` is for early or unplanned termination. If you want to run a retro on a cancelled effort, run `/wf-retro <slug>` separately before closing — or close first and reference the close record in the retro.
 - **Not automatic** — it does not close PRs, delete branches, or notify teammates. These are explicit human actions, surfaced as a checklist.

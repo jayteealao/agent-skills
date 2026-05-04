@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Amend"
-  short_description: "Amend an existing workflow — correct the scope, acceptance criteria, or approach of existing slices without overwriting completed work. Creates versioned amendment artifacts. Use when a review or retro reveals that a slice needs rethinking, not just bug-fixing. Distinct from wf-extend (which adds new slices) and wf-implement (which fixes implementation bugs)."
-  default_prompt: "Use $wf-amend for this workflow."
-policy:
-  allow_implicit_invocation: false

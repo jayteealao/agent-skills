@@ -1,8 +1,6 @@
 ---
-name: wf-sync
 description: Reconcile workflow state with reality. Checks whether referenced code, tests, PRs, branches, and dependencies actually exist or have changed. Writes a sync report to 00-sync.md.
 argument-hint: "[slug]"
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -174,7 +172,7 @@ refs:
 <for each ⚠ or ✗ item: what changed, when, which stage is affected>
 
 ## Recommended Actions
-<ordered list of suggested responses — e.g., "Re-run /wf-plan to update file references", "Run /wf-amend on 05-implement to reflect dependency upgrade">
+<ordered list of suggested responses — e.g., "Re-run /wf-plan to update file references", "Run /wf-meta amend on 05-implement to reflect dependency upgrade">
 ```
 
 # Step 7 — Update index
@@ -191,7 +189,7 @@ Return ONLY:
 - **Summary table** (the compact category table)
 - ≤5 bullets on the most important drift findings
 - `options:`
-  - `/wf-amend <stage>` — if a specific stage needs updating
+  - `/wf-meta amend <stage>` — if a specific stage needs updating
   - `/wf-plan <slug>` — if plan-level references are stale
-  - `/wf-status <slug>` — to see full workflow state
-  - `/wf-sync <slug>` — to re-check after fixes
+  - `/wf-meta status <slug>` — to see full workflow state
+  - `/wf-meta sync <slug>` — to re-check after fixes

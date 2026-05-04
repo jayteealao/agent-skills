@@ -1,8 +1,6 @@
 ---
-name: wf-resume
 description: Generate a dense, token-efficient context brief for a workflow. Reads all stage files and po-answers, distills into ~500 words. Designed for resuming after a break, onboarding a sub-agent, or recovering context in a new session.
 argument-hint: [slug]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)

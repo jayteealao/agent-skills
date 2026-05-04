@@ -1,8 +1,6 @@
 ---
-name: wf-next
 description: Read the workflow index and tell the user the exact next command to run, carrying forward the correct slug and slice.
 argument-hint: [slug]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)

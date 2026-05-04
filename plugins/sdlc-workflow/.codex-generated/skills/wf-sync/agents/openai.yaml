@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Sync"
-  short_description: "Reconcile workflow state with reality. Checks whether referenced code, tests, PRs, branches, and dependencies actually exist or have changed. Writes a sync report to 00-sync.md."
-  default_prompt: "Use $wf-sync for this workflow."
-policy:
-  allow_implicit_invocation: false

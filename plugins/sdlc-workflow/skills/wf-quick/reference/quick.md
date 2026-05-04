@@ -34,7 +34,7 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: quick` → **resume mode**. Read that index and `01-quick.md`. If `01-quick.md` is complete, the user likely meant to run `/wf-implement` — tell them and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new wf-quick**. Derive a slug: `quick-<short-description>` (kebab-case, max 5 words, e.g., `quick-fix-checkout-button-spacing`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `quick` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf-resume <slug>` to continue the existing workflow." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `quick` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf-meta resume <slug>` to continue the existing workflow." Stop.
 3. **Branch check:**
    - Default `branch-strategy: dedicated` with branch name `quick/<slug>`. Create the branch off the current base if it does not exist: `git checkout -b quick/<slug>`.
    - If the user explicitly passed `branch-strategy: none` or is mid-task on an existing branch they want to keep using → record `branch-strategy: none` in the index and do not switch branches.

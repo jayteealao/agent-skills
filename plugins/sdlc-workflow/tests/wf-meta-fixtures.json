@@ -1,0 +1,55 @@
+{
+  "router": "/wf-meta",
+  "description": "Routing-resolution fixtures for the /wf-meta skill (v9.0.0-alpha.3+). Each invocation should resolve to skills/wf-meta/reference/<key>.md based on the first positional token.",
+  "fixtures": [
+    {
+      "id": "wf-meta-status-slug",
+      "purpose": "status sub-command with explicit slug.",
+      "invocation": "/wf-meta status add-onboarding",
+      "expectedReferencePath": "skills/wf-meta/reference/status.md"
+    },
+    {
+      "id": "wf-meta-resume-no-slug",
+      "purpose": "resume with no slug (auto-detect single in-progress workflow).",
+      "invocation": "/wf-meta resume",
+      "expectedReferencePath": "skills/wf-meta/reference/resume.md"
+    },
+    {
+      "id": "wf-meta-amend-from-review",
+      "purpose": "amend with two-positional scope + target syntax.",
+      "invocation": "/wf-meta amend from-review onboarding-1",
+      "expectedReferencePath": "skills/wf-meta/reference/amend.md"
+    },
+    {
+      "id": "wf-meta-skip-stage",
+      "purpose": "skip with stage name as first positional after the key.",
+      "invocation": "/wf-meta skip review onboarding-1",
+      "expectedReferencePath": "skills/wf-meta/reference/skip.md"
+    },
+    {
+      "id": "wf-meta-close-reason",
+      "purpose": "close with reason + slug.",
+      "invocation": "/wf-meta close shipped add-onboarding",
+      "expectedReferencePath": "skills/wf-meta/reference/close.md"
+    },
+    {
+      "id": "wf-meta-how-mode",
+      "purpose": "how with mode + topic.",
+      "invocation": "/wf-meta how findings onboarding-1",
+      "expectedReferencePath": "skills/wf-meta/reference/how.md"
+    },
+    {
+      "id": "wf-meta-announce-bare",
+      "purpose": "announce with no args (single-workflow auto-detect).",
+      "invocation": "/wf-meta announce",
+      "expectedReferencePath": "skills/wf-meta/reference/announce.md"
+    },
+    {
+      "id": "wf-meta-no-args-menu",
+      "purpose": "Bare /wf-meta should render the menu, not pick a default sub-command.",
+      "invocation": "/wf-meta",
+      "expectedBehavior": "menu",
+      "expectedReferencePath": null
+    }
+  ]
+}

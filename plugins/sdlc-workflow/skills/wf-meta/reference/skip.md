@@ -1,8 +1,6 @@
 ---
-name: wf-skip
 description: Advance a workflow past a stage without running it. Writes a skip record and a minimal stub artifact for the skipped stage (so downstream commands don't error on missing prerequisites), then updates 00-index.md to the next stage. Requires a reason. Warns loudly on high-risk skips (verify, review). Cannot skip intake, implement, or ship.
 argument-hint: <slug> <stage> [reason]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -37,9 +35,9 @@ Advances a workflow past a named stage without running it. Writes:
 
 | Stage | Reason |
 |-------|--------|
-| `intake` | Intake is the workflow — there is nothing to skip from. Use `/wf-close` if you want to abandon the workflow before starting. |
-| `implement` | You cannot skip the actual work. If the work was done outside the workflow, use `/wf-close <slug> completed-externally`. |
-| `ship` | Shipping is the purpose. If the work should not ship, use `/wf-close <slug> cancelled`. |
+| `intake` | Intake is the workflow — there is nothing to skip from. Use `/wf-meta close` if you want to abandon the workflow before starting. |
+| `implement` | You cannot skip the actual work. If the work was done outside the workflow, use `/wf-meta close <slug> completed-externally`. |
+| `ship` | Shipping is the purpose. If the work should not ship, use `/wf-meta close <slug> cancelled`. |
 
 # High-risk skips (require explicit confirmation)
 Skipping `verify` or `review` bypasses the quality gates. These are **warn-and-require-confirmation** — do NOT skip silently:
@@ -68,7 +66,7 @@ Use AskUserQuestion if available. If the user confirms, proceed. If not, STOP.
    - Read `00-index.md` `progress` field. If `<stage>: skipped` or `<stage>: complete` already → WARN: "Stage `<stage>` is already marked `<status>` in this workflow. Skipping again will overwrite the skip record. Proceed? (yes to continue)"
 5. **Check stage ordering:**
    - Read `current-stage` from `00-index.md`.
-   - If the requested skip stage is MORE THAN ONE stage ahead of `current-stage` → WARN: "You are at `<current-stage>` but skipping `<stage>` which is `<N>` stages ahead. Stages between them will also be effectively skipped — they will remain incomplete. Run `/wf-skip <slug> <intermediate-stage>` for each intermediate stage, or confirm you want to jump `<N>` stages. (yes to proceed)"
+   - If the requested skip stage is MORE THAN ONE stage ahead of `current-stage` → WARN: "You are at `<current-stage>` but skipping `<stage>` which is `<N>` stages ahead. Stages between them will also be effectively skipped — they will remain incomplete. Run `/wf-meta skip <slug> <intermediate-stage>` for each intermediate stage, or confirm you want to jump `<N>` stages. (yes to proceed)"
 6. **Read full workflow context:**
    - Read `00-index.md` frontmatter: `current-stage`, `status`, `branch-strategy`, `branch`, `base-branch`, `progress`, `next-command`, `next-invocation`, `open-questions`.
 
@@ -187,10 +185,10 @@ If a high-risk stage was skipped, prefix with:
 
 If multiple intermediate stages would be effectively incomplete due to a jump, add:
 
-> ⚠ Stages between `<current>` and `<skipped>` remain incomplete. Run `/wf-skip <slug> <stage>` for each or accept the gap.
+> ⚠ Stages between `<current>` and `<skipped>` remain incomplete. Run `/wf-meta skip <slug> <stage>` for each or accept the gap.
 
 # What this command is NOT
 
 - **Not an undo** — skipping a stage that is already complete does not reverse the completed work. It only overwrites the skip record.
-- **Not a way to skip implement or ship** — use `/wf-close` to abandon work, not `/wf-skip`.
+- **Not a way to skip implement or ship** — use `/wf-meta close` to abandon work, not `/wf-meta skip`.
 - **Not silent** — every skip must have a reason and a record. A workflow with unexplained skips is harder to audit later.

@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Announce"
-  short_description: "Generate stakeholder-facing announcements for shipped workflows. Plain language, no jargon, tailored by audience (eng, product, users). Pulls from handoff and ship artifacts."
-  default_prompt: "Use $wf-announce for this workflow."
-policy:
-  allow_implicit_invocation: false

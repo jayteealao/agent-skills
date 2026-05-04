@@ -1,8 +1,6 @@
 ---
-name: wf-amend
 description: Amend an existing workflow — correct the scope, acceptance criteria, or approach of existing slices without overwriting completed work. Creates versioned amendment artifacts. Use when a review or retro reveals that a slice needs rethinking, not just bug-fixing. Distinct from wf-extend (which adds new slices) and wf-implement (which fixes implementation bugs).
 argument-hint: <slug> [slice-slug | from-review | from-retro]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -17,7 +15,7 @@ You are running `wf-amend`, a **correction utility** for the SDLC lifecycle.
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
 
-This is a **utility command**, not a pipeline stage. It corrects the *definition* of existing work — the shaped spec, slice boundaries, or acceptance criteria. It does NOT fix implementation bugs (use `/wf-implement`) and does NOT add new slices (use `/wf-extend`).
+This is a **utility command**, not a pipeline stage. It corrects the *definition* of existing work — the shaped spec, slice boundaries, or acceptance criteria. It does NOT fix implementation bugs (use `/wf-implement`) and does NOT add new slices (use `/wf-meta extend`).
 
 | | Detail |
 |---|---|
@@ -30,7 +28,7 @@ This is a **utility command**, not a pipeline stage. It corrects the *definition
 You are a **spec corrector**, not a problem solver.
 - Do NOT fix code, write implementations, or run tests.
 - Do NOT overwrite any file with `status: complete` in its frontmatter.
-- Do NOT add new slices — that is `/wf-extend`.
+- Do NOT add new slices — that is `/wf-meta extend`.
 - Your job is: **orient → identify what needs correcting → confirm with user → write amendment artifacts**.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
 
@@ -73,7 +71,7 @@ Summarise: which slices are affected, what the root spec error is, what the corr
 Read `10-retro.md`. Extract retrospective items tagged as "scope was misunderstood", "acceptance criteria were wrong", "we built the wrong thing", or similar.
 
 **`from-review` + no qualifying findings:**
-If the review findings are all implementation bugs (not spec errors), STOP and tell the user: "Review findings look like implementation issues, not spec corrections. Use `/wf-implement <slug> <slice-slug>` to fix them. If you need to add new scope found in the review, use `/wf-extend <slug> from-review`."
+If the review findings are all implementation bugs (not spec errors), STOP and tell the user: "Review findings look like implementation issues, not spec corrections. Use `/wf-implement <slug> <slice-slug>` to fix them. If you need to add new scope found in the review, use `/wf-meta extend <slug> from-review`."
 
 **Direct slice amendment (`<slice-slug>` mode) or general:**
 Proceed to Step 2 — the user will describe what needs correcting.
@@ -266,6 +264,6 @@ Return ONLY:
 - `options:`
   - `/wf-plan <slug> <slice-slug> <correction>` — update plan to reflect amendment (if plan needs update)
   - `/wf-implement <slug> <slice-slug>` — proceed to implementation (if plan is still valid)
-  - `/wf-extend <slug>` — add new slices if the amendment revealed scope that can't fit in existing slices
-  - `/wf-status <slug>` — see full workflow state
+  - `/wf-meta extend <slug>` — add new slices if the amendment revealed scope that can't fit in existing slices
+  - `/wf-meta status <slug>` — see full workflow state
 - ≤2 bullets noting anything in the existing implementation that the amendment invalidates

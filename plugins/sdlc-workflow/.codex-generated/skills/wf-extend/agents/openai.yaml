@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Extend"
-  short_description: "Add net-new slices to an existing workflow — in-progress or completed — without modifying completed work. Two modes: general (describe new scope) or from-review/from-retro (seed from findings). Creates new slice files and updates the master index non-destructively. Routes to wf-plan for the new slices."
-  default_prompt: "Use $wf-extend for this workflow."
-policy:
-  allow_implicit_invocation: false

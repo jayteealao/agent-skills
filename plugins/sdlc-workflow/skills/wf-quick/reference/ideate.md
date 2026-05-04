@@ -234,7 +234,7 @@ Evidence: <file:line or file range from sub-agent findings>
 Description: <2–3 sentences — what's wrong, what fixing it looks like, why now>
 Effort: xs | s | m | l | xl
 Impact: low | medium | high | critical
-Entry: /wf-quick intake <slug-suggestion> | /wf-extend <existing-slug>
+Entry: /wf-quick intake <slug-suggestion> | /wf-meta extend <existing-slug>
 ```
 
 ---

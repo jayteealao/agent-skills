@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Next"
-  short_description: "Read the workflow index and tell the user the exact next command to run, carrying forward the correct slug and slice."
-  default_prompt: "Use $wf-next for this workflow."
-policy:
-  allow_implicit_invocation: false

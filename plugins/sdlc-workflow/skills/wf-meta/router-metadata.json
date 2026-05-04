@@ -1,0 +1,17 @@
+{
+  "skill": "wf-meta",
+  "description": "Skill router for /wf-meta. 10 sub-commands (next, status, resume, sync, amend, extend, skip, close, how, announce) for lifecycle navigation, status, and meta-control. No sweep mode — sub-commands are orthogonal meta-actions. Invoke as /wf-meta <subcommand> <args>.",
+  "dimensions": [
+    "amend",
+    "announce",
+    "close",
+    "extend",
+    "how",
+    "next",
+    "resume",
+    "skip",
+    "status",
+    "sync"
+  ],
+  "aggregates": {}
+}

@@ -292,13 +292,13 @@ You do not need a slug yet. The command derives it from your description and cre
 ### … find out what to run next
 
 ```
-/wf-next dark-mode-toggle-settings
+/wf-meta next dark-mode-toggle-settings
 ```
 
 Reads `00-index.md` and returns all viable options with reasoning. If you have forgotten the slug:
 
 ```
-/wf-next
+/wf-meta next
 ```
 
 The command searches all `.ai/workflows/*/00-index.md` files and either infers the active workflow or asks you to choose.
@@ -306,13 +306,13 @@ The command searches all `.ai/workflows/*/00-index.md` files and either infers t
 ### … see all workflow status at a glance
 
 ```
-/wf-status
+/wf-meta status
 ```
 
 Reads every `00-index.md` in the project and renders a grouped dashboard — active, complete, blocked, and abandoned — with current stage, progress bars, and next invocation for each. No files are written.
 
 ```
-/wf-status dark-mode-toggle-settings
+/wf-meta status dark-mode-toggle-settings
 ```
 
 Detail mode for a single workflow: shows every stage status, all artifacts, open questions, and the full recommended next command.
@@ -320,7 +320,7 @@ Detail mode for a single workflow: shows every stage status, all artifacts, open
 ### … recover context after a break
 
 ```
-/wf-resume dark-mode-toggle-settings
+/wf-meta resume dark-mode-toggle-settings
 ```
 
 Reads the full workflow trail and distills it into a ~500-word context brief. Written to `90-resume.md` and returned in chat. Designed for starting a new Claude Code session without re-reading all the artifact files manually.
@@ -328,7 +328,7 @@ Reads the full workflow trail and distills it into a ~500-word context brief. Wr
 ### … reconcile workflow state with reality
 
 ```
-/wf-sync dark-mode-toggle-settings
+/wf-meta sync dark-mode-toggle-settings
 ```
 
 Cross-references every code file, test file, branch, PR, and dependency referenced in workflow artifacts against the actual codebase. Especially useful mid-flight (stages 4–7) when long-running workflows can drift due to teammate merges, library releases, or config changes. Produces `00-sync.md` with a health rating (`in-sync / minor-drift / significant-drift / stale`) and per-category drift details.
@@ -390,7 +390,7 @@ Skips the full review. Reads `07-review-<slice-slug>.md → ## Triage Decisions`
 Use `wf-amend` when a review or retro reveals that the **spec, acceptance criteria, or fundamental approach** of an existing slice was incorrect — not that the code has bugs, and not that new scope is needed.
 
 ```
-/wf-amend dark-mode-toggle-settings from-review
+/wf-meta amend dark-mode-toggle-settings from-review
 ```
 
 The command reads `07-review-<slice-slug>.md` (or aggregates relevant siblings if the spec error spans slices), identifies findings that point to spec errors (not implementation bugs), asks 4–8 questions to understand the correction, then writes versioned amendment artifacts:
@@ -404,9 +404,9 @@ After writing amendments, the command routes you to `wf-plan` directed-fix mode 
 
 **Three source modes:**
 ```
-/wf-amend dark-mode-toggle-settings from-review    # seed from 07-review-<slice>.md findings
-/wf-amend dark-mode-toggle-settings from-retro     # seed from 10-retro.md
-/wf-amend dark-mode-toggle-settings                # describe the correction manually
+/wf-meta amend dark-mode-toggle-settings from-review    # seed from 07-review-<slice>.md findings
+/wf-meta amend dark-mode-toggle-settings from-retro     # seed from 10-retro.md
+/wf-meta amend dark-mode-toggle-settings                # describe the correction manually
 ```
 
 ### … add new slices to an existing workflow
@@ -414,7 +414,7 @@ After writing amendments, the command routes you to `wf-plan` directed-fix mode 
 Use `wf-extend` when review or retro reveals **new scope** — missing capability that was never planned, not bugs in what was built and not corrections to the spec.
 
 ```
-/wf-extend dark-mode-toggle-settings from-review
+/wf-meta extend dark-mode-toggle-settings from-review
 ```
 
 The command reads every `07-review-<slice-slug>.md` in the workflow (extension candidates often span sibling reviews), identifies findings that describe missing capability (not broken code), groups them into candidate slices, asks 4–8 questions about grouping and ordering, confirms the proposed slices with you, then:
@@ -424,8 +424,8 @@ The command reads every `07-review-<slice-slug>.md` in the workflow (extension c
 3. Routes to `wf-plan` for the new slices
 
 ```
-/wf-extend dark-mode-toggle-settings from-retro    # seed from retro findings
-/wf-extend dark-mode-toggle-settings               # describe new scope manually
+/wf-meta extend dark-mode-toggle-settings from-retro    # seed from retro findings
+/wf-meta extend dark-mode-toggle-settings               # describe new scope manually
 ```
 
 **Key distinction from re-running wf-slice:** `wf-extend` appends; `wf-slice` replaces.
@@ -452,7 +452,7 @@ Requires `.impeccable.md` in your project root (established by `wf-design:setup`
 ### … generate announcements after shipping
 
 ```
-/wf-announce dark-mode-toggle-settings
+/wf-meta announce dark-mode-toggle-settings
 ```
 
 Reads `08-handoff.md`, `09-ship.md`, `01-intake.md`, and `02-shape.md`. Checks for any planned docs from the shape's docs plan that weren't generated at handoff and invokes the appropriate Diátaxis skill to fill the gap. Then asks which audience and which channels:
@@ -473,7 +473,7 @@ Each draft includes a **Docs** section linking to the generated documentation fo
 
 ```
 /wf-how how does the auth middleware check permissions?
-/wf-how what triggers a re-render in the data table component?
+/wf-meta how what triggers a re-render in the data table component?
 ```
 
 Routes to **Mode B (Codebase Explain)**. For narrow questions (single function or module), a single Explore sub-agent reads the relevant code and writes a direct explanation. For architectural or flow questions spanning multiple files, the command decomposes the question into 2–4 exploration angles, spawns parallel Explore sub-agents (one per angle), then synthesizes their findings into a structured explanation:
@@ -489,8 +489,8 @@ Result is saved to `.ai/research/<topic>-<ts>.md`. A Diátaxis explanation doc i
 ### … commission deep research on a topic
 
 ```
-/wf-how --research distributed tracing approaches for microservices
-/wf-how --research state of the art in zero-downtime database migrations
+/wf-meta how --research distributed tracing approaches for microservices
+/wf-meta how --research state of the art in zero-downtime database migrations
 ```
 
 Routes to **Mode C (Deep Research)**. Decomposes the question into 6–8 source-type research angles, then spawns all agents in parallel — one each for official specs, academic papers, practitioner blogs, GitHub repos, community forums, recent news, conference talks, and books. Each agent runs 25–35 searches and returns structured source lists.
@@ -508,9 +508,9 @@ Result is saved to `.ai/research/<topic>-<ts>.md`. A Diátaxis reference doc is 
 ### … understand what a workflow plan or artifact says
 
 ```
-/wf-how dark-mode-toggle-settings plan
-/wf-how dark-mode-toggle-settings shape
-/wf-how dark-mode-toggle-settings slice css-token-setup
+/wf-meta how dark-mode-toggle-settings plan
+/wf-meta how dark-mode-toggle-settings shape
+/wf-meta how dark-mode-toggle-settings slice css-token-setup
 ```
 
 Routes to **Mode D (Workflow Explain)**. Reads the target artifact(s) plus `po-answers.md` and produces a plain-language explanation:
@@ -526,8 +526,8 @@ Especially useful when resuming a workflow after a long break, onboarding a coll
 ### … understand review or implementation findings
 
 ```
-/wf-how dark-mode-toggle-settings review
-/wf-how dark-mode-toggle-settings findings
+/wf-meta how dark-mode-toggle-settings review
+/wf-meta how dark-mode-toggle-settings findings
 ```
 
 Routes to **Mode E (Findings Explain)**. Globs every `07-review-*.md` (per-slice masters and per-command sub-reviews), reads `06-verify.md`, and `02-shape.md` (for acceptance criteria context), then produces a structured explanation of what the findings actually mean:
@@ -543,8 +543,8 @@ The `findings` target includes both review findings and verification failures. T
 ### … ask a quick code question
 
 ```
-/wf-how --quick what does UserService.findById return when the user is deleted?
-/wf-how --quick what is the shape of the CartItem type?
+/wf-meta how --quick what does UserService.findById return when the user is deleted?
+/wf-meta how --quick what is the shape of the CartItem type?
 ```
 
 Forces **Mode A (Quick)**. Spawns a single Explore sub-agent that reads the relevant code and answers directly. No fan-out, no synthesis step. For focused questions about a specific function, type, or return value where you don't need an architectural explanation.
@@ -603,7 +603,7 @@ The review command reminds you explicitly: "Consider running `/compact` before `
 If you start a session without remembering where you left off:
 
 ```
-/wf-next
+/wf-meta next
 ```
 
 No slug needed. It finds your active workflow and returns the next command ready to copy and run.
@@ -623,7 +623,7 @@ The supplemental text is visible to the command but not persisted — it guides 
 On a feature that will span multiple days, run `wf-sync` before starting each new planning or implementation session. Teammate merges, dependency updates, and config changes can silently invalidate plan assumptions. The sync report surfaces these before you've written code against stale assumptions.
 
 ```
-/wf-sync dark-mode-toggle-settings
+/wf-meta sync dark-mode-toggle-settings
 ```
 
 ### Use po-answers.md as the decision audit trail
@@ -670,7 +670,7 @@ The codebase explanation gives the planning sub-agents pre-built context that th
 Before committing to an architectural approach, commission research:
 
 ```
-/wf-how --research approaches to optimistic UI updates with server-side validation
+/wf-meta how --research approaches to optimistic UI updates with server-side validation
 ```
 
 The citation index gives you 200+ sources to cite in `po-answers.md` when the review asks "why was this approach chosen?" Helps distinguish informed decisions from guesses.
@@ -791,28 +791,28 @@ All require `.impeccable.md` established by `/wf-design:setup`.
 
 | Command | Use when |
 |---|---|
-| `/wf-amend <slug> [from-review\|from-retro]` | Spec/AC/approach of an existing slice was wrong |
-| `/wf-extend <slug> [from-review\|from-retro]` | New scope (not bugs, not corrections) needs adding |
+| `/wf-meta amend <slug> [from-review\|from-retro]` | Spec/AC/approach of an existing slice was wrong |
+| `/wf-meta extend <slug> [from-review\|from-retro]` | New scope (not bugs, not corrections) needs adding |
 
 ### Discovery and research commands
 
 | Command | Purpose |
 |---|---|
 | `/wf-quick quick ideate [focus-area] [count]` | Scan codebase with 6 parallel lenses, generate 30+ candidates, adversarially filter, rank survivors — produces `.ai/ideation/` artifact ready for `/wf-quick quick intake` |
-| `/wf-how <question>` | Auto-route question across 5 modes: quick code answer (A), codebase exploration (B), deep web research (C), workflow artifact explanation (D), or findings explanation (E) |
-| `/wf-how <slug> plan\|shape\|slice\|review\|findings` | Shortcut to Mode D or E — explain a specific workflow artifact or findings set for the given slug |
-| `/wf-how --research <question>` | Force Mode C — commission 6–8 parallel web research agents targeting 200+ sources |
-| `/wf-how --quick <question>` | Force Mode A — single Explore agent, direct answer, no fan-out |
+| `/wf-meta how <question>` | Auto-route question across 5 modes: quick code answer (A), codebase exploration (B), deep web research (C), workflow artifact explanation (D), or findings explanation (E) |
+| `/wf-meta how <slug> plan\|shape\|slice\|review\|findings` | Shortcut to Mode D or E — explain a specific workflow artifact or findings set for the given slug |
+| `/wf-meta how --research <question>` | Force Mode C — commission 6–8 parallel web research agents targeting 200+ sources |
+| `/wf-meta how --quick <question>` | Force Mode A — single Explore agent, direct answer, no fan-out |
 
 ### Utility commands
 
 | Command | Purpose |
 |---|---|
-| `/wf-next [slug]` | Routing helper — returns next viable command(s) |
-| `/wf-status [slug]` | Read-only dashboard across all workflows |
-| `/wf-resume [slug]` | ~500-word context brief for resuming after a break |
-| `/wf-sync [slug]` | Reality reconciliation — surface drift between artifacts and codebase |
-| `/wf-announce <slug> [audience]` | Generate stakeholder announcements with Diátaxis doc links |
+| `/wf-meta next [slug]` | Routing helper — returns next viable command(s) |
+| `/wf-meta status [slug]` | Read-only dashboard across all workflows |
+| `/wf-meta resume [slug]` | ~500-word context brief for resuming after a break |
+| `/wf-meta sync [slug]` | Reality reconciliation — surface drift between artifacts and codebase |
+| `/wf-meta announce <slug> [audience]` | Generate stakeholder announcements with Diátaxis doc links |
 
 ### Standalone workflows
 

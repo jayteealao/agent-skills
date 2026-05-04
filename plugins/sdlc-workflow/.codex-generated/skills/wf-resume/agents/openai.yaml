@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Resume"
-  short_description: "Generate a dense, token-efficient context brief for a workflow. Reads all stage files and po-answers, distills into ~500 words. Designed for resuming after a break, onboarding a sub-agent, or recovering context in a new session."
-  default_prompt: "Use $wf-resume for this workflow."
-policy:
-  allow_implicit_invocation: false

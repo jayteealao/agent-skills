@@ -22,7 +22,7 @@ You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 | Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (recommended) |
 | Conditional inputs (mandatory when present) | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `07-design-audit.md`, `07-design-critique.md`, `augmentations:` list in `00-index.md` — every artifact that exists MUST be checked by the relevant review (e.g., 02c-craft.md anti-goals MUST be honored; 04b-instrument.md signals MUST be present; 05c-benchmark.md baseline MUST not regress; every augmentation MUST get a type-specific re-check). |
 | Produces | `07-review-<slice-slug>.md` + `07-review-<slice-slug>-<command>.md` per selected command (per-slice scoping — running review on a different slice does NOT overwrite a sibling slice's files) |
-| Next | `/wf-handoff <slug>` (if approved + all slices complete), `/wf-implement <slug> <slice>` (if bugs to fix), `/wf-plan <slug> <next-slice>` (if more slices remain), `/wf-amend <slug> from-review` (if spec was wrong), or `/wf-extend <slug> from-review` (if new scope needed) |
+| Next | `/wf-handoff <slug>` (if approved + all slices complete), `/wf-implement <slug> <slice>` (if bugs to fix), `/wf-plan <slug> <next-slice>` (if more slices remain), `/wf-meta amend <slug> from-review` (if spec was wrong), or `/wf-meta extend <slug> from-review` (if new scope needed) |
 
 # CRITICAL — execution discipline
 You are a **review dispatch orchestrator**, not a problem solver.
@@ -486,8 +486,8 @@ next-invocation: "<based on verdict>"
 - **Option B:** `/wf-implement <slug> <slice>` — fix blocking issues [list what needs fixing]
 - **Option C:** `/wf-ship <slug>` — skip handoff [reason, if applicable]
 - **Option D:** `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>` — more slices to implement before handoff [reason, if applicable]
-- **Option E:** `/wf-extend <slug> from-review` — add new slices from findings [reason, if applicable]
-- **Option F:** `/wf-amend <slug> from-review` — correct the spec/approach of an existing slice [reason, if applicable]
+- **Option E:** `/wf-meta extend <slug> from-review` — add new slices from findings [reason, if applicable]
+- **Option F:** `/wf-meta amend <slug> from-review` — correct the spec/approach of an existing slice [reason, if applicable]
 
 ---
 
@@ -519,10 +519,10 @@ Use when: No team to hand off to, no PR description needed, CI/CD handles the re
 Use when: This slice is approved AND more slices remain. Check `03-slice.md`.
 **Compact recommended** — previous slice's full lifecycle (implement + verify + review) is noise for the next slice.
 
-**Option E: Extend scope** → `/wf-extend <slug> from-review`
+**Option E: Extend scope** → `/wf-meta extend <slug> from-review`
 Use when: Review findings reveal **missing capability** rather than broken implementation — scope that was never built, not code that is wrong. Signal: findings describe "X should also do Y" or "there is no handler for Z" rather than "X does Y incorrectly". Use this over wf-implement when the work required is net-new rather than corrective.
 
-**Option F: Amend spec** → `/wf-amend <slug> from-review`
+**Option F: Amend spec** → `/wf-meta amend <slug> from-review`
 Use when: Review findings reveal that the **slice definition or acceptance criteria were themselves wrong** — the implementation did what it was told, but what it was told to do was incorrect. Signal: multiple findings stem from the same incorrect assumption in the spec, or a finding says the approach is fundamentally wrong rather than buggy.
 
 Write ALL viable options into `## Recommended Next Stage`.

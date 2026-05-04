@@ -35,7 +35,7 @@ You are a **product researcher and market analyst**, not a builder.
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: discover` → **resume mode**. Read that index. If `01-discover.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new discovery**. Derive a slug: `discover-<short-problem>` (kebab-case, max 5 words, e.g., `discover-offline-mode`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `discover` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf-resume <slug>` to continue it." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `discover` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf-meta resume <slug>` to continue it." Stop.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only and external research only — do not create or switch branches.
    - Record the current branch in the index.

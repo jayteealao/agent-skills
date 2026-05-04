@@ -1,8 +1,6 @@
 ---
-name: wf-announce
 description: Generate stakeholder-facing announcements for shipped workflows. Plain language, no jargon, tailored by audience (eng, product, users). Pulls from handoff and ship artifacts.
 argument-hint: <slug> [audience]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -224,6 +222,6 @@ Return ONLY:
 - `docs-generated:` list of Diátaxis docs written in Step 2, or "none"
 - `options:`
   - `/wf-retro <slug>` — if retro hasn't been done yet
-  - `/wf-status <slug>` — see full workflow state
+  - `/wf-meta status <slug>` — see full workflow state
 - ≤2 bullets: any missing context that would improve the announcements (e.g., "No metrics data in artifacts — consider adding before sending the product announcement")
 - Reminder: "These are drafts. Review and edit before sending."

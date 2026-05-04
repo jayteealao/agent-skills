@@ -145,6 +145,9 @@ function findOrphanedReferences() {
     //   - \s+KEYS:      makes /wf-quick rca (the v9 dispatch form) skip,
     //                   so only legacy callsites trigger.
     /\/wf-(?:quick|rca|investigate|discover|hotfix|update-deps|docs|refactor|ideate|intake)(?![A-Za-z0-9_/-])(?!\s+(?:quick|rca|investigate|discover|hotfix|update-deps|docs|refactor|ideate|intake)\b)/g,
+    // /wf-* legacy commands removed by v9.0.0-alpha.3 PR-3 (rolled into /wf-meta).
+    // Same lookahead scheme as the wf-quick family above.
+    /\/wf-(?:next|status|resume|sync|amend|extend|skip|close|how|announce)(?![A-Za-z0-9_/-])(?!\s+(?:next|status|resume|sync|amend|extend|skip|close|how|announce)\b)/g,
   ];
 
   function walk(dir) {

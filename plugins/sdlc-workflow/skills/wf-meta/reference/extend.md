@@ -1,8 +1,6 @@
 ---
-name: wf-extend
 description: "Add net-new slices to an existing workflow — in-progress or completed — without modifying completed work. Two modes: general (describe new scope) or from-review/from-retro (seed from findings). Creates new slice files and updates the master index non-destructively. Routes to wf-plan for the new slices."
 argument-hint: <slug> [from-review | from-retro]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -17,7 +15,7 @@ You are running `wf-extend`, a **scope expansion utility** for the SDLC lifecycl
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
 
-This is a **utility command**, not a pipeline stage. It adds net-new slices to any workflow — whether in-progress or fully complete — without touching existing slice artifacts. It does NOT correct existing slices (use `/wf-amend`) and does NOT fix bugs in existing implementation (use `/wf-implement`).
+This is a **utility command**, not a pipeline stage. It adds net-new slices to any workflow — whether in-progress or fully complete — without touching existing slice artifacts. It does NOT correct existing slices (use `/wf-meta amend`) and does NOT fix bugs in existing implementation (use `/wf-implement`).
 
 | | Detail |
 |---|---|
@@ -236,5 +234,5 @@ Return ONLY:
 - `options:`
   - `/wf-plan <slug> <first-new-slice-slug>` — plan the first new slice (default)
   - `/wf-plan <slug> all` — if you want to plan all new slices in parallel
-  - `/wf-status <slug>` — see full workflow state including all slices
+  - `/wf-meta status <slug>` — see full workflow state including all slices
 - ≤2 bullets noting dependency ordering if new slices depend on existing in-progress work
