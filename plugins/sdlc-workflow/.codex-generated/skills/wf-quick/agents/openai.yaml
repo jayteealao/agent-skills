@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Quick"
+  short_description: "Standalone investigative and entry-point workflows. Dispatches to one of 10 sub-commands — quick (compressed planning for small changes), rca (root-cause analysis), investigate (investment discovery), discover (problem validation), hotfix (active-incident emergency fix), update-deps (dependency upgrades), docs (documentation-only workflow), refactor (refactoring workflow), ideate (codebase improvement ideation), intake (full-lifecycle entry / stage 1 of 10). Auto-trigger when the user wants to start a new workflow, kick off an investigation, run a root-cause analysis, validate a problem, plan a hotfix, upgrade dependencies, write documentation, refactor, ideate on improvements, or types any /wf-X invocation that the v9 migration redirects through this skill."
+  default_prompt: "Use $wf-quick for this workflow."
+policy:
+  allow_implicit_invocation: false

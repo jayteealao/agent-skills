@@ -5,9 +5,15 @@
     "url": "https://github.com/jayteealao"
   },
   "codex": {
-    "version": "8.18.0-codex.1",
+    "version": "9.0.0-codex.1",
     "generatedSkillsPath": "./.codex-generated/skills/",
-    "includeHooks": false
+    "includeHooks": false,
+    "routerSkills": [
+      "wf",
+      "wf-quick",
+      "wf-meta",
+      "review"
+    ]
   },
   "interface": {
     "displayName": "SDLC Workflow",

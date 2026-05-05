@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF"
+  short_description: "Lifecycle-stage execution for SDLC workflows. Dispatches to one of 13 sub-commands — shape (feature discovery + spec), slice (decompose into shippable slices), plan (per-slice implementation plan with reuse scan), implement (code the slice), verify (run tests + checks), review (parallel sub-agent review dispatch), handoff (PR description), ship (release notes + ship), retro (post-mortem), instrument (observability augmentation), experiment (A/B/flag/canary design), benchmark (perf baseline + compare), profile (CPU/memory hotspot analysis). Auto-trigger when the user wants to start a feature spec, slice work, plan a slice, write implementation, run verification, do a code review, prepare a handoff, ship a release, run a retro, add instrumentation, design an experiment, run a benchmark, or profile a hotspot. The 13 sub-commands produce stage artifacts under .ai/workflows/<slug>/ and are the *executors* of the SDLC lifecycle (distinct from /wf-meta which navigates and /wf-quick which starts compressed flows)."
+  default_prompt: "Use $wf for this workflow."
+policy:
+  allow_implicit_invocation: false

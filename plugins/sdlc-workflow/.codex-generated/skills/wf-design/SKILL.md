@@ -1,6 +1,6 @@
 ---
 name: wf-design
-description: "Create a design brief for a feature — discovery interview, UX strategy, layout approach, key states, interaction model. Produces 02b-design.md artifact. Slots between shape and slice."
+description: "Unified design command for the SDLC workflow. Three invocation modes: (1) /wf-design <slug> — runs the design stage (2b) for an active workflow; (2) /wf-design <slug> <sub-command> — runs a specific design sub-command in workflow context; (3) /wf-design <sub-command> — freestanding design work with no workflow context required. 22 sub-commands: shape, craft, audit, critique, extract, animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset, adapt, setup, teach."
 ---
 
 # wf-design

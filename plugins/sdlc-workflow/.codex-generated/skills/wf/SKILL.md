@@ -1,15 +1,15 @@
 ---
-name: wf-design-critique
-description: "Evaluate design from a UX perspective with quantitative scoring (Nielsen's 10 heuristics), persona-based testing, cognitive load assessment, and actionable feedback. Use after implementation."
+name: wf
+description: "Lifecycle-stage execution for SDLC workflows. Dispatches to one of 13 sub-commands — shape (feature discovery + spec), slice (decompose into shippable slices), plan (per-slice implementation plan with reuse scan), implement (code the slice), verify (run tests + checks), review (parallel sub-agent review dispatch), handoff (PR description), ship (release notes + ship), retro (post-mortem), instrument (observability augmentation), experiment (A/B/flag/canary design), benchmark (perf baseline + compare), profile (CPU/memory hotspot analysis). Auto-trigger when the user wants to start a feature spec, slice work, plan a slice, write implementation, run verification, do a code review, prepare a handoff, ship a release, run a retro, add instrumentation, design an experiment, run a benchmark, or profile a hotspot. The 13 sub-commands produce stage artifacts under .ai/workflows/<slug>/ and are the *executors* of the SDLC lifecycle (distinct from /wf-meta which navigates and /wf-quick which starts compressed flows)."
 ---
 
-# wf-design-critique
+# wf
 
 This generated skill is a Codex adapter for the canonical workflow command source. Keep the Claude command source as the single source of truth; do not copy command logic into this generated file.
 
 ## When To Use
 
-Use this skill when the user asks for `/wf-design-critique`, references `commands/wf-design-critique.md`, or describes the same workflow intent.
+Use this skill when the user asks for `/wf`, references `skills/wf/SKILL.md`, or describes the same workflow intent.
 
 ## Runtime Procedure
 
@@ -21,7 +21,7 @@ Use this skill when the user asks for `/wf-design-critique`, references `command
 
 ## Canonical Source
 
-- ../../../commands/wf-design-critique.md
+- ../../../skills/wf/SKILL.md
 
 ## External Output Boundary
 

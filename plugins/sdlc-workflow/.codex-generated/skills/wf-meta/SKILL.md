@@ -1,15 +1,15 @@
 ---
-name: wf-design-extract
-description: "Identify reusable patterns, components, and design tokens from the codebase and extract them into a consolidated design system for systematic reuse."
+name: wf-meta
+description: "Lifecycle navigation, status, and meta-control for SDLC workflows. Dispatches to one of 10 sub-commands — next (advance to next stage), status (read current state), resume (continue an in-progress workflow), sync (reconcile workflow state with disk), amend (edit a prior stage's artifact), extend (add new work to an existing workflow), skip (mark a stage as skipped without running it), close (archive a workflow at any stage), how (route across explanation modes), announce (Diátaxis announcement output). Auto-trigger when the user wants to check workflow status, resume work, find what's next, sync state, amend an artifact, extend scope, skip a stage, close a workflow, ask how to do something, or publish an announcement. The 10 sub-commands are about *managing* an existing workflow (or asking about one) — they do not produce stage artifacts themselves."
 ---
 
-# wf-design-extract
+# wf-meta
 
 This generated skill is a Codex adapter for the canonical workflow command source. Keep the Claude command source as the single source of truth; do not copy command logic into this generated file.
 
 ## When To Use
 
-Use this skill when the user asks for `/wf-design-extract`, references `commands/wf-design-extract.md`, or describes the same workflow intent.
+Use this skill when the user asks for `/wf-meta`, references `skills/wf-meta/SKILL.md`, or describes the same workflow intent.
 
 ## Runtime Procedure
 
@@ -21,7 +21,7 @@ Use this skill when the user asks for `/wf-design-extract`, references `commands
 
 ## Canonical Source
 
-- ../../../commands/wf-design-extract.md
+- ../../../skills/wf-meta/SKILL.md
 
 ## External Output Boundary
 

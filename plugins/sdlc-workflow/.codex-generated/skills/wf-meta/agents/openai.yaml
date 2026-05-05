@@ -1,0 +1,6 @@
+interface:
+  display_name: "WF Meta"
+  short_description: "Lifecycle navigation, status, and meta-control for SDLC workflows. Dispatches to one of 10 sub-commands — next (advance to next stage), status (read current state), resume (continue an in-progress workflow), sync (reconcile workflow state with disk), amend (edit a prior stage's artifact), extend (add new work to an existing workflow), skip (mark a stage as skipped without running it), close (archive a workflow at any stage), how (route across explanation modes), announce (Diátaxis announcement output). Auto-trigger when the user wants to check workflow status, resume work, find what's next, sync state, amend an artifact, extend scope, skip a stage, close a workflow, ask how to do something, or publish an announcement. The 10 sub-commands are about *managing* an existing workflow (or asking about one) — they do not produce stage artifacts themselves."
+  default_prompt: "Use $wf-meta for this workflow."
+policy:
+  allow_implicit_invocation: false

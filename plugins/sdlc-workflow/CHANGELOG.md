@@ -5,6 +5,30 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.0.0] - 2026-05-05
+
+### Added
+
+- **Codex generator emits skill-mode router adapters** (PR-5 of `ROUTER-MIGRATION-PLAN.md`). `scripts/generate-codex-plugin.mjs` now reads a new `codex.routerSkills` array in `.codex-plugin.overrides.json` and emits one Codex skill adapter per listed router, pointing at `skills/<router>/SKILL.md` as the canonical source. The four routers introduced across alpha.1–alpha.4 (`/wf`, `/wf-quick`, `/wf-meta`, `/review`) now have first-class Codex parity. Reference bodies under `skills/<router>/reference/` stay where they are — the router loads them on demand at runtime, the same way it does on Claude.
+- **`buildGeneratedRouterSkillFiles()`** helper in the generator — parallel to the existing `buildGeneratedSkillFiles()` (which still walks `commands/`). The two functions share the adapter-content builder (`buildGeneratedSkillContent`), the description sanitizer (`sanitizeCodexDescription`), and the OpenAI metadata template (`buildOpenAiSkillMetadata`), so the relative-path math and translation rules apply uniformly to both shapes.
+
+### Changed
+
+- **Drops the `alpha` tag.** `9.0.0-alpha.4` → `9.0.0`. The migration is structurally complete: top-level slash surface is now five entries (`/wf`, `/wf-quick`, `/wf-meta`, `/wf-design`, `/review`) plus the `/setup-wide-logging` bootstrap command, where 73 commands used to live. The verifier passes across all four routers in CI.
+- **`.codex-generated/` regenerated.** Six skill adapters now present: `setup-wide-logging`, `wf-design` (from `commands/`), and the four new router adapters `wf`, `wf-quick`, `wf-meta`, `review` (from `skills/`). Four stale dirs cleared as a side effect of the regeneration: `wf-design-{audit,critique,extract,setup}` — these were sub-commands subsumed into the unified `/wf-design` router back in v8.27, but the codex generator hadn't been re-run since v8.30.1.
+- **Codex manifest version → `9.0.0-codex.1`.** Tracks the source plugin version at the major.minor.patch level; the `-codex.N` suffix tracks Codex-specific shim revisions independently.
+- **Plugin descriptions trimmed to current-state.** `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` (root) had accumulated ~200 lines of v8.x release-note prose inline. The `marketplace.json` description had ALSO been broken JSON since v8.31.0 added unescaped double-quoted phrases (`"Optional inputs"`, `"Conditional inputs (mandatory when present)"`); the codex generator's `JSON.parse` had been silently failing the marketplace read since then, but no one noticed because the generator hadn't been run. PR-5 trims both descriptions to a single current-state paragraph and lets `CHANGELOG.md` carry release-note history.
+- **`.codex-plugin.overrides.json` gains `codex.routerSkills: ["wf","wf-quick","wf-meta","review"]`.** Single source of truth for which top-level skills should ship as Codex adapters. Adding a fifth router in a future PR is a one-line config change.
+
+### Removed
+
+- **4 stale `.codex-generated/skills/wf-design-{audit,critique,extract,setup}/` mirrors deleted** as a regenerator side effect. These sub-commands were collapsed into the `/wf-design` router in v8.27; their codex mirrors had been carried forward as orphans because the generator hadn't been re-run since v8.30.1.
+
+### Notes
+
+- **Migration plan complete.** All five PRs of `ROUTER-MIGRATION-PLAN.md` have landed: PR-1 (`/review`, alpha.1), PR-2 (`/wf-quick`, alpha.2), PR-3 (`/wf-meta`, alpha.3), PR-4 (`/wf`, alpha.4), PR-5 (Codex generator + alpha drop, this release). The slash-menu pollution problem the plan opened with is resolved; the verifier is permanent CI gate against reintroduction.
+- **The `<!-- sdlc-workflow-pinned-shim -->` marker the migration plan reserved for shim files was never used.** Every router PR chose break-the-surface (delete old commands, no shims) over backwards-compat. Side effect: the `9.0.0-alpha.*` series was a public statement that the slash surface was breaking on purpose, in a coordinated way. The `9.0.0` final tag means we landed it.
+
 ## [9.0.0-alpha.4] - 2026-05-05
 
 ### Removed (BREAKING)

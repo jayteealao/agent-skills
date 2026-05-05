@@ -30,6 +30,12 @@ async function main() {
 
   const claudeMarketplaceEntry = findClaudeMarketplaceEntry(claudeMarketplace, pluginName);
   const generatedSkillFiles = await buildGeneratedSkillFiles(pluginRoot, generatedSkillsRoot);
+  const routerSkillNames = overrides.codex?.routerSkills ?? [];
+  const generatedRouterSkillFiles = await buildGeneratedRouterSkillFiles({
+    pluginRoot,
+    generatedSkillsRoot,
+    routerSkillNames,
+  });
 
   const codexManifest = buildCodexManifest({
     claudeManifest,
@@ -48,6 +54,15 @@ async function main() {
   filesToWrite.set(path.join(generatedRoot, "README.md"), buildGeneratedReadme(pluginName));
 
   for (const file of generatedSkillFiles) {
+    filesToWrite.set(file.path, file.content);
+  }
+
+  for (const file of generatedRouterSkillFiles) {
+    if (filesToWrite.has(file.path)) {
+      throw new Error(
+        `Generated Codex skill name collision between commands/ and skills/ for ${file.path}`,
+      );
+    }
     filesToWrite.set(file.path, file.content);
   }
 
@@ -209,6 +224,71 @@ async function buildGeneratedSkillFiles(pluginRoot, generatedSkillsRoot) {
         }),
       });
     }
+  }
+
+  return generatedFiles;
+}
+
+async function buildGeneratedRouterSkillFiles({
+  pluginRoot,
+  generatedSkillsRoot,
+  routerSkillNames,
+}) {
+  // Skill-mode routers (introduced in v9.0.0): each lives at
+  // skills/<name>/SKILL.md and replaces a family of slash commands the user
+  // used to type. Codex needs an adapter that points at the router's SKILL.md
+  // as the canonical source — the reference bodies under
+  // skills/<name>/reference/ are loaded on demand by the router itself.
+  const skillsRoot = path.join(pluginRoot, "skills");
+  const generatedFiles = [];
+
+  for (const routerName of routerSkillNames) {
+    const skillPath = path.join(skillsRoot, routerName, "SKILL.md");
+    if (!(await exists(skillPath))) {
+      throw new Error(
+        `routerSkills entry "${routerName}" has no SKILL.md at ${skillPath}`,
+      );
+    }
+
+    const sourceText = await fs.readFile(skillPath, "utf8");
+    const { frontmatter } = splitFrontmatter(sourceText);
+    const commandName = frontmatter.name ?? routerName;
+    const description = sanitizeCodexDescription(
+      frontmatter.description ??
+        `Generated Codex skill wrapper for skills/${routerName}/SKILL.md.`,
+    );
+    const outputPath = path.join(generatedSkillsRoot, commandName, "SKILL.md");
+    const sourceReference = normalizeSlashes(
+      path.relative(path.dirname(outputPath), skillPath),
+    );
+    const relativeCommandPath = normalizeSlashes(
+      path.relative(pluginRoot, skillPath),
+    );
+
+    const skillContent = buildGeneratedSkillContent({
+      commandName,
+      description,
+      originalCommandName: commandName,
+      relativeCommandPath,
+      sourceReference,
+    });
+
+    generatedFiles.push({
+      path: outputPath,
+      content: skillContent,
+    });
+
+    // Skill-mode routers carry `disable-model-invocation: true` semantics
+    // implicitly — the slash form is the only entry point for explicit
+    // invocation, but auto-trigger via the description IS expected. Emit the
+    // OpenAI metadata file so Codex matches Claude's invocation contract.
+    generatedFiles.push({
+      path: path.join(generatedSkillsRoot, commandName, "agents", "openai.yaml"),
+      content: buildOpenAiSkillMetadata({
+        commandName,
+        description,
+      }),
+    });
   }
 
   return generatedFiles;

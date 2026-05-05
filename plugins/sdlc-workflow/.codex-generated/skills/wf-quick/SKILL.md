@@ -1,15 +1,15 @@
 ---
-name: wf-design-audit
-description: "Run technical quality checks across accessibility, performance, theming, responsive design, and anti-patterns. Generates a scored report (0-20) with P0-P3 severity ratings."
+name: wf-quick
+description: "Standalone investigative and entry-point workflows. Dispatches to one of 10 sub-commands — quick (compressed planning for small changes), rca (root-cause analysis), investigate (investment discovery), discover (problem validation), hotfix (active-incident emergency fix), update-deps (dependency upgrades), docs (documentation-only workflow), refactor (refactoring workflow), ideate (codebase improvement ideation), intake (full-lifecycle entry / stage 1 of 10). Auto-trigger when the user wants to start a new workflow, kick off an investigation, run a root-cause analysis, validate a problem, plan a hotfix, upgrade dependencies, write documentation, refactor, ideate on improvements, or types any /wf-X invocation that the v9 migration redirects through this skill."
 ---
 
-# wf-design-audit
+# wf-quick
 
 This generated skill is a Codex adapter for the canonical workflow command source. Keep the Claude command source as the single source of truth; do not copy command logic into this generated file.
 
 ## When To Use
 
-Use this skill when the user asks for `/wf-design-audit`, references `commands/wf-design-audit.md`, or describes the same workflow intent.
+Use this skill when the user asks for `/wf-quick`, references `skills/wf-quick/SKILL.md`, or describes the same workflow intent.
 
 ## Runtime Procedure
 
@@ -21,7 +21,7 @@ Use this skill when the user asks for `/wf-design-audit`, references `commands/w
 
 ## Canonical Source
 
-- ../../../commands/wf-design-audit.md
+- ../../../skills/wf-quick/SKILL.md
 
 ## External Output Boundary
 

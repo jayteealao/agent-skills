@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Design Critique"
-  short_description: "Evaluate design from a UX perspective with quantitative scoring (Nielsen's 10 heuristics), persona-based testing, cognitive load assessment, and actionable feedback. Use after implementation."
-  default_prompt: "Use $wf-design-critique for this workflow."
-policy:
-  allow_implicit_invocation: false

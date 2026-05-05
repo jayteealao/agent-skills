@@ -1,15 +1,15 @@
 ---
-name: wf-design-setup
-description: "Establish design context for the project — gather brand personality, audience, aesthetic direction, and write .impeccable.md. One-time setup that all design commands and skills require."
+name: review
+description: "Code review skill. Use to review code for correctness, security, performance, architecture, scalability, accessibility, UX, infrastructure, observability, supply chain, privacy, data integrity, refactor safety, maintainability, testing, and 16+ other dimensions. Single-dimension reviews (`/review <dim>`) run inline against one rubric. Multi-dimension sweeps (`/review sweep <aggregate>` — all, architecture, infra, pre-merge, quick, security, ux) dispatch one reviewer sub-agent per dimension in parallel and synthesize a unified verdict. Auto-trigger on review/audit requests scoped to a PR, worktree, diff, file, or repo."
 ---
 
-# wf-design-setup
+# review
 
 This generated skill is a Codex adapter for the canonical workflow command source. Keep the Claude command source as the single source of truth; do not copy command logic into this generated file.
 
 ## When To Use
 
-Use this skill when the user asks for `/wf-design-setup`, references `commands/wf-design-setup.md`, or describes the same workflow intent.
+Use this skill when the user asks for `/review`, references `skills/review/SKILL.md`, or describes the same workflow intent.
 
 ## Runtime Procedure
 
@@ -21,7 +21,7 @@ Use this skill when the user asks for `/wf-design-setup`, references `commands/w
 
 ## Canonical Source
 
-- ../../../commands/wf-design-setup.md
+- ../../../skills/review/SKILL.md
 
 ## External Output Boundary
 
