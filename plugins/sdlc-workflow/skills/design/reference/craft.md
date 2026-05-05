@@ -6,7 +6,7 @@ Land the visual direction for a feature so implementation has a concrete contrac
 
 | Mode | Trigger | Output |
 |---|---|---|
-| **Workflow context** | `/wf-design <slug> craft` | `02c-craft.md` artifact (visual contract). Routes to `/wf-implement`. **Does NOT write code.** |
+| **Workflow context** | `/wf-design <slug> craft` | `02c-craft.md` artifact (visual contract). Routes to `/wf implement`. **Does NOT write code.** |
 | **Freestanding** | `/wf-design craft` | Full loop: brief → mock → code → critique pass. **Writes production code.** |
 
 The split exists because the SDLC workflow has a dedicated implement stage (`wf-implement`) with its own lifecycle (verify → review → handoff → ship). Craft in workflow context produces the visual contract that `wf-implement` consumes; it does not bypass the implement lifecycle.
@@ -148,13 +148,13 @@ Which reference docs `wf-implement` should consult (typeset.md, animate.md, hard
 
 Update `00-index.md`:
 - `current-stage: design` → unchanged (craft is part of design stage)
-- `next-command: /wf-implement`
-- `next-invocation: /wf-implement <slug>`
+- `next-command: /wf implement`
+- `next-invocation: /wf implement <slug>`
 
 Hand off:
 > Visual contract written to `.ai/workflows/<slug>/02c-craft.md`.
 > The implement stage will use this as the visual contract.
-> Run `/wf-implement <slug>` to build the feature against this contract.
+> Run `/wf implement <slug>` to build the feature against this contract.
 
 ---
 

@@ -44,10 +44,10 @@ You do not need to re-explain context between stages. The commands read it from 
 
 Every command in this plugin operates under a strict constraint: it is an **orchestrator**, not a problem-solver. This is deliberate.
 
-- `wf-shape` shapes a spec. It does not write code.
-- `wf-plan` produces a plan. It does not implement it.
-- `wf-review` dispatches reviewers. It does not fix findings.
-- `wf-implement` builds. It does not design.
+- `/wf shape` shapes a spec. It does not write code.
+- `/wf plan` produces a plan. It does not implement it.
+- `/wf review` dispatches reviewers. It does not fix findings.
+- `/wf implement` builds. It does not design.
 
 This separation keeps each artifact clean and prevents stages from collapsing into each other. A plan file describes intent. An implement file describes what was actually done. These are different documents. If the plan and implementation are written simultaneously, the plan becomes post-hoc rationalization.
 
@@ -170,14 +170,14 @@ You will see something like:
 slug: dark-mode-toggle-settings
 wrote: 01-intake.md, 00-index.md
 options:
-  A (default): /wf-shape dark-mode-toggle-settings
-  B (skip to plan): /wf-plan dark-mode-toggle-settings — if scope is already fully clear
+  A (default): /wf shape dark-mode-toggle-settings
+  B (skip to plan): /wf plan dark-mode-toggle-settings — if scope is already fully clear
 ```
 
 ### Step 2 — Shape
 
 ```
-/wf-shape dark-mode-toggle-settings
+/wf shape dark-mode-toggle-settings
 ```
 
 This is the most interview-intensive stage. The command asks **20 questions across 5 rounds** — generated dynamically from your intake brief, not hardcoded. The five rounds cover:
@@ -193,7 +193,7 @@ All answers are saved to `po-answers.md` — a cumulative product-owner log that
 ### Step 3 — Slice
 
 ```
-/wf-slice dark-mode-toggle-settings
+/wf slice dark-mode-toggle-settings
 ```
 
 The command interviews you (4–8 questions) about delivery order, slice granularity, rollout coupling, and scope cuts. For this feature it might propose two slices: `css-token-setup` (the CSS variable infrastructure) and `toggle-ui` (the UI component and persistence logic).
@@ -201,7 +201,7 @@ The command interviews you (4–8 questions) about delivery order, slice granula
 ### Step 4 — Plan
 
 ```
-/wf-plan dark-mode-toggle-settings css-token-setup
+/wf plan dark-mode-toggle-settings css-token-setup
 ```
 
 The command launches parallel explore sub-agents to inspect your codebase — affected files, call graphs, test infrastructure, dependency versions. It then asks you 8–12 questions about implementation approach decisions the sub-agents surfaced. The output is an execution-ready plan in `04-plan-css-token-setup.md`.
@@ -209,7 +209,7 @@ The command launches parallel explore sub-agents to inspect your codebase — af
 ### Step 5 — Implement
 
 ```
-/wf-implement dark-mode-toggle-settings css-token-setup
+/wf implement dark-mode-toggle-settings css-token-setup
 ```
 
 The command executes the plan, commits changes atomically as `feat(dark-mode-toggle-settings): implement css-token-setup`, and records exactly what was built, what deviated from the plan, and why.
@@ -217,7 +217,7 @@ The command executes the plan, commits changes atomically as `feat(dark-mode-tog
 ### Step 6 — Verify
 
 ```
-/wf-verify dark-mode-toggle-settings css-token-setup
+/wf verify dark-mode-toggle-settings css-token-setup
 ```
 
 Runs acceptance criteria against the implementation. For each criterion marked `interactive`, it identifies the right verification tool (Playwright, browser MCP, `adb`, Maestro) and runs it. Evidence is captured and written to `06-verify-css-token-setup.md`.
@@ -225,7 +225,7 @@ Runs acceptance criteria against the implementation. For each criterion marked `
 ### Step 7 — Review
 
 ```
-/wf-review dark-mode-toggle-settings css-token-setup
+/wf review dark-mode-toggle-settings css-token-setup
 ```
 
 Selects relevant review domains from your diff and artifacts, dispatches parallel sub-agents, aggregates findings, triages BLOCKER/HIGH findings with you one at a time. Returns a `Ship / Ship with caveats / Don't Ship` verdict.
@@ -233,7 +233,7 @@ Selects relevant review domains from your diff and artifacts, dispatches paralle
 ### Step 8 — Handoff
 
 ```
-/wf-handoff dark-mode-toggle-settings
+/wf handoff dark-mode-toggle-settings
 ```
 
 No slice needed — handoff reads `03-slice.md` and automatically aggregates all complete slices into a single PR description. Run this once all intended slices on the branch are implemented and reviewed. If your branch strategy is `dedicated`, this also pushes the branch and creates the PR.
@@ -241,7 +241,7 @@ No slice needed — handoff reads `03-slice.md` and automatically aggregates all
 ### Step 9 — Ship
 
 ```
-/wf-ship dark-mode-toggle-settings
+/wf ship dark-mode-toggle-settings
 ```
 
 Asks about rollout strategy, rollback tolerance, and merge approach. Merges the PR. Records the merge SHA.
@@ -249,7 +249,7 @@ Asks about rollout strategy, rollback tolerance, and merge approach. Merges the 
 ### Step 10 — Retro
 
 ```
-/wf-retro dark-mode-toggle-settings
+/wf retro dark-mode-toggle-settings
 ```
 
 Reads the full artifact trail, extracts lessons, and produces concrete suggested additions to your `CLAUDE.md`, hooks, test coverage, CI checks, and command configurations. Marks the workflow complete.
@@ -340,37 +340,37 @@ This command is **read-only and diagnostic** — it surfaces drift but does not 
 Any text after the slug and optional slice is treated as supplemental context and applies to that invocation only:
 
 ```
-/wf-plan dark-mode-toggle-settings slice-1 prefer CSS custom properties over JS state, must work with existing Tailwind setup
+/wf plan dark-mode-toggle-settings slice-1 prefer CSS custom properties over JS state, must work with existing Tailwind setup
 ```
 
 ```
-/wf-review dark-mode-toggle-settings slice-1 pay extra attention to SSR compatibility
+/wf review dark-mode-toggle-settings slice-1 pay extra attention to SSR compatibility
 ```
 
 ### … plan all slices in parallel
 
 ```
-/wf-plan dark-mode-toggle-settings all
+/wf plan dark-mode-toggle-settings all
 ```
 
 Spawns one plan sub-agent per slice. Each sub-agent writes its plan directly. The main agent reads all plans, runs a cohesion check for shared-file conflicts and integration gaps, and writes the master `04-plan.md`.
 
 ### … auto-review or fix an existing plan
 
-Re-invoking `/wf-plan` on an existing plan does not overwrite it — it enters review-and-fix mode automatically:
+Re-invoking `/wf plan` on an existing plan does not overwrite it — it enters review-and-fix mode automatically:
 
 | Invocation | What happens |
 |---|---|
-| `/wf-plan <slug> <slice>` (plan already exists) | **Auto-review** — re-inspects codebase, checks plan against acceptance criteria, fixes issues found |
-| `/wf-plan <slug> all` (all plans exist) | **Review-all** — parallel sub-agents review every plan, cross-checks cohesion |
-| `/wf-plan <slug> <slice> <feedback text>` | **Directed fix** — applies your feedback surgically, preserves everything unchanged |
+| `/wf plan <slug> <slice>` (plan already exists) | **Auto-review** — re-inspects codebase, checks plan against acceptance criteria, fixes issues found |
+| `/wf plan <slug> all` (all plans exist) | **Review-all** — parallel sub-agents review every plan, cross-checks cohesion |
+| `/wf plan <slug> <slice> <feedback text>` | **Directed fix** — applies your feedback surgically, preserves everything unchanged |
 
 All modes append to `## Revision History` in each modified plan file.
 
 ### … fix review findings automatically
 
 ```
-/wf-implement dark-mode-toggle-settings reviews
+/wf implement dark-mode-toggle-settings reviews
 ```
 
 Reads `07-review-<slice-slug>.md` (slice resolved from `selected-slice-or-focus` or passed as a third argument), extracts BLOCKER and HIGH findings in severity order, spawns one sequential sonnet sub-agent per finding (each fix is verified before the next starts). After completion, marks each finding Fixed / Partially Fixed / Could Not Fix and appends a `## Review Fixes Applied` section to the implement file.
@@ -380,7 +380,7 @@ Reads `07-review-<slice-slug>.md` (slice resolved from `selected-slice-or-focus`
 After deferring some findings in a previous review:
 
 ```
-/wf-review dark-mode-toggle-settings triage
+/wf review dark-mode-toggle-settings triage
 ```
 
 Skips the full review. Reads `07-review-<slice-slug>.md → ## Triage Decisions` for the resolved slice, collects all findings marked `deferred` or `untriaged`, and presents them for re-triage. Updates the triage section in-place.
@@ -538,7 +538,7 @@ Routes to **Mode E (Findings Explain)**. Globs every `07-review-*.md` (per-slice
 - **Related Finding Clusters** — findings that share a root cause or are better fixed together
 - **Recommended Priority Order** — fix this first, then this, with reasoning
 
-The `findings` target includes both review findings and verification failures. The `review` target reads review only. After reading the explanation, route to `/wf-implement <slug> reviews` to fix the findings.
+The `findings` target includes both review findings and verification failures. The `review` target reads review only. After reading the explanation, route to `/wf implement <slug> reviews` to fix the findings.
 
 ### … ask a quick code question
 
@@ -556,7 +556,7 @@ If an active workflow is in progress, the answer is saved to `.ai/workflows/<slu
 For a docs-only change that doesn't need verification or review:
 
 ```
-/wf-verify dark-mode-docs docs-only no code changed
+/wf verify dark-mode-docs docs-only no code changed
 ```
 
 The command produces a minimal artifact acknowledging the stage was not substantively applicable — keeping `00-index.md` accurate without forcing empty ceremony. Then use skip-to routing to jump forward.
@@ -596,7 +596,7 @@ Compatible parsers: `yq --front-matter=extract`, Obsidian Dataview, MarkdownDB, 
 
 Review dispatch, planning research, and implementation all generate significant context. Before moving to the next slice or to fix mode, run `/compact`. The PreCompact hook automatically preserves all workflow state in the artifact files, so the context is available even after compression.
 
-The review command reminds you explicitly: "Consider running `/compact` before `/wf-implement` — triage decisions are in `07-review-<slice-slug>.md`."
+The review command reminds you explicitly: "Consider running `/compact` before `/wf implement` — triage decisions are in `07-review-<slice-slug>.md`."
 
 ### Let the routing helper navigate between sessions
 
@@ -613,7 +613,7 @@ No slug needed. It finds your active workflow and returns the next command ready
 If a review revealed a specific concern but you don't want to re-run the full review:
 
 ```
-/wf-plan dark-mode-toggle-settings toggle-ui focus the test plan on keyboard accessibility and prefers-color-scheme media query edge cases
+/wf plan dark-mode-toggle-settings toggle-ui focus the test plan on keyboard accessibility and prefers-color-scheme media query edge cases
 ```
 
 The supplemental text is visible to the command but not persisted — it guides this invocation only.
@@ -639,28 +639,28 @@ The workflow artifacts form the permanent record of how and why a change was mad
 If implementation revealed that one step in the plan was wrong:
 
 ```
-/wf-plan dark-mode-toggle-settings toggle-ui use localStorage for theme persistence, not a cookie — cookies don't work for pre-render SSR
+/wf plan dark-mode-toggle-settings toggle-ui use localStorage for theme persistence, not a cookie — cookies don't work for pre-render SSR
 ```
 
 This surgically updates the plan without triggering the full planning research cycle. Much faster than re-running shape or slice.
 
-### Fresh reviews with /wf-review triage
+### Fresh reviews with /wf review triage
 
 After fixing BLOCKER findings in implement, don't re-run the full review — re-triage what was deferred:
 
 ```
-/wf-review dark-mode-toggle-settings triage
+/wf review dark-mode-toggle-settings triage
 ```
 
 This revisits only deferred and untriaged findings. If the BLOCKER fixes introduced new issues, *then* run a full re-review.
 
 ### Use wf-how before planning to understand unfamiliar subsystems
 
-If a plan requires touching code you've never worked with before, run `wf-how` before `/wf-plan` to get the lay of the land:
+If a plan requires touching code you've never worked with before, run `wf-how` before `/wf plan` to get the lay of the land:
 
 ```
 /wf-how how does the payment processing pipeline work?
-/wf-plan my-feature-slug payment-slice
+/wf plan my-feature-slug payment-slice
 ```
 
 The codebase explanation gives the planning sub-agents pre-built context that they would otherwise have to discover themselves — reducing exploration time and improving plan quality for unfamiliar areas.
@@ -746,7 +746,7 @@ Structures a refactoring session around a non-negotiable constraint: **external 
 4. **Implement** — executes one step at a time; if a test that was passing before now fails → the refactor is fixed, never the test
 5. **Verify** — full before/after comparison: same tests pass, API surface identical, all callers still compile
 
-Coverage gaps found at baseline are surfaced before any code changes. If significant gaps exist, the command asks whether to add tests first. After verify, routes to `/wf-review <slug> refactor-safety` for the specialized refactoring safety review.
+Coverage gaps found at baseline are surfaced before any code changes. If significant gaps exist, the command asks whether to add tests first. After verify, routes to `/wf review <slug> refactor-safety` for the specialized refactoring safety review.
 
 ### Design context is project-wide
 
@@ -765,16 +765,16 @@ Every `wf-extend` invocation records an `extension-round: N` on new slice entrie
 | Command | Stage | Purpose | Artifact |
 |---|---|---|---|
 | `/wf-quick quick intake <description>` | 1 | Capture scope, criteria, branch strategy | `01-intake.md` |
-| `/wf-shape <slug>` | 2 | 20-question feature interview, mini-spec, docs plan | `02-shape.md` |
+| `/wf shape <slug>` | 2 | 20-question feature interview, mini-spec, docs plan | `02-shape.md` |
 | `/wf-design <slug>` | 2b *(optional)* | UX brief — layout, states, interaction model | `02b-design.md` |
-| `/wf-slice <slug>` | 3 | Decompose into vertical slices | `03-slice.md` + per-slice |
-| `/wf-plan <slug> [slice\|all] [feedback]` | 4 | Repo-aware implementation plan | `04-plan.md` + per-slice |
-| `/wf-implement <slug> [slice\|reviews]` | 5 | Execute plan, atomic commits | `05-implement.md` + per-slice |
-| `/wf-verify <slug> [slice]` | 6 | Acceptance criteria, test runs, evidence | `06-verify.md` + per-slice |
-| `/wf-review <slug> [slice\|triage]` | 7 | Multi-domain parallel review dispatch (per-slice) | `07-review-<slice>.md` + per-slice per-command |
-| `/wf-handoff <slug> [slice-slug]` | 8 | Aggregates all complete slices into one PR package; `[slice-slug]` only for one-PR-per-slice workflows | `08-handoff.md` |
-| `/wf-ship <slug> [environment]` | 9 | Workflow-level go/no-go, merge, rollout plan; `[environment]` overrides deployment target | `09-ship.md` |
-| `/wf-retro <slug>` | 10 | Extract lessons, improvement actions | `10-retro.md` |
+| `/wf slice <slug>` | 3 | Decompose into vertical slices | `03-slice.md` + per-slice |
+| `/wf plan <slug> [slice\|all] [feedback]` | 4 | Repo-aware implementation plan | `04-plan.md` + per-slice |
+| `/wf implement <slug> [slice\|reviews]` | 5 | Execute plan, atomic commits | `05-implement.md` + per-slice |
+| `/wf verify <slug> [slice]` | 6 | Acceptance criteria, test runs, evidence | `06-verify.md` + per-slice |
+| `/wf review <slug> [slice\|triage]` | 7 | Multi-domain parallel review dispatch (per-slice) | `07-review-<slice>.md` + per-slice per-command |
+| `/wf handoff <slug> [slice-slug]` | 8 | Aggregates all complete slices into one PR package; `[slice-slug]` only for one-PR-per-slice workflows | `08-handoff.md` |
+| `/wf ship <slug> [environment]` | 9 | Workflow-level go/no-go, merge, rollout plan; `[environment]` overrides deployment target | `09-ship.md` |
+| `/wf retro <slug>` | 10 | Extract lessons, improvement actions | `10-retro.md` |
 
 ### Design quality commands
 

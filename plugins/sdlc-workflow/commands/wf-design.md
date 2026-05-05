@@ -89,7 +89,7 @@ Parse `$ARGUMENTS` to determine the invocation mode.
 |---|---|---|
 | **Context** | `setup`, `teach` | Always allowed at any stage. Modify PRODUCT.md / DESIGN.md only. |
 | **Planning** | `shape` | Requires `02-shape.md`. Writes `02b-design.md`. Routes to `craft`. |
-| **Contract** | `craft` | Requires `02b-design.md`. Writes `02c-craft.md` (visual contract — NOT code). Routes to `/wf-implement`. |
+| **Contract** | `craft` | Requires `02b-design.md`. Writes `02c-craft.md` (visual contract — NOT code). Routes to `/wf implement`. |
 | **Read-only inspection** | `extract` | Allowed at any stage. Writes `design-notes/extract-<timestamp>.md`. |
 | **Review** | `audit`, `critique` | Requires `current-stage` ∈ {`implement`, `verify`, `review`, `handoff`, `ship`}. Writes `07-design-audit.md` or `07-design-critique.md`. |
 | **Transformation** | `animate`, `bolder`, `clarify`, `colorize`, `delight`, `distill`, `harden`, `layout`, `onboard`, `optimize`, `overdrive`, `polish`, `quieter`, `typeset`, `adapt` | Requires `current-stage` ∈ {`implement`, `verify`, `review`, `handoff`}. Modifies code. Registers as augmentation in `00-index.md`. Writes `design-notes/<sub>-<timestamp>.md`. |
@@ -103,15 +103,15 @@ If mode is A or B:
 1. Read `.ai/workflows/<slug>/00-index.md`. Parse frontmatter: `title`, `current-stage`, `status`, `branch`, `open-questions`, `augmentations`.
 2. **Check workflow status**: if `status: closed` → STOP. "Workflow `<slug>` is closed. Use `/wf-meta resume <slug>` to reopen or `/wf-quick quick intake` to start a new workflow."
 3. **Check prerequisites for `shape` sub-command**:
-   - `02-shape.md` must exist. If missing → STOP. "Run `/wf-shape <slug>` first to define scope before design."
+   - `02-shape.md` must exist. If missing → STOP. "Run `/wf shape <slug>` first to define scope before design."
    - If `02b-design.md` already exists → WARN: "Design brief already exists. Running `shape` again will overwrite `02b-design.md`. Proceed?"
 4. **Check prerequisites for `craft` sub-command**:
    - `02b-design.md` must exist. If missing → STOP. "Run `/wf-design <slug> shape` first to confirm the design brief before craft."
    - If `02c-craft.md` already exists → WARN: "Visual contract already exists. Running `craft` again will overwrite `02c-craft.md`. Proceed?"
 5. **Stage gate for review sub-commands** (`audit`, `critique`):
-   - If `current-stage` ∈ {`intake`, `shape`, `design`, `slice`, `plan`} → STOP. "Cannot run `<sub-command>` at stage `<current-stage>`. There is no implementation to review yet. Run `/wf-implement <slug>` first, or use `/wf-design <sub-command>` freestanding to review existing code outside the workflow."
+   - If `current-stage` ∈ {`intake`, `shape`, `design`, `slice`, `plan`} → STOP. "Cannot run `<sub-command>` at stage `<current-stage>`. There is no implementation to review yet. Run `/wf implement <slug>` first, or use `/wf-design <sub-command>` freestanding to review existing code outside the workflow."
 6. **Stage gate for transformation sub-commands** (the 15 in the table above):
-   - If `current-stage` ∈ {`intake`, `shape`, `design`, `slice`, `plan`} → STOP. "Cannot run `<sub-command>` at stage `<current-stage>`. There is no code to transform yet. Options: (a) use `/wf-design <slug> shape` to plan the design before implementation, (b) run `/wf-implement <slug>` first, then re-run this command, (c) use `/wf-design <sub-command>` freestanding for ad-hoc design work outside the workflow."
+   - If `current-stage` ∈ {`intake`, `shape`, `design`, `slice`, `plan`} → STOP. "Cannot run `<sub-command>` at stage `<current-stage>`. There is no code to transform yet. Options: (a) use `/wf-design <slug> shape` to plan the design before implementation, (b) run `/wf implement <slug>` first, then re-run this command, (c) use `/wf-design <sub-command>` freestanding for ad-hoc design work outside the workflow."
    - If `current-stage` is `ship` or workflow is `complete` → WARN. "Workflow has shipped. Transformation will modify shipped code. Proceed?"
 7. **Read relevant artifacts**: `02-shape.md` (if shape sub-command), `02b-design.md` (if craft or any transformation), `02c-craft.md` (if available, for transformations).
 8. Carry forward `open-questions` and `selected-slice` from index.
@@ -170,7 +170,7 @@ After the sub-command completes, write workflow artifacts according to category:
 |---|---|---|
 | `setup`, `teach` | PRODUCT.md / DESIGN.md (project root) | none |
 | `shape` | `02b-design.md` | `current-stage: design`, `next-command: /wf-design craft`, `next-invocation: /wf-design <slug> craft` |
-| `craft` | `02c-craft.md` (visual contract — NOT code) | `current-stage: design` (unchanged), `next-command: /wf-implement`, `next-invocation: /wf-implement <slug>` |
+| `craft` | `02c-craft.md` (visual contract — NOT code) | `current-stage: design` (unchanged), `next-command: /wf implement`, `next-invocation: /wf implement <slug>` |
 | `extract` | `design-notes/extract-<timestamp>.md` + `design-notes/tokens-extracted.css` | none |
 | `audit` | `07-design-audit.md` | append to `augmentations:` list |
 | `critique` | `07-design-critique.md` | append to `augmentations:` list |

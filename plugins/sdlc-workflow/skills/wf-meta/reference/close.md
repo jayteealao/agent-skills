@@ -192,5 +192,5 @@ If `completed-externally`, suffix with:
 
 - **Not a delete** — `/wf-meta close` archives in place. All artifacts remain under `.ai/workflows/<slug>/`. To truly remove them, delete the directory manually after closing.
 - **Not a skip** — use `/wf-meta skip <slug> <stage>` to bypass a specific stage while continuing the workflow. `/wf-meta close` ends the workflow entirely.
-- **Not a retro** — `/wf-retro` runs after a successful ship and extracts lessons. `/wf-meta close` is for early or unplanned termination. If you want to run a retro on a cancelled effort, run `/wf-retro <slug>` separately before closing — or close first and reference the close record in the retro.
+- **Not a retro** — `/wf retro` runs after a successful ship and extracts lessons. `/wf-meta close` is for early or unplanned termination. If you want to run a retro on a cancelled effort, run `/wf retro <slug>` separately before closing — or close first and reference the close record in the retro.
 - **Not automatic** — it does not close PRs, delete branches, or notify teammates. These are explicit human actions, surfaced as a checklist.

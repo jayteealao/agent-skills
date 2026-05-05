@@ -125,7 +125,7 @@ If a check fails:
     description: "FAILED: <test output summary>")
   → Do NOT fix. Continue checking remaining items.
   → Failures are recorded in the verify artifact and
-    recommend /wf-implement to fix.
+    recommend /wf implement to fix.
 ```
 
 **Dependency strategy:** Lint/typecheck has no dependency (can run first or in parallel with unit tests). Integration tests are blocked by unit tests. Acceptance criteria checks are independent of each other. The final write task is blocked by all checks.
@@ -226,7 +226,7 @@ If any step fails (rebase conflicts, CI failure):
     description: "FAILED: <reason>")
   → STOP the sequence. Do not continue to dependent tasks.
   → Downstream tasks stay pending (their blockedBy is unresolved).
-  → Recommend /wf-implement to fix, then re-run /wf-ship.
+  → Recommend /wf implement to fix, then re-run /wf ship.
 
 If go-nogo is no-go:
   TaskUpdate(T5..T8, status: "deleted")
@@ -292,7 +292,7 @@ This allows TaskList output to be filtered or queried by workflow context if nee
 ## D2 — `wf-implement`: EnterWorktree option for isolated implementation
 
 **Priority:** Medium
-**Affects:** `commands/wf-implement.md`
+**Affects:** `skills/wf/reference/implement.md`
 **Built-in tool:** EnterWorktree / ExitWorktree
 
 ### Current behavior

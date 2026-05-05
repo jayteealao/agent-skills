@@ -1,8 +1,6 @@
 ---
-name: wf-implement
 description: Implement one selected planned slice. Writes per-slice implementation record with cross-links to slice definition and plan.
 argument-hint: <slug> [slice-slug|reviews]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -22,9 +20,9 @@ You are running `wf-implement`, **stage 5 of 10** in the SDLC lifecycle.
 | Requires | One of: (a) standard mode — `02-shape.md` + `04-plan-<slice-slug>.md` (or `04-plan.md` for single-scope); (b) compressed mode (`workflow-type: quick`) — `01-quick.md`; (c) forwarded mode (`workflow-type: rca` / `investigate`) — `02-shape.md` (synthesized) + optional `04-plan.md`. Other workflow-types (`hotfix`, `rf`, `dep-update`, `docs`) use their own implement commands. |
 | Conditional inputs (mandatory when present) | `02b-design.md` (design brief — register, color strategy, anti-goals MUST be honored), `02c-craft.md` (visual contract — mock fidelity inventory items MUST be honored as acceptance criteria), `04b-instrument.md` (instrumentation signals MUST be added to the code), `04c-experiment.md` (feature flag/cohort wiring MUST be added), `05c-benchmark.md` (baseline — implementation MUST NOT regress), `augmentations:` list in `00-index.md` (every entry MUST be consumed per type — see Step 0.7) |
 | Produces | `05-implement-<slice-slug>.md` + updates `05-implement.md` master |
-| Next | `/wf-verify <slug> <slice-slug>` (default) |
-| Skip-to | `/wf-review <slug> <slice-slug>` if verification is trivial |
-| Special | `/wf-implement <slug> reviews` — fix review findings one by one |
+| Next | `/wf verify <slug> <slice-slug>` (default) |
+| Skip-to | `/wf review <slug> <slice-slug>` if verification is trivial |
+| Special | `/wf implement <slug> reviews` — fix review findings one by one |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator** running the implementation stage.
@@ -41,13 +39,13 @@ You are a **workflow orchestrator** running the implementation stage.
 3. **Check for reviews mode:** If the second argument is literally `reviews` → this is a **review-fix** invocation. See "Reviews Mode" section below. Skip the rest of Step 0 and go directly to that section.
 4. **Determine workflow source mode** from `workflow-type`:
    - `workflow-type: quick` → **compressed mode**. Source artifact is `01-quick.md` (contains brief, shape, design, slice, and plan in a single document). No `02-shape.md` / `03-slice-*.md` / `04-plan-*.md` files exist; do not require them.
-   - `workflow-type: rca` or `workflow-type: investigate` → **forwarded mode**. The source artifacts (`01-rca.md` / `01-investigate.md`) hold the rich context. A synthesized `02-shape.md` exists; planning may have been added later via `/wf-plan` (full mode) or this may be a quick-style continuation.
-   - `workflow-type: rf` (refactor) / `workflow-type: hotfix` / `workflow-type: dep-update` / `workflow-type: docs` → **alternate workflows**. These have their own implement stages and should NOT be using `/wf-implement`. STOP and direct the user to the workflow's own implement command (e.g., `/wf-quick quick refactor`, `/wf-quick quick hotfix`).
+   - `workflow-type: rca` or `workflow-type: investigate` → **forwarded mode**. The source artifacts (`01-rca.md` / `01-investigate.md`) hold the rich context. A synthesized `02-shape.md` exists; planning may have been added later via `/wf plan` (full mode) or this may be a quick-style continuation.
+   - `workflow-type: rf` (refactor) / `workflow-type: hotfix` / `workflow-type: dep-update` / `workflow-type: docs` → **alternate workflows**. These have their own implement stages and should NOT be using `/wf implement`. STOP and direct the user to the workflow's own implement command (e.g., `/wf-quick quick refactor`, `/wf-quick quick hotfix`).
    - `workflow-type: feature` (default for `wf-intake`) or unset → **standard mode**. Use the canonical pipeline files.
 5. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. In compressed mode, slice-slug may be empty — `01-quick.md` covers a single intentional change.
 6. **Check prerequisites by mode:**
    - **Compressed mode**: `01-quick.md` must exist. If missing → STOP. "Run `/wf-quick quick <slug>` first or use a different workflow type."
-   - **Standard / forwarded mode**: A plan must exist for this slice: either `04-plan-<slice-slug>.md` or `04-plan.md`. If missing → STOP. Tell the user: "Run `/wf-plan <slug> <slice-slug>` first."
+   - **Standard / forwarded mode**: A plan must exist for this slice: either `04-plan-<slice-slug>.md` or `04-plan.md`. If missing → STOP. Tell the user: "Run `/wf plan <slug> <slice-slug>` first."
    - If the source plan/quick artifact shows `Status: Awaiting input` → STOP.
    - Check if `05-implement-<slice-slug>.md` (or `05-implement.md` in compressed mode) already exists → WARN: "This has already been implemented. Running again will overwrite. Proceed?"
 7. **Read the source context by mode:**
@@ -56,7 +54,7 @@ You are a **workflow orchestrator** running the implementation stage.
    - **Forwarded mode**:
      - `01-rca.md` or `01-investigate.md` — the rich source artifact (read for context beyond the synthesized shape).
      - `02-shape.md` — synthesized shape forwarding contract.
-     - `04-plan.md` (if `/wf-plan` was run after the forward) — full plan.
+     - `04-plan.md` (if `/wf plan` was run after the forward) — full plan.
    - **Standard mode**:
      - `03-slice-<slice-slug>.md` — slice definition with acceptance criteria
      - `04-plan-<slice-slug>.md` — implementation plan
@@ -72,7 +70,7 @@ You are a **workflow orchestrator** running the implementation stage.
    | `design-critique` | `07-design-critique.md` | Note the critique recommendations — apply where they conflict with default choices. |
    | `instrument` | `04b-instrument.md` | **Implement the instrumentation signals defined in the plan.** Each dark-path entry has a designed signal — add the log/metric/trace call to the code being implemented. Use the framework named in the artifact. |
    | `experiment` | `04c-experiment.md` | **Wire up the experiment.** Add the feature flag, cohort split logic, and metric instrumentation defined in the artifact. The implementation must include both the variant and control paths. |
-   | `benchmark` (status: baseline) | `05c-benchmark.md` | Note the baseline numbers — implementation must not regress. After implement completes, `/wf-benchmark <slug>` should be re-run in compare mode (handled by wf-verify). |
+   | `benchmark` (status: baseline) | `05c-benchmark.md` | Note the baseline numbers — implementation must not regress. After implement completes, `/wf benchmark <slug>` should be re-run in compare mode (handled by wf-verify). |
 
    **Read design planning artifacts** (separate from augmentations):
    - `02b-design.md` — design brief if present. Carry forward register (brand/product), color strategy, and anti-goals.
@@ -184,15 +182,15 @@ Do this in order:
 # Adaptive routing — evaluate what's actually next
 After completing, evaluate and present ALL viable options:
 
-**Option A (default): Verify** → `/wf-verify <slug> <slice-slug>`
+**Option A (default): Verify** → `/wf verify <slug> <slice-slug>`
 Use when: The implementation touches testable behavior.
-**Compact recommended before proceeding** — implementation details (debugging, file exploration, error resolution) are noise for verification. Tell the user: "Consider running `/compact` before `/wf-verify` — the PreCompact hook will preserve workflow state."
+**Compact recommended before proceeding** — implementation details (debugging, file exploration, error resolution) are noise for verification. Tell the user: "Consider running `/compact` before `/wf verify` — the PreCompact hook will preserve workflow state."
 
-**Option B: Skip to Review** → `/wf-review <slug> <slice-slug>`
+**Option B: Skip to Review** → `/wf review <slug> <slice-slug>`
 Use when: Purely declarative change with no testable behavior.
 **Compact recommended** — same reason as Option A.
 
-**Option C: Revisit Plan** → `/wf-plan <slug> <slice-slug>`
+**Option C: Revisit Plan** → `/wf plan <slug> <slice-slug>`
 Use when: The plan was wrong — missed files, wrong assumptions.
 
 **Option D: Blocked** → explain what's blocking.
@@ -200,12 +198,12 @@ Use when: The plan was wrong — missed files, wrong assumptions.
 # Reviews Mode — fix review findings one by one
 Triggered when: second argument is literally `reviews`.
 
-Example: `/wf-implement my-slug reviews`
+Example: `/wf implement my-slug reviews`
 
 This mode reads the review findings from `07-review-<slice-slug>.md`, extracts all BLOCKER and HIGH findings (and optionally MED if the user requests), then fixes them **one at a time, sequentially** using sub-agents.
 
 Do this in order for reviews mode:
-1. **Resolve the slice-slug.** If a slice-slug was passed as a third argument (e.g., `/wf-implement my-slug auth-flow reviews`), use it. Otherwise use `selected-slice-or-focus` from `00-index.md`. If neither is set, ask the user which slice's review findings to fix.
+1. **Resolve the slice-slug.** If a slice-slug was passed as a third argument (e.g., `/wf implement my-slug auth-flow reviews`), use it. Otherwise use `selected-slice-or-focus` from `00-index.md`. If neither is set, ask the user which slice's review findings to fix.
 2. **Read `07-review-<slice-slug>.md`** and all `07-review-<slice-slug>-<command>.md` files for that slice. Other slices' review files are out of scope for this fix pass.
 3. **Extract the findings list.** Build an ordered list of findings to fix, sorted by severity (BLOCKER first, then HIGH, then MED if requested). Each finding has: ID, severity, file:line, issue description, suggested fix.
 4. **Create task list from findings.** For each finding, use TaskCreate:
@@ -268,15 +266,15 @@ Do this in order for reviews mode:
 
 7. **Evaluate adaptive routing:**
 
-**Option A (default): Re-verify** → `/wf-verify <slug> <slice-slug>`
+**Option A (default): Re-verify** → `/wf verify <slug> <slice-slug>`
 Use when: Fixes were applied. Need to confirm everything still passes.
 **Compact recommended** — review fix context (finding details, sub-agent output) is noise for re-verification.
 
-**Option B: Re-review** → `/wf-review <slug> <slice-slug>`
+**Option B: Re-review** → `/wf review <slug> <slice-slug>`
 Use when: Some findings could not be fixed and need re-assessment.
 **Compact recommended** — fresh review needs clean context.
 
-**Option C: Handoff** → `/wf-handoff <slug> <slice-slug>`
+**Option C: Handoff** → `/wf handoff <slug> <slice-slug>`
 Use when: All findings were fixed and the change was already verified.
 
 ---
@@ -302,7 +300,7 @@ refs:
   index: 00-index.md
   plan-index: 04-plan.md
 next-command: wf-verify
-next-invocation: "/wf-verify <slug> <slice-slug>"
+next-invocation: "/wf verify <slug> <slice-slug>"
 ---
 ```
 
@@ -342,7 +340,7 @@ refs:
   siblings: [05-implement-<other>.md, ...]
   verify: 06-verify-<slice-slug>.md
 next-command: wf-verify
-next-invocation: "/wf-verify <slug> <slice-slug>"
+next-invocation: "/wf verify <slug> <slice-slug>"
 ---
 ```
 
@@ -377,5 +375,5 @@ For each item in `02c-craft.md` → `## Mock fidelity inventory`, confirm honore
 ## Freshness Research
 
 ## Recommended Next Stage
-- **Option A (default):** `/wf-verify <slug> <slice-slug>` — [reason]
-- **Option B:** `/wf-review <slug> <slice-slug>` — skip verify [reason, if applicable]
+- **Option A (default):** `/wf verify <slug> <slice-slug>` — [reason]
+- **Option B:** `/wf review <slug> <slice-slug>` — skip verify [reason, if applicable]

@@ -1,8 +1,6 @@
 ---
-name: wf-experiment
 description: Experiment design augmentation for an existing workflow. Extracts the hypothesis from the workflow's shape, designs a controlled experiment (feature flag, A/B test, or canary rollout) with explicit success metrics and rollback criteria, and writes the design as 04c-experiment.md into the existing workflow directory. Does NOT implement flag infrastructure. Registers itself in the workflow's 00-index.md augmentations list so wf-implement can build the rollout scaffolding to spec.
 argument-hint: <slug>
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -31,7 +29,7 @@ existing-workflow/
 | Produces | `04c-experiment.md` — experiment design with hypothesis, metrics, cohorts, and rollback criteria |
 | Updates | `00-index.md` — adds entry to `augmentations:` list |
 | Does NOT | Implement flag infrastructure, modify the plan, or advance the workflow stage. |
-| When to run | After `/wf-shape` and ideally after `/wf-instrument` (observability is needed to measure outcomes). Before `/wf-implement` so the flag scaffolding is planned before coding begins. |
+| When to run | After `/wf shape` and ideally after `/wf instrument` (observability is needed to measure outcomes). Before `/wf implement` so the flag scaffolding is planned before coding begins. |
 | Warning | If `04b-instrument.md` is NOT present, surface a warning — experiments are hard to evaluate without observable signals. Do NOT block. |
 
 # CRITICAL — scope discipline
@@ -44,11 +42,11 @@ You are an **experiment designer**, not an implementer.
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug** from `$ARGUMENTS`. Must match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf-quick quick intake <description>`."
-   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf-shape <slug>` first."
+   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf shape <slug>` first."
 2. **Check for existing experiment:**
    - If `04c-experiment.md` already exists → WARN: "An experiment design already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
 3. **Check for instrumentation:**
-   - If `04b-instrument.md` does NOT exist → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to run `/wf-instrument <slug>` before or alongside this experiment — you need observable signals to measure experimental outcomes."
+   - If `04b-instrument.md` does NOT exist → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to run `/wf instrument <slug>` before or alongside this experiment — you need observable signals to measure experimental outcomes."
    - Do NOT block. Proceed regardless.
 4. **Read the workflow context:**
    - Read `02-shape.md` in full — the hypothesis lives here.
@@ -219,14 +217,14 @@ Split: <ratio> by <dimension>
 Primary metric: <name>
 Guardrails: <comma-separated list>
 Flag framework: <detected | "none — env var recommended">
-Instrumentation: <present | "MISSING — run /wf-instrument <slug> before shipping">
-Next: /wf-implement <slug> — build the flag scaffold per §6
+Instrumentation: <present | "MISSING — run /wf instrument <slug> before shipping">
+Next: /wf implement <slug> — build the flag scaffold per §6
 Artifact: .ai/workflows/<slug>/04c-experiment.md
 ```
 
 If `04b-instrument.md` was not found, prefix with:
 
-> ⚠ No instrumentation plan found. The experiment metrics may not be observable. Run `/wf-instrument <slug>` before or alongside implement.
+> ⚠ No instrumentation plan found. The experiment metrics may not be observable. Run `/wf instrument <slug>` before or alongside implement.
 
 # What this command is NOT
 

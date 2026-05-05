@@ -1,8 +1,6 @@
 ---
-name: wf-ship
 description: Assess release readiness, ask mandatory rollout questions, and define rollout plus rollback. Operates at the workflow level — reads 08-handoff.md, the PR, and the branch. No slice argument needed.
 argument-hint: <slug> [environment]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -22,11 +20,11 @@ You are running `wf-ship`, **stage 9 of 10** in the SDLC lifecycle.
 | Requires | `08-handoff.md` (recommended) or at minimum `05-implement.md` |
 | Conditional inputs (mandatory when present) | `augmentations:` list in `00-index.md` — every augmentation entry MUST get a changelog entry (translated to user language per External Output Boundary). The release notes are incomplete if any augmentation is omitted. |
 | Produces | `09-ship.md` |
-| Next | `/wf-retro <slug>` (if ready) or `/wf-implement <slug> <slice>` (if blockers need code changes) |
+| Next | `/wf retro <slug>` (if ready) or `/wf implement <slug> <slice>` (if blockers need code changes) |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
-- Do NOT fix code — if blockers require code changes, recommend returning to `/wf-implement`.
+- Do NOT fix code — if blockers require code changes, recommend returning to `/wf implement`.
 - Your job is to **assess release readiness, ask rollout questions, define rollout/rollback plans, and — if approved — rebase and merge the PR**.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
 - Your only output is the workflow artifacts, the merge action (if approved), and the compact chat summary defined below.
@@ -37,8 +35,8 @@ You are a **workflow orchestrator**, not a problem solver.
 2. **Resolve optional environment override**: If a second argument was passed (e.g., `staging`, `production`, `eu-west`), record it as `environment`. If omitted, derive the target environment from the deployment platform details in `08-handoff.md` or ask the user during the rollout questions.
 3. **Read `00-index.md`** — parse `current-stage`, `status`, `open-questions`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`.
 4. **Check prerequisites:**
-   - `08-handoff.md` must exist with `status: complete`. If missing → STOP: "Run `/wf-handoff <slug>` first — ship requires a completed handoff with PR details."
-   - If `08-handoff.md` shows any unresolved blocker findings → STOP. Tell the user to resolve via `/wf-implement <slug> <slice> reviews` first.
+   - `08-handoff.md` must exist with `status: complete`. If missing → STOP: "Run `/wf handoff <slug>` first — ship requires a completed handoff with PR details."
+   - If `08-handoff.md` shows any unresolved blocker findings → STOP. Tell the user to resolve via `/wf implement <slug> <slice> reviews` first.
    - If `current-stage` in the index is already past ship → WARN: "Stage 9 (ship) has already been completed. Running it again will overwrite `09-ship.md`. Proceed?"
 5. **Read** `08-handoff.md`, every `07-review-*.md` (one per shipped slice — glob the workflow directory), and `po-answers.md`. The `## Design Changes` section in `08-handoff.md` lists user-visible design improvements — these must appear in changelog/release-notes entries. Per-slice reviews provide the per-slice risk and follow-up context the changelog should reflect.
 6. **Read augmentations for changelog completeness (optional):**
@@ -205,7 +203,7 @@ Do this in order:
    b. If confirmed:
       - Fetch latest base: `git fetch origin <base-branch>`.
       - Rebase onto base: `git rebase origin/<base-branch>`.
-        - If rebase conflicts → `TaskUpdate(T5, description: "FAILED: rebase conflicts in <files>")`, mark T5 `completed`. STOP. Report the conflicting files. Recommend `/wf-implement <slug> <slice>` to resolve. Downstream tasks (T6–T8) stay pending/blocked. Set `go-nogo: no-go` with reason.
+        - If rebase conflicts → `TaskUpdate(T5, description: "FAILED: rebase conflicts in <files>")`, mark T5 `completed`. STOP. Report the conflicting files. Recommend `/wf implement <slug> <slice>` to resolve. Downstream tasks (T6–T8) stay pending/blocked. Set `go-nogo: no-go` with reason.
       - Force-push the rebased branch: `git push --force-with-lease origin <branch>`.
       - Mark T5 `completed`.
    c. Mark T6 `in_progress`. Check PR CI status: `gh pr checks <pr-number>`. If checks are failing → WARN and ask whether to proceed anyway. If not proceeding: `TaskUpdate(T6, description: "FAILED: CI checks failing")`, mark T6 `completed`. STOP. Otherwise mark T6 `completed`.
@@ -225,16 +223,16 @@ Do this in order:
 # Adaptive routing — evaluate what's actually next
 After completing this stage, evaluate the ship assessment and present the user with ALL viable options:
 
-**Option A (default): Retro** → `/wf-retro <slug>`
+**Option A (default): Retro** → `/wf retro <slug>`
 Use when: Ship is approved (Go). The work is deployed or ready to deploy. Close out with a retrospective.
 
-**Option B: Fix and re-implement** → `/wf-implement <slug> <selected-slice>`
+**Option B: Fix and re-implement** → `/wf implement <slug> <selected-slice>`
 Use when: Ship assessment found blockers that require code changes, OR rebase had conflicts that need resolution.
 
-**Option C: Re-verify** → `/wf-verify <slug> <selected-slice>`
+**Option C: Re-verify** → `/wf verify <slug> <selected-slice>`
 Use when: Ship assessment found that verification evidence is stale or insufficient.
 
-**Option D: Blocked — re-run ship** → `/wf-ship <slug>`
+**Option D: Blocked — re-run ship** → `/wf ship <slug>`
 Use when: Required rollout answers are still missing, OR merge was declined and needs to be retried later. Mark `Status: Awaiting input`.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
@@ -265,7 +263,7 @@ refs:
   handoff: 08-handoff.md
   reviews: [07-review-<slug-1>.md, 07-review-<slug-2>.md, ...]
 next-command: wf-retro
-next-invocation: "/wf-retro <slug>"
+next-invocation: "/wf retro <slug>"
 ---
 ```
 
@@ -305,7 +303,7 @@ next-invocation: "/wf-retro <slug>"
 ## Go / No-Go Recommendation
 
 ## Recommended Next Stage
-- **Option A (default):** `/wf-retro <slug>` — Go [reason]
-- **Option B:** `/wf-implement <slug> <slice>` — fix blockers or resolve rebase conflicts [reason, if applicable]
-- **Option C:** `/wf-verify <slug> <slice>` — re-verify if evidence was stale [reason, if applicable]
-- **Option D:** `/wf-ship <slug>` — blocked, re-run when answers available [reason, if applicable]
+- **Option A (default):** `/wf retro <slug>` — Go [reason]
+- **Option B:** `/wf implement <slug> <slice>` — fix blockers or resolve rebase conflicts [reason, if applicable]
+- **Option C:** `/wf verify <slug> <slice>` — re-verify if evidence was stale [reason, if applicable]
+- **Option D:** `/wf ship <slug>` — blocked, re-run when answers available [reason, if applicable]

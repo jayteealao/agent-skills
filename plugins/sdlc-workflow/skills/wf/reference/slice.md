@@ -1,8 +1,6 @@
 ---
-name: wf-slice
 description: Break a shaped work item into thin, independently verifiable vertical slices. Writes a master index and one file per slice.
 argument-hint: <slug> [focus area]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -22,8 +20,8 @@ You are running `wf-slice`, **stage 3 of 10** in the SDLC lifecycle.
 | Requires | `01-intake.md`, `02-shape.md` |
 | Conditional inputs (mandatory when present) | `02b-design.md` (design brief — states, edge cases, surfaces MUST inform slice boundaries); `02c-craft.md` (visual contract — distinct visual surfaces in the mock fidelity inventory MUST be reflected in slice boundaries; see Step 0.5 for the per-surface justification escape hatch when surfaces are intentionally grouped) |
 | Produces | `03-slice.md` (master index) + `03-slice-<slice-slug>.md` per slice |
-| Next | `/wf-plan <slug> <best-first-slice>` (default) |
-| Alt | `/wf-plan <slug> all` to plan all slices in parallel |
+| Next | `/wf plan <slug> <best-first-slice>` (default) |
+| Alt | `/wf plan <slug> all` to plan all slices in parallel |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -37,7 +35,7 @@ You are a **workflow orchestrator**, not a problem solver.
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
-   - `01-intake.md` and `02-shape.md` must exist. If missing → STOP. Tell the user which command to run first (e.g., "Run `/wf-shape <slug>` first.").
+   - `01-intake.md` and `02-shape.md` must exist. If missing → STOP. Tell the user which command to run first (e.g., "Run `/wf shape <slug>` first.").
    - If `02-shape.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open shape questions first.
    - If `current-stage` in the index is already past slice → WARN: "Stage 3 (slice) has already been completed. Running it again will overwrite slice files. Proceed?"
 4. **Read** `01-intake.md`, `02-shape.md`, and `po-answers.md`.
@@ -105,13 +103,13 @@ Do this in order:
 # Adaptive routing — evaluate what's actually next
 After completing this stage, evaluate the slices and present the user with ALL viable options:
 
-**Option A (default): Plan best-first slice** → `/wf-plan <slug> <best-first-slice-slug>`
+**Option A (default): Plan best-first slice** → `/wf plan <slug> <best-first-slice-slug>`
 Use when: Standard flow. Work through slices one at a time, starting with the highest-risk or highest-value slice.
 
-**Option B: Plan all slices in parallel** → `/wf-plan <slug> all`
+**Option B: Plan all slices in parallel** → `/wf plan <slug> all`
 Use when: Slices are independent enough that planning them all upfront is efficient.
 
-**Option C: Revisit Shape** → `/wf-shape <slug>`
+**Option C: Revisit Shape** → `/wf shape <slug>`
 Use when: Slicing revealed that the spec is too vague, contradictory, or missing key information to decompose properly.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
@@ -145,7 +143,7 @@ refs:
   index: 00-index.md
   shape: 02-shape.md
 next-command: wf-plan
-next-invocation: "/wf-plan <slug> <best-first-slice>"
+next-invocation: "/wf plan <slug> <best-first-slice>"
 ---
 ```
 
@@ -172,9 +170,9 @@ next-invocation: "/wf-plan <slug> <best-first-slice>"
   Takeaway:
 
 ## Recommended Next Stage
-- **Option A (default):** `/wf-plan <slug> <best-first-slice-slug>` — [reason]
-- **Option B:** `/wf-plan <slug> all` — plan all slices in parallel [reason, if applicable]
-- **Option C:** `/wf-shape <slug>` — revisit shape [reason, if applicable]
+- **Option A (default):** `/wf plan <slug> <best-first-slice-slug>` — [reason]
+- **Option B:** `/wf plan <slug> all` — plan all slices in parallel [reason, if applicable]
+- **Option C:** `/wf shape <slug>` — revisit shape [reason, if applicable]
 
 ---
 

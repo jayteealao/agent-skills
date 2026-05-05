@@ -172,7 +172,7 @@ refs:
 <for each ⚠ or ✗ item: what changed, when, which stage is affected>
 
 ## Recommended Actions
-<ordered list of suggested responses — e.g., "Re-run /wf-plan to update file references", "Run /wf-meta amend on 05-implement to reflect dependency upgrade">
+<ordered list of suggested responses — e.g., "Re-run /wf plan to update file references", "Run /wf-meta amend on 05-implement to reflect dependency upgrade">
 ```
 
 # Step 7 — Update index
@@ -190,6 +190,6 @@ Return ONLY:
 - ≤5 bullets on the most important drift findings
 - `options:`
   - `/wf-meta amend <stage>` — if a specific stage needs updating
-  - `/wf-plan <slug>` — if plan-level references are stale
+  - `/wf plan <slug>` — if plan-level references are stale
   - `/wf-meta status <slug>` — to see full workflow state
   - `/wf-meta sync <slug>` — to re-check after fixes

@@ -1,6 +1,6 @@
 ---
 name: wf-profile
-description: Analyze a code area for CPU hotspots, memory allocation patterns, call graph depth, and critical paths. Returns structured analysis to the caller. Invoked by wf-investigate, wf-benchmark, wf-implement, or standalone via /wf-profile command. Does NOT modify application code.
+description: Analyze a code area for CPU hotspots, memory allocation patterns, call graph depth, and critical paths. Returns structured analysis to the caller. Invoked by wf-investigate, wf-benchmark, wf-implement, or standalone via /wf profile command. Does NOT modify application code.
 when_to_use: When you need to understand WHERE time or memory is spent in a code area before optimizing it, when ranking performance candidates in wf-investigate, when establishing benchmark targets in wf-benchmark, or when debugging a slow code path during wf-implement.
 ---
 

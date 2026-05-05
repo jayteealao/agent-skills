@@ -15,14 +15,14 @@ You are running `wf-amend`, a **correction utility** for the SDLC lifecycle.
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
 
-This is a **utility command**, not a pipeline stage. It corrects the *definition* of existing work — the shaped spec, slice boundaries, or acceptance criteria. It does NOT fix implementation bugs (use `/wf-implement`) and does NOT add new slices (use `/wf-meta extend`).
+This is a **utility command**, not a pipeline stage. It corrects the *definition* of existing work — the shaped spec, slice boundaries, or acceptance criteria. It does NOT fix implementation bugs (use `/wf implement`) and does NOT add new slices (use `/wf-meta extend`).
 
 | | Detail |
 |---|---|
 | Requires | `00-index.md`, `02-shape.md`, at minimum one `03-slice-<slice-slug>.md` |
 | Produces | Versioned amendment artifacts (`02-shape-amend-<N>.md`, `03-slice-<slug>-amend-<N>.md`) + updated plan via `wf-plan` |
 | Does NOT modify | Any artifact with `status: complete` in its frontmatter |
-| Next | `/wf-plan <slug> <slice-slug>` with directed fix, or `/wf-implement <slug> <slice-slug>` if plan is unchanged |
+| Next | `/wf plan <slug> <slice-slug>` with directed fix, or `/wf implement <slug> <slice-slug>` if plan is unchanged |
 
 # CRITICAL — execution discipline
 You are a **spec corrector**, not a problem solver.
@@ -71,7 +71,7 @@ Summarise: which slices are affected, what the root spec error is, what the corr
 Read `10-retro.md`. Extract retrospective items tagged as "scope was misunderstood", "acceptance criteria were wrong", "we built the wrong thing", or similar.
 
 **`from-review` + no qualifying findings:**
-If the review findings are all implementation bugs (not spec errors), STOP and tell the user: "Review findings look like implementation issues, not spec corrections. Use `/wf-implement <slug> <slice-slug>` to fix them. If you need to add new scope found in the review, use `/wf-meta extend <slug> from-review`."
+If the review findings are all implementation bugs (not spec errors), STOP and tell the user: "Review findings look like implementation issues, not spec corrections. Use `/wf implement <slug> <slice-slug>` to fix them. If you need to add new scope found in the review, use `/wf-meta extend <slug> from-review`."
 
 **Direct slice amendment (`<slice-slug>` mode) or general:**
 Proceed to Step 2 — the user will describe what needs correcting.
@@ -231,7 +231,7 @@ Print:
 ```
 Amendment written. The plan for <slice-slug> needs updating to reflect the corrected spec.
 
-Run: /wf-plan <slug> <slice-slug> <brief description of what changed>
+Run: /wf plan <slug> <slice-slug> <brief description of what changed>
 
 This will apply the amendment as a directed fix to the existing plan.
 ```
@@ -239,7 +239,7 @@ This will apply the amendment as a directed fix to the existing plan.
 If the existing plan is entirely invalidated:
 ```
 The plan for <slice-slug> is no longer valid. Run:
-/wf-plan <slug> <slice-slug>
+/wf plan <slug> <slice-slug>
 This will trigger auto-review mode and find all issues with the current plan against the corrected spec.
 ```
 
@@ -262,8 +262,8 @@ Return ONLY:
 - `amended-slices:` list of slice-slugs corrected
 - `plan-update-needed:` yes/no, and for which slices
 - `options:`
-  - `/wf-plan <slug> <slice-slug> <correction>` — update plan to reflect amendment (if plan needs update)
-  - `/wf-implement <slug> <slice-slug>` — proceed to implementation (if plan is still valid)
+  - `/wf plan <slug> <slice-slug> <correction>` — update plan to reflect amendment (if plan needs update)
+  - `/wf implement <slug> <slice-slug>` — proceed to implementation (if plan is still valid)
   - `/wf-meta extend <slug>` — add new slices if the amendment revealed scope that can't fit in existing slices
   - `/wf-meta status <slug>` — see full workflow state
 - ≤2 bullets noting anything in the existing implementation that the amendment invalidates

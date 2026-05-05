@@ -1,0 +1,122 @@
+{
+  "generatedAt": "2026-05-05T00:04:45.377Z",
+  "entries": [
+    {
+      "key": "benchmark",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/benchmark.md",
+      "bodyHash": "21ed5f94b600377c0b055a9914bb32281cbccd96791e678d51e2d9ee27b2fc7a",
+      "bodyBytes": 13914,
+      "description": "Performance benchmarking wrapper for an existing workflow. Runs in two modes: baseline (before implement — measures current performance) and compare (after implement — measures delta and flags regressions). Auto-detects which mode is needed based on whether a baseline already exists. Pass an explicit mode arg to override. Writes or updates 05c-benchmark.md in the existing workflow directory.",
+      "argumentHint": "<slug> [baseline|compare]"
+    },
+    {
+      "key": "experiment",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/experiment.md",
+      "bodyHash": "467325f15268064d267d87d012bcf1687317a7c28ca5c120898fc9421d2e14ad",
+      "bodyBytes": 13412,
+      "description": "Experiment design augmentation for an existing workflow. Extracts the hypothesis from the workflow's shape, designs a controlled experiment (feature flag, A/B test, or canary rollout) with explicit success metrics and rollback criteria, and writes the design as 04c-experiment.md into the existing workflow directory. Does NOT implement flag infrastructure. Registers itself in the workflow's 00-index.md augmentations list so wf-implement can build the rollout scaffolding to spec.",
+      "argumentHint": "<slug>"
+    },
+    {
+      "key": "handoff",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/handoff.md",
+      "bodyHash": "9381380712519f1b1f515e0fdafd9b98cf251fd83553b57bcc98c40ef9b0fb32",
+      "bodyBytes": 17741,
+      "description": "Turn the completed and reviewed work into a PR-ready handoff package with reviewer and QA context. Aggregates ALL complete slices by default — pass a slice-slug only when each slice has its own separate PR.",
+      "argumentHint": "<slug> [slice-slug]"
+    },
+    {
+      "key": "implement",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/implement.md",
+      "bodyHash": "2296c9695be4fd5ac493ccf9e7a2aa2e326b91e8e0afb4c7646ffdf63d57f542",
+      "bodyBytes": 26320,
+      "description": "Implement one selected planned slice. Writes per-slice implementation record with cross-links to slice definition and plan.",
+      "argumentHint": "<slug> [slice-slug|reviews]"
+    },
+    {
+      "key": "instrument",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/instrument.md",
+      "bodyHash": "95a758b73984f41d7ac50a6060c159faccdb8fef6515ef9b86098baf078dd59b",
+      "bodyBytes": 12283,
+      "description": "Observability augmentation for an existing workflow. Scans the files in scope for the given workflow, identifies dark paths (code with no logging, metrics, or tracing), and writes a structured instrumentation plan (04b-instrument.md) into the existing workflow directory. Does NOT write application code. Registers itself in the workflow's 00-index.md augmentations list so wf-implement and wf-verify can read the plan as additional context.",
+      "argumentHint": "<slug>"
+    },
+    {
+      "key": "plan",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/plan.md",
+      "bodyHash": "d0f33cb4d44560e7117ca92a62e359c8aa856d6e4743ebc3ed45f64b665c6214",
+      "bodyBytes": 33133,
+      "description": "Create or review-and-fix implementation plans. First invocation creates plans. Re-invocation auto-reviews against current codebase and artifacts, fixes issues found. Supports single slice, all slices (parallel), or explicit feedback.",
+      "argumentHint": "<slug> [slice-slug|all] [review/fix instructions]"
+    },
+    {
+      "key": "profile",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/profile.md",
+      "bodyHash": "316ab1ab38538a33ee5ae655dd1cc6274086ab1733dfba34fdb1e15c07a906ce",
+      "bodyBytes": 6916,
+      "description": "Standalone performance profiling command. Invokes the wf-profile skill against a code area or function, then writes the analysis to a standalone artifact at .ai/profiles/<run-id>/01-profile.md. Use this outside of a workflow context when you want to understand WHERE time or memory is spent before deciding on an investment. For profiling within a workflow, the wf-profile skill is invoked directly by wf-investigate and wf-benchmark.",
+      "argumentHint": "<area-or-function-or-file>"
+    },
+    {
+      "key": "retro",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/retro.md",
+      "bodyHash": "29a7d570f87bd213c4052eef8be6709c9ad9ffaf8788ff222d578042657f0253",
+      "bodyBytes": 12671,
+      "description": "Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation.",
+      "argumentHint": "<slug>"
+    },
+    {
+      "key": "review",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/review.md",
+      "bodyHash": "7fe3ac6acc76b7a2aeb48a319e293dafb1fb20678a09b62d2d8e4fd56007d095",
+      "bodyBytes": 28486,
+      "description": "Intelligent review dispatch. Reads workflow artifacts and diff, selects relevant review commands, spawns one parallel sonnet sub-agent per command (each writes its findings to file), then aggregates, deduplicates, and triages findings via AskUserQuestion into a unified review verdict. Re-run with \"triage\" to revisit deferred findings.",
+      "argumentHint": "<slug> [slice | triage]"
+    },
+    {
+      "key": "shape",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/shape.md",
+      "bodyHash": "662fc5d5fa898dd993e662959f143f5b470aba2cfef9c93aa1456e6c947274c6",
+      "bodyBytes": 20946,
+      "description": "Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.",
+      "argumentHint": "<slug> [focus area]"
+    },
+    {
+      "key": "ship",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/ship.md",
+      "bodyHash": "59b16cc3b2b873ae38985e1cb4c8441fa3aca5e6b4e0d567a8f3bd9ada670884",
+      "bodyBytes": 19496,
+      "description": "Assess release readiness, ask mandatory rollout questions, and define rollout plus rollback. Operates at the workflow level — reads 08-handoff.md, the PR, and the branch. No slice argument needed.",
+      "argumentHint": "<slug> [environment]"
+    },
+    {
+      "key": "slice",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/slice.md",
+      "bodyHash": "63ecd881e9b97a5214665b729564216572f14a24e4ee7af334b5849ca1069956",
+      "bodyBytes": 12836,
+      "description": "Break a shaped work item into thin, independently verifiable vertical slices. Writes a master index and one file per slice.",
+      "argumentHint": "<slug> [focus area]"
+    },
+    {
+      "key": "verify",
+      "kind": "dimension",
+      "referencePath": "skills/wf/reference/verify.md",
+      "bodyHash": "835629f029a16207e8e0f5c12f1789aa6367de4ef1e40131fb108b818827f550",
+      "bodyBytes": 28290,
+      "description": "Verify that the selected slice meets acceptance criteria and is ready for review.",
+      "argumentHint": "<slug> [slice]"
+    }
+  ]
+}

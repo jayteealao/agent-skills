@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-05-04T23:48:43.454Z",
+  "generatedAt": "2026-05-05T00:06:44.943Z",
   "entries": [
     {
       "key": "discover",
       "kind": "dimension",
       "referencePath": "skills/wf-quick/reference/discover.md",
-      "bodyHash": "45f5e0efb1d8fda45af3b0d9722facd097746205f9cf3236f23ee5c7ec4b69ff",
+      "bodyHash": "c7ac913764f4e7112d8fca9bbc3ee875f1f563fdd23c0d55fe503699b448e74c",
       "bodyBytes": 15149,
       "description": "Problem validation workflow. Researches a proposed problem statement using external signals (competitors, user feedback, market data) to produce a validated yes/no build recommendation before any engineering investment is made. Does NOT write application code. Routes to /wf-quick intake with a validated problem brief if the recommendation is to build, or surfaces a \"do not build\" rationale if it is not.",
       "argumentHint": "<problem-statement-or-slug>"
@@ -23,7 +23,7 @@
       "key": "hotfix",
       "kind": "dimension",
       "referencePath": "skills/wf-quick/reference/hotfix.md",
-      "bodyHash": "5c732ede7597b877ad7195e1d90c9154f9737ad5b58be99c04c3c54a71dc1f3b",
+      "bodyHash": "054cbcd9263b359aa6ff0ac0730ceb864c17ad3ad759ba9bb50dd4be08075270",
       "bodyBytes": 10497,
       "description": "Compressed incident-response workflow for production fixes. Skips intake interviews and slicing — goes directly from diagnosis to minimal fix to ship.",
       "argumentHint": "<description-or-slug>"
@@ -41,7 +41,7 @@
       "key": "intake",
       "kind": "dimension",
       "referencePath": "skills/wf-quick/reference/intake.md",
-      "bodyHash": "478f259dcd34769b06e62c9af16eefa4392bd86fa194130b1b14668ad4ab3e8e",
+      "bodyHash": "a0275dad930807607d8fd8f8c54bf3d215866934f4e5a9f1a8280f81d3a13f44",
       "bodyBytes": 11027,
       "description": "Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.",
       "argumentHint": "<task description>"
@@ -50,7 +50,7 @@
       "key": "investigate",
       "kind": "dimension",
       "referencePath": "skills/wf-quick/reference/investigate.md",
-      "bodyHash": "09e531a65ce956cd6817fab6e20d892b563f2b8f96db45bcff714eee15e09d0e",
+      "bodyHash": "ce1d5c954232bb15524f33ad5195b4ab1c027aeecdda0a16a00e7aa3ce616f8f",
       "bodyBytes": 17374,
       "description": "Investment discovery workflow. Surveys a codebase domain for improvement opportunities using parallel sub-agents, ranks candidates by estimated ROI, and recommends a next command for the highest-value investment. Does NOT commit to building anything and does NOT write application code. Synthesizes a minimal 02-shape.md for the top candidate so /wf-quick intake or /wf-quick quick can continue without re-investigation.",
       "argumentHint": "<domain-or-description>"
@@ -59,25 +59,25 @@
       "key": "quick",
       "kind": "dimension",
       "referencePath": "skills/wf-quick/reference/quick.md",
-      "bodyHash": "0b597894e02888563ffe2db0b36445af9867db2b5c96e7c56085c882d92e72e8",
+      "bodyHash": "3338473d73dc5d5e8c66a4cd4f455ebd21a8b3105c87ed311f1db9e023e79cf9",
       "bodyBytes": 12366,
-      "description": "Compressed planning workflow for small intentional changes. Collapses intake, shape, design, slice, and plan into a single artifact in one pass. Routes to /wf-implement for the standard execute-verify-review-handoff-ship lifecycle. Use when the change is small enough that the full 5-stage planning ceremony is overkill but you still want a recorded plan, a branch, and the standard implementation/review pipeline.",
+      "description": "Compressed planning workflow for small intentional changes. Collapses intake, shape, design, slice, and plan into a single artifact in one pass. Routes to /wf implement for the standard execute-verify-review-handoff-ship lifecycle. Use when the change is small enough that the full 5-stage planning ceremony is overkill but you still want a recorded plan, a branch, and the standard implementation/review pipeline.",
       "argumentHint": "<description-or-slug>"
     },
     {
       "key": "rca",
       "kind": "dimension",
       "referencePath": "skills/wf-quick/reference/rca.md",
-      "bodyHash": "1fa6a16877ac97df59684a5d65b60a8800e15ad11089815696ac348ccc61cb12",
+      "bodyHash": "e01da2ed61391af93415b2dab3e2a55dbe165f9c106243cda951dad26d543ad4",
       "bodyBytes": 18153,
-      "description": "Root-cause analysis workflow. Investigates a reported issue using parallel diagnosis sub-agents, writes a structured RCA artifact with confidence, blast radius, and suggested fix shape, then recommends the right downstream command (/wf-plan for non-trivial work, /wf-quick quick for small fixes, /wf-quick hotfix for active incidents). Does NOT write a fix. Synthesizes a minimal 02-shape.md so /wf-plan can consume the workflow directory without modification.",
+      "description": "Root-cause analysis workflow. Investigates a reported issue using parallel diagnosis sub-agents, writes a structured RCA artifact with confidence, blast radius, and suggested fix shape, then recommends the right downstream command (/wf plan for non-trivial work, /wf-quick quick for small fixes, /wf-quick hotfix for active incidents). Does NOT write a fix. Synthesizes a minimal 02-shape.md so /wf plan can consume the workflow directory without modification.",
       "argumentHint": "<description-or-slug>"
     },
     {
       "key": "refactor",
       "kind": "dimension",
       "referencePath": "skills/wf-quick/reference/refactor.md",
-      "bodyHash": "9efb73cbf28140fc48acbfdfa2256bebe54af3fbd591351e45d53213187b0a67",
+      "bodyHash": "0950d3bd7e9ea00fe3af7a8902d59d236757785c202bace434c4f3f54b9d5a50",
       "bodyBytes": 14581,
       "description": "Structured refactoring workflow. Captures behavior baseline before touching code, plans incremental green steps, implements with per-step verification, and confirms behavior is identical after.",
       "argumentHint": "<description-or-slug>"

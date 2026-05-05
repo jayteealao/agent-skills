@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Shape"
-  short_description: "Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases."
-  default_prompt: "Use $wf-shape for this workflow."
-policy:
-  allow_implicit_invocation: false

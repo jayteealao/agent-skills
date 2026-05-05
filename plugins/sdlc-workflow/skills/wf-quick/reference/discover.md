@@ -244,7 +244,7 @@ If `needs-further-research`, prefix with:
 
 # What this command is NOT
 
-- **Not a feature designer** — `wf-discover` validates whether to build, not what to build or how. Feature design lives in `/wf-shape`.
+- **Not a feature designer** — `wf-discover` validates whether to build, not what to build or how. Feature design lives in `/wf shape`.
 - **Not a technical feasibility study** — the feasibility signal is intentional shallow. For full technical assessment, run `/wf-quick investigate` or `/wf-quick intake` after this.
 - **Not a market research agency** — it uses web search as a proxy for market data. Findings are directional, not statistically rigorous.
 - **Not a substitute for user interviews** — it surfaces public signals. For primary research, the user needs to run interviews separately and feed findings back into a new `/wf-quick discover` or directly into `/wf-quick intake`.

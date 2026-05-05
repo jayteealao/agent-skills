@@ -148,6 +148,11 @@ function findOrphanedReferences() {
     // /wf-* legacy commands removed by v9.0.0-alpha.3 PR-3 (rolled into /wf-meta).
     // Same lookahead scheme as the wf-quick family above.
     /\/wf-(?:next|status|resume|sync|amend|extend|skip|close|how|announce)(?![A-Za-z0-9_/-])(?!\s+(?:next|status|resume|sync|amend|extend|skip|close|how|announce)\b)/g,
+    // /wf-* legacy commands removed by v9.0.0-alpha.4 PR-4 (rolled into /wf).
+    // Same lookahead scheme as the wf-quick / wf-meta families above. The
+    // /wf-design exclusion is implicit — `design` is not in the alternation,
+    // so /wf-design slips past untouched (it remains its own router).
+    /\/wf-(?:shape|slice|plan|implement|verify|review|handoff|ship|retro|instrument|experiment|benchmark|profile)(?![A-Za-z0-9_/-])(?!\s+(?:shape|slice|plan|implement|verify|review|handoff|ship|retro|instrument|experiment|benchmark|profile)\b)/g,
   ];
 
   function walk(dir) {

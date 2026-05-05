@@ -15,14 +15,14 @@ You are running `wf-extend`, a **scope expansion utility** for the SDLC lifecycl
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
 
-This is a **utility command**, not a pipeline stage. It adds net-new slices to any workflow — whether in-progress or fully complete — without touching existing slice artifacts. It does NOT correct existing slices (use `/wf-meta amend`) and does NOT fix bugs in existing implementation (use `/wf-implement`).
+This is a **utility command**, not a pipeline stage. It adds net-new slices to any workflow — whether in-progress or fully complete — without touching existing slice artifacts. It does NOT correct existing slices (use `/wf-meta amend`) and does NOT fix bugs in existing implementation (use `/wf implement`).
 
 | | Detail |
 |---|---|
 | Requires | `00-index.md`, `03-slice.md` (master index) |
 | Produces | New `03-slice-<new-slug>.md` files + updated `03-slice.md` (non-destructive append) |
 | Does NOT modify | Any `03-slice-<slug>.md` file with `status: complete` or `status: in-progress` |
-| Next | `/wf-plan <slug> <new-slice-slug>` for each new slice |
+| Next | `/wf plan <slug> <new-slice-slug>` for each new slice |
 
 # CRITICAL — execution discipline
 You are a **scope expander**, not a problem solver.
@@ -83,7 +83,7 @@ Extract qualifying extension candidates. Group related findings into candidate s
 - Why it can't be addressed in an existing slice fix
 - Rough complexity estimate (xs/s/m/l/xl)
 
-If no qualifying findings exist, STOP and tell the user: "Review findings are all implementation bugs — no new scope identified. Use `/wf-implement <slug> <slice-slug>` to fix them."
+If no qualifying findings exist, STOP and tell the user: "Review findings are all implementation bugs — no new scope identified. Use `/wf implement <slug> <slice-slug>` to fix them."
 
 ## `from-retro` mode
 
@@ -232,7 +232,7 @@ Return ONLY:
 - `new-slices:` list of new slice slugs with one-line goals
 - `extension-source:` from-review | from-retro | user request
 - `options:`
-  - `/wf-plan <slug> <first-new-slice-slug>` — plan the first new slice (default)
-  - `/wf-plan <slug> all` — if you want to plan all new slices in parallel
+  - `/wf plan <slug> <first-new-slice-slug>` — plan the first new slice (default)
+  - `/wf plan <slug> all` — if you want to plan all new slices in parallel
   - `/wf-meta status <slug>` — see full workflow state including all slices
 - ≤2 bullets noting dependency ordering if new slices depend on existing in-progress work

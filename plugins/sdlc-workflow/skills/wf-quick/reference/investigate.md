@@ -21,7 +21,7 @@ You are running `wf-investigate`, an **investment discovery workflow** that surv
 | Produces | `01-investigate.md` (ranked candidates), `02-shape.md` (forwarding contract for top candidate), `00-index.md` |
 | Skips | No fix, no plan, no implementation. The investigation *is* the output. |
 | Next | `/wf-quick intake <description>` (medium/large investment), `/wf-quick quick <description>` (small investment), `/wf-quick discover <problem>` (when problem itself is unvalidated) |
-| Escalate | If all candidates are low-confidence AND no runtime data exists → recommend `/wf-profile <area>` or `/wf-benchmark <slug>` to gather quantitative data first |
+| Escalate | If all candidates are low-confidence AND no runtime data exists → recommend `/wf profile <area>` or `/wf benchmark <slug>` to gather quantitative data first |
 
 # CRITICAL — investigation discipline
 You are a **diagnostician and investment analyst**, not a planner or implementer.
@@ -170,7 +170,7 @@ Routing logic:
 | Top candidate: `effort: small`, `impact: medium+`, mechanism is clear | `/wf-quick quick <description>` |
 | Top candidate: `effort: medium+` OR architecture change OR schema change | `/wf-quick intake <description>` |
 | All candidates `confidence: low` OR no user/business signal found | `/wf-quick discover <problem>` — validate the problem before investing |
-| `investigation-type: performance` AND no runtime data exists | Add note: run `/wf-profile <area>` to sharpen estimates before proceeding |
+| `investigation-type: performance` AND no runtime data exists | Add note: run `/wf profile <area>` to sharpen estimates before proceeding |
 
 ## 5. Confidence & data gaps
 
@@ -287,18 +287,18 @@ Investigation artifact: .ai/workflows/<slug>/01-investigate.md
 
 If all candidates are `low-confidence`, prefix with:
 
-> ⚠ All candidates are low-confidence (static analysis only, no runtime data). Consider `/wf-profile <area>` or running existing benchmarks before routing to an investment workflow.
+> ⚠ All candidates are low-confidence (static analysis only, no runtime data). Consider `/wf profile <area>` or running existing benchmarks before routing to an investment workflow.
 
 # Routing notes
 
 - **`/wf-quick intake <description>` is the cleanest downstream path** for medium/large investments — it starts a fresh workflow consuming the synthesized `02-shape.md` as initial context.
 - **`/wf-quick quick <description>`** is right for small, well-understood investments where the mechanism is clear and scope is ≤3 files.
 - **`/wf-quick discover <problem>`** is the right call when the investigation surfaced opportunity areas but the underlying problem has no external validation — don't build a solution to a problem you haven't confirmed is real.
-- **`/wf-profile <area>`** sharpens confidence on performance candidates before committing to them. Run it between `wf-investigate` and `wf-intake` when static analysis isn't conclusive.
+- **`/wf profile <area>`** sharpens confidence on performance candidates before committing to them. Run it between `wf-investigate` and `wf-intake` when static analysis isn't conclusive.
 
 # What this command is NOT
 
 - **Not a planner** — `wf-investigate` produces an investment ranking and a routing recommendation. It does not write implementation plans, tasks, or code.
 - **Not a debugger** — if a bug was found during investigation, route to `/wf-quick rca`. Investigation is for identifying *opportunities*, not *defects*.
 - **Not a discovery validator** — if the underlying problem has no user or market signal, run `/wf-quick discover` first. `wf-investigate` assumes the domain is worth looking at; `wf-discover` answers whether the domain is worth it.
-- **Not a profiler** — static analysis is its primary lens. For quantitative runtime data, use the `wf-profile` skill or `/wf-benchmark`.
+- **Not a profiler** — static analysis is its primary lens. For quantitative runtime data, use the `wf-profile` skill or `/wf benchmark`.

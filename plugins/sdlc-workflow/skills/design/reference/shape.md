@@ -69,13 +69,13 @@ Which reference docs from `skills/design/reference/` should be loaded for implem
 - `harden.md` — if accessibility is a concern
 - `optimize.md` — if performance is a concern
 
-**Mirror this list as a `recommended-references:` array in `02b-design.md`'s YAML frontmatter** so `/wf-implement` can resolve it deterministically:
+**Mirror this list as a `recommended-references:` array in `02b-design.md`'s YAML frontmatter** so `/wf implement` can resolve it deterministically:
 
 ```yaml
 recommended-references: [typeset, animate, colorize, harden]
 ```
 
-Names omit the `.md` extension. `/wf-implement` reads each as `skills/design/reference/<name>.md` and treats the loaded files as read-only design rationale during implementation. The frontmatter array is authoritative; the human-readable bullet list above is for the design reviewer's eye and may include conditional notes that the array does not.
+Names omit the `.md` extension. `/wf implement` reads each as `skills/design/reference/<name>.md` and treats the loaded files as read-only design rationale during implementation. The frontmatter array is authoritative; the human-readable bullet list above is for the design reviewer's eye and may include conditional notes that the array does not.
 
 ## Phase 3: Visual Direction Probes (capability-gated)
 

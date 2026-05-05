@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Review"
-  short_description: "Intelligent review dispatch. Reads workflow artifacts and diff, selects relevant review commands, spawns one parallel review worker per command (each writes its findings to file), then aggregates, deduplicates, and triages findings via user triage into a unified review verdict. Re-run with \"triage\" to revisit deferred findings."
-  default_prompt: "Use $wf-review for this workflow."
-policy:
-  allow_implicit_invocation: false

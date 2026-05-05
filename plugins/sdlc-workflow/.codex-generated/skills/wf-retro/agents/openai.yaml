@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Retro"
-  short_description: "Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation."
-  default_prompt: "Use $wf-retro for this workflow."
-policy:
-  allow_implicit_invocation: false

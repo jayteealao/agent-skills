@@ -1,8 +1,6 @@
 ---
-name: wf-verify
 description: Verify that the selected slice meets acceptance criteria and is ready for review.
 argument-hint: <slug> [slice]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -22,12 +20,12 @@ You are running `wf-verify`, **stage 6 of 10** in the SDLC lifecycle.
 | Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md` |
 | Conditional inputs (mandatory when present) | `02c-craft.md` (mock fidelity inventory MUST be re-verified), `04b-instrument.md` (signals MUST fire), `04c-experiment.md` (flag/cohort/metrics MUST work), `05c-benchmark.md` baseline (compare-mode re-run REQUIRED), `augmentations:` list in `00-index.md` (every entry MUST trigger a type-specific re-check — see Step 0.6) |
 | Produces | `06-verify-<slice-slug>.md` + updates `06-verify.md` master |
-| Next | `/wf-review <slug> <selected-slice>` (if passing) or `/wf-implement <slug> <selected-slice>` (if fixes needed) |
-| Skip-to | `/wf-handoff <slug> <slice>` if review is unnecessary (solo project, trivial change, already peer-reviewed externally) |
+| Next | `/wf review <slug> <selected-slice>` (if passing) or `/wf implement <slug> <selected-slice>` (if fixes needed) |
+| Skip-to | `/wf handoff <slug> <slice>` if review is unnecessary (solo project, trivial change, already peer-reviewed externally) |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
-- Do NOT fix issues you find — only report them. Fixes belong in `/wf-implement`.
+- Do NOT fix issues you find — only report them. Fixes belong in `/wf implement`.
 - Do NOT review, handoff, or ship — those are later stages.
 - Your job is to **run checks and compare results against acceptance criteria**.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
@@ -69,7 +67,7 @@ You are a **workflow orchestrator**, not a problem solver.
    | `design-critique` | Read `07-design-critique.md`. Note any prescriptive feedback that should have been actioned. |
    | `instrument` | Read `04b-instrument.md`. For each designed signal, confirm the implementation actually emits the log/metric/trace. Run the affected code path and observe the signal fires (live or via tests). Report any missing signals. |
    | `experiment` | Read `04c-experiment.md`. Confirm: (a) feature flag is wired correctly; (b) cohort split logic produces the documented distribution; (c) primary/secondary/guardrail metrics fire on the expected events; (d) rollback path works. |
-   | `benchmark` (status: baseline) | Run `/wf-benchmark <slug>` in compare mode. Compare results against the baseline numbers in `05c-benchmark.md`. Flag regressions exceeding the documented tripwires (>10% CPU / >25% memory by default). |
+   | `benchmark` (status: baseline) | Run `/wf benchmark <slug>` in compare mode. Compare results against the baseline numbers in `05c-benchmark.md`. Flag regressions exceeding the documented tripwires (>10% CPU / >25% memory by default). |
 8. **Carry forward** `open-questions` from the index.
 9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch (`git branch --show-current`). If not, switch to it. Verification must run against the implementation branch, not the base branch.
 
@@ -231,7 +229,7 @@ Prompt with:
 | `design-critique` | Read `07-design-critique.md`. Note actioned-vs-unactioned recommendations. |
 | `instrument` | Read `04b-instrument.md`. For each designed signal, exercise the affected code path and confirm the log/metric/trace fires (via tests, live observation, or grep on log output). Report any missing signals. |
 | `experiment` | Read `04c-experiment.md`. Confirm: feature flag is wired, cohort split produces documented distribution, all metrics (primary/secondary/guardrail) fire on the right events, rollback path works. |
-| `benchmark` (status: baseline) | Run `/wf-benchmark <slug>` in compare mode. Compare against `05c-benchmark.md` baseline. Flag regressions exceeding documented tripwires (default >10% CPU / >25% memory). |
+| `benchmark` (status: baseline) | Run `/wf benchmark <slug>` in compare mode. Compare against `05c-benchmark.md` baseline. Flag regressions exceeding documented tripwires (default >10% CPU / >25% memory). |
 
 **Reporting:**
 - Pass: all mock fidelity items honored, all augmentation type-checks pass, no critical findings outstanding.
@@ -281,7 +279,7 @@ Do this in order:
 4. **Run checks.** For each check task:
    a. `TaskUpdate(taskId, status: "in_progress")`.
    b. Run or evaluate the check (using parallel sub-agents if multi-concern): lint, typecheck, tests, build, smoke tests, manual checks.
-   c. `TaskUpdate(taskId, status: "completed")`. If the check failed, update description first: `TaskUpdate(taskId, description: "FAILED: <output summary>")` then mark completed. Do NOT fix — fixes belong in `/wf-implement`.
+   c. `TaskUpdate(taskId, status: "completed")`. If the check failed, update description first: `TaskUpdate(taskId, description: "FAILED: <output summary>")` then mark completed. Do NOT fix — fixes belong in `/wf implement`.
 5. **Verify acceptance criteria.** For each AC task:
    a. `TaskUpdate(taskId, status: "in_progress")`.
    b. Compare results with the criterion from `03-slice-<slice-slug>.md` and `02-shape.md`.
@@ -295,17 +293,17 @@ Do this in order:
 # Adaptive routing — evaluate what's actually next
 After completing verification, evaluate the results and present the user with ALL viable options:
 
-**Option A: Review** → `/wf-review <slug> <selected-slice>`
+**Option A: Review** → `/wf review <slug> <selected-slice>`
 Use when: All checks pass. Acceptance criteria are met. Ready for a code review.
 **Compact recommended if verify was lengthy** — test output and debugging context is noise for review dispatch.
 
-**Option B: Fix and re-implement** → `/wf-implement <slug> <selected-slice>`
+**Option B: Fix and re-implement** → `/wf implement <slug> <selected-slice>`
 Use when: Tests fail, lint errors, type errors, or acceptance criteria are not met. Clearly describe what needs fixing.
 
-**Option C: Skip review, go to Handoff** → `/wf-handoff <slug> <selected-slice>`
+**Option C: Skip review, go to Handoff** → `/wf handoff <slug> <selected-slice>`
 Use when: This is a solo project with no reviewer, OR the change was already externally reviewed (e.g., pair-programmed), OR it's a trivial fix where formal review adds no value. Only suggest this when there is a clear reason.
 
-**Option D: Revisit Plan** → `/wf-plan <slug> <selected-slice>`
+**Option D: Revisit Plan** → `/wf plan <slug> <selected-slice>`
 Use when: Verification revealed a fundamental flaw in the approach, not just a bug — the plan itself needs rethinking.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
@@ -328,7 +326,7 @@ refs:
   index: 00-index.md
   implement-index: 05-implement.md
 next-command: wf-review
-next-invocation: "/wf-review <slug> <slice-slug>"
+next-invocation: "/wf review <slug> <slice-slug>"
 ---
 ```
 
@@ -368,7 +366,7 @@ refs:
   implement: 05-implement-<slice-slug>.md
   review: 07-review-<slice-slug>.md
 next-command: wf-review
-next-invocation: "/wf-review <slug> <slice-slug>"
+next-invocation: "/wf review <slug> <slice-slug>"
 ---
 ```
 
@@ -417,6 +415,6 @@ If no interactive verification was needed: "Automated only — [reason]"
 ## Recommendation
 
 ## Recommended Next Stage
-- **Option A:** `/wf-review <slug> <slice-slug>` — [reason]
-- **Option B:** `/wf-implement <slug> <slice-slug>` — fix issues [reason, if applicable]
-- **Option C:** `/wf-handoff <slug> <slice-slug>` — skip review [reason, if applicable]
+- **Option A:** `/wf review <slug> <slice-slug>` — [reason]
+- **Option B:** `/wf implement <slug> <slice-slug>` — fix issues [reason, if applicable]
+- **Option C:** `/wf handoff <slug> <slice-slug>` — skip review [reason, if applicable]

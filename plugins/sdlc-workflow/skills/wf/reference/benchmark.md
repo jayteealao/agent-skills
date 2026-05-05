@@ -1,8 +1,6 @@
 ---
-name: wf-benchmark
 description: Performance benchmarking wrapper for an existing workflow. Runs in two modes: baseline (before implement — measures current performance) and compare (after implement — measures delta and flags regressions). Auto-detects which mode is needed based on whether a baseline already exists. Pass an explicit mode arg to override. Writes or updates 05c-benchmark.md in the existing workflow directory.
 argument-hint: <slug> [baseline|compare]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -29,14 +27,14 @@ existing-workflow/
 
 | Mode | When to run | What it does |
 |------|-------------|--------------|
-| **baseline** | Before `/wf-implement` | Identifies benchmark targets, runs benchmarks on current code, records numbers |
-| **compare** | After `/wf-implement`, before or during `/wf-verify` | Runs same benchmarks on modified code, calculates delta, flags regressions |
+| **baseline** | Before `/wf implement` | Identifies benchmark targets, runs benchmarks on current code, records numbers |
+| **compare** | After `/wf implement`, before or during `/wf verify` | Runs same benchmarks on modified code, calculates delta, flags regressions |
 | **auto-detect** (default) | Either time | If no `05c-benchmark.md` exists → baseline. If baseline exists with no comparison → compare. |
 
 **Usage:**
-- `/wf-benchmark <slug>` — auto-detect mode (recommended)
-- `/wf-benchmark <slug> baseline` — force baseline (re-baseline after a major change)
-- `/wf-benchmark <slug> compare` — force compare
+- `/wf benchmark <slug>` — auto-detect mode (recommended)
+- `/wf benchmark <slug> baseline` — force baseline (re-baseline after a major change)
+- `/wf benchmark <slug> compare` — force compare
 
 | | Detail |
 |---|---|
@@ -44,8 +42,8 @@ existing-workflow/
 | Produces | `05c-benchmark.md` (baseline run) or updated `05c-benchmark.md` (compare run) |
 | Updates | `00-index.md` — adds entry to `augmentations:` list (baseline only) |
 | Does NOT | Write application code, modify the plan, or advance the workflow stage. |
-| Next (baseline) | `/wf-implement <slug>` |
-| Next (compare) | `/wf-verify <slug>` — comparison data is available as additional context |
+| Next (baseline) | `/wf implement <slug>` |
+| Next (compare) | `/wf verify <slug>` — comparison data is available as additional context |
 
 # CRITICAL — measurement discipline
 You are a **performance analyst**, not an optimizer.
@@ -58,7 +56,7 @@ You are a **performance analyst**, not an optimizer.
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug** from first argument. Must match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found."
-   - If `02-shape.md` does not exist → STOP: "No shape found for `<slug>`. Run `/wf-shape <slug>` first."
+   - If `02-shape.md` does not exist → STOP: "No shape found for `<slug>`. Run `/wf shape <slug>` first."
 2. **Resolve mode:**
    - If second argument is `baseline` → force baseline mode.
    - If second argument is `compare` → force compare mode.
@@ -238,7 +236,7 @@ improvements-found: <N>
 
 | Target | Delta% | Likely cause | Recommendation |
 |--------|--------|-------------|----------------|
-| `<target>` | `+X%` | `<one-line: e.g., "new validation loop added in step 3 of plan">` | `<one-line: profile this target with /wf-profile, or accept if within acceptable range>` |
+| `<target>` | `+X%` | `<one-line: e.g., "new validation loop added in step 3 of plan">` | `<one-line: profile this target with /wf profile, or accept if within acceptable range>` |
 
 **Tripwires** (warn-and-continue — do NOT refuse to complete the comparison):
 
@@ -248,7 +246,7 @@ improvements-found: <N>
 
 For each fired tripwire, write one line. Then add:
 
-> One or more wf-benchmark tripwires fired. The comparison is valid, but review the regressions before proceeding to /wf-verify.
+> One or more wf-benchmark tripwires fired. The comparison is valid, but review the regressions before proceeding to /wf verify.
 
 # Step 5 — Hand off to user
 
@@ -258,8 +256,8 @@ wf-benchmark baseline complete: <slug>
 Language: <language>, framework: <framework>
 Targets measured: <N> (<N> failed)
 Branch: <branch> @ <commit>
-Next: /wf-implement <slug> — baseline is recorded
-Re-baseline: /wf-benchmark <slug> baseline
+Next: /wf implement <slug> — baseline is recorded
+Re-baseline: /wf benchmark <slug> baseline
 Artifact: .ai/workflows/<slug>/05c-benchmark.md
 ```
 
@@ -271,7 +269,7 @@ Regressions: <N> (<list target names>) | none
 Improvements: <N> (<list target names>) | none
 Largest delta: <target> <±X%>
 Tripwires: <none | comma-separated>
-Next: /wf-verify <slug> — comparison data available as context
+Next: /wf verify <slug> — comparison data available as context
 Artifact: .ai/workflows/<slug>/05c-benchmark.md
 ```
 
@@ -284,4 +282,4 @@ If regressions found, prefix compare summary with:
 - **Not a profiler** — `wf-benchmark` measures aggregate time and allocations at the function/endpoint level. For flamegraphs and call-graph analysis, use the `wf-profile` skill.
 - **Not a load tester** — it measures single-request or single-operation performance. For concurrency and throughput under load, `wf-load-test` is needed (not yet available).
 - **Not a CI gate** — it is a developer workflow tool. Integrating benchmark regression detection into CI is a separate infrastructure concern.
-- **Not a profiling substitute** — if a regression is found but the cause is unclear, run `/wf-profile <area>` to find the hotspot before attempting to fix it.
+- **Not a profiling substitute** — if a regression is found but the cause is unclear, run `/wf profile <area>` to find the hotspot before attempting to fix it.

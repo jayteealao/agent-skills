@@ -1,8 +1,6 @@
 ---
-name: wf-retro
 description: Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation.
 argument-hint: <slug>
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -146,7 +144,7 @@ Use when: All slices are shipped, no follow-up work is warranted.
 **Option B: Open follow-up workflow** → `/wf-quick quick intake <new-task-description>`
 Use when: The retro identified follow-up work significant enough to warrant its own workflow (e.g., "we deferred X and it should be done next sprint").
 
-**Option C: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
+**Option C: Next slice** → `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>`
 Use when: The retro is running mid-workflow (e.g., after shipping one slice) and there are more slices.
 
 **Option D: Apply retro improvements** → suggest specific file edits
@@ -213,5 +211,5 @@ Drop:
 ## Recommended Next Stage
 - **Option A (default):** Workflow complete
 - **Option B:** `/wf-quick quick intake <follow-up>` — [reason, if applicable]
-- **Option C:** `/wf-plan <slug> <next-slice>` — next slice [reason, if applicable]
+- **Option C:** `/wf plan <slug> <next-slice>` — next slice [reason, if applicable]
 - **Option D:** Apply improvements — [list quick wins, if applicable]

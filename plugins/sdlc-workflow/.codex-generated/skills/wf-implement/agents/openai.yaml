@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Implement"
-  short_description: "Implement one selected planned slice. Writes per-slice implementation record with cross-links to slice definition and plan."
-  default_prompt: "Use $wf-implement for this workflow."
-policy:
-  allow_implicit_invocation: false

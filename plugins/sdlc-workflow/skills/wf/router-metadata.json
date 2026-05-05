@@ -1,0 +1,20 @@
+{
+  "skill": "wf",
+  "description": "Skill router for /wf. 13 sub-commands (shape, slice, plan, implement, verify, review, handoff, ship, retro, instrument, experiment, benchmark, profile) covering the canonical SDLC lifecycle plus perf/observability augmentations. No sweep mode — sub-commands are sequential lifecycle stages. Invoke as /wf <subcommand> <args>.",
+  "dimensions": [
+    "benchmark",
+    "experiment",
+    "handoff",
+    "implement",
+    "instrument",
+    "plan",
+    "profile",
+    "retro",
+    "review",
+    "shape",
+    "ship",
+    "slice",
+    "verify"
+  ],
+  "aggregates": {}
+}

@@ -1,8 +1,6 @@
 ---
-name: wf-shape
 description: Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.
 argument-hint: <slug> [focus area]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -21,8 +19,8 @@ You are running `wf-shape`, **stage 2 of 10** in the SDLC lifecycle.
 |---|---|
 | Requires | `01-intake.md` |
 | Produces | `02-shape.md` |
-| Next | `/wf-slice <slug>` (default) |
-| Skip-to | `/wf-plan <slug>` if the shaped spec is a single coherent unit that does not benefit from slicing |
+| Next | `/wf slice <slug>` (default) |
+| Skip-to | `/wf plan <slug>` if the shaped spec is a single coherent unit that does not benefit from slicing |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -204,18 +202,18 @@ After completing all 5 rounds, append every answer to `po-answers.md` with times
 9. Write `.ai/workflows/<slug>/02-shape.md`.
 
 # Adaptive routing — evaluate what's actually next
-After completing this stage, do NOT blindly recommend `/wf-slice`. Evaluate the shaped spec and present the user with ALL viable options:
+After completing this stage, do NOT blindly recommend `/wf slice`. Evaluate the shaped spec and present the user with ALL viable options:
 
-**Option A (default): Slice** → `/wf-slice <slug>`
+**Option A (default): Slice** → `/wf slice <slug>`
 Use when: The spec covers multiple distinct areas, has more than one acceptance criterion cluster, or would benefit from incremental delivery.
 
-**Option B: Skip to Plan** → `/wf-plan <slug>`
+**Option B: Skip to Plan** → `/wf plan <slug>`
 Use when: The shaped spec is a single coherent unit — one clear scope, one acceptance path, no meaningful way to split it further. Criteria: single concern, ≤5 files likely touched, one delivery unit.
 
 **Option C: Revisit Intake** → `/wf-quick quick intake <slug>`
 Use when: Shaping revealed that the intake brief is wrong, missing key constraints, or fundamentally misunderstands the problem.
 
-**Option D: Blocked — re-run shape** → `/wf-shape <slug>`
+**Option D: Blocked — re-run shape** → `/wf shape <slug>`
 Use when: Required PO answers are still missing.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
@@ -239,7 +237,7 @@ refs:
   intake: 01-intake.md
   next: 03-slice.md
 next-command: wf-slice
-next-invocation: "/wf-slice <slug>"
+next-invocation: "/wf slice <slug>"
 ---
 ```
 
@@ -316,6 +314,6 @@ If no docs needed: "None required — [reason]"
   Takeaway:
 
 ## Recommended Next Stage
-- **Option A (default):** `/wf-slice <slug>` — [reason]
-- **Option B:** `/wf-plan <slug>` — [reason, if single-scope]
+- **Option A (default):** `/wf slice <slug>` — [reason]
+- **Option B:** `/wf plan <slug>` — [reason, if single-scope]
 - **Option C:** `/wf-quick quick intake <slug>` — revisit intake [reason, if applicable]

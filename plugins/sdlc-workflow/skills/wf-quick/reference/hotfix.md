@@ -19,7 +19,7 @@ You are running `wf-hotfix`, an **accelerated incident-response workflow**.
 |---|---|
 | Requires | Nothing — starts fresh. Pass a description or an existing slug to resume. |
 | Produces | `hf-brief.md`, `hf-plan.md`, `hf-implement.md`, `hf-verify.md` |
-| Next | `/wf-ship <slug>` after verify passes |
+| Next | `/wf ship <slug>` after verify passes |
 | Escalate | If fix requires >3 files or architectural changes → `/wf-quick intake <description>` |
 
 # CRITICAL — scope lock
@@ -192,5 +192,5 @@ After writing files, return ONLY:
 - `slug: <slug>`
 - `branch: hotfix/<slug>`
 - `wrote: <paths>`
-- `options:` (always `/wf-ship <slug>` as default; optionally `/wf-review <slug> security` if security-sensitive)
+- `options:` (always `/wf ship <slug>` as default; optionally `/wf review <slug> security` if security-sensitive)
 - ≤3 bullets: what was fixed, what to watch for post-deploy, whether data remediation is needed

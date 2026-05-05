@@ -1,0 +1,109 @@
+{
+  "router": "/wf",
+  "description": "Routing-resolution fixtures for the /wf skill (v9.0.0-alpha.4+). Each invocation should resolve to skills/wf/reference/<key>.md based on the first positional token.",
+  "fixtures": [
+    {
+      "id": "wf-shape-slug",
+      "purpose": "shape with explicit slug.",
+      "invocation": "/wf shape add-onboarding",
+      "expectedReferencePath": "skills/wf/reference/shape.md"
+    },
+    {
+      "id": "wf-slice-slug",
+      "purpose": "slice with explicit slug.",
+      "invocation": "/wf slice add-onboarding",
+      "expectedReferencePath": "skills/wf/reference/slice.md"
+    },
+    {
+      "id": "wf-plan-slug-slice",
+      "purpose": "plan with slug + slice.",
+      "invocation": "/wf plan add-onboarding email-flow",
+      "expectedReferencePath": "skills/wf/reference/plan.md"
+    },
+    {
+      "id": "wf-implement-slug-slice",
+      "purpose": "implement with slug + slice.",
+      "invocation": "/wf implement add-onboarding email-flow",
+      "expectedReferencePath": "skills/wf/reference/implement.md"
+    },
+    {
+      "id": "wf-implement-reviews-edge-case",
+      "purpose": "implement with literal `reviews` second arg (fix-blockers mode). The second token is the reference's own argument, not a sub-key — the router must not treat `reviews` as ambiguous.",
+      "invocation": "/wf implement reviews onboarding-1",
+      "expectedReferencePath": "skills/wf/reference/implement.md"
+    },
+    {
+      "id": "wf-verify-slug",
+      "purpose": "verify with slug.",
+      "invocation": "/wf verify add-onboarding",
+      "expectedReferencePath": "skills/wf/reference/verify.md"
+    },
+    {
+      "id": "wf-review-slug-slice",
+      "purpose": "review with slug + slice.",
+      "invocation": "/wf review add-onboarding email-flow",
+      "expectedReferencePath": "skills/wf/reference/review.md"
+    },
+    {
+      "id": "wf-review-triage",
+      "purpose": "review with triage as second arg (re-visit deferred findings).",
+      "invocation": "/wf review add-onboarding triage",
+      "expectedReferencePath": "skills/wf/reference/review.md"
+    },
+    {
+      "id": "wf-handoff-slug",
+      "purpose": "handoff with slug.",
+      "invocation": "/wf handoff add-onboarding",
+      "expectedReferencePath": "skills/wf/reference/handoff.md"
+    },
+    {
+      "id": "wf-ship-slug",
+      "purpose": "ship with slug.",
+      "invocation": "/wf ship add-onboarding",
+      "expectedReferencePath": "skills/wf/reference/ship.md"
+    },
+    {
+      "id": "wf-retro-slug",
+      "purpose": "retro with slug.",
+      "invocation": "/wf retro add-onboarding",
+      "expectedReferencePath": "skills/wf/reference/retro.md"
+    },
+    {
+      "id": "wf-instrument-slug",
+      "purpose": "instrument augmentation with slug.",
+      "invocation": "/wf instrument add-onboarding",
+      "expectedReferencePath": "skills/wf/reference/instrument.md"
+    },
+    {
+      "id": "wf-experiment-slug",
+      "purpose": "experiment augmentation with slug.",
+      "invocation": "/wf experiment add-onboarding",
+      "expectedReferencePath": "skills/wf/reference/experiment.md"
+    },
+    {
+      "id": "wf-benchmark-baseline",
+      "purpose": "benchmark with mode (baseline before implement).",
+      "invocation": "/wf benchmark baseline add-onboarding",
+      "expectedReferencePath": "skills/wf/reference/benchmark.md"
+    },
+    {
+      "id": "wf-benchmark-compare",
+      "purpose": "benchmark with mode (compare after implement).",
+      "invocation": "/wf benchmark compare add-onboarding",
+      "expectedReferencePath": "skills/wf/reference/benchmark.md"
+    },
+    {
+      "id": "wf-profile-area",
+      "purpose": "profile against an explicit code area.",
+      "invocation": "/wf profile src/auth/session.ts",
+      "expectedReferencePath": "skills/wf/reference/profile.md"
+    },
+    {
+      "id": "wf-no-args-menu",
+      "purpose": "Bare /wf should render the menu, not pick a default sub-command.",
+      "invocation": "/wf",
+      "expectedBehavior": "menu",
+      "expectedReferencePath": null
+    }
+  ]
+}

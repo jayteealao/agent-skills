@@ -15,13 +15,13 @@ You are running `wf-announce`, a **post-ship communication utility** for the SDL
 # Pipeline
 1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
 
-This is a **utility command**, not a pipeline stage. It is designed to run after `/wf-ship` (stage 9) completes with a `go-nogo: go` or `conditional-go` decision. It can also run after `/wf-retro` (stage 10).
+This is a **utility command**, not a pipeline stage. It is designed to run after `/wf ship` (stage 9) completes with a `go-nogo: go` or `conditional-go` decision. It can also run after `/wf retro` (stage 10).
 
 | | Detail |
 |---|---|
 | Requires | `09-ship.md` with `go-nogo: go` or `conditional-go` (recommended), or at minimum `08-handoff.md` |
 | Produces | `announce.md` in the workflow directory |
-| Next | `/wf-retro <slug>` (if not yet done), or workflow is complete |
+| Next | `/wf retro <slug>` (if not yet done), or workflow is complete |
 
 # CRITICAL — execution discipline
 You are a **communications writer**, not a developer.
@@ -37,7 +37,7 @@ You are a **communications writer**, not a developer.
 3. **Read `00-index.md`** — parse `title`, `slug`, `status`, `current-stage`, and `selected-slice-or-focus`.
 4. **Check prerequisites:**
    - `09-ship.md` should exist with `go-nogo: go` or `conditional-go`. If missing but `08-handoff.md` exists → WARN: "Ship stage not completed. Generating announcement from handoff only — some deployment details will be missing." Proceed.
-   - If neither `08-handoff.md` nor `09-ship.md` exist → STOP: "No handoff or ship artifact found. Run `/wf-handoff <slug>` first."
+   - If neither `08-handoff.md` nor `09-ship.md` exist → STOP: "No handoff or ship artifact found. Run `/wf handoff <slug>` first."
 5. **Read source artifacts** (all that exist):
    - `09-ship.md` — deployment details, rollout strategy, go/no-go decision, merge info
    - `08-handoff.md` — summary, problem, solution, affected areas, risks, documentation changes
@@ -221,7 +221,7 @@ Return ONLY:
 - `channels:` list of channels selected
 - `docs-generated:` list of Diátaxis docs written in Step 2, or "none"
 - `options:`
-  - `/wf-retro <slug>` — if retro hasn't been done yet
+  - `/wf retro <slug>` — if retro hasn't been done yet
   - `/wf-meta status <slug>` — see full workflow state
 - ≤2 bullets: any missing context that would improve the announcements (e.g., "No metrics data in artifacts — consider adding before sending the product announcement")
 - Reminder: "These are drafts. Review and edit before sending."

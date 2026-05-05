@@ -1,8 +1,6 @@
 ---
-name: wf-profile
 description: Standalone performance profiling command. Invokes the wf-profile skill against a code area or function, then writes the analysis to a standalone artifact at .ai/profiles/<run-id>/01-profile.md. Use this outside of a workflow context when you want to understand WHERE time or memory is spent before deciding on an investment. For profiling within a workflow, the wf-profile skill is invoked directly by wf-investigate and wf-benchmark.
 argument-hint: <area-or-function-or-file>
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -134,7 +132,7 @@ Artifact: .ai/profiles/<run-id>/01-profile.md
 # What this command is NOT
 
 - **Not an optimizer** — it finds hotspots; it does not rewrite code.
-- **Not a benchmark** — it does not compare before/after. For delta measurement, use `/wf-benchmark`.
+- **Not a benchmark** — it does not compare before/after. For delta measurement, use `/wf benchmark`.
 - **Not a load tester** — it profiles single code paths; for concurrency and throughput, `wf-load-test` is needed (not yet available).
 - **Not a workflow stage** — profiling results do not advance any workflow. They are inputs to a decision about which workflow to start next.
 - **Not a substitute for APM** — it cannot see distributed traces, database query plans, or real production traffic without external tooling.

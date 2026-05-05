@@ -1,8 +1,6 @@
 ---
-name: wf-plan
 description: Create or review-and-fix implementation plans. First invocation creates plans. Re-invocation auto-reviews against current codebase and artifacts, fixes issues found. Supports single slice, all slices (parallel), or explicit feedback.
 argument-hint: <slug> [slice-slug|all] [review/fix instructions]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -22,8 +20,8 @@ You are running `wf-plan`, **stage 4 of 10** in the SDLC lifecycle.
 | Requires | `02-shape.md`, `03-slice.md` + `03-slice-<slice-slug>.md` (if slices exist) |
 | Conditional inputs (mandatory when present) | `02b-design.md` (visual surface scope and recommended references MUST be reflected in plan steps), `02c-craft.md` (visual contract — plan MUST include explicit steps to honor every mock fidelity inventory item and the implementation contract) |
 | Produces | `04-plan.md` (master) + `04-plan-<slice-slug>.md` per planned slice |
-| Next | `/wf-implement <slug> <slice-slug>` (default) |
-| Skip-to | `/wf-implement <slug> <slice-slug>` directly if plan is trivial |
+| Next | `/wf implement <slug> <slice-slug>` (default) |
+| Skip-to | `/wf implement <slug> <slice-slug>` directly if plan is trivial |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -223,7 +221,7 @@ After ALL slice sub-agents complete:
    - Configuration or environment variable changes that interact
 3. **Write/update the master `04-plan.md`** with summaries, cross-cutting concerns, and recommended implementation order.
 4. **Update cross-links** in each per-slice plan to reference sibling plans.
-5. If cohesion issues are severe, flag them and recommend revisiting `/wf-slice` before implementing.
+5. If cohesion issues are severe, flag them and recommend revisiting `/wf slice` before implementing.
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
@@ -274,10 +272,10 @@ Do this in order:
 Triggered when an existing plan is re-invoked. Three sub-modes:
 
 ## Sub-mode: Directed Fix (explicit feedback)
-**Trigger:** `/wf-plan <slug> <slice-slug> <feedback text>`
+**Trigger:** `/wf plan <slug> <slice-slug> <feedback text>`
 **Example:**
-- `/wf-plan my-slug auth-flow use OAuth2 PKCE instead of basic auth`
-- `/wf-plan my-slug data-model migration must run before API endpoint`
+- `/wf plan my-slug auth-flow use OAuth2 PKCE instead of basic auth`
+- `/wf plan my-slug data-model migration must run before API endpoint`
 
 Steps:
 1. **Read the existing `04-plan-<slice-slug>.md`** in full.
@@ -294,9 +292,9 @@ Steps:
 8. Write the updated `04-plan-<slice-slug>.md`.
 
 ## Sub-mode: Auto-Review (self-review, single slice)
-**Trigger:** `/wf-plan <slug> <slice-slug>` (no supplemental text, plan already exists)
+**Trigger:** `/wf plan <slug> <slice-slug>` (no supplemental text, plan already exists)
 **Example:**
-- `/wf-plan my-slug auth-flow` ← plan exists, no feedback = auto-review
+- `/wf plan my-slug auth-flow` ← plan exists, no feedback = auto-review
 
 Steps:
 1. **Read the existing `04-plan-<slice-slug>.md`** in full.
@@ -326,9 +324,9 @@ Steps:
 10. Write the updated `04-plan-<slice-slug>.md`.
 
 ## Sub-mode: Review-All (self-review, all slices)
-**Trigger:** `/wf-plan <slug> all` (plans already exist for all slices)
+**Trigger:** `/wf plan <slug> all` (plans already exist for all slices)
 **Example:**
-- `/wf-plan my-slug all` ← plans exist = review-all
+- `/wf plan my-slug all` ← plans exist = review-all
 
 Steps:
 1. **Read `04-plan.md`** (master index) and every `04-plan-<slice-slug>.md`.
@@ -352,18 +350,18 @@ Steps:
 # Adaptive routing — evaluate what's actually next
 After completing this stage, evaluate the plan(s) and present ALL viable options:
 
-**Option A (default): Implement** → `/wf-implement <slug> <slice-slug>`
+**Option A (default): Implement** → `/wf implement <slug> <slice-slug>`
 Use when: The plan is complete and ready for execution.
-**Compact recommended before proceeding** — planning research (alternatives, web searches, codebase exploration) is noise for implementation. Tell the user: "Consider running `/compact` before `/wf-implement` — the PreCompact hook will preserve workflow state."
+**Compact recommended before proceeding** — planning research (alternatives, web searches, codebase exploration) is noise for implementation. Tell the user: "Consider running `/compact` before `/wf implement` — the PreCompact hook will preserve workflow state."
 
-**Option B: Implement all (sequential)** → start with `/wf-implement <slug> <first-slice-slug>`
+**Option B: Implement all (sequential)** → start with `/wf implement <slug> <first-slice-slug>`
 Use when: All slices are planned and the user wants to work through them in order.
 **Compact recommended** — same reason as Option A.
 
-**Option C: Revisit Slice** → `/wf-slice <slug>`
+**Option C: Revisit Slice** → `/wf slice <slug>`
 Use when: Planning revealed that slice boundaries are wrong.
 
-**Option D: Revisit Shape** → `/wf-shape <slug>`
+**Option D: Revisit Shape** → `/wf shape <slug>`
 Use when: Planning revealed the spec is incomplete or contradictory.
 
 ---
@@ -389,7 +387,7 @@ refs:
   index: 00-index.md
   slice-index: 03-slice.md
 next-command: wf-implement
-next-invocation: "/wf-implement <slug> <first-slice-slug>"
+next-invocation: "/wf implement <slug> <first-slice-slug>"
 ---
 ```
 
@@ -416,8 +414,8 @@ next-invocation: "/wf-implement <slug> <first-slice-slug>"
 ## Freshness Research
 
 ## Recommended Next Stage
-- **Option A (default):** `/wf-implement <slug> <first-slice-slug>` — [reason]
-- **Option B:** `/wf-slice <slug>` — revisit slices [reason, if cohesion issues]
+- **Option A (default):** `/wf implement <slug> <first-slice-slug>` — [reason]
+- **Option B:** `/wf slice <slug>` — revisit slices [reason, if cohesion issues]
 
 ---
 
@@ -445,7 +443,7 @@ refs:
   siblings: [04-plan-<other>.md, ...]
   implement: 05-implement-<slice-slug>.md
 next-command: wf-implement
-next-invocation: "/wf-implement <slug> <slice-slug>"
+next-invocation: "/wf implement <slug> <slice-slug>"
 ---
 ```
 
@@ -501,4 +499,4 @@ If no interactive verification needed: "Automated only — [reason]"
 *(appended by review-and-fix mode)*
 
 ## Recommended Next Stage
-- **Option A (default):** `/wf-implement <slug> <slice-slug>` — [reason]
+- **Option A (default):** `/wf implement <slug> <slice-slug>` — [reason]

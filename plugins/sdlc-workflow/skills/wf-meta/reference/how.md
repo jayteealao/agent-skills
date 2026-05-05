@@ -610,7 +610,7 @@ Then the plain-language explanation.
 slug: <slug>
 wrote: .ai/workflows/<slug>/90-findings-explain.md
 options:
-  /wf-implement <slug> reviews   — fix findings now
+  /wf implement <slug> reviews   — fix findings now
   /wf-meta amend <slug>               — amend scope if findings reveal spec gaps
   /wf-meta extend <slug> from-review  — add missing capabilities as new slices
 ```

@@ -150,7 +150,7 @@ Apply Lens 1 (Reuse), Lens 2 (Quality), and Lens 3 (Efficiency) to the changed c
 
 Write all findings to `07-review-code-simplification.md` (when dispatched by wf-review) or to `.claude/<SESSION_SLUG>/reviews/review-code-simplification-{YYYY-MM-DD}.md` (when run standalone). Include a `## Triage Decisions` section with all findings listed as `untriaged`.
 
-**Note:** Triage via AskUserQuestion happens in wf-review's aggregation phase (Step 4b) for ALL findings across all review commands. To re-triage deferred findings later, run `/wf-review <slug> triage`.
+**Note:** Triage via AskUserQuestion happens in wf-review's aggregation phase (Step 4b) for ALL findings across all review commands. To re-triage deferred findings later, run `/wf review <slug> triage`.
 
 ## Step 6: Generate review report
 
@@ -348,7 +348,7 @@ Saved to: `.claude/{SESSION_SLUG}/reviews/review-code-simplification-{YYYY-MM-DD
 
 ## Next Steps
 {If findings marked "Fix":}
-Address these findings in `/wf-implement` or apply manually:
+Address these findings in `/wf implement` or apply manually:
 - {CS-ID}: {one-line description}
 
 {If no findings to fix:}

@@ -1,6 +1,0 @@
-interface:
-  display_name: "WF Ship"
-  short_description: "Assess release readiness, ask mandatory rollout questions, and define rollout plus rollback. Operates at the workflow level — reads 08-handoff.md, the PR, and the branch. No slice argument needed."
-  default_prompt: "Use $wf-ship for this workflow."
-policy:
-  allow_implicit_invocation: false

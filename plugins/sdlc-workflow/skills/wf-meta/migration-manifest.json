@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-05-04T23:47:19.514Z",
+  "generatedAt": "2026-05-05T00:06:44.996Z",
   "entries": [
     {
       "key": "amend",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/amend.md",
-      "bodyHash": "59591e00cad5ed3338aa20a1985002d3c06307f6153d40ec9bcd96901ad4338b",
+      "bodyHash": "de84fc204ed901d1a39becbe3ab75b73ace0476121ad5011dd96c4e41f8c1f12",
       "bodyBytes": 12214,
       "description": "Amend an existing workflow — correct the scope, acceptance criteria, or approach of existing slices without overwriting completed work. Creates versioned amendment artifacts. Use when a review or retro reveals that a slice needs rethinking, not just bug-fixing. Distinct from wf-extend (which adds new slices) and wf-implement (which fixes implementation bugs).",
       "argumentHint": "<slug> [slice-slug | from-review | from-retro]"
@@ -14,7 +14,7 @@
       "key": "announce",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/announce.md",
-      "bodyHash": "a3bf830113799fb7ec9f8030a5db8c92e9b379f224a99e929c60690f1b762285",
+      "bodyHash": "ef783f1e10b1fef3bbfdf2168d87902e9fe7d9676c384231c076005e09056fbb",
       "bodyBytes": 13426,
       "description": "Generate stakeholder-facing announcements for shipped workflows. Plain language, no jargon, tailored by audience (eng, product, users). Pulls from handoff and ship artifacts.",
       "argumentHint": "<slug> [audience]"
@@ -23,7 +23,7 @@
       "key": "close",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/close.md",
-      "bodyHash": "ee2bd468ad3a41616dab51a2984717b7dae69313fa203655b99354a2b20eb9ac",
+      "bodyHash": "47778f8f7766616b19f015da678d6d77eaeba0410458f832f7ec14c7689224fb",
       "bodyBytes": 9535,
       "description": "Close or archive a workflow without completing the full lifecycle. Marks the workflow as closed in 00-index.md, writes a 99-close.md record with the reason and context, warns about open branches and PRs, and optionally cleans up the branch. Does NOT delete workflow artifacts. Use for: cancelled work, work superseded by another approach, indefinitely deferred work, or work completed entirely outside the workflow.",
       "argumentHint": "<slug> [cancelled|superseded|deferred|completed-externally|merged-into]"
@@ -32,7 +32,7 @@
       "key": "extend",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/extend.md",
-      "bodyHash": "978bb3074afcb9cbc895293da6c5b3c9a58e11f916bb1c6079363dcbaf570176",
+      "bodyHash": "2d242ed33d155c7bfaf73f8c58485d04837b3e2445dc44e4cb941b1e5e80db63",
       "bodyBytes": 11948,
       "description": "Add net-new slices to an existing workflow — in-progress or completed — without modifying completed work. Two modes: general (describe new scope) or from-review/from-retro (seed from findings). Creates new slice files and updates the master index non-destructively. Routes to wf-plan for the new slices.",
       "argumentHint": "<slug> [from-review | from-retro]"
@@ -41,7 +41,7 @@
       "key": "how",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/how.md",
-      "bodyHash": "83148f01e77f9f426d1249dac2d2f5d3a0c1344fa11f78eed4ea3b3c1dbe4a2f",
+      "bodyHash": "e36ef3bc8d13bd9052b68ce0c3da0bc3b1336dd92ec29b02c9eb2b012c950168",
       "bodyBytes": 25792,
       "description": "Ask how something works in the codebase, commission deep multi-source web research (200+ sources), get quick code answers, explain workflow plans and decisions, or understand implementation and review findings. Routes automatically across five modes — Quick (Mode A), Codebase Explore (Mode B, fan-out to parallel Explore agents + synthesis), Deep Research (Mode C, 6–8 parallel web research agents, 200+ sources), Workflow Explain (Mode D), and Findings Explain (Mode E) — with optional Diátaxis artifact output at the end of every mode.",
       "argumentHint": "<question> | <slug> plan|shape|slice|review|findings | --research <question> | --quick <question>"
@@ -68,7 +68,7 @@
       "key": "skip",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/skip.md",
-      "bodyHash": "718656548312263fd4385faaad5b51e7b4bc9c40a6eda0bc2098c6b70cf0b8f1",
+      "bodyHash": "c58cafff4d40329992461c7ec49ee2411207054336e89b8db38531e6d7f90104",
       "bodyBytes": 10523,
       "description": "Advance a workflow past a stage without running it. Writes a skip record and a minimal stub artifact for the skipped stage (so downstream commands don't error on missing prerequisites), then updates 00-index.md to the next stage. Requires a reason. Warns loudly on high-risk skips (verify, review). Cannot skip intake, implement, or ship.",
       "argumentHint": "<slug> <stage> [reason]"
@@ -86,7 +86,7 @@
       "key": "sync",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/sync.md",
-      "bodyHash": "9c3e510410a200375d6d704097eb35e1b7029aa100d3a2521bd1e38321572f43",
+      "bodyHash": "fff8ee7956b9887e72200fe2b72a37750ec6bb86374722d3aee0506c8bb02cbb",
       "bodyBytes": 8977,
       "description": "Reconcile workflow state with reality. Checks whether referenced code, tests, PRs, branches, and dependencies actually exist or have changed. Writes a sync report to 00-sync.md.",
       "argumentHint": "[slug]"

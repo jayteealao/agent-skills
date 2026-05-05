@@ -19,8 +19,8 @@ You are running `wf-intake`, **stage 1 of 10** in the SDLC lifecycle.
 |---|---|
 | Requires | *(nothing — this is the first stage)* |
 | Produces | `01-intake.md` |
-| Next | `/wf-shape <slug>` (default) |
-| Skip-to | `/wf-plan <slug>` if the task is trivially scoped and needs no shaping or slicing |
+| Next | `/wf shape <slug>` (default) |
+| Skip-to | `/wf plan <slug>` if the task is trivially scoped and needs no shaping or slicing |
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -115,12 +115,12 @@ Do this in order:
 9. Write `.ai/workflows/<slug>/01-intake.md`.
 
 # Adaptive routing — evaluate what's actually next
-After completing this stage, do NOT blindly recommend `/wf-shape`. Evaluate the intake and present the user with ALL viable options:
+After completing this stage, do NOT blindly recommend `/wf shape`. Evaluate the intake and present the user with ALL viable options:
 
-**Option A (default): Shape** → `/wf-shape <slug>`
+**Option A (default): Shape** → `/wf shape <slug>`
 Use when: The task has ambiguity in behavior, acceptance criteria, or scope. Most tasks should go here.
 
-**Option B: Skip to Plan** → `/wf-plan <slug>`
+**Option B: Skip to Plan** → `/wf plan <slug>`
 Use when: The task is a well-understood, single-scope fix (e.g., "bump version X", "rename variable Y", "fix typo in Z"). No behavior ambiguity, no slicing needed. Criteria: ≤3 files likely touched, single acceptance criterion, no edge cases worth capturing.
 
 **Option C: Blocked — re-run intake** → `/wf-quick intake <slug>`
@@ -150,7 +150,7 @@ pr-number: 0
 open-questions: []
 tags: []
 next-command: wf-shape
-next-invocation: "/wf-shape <slug>"
+next-invocation: "/wf shape <slug>"
 workflow-files:
   - 00-index.md
   - 01-intake.md
@@ -189,7 +189,7 @@ refs:
   index: 00-index.md
   next: 02-shape.md
 next-command: wf-shape
-next-invocation: "/wf-shape <slug>"
+next-invocation: "/wf shape <slug>"
 ---
 ```
 
@@ -234,7 +234,7 @@ next-invocation: "/wf-shape <slug>"
   Takeaway:
 
 ## Recommended Next Stage
-- **Option A (default):** `/wf-shape <slug>` — [reason]
+- **Option A (default):** `/wf shape <slug>` — [reason]
 - **Option B:** `/wf-<other> <slug>` — [reason, if applicable]
 - **Option C:** Blocked — [what's missing]
 

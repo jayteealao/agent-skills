@@ -155,13 +155,13 @@ Read `00-index.md`, then update the following fields:
 
 | Stage skipped | New current-stage | New next-command |
 |---------------|-------------------|-----------------|
-| `shape` | `slice` | `/wf-slice` |
-| `slice` | `plan` | `/wf-plan` |
-| `plan` | `implement` | `/wf-implement` |
-| `design` | `slice` | `/wf-slice` |
-| `verify` | `review` | `/wf-review` |
-| `review` | `handoff` | `/wf-handoff` |
-| `handoff` | `ship` | `/wf-ship` |
+| `shape` | `slice` | `/wf slice` |
+| `slice` | `plan` | `/wf plan` |
+| `plan` | `implement` | `/wf implement` |
+| `design` | `slice` | `/wf slice` |
+| `verify` | `review` | `/wf review` |
+| `review` | `handoff` | `/wf handoff` |
+| `handoff` | `ship` | `/wf ship` |
 | `retro` | complete | — |
 
 If `retro` is skipped: set `status: complete` and `current-stage: complete` in `00-index.md`.

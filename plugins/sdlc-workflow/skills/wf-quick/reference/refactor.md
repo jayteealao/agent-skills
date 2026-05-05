@@ -19,7 +19,7 @@ You are running `wf-refactor`, a **behavior-preserving refactoring workflow**.
 |---|---|
 | Requires | Existing code to refactor (and ideally existing tests to baseline against) |
 | Produces | `rf-brief.md`, `rf-baseline.md`, `rf-plan.md`, `rf-implement.md`, `rf-verify.md` |
-| Next | `/wf-review <slug> refactor-safety` is recommended after verify |
+| Next | `/wf review <slug> refactor-safety` is recommended after verify |
 | Resume | Pass an existing hotfix slug to resume from the last completed step |
 
 # CRITICAL — behavior preservation is the only acceptance criterion
@@ -268,10 +268,10 @@ If FAIL: return to Step 4 and identify which step introduced the regression.
 # Adaptive routing
 After verify passes:
 
-**Option A (default): Review refactor safety** → `/wf-review <slug> refactor-safety`
+**Option A (default): Review refactor safety** → `/wf review <slug> refactor-safety`
 The `refactor-safety` review domain specifically checks for unintended behavior changes, subtle semantic differences, and test coverage completeness.
 
-**Option B: Review correctness only** → `/wf-review <slug> correctness`
+**Option B: Review correctness only** → `/wf review <slug> correctness`
 Use when the refactor is small and you are confident no behavior changed.
 
 **Option C: Ship directly** → no further review needed (use for trivial renames or code style changes with complete test coverage).

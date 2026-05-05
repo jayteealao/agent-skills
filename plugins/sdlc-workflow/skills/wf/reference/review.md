@@ -1,8 +1,6 @@
 ---
-name: wf-review
 description: Intelligent review dispatch. Reads workflow artifacts and diff, selects relevant review commands, spawns one parallel sonnet sub-agent per command (each writes its findings to file), then aggregates, deduplicates, and triages findings via AskUserQuestion into a unified review verdict. Re-run with "triage" to revisit deferred findings.
 argument-hint: <slug> [slice | triage]
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -22,11 +20,11 @@ You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 | Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (recommended) |
 | Conditional inputs (mandatory when present) | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `07-design-audit.md`, `07-design-critique.md`, `augmentations:` list in `00-index.md` — every artifact that exists MUST be checked by the relevant review (e.g., 02c-craft.md anti-goals MUST be honored; 04b-instrument.md signals MUST be present; 05c-benchmark.md baseline MUST not regress; every augmentation MUST get a type-specific re-check). |
 | Produces | `07-review-<slice-slug>.md` + `07-review-<slice-slug>-<command>.md` per selected command (per-slice scoping — running review on a different slice does NOT overwrite a sibling slice's files) |
-| Next | `/wf-handoff <slug>` (if approved + all slices complete), `/wf-implement <slug> <slice>` (if bugs to fix), `/wf-plan <slug> <next-slice>` (if more slices remain), `/wf-meta amend <slug> from-review` (if spec was wrong), or `/wf-meta extend <slug> from-review` (if new scope needed) |
+| Next | `/wf handoff <slug>` (if approved + all slices complete), `/wf implement <slug> <slice>` (if bugs to fix), `/wf plan <slug> <next-slice>` (if more slices remain), `/wf-meta amend <slug> from-review` (if spec was wrong), or `/wf-meta extend <slug> from-review` (if new scope needed) |
 
 # CRITICAL — execution discipline
 You are a **review dispatch orchestrator**, not a problem solver.
-- Do NOT fix issues — only report and prioritise them. Fixes belong in `/wf-implement`.
+- Do NOT fix issues — only report and prioritise them. Fixes belong in `/wf implement`.
 - Do NOT handoff or ship — those are later stages.
 - Do NOT run the reviews yourself — you **select commands and dispatch sub-agents**. Each sub-agent runs one review command independently.
 - Your job is: **orient → gather change stats → select commands → dispatch sub-agents → aggregate → write verdict**.
@@ -35,11 +33,11 @@ You are a **review dispatch orchestrator**, not a problem solver.
 
 # TRIAGE MODE
 
-If the second argument is `triage` (e.g., `/wf-review my-feature triage`), skip the full review and jump directly to re-triage:
+If the second argument is `triage` (e.g., `/wf review my-feature triage`), skip the full review and jump directly to re-triage:
 
-1. **Resolve slug** from the first argument. Read `00-index.md` for `selected-slice`. If a slice slug is the third argument (e.g., `/wf-review my-feature triage auth-flow`), use it; otherwise use `selected-slice`. If neither is set, ask the user which slice to triage.
+1. **Resolve slug** from the first argument. Read `00-index.md` for `selected-slice`. If a slice slug is the third argument (e.g., `/wf review my-feature triage auth-flow`), use it; otherwise use `selected-slice`. If neither is set, ask the user which slice to triage.
 2. **Read `07-review-<slice-slug>.md`** — parse the `## Triage Decisions` section. Collect all findings marked `deferred` or `untriaged`.
-3. **If no findings to triage** → print "No deferred or untriaged findings. Run `/wf-review <slug> <slice>` for a full review." and STOP.
+3. **If no findings to triage** → print "No deferred or untriaged findings. Run `/wf review <slug> <slice>` for a full review." and STOP.
 4. **Present for triage via AskUserQuestion** — follow the same protocol as Step 4b below, but only show `deferred` and `untriaged` findings.
 5. **Update `07-review-<slice-slug>.md`** — overwrite the `## Triage Decisions` section with updated decisions. Update `## Recommendations` to reflect new fix/defer/dismiss counts. Preserve all other sections.
 6. **Print summary** — show counts of fix/defer/dismiss and list findings newly marked for fixing.
@@ -58,7 +56,7 @@ Then STOP — do not continue to the full review workflow.
    - **Forwarded mode** (`workflow-type: rca` / `investigate`): rich context lives in `01-rca.md` / `01-investigate.md`; `02-shape.md` is synthesized; `04-plan.md` exists if planning ran.
    - **Standard mode**: per-slice files (`03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`).
 
-   In all modes, an implement record (slice or master) must exist. If missing → STOP. Tell the user: "Run `/wf-implement <slug>` first."
+   In all modes, an implement record (slice or master) must exist. If missing → STOP. Tell the user: "Run `/wf implement <slug>` first."
    `06-verify-<slice-slug>.md` (or `06-verify.md`) is recommended but not strictly required — review can proceed without it if verify was skipped.
    If verify shows `Status: Awaiting input` → STOP.
    If `07-review-<slice-slug>.md` already exists for the resolved slice → WARN before overwriting that file. Sibling slices' review files are never touched.
@@ -364,7 +362,7 @@ Use AskUserQuestion with one question per finding (batch up to 4 per call):
 - **question**: `"{Source command}: {one-line issue description} at {file}:{line}"`
 - Options:
   - `Fix` / label: "Fix this", description: "Address in next implement pass"
-  - `Defer` / label: "Defer", description: "Revisit later — run /wf-review <slug> triage"
+  - `Defer` / label: "Defer", description: "Revisit later — run /wf review <slug> triage"
   - `Dismiss` / label: "Not an issue", description: "False positive or intentional"
 
 **For MED findings** — present as a batch:
@@ -473,7 +471,7 @@ next-invocation: "<based on verdict>"
 {List}
 
 ### Deferred (triaged "defer")
-{List — re-triage later via `/wf-review <slug> triage`}
+{List — re-triage later via `/wf review <slug> triage`}
 
 ### Dismissed
 {List with finding IDs and reason}
@@ -482,10 +480,10 @@ next-invocation: "<based on verdict>"
 {List}
 
 ## Recommended Next Stage
-- **Option A:** `/wf-handoff <slug>` — all slices complete, approved, ready for PR [reason]
-- **Option B:** `/wf-implement <slug> <slice>` — fix blocking issues [list what needs fixing]
-- **Option C:** `/wf-ship <slug>` — skip handoff [reason, if applicable]
-- **Option D:** `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>` — more slices to implement before handoff [reason, if applicable]
+- **Option A:** `/wf handoff <slug>` — all slices complete, approved, ready for PR [reason]
+- **Option B:** `/wf implement <slug> <slice>` — fix blocking issues [list what needs fixing]
+- **Option C:** `/wf ship <slug>` — skip handoff [reason, if applicable]
+- **Option D:** `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>` — more slices to implement before handoff [reason, if applicable]
 - **Option E:** `/wf-meta extend <slug> from-review` — add new slices from findings [reason, if applicable]
 - **Option F:** `/wf-meta amend <slug> from-review` — correct the spec/approach of an existing slice [reason, if applicable]
 
@@ -504,18 +502,18 @@ next-invocation: "<based on verdict>"
 # Adaptive routing — evaluate what's actually next
 After completing the review, evaluate the findings and present the user with ALL viable options:
 
-**Option A: Handoff** → `/wf-handoff <slug>`
+**Option A: Handoff** → `/wf handoff <slug>`
 Use when: No blocking issues AND all intended slices on this branch are complete. Handoff aggregates all complete slices automatically.
-**If more slices remain** on this branch before handoff: use Option D (next slice) — implement remaining slices first, then run `/wf-handoff <slug>` once for the full PR.
+**If more slices remain** on this branch before handoff: use Option D (next slice) — implement remaining slices first, then run `/wf handoff <slug>` once for the full PR.
 
-**Option B: Fix and re-implement** → `/wf-implement <slug> <selected-slice>`
+**Option B: Fix and re-implement** → `/wf implement <slug> <selected-slice>`
 Use when: There are blocking issues. List what needs changing.
-**Compact recommended before proceeding** — review dispatch chatter (sub-agent outputs, aggregation, triage) is noise for fixing. Tell the user: "Consider running `/compact` before `/wf-implement` — the PreCompact hook will preserve workflow state and triage decisions are in `07-review-<slice-slug>.md`."
+**Compact recommended before proceeding** — review dispatch chatter (sub-agent outputs, aggregation, triage) is noise for fixing. Tell the user: "Consider running `/compact` before `/wf implement` — the PreCompact hook will preserve workflow state and triage decisions are in `07-review-<slice-slug>.md`."
 
-**Option C: Skip handoff, go to Ship** → `/wf-ship <slug>`
+**Option C: Skip handoff, go to Ship** → `/wf ship <slug>`
 Use when: No team to hand off to, no PR description needed, CI/CD handles the rest.
 
-**Option D: Next slice** → `/wf-plan <slug> <next-slice>` or `/wf-implement <slug> <next-slice>`
+**Option D: Next slice** → `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>`
 Use when: This slice is approved AND more slices remain. Check `03-slice.md`.
 **Compact recommended** — previous slice's full lifecycle (implement + verify + review) is noise for the next slice.
 

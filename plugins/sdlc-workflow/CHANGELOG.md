@@ -5,6 +5,56 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.0.0-alpha.4] - 2026-05-05
+
+### Removed (BREAKING)
+
+- **All 13 standalone `/wf-X` lifecycle commands rolling under `/wf` are deleted** (PR-4 of `ROUTER-MIGRATION-PLAN.md`). The deleted commands are:
+  - `/wf-shape`, `/wf-slice`, `/wf-plan`, `/wf-implement`, `/wf-verify`, `/wf-review`, `/wf-handoff`, `/wf-ship`, `/wf-retro`, `/wf-instrument`, `/wf-experiment`, `/wf-benchmark`, `/wf-profile`.
+- **Each command's body is now a reference under `skills/wf/reference/<key>.md`.** The `/wf` skill at `skills/wf/SKILL.md` is the single entry point.
+- **No shims.** Same break-the-surface posture as v9.0.0-alpha.1 (`/review`), v9.0.0-alpha.2 (`/wf-quick`), v9.0.0-alpha.3 (`/wf-meta`).
+- **9 stale `.codex-generated/skills/wf-{shape,slice,plan,implement,verify,review,handoff,ship,retro}/` mirrors deleted.** The four augmentation commands (instrument, experiment, benchmark, profile) had no codex mirror to begin with — they post-date the generator's last full-tree run and will land cleanly when PR-5 regenerates.
+- **`commands/` is now nearly empty.** After PR-4 the only top-level slash commands left are `/wf-design` (still its own router) and `/setup-wide-logging` (one-shot bootstrap). Every other lifecycle action is reached via one of the four skill routers (`/wf`, `/wf-quick`, `/wf-meta`, `/review`).
+
+### Changed
+
+- **Skill-mode dispatch for the 13 sub-commands.** `/wf <key> <args>` is the single entry point. The first positional token must be one of: `shape`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`, `retro`, `instrument`, `experiment`, `benchmark`, `profile`. Bare `/wf` renders the menu. There is no implicit "first arg = slug" mode (mirrors `/wf-quick` and `/wf-meta`).
+- **No `sweep` mode for `/wf`.** The 13 sub-commands are sequential lifecycle stages, not orthogonal lenses on a shared target. The `aggregates` field in `skills/wf/router-metadata.json` is intentionally empty; only `/review` has sweeps.
+- **Three families of cross-references rewritten in lockstep.** The bulk-rewriter hit 22 external docs (commands/wf-design.md, README.md, .ai/gap-analysis-upgrades.md, plus 19 reference bodies inside the wf-quick, wf-meta, design, and review skills). Body hashes drifted across all four sibling routers; their `migration-manifest.json` files were refreshed to capture the new state. The path-boundary lookbehind preserved path strings like `skills/wf/reference/...` from corruption.
+- **`scripts/verify-router-migration.mjs` orphan scan extended** with the wf-lifecycle pattern. Same path-boundary + idempotency lookahead scheme PR-2 introduced. `/wf-design` is implicitly excluded — `design` is not in the alternation, so its callsites slip past untouched (it remains its own router).
+- **Routing-resolution verifier carries forward.** `scripts/verify-routing-resolution.mjs` already resolves skill-mode routers via `skills/<router>/SKILL.md` when no `commands/<router>.md` exists, and defaults its fixtures to `tests/<router>-fixtures.json`. PR-4 adds the new fixtures file; the script needed no changes.
+- **`/wf review` vs `/review` disambiguation documented in `skills/wf/SKILL.md`.** `/wf review <slug>` is the lifecycle-aware review stage that knows about slugs, slices, prerequisites, and verdict contracts; `/review <dim>` is the bare review skill that runs one dimension on the current diff with no workflow context.
+
+### Added
+
+- **`scripts/relocate-wf.mjs`** — one-shot relocator + bulk rewriter for the 13 lifecycle commands. Same idempotent / path-safe regex as `relocate-wf-meta.mjs` and `relocate-wf-quick.mjs`, with one improvement: the script now `unlinkSync`s the source file after relocating, so the relocator alone produces the final on-disk shape (prior PRs relied on a separate manual `git rm` step). Kept in tree as audit trail.
+- **`tests/wf-fixtures.json`** — 17 routing-resolution fixtures: one per stage, plus the `wf-implement reviews <slice>` edge case (the literal `reviews` second arg must not be confused with a sub-key), plus the `wf-review <slug> triage` re-triage form, plus the bare-`/wf` menu fallback.
+- **`skills/wf/{SKILL.md,router-metadata.json,migration-manifest.json}`** + 13 reference bodies under `skills/wf/reference/`.
+
+### Migration
+
+| Old invocation (any version ≤ v9.0.0-alpha.3) | New invocation (v9.0.0-alpha.4+) |
+|---|---|
+| `/wf-shape <args>`      | `/wf shape <args>`      |
+| `/wf-slice <args>`      | `/wf slice <args>`      |
+| `/wf-plan <args>`       | `/wf plan <args>`       |
+| `/wf-implement <args>`  | `/wf implement <args>`  |
+| `/wf-verify <args>`     | `/wf verify <args>`     |
+| `/wf-review <args>`     | `/wf review <args>`     |
+| `/wf-handoff <args>`    | `/wf handoff <args>`    |
+| `/wf-ship <args>`       | `/wf ship <args>`       |
+| `/wf-retro <args>`      | `/wf retro <args>`      |
+| `/wf-instrument <args>` | `/wf instrument <args>` |
+| `/wf-experiment <args>` | `/wf experiment <args>` |
+| `/wf-benchmark <args>`  | `/wf benchmark <args>`  |
+| `/wf-profile <args>`    | `/wf profile <args>`    |
+
+### Notes
+
+- **PR-5 next.** Updates `scripts/generate-codex-plugin.mjs` to consume the four-router structure, regenerates `.codex-generated/`, and drops the alpha tag for v9.0.0 final.
+- **Top-level surface after PR-4.** Every lifecycle action now reaches one of: `/wf`, `/wf-quick`, `/wf-meta`, `/wf-design`, `/review`. The `/`-menu pollution problem the migration plan opened with is resolved.
+- **Why a 9.0.0-alpha.4 bump.** Same shim-removal break-the-surface pattern as alpha.1 through alpha.3. Pre-release tag stays `alpha` until PR-5 lands.
+
 ## [9.0.0-alpha.3] - 2026-05-05
 
 ### Removed (BREAKING)

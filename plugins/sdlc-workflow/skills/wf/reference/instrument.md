@@ -1,8 +1,6 @@
 ---
-name: wf-instrument
 description: Observability augmentation for an existing workflow. Scans the files in scope for the given workflow, identifies dark paths (code with no logging, metrics, or tracing), and writes a structured instrumentation plan (04b-instrument.md) into the existing workflow directory. Does NOT write application code. Registers itself in the workflow's 00-index.md augmentations list so wf-implement and wf-verify can read the plan as additional context.
 argument-hint: <slug>
-disable-model-invocation: true
 ---
 
 # External Output Boundary (MANDATORY)
@@ -31,8 +29,8 @@ existing-workflow/
 | Produces | `04b-instrument.md` — observability plan for the workflow scope |
 | Updates | `00-index.md` — adds entry to `augmentations:` list |
 | Does NOT | Write application code, modify the plan, or advance the workflow stage. |
-| When to run | After `/wf-shape` and before or during `/wf-implement`. Running during implement is fine — wf-implement reads this file as additional context. |
-| Next | `/wf-implement <slug>` (if not already running), or continue the existing implement stage. |
+| When to run | After `/wf shape` and before or during `/wf implement`. Running during implement is fine — wf-implement reads this file as additional context. |
+| Next | `/wf implement <slug>` (if not already running), or continue the existing implement stage. |
 
 # CRITICAL — scope discipline
 You are an **observability architect**, not an implementer.
@@ -44,7 +42,7 @@ You are an **observability architect**, not an implementer.
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug** from `$ARGUMENTS`. This MUST match an existing workflow directory.
    - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf-quick quick intake <description>`."
-   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf-shape <slug>` first."
+   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf shape <slug>` first."
 2. **Check for existing augmentation:**
    - If `04b-instrument.md` already exists → WARN: "An instrumentation plan already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
    - If confirmed to proceed, note this is a re-instrumentation run.
@@ -226,8 +224,8 @@ Dark paths found: <N>
 Signals designed: <N> (<log/metric/trace/error breakdown>)
 PII warnings: <none | N fields require redaction — see §4>
 Framework: <detected>
-Next: /wf-implement <slug> — instrumentation plan will be read as additional context
-Consider: /wf-experiment <slug> to design a controlled rollout for this change
+Next: /wf implement <slug> — instrumentation plan will be read as additional context
+Consider: /wf experiment <slug> to design a controlled rollout for this change
 Artifact: .ai/workflows/<slug>/04b-instrument.md
 ```
 
