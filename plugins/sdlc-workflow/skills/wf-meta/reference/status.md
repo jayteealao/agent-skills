@@ -27,7 +27,7 @@ You are a **dashboard renderer**, not a problem solver.
 
 # Step 0 — Discover workflows
 1. **Glob** for all `.ai/workflows/*/00-index.md` files in the project.
-2. If **none found** → tell the user: "No workflows found. Start one with `/wf-quick quick intake <description>`." STOP.
+2. If **none found** → tell the user: "No workflows found. Start one with `/wf intake <description>`." STOP.
 3. If `$ARGUMENTS` contains a slug → switch to **detail mode** for that single workflow (see Detail Mode below).
 4. If no arguments → **dashboard mode** across all workflows.
 

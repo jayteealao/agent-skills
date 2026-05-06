@@ -10,7 +10,7 @@ Workflow artifacts and command internals are private implementation context. Nev
 - When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
 - Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
 
-You are running `wf-intake`, **stage 1 of 10** in the SDLC lifecycle.
+You are running `wf intake`, **stage 1 of 10** in the SDLC lifecycle.
 
 # Pipeline
 `1·intake` → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
@@ -123,7 +123,7 @@ Use when: The task has ambiguity in behavior, acceptance criteria, or scope. Mos
 **Option B: Skip to Plan** → `/wf plan <slug>`
 Use when: The task is a well-understood, single-scope fix (e.g., "bump version X", "rename variable Y", "fix typo in Z"). No behavior ambiguity, no slicing needed. Criteria: ≤3 files likely touched, single acceptance criterion, no edge cases worth capturing.
 
-**Option C: Blocked — re-run intake** → `/wf-quick intake <slug>`
+**Option C: Blocked — re-run intake** → `/wf intake <slug>`
 Use when: Required PO answers are still missing. Mark `Status: Awaiting input`.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
@@ -238,4 +238,4 @@ next-invocation: "/wf shape <slug>"
 - **Option B:** `/wf-<other> <slug>` — [reason, if applicable]
 - **Option C:** Blocked — [what's missing]
 
-If required answers are still missing, set frontmatter `status: awaiting-input` and set `next-invocation` to rerun `/wf-quick intake <same-slug>` after answers arrive.
+If required answers are still missing, set frontmatter `status: awaiting-input` and set `next-invocation` to rerun `/wf intake <same-slug>` after answers arrive.

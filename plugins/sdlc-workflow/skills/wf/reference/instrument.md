@@ -41,7 +41,7 @@ You are an **observability architect**, not an implementer.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug** from `$ARGUMENTS`. This MUST match an existing workflow directory.
-   - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf-quick quick intake <description>`."
+   - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
    - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf shape <slug>` first."
 2. **Check for existing augmentation:**
    - If `04b-instrument.md` already exists → WARN: "An instrumentation plan already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"

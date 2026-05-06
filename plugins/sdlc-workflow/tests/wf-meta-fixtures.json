@@ -45,6 +45,31 @@
       "expectedReferencePath": "skills/wf-meta/reference/announce.md"
     },
     {
+      "id": "wf-meta-next-slug",
+      "purpose": "next sub-command with explicit slug.",
+      "invocation": "/wf-meta next add-onboarding",
+      "expectedReferencePath": "skills/wf-meta/reference/next.md"
+    },
+    {
+      "id": "wf-meta-sync-bare",
+      "purpose": "sync with no args (reconcile state across all workflows).",
+      "invocation": "/wf-meta sync",
+      "expectedReferencePath": "skills/wf-meta/reference/sync.md"
+    },
+    {
+      "id": "wf-meta-extend-scope",
+      "purpose": "extend with scope + target (add new slice to existing workflow).",
+      "invocation": "/wf-meta extend add-onboarding sso-flow",
+      "expectedReferencePath": "skills/wf-meta/reference/extend.md"
+    },
+    {
+      "id": "wf-meta-unknown-key",
+      "purpose": "Unknown first token must NOT be silently treated as a slug. Router prints an error listing valid keys.",
+      "invocation": "/wf-meta foobar add-onboarding",
+      "expectedBehavior": "error",
+      "expectedReferencePath": null
+    },
+    {
       "id": "wf-meta-no-args-menu",
       "purpose": "Bare /wf-meta should render the menu, not pick a default sub-command.",
       "invocation": "/wf-meta",

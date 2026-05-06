@@ -1,5 +1,6 @@
 ---
 description: "Review data integrity - ensure stored data remains correct over time, across failures, retries, and concurrent writes"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

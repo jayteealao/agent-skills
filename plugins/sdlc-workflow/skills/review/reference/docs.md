@@ -1,5 +1,6 @@
 ---
 description: "Review documentation completeness and accuracy for behavior/config/API changes"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md

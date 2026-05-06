@@ -1,5 +1,6 @@
 ---
 description: "Review observability completeness - logs, metrics, tracing, error reporting, alertability, and runbook hooks"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

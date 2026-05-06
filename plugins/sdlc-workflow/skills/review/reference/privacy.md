@@ -1,5 +1,6 @@
 ---
 description: "Review data handling for PII collection, storage, transmission, and privacy compliance"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md

@@ -149,7 +149,7 @@ Extract:
 
 # Step 2: Select Review Commands
 
-Each command maps to `./review/<name>.md`.
+Each command maps to `${CLAUDE_PLUGIN_ROOT}/skills/review/reference/<name>.md`.
 
 **Selection philosophy:** Use the shape, slice, and implementation artifacts — not just raw diff patterns — to reason about what this change *is* and what reviews matter. A feature that adds async data fetching needs `backend-concurrency` even if the diff doesn't contain the word "mutex". Lean toward inclusion: a missed relevant review is worse than a redundant one. The max exists to prevent sprawl, not to cap thorough coverage.
 
@@ -265,7 +265,7 @@ For EACH selected command, spawn a **sonnet** sub-agent. All agents run in paral
 **Each sub-agent receives this prompt:**
 
 ```
-Execute the review command at `./review/{command-name}.md`.
+Execute the review command at `${CLAUDE_PLUGIN_ROOT}/skills/review/reference/{command-name}.md`.
 
 Scope: git diff HEAD (or the specific files from the implementation)
 Workflow slug: {slug}

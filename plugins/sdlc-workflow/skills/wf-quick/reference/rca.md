@@ -150,7 +150,7 @@ Secondary issues that made the bug worse, harder to detect, or harder to recover
 - **Possibly affected (silent):** other code paths or persisted data that may be corrupt or behaving unexpectedly because of this same root cause.
 - **Same pattern elsewhere:** other locations in the codebase where the same flawed pattern exists and should be checked or fixed alongside this work.
 
-If sub-agent 3 was skipped, write: "Blast radius investigation skipped — symptom is local to <component>. If the fix turns out to require changes outside <component>, run `/wf-quick rca` again or escalate to `/wf-quick intake`."
+If sub-agent 3 was skipped, write: "Blast radius investigation skipped — symptom is local to <component>. If the fix turns out to require changes outside <component>, run `/wf-quick rca` again or escalate to `/wf intake`."
 
 ## 7. Suggested fix shape
 

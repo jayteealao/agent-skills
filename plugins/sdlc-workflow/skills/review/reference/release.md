@@ -1,5 +1,6 @@
 ---
 description: "Review changes for safe shipping with clear versioning, rollout, migration, and rollback plans"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md

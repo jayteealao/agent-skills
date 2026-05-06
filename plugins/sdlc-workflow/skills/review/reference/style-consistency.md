@@ -1,5 +1,6 @@
 ---
 description: "Enforce consistency with existing codebase style and language idioms to reduce cognitive load"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md

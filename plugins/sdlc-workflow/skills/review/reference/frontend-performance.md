@@ -1,5 +1,6 @@
 ---
 description: "Review frontend changes for bundle size, rendering efficiency, and user-perceived latency"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

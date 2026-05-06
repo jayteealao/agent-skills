@@ -1,5 +1,6 @@
 ---
 description: "Review code for changes that increase cloud infrastructure costs"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

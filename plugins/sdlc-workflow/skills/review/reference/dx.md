@@ -1,5 +1,6 @@
 ---
 description: "Review developer experience - make the project easier to build, run, debug, and contribute to"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

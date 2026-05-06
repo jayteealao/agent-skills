@@ -1,5 +1,6 @@
 ---
 description: "Review code for reliability, failure modes, and operational safety under partial outages"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

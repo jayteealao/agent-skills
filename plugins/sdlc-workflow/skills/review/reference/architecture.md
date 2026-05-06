@@ -1,5 +1,6 @@
 ---
 description: "Review code for architectural issues including boundaries, dependencies, and layering"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md
@@ -632,7 +633,7 @@ For HIGH and BLOCKER findings:
 
 ## Step 8: Generate review report
 
-Create `.claude/<SESSION_SLUG>/reviews/review sweep architecture-{YYYY-MM-DD}.md`
+Create `.claude/<SESSION_SLUG>/reviews/review-architecture-{YYYY-MM-DD}.md`
 
 ## Step 9: Update session README
 
@@ -644,7 +645,7 @@ Print summary with critical findings.
 
 # OUTPUT FORMAT
 
-Create `.claude/<SESSION_SLUG>/reviews/review sweep architecture-{YYYY-MM-DD}.md`:
+Create `.claude/<SESSION_SLUG>/reviews/review-architecture-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
@@ -787,7 +788,7 @@ After creating review, print:
 # Architecture Review Complete
 
 ## Review Location
-Saved to: `.claude/{SESSION_SLUG}/reviews/review sweep architecture-{YYYY-MM-DD}.md`
+Saved to: `.claude/{SESSION_SLUG}/reviews/review-architecture-{YYYY-MM-DD}.md`
 
 ## Merge Recommendation
 **{BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS}**

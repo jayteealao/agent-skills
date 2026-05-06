@@ -1,5 +1,6 @@
 ---
 description: "Review dependency and build integrity risks, lockfiles, build scripts, and artifact provenance"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md

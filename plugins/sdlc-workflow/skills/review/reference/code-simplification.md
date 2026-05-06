@@ -1,5 +1,6 @@
 ---
 description: "Review code for missed reuse, quality issues, and inefficiencies — the three simplification lenses"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md

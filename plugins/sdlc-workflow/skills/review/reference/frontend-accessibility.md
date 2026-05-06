@@ -1,5 +1,6 @@
 ---
 description: "Review frontend code for accessibility issues in modern SPAs (React, Vue, Angular)"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md

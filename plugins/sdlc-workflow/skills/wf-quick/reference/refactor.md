@@ -24,7 +24,7 @@ You are running `wf-refactor`, a **behavior-preserving refactoring workflow**.
 
 # CRITICAL — behavior preservation is the only acceptance criterion
 You are a **refactoring orchestrator**. The singular goal is identical external behavior before and after.
-- **NEVER add new functionality** during a refactoring session. If new behavior is needed, finish the refactor first and start a separate `/wf-quick intake` workflow.
+- **NEVER add new functionality** during a refactoring session. If new behavior is needed, finish the refactor first and start a separate `/wf intake` workflow.
 - **NEVER change public API surface** (exported function signatures, REST routes, event names, component props, config keys) unless API simplification is the explicit stated goal of this refactor.
 - **NEVER skip a failing test** with `skip`, `xtest`, `@Ignore`, or comments. If a test fails after your changes, the refactor introduced a regression — fix the refactor, not the test.
 - **NEVER rewrite in a single large commit.** Each plan step must leave the codebase in a working, green state. Incremental steps are not optional.

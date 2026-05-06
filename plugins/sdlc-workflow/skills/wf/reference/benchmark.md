@@ -279,7 +279,7 @@ If regressions found, prefix compare summary with:
 
 # What this command is NOT
 
-- **Not a profiler** — `wf-benchmark` measures aggregate time and allocations at the function/endpoint level. For flamegraphs and call-graph analysis, use the `wf-profile` skill.
+- **Not a profiler** — `wf-benchmark` measures aggregate time and allocations at the function/endpoint level. For flamegraphs and call-graph analysis, use `/wf profile`.
 - **Not a load tester** — it measures single-request or single-operation performance. For concurrency and throughput under load, `wf-load-test` is needed (not yet available).
 - **Not a CI gate** — it is a developer workflow tool. Integrating benchmark regression detection into CI is a separate infrastructure concern.
 - **Not a profiling substitute** — if a regression is found but the cause is unclear, run `/wf profile <area>` to find the hotspot before attempting to fix it.

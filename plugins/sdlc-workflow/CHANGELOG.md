@@ -5,6 +5,63 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.2.0] - 2026-05-06
+
+### Removed
+
+- **`skills/wf-profile/` skill deleted.** The standalone profiling skill at `skills/wf-profile/SKILL.md` was a "shared library" that no caller actually shared. The architecture claimed it was invoked by `/wf-quick investigate`, `/wf benchmark`, and `/wf implement` for in-stage analysis, but a code audit found:
+  - `/wf implement` had **zero** references to profile or profiling.
+  - `/wf-quick investigate` mentioned it only in user-facing recommendations ("consider running `/wf profile <area>`") and one disclaimer.
+  - `/wf benchmark` mentioned it only in a "see also" disclaimer and a recommendation in a regression-results table.
+
+  No caller programmatically delegated to the skill or consumed its structured output. The skill's only real consumer was `/wf profile` itself via `skills/wf/reference/profile.md`, which delegated to it through a "now go follow that file" indirection.
+
+### Changed
+
+- **`skills/wf/reference/profile.md` is now self-contained.** The analyzer body (language detection, static-analysis rubric, dynamic-profiling commands per language, structured-output contract) is inlined into the orchestrator. The merged file is 11.3 KB — smaller than `implement.md` (26 KB), `plan.md` (33 KB), or `verify.md` (28 KB), so size was not the original justification for the split.
+- **`wf/reference/benchmark.md` and `wf-quick/reference/investigate.md`** updated their "see also" references from `the wf-profile skill` to `/wf profile`. No call-site logic changed because there were no call sites to change.
+
+### Rationale
+
+The original split was speculative engineering: extract a "library" in case future stages want to reuse it. They didn't. The justification stayed in the docs (`wf/SKILL.md` notes section) and went stale. v9.2.0 collapses the indirection. If a future stage genuinely needs to spawn a profile sub-agent (e.g., `/wf implement` profiling a slow slice mid-implementation), re-extract the skill at that point — the analyzer rubric is now versioned with the orchestrator, so re-extraction is a clean cut, not a merge.
+
+### Codex shadow tree
+
+Regenerated. `wf-profile` was never emitted as a Codex skill (only routers were), so the shadow-tree diff is limited to the updated `wf/SKILL.md` description copy.
+
+---
+
+## [9.1.0] - 2026-05-06
+
+### Changed (BREAKING for explicit `/wf-quick intake` callsites)
+
+- **`intake` relocated from `/wf-quick` to `/wf`.** The full-lifecycle intake stage is now invoked as `/wf intake <task>` instead of `/wf-quick intake <task>`. Rationale: `intake` is stage 1 of the canonical 10-stage lifecycle; placing it under a different router than stages 2–10 broke the symmetry the rest of `/wf` advertises. v9.0.0's placement under `/wf-quick` was a routing-decomposition decision (acknowledged in the v9.0.0 SKILL.md), not a semantic re-classification. v9.1.0 corrects the placement.
+- `/wf` now has **14 sub-commands** (was 13): `intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, instrument, experiment, benchmark, profile`.
+- `/wf-quick` now has **9 sub-commands** (was 10): `quick, rca, investigate, discover, hotfix, update-deps, docs, refactor, ideate`. It keeps the *compressed* and *investigative* entry points where the workflow does NOT continue into the canonical 10-stage pipeline.
+
+### Migration table
+
+| Old (v9.0.0)              | New (v9.1.0)        |
+|---------------------------|---------------------|
+| `/wf-quick intake <args>` | `/wf intake <args>` |
+
+The `/wf-quick` router now rejects `intake` as an unknown sub-command with a redirect message pointing at `/wf intake`. All other `/wf-quick` sub-commands are unchanged.
+
+### Updated callsites
+
+Every reference body that mentioned `/wf-quick intake` as a downstream routing target was rewritten to `/wf intake`. Affected: `wf-meta/{resume,close,status,sync}.md`, `wf/reference/{shape,instrument,experiment,retro,profile,intake}.md`, `wf-quick/reference/{quick,rca,hotfix,refactor,ideate,investigate,discover}.md`, `commands/wf-design.md`, `README.md`. The `/wf intake` reference body itself (`skills/wf/reference/intake.md`) is byte-equivalent to v9.0.0's `skills/wf-quick/reference/intake.md` minus the two self-references that were updated to point at the new path.
+
+### Tests
+
+- **wf-fixtures.json** gains `wf-intake-task` (positive routing test for `/wf intake support OAuth callback flow`).
+- **wf-quick-fixtures.json** keeps the same invocation but flips it to a *negative* fixture (`wf-quick-intake-rejected`, `expectedBehavior: "error"`) — the router must explicitly reject `intake` as an unknown sub-command rather than silently treating it as a slug.
+
+### Codex shadow tree
+
+Regenerated. Both `wf` and `wf-quick` Codex adapter SKILL.md descriptions track the canonical Claude descriptions automatically.
+
+---
+
 ## [9.0.0] - 2026-05-05
 
 ### Added

@@ -1,7 +1,13 @@
 {
   "router": "/wf",
-  "description": "Routing-resolution fixtures for the /wf skill (v9.0.0-alpha.4+). Each invocation should resolve to skills/wf/reference/<key>.md based on the first positional token.",
+  "description": "Routing-resolution fixtures for the /wf skill (v9.1.0+). Each invocation should resolve to skills/wf/reference/<key>.md based on the first positional token.",
   "fixtures": [
+    {
+      "id": "wf-intake-task",
+      "purpose": "Stage 1 of the full lifecycle, dispatched via /wf intake (relocated from /wf-quick intake in v9.1.0).",
+      "invocation": "/wf intake support OAuth callback flow",
+      "expectedReferencePath": "skills/wf/reference/intake.md"
+    },
     {
       "id": "wf-shape-slug",
       "purpose": "shape with explicit slug.",
@@ -97,6 +103,13 @@
       "purpose": "profile against an explicit code area.",
       "invocation": "/wf profile src/auth/session.ts",
       "expectedReferencePath": "skills/wf/reference/profile.md"
+    },
+    {
+      "id": "wf-unknown-key",
+      "purpose": "Unknown first token must NOT be silently treated as a slug. Router prints an error listing valid keys.",
+      "invocation": "/wf foobar add-onboarding",
+      "expectedBehavior": "error",
+      "expectedReferencePath": null
     },
     {
       "id": "wf-no-args-menu",

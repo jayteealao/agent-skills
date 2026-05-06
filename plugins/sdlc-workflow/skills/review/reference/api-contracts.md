@@ -1,5 +1,6 @@
 ---
 description: "Review API contracts for stability, correctness, and usability for consumers"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

@@ -1,6 +1,6 @@
 {
   "router": "/review",
-  "description": "Routing-resolution fixtures for the /review skill (v9.0.0-alpha.1+). Single-dimension invocations resolve to a reference file; sweep invocations dispatch sub-agents (verified separately by the verifier's composition-validity check, not by reference-path resolution).",
+  "description": "Routing-resolution fixtures for the /review skill (v9.0.0-alpha.1+). Single-dimension invocations resolve to a reference file; sweep invocations dispatch sub-agents — sweep fixtures use the <sweep:KEY> sentinel to pin that the router parses sweep mode correctly without trying to enumerate the N references that would be loaded by sub-agents. Composition validity for sweeps is also enforced separately by verify-router-migration.mjs.",
   "fixtures": [
     {
       "id": "review-security-pr",
@@ -19,6 +19,29 @@
       "purpose": "Per-dimension review with file-scope target.",
       "invocation": "/review correctness file src/payments/charge.ts",
       "expectedReferencePath": "skills/review/reference/correctness.md"
+    },
+    {
+      "id": "review-sweep-architecture",
+      "purpose": "Sweep mode with the architecture aggregate. Critical because 'architecture' exists as both a dimension and an aggregate; the literal 'sweep' keyword must select the aggregate dispatch path, not single-dimension routing.",
+      "invocation": "/review sweep architecture worktree",
+      "expectedBehavior": "sweep",
+      "expectedAggregate": "architecture",
+      "expectedReferencePath": null
+    },
+    {
+      "id": "review-sweep-pre-merge",
+      "purpose": "Sweep with hyphenated aggregate key to confirm tokenization handles hyphens.",
+      "invocation": "/review sweep pre-merge pr 456",
+      "expectedBehavior": "sweep",
+      "expectedAggregate": "pre-merge",
+      "expectedReferencePath": null
+    },
+    {
+      "id": "review-unknown-key",
+      "purpose": "Unknown first token (not a dimension, not an aggregate, not 'sweep') should be rejected, not silently resolved.",
+      "invocation": "/review foobar pr 123",
+      "expectedBehavior": "error",
+      "expectedReferencePath": null
     },
     {
       "id": "review-no-args-menu",

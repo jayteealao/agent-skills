@@ -1,5 +1,6 @@
 ---
 description: "Review UI changes for keyboard and assistive technology usability, avoid ARIA misuse"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

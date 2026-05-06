@@ -141,7 +141,7 @@ After completing the retro, evaluate whether the workflow is truly done:
 **Option A (default): Complete** → workflow finished
 Use when: All slices are shipped, no follow-up work is warranted.
 
-**Option B: Open follow-up workflow** → `/wf-quick quick intake <new-task-description>`
+**Option B: Open follow-up workflow** → `/wf intake <new-task-description>`
 Use when: The retro identified follow-up work significant enough to warrant its own workflow (e.g., "we deferred X and it should be done next sprint").
 
 **Option C: Next slice** → `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>`
@@ -210,6 +210,6 @@ Drop:
 
 ## Recommended Next Stage
 - **Option A (default):** Workflow complete
-- **Option B:** `/wf-quick quick intake <follow-up>` — [reason, if applicable]
+- **Option B:** `/wf intake <follow-up>` — [reason, if applicable]
 - **Option C:** `/wf plan <slug> <next-slice>` — next slice [reason, if applicable]
 - **Option D:** Apply improvements — [list quick wins, if applicable]

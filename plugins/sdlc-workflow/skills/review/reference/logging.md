@@ -1,5 +1,6 @@
 ---
 description: "Review logging for secrets exposure, PII leaks, wide-event patterns, and query-optimized observability"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

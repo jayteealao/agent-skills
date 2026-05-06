@@ -138,7 +138,7 @@ If no branch and no PR: write "No branch or PR to clean up."
 
 Only if `close-reason: deferred` or `close-reason: superseded`. Write what someone would need to do to restart this work:
 
-> To resume: run `/wf-quick quick intake <description>` with the same description, or restore `status: in-progress` in `00-index.md` and run `/wf-meta resume <slug>` to pick up where this left off. All prior artifacts are intact at `.ai/workflows/<slug>/`.
+> To resume: run `/wf intake <description>` with the same description, or restore `status: in-progress` in `00-index.md` and run `/wf-meta resume <slug>` to pick up where this left off. All prior artifacts are intact at `.ai/workflows/<slug>/`.
 
 Otherwise write: "Not applicable — workflow is closed permanently."
 
@@ -182,7 +182,7 @@ Manual actions needed:
 
 If `deferred`, suffix with:
 
-> Workflow deferred. To resume: `/wf-meta resume <slug>` or `/wf-quick quick intake <description>`.
+> Workflow deferred. To resume: `/wf-meta resume <slug>` or `/wf intake <description>`.
 
 If `completed-externally`, suffix with:
 

@@ -17,13 +17,13 @@ You are running `wf-ideate`, a **pre-pipeline ideation utility** for the SDLC li
 [wf-ideate] → wf-intake → 1·intake → 2·shape → ... → 10·retro
 ```
 
-This command does NOT start or advance any workflow. It discovers improvement opportunities in the codebase and produces ranked, evidence-grounded idea candidates that are ready to feed directly into `/wf-quick intake`. Run it when you want to find what's worth working on next, rather than starting from a blank brief.
+This command does NOT start or advance any workflow. It discovers improvement opportunities in the codebase and produces ranked, evidence-grounded idea candidates that are ready to feed directly into `/wf intake`. Run it when you want to find what's worth working on next, rather than starting from a blank brief.
 
 | | Detail |
 |---|---|
 | Requires | A git project (reads codebase, git log, existing workflow artifacts) |
 | Produces | `.ai/ideation/<focus>-<timestamp>.md` — ranked idea list with adversarial filter records |
-| Next | `/wf-quick intake <idea-title>` — kick off a workflow for any chosen idea |
+| Next | `/wf intake <idea-title>` — kick off a workflow for any chosen idea |
 
 # CRITICAL — execution discipline
 You are an **opportunity discoverer and adversarial filter**, not a problem solver.
@@ -234,7 +234,7 @@ Evidence: <file:line or file range from sub-agent findings>
 Description: <2–3 sentences — what's wrong, what fixing it looks like, why now>
 Effort: xs | s | m | l | xl
 Impact: low | medium | high | critical
-Entry: /wf-quick intake <slug-suggestion> | /wf-meta extend <existing-slug>
+Entry: /wf intake <slug-suggestion> | /wf-meta extend <existing-slug>
 ```
 
 ---
@@ -293,7 +293,7 @@ Raw candidates: <N>  |  Culled by filter: <N>  |  Survivors: <N>  |  Showing: <N
 ### #1 — <Title> [<Category>] [Impact: <level>] [Effort: <level>]
 **Evidence:** `<file:line>`
 <Description>
-**Entry:** `/wf-quick intake <slug-suggestion>`
+**Entry:** `/wf intake <slug-suggestion>`
 
 ### #2 — ...
 ```
@@ -313,8 +313,8 @@ Question:
 For each selected idea, offer the exact intake command to run:
 ```
 Ready to start:
-  /wf-quick intake <slug-suggestion-1>   # Idea #N — <Title>
-  /wf-quick intake <slug-suggestion-2>   # Idea #N — <Title>
+  /wf intake <slug-suggestion-1>   # Idea #N — <Title>
+  /wf intake <slug-suggestion-2>   # Idea #N — <Title>
 ```
 
 ---
@@ -366,7 +366,7 @@ culled:
 
 <Description>
 
-**To act on this:** `/wf-quick intake <slug-suggestion>`
+**To act on this:** `/wf intake <slug-suggestion>`
 
 ---
 
@@ -399,4 +399,4 @@ Return ONLY:
 - `wrote: .ai/ideation/<filename>`
 - `ideas: <N> survivors from <M> raw candidates`
 - The ranked list (Step 5 format)
-- `options:` — one `/wf-quick intake` invocation per idea selected by the user, or "Run `/wf-quick ideate` again with a focus area for deeper coverage"
+- `options:` — one `/wf intake` invocation per idea selected by the user, or "Run `/wf-quick ideate` again with a focus area for deeper coverage"

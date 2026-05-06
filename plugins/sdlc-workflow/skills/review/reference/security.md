@@ -1,5 +1,6 @@
 ---
 description: "Review code for vulnerabilities, insecure defaults, and missing security controls"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md
@@ -505,7 +506,7 @@ For each vulnerability:
 
 ## Step 8: Generate review report
 
-Create `.claude/<SESSION_SLUG>/reviews/review sweep security-{YYYY-MM-DD}.md`
+Create `.claude/<SESSION_SLUG>/reviews/review-security-{YYYY-MM-DD}.md`
 
 ## Step 9: Update session README
 
@@ -517,7 +518,7 @@ Print summary with critical vulnerabilities.
 
 # OUTPUT FORMAT
 
-Create `.claude/<SESSION_SLUG>/reviews/review sweep security-{YYYY-MM-DD}.md`:
+Create `.claude/<SESSION_SLUG>/reviews/review-security-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
@@ -1563,7 +1564,7 @@ After creating review, print:
 # Security Review Complete
 
 ## Review Location
-Saved to: `.claude/{SESSION_SLUG}/reviews/review sweep security-{YYYY-MM-DD}.md`
+Saved to: `.claude/{SESSION_SLUG}/reviews/review-security-{YYYY-MM-DD}.md`
 
 ## Merge Recommendation
 **{BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS}**

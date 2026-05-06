@@ -1,5 +1,6 @@
 ---
 description: "Review code for logic flaws, broken invariants, edge-case failures, and correctness issues"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md

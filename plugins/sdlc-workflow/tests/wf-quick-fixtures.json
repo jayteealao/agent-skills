@@ -15,10 +15,11 @@
       "expectedReferencePath": "skills/wf-quick/reference/quick.md"
     },
     {
-      "id": "wf-quick-intake-task",
-      "purpose": "Stage 1 of the full lifecycle, dispatched via /wf-quick intake.",
+      "id": "wf-quick-intake-rejected",
+      "purpose": "intake is no longer a /wf-quick sub-command (relocated to /wf in v9.1.0). Router must reject rather than silently treat it as a slug.",
       "invocation": "/wf-quick intake support OAuth callback flow",
-      "expectedReferencePath": "skills/wf-quick/reference/intake.md"
+      "expectedBehavior": "error",
+      "expectedReferencePath": null
     },
     {
       "id": "wf-quick-update-deps-hyphen-key",
@@ -31,6 +32,43 @@
       "purpose": "Sub-command with optional args; bare-key invocation is valid.",
       "invocation": "/wf-quick ideate",
       "expectedReferencePath": "skills/wf-quick/reference/ideate.md"
+    },
+    {
+      "id": "wf-quick-investigate-domain",
+      "purpose": "investigate sub-command with explicit domain.",
+      "invocation": "/wf-quick investigate payments",
+      "expectedReferencePath": "skills/wf-quick/reference/investigate.md"
+    },
+    {
+      "id": "wf-quick-discover-problem",
+      "purpose": "discover with a multi-word problem statement (everything after the key is the problem).",
+      "invocation": "/wf-quick discover users abandon checkout flow",
+      "expectedReferencePath": "skills/wf-quick/reference/discover.md"
+    },
+    {
+      "id": "wf-quick-hotfix-incident",
+      "purpose": "hotfix with active-incident description.",
+      "invocation": "/wf-quick hotfix payment-timeout breaking checkout",
+      "expectedReferencePath": "skills/wf-quick/reference/hotfix.md"
+    },
+    {
+      "id": "wf-quick-docs-area",
+      "purpose": "docs sub-command with documentation area.",
+      "invocation": "/wf-quick docs auth-flow",
+      "expectedReferencePath": "skills/wf-quick/reference/docs.md"
+    },
+    {
+      "id": "wf-quick-refactor-target",
+      "purpose": "refactor with explicit target.",
+      "invocation": "/wf-quick refactor src/auth/session.ts",
+      "expectedReferencePath": "skills/wf-quick/reference/refactor.md"
+    },
+    {
+      "id": "wf-quick-unknown-key",
+      "purpose": "Unknown first token must NOT be silently treated as a slug. Router prints an error listing valid keys.",
+      "invocation": "/wf-quick foobar add-rate-limiting",
+      "expectedBehavior": "error",
+      "expectedReferencePath": null
     },
     {
       "id": "wf-quick-no-args-menu",

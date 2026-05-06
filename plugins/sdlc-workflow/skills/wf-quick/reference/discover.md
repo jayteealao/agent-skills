@@ -1,5 +1,5 @@
 ---
-description: Problem validation workflow. Researches a proposed problem statement using external signals (competitors, user feedback, market data) to produce a validated yes/no build recommendation before any engineering investment is made. Does NOT write application code. Routes to /wf-quick intake with a validated problem brief if the recommendation is to build, or surfaces a "do not build" rationale if it is not.
+description: Problem validation workflow. Researches a proposed problem statement using external signals (competitors, user feedback, market data) to produce a validated yes/no build recommendation before any engineering investment is made. Does NOT write application code. Routes to /wf intake with a validated problem brief if the recommendation is to build, or surfaces a "do not build" rationale if it is not.
 argument-hint: <problem-statement-or-slug>
 ---
 
@@ -13,14 +13,14 @@ Workflow artifacts and command internals are private implementation context. Nev
 You are running `wf-discover`, a **problem validation workflow** that answers "should we build this?" before any engineering investment is made.
 
 # Pipeline
-`1·problem-intake` → `2·external-research` → `3·validate` → `/wf-quick intake` | `do-not-build`
+`1·problem-intake` → `2·external-research` → `3·validate` → `/wf intake` | `do-not-build`
 
 | | Detail |
 |---|---|
 | Requires | Nothing — starts fresh. Pass a problem statement or an existing slug to resume. |
 | Produces | `01-discover.md` (validated problem brief + recommendation), `00-index.md` |
 | Skips | No codebase analysis, no planning, no implementation. Evidence is external. |
-| Next | `/wf-quick intake <validated-problem>` (if `build-recommendation: build`), or document the decision and stop (if `do-not-build`) |
+| Next | `/wf intake <validated-problem>` (if `build-recommendation: build`), or document the decision and stop (if `do-not-build`) |
 | Escalate | If external evidence is contradictory and confidence is low → surface `needs-further-research` and list exactly what data would resolve the uncertainty |
 
 # CRITICAL — research discipline
@@ -114,7 +114,7 @@ workflow-type: discover
 problem-statement: <one-line user-framed problem>
 build-recommendation: build | do-not-build | needs-further-research
 confidence: high | medium | low
-recommended-next: /wf-quick intake | none | <specific research action>
+recommended-next: /wf intake | none | <specific research action>
 status: ready-for-routing
 created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
 ---
@@ -166,10 +166,10 @@ Then one paragraph of rationale — justify it with the evidence above, not abst
 
 | Recommendation | Next step |
 |---|---|
-| `build` + `confidence: high` | `/wf-quick intake <validated-problem-brief>` — include the problem statement as the intake argument |
-| `build` + `confidence: medium` | `/wf-quick intake <validated-problem-brief>` — flag open questions in the intake |
+| `build` + `confidence: high` | `/wf intake <validated-problem-brief>` — include the problem statement as the intake argument |
+| `build` + `confidence: medium` | `/wf intake <validated-problem-brief>` — flag open questions in the intake |
 | `do-not-build` | Record the decision. Recommend documenting the rationale. No next command. |
-| `needs-further-research` | List exactly what data is still needed and where to get it. Defer `/wf-quick intake` until that data exists. |
+| `needs-further-research` | List exactly what data is still needed and where to get it. Defer `/wf intake` until that data exists. |
 
 ## 7. Confidence & data gaps
 
@@ -185,11 +185,11 @@ Tripwires are **warn-and-continue** — record them, do NOT refuse to write the 
 - **Contradictory evidence:** Sub-agents disagree significantly — confidence must be `low`.
 - **Solution-framing mismatch:** Users are describing a broader pain; building this specific feature may not address the root problem.
 - **Strategic fit: low:** The opportunity is real but inconsistent with current positioning — flag for product leadership decision, not engineering.
-- **Feasibility: hard:** Light codebase scan suggests high implementation cost — note that `/wf-quick investigate` or `/wf-quick intake` should do a full technical feasibility pass before committing.
+- **Feasibility: hard:** Light codebase scan suggests high implementation cost — note that `/wf-quick investigate` or `/wf intake` should do a full technical feasibility pass before committing.
 
 For each fired tripwire: `[tripwire-name]: <what specifically tripped it>`. Closing line:
 
-> One or more wf-discover tripwires fired. The recommendation is still valid, but review the warnings before routing to /wf-quick intake.
+> One or more wf-discover tripwires fired. The recommendation is still valid, but review the warnings before routing to /wf intake.
 
 # Step 4 — Write `00-index.md`
 
@@ -245,6 +245,6 @@ If `needs-further-research`, prefix with:
 # What this command is NOT
 
 - **Not a feature designer** — `wf-discover` validates whether to build, not what to build or how. Feature design lives in `/wf shape`.
-- **Not a technical feasibility study** — the feasibility signal is intentional shallow. For full technical assessment, run `/wf-quick investigate` or `/wf-quick intake` after this.
+- **Not a technical feasibility study** — the feasibility signal is intentional shallow. For full technical assessment, run `/wf-quick investigate` or `/wf intake` after this.
 - **Not a market research agency** — it uses web search as a proxy for market data. Findings are directional, not statistically rigorous.
-- **Not a substitute for user interviews** — it surfaces public signals. For primary research, the user needs to run interviews separately and feed findings back into a new `/wf-quick discover` or directly into `/wf-quick intake`.
+- **Not a substitute for user interviews** — it surfaces public signals. For primary research, the user needs to run interviews separately and feed findings back into a new `/wf-quick discover` or directly into `/wf intake`.

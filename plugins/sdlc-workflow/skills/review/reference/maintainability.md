@@ -1,5 +1,6 @@
 ---
 description: "Review code for long-term readability, ease of change, and reduced change amplification"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md

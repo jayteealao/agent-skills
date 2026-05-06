@@ -1,5 +1,6 @@
 ---
 description: "Review backend code for race conditions, atomicity violations, locking issues, and idempotency bugs"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md

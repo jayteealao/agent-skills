@@ -64,11 +64,11 @@ function buildPrompt({ routingSection, invocation }) {
 to the user invocation and output ONLY the relative path of the reference file
 that would be read, with no commentary, prefix, or markdown.
 
-OUTPUT FORMAT: a single line of text — a path like
-  skills/<router>/reference/<key>.md
-or, if the invocation is empty / asks the dispatcher to render a menu, the
-literal string:
-  <menu>
+OUTPUT FORMAT: a single line of text — one of:
+  - a path like  skills/<router>/reference/<key>.md
+  - the literal string  <menu>  if the invocation is empty / asks the dispatcher to render a menu
+  - the literal string  <error>  if the first token is not a known sub-command and the router rejects with a "pick one of …" message rather than resolving to a reference
+  - the literal string  <sweep:KEY>  (replacing KEY with the aggregate key) if the invocation selects sweep mode and dispatches multiple sub-agents (no single reference is loaded at routing time)
 
 ROUTING RULES (excerpted from the router file):
 ${routingSection}
@@ -127,7 +127,10 @@ async function main() {
     resolved = norm(resolved);
 
     const expected =
-      fixture.expectedBehavior === 'menu' ? '<menu>' : norm(fixture.expectedReferencePath || '');
+      fixture.expectedBehavior === 'menu' ? '<menu>' :
+      fixture.expectedBehavior === 'error' ? '<error>' :
+      fixture.expectedBehavior === 'sweep' ? `<sweep:${fixture.expectedAggregate}>` :
+      norm(fixture.expectedReferencePath || '');
 
     if (resolved === expected) {
       console.log(`PASS  -> ${resolved}`);

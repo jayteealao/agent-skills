@@ -1,5 +1,6 @@
 ---
 description: "Review code for scalability issues under higher load, larger datasets, and more tenants"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

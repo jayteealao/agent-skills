@@ -1,5 +1,6 @@
 ---
 description: "Review infrastructure code for security issues in IAM, networking, secrets, and configuration"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md
@@ -1151,7 +1152,7 @@ For each issue:
 
 ## Step 8: Generate review report
 
-Create `.claude/<SESSION_SLUG>/reviews/review sweep infra-security-{YYYY-MM-DD}.md`
+Create `.claude/<SESSION_SLUG>/reviews/review-infra-security-{YYYY-MM-DD}.md`
 
 ## Step 9: Update session README
 
@@ -1163,7 +1164,7 @@ Print summary with critical misconfigurations.
 
 # OUTPUT FORMAT
 
-Create `.claude/<SESSION_SLUG>/reviews/review sweep infra-security-{YYYY-MM-DD}.md`:
+Create `.claude/<SESSION_SLUG>/reviews/review-infra-security-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
@@ -1547,7 +1548,7 @@ After creating review, print:
 # Infrastructure Security Review Complete
 
 ## Review Location
-Saved to: `.claude/{SESSION_SLUG}/reviews/review sweep infra-security-{YYYY-MM-DD}.md`
+Saved to: `.claude/{SESSION_SLUG}/reviews/review-infra-security-{YYYY-MM-DD}.md`
 
 ## Security Posture
 **{SECURE | MOSTLY_SECURE | VULNERABLE | CRITICAL_ISSUES}**

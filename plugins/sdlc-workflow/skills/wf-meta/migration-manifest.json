@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-05T00:06:44.996Z",
+  "generatedAt": "2026-05-06T13:14:28.242Z",
   "entries": [
     {
       "key": "amend",
@@ -23,8 +23,8 @@
       "key": "close",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/close.md",
-      "bodyHash": "47778f8f7766616b19f015da678d6d77eaeba0410458f832f7ec14c7689224fb",
-      "bodyBytes": 9535,
+      "bodyHash": "2e903c2ae2ae5066395d43cb0dd3da1e3fd7c60b0fbf62e842d3161eb8be86f2",
+      "bodyBytes": 9511,
       "description": "Close or archive a workflow without completing the full lifecycle. Marks the workflow as closed in 00-index.md, writes a 99-close.md record with the reason and context, warns about open branches and PRs, and optionally cleans up the branch. Does NOT delete workflow artifacts. Use for: cancelled work, work superseded by another approach, indefinitely deferred work, or work completed entirely outside the workflow.",
       "argumentHint": "<slug> [cancelled|superseded|deferred|completed-externally|merged-into]"
     },
@@ -59,8 +59,8 @@
       "key": "resume",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/resume.md",
-      "bodyHash": "6c810ea6af3b898d088c7f82d6568ee6a175bd83c8adf4b18ae5e8bbbed58922",
-      "bodyBytes": 7351,
+      "bodyHash": "e0eef55a5bd43a1d56f59d42bf8240d3e2d1984e6bcf5803a621ab996b1006f1",
+      "bodyBytes": 7347,
       "description": "Generate a dense, token-efficient context brief for a workflow. Reads all stage files and po-answers, distills into ~500 words. Designed for resuming after a break, onboarding a sub-agent, or recovering context in a new session.",
       "argumentHint": "[slug]"
     },
@@ -77,8 +77,8 @@
       "key": "status",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/status.md",
-      "bodyHash": "00ef6a7e7362116af0204336f0fb3752996c02d2bb274f78323553dcf744b81a",
-      "bodyBytes": 7545,
+      "bodyHash": "2cb1634b37f3e317406e444adad8bea7af0a2c3b2635b6eddb7277c3ecf153c9",
+      "bodyBytes": 7533,
       "description": "Read-only dashboard across all workflows. Reads every .ai/workflows/*/00-index.md, parses frontmatter, and renders a grouped status table. No side effects. Optional slug argument for single-workflow detail view.",
       "argumentHint": "[slug]"
     },
@@ -86,8 +86,8 @@
       "key": "sync",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/sync.md",
-      "bodyHash": "fff8ee7956b9887e72200fe2b72a37750ec6bb86374722d3aee0506c8bb02cbb",
-      "bodyBytes": 8977,
+      "bodyHash": "6158edc97316fbbc28ae09f9e2b5c6743f956577167cad31a1b220c9e4e26e2f",
+      "bodyBytes": 8973,
       "description": "Reconcile workflow state with reality. Checks whether referenced code, tests, PRs, branches, and dependencies actually exist or have changed. Writes a sync report to 00-sync.md.",
       "argumentHint": "[slug]"
     }

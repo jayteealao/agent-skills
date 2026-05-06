@@ -1,5 +1,6 @@
 ---
 description: "Review infrastructure and deployment config for safety, least privilege, and operational clarity"
+argument-hint: "[scope] [target] [paths]"
 args:
   SESSION_SLUG:
     description: The session identifier. If not provided, uses the most recent session from .claude/README.md
@@ -618,7 +619,7 @@ For each issue:
 
 ## Step 6: Generate review report
 
-Create `.claude/<SESSION_SLUG>/reviews/review sweep infra-{YYYY-MM-DD}.md`
+Create `.claude/<SESSION_SLUG>/reviews/review-infra-{YYYY-MM-DD}.md`
 
 ## Step 7: Update session README
 
@@ -630,7 +631,7 @@ Print summary with critical findings.
 
 # OUTPUT FORMAT
 
-Create `.claude/<SESSION_SLUG>/reviews/review sweep infra-{YYYY-MM-DD}.md`:
+Create `.claude/<SESSION_SLUG>/reviews/review-infra-{YYYY-MM-DD}.md`:
 
 ```markdown
 ---
@@ -782,7 +783,7 @@ After creating review, print:
 # Infrastructure Review Complete
 
 ## Review Location
-Saved to: `.claude/{SESSION_SLUG}/reviews/review sweep infra-{YYYY-MM-DD}.md`
+Saved to: `.claude/{SESSION_SLUG}/reviews/review-infra-{YYYY-MM-DD}.md`
 
 ## Merge Recommendation
 **{BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS}**

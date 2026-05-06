@@ -1,5 +1,6 @@
 ---
 description: "Review database migrations for safety, compatibility, and operability in production"
+argument-hint: "[scope] [target] [paths]"
 ---
 
 # External Output Boundary (MANDATORY)

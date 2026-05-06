@@ -131,28 +131,39 @@ function findOrphanedReferences() {
   // legacy slash commands or keywords that no longer have a target.
   const failures = [];
   const legacyPatterns = [
-    // /review-<aggregate> with hyphen (pre-v8.32)
-    /\/review-(?:all|architecture|infra|pre-merge|quick|security|ux)\b/g,
-    // /review:<dimension> with colon (pre-v8.32)
-    /\/review:[a-z][a-z-]*/g,
+    // /review-<aggregate> with hyphen (pre-v8.32). Path-boundary lookbehind
+    // and tighter trailing lookahead so legitimate filename substrings like
+    // `reviews/review-infra-security-<date>.md` don't false-positive — those
+    // are pre-v9 review artifact paths, not legacy callsites.
+    /(?<![A-Za-z0-9_/-])\/review-(?:all|architecture|infra|pre-merge|quick|security|ux)(?![A-Za-z0-9_-])/g,
+    // /review:<dimension> with colon (pre-v8.32). Same tightening.
+    /(?<![A-Za-z0-9_/-])\/review:[a-z][a-z-]*/g,
     // /review pass <aggregate> (v8.32 syntax, replaced by /review sweep in v9.0.0-alpha.1)
-    /\/review pass (?:all|architecture|infra|pre-merge|quick|security|ux)\b/g,
+    /(?<![A-Za-z0-9_/-])\/review pass (?:all|architecture|infra|pre-merge|quick|security|ux)(?![A-Za-z0-9_-])/g,
     // /wf-* legacy commands removed by v9.0.0-alpha.2 PR-2 (rolled into /wf-quick).
-    // Three negative lookaheads:
-    //   - [A-Za-z0-9_-]: keeps /wf-quick from matching inside /wf-quickly.
-    //   - /:            keeps /wf-quick from matching inside path strings
-    //                   like skills/wf-quick/reference/.
-    //   - \s+KEYS:      makes /wf-quick rca (the v9 dispatch form) skip,
-    //                   so only legacy callsites trigger.
-    /\/wf-(?:quick|rca|investigate|discover|hotfix|update-deps|docs|refactor|ideate|intake)(?![A-Za-z0-9_/-])(?!\s+(?:quick|rca|investigate|discover|hotfix|update-deps|docs|refactor|ideate|intake)\b)/g,
+    // Two negative lookaheads protect against false positives:
+    //   - [A-Za-z0-9_-]: keeps the match from extending into legitimate names
+    //                    like /wf-quickly (no such command, but defensive).
+    //   - /:             keeps the match from firing inside path strings such
+    //                    as skills/wf-quick/reference/.
+    // Note: `quick` is intentionally NOT in this alternation — /wf-quick is
+    // the v9 router name (still valid). The legacy /wf-quick command lives on
+    // as /wf-quick quick. The orphan scan only flags the genuinely-removed
+    // /wf-rca, /wf-investigate, /wf-discover, etc.
+    /\/wf-(?:rca|investigate|discover|hotfix|update-deps|docs|refactor|ideate|intake)(?![A-Za-z0-9_/-])/g,
     // /wf-* legacy commands removed by v9.0.0-alpha.3 PR-3 (rolled into /wf-meta).
-    // Same lookahead scheme as the wf-quick family above.
-    /\/wf-(?:next|status|resume|sync|amend|extend|skip|close|how|announce)(?![A-Za-z0-9_/-])(?!\s+(?:next|status|resume|sync|amend|extend|skip|close|how|announce)\b)/g,
+    // /wf-meta is the v9 router (no collision with this alternation), so we
+    // do NOT need a second negative lookahead — every match is genuinely
+    // legacy. Earlier versions had a `(?!\s+KEYS)` lookahead which falsely
+    // hid /wf-how callsites whose question payload began with "how".
+    /\/wf-(?:next|status|resume|sync|amend|extend|skip|close|how|announce)(?![A-Za-z0-9_/-])/g,
     // /wf-* legacy commands removed by v9.0.0-alpha.4 PR-4 (rolled into /wf).
-    // Same lookahead scheme as the wf-quick / wf-meta families above. The
-    // /wf-design exclusion is implicit — `design` is not in the alternation,
-    // so /wf-design slips past untouched (it remains its own router).
-    /\/wf-(?:shape|slice|plan|implement|verify|review|handoff|ship|retro|instrument|experiment|benchmark|profile)(?![A-Za-z0-9_/-])(?!\s+(?:shape|slice|plan|implement|verify|review|handoff|ship|retro|instrument|experiment|benchmark|profile)\b)/g,
+    // /wf is the v9 router (no collision with this alternation, since the
+    // dispatch form is `/wf <key>` with a space, not `/wf-<key>` with a
+    // hyphen). The /wf-design exclusion is implicit — `design` is not in the
+    // alternation, so /wf-design slips past untouched (it remains its own
+    // router).
+    /\/wf-(?:shape|slice|plan|implement|verify|review|handoff|ship|retro|instrument|experiment|benchmark|profile)(?![A-Za-z0-9_/-])/g,
   ];
 
   function walk(dir) {

@@ -30,7 +30,7 @@ You are a **reality checker**, not a fixer.
 2. If no argument → **Glob** for `.ai/workflows/*/00-index.md`.
    - If exactly **one** active (non-complete, non-abandoned) workflow exists → use it.
    - If **multiple** active workflows exist → call `AskUserQuestion` listing them and asking which to sync.
-   - If **none** found → "No active workflows found. Start one with `/wf-quick quick intake <description>`." STOP.
+   - If **none** found → "No active workflows found. Start one with `/wf intake <description>`." STOP.
 3. Read the target `00-index.md`. Parse all YAML frontmatter fields.
 
 # Step 1 — Inventory all references
