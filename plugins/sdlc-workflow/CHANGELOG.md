@@ -5,6 +5,117 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.7.0] - 2026-05-11
+
+### Added
+
+- **Frontmatter JSON Schema (`tests/frontmatter.schema.json`).** Draft 2020-12 schema covering every artifact `type:` produced by the plugin — 30+ branches under a top-level `allOf: [base, oneOf]` keyed off `type`. Captures per-type required fields, enum constraints (`status`, `verdict`, `branch-strategy`, `go-nogo`, `handoff-mode`, `review-scope`, `complexity`, `result`, etc.), ISO-8601 date pattern, run-id format, and nested-object shapes for `slices[]`, `augmentations[]`, `post-publish-checks[]`, and `runs[]`. Accepts the documented template/hook aliases (`slice` vs `slice-index`, `plan` vs `plan-index`, `design-brief` vs `craft`).
+- **Python verifier (`tests/verify_frontmatter.py`).** Walks `.ai/workflows/`, `.ai/simplify/`, `.ai/profiles/` (or accepts explicit paths), parses each `.md` file's frontmatter, and validates it against the schema. Uses a **type-discriminator** strategy: looks up the matching `oneOf` branch by `type:` and validates against that branch alone, so errors point at the actual offending field (`/commitlint-status: 'maybe' is not one of [...]`) instead of the noisy oneOf cascade. Graceful degradation when `PyYAML` or `jsonschema` aren't installed (falls back to base-field + filename-vs-type checks). `--self-test` flag runs 5 embedded fixtures. `--quiet` suppresses success output for hook integration.
+- **PostToolUse deep-validation hook (`hooks/scripts/verify-workflow-postwrite.sh`).** Runs after every `Write` and `Edit`, scoped via path filter to `.ai/{workflows,simplify,profiles}/*.md`. Invokes the verifier with `--quiet`; silent on success, exits 2 with stderr-fed errors on failure so Claude can self-correct. Fail-opens with a `systemMessage` if Python or the verifier/schema are missing. Registered as a second hook entry under the existing `PostToolUse: Write|Edit` matcher beside `auto-stage.sh` (15s timeout vs auto-stage's 5s — extra headroom for Python cold start on slow filesystems).
+
+### Changed
+
+- **Two-tier validation pipeline.** The existing PreToolUse `validate-workflow-write.sh` remains the fast shallow gate (schema/type/slug presence + filename pattern, milliseconds, blocks bad writes before they hit disk). The new PostToolUse verifier is the deep audit (full enum, format, and required-field checks against the schema). The pre-write hook still bails on `Edit` because it only sees `old_string`/`new_string`; the post-write hook fills that gap by reading the file from disk after the write completes.
+
+### Rationale
+
+The pre-write hook documented its limitations explicitly in its error message: "Expected values: index, intake, shape, slice, plan, implement, verify, review, handoff, ship, ship-run, ship-runs-index, retro, design, design-brief, critique, audit, sync-report, resume, skip, amendment, simplify-run." That list is a hand-maintained allowlist with no per-type field validation — a workflow file could pass the hook with `type: handoff` and still have `commitlint-status: maybe` or `readiness-verdict: yolo` quietly accepted, only to break a downstream `/wf ship` step that reads those fields. The schema captures the *full* contract that templates emit and downstream stages consume; the verifier and hook enforce that contract at write time, giving authors (and Claude) immediate feedback instead of a confusing failure three stages later.
+
+### Notes
+
+- Schema is also usable standalone for CI: `python plugins/sdlc-workflow/tests/verify_frontmatter.py --root .` validates an entire workflow tree.
+- The verifier is intentionally located under `tests/` rather than `hooks/scripts/` because it serves a dual role (CI/manual audit + hook helper). The post-write hook references it via `${CLAUDE_PLUGIN_ROOT}/tests/verify_frontmatter.py`.
+- No existing artifact templates were modified — every required field already aligns with what the schema enforces.
+
+## [9.6.0] - 2026-05-11
+
+### Added
+
+- **`/wf-quick simplify` entrypoint.** A review-and-route triage utility, the ninth `/wf-quick` sub-command. Three parallel sub-agents (Code Reuse, Code Quality, Efficiency) review one of four scopes, classify each accepted finding, and route it to the appropriate downstream command. **Simplify routes — it never writes code.** Scopes:
+  - `branch` (default) — `git diff <base>...HEAD` on the current branch
+  - `commit <sha-or-range>` — single commit or range
+  - `plan <slug> <slice>` — the plan's prose + structure (every accepted finding gets `route-amend-plan` with an accompanying proposed-delta block)
+  - `codebase [<path>]` — directory subtree (capped ~500 files)
+- **Routing matrix.** Per-finding assignment to one of: `route-fix` (→ `/wf-quick fix`), `route-refactor` (→ `/wf-quick refactor`), `route-intake` (→ `/wf intake`), `route-amend-plan` (→ `/wf-meta amend <slug> <slice>`), `route-amend-shape` (→ `/wf-meta amend <slug>`), `route-verify` (→ `/wf verify`), `route-add-test` (→ `/wf-quick fix "add test for X"`), `route-docs` (→ `/wf-docs <primitive>`), `route-handoff-config` (edit `00-index.md`), or `route-noop`. Bias is toward the smallest scope that addresses the finding.
+- **Run artifact at `.ai/simplify/<run-id>.md`** (project-level, not under `.ai/workflows/`). Captures findings per agent, per-finding routing assignment, and (for plan scope) proposed deltas. The chat return is a copy-pasteable queue of suggested invocations sorted by route priority.
+
+### Changed
+
+- **`wf-quick` router** now has 9 sub-commands (was 8). SKILL.md argument-hint and known-keys list updated.
+- **Pre-write validator type hint** extended with `simplify-run`. The simplify run files bypass the validator anyway (live at `.ai/simplify/` not `.ai/workflows/`), but the hint stays consistent for any future path changes.
+
+### Rationale
+
+The plugin had `/wf review` for stage-7 lifecycle review (31 dimensions in parallel) and `/wf-quick refactor` for behaviour-preserving restructure, but no compact "look at recent work and decide what shape of follow-up it deserves" entrypoint scoped to a diff, a commit, or a plan. The Claude Code harness ships a bundled `simplify` skill that's three parallel agents over a diff, but it *applies fixes directly* — which would bypass the plugin's planning, verification, and review disciplines. The plugin's `simplify` keeps the agent rubrics but realigns the action to routing-only: each finding gets the right level of downstream process (a trivial typo through `/wf-quick fix`, a structural change through `/wf intake`, a spec issue through `/wf-meta amend`).
+
+### Provenance + deliberate divergence
+
+Adapted from the Claude Code bundled `simplify` skill (`.scratch/claude-code/src/skills/bundled/simplify.ts`). Differences:
+
+| | Upstream | Plugin |
+|---|---|---|
+| Agent rubrics | Reuse, Quality, Efficiency | Same — kept verbatim |
+| Dispatch | Three parallel agents | Same |
+| Scope | git diff only | Four scopes (branch, commit, plan, codebase) |
+| Action after findings | **Apply fixes directly** | **Route findings to downstream commands; never write code** |
+| Output | Ephemeral chat summary | `.ai/simplify/<run-id>.md` artifact + suggested-invocation queue |
+
+The action divergence is intentional and load-bearing — every command in this plugin operates as an orchestrator, not a problem-solver. Letting simplify silently rewrite code would create a back-door path that bypasses review, verify, and planning.
+
+### Codex shadow tree
+
+Regenerated. The new `simplify` reference at `skills/wf-quick/reference/simplify.md` propagates verbatim because the generator mirrors the directory.
+
+## [9.5.0] - 2026-05-10
+
+Handoff and ship overhaul — landed as four conceptual PRs in one branch per `plugins/sdlc-workflow/HANDOFF-SHIP-OVERHAUL-PLAN.md`.
+
+### Added
+
+- **Handoff PR-readiness block (`skills/wf/reference/handoff.md`).** Stage 8 now runs five new steps between Diátaxis doc generation and artifact write, conditional on `branch-strategy: dedicated`:
+  - **T3.5 — Commitlint pass.** Reads `.commitlintrc*` (silent skip if absent). Runs `commitlint --from <merge-base> --to HEAD`. `BREAKING CHANGE` / `!:` commits flag a `warn` rather than block, with the breaking commit list surfaced in Reviewer Focus Areas.
+  - **T3.6 — Public-surface drift check.** Driven by the new `public-surface:` block in `00-index.md` (`kind`, `regen-cmd`, `files`). Pattern fits Kotlin `.api` dump, OpenAPI, GraphQL SDL, exported TS `.d.ts`, SQL DDL. Auto-commits regenerated surface mirrors; blocks if a regen disagrees with already-staged surface ("drift-without-regen").
+  - **T3.7 — Doc-mirror regen.** Driven by `docs-mirror:` block in `00-index.md` (`regen-cmd`, `source-paths`, `mirror-paths`). Auto-commits `docs: regenerate doc mirrors` when generated docs drift from source.
+  - **T5.1 — PR comment triage loop (bounded 5 iterations).** Fetches unresolved review threads via `gh api graphql`, classifies comments 🔴/🟡/🟢 by author and content (default bots: `coderabbitai`, `greptile-dev`, `gemini-code-assist`, `chatgpt-codex-connector[bot]`; override via `review-bots:` in `00-index.md`). 🔴 blockers route to `/wf implement <slug> <slice> reviews` and get `resolveReviewThread`-mutated after the fix commits. 🟡 suggestions are batched into a single AskUserQuestion multi-select for apply/defer/decline. 🟢 informational are noted only. Loop bound prevents bot ping-pong.
+  - **T5.2 — Rebase onto base + `--force-with-lease`.** Single retry on lease failure (handles the race where T5.1 pushed mid-loop). Conflicts route to `/wf implement <slug> <slice>`.
+  - **T5.3 — Live PR readiness check.** `gh pr view --json reviewDecision,statusCheckRollup,mergeable,mergeStateStatus` populates `live-review-decision`, `live-checks-failing`, `live-checks-pending`. Combined with the above into a single `readiness-verdict: ready | awaiting-input | blocked` that downstream ship gates on.
+- **Ship plan (`/wf-meta init-ship-plan`).** One-time project-level setup that authors `.ai/ship-plan.md` at the **repo root** (not under `.ai/workflows/`). Captures seven orthogonal blocks: ship-meaning, versioning contract, CI/CD contract, post-publish verification, rollout/rollback, recovery playbooks, announcements. Pre-seeded via `--from-template <kind>` for six common shapes:
+  - `kotlin-maven-central` — Maven Central + Sonatype + GPG signing, with signing-failure + token-401 playbooks.
+  - `npm-public` — npm registry with provenance, fast propagation window.
+  - `pypi` — PyPI Trusted Publisher (OIDC) or API token, version-already-uploaded playbook.
+  - `container-image` — GHCR/ECR/Docker Hub multi-arch with cosign.
+  - `server-deploy` — Kubernetes rolling deploy with canary stages, k8s-rollout-status check, migration-failure playbook.
+  - `library-internal` — internal registry, merge-on-main = released.
+- **Plan amendment via `/wf-meta amend ship-plan`** edits one block (A–G) of an existing plan, re-runs only that block's questions from the init flow, and bumps `plan-version`. Runs subsequent to an amendment stamp the new `plan-version-at-run`.
+- **Per-release ship runs (`09-ship-run-<run-id>.md`).** Accumulating per release, never overwritten. `run-id` is UTC compact ISO-8601 (`YYYYMMDDTHHMMZ`). Indexed by `09-ship-runs.md` (lightweight per-workflow run index, body regenerated from frontmatter on every run).
+
+### Changed
+
+- **`/wf ship <slug>` rewritten (`skills/wf/reference/ship.md`).** Now reads `.ai/ship-plan.md` and refuses to start unless `08-handoff.md` has `readiness-verdict: ready`. Walks a **13-step replayable sequence**: orient → pre-flight → publish dry-run → rollout questions → freshness delta → go/no-go → merge → tag+release → release-workflow watch → post-publish polling → post-release version bump → update run index → write run artifact. **Each step is independently re-runnable** — pre-flight is a no-op if the version is already applied, merge is a no-op if the PR is merged, tag is a no-op if the tag exists, polling resumes from the last `pending` check.
+- **Resume semantics.** A prior `09-ship-run-*.md` with `status: awaiting-input` is detected at orient. The user can resume from the failed step, start fresh, or mark the prior run failed.
+- **Freshness research as delta-only.** Step 4 diffs against the last successful run's freshness research, re-running sub-agents only for platforms/deps/CI files that changed since.
+- **Recovery playbooks fire on release-workflow failure.** Step 8 matches the failure log against `plan.recovery-playbooks[].triggers[]` (regex) and presents each step via AskUserQuestion for human-confirmed execution. Captures `recovery-actions-taken:` in the run.
+- **`wf-meta` router** gained an 11th known key (`init-ship-plan`). Argument hint updated.
+- **`08-handoff.md` frontmatter** gained `commitlint-status`, `public-surface-drift`, `docs-mirror-status`, `triage-iterations`, `triage-fixes-applied`, `triage-fixes-skipped`, `triage-deferred-thread-ids`, `has-deferred-comments`, `rebase-status`, `rebase-onto-sha`, `live-review-decision`, `live-checks-failing`, `live-checks-pending`, `readiness-verdict`.
+- **Pre-write validator type hint** expanded to include `ship-run`, `ship-runs-index`. (`ship-plan` bypasses the validator — it lives at repo root, not `.ai/workflows/`.)
+
+### Backwards compatibility
+
+- Workflows with an existing legacy `09-ship.md` keep working. **Reading it is fine; writing it is gone.** This version of `wf-ship` never writes `09-ship.md`. To migrate, author a plan via `/wf-meta init-ship-plan`, then run `/wf ship <slug>` for the next release; the legacy file stays as historical record.
+- The handoff PR-readiness block is **fully opt-in per project**. With no `public-surface:` / `docs-mirror:` / `review-bots:` keys in `00-index.md` and no commitlint config in the repo, the new steps skip silently and handoff behaves indistinguishably from v9.2.0 — except T5.2/T5.3 which run for any `dedicated` branch.
+
+### Rationale
+
+The legacy ship stage collapsed three orthogonal concerns into one per-run file: what "ship" means for this project, how versions work, and how CI/CD is wired. Re-running `/wf ship <slug>` after a partial failure re-asked every rollout question, re-ran every research sub-agent, and overwrote the prior artifact. Releases are inherently retried; the artifact shape forbade it.
+
+The handoff PR-readiness block had a similar gap on the other side: no commit-lint pass, no public-surface drift detection, no PR comment triage, no rebase-onto-base, no live PR-state check. The PR was created and then never re-read — bot reviewers (CodeRabbit, Greptile, Gemini, Codex) and human reviewers left blockers that the workflow ignored.
+
+The split — project-level plan, accumulating run history, idempotent replayable steps, handoff readiness gate — separates **the contract** (what ship means here, captured once per project) from **the evidence** (what happened on this specific release, captured per run).
+
+### Codex shadow tree
+
+Regenerated. The Codex `wf-meta` skill picks up `init-ship-plan` as a known sub-command key automatically via the SKILL.md frontmatter; the new reference files under `skills/wf-meta/reference/` (`init-ship-plan.md`, `ship-plan-templates/*.md`) propagate verbatim because the generator mirrors the directory.
+
 ## [9.2.0] - 2026-05-06
 
 ### Removed
