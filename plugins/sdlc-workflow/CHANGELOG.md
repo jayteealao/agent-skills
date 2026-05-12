@@ -5,6 +5,33 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.8.0] - 2026-05-12
+
+### Removed
+
+- **`SessionStart` hook (`hooks/scripts/workflow-discovery.sh`).** No longer fires on session start. Previously emitted a `systemMessage` block listing every active workflow's slug, title, stage, slice, branch (with WRONG BRANCH warnings), PR URL, next command, and open questions. With multiple in-flight workflows this could inject 1–2 KB of context every session, even for workflows unrelated to the current branch.
+- **`PreCompact` hook (`hooks/scripts/pre-compact.sh`).** No longer fires before context compaction. Previously emitted a `CRITICAL — Active SDLC workflow state. Preserve ALL of the following...` instruction block telling the compaction model what workflow fields to retain in the summary.
+
+### Changed
+
+- **`hooks.json` description.** Updated to reflect the remaining surface: `"sdlc-workflow hooks: workflow file write validation and post-write auto-stage / verification"`. The `PreToolUse(Write)` validator and `PostToolUse(Write|Edit)` auto-stage + verifier hooks are unchanged — those are authoritative on-write policy gates, not context injectors, and don't suffer from the same pollution problem.
+
+### Rationale
+
+The two removed hooks shared a failure mode: they injected workflow state into the model's context unconditionally (SessionStart) or whenever compaction ran (PreCompact), regardless of whether the current session was actually working on those workflows. On any branch with `.ai/workflows/` populated, every session paid the token cost of every in-flight workflow's full status block — slugs the user wasn't touching, branches they weren't on, PRs that weren't theirs to ship. The PreCompact preservation instructions compounded the same problem post-compaction: the summarizer was told to keep state the user no longer cared about, anchoring the model to stale workflows after compaction. The `/wf-meta status` and `/wf-meta resume` commands already surface this state on demand when it's actually needed, which is the right model — pull, not push.
+
+### Migration
+
+If you relied on the SessionStart hook to remind you which workflow a branch was tied to, run `/wf-meta status <slug>` or `/wf-meta resume <slug>` explicitly when resuming work. The workflow index files (`.ai/workflows/<slug>/00-index.md`) remain the source of truth; nothing about workflow durability changes — only the auto-injection into context.
+
+If you relied on the PreCompact hook to keep workflow state alive across compactions, the affected stage's Step 0 Orient still re-reads the workflow artifacts from disk on the next stage invocation. The hook was a belt-and-braces optimization over that mechanism; removing it shifts the cost from "every compaction" to "one re-read per stage transition," which is the strictly cheaper choice.
+
+### Notes
+
+- The two script files (`hooks/scripts/workflow-discovery.sh` and `hooks/scripts/pre-compact.sh`) are intentionally left on disk for now. They can be re-wired by adding the corresponding `SessionStart`/`PreCompact` entries back to `hooks.json` without restoring deleted code. Future minor versions may delete them outright once the no-injection model has proven out.
+- `.claude-plugin/marketplace.json` `version` pin bumped to `9.8.0` to match `plugin.json` and trigger a cache re-resolution on next session.
+- `.codex-plugin/plugin.json` is untouched (still `9.0.0-codex.1`) — Codex doesn't run Claude Code hooks, so this change is Claude-Code-specific.
+
 ## [9.7.0] - 2026-05-11
 
 ### Added

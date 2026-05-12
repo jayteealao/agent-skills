@@ -40,7 +40,7 @@
       "description": "Complete SDLC workflow as four skill-mode routers plus the wf-design router and a setup-wide-logging command. /wf executes the canonical 13-stage lifecycle (shape, slice, plan, implement, verify, review, handoff, ship, retro) plus four perf/observability augmentations. /wf-quick starts compressed flows (10 entry points). /wf-meta navigates and manages existing workflows (10 sub-commands). /wf-design dispatches across 22 design sub-commands. /review runs per-dimension or named-sweep code review across 31 dimensions and 7 sweeps via parallel sub-agent dispatch. wf-validate pre-write hook gates artifact writes. Workflow-type aware (compressed, forwarded, standard). Per-slice review artifacts. Augmentations register on the workflow index and produce type-specific deliverables that downstream stages consume. v9.0.0 lands the four-router architecture; full release notes in plugins/sdlc-workflow/CHANGELOG.md.",
       "source": "./plugins/sdlc-workflow",
       "category": "productivity",
-      "version": "9.7.0"
+      "version": "9.8.0"
     }
   ]
 }
