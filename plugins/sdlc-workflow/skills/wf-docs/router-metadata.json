@@ -1,0 +1,14 @@
+{
+  "skill": "wf-docs",
+  "description": "Skill router for /wf-docs. Two invocation modes — Orchestrator (no sub-command, or <slug>, --audit-only, <path>) runs the discover → audit → plan → generate → review pipeline; Primitive (/wf-docs <primitive> <args>) loads one Diátaxis reference and writes one document. 7 primitives — plan, tutorial, how-to, reference, explanation, readme, review. No sweep mode — primitives are orthogonal Diátaxis quadrants, not lenses on the same target. Invoke as /wf-docs <args>.",
+  "dimensions": [
+    "explanation",
+    "how-to",
+    "plan",
+    "readme",
+    "reference",
+    "review",
+    "tutorial"
+  ],
+  "aggregates": {}
+}

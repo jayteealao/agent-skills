@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Amend or extend a workflow · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Amend or extend</div>
+<span class="quadrant howto">how-to</span>
+<h1>Amend or extend a workflow</h1>
+
+<p>Review or retro revealed something. Three commands handle the three different things "something" can mean:</p>
+
+<div class="summary">
+<table>
+<tr><th>If the spec was wrong</th><td><code>/wf-meta amend</code> — correct the definition without overwriting completed work.</td></tr>
+<tr><th>If new scope appeared</th><td><code>/wf-meta extend</code> — add new slices to the existing workflow.</td></tr>
+<tr><th>If a bug exists</th><td><code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code> — fix the implementation. Don't reach for amend.</td></tr>
+</table>
+</div>
+
+<h2>Amend — the spec was wrong</h2>
+
+<p>Use when review or retro shows that the acceptance criteria, scope, or approach was incorrect. Amend writes versioned amendment files (<code>02-shape-amend-1.md</code>, <code>03-slice-&lt;slug&gt;-amend-1.md</code>); it never overwrites completed artifacts.</p>
+
+<pre><code>/wf-meta amend &lt;slug&gt; from-review    # seed from 07-review-&lt;slice&gt;.md findings
+/wf-meta amend &lt;slug&gt; from-retro     # seed from 10-retro.md
+/wf-meta amend &lt;slug&gt;                # describe the correction manually
+/wf-meta amend ship-plan             # edit one block (A-G) of .ai/ship-plan.md</code></pre>
+
+<p>After amend writes, you usually run <code>/wf plan &lt;slug&gt; &lt;slice&gt;</code> to update the plan, then <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code>.</p>
+
+<h2>Extend — new scope appeared</h2>
+
+<p>Use when review or retro reveals scope that fits the same workflow but doesn't exist as a slice yet. Extend adds slices; it doesn't change existing ones.</p>
+
+<pre><code>/wf-meta extend &lt;slug&gt; from-review
+/wf-meta extend &lt;slug&gt; from-retro
+/wf-meta extend &lt;slug&gt;</code></pre>
+
+<h2>Implement (reviews mode) — bug exists</h2>
+
+<p>Use when the spec is correct but the implementation is buggy.</p>
+
+<pre><code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code></pre>
+
+<p>This is the most common path. Review finds a BLOCKER → implement-reviews fixes it → re-verify → re-handoff.</p>
+
+<h2>Decision rule</h2>
+
+<table>
+<thead><tr><th>Finding shape</th><th>Use</th></tr></thead>
+<tbody>
+<tr><td>"Acceptance criterion is contradictory"</td><td>amend</td></tr>
+<tr><td>"The approach assumed X but X doesn't exist"</td><td>amend</td></tr>
+<tr><td>"This slice should have been two slices"</td><td>amend (split) + extend (new slice)</td></tr>
+<tr><td>"This feature is missing a piece"</td><td>extend</td></tr>
+<tr><td>"The code returns 500 when it should return 400"</td><td>implement reviews</td></tr>
+<tr><td>"The test doesn't actually cover the edge case"</td><td>implement reviews</td></tr>
+</tbody>
+</table>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="../reference/commands.html">Commands reference</a> — full <code>/wf-meta amend</code> argument matrix.</li>
+  <li><a href="triage-pr-comments.html">Triage PR comments</a> — the new T5.1 loop sometimes routes findings to amend.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../how-to/navigate-workflows.html"><span>← Previous</span>Navigate workflows</a><a class="next" href="../how-to/use-augmentations.html"><span>Next →</span>Use augmentations</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

@@ -537,10 +537,10 @@ Would you like this saved as a Diátaxis document?
 | D — Workflow | Default → Explanation |
 | E — Findings | Default → Explanation |
 
-If the user selects a Diátaxis form, invoke the corresponding skill inline:
-- Explanation → read `skills/explanation-writer/SKILL.md` and follow it
-- Reference → read `skills/reference-writer/SKILL.md` and follow it
-- How-to → read `skills/how-to-guide-writer/SKILL.md` and follow it
+If the user selects a Diátaxis form, load the corresponding primitive reference inline:
+- Explanation → read `skills/wf-docs/reference/explanation.md` and follow it
+- Reference → read `skills/wf-docs/reference/reference.md` and follow it
+- How-to → read `skills/wf-docs/reference/how-to.md` and follow it
 
 Write the Diátaxis doc to:
 - Modes B/C: `docs/<topic>.md` (or skill-determined location)

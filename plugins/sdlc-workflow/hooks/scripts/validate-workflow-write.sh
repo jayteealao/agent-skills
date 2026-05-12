@@ -114,7 +114,7 @@ validate_frontmatter() {
 
   # Check type
   if [ -z "$TYPE" ]; then
-    ERRORS+=("Missing 'type' field in frontmatter. Expected values: index, intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, design-brief, critique, audit, sync-report, resume, skip, amendment.")
+    ERRORS+=("Missing 'type' field in frontmatter. Expected values: index, intake, shape, slice, plan, implement, verify, review, handoff, ship, ship-run, ship-runs-index, retro, design, design-brief, critique, audit, sync-report, resume, skip, amendment, simplify-run.")
   fi
 
   # Check slug

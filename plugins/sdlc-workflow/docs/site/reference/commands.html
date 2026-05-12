@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Commands reference · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Commands</div>
+<span class="quadrant reference">reference</span>
+<h1>Commands reference</h1>
+
+<p>The hub. Every slash command at a glance, with links into the per-router detail pages for depth.</p>
+
+<div class="callout note">
+<strong>Looking for detail?</strong>
+This page is the overview. For per-command depth — argument hints, what it reads, what it writes, when to use, when NOT to use, interview pattern — drill into the per-router pages:
+<ul style="margin-top: 0.4em;">
+<li><a href="wf.html">/wf router (in depth)</a> — every lifecycle stage + augmentation</li>
+<li><a href="wf-quick.html">/wf-quick router (in depth)</a> — every compressed flow</li>
+<li><a href="wf-meta.html">/wf-meta router (in depth)</a> — every nav/management sub-command</li>
+<li><a href="wf-design.html">/wf-design router (in depth)</a> — 22 design sub-commands + 3 invocation modes</li>
+<li><a href="wf-docs.html">/wf-docs router (in depth)</a> — pipeline + 7 Diátaxis primitives</li>
+<li><a href="review.html">/review router (in depth)</a> — 31 dimensions + 7 sweeps</li>
+</ul>
+</div>
+
+<h2>/wf — the lifecycle router</h2>
+
+<p>Dispatches across 13 lifecycle stages + 4 augmentations. The stage commands all take <code>&lt;slug&gt;</code>; per-slice commands additionally take <code>&lt;slice-slug&gt;</code>.</p>
+
+<table>
+<thead><tr><th>Command</th><th>Args</th><th>Stage</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td><code>/wf intake</code></td><td><code>"description"</code></td><td>1</td><td>Entry point. Creates the workflow directory and slug.</td></tr>
+<tr><td><code>/wf shape</code></td><td><code>&lt;slug&gt;</code></td><td>2</td><td>Deep interview + parallel web research.</td></tr>
+<tr><td><code>/wf slice</code></td><td><code>&lt;slug&gt;</code></td><td>3</td><td>Decompose into vertical slices.</td></tr>
+<tr><td><code>/wf plan</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>4</td><td>Repo-aware plan with reuse scan.</td></tr>
+<tr><td><code>/wf implement</code></td><td><code>&lt;slug&gt; &lt;slice&gt; [reviews]</code></td><td>5</td><td><code>reviews</code> mode applies review-finding fixes.</td></tr>
+<tr><td><code>/wf verify</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>6</td><td>Exercises acceptance criteria; captures evidence.</td></tr>
+<tr><td><code>/wf review</code></td><td><code>&lt;slug&gt; &lt;slice&gt; [triage]</code></td><td>7</td><td>Multi-domain parallel review.</td></tr>
+<tr><td><code>/wf handoff</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>8</td><td>Aggregates complete slices; runs PR-readiness block.</td></tr>
+<tr><td><code>/wf ship</code></td><td><code>&lt;slug&gt; [environment]</code></td><td>9</td><td>Plan-driven, replayable.</td></tr>
+<tr><td><code>/wf retro</code></td><td><code>&lt;slug&gt;</code></td><td>10</td><td>Extract concrete improvement actions.</td></tr>
+<tr><td><code>/wf instrument</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>aug</td><td>Observability augmentation.</td></tr>
+<tr><td><code>/wf experiment</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>aug</td><td>Feature flag + cohort design.</td></tr>
+<tr><td><code>/wf benchmark</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>aug</td><td>Performance baseline + compare.</td></tr>
+<tr><td><code>/wf profile</code></td><td><code>&lt;area&gt;</code></td><td>aug</td><td>Profiling pass (freestanding).</td></tr>
+</tbody>
+</table>
+
+<h2>/wf-quick — compressed flows</h2>
+
+<table>
+<thead><tr><th>Command</th><th>For</th></tr></thead>
+<tbody>
+<tr><td><code>/wf-quick fix</code></td><td>Trivial, one-file change.</td></tr>
+<tr><td><code>/wf-quick hotfix</code></td><td>Production incident (skips review).</td></tr>
+<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis.</td></tr>
+<tr><td><code>/wf-quick investigate</code></td><td>"What does this code actually do?"</td></tr>
+<tr><td><code>/wf-quick discover</code></td><td>Idea triage (build/pilot/shelve).</td></tr>
+<tr><td><code>/wf-quick update-deps</code></td><td>Tiered dependency updates.</td></tr>
+<tr><td><code>/wf-quick refactor</code></td><td>Behaviour-preserving refactor.</td></tr>
+<tr><td><code>/wf-quick ideate</code></td><td>Rank improvement candidates.</td></tr>
+<tr><td><code>/wf-quick simplify</code></td><td>3-agent review+route triage. Classifies findings and recommends downstream commands (fix / refactor / intake / amend / verify / docs). Never writes code. Scopes: branch (default) / commit / plan / codebase.</td></tr>
+</tbody>
+</table>
+
+<h2>/wf-meta — navigation and management</h2>
+
+<table>
+<thead><tr><th>Command</th><th>Args</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>/wf-meta next</code></td><td><code>[slug]</code></td><td>What's the next command for this workflow?</td></tr>
+<tr><td><code>/wf-meta status</code></td><td><code>[slug]</code></td><td>One workflow or all workflows at a glance.</td></tr>
+<tr><td><code>/wf-meta resume</code></td><td><code>[slug]</code></td><td>Re-read trail; propose concrete next invocation.</td></tr>
+<tr><td><code>/wf-meta sync</code></td><td><code>[slug]</code></td><td>Repair <code>00-index.md</code> against disk reality.</td></tr>
+<tr><td><code>/wf-meta amend</code></td><td><code>&lt;scope&gt; &lt;target&gt;</code></td><td>Correct a prior artifact. <code>scope=ship-plan</code> edits <code>.ai/ship-plan.md</code>.</td></tr>
+<tr><td><code>/wf-meta extend</code></td><td><code>&lt;scope&gt; &lt;target&gt;</code></td><td>Add new slices to an existing workflow.</td></tr>
+<tr><td><code>/wf-meta skip</code></td><td><code>&lt;stage&gt; [slug]</code></td><td>Mark a stage skipped with a stub artifact.</td></tr>
+<tr><td><code>/wf-meta close</code></td><td><code>&lt;reason&gt; [slug]</code></td><td>Archive a workflow (shipped/abandoned/superseded/archived/stuck).</td></tr>
+<tr><td><code>/wf-meta how</code></td><td><code>&lt;mode&gt; &lt;topic&gt;</code></td><td>Five-mode question answering.</td></tr>
+<tr><td><code>/wf-meta announce</code></td><td><code>[slug]</code></td><td>Diátaxis announcement for a completed workflow.</td></tr>
+<tr><td><code>/wf-meta init-ship-plan</code></td><td><code>[--from-template &lt;kind&gt;]</code></td><td>Author <code>.ai/ship-plan.md</code> (one-time per project).</td></tr>
+</tbody>
+</table>
+
+<h2>/wf-design — design pipeline</h2>
+
+<p>22 sub-commands across three modes (workflow stage 2b, workflow + sub-command, freestanding). The main ones: <code>shape</code>, <code>craft</code>, <code>audit</code>, <code>critique</code>, plus 15 transformations (e.g., <code>colorize</code>, <code>typeset</code>, <code>animate</code>, <code>harden</code>, <code>quieter</code>, <code>bolder</code>, <code>delight</code>, <code>distill</code>, <code>clarify</code>, <code>adapt</code>, <code>layout</code>, <code>optimize</code>, <code>polish</code>, <code>overdrive</code>, <code>impeccable</code>) and 3 setup/extract operators (<code>setup</code>, <code>teach</code>, <code>extract</code>).</p>
+
+<h2>/wf-docs — documentation pipeline</h2>
+
+<p>Runs the full pipeline (<code>discover</code> → <code>audit</code> → <code>plan</code> → <code>generate</code> → <code>review</code>) or invokes a single Diátaxis primitive (<code>plan</code>, <code>tutorial</code>, <code>how-to</code>, <code>reference</code>, <code>explanation</code>, <code>readme</code>, <code>review</code>).</p>
+
+<h2>/review — code review</h2>
+
+<p>Per-dimension or named-sweep across 31 dimensions and 7 sweeps via parallel sub-agent dispatch. Driven entirely by an LLM-derived selection — pass the change context and the router picks which dimensions apply.</p>
+<div class="pager"><a class="prev" href="../reference/pipeline.html"><span>← Previous</span>Pipeline</a><a class="next" href="../reference/skills.html"><span>Next →</span>Skills</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

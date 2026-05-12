@@ -81,7 +81,7 @@ A well-understood single-file fix can legitimately run `intake → plan → impl
 | **Verify** | Run acceptance criteria, automated tests, interactive checks, evidence capture | `06-verify.md` + per-slice files |
 | **Review** | Dispatch parallel review sub-agents, aggregate findings, triage with user | `07-review-<slice-slug>.md` + per-slice per-command files |
 | **Handoff** | PR-ready package — summary, evidence, docs, push branch, create PR | `08-handoff.md` |
-| **Ship** | Release readiness, go/no-go, merge strategy, rollout, rollback plan | `09-ship.md` |
+| **Ship** | Plan-driven, replayable release: pre-flight, dry-run, merge, tag, release-workflow watch, post-publish poll | `.ai/ship-plan.md` (project) + `09-ship-run-<run-id>.md` (per release) + `09-ship-runs.md` (index) |
 | **Retro** | Extract reusable lessons, produce concrete improvements for CLAUDE.md and hooks | `10-retro.md` |
 
 ### How the review system works
@@ -109,7 +109,7 @@ The plugin applies the [Diátaxis framework](https://diataxis.fr) across the lif
 | Architectural decisions, trade-offs | Explanation | Background and rationale |
 | Significant project change | README update | Front door |
 
-**At handoff (stage 8):** documentation is generated from the shape's docs plan before the announcement is drafted. The appropriate Diátaxis skill is invoked for each doc type planned at shape. Generated doc paths land in `08-handoff.md` frontmatter.
+**At handoff (stage 8):** documentation is generated from the shape's docs plan before the announcement is drafted. For each doc type planned at shape, the matching Diátaxis primitive is loaded from `skills/wf-docs/reference/<type>.md` and followed verbatim. Generated doc paths land in `08-handoff.md` frontmatter.
 
 **At announce (post-ship):** announcements automatically link to generated docs by channel — Slack/chat gets a short link, GitHub Release gets markdown blocks, wikis get embedded sections.
 
@@ -240,11 +240,14 @@ No slice needed — handoff reads `03-slice.md` and automatically aggregates all
 
 ### Step 9 — Ship
 
+Ship is **plan-driven**. Author the project-level plan once with `/wf-meta init-ship-plan` (or `--from-template <kotlin-maven-central|npm-public|pypi|container-image|server-deploy|library-internal>`); every subsequent `/wf ship <slug>` reads it. The plan captures what "ship" means here, the version scheme, CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, and announcements.
+
 ```
-/wf ship dark-mode-toggle-settings
+/wf-meta init-ship-plan --from-template npm-public   # one-time per project
+/wf ship dark-mode-toggle-settings                   # per release
 ```
 
-Asks about rollout strategy, rollback tolerance, and merge approach. Merges the PR. Records the merge SHA.
+Ship refuses to start unless `08-handoff.md` reports `readiness-verdict: ready`. It walks 13 idempotent steps (pre-flight, publish dry-run, rollout questions, freshness delta, go/no-go, merge, tag+release, release-workflow watch, post-publish polling, post-release version bump, index update, write run artifact). Runs accumulate as `09-ship-run-<run-id>.md`; partial failures resume from `status: awaiting-input` rather than starting over.
 
 ### Step 10 — Retro
 
@@ -455,7 +458,7 @@ Requires `.impeccable.md` in your project root (established by `wf-design:setup`
 /wf-meta announce dark-mode-toggle-settings
 ```
 
-Reads `08-handoff.md`, `09-ship.md`, `01-intake.md`, and `02-shape.md`. Checks for any planned docs from the shape's docs plan that weren't generated at handoff and invokes the appropriate Diátaxis skill to fill the gap. Then asks which audience and which channels:
+Reads `08-handoff.md`, `09-ship.md`, `01-intake.md`, and `02-shape.md`. Checks for any planned docs from the shape's docs plan that weren't generated at handoff and loads the matching Diátaxis primitive from `skills/wf-docs/reference/<type>.md` to fill the gap. Then asks which audience and which channels:
 
 **Audiences:** `eng`, `product`, `users`, `all`
 
@@ -716,20 +719,26 @@ Artifacts land in `.ai/dep-updates/<run-id>/` (separate from workflow directorie
 ### … audit and update documentation
 
 ```
-/wf-quick docs                          # audit and update all project docs
-/wf-quick docs dark-mode-toggle-settings # generate docs for a workflow's changes
-/wf-quick docs --audit-only             # gap analysis only, no writing
-/wf-quick docs docs/api                 # scope to a specific directory
+/wf-docs                                # audit and update all project docs
+/wf-docs dark-mode-toggle-settings      # generate docs for a workflow's changes
+/wf-docs --audit-only                   # gap analysis only, no writing
+/wf-docs docs/api                       # scope to a specific directory
+/wf-docs tutorial getting-started       # write a single tutorial (primitive mode)
+/wf-docs reference api/users            # write API reference for a single surface
+/wf-docs review docs/concepts/auth.md   # audit one existing doc against Diátaxis
 ```
 
-Runs a four-pass documentation lifecycle:
+Two modes: orchestrator (no primitive keyword) runs a five-pass pipeline; primitive (first arg matches `plan`/`tutorial`/`how-to`/`reference`/`explanation`/`readme`/`review`) loads one Diátaxis reference and writes one document.
+
+Orchestrator passes:
 
 1. **Discover** — inventories every markdown file, README, API doc, and inline docstring in scope
 2. **Audit** — parallel sub-agents read each doc against the current codebase, checking accuracy (do code examples still work?), Diátaxis quadrant fit (is a reference doc giving opinions?), and freshness (how long since the code changed?)
 3. **Plan** — gaps and violations grouped by priority: broken (P0) → missing (P1) → wrong quadrant (P2) → stale (P3)
-4. **Generate** — invokes the appropriate Diátaxis skill for each planned action (`tutorial-writer`, `how-to-guide-writer`, `reference-writer`, `explanation-writer`, `readme-writer`)
+4. **Generate** — loads the appropriate primitive reference for each planned action (`reference/tutorial.md`, `reference/how-to.md`, `reference/reference.md`, `reference/explanation.md`, `reference/readme.md`)
+5. **Review** — spot-checks generated docs against the Diátaxis rubric in `reference/review.md`
 
-For `slug` mode, the command reads the workflow's `02-shape.md → ## Documentation Plan` — the doc plan written when the feature was shaped — and fulfills it before adding anything new. Audit artifacts land in `.ai/docs/<run-id>/`. Generated docs are written in-place to their project paths.
+For `slug` mode, the orchestrator reads the workflow's `02-shape.md → ## Documentation Plan` — the doc plan written when the feature was shaped — and fulfills it before adding anything new. Audit artifacts land in `.ai/docs/<run-id>/`. Generated docs are written in-place to their project paths.
 
 ### … refactor safely
 
@@ -773,7 +782,8 @@ Every `wf-extend` invocation records an `extension-round: N` on new slice entrie
 | `/wf verify <slug> [slice]` | 6 | Acceptance criteria, test runs, evidence | `06-verify.md` + per-slice |
 | `/wf review <slug> [slice\|triage]` | 7 | Multi-domain parallel review dispatch (per-slice) | `07-review-<slice>.md` + per-slice per-command |
 | `/wf handoff <slug> [slice-slug]` | 8 | Aggregates all complete slices into one PR package; `[slice-slug]` only for one-PR-per-slice workflows | `08-handoff.md` |
-| `/wf ship <slug> [environment]` | 9 | Workflow-level go/no-go, merge, rollout plan; `[environment]` overrides deployment target | `09-ship.md` |
+| `/wf ship <slug> [environment]` | 9 | Plan-driven, replayable release. Reads `.ai/ship-plan.md`; refuses to start unless handoff `readiness-verdict: ready`. Walks 13 idempotent steps (pre-flight, dry-run, rollout questions, freshness delta, go/no-go, merge, tag, release-workflow watch, post-publish poll, post-release bump). Resumes paused runs. `[environment]` overrides plan default. | `09-ship-run-<run-id>.md` + `09-ship-runs.md` |
+| `/wf-meta init-ship-plan [--from-template <kind>]` | — | **One-time per project.** Authors `.ai/ship-plan.md` at repo root. Templates: `kotlin-maven-central`, `npm-public`, `pypi`, `container-image`, `server-deploy`, `library-internal`. Edit later via `/wf-meta amend ship-plan`. | `.ai/ship-plan.md` |
 | `/wf retro <slug>` | 10 | Extract lessons, improvement actions | `10-retro.md` |
 
 ### Design quality commands
@@ -822,7 +832,7 @@ Self-contained workflows with their own lifecycle that do not require an existin
 |---|---|---|
 | `/wf-quick hotfix <description>` | Compressed incident-response pipeline (6 stages, scope-locked, max 5 steps) | `.ai/workflows/hotfix-<slug>/` |
 | `/wf-quick update-deps [package\|--security-only\|--audit-only]` | Scan all deps for staleness and CVEs, research each via web search, update by risk tier | `.ai/dep-updates/<run-id>/` |
-| `/wf-quick docs [slug\|--audit-only\|path]` | Discover, audit, and generate project documentation using Diátaxis skills | `.ai/docs/<run-id>/` |
+| `/wf-docs [<primitive>\|slug\|--audit-only\|path]` | Documentation router: orchestrator pipeline (discover → audit → plan → generate → review) or single Diátaxis primitive (plan, tutorial, how-to, reference, explanation, readme, review) | `.ai/docs/<run-id>/` (orchestrator) or in-place (primitive) |
 | `/wf-quick refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
 
 ### Review domains (31 dimensions)
@@ -909,17 +919,19 @@ Fourteen design quality skills — invoked directly by `/wf-design` commands and
 
 These skills are the same set provided by the `impeccable` plugin. When both are installed, the design skills are shared.
 
-### Documentation skills (Diátaxis)
+### Documentation primitives (Diátaxis) — under `/wf-docs`
 
-| Skill | Purpose |
-|---|---|
-| `diataxis-doc-planner` | Classify docs into quadrants, propose docs map and writing order |
-| `tutorial-writer` | Learning-oriented: step-by-step, builds something concrete |
-| `how-to-guide-writer` | Task-oriented: goal-driven steps for competent users |
-| `reference-writer` | Information-oriented: neutral, structured, scannable lookup |
-| `explanation-writer` | Understanding-oriented: why, trade-offs, architecture |
-| `readme-writer` | Front door: routes to deeper docs, not a manual |
-| `docs-reviewer` | Audit docs against Diátaxis principles with prioritised fixes |
+The 7 Diátaxis primitives live as references inside the `wf-docs` skill at `skills/wf-docs/reference/<primitive>.md`. Invoke directly via `/wf-docs <primitive> <args>`, or rely on the orchestrator (`/wf-docs`) to dispatch them automatically during the generate pass.
+
+| Primitive | Reference | Purpose |
+|---|---|---|
+| `plan` | `reference/plan.md` | Classify docs into quadrants, propose docs map and writing order |
+| `tutorial` | `reference/tutorial.md` | Learning-oriented: step-by-step, builds something concrete |
+| `how-to` | `reference/how-to.md` | Task-oriented: goal-driven steps for competent users |
+| `reference` | `reference/reference.md` | Information-oriented: neutral, structured, scannable lookup |
+| `explanation` | `reference/explanation.md` | Understanding-oriented: why, trade-offs, architecture |
+| `readme` | `reference/readme.md` | Front door: routes to deeper docs, not a manual |
+| `review` | `reference/review.md` | Audit docs against Diátaxis principles with prioritised fixes |
 
 ---
 
@@ -1014,6 +1026,7 @@ All artifacts for a workflow live under a single directory:
 
 ```
 .ai/
+├── ship-plan.md                         # Project-level ship contract (one per repo; authored by /wf-meta init-ship-plan)
 ├── workflows/<slug>/
 │   ├── 00-index.md                      # Control file — pure YAML frontmatter, no body
 │   ├── 00-sync.md                       # Sync report (written by wf-sync if run)
@@ -1033,7 +1046,8 @@ All artifacts for a workflow live under a single directory:
 │   ├── 07-review-<slug>.md              # Per-slice review master verdict (one per reviewed slice)
 │   ├── 07-review-<slug>-<command>.md    # Per-slice per-command review findings
 │   ├── 08-handoff.md
-│   ├── 09-ship.md
+│   ├── 09-ship-run-<run-id>.md          # Per-release ship run (accumulating; <run-id> = UTC YYYYMMDDTHHMMZ)
+│   ├── 09-ship-runs.md                  # Lightweight per-workflow run index
 │   ├── 10-retro.md
 │   ├── announce.md                      # Written by wf-announce if run
 │   ├── 90-next.md                       # Written by wf-next if run
@@ -1097,8 +1111,10 @@ Every file starts with YAML frontmatter (`schema: sdlc/v1`) containing all machi
 | `06-verify-<slug>.md` | `result` (pass/fail/partial), `metric-checks-run`, `metric-checks-passed`, `metric-acceptance-met` |
 | `07-review-<slug>-<cmd>.md` | `slice-slug`, `review-command`, `metric-findings-total`, `metric-findings-blocker`, `metric-findings-high`, `result` |
 | `07-review-<slug>.md` | `slice-slug`, `verdict` (ship/ship-with-caveats/dont-ship), `commands-run`, all `metric-findings-*` counts |
-| `08-handoff.md` | `pr-title`, `pr-url`, `pr-number`, `branch`, `base-branch`, `has-migration`, `has-docs-changes`, `docs-generated` |
-| `09-ship.md` | `go-nogo` (go/no-go/conditional-go), `rollout-strategy`, `merge-strategy`, `merge-sha` |
+| `08-handoff.md` | `pr-title`, `pr-url`, `pr-number`, `branch`, `base-branch`, `has-migration`, `has-docs-changes`, `docs-generated`, `commitlint-status`, `public-surface-drift`, `docs-mirror-status`, `triage-iterations`, `triage-fixes-applied`, `triage-fixes-skipped`, `triage-deferred-thread-ids`, `has-deferred-comments`, `rebase-status`, `rebase-onto-sha`, `live-review-decision`, `live-checks-failing`, `live-checks-pending`, `readiness-verdict` |
+| `09-ship-run-<run-id>.md` | `run-id` (UTC YYYYMMDDTHHMMZ), `plan-ref`, `plan-version-at-run`, `environment`, `version`, `prior-version`, `go-nogo`, `rollout-strategy`, `merge-strategy`, `merge-sha`, `release-tag`, `release-workflow-run-id`, `release-workflow-conclusion`, `post-publish-checks[]`, `post-release-bump-sha`, `recovery-actions-taken`, `rolled-back`, `rollback-sha`, `announcements-sent` |
+| `09-ship-runs.md` | `runs[]` — per-run row (run-id, version, environment, status, go-nogo, notes) |
+| `.ai/ship-plan.md` (project-level) | Blocks A–G: `ship-meaning`, `ship-environments`, `ship-cadence`, `version-scheme`, `version-source-of-truth`, `version-bump-rule`, `prerelease-suffix`, `post-release-version`, `ci-pipeline`, `post-publish-checks`, `propagation-window-min-minutes`/`max-minutes`, `poll-interval-seconds`, `rollout-strategy`, `rollback-mechanism`, `db-migrations-reversible`, `recovery-playbooks`, `announcement` |
 | `10-retro.md` | `workflow-outcome` (completed/abandoned/partial), `metric-improvement-count`, `metric-stages-completed` |
 | `02-shape-amend-N.md` | `amendment-number`, `amends`, `source`, `source-ref`, `affected-slices` |
 | `03-slice-<slug>-amend-N.md` | `amendment-number`, `amends`, `original-status`, `plan-needs-update` |

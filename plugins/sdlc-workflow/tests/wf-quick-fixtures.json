@@ -52,12 +52,6 @@
       "expectedReferencePath": "skills/wf-quick/reference/hotfix.md"
     },
     {
-      "id": "wf-quick-docs-area",
-      "purpose": "docs sub-command with documentation area.",
-      "invocation": "/wf-quick docs auth-flow",
-      "expectedReferencePath": "skills/wf-quick/reference/docs.md"
-    },
-    {
       "id": "wf-quick-refactor-target",
       "purpose": "refactor with explicit target.",
       "invocation": "/wf-quick refactor src/auth/session.ts",

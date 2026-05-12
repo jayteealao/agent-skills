@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First workflow · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html">Home</a></li>
+    <li><a href="installation.html">Install</a></li>
+    <li><a href="first-workflow.html" class="active">First workflow</a></li>
+    <li><a href="quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to…</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside>
+
+<main>
+<div class="breadcrumb"><a href="../index.html">Home</a> › Tutorials › First workflow</div>
+<span class="quadrant tutorial">tutorial</span>
+<h1>Your first workflow</h1>
+<p style="font-size:1.05rem;color:var(--fg-muted);max-width:60ch;">
+A complete walk-through. We'll add a tiny <code>/health</code> endpoint to a fictional server and take it through all 10 stages: shape, slice, plan, implement, verify, review, handoff, ship, retro. About 30–45 minutes of real work; the page itself reads in 10.
+</p>
+
+<div class="summary">
+<table>
+<tr><th>Pre-conditions</th><td>You installed the plugin (<a href="installation.html">previous tutorial</a>). You have a repo to work in. <code>gh</code> CLI authenticated. A ship plan is <em>not</em> required for this tutorial; we'll defer ship.</td></tr>
+<tr><th>You will produce</th><td>About 12 files under <code>.ai/workflows/add-health-endpoint/</code>. A branch <code>feat/add-health-endpoint</code>. A pull request.</td></tr>
+<tr><th>You will not produce</th><td>A merged release. We stop at handoff for this tutorial — see <a href="../how-to/run-a-release.html">Run a release</a> for the ship step.</td></tr>
+</table>
+</div>
+
+<div class="toc">
+<h3>On this page</h3>
+<ul>
+  <li><a href="#diagram">The route we'll take</a></li>
+  <li><a href="#intake">Stage 1 — Intake</a></li>
+  <li><a href="#shape">Stage 2 — Shape</a></li>
+  <li><a href="#slice">Stage 3 — Slice</a></li>
+  <li><a href="#plan">Stage 4 — Plan</a></li>
+  <li><a href="#implement">Stage 5 — Implement</a></li>
+  <li><a href="#verify">Stage 6 — Verify</a></li>
+  <li><a href="#review">Stage 7 — Review</a></li>
+  <li><a href="#handoff">Stage 8 — Handoff</a></li>
+  <li><a href="#stopping">Stopping here (Ship + Retro)</a></li>
+  <li><a href="#takeaways">Takeaways</a></li>
+</ul>
+</div>
+
+<h2 id="diagram">The route we'll take</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  participant U as You
+  participant W as /wf router
+  participant FS as .ai/workflows/add-health-endpoint/
+  U->>W: /wf intake "add /health endpoint"
+  W->>FS: 01-intake.md
+  U->>W: /wf shape add-health-endpoint
+  W->>FS: 02-shape.md
+  U->>W: /wf slice add-health-endpoint
+  W->>FS: 03-slice.md + 03-slice-route.md
+  U->>W: /wf plan add-health-endpoint route
+  W->>FS: 04-plan-route.md
+  U->>W: /wf implement add-health-endpoint route
+  W->>FS: 05-implement-route.md (+ code)
+  U->>W: /wf verify add-health-endpoint route
+  W->>FS: 06-verify-route.md
+  U->>W: /wf review add-health-endpoint route
+  W->>FS: 07-review-route.md
+  U->>W: /wf handoff add-health-endpoint
+  W->>FS: 08-handoff.md (+ branch pushed, PR opened)
+</pre>
+</div>
+<p class="caption">Each stage reads its predecessors. You drive — the plugin orchestrates. Notice no stage writes the same artifact as another.</p>
+
+<h2 id="intake">Stage 1 — Intake</h2>
+
+<p>Tell the plugin what you want, in your own words:</p>
+
+<pre><code>/wf intake "add a /health endpoint to the server that returns 200 + JSON {status: ok}"</code></pre>
+
+<p>Claude asks intake-flavored questions: <em>what does success look like; how urgent; any constraints; what branch strategy.</em> Pick:</p>
+
+<ul>
+  <li><strong>Branch strategy:</strong> dedicated (we want a real PR).</li>
+  <li><strong>Base branch:</strong> <code>main</code> (or your default).</li>
+  <li><strong>Slug:</strong> Claude will propose <code>add-health-endpoint</code>; accept it. The slug is stable for the life of the workflow.</li>
+</ul>
+
+<p><strong>Outcome:</strong> a directory appears at <code>.ai/workflows/add-health-endpoint/</code> with <code>00-index.md</code> (the control file) and <code>01-intake.md</code> (your stated requirements).</p>
+
+<p>Confirm:</p>
+
+<pre><code>/wf-meta status add-health-endpoint</code></pre>
+
+<p>You should see <code>current-stage: intake</code>, <code>status: complete</code>, and one of the recommended-next options is <code>/wf shape add-health-endpoint</code>.</p>
+
+<h2 id="shape">Stage 2 — Shape</h2>
+
+<p>Run:</p>
+
+<pre><code>/wf shape add-health-endpoint</code></pre>
+
+<p>Shape is the deepest interview stage. Claude reads your intake, runs <strong>parallel web-research sub-agents</strong> (best-practice, anti-patterns, gotchas), then asks you to fill in acceptance criteria, edge cases, constraints, and — importantly — the <strong>documentation plan</strong>. For our endpoint:</p>
+
+<ul>
+  <li>Acceptance: <code>GET /health</code> → <code>200</code> + <code>application/json</code> + <code>{"status":"ok"}</code>.</li>
+  <li>Edge case: should the endpoint check downstream dependencies? <em>No, this is a liveness probe — keep it independent.</em></li>
+  <li>Docs needed: a <strong>reference</strong> entry under <code>docs/api/health.md</code>.</li>
+</ul>
+
+<p><strong>Outcome:</strong> <code>02-shape.md</code> with full spec and <code>docs-needed: true, docs-types: [reference]</code> in its frontmatter.</p>
+
+<div class="callout note">
+<strong>Why so many questions?</strong>
+Shape is where the AI commits to <em>understanding</em> rather than guessing. The questions you answer here become the artifact every later stage reads. Two hours of vague chat collapses into a 30-question structured interview.
+</div>
+
+<h2 id="slice">Stage 3 — Slice</h2>
+
+<p>Run:</p>
+
+<pre><code>/wf slice add-health-endpoint</code></pre>
+
+<p>Slice decomposes the shaped work into <strong>thin, independently deliverable vertical slices</strong>. For a single endpoint we'll probably get one slice:</p>
+
+<ul>
+  <li><code>route</code> — the route handler, response shape, content-type header, and unit test.</li>
+</ul>
+
+<p>Bigger features get more slices. The slice file records <code>complexity</code> (xs/s/m/l/xl) and <code>depends-on</code> arrays so later stages can fan out in parallel.</p>
+
+<p><strong>Outcome:</strong> <code>03-slice.md</code> (master index) plus <code>03-slice-route.md</code> (per-slice file).</p>
+
+<h2 id="plan">Stage 4 — Plan</h2>
+
+<p>Run:</p>
+
+<pre><code>/wf plan add-health-endpoint route</code></pre>
+
+<p>Plan is <em>repo-aware</em>. Claude dispatches Explore sub-agents in parallel:</p>
+
+<ul>
+  <li><strong>Reuse scan</strong> — does the codebase already have a route registration utility, response helper, or test factory we should use?</li>
+  <li><strong>Convention scan</strong> — what file/folder shape do existing routes follow?</li>
+  <li><strong>Web-research</strong> — current best practices for liveness probes in our framework.</li>
+</ul>
+
+<p>The plan file lists the files to touch, the order, and explicit reuse decisions ("use <code>app.addRoute</code> from <code>src/server/routes.ts</code>; don't write a new helper"). It records <code>has-blockers: false</code> if everything is straightforward.</p>
+
+<p><strong>Outcome:</strong> <code>04-plan-route.md</code>.</p>
+
+<h2 id="implement">Stage 5 — Implement</h2>
+
+<p>Run:</p>
+
+<pre><code>/wf implement add-health-endpoint route</code></pre>
+
+<p>Implement <em>executes</em> the plan — it's the only stage that writes code. Claude:</p>
+
+<ol>
+  <li>Reads <code>04-plan-route.md</code> and the convention/reuse decisions baked into it.</li>
+  <li>Makes the actual edits.</li>
+  <li>Runs the project's test command to verify atomicity.</li>
+  <li>Commits with a message that follows your repo's convention (often Conventional Commits).</li>
+</ol>
+
+<p>If Claude deviates from the plan — say it discovers a constraint the plan missed — the deviation is recorded explicitly in <code>05-implement-route.md</code>'s <code>## Plan deviations</code> section. The plan stays a plan; the implement file becomes the record of what actually happened.</p>
+
+<p><strong>Outcome:</strong> <code>05-implement-route.md</code> with <code>commit-sha</code>, <code>metric-files-changed</code>, <code>metric-lines-added</code> in frontmatter. Code in your repo. One commit on the workflow branch.</p>
+
+<h2 id="verify">Stage 6 — Verify</h2>
+
+<p>Run:</p>
+
+<pre><code>/wf verify add-health-endpoint route</code></pre>
+
+<p>Verify exercises the acceptance criteria from <code>02-shape.md</code>. For our endpoint Claude will:</p>
+
+<ul>
+  <li>Run the unit test that was added in implement.</li>
+  <li>Run an integration test if one fits (start the server, curl <code>/health</code>, check status + content-type + body).</li>
+  <li>Capture evidence (test output, response bodies) in <code>06-verify-route.md</code>.</li>
+</ul>
+
+<p>If verify <em>fails</em>, the workflow routes back to <code>/wf implement</code> with a directed fix — it does not loosen the acceptance criteria.</p>
+
+<p><strong>Outcome:</strong> <code>06-verify-route.md</code> with <code>result: pass</code> and evidence sections.</p>
+
+<h2 id="review">Stage 7 — Review</h2>
+
+<p>Run:</p>
+
+<pre><code>/wf review add-health-endpoint route</code></pre>
+
+<p>Review is a <strong>dispatch orchestrator</strong>: Claude reads shape and slice, decides which of the 31 review dimensions apply (probably <code>http-handlers</code>, <code>error-handling</code>, <code>tests</code>, <code>docs-alignment</code>), and runs each as a parallel sub-agent. The sub-agents write findings to <code>07-review-route-&lt;dimension&gt;.md</code> files. The orchestrator then aggregates, de-duplicates, and triages with you.</p>
+
+<p>Findings carry one of three severities:</p>
+
+<table>
+<thead><tr><th>Severity</th><th>What it means</th><th>Routing</th></tr></thead>
+<tbody>
+<tr><td>BLOCKER</td><td>Correctness, security, data loss — must fix.</td><td><code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code></td></tr>
+<tr><td>HIGH</td><td>Should fix — but might ship with caveats.</td><td>Same path, or carry as a caveat in handoff.</td></tr>
+<tr><td>MED/LOW/NIT</td><td>Style, naming, nit-with-merit.</td><td>Ship.</td></tr>
+</tbody>
+</table>
+
+<p>Suppose review finds one HIGH ("the endpoint returns <code>text/plain</code> when Accept doesn't include json — should be json regardless"). Fix it via:</p>
+
+<pre><code>/wf implement add-health-endpoint route reviews</code></pre>
+
+<p>This routes the fix back through implement with the review-finding context. Then re-run verify.</p>
+
+<p><strong>Outcome:</strong> <code>07-review-route.md</code> (master verdict) plus per-dimension files. <code>verdict: ship | ship-with-caveats | dont-ship</code>.</p>
+
+<h2 id="handoff">Stage 8 — Handoff</h2>
+
+<p>Run:</p>
+
+<pre><code>/wf handoff add-health-endpoint</code></pre>
+
+<p>This is the biggest stage in v9.5.0. Handoff aggregates all complete slices into one PR package and runs the <strong>PR-readiness block</strong>:</p>
+
+<ul>
+  <li><strong>T1</strong> — read prior artifacts</li>
+  <li><strong>T2</strong> — write a reviewer-friendly summary</li>
+  <li><strong>T3</strong> — generate Diátaxis docs from <code>02-shape.md</code>'s docs plan (here: a reference entry at <code>docs/api/health.md</code>)</li>
+  <li><strong>T3.5</strong> — commitlint pass (if you have <code>.commitlintrc</code>; otherwise skipped silently)</li>
+  <li><strong>T3.6</strong> — public-surface drift (skipped if <code>00-index.md</code> has no <code>public-surface:</code> block)</li>
+  <li><strong>T3.7</strong> — doc-mirror regen (skipped likewise)</li>
+  <li><strong>T4</strong> — push the branch</li>
+  <li><strong>T5</strong> — create or update the pull request</li>
+  <li><strong>T5.1</strong> — PR comment triage loop (only matters once reviewers leave comments)</li>
+  <li><strong>T5.2</strong> — rebase onto base + <code>--force-with-lease</code></li>
+  <li><strong>T5.3</strong> — live PR readiness check via <code>gh pr view --json</code></li>
+  <li><strong>T6</strong> — write <code>08-handoff.md</code></li>
+</ul>
+
+<p>The artifact's frontmatter ends with <code>readiness-verdict: ready | awaiting-input | blocked</code>. Ship will not start unless that field is <code>ready</code>.</p>
+
+<p><strong>Outcome:</strong> A live pull request on GitHub with a reviewer-friendly description; the <code>readiness-verdict</code> stamped into <code>08-handoff.md</code>; <code>docs/api/health.md</code> committed and referenced.</p>
+
+<div class="callout insight">
+<strong>What "ready" actually means</strong>
+<code>readiness-verdict: ready</code> is the contract between handoff and ship. It packs the answers to: did the commits pass commitlint? did the public API surface change without regenerating the mirror? are there pending CI checks? did a reviewer request changes? is the branch behind base? are there unresolved blocker comments? If <em>any</em> of those say "no", the verdict downgrades to <code>awaiting-input</code> or <code>blocked</code>, and ship refuses to proceed. See <a href="../explanation/the-readiness-gate.html">The readiness gate</a>.
+</div>
+
+<h2 id="stopping">Stopping here (Ship + Retro)</h2>
+
+<p>For this tutorial we stop at handoff. Why? Because <strong>ship is plan-driven</strong> in v9.5.0 — it requires <code>.ai/ship-plan.md</code> at the repo root, which you author once per project with <code>/wf-meta init-ship-plan</code>. The two pages that take you the rest of the way:</p>
+
+<div class="tile-grid">
+<a class="tile" href="../how-to/author-ship-plan.html">
+  <span class="quadrant howto">how-to</span>
+  <strong>Author a ship plan</strong>
+  <small>One-time per project. Pick a template; answer ~30 questions; get a contract.</small>
+</a>
+<a class="tile" href="../how-to/run-a-release.html">
+  <span class="quadrant howto">how-to</span>
+  <strong>Run a release</strong>
+  <small>The 13 idempotent ship steps. Per release, not per workflow.</small>
+</a>
+</div>
+
+<p>After ship completes, <code>/wf retro add-health-endpoint</code> reads the full trail (intake through ship-run) and proposes concrete additions to your <code>CLAUDE.md</code>, hooks, test coverage, and CI checks. Retro is short — usually 5 minutes — but it's where institutional learning compounds.</p>
+
+<h2 id="takeaways">Takeaways</h2>
+
+<ul>
+  <li><strong>Each stage produces a permanent artifact</strong> under <code>.ai/workflows/&lt;slug&gt;/</code>. Commit them. Three weeks later, future-you can still read why a decision was made.</li>
+  <li><strong>Stages don't bleed.</strong> Plan describes intent; implement describes what was done; review finds gaps; handoff packages. Each artifact has one shape.</li>
+  <li><strong>You drive.</strong> Every stage offers Options A/B/C/D for the next step — the default is sequential, but you can skip-to, loop back, or branch.</li>
+  <li><strong>You can stop and resume.</strong> Walk away after stage 4. Come back next week. <code>/wf-meta resume add-health-endpoint</code> picks up where you left off — the artifacts hold the state.</li>
+</ul>
+
+<div class="pager">
+<a class="prev" href="installation.html"><span>← Previous</span>Install</a>
+<a class="next" href="quick-fix-workflow.html"><span>Next tutorial →</span>Quick-fix walkthrough</a>
+</div>
+
+</main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

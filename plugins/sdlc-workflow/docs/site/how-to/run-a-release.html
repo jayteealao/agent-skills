@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run a release · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Run a release</div>
+<span class="quadrant howto">how-to</span>
+<h1>Run a release</h1>
+
+<p>The plan exists. The handoff stamped <code>readiness-verdict: ready</code>. Time to ship.</p>
+
+<div class="summary">
+<table>
+<tr><th>Pre-conditions</th><td><code>.ai/ship-plan.md</code> exists (<a href="author-ship-plan.html">author it</a>). <code>08-handoff.md</code> exists with <code>readiness-verdict: ready</code>. You're on the workflow branch.</td></tr>
+<tr><th>Goal</th><td>A successful ship run captured in <code>09-ship-run-&lt;run-id&gt;.md</code>.</td></tr>
+<tr><th>If something fails</th><td>The run pauses with <code>status: awaiting-input</code>. Re-running <code>/wf ship &lt;slug&gt;</code> offers to resume.</td></tr>
+</table>
+</div>
+
+<h2>The 13 steps</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> Orient
+  Orient --> PreFlight: handoff verdict = ready
+  Orient --> [*]: handoff verdict != ready  (refused)
+  PreFlight --> DryRun
+  DryRun --> Rollout
+  Rollout --> Freshness
+  Freshness --> GoNoGo
+  GoNoGo --> Merge: go / conditional-go
+  GoNoGo --> [*]: no-go
+  Merge --> Tag
+  Tag --> Watch
+  Watch --> Poll
+  Watch --> Recovery: failure matched a playbook
+  Recovery --> Watch
+  Poll --> PostBump
+  Poll --> [*]: awaiting-input (bound exceeded)
+  PostBump --> Index
+  Index --> WriteArtifact
+  WriteArtifact --> [*]
+</pre>
+</div>
+<p class="caption">Every step detects its already-done state before acting. Resume picks up at the first empty evidence field.</p>
+
+<h2>Step 1 — Invoke</h2>
+
+<pre><code>/wf ship &lt;slug&gt;</code></pre>
+
+<p>Or <code>/wf ship &lt;slug&gt; staging</code> to override the plan's default environment.</p>
+
+<h2>Step 2 — Answer the per-run questions</h2>
+
+<p>Three categories:</p>
+<ul>
+  <li><strong>Rollout strategy</strong> — confirm the plan default or override.</li>
+  <li><strong>Release window</strong> (freeform) — blackout periods, on-call coverage.</li>
+  <li><strong>Stakeholder overrides</strong> (freeform) — anyone you need explicit sign-off from for this run.</li>
+</ul>
+
+<p>These are asked once per run and never re-asked on resume.</p>
+
+<h2>Step 3 — Watch</h2>
+
+<p>The run streams progress for each step. For most projects:</p>
+<ul>
+  <li><strong>Pre-flight</strong> takes seconds (version literal updates + commit).</li>
+  <li><strong>Publish dry-run</strong> can take 30s–5min depending on build size.</li>
+  <li><strong>Merge</strong> is instant if CI is green.</li>
+  <li><strong>Tag + release</strong> is instant.</li>
+  <li><strong>Release workflow watch</strong> can take 5–30min (the CI runs the actual publish).</li>
+  <li><strong>Post-publish poll</strong> bounded by <code>plan.propagation-window-max-minutes</code>.</li>
+</ul>
+
+<h2>If a recovery playbook fires</h2>
+
+<p>When release-workflow watch sees a failure, Claude matches the failure output against <code>plan.recovery-playbooks[].triggers[]</code>. If a playbook matches, you see each step as an AskUserQuestion — confirm each before it runs. The playbook is captured in <code>recovery-actions-taken:</code> on the run artifact.</p>
+
+<h2>If post-publish poll times out</h2>
+
+<p>The run sets <code>status: awaiting-input</code> and lists the still-pending checks. Re-run <code>/wf ship &lt;slug&gt;</code>; pick "resume" when prompted. The poll continues from where it left off.</p>
+
+<h2>If you need to roll back</h2>
+
+<p>Roll back manually per <code>plan.rollback-mechanism</code> (git revert, gh release yank, feature-flag-off, blue-green switch, redeploy prior). Then edit the run frontmatter to set <code>rolled-back: true</code>, <code>rollback-sha</code>, <code>rollback-reason</code>. Consider amending the plan to capture what went wrong:</p>
+
+<pre><code>/wf-meta amend ship-plan    # add a recovery playbook for next time</code></pre>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="resume-paused-work.html">Resume paused work</a> — exactly what "resume" looks like.</li>
+  <li><a href="../reference/09-ship-run-schema.html">Ship-run schema</a> — every evidence field.</li>
+  <li><a href="../explanation/idempotency-in-ship.html">Idempotency in ship</a> — why each step is safe to re-run.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../how-to/author-ship-plan.html"><span>← Previous</span>Author a ship plan</a><a class="next" href="../how-to/resume-paused-work.html"><span>Next →</span>Resume paused work</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

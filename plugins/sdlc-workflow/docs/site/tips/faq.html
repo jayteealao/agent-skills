@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAQ · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Tips &rsaquo; FAQ</div>
+<span class="quadrant tips">tips</span>
+<h1>FAQ</h1>
+
+<dl>
+<dt><strong>Why does <code>/wf ship</code> refuse to start?</strong></dt>
+<dd>Two possibilities. Either <code>.ai/ship-plan.md</code> doesn't exist (run <code>/wf-meta init-ship-plan</code>), or <code>08-handoff.md</code> has <code>readiness-verdict ≠ ready</code> (re-run <code>/wf handoff</code> to refresh, or fix the contributing field).</dd>
+
+<dt><strong>Why didn't my augmentation propagate to the changelog?</strong></dt>
+<dd>Check <code>00-index.md</code> — the augmentation should appear in the <code>augmentations:</code> array. If it's missing, the augmentation command didn't register it (rare; could be a bug). If it's present but ship didn't mention it, check whether ship's changelog generation read the array — open <code>09-ship-run-*.md</code> and look at <code>## Pre-flight</code>.</dd>
+
+<dt><strong>Why is my slug different from my title?</strong></dt>
+<dd>The slug is a kebab-case, lowercase, stable identifier derived from the title at intake. Titles can have punctuation, capitals, and spaces; slugs can't. Once set, the slug never changes — it's the directory name under <code>.ai/workflows/</code>.</dd>
+
+<dt><strong>Can I rename a slug?</strong></dt>
+<dd>Not really. The slug is in every artifact's frontmatter and the validator enforces slug-equals-directory-name. The safer path is to close the workflow and start a new one with the new slug.</dd>
+
+<dt><strong>My PR has a CodeRabbit summary I don't want to triage. Can I ignore it?</strong></dt>
+<dd>Yes. T5.1 classifies walkthroughs as 🟢 (informational), which are noted but never resolved. They don't block the readiness verdict.</dd>
+
+<dt><strong>The triage loop hit the 5-iteration bound. What now?</strong></dt>
+<dd>The verdict goes to <code>awaiting-input</code> and the loop stops. Typically this means a bot is re-commenting after every fix; you need to either decline the suggestions or amend the plan/config that's triggering the bot's response.</dd>
+
+<dt><strong>How do I roll back a release?</strong></dt>
+<dd>Per <code>plan.rollback-mechanism</code>. After rolling back manually, edit <code>09-ship-run-*.md</code> to set <code>rolled-back: true</code> + <code>rollback-sha</code> + <code>rollback-reason</code>. Then consider amending the plan with a recovery playbook for the failure mode you just hit.</dd>
+
+<dt><strong>Does the plugin work for non-git projects?</strong></dt>
+<dd>Most stages, yes. Handoff and ship's branch-related features require git, but you can set <code>branch-strategy: none</code> and the artifact trail still works.</dd>
+
+<dt><strong>Can I commit <code>.ai/workflows/</code> selectively?</strong></dt>
+<dd>Yes. There's no enforcement that artifacts get committed. But the value of the plugin scales with how persistent the trail is — uncommitted artifacts disappear with the working tree.</dd>
+
+<dt><strong>What's the difference between <code>amend</code>, <code>extend</code>, and <code>implement reviews</code>?</strong></dt>
+<dd><code>amend</code> corrects the spec. <code>extend</code> adds new slices. <code>implement reviews</code> fixes implementation bugs. <a href="../how-to/amend-or-extend.html">Full decision rule here</a>.</dd>
+
+<dt><strong>Why does shape ask 30 questions for something simple?</strong></dt>
+<dd>That's a signal the change probably wants <code>/wf-quick fix</code> instead. Shape is the deep interview stage — if it doesn't pay off, you're in the wrong flow.</dd>
+
+<dt><strong>Can I use the plugin with another AI assistant (not Claude Code)?</strong></dt>
+<dd>The artifact files are plain markdown + YAML — they're portable. The orchestration runs in Claude Code's skill router system, so the slash commands themselves are Claude Code-specific.</dd>
+</dl>
+<div class="pager"><a class="prev" href="../tips/anti-patterns.html"><span>← Previous</span>Anti-patterns</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

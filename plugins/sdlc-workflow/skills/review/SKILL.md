@@ -15,6 +15,8 @@ You are the **code review skill** for the SDLC workflow plugin. Two modes of ope
 - **Single-dimension** — `/review <dimension>` (e.g. `/review security pr 123`): read one reference file and execute its rubric inline.
 - **Sweep** — `/review sweep <aggregate>` (e.g. `/review sweep architecture worktree`): dispatch one reviewer sub-agent per dimension in the aggregate's composition, collect findings in parallel, synthesize a unified verdict.
 
+**Choosing between them:** single-dimension is one reviewer over a broad rubric; sweep is N reviewers each with their own rubric. Use single-dimension when you know which axis to investigate; use sweep when you want defensive breadth. Sweep is more thorough and more expensive — pick it deliberately.
+
 # Step 0 — Resolve the request
 
 Parse the user's invocation. Extract:
@@ -106,10 +108,3 @@ BLOCKER: {n} | HIGH: {n} | MED: {n} | LOW: {n} | NIT: {n}
 ## Triage decisions
 [what the user accepted, deferred, or rejected — sweep mode only]
 ```
-
-# Notes
-
-- **Sweep is more thorough and more expensive than single-dimension.** Single dispatches one reviewer over a broad rubric; sweep dispatches N reviewers each with their own rubric. Use single-dimension when you know which axis to investigate; use sweep when you want defensive breadth.
-- **Auto-trigger.** This skill is invoked when the user asks for a code review, security audit, or similar. The harness picks the skill via the `description:` keyword match. The user can also invoke explicitly by typing `/review <args>` — Claude Code resolves bare slash invocations to skills when no command file exists at that path.
-- **Legacy syntax removed.** The `/review-X` (aggregate, hyphen), `/review:X` (dimension, colon), and `/review pass X` (v8.32 disambiguation) forms were removed in v9.0.0-alpha.1. See `CHANGELOG.md`.
-- **Composition is policy data.** Aggregate compositions live in `router-metadata.json` and are hand-maintained. Editing the file changes which dimensions a sweep dispatches. The verifier (`scripts/verify-router-migration.mjs`) rejects compositions that reference unknown dimensions.

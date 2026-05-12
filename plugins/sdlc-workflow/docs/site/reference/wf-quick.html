@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/wf-quick router — compressed flows in depth · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf-quick router</div>
+<span class="quadrant reference">reference</span>
+<h1>/wf-quick router — compressed flows in depth</h1>
+
+<p>The compressed-flow router. Nine entries trade artifact depth for speed (or — for <code>simplify</code> — review the work that already exists). Each writes fewer files than the full <code>/wf</code> pipeline. Set <code>workflow-type</code> in the index so downstream stages know they're in compressed mode.</p>
+
+<div class="toc">
+<h3>On this page</h3>
+<ul>
+  <li><a href="#fix">/wf-quick fix</a></li>
+  <li><a href="#hotfix">/wf-quick hotfix</a></li>
+  <li><a href="#rca">/wf-quick rca</a></li>
+  <li><a href="#investigate">/wf-quick investigate</a></li>
+  <li><a href="#discover">/wf-quick discover</a></li>
+  <li><a href="#update-deps">/wf-quick update-deps</a></li>
+  <li><a href="#refactor">/wf-quick refactor</a></li>
+  <li><a href="#ideate">/wf-quick ideate</a></li>
+  <li><a href="#simplify">/wf-quick simplify</a></li>
+</ul>
+</div>
+
+<h2 id="fix">/wf-quick fix "&lt;description&gt;"</h2>
+
+<div class="summary"><table>
+<tr><th>workflow-type</th><td><code>quick</code></td></tr>
+<tr><th>Produces</th><td><code>00-index.md</code>, <code>01-quick.md</code>, <code>05-implement.md</code> (3 artifacts total)</td></tr>
+<tr><th>Stages skipped</th><td>shape, slice, plan, verify, review, retro</td></tr>
+</table></div>
+
+<p>For one-character typos, one-line patches, single-file docs edits. The compressed shape skips shape's deep interview — acceptance criteria are inlined.</p>
+
+<h4>Interview pattern</h4>
+<p>2–3 questions: what file, what's the fix, do you want a test added.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>One file. One change. Reviewers won't have questions.</li>
+  <li>You'd be embarrassed to run a full <code>/wf</code> pipeline for this.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>The change touches more than 2 files — escalate to <code>/wf intake</code>.</li>
+  <li>The acceptance criteria need thinking — escalate to <code>/wf intake</code>.</li>
+</ul>
+
+<hr>
+
+<h2 id="hotfix">/wf-quick hotfix "&lt;symptom&gt;"</h2>
+
+<div class="summary"><table>
+<tr><th>workflow-type</th><td><code>hotfix</code></td></tr>
+<tr><th>Pipeline shape</th><td>6-stage, scope-locked. Files named <code>hf-*.md</code>.</td></tr>
+<tr><th>Bypasses</th><td>Review (by design)</td></tr>
+</table></div>
+
+<p>Production is on fire. Bypass review for speed; still leave an artifact trail for post-incident learning.</p>
+
+<h4>Pipeline shape</h4>
+<ol>
+  <li><code>hf-01-intake.md</code> — symptom, impact, who's affected, who paged.</li>
+  <li><code>hf-02-shape.md</code> — minimal acceptance criteria, scope lock (in/out is strict).</li>
+  <li><code>hf-03-plan.md</code> — narrow fix plan.</li>
+  <li><code>hf-04-implement.md</code> — the fix, with commit-sha.</li>
+  <li><code>hf-05-verify.md</code> — minimal verify, captures revert plan.</li>
+  <li><code>hf-06-postmortem.md</code> — incident timeline + retro action items.</li>
+</ol>
+
+<h4>Scope-lock discipline</h4>
+<p>Anything outside the symptom is rejected. If the user asks "while we're in there can we also…" — the answer is "no, file a separate workflow". The lock is what makes hotfix safe.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>Sev1/Sev2 production incident.</li>
+  <li>The fix is small and the cost of not shipping fast is high.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>The scope is uncertain. Run <code>/wf-quick rca</code> first to find the cause.</li>
+  <li>The fix is risky — escalate to <code>/wf intake</code> for proper review.</li>
+</ul>
+
+<hr>
+
+<h2 id="rca">/wf-quick rca "&lt;symptom + repro&gt;"</h2>
+
+<div class="summary"><table>
+<tr><th>Produces</th><td><code>01-rca.md</code></td></tr>
+<tr><th>Forwards to</th><td><code>/wf shape</code> (which reads <code>01-rca.md</code> as rich context)</td></tr>
+</table></div>
+
+<p>Root-cause analysis with parallel sub-agents. Reproduces the bug, captures the failing trace, identifies the cause without committing to a fix. Output is forwardable: subsequent <code>/wf shape</code> reads <code>01-rca.md</code> as context behind the synthesized spec.</p>
+
+<h4>Sub-agent dispatch</h4>
+<ul>
+  <li><strong>Repro agent</strong> — minimal reproduction.</li>
+  <li><strong>Code-path trace agent</strong> — flow from input to symptom.</li>
+  <li><strong>Recent-change agent</strong> — git log/blame for the affected files.</li>
+  <li><strong>Dependency agent</strong> — recent changes to deps or platform that could be the cause.</li>
+</ul>
+
+<h4>When to use</h4>
+<ul>
+  <li>You have a bug report but don't yet know what's wrong.</li>
+  <li>The fix isn't obvious — you need diagnosis first.</li>
+</ul>
+
+<hr>
+
+<h2 id="investigate">/wf-quick investigate "&lt;area of code&gt;"</h2>
+
+<div class="summary"><table>
+<tr><th>Produces</th><td><code>01-investigate.md</code></td></tr>
+<tr><th>Forwards to</th><td><code>/wf shape</code> when the investigation yields work</td></tr>
+</table></div>
+
+<p>"What does this part of the code actually do?" Parallel Explore sub-agents map the area, trace data flow, identify entry points and dependencies. Output is forwardable to shape.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>Before planning work in an unfamiliar subsystem.</li>
+  <li>Before committing to an architecture decision that depends on existing code.</li>
+</ul>
+
+<hr>
+
+<h2 id="discover">/wf-quick discover "&lt;idea&gt;"</h2>
+
+<div class="summary"><table>
+<tr><th>Produces</th><td><code>01-discover.md</code> with a recommendation: build / pilot / shelve</td></tr>
+</table></div>
+
+<p>Idea triage. Light feasibility check + competitive scan + rough sizing. Output is a recommendation, not a commitment.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>Someone said "what if we did X" and you need to decide whether to spend more time on it.</li>
+  <li>Pre-shape sanity check.</li>
+</ul>
+
+<hr>
+
+<h2 id="update-deps">/wf-quick update-deps</h2>
+
+<div class="summary"><table>
+<tr><th>Produces</th><td><code>.ai/dep-updates/&lt;run-id&gt;/</code> tree: scan, research, plan, implement, verify</td></tr>
+</table></div>
+
+<p>Tiered dependency updates. Audits the dep tree, classifies findings into P0 (security) / P1 (major version) / P2 (safe minor/patch) / hold, applies them in priority order with verification between tiers.</p>
+
+<h4>Pipeline</h4>
+<ol>
+  <li><code>scan.md</code> — dep inventory + audit results (npm audit, pip-audit, etc.)</li>
+  <li><code>research.md</code> — per-package release notes, breaking changes</li>
+  <li><code>plan.md</code> — tiered update plan</li>
+  <li><code>implement.md</code> — what was updated, blocked, committed</li>
+  <li><code>verify.md</code> — post-update test results</li>
+</ol>
+
+<hr>
+
+<h2 id="refactor">/wf-quick refactor "&lt;area&gt;"</h2>
+
+<div class="summary"><table>
+<tr><th>workflow-type</th><td><code>refactor</code></td></tr>
+<tr><th>Files</th><td><code>rf-*.md</code> prefixed</td></tr>
+</table></div>
+
+<p>Behaviour-preserving refactor with test baseline. Captures the test suite output as a baseline BEFORE refactoring, refactors with incremental green steps, re-verifies parity.</p>
+
+<h4>Pipeline shape</h4>
+<ol>
+  <li><code>rf-01-baseline.md</code> — capture current test output + behaviour</li>
+  <li><code>rf-02-plan.md</code> — refactor plan with checkpoint commits</li>
+  <li><code>rf-03-implement.md</code> — incremental changes with checkpoint verifies</li>
+  <li><code>rf-04-parity.md</code> — final parity check against baseline</li>
+</ol>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>The refactor changes behaviour. That's not a refactor — that's a feature. Use <code>/wf intake</code>.</li>
+</ul>
+
+<hr>
+
+<h2 id="ideate">/wf-quick ideate "&lt;focus area&gt;"</h2>
+
+<div class="summary"><table>
+<tr><th>Produces</th><td><code>.ai/ideation/&lt;focus&gt;-&lt;timestamp&gt;.md</code></td></tr>
+</table></div>
+
+<p>Brainstorm + rank improvement candidates for a focus area. Output: a ranked list with effort estimates and impact guesses. Useful before sprint planning or as input to <code>/wf-quick discover</code>.</p>
+
+<hr>
+
+<h2 id="simplify">/wf-quick simplify [scope] [target]</h2>
+
+<div class="summary"><table>
+<tr><th>Scopes</th><td><code>branch</code> (default) · <code>commit &lt;sha&gt;</code> · <code>plan &lt;slug&gt; &lt;slice&gt;</code> · <code>codebase [&lt;path&gt;]</code></td></tr>
+<tr><th>Produces</th><td><code>.ai/simplify/&lt;run-id&gt;.md</code> — findings + per-finding routing assignments</td></tr>
+<tr><th>Pattern</th><td>Three parallel sub-agents (Code Reuse, Code Quality, Efficiency). Adapted from Claude Code's bundled <code>simplify</code> skill, but realigned to sdlc-workflow's orchestrator discipline.</td></tr>
+<tr><th>Does NOT</th><td>Write code, commit, push, edit plans, or run downstream commands. <strong>Simplify routes; it never fixes.</strong></td></tr>
+</table></div>
+
+<p>Review-and-route triage utility. Aggregates findings across three rubrics, asks you which to accept, and then <strong>classifies each accepted finding</strong> by routing it to the appropriate downstream command (<code>/wf-quick fix</code>, <code>/wf-quick refactor</code>, <code>/wf intake</code>, <code>/wf-meta amend</code>, <code>/wf-docs</code>, etc.). The output is a queue of copy-pasteable next commands — you run them; simplify doesn't.</p>
+
+<div class="callout insight">
+<strong>Why no direct fixes?</strong>
+The plugin's orchestrator discipline: plan plans, implement implements, review reviews. Simplify routes. A trivial fix deserves <code>/wf-quick fix</code>'s artifact trail; a structural change deserves <code>/wf intake</code>'s shape+plan+review; a plan-level issue deserves <code>/wf-meta amend</code>'s versioned amendment. Letting simplify silently rewrite code would bypass all three.
+</div>
+
+<h4>The four scopes</h4>
+
+<table class="no-mobile-scroll">
+<thead><tr><th>Scope</th><th>Input the agents read</th><th>When to use</th></tr></thead>
+<tbody>
+<tr><td><code>branch</code> (default)</td><td><code>git diff &lt;base&gt;...HEAD</code> — only what's new on this branch</td><td>Before opening a PR; pre-handoff sanity pass.</td></tr>
+<tr><td><code>commit &lt;sha&gt;</code></td><td><code>git show &lt;sha&gt;</code> (single) or <code>git diff &lt;range&gt;</code></td><td>Triage a specific commit before pushing.</td></tr>
+<tr><td><code>plan &lt;slug&gt; &lt;slice&gt;</code></td><td>The plan file's prose + structure</td><td>Catch over-engineering / missed reuse before <code>/wf implement</code>.</td></tr>
+<tr><td><code>codebase [&lt;path&gt;]</code></td><td>Directory subtree (capped at ~500 files)</td><td>Periodic codebase audit; surface improvement candidates by route.</td></tr>
+</tbody>
+</table>
+
+<h4>The three sub-agents</h4>
+
+<table>
+<thead><tr><th>Agent</th><th>What it looks for</th></tr></thead>
+<tbody>
+<tr><td><strong>Code Reuse</strong></td><td>Inline logic that should use an existing helper; new functions that duplicate existing ones; ad-hoc string/path/env handling.</td></tr>
+<tr><td><strong>Code Quality</strong></td><td>Redundant state; parameter sprawl; copy-paste with slight variation; leaky abstractions; stringly-typed code; unnecessary wrapper components; unnecessary comments narrating WHAT (vs non-obvious WHY).</td></tr>
+<tr><td><strong>Efficiency</strong></td><td>N+1 patterns; missed concurrency; hot-path bloat; no-op state updates; TOCTOU existence checks; memory leaks; overly broad reads.</td></tr>
+</tbody>
+</table>
+
+<h4>The routing matrix</h4>
+
+<p>For each accepted finding, simplify assigns a route. Bias toward the smallest scope that fully addresses the finding — never escalate a finding to bigger process than it deserves.</p>
+
+<table class="no-mobile-scroll">
+<thead><tr><th>Route</th><th>Downstream command</th><th>Use when</th></tr></thead>
+<tbody>
+<tr><td><code>route-fix</code></td><td><code>/wf-quick fix "..."</code></td><td>Trivial mechanical cleanup, ≤1 file, no behaviour change.</td></tr>
+<tr><td><code>route-refactor</code></td><td><code>/wf-quick refactor "..."</code></td><td>Behaviour-preserving restructure across multiple files.</td></tr>
+<tr><td><code>route-intake</code></td><td><code>/wf intake "..."</code></td><td>Substantive change with possible behaviour impact, or architectural issue.</td></tr>
+<tr><td><code>route-amend-plan</code></td><td><code>/wf-meta amend &lt;slug&gt; &lt;slice&gt;</code></td><td>Plan-scope only — accompanies a proposed-delta block.</td></tr>
+<tr><td><code>route-amend-shape</code></td><td><code>/wf-meta amend &lt;slug&gt;</code></td><td>Finding implicates the workflow's shaped spec.</td></tr>
+<tr><td><code>route-verify</code></td><td><code>/wf verify &lt;slug&gt; &lt;slice&gt;</code></td><td>Inadequate test coverage; verify can surface deeper gaps.</td></tr>
+<tr><td><code>route-add-test</code></td><td><code>/wf-quick fix "add test for X"</code></td><td>Specific missing test addable as a one-file fix.</td></tr>
+<tr><td><code>route-docs</code></td><td><code>/wf-docs &lt;primitive&gt;</code></td><td>Doc gap not picked up by handoff's Diátaxis generation.</td></tr>
+<tr><td><code>route-handoff-config</code></td><td>Edit <code>00-index.md</code> config keys</td><td>Drift in handoff's surface / mirror config inputs.</td></tr>
+<tr><td><code>route-noop</code></td><td>—</td><td>Informational; recorded but no action.</td></tr>
+</tbody>
+</table>
+
+<h4>Plan-scope adaptation</h4>
+<p>The agents read the plan as prose rather than a diff. Findings become "plan step duplicates earlier step", "plan over-specifies parameters", "plan does redundant work" — same rubrics, different surface. Every accepted plan-scope finding gets <code>route: route-amend-plan</code> with an accompanying <code>proposed-delta</code> block. Apply via <code>/wf-meta amend &lt;slug&gt; &lt;slice&gt;</code>.</p>
+
+<h4>Severity defaults</h4>
+<table>
+<tr><th>high / med / low</th><td>Default triage: accept (include in routing assignments)</td></tr>
+<tr><th>nit</th><td>Default triage: skip</td></tr>
+</table>
+<p>The user can override per-finding via AskUserQuestion (<code>accept / skip / defer</code>). False positives are skipped with a one-line reason and not argued.</p>
+
+<h4>Examples</h4>
+
+<pre><code># Pre-handoff triage of the current branch — produces a routing report
+/wf-quick simplify
+
+# Same, with explicit base branch
+/wf-quick simplify branch main
+
+# Last commit only
+/wf-quick simplify commit HEAD
+
+# Specific commit
+/wf-quick simplify commit 8a1f3c2
+
+# Range
+/wf-quick simplify commit HEAD~3..HEAD
+
+# Sanity-check a plan before implementing it
+/wf-quick simplify plan dark-mode-toggle-settings route
+
+# Periodic codebase audit, scoped to a directory
+/wf-quick simplify codebase src/auth/</code></pre>
+
+<h4>Output shape</h4>
+<p>The chat return is a queue of suggested invocations sorted by route priority (<code>route-intake</code> first — biggest process — through <code>route-fix</code> and <code>route-docs</code>). Each is copy-pasteable. The artifact at <code>.ai/simplify/&lt;run-id&gt;.md</code> persists the full routing trail.</p>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>You want simplify to fix things directly. <strong>It won't.</strong> The point of the routing is that each finding gets the right level of process. If you want one-shot cleanup, run simplify, take a single <code>route-fix</code> invocation, and run that — it'll be quick.</li>
+  <li>You want behaviour-preserving restructure with test baseline — go straight to <code>/wf-quick refactor</code>.</li>
+  <li>You're already in <code>/wf review</code>. The review stage runs the broader rubric across 31 dimensions; simplify is the focused 3-agent version for outside-of-workflow use.</li>
+</ul>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="wf.html">/wf router</a> — the full alternative.</li>
+  <li><a href="../how-to/start-workflow.html">Pick an entry point</a> — decision tree.</li>
+  <li><a href="../tutorials/quick-fix-workflow.html">Quick-fix tutorial</a> — fix in practice.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../reference/wf.html"><span>← Previous</span>/wf router</a><a class="next" href="../reference/wf-meta.html"><span>Next →</span>/wf-meta router</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

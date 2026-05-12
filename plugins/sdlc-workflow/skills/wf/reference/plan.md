@@ -41,7 +41,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - If `current-stage` in the index is already past plan → WARN before overwriting.
 4. **Read** `02-shape.md`, `03-slice.md` (if exists), the relevant `03-slice-<slice-slug>.md` file(s), and `po-answers.md`.
 4b. **Read design context if present** (optional):
-   - `02b-design.md` — register, recommended references, anti-goals. Plan steps for UI work should reference the recommended design reference docs (e.g., "follow `skills/design/reference/typeset.md` for type scale").
+   - `02b-design.md` — register, recommended references, anti-goals. Plan steps for UI work should reference the recommended design reference docs (e.g., "follow `skills/wf-design/reference/typeset.md` for type scale").
    - `02c-craft.md` — visual contract. The `## Mock fidelity inventory` items must be reflected as concrete plan steps. The `## Implementation contract` lists token choices, component decisions, and motion specs the plan must follow. The plan should NOT contradict the visual contract; if it must, surface the conflict for resolution before implementation.
 5. **Determine planning mode** (order matters — check top to bottom):
 

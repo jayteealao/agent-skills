@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/wf-meta router — navigation and management in depth · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf-meta router</div>
+<span class="quadrant reference">reference</span>
+<h1>/wf-meta router — navigation and management in depth</h1>
+
+<p>The navigation/management router. 11 sub-commands. None produce stage artifacts — they manage existing workflows or answer questions about them. <code>disable-model-invocation: true</code>, so you always invoke them explicitly.</p>
+
+<div class="toc">
+<h3>On this page</h3>
+<ul>
+  <li><a href="#next">/wf-meta next</a></li>
+  <li><a href="#status">/wf-meta status</a></li>
+  <li><a href="#resume">/wf-meta resume</a></li>
+  <li><a href="#sync">/wf-meta sync</a></li>
+  <li><a href="#amend">/wf-meta amend</a></li>
+  <li><a href="#extend">/wf-meta extend</a></li>
+  <li><a href="#skip">/wf-meta skip</a></li>
+  <li><a href="#close">/wf-meta close</a></li>
+  <li><a href="#how">/wf-meta how</a></li>
+  <li><a href="#announce">/wf-meta announce</a></li>
+  <li><a href="#init-ship-plan">/wf-meta init-ship-plan</a></li>
+</ul>
+</div>
+
+<h2 id="next">/wf-meta next [slug]</h2>
+
+<div class="summary"><table>
+<tr><th>Reads</th><td><code>00-index.md</code> for the named slug (or active workflow)</td></tr>
+<tr><th>Writes</th><td>Nothing — reports only</td></tr>
+</table></div>
+
+<p>Lightweight "what's next" lookup. Reads the index's <code>recommended-next-command</code> and <code>recommended-next-invocation</code> fields and reports them. Use when you know the workflow well and just want the next command.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>You know which workflow you're in; you just forgot the next slash command.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>You've been away for days and need full re-orientation — use <code>resume</code> instead.</li>
+</ul>
+
+<hr>
+
+<h2 id="status">/wf-meta status [slug]</h2>
+
+<div class="summary"><table>
+<tr><th>Reads</th><td>Every <code>.ai/workflows/*/00-index.md</code> (or one if slug given)</td></tr>
+<tr><th>Writes</th><td>Nothing</td></tr>
+</table></div>
+
+<p>Daily entry point. With no slug, lists every active workflow with current stage, slice status, blockers, recent activity. With a slug, shows the full progress map (10 stages × 5 states) + slice statuses + recent artifact writes.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>Daily startup — "what's in flight?"</li>
+  <li>Context-recovery — "what was I working on?"</li>
+</ul>
+
+<hr>
+
+<h2 id="resume">/wf-meta resume [slug]</h2>
+
+<div class="summary"><table>
+<tr><th>Reads</th><td>Every artifact in the workflow</td></tr>
+<tr><th>Writes</th><td>Optionally <code>90-resume.md</code> with the orientation summary</td></tr>
+</table></div>
+
+<p>Heavyweight re-orientation. Reads the full artifact trail, identifies the first unfinished step, proposes a concrete next invocation. Use after being away for hours, days, or weeks.</p>
+
+<h4>What it computes</h4>
+<ul>
+  <li>Last completed stage</li>
+  <li>Stages skipped (with reasons)</li>
+  <li>Slices in-progress vs. complete</li>
+  <li>Open questions in <code>po-answers.md</code></li>
+  <li>Whether a paused ship run exists</li>
+</ul>
+
+<hr>
+
+<h2 id="sync">/wf-meta sync [slug]</h2>
+
+<div class="summary"><table>
+<tr><th>Reads</th><td>Every file on disk under <code>.ai/workflows/&lt;slug&gt;/</code></td></tr>
+<tr><th>Writes</th><td>Updated <code>00-index.md</code> + <code>00-sync.md</code> (report)</td></tr>
+</table></div>
+
+<p>Reconciles the control file with disk reality. Re-reads every artifact, detects drift (e.g., an artifact exists on disk but isn't in <code>workflow-files</code>), and rebuilds the index. Writes a sync report.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>After pulling a branch that landed new artifacts.</li>
+  <li>After manual edits to <code>00-index.md</code>.</li>
+  <li>When status/resume produce unexpected output.</li>
+</ul>
+
+<h4>Anti-pattern</h4>
+<p>Don't hand-edit <code>00-index.md</code> to "fix" status fields. Use sync instead — it reads ground truth from the artifacts on disk.</p>
+
+<hr>
+
+<h2 id="amend">/wf-meta amend &lt;scope&gt; [target]</h2>
+
+<div class="summary"><table>
+<tr><th>Scopes</th><td><code>&lt;slug&gt; from-review</code> · <code>&lt;slug&gt; from-retro</code> · <code>&lt;slug&gt; &lt;slice&gt;</code> · <code>ship-plan</code></td></tr>
+<tr><th>Writes</th><td>Versioned amendment artifacts: <code>02-shape-amend-N.md</code>, <code>03-slice-&lt;slug&gt;-amend-N.md</code>, OR a block edit of <code>.ai/ship-plan.md</code></td></tr>
+</table></div>
+
+<p>Corrects a prior artifact's <em>definition</em> (spec, criteria, scope, approach) without overwriting completed work. Writes versioned amendment files. Never touches files with <code>status: complete</code>.</p>
+
+<h4>Workflow modes</h4>
+<table>
+<thead><tr><th>Form</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>amend &lt;slug&gt; from-review</code></td><td>Seeds amendment from <code>07-review-&lt;slice&gt;.md</code> findings flagged as spec errors.</td></tr>
+<tr><td><code>amend &lt;slug&gt; from-retro</code></td><td>Seeds from <code>10-retro.md</code> items tagged as "scope was misunderstood" etc.</td></tr>
+<tr><td><code>amend &lt;slug&gt; &lt;slice&gt;</code></td><td>Direct slice amendment — user describes the correction.</td></tr>
+<tr><td><code>amend &lt;slug&gt;</code></td><td>General amendment — interview-driven discovery.</td></tr>
+<tr><td><code>amend ship-plan</code></td><td>Edits one block (A–G) of <code>.ai/ship-plan.md</code>; bumps <code>plan-version</code>.</td></tr>
+</tbody>
+</table>
+
+<h4>When to use vs. extend vs. implement reviews</h4>
+<ul>
+  <li><strong>amend</strong> — the spec was wrong.</li>
+  <li><strong>extend</strong> — new scope appeared that doesn't fit existing slices.</li>
+  <li><strong>implement reviews</strong> — the spec is fine, the implementation has a bug.</li>
+</ul>
+
+<hr>
+
+<h2 id="extend">/wf-meta extend &lt;scope&gt; [target]</h2>
+
+<div class="summary"><table>
+<tr><th>Scopes</th><td><code>&lt;slug&gt; from-review</code> · <code>&lt;slug&gt; from-retro</code> · <code>&lt;slug&gt;</code></td></tr>
+<tr><th>Writes</th><td>New per-slice files with <code>extension-round</code> in frontmatter</td></tr>
+</table></div>
+
+<p>Adds new slices to an existing workflow when review or retro reveals scope that fits the workflow but doesn't exist as a slice yet.</p>
+
+<h4>What it preserves</h4>
+<ul>
+  <li>Existing slices' status (no change).</li>
+  <li>The original shape — extends don't overwrite shape; if shape needs fixing, that's amend.</li>
+</ul>
+
+<hr>
+
+<h2 id="skip">/wf-meta skip &lt;stage&gt; [slug]</h2>
+
+<div class="summary"><table>
+<tr><th>Writes</th><td>A stub artifact for the skipped stage (e.g., <code>06-verify-&lt;slice&gt;.md</code> with <code>status: skipped</code>)</td></tr>
+</table></div>
+
+<p>Marks a stage as skipped without running it. The stub artifact satisfies downstream prerequisite checks but records the skip reason. Use sparingly — every skip is accountability for what got bypassed.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>Verify keeps finding flakes you don't want to chase right now — <code>skip verify</code> with a reason.</li>
+  <li>Review skipped on a hotfix.</li>
+</ul>
+
+<h4>Anti-pattern</h4>
+<p>Don't skip review on regular workflows. The whole point of review is catching what you missed.</p>
+
+<hr>
+
+<h2 id="close">/wf-meta close &lt;reason&gt; [slug]</h2>
+
+<div class="summary"><table>
+<tr><th>Reasons</th><td><code>shipped</code> · <code>abandoned</code> · <code>superseded</code> · <code>archived</code> · <code>stuck</code></td></tr>
+<tr><th>Writes</th><td><code>99-close.md</code> with reason + rationale</td></tr>
+</table></div>
+
+<p>Archives a workflow at any stage. The workflow stops being "active" in status output but stays on disk as audit trail.</p>
+
+<h4>Reason semantics</h4>
+<table>
+<thead><tr><th>Reason</th><th>Use when</th></tr></thead>
+<tbody>
+<tr><td><code>shipped</code></td><td>Most common. Work is shipped, retro done (or skipped intentionally).</td></tr>
+<tr><td><code>abandoned</code></td><td>Decided not to do this work.</td></tr>
+<tr><td><code>superseded</code></td><td>Rolled into another workflow that subsumed it.</td></tr>
+<tr><td><code>archived</code></td><td>Complete + retired (e.g., the code path it shipped was later removed).</td></tr>
+<tr><td><code>stuck</code></td><td>External blocker with no path forward (vendor outage, compliance hold).</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2 id="how">/wf-meta how &lt;mode&gt; &lt;topic&gt;</h2>
+
+<div class="summary"><table>
+<tr><th>Modes</th><td>5: quick · codebase · research · artifact-explain · findings-explain</td></tr>
+<tr><th>Writes</th><td>Optional <code>90-how-&lt;topic&gt;.md</code> or <code>.ai/research/&lt;topic&gt;-&lt;ts&gt;.md</code></td></tr>
+</table></div>
+
+<p>Question-answering router. Five modes for different question shapes:</p>
+
+<table>
+<thead><tr><th>Mode</th><th>For</th></tr></thead>
+<tbody>
+<tr><td><strong>quick</strong> (default)</td><td>"What does X return when Y?" — short code answer.</td></tr>
+<tr><td><strong>codebase</strong></td><td>"How does the auth middleware work?" — parallel Explore agents + synthesis.</td></tr>
+<tr><td><strong>--research</strong></td><td>"State of the art in zero-downtime migrations" — 6–8 web agents, 200+ sources.</td></tr>
+<tr><td><strong>artifact-explain</strong></td><td>"Explain &lt;slug&gt; plan in plain English" — translates an artifact.</td></tr>
+<tr><td><strong>findings-explain</strong></td><td>"Explain review findings for &lt;slug&gt;" — same but for review/verify output.</td></tr>
+</tbody>
+</table>
+
+<h4>When to use</h4>
+<ul>
+  <li>Before planning work in an unfamiliar subsystem — codebase mode.</li>
+  <li>Stuck explaining what an artifact says — artifact-explain.</li>
+  <li>Open architecture question — research mode.</li>
+</ul>
+
+<hr>
+
+<h2 id="announce">/wf-meta announce [slug]</h2>
+
+<div class="summary"><table>
+<tr><th>Requires</th><td>A completed workflow (typically through retro or close)</td></tr>
+<tr><th>Writes</th><td><code>announce.md</code> in the workflow directory</td></tr>
+</table></div>
+
+<p>Produces a Diátaxis-aligned external announcement. Reads handoff + ship-run + retro to extract the user-visible change, translates per External Output Boundary rules, and writes a copy-pasteable announcement for #releases / release-notes / blog.</p>
+
+<hr>
+
+<h2 id="init-ship-plan">/wf-meta init-ship-plan [--from-template &lt;kind&gt;]</h2>
+
+<div class="summary"><table>
+<tr><th>Templates</th><td><code>kotlin-maven-central</code>, <code>npm-public</code>, <code>pypi</code>, <code>container-image</code>, <code>server-deploy</code>, <code>library-internal</code></td></tr>
+<tr><th>Writes</th><td><code>.ai/ship-plan.md</code> at repo root (project-level, NOT under <code>.ai/workflows/</code>)</td></tr>
+<tr><th>Run frequency</th><td>Once per project. Use <code>amend ship-plan</code> to edit.</td></tr>
+</table></div>
+
+<p>One-time setup for the plan-driven ship stage. Loads the chosen template, asks 13 grouped questions covering blocks A–G, writes the plan.</p>
+
+<h4>The 7 blocks</h4>
+<table>
+<thead><tr><th>Block</th><th>What</th></tr></thead>
+<tbody>
+<tr><td>A</td><td>Ship meaning + environments + cadence</td></tr>
+<tr><td>B</td><td>Versioning contract (scheme, source-of-truth files, bump rule)</td></tr>
+<tr><td>C</td><td>CI/CD contract (release trigger, workflow file, required secrets)</td></tr>
+<tr><td>D</td><td>Post-publish verification checks</td></tr>
+<tr><td>E</td><td>Rollout + rollback strategy</td></tr>
+<tr><td>F</td><td>Recovery playbooks (grow over time)</td></tr>
+<tr><td>G</td><td>Stakeholder + announcement channels</td></tr>
+</tbody>
+</table>
+
+<p>See <a href="ship-plan-schema.html">Ship-plan schema</a> for every field; <a href="../how-to/author-ship-plan.html">Author a ship plan</a> for the walkthrough.</p>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="wf.html">/wf router</a> — the lifecycle commands these manage.</li>
+  <li><a href="../how-to/navigate-workflows.html">Navigate workflows</a> — using status/resume/next in practice.</li>
+  <li><a href="../how-to/amend-or-extend.html">Amend or extend</a> — the decision rule between the two.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../reference/wf-quick.html"><span>← Previous</span>/wf-quick router</a><a class="next" href="../reference/wf-docs.html"><span>Next →</span>/wf-docs router</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

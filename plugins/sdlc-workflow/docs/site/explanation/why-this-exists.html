@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why this exists · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Explanation &rsaquo; Why this exists</div>
+<span class="quadrant explanation">explanation</span>
+<h1>Why this exists</h1>
+
+<p>AI coding assistants are powerful and forgetful. The plugin exists to address the second half of that sentence.</p>
+
+<h2>The problem</h2>
+
+<p>You ask an AI to add a feature. Over the next two hours of conversation the AI makes hundreds of decisions: which file to put what in, which library to use, what to name the function, where to put the test, what edge cases to handle, what to skip for now, what to defer. The output is code. The reasoning is gone the moment the session ends.</p>
+
+<p>A week later you (or a colleague) need to make a follow-up change. The questions multiply:</p>
+<ul>
+  <li>Why was it built this way? Was a simpler approach considered?</li>
+  <li>What edge cases were intentionally skipped vs. accidentally missed?</li>
+  <li>What did the original requirements actually say?</li>
+  <li>Which parts have tests because they matter, vs. because they were easy to test?</li>
+</ul>
+
+<p>The code answers <em>none</em> of these. Git blame answers some. The PR description answers a few if it was good. Most of the reasoning lives in the original Slack thread, or a stale Notion doc, or only in the head of whoever paired with the AI at the time.</p>
+
+<h2>The plugin's bet</h2>
+
+<p>The reasoning <em>can</em> be captured if the AI is required to write it down, stage by stage, into files that get committed alongside the code. The plugin makes this required, not optional.</p>
+
+<p>Each stage writes one artifact under <code>.ai/workflows/&lt;slug&gt;/</code>. The artifact has YAML frontmatter with machine-readable state and a markdown body with human-readable narrative. The body answers the "why". The frontmatter answers "what's the state of this workflow."</p>
+
+<h2>What this is NOT</h2>
+
+<ul>
+  <li><strong>Not a process tool.</strong> The plugin doesn't enforce a particular software development methodology (agile, kanban, waterfall). It enforces <em>artifact discipline</em> within whatever methodology you use.</li>
+  <li><strong>Not Jira.</strong> The artifacts are co-located with the code. They are not a project tracker. <code>00-index.md</code> answers "what stage", not "who's working on this and when's it due."</li>
+  <li><strong>Not a substitute for code review.</strong> Review is itself a stage. The plugin orchestrates it; it doesn't replace it.</li>
+  <li><strong>Not a way to automate decisions.</strong> Every stage asks you. The AI proposes; you choose.</li>
+</ul>
+
+<h2>What changes for the user</h2>
+
+<p>Concretely: you spend more time at the start (intake, shape) and less time at the end (debugging, fielding "why did we do X?" questions). The artifact trail front-loads the reasoning. The plugin's design assumes this trade-off is worth it — because most software work is more expensive to maintain than to write, and clear reasoning compounds over time.</p>
+
+<p>If that bet doesn't match your situation — say you're doing throwaway prototyping, or one-off scripts that won't be maintained — use <code>/wf-quick</code> to get a lighter shape, or skip the plugin entirely. There's no wrong answer.</p>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="artifacts-over-memory.html">Artifacts over memory</a> — the core mechanic.</li>
+  <li><a href="orchestrator-discipline.html">Orchestrator discipline</a> — what keeps stages from collapsing into each other.</li>
+  <li><a href="../tutorials/first-workflow.html">First workflow</a> — what the artifact trail looks like in practice.</li>
+</ul>
+</div>
+<div class="pager"><span></span><a class="next" href="../explanation/artifacts-over-memory.html"><span>Next →</span>Artifacts over memory</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

@@ -1,9 +1,8 @@
 {
   "skill": "wf-quick",
-  "description": "Skill router for /wf-quick. 10 sub-commands (quick, rca, investigate, discover, hotfix, update-deps, docs, refactor, ideate, intake). No sweep mode — sub-commands are orthogonal entry points. Invoke as /wf-quick <subcommand> <args>.",
+  "description": "Skill router for /wf-quick. 8 sub-commands (quick, rca, investigate, discover, hotfix, update-deps, refactor, ideate). No sweep mode — sub-commands are orthogonal entry points. Documentation work moved to /wf-docs in v9.4.0; intake moved to /wf in v9.1.0. Invoke as /wf-quick <subcommand> <args>.",
   "dimensions": [
     "discover",
-    "docs",
     "hotfix",
     "ideate",
     "investigate",

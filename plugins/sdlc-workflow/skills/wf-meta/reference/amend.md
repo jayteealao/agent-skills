@@ -37,7 +37,8 @@ You are a **spec corrector**, not a problem solver.
 # Step 0 — Orient (MANDATORY)
 
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, use AskUserQuestion to list options.
-2. **Resolve the mode** from `$ARGUMENTS` (second argument, if present):
+2. **Resolve the mode** from `$ARGUMENTS` (first or second argument depending on scope):
+   - `ship-plan` — special scope: edits the project-level `.ai/ship-plan.md`, NOT a workflow artifact. Skip steps 1–6 below; jump to the dedicated **`Ship-plan amendment`** section near the end of this reference.
    - `from-review` — seed amendment from `07-review-<slice-slug>.md` findings (slice resolved from `selected-slice-or-focus`, or pass a slice-slug as the third argument)
    - `from-retro` — seed amendment from `10-retro.md` findings
    - A `<slice-slug>` — amend a specific slice directly
@@ -267,3 +268,62 @@ Return ONLY:
   - `/wf-meta extend <slug>` — add new slices if the amendment revealed scope that can't fit in existing slices
   - `/wf-meta status <slug>` — see full workflow state
 - ≤2 bullets noting anything in the existing implementation that the amendment invalidates
+
+---
+
+# Ship-plan amendment
+
+This section applies only when `$ARGUMENTS` starts with `ship-plan`. Behavior diverges from workflow-artifact amendment because the target is the project-level `.ai/ship-plan.md`, not a stage artifact.
+
+## Step S0 — Orient
+
+1. Verify `.ai/ship-plan.md` exists. If not, STOP: *"No ship plan exists. Run `/wf-meta init-ship-plan` first."*
+2. Read the plan in full. Capture the current `plan-version` integer.
+
+## Step S1 — Identify which block to amend
+
+Use AskUserQuestion:
+
+```yaml
+question: "Which block of the ship plan needs editing?"
+header: "Plan block"
+options:
+  - { label: "A — Ship meaning + environments + cadence",  description: "What does ship mean, which envs, how often." }
+  - { label: "B — Versioning contract",                    description: "Scheme, source-of-truth files, bump rule, prerelease/postrelease." }
+  - { label: "C — CI/CD contract",                         description: "Release trigger, workflow file, required secrets, dry-run + publish commands." }
+  - { label: "D — Post-publish verification",              description: "Checks run after publish, propagation window, poll interval." }
+multiSelect: false
+```
+
+Use a follow-up question for blocks E (rollout/rollback), F (recovery playbooks), G (announcements) if the user picks "Other" / freeform input.
+
+## Step S2 — Re-run the relevant block's questions
+
+Load `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/reference/init-ship-plan.md` and re-run **only the steps for the chosen block** (Block A → init-ship-plan steps 1–2; Block B → steps 3–5; Block C → steps 6–7; Block D → step 8; Block E → step 9; Block F → step 11; Block G → step 10). Pre-fill each question with the plan's current value so the user only changes what's actually different.
+
+## Step S3 — Confirmation
+
+Present a diff-style summary using AskUserQuestion:
+
+```yaml
+question: "Apply these changes to `.ai/ship-plan.md`?"
+header: "Apply"
+options:
+  - { label: "Apply",   description: "Write the changes; bump plan-version." }
+  - { label: "Cancel",  description: "Discard." }
+multiSelect: false
+```
+
+## Step S4 — Write
+
+Update only the changed block's frontmatter and corresponding markdown section. Bump `plan-version` by 1 and refresh `updated-at`. Do NOT touch other blocks.
+
+## Step S5 — Chat return
+
+Return only:
+- `wrote: .ai/ship-plan.md`
+- `block-amended: <A|B|C|D|E|F|G>`
+- `plan-version: <new value>`
+- `next: any in-flight ship runs will record plan-version-at-run = <new value>`
+
+The next `/wf ship <slug>` invocation will read the amended plan and stamp the new `plan-version` into the run's `plan-version-at-run` field, which is useful for retro analysis ("did the rollout strategy change between v1.4.0 and v1.4.1?").

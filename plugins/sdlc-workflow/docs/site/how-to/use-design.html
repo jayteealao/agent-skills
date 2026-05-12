@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Use the design pipeline · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Use the design pipeline</div>
+<span class="quadrant howto">how-to</span>
+<h1>Use the design pipeline</h1>
+
+<p>Drop the design pipeline (<code>/wf-design</code>) into a workflow when the change touches UX or visual surfaces. Three modes, 22 sub-commands, six artifact slots.</p>
+
+<div class="summary">
+<table>
+<tr><th>Pre-conditions</th><td>For workflow modes: a workflow exists past <code>shape</code> (<code>02-shape.md</code> present). For freestanding mode: nothing.</td></tr>
+<tr><th>Goal</th><td>Pick the right design sub-command for the design task at hand.</td></tr>
+<tr><th>Project context</th><td>Run <code>/wf-design setup</code> once per project to author <code>PRODUCT.md</code> + <code>DESIGN.md</code>. Most operators will load these as context.</td></tr>
+</table>
+</div>
+
+<h2>The three invocation modes</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+  start{"How are you invoking /wf-design?"}
+  start -- "/wf-design &lt;slug&gt;" --> a["Mode A — workflow stage 2b<br/>writes 02b-design.md, then routes to craft"]
+  start -- "/wf-design &lt;slug&gt; &lt;sub&gt;" --> b["Mode B — workflow + sub-command<br/>runs sub against the workflow"]
+  start -- "/wf-design &lt;sub&gt;" --> c["Mode C — freestanding<br/>no workflow, ad-hoc work"]
+</pre>
+</div>
+<p class="caption">The router infers the mode from how many args you pass and whether arg 0 matches a known sub-command vs. an existing slug.</p>
+
+<h2>By task</h2>
+
+<dl>
+<dt><strong>"Set up project-level design context (one-time)"</strong></dt>
+<dd><code>/wf-design setup</code> — interview-driven; authors <code>PRODUCT.md</code> (audience, voice, register) and <code>DESIGN.md</code> (tokens, components, patterns). Run once per repo. Almost every other sub-command reads these.</dd>
+
+<dt><strong>"Update PRODUCT.md or DESIGN.md after the project's brand or system evolved"</strong></dt>
+<dd><code>/wf-design teach</code> — re-runs the relevant interview round and updates the file in place.</dd>
+
+<dt><strong>"Author a design brief for a UI feature workflow"</strong></dt>
+<dd><code>/wf-design &lt;slug&gt;</code> (Mode A; sub-command defaults to <code>shape</code>). Writes <code>02b-design.md</code>: register, anti-goals, layout approach, key states, interaction model. Required prerequisite: <code>02-shape.md</code>.</dd>
+
+<dt><strong>"Pin down the visual contract before implementing"</strong></dt>
+<dd><code>/wf-design &lt;slug&gt; craft</code>. Writes <code>02c-craft.md</code> — the visual contract reviewers will check against. Includes mock fidelity inventory: which surfaces match the design, which approximate, which are out-of-scope. Required prerequisite: <code>02b-design.md</code>.</dd>
+
+<dt><strong>"Audit an existing design for accessibility, performance, theming, responsive"</strong></dt>
+<dd><code>/wf-design &lt;slug&gt; audit</code>. Writes <code>07-design-audit.md</code> with severity-graded findings. Stage gate: requires <code>current-stage</code> ∈ {<code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>}. Cannot audit code that doesn't exist yet.</dd>
+
+<dt><strong>"Get an expert UX critique of the design"</strong></dt>
+<dd><code>/wf-design &lt;slug&gt; critique</code>. Writes <code>07-design-critique.md</code> — visual hierarchy, information architecture, emotional resonance, cognitive load, persona-based testing. Same stage gate as audit.</dd>
+
+<dt><strong>"Pull reusable tokens / components from this work into the design system"</strong></dt>
+<dd><code>/wf-design &lt;slug&gt; extract</code>. Writes <code>design-notes/extract-&lt;timestamp&gt;.md</code>. Read-only relative to the workflow; updates <code>DESIGN.md</code>.</dd>
+
+<dt><strong>"Apply a focused transformation to existing UI code"</strong></dt>
+<dd>One of the 15 transformation operators. Each modifies code, registers as an augmentation in <code>00-index.md</code>, and writes <code>design-notes/&lt;sub&gt;-&lt;timestamp&gt;.md</code>. Stage gate: <code>current-stage</code> ∈ {<code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>}.</dd>
+</dl>
+
+<h2>The 15 transformation operators (one-liners)</h2>
+
+<table>
+<thead><tr><th>Operator</th><th>For</th></tr></thead>
+<tbody>
+<tr><td><code>animate</code></td><td>Add purposeful motion, micro-interactions, transitions.</td></tr>
+<tr><td><code>bolder</code></td><td>Amplify a too-safe / bland design with more visual character.</td></tr>
+<tr><td><code>clarify</code></td><td>Improve unclear UX copy, error messages, microcopy, labels.</td></tr>
+<tr><td><code>colorize</code></td><td>Add strategic color to a too-monochromatic surface.</td></tr>
+<tr><td><code>delight</code></td><td>Add moments of joy, personality, unexpected touches.</td></tr>
+<tr><td><code>distill</code></td><td>Strip to essence; remove unnecessary complexity.</td></tr>
+<tr><td><code>harden</code></td><td>Accessibility — keyboard nav, screen-reader, contrast, focus.</td></tr>
+<tr><td><code>layout</code></td><td>Improve composition, spacing, visual rhythm.</td></tr>
+<tr><td><code>onboard</code></td><td>First-run UX — intro, empty states, tooltips, progressive disclosure.</td></tr>
+<tr><td><code>optimize</code></td><td>UI performance — loading, rendering, animation, bundle size.</td></tr>
+<tr><td><code>overdrive</code></td><td>Push past convention with shaders, spring physics, scroll-driven reveals.</td></tr>
+<tr><td><code>polish</code></td><td>Final pre-ship pass — alignment, spacing, micro-detail consistency.</td></tr>
+<tr><td><code>quieter</code></td><td>Tone down overstimulating/aggressive designs.</td></tr>
+<tr><td><code>typeset</code></td><td>Typography — font choices, hierarchy, sizing, weight, readability.</td></tr>
+<tr><td><code>adapt</code></td><td>Responsive — breakpoints, fluid layouts, touch targets.</td></tr>
+</tbody>
+</table>
+
+<h2>Stage-gate reference</h2>
+
+<table>
+<thead><tr><th>Sub-command category</th><th>Allowed stages</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Context (<code>setup</code>, <code>teach</code>)</td><td>Any time</td><td>Project-level files; not workflow-bound.</td></tr>
+<tr><td>Planning (<code>shape</code>)</td><td>After <code>02-shape.md</code> exists</td><td>Brief is downstream of shape.</td></tr>
+<tr><td>Contract (<code>craft</code>)</td><td>After <code>02b-design.md</code> exists</td><td>Contract is downstream of brief.</td></tr>
+<tr><td>Inspection (<code>extract</code>)</td><td>Any stage</td><td>Read-only relative to workflow.</td></tr>
+<tr><td>Review (<code>audit</code>, <code>critique</code>)</td><td>implement → ship</td><td>Cannot review code that doesn't exist.</td></tr>
+<tr><td>Transformation (15 operators)</td><td>implement → handoff</td><td>Cannot transform code that doesn't exist; cannot transform after ship.</td></tr>
+</tbody>
+</table>
+
+<h2>How design integrates with the lifecycle</h2>
+
+<ol>
+<li><strong>Stage 2 (shape)</strong> writes <code>02-shape.md</code> with <code>docs-needed</code>, including possibly a UI scope. If UI: continue to 2b.</li>
+<li><strong>Stage 2b (design shape)</strong> writes <code>02b-design.md</code> with the brief.</li>
+<li><strong>Stage 2c (design craft)</strong> writes <code>02c-craft.md</code> with the visual contract. Implement reads it; review checks against it.</li>
+<li><strong>Stage 5 (implement)</strong> reads <code>02b/02c</code>; produces UI code.</li>
+<li><strong>Optional design review</strong> at any stage from implement onwards: <code>audit</code> and/or <code>critique</code> writes the corresponding <code>07-design-*.md</code>.</li>
+<li><strong>Optional transformations</strong> apply focused improvements (harden for a11y, optimize for perf, etc.). Each registers as an augmentation in <code>00-index.md</code>'s <code>augmentations:</code> array.</li>
+<li><strong>Stage 8 (handoff)</strong> translates registered design augmentations into reviewer-visible mentions in <code>08-handoff.md</code>.</li>
+<li><strong>Stage 9 (ship)</strong> translates them into changelog lines per the External Output Boundary rules.</li>
+</ol>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="../reference/wf-design.html">Design pipeline reference</a> — every sub-command, every stage gate, every artifact.</li>
+  <li><a href="../explanation/augmentations-model.html">Augmentations model</a> — how transformation operators register and propagate.</li>
+  <li><a href="../reference/artifacts.html">Artifacts reference</a> — where design artifacts sit in the tree.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../how-to/use-augmentations.html"><span>← Previous</span>Use augmentations</a><a class="next" href="../how-to/triage-pr-comments.html"><span>Next →</span>Triage PR comments</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

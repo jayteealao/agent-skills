@@ -1,0 +1,29 @@
+{
+  "skill": "wf-design",
+  "description": "Skill router for /wf-design. 22 sub-commands across 6 categories — Planning (shape), Contract (craft), Read-only inspection (extract), Review (audit, critique), Transformation (animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset, adapt), Context (setup, teach). Three invocation modes — workflow stage 2b (/wf-design <slug>), workflow + sub-command (/wf-design <slug> <sub>), freestanding (/wf-design <sub>). No sweep mode — sub-commands are stage-gated operators, not orthogonal lenses on a shared target. Workflow modes write 02b-design.md (shape), 02c-craft.md (craft), 07-design-audit.md (audit), 07-design-critique.md (critique), or design-notes/<sub>-<timestamp>.md (transformations + extract). Invoke as /wf-design <args>.",
+  "dimensions": [
+    "adapt",
+    "animate",
+    "audit",
+    "bolder",
+    "clarify",
+    "colorize",
+    "craft",
+    "critique",
+    "delight",
+    "distill",
+    "extract",
+    "harden",
+    "layout",
+    "onboard",
+    "optimize",
+    "overdrive",
+    "polish",
+    "quieter",
+    "setup",
+    "shape",
+    "teach",
+    "typeset"
+  ],
+  "aggregates": {}
+}

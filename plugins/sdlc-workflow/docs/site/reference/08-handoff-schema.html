@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Handoff schema (08-handoff.md) · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Handoff schema</div>
+<span class="quadrant reference">reference</span>
+<h1>Handoff schema (08-handoff.md)</h1>
+
+<p>The handoff artifact. Aggregates all complete slices. Writes the PR. Gates ship via <code>readiness-verdict</code>.</p>
+
+<h2>Frontmatter — base fields</h2>
+<pre><code>schema: sdlc/v1
+type: handoff
+slug: &lt;slug&gt;
+slice-slugs: [&lt;slug-1&gt;, ...]
+handoff-mode: aggregate | single-slice
+status: complete
+stage-number: 8
+created-at: &lt;ISO 8601&gt;
+updated-at: &lt;ISO 8601&gt;
+pr-title: "&lt;PR title&gt;"
+pr-url: "&lt;url or empty&gt;"
+pr-number: &lt;N or 0&gt;
+branch: "&lt;branch&gt;"
+base-branch: "&lt;target&gt;"
+has-migration: true | false
+has-config-change: true | false
+has-docs-changes: true | false
+docs-generated: [&lt;paths&gt;]</code></pre>
+
+<h2>v9.5.0 PR-readiness block fields</h2>
+
+<table>
+<thead><tr><th>Field</th><th>Values</th><th>From step</th></tr></thead>
+<tbody>
+<tr><td><code>commitlint-status</code></td><td>pass | warn | fail | skipped</td><td>T3.5</td></tr>
+<tr><td><code>public-surface-drift</code></td><td>none | regenerated | drift-without-regen | skipped</td><td>T3.6</td></tr>
+<tr><td><code>docs-mirror-status</code></td><td>up-to-date | regenerated | skipped</td><td>T3.7</td></tr>
+<tr><td><code>triage-iterations</code></td><td>integer 0-5</td><td>T5.1</td></tr>
+<tr><td><code>triage-fixes-applied</code></td><td>integer</td><td>T5.1</td></tr>
+<tr><td><code>triage-fixes-skipped</code></td><td>integer</td><td>T5.1</td></tr>
+<tr><td><code>triage-deferred-thread-ids</code></td><td>array of threadId strings</td><td>T5.1</td></tr>
+<tr><td><code>has-deferred-comments</code></td><td>true | false</td><td>T5.1</td></tr>
+<tr><td><code>rebase-status</code></td><td>fast-forward | rebased-clean | conflicts | lease-failure | skipped</td><td>T5.2</td></tr>
+<tr><td><code>rebase-onto-sha</code></td><td>sha of base at rebase time</td><td>T5.2</td></tr>
+<tr><td><code>live-review-decision</code></td><td>APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | null</td><td>T5.3</td></tr>
+<tr><td><code>live-checks-failing</code></td><td>array of check names</td><td>T5.3</td></tr>
+<tr><td><code>live-checks-pending</code></td><td>array of check names</td><td>T5.3</td></tr>
+<tr><td><code>readiness-verdict</code></td><td><strong>ready | awaiting-input | blocked</strong></td><td>computed</td></tr>
+</tbody>
+</table>
+
+<h2>Verdict computation</h2>
+
+<p><code>readiness-verdict: ready</code> requires ALL of:</p>
+<ul>
+  <li><code>live-review-decision</code> ∈ {<code>APPROVED</code>, <code>null</code>}</li>
+  <li><code>live-checks-failing</code> is empty</li>
+  <li><code>commitlint-status</code> ≠ <code>fail</code></li>
+  <li><code>public-surface-drift</code> ≠ <code>drift-without-regen</code></li>
+  <li><code>rebase-status</code> ∈ {<code>fast-forward</code>, <code>rebased-clean</code>, <code>skipped</code>}</li>
+  <li><code>has-deferred-comments</code> = false</li>
+</ul>
+
+<p><code>blocked</code> when any of those hard-fail. <code>awaiting-input</code> for the soft fails (pending checks, deferred suggestions, required reviewers haven't responded).</p>
+<div class="pager"><a class="prev" href="../reference/ship-plan-schema.html"><span>← Previous</span>Ship-plan schema</a><a class="next" href="../reference/09-ship-run-schema.html"><span>Next →</span>Ship-run schema</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Augmentations model · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Explanation &rsaquo; Augmentations model</div>
+<span class="quadrant explanation">explanation</span>
+<h1>Augmentations model</h1>
+
+<p>Instrument, experiment, benchmark, profile — the four augmentations. They're not stages; they're <em>opt-in slots</em> that add depth where it's needed.</p>
+
+<h2>Registration → propagation flow</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+  user["User runs /wf instrument my-slug route"]
+  user --> inst["04b-instrument-route.md written"]
+  inst --> reg["00-index.md augmentations array appended"]
+  reg --> impl["/wf implement reads 04b-*.md"]
+  reg --> handoff["/wf handoff translates each to reviewer-visible mention"]
+  reg --> ship["/wf ship translates each to changelog line"]
+
+  classDef art fill:#dbeafe,stroke:#1d4ed8,color:#1f1f1d
+  classDef cmd fill:#fef3c7,stroke:#b45309,color:#1f1f1d
+  class user,impl,handoff,ship cmd
+  class inst,reg art
+</pre>
+</div>
+<p class="caption">An augmentation isn't a one-off — it registers and downstream stages consume it.</p>
+
+<h2>Why "augmentation" not "stage"</h2>
+
+<p>Stages are mandatory positions in the pipeline. Augmentations are conditional. A simple feature might never need observability; adding an instrument stage to every workflow would be friction. Making it an explicit opt-in keeps the pipeline thin by default.</p>
+
+<h2>The four kinds</h2>
+
+<dl>
+<dt><strong>instrument</strong> — observability design</dt>
+<dd>For code paths that have no logs/metrics/traces. Output: <code>04b-instrument-&lt;slice&gt;.md</code> with the signals to add. Implement reads it and adds the signals.</dd>
+
+<dt><strong>experiment</strong> — measured rollout</dt>
+<dd>For behaviour changes you want to gate behind a flag with a cohort split. Output: <code>04c-experiment-&lt;slice&gt;.md</code> with flag wiring, cohort design, success metrics, rollback signal.</dd>
+
+<dt><strong>benchmark</strong> — perf baseline + compare</dt>
+<dd>For changes that could affect performance. Output: <code>05c-benchmark-&lt;slice&gt;.md</code>. Run before implement to capture baseline; run after implement to compare. The compare-mode output goes into <code>06-verify-&lt;slice&gt;.md</code>'s evidence.</dd>
+
+<dt><strong>profile</strong> — hot-path investigation</dt>
+<dd>The only freestanding augmentation. Doesn't need a slice context. Output: an analysis of where time is spent in the named area.</dd>
+</dl>
+
+<h2>How downstream stages translate them</h2>
+
+<table>
+<thead><tr><th>Kind</th><th>In handoff (reviewer-visible)</th><th>In ship (changelog line)</th></tr></thead>
+<tbody>
+<tr><td>instrument</td><td>"Added observability — N signals for previously unobserved code paths"</td><td>"Added detailed monitoring for &lt;feature&gt;"</td></tr>
+<tr><td>experiment</td><td>"Wrapped behind feature flag with cohort split for measured rollout"</td><td>"Rolled out to N% of users"</td></tr>
+<tr><td>benchmark</td><td>"Performance baseline taken; verify-stage comparison: &lt;within tripwires / regression&gt;"</td><td>(typically omitted unless user-visible)</td></tr>
+<tr><td>profile</td><td>Freestanding; not in handoff</td><td>Not in changelog</td></tr>
+</tbody>
+</table>
+
+<p>The External Output Boundary applies: no workflow paths or stage names leak into the external mentions.</p>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="../how-to/use-augmentations.html">Use augmentations</a> — when to add each.</li>
+  <li><a href="../reference/commands.html">Commands reference</a> — full augmentation command list.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../explanation/adaptive-routing.html"><span>← Previous</span>Adaptive routing</a><a class="next" href="../explanation/idempotency-in-ship.html"><span>Next →</span>Idempotency in ship</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

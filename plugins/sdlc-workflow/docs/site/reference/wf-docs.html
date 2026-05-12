@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/wf-docs router — documentation pipeline + Diátaxis primitives · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf-docs router</div>
+<span class="quadrant reference">reference</span>
+<h1>/wf-docs router — documentation pipeline + Diátaxis primitives</h1>
+
+<p>The documentation router. Two surfaces: a <strong>5-stage pipeline</strong> for project-wide doc audits, and <strong>7 Diátaxis primitives</strong> for single-document generation. Handoff also loads these primitives directly when generating per-feature docs.</p>
+
+<div class="toc">
+<h3>On this page</h3>
+<ul>
+  <li><a href="#pipeline">The 5-stage pipeline</a> — discover, audit, plan, generate, review</li>
+  <li><a href="#primitives">The 7 Diátaxis primitives</a> — plan, tutorial, how-to, reference, explanation, readme, review</li>
+</ul>
+</div>
+
+<h2 id="pipeline">The 5-stage doc pipeline</h2>
+
+<p>For a full project-wide doc cycle. Each stage writes to <code>.ai/docs/&lt;run-id&gt;/</code>.</p>
+
+<h3>/wf-docs discover</h3>
+<div class="summary"><table>
+<tr><th>Stage</th><td>1 — inventory</td></tr>
+<tr><th>Writes</th><td><code>.ai/docs/&lt;run-id&gt;/discover.md</code></td></tr>
+</table></div>
+<p>Walks the repo, inventories every existing doc file (README, docs/, in-code docstrings, comments in config files), records frontmatter, classifies by Diátaxis quadrant, captures last-modified date.</p>
+
+<h3>/wf-docs audit</h3>
+<div class="summary"><table>
+<tr><th>Stage</th><td>2 — accuracy + freshness + quadrant fit</td></tr>
+<tr><th>Writes</th><td><code>.ai/docs/&lt;run-id&gt;/audit.md</code></td></tr>
+</table></div>
+<p>For each inventoried doc: checks accuracy against current code, flags freshness (last-modified vs. relevant code change), and judges quadrant fit (e.g., this "tutorial" is actually a reference page in disguise).</p>
+
+<h3>/wf-docs plan</h3>
+<div class="summary"><table>
+<tr><th>Stage</th><td>3 — prioritized action plan</td></tr>
+<tr><th>Writes</th><td><code>.ai/docs/&lt;run-id&gt;/plan.md</code></td></tr>
+</table></div>
+<p>Translates audit into actions: create / update / rewrite / delete per doc, prioritized P0–P3. P0 = factually wrong + actively used. P3 = quadrant fit issue with no urgency.</p>
+
+<h3>/wf-docs generate</h3>
+<div class="summary"><table>
+<tr><th>Stage</th><td>4 — write the docs</td></tr>
+<tr><th>Writes</th><td><code>.ai/docs/&lt;run-id&gt;/generate.md</code> + actual doc files in the repo</td></tr>
+</table></div>
+<p>Executes the plan. For each doc to write, loads the matching Diátaxis primitive and follows it verbatim. The primitive enforces the quadrant's rules (e.g., "tutorial steps are imperative with stated outcomes").</p>
+
+<h3>/wf-docs review</h3>
+<div class="summary"><table>
+<tr><th>Stage</th><td>5 — independent review of the generated docs</td></tr>
+<tr><th>Writes</th><td>Updates to <code>generate.md</code></td></tr>
+</table></div>
+<p>An independent sub-agent reviews each generated doc against its Diátaxis primitive's self-check. Flags mixed-quadrant content, missing pre-conditions, prose-pseudocode, etc.</p>
+
+<hr>
+
+<h2 id="primitives">The 7 Diátaxis primitives</h2>
+
+<p>Single-document generation. Each primitive is a reference body at <code>skills/wf-docs/reference/&lt;type&gt;.md</code>. Loaded by:</p>
+<ul>
+  <li>Handoff (Stage 8) when generating per-feature docs from a workflow's docs plan.</li>
+  <li><code>/wf-docs &lt;primitive&gt;</code> for one-off generation.</li>
+  <li><code>/wf-docs generate</code> (pipeline stage 4) when executing audit-driven actions.</li>
+</ul>
+
+<h3>plan</h3>
+<p>The docs-planning primitive. Takes a feature context + audience and outputs a Diátaxis plan: which quadrants are needed, what each should cover, where each lives.</p>
+<p>Loaded when shape's docs-plan needs detail beyond the shape file.</p>
+
+<h3>tutorial</h3>
+<p>Learning-oriented. Imperative voice. Pre-conditions stated up front. Every step has an expected observable outcome ("you should see…"). One worked example end-to-end. Anti-patterns: optional digressions, mixing in reference detail.</p>
+
+<h3>how-to</h3>
+<p>Task-oriented. Numbered steps. Pre-conditions + goal stated up front. Variations as separate steps, not branches inside a step. Anti-patterns: explaining concepts ("how does X work"), mixing in tutorial scaffolding.</p>
+
+<h3>reference</h3>
+<p>Information-oriented. Alphabetised within sections. Exhaustive. No opinions. Frontmatter-style summary tables. Anti-patterns: narrative ordering, "first do X then Y" prose.</p>
+
+<h3>explanation</h3>
+<p>Understanding-oriented. Discursive prose. Trade-offs, history, comparison with alternatives. May reference how-to and reference but doesn't substitute for them. Anti-patterns: imperative steps, exhaustive lookup tables.</p>
+
+<h3>readme</h3>
+<p>Composite — a single README mixes all four quadrants intentionally, but each section is one quadrant. Structure: brief intro (explanation), quick start (tutorial), common tasks (how-to), API summary (reference), and explicit pointers to deeper docs.</p>
+
+<h3>review</h3>
+<p>Quality-check primitive. Reads a doc + identifies its declared quadrant, then checks the body against that quadrant's rules. Outputs P0–P3 findings.</p>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="../explanation/diataxis-integration.html">Diátaxis integration</a> — how the plugin applies the framework.</li>
+  <li><a href="wf.html#wf-handoff">/wf handoff</a> — handoff loads these primitives during T3 doc generation.</li>
+  <li><a href="../how-to/start-workflow.html">Pick an entry point</a> — when to run the doc pipeline standalone vs. via handoff.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../reference/wf-meta.html"><span>← Previous</span>/wf-meta router</a><a class="next" href="../reference/review.html"><span>Next →</span>/review router</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

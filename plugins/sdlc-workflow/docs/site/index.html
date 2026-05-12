@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sdlc-workflow — plugin docs</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+
+<aside id="sidebar">
+<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="index.html" class="active">Home</a></li>
+    <li><a href="tutorials/installation.html">Install</a></li>
+    <li><a href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to…</h4>
+  <ul>
+    <li><a href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="reference/review.html">↳ /review router</a></li>
+    <li><a href="reference/skills.html">Skills</a></li>
+    <li><a href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="reference/hooks.html">Hooks</a></li>
+    <li><a href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="tips/tricks.html">Tricks</a></li>
+    <li><a href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside>
+
+<main>
+
+<h1>sdlc-workflow</h1>
+<p style="font-size:1.1rem;color:var(--fg-muted);margin-top:-0.4em;max-width:60ch;">
+A Claude Code plugin that turns every change — feature, fix, refactor, spike — into a reproducible sequence of stages, each writing a durable, machine-readable artifact next to your code.
+</p>
+
+<div class="callout insight">
+<strong>Why this exists</strong>
+AI conversations don't remember. The next session starts blank. Every decision the AI made — about scope, architecture, edge cases, test strategy — vanishes with the context window. sdlc-workflow makes the AI's reasoning <em>visible and persistent</em>: every stage reads what the previous wrote, asks you to fill in the gaps, and commits its output to a YAML-fronted markdown file under <code>.ai/workflows/&lt;slug&gt;/</code>. Three weeks later, you can still see why a particular approach was chosen.
+</div>
+
+<h2>The pipeline at a glance</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  intake[1·intake] --> shape[2·shape]
+  shape -.opt.-> design[2b·design]
+  shape --> slice[3·slice]
+  design --> slice
+  slice --> plan[4·plan]
+  plan --> impl[5·implement]
+  impl --> verify[6·verify]
+  verify --> review[7·review]
+  review --> handoff[8·handoff]
+  handoff --> ship[9·ship]
+  ship --> retro[10·retro]
+
+  classDef def fill:#e8f0fe,stroke:#1d4ed8,stroke-width:1px,color:#1f1f1d
+  classDef opt fill:#f5e8fe,stroke:#7c3aed,stroke-dasharray:3 3,color:#1f1f1d
+  class intake,shape,slice,plan,impl,verify,review,handoff,ship,retro def
+  class design opt
+</pre>
+<noscript><pre class="diagram-fallback">intake → shape → (design?) → slice → plan → implement → verify → review → handoff → ship → retro</pre></noscript>
+</div>
+<p class="caption">Every stage reads what previous stages wrote and writes its own artifact. Adaptive routing means you can also skip forward, loop back, or branch into parallel slices — the diagram above is the spine, not a railroad.</p>
+
+<h2>Where to start</h2>
+
+<div class="tile-grid">
+  <a class="tile" href="tutorials/installation.html">
+    <span class="quadrant tutorial">tutorial</span>
+    <strong>I'm brand new</strong>
+    <small>Install the plugin and verify it's wired up. Five minutes.</small>
+  </a>
+  <a class="tile" href="tutorials/first-workflow.html">
+    <span class="quadrant tutorial">tutorial</span>
+    <strong>Walk me through a full feature</strong>
+    <small>End-to-end worked example: shape → ship → retro on a tiny endpoint.</small>
+  </a>
+  <a class="tile" href="how-to/start-workflow.html">
+    <span class="quadrant howto">how-to</span>
+    <strong>I have a real change to make</strong>
+    <small>Decide which entry point fits: <code>/wf</code>, <code>/wf-quick</code>, hotfix, refactor, deps.</small>
+  </a>
+  <a class="tile" href="explanation/why-this-exists.html">
+    <span class="quadrant explanation">explanation</span>
+    <strong>Tell me the theory first</strong>
+    <small>Artifacts over memory, orchestrator discipline, Diátaxis integration.</small>
+  </a>
+  <a class="tile" href="reference/commands.html">
+    <span class="quadrant reference">reference</span>
+    <strong>I just want the API</strong>
+    <small>Every command, argument, and artifact format.</small>
+  </a>
+  <a class="tile" href="tips/escape-hatches.html">
+    <span class="quadrant tips">tips</span>
+    <strong>When NOT to use it</strong>
+    <small>Escape hatches, anti-patterns, when the workflow is overkill.</small>
+  </a>
+  <a class="tile" href="reference/wf-design.html">
+    <span class="quadrant reference">reference</span>
+    <strong>Design pipeline</strong>
+    <small><code>/wf-design</code> across 22 sub-commands. Brief, contract, audit, critique, 15 transformations.</small>
+  </a>
+  <a class="tile" href="how-to/use-design.html">
+    <span class="quadrant howto">how-to</span>
+    <strong>Add design to a workflow</strong>
+    <small>Three modes (workflow stage 2b, workflow + sub-command, freestanding). Pick the right one.</small>
+  </a>
+</div>
+
+<h2>The four-quadrant docs (Diátaxis)</h2>
+
+<p>This site follows the same documentation framework the plugin itself preaches. Each page declares its quadrant in a colored badge at the top, and the body follows that quadrant's conventions:</p>
+
+<table>
+<thead><tr><th>Quadrant</th><th>You're here because…</th><th>The pages look like…</th></tr></thead>
+<tbody>
+<tr><td><span class="quadrant tutorial">tutorial</span></td><td>You want to learn by doing. You don't yet know what you don't know.</td><td>Imperative steps. Stated outcomes. One worked example end-to-end.</td></tr>
+<tr><td><span class="quadrant howto">how-to</span></td><td>You know what you want to accomplish. You need a recipe.</td><td>Pre-conditions + numbered steps + variations.</td></tr>
+<tr><td><span class="quadrant reference">reference</span></td><td>You need to look something up.</td><td>Information-oriented. Alphabetised. Exhaustive. No opinions.</td></tr>
+<tr><td><span class="quadrant explanation">explanation</span></td><td>You want to understand <em>why</em>.</td><td>Discursive prose. Trade-offs. History. Comparison with alternatives.</td></tr>
+<tr><td><span class="quadrant tips">tips</span></td><td>You're past basics. You want sharp edges and shortcuts.</td><td>Short opinionated entries. Anti-patterns. FAQ.</td></tr>
+</tbody>
+</table>
+
+<p>If a page mixes shapes — "let me explain a concept while you copy these steps" — the framework says it has failed both audiences. The site holds to that discipline.</p>
+
+<h2>What's new</h2>
+
+<h3>v9.6.0</h3>
+<ul>
+  <li><strong><code>/wf-quick simplify</code> entrypoint</strong> — three-agent review-and-route triage (Code Reuse, Code Quality, Efficiency) across four scopes: <code>branch</code> (default), <code>commit &lt;sha&gt;</code>, <code>plan &lt;slug&gt; &lt;slice&gt;</code>, <code>codebase [&lt;path&gt;]</code>. <strong>Never writes code</strong> — classifies each finding and routes it to the appropriate downstream command (<code>/wf-quick fix</code>, <code>/wf-quick refactor</code>, <code>/wf intake</code>, <code>/wf-meta amend</code>, etc.). Adapted from the Claude Code bundled <code>simplify</code> skill but realigned to the plugin's orchestrator discipline. See <a href="reference/wf-quick.html#simplify">the simplify section</a>.</li>
+</ul>
+
+<h3>v9.5.0</h3>
+<ul>
+  <li><strong>Handoff PR-readiness block</strong> — commitlint, public-surface drift, doc-mirror regen, a bounded PR-comment triage loop, rebase onto base, and a live PR-state check. Produces a single <code>readiness-verdict</code> that ship gates on. See <a href="how-to/triage-pr-comments.html">Triage PR comments</a> and <a href="explanation/the-readiness-gate.html">The readiness gate</a>.</li>
+  <li><strong>Ship plan + per-release runs</strong> — a project-level <code>.ai/ship-plan.md</code> (authored once via <code>/wf-meta init-ship-plan</code>) drives a 13-step replayable ship sequence. Runs accumulate as <code>09-ship-run-&lt;run-id&gt;.md</code>. Partial failures resume rather than restart. See <a href="how-to/author-ship-plan.html">Author a ship plan</a> and <a href="how-to/run-a-release.html">Run a release</a>.</li>
+</ul>
+
+<h2>Local preview &amp; layout</h2>
+
+<p>The site is plain static HTML. Open <code>index.html</code> directly, or serve it locally:</p>
+
+<pre><code>cd plugins/sdlc-workflow/docs/site
+python3 -m http.server 8000
+# open http://localhost:8000</code></pre>
+
+<p>See <a href="https://github.com/jayteealao/agent-skills/tree/master/plugins/sdlc-workflow/docs/site">the source tree</a> for the directory layout. Diagrams use Mermaid via CDN; when the CDN is unreachable, each diagram's source text remains readable as a fallback.</p>
+
+<div class="pager">
+<a class="next" href="tutorials/installation.html"><span>Start here →</span>Install the plugin</a>
+</div>
+
+</main>
+</div>
+
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

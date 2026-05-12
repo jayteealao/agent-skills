@@ -11,15 +11,6 @@
       "argumentHint": "<problem-statement-or-slug>"
     },
     {
-      "key": "docs",
-      "kind": "dimension",
-      "referencePath": "skills/wf-quick/reference/docs.md",
-      "bodyHash": "70a86d3ebfe4063b344b6c2625f075bea14983e7fa78266fa2b645ca00779d24",
-      "bodyBytes": 12319,
-      "description": "Documentation audit and generation workflow. Discovers existing docs, audits them against the codebase and Diátaxis principles, plans what to create/update/remove, and generates using Diátaxis skills.",
-      "argumentHint": "[slug|--audit-only|path]"
-    },
-    {
       "key": "hotfix",
       "kind": "dimension",
       "referencePath": "skills/wf-quick/reference/hotfix.md",

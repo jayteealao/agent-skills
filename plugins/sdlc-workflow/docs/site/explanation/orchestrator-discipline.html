@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchestrator discipline · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Explanation &rsaquo; Orchestrator discipline</div>
+<span class="quadrant explanation">explanation</span>
+<h1>Orchestrator discipline</h1>
+
+<p>Every command in the plugin operates under a deliberate constraint: it is an <strong>orchestrator</strong>, not a problem-solver. This page explains what that means and why it matters.</p>
+
+<h2>The rule</h2>
+
+<table>
+<thead><tr><th>Stage</th><th>What it DOES</th><th>What it DOES NOT do</th></tr></thead>
+<tbody>
+<tr><td><code>shape</code></td><td>Shapes a spec.</td><td>Writes code.</td></tr>
+<tr><td><code>plan</code></td><td>Produces a plan.</td><td>Implements it.</td></tr>
+<tr><td><code>implement</code></td><td>Builds against the plan.</td><td>Designs anew.</td></tr>
+<tr><td><code>review</code></td><td>Dispatches reviewers, aggregates findings.</td><td>Fixes findings.</td></tr>
+<tr><td><code>handoff</code></td><td>Packages for review.</td><td>Ships.</td></tr>
+<tr><td><code>ship</code></td><td>Walks the release sequence.</td><td>Writes code or designs the spec.</td></tr>
+</tbody>
+</table>
+
+<p>If a stage is tempted to step outside its role, it stops and routes to the appropriate stage. The plugin's reference files contain explicit "if you catch yourself …, STOP" lines.</p>
+
+<h2>Why this constraint</h2>
+
+<p>Two reasons. First, <strong>artifact clarity</strong>. If <code>plan</code> also wrote code, the plan file would document only what survived implementation. The plan as an independent document — written <em>before</em> the code — is more useful precisely because it represents intent rather than post-hoc rationalization.</p>
+
+<p>Second, <strong>routing visibility</strong>. When implement finds the plan was wrong, it has somewhere to go (<code>/wf-meta amend</code>). When review finds a bug, it has somewhere to go (<code>/wf implement … reviews</code>). When ship finds a stale verify, it has somewhere to go (<code>/wf verify</code>). The discipline creates a graph where every failure has a defined next move.</p>
+
+<h2>What this prevents</h2>
+
+<ul>
+  <li><strong>Plan/implement collapse.</strong> Without the discipline, plan and implement happen together and the plan becomes a thin commit-message-style retroactive narrative.</li>
+  <li><strong>Review/fix collapse.</strong> Without the discipline, review fixes its own findings silently — the review artifact loses value because it doesn't record what was found vs. what was fixed.</li>
+  <li><strong>Shape/code collapse.</strong> Without the discipline, shape only describes what got built, not what was asked for. Future-you can't tell whether the original goal was met.</li>
+</ul>
+
+<h2>The cost</h2>
+
+<p>The cost is process — each routing hop is a context switch. For tiny changes this is genuine overhead, which is why <code>/wf-quick</code> exists. For non-tiny changes the explicit hops are themselves valuable: every hop is a chance for a human to redirect.</p>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="adaptive-routing.html">Adaptive routing</a> — how stages offer multiple "next" options.</li>
+  <li><a href="artifacts-over-memory.html">Artifacts over memory</a> — why each stage's output needs to be its own file.</li>
+  <li><a href="../how-to/amend-or-extend.html">Amend or extend</a> — what to do when a stage finds upstream issues.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../explanation/artifacts-over-memory.html"><span>← Previous</span>Artifacts over memory</a><a class="next" href="../explanation/diataxis-integration.html"><span>Next →</span>Diátaxis integration</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

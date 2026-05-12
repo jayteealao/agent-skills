@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resume paused work · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Resume paused work</div>
+<span class="quadrant howto">how-to</span>
+<h1>Resume paused work</h1>
+
+<p>Two flavours of "paused": a workflow you context-switched away from, and a ship run that stopped on a failing post-publish check. Both resume the same way.</p>
+
+<div class="summary">
+<table>
+<tr><th>Pre-conditions</th><td>A workflow exists. You've stepped away (hours, days, weeks).</td></tr>
+<tr><th>Goal</th><td>Pick up at the right point with full context restored.</td></tr>
+</table>
+</div>
+
+<h2>Case 1 — workflow context-switched</h2>
+
+<p>You ran <code>/wf shape</code> two weeks ago. You don't remember the slug or where you left off.</p>
+
+<pre><code>/wf-meta status                     # list everything
+/wf-meta resume &lt;slug&gt;              # pick up</code></pre>
+
+<p>Resume reads every artifact in the workflow directory, identifies the first unfinished stage, and proposes a concrete next invocation. You can accept or override.</p>
+
+<h2>Case 2 — ship run paused</h2>
+
+<p>You ran <code>/wf ship &lt;slug&gt;</code> yesterday. The release workflow succeeded but the registry-api post-publish check is still returning 404 (propagation slow). The run set <code>status: awaiting-input</code>.</p>
+
+<pre><code>/wf ship &lt;slug&gt;</code></pre>
+
+<p>When ship detects a paused run, it offers three choices:</p>
+
+<table>
+<thead><tr><th>Choice</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td>Resume &lt;run-id&gt;</td><td>Continue from the failed step. Same run-id; same artifact gets new evidence.</td></tr>
+<tr><td>Start fresh</td><td>New run-id; prior run stays at <code>status: awaiting-input</code>.</td></tr>
+<tr><td>Mark prior as failed, start fresh</td><td>Prior run gets <code>status: failed</code>; new run-id.</td></tr>
+</tbody>
+</table>
+
+<h2>What "resume" means per step</h2>
+
+<p>Every step in the ship run detects its already-done state:</p>
+
+<ul>
+  <li><strong>Pre-flight</strong> — version literal already at target? Skip the write.</li>
+  <li><strong>Dry-run</strong> — always safe to re-run.</li>
+  <li><strong>Merge</strong> — PR already merged? Capture the <code>mergeCommit.oid</code> and move on.</li>
+  <li><strong>Tag</strong> — <code>git rev-parse "v&lt;version&gt;"</code> succeeds? Skip.</li>
+  <li><strong>Workflow watch</strong> — already <code>release-workflow-conclusion: success</code>? Skip.</li>
+  <li><strong>Post-publish poll</strong> — per-check status (<code>pass</code> / <code>fail</code> / <code>pending</code>). Only re-poll the <code>pending</code> ones.</li>
+  <li><strong>Post-release bump</strong> — source-of-truth files already at next dev version? Skip.</li>
+</ul>
+
+<h2>When NOT to resume</h2>
+
+<ul>
+  <li>The plan changed materially since the paused run started. Inspect <code>plan-version-at-run</code> vs. current <code>plan-version</code>. If they differ, prefer "start fresh" so the new run records the new plan-version.</li>
+  <li>The failure was upstream of the run — e.g., the release workflow had a bug that you fixed in CI config. A fresh run gets a fresh release-workflow-run-id, which is cleaner for audit.</li>
+</ul>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="navigate-workflows.html">Navigate workflows</a> — daily lookup commands.</li>
+  <li><a href="../explanation/idempotency-in-ship.html">Idempotency in ship</a> — the design property that makes resume safe.</li>
+  <li><a href="../reference/09-ship-run-schema.html">Ship-run schema</a> — the evidence fields the resume logic reads.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../how-to/run-a-release.html"><span>← Previous</span>Run a release</a><a class="next" href="../how-to/close-workflows.html"><span>Next →</span>Close workflows</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

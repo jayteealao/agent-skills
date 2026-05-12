@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Author a ship plan · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Author a ship plan</div>
+<span class="quadrant howto">how-to</span>
+<h1>Author a ship plan</h1>
+
+<p>Before <code>/wf ship</code> works, the repo needs a <code>.ai/ship-plan.md</code>. You author it once per project.</p>
+
+<div class="summary">
+<table>
+<tr><th>Pre-conditions</th><td>Plugin v9.5.0+. A repo open. No existing <code>.ai/ship-plan.md</code> — if one exists, see <a href="../reference/commands.html">amend ship-plan</a> instead.</td></tr>
+<tr><th>Goal</th><td>Write <code>.ai/ship-plan.md</code> with all seven blocks (A–G) populated.</td></tr>
+<tr><th>Time</th><td>~15–30 minutes the first time. Subsequent runs reuse the plan.</td></tr>
+</table>
+</div>
+
+<h2>Step 1 — Pick a template</h2>
+
+<p>Six templates ship with the plugin. Pick the one that best matches how you release:</p>
+
+<table>
+<thead><tr><th>Template</th><th>When</th></tr></thead>
+<tbody>
+<tr><td><code>kotlin-maven-central</code></td><td>JVM library published to Maven Central via Sonatype + GPG signing.</td></tr>
+<tr><td><code>npm-public</code></td><td>npm package published to the public registry, often with provenance.</td></tr>
+<tr><td><code>pypi</code></td><td>Python package via Trusted Publisher (OIDC) or API token.</td></tr>
+<tr><td><code>container-image</code></td><td>Container image to GHCR/ECR/Docker Hub (multi-arch).</td></tr>
+<tr><td><code>server-deploy</code></td><td>Kubernetes / ECS / fly.io rolling deploy.</td></tr>
+<tr><td><code>library-internal</code></td><td>Internal/private registry; merge-on-main = released.</td></tr>
+</tbody>
+</table>
+
+<h2>Step 2 — Run init</h2>
+
+<pre><code>/wf-meta init-ship-plan --from-template &lt;kind&gt;</code></pre>
+
+<p>Or omit the flag to be asked. Claude reads the template, then asks 13 grouped questions covering blocks A–G.</p>
+
+<h2>Step 3 — Answer the block questions</h2>
+
+<p>The plan has seven blocks:</p>
+
+<dl>
+<dt><strong>A — Ship meaning + environments + cadence</strong></dt>
+<dd>What does "ship" mean here? Which environments? How often?</dd>
+
+<dt><strong>B — Versioning contract</strong></dt>
+<dd>Semver/calver/sequential. Which files hold the version literal. Bump rule (git-cliff, conventional commits, manual). Prerelease/post-release suffixes.</dd>
+
+<dt><strong>C — CI/CD contract</strong></dt>
+<dd>Release trigger (tag-on-main, merge-to-main, manual-dispatch). Release workflow file. Required secrets. Publish dry-run + publish commands.</dd>
+
+<dt><strong>D — Post-publish verification</strong></dt>
+<dd>Which checks confirm publish succeeded (registry-api, fresh-resolve, github-release, smoke-test, k8s-rollout-status). Propagation window. Poll interval.</dd>
+
+<dt><strong>E — Rollout strategy + rollback</strong></dt>
+<dd>Default rollout (immediate/staged/canary/flag). Rollback mechanism. DB migration reversibility.</dd>
+
+<dt><strong>F — Recovery playbooks</strong></dt>
+<dd>Templates pre-seed two or three (signing failures, token 401s, version-already-uploaded). Add more over time as runs hit new failure modes.</dd>
+
+<dt><strong>G — Announcements</strong></dt>
+<dd>Channels (#releases, mailing list). Optional template path.</dd>
+</dl>
+
+<h2>Step 4 — Confirm + write</h2>
+
+<p>Claude shows a summary table and asks for confirmation. <code>Confirm</code> writes <code>.ai/ship-plan.md</code> at repo root. <code>Adjust</code> goes back to one block. <code>Cancel</code> discards.</p>
+
+<h2>Step 5 — Commit the plan</h2>
+
+<p>Commit <code>.ai/ship-plan.md</code>. It's a project-level contract; every workflow on this repo will ship through it.</p>
+
+<pre><code>git add .ai/ship-plan.md
+git commit -m "chore: author ship plan (template: npm-public)"</code></pre>
+
+<h2>Amending the plan</h2>
+
+<p>When CI/CD changes, secrets rotate, or you accumulate enough run experience to add recovery playbooks:</p>
+
+<pre><code>/wf-meta amend ship-plan</code></pre>
+
+<p>Pick which block (A–G) to edit. The amend flow re-runs only that block's questions. <code>plan-version</code> bumps by 1.</p>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="run-a-release.html">Run a release</a> — what happens after the plan exists.</li>
+  <li><a href="../reference/ship-plan-schema.html">Ship-plan schema</a> — every field, every value.</li>
+  <li><a href="../explanation/idempotency-in-ship.html">Idempotency in ship</a> — why the plan is project-scoped and runs are per-release.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../how-to/triage-pr-comments.html"><span>← Previous</span>Triage PR comments</a><a class="next" href="../how-to/run-a-release.html"><span>Next →</span>Run a release</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

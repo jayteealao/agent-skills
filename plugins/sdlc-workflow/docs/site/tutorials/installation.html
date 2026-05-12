@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html">Home</a></li>
+    <li><a href="installation.html" class="active">Install</a></li>
+    <li><a href="first-workflow.html">First workflow</a></li>
+    <li><a href="quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to…</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside>
+
+<main>
+<div class="breadcrumb"><a href="../index.html">Home</a> › Tutorials › Install</div>
+<span class="quadrant tutorial">tutorial</span>
+<h1>Install the plugin</h1>
+<p style="font-size:1.05rem;color:var(--fg-muted);max-width:60ch;">
+By the end of this page, you'll have the plugin loaded in Claude Code, all skills discovered, and a working <code>/wf-meta status</code> command. About five minutes.
+</p>
+
+<div class="summary">
+<table>
+<tr><th>Pre-conditions</th><td>Claude Code installed; <code>gh</code> CLI authenticated; a repo open as the working directory.</td></tr>
+<tr><th>You will produce</th><td>A loaded plugin and one verified slash command.</td></tr>
+<tr><th>You will not produce</th><td>Any workflow artifacts — that's the <a href="first-workflow.html">first-workflow tutorial</a>.</td></tr>
+</table>
+</div>
+
+<h2>Step 1 — Add the plugin to Claude Code</h2>
+
+<p>From inside any Claude Code session, install the plugin from the marketplace it lives in. Treat the marketplace URL as whatever your team uses; here we'll use the canonical source:</p>
+
+<pre><code>/plugin marketplace add jayteealao/agent-skills
+/plugin install sdlc-workflow@jayteealao/agent-skills</code></pre>
+
+<p>Claude Code echoes back the loaded plugin's name, version, and skill count. You should see <strong>v9.5.0</strong> or later.</p>
+
+<div class="callout note">
+<strong>Already on an older version?</strong>
+Run <code>/plugin update sdlc-workflow</code>. Many features in this site — the handoff PR-readiness block, the ship plan, the replayable ship runs — require v9.5.0.
+</div>
+
+<h2>Step 2 — Confirm the skills loaded</h2>
+
+<p>The plugin's behaviour is bundled into six skill routers. Confirm Claude can see them:</p>
+
+<pre><code>/skills</code></pre>
+
+<p>You should see at least: <code>wf</code>, <code>wf-quick</code>, <code>wf-meta</code>, <code>wf-design</code>, <code>wf-docs</code>, <code>review</code>. Each is a router that dispatches across many sub-commands — see <a href="../reference/skills.html">Skills reference</a>.</p>
+
+<h2>Step 3 — Verify a meta command works</h2>
+
+<p>Open a session at the root of any git repo and run:</p>
+
+<pre><code>/wf-meta status</code></pre>
+
+<p>You should see one of two outcomes:</p>
+
+<ul>
+  <li><strong>"No active workflows."</strong> — Expected on a fresh repo. The plugin can read the file system and there are no <code>.ai/workflows/&lt;slug&gt;/</code> directories.</li>
+  <li><strong>A table of one or more workflows.</strong> — You already have workflow state in this repo; the plugin discovered it.</li>
+</ul>
+
+<p>Either output proves the plugin is wired up.</p>
+
+<h2>Step 4 — Verify the pre-write hook is active (optional)</h2>
+
+<p>The plugin ships a <code>PreToolUse</code> hook that gates writes to <code>.ai/workflows/*.md</code> against a schema. To confirm it's loaded, try writing an invalid artifact:</p>
+
+<pre><code># Tell Claude:
+"Write `.ai/workflows/dummy/00-index.md` with the literal contents: hello"</code></pre>
+
+<p>The hook should block the write with a message like <code>wf-validate: blocked write to 00-index.md…</code> The block proves the hook is running. (You don't need to fix the dummy file — it never got written.)</p>
+
+<h2>Step 5 — You're done</h2>
+
+<p>If steps 1–3 succeeded, you have a working installation. Continue to:</p>
+
+<div class="tile-grid">
+<a class="tile" href="first-workflow.html">
+  <span class="quadrant tutorial">tutorial</span>
+  <strong>First workflow</strong>
+  <small>Walk through all 10 stages on a tiny worked example.</small>
+</a>
+<a class="tile" href="quick-fix-workflow.html">
+  <span class="quadrant tutorial">tutorial</span>
+  <strong>Quick-fix walkthrough</strong>
+  <small>The compressed flow for trivial changes — 3 artifacts, not 10.</small>
+</a>
+<a class="tile" href="../how-to/start-workflow.html">
+  <span class="quadrant howto">how-to</span>
+  <strong>Pick the right entry point</strong>
+  <small>Decision tree: when to use <code>/wf</code> vs <code>/wf-quick</code> vs the standalone flows.</small>
+</a>
+</div>
+
+<h2>Troubleshooting</h2>
+
+<dl>
+<dt><strong><code>/wf-meta status</code> says "command not found"</strong></dt>
+<dd>The skill router didn't load. Run <code>/plugin list</code> to confirm sdlc-workflow is installed and enabled. If it's missing, re-run step 1.</dd>
+
+<dt><strong>The hook isn't blocking invalid writes</strong></dt>
+<dd>Hooks load lazily. Restart the session: <code>/exit</code> then re-open. If still nothing, see <a href="../reference/hooks.html">Hooks reference</a> for the path the hook should be at.</dd>
+
+<dt><strong><code>gh pr create</code> later in <code>/wf handoff</code> fails with auth</strong></dt>
+<dd>Run <code>gh auth login</code> outside Claude Code, then retry. The plugin doesn't manage gh auth.</dd>
+
+<dt><strong>Mermaid diagrams don't render in this site</strong></dt>
+<dd>Open the page via a local server (<code>python3 -m http.server</code>) rather than <code>file://</code>. The diagram source stays readable either way — it's the text inside <code>&lt;pre class="mermaid"&gt;</code>.</dd>
+</dl>
+
+<div class="pager">
+<a class="prev" href="../index.html"><span>← Back to</span>Home</a>
+<a class="next" href="first-workflow.html"><span>Next tutorial →</span>First workflow</a>
+</div>
+
+</main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

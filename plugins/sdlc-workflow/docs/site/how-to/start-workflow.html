@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pick the right entry point · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Pick an entry point</div>
+<span class="quadrant howto">how-to</span>
+<h1>Pick the right entry point</h1>
+
+<p>
+You have a change to make. The plugin offers ~15 different starting commands. This page is the decision tree.
+</p>
+
+<div class="summary">
+<table>
+<tr><th>Pre-conditions</th><td>Plugin installed.</td></tr>
+<tr><th>Goal</th><td>Pick the right <code>/wf</code> or <code>/wf-quick</code> entry that matches the size and shape of your change.</td></tr>
+</table>
+</div>
+
+<h2>Decision tree</h2>
+
+<div class="diagram">
+<pre class="mermaid">
+flowchart TD
+  start{"What kind of change?"}
+  start -- "Production incident, must ship in minutes" --> hotfix["/wf-quick hotfix"]
+  start -- "Single-file typo, one-line patch" --> fix["/wf-quick fix"]
+  start -- "Dependency updates, security or major version" --> deps["/wf-quick update-deps"]
+  start -- "Behaviour-preserving refactor" --> refactor["/wf-quick refactor"]
+  start -- "Bug report, root cause unknown" --> rca["/wf-quick rca"]
+  start -- "Need to understand existing code first" --> investigate["/wf-quick investigate"]
+  start -- "Idea, not yet a feature" --> ideate["/wf-quick discover"]
+  start -- "A real feature or substantive change" --> wf["/wf intake"]
+
+  classDef quick fill:#fef3c7,stroke:#b45309,color:#1f1f1d
+  classDef full fill:#dbeafe,stroke:#1d4ed8,color:#1f1f1d
+  class hotfix,fix,deps,refactor,rca,investigate,ideate quick
+  class wf full
+</pre>
+</div>
+<p class="caption">The compressed flows (<code>/wf-quick *</code>) trade artifact depth for speed. The full <code>/wf</code> entry runs the 10-stage pipeline — slower, but you get every step's artifact and adaptive routing.</p>
+
+<h2>By scenario</h2>
+
+<dl>
+<dt><strong>"I need to add a new feature."</strong></dt>
+<dd><code>/wf intake "&lt;feature description&gt;"</code> — the full lifecycle.</dd>
+
+<dt><strong>"There's a typo / 1-line patch / docs edit."</strong></dt>
+<dd><code>/wf-quick fix "&lt;description&gt;"</code> — three artifacts, ~10 minutes.</dd>
+
+<dt><strong>"Production is on fire."</strong></dt>
+<dd><code>/wf-quick hotfix "&lt;symptom&gt;"</code> — scope-locked, skips review, but still leaves an artifact trail.</dd>
+
+<dt><strong>"I need to investigate something before I commit to a fix."</strong></dt>
+<dd><code>/wf-quick investigate "&lt;area of code&gt;"</code>. The artifact forwards into <code>/wf shape</code> if the investigation yields work to do.</dd>
+
+<dt><strong>"There's a bug. I don't know where it is yet."</strong></dt>
+<dd><code>/wf-quick rca "&lt;symptom + repro&gt;"</code>. Root-cause analysis with parallel sub-agents.</dd>
+
+<dt><strong>"The deps are out of date. Some have CVEs."</strong></dt>
+<dd><code>/wf-quick update-deps</code>. Audits, tiers (P0 security → P1 major → P2 safe → hold), and applies in priority order.</dd>
+
+<dt><strong>"I want to refactor this without changing behaviour."</strong></dt>
+<dd><code>/wf-quick refactor "&lt;area&gt;"</code>. Captures a test baseline first; refactors with incremental green steps; re-verifies parity.</dd>
+
+<dt><strong>"I have an idea. I don't know if we should build it."</strong></dt>
+<dd><code>/wf-quick discover "&lt;idea&gt;"</code>. Light triage; outputs whether to build, pilot, or shelve.</dd>
+
+<dt><strong>"I want to read about an unfamiliar subsystem."</strong></dt>
+<dd><code>/wf-meta how "&lt;question&gt;"</code> — five-mode question answering. Doesn't write a stage artifact unless you opt in.</dd>
+</dl>
+
+<h2>Choosing between <code>/wf</code> and <code>/wf-quick</code></h2>
+
+<p>The hard question. Use this checklist:</p>
+
+<table>
+<thead><tr><th>Question</th><th>If yes</th><th>If no</th></tr></thead>
+<tbody>
+<tr><td>Could someone reasonably ask for a code review on this?</td><td>/wf</td><td>/wf-quick</td></tr>
+<tr><td>Does it change observable behaviour that a user might notice?</td><td>/wf</td><td>/wf-quick fix</td></tr>
+<tr><td>Are you confident the acceptance criteria are obvious from the description?</td><td>/wf-quick</td><td>/wf (shape will disambiguate)</td></tr>
+<tr><td>Will the change touch more than 2 files?</td><td>/wf</td><td>Either</td></tr>
+<tr><td>Do you want a retro at the end?</td><td>/wf</td><td>/wf-quick</td></tr>
+</tbody>
+</table>
+
+<p>Two or more "/wf" answers → run <code>/wf intake</code>. Otherwise the compressed flow is fine.</p>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="../tutorials/first-workflow.html">First workflow tutorial</a> — what <code>/wf</code> actually does, end to end.</li>
+  <li><a href="../tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a> — what <code>/wf-quick fix</code> looks like in practice.</li>
+  <li><a href="../reference/commands.html">Commands reference</a> — every command's arguments and exact behaviour.</li>
+  <li><a href="../tips/escape-hatches.html">Escape hatches</a> — when even the compressed flow is too much.</li>
+</ul>
+</div>
+<div class="pager"><span></span><a class="next" href="../how-to/navigate-workflows.html"><span>Next →</span>Navigate workflows</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

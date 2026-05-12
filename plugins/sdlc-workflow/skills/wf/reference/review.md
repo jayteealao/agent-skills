@@ -17,9 +17,11 @@ You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (recommended) |
+| Requires (per-slice mode) | `02-shape.md`, `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (recommended) |
+| Requires (slug-wide mode) | `02-shape.md`, `03-slice.md`, and at least one `05-implement-<slice>.md`. Reads every present per-slice implement/verify file for context. |
 | Conditional inputs (mandatory when present) | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `07-design-audit.md`, `07-design-critique.md`, `augmentations:` list in `00-index.md` — every artifact that exists MUST be checked by the relevant review (e.g., 02c-craft.md anti-goals MUST be honored; 04b-instrument.md signals MUST be present; 05c-benchmark.md baseline MUST not regress; every augmentation MUST get a type-specific re-check). |
-| Produces | `07-review-<slice-slug>.md` + `07-review-<slice-slug>-<command>.md` per selected command (per-slice scoping — running review on a different slice does NOT overwrite a sibling slice's files) |
+| Produces (per-slice mode) | `07-review-<slice-slug>.md` + `07-review-<slice-slug>-<command>.md` per selected command (per-slice scoping — running review on a different slice does NOT overwrite a sibling slice's files) |
+| Produces (slug-wide mode) | `07-review.md` + `07-review-<command>.md` per selected command (single set per workflow — re-running review overwrites). Sibling per-slice review files (if any from prior runs) are left untouched. |
 | Next | `/wf handoff <slug>` (if approved + all slices complete), `/wf implement <slug> <slice>` (if bugs to fix), `/wf plan <slug> <next-slice>` (if more slices remain), `/wf-meta amend <slug> from-review` (if spec was wrong), or `/wf-meta extend <slug> from-review` (if new scope needed) |
 
 # CRITICAL — execution discipline
@@ -35,11 +37,13 @@ You are a **review dispatch orchestrator**, not a problem solver.
 
 If the second argument is `triage` (e.g., `/wf review my-feature triage`), skip the full review and jump directly to re-triage:
 
-1. **Resolve slug** from the first argument. Read `00-index.md` for `selected-slice`. If a slice slug is the third argument (e.g., `/wf review my-feature triage auth-flow`), use it; otherwise use `selected-slice`. If neither is set, ask the user which slice to triage.
-2. **Read `07-review-<slice-slug>.md`** — parse the `## Triage Decisions` section. Collect all findings marked `deferred` or `untriaged`.
-3. **If no findings to triage** → print "No deferred or untriaged findings. Run `/wf review <slug> <slice>` for a full review." and STOP.
+1. **Resolve slug** from the first argument. Read `00-index.md` for `review-scope` and `selected-slice`.
+   - If `review-scope: slug-wide` → the target file is `07-review.md`. Ignore any third-argument slice selector.
+   - If `review-scope: per-slice` → If a slice slug is the third argument (e.g., `/wf review my-feature triage auth-flow`), use it; otherwise use `selected-slice`. If neither is set, ask the user which slice to triage. Target file is `07-review-<slice-slug>.md`.
+2. **Read the target review file** — parse the `## Triage Decisions` section. Collect all findings marked `deferred` or `untriaged`.
+3. **If no findings to triage** → print "No deferred or untriaged findings. Run `/wf review <slug> [<slice>]` for a full review." and STOP.
 4. **Present for triage via AskUserQuestion** — follow the same protocol as Step 4b below, but only show `deferred` and `untriaged` findings.
-5. **Update `07-review-<slice-slug>.md`** — overwrite the `## Triage Decisions` section with updated decisions. Update `## Recommendations` to reflect new fix/defer/dismiss counts. Preserve all other sections.
+5. **Update the target review file** — overwrite the `## Triage Decisions` section with updated decisions. Update `## Recommendations` to reflect new fix/defer/dismiss counts. Preserve all other sections.
 6. **Print summary** — show counts of fix/defer/dismiss and list findings newly marked for fixing.
 
 Then STOP — do not continue to the full review workflow.
@@ -47,20 +51,32 @@ Then STOP — do not continue to the full review workflow.
 ---
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
-3. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
-4. **Check prerequisites (workflow-type-aware):**
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector** (per-slice mode only — ignored in slug-wide mode). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`review-scope`**.
+3. **Resolve `review-scope`**: Read the `review-scope` field from `00-index.md` frontmatter. Default to `per-slice` if the field is absent (back-compat with pre-v9.x workflows).
+   - If `review-scope: per-slice` → continue with the slice-resolution step below. All artifact paths in this run use the `-<slice-slug>` suffix.
+   - If `review-scope: slug-wide` → **skip slice resolution entirely**. There is no `<slice-slug>` for this run. All artifact paths drop the slice suffix (`07-review.md`, `07-review-<command>.md`). Re-running review under this mode overwrites the prior `07-review.md` — that is the intended behavior. The reviewed diff is the cumulative branch diff (`git diff <base-branch>...HEAD`), not a per-slice diff. Note: slug-wide reviews findings reflect *all code currently on the branch*, including any partially-implemented or in-progress slices; the verdict is "ship this branch" rather than "ship this slice".
+4. **Resolve the slice-slug** (per-slice mode only — skip this step if `review-scope: slug-wide`): If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
+5. **Check prerequisites (workflow-type-aware AND review-scope-aware):**
    Read `workflow-type` from `00-index.md`. Recognize three modes:
    - **Compressed mode** (`workflow-type: quick`): the implement record is `05-implement.md` (no slice slug). Acceptance criteria source is `01-quick.md`. No per-slice plan/slice files exist.
    - **Forwarded mode** (`workflow-type: rca` / `investigate`): rich context lives in `01-rca.md` / `01-investigate.md`; `02-shape.md` is synthesized; `04-plan.md` exists if planning ran.
    - **Standard mode**: per-slice files (`03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`).
 
    In all modes, an implement record (slice or master) must exist. If missing → STOP. Tell the user: "Run `/wf implement <slug>` first."
-   `06-verify-<slice-slug>.md` (or `06-verify.md`) is recommended but not strictly required — review can proceed without it if verify was skipped.
-   If verify shows `Status: Awaiting input` → STOP.
-   If `07-review-<slice-slug>.md` already exists for the resolved slice → WARN before overwriting that file. Sibling slices' review files are never touched.
-5. **Read the slice's full context:**
+
+   **Per-slice mode** (`review-scope: per-slice`):
+   - `06-verify-<slice-slug>.md` (or `06-verify.md`) is recommended but not strictly required — review can proceed without it if verify was skipped.
+   - If verify shows `Status: Awaiting input` → STOP.
+   - If `07-review-<slice-slug>.md` already exists for the resolved slice → WARN before overwriting that file. Sibling slices' review files are never touched.
+
+   **Slug-wide mode** (`review-scope: slug-wide`):
+   - For standard mode workflows, **at least one** `05-implement-<slice-slug>.md` must exist. If `03-slice.md` lists multiple slices with `status: complete` but only some have implement records, WARN: "Slug-wide review covers the entire branch diff. Slices without implement records are: <list>. Their code may still appear in the diff; their acceptance criteria will not be checked."
+   - Any present `06-verify-*.md` files are read for context but never block.
+   - If `07-review.md` already exists → WARN before overwriting. Per-slice `07-review-<slice>.md` files (if any from prior per-slice runs) are left untouched.
+6. **Read the full context:**
+
+   **Per-slice mode** — read the slice's context:
    - `03-slice-<slice-slug>.md` — acceptance criteria and scope
    - `04-plan-<slice-slug>.md` — what was planned
    - `05-implement-<slice-slug>.md` — what was built
@@ -68,7 +84,13 @@ Then STOP — do not continue to the full review workflow.
    - `02-shape.md` — overall spec
    - `03-slice.md` — master slice index (for sibling context)
    - `po-answers.md`
-6. **Read augmentation context (optional — workflow may have any combination):**
+
+   **Slug-wide mode** — read every slice's context plus shape:
+   - `02-shape.md` — overall spec (primary acceptance criteria source)
+   - `03-slice.md` — master slice index (lists every slice)
+   - For every slice listed in `03-slice.md`: `03-slice-<slice>.md`, `04-plan-<slice>.md` (if present), `05-implement-<slice>.md` (if present), `06-verify-<slice>.md` (if present)
+   - `po-answers.md`
+7. **Read augmentation context (optional — workflow may have any combination):**
    Read the `augmentations:` list in `00-index.md` if present, plus the artifacts each entry references. Per-type guidance:
 
    | Type | What review must do |
@@ -82,9 +104,9 @@ Then STOP — do not continue to the full review workflow.
 
    Also read `02b-design.md` and `02c-craft.md` if present for register, anti-goals, and visual contract — review must check anti-goals were honored.
 
-   Cross-reference `06-verify-<slice-slug>.md` → `## Augmentation Verification` to see which augmentation re-checks failed — those become BLOCKER or HIGH review findings automatically.
-7. **Carry forward** `open-questions` from the index.
-8. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch. Review diffs must be generated against the implementation branch. Use `git diff <base-branch>...<branch>` to get the full change set for review dispatch.
+   Cross-reference `06-verify-<slice-slug>.md` (per-slice mode) or every `06-verify-*.md` file (slug-wide mode) → `## Augmentation Verification` to see which augmentation re-checks failed — those become BLOCKER or HIGH review findings automatically.
+8. **Carry forward** `open-questions` from the index.
+9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch. Review diffs must be generated against the implementation branch. Use `git diff <base-branch>...<branch>` to get the full change set for review dispatch.
 
 # Purpose
 Intelligent review dispatch. Analyse the change set, select which of the 30 review commands are relevant, launch one parallel sonnet sub-agent per selected command, then aggregate all findings into a unified review verdict.
@@ -126,18 +148,25 @@ When writing final verdict: `TaskUpdate(writeTaskId, status: "in_progress")`. Ma
 
 # Step 1: Gather Change Statistics
 
-From `05-implement.md`, extract the files changed and the nature of changes. Also run:
+From the relevant implement record(s), extract the files changed and the nature of changes. Also run the diff commands. **The diff scope depends on `review-scope`:**
+
+**Per-slice mode** — diff scope is the working tree (the current slice's in-progress or just-completed changes):
 
 ```bash
-# Changed file list
-git diff --name-only HEAD
-
-# Diff stats
-git diff --stat HEAD
-
-# Full diff for pattern analysis
-git diff HEAD
+git diff --name-only HEAD     # Changed file list
+git diff --stat HEAD          # Diff stats
+git diff HEAD                 # Full diff for pattern analysis
 ```
+
+**Slug-wide mode** — diff scope is the entire branch since divergence from `base-branch`:
+
+```bash
+git diff --name-only <base-branch>...HEAD   # Changed file list
+git diff --stat <base-branch>...HEAD        # Diff stats
+git diff <base-branch>...HEAD               # Full diff for pattern analysis
+```
+
+Substitute `<base-branch>` with the value from `00-index.md` frontmatter (typically `main` or `master`).
 
 Extract:
 - **File types changed** — extensions and directory patterns
@@ -262,19 +291,23 @@ Print to chat:
 
 For EACH selected command, spawn a **sonnet** sub-agent. All agents run in parallel.
 
-**Each sub-agent receives this prompt:**
+**Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`):
 
 ```
 Execute the review command at `${CLAUDE_PLUGIN_ROOT}/skills/review/reference/{command-name}.md`.
 
-Scope: git diff HEAD (or the specific files from the implementation)
+Scope:
+  - Per-slice mode: `git diff HEAD` (working-tree diff for the current slice)
+  - Slug-wide mode: `git diff <base-branch>...HEAD` (full branch diff)
 Workflow slug: {slug}
-Selected slice: {slice}
+Review scope: {review-scope}                              # per-slice or slug-wide
+Selected slice: {slice or "(none — slug-wide)"}
 
 Read the command file and follow its WORKFLOW exactly. Perform the review for the given scope.
 
 IMPORTANT: Write your complete review findings to the file:
-  `.ai/workflows/{slug}/07-review-{slice-slug}-{command-name}.md`
+  - Per-slice: `.ai/workflows/{slug}/07-review-{slice-slug}-{command-name}.md`
+  - Slug-wide: `.ai/workflows/{slug}/07-review-{command-name}.md`
 
 Use this structure for the file (YAML frontmatter first, then markdown):
 
@@ -283,7 +316,8 @@ Use this structure for the file (YAML frontmatter first, then markdown):
 schema: sdlc/v1
 type: review-command
 slug: {slug}
-slice-slug: {slice}
+review-scope: {per-slice|slug-wide}
+slice-slug: {slice or "" if slug-wide}
 review-command: {command-name}
 status: complete
 updated-at: "{timestamp}"
@@ -293,7 +327,7 @@ metric-findings-high: {N}
 result: clean | issues-found | blockers-found
 tags: []
 refs:
-  review-master: 07-review-{slice-slug}.md
+  review-master: {07-review-{slice-slug}.md | 07-review.md}
 ---
 ```
 
@@ -380,14 +414,18 @@ If there are no findings (all commands returned clean), skip this step.
 
 # Step 5: Write Review Files
 
-Write the master `07-review-<slice-slug>.md`:
+Write the master artifact. The filename and `refs` block depend on `review-scope`:
+
+- **Per-slice mode** → `07-review-<slice-slug>.md`
+- **Slug-wide mode** → `07-review.md` (no slice suffix; overwrites any prior slug-wide review)
 
 ```yaml
 ---
 schema: sdlc/v1
 type: review
 slug: <slug>
-slice-slug: <slice-slug>
+review-scope: <per-slice|slug-wide>
+slice-slug: <slice-slug or "" if slug-wide>
 status: complete
 stage-number: 7
 created-at: "<iso-8601>"
@@ -405,10 +443,17 @@ metric-findings-nit: <N>
 tags: []
 refs:
   index: 00-index.md
+  # Per-slice mode:
   slice-def: 03-slice-<slice-slug>.md
   implement: 05-implement-<slice-slug>.md
   verify: 06-verify-<slice-slug>.md
   sub-reviews: [07-review-<slice-slug>-correctness.md, 07-review-<slice-slug>-security.md, ...]
+  # Slug-wide mode (replace the four per-slice keys above with these):
+  shape: 02-shape.md
+  slice-index: 03-slice.md
+  implements: [05-implement-<slice-1>.md, 05-implement-<slice-2>.md, ...]
+  verifies: [06-verify-<slice-1>.md, 06-verify-<slice-2>.md, ...]
+  sub-reviews: [07-review-correctness.md, 07-review-security.md, ...]
 next-command: <wf-handoff|wf-implement>
 next-invocation: "<based on verdict>"
 ---
@@ -495,7 +540,9 @@ next-invocation: "<based on verdict>"
    - `current-stage: review`
    - `status: active`
    - `progress.review: complete`
-   - Add the slice-scoped `07-review-<slice-slug>.md` and every `07-review-<slice-slug>-<command>.md` file to `workflow-files` (do NOT remove sibling slices' review files — they remain valid)
+   - Add review artifacts to `workflow-files` based on `review-scope`:
+     - **Per-slice**: add the slice-scoped `07-review-<slice-slug>.md` and every `07-review-<slice-slug>-<command>.md` file (do NOT remove sibling slices' review files — they remain valid).
+     - **Slug-wide**: add `07-review.md` and every `07-review-<command>.md` file. If prior per-slice review files exist for this workflow, leave them in `workflow-files`; they are not invalidated by a slug-wide run.
    - Set `next-command` and `next-invocation` based on verdict
 2. Return the compact chat summary with verdict and options.
 

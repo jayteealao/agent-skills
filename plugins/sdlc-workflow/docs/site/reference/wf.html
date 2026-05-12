@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/wf router — every lifecycle command in depth · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf router</div>
+<span class="quadrant reference">reference</span>
+<h1>/wf router — every lifecycle command in depth</h1>
+
+<p>The lifecycle router. Dispatches across <strong>10 stages</strong> (intake → retro) and <strong>4 augmentations</strong> (instrument, experiment, benchmark, profile). Every command on this page is invoked as <code>/wf &lt;sub&gt; [args]</code>.</p>
+
+<div class="toc">
+<h3>On this page</h3>
+<ul>
+  <li><a href="#wf-intake">/wf intake</a></li>
+  <li><a href="#wf-shape">/wf shape</a></li>
+  <li><a href="#wf-slice">/wf slice</a></li>
+  <li><a href="#wf-plan">/wf plan</a></li>
+  <li><a href="#wf-implement">/wf implement</a></li>
+  <li><a href="#wf-verify">/wf verify</a></li>
+  <li><a href="#wf-review">/wf review</a></li>
+  <li><a href="#wf-handoff">/wf handoff</a></li>
+  <li><a href="#wf-ship">/wf ship</a></li>
+  <li><a href="#wf-retro">/wf retro</a></li>
+  <li><a href="#wf-instrument">/wf instrument</a> · <a href="#wf-experiment">experiment</a> · <a href="#wf-benchmark">benchmark</a> · <a href="#wf-profile">profile</a></li>
+</ul>
+</div>
+
+<h2 id="wf-intake">/wf intake "&lt;description&gt;"</h2>
+
+<div class="summary"><table>
+<tr><th>Stage</th><td>1 — the entry point</td></tr>
+<tr><th>Requires</th><td>Nothing. This is where workflows start.</td></tr>
+<tr><th>Produces</th><td><code>00-index.md</code> (control file), <code>01-intake.md</code> (initial requirements + branch decision)</td></tr>
+<tr><th>Default next</th><td><code>/wf shape &lt;slug&gt;</code></td></tr>
+</table></div>
+
+<p>Captures the raw ask, generates a stable slug (kebab-case, lowercase), establishes the branch strategy, and writes the control file. Slug is derived from the title and never changes — it's the directory name under <code>.ai/workflows/</code>.</p>
+
+<h4>What it reads</h4>
+<ul>
+  <li>The free-text description you pass.</li>
+  <li>Recent git activity to suggest a base branch.</li>
+  <li>Any existing <code>.ai/workflows/*/00-index.md</code> to avoid slug collisions.</li>
+</ul>
+
+<h4>What it writes</h4>
+<ul>
+  <li><code>.ai/workflows/&lt;slug&gt;/00-index.md</code> — control file with slug, title, status, branch-strategy, current-stage.</li>
+  <li><code>.ai/workflows/&lt;slug&gt;/01-intake.md</code> — your stated requirements plus structured frontmatter (urgency, scope, constraints).</li>
+</ul>
+
+<h4>Interview pattern</h4>
+<p>3–6 structured questions via AskUserQuestion: branch strategy (dedicated/shared/none), base branch, urgency, anyone-else-touching-this. Plus freeform: any constraints not captured.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>You have a real feature or substantive change to make.</li>
+  <li>You want a full lifecycle including review, handoff, and retro.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>One-line typo → <code>/wf-quick fix</code>.</li>
+  <li>Production incident → <code>/wf-quick hotfix</code>.</li>
+  <li>You're exploring, not committing to build → <code>/wf-quick discover</code>.</li>
+</ul>
+
+<hr>
+
+<h2 id="wf-shape">/wf shape &lt;slug&gt;</h2>
+
+<div class="summary"><table>
+<tr><th>Stage</th><td>2 — deep interview + research</td></tr>
+<tr><th>Requires</th><td><code>01-intake.md</code></td></tr>
+<tr><th>Produces</th><td><code>02-shape.md</code> — full mini-spec with acceptance criteria, edge cases, constraints, and the docs plan</td></tr>
+<tr><th>Default next</th><td><code>/wf slice &lt;slug&gt;</code></td></tr>
+<tr><th>Skip-to</th><td><code>/wf-design &lt;slug&gt;</code> for UI features (Stage 2b)</td></tr>
+</table></div>
+
+<p>The deepest interview stage. Shape commits the AI to <em>understanding</em>, not guessing. It dispatches parallel web-research sub-agents (best-practice scan, anti-patterns, gotchas) before asking you to fill in acceptance criteria and the docs plan.</p>
+
+<h4>What it reads</h4>
+<ul>
+  <li><code>01-intake.md</code></li>
+  <li>Project files for tech-stack context (package.json, pyproject.toml, etc.)</li>
+  <li>Live web research — best practices for the feature kind, recent vendor changes, known gotchas.</li>
+</ul>
+
+<h4>What it writes</h4>
+<ul>
+  <li><code>02-shape.md</code> with frontmatter: <code>docs-needed</code>, <code>docs-types</code>, <code>has-ui</code>, <code>has-migration</code>.</li>
+  <li>Body sections: Goal, Acceptance Criteria, Scope (in/out), Constraints, Edge Cases, Open Questions, Freshness Research, Documentation Plan.</li>
+</ul>
+
+<h4>Interview pattern</h4>
+<p>15–30 structured questions in 4–6 rounds (AskUserQuestion). Topics: goal, acceptance criteria, in/out scope, edge cases, observability needs, documentation needs.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>You need a clear spec before any code is written.</li>
+  <li>The change is large enough that misunderstanding it would be expensive.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>The acceptance criteria are obvious from the description (rename, typo, version bump). Use <code>/wf-quick fix</code>.</li>
+</ul>
+
+<hr>
+
+<h2 id="wf-slice">/wf slice &lt;slug&gt;</h2>
+
+<div class="summary"><table>
+<tr><th>Stage</th><td>3 — decompose into vertical slices</td></tr>
+<tr><th>Requires</th><td><code>02-shape.md</code></td></tr>
+<tr><th>Produces</th><td><code>03-slice.md</code> (master index) + <code>03-slice-&lt;slice-slug&gt;.md</code> per slice</td></tr>
+<tr><th>Default next</th><td><code>/wf plan &lt;slug&gt; &lt;slice&gt;</code></td></tr>
+</table></div>
+
+<p>Cuts the shaped work into thin, independently deliverable vertical slices. Each slice can be planned, implemented, verified, and reviewed in parallel. Single-slice features go through one cycle; multi-slice ones can fan out.</p>
+
+<h4>What it reads</h4>
+<ul>
+  <li><code>02-shape.md</code> — goal, acceptance criteria, scope</li>
+  <li><code>02b-design.md</code> if present (UI features)</li>
+</ul>
+
+<h4>What it writes</h4>
+<ul>
+  <li><code>03-slice.md</code> — master index with slice array (slug, status, complexity, depends-on)</li>
+  <li><code>03-slice-&lt;slice-slug&gt;.md</code> per slice — goal, acceptance criteria, scope (in/out), complexity (xs/s/m/l/xl), dependencies</li>
+</ul>
+
+<h4>When to use</h4>
+<ul>
+  <li>Whenever shape is complete. Even single-slice work goes through slice (writes one per-slice file).</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>Use <code>/wf-meta skip slice</code> only for compressed flows that already decomposed at <code>/wf-quick</code> time.</li>
+</ul>
+
+<hr>
+
+<h2 id="wf-plan">/wf plan &lt;slug&gt; &lt;slice&gt;</h2>
+
+<div class="summary"><table>
+<tr><th>Stage</th><td>4 — repo-aware implementation plan</td></tr>
+<tr><th>Requires</th><td><code>03-slice-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Produces</th><td><code>04-plan-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Default next</th><td><code>/wf implement &lt;slug&gt; &lt;slice&gt;</code></td></tr>
+</table></div>
+
+<p>Plan is <em>repo-aware</em>. It dispatches parallel Explore sub-agents: <strong>reuse scan</strong> (does the codebase already have helpers we should use?), <strong>convention scan</strong> (what file/folder shape do existing features follow?), and <strong>web-research</strong> (current best practices for the specific pattern).</p>
+
+<h4>What it reads</h4>
+<ul>
+  <li><code>03-slice-&lt;slice&gt;.md</code> + <code>02-shape.md</code> + <code>02b-design.md</code> + <code>02c-craft.md</code> if present</li>
+  <li>Repo files via Explore sub-agents</li>
+  <li>Live web research for current patterns</li>
+</ul>
+
+<h4>What it writes</h4>
+<ul>
+  <li><code>04-plan-&lt;slice&gt;.md</code> — files to touch, order of operations, reuse decisions, test strategy, <code>has-blockers</code> flag, revision count</li>
+</ul>
+
+<h4>Auto-review mode</h4>
+<p>If <code>04-plan-&lt;slice&gt;.md</code> already exists, re-running plan triggers auto-review: an independent sub-agent reads the plan against the current spec and flags issues. Use this when a review or retro found the plan was incomplete.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>Before any implementation. Always.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>Hotfix — <code>/wf-quick hotfix</code> compresses plan into the single artifact.</li>
+</ul>
+
+<hr>
+
+<h2 id="wf-implement">/wf implement &lt;slug&gt; &lt;slice&gt; [reviews]</h2>
+
+<div class="summary"><table>
+<tr><th>Stage</th><td>5 — execute the plan, commit atomically</td></tr>
+<tr><th>Requires</th><td><code>04-plan-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Produces</th><td><code>05-implement-&lt;slice&gt;.md</code> + code + a commit</td></tr>
+<tr><th>Default next</th><td><code>/wf verify &lt;slug&gt; &lt;slice&gt;</code></td></tr>
+</table></div>
+
+<p>The only stage that writes code. Reads the plan, makes the edits, runs the project's test command, and commits with a message that follows your repo's commit convention.</p>
+
+<h4>Modes</h4>
+<ul>
+  <li><strong>Default</strong>: <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> — implements per the plan.</li>
+  <li><strong>Reviews</strong>: <code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code> — applies review-finding fixes. Reads <code>07-review-&lt;slice&gt;.md</code> and re-implements the targeted fixes.</li>
+</ul>
+
+<h4>What it reads</h4>
+<ul>
+  <li><code>04-plan-&lt;slice&gt;.md</code>, <code>02-shape.md</code>, <code>02b-design.md</code>, <code>02c-craft.md</code>, <code>04b-instrument-&lt;slice&gt;.md</code>, <code>04c-experiment-&lt;slice&gt;.md</code> when present</li>
+  <li>Existing repo code touched by the slice</li>
+</ul>
+
+<h4>What it writes</h4>
+<ul>
+  <li>Code edits + tests in your repo</li>
+  <li><code>05-implement-&lt;slice&gt;.md</code> with <code>commit-sha</code>, <code>metric-files-changed</code>, <code>metric-lines-added/removed</code>, <code>metric-deviations-from-plan</code>, and a <code>## Plan deviations</code> section if anything diverged</li>
+</ul>
+
+<h4>Plan-deviation discipline</h4>
+<p>If Claude can't follow the plan exactly (discovered constraint, missing helper, plan was wrong), the deviation is recorded explicitly. The plan stays a plan; the implement file becomes the record of what actually happened.</p>
+
+<hr>
+
+<h2 id="wf-verify">/wf verify &lt;slug&gt; &lt;slice&gt;</h2>
+
+<div class="summary"><table>
+<tr><th>Stage</th><td>6 — exercise the acceptance criteria, capture evidence</td></tr>
+<tr><th>Requires</th><td><code>05-implement-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Produces</th><td><code>06-verify-&lt;slice&gt;.md</code> with <code>result: pass | fail | partial</code></td></tr>
+<tr><th>Default next</th><td><code>/wf review &lt;slug&gt; &lt;slice&gt;</code></td></tr>
+</table></div>
+
+<p>Reads the acceptance criteria from <code>02-shape.md</code> and the slice file, then exercises each criterion. Captures evidence: test output, response bodies, screenshots (for UI), benchmark results (if <code>05c-benchmark</code> ran).</p>
+
+<h4>What it reads</h4>
+<ul>
+  <li>Acceptance criteria from <code>02-shape.md</code> + <code>03-slice-&lt;slice&gt;.md</code></li>
+  <li>The just-committed code</li>
+  <li>Project test runner command (npm test, pytest, gradle test, etc.)</li>
+</ul>
+
+<h4>What it writes</h4>
+<ul>
+  <li><code>06-verify-&lt;slice&gt;.md</code> with frontmatter: <code>result</code>, <code>metric-checks-run</code>, <code>metric-checks-passed</code>, <code>metric-acceptance-met</code></li>
+  <li>Body: evidence per acceptance criterion (test output, curl response, screenshot link, etc.)</li>
+</ul>
+
+<h4>If verify fails</h4>
+<p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, route to <code>/wf-meta amend</code>.</p>
+
+<hr>
+
+<h2 id="wf-review">/wf review &lt;slug&gt; &lt;slice&gt; [triage]</h2>
+
+<div class="summary"><table>
+<tr><th>Stage</th><td>7 — multi-domain parallel review dispatch</td></tr>
+<tr><th>Requires</th><td><code>06-verify-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Produces</th><td><code>07-review-&lt;slice&gt;.md</code> (master verdict) + <code>07-review-&lt;slice&gt;-&lt;cmd&gt;.md</code> per dimension</td></tr>
+<tr><th>Default next</th><td><code>/wf handoff &lt;slug&gt;</code> (if ship verdict) or <code>/wf implement &lt;slice&gt; reviews</code> (if blockers)</td></tr>
+</table></div>
+
+<p>Not a single reviewer. A dispatch orchestrator that reads shape and slice, decides which of the 31 review dimensions matter for this change, and runs each as a parallel sub-agent. Findings are aggregated, de-duplicated, and triaged with you.</p>
+
+<h4>What it reads</h4>
+<ul>
+  <li>Every prior artifact: shape, slice, plan, implement, verify, design</li>
+  <li>The current diff (HEAD vs base)</li>
+</ul>
+
+<h4>What it writes</h4>
+<ul>
+  <li>Per dimension: <code>07-review-&lt;slice&gt;-&lt;cmd&gt;.md</code> with severity-graded findings</li>
+  <li>Master: <code>07-review-&lt;slice&gt;.md</code> with <code>verdict: ship | ship-with-caveats | dont-ship</code>, <code>commands-run</code>, all finding counts</li>
+</ul>
+
+<h4>Triage mode</h4>
+<p><code>/wf review &lt;slug&gt; &lt;slice&gt; triage</code> re-opens prior findings and walks the user through deferred items.</p>
+
+<hr>
+
+<h2 id="wf-handoff">/wf handoff &lt;slug&gt; [slice]</h2>
+
+<div class="summary"><table>
+<tr><th>Stage</th><td>8 — package for PR; run PR-readiness block</td></tr>
+<tr><th>Requires</th><td>Every in-scope slice's <code>05-*</code> + <code>07-*</code></td></tr>
+<tr><th>Produces</th><td><code>08-handoff.md</code> + Diátaxis docs + branch pushed + PR opened</td></tr>
+<tr><th>Default next</th><td><code>/wf ship &lt;slug&gt;</code> if verdict <code>ready</code></td></tr>
+</table></div>
+
+<p>Aggregates ALL complete slices into one PR by default. Pass a slice slug as the second arg only when each slice ships as its own PR. The big v9.5.0 addition is the <strong>PR-readiness block</strong>: commitlint pass, public-surface drift check, doc-mirror regen, PR comment triage loop, rebase onto base, live PR readiness check. Outputs a single <code>readiness-verdict</code> that ship gates on.</p>
+
+<h4>What it reads</h4>
+<ul>
+  <li>Every workflow artifact through review</li>
+  <li>The git branch + base branch state</li>
+  <li>Optional <code>00-index.md</code> config: <code>public-surface</code>, <code>docs-mirror</code>, <code>review-bots</code></li>
+</ul>
+
+<h4>What it writes</h4>
+<ul>
+  <li>Diátaxis docs per <code>02-shape.md</code> docs plan (loads <code>skills/wf-docs/reference/&lt;type&gt;.md</code> primitive verbatim)</li>
+  <li><code>08-handoff.md</code> with the full PR-readiness frontmatter block</li>
+  <li>Pushed branch + new or updated PR</li>
+</ul>
+
+<p>See <a href="08-handoff-schema.html">Handoff schema</a> for every frontmatter field; <a href="../how-to/triage-pr-comments.html">Triage PR comments</a> for the T5.1 loop; <a href="../explanation/the-readiness-gate.html">The readiness gate</a> for how the verdict is computed.</p>
+
+<hr>
+
+<h2 id="wf-ship">/wf ship &lt;slug&gt; [environment]</h2>
+
+<div class="summary"><table>
+<tr><th>Stage</th><td>9 — plan-driven, replayable release</td></tr>
+<tr><th>Requires</th><td><code>.ai/ship-plan.md</code> AND <code>08-handoff.md</code> with <code>readiness-verdict: ready</code></td></tr>
+<tr><th>Produces</th><td><code>09-ship-run-&lt;run-id&gt;.md</code> + refreshed <code>09-ship-runs.md</code></td></tr>
+<tr><th>Default next</th><td><code>/wf retro &lt;slug&gt;</code></td></tr>
+</table></div>
+
+<p>Walks the 13-step ship sequence. Each step is independently re-runnable (detects already-done state before acting). Resumes paused runs.</p>
+
+<h4>13 steps</h4>
+<ol>
+  <li>Orient — read plan, handoff verdict, detect paused runs.</li>
+  <li>Pre-flight — version bump, secrets check, changelog regen.</li>
+  <li>Publish dry-run — mandatory if plan has one.</li>
+  <li>Rollout questions — strategy, window, stakeholders.</li>
+  <li>Freshness delta — research only what changed since last successful run.</li>
+  <li>Go/No-Go — AskUserQuestion gate.</li>
+  <li>Merge — gh pr merge (only if ship-meaning includes merging).</li>
+  <li>Tag + release — for <code>tag-on-main</code> trigger.</li>
+  <li>Release-workflow watch — gh run watch; recovery playbooks on failure.</li>
+  <li>Post-publish polling — per <code>plan.post-publish-checks</code>, bounded by propagation window.</li>
+  <li>Post-release version bump — for projects with snapshots / dev versions.</li>
+  <li>Update <code>09-ship-runs.md</code> index.</li>
+  <li>Write the run artifact.</li>
+</ol>
+
+<p>See <a href="../how-to/run-a-release.html">Run a release</a> for the walkthrough and <a href="09-ship-run-schema.html">Ship-run schema</a> for the artifact contract.</p>
+
+<hr>
+
+<h2 id="wf-retro">/wf retro &lt;slug&gt;</h2>
+
+<div class="summary"><table>
+<tr><th>Stage</th><td>10 — extract lessons; close out</td></tr>
+<tr><th>Requires</th><td>The full artifact trail through ship (or handoff if shipping is external)</td></tr>
+<tr><th>Produces</th><td><code>10-retro.md</code></td></tr>
+</table></div>
+
+<p>Reads every artifact in the workflow and proposes <strong>concrete improvement actions</strong> for the project: additions to <code>CLAUDE.md</code>, new hooks, missing test coverage, missing CI checks, missing command configurations.</p>
+
+<h4>What it reads</h4>
+<ul>
+  <li>Every artifact in <code>.ai/workflows/&lt;slug&gt;/</code> from intake through ship</li>
+  <li>The workflow's <code>po-answers.md</code> for moments where the user redirected the AI</li>
+</ul>
+
+<h4>What it writes</h4>
+<ul>
+  <li><code>10-retro.md</code> with: workflow-outcome (completed/abandoned/partial), <code>metric-improvement-count</code>, <code>metric-stages-completed</code></li>
+  <li>Body: lessons learned + concrete suggested additions, ready to copy into CLAUDE.md / hooks / etc.</li>
+</ul>
+
+<h4>When to skip</h4>
+<p>Compressed flows (<code>/wf-quick</code>) skip retro by default. The full pipeline should not — small lessons compound. Anti-pattern: skipping retro on "small" work.</p>
+
+<hr>
+
+<h2 id="wf-instrument">/wf instrument &lt;slug&gt; &lt;slice&gt;</h2>
+
+<div class="summary"><table>
+<tr><th>Type</th><td>Augmentation — observability</td></tr>
+<tr><th>Requires</th><td><code>02-shape.md</code> + a defined slice</td></tr>
+<tr><th>Produces</th><td><code>04b-instrument-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Registers as</th><td>Entry in <code>00-index.md</code>'s <code>augmentations:</code> array</td></tr>
+</table></div>
+
+<p>Designs the observability for a slice: which logs, metrics, traces to add. Implement reads the augmentation file and adds the signals. Handoff translates to "Added observability — N signals for previously unobserved code paths".</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>The slice changes code paths that have no logs/metrics/traces.</li>
+  <li>The change is behaviour you want to monitor in production.</li>
+</ul>
+
+<hr>
+
+<h2 id="wf-experiment">/wf experiment &lt;slug&gt; &lt;slice&gt;</h2>
+
+<div class="summary"><table>
+<tr><th>Type</th><td>Augmentation — feature flag + cohort design</td></tr>
+<tr><th>Produces</th><td><code>04c-experiment-&lt;slice&gt;.md</code></td></tr>
+</table></div>
+
+<p>For behaviour changes you want to gate behind a flag with a measured rollout. Writes the cohort split design, success metrics, rollback signal. Implement reads it and adds the gating code.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>The slice changes user-visible behaviour and you want a slow rollout.</li>
+  <li>You need an explicit rollback signal beyond "revert the merge".</li>
+</ul>
+
+<hr>
+
+<h2 id="wf-benchmark">/wf benchmark &lt;slug&gt; &lt;slice&gt;</h2>
+
+<div class="summary"><table>
+<tr><th>Type</th><td>Augmentation — perf baseline + compare</td></tr>
+<tr><th>Produces</th><td><code>05c-benchmark-&lt;slice&gt;.md</code></td></tr>
+</table></div>
+
+<p>Two-phase: run before implement to capture baseline; run after implement (compare mode) to diff against baseline. Compare output flows into <code>06-verify-&lt;slice&gt;.md</code> evidence and into handoff as "Performance baseline taken; verify-stage comparison: &lt;within tripwires | regression&gt;".</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>The change could plausibly affect performance, even if you don't expect it to.</li>
+  <li>You want regression insurance.</li>
+</ul>
+
+<hr>
+
+<h2 id="wf-profile">/wf profile &lt;area&gt;</h2>
+
+<div class="summary"><table>
+<tr><th>Type</th><td>Augmentation — freestanding profiling pass</td></tr>
+<tr><th>Slice-bound</th><td>No — doesn't need a workflow slice</td></tr>
+<tr><th>Produces</th><td>A profiling report</td></tr>
+</table></div>
+
+<p>The only freestanding augmentation. Investigate where time is spent in the named area. Language-detect, static-analysis rubric, dynamic-profiling commands per language, structured-output contract.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>You suspect a hot path but don't know where.</li>
+  <li>You need to plan a perf improvement before committing to it.</li>
+</ul>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="wf-quick.html">/wf-quick router</a> — the compressed alternatives to <code>/wf intake</code>.</li>
+  <li><a href="wf-meta.html">/wf-meta router</a> — navigation and management.</li>
+  <li><a href="pipeline.html">Pipeline reference</a> — the 10-stage flow these commands implement.</li>
+  <li><a href="../tutorials/first-workflow.html">First workflow tutorial</a> — these commands in practice.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../reference/skills.html"><span>← Previous</span>Skills</a><a class="next" href="../reference/wf-quick.html"><span>Next →</span>/wf-quick router</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

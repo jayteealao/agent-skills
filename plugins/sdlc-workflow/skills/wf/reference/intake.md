@@ -48,7 +48,7 @@ Convert a rough request into a clear intake brief, create the workflow folder, c
 - **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
-- `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `open-questions`, `tags`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`.
+- `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, `pr-url`, `pr-number`, `open-questions`, `tags`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`.
 - **Use AskUserQuestion** for multiple-choice PO questions (branch strategy, rollout preference, merge strategy, go/no-go, risk tolerance). Use freeform chat for open-ended questions (requirements, constraints, acceptance criteria). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
@@ -94,6 +94,16 @@ Do this in order:
          description: "A day or two. Multiple files, may benefit from slicing."
        - label: "Large"
          description: "Multiple days. Definitely needs slicing and incremental delivery."
+     multiSelect: false
+
+   Question 3:
+     question: "How should the review stage be scoped?"
+     header: "Review scope"
+     options:
+       - label: "Per slice (Recommended)"
+         description: "Each slice gets its own 07-review-<slice>.md. Required when running review repeatedly across multiple slices — handoff aggregates per-slice verdicts."
+       - label: "Slug-wide"
+         description: "One 07-review.md for the whole workflow against the cumulative branch diff. Re-running review overwrites the file. Best for single-slice or holistic reviews."
      multiSelect: false
    ```
    If the user chose "Dedicated" for branch strategy, follow up (in chat or a second AskUserQuestion) for:
@@ -145,6 +155,7 @@ selected-slice: ""
 branch-strategy: <dedicated|shared|none>
 branch: "<feat/slug or empty>"
 base-branch: "<main|master|develop>"
+review-scope: <per-slice|slug-wide>   # default per-slice; chosen at intake. Drives /wf review file layout and /wf handoff gating.
 pr-url: ""
 pr-number: 0
 open-questions: []

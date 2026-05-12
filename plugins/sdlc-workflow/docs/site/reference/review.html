@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>/review router — 31 dimensions and 7 sweeps · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /review router</div>
+<span class="quadrant reference">reference</span>
+<h1>/review router — 31 dimensions and 7 sweeps</h1>
+
+<p>The code-review router. Two modes: <strong>single-dimension</strong> (<code>/review &lt;dim&gt; [target]</code>) runs one reviewer inline against a broad rubric, and <strong>sweep</strong> (<code>/review sweep &lt;aggregate&gt; [target]</code>) dispatches one sub-agent per dimension in the aggregate's composition, collecting findings in parallel.</p>
+
+<p>Three names overlap (<code>architecture</code>, <code>infra</code>, <code>security</code>) — the dimension wins on a bare invocation; the sweep needs the literal <code>sweep</code> keyword.</p>
+
+<div class="toc">
+<h3>On this page</h3>
+<ul>
+  <li><a href="#how-it-works">How dispatch works</a></li>
+  <li><a href="#sweeps">The 7 sweeps</a></li>
+  <li><a href="#dimensions">The 31 dimensions — by category</a></li>
+  <li><a href="#integration">Integration with /wf review</a></li>
+</ul>
+</div>
+
+<h2 id="how-it-works">How dispatch works</h2>
+
+<table>
+<thead><tr><th>Mode</th><th>Form</th><th>Cost</th><th>Use when</th></tr></thead>
+<tbody>
+<tr><td>Single dimension</td><td><code>/review correctness</code> · <code>/review security ./src/auth.ts</code></td><td>One sub-agent</td><td>You know which axis to investigate.</td></tr>
+<tr><td>Sweep</td><td><code>/review sweep all</code> · <code>/review sweep pre-merge worktree</code></td><td>N sub-agents in parallel</td><td>You want defensive breadth.</td></tr>
+</tbody>
+</table>
+
+<p>Sub-agents dispatch in a single message (parallel). Sequential dispatch defeats the purpose of sweep mode and the router enforces parallelism.</p>
+
+<h4>Target argument</h4>
+<p>Optional. If omitted, the reviewer scopes to the current diff (HEAD vs base). Accepts: a file path, a directory, a PR number (<code>#123</code>), the literal <code>worktree</code> (uncommitted changes), or <code>repo</code> (everything).</p>
+
+<h4>Severity routing</h4>
+<table>
+<tr><th>BLOCKER</th><td>Correctness, security, data loss, crash. Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code>.</td></tr>
+<tr><th>HIGH</th><td>Should fix; might ship with caveats. Same routing or carry as caveat.</td></tr>
+<tr><th>MED / LOW / NIT</th><td>Style, naming, nit-with-merit. Ship.</td></tr>
+</table>
+
+<hr>
+
+<h2 id="sweeps">The 7 sweeps</h2>
+
+<table class="no-mobile-scroll">
+<thead><tr><th>Sweep</th><th>Composition</th><th>When</th></tr></thead>
+<tbody>
+<tr><td><code>all</code></td><td>All 31 dimensions</td><td>Pre-major-release defensive review. Most expensive.</td></tr>
+<tr><td><code>pre-merge</code></td><td>correctness, security, testing, performance, observability, refactor-safety, docs, ci</td><td>Standard pre-merge gate.</td></tr>
+<tr><td><code>quick</code></td><td>correctness, testing, style-consistency</td><td>Smoke check before opening a PR.</td></tr>
+<tr><td><code>security</code></td><td>security, infra-security, supply-chain, privacy, data-integrity</td><td>Security-focused review.</td></tr>
+<tr><td><code>architecture</code></td><td>architecture, scalability, reliability, maintainability, overengineering, refactor-safety</td><td>Architecture review.</td></tr>
+<tr><td><code>infra</code></td><td>infra, infra-security, ci, release, observability, cost</td><td>Infrastructure/devops change review.</td></tr>
+<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, ux-copy, frontend-performance</td><td>UI feature review.</td></tr>
+</tbody>
+</table>
+
+<hr>
+
+<h2 id="dimensions">The 31 dimensions — by category</h2>
+
+<h3>Correctness & data</h3>
+<table>
+<tr><th><code>correctness</code></th><td>Logic bugs, off-by-one, missing edge cases, error handling, return values.</td></tr>
+<tr><th><code>data-integrity</code></th><td>Schema constraints, foreign keys, transactions, unique violations, race conditions on writes.</td></tr>
+<tr><th><code>migrations</code></th><td>Forward + reverse SQL migrations, data backfills, deployment ordering, idempotency.</td></tr>
+<tr><th><code>api-contracts</code></th><td>Breaking changes in public APIs, missing version bumps, deprecation handling.</td></tr>
+</table>
+
+<h3>Security & privacy</h3>
+<table>
+<tr><th><code>security</code></th><td>Auth/authz, input validation, secrets handling, SQL injection, XSS, CSRF.</td></tr>
+<tr><th><code>infra-security</code></th><td>IAM policies, network policies, secret storage, container security.</td></tr>
+<tr><th><code>supply-chain</code></th><td>Dependency risk, lock-file integrity, registry sources, build provenance.</td></tr>
+<tr><th><code>privacy</code></th><td>PII handling, GDPR/CCPA, data retention, telemetry boundaries.</td></tr>
+</table>
+
+<h3>Performance & cost</h3>
+<table>
+<tr><th><code>performance</code></th><td>Algorithmic complexity, query efficiency, hot paths, allocations.</td></tr>
+<tr><th><code>frontend-performance</code></th><td>Bundle size, render cost, layout thrash, image optimization.</td></tr>
+<tr><th><code>scalability</code></th><td>Behavior under load, fan-out, contention, caching shape.</td></tr>
+<tr><th><code>cost</code></th><td>Cloud-spend implications, query cost, storage growth.</td></tr>
+</table>
+
+<h3>Reliability & ops</h3>
+<table>
+<tr><th><code>reliability</code></th><td>Failure modes, retries, timeouts, circuit breakers, degraded paths.</td></tr>
+<tr><th><code>observability</code></th><td>Logs, metrics, traces — are the signals there?</td></tr>
+<tr><th><code>logging</code></th><td>Log shape, levels, correlation IDs, log volume.</td></tr>
+<tr><th><code>backend-concurrency</code></th><td>Races, deadlocks, mutex shape, atomicity boundaries.</td></tr>
+</table>
+
+<h3>Infrastructure & release</h3>
+<table>
+<tr><th><code>infra</code></th><td>Terraform, K8s manifests, deployment topology, environment parity.</td></tr>
+<tr><th><code>ci</code></th><td>Pipeline correctness, cache shape, parallelism, flakes.</td></tr>
+<tr><th><code>release</code></th><td>Versioning, changelog, rollback path, feature-flag wiring.</td></tr>
+</table>
+
+<h3>Architecture & maintenance</h3>
+<table>
+<tr><th><code>architecture</code></th><td>Module boundaries, layering, coupling, dependency direction.</td></tr>
+<tr><th><code>maintainability</code></th><td>Code clarity, naming, function shape, comment quality.</td></tr>
+<tr><th><code>overengineering</code></th><td>Speculative abstractions, premature interfaces, unused flexibility.</td></tr>
+<tr><th><code>refactor-safety</code></th><td>For refactor PRs: behavior preserved, tests covering parity.</td></tr>
+<tr><th><code>code-simplification</code></th><td>Specific opportunities to remove code without losing function.</td></tr>
+<tr><th><code>style-consistency</code></th><td>Matches existing project conventions (not a generic style guide).</td></tr>
+</table>
+
+<h3>UX & accessibility</h3>
+<table>
+<tr><th><code>accessibility</code></th><td>WCAG compliance, semantic HTML, keyboard nav, screen-reader support.</td></tr>
+<tr><th><code>frontend-accessibility</code></th><td>Component-level a11y, focus management, ARIA, color contrast.</td></tr>
+<tr><th><code>ux-copy</code></th><td>UX writing — labels, errors, empty states, microcopy clarity.</td></tr>
+</table>
+
+<h3>Testing & docs</h3>
+<table>
+<tr><th><code>testing</code></th><td>Coverage, test shape, fixture quality, integration vs unit balance.</td></tr>
+<tr><th><code>docs</code></th><td>Docs accuracy, Diátaxis fit, what's missing.</td></tr>
+<tr><th><code>dx</code></th><td>Developer experience — error messages, debuggability, onboarding pain.</td></tr>
+</table>
+
+<hr>
+
+<h2 id="integration">Integration with /wf review</h2>
+
+<p><code>/wf review &lt;slug&gt; &lt;slice&gt;</code> uses this router under the hood. The lifecycle review:</p>
+
+<ol>
+  <li>Reads shape + slice + plan + implement to understand <em>what the feature does</em>.</li>
+  <li>Reasons about which review dimensions matter (not keyword-driven — feature-driven).</li>
+  <li>Dispatches one sub-agent per chosen dimension in parallel.</li>
+  <li>Each writes to <code>07-review-&lt;slice&gt;-&lt;dimension&gt;.md</code>.</li>
+  <li>The orchestrator aggregates, deduplicates by file:line and root cause, triages with the user.</li>
+  <li>Writes master <code>07-review-&lt;slice&gt;.md</code> with verdict.</li>
+</ol>
+
+<p>You can also use <code>/review</code> standalone — when you want to spot-check a specific file outside a workflow, or run a sweep on a long-lived branch.</p>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="wf.html#wf-review">/wf review stage</a> — using these dimensions inside a workflow.</li>
+  <li><a href="wf.html#wf-implement">/wf implement reviews</a> — applying review findings.</li>
+  <li><a href="../how-to/triage-pr-comments.html">Triage PR comments</a> — handoff's bot-comment loop, similar dispatch model.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../reference/wf-docs.html"><span>← Previous</span>/wf-docs router</a><a class="next" href="../reference/wf-design.html"><span>Next →</span>/wf-design router</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>
