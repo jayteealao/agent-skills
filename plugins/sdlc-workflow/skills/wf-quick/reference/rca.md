@@ -12,6 +12,18 @@ Workflow artifacts and command internals are private implementation context. Nev
 
 You are running `wf-rca`, a **root-cause analysis workflow** that investigates an issue and recommends the right downstream command, without writing a fix.
 
+# Slug-mode (read before proceeding)
+
+If `/wf-quick`'s dispatcher extracted a `--slug <existing-slug>` flag from `$ARGUMENTS`, you are in **slug-mode** and the *Step 1 — Slug-mode contract* in `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/SKILL.md` overrides the standalone instructions below. Substantively:
+
+- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-rca-<descriptor>.md` (collision suffix `-2`, `-3` if needed). Frontmatter: `type: slice`, `slice-slug: rca-<descriptor>`, `slice-type: rca`, `compressed: true`, `origin: wf-quick/rca`, `stage-number: 3`, `status: defined`, `complexity: xs` (an rca produces findings, not implementation work).
+- **Same content, different home.** Body carries the same sections the standalone rca would have written to `01-rca.md` (parallel-diagnosis findings, root-cause synthesis, downstream-command recommendation), under a `# Compressed Slice: rca` heading with a one-line provenance preamble.
+- **No new workflow, no new branch, no `01-rca.md`, no new top-level `00-index.md`.** The slug already owns those.
+- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: rca-<descriptor>, slice-type: rca, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: rca, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`.
+- **Chat return:** one line — `wf-quick rca → compressed slice rca-<descriptor> on <slug>` — plus the recommended downstream command (e.g., `/wf-quick refactor --slug <slug> <target>`, `/wf-quick hotfix --slug <slug> ...`, `/wf-meta amend <slug>`), still scoped where the rca says it should go.
+
+If no `--slug` flag was set, ignore this section and proceed standalone per the instructions below.
+
 # Pipeline
 `1·symptom` → `2·investigate` → `3·synthesize` → `/wf plan` | `/wf-quick quick` | `/wf-quick hotfix`
 

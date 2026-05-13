@@ -15,7 +15,7 @@
 <div class="layout">
 
 <aside id="sidebar">
-<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.9.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -179,6 +179,11 @@ flowchart LR
 <p>If a page mixes shapes — "let me explain a concept while you copy these steps" — the framework says it has failed both audiences. The site holds to that discipline.</p>
 
 <h2>What's new</h2>
+
+<h3>v9.9.0</h3>
+<ul>
+  <li><strong><code>--slug &lt;existing-slug&gt;</code> flag on every <code>/wf-quick</code> sub-command</strong> — attach the output as a single <strong>compressed slice</strong> on an existing workflow instead of starting a new one. Writes one file (<code>03-slice-&lt;sub&gt;-&lt;descriptor&gt;.md</code> with <code>type: slice</code>, <code>slice-type: &lt;sub&gt;</code>, <code>compressed: true</code>, <code>origin: wf-quick/&lt;sub&gt;</code>), appends to a new <code>compressed-slices:</code> array on <code>00-index.md</code>, and — if <code>03-slice.md</code> already exists — appends to its <code>slices</code> as well. No new workflow dir, no new branch, no <code>01-&lt;sub&gt;.md</code>. Supported uniformly on all 9 sub-commands: <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>. See <a href="reference/wf-quick.html#slug-mode">the slug-mode reference</a>.</li>
+</ul>
 
 <h3>v9.6.0</h3>
 <ul>

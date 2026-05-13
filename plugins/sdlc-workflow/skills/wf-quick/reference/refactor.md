@@ -12,6 +12,18 @@ Workflow artifacts and command internals are private implementation context. Nev
 
 You are running `wf-refactor`, a **behavior-preserving refactoring workflow**.
 
+# Slug-mode (read before proceeding)
+
+If `/wf-quick`'s dispatcher extracted a `--slug <existing-slug>` flag from `$ARGUMENTS`, you are in **slug-mode** and the *Step 1 — Slug-mode contract* in `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/SKILL.md` overrides the standalone instructions below. Substantively:
+
+- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-refactor-<descriptor>.md` (collision suffix `-2`, `-3` if needed). Frontmatter: `type: slice`, `slice-slug: refactor-<descriptor>`, `slice-type: refactor`, `compressed: true`, `origin: wf-quick/refactor`, `stage-number: 3`, `status: defined`.
+- **Same content, different home.** Body carries the same sections the standalone refactor would have written to `01-refactor.md` (target identification, test baseline, behavior-preservation invariants, refactor plan, verification plan), under a `# Compressed Slice: refactor` heading with a one-line provenance preamble.
+- **No new workflow, no new branch, no `01-refactor.md`, no new top-level `00-index.md`.** The slug already owns those.
+- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: refactor-<descriptor>, slice-type: refactor, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: refactor, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`.
+- **Chat return:** one line — `wf-quick refactor → compressed slice refactor-<descriptor> on <slug>` — plus the recommended next step (`/wf implement <slug>` to apply the refactor, or `/wf-meta status <slug>` to inspect).
+
+If no `--slug` flag was set, ignore this section and proceed standalone per the instructions below.
+
 # Pipeline
 `1·brief` → `2·baseline` → `3·plan` → `4·implement` → `5·verify`
 

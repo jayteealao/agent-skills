@@ -5,6 +5,40 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.9.0] - 2026-05-13
+
+### Added
+
+- **`--slug <existing-slug>` flag on all 9 `/wf-quick` sub-commands.** Optional global flag, parsed by the dispatcher (`skills/wf-quick/SKILL.md` Step 0) before sub-command resolution. When set, the sub-command attaches to an existing workflow as a single **compressed slice** instead of starting a new standalone workflow. Supported uniformly on every sub-command: `quick`, `rca`, `investigate`, `discover`, `hotfix`, `update-deps`, `refactor`, `ideate`, `simplify`.
+
+### Changed
+
+- **Slug-mode contract (new `Step 1` in `skills/wf-quick/SKILL.md`).** Defines what slug-mode does in one place — slice-slug derivation (`<sub>-<descriptor>` with collision suffix `-2`, `-3`), the single artifact at `.ai/workflows/<slug>/03-slice-<sub>-<descriptor>.md`, the frontmatter shape (`type: slice` plus `slice-type: <sub>`, `compressed: true`, `origin: wf-quick/<sub>`, `stage-number: 3`, `status: defined`), the body contract (same sections the standalone reference would have produced, under a `# Compressed Slice: <sub>` heading with a one-line provenance preamble), and the additive index updates (a new `00-index.md.compressed-slices` array, plus a conditional append to `03-slice.md.slices` if the slice index already exists). The existing `# Step 1 — Execute` is renumbered to `# Step 2 — Execute` and now carries an explicit override clause: in slug-mode the slug-mode contract overrides any reference instruction that would create a new workflow dir, write a new top-level `00-index.md`, create a branch, or write `01-<sub>.md`.
+- **9 reference files** (`skills/wf-quick/reference/*.md`) each gained an identical-shape `# Slug-mode (read before proceeding)` section immediately after the `You are running …` line, listing the redirect rules for that specific sub-command with `<sub>` substituted in. Each section ends with *"If no `--slug` flag was set, ignore this section and proceed standalone per the instructions below."* The standalone instructions below the new section are unchanged — only the output destination and index bookkeeping change in slug-mode.
+- **`simplify` is special-cased** in slug-mode: it writes the compressed slice into `.ai/workflows/<slug>/` instead of `.ai/simplify/<run-id>.md`. The `simplify-run` frontmatter fields (`findings-total`, `findings-reuse`, etc.) do NOT carry over — they belong to the standalone `simplify-run` artifact type. The compressed slice is a `slice` artifact; the same numbers are reported in the body instead. Its routing assignments are emitted with `--slug <X>` pre-applied so the user can copy them straight into the next command.
+- **Plugin description** in `plugins/sdlc-workflow/.claude-plugin/plugin.json` and the marketplace entry in `.claude-plugin/marketplace.json` mention slug-mode at the top level.
+
+### Rationale
+
+`/wf-quick` sub-commands were originally orthogonal *new-workflow* entry points — each one created its own `.ai/workflows/<slug>/` directory, branch, and root artifact. That model is right for greenfield invocations but wrong for the common follow-up case: a user is mid-workflow on slug `X`, hits a question that calls for an rca or an ideate or a refactor pass, and either has to spin up a parallel workflow (cluttering `.ai/workflows/`, splitting attention, fragmenting status) or freehand the work outside the workflow system (losing artifact discipline and review-pipeline integration). The `--slug` flag closes that gap by making every sub-command **dual-mode** — still a fresh workflow if invoked bare, now also a compressed slice on an existing workflow if `--slug X` is passed. The slice format keeps the artifact discoverable by existing slice-aware tooling (`/wf plan`, `/wf-meta status`, slice-index master) while the new `slice-type` + `compressed: true` frontmatter fields and the `00-index.md.compressed-slices` array let downstream stages distinguish compressed slices from formally-planned ones (so they don't try to push an rca-shaped or ideate-shaped slice through plan→implement→verify automatically — those produce findings/recommendations, not implementation work; whereas quick/hotfix/refactor/update-deps slices carry their own embedded plan that `/wf implement` can read directly without an additional `04-plan-<slice>.md`).
+
+### Schema & validator impact
+
+**Zero schema migration.** The frontmatter JSON schema (`tests/frontmatter.schema.json`) already permits additional properties on `sliceFrontmatter`, `sliceIndexFrontmatter.slices[]` items, and `indexFrontmatter`, so the new `slice-type`, `compressed`, `origin`, and top-level `compressed-slices` fields validate cleanly without any schema changes. The pre-write validator (`hooks/scripts/validate-workflow-write.sh`) only enforces `schema`/`type`/`slug` and slug-matches-directory — compressed slices satisfy all three trivially (slug matches the parent workflow dir; type is `slice`). The deep validator (`tests/verify_frontmatter.py`) discriminates on `type:`, so compressed slices validate against the same `sliceFrontmatter` branch as ordinary slices and accept the extra fields as additional properties.
+
+### Migration
+
+No action required for existing workflows. Slug-mode is purely additive — running `/wf-quick rca "<incident>"` still creates a fresh standalone workflow exactly as before. Pass `--slug <X>` to attach to existing workflow `X` instead. Existing `00-index.md` files without a `compressed-slices` array are unchanged; the array is created lazily on first slug-mode write.
+
+### Notes
+
+- The `compressed-slices` array on `00-index.md` is created lazily on first slug-mode write. Workflows that never receive a compressed slice keep their existing index shape unchanged.
+- The slice-index master `03-slice.md` is updated **only if it already exists**. Compressed-slice writes do NOT synthesize a slice index for workflows that haven't reached the slice stage — the `compressed-slices` entry on `00-index.md` is the canonical record in that case. This keeps slug-mode usable from any stage of the parent workflow (intake, shape, plan, implement, verify, …) without forcing premature slice-index synthesis.
+- `current-stage`, `selected-slice`, `status`, `branch`, `progress`, and `best-first-slice` are never mutated by slug-mode. Compressed slices are additive context, not lifecycle advancement; the parent workflow's main lifecycle proceeds independently.
+- Branch policy in slug-mode: no `git checkout -b`, no branch switching. A current-branch ≠ `00-index.md.branch` mismatch surfaces as a one-line warning but does not block the write — the slice file lives in the workflow dir, not on a specific branch.
+- Closed workflows (`status: closed`) trigger a confirmation prompt before slug-mode proceeds.
+- `.codex-plugin/plugin.json` is untouched (still `9.0.0-codex.1`) — slug-mode is a Claude-Code-specific addition to the wf-quick router that the Codex side does not run.
+
 ## [9.8.0] - 2026-05-12
 
 ### Removed

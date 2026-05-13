@@ -12,6 +12,18 @@ Workflow artifacts and command internals are private implementation context. Nev
 
 You are running `wf-quick`, a **compressed planning workflow** for small intentional changes.
 
+# Slug-mode (read before proceeding)
+
+If `/wf-quick`'s dispatcher extracted a `--slug <existing-slug>` flag from `$ARGUMENTS`, you are in **slug-mode** and the *Step 1 — Slug-mode contract* in `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/SKILL.md` overrides the standalone instructions below. Substantively:
+
+- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-quick-<descriptor>.md` (collision suffix `-2`, `-3` if needed). Frontmatter: `type: slice`, `slice-slug: quick-<descriptor>`, `slice-type: quick`, `compressed: true`, `origin: wf-quick/quick`, `stage-number: 3`, `status: defined`.
+- **Same content, different home.** Body uses the same sections you would have written to `01-quick.md` standalone (Brief / Shape / Design-skip / Slice-skip / Plan / Skipped / Tripwire breaches), under a `# Compressed Slice: quick` heading with a one-line provenance preamble.
+- **No new workflow, no new branch, no `01-quick.md`, no new top-level `00-index.md`.** The slug already owns those.
+- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: quick-<descriptor>, slice-type: quick, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: quick, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`.
+- **Chat return:** one line — `wf-quick quick → compressed slice quick-<descriptor> on <slug>` — plus the downstream recommendation you would normally make (`/wf implement <slug>` or `/wf-meta status <slug>`), now scoped to this slice rather than a fresh workflow.
+
+If no `--slug` flag was set, ignore this section and proceed standalone per the instructions below.
+
 # Pipeline
 `1·quick-plan` → `/wf implement` → `/wf verify` → `/wf review` → `/wf handoff` → `/wf ship`
 

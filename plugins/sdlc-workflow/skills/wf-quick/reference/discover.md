@@ -12,6 +12,18 @@ Workflow artifacts and command internals are private implementation context. Nev
 
 You are running `wf-discover`, a **problem validation workflow** that answers "should we build this?" before any engineering investment is made.
 
+# Slug-mode (read before proceeding)
+
+If `/wf-quick`'s dispatcher extracted a `--slug <existing-slug>` flag from `$ARGUMENTS`, you are in **slug-mode** and the *Step 1 — Slug-mode contract* in `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/SKILL.md` overrides the standalone instructions below. Substantively:
+
+- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-discover-<descriptor>.md` (collision suffix `-2`, `-3` if needed). Frontmatter: `type: slice`, `slice-slug: discover-<descriptor>`, `slice-type: discover`, `compressed: true`, `origin: wf-quick/discover`, `stage-number: 3`, `status: defined`, `complexity: xs` (discover produces a build/do-not-build recommendation, not implementation work).
+- **Same content, different home.** Body carries the same sections the standalone discover would have written to `01-discover.md` (external signal scan, competitor/market evidence, user-need synthesis, build/do-not-build verdict), under a `# Compressed Slice: discover` heading with a one-line provenance preamble.
+- **No new workflow, no new branch, no `01-discover.md`, no new top-level `00-index.md`.** The slug already owns those.
+- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: discover-<descriptor>, slice-type: discover, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: discover, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`.
+- **Chat return:** one line — `wf-quick discover → compressed slice discover-<descriptor> on <slug>` — plus the discover verdict and its recommended next step (e.g., `/wf intake <description>` if build, or "do not build — close this thread" if not).
+
+If no `--slug` flag was set, ignore this section and proceed standalone per the instructions below.
+
 # Pipeline
 `1·problem-intake` → `2·external-research` → `3·validate` → `/wf intake` | `do-not-build`
 

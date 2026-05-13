@@ -12,6 +12,18 @@ Workflow artifacts and command internals are private implementation context. Nev
 
 You are running `wf-quick simplify`, a **review-and-route triage utility**. Three parallel sub-agents (Reuse, Quality, Efficiency) review one of four scopes and you classify each finding, then route it to the appropriate downstream command. Not a lifecycle stage; not a workflow; not a fixer. A triage report that fans out.
 
+# Slug-mode (read before proceeding)
+
+If `/wf-quick`'s dispatcher extracted a `--slug <existing-slug>` flag from `$ARGUMENTS`, you are in **slug-mode** and the *Step 1 — Slug-mode contract* in `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/SKILL.md` overrides the standalone instructions below. Substantively:
+
+- **One artifact, in the existing workflow** — *not* the standalone `.ai/simplify/<run-id>.md` location. Write `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (collision suffix `-2`, `-3` if needed; descriptor defaults to scope — e.g., `simplify-branch-2026-05-13` or `simplify-codebase-auth`). Frontmatter: `type: slice`, `slice-slug: simplify-<descriptor>`, `slice-type: simplify`, `compressed: true`, `origin: wf-quick/simplify`, `stage-number: 3`, `status: defined`, `complexity: xs` (simplify produces routing recommendations, not implementation work). In slug-mode, do NOT also write `.ai/simplify/<run-id>.md` — the compressed slice is the single output.
+- **Same content, different home.** Body carries the same sections the standalone simplify would have written to `.ai/simplify/<run-id>.md` (three-agent findings, per-finding classification, routing summary, routing assignments, proposed deltas), under a `# Compressed Slice: simplify` heading with a one-line provenance preamble. The `simplify-run` frontmatter fields (`findings-total`, `findings-reuse`, etc.) do NOT carry over — they belong to the standalone `simplify-run` artifact type. The compressed slice is a `slice` artifact; report the same numbers in the body instead.
+- **No new workflow, no new branch, no `01-simplify.md`, no `.ai/simplify/<run-id>.md`, no new top-level `00-index.md`.** The slug already owns the workflow context; simplify's findings live as a slice on it.
+- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: simplify-<descriptor>, slice-type: simplify, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: simplify, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`.
+- **Chat return:** one line — `wf-quick simplify → compressed slice simplify-<descriptor> on <slug>` — plus the routing summary (counts per downstream command) and the top routing assignments, each scoped with `--slug <slug>` where applicable (e.g., `/wf-quick refactor --slug <slug> <target>`, `/wf-meta amend <slug>`).
+
+If no `--slug` flag was set, ignore this section and proceed standalone per the instructions below.
+
 # Pipeline
 `1·resolve-scope` → `2·dispatch (3 sub-agents in parallel)` → `3·aggregate + triage` → `4·classify + route (assign each finding a downstream command)` → `5·write run artifact + print routing suggestions`
 

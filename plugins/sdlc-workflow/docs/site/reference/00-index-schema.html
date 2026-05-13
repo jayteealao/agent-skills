@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.6.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.9.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -115,6 +115,7 @@
 <tr><th><code>pr-number</code></th><td>Set by handoff.</td></tr>
 <tr><th><code>augmentations</code></th><td>Array of <code>{ kind, slice, ref, registered-at }</code> objects.</td></tr>
 <tr><th><code>workflow-type</code></th><td>For compressed flows: <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>discover</code>, <code>ideate</code>.</td></tr>
+<tr><th><code>compressed-slices</code></th><td><em>(v9.9.0)</em> Array of <code>{ slug, slice-type, created-at }</code> objects, one per compressed slice landed on this workflow via <code>/wf-quick &lt;sub&gt; --slug &lt;X&gt;</code>. Created lazily on first slug-mode write; absent on workflows that never received one. <code>slice-type</code> is the originating sub-command (<code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>). The slice file itself lives at <code>03-slice-&lt;slice-slug&gt;.md</code> and is also listed in <code>workflow-files</code>; the <code>compressed-slices</code> array is the explicit registry that distinguishes compressed slices from formally-planned ones. See <a href="wf-quick.html#slug-mode">wf-quick slug-mode</a>.</td></tr>
 </table>
 
 <h2>v9.5.0 PR-readiness config keys</h2>
