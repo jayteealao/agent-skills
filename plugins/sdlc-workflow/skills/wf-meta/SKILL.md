@@ -32,7 +32,7 @@ Parse `$ARGUMENTS`. The first token must be one of the 11 known keys below; the 
 | `close`           | `<reason> [slug]`              | Archive a workflow at any stage. Five close reasons; produces 99-close.md. |
 | `how`             | `<mode> <topic>`               | Routes across five explanation modes: quick code answer, codebase exploration, deep web research, workflow-artifact explanation, findings explanation. |
 | `announce`        | `[slug]`                       | Produce a Diátaxis-aligned external announcement for a completed workflow. |
-| `init-ship-plan`  | `[--from-template <kind>]`     | Author the project-level `.ai/ship-plan.md` (one-time). Templates: `kotlin-maven-central`, `npm-public`, `pypi`, `container-image`, `server-deploy`, `library-internal`. |
+| `init-ship-plan`  | `[--from-template <kind>]`     | Author the project-level `.ai/ship-plan.md` (one-time) via **discovery → hypothesis → confirm**: reads CI workflows, infra-as-code, package manifests, runbooks; proposes a ship-shape; lets the user confirm or correct each contract. Templates (`kotlin-maven-central`, `npm-public`, `pypi`, `container-image`, `server-deploy`, `library-internal`) are *hypothesis seeds*, not control-flow branches. Supports open `additional-contracts[]` extensions for project-specific shape. |
 
 **Resolution rules:**
 

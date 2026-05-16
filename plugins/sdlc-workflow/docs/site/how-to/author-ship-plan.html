@@ -84,79 +84,78 @@
 
 <div class="summary">
 <table>
-<tr><th>Pre-conditions</th><td>Plugin v9.5.0+. A repo open. No existing <code>.ai/ship-plan.md</code> — if one exists, see <a href="../reference/commands.html">amend ship-plan</a> instead.</td></tr>
-<tr><th>Goal</th><td>Write <code>.ai/ship-plan.md</code> with all seven blocks (A–G) populated.</td></tr>
+<tr><th>Pre-conditions</th><td>Plugin v9.12.0+. A repo open. No existing <code>.ai/ship-plan.md</code> — if one exists, see <a href="../reference/commands.html">amend ship-plan</a> instead.</td></tr>
+<tr><th>Goal</th><td>Write <code>.ai/ship-plan.md</code> with required-core Blocks A–G plus any project-specific <code>additional-contracts[]</code>.</td></tr>
 <tr><th>Time</th><td>~15–30 minutes the first time. Subsequent runs reuse the plan.</td></tr>
 </table>
 </div>
 
-<h2>Step 1 — Pick a template</h2>
+<h2>How the flow works — discovery → hypothesis → confirm</h2>
 
-<p>Six templates ship with the plugin. Pick the one that best matches how you release:</p>
+<p>From v9.12.0, <code>init-ship-plan</code> does not start by asking you to pick a template. It starts by <em>reading the repo</em> — CI workflow YAML, infra-as-code (Dockerfile/helm/terraform/fly.toml), package manifests (<code>package.json</code>, <code>pyproject.toml</code>, <code>gradle.properties</code>, <code>Cargo.toml</code>, …), release tooling (<code>release-please-config.json</code>, <code>goreleaser.yml</code>, <code>.changeset/</code>, <code>cliff.toml</code>), and runbook directories. It surfaces a discovery report, then walks you through each contract as a hypothesis to confirm, refine, or replace.</p>
 
-<table>
-<thead><tr><th>Template</th><th>When</th></tr></thead>
-<tbody>
-<tr><td><code>kotlin-maven-central</code></td><td>JVM library published to Maven Central via Sonatype + GPG signing.</td></tr>
-<tr><td><code>npm-public</code></td><td>npm package published to the public registry, often with provenance.</td></tr>
-<tr><td><code>pypi</code></td><td>Python package via Trusted Publisher (OIDC) or API token.</td></tr>
-<tr><td><code>container-image</code></td><td>Container image to GHCR/ECR/Docker Hub (multi-arch).</td></tr>
-<tr><td><code>server-deploy</code></td><td>Kubernetes / ECS / fly.io rolling deploy.</td></tr>
-<tr><td><code>library-internal</code></td><td>Internal/private registry; merge-on-main = released.</td></tr>
-</tbody>
-</table>
+<p>Templates still exist (<code>kotlin-maven-central</code>, <code>npm-public</code>, <code>pypi</code>, <code>container-image</code>, <code>server-deploy</code>, <code>library-internal</code>), but they are now <strong>hypothesis seeds</strong>, not control-flow branches. Pass <code>--from-template &lt;kind&gt;</code> only when you want the conversation to bias toward that shape; discovery still runs.</p>
 
-<h2>Step 2 — Run init</h2>
+<h2>Step 1 — Run init</h2>
 
-<pre><code>/wf-meta init-ship-plan --from-template &lt;kind&gt;</code></pre>
+<pre><code>/wf-meta init-ship-plan                              # discovery-led; no seed
+/wf-meta init-ship-plan --from-template npm-public   # discovery-led, biased toward npm-public</code></pre>
 
-<p>Or omit the flag to be asked. Claude reads the template, then asks 13 grouped questions covering blocks A–G.</p>
+<h2>Step 2 — Review the discovery report</h2>
 
-<h2>Step 3 — Answer the block questions</h2>
+<p>Before any AskUserQuestion, Claude prints a compact bullet summary of what it found — inferred ship-meaning, version source-of-truth candidates, release-workflow candidates, registry hostnames, secret refs, runbook seeds for recovery playbooks, and any <code>additional-contracts</code> the repo suggests (e.g., a Liquibase/Alembic/Flyway directory hints at <code>data-migration</code>).</p>
 
-<p>The plan has seven blocks:</p>
+<p>Correct misreads in plain English: <em>"the helm dir is dead code, ignore it"</em> or <em>"actually we publish to a private registry, not GHCR"</em>. Claude updates the in-memory discovery state before moving on.</p>
+
+<h2>Step 3 — Confirm each contract (Blocks A–G)</h2>
+
+<p>For each required-core block, Claude proposes the inferred value plus alternatives plus <code>Other (describe)</code>. The seven blocks:</p>
 
 <dl>
 <dt><strong>A — Ship meaning + environments + cadence</strong></dt>
 <dd>What does "ship" mean here? Which environments? How often?</dd>
 
 <dt><strong>B — Versioning contract</strong></dt>
-<dd>Semver/calver/sequential. Which files hold the version literal. Bump rule (git-cliff, conventional commits, manual). Prerelease/post-release suffixes.</dd>
+<dd>Scheme (semver/calver/sequential). Source-of-truth files. Bump rule (<code>git-cliff</code>, conventional-commits, <code>changesets</code>, <code>release-please</code>, manual, fixed). Bump command. Prerelease/post-release suffixes.</dd>
 
 <dt><strong>C — CI/CD contract</strong></dt>
-<dd>Release trigger (tag-on-main, merge-to-main, manual-dispatch). Release workflow file. Required secrets. Publish dry-run + publish commands.</dd>
+<dd>Release trigger. Release workflow file (picked from discovered candidates). Release jobs (pre-filled from the workflow file). Required secrets (pre-filled from <code>${{ secrets.X }}</code> patterns in workflows). Publish dry-run + publish commands.</dd>
 
 <dt><strong>D — Post-publish verification</strong></dt>
 <dd>Which checks confirm publish succeeded (registry-api, fresh-resolve, github-release, smoke-test, k8s-rollout-status). Propagation window. Poll interval.</dd>
 
 <dt><strong>E — Rollout strategy + rollback</strong></dt>
-<dd>Default rollout (immediate/staged/canary/flag). Rollback mechanism. DB migration reversibility.</dd>
+<dd>Default rollout (immediate/staged/canary/blue-green/flag). Rollback mechanism. DB migration reversibility.</dd>
 
 <dt><strong>F — Recovery playbooks</strong></dt>
-<dd>Templates pre-seed two or three (signing failures, token 401s, version-already-uploaded). Add more over time as runs hit new failure modes.</dd>
+<dd>Seeded from runbook files surfaced in Step 2, plus any defaults the chosen <code>--from-template</code> ships with. Empty otherwise. Grows over time via <code>/wf-meta amend ship-plan</code>.</dd>
 
 <dt><strong>G — Announcements</strong></dt>
 <dd>Channels (#releases, mailing list). Optional template path.</dd>
 </dl>
 
-<h2>Step 4 — Confirm + write</h2>
+<h2>Step 4 — Pick additional contracts (extensions)</h2>
 
-<p>Claude shows a summary table and asks for confirmation. <code>Confirm</code> writes <code>.ai/ship-plan.md</code> at repo root. <code>Adjust</code> goes back to one block. <code>Cancel</code> discards.</p>
+<p>Claude asks whether the project has any contracts the standard Blocks A–G don't cover. Options seeded from discovery: <code>data-migration</code>, <code>feature-flag-rollout</code>, <code>infrastructure-as-code</code>, <code>mobile-app-store</code>, <code>compliance-gate</code>, <code>data-pipeline</code>, <code>schema-registry</code>, <code>Other (describe)</code>. Each picked one becomes an entry in <code>additional-contracts[]</code> with <code>{ id, purpose, fields, enforced-by }</code>. <code>/wf ship</code> ignores these by default; custom hooks or downstream commands opt in by <code>id</code>.</p>
 
-<h2>Step 5 — Commit the plan</h2>
+<h2>Step 5 — Confirm + write</h2>
+
+<p>Claude shows a summary table and asks for confirmation. <code>Confirm</code> writes <code>.ai/ship-plan.md</code> at repo root. <code>Adjust</code> goes back to one block (or one additional-contract <code>id</code>). <code>Cancel</code> discards.</p>
+
+<h2>Step 6 — Commit the plan</h2>
 
 <p>Commit <code>.ai/ship-plan.md</code>. It's a project-level contract; every workflow on this repo will ship through it.</p>
 
 <pre><code>git add .ai/ship-plan.md
-git commit -m "chore: author ship plan (template: npm-public)"</code></pre>
+git commit -m "chore: author ship plan"</code></pre>
 
 <h2>Amending the plan</h2>
 
-<p>When CI/CD changes, secrets rotate, or you accumulate enough run experience to add recovery playbooks:</p>
+<p>When CI/CD changes, secrets rotate, you accumulate enough run experience to add recovery playbooks, or you need to add a new additional-contract:</p>
 
 <pre><code>/wf-meta amend ship-plan</code></pre>
 
-<p>Pick which block (A–G) to edit. The amend flow re-runs only that block's questions. <code>plan-version</code> bumps by 1.</p>
+<p>Pick which block (A–G) or which additional-contract <code>id</code> to edit. The amend flow re-runs only that block's hypothesis loop — discovery is skipped because the existing plan is ground truth. <code>plan-version</code> bumps by 1.</p>
 
 <div class="related">
 <h3>Related</h3>

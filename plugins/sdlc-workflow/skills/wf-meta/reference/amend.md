@@ -292,14 +292,17 @@ options:
   - { label: "B — Versioning contract",                    description: "Scheme, source-of-truth files, bump rule, prerelease/postrelease." }
   - { label: "C — CI/CD contract",                         description: "Release trigger, workflow file, required secrets, dry-run + publish commands." }
   - { label: "D — Post-publish verification",              description: "Checks run after publish, propagation window, poll interval." }
+  - { label: "Other (E, F, G, or additional-contract)",    description: "Rollout/rollback, recovery playbooks, announcements, or an additional-contract by id." }
 multiSelect: false
 ```
 
-Use a follow-up question for blocks E (rollout/rollback), F (recovery playbooks), G (announcements) if the user picks "Other" / freeform input.
+If the user picks "Other", run a follow-up freeform prompt: *"Which block? `E` (rollout/rollback), `F` (recovery playbooks), `G` (announcements), or the `id` of an additional-contract."* — and route accordingly. Additional-contract amendments edit only the matching entry in `additional-contracts[]`; they do not bump `plan-version` differently from block amendments.
 
 ## Step S2 — Re-run the relevant block's questions
 
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/reference/init-ship-plan.md` and re-run **only the steps for the chosen block** (Block A → init-ship-plan steps 1–2; Block B → steps 3–5; Block C → steps 6–7; Block D → step 8; Block E → step 9; Block F → step 11; Block G → step 10). Pre-fill each question with the plan's current value so the user only changes what's actually different.
+Load `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/reference/init-ship-plan.md` and re-run **only the chosen block's hypothesis loop under Step 2** (Block A → Step 2 Block A; Block B → Step 2 Block B; Block C → Step 2 Block C; Block D → Step 2 Block D; Block E → Step 2 Block E; Block F → Step 2 Block F; Block G → Step 2 Block G). For an additional-contract amendment, run only the sub-loop in Step 3 for the named `id`. Pre-fill each question with the plan's current value so the user only changes what's actually different.
+
+**Skip Step 1 (Discovery pass)** — amend reuses the existing plan as ground truth. Discovery is only for fresh authoring.
 
 ## Step S3 — Confirmation
 
@@ -322,7 +325,7 @@ Update only the changed block's frontmatter and corresponding markdown section. 
 
 Return only:
 - `wrote: .ai/ship-plan.md`
-- `block-amended: <A|B|C|D|E|F|G>`
+- `block-amended: <A|B|C|D|E|F|G | additional-contract:<id>>`
 - `plan-version: <new value>`
 - `next: any in-flight ship runs will record plan-version-at-run = <new value>`
 

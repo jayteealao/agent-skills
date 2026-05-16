@@ -82,6 +82,8 @@
 
 <p>The project-level ship contract. One per repo. Authored via <code>/wf-meta init-ship-plan</code>. Lives at <code>.ai/ship-plan.md</code> (repo root, NOT under <code>.ai/workflows/</code>).</p>
 
+<p>The schema is split into a <strong>required core</strong> (Blocks A–G — fixed field names that <code>/wf ship</code> reads) and <strong>open extensions</strong> (<code>additional-contracts[]</code> — a typed list of project-specific contracts that <code>/wf ship</code> ignores unless a consumer opts in by <code>id</code>). The <code>template-hint</code> field records which <code>--from-template &lt;kind&gt;</code> seed (if any) biased the authoring conversation; it is informational only.</p>
+
 <h2>Block A — Ship meaning + environments + cadence</h2>
 <pre><code>ship-meaning: publish | merge-only | deploy-immutable | deploy-rolling | feature-flag-flip
 ship-environments:
@@ -144,6 +146,27 @@ db-migrations-reversible: true | false | n/a</code></pre>
 <pre><code>announcement:
   channels: ["#releases", "release-notes@example.com"]
   template-path: ".ai/release-announcement-template.md"</code></pre>
+
+<h2>Extensions — additional-contracts[]</h2>
+<pre><code>additional-contracts:
+  - id: data-migration
+    purpose: "Liquibase migrations must be reviewed by DBA before any release"
+    fields:
+      tool: liquibase
+      reversibility-policy: forward-only
+      dba-review-required: true
+    enforced-by: "Pull request label + /wf ship pre-merge check"
+  - id: feature-flag-rollout
+    purpose: "All user-facing changes go behind a LaunchDarkly flag"
+    fields:
+      provider: launchdarkly
+      flag-naming-convention: "release.<slug>"
+      cleanup-policy: "remove after 30 days at 100%"
+    enforced-by: "Code review checklist"</code></pre>
+<p>Open schema. Each entry is <code>{ id, purpose, fields: { ... }, enforced-by: "..." }</code>. <code>/wf ship</code> does not read this list; consumers (custom hooks, downstream commands) opt in by <code>id</code>. Authored during <code>/wf-meta init-ship-plan</code> Step 3; amendable via <code>/wf-meta amend ship-plan</code> by passing the <code>id</code> at the "Other" prompt.</p>
+
+<h2>Template-hint field</h2>
+<p><code>template-hint</code> records the <code>--from-template &lt;kind&gt;</code> seed (if any) that biased the authoring conversation: <code>kotlin-maven-central</code>, <code>npm-public</code>, <code>pypi</code>, <code>container-image</code>, <code>server-deploy</code>, <code>library-internal</code>, or <code>none</code>. Informational only — no downstream code reads it. Useful for retro analysis ("which template best matched this project's eventual plan?") and for telling later amend conversations which seed values to compare against.</p>
 
 <h2>Plan-version field</h2>
 <p><code>plan-version</code> starts at 1 and bumps by 1 every time <code>/wf-meta amend ship-plan</code> writes a change. Runs record <code>plan-version-at-run</code> for retro analysis.</p>

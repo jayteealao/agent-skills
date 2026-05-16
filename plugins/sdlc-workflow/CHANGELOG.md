@@ -5,7 +5,57 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [9.11.0] - 2026-05-16
+## [9.12.0] - 2026-05-16
+
+### Changed
+
+- **`/wf-meta init-ship-plan` rewritten from template-instantiation to discovery → hypothesis → confirm.** The old flow asked the user to pick one of six templates up front, then asked enumerated questions whose options came from the template. The new flow does three loops:
+  1. **Step 1 — Discovery pass.** Reads `.github/workflows/*.yml` *contents* (not just filenames) and parallel CI definitions (`.gitlab-ci.yml`, `.circleci/config.yml`, etc.); infra-as-code (`Dockerfile*`, `docker-compose*`, `k8s/`, `helm/`, `charts/`, `kustomize/`, `terraform/`, `pulumi/`, `cdk.json`, `serverless.yml`, `sst.config.*`, `sam.yaml`, `fly.toml`, `render.yaml`, `app.yaml`, `vercel.json`, `netlify.toml`, `railway.json`); package manifests + release tooling (`package.json` scripts and publishConfig, `pyproject.toml`, `build.gradle*`, `gradle.properties`, `Cargo.toml`, `*.csproj`, `Chart.yaml`, `mix.exs`, `composer.json`, `.releaserc*`, `release-please-config.json`, `.changeset/`, `goreleaser.yml`, `cliff.toml`, `commitlint.config.*`, `CHANGELOG.md`); runbook material (`docs/runbooks/*`, `RUNBOOK*.md`, `incidents/`, `postmortems/`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/incident*.md`); and release history (`git tag`, `git log --tags`, `gh release list --limit 5`). Builds a discovery report with per-field `confidence`, `evidence`, and `alternatives`, then surfaces it to the user as a skimmable bullet summary for free-form correction. **No AskUserQuestion yet.**
+  2. **Step 2 — Hypothesis pass.** Each required-core block (A–G) is presented as a hypothesis derived from discovery: inferred value + evidence + 2–3 ranked alternatives + `Other (describe)` always present. Where `--from-template` was set and the template's seed differs from the inferred value, both are surfaced side-by-side ("Discovery suggests X; the `<template-hint>` template usually uses Y").
+  3. **Step 3 — Additional contracts (open schema).** Multi-select prompt seeded by discovery, with options `data-migration` / `feature-flag-rollout` / `infrastructure-as-code` / `mobile-app-store` / `compliance-gate` / `data-pipeline` / `schema-registry` / `Other (describe)`. Each picked one becomes an entry in `additional-contracts[]` with `{ id, purpose, fields, enforced-by }`.
+  4. **Step 4 (new) — Exemplar pass.** Templates are now reference reading material the agent can pull whole or per-field on user request, not control-flow branches.
+- **`--from-template <kind>` semantics demoted** from a control-flow branch (old: "pick template → fill its prescribed blanks") to a hypothesis seed (new: "discovery still runs; the named template biases the proposed values where they diverge from discovery"). All six template kinds remain valid hints: `kotlin-maven-central`, `npm-public`, `pypi`, `container-image`, `server-deploy`, `library-internal`. The arg-hint is unchanged so existing muscle memory keeps working.
+- **`/wf-meta amend ship-plan` (`skills/wf-meta/reference/amend.md` Step S2)** updated for the new init structure: the Block→step map collapses from 1-to-many (old: Block A → init-ship-plan steps 1–2, Block B → steps 3–5, …) to 1-to-1 (new: Block A → Step 2 Block A, Block B → Step 2 Block B, … Block G → Step 2 Block G). Additional-contract amendments edit a single entry in `additional-contracts[]` by `id`, routed through a new "Other" option in the S1 block-picker. Amend explicitly **skips Step 1 (Discovery pass)** — the existing plan is ground truth; discovery is only for fresh authoring. The S5 chat return adds `additional-contract:<id>` as a valid `block-amended` value.
+- **`skills/wf-meta/SKILL.md` dispatcher table line for `init-ship-plan`** reframed to describe the discovery-led flow and the template-as-hint semantics.
+- **Docs site** updated:
+  - `docs/site/reference/ship-plan-schema.html` — split intro mentions the required-core vs. extensions schema. New sections document `additional-contracts[]` (with a concrete example) and `template-hint`.
+  - `docs/site/how-to/author-ship-plan.html` — old "Step 1 — Pick a template" structure replaced with the discovery-led structure (review discovery report → confirm Blocks A–G → pick additional-contracts → confirm + write → commit). Pre-conditions bumped to v9.12.0.
+
+### Added
+
+- **`additional-contracts[]` open-schema extension** in `.ai/ship-plan.md`. Typed list, each entry `{ id: <short-id>, purpose: <one short sentence>, fields: { <key>: <value> }, enforced-by: "<command, hook, or human role>" }`. `/wf ship` ignores this list by default — consumers opt in by `id`. Use cases: per-project policies that don't fit the standard Blocks A–G (DBA review on schema migrations, feature-flag cleanup cadence, terraform-state apply policy, app-store review windows, SOC2 evidence collection, dbt orchestration cadence, schema-registry compatibility rules).
+- **`template-hint` field** in `.ai/ship-plan.md` frontmatter. Records which `--from-template <kind>` value (if any) biased the authoring conversation. Informational only — no downstream code reads it. Useful for retro analysis ("did the template eventually match this project's plan?") and for telling later amend conversations which seed values to compare against.
+- **`changesets` and `release-please` as first-class `version-bump-rule` values** in Block B, alongside the existing `git-cliff`, `conventional-commits`, `manual`, `fixed`. The new init pre-fills `version-bump-cmd` from the tool's conventional command (`npx changeset version`, `npx release-please release-pr`, etc.).
+- **`blue-green` as a first-class `rollout-strategy` value** in Block E, alongside existing values.
+
+### Rationale
+
+The previous `init-ship-plan` was structured around six templates that each baked in a specific tech stack (Maven Central + Gradle + GPG; npm public registry; PyPI; container registry; Kubernetes deploy; internal library). The flow assumed the user's first decision was *"which of these six am I?"*, then filled prescribed blanks from there. Two problems with that shape:
+
+1. **Schema coupling.** Blocks A–G and their YAML fields were the only legal shape. A project with a Liquibase migration policy, a LaunchDarkly cleanup cadence, or a terraform-state apply policy had no place to capture that — it would either be crammed into an existing block awkwardly, or dropped. The new `additional-contracts[]` extension lets projects codify these without forcing every consumer to know about them.
+2. **Control-flow coupling.** Step 0 forked on `--from-template <kind>` and STOPped on an unknown kind. Steps 1–11 then used `multiSelect: false` enums with options pulled from the chosen template, so the UX was "guess which preset fits you" rather than "let's figure out how this repo actually ships". The new discovery-then-hypothesis flow inverts the dynamic: the agent does the reading, surfaces a hypothesis grounded in observable evidence, and the user reviews. Templates remain useful as exemplar text and as seed values for fields where discovery is ambiguous — they just no longer drive the conversation.
+
+The required-core fields (every field `/wf ship` Step 0 reads) are preserved in fixed positions, so `/wf ship` does not need to change. Authoring is more thorough; consumption is unchanged.
+
+### Migration
+
+**No action required for existing plans.** `.ai/ship-plan.md` files authored under v9.11.0 and earlier are read unchanged by `/wf ship` — every required-core field name is preserved. The new `template-hint` and `additional-contracts[]` fields are optional; absence is equivalent to `template-hint: none` and `additional-contracts: []`.
+
+For users authoring a *new* plan: the flow now takes a discovery pass before any questions. Expect to see a bullet summary of what the agent found in the repo before being asked anything. Correct misreads in plain English ("ignore the helm dir, it's dead code"). The total time-to-plan is similar to v9.11.0 (~15–30 min the first time), but the result is more accurate because the agent is grounding each block in observable evidence rather than asking you to map your project onto a preset.
+
+For users amending an existing plan: the block-picker now offers an "Other" option that routes to `E`, `F`, `G`, or any `additional-contracts[].id`. Amend skips discovery — the existing plan is ground truth.
+
+### Schema & validator impact
+
+**Zero validator change.** `tests/verify_frontmatter.py` and `tests/frontmatter.schema.json` do not validate the ship-plan (they only validate workflow stage artifacts). The two new fields (`template-hint`, `additional-contracts[]`) live in `.ai/ship-plan.md`, which is project-level and outside the validator's scope.
+
+### Notes
+
+- The block letters A–G are preserved deliberately so `/wf-meta amend ship-plan`'s S1 block-picker keeps its short labels. The 1-to-1 Block→step mapping in the new init is a happy simplification of the old 1-to-many mapping that emerged from template-driven step grouping.
+- The `additional-contracts[]` entries are intentionally open-schema. There is no validator for `fields:` content — that is by design. The list is a *codification surface* for project-specific policies, not a normalized schema. Consumers that read these by `id` are responsible for validating the shape they need.
+- The discovery pass is read-only. It does not execute any of the commands it discovers (no `gradle publish --dry-run`, no `terraform plan`, no `kubectl apply --dry-run`). Side effects only happen in `/wf ship` runs.
+
+
 
 ### Changed
 
