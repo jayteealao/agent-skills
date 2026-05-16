@@ -27,8 +27,10 @@ You are a **routing helper**, not a problem solver.
 - If you catch yourself about to start running the next stage, STOP and just return the command.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug**: If `$ARGUMENTS` provides a slug, use it. Otherwise, scan `.ai/workflows/*/00-index.md` for active workflows.
-2. **If multiple workflows exist** and no slug was given → list them with their `current-stage` and `stage-status`, then ask the user which one to continue. Use AskUserQuestion if available, otherwise ask in chat.
+1. **Resolve the slug**: If `$ARGUMENTS` provides a slug, use it. Otherwise:
+   - **If `.ai/workflows/INDEX.md` exists** (v9.11.0) → read it; filter rows where the status column is not `closed`. If exactly one non-closed row → use that slug. If multiple → see step 2.
+   - **If `INDEX.md` does NOT exist** → fall back to scanning `.ai/workflows/*/00-index.md` for active workflows. Append a one-line tip to the final chat return: *"Tip: run `/wf-meta sync` once to bootstrap `.ai/workflows/INDEX.md` — enumeration becomes registry-driven."*
+2. **If multiple workflows exist** and no slug was given → list them. If INDEX.md was the source, the list is `slug — status — updated-at` (INDEX.md doesn't carry `current-stage`/`stage-status`; pass an explicit slug if you need that). If the glob fallback ran, list them with their `current-stage` and `stage-status` as before. Then ask the user which one to continue. Use AskUserQuestion if available, otherwise ask in chat.
 3. **Read `00-index.md`** for the selected workflow. Parse the YAML frontmatter — especially `current-stage`, `status`, `selected-slice`, `open-questions`, `next-command`, `next-invocation`, `progress`, `slices` (if present), `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`.
 4. **Read the current stage file** referenced by `current-stage` to check its `Status` field and `## Recommended Next Stage` section.
 5. **Check branch status:** If `branch-strategy` is `dedicated`, check whether the user is currently on the workflow branch (`git branch --show-current`). If they are on the wrong branch, include a warning in the routing output: "You are on `<current>` but this workflow uses `<branch>`. Switch before running the next command."

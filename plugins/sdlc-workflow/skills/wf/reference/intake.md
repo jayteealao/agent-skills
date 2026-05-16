@@ -33,11 +33,41 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it.
-2. **Check if the workflow already exists** at `.ai/workflows/<slug>/00-index.md`.
+2. **Registry collision check** (v9.11.0). Before touching disk, consult `.ai/workflows/INDEX.md` if it exists:
+   - **If `INDEX.md` does NOT exist** → skip this sub-step entirely (no registry → no collision detection possible; the disk check in sub-step 3 still gates). Append a one-line tip to the final chat return: *"Tip: run `/wf-meta sync` once to bootstrap `.ai/workflows/INDEX.md` — intake gains collision detection against the registry."*
+   - **If `INDEX.md` exists**, grep for an exact slug match: `grep -P "^<derived-slug>\t" .ai/workflows/INDEX.md`. Three branches based on the result:
+     - **Row exists AND status column ≠ `closed`** → the slug is already in active use. STOP and call `AskUserQuestion`:
+       ```
+       question: "Slug `<slug>` is already an open workflow (status: <status>). What do you want to do?"
+       options:
+         - label: "Resume the existing workflow"
+           description: "Switch to `/wf-meta resume <slug>` to continue the existing one."
+         - label: "Amend the existing workflow"
+           description: "Switch to `/wf-meta amend <slug> <scope>` to modify a prior stage of the existing one."
+         - label: "Pick a different slug for this new workflow"
+           description: "Pass a different slug as the first argument and re-run `/wf intake <new-slug> <description>`."
+         - label: "Cancel — don't start anything"
+           description: "Abort intake."
+       ```
+       Do NOT proceed past Step 0 regardless of the answer — every option redirects to a different command or aborts. Surface the chosen command verbatim and STOP.
+     - **Row exists AND status column = `closed`** → reusing a closed slug would orphan its committed history and break the slug-is-stable invariant. STOP and call `AskUserQuestion`:
+       ```
+       question: "Slug `<slug>` belongs to a closed workflow. Slugs are stable — a new workflow cannot reuse it. What do you want to do?"
+       options:
+         - label: "Pick a different slug for this new workflow"
+           description: "Pass a different slug as the first argument and re-run `/wf intake <new-slug> <description>`."
+         - label: "Reopen the closed workflow"
+           description: "Switch to `/wf-meta resume <slug>`. The closed workflow's artifacts stay intact; resume picks up from where it left off."
+         - label: "Cancel — don't start anything"
+           description: "Abort intake."
+       ```
+       Do NOT proceed past Step 0. STOP.
+     - **No row** → no collision; continue to sub-step 3.
+3. **Check if the workflow already exists** at `.ai/workflows/<slug>/00-index.md` (disk-level fallback; catches the case where INDEX.md is missing or stale).
    - If it exists and `stage-status` is `Awaiting input` on this stage → this is a **resume**. Read the existing `01-intake.md` and `po-answers.md`. Pick up from where the previous run left off instead of starting fresh.
    - If it exists and `current-stage` is past intake → WARN: "Intake has already been completed. Running it again will overwrite `01-intake.md`. Proceed?" Use AskUserQuestion if available, otherwise ask in chat. Only proceed if confirmed.
    - If it does not exist → this is a fresh start. Proceed normally.
-3. **Carry forward** any `open-questions` from the index if resuming.
+4. **Carry forward** any `open-questions` from the index if resuming.
 
 # Purpose
 Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.

@@ -5,6 +5,41 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.11.0] - 2026-05-16
+
+### Changed
+
+- **`/wf-meta status` (no-arg, Dashboard Mode)** now enumerates workflows from `.ai/workflows/INDEX.md` when present. Per-workflow `00-index.md` reads still happen — INDEX.md only carries 5 of the 14 fields the dashboard renders, so Dashboard Mode shape is unchanged. The behavioral delta is **correctness, not performance**: when a registry row points at a deleted directory, status surfaces a one-line *"Skipped: `<slug>` (registry row present, directory missing — run `/wf-meta sync` to reconcile)"* note instead of erroring on the missing read. When INDEX.md is absent, status falls back to the prior glob behavior and appends a one-line tip suggesting `/wf-meta sync`. (`skills/wf-meta/reference/status.md` Step 0.)
+- **`/wf-meta resume` and `/wf-meta next` (no-arg picker)** now source the multi-workflow disambiguation prompt from INDEX.md when present — `slug — status — updated-at` per row, filtered to non-closed. The picker no longer surfaces `current-stage` in the list (INDEX.md doesn't carry it); pass an explicit slug if you need the full per-workflow read first. Fallback to glob when INDEX.md is absent, same tip line as status. (`skills/wf-meta/reference/resume.md` Step 0 item 1; `skills/wf-meta/reference/next.md` Step 0 items 1-2.)
+- **`/wf intake` gained registry collision detection** at `skills/wf/reference/intake.md` Step 0 sub-step 2 (renumbering the prior disk check to sub-step 3). After the slug is derived, intake greps INDEX.md and routes via `AskUserQuestion`: (a) row exists + status ≠ `closed` → 4-option prompt (resume / amend / pick new slug / cancel); (b) row exists + status = `closed` → 3-option prompt (pick new slug / reopen via resume / cancel) — slug reuse against a closed workflow is **disallowed** to preserve the slug-stability invariant; (c) no row → continue. INDEX.md missing → skip the check entirely (disk-level collision in sub-step 3 still gates), append the same `/wf-meta sync` tip.
+
+### Added
+
+- **Centralized fuzzy-suggest in `skills/wf/SKILL.md` Step 0.5** for unknown slug args. Runs after sub-command resolution, before reference dispatch. Applies to the 13 sub-commands that consume an existing slug (everything except `intake`; also excludes `profile` because its first positional arg is `<area>`, not a slug). On a slug miss against INDEX.md, runs a Levenshtein-1 + substring match against every indexed slug (closed rows included — a real-but-closed slug is still a useful suggestion). On a best match, STOP with *"Unknown slug `<typo>`. Did you mean `<best-match>`<` (closed)` if applicable>? Retry: `/wf <sub-command> <best-match> <remaining args>` (or run `/wf-meta status` to list all workflows.)"*. **Purely advisory — never auto-corrects**; the user must re-invoke with the corrected slug. INDEX.md missing → Step 0.5 is skipped; the reference's per-stage slug resolution still runs.
+
+### Rationale
+
+v9.10.0 introduced INDEX.md but wired only `/wf-quick` to read it. The registry's value compounds with every reader: the same one-file lookup that powers positional slug detection on `/wf-quick` also collapses the "which workflows exist?" question for status/resume/next, gives intake a cheap pre-write collision check, and provides the candidate set for typo-suggestion across the lifecycle dispatcher. None of these reads were possible before INDEX.md existed; together they retire three rough edges (silent enumeration over deleted dirs, accidental duplicate workflows, opaque "workflow not found" errors on typos) for the cost of one new dispatcher step and three reference edits. The fallback paths preserve v9.10.0's invariant that the plugin works on a repo that has never run `/wf-meta sync`.
+
+### Migration
+
+No action required. Existing workflows are unaffected. Running `/wf-meta sync` is still the recommended one-time bootstrap step on existing repos — without it, the four new read paths fall back to the v9.10.0 behavior (glob + no collision check + no fuzzy-suggest) and append a one-line tip.
+
+For users who had typo'd-slug muscle memory: `/wf plan paymnt-retry` will now STOP with a suggestion instead of falling through to the reference's "no workflow found" error. Same blocking behavior, different surface — read the suggestion and re-invoke.
+
+For users with closed workflows whose slugs they wanted to reuse for a new intake: this is now blocked. Use `/wf-meta resume <slug>` to reopen the closed workflow (its artifacts stay intact) or pick a new slug for the new intake. The slug-stability invariant — every artifact in a workflow shares a slug that never changes — was always documented as load-bearing; this change enforces it at the front door rather than relying on convention.
+
+### Schema & validator impact
+
+**Zero schema migration.** INDEX.md is unchanged from v9.10.0 — same tab-separated `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at` format. New reads add no fields to the registry. The frontmatter JSON schema (`tests/frontmatter.schema.json`) and the deep verifier (`tests/verify_frontmatter.py`) are unchanged.
+
+### Notes
+
+- The `current-stage` loss in the resume/next picker is intentional: INDEX.md was designed in v9.10.0 to be cheap, not exhaustive. Adding `current-stage` to INDEX.md would inflate the registry writes (every stage transition touches it) and lose the "one cheap read for slug enumeration" property that makes positional slug detection fast. Users who need `current-stage` in the picker should pass an explicit slug, which triggers a full per-workflow read.
+- Closed workflows are still retained in INDEX.md (v9.10.0 design). They appear as `(closed)` in fuzzy-suggest's "Did you mean…" output, are blocked in intake collision detection, but remain reachable via `/wf-meta resume <slug>` for explicit reopening.
+- Step 0.5 is centralized in `wf/SKILL.md` so the 13 lifecycle references don't each duplicate the fuzzy-match logic. The exclusion list (`intake`, `profile`) lives next to the 14-key dispatch table — keep them in sync when adding new sub-commands.
+- The frontmatter verifier is **both** a standalone test (`tests/verify_frontmatter.py`, runnable manually with `--self-test` / `--quiet`) and a PostToolUse hook (`hooks/scripts/verify-workflow-postwrite.sh`, fires on every Write/Edit to `.ai/{workflows,simplify,profiles}/*.md`). The two share the same engine — the hook is a thin wrapper that invokes the verifier with `--quiet` and bubbles non-zero exits back to Claude as blocking errors. The pre-write `validate-workflow-write.sh` is a separate, shallower gate. Documented here because the question came up during planning.
+
 ## [9.10.0] - 2026-05-16
 
 ### Changed

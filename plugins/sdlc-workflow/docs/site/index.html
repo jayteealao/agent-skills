@@ -15,7 +15,7 @@
 <div class="layout">
 
 <aside id="sidebar">
-<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.10.0</small></a>
+<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.11.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -179,6 +179,14 @@ flowchart LR
 <p>If a page mixes shapes — "let me explain a concept while you copy these steps" — the framework says it has failed both audiences. The site holds to that discipline.</p>
 
 <h2>What's new</h2>
+
+<h3>v9.11.0</h3>
+<ul>
+  <li><strong>Four more read paths now consume <code>.ai/workflows/INDEX.md</code></strong> — the registry from v9.10.0 is no longer just a slug-detection substrate for <code>/wf-quick</code>. <code>/wf-meta status</code> (no-arg) enumerates from the registry and surfaces <em>"Skipped: <code>&lt;slug&gt;</code> (registry row present, directory missing — run <code>/wf-meta sync</code> to reconcile)"</em> when a row points at a deleted dir. <code>/wf-meta resume</code> and <code>/wf-meta next</code> source their multi-workflow disambiguation pickers from the registry (<code>slug — status — updated-at</code>). All four paths fall back to glob when INDEX.md is absent, with a one-line tip suggesting <code>/wf-meta sync</code>.</li>
+  <li><strong><code>/wf intake</code> gained registry collision detection.</strong> Before writing any directory, intake greps INDEX.md for the derived slug and prompts via <code>AskUserQuestion</code> on a match. Open match → 4-option prompt (resume / amend / pick new slug / cancel). Closed match → 3-option prompt (pick new slug / reopen / cancel) — closed slugs <strong>cannot be reused</strong> for a new workflow, since that would orphan the closed workflow's committed history and violate the slug-stability invariant. No match → continue. See <a href="reference/wf.html#intake">intake reference</a>.</li>
+  <li><strong>Centralized fuzzy-suggest on unknown slugs.</strong> A new Step 0.5 in <code>skills/wf/SKILL.md</code> runs after sub-command resolution, before reference dispatch. If the slug arg doesn't match INDEX.md, Levenshtein-1 + substring match against every indexed slug surfaces <em>"Unknown slug <code>paymnt-retry</code>. Did you mean <code>payment-retry</code> (closed)? Retry: <code>/wf plan payment-retry</code>."</em> Applies to the 13 slug-consuming sub-commands; excludes <code>intake</code> (creates slugs) and <code>profile</code> (first arg is <code>&lt;area&gt;</code>, not a slug). Purely advisory — never auto-corrects.</li>
+  <li><strong>Bonus:</strong> the frontmatter verifier is both a test and a hook. <code>tests/verify_frontmatter.py</code> is the standalone engine (run with <code>--self-test</code> / <code>--quiet</code>); <code>hooks/scripts/verify-workflow-postwrite.sh</code> wraps it as a PostToolUse hook that fires on every Write/Edit to <code>.ai/{workflows,simplify,profiles}/*.md</code>. The pre-write <code>validate-workflow-write.sh</code> is a separate, shallower gate.</li>
+</ul>
 
 <h3>v9.10.0</h3>
 <ul>

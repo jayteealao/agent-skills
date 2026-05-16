@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.10.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.11.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -82,6 +82,8 @@
 
 <p>The lifecycle router. Dispatches across <strong>10 stages</strong> (intake → retro) and <strong>4 augmentations</strong> (instrument, experiment, benchmark, profile). Every command on this page is invoked as <code>/wf &lt;sub&gt; [args]</code>.</p>
 
+<p><strong>v9.11.0 — Step 0.5 fuzzy-suggest on unknown slugs.</strong> When you pass a slug arg to any of the 13 slug-consuming sub-commands (everything except <code>intake</code> and <code>profile</code>) and the slug doesn't match any row in <code>.ai/workflows/INDEX.md</code>, the dispatcher runs Levenshtein-1 + substring match against every indexed slug (closed rows included) and surfaces <em>"Unknown slug <code>paymnt-retry</code>. Did you mean <code>payment-retry</code> (closed)? Retry: <code>/wf plan payment-retry</code>."</em> Purely advisory — never auto-corrects. If INDEX.md is missing, Step 0.5 is skipped and the reference's per-stage slug resolution still runs. See <code>skills/wf/SKILL.md</code> Step 0.5 for the full contract.</p>
+
 <div class="toc">
 <h3>On this page</h3>
 <ul>
@@ -114,8 +116,18 @@
 <ul>
   <li>The free-text description you pass.</li>
   <li>Recent git activity to suggest a base branch.</li>
-  <li>Any existing <code>.ai/workflows/*/00-index.md</code> to avoid slug collisions.</li>
+  <li><code>.ai/workflows/INDEX.md</code> (v9.11.0) for registry collision detection — see below.</li>
+  <li>Any existing <code>.ai/workflows/*/00-index.md</code> to avoid slug collisions (disk-level fallback when INDEX.md is absent).</li>
 </ul>
+
+<h4>Collision detection (v9.11.0)</h4>
+<p>Before any directory is created, intake greps <code>INDEX.md</code> for the derived slug and routes via <code>AskUserQuestion</code>:</p>
+<ul>
+  <li><strong>Open match</strong> (row exists, status ≠ <code>closed</code>): 4-option prompt — resume the existing workflow / amend it / pick a different slug for this new intake / cancel.</li>
+  <li><strong>Closed match</strong> (row exists, status = <code>closed</code>): 3-option prompt — pick a different slug for this new intake / reopen the closed workflow via <code>/wf-meta resume</code> / cancel. <strong>Slug reuse against a closed workflow is disallowed</strong>, because it would orphan the closed workflow's committed history and break the slug-stability invariant.</li>
+  <li><strong>No match</strong>: continue to the on-disk check (sub-step 3 of intake's Step 0).</li>
+</ul>
+<p>If <code>INDEX.md</code> is missing, collision detection is skipped and the on-disk check still gates; a one-line tip in the chat return suggests <code>/wf-meta sync</code>.</p>
 
 <h4>What it writes</h4>
 <ul>

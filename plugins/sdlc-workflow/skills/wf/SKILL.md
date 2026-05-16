@@ -45,6 +45,29 @@ Parse `$ARGUMENTS`. The first token must be one of the 14 known keys below; the 
 2. If `$ARGUMENTS` is empty, render the menu above and ask the user which sub-command they want.
 3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf sub-command. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, instrument, experiment, benchmark, profile."*
 
+# Step 0.5 — Fuzzy-suggest unknown slugs (v9.11.0)
+
+After sub-command resolution, before dispatch: if the user passed a positional slug arg and it doesn't match any row in `.ai/workflows/INDEX.md`, surface a typo suggestion instead of letting the reference fail later with an opaque "workflow not found" error.
+
+**Applies to** these 13 sub-commands (everything that *consumes* an existing slug):
+
+`shape`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`, `retro`, `instrument`, `experiment`, `benchmark`, `profile`
+
+**Does NOT apply** to `intake` (it *creates* the slug, doesn't consume it — collision detection lives in `intake.md` Step 0 sub-step 2 instead). `profile`'s first arg is `<area>`, not a slug — skip Step 0.5 for `profile` as well. *Keep this exclusion list in sync with the 14-key dispatch table — exclude any future sub-command that creates a new slug rather than consuming an existing one.*
+
+**Procedure:**
+
+1. Identify the slug candidate. For most sub-commands the slug is the first positional token after the sub-command name. For `implement`, `verify`, `review`, `plan`, `handoff`, `ship`, `retro`, `instrument`, `experiment`, `benchmark` the slug is `$1` of the sub-command's `$ARGUMENTS`. If `$1` is empty (the user passed no slug), skip Step 0.5 — slug resolution falls through to the reference's existing single-active-workflow inference.
+2. If `.ai/workflows/INDEX.md` does not exist → skip Step 0.5 (no registry → no candidate set for fuzzy match). The reference will handle the missing-slug case downstream.
+3. Grep `INDEX.md` for an exact match: `grep -P "^<candidate>\t" .ai/workflows/INDEX.md`. If hit → slug is real, dispatch normally.
+4. **On miss**, run a fuzzy match against every row's slug column (first tab-separated field, including closed rows — a real-but-closed slug is still useful as a suggestion):
+   - Compute Levenshtein edit distance from `<candidate>` to each indexed slug.
+   - Also check substring inclusion: a candidate that is a contiguous substring of an indexed slug (or vice versa) counts as a strong match.
+   - Pick the best match: prefer the slug with edit distance ≤ 2, then the slug that contains `<candidate>` as a substring, then the slug `<candidate>` contains as a substring.
+   - If no slug satisfies any of those conditions → no suggestion exists. STOP with: *"Unknown slug `<candidate>`. Run `/wf-meta status` to list all workflows, or `/wf intake <description>` to start a new one."*
+5. If a best match exists, STOP with: *"Unknown slug `<candidate>`. Did you mean `<best-match>`<closed-suffix>? (Run `/wf-meta status` to list all workflows.)"* — where `<closed-suffix>` is ` (closed)` if and only if the best-match row's status column is `closed`, empty otherwise. Show the user the corrected command verbatim so they can copy-edit it: e.g., *"Retry: `/wf <sub-command> <best-match> <remaining args>`"*.
+6. Step 0.5 is purely advisory — it never auto-corrects. The user must re-invoke with the suggested slug. This avoids the "the model decided to do something I didn't ask for" failure mode.
+
 # Step 1 — Execute
 
 1. Read the reference file in full from `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<key>.md`.

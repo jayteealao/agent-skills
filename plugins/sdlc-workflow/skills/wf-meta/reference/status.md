@@ -26,14 +26,16 @@ You are a **dashboard renderer**, not a problem solver.
 - If you catch yourself about to modify anything, STOP. This command is read-only.
 
 # Step 0 — Discover workflows
-1. **Glob** for all `.ai/workflows/*/00-index.md` files in the project.
-2. If **none found** → tell the user: "No workflows found. Start one with `/wf intake <description>`." STOP.
-3. If `$ARGUMENTS` contains a slug → switch to **detail mode** for that single workflow (see Detail Mode below).
+1. **Enumerate workflows** (v9.11.0):
+   - **If `.ai/workflows/INDEX.md` exists** → read it; each row's first tab-separated column is a slug. The registry is the authoritative list of known workflows (closed entries included; closed are still rendered in Dashboard Mode but classified as Completed in Step 0 sub-step 3 below).
+   - **If `INDEX.md` does NOT exist** → fall back to **Glob** for all `.ai/workflows/*/00-index.md` files in the project. Also include this one-line tip in the final chat return: *"Tip: run `/wf-meta sync` once to bootstrap `.ai/workflows/INDEX.md` — enumeration becomes registry-driven and skips deleted dirs cleanly."*
+2. If **none found** (registry empty AND glob empty) → tell the user: "No workflows found. Start one with `/wf intake <description>`." STOP.
+3. If `$ARGUMENTS` contains a slug → switch to **detail mode** for that single workflow (see Detail Mode below). When in detail mode, the INDEX.md enumeration above is irrelevant — read `00-index.md` directly.
 4. If no arguments → **dashboard mode** across all workflows.
 
 # Dashboard Mode (no arguments)
 
-Read every `00-index.md` found. For each, parse YAML frontmatter for:
+For each slug in the enumeration from Step 0, attempt to read `.ai/workflows/<slug>/00-index.md`. **If the directory is missing on disk** (the row exists in `INDEX.md` but the dir was deleted out-of-band) → omit the slug from the dashboard and append a one-line note at the end of the dashboard: *"Skipped: `<slug>` (registry row present, directory missing — run `/wf-meta sync` to reconcile)."* For every workflow whose `00-index.md` did read successfully, parse YAML frontmatter for:
 - `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`
 - `selected-slice-or-focus`, `open-questions`
 - `recommended-next-command`, `recommended-next-invocation`

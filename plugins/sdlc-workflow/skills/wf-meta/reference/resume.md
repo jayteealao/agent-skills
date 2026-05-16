@@ -27,7 +27,10 @@ You are a **context synthesizer**, not a problem solver.
 
 # Step 0 — Discover and read
 
-1. **Resolve the slug** from `$ARGUMENTS`. If no slug given, scan `.ai/workflows/*/00-index.md` for active workflows. If exactly one → use it. If multiple → list them with current stage and ask the user which one. If none → "No workflows found. Start one with `/wf intake <description>`." STOP.
+1. **Resolve the slug** from `$ARGUMENTS`. If no slug given:
+   - **If `.ai/workflows/INDEX.md` exists** (v9.11.0) → read it; filter rows where the status column is not `closed`. If exactly one non-closed row → use it. If multiple → list them as `slug — status — updated-at` (one row per workflow, sourced from INDEX.md) and ask the user which one via `AskUserQuestion` if available, otherwise ask in chat. Note: this picker drops `current-stage` from the prior listing (INDEX.md doesn't carry it) — pass an explicit slug if you want the full per-workflow read.
+   - **If `INDEX.md` does NOT exist** → fall back to scanning `.ai/workflows/*/00-index.md` for active workflows; same one-of/multiple/none logic as before. Append a one-line tip to the final chat return: *"Tip: run `/wf-meta sync` once to bootstrap `.ai/workflows/INDEX.md` — enumeration becomes registry-driven."*
+   - If neither registry nor glob found anything → "No workflows found. Start one with `/wf intake <description>`." STOP.
 
 2. **Read `00-index.md`** — parse full frontmatter: `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice-or-focus`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
 

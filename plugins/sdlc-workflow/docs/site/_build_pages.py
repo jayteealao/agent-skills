@@ -26,7 +26,7 @@ SITE_ROOT = Path(__file__).resolve().parent
 # `{active}` is replaced with the active-link href so we can mark it with class="active".
 # ---------------------------------------------------------------------------
 SIDEBAR = r"""<aside id="sidebar">
-<a class="brand" href="{base}index.html">sdlc-workflow<small>plugin docs · v9.10.0</small></a>
+<a class="brand" href="{base}index.html">sdlc-workflow<small>plugin docs · v9.11.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
