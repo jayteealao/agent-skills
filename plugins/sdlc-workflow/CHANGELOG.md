@@ -5,6 +5,87 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.14.0] - 2026-05-16
+
+### Added — runtime-truth verification
+
+Three coordinated changes that close the "verified but actually broken" gap. The leak: a slug could show "N of N slices verified" while the running artifact was visibly broken, because every slice passed its code-correctness checks (lint, types, tests, build) while its runtime-truth checks were silently optional. This version makes runtime truth a first-class concept with a forward gate, a backward re-entry path, and a shared adapter registry.
+
+- **`/wf verify` gains a user-observable AC gate (Step 7.5, MANDATORY).** Verify now partitions each slice's acceptance criteria into `code-only` vs `user-observable` using a hybrid rule: an explicit `observable: true | false` annotation on the AC entry wins; otherwise a wording heuristic checks for visible-surface / user-action / observable-post-condition signals. For every user-observable AC, the gate requires a matching entry in the interactive-verification results from sub-agent 3. If any user-observable AC has no matching runtime evidence AND no deferral annotation, verify writes the new `result: blocked-runtime-evidence-missing` (NOT `pass`). This variant distinguishes *procedural* failure (no evidence produced) from *substantive* failure (`result: fail` — evidence shows the AC is not met), and the two route differently downstream.
+- **`06-verify-<slice>.md` frontmatter additions:** new `result` variant `blocked-runtime-evidence-missing`; new fields `interactive-verification: required | deferred | not-applicable`, `interactive-verification-defer-reason`, `metric-acceptance-user-observable`, `metric-acceptance-code-only`, `adapters-used`, `bootstrap-failures`. New AC `kind` column in `## Acceptance Criteria Status` (`code-only` | `user-observable`) so a reviewer can see at a glance which criteria the gate evaluated.
+- **Deferral escape hatch (`interactive-verification: deferred`).** When an AC is user-observable but genuinely cannot be probed in the current environment (no emulator, no API key, no device), the slice author annotates the verify file with `interactive-verification: deferred` and a `defer-reason`. Verify writes `result: partial` (not `pass`) and appends an entry to `00-index.md.runtime-evidence-deferrals[]` with `slice`, `reason`, `deferred-at`, and `cleared-by: null`. Verify, review, and handoff surface deferrals as soft warnings and proceed. `/wf ship` HARD-BLOCKS (new Step 6.5 in ship.md) while any deferral has `cleared-by: null`; clearing requires either a `/wf-quick probe` run that captures matching evidence or a re-run of verify in a capable environment.
+- **New `/wf-quick probe <slug> [target]` — slug-mode only.** Runtime-truth verification on an already-progressed slug. Drives the running artifact, captures observable output (screenshots, stdout, response bodies, log lines), reads it, compares against AC text, and writes findings as a compressed slice (`slice-type: probe`, `compressed: true`, `origin: wf-quick/probe`). Refuses to run without an existing slug (new Step 4 in `wf-quick/SKILL.md`).
+  - **Argument grammar:** `probe <slug>` (slug-wide sweep over all AC), `probe <slug> <target>` (focused), `probe <slug> --from <path>` (multi-target file), `probe <slug> --strict <target>` (filter mode), `probe <slug> --adapter <key>` (narrow to one adapter).
+  - **Four-layer target resolution** — all four layers run for every non-empty target; their results compose into `target-resolution` frontmatter: (1) fuzzy-match against AC text across every slice in the slug, (2) match against slice slugs/titles, (3) extract surface hints (routes, screens, commands, endpoints), (4) treat as ad-hoc criterion if layers 1–3 produced nothing. A reader sees exactly how the target was interpreted.
+  - **Focus vs filter (`--strict`)** — default focus reports findings against the target AND surfaces incidental defects observed during navigation. Opt-in filter mode uses **strict-but-archive** semantics: the main `## Findings` list contains only target-tied entries; incidentals are recorded to `probe-evidence/<descriptor>/incidental.md` with `incidental-observed-count: N` in frontmatter. User opted out of being told but the data is preserved for later review.
+  - **Branch posture on mismatch** — when the working tree is on a branch that differs from the slug's `branch`, probe calls AskUserQuestion with three options: switch to slug's branch, run on current branch and record `probed-on-branch: <current>` in frontmatter, or abort. Probe is the only `/wf-quick` command that intentionally breaks the one-line ergonomic here; the explicit confirmation protects against clobbering uncommitted work, which is more likely on probe than on verify because probe runs cold.
+  - **Two-phase bootstrap** — Phase 1 actively attempts the adapter's bootstrap steps (start dev server, boot emulator, build + install) with documented resolution attempts. Phase 2 (graceful fail): if any step fails after resolution, probe writes a compressed slice with `status: awaiting-environment` and a full `bootstrap-failure: { step, exit-code, output-tail, remediation }` block. The attempt is recorded; re-running probe after the user fixes the environment picks up where it left off. Multi-adapter partial failures are recorded under `partial-bootstrap-failures` and the run proceeds with the adapters that did boot.
+  - **Multi-adapter — run-all by default.** Probe matches every adapter whose detection signal hits and runs them all in parallel; `adapters-used: [<key>, ...]` (plural) records what was driven. `--adapter <key>` narrows to a single matched adapter and sets `adapter-narrowed-by-user: true`.
+  - **Deferral clearing.** If `runtime-evidence-deferrals` in `00-index.md` contains entries whose `slice` appears in `target-resolution.matched-slices`, probe checks whether the captured evidence satisfies the deferred AC. If yes, `cleared-by: probe-<descriptor>` is written to the index; the deferral is now cleared and ship's hard block lifts for that entry.
+  - **Recommended next** — `findings-count: 0` → `/wf-meta status <slug>`; small fix → `/wf-quick quick <slug> probe-<descriptor>`; non-trivial → `/wf plan <slug> probe-<descriptor>`; `status: awaiting-environment` → re-run after applying remediation.
+- **New shared runtime-adapter registry: `skills/wf/reference/runtime-adapters.md`.** Single source of truth for per-platform driving recipes. Seven adapters (web, android, ios, cli, desktop, service, notebook), each declaring Detection signals, Bootstrap (with documented resolution attempts), Drive, Observe, Tear down, Evidence layout, and Remediation hints. Verify's interactive sub-agent 3 and probe both read this file; adding a new platform is a single-section change with no edits to verify or probe. Adapters are *recipes*, not code — markdown sections the agent reads and executes.
+- **`/wf-meta status` dashboard surfaces deferrals and findings.** New `Runtime` column on all three dashboard tables (Active / Blocked / Completed) with `runtime-evidence-status` values: `clean` / `deferrals: <N>` / `probe-findings: <N>` (combinable with `+`). Computed at status-render time from each workflow's `00-index.md.runtime-evidence-deferrals[]` and `compressed-slices[]` filtered for `slice-type: probe` with non-zero findings. The column is orthogonal to lifecycle status — a `Completed` workflow can still carry `deferrals: N` if it shipped via the legacy path.
+
+### Schema additions
+
+- `06-verify-<slice>.md` frontmatter: `result` variant `blocked-runtime-evidence-missing`, `interactive-verification`, `interactive-verification-defer-reason`, `metric-acceptance-user-observable`, `metric-acceptance-code-only`, `adapters-used`, `bootstrap-failures`. AC body `kind` column.
+- `00-index.md` frontmatter: `runtime-evidence-deferrals[]` — list of `{slice, reason, deferred-at, cleared-by}` entries.
+- `03-slice-probe-<descriptor>.md` (new file type): `slice-type: probe`, `compressed: true`, `origin: wf-quick/probe`, plus probe-specific fields — `probe-target`, `target-resolution`, `scope-mode`, `incidental-observed-count`, `from-file`, `adapters-used`, `adapter-narrowed-by-user`, `matched-adapters`, `partial-bootstrap-failures`, `probed-on-branch`, `bootstrap-failure`, `findings-count`, `findings-severity`.
+
+### Non-goals (deliberate)
+
+- Does NOT introduce a new top-level command. Probe lives inside the `/wf-quick` family.
+- Does NOT platform-specialize the workflow. Every platform-specific recipe lives in `runtime-adapters.md`; verify and probe stay platform-agnostic.
+- Does NOT replace `rca`. `rca` is static diagnosis of a reported symptom; `probe` is runtime detection. The wf-quick family now spans both axes (static/runtime × reported/unreported).
+- Does NOT modify the slice-level pipeline. Slices still go intake → shape → slice → plan → implement → verify → review → handoff → ship → retro. Probe writes a compressed slice into an existing slug; it does not insert a new stage.
+- Does NOT auto-fix. Probe reports findings; fixes go through the recommended downstream command, identically to how `rca` already routes.
+
+### Files
+
+- **New:** `plugins/sdlc-workflow/RUNTIME-PROBE-PLAN.md` (design plan with all six recorded decisions), `plugins/sdlc-workflow/skills/wf/reference/runtime-adapters.md`, `plugins/sdlc-workflow/skills/wf-quick/reference/probe.md`.
+- **Modified:** `plugins/sdlc-workflow/skills/wf/reference/verify.md` (Step 7.5 gate, sub-agent 3 delegates to registry, schema additions, new Options E + F in adaptive routing), `plugins/sdlc-workflow/skills/wf/reference/ship.md` (Step 6.5 hard block), `plugins/sdlc-workflow/skills/wf-quick/SKILL.md` (probe registration, slug-mode-only exception, table entry, slice-type enum), `plugins/sdlc-workflow/skills/wf-quick/router-metadata.json` (probe + simplify added to dimensions; total 10), `plugins/sdlc-workflow/skills/wf-meta/reference/status.md` (Runtime column).
+
+## [9.13.0] - 2026-05-16
+
+### Changed (semantic pivot — BREAKING for callers that relied on old output shape)
+
+- **`/wf-quick discover` repurposed from product-strategy gate to engineering hypothesis-test.** The old flow took a problem statement, ran competitor/user/market sub-agents over web search, and produced a `build` / `do-not-build` / `needs-further-research` recommendation. The new flow takes a **code-level hypothesis** ("the rate-limiter is implemented as a token bucket in `middleware/`", "auth flow validates JWTs before checking session state", "module M's concurrency is handled via mutexes not channels") and adjudicates it against the codebase:
+  1. **Sub-agent FOR** searches for code that supports the hypothesis, with `file:line` citations.
+  2. **Sub-agent AGAINST** actively tries to falsify it — looks for contradicting code, drift signals from `git log`, configuration that changes behavior.
+  3. **Sub-agent COUNTER-HYPOTHESES** proposes 1–3 alternative explanations that fit the same observable behavior, ranked by plausibility.
+  4. **Synthesis** produces a convergent verdict: `holds` / `partial` / `fails` / `inconclusive`, with confidence and cited evidence.
+  5. **Routing** depends on verdict — `holds` requires no follow-up (proceed however you intended); `fails` may route to `/wf-quick rca <symptom>` (if the hypothesis was an explanation for bad behavior) or `/wf-docs how <topic>` (if it was a guess about how a feature works); `inconclusive` lists what runtime signal would resolve it.
+- **`/wf-quick investigate` repurposed from investment-ranking gate to engineering solution-options sketcher.** The old flow surveyed a codebase domain (e.g., "checkout flow") and produced a ranked list of opportunities by ROI plus a synthesized `02-shape.md` for the top candidate. The new flow takes a **code-level problem** ("checkout p99 latency is 2s", "auth flow is brittle under concurrent writes", "we need to support multi-tenant data") and produces 2–3 genuinely distinct engineering approaches:
+  1. **Sub-agent ARCHITECTURE CARTOGRAPHER** maps the relevant area — entry points, call graph, data touched, integration boundaries, architectural constraints, recent churn.
+  2. **Sub-agent OPTION GENERATOR** proposes 2–3 options that differ in *mechanism* (not just surface choices); also records options considered and rejected so the reader knows what wasn't included.
+  3. **Sub-agent TRADEOFF CHARACTERIZER** scores each option on effort, blast radius, reversibility, top risks (specific failure modes, not generic warnings), and operational fit.
+  4. **Synthesis** writes a side-by-side comparison table; no winner is picked. The user picks.
+  5. **Routing** depends on the picked option — `/wf-quick quick <option>` for small (≤3 files, no new dep, no schema change), `/wf intake <option>` for medium+. No `02-shape.md` is synthesized — the downstream command does shape on the chosen option.
+- **`skills/wf-quick/SKILL.md`** — top-level `description` frontmatter and dispatcher table rows for `discover` and `investigate` reworded to describe the new semantics.
+- **`.codex-generated/skills/wf-quick/SKILL.md` and `.codex-generated/skills/wf-quick/agents/openai.yaml`** — mirror descriptions updated.
+
+### Preserved (no migration needed)
+
+- **Dispatcher keys unchanged:** `/wf-quick discover` and `/wf-quick investigate` still route to the same reference files. Positional slug detection, slug-mode contract, and the rest of the wf-quick plumbing are untouched.
+- **Slice-type tags unchanged:** compressed slices still use `slice-type: discover` and `slice-type: investigate`. Existing workflows with compressed slices of these types remain valid; the semantics of what those slices contain shifts, but the tag still identifies which sub-command produced them.
+- **Artifact filenames unchanged:** standalone runs still produce `01-discover.md` / `01-investigate.md`; slug-mode runs still produce `03-slice-discover-<descriptor>.md` / `03-slice-investigate-<descriptor>.md`.
+- **Frontmatter `workflow-type` unchanged:** still `discover` and `investigate`. Resume-mode in Step 0 still keys off the same value.
+
+### Rationale
+
+The two old commands sat awkwardly in a toolkit that is otherwise engineering-focused. `discover` answered "should we build this?" using web research; `investigate` ranked investments by ROI. Both required market or strategy context to be useful, and an engineer dropping into the codebase to test a theory or sketch approaches had no command that fit — `rca` requires a symptom, `ideate` ranks open-ended candidates rather than testing or sketching, `/wf-docs how` explains code but doesn't adjudicate or compare options, and `/wf shape` requires a workflow with an `01-intake.md` already written.
+
+The two new shapes fill genuine gaps:
+
+- **Hypothesis-test (`discover`)** is the read-only adjudicator that's missing — answers "is my theory about how this code works correct?" with cited evidence and explicit counter-evidence. Different from `/wf-docs how` (which explains, doesn't adjudicate) and from `rca` (which starts from a symptom, not a theory).
+- **Solution-options sketcher (`investigate`)** is the pre-commitment thinking aid that's missing — answers "what are 2–3 ways I could solve this?" with grounded tradeoffs, no winner. Different from `/wf shape` (which commits to one design and requires `01-intake.md`).
+
+The convergent/divergent output split (verdict vs. option set) is preserved from the old commands — just relocated onto engineering inputs.
+
+### Migration
+
+Existing artifacts on disk (`01-discover.md`, `01-investigate.md` with old structure) are not auto-migrated; their frontmatter remains valid but their body sections will not match what new runs produce. If you have an in-flight workflow of either type, finish it under the old structure (the artifact is already written) and only fresh runs adopt the new shape. The `INVESTIGATIVE-COMMANDS-PLAN.md` historical doc retains the old design as context — not rewritten.
+
 ## [9.12.0] - 2026-05-16
 
 ### Changed

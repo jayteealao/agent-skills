@@ -113,97 +113,34 @@ Prompt the agent with ALL of the following:
 - Report coverage percentage for the files this slice changed
 - Flag any new code paths with 0% coverage
 
-### Functional sub-agent 3 — Interactive & Visual Verification (when acceptance criteria require it)
+### Functional sub-agent 3 — Interactive & Runtime-Truth Verification
 
-Launch when `02-shape.md` → `## Verification Strategy` or `04-plan-<slice>.md` → `## Test / Verification Plan` identifies acceptance criteria that need interactive verification. This is how you verify the feature **actually works the way a human would experience it** — automated tests prove code correctness, but interactive verification proves the user-visible behavior.
+**This sub-agent is MANDATORY when the slice's AC contains any user-observable criterion** (see Step 6.5 — User-observable AC gate). It is how you verify the feature **actually works the way a human would experience it** — automated tests prove code correctness, but interactive verification proves the user-visible behavior. A slice cannot transition to `result: pass` if a user-observable AC has no matching interactive evidence.
 
-Prompt the agent with ALL of the following. Adapt to the project's platform:
+**Platform recipes live in the adapter registry**, not inline:
 
-**Web applications — tool selection (in priority order):**
+> Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md` and follow the recipe for every adapter whose detection signals match the repo (web / android / ios / cli / desktop / service / notebook / etc.). Adapter selection is documented at the top of that file.
 
-1. **dev-browser** (preferred) — check if installed: `command -v dev-browser`. If not installed, tell the user:
-   > "Interactive web verification requires `dev-browser`. Install with: `npm install -g dev-browser && dev-browser install`. See https://github.com/SawyerHood/dev-browser"
+Prompt the agent with ALL of the following:
 
-   If available, use dev-browser for all web verification. It provides Playwright's full Page API in a sandboxed QuickJS runtime with persistent pages across scripts:
-   ```bash
-   dev-browser --headless <<'SCRIPT'
-   const page = await browser.getPage("verify");
-   await page.goto("http://localhost:3000", { waitUntil: "domcontentloaded" });
-   // interact with the page
-   await page.click("button#submit");
-   await page.waitForSelector(".success-message");
-   // capture screenshot evidence
-   const buf = await page.screenshot();
-   await saveScreenshot(buf, "verify-criterion-name.png");
-   // get AI-friendly DOM snapshot for reasoning
-   const snapshot = await page.snapshotForAI();
-   console.log(JSON.stringify(snapshot));
-   SCRIPT
-   ```
-   - Use **persistent named pages** (`browser.getPage("verify")`) to maintain state across multiple verification scripts (e.g., login once, then verify multiple pages)
-   - Use `page.snapshotForAI()` to get LLM-optimized DOM snapshots for reasoning about page structure
-   - Screenshots are saved to `~/.dev-browser/tmp/` — copy them to the evidence directory
-   - Use `--connect` flag instead of `--headless` if the user has a running Chrome with remote debugging enabled
+1. **Match adapters.** Run every adapter's detection signal against the repo. Collect every match — multi-match (e.g., web + service) is common and you must drive all matched adapters. Record the matched adapter keys for the verify report.
+2. **Bootstrap each matched adapter** per its `Bootstrap` section. If any bootstrap step fails after the adapter's documented resolution attempts, the sub-agent reports `bootstrap-failure: { adapter, step, exit-code, output-tail, remediation }` and does NOT proceed past bootstrap for that adapter. The user-observable AC gate (Step 6.5) will then refuse `result: pass` and require either an `interactive-verification: deferred` annotation with a reason, or a remediation pass via `/wf-quick probe` once the environment is repaired.
+3. **For each user-observable AC**, follow the adapter's `Drive` and `Observe` recipes:
+   - Navigate or invoke the surface named in the criterion.
+   - Perform the user actions described.
+   - Capture observable output (screenshot, stdout, response body) per the adapter's `Evidence layout`.
+   - **Read the captured output** (multimodal for visuals, parsed for textual) and compare to the criterion's text.
+   - Record: criterion id or quoted text, adapter used, evidence path, observation, pass/fail.
+4. **Tear down each adapter** per its `Tear down` section. Idempotent — re-runs of verify must not leave the environment dirtier each pass.
+5. **Run existing test suites** that target the same surface (Playwright/Cypress E2E for web, Maestro suites for Android, XCUITest for iOS, etc.) in addition to the per-criterion drives, when they exist. The adapter's `Drive` section names the relevant suite invocations.
 
-2. **Chrome MCP tools** (fallback) — if `mcp__claude-in-chrome__*` tools are available in the session:
-   - Use `mcp__claude-in-chrome__navigate` to load pages
-   - Use `mcp__claude-in-chrome__read_page` to inspect content
-   - Use `mcp__claude-in-chrome__computer` for interactions (click, type)
-   - Use `mcp__claude-in-chrome__get_page_text` to read page content
-   - Use `mcp__claude-in-chrome__read_console_messages` to check for errors
-   - Use `mcp__claude-in-chrome__read_network_requests` to verify API calls
+The runtime-adapters.md `Evidence protocol` and `Accessibility checks` sections apply across all platforms; do not duplicate them here.
 
-3. **Playwright directly** (if configured in the project) — run existing Playwright test suites or write inline scripts
-
-**Web verification flow:**
-- Start the dev server if not already running (`npm run dev`, `yarn dev`, etc.)
-- For each interactive acceptance criterion:
-  - Navigate to the relevant page/route
-  - Perform the user actions described in the criterion (click, type, navigate, submit forms)
-  - Capture a screenshot as evidence
-  - **Read the screenshot** to confirm the expected visual state (correct content rendered, layout intact, no error states, expected UI elements visible)
-  - Check the browser console for errors
-  - Check network requests if the criterion involves API calls: verify correct requests sent, responses received
-- Run any existing Playwright/Cypress E2E test suites that cover the affected area
-- Run accessibility checks: axe-core scan via Playwright (`@axe-core/playwright`), eslint-plugin-jsx-a11y, or built-in browser accessibility audit
-
-**Android applications (adb / Maestro):**
-- Build and install the app: `./gradlew installDebug` or equivalent
-- Launch the app on emulator or connected device: `adb shell am start -n <package>/<activity>`
-- For each interactive acceptance criterion:
-  - If Maestro flows exist for this feature, run them: `maestro test <flow>.yaml`
-  - If no Maestro flow exists, use adb commands to navigate: `adb shell input tap`, `adb shell input text`, `adb shell input keyevent`
-  - Capture a screenshot: `adb shell screencap /sdcard/verify-<criterion>.png && adb pull /sdcard/verify-<criterion>.png`
-  - **Read the screenshot** to confirm the expected visual state
-  - Check logcat for errors: `adb logcat -d *:E` filtered to the app's package
-  - If Maestro assertions are available: `assertVisible`, `assertNotVisible`, `assertText`
-- Run any existing Maestro test suites: `maestro test maestro/`
-
-**iOS applications:**
-- Build and install on simulator: `xcodebuild` or `flutter run`
-- Use `xcrun simctl` for simulator interaction, screenshots: `xcrun simctl io booted screenshot verify-<criterion>.png`
-- Run existing XCUITest or Detox test suites if available
-
-**CLI / terminal applications:**
-- Run the command with the relevant inputs
-- Capture stdout/stderr as evidence
-- Verify output matches expected format and content
-- Test error cases: wrong arguments, missing files, permission errors
-
-**Desktop applications:**
-- Launch the app and use available automation tools (PyAutoGUI, Playwright for Electron, etc.)
-- Capture screenshots of the relevant UI states
-
-**For ALL platforms — evidence protocol:**
-1. For each interactive criterion, produce: a screenshot or output capture, a pass/fail determination, and a brief explanation of what was observed
-2. If a screenshot shows unexpected behavior, describe exactly what is wrong
-3. Store evidence files in `.ai/workflows/<slug>/verify-evidence/` (create the directory if needed)
-4. Reference evidence files in the verification report
-
-**Accessibility checks (all UI platforms):**
-- If an accessibility linter exists, run it on affected components
-- Check that new/modified interactive elements have appropriate ARIA attributes, labels, keyboard handling
-- Verify color contrast, focus indicators, and screen reader compatibility if tools are available
+**Output to the calling stage:**
+- `interactive-verification-results: [{criterion, adapter, evidence-path, observation, result}, ...]`
+- `bootstrap-failures: [{adapter, step, remediation}, ...]` (empty if all bootstrapped cleanly)
+- `metric-interactive-checks-run: <N>`
+- `metric-interactive-checks-passed: <N>`
 
 ### Functional sub-agent 4 — Augmentation Re-verification (only if `02c-craft.md` or `00-index.md` `augmentations:` list is non-empty)
 
@@ -286,6 +223,7 @@ Do this in order:
    c. `TaskUpdate(taskId, status: "completed")`. If not met, update description: `TaskUpdate(taskId, description: "NOT MET: <reason>")`.
 6. If verification reveals gaps caused by external dependency behavior or standards drift, run a freshness pass and record it.
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
+7.5. **Apply the user-observable AC gate** (see "User-observable AC gate" section below). Partition AC into `code-only` vs `user-observable`. For every `user-observable` AC, require a matching entry in `interactive-verification-results` (from sub-agent 3). If any user-observable AC has no matching entry AND no `interactive-verification: deferred` annotation, the per-slice verify file MUST be written with `result: blocked-runtime-evidence-missing` (NOT `pass`) and the missing AC listed in `## Issues Found`. The gate is the load-bearing change that closes the "verified but actually broken" leak.
 8. Mark "Write 06-verify" task `in_progress`. **Write `06-verify-<slice-slug>.md`** (per-slice file, see template below). Mark `completed`.
 9. **Write/update `06-verify.md`** (master index with links to all per-slice verify files).
 10. Update `00-index.md` accordingly and add files to `workflow-files`.
@@ -306,7 +244,85 @@ Use when: This is a solo project with no reviewer, OR the change was already ext
 **Option D: Revisit Plan** → `/wf plan <slug> <selected-slice>`
 Use when: Verification revealed a fundamental flaw in the approach, not just a bug — the plan itself needs rethinking.
 
+**Option E: Re-verify in a capable environment, or apply a deferral** → `/wf verify <slug> <selected-slice>` (re-run) OR amend with `interactive-verification: deferred`
+Use when: `result: blocked-runtime-evidence-missing`. The code may be correct; the runtime evidence was not produced because the environment could not support the interactive checks (no emulator, no API key, no device, etc.). Either move to an environment where the interactive checks can run, or annotate the slice with a deferral reason. Deferrals will not block review or handoff but will block ship.
+
+**Option F: Slug-wide runtime probe** → `/wf-quick probe <slug>`
+Use when: Per-slice verify passed, but you want a slug-wide runtime sweep against the running artifact (e.g., to catch cross-slice integration breakage). Probe is the backward re-entry counterpart to the per-slice interactive gate — it observes the whole artifact, not one slice's surface.
+
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
+
+# User-observable AC gate (MANDATORY)
+
+This gate closes the "verified but actually broken" leak. It runs in Step 7.5 of the numbered steps above. The rule is simple: **runtime evidence is required for every user-observable AC. No evidence, no pass.**
+
+## Partitioning AC into code-only vs user-observable
+
+Read every AC entry from `03-slice-<slice-slug>.md` (or the compressed-mode equivalent — see Step 0.4 source-mode rules). For each AC entry, apply this two-step rule:
+
+**Step A — explicit override wins.** If the AC entry carries an `observable: true | false` annotation (inline tag in the slice file), that value is final. Authors use this to correct heuristic miscalls.
+
+**Step B — heuristic when unannotated.** When the AC entry has no `observable` annotation, the gate considers it user-observable when any of the following hold:
+- It names a visible surface (screen, page, route, view, panel, dialog, command output).
+- It names a user action (click, tap, type, submit, run, invoke, navigate).
+- It declares an observable post-condition (renders, appears, displays, returns, prints, succeeds, redirects).
+
+Criteria that fail all three checks are treated as `code-only` (e.g., "the new util function handles null inputs") and the interactive gate does not fire for them.
+
+Record the partition in the verify artifact under `## Acceptance Criteria Status` — every AC entry has a `kind: code-only | user-observable` column. This is what allows reviewers to see which criteria the gate considered relevant.
+
+## Matching user-observable AC against interactive evidence
+
+For each `user-observable` AC, look in the sub-agent 3 results for a matching `interactive-verification-results` entry. Match by AC id (when AC entries carry ids) or by quoted text overlap (sub-agent 3 records the criterion text it drove).
+
+- **Matched, result: pass** → AC counts as met.
+- **Matched, result: fail** → AC counts as not met. `## Issues Found` lists the failure.
+- **Matched, result: partial** → AC counts as partially met. List the gap.
+- **Not matched** → AC has no runtime evidence. The gate refuses `result: pass` for the slice.
+
+## Result writeback
+
+After matching:
+
+| Condition | `result:` value to write |
+|---|---|
+| All AC met (code-only via test suites, user-observable via interactive evidence) | `pass` |
+| At least one user-observable AC has no matching interactive evidence AND no deferral annotation | `blocked-runtime-evidence-missing` |
+| At least one AC fails or is partial, but every user-observable AC has runtime evidence (positive or negative) | `fail` or `partial` |
+
+The new `blocked-runtime-evidence-missing` variant is distinct from `fail` because the failure is procedural (evidence was not produced) rather than substantive (evidence shows the AC is not met). The downstream routing for the two differs — `fail` recommends `/wf implement` to fix the code; `blocked-runtime-evidence-missing` recommends either re-running verify in an environment that supports the interactive checks, or applying a deferral annotation if the environment cannot support them.
+
+## Escape hatch — `interactive-verification: deferred`
+
+Some AC are user-observable but genuinely cannot be probed in the current environment (no emulator, no staging API key, no physical device, etc.). To proceed without a hard fail, the slice author may add to the per-slice verify file frontmatter:
+
+```yaml
+interactive-verification: deferred
+interactive-verification-defer-reason: "<one-line explanation>"
+```
+
+When this annotation is present on a slice:
+- The gate writes `result: partial` (not `pass`) with a note that runtime evidence was deferred.
+- The deferral is appended to `00-index.md` under `runtime-evidence-deferrals` (see schema below).
+- `/wf review` and `/wf handoff` proceed with a soft warning; `/wf ship` HARD-BLOCKS until every deferral is cleared by a subsequent `/wf-quick probe` run that produces matching evidence, or by re-running verify in a capable environment.
+
+**Decision (recorded in plan §2.4):** No silent skip. Every deferral is named, dated, and surfaces in the slug's progress view and dashboard. The block bites at ship, not earlier, so in-flight work that legitimately waits on an environment is not stalled mid-pipeline.
+
+## 00-index.md additions for deferrals
+
+When a slice's verify writes a deferral, append to the workflow index:
+
+```yaml
+runtime-evidence-deferrals:
+  - slice: <slice-slug>
+    reason: "<verbatim defer-reason>"
+    deferred-at: "<iso-8601>"
+    cleared-by: null    # set to <probe-descriptor> when a probe run clears the deferral
+```
+
+`/wf-meta status`, `/wf-meta next`, and `/wf ship` read this list. `/wf ship` refuses to start while any entry has `cleared-by: null`.
+
+# Verify artifact schemas
 
 Write `06-verify.md` (master index):
 
@@ -348,15 +364,21 @@ status: complete
 stage-number: 6
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
-result: <pass|fail|partial>
+result: <pass|fail|partial|blocked-runtime-evidence-missing>
 metric-checks-run: <N>
 metric-checks-passed: <N>
 metric-acceptance-met: <N>
 metric-acceptance-total: <N>
+metric-acceptance-user-observable: <N>          # count of AC partitioned as user-observable
+metric-acceptance-code-only: <N>                # count partitioned as code-only
 metric-interactive-checks-run: <N>
 metric-interactive-checks-passed: <N>
 metric-issues-found: <N>
-evidence-dir: ".ai/workflows/<slug>/verify-evidence/"
+interactive-verification: <required | deferred | not-applicable>
+interactive-verification-defer-reason: "<string>"  # required when interactive-verification == deferred
+adapters-used: [<key>, ...]                     # which runtime adapters were driven
+bootstrap-failures: []                          # list of {adapter, step, remediation} from sub-agent 3
+evidence-dir: ".ai/workflows/<slug>/verify-evidence/<slice-slug>/"
 tags: []
 refs:
   index: 00-index.md
@@ -365,10 +387,22 @@ refs:
   plan: 04-plan-<slice-slug>.md
   implement: 05-implement-<slice-slug>.md
   review: 07-review-<slice-slug>.md
+  adapters: ${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md
 next-command: wf-review
 next-invocation: "/wf review <slug> <slice-slug>"
 ---
 ```
+
+**`result` field semantics:**
+- `pass` — every AC met; every user-observable AC has matching interactive evidence (or every user-observable AC is annotated as deferred).
+- `fail` — at least one AC is substantively not met (the code is wrong).
+- `partial` — at least one AC is partially met OR `interactive-verification: deferred` is set on at least one user-observable AC.
+- `blocked-runtime-evidence-missing` — at least one user-observable AC has no matching interactive evidence AND no deferral annotation. This is procedural failure, not substantive failure; the routing recommendation differs from `fail`.
+
+**`interactive-verification` field semantics:**
+- `required` (default) — slice has at least one user-observable AC; runtime evidence was produced for all of them.
+- `deferred` — slice has at least one user-observable AC; environment could not support runtime evidence for at least one; `defer-reason` MUST be set.
+- `not-applicable` — slice has no user-observable AC; the gate did not apply.
 
 # Verify: <slice-name>
 
@@ -389,9 +423,14 @@ For each criterion that required interactive verification:
 If no interactive verification was needed: "Automated only — [reason]"
 
 ## Acceptance Criteria Status
-- criterion: met / partially met / not met / unverified
-- verification method: automated / interactive / manual
-- evidence: test output / screenshot path / console output
+For each criterion, record:
+- **criterion**: quoted text or id
+- **kind**: `code-only` | `user-observable` (from the partition rule)
+- **status**: met / partially met / not met / unverified / runtime-evidence-missing
+- **verification method**: automated (test suite) / interactive (runtime adapter) / manual
+- **evidence**: test output / screenshot path / response capture / console output / "(none — runtime evidence missing)"
+
+The `kind` column is what makes the user-observable AC gate auditable. A reviewer reading the verify report can see at a glance which criteria the gate evaluated and which it skipped.
 
 ## Issues Found
 - severity: issue

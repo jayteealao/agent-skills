@@ -53,6 +53,21 @@ You are a **workflow orchestrator**, not a problem solver.
    Run: /wf handoff <slug>   # to refresh the readiness block
    ```
    Also parse `pr-url`, `pr-number`, `branch`, `base-branch`, `has-deferred-comments`. If `has-deferred-comments: true`, WARN before continuing.
+6.5. **Runtime-evidence deferral gate (HARD BLOCK — added per RUNTIME-PROBE-PLAN.md §2.4).** Parse `runtime-evidence-deferrals` from `00-index.md` (this field may be absent on older workflows — treat absent as empty). For every entry whose `cleared-by: null`, the slug has an open runtime-evidence deferral that must be cleared before ship.
+
+   If any entry has `cleared-by: null`, STOP with:
+   ```
+   Ship is blocked: <N> open runtime-evidence deferral(s).
+   The following slices passed verify only because runtime evidence was deferred; ship requires evidence:
+     - <slice-slug>: <reason>  (deferred-at: <iso>)
+     - ...
+   Clear each deferral by either:
+     (a) running `/wf-quick probe <slug> <target-matching-the-deferred-AC>` to capture evidence, then re-running verify, OR
+     (b) re-running `/wf verify <slug> <slice-slug>` in an environment that supports the interactive checks for that slice.
+   ```
+   Cleared deferrals (entries whose `cleared-by` is non-null — typically a probe descriptor) do not block ship; they are kept in the index for audit. The block bites only on `cleared-by: null` entries.
+
+   This gate is the hard-block half of the deferral mechanism. Earlier stages (verify, review, handoff) surface deferrals as soft warnings; ship is where the block fires.
 7. **Read every `07-review-*.md` and `po-answers.md`** for changelog/release-notes context.
 8. **Resume detection.** Glob `.ai/workflows/<slug>/09-ship-run-*.md`. For any with `status: awaiting-input`:
    ```yaml

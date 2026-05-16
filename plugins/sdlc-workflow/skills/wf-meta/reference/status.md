@@ -41,6 +41,18 @@ For each slug in the enumeration from Step 0, attempt to read `.ai/workflows/<sl
 - `recommended-next-command`, `recommended-next-invocation`
 - `branch-strategy`, `branch`, `pr-url`, `pr-number`
 - `progress` (if present — e.g., `slices-implemented: 2, slices-total: 5`)
+- `runtime-evidence-deferrals` (added per RUNTIME-PROBE-PLAN.md §5.4 — list of `{slice, reason, deferred-at, cleared-by}` entries; field may be absent on older workflows)
+- `compressed-slices` (list of `{slug, slice-type, created-at}` entries; filter for `slice-type: probe` to count outstanding probe findings)
+
+**Compute `runtime-evidence-status` per workflow:**
+
+| Condition | Value |
+|---|---|
+| `runtime-evidence-deferrals` is absent OR every entry has `cleared-by` non-null AND no probe slice with `findings-count > 0` exists | `clean` |
+| Any `runtime-evidence-deferrals` entry has `cleared-by: null` | `deferrals-open` (count = number of null entries) |
+| Any probe compressed-slice exists with `findings-count > 0` AND the slug has not yet routed the findings through plan/quick | `probe-findings-open` |
+
+This status is what surfaces the "verified but actually broken" failure mode in the dashboard — a slug can be `Active` or `Blocked` *and* carry `runtime-evidence-status: deferrals-open`. Both classifications coexist; the deferral status is orthogonal to lifecycle status.
 
 **Classify each workflow into one of three groups:**
 
@@ -52,25 +64,29 @@ For each slug in the enumeration from Step 0, attempt to read `.ai/workflows/<sl
 
 **Render the dashboard:**
 
+The Runtime column renders the `runtime-evidence-status` computed above. Values: `clean` (omit or render as `—`), `deferrals: <N>` for `deferrals-open` slugs, `probe-findings: <N>` for `probe-findings-open` slugs. A slug may legitimately show both deferrals and probe-findings; render both separated by `+`.
+
 ```
 ## Active Workflows ({count})
 
-| Slug | Title | Stage | Status | Slice | Updated | Next |
-|------|-------|-------|--------|-------|---------|------|
-| <slug> | <title> | <N>·<stage-name> | <status> | <slice or —> | <YYYY-MM-DD> | `<next-invocation>` |
+| Slug | Title | Stage | Status | Slice | Runtime | Updated | Next |
+|------|-------|-------|--------|-------|---------|---------|------|
+| <slug> | <title> | <N>·<stage-name> | <status> | <slice or —> | <runtime-evidence-status> | <YYYY-MM-DD> | `<next-invocation>` |
 
 ## Blocked ({count})
 
-| Slug | Title | Stage | Blocker | Open Qs | Since |
-|------|-------|-------|---------|---------|-------|
-| <slug> | <title> | <N>·<stage-name> | <reason> | <count> | <YYYY-MM-DD> |
+| Slug | Title | Stage | Blocker | Open Qs | Runtime | Since |
+|------|-------|-------|---------|---------|---------|-------|
+| <slug> | <title> | <N>·<stage-name> | <reason> | <count> | <runtime-evidence-status> | <YYYY-MM-DD> |
 
 ## Completed ({count})
 
-| Slug | Title | Outcome | Stages | Completed |
-|------|-------|---------|--------|-----------|
-| <slug> | <title> | <status> | <N>/10 | <YYYY-MM-DD> |
+| Slug | Title | Outcome | Stages | Runtime | Completed |
+|------|-------|---------|--------|---------|-----------|
+| <slug> | <title> | <status> | <N>/10 | <runtime-evidence-status> | <YYYY-MM-DD> |
 ```
+
+**Why the Runtime column is in every table:** the deferral mechanism is orthogonal to lifecycle stage. A `Completed` workflow can still carry `deferrals: <N>` if it shipped via the legacy path before the gate existed, or if a deferral was cleared at ship time but the audit entry remains. A `Blocked` workflow can carry `probe-findings: <N>` because the findings might be exactly what's blocking it. Surfacing the column everywhere keeps the runtime-evidence story visible at a glance.
 
 **After the tables, add a quick-actions section:**
 

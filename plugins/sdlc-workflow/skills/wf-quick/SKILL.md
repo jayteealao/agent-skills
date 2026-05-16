@@ -1,8 +1,8 @@
 ---
 name: wf-quick
-description: Compressed and standalone SDLC workflows — orthogonal entry points that do not compose. Sub-commands: quick (small intentional change), rca (root-cause analysis), investigate (investment discovery), discover (problem validation), hotfix (emergency fix), update-deps, refactor, ideate, simplify (3-agent review+routing triage across branch/commit/plan/codebase; never writes code, routes findings to downstream commands). Positional slug detection (v9.10.0): if the first token after the sub-command exactly matches a non-closed slug in `.ai/workflows/INDEX.md`, the sub-command attaches to that workflow as a single compressed slice (`type: slice` + `slice-type: <sub>` + `compressed: true`); otherwise it runs standalone (creates a fresh workflow). No flags. Full-lifecycle intake lives at `/wf intake`; documentation lives at `/wf-docs`.
+description: Compressed and standalone SDLC workflows — orthogonal entry points that do not compose. Sub-commands: quick (small intentional change), rca (root-cause analysis from a symptom, static), probe (runtime-truth verification — drives the running artifact, captures observable output, finds defects; slug-mode only), investigate (solution-options sketcher — 2–3 distinct engineering approaches to a stated problem, with tradeoffs, no winner picked), discover (hypothesis-test — adjudicates a code-level claim with FOR/AGAINST/counter-hypothesis evidence and a verdict), hotfix (emergency fix), update-deps, refactor, ideate, simplify (3-agent review+routing triage across branch/commit/plan/codebase; never writes code, routes findings to downstream commands). Positional slug detection (v9.10.0): if the first token after the sub-command exactly matches a non-closed slug in `.ai/workflows/INDEX.md`, the sub-command attaches to that workflow as a single compressed slice (`type: slice` + `slice-type: <sub>` + `compressed: true`); otherwise it runs standalone (creates a fresh workflow) — except probe, which is slug-mode only and refuses to run without an existing slug. Flags: probe accepts --strict, --from <path>, --adapter <key>; all other sub-commands take no flags. Full-lifecycle intake lives at `/wf intake`; documentation lives at `/wf-docs`.
 disable-model-invocation: true
-argument-hint: "<quick|rca|investigate|discover|hotfix|update-deps|refactor|ideate|simplify> [<existing-slug>] [args...]"
+argument-hint: "<quick|rca|probe|investigate|discover|hotfix|update-deps|refactor|ideate|simplify> [<existing-slug>] [args...]"
 ---
 
 # External Output Boundary (MANDATORY)
@@ -16,12 +16,12 @@ You are the **standalone-workflow dispatcher** for the SDLC plugin. The 9 sub-co
 
 # Step 0 — Identify the sub-command and detect slug
 
-There are no flags. Parse `$ARGUMENTS` positionally:
+Parse `$ARGUMENTS` positionally. The `probe` sub-command accepts `--strict`, `--from <path>`, and `--adapter <key>` flags; all other sub-commands take no flags.
 
 1. **Tokenize** respecting shell quoting (`"two words"` is one token).
-2. **First token = sub-command key.** It must match one of the 9 keys in the table below.
+2. **First token = sub-command key.** It must match one of the 10 keys in the table below.
    - Empty `$ARGUMENTS` → render the menu and ask which sub-command the user wants.
-   - Unknown token → STOP: *"`<token>` is not a known wf-quick sub-command. Pick one of: quick, rca, investigate, discover, hotfix, update-deps, refactor, ideate, simplify."* If the token is `intake`, redirect: *"`intake` moved to `/wf intake` in v9.1.0 — all canonical lifecycle stages now live under `/wf`."* If the token is `docs`, redirect: *"`docs` moved to `/wf-docs` in v9.4.0 — documentation now has its own router with 7 Diátaxis primitives."*
+   - Unknown token → STOP: *"`<token>` is not a known wf-quick sub-command. Pick one of: quick, rca, probe, investigate, discover, hotfix, update-deps, refactor, ideate, simplify."* If the token is `intake`, redirect: *"`intake` moved to `/wf intake` in v9.1.0 — all canonical lifecycle stages now live under `/wf`."* If the token is `docs`, redirect: *"`docs` moved to `/wf-docs` in v9.4.0 — documentation now has its own router with 7 Diátaxis primitives."*
 3. **Slug detection on the second token (positional, no flag).** This is the only way to opt into slug-mode in v9.10.0 — there is no `--slug` flag.
    - Read `.ai/workflows/INDEX.md` (the global workflow registry; format documented in `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/reference/sync.md`).
    - **If `INDEX.md` does not exist** → mode is **standalone**. Treat every token after the sub-command as the sub-command's `$ARGUMENTS`. Append a single line to the chat return at end: *"Tip: run `/wf-meta sync` once to enable positional slug detection on `/wf-quick` (creates `.ai/workflows/INDEX.md`)."*
@@ -29,7 +29,8 @@ There are no flags. Parse `$ARGUMENTS` positionally:
      - **Hit AND status column ≠ `closed`** → mode is **slug-mode**. Consume the second token as `<slug>`. All remaining tokens become the sub-command's `$ARGUMENTS`.
      - **Hit AND status column = `closed`** → ASK: *"Workflow `<slug>` is closed. Append a compressed slice anyway?"* — wait for explicit confirmation. On yes → slug-mode; on no → STOP.
      - **No hit** → mode is **standalone**. Leave all tokens after the sub-command in the sub-command's `$ARGUMENTS`. Do NOT prompt or warn — a token that is not in `INDEX.md` is simply the start of the description.
-4. **Slug-mode sanity check (if slug-mode).** Verify `.ai/workflows/<slug>/00-index.md` actually exists on disk (the registry could be stale). If missing → STOP: *"`INDEX.md` references slug `<slug>` but `.ai/workflows/<slug>/00-index.md` is missing. Run `/wf-meta sync` to reconcile, or retry without the slug for a standalone run."* Otherwise read the index frontmatter and record `branch`, `current-stage`, `status` for Step 1.
+4. **Slug-mode-only exception for `probe`.** The `probe` sub-command refuses to run without an existing slug — runtime-truth verification only makes sense against work that has already been implemented. If Step 3 resolved mode to `standalone` for `probe` → STOP: *"`/wf-quick probe` requires an existing workflow slug as its first argument. Run `/wf-meta status` to see available slugs, or run probe as `/wf-quick probe <slug> [target]`."*
+5. **Slug-mode sanity check (if slug-mode).** Verify `.ai/workflows/<slug>/00-index.md` actually exists on disk (the registry could be stale). If missing → STOP: *"`INDEX.md` references slug `<slug>` but `.ai/workflows/<slug>/00-index.md` is missing. Run `/wf-meta sync` to reconcile, or retry without the slug for a standalone run."* Otherwise read the index frontmatter and record `branch`, `current-stage`, `status` for Step 1.
 
 **Quote-escape for ambiguous descriptions.** Slugs cannot contain whitespace, so a multi-word quoted description (e.g., `/wf-quick rca "metrics dashboard broken"`) becomes a single token that never matches `INDEX.md` and routes standalone. Document this in user guidance for the rare case where a workflow's slug collides with the first word of an intended description.
 
@@ -38,9 +39,10 @@ There are no flags. Parse `$ARGUMENTS` positionally:
 | Key | Argument hint (after optional slug) | What it does (one line) |
 |---|---|---|
 | `quick`        | `<description>`  | Compressed planning workflow for small intentional changes (collapses intake/shape/design/slice/plan into one artifact). |
-| `rca`          | `<incident> [date]`      | Root-cause analysis with parallel diagnosis sub-agents; recommends a downstream command (plan, quick, hotfix). |
-| `investigate`  | `<domain>`               | Investment discovery — surveys a codebase domain, ranks improvement opportunities by ROI. |
-| `discover`     | `<problem>`              | Problem validation using external signals (competitors, user feedback, market data); produces build/do-not-build recommendation. |
+| `rca`          | `<incident> [date]`      | Root-cause analysis with parallel diagnosis sub-agents; recommends a downstream command (plan, quick, hotfix). Static diagnosis only — reads code and git history, does not run the artifact. |
+| `probe`        | `[target \| --from <path>] [--strict] [--adapter <key>]` | Runtime-truth verification — drives the running artifact through AC or a free-form target, captures observable output (screenshots, stdout, responses), reads it, compares against AC text, writes findings. Slug-mode only — refuses to run without an existing slug. Sibling of `rca` on the runtime axis. Never writes code; routes findings to `/wf plan` or `/wf-quick quick`. |
+| `investigate`  | `<problem>`              | Solution-options sketcher — proposes 2–3 distinct engineering approaches to a stated code-level problem and characterizes their tradeoffs (effort, blast radius, reversibility, top risks). Does not pick a winner; user picks and routes to `/wf-quick quick` or `/wf intake`. |
+| `discover`     | `<hypothesis>`           | Hypothesis-test — adjudicates a code-level claim using FOR/AGAINST/counter-hypothesis sub-agents. Produces a verdict (`holds` / `partial` / `fails` / `inconclusive`) with cited evidence. Read-only. |
 | `hotfix`       | `<incident-description>` | Emergency-only escape hatch. Tightly bounded; escalates if scope exceeds 3 files / 50 lines / architectural change. |
 | `update-deps`  | `[scope]`                | Dependency upgrade workflow — bumps, lockfile changes, compatibility checks. |
 | `refactor`     | `<target>`               | Pure refactoring workflow — never adds new functionality. |
@@ -66,7 +68,7 @@ schema: sdlc/v1
 type: slice
 slug: <slug>
 slice-slug: <slice-slug>
-slice-type: <sub>           # one of: quick, rca, investigate, discover, hotfix, update-deps, refactor, ideate, simplify
+slice-type: <sub>           # one of: quick, rca, probe, investigate, discover, hotfix, update-deps, refactor, ideate, simplify
 compressed: true
 origin: wf-quick/<sub>
 status: defined
