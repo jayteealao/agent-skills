@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.11.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -102,13 +102,13 @@ flowchart TD
   start -- "Dependency updates, security or major version" --> deps["/wf-quick update-deps"]
   start -- "Behaviour-preserving refactor" --> refactor["/wf-quick refactor"]
   start -- "Bug report, root cause unknown" --> rca["/wf-quick rca"]
-  start -- "Need to understand existing code first" --> investigate["/wf-quick investigate"]
-  start -- "Idea, not yet a feature" --> ideate["/wf-quick discover"]
+  start -- "Need 2–3 distinct engineering approaches sketched before committing" --> investigate["/wf-quick investigate"]
+  start -- "Have a theory about how this code works and want it adjudicated" --> discover["/wf-quick discover"]
   start -- "A real feature or substantive change" --> wf["/wf intake"]
 
   classDef quick fill:#fef3c7,stroke:#b45309,color:#1f1f1d
   classDef full fill:#dbeafe,stroke:#1d4ed8,color:#1f1f1d
-  class hotfix,fix,deps,refactor,rca,investigate,ideate quick
+  class hotfix,fix,deps,refactor,rca,investigate,discover quick
   class wf full
 </pre>
 </div>
@@ -126,8 +126,8 @@ flowchart TD
 <dt><strong>"Production is on fire."</strong></dt>
 <dd><code>/wf-quick hotfix "&lt;symptom&gt;"</code> — scope-locked, skips review, but still leaves an artifact trail.</dd>
 
-<dt><strong>"I need to investigate something before I commit to a fix."</strong></dt>
-<dd><code>/wf-quick investigate "&lt;area of code&gt;"</code>. The artifact forwards into <code>/wf shape</code> if the investigation yields work to do.</dd>
+<dt><strong>"I have a problem in the code and want 2–3 distinct engineering approaches sketched before I pick one."</strong></dt>
+<dd><code>/wf-quick investigate "&lt;problem&gt;"</code>. Architecture cartographer + option generator + tradeoff characterizer sub-agents. Produces an A/B/C option set with effort/blast-radius/reversibility/risk for each; <em>no winner is picked</em>. After you pick, route to <code>/wf-quick fix</code> (small) or <code>/wf intake</code> (medium+).</dd>
 
 <dt><strong>"There's a bug. I don't know where it is yet."</strong></dt>
 <dd><code>/wf-quick rca "&lt;symptom + repro&gt;"</code>. Root-cause analysis with parallel sub-agents.</dd>
@@ -138,8 +138,8 @@ flowchart TD
 <dt><strong>"I want to refactor this without changing behaviour."</strong></dt>
 <dd><code>/wf-quick refactor "&lt;area&gt;"</code>. Captures a test baseline first; refactors with incremental green steps; re-verifies parity.</dd>
 
-<dt><strong>"I have an idea. I don't know if we should build it."</strong></dt>
-<dd><code>/wf-quick discover "&lt;idea&gt;"</code>. Light triage; outputs whether to build, pilot, or shelve.</dd>
+<dt><strong>"I have a theory about how this code works and want it adjudicated against the codebase."</strong></dt>
+<dd><code>/wf-quick discover "&lt;hypothesis&gt;"</code>. FOR / AGAINST / counter-hypothesis sub-agents adjudicate the claim. Verdict is one of <code>holds</code> / <code>partial</code> / <code>fails</code> / <code>inconclusive</code>, with cited evidence. Different from <code>/wf-docs how</code> — that explains how code works; <code>discover</code> tests whether your theory is correct.</dd>
 
 <dt><strong>"I want to read about an unfamiliar subsystem."</strong></dt>
 <dd><code>/wf-meta how "&lt;question&gt;"</code> — five-mode question answering. Doesn't write a stage artifact unless you opt in.</dd>

@@ -815,6 +815,8 @@ All require `.impeccable.md` established by `/wf-design:setup`.
 | Command | Purpose |
 |---|---|
 | `/wf-quick ideate [focus-area] [count]` | Scan codebase with 6 parallel lenses, generate 30+ candidates, adversarially filter, rank survivors — produces `.ai/ideation/` artifact ready for `/wf intake` |
+| `/wf-quick discover <hypothesis>` | Hypothesis-test — adjudicates a code-level theory ("the rate-limiter is a token bucket in `middleware/`") with FOR / AGAINST / counter-hypothesis sub-agents. Verdict: `holds` / `partial` / `fails` / `inconclusive`, with cited evidence. Different from `/wf-meta how` (which explains code) and from `/wf-quick rca` (which starts from a symptom, not a theory). |
+| `/wf-quick investigate <problem>` | Solution-options sketcher — takes a code-level problem ("checkout p99 is 2s", "auth flow brittle under concurrent writes") and produces 2–3 distinct engineering approaches with tradeoffs (effort, blast radius, reversibility, top risks). No winner picked — you pick, then route to `/wf-quick fix` (small) or `/wf intake` (medium+). Different from `/wf shape` which commits to one design. |
 | `/wf-meta how <question>` | Auto-route question across 5 modes: quick code answer (A), codebase exploration (B), deep web research (C), workflow artifact explanation (D), or findings explanation (E) |
 | `/wf-meta how <slug> plan\|shape\|slice\|review\|findings` | Shortcut to Mode D or E — explain a specific workflow artifact or findings set for the given slug |
 | `/wf-meta how --research <question>` | Force Mode C — commission 6–8 parallel web research agents targeting 200+ sources |

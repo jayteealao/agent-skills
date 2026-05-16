@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.11.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -149,8 +149,8 @@ throw new Error("Received invalid payload");</code></pre>
 <tbody>
 <tr><td><code>/wf-quick hotfix</code></td><td>Production incident — bypass review for speed</td><td>6-stage, scope-locked</td></tr>
 <tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis of a bug or incident</td><td>Single artifact, then forwards to <code>/wf shape</code></td></tr>
-<tr><td><code>/wf-quick investigate</code></td><td>"What's actually happening in this part of the code?"</td><td>Single artifact, forwards to <code>/wf shape</code></td></tr>
-<tr><td><code>/wf-quick discover</code></td><td>Idea triage / "should we build this?"</td><td>Single artifact</td></tr>
+<tr><td><code>/wf-quick investigate</code></td><td>"What are 2–3 distinct engineering approaches to this problem?" — solution-options sketcher with tradeoffs; no winner picked</td><td>Single artifact, user picks an option then routes to <code>/wf intake</code> or <code>/wf-quick fix</code></td></tr>
+<tr><td><code>/wf-quick discover</code></td><td>"Is my theory about how this code works correct?" — hypothesis-test with FOR/AGAINST/counter-hypothesis evidence</td><td>Single artifact, verdict: holds / partial / fails / inconclusive</td></tr>
 <tr><td><code>/wf-quick update-deps</code></td><td>Audit + tiered dependency updates</td><td>4-stage under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
 <tr><td><code>/wf-quick refactor</code></td><td>Behaviour-preserving refactor with test baseline</td><td>Stage-locked: capture baseline, refactor, re-verify</td></tr>
 <tr><td><code>/wf-quick ideate</code></td><td>Brainstorm + rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.11.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -102,13 +102,11 @@
 <h2 id="next">/wf-meta next [slug]</h2>
 
 <div class="summary"><table>
-<tr><th>Reads</th><td><code>.ai/workflows/INDEX.md</code> for slug enumeration (v9.11.0); <code>00-index.md</code> for the resolved slug</td></tr>
+<tr><th>Reads</th><td><code>00-index.md</code> for the named slug (or active workflow)</td></tr>
 <tr><th>Writes</th><td>Nothing — reports only</td></tr>
 </table></div>
 
 <p>Lightweight "what's next" lookup. Reads the index's <code>recommended-next-command</code> and <code>recommended-next-invocation</code> fields and reports them. Use when you know the workflow well and just want the next command.</p>
-
-<p><strong>v9.11.0 picker:</strong> when no slug is passed and multiple active workflows exist, the disambiguation prompt is sourced from <code>INDEX.md</code> as <code>slug — status — updated-at</code> (non-closed rows only). The prior <code>current-stage</code> / <code>stage-status</code> in the picker list is dropped — INDEX.md doesn't carry it. Pass an explicit slug if you need a full per-workflow read first. If INDEX.md is absent, the command falls back to the prior glob and appends a one-line tip suggesting <code>/wf-meta sync</code>.</p>
 
 <h4>When to use</h4>
 <ul>
@@ -125,13 +123,11 @@
 <h2 id="status">/wf-meta status [slug]</h2>
 
 <div class="summary"><table>
-<tr><th>Reads</th><td><code>.ai/workflows/INDEX.md</code> for enumeration (v9.11.0) + every <code>00-index.md</code> in the registry (Dashboard Mode still needs 9 fields INDEX.md doesn't carry). For a slug arg, just the one <code>00-index.md</code>.</td></tr>
+<tr><th>Reads</th><td>Every <code>.ai/workflows/*/00-index.md</code> (or one if slug given)</td></tr>
 <tr><th>Writes</th><td>Nothing</td></tr>
 </table></div>
 
 <p>Daily entry point. With no slug, lists every active workflow with current stage, slice status, blockers, recent activity. With a slug, shows the full progress map (10 stages × 5 states) + slice statuses + recent artifact writes.</p>
-
-<p><strong>v9.11.0 enumeration:</strong> Dashboard Mode now enumerates workflows from <code>INDEX.md</code> when present, then reads each workflow's <code>00-index.md</code> for the rich rendering. Shape of the dashboard is unchanged. The behavioral delta is <strong>correctness, not performance</strong>: when a registry row points at a deleted directory, status surfaces a one-line <em>"Skipped: <code>&lt;slug&gt;</code> (registry row present, directory missing — run <code>/wf-meta sync</code> to reconcile)"</em> instead of erroring on the missing read. When INDEX.md is absent, status falls back to the prior glob behavior and appends a one-line tip suggesting <code>/wf-meta sync</code>.</p>
 
 <h4>When to use</h4>
 <ul>
@@ -144,13 +140,11 @@
 <h2 id="resume">/wf-meta resume [slug]</h2>
 
 <div class="summary"><table>
-<tr><th>Reads</th><td><code>.ai/workflows/INDEX.md</code> for slug enumeration (v9.11.0); every artifact in the resolved workflow</td></tr>
+<tr><th>Reads</th><td>Every artifact in the workflow</td></tr>
 <tr><th>Writes</th><td>Optionally <code>90-resume.md</code> with the orientation summary</td></tr>
 </table></div>
 
 <p>Heavyweight re-orientation. Reads the full artifact trail, identifies the first unfinished step, proposes a concrete next invocation. Use after being away for hours, days, or weeks.</p>
-
-<p><strong>v9.11.0 picker:</strong> when no slug is passed and multiple active workflows exist, the disambiguation prompt is sourced from <code>INDEX.md</code> as <code>slug — status — updated-at</code> (non-closed rows only). The prior <code>current-stage</code> in the picker list is dropped — INDEX.md doesn't carry it. Pass an explicit slug if you need a full per-workflow read first. If INDEX.md is absent, falls back to glob with the same <code>/wf-meta sync</code> tip.</p>
 
 <h4>What it computes</h4>
 <ul>
@@ -166,27 +160,21 @@
 <h2 id="sync">/wf-meta sync [slug]</h2>
 
 <div class="summary"><table>
-<tr><th>Reads</th><td>Every <code>.ai/workflows/&lt;any&gt;/00-index.md</code> (for the global registry) + every file under <code>.ai/workflows/&lt;slug&gt;/</code> (for the drift report)</td></tr>
-<tr><th>Writes</th><td><code>.ai/workflows/INDEX.md</code> (global registry, bootstrap or refresh) + updated <code>00-index.md</code> + <code>00-sync.md</code> (per-workflow drift report)</td></tr>
+<tr><th>Reads</th><td>Every file on disk under <code>.ai/workflows/&lt;slug&gt;/</code></td></tr>
+<tr><th>Writes</th><td>Updated <code>00-index.md</code> + <code>00-sync.md</code> (report)</td></tr>
 </table></div>
 
-<p><strong>Two responsibilities</strong> (v9.10.0):</p>
-<ol>
-  <li><strong>Maintain the global registry</strong> at <code>.ai/workflows/INDEX.md</code> — tab-separated <code>slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at</code>, one row per workflow, sorted alphabetically. Bootstrap on first run (writes the file from a glob+frontmatter scan of every <code>.ai/workflows/*/00-index.md</code>); refresh on every subsequent run (rewrites the sorted set, reports added/removed/updated counts, drops stale rows whose directory has been deleted). This step runs <strong>unconditionally before per-workflow drift checking</strong>, even when no slug argument is passed. It is the only read-side guarantee that <code>/wf-quick</code>'s positional slug detection has a fresh registry.</li>
-  <li><strong>Per-workflow drift report</strong> (target slug resolved from arg, or single active workflow, or interactive picker). Re-reads every artifact, detects drift (e.g., an artifact exists on disk but isn't in <code>workflow-files</code>), and writes <code>00-sync.md</code> describing what is in sync vs drifted vs missing. Updates the target workflow's <code>updated-at</code> on <code>00-index.md</code> and on its row in <code>INDEX.md</code>.</li>
-</ol>
+<p>Reconciles the control file with disk reality. Re-reads every artifact, detects drift (e.g., an artifact exists on disk but isn't in <code>workflow-files</code>), and rebuilds the index. Writes a sync report.</p>
 
 <h4>When to use</h4>
 <ul>
-  <li><strong>First setup</strong> — run once to bootstrap <code>.ai/workflows/INDEX.md</code>, otherwise <code>/wf-quick</code>'s positional slug detection has nothing to consult and falls through to standalone.</li>
-  <li><strong>After creating, closing, or removing workflows out-of-band</strong> — refreshes the registry so positional slug detection sees the new state.</li>
   <li>After pulling a branch that landed new artifacts.</li>
   <li>After manual edits to <code>00-index.md</code>.</li>
   <li>When status/resume produce unexpected output.</li>
 </ul>
 
 <h4>Anti-pattern</h4>
-<p>Don't hand-edit <code>00-index.md</code> or <code>INDEX.md</code> to "fix" status fields. Use sync instead — it reads ground truth from the per-workflow artifacts on disk and rewrites the registry from that. Hand-edits to <code>INDEX.md</code> get overwritten on the next run; hand-edits to <code>00-index.md</code> stick but trigger a non-blocking <code>wf-validate</code> advisory if they drift the registry.</p>
+<p>Don't hand-edit <code>00-index.md</code> to "fix" status fields. Use sync instead — it reads ground truth from the artifacts on disk.</p>
 
 <hr>
 

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.11.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -82,12 +82,9 @@
 
 <p>The compressed-flow router. Nine entries trade artifact depth for speed (or — for <code>simplify</code> — review the work that already exists). Each writes fewer files than the full <code>/wf</code> pipeline. Set <code>workflow-type</code> in the index so downstream stages know they're in compressed mode.</p>
 
-<p><strong>v9.10.0 — no-flag positional slug detection.</strong> Every sub-command attaches to an existing workflow as a single <strong>compressed slice</strong> if the first argument after the sub-command exactly matches a non-closed slug in the new global registry <code>.ai/workflows/INDEX.md</code>. No flag, no prompt. Quote-escape descriptions (<code>"metrics dashboard broken"</code>) for the rare collision case. (v9.9.0's <code>--slug</code> flag is removed.) See <a href="#slug-mode">Slug-mode (attach to existing workflow)</a> below.</p>
-
 <div class="toc">
 <h3>On this page</h3>
 <ul>
-  <li><a href="#slug-mode"><strong>Slug-mode — attach to existing workflow (v9.10.0)</strong></a></li>
   <li><a href="#fix">/wf-quick fix</a></li>
   <li><a href="#hotfix">/wf-quick hotfix</a></li>
   <li><a href="#rca">/wf-quick rca</a></li>
@@ -99,91 +96,6 @@
   <li><a href="#simplify">/wf-quick simplify</a></li>
 </ul>
 </div>
-
-<h2 id="slug-mode">Slug-mode — attach to an existing workflow (v9.10.0)</h2>
-
-<div class="summary"><table>
-<tr><th>Trigger</th><td><strong>Positional.</strong> The first argument after the sub-command must exactly match a non-closed slug in <code>.ai/workflows/INDEX.md</code> (tab-anchored exact match on the slug column). No flag.</td></tr>
-<tr><th>Supported on</th><td>All 9 sub-commands — <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code></td></tr>
-<tr><th>Registry</th><td><code>.ai/workflows/INDEX.md</code> — tab-separated <code>slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at</code>, one row per workflow, sorted alphabetically. Bootstrap via <code>/wf-meta sync</code> on first run; refreshed on every subsequent run.</td></tr>
-<tr><th>Produces</th><td>A single compressed slice at <code>.ai/workflows/&lt;slug&gt;/03-slice-&lt;sub&gt;-&lt;descriptor&gt;.md</code></td></tr>
-<tr><th>Side effects</th><td>Appends to <code>00-index.md.compressed-slices</code> (lazily created); appends to <code>03-slice.md.slices</code> only if that index already exists; rewrites the <code>updated-at</code> column on this slug's row in <code>INDEX.md</code></td></tr>
-<tr><th>Suppresses</th><td>New workflow dir, new branch (no <code>git checkout -b</code>), <code>01-&lt;sub&gt;.md</code>, new top-level <code>00-index.md</code></td></tr>
-<tr><th>Escape hatch</th><td>If your description happens to begin with a token that matches a slug, quote it: <code>/wf-quick rca "metrics dashboard broken"</code>. The resulting single token won't match <code>INDEX.md</code> and routes standalone.</td></tr>
-</table></div>
-
-<p>By default each <code>/wf-quick</code> sub-command starts a fresh workflow — its own directory, branch, and root artifact. Slug-mode flips that behavior: pass the slug as the first argument and the sub-command attaches to that workflow as a single <strong>compressed slice</strong> on its slice surface. The sub-command's <em>content discipline</em> (research, sub-agents, body sections, analysis depth) is unchanged — only the <em>output destination</em> and <em>index bookkeeping</em> change.</p>
-
-<p><strong>How detection works (Step 0 of the dispatcher):</strong> the dispatcher reads <code>.ai/workflows/INDEX.md</code> and runs a tab-anchored regex (<code>^&lt;token&gt;\t</code>) against the first argument after the sub-command. A hit on a non-closed row selects slug-mode and consumes the token; the remaining tokens are the sub-command's arguments. A miss leaves all tokens as the sub-command's arguments (standalone mode). If <code>INDEX.md</code> doesn't exist, the dispatcher silently falls through to standalone and emits a one-line tip in the chat return suggesting <code>/wf-meta sync</code> to bootstrap the registry.</p>
-
-<h4>Frontmatter shape</h4>
-<pre><code>schema: sdlc/v1
-type: slice
-slug: &lt;slug&gt;
-slice-slug: &lt;sub&gt;-&lt;descriptor&gt;
-slice-type: &lt;sub&gt;        # quick | rca | investigate | discover | hotfix
-                          # | update-deps | refactor | ideate | simplify
-compressed: true
-origin: wf-quick/&lt;sub&gt;
-status: defined
-stage-number: 3
-complexity: &lt;xs|s|m|l|xl&gt;
-depends-on: []
-tags: []
-refs:
-  index: 00-index.md
-  slice-index: 03-slice.md   # omitted if 03-slice.md does not exist
-</code></pre>
-
-<p>The body opens with a <code># Compressed Slice: &lt;sub&gt;</code> heading and a one-line provenance preamble, then carries the same content sections the standalone sub-command would have written to <code>01-&lt;sub&gt;.md</code>.</p>
-
-<h4>Slice-slug derivation</h4>
-<ul>
-  <li>Form: <code>&lt;sub&gt;-&lt;short-descriptor&gt;</code> (kebab-case, ≤5 words).</li>
-  <li>Descriptor comes from the sub-command's first descriptive argument (after the consumed slug token) — e.g., <code>/wf-quick rca X "payment spike"</code> → <code>rca-payment-spike</code>.</li>
-  <li>If no descriptive arg, falls back to <code>&lt;sub&gt;-&lt;utc-date&gt;</code> — e.g., <code>ideate-2026-05-13</code>.</li>
-  <li>On collision, appends <code>-2</code>, <code>-3</code>, … until unique.</li>
-</ul>
-
-<h4>Index updates</h4>
-<p>Two additive updates to <code>00-index.md</code>:</p>
-<ol>
-  <li>Append the new slice file path to <code>workflow-files</code>.</li>
-  <li>Append <code>{slug, slice-type, created-at}</code> to a top-level <code>compressed-slices:</code> array. The array is created lazily on first slug-mode write — existing workflows without any compressed slices keep their index shape unchanged.</li>
-</ol>
-<p>If <code>03-slice.md</code> already exists, also append <code>{slug, status: defined, slice-type: &lt;sub&gt;, compressed: true}</code> to its <code>slices</code> array, bump <code>total-slices</code>, and update <code>updated-at</code>. If <code>03-slice.md</code> does NOT exist, this step is skipped — the entry in <code>00-index.md.compressed-slices</code> is the single source of truth.</p>
-
-<h4>What stays untouched</h4>
-<ul>
-  <li><code>current-stage</code>, <code>stage-number</code>, <code>selected-slice</code>, <code>status</code>, <code>branch</code>, <code>progress</code> on the index — compressed slices are additive, not lifecycle advancement.</li>
-  <li>The git branch — no <code>git checkout -b</code>, no branch switching. A current-branch ≠ <code>00-index.md.branch</code> mismatch surfaces as a one-line warning but does not block the write.</li>
-  <li><code>best-first-slice</code> on the slice index — compressed slices are out-of-band, not part of the planned implementation order.</li>
-</ul>
-
-<h4>Diagnostic vs implementation slices</h4>
-<p>The 9 sub-commands split into two natural categories under slug-mode:</p>
-<ul>
-  <li><strong>Diagnostic slices</strong> (default <code>complexity: xs</code>): <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>ideate</code>, <code>simplify</code>. These produce findings, opportunity rankings, or routing recommendations — not implementation work. Downstream <code>/wf plan</code> typically does not need to plan them; their <em>body</em> routes to other commands (often other <code>/wf-quick</code> sub-commands with the same slug pre-applied as a positional argument — e.g., <code>/wf-quick refactor &lt;slug&gt; &lt;target&gt;</code>).</li>
-  <li><strong>Implementation slices</strong>: <code>quick</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>. These carry their own embedded plan, so <code>/wf implement &lt;slug&gt;</code> can read the slice body directly without a separate <code>04-plan-&lt;slice&gt;.md</code>.</li>
-</ul>
-
-<h4>When to use</h4>
-<ul>
-  <li>You are mid-workflow on slug <code>X</code> and a question comes up that needs an rca, an ideate pass, or a small refactor — landing it as a slice keeps the artifact discoverable inside the workflow rather than spawning a parallel one.</li>
-  <li>You want to record exploratory or diagnostic work without polluting <code>.ai/workflows/</code> with disposable single-purpose workflows.</li>
-  <li>You want the <code>/wf-quick simplify</code> triage report to live with the workflow it triages, not in a separate <code>.ai/simplify/</code> tree.</li>
-</ul>
-
-<h4>Closed workflows</h4>
-<p>If the target workflow's index has <code>status: closed</code>, slug-mode prompts for confirmation before proceeding rather than silently appending.</p>
-
-<h4>Special case: simplify</h4>
-<p><code>/wf-quick simplify</code> normally writes <code>.ai/simplify/&lt;run-id&gt;.md</code> (outside <code>.ai/workflows/</code>). In slug-mode it does <strong>not</strong> write that file; the compressed slice is the single output. The <code>simplify-run</code> frontmatter fields (<code>findings-total</code>, <code>findings-reuse</code>, etc.) do not carry over — they belong to the standalone <code>simplify-run</code> artifact type, while the compressed slice is a <code>slice</code> artifact. The same numbers are reported in the body instead. Routing assignments emit with the slug pre-applied as the first positional argument (e.g., <code>/wf-quick refactor &lt;slug&gt; &lt;target&gt;</code>) so you can copy the next command straight from the chat return.</p>
-
-<h4>Schema impact</h4>
-<p>None. The frontmatter JSON schema (<code>tests/frontmatter.schema.json</code>) already permits additional properties on <code>sliceFrontmatter</code>, <code>sliceIndexFrontmatter.slices[]</code> items, and <code>indexFrontmatter</code>. The new <code>slice-type</code>, <code>compressed</code>, <code>origin</code>, and top-level <code>compressed-slices</code> fields validate cleanly against the existing schema without changes. The pre-write validator and the deep frontmatter verifier both accept compressed slices unchanged.</p>
-
-<hr>
 
 <h2 id="fix">/wf-quick fix "&lt;description&gt;"</h2>
 
@@ -274,35 +186,64 @@ refs:
 
 <hr>
 
-<h2 id="investigate">/wf-quick investigate "&lt;area of code&gt;"</h2>
+<h2 id="investigate">/wf-quick investigate "&lt;problem&gt;"</h2>
 
 <div class="summary"><table>
-<tr><th>Produces</th><td><code>01-investigate.md</code></td></tr>
-<tr><th>Forwards to</th><td><code>/wf shape</code> when the investigation yields work</td></tr>
+<tr><th>Produces</th><td><code>01-investigate.md</code> with 2–3 distinct engineering approaches and tradeoffs</td></tr>
+<tr><th>Forwards to</th><td>User picks an option, then <code>/wf-quick fix</code> (small) or <code>/wf intake</code> (medium+). No <code>02-shape.md</code> is synthesized — the downstream command does shape on the chosen option.</td></tr>
 </table></div>
 
-<p>"What does this part of the code actually do?" Parallel Explore sub-agents map the area, trace data flow, identify entry points and dependencies. Output is forwardable to shape.</p>
+<p><strong>Solution-options sketcher.</strong> Takes a code-level problem ("checkout p99 latency is 2s", "auth flow is brittle under concurrent writes") and produces 2–3 genuinely distinct engineering approaches grounded in the existing architecture. Three parallel sub-agents:</p>
+<ul>
+  <li><strong>Architecture cartographer</strong> — maps the relevant area (entry points, call graph, data touched, integration boundaries, architectural constraints, recent churn).</li>
+  <li><strong>Option generator</strong> — proposes 2–3 approaches that differ in <em>mechanism</em>, not just surface choices. Also records what was considered and rejected.</li>
+  <li><strong>Tradeoff characterizer</strong> — scores each option on effort, blast radius, reversibility, top risks (specific failure modes, not generic warnings), and operational fit.</li>
+</ul>
+<p>The artifact ends with a side-by-side comparison table. <strong>No winner is picked — you pick.</strong></p>
 
 <h4>When to use</h4>
 <ul>
-  <li>Before planning work in an unfamiliar subsystem.</li>
-  <li>Before committing to an architecture decision that depends on existing code.</li>
+  <li>You have a concrete problem in the code and want a structured set of approaches to compare before committing.</li>
+  <li>You're tempted to grab the first solution that comes to mind — and want a forcing function to consider alternatives first.</li>
+  <li>You're between <code>/wf-quick fix</code> (too small, no design pass) and <code>/wf intake</code> → <code>/wf shape</code> (commits to one design with acceptance criteria).</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>You have a symptom and want to find the root cause → <code>/wf-quick rca</code>.</li>
+  <li>You want to understand how the area works, not generate options → <code>/wf-docs how</code>.</li>
+  <li>You already know which approach you want → skip straight to <code>/wf-quick fix</code> or <code>/wf intake</code>.</li>
 </ul>
 
 <hr>
 
-<h2 id="discover">/wf-quick discover "&lt;idea&gt;"</h2>
+<h2 id="discover">/wf-quick discover "&lt;hypothesis&gt;"</h2>
 
 <div class="summary"><table>
-<tr><th>Produces</th><td><code>01-discover.md</code> with a recommendation: build / pilot / shelve</td></tr>
+<tr><th>Produces</th><td><code>01-discover.md</code> with a verdict: <code>holds</code> / <code>partial</code> / <code>fails</code> / <code>inconclusive</code></td></tr>
+<tr><th>Forwards to</th><td>If <code>holds</code> → no required follow-up (proceed however you intended). If <code>fails</code> → <code>/wf-quick rca</code> (if hypothesis was an explanation for bad behavior) or <code>/wf-docs how</code> (if you need to actually learn the code). If <code>inconclusive</code> → run the runtime signal it names.</td></tr>
 </table></div>
 
-<p>Idea triage. Light feasibility check + competitive scan + rough sizing. Output is a recommendation, not a commitment.</p>
+<p><strong>Hypothesis-test workflow.</strong> Takes a code-level theory ("the rate-limiter is a token bucket in <code>middleware/</code>", "auth validates JWTs before checking session state", "module M handles concurrency via mutexes not channels") and adjudicates it against the codebase. Three parallel sub-agents:</p>
+<ul>
+  <li><strong>Evidence FOR</strong> — searches for code that supports the hypothesis; cites <code>file:line</code> for every supporting snippet.</li>
+  <li><strong>Evidence AGAINST</strong> — actively tries to falsify the hypothesis; looks for contradicting code, drift signals from <code>git log</code>, configuration that changes behavior at runtime.</li>
+  <li><strong>Counter-hypotheses</strong> — proposes 1–3 alternative explanations that fit the same observable behavior, ranked by plausibility.</li>
+</ul>
+<p>Synthesis produces a convergent verdict — exactly one of <code>holds</code>, <code>partial</code>, <code>fails</code>, or <code>inconclusive</code> — with confidence and cited evidence on both sides. The verdict is justified, not asserted.</p>
 
 <h4>When to use</h4>
 <ul>
-  <li>Someone said "what if we did X" and you need to decide whether to spend more time on it.</li>
-  <li>Pre-shape sanity check.</li>
+  <li>You believe X about how the code works and want it adjudicated before you act on the belief.</li>
+  <li>You're about to make a change that depends on an assumption — confirm the assumption first.</li>
+  <li>You're disagreeing with a colleague about how something works and want a sourced verdict.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>You don't have a theory yet — you just want to understand the area → <code>/wf-docs how</code>.</li>
+  <li>You have a symptom, not a theory, and want to find the cause → <code>/wf-quick rca</code>.</li>
+  <li>You want to compare multiple approaches to a problem → <code>/wf-quick investigate</code>.</li>
 </ul>
 
 <hr>
@@ -356,7 +297,7 @@ refs:
 <tr><th>Produces</th><td><code>.ai/ideation/&lt;focus&gt;-&lt;timestamp&gt;.md</code></td></tr>
 </table></div>
 
-<p>Brainstorm + rank improvement candidates for a focus area. Output: a ranked list with effort estimates and impact guesses. Useful before sprint planning or as input to <code>/wf-quick discover</code>.</p>
+<p>Brainstorm + rank improvement candidates for a focus area. Output: a ranked list with effort estimates and impact guesses. Useful before sprint planning or as input to <code>/wf intake</code> (medium+ candidates) or <code>/wf-quick fix</code> (small candidates).</p>
 
 <hr>
 

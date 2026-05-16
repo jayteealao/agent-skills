@@ -268,8 +268,8 @@ throw new Error("Received invalid payload");</code></pre>
 <tbody>
 <tr><td><code>/wf-quick hotfix</code></td><td>Production incident — bypass review for speed</td><td>6-stage, scope-locked</td></tr>
 <tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis of a bug or incident</td><td>Single artifact, then forwards to <code>/wf shape</code></td></tr>
-<tr><td><code>/wf-quick investigate</code></td><td>"What's actually happening in this part of the code?"</td><td>Single artifact, forwards to <code>/wf shape</code></td></tr>
-<tr><td><code>/wf-quick discover</code></td><td>Idea triage / "should we build this?"</td><td>Single artifact</td></tr>
+<tr><td><code>/wf-quick investigate</code></td><td>"What are 2–3 distinct engineering approaches to this problem?" — solution-options sketcher with tradeoffs; no winner picked</td><td>Single artifact, user picks an option then routes to <code>/wf intake</code> or <code>/wf-quick fix</code></td></tr>
+<tr><td><code>/wf-quick discover</code></td><td>"Is my theory about how this code works correct?" — hypothesis-test with FOR/AGAINST/counter-hypothesis evidence</td><td>Single artifact, verdict: holds / partial / fails / inconclusive</td></tr>
 <tr><td><code>/wf-quick update-deps</code></td><td>Audit + tiered dependency updates</td><td>4-stage under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
 <tr><td><code>/wf-quick refactor</code></td><td>Behaviour-preserving refactor with test baseline</td><td>Stage-locked: capture baseline, refactor, re-verify</td></tr>
 <tr><td><code>/wf-quick ideate</code></td><td>Brainstorm + rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
@@ -312,13 +312,13 @@ flowchart TD
   start -- "Dependency updates, security or major version" --> deps["/wf-quick update-deps"]
   start -- "Behaviour-preserving refactor" --> refactor["/wf-quick refactor"]
   start -- "Bug report, root cause unknown" --> rca["/wf-quick rca"]
-  start -- "Need to understand existing code first" --> investigate["/wf-quick investigate"]
-  start -- "Idea, not yet a feature" --> ideate["/wf-quick discover"]
+  start -- "Need 2–3 distinct engineering approaches sketched before committing" --> investigate["/wf-quick investigate"]
+  start -- "Have a theory about how this code works and want it adjudicated" --> discover["/wf-quick discover"]
   start -- "A real feature or substantive change" --> wf["/wf intake"]
 
   classDef quick fill:#fef3c7,stroke:#b45309,color:#1f1f1d
   classDef full fill:#dbeafe,stroke:#1d4ed8,color:#1f1f1d
-  class hotfix,fix,deps,refactor,rca,investigate,ideate quick
+  class hotfix,fix,deps,refactor,rca,investigate,discover quick
   class wf full
 </pre>
 </div>
@@ -336,8 +336,8 @@ flowchart TD
 <dt><strong>"Production is on fire."</strong></dt>
 <dd><code>/wf-quick hotfix "&lt;symptom&gt;"</code> — scope-locked, skips review, but still leaves an artifact trail.</dd>
 
-<dt><strong>"I need to investigate something before I commit to a fix."</strong></dt>
-<dd><code>/wf-quick investigate "&lt;area of code&gt;"</code>. The artifact forwards into <code>/wf shape</code> if the investigation yields work to do.</dd>
+<dt><strong>"I have a problem in the code and want 2–3 distinct engineering approaches sketched before I pick one."</strong></dt>
+<dd><code>/wf-quick investigate "&lt;problem&gt;"</code>. Architecture cartographer + option generator + tradeoff characterizer sub-agents. Produces an A/B/C option set with effort/blast-radius/reversibility/risk for each; <em>no winner is picked</em>. After you pick, route to <code>/wf-quick fix</code> (small) or <code>/wf intake</code> (medium+).</dd>
 
 <dt><strong>"There's a bug. I don't know where it is yet."</strong></dt>
 <dd><code>/wf-quick rca "&lt;symptom + repro&gt;"</code>. Root-cause analysis with parallel sub-agents.</dd>
@@ -348,8 +348,8 @@ flowchart TD
 <dt><strong>"I want to refactor this without changing behaviour."</strong></dt>
 <dd><code>/wf-quick refactor "&lt;area&gt;"</code>. Captures a test baseline first; refactors with incremental green steps; re-verifies parity.</dd>
 
-<dt><strong>"I have an idea. I don't know if we should build it."</strong></dt>
-<dd><code>/wf-quick discover "&lt;idea&gt;"</code>. Light triage; outputs whether to build, pilot, or shelve.</dd>
+<dt><strong>"I have a theory about how this code works and want it adjudicated against the codebase."</strong></dt>
+<dd><code>/wf-quick discover "&lt;hypothesis&gt;"</code>. FOR / AGAINST / counter-hypothesis sub-agents adjudicate the claim. Verdict is one of <code>holds</code> / <code>partial</code> / <code>fails</code> / <code>inconclusive</code>, with cited evidence. Different from <code>/wf-docs how</code> — that explains how code works; <code>discover</code> tests whether your theory is correct.</dd>
 
 <dt><strong>"I want to read about an unfamiliar subsystem."</strong></dt>
 <dd><code>/wf-meta how "&lt;question&gt;"</code> — five-mode question answering. Doesn't write a stage artifact unless you opt in.</dd>
@@ -1354,8 +1354,8 @@ This page is the overview. For per-command depth — argument hints, what it rea
 <tr><td><code>/wf-quick fix</code></td><td>Trivial, one-file change.</td></tr>
 <tr><td><code>/wf-quick hotfix</code></td><td>Production incident (skips review).</td></tr>
 <tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis.</td></tr>
-<tr><td><code>/wf-quick investigate</code></td><td>"What does this code actually do?"</td></tr>
-<tr><td><code>/wf-quick discover</code></td><td>Idea triage (build/pilot/shelve).</td></tr>
+<tr><td><code>/wf-quick investigate</code></td><td>Solution-options sketcher — 2–3 distinct engineering approaches with tradeoffs (effort, blast radius, reversibility, risk); no winner picked.</td></tr>
+<tr><td><code>/wf-quick discover</code></td><td>Hypothesis-test — adjudicates a code-level theory with FOR/AGAINST/counter-hypothesis evidence. Verdict: holds / partial / fails / inconclusive.</td></tr>
 <tr><td><code>/wf-quick update-deps</code></td><td>Tiered dependency updates.</td></tr>
 <tr><td><code>/wf-quick refactor</code></td><td>Behaviour-preserving refactor.</td></tr>
 <tr><td><code>/wf-quick ideate</code></td><td>Rank improvement candidates.</td></tr>
@@ -1688,7 +1688,8 @@ PAGES.append((
 <ul>
   <li>One-line typo → <code>/wf-quick fix</code>.</li>
   <li>Production incident → <code>/wf-quick hotfix</code>.</li>
-  <li>You're exploring, not committing to build → <code>/wf-quick discover</code>.</li>
+  <li>You have a theory about how the code works and want it adjudicated → <code>/wf-quick discover</code>.</li>
+  <li>You have a problem and want 2–3 distinct engineering approaches sketched before picking one → <code>/wf-quick investigate</code>.</li>
 </ul>
 
 <hr>
@@ -2182,35 +2183,64 @@ PAGES.append((
 
 <hr>
 
-<h2 id="investigate">/wf-quick investigate "&lt;area of code&gt;"</h2>
+<h2 id="investigate">/wf-quick investigate "&lt;problem&gt;"</h2>
 
 <div class="summary"><table>
-<tr><th>Produces</th><td><code>01-investigate.md</code></td></tr>
-<tr><th>Forwards to</th><td><code>/wf shape</code> when the investigation yields work</td></tr>
+<tr><th>Produces</th><td><code>01-investigate.md</code> with 2–3 distinct engineering approaches and tradeoffs</td></tr>
+<tr><th>Forwards to</th><td>User picks an option, then <code>/wf-quick fix</code> (small) or <code>/wf intake</code> (medium+). No <code>02-shape.md</code> is synthesized — the downstream command does shape on the chosen option.</td></tr>
 </table></div>
 
-<p>"What does this part of the code actually do?" Parallel Explore sub-agents map the area, trace data flow, identify entry points and dependencies. Output is forwardable to shape.</p>
+<p><strong>Solution-options sketcher.</strong> Takes a code-level problem ("checkout p99 latency is 2s", "auth flow is brittle under concurrent writes") and produces 2–3 genuinely distinct engineering approaches grounded in the existing architecture. Three parallel sub-agents:</p>
+<ul>
+  <li><strong>Architecture cartographer</strong> — maps the relevant area (entry points, call graph, data touched, integration boundaries, architectural constraints, recent churn).</li>
+  <li><strong>Option generator</strong> — proposes 2–3 approaches that differ in <em>mechanism</em>, not just surface choices. Also records what was considered and rejected.</li>
+  <li><strong>Tradeoff characterizer</strong> — scores each option on effort, blast radius, reversibility, top risks (specific failure modes, not generic warnings), and operational fit.</li>
+</ul>
+<p>The artifact ends with a side-by-side comparison table. <strong>No winner is picked — you pick.</strong></p>
 
 <h4>When to use</h4>
 <ul>
-  <li>Before planning work in an unfamiliar subsystem.</li>
-  <li>Before committing to an architecture decision that depends on existing code.</li>
+  <li>You have a concrete problem in the code and want a structured set of approaches to compare before committing.</li>
+  <li>You're tempted to grab the first solution that comes to mind — and want a forcing function to consider alternatives first.</li>
+  <li>You're between <code>/wf-quick fix</code> (too small, no design pass) and <code>/wf intake</code> → <code>/wf shape</code> (commits to one design with acceptance criteria).</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>You have a symptom and want to find the root cause → <code>/wf-quick rca</code>.</li>
+  <li>You want to understand how the area works, not generate options → <code>/wf-docs how</code>.</li>
+  <li>You already know which approach you want → skip straight to <code>/wf-quick fix</code> or <code>/wf intake</code>.</li>
 </ul>
 
 <hr>
 
-<h2 id="discover">/wf-quick discover "&lt;idea&gt;"</h2>
+<h2 id="discover">/wf-quick discover "&lt;hypothesis&gt;"</h2>
 
 <div class="summary"><table>
-<tr><th>Produces</th><td><code>01-discover.md</code> with a recommendation: build / pilot / shelve</td></tr>
+<tr><th>Produces</th><td><code>01-discover.md</code> with a verdict: <code>holds</code> / <code>partial</code> / <code>fails</code> / <code>inconclusive</code></td></tr>
+<tr><th>Forwards to</th><td>If <code>holds</code> → no required follow-up (proceed however you intended). If <code>fails</code> → <code>/wf-quick rca</code> (if hypothesis was an explanation for bad behavior) or <code>/wf-docs how</code> (if you need to actually learn the code). If <code>inconclusive</code> → run the runtime signal it names.</td></tr>
 </table></div>
 
-<p>Idea triage. Light feasibility check + competitive scan + rough sizing. Output is a recommendation, not a commitment.</p>
+<p><strong>Hypothesis-test workflow.</strong> Takes a code-level theory ("the rate-limiter is a token bucket in <code>middleware/</code>", "auth validates JWTs before checking session state", "module M handles concurrency via mutexes not channels") and adjudicates it against the codebase. Three parallel sub-agents:</p>
+<ul>
+  <li><strong>Evidence FOR</strong> — searches for code that supports the hypothesis; cites <code>file:line</code> for every supporting snippet.</li>
+  <li><strong>Evidence AGAINST</strong> — actively tries to falsify the hypothesis; looks for contradicting code, drift signals from <code>git log</code>, configuration that changes behavior at runtime.</li>
+  <li><strong>Counter-hypotheses</strong> — proposes 1–3 alternative explanations that fit the same observable behavior, ranked by plausibility.</li>
+</ul>
+<p>Synthesis produces a convergent verdict — exactly one of <code>holds</code>, <code>partial</code>, <code>fails</code>, or <code>inconclusive</code> — with confidence and cited evidence on both sides. The verdict is justified, not asserted.</p>
 
 <h4>When to use</h4>
 <ul>
-  <li>Someone said "what if we did X" and you need to decide whether to spend more time on it.</li>
-  <li>Pre-shape sanity check.</li>
+  <li>You believe X about how the code works and want it adjudicated before you act on the belief.</li>
+  <li>You're about to make a change that depends on an assumption — confirm the assumption first.</li>
+  <li>You're disagreeing with a colleague about how something works and want a sourced verdict.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>You don't have a theory yet — you just want to understand the area → <code>/wf-docs how</code>.</li>
+  <li>You have a symptom, not a theory, and want to find the cause → <code>/wf-quick rca</code>.</li>
+  <li>You want to compare multiple approaches to a problem → <code>/wf-quick investigate</code>.</li>
 </ul>
 
 <hr>
@@ -2264,7 +2294,7 @@ PAGES.append((
 <tr><th>Produces</th><td><code>.ai/ideation/&lt;focus&gt;-&lt;timestamp&gt;.md</code></td></tr>
 </table></div>
 
-<p>Brainstorm + rank improvement candidates for a focus area. Output: a ranked list with effort estimates and impact guesses. Useful before sprint planning or as input to <code>/wf-quick discover</code>.</p>
+<p>Brainstorm + rank improvement candidates for a focus area. Output: a ranked list with effort estimates and impact guesses. Useful before sprint planning or as input to <code>/wf intake</code> (medium+ candidates) or <code>/wf-quick fix</code> (small candidates).</p>
 
 <hr>
 
