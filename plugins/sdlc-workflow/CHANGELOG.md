@@ -5,6 +5,40 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.15.0] - 2026-05-16
+
+### Changed — verify and review own their triage→fix loop
+
+Eliminates the "step backwards" pattern where verify failures and review blockers required users to re-invoke `/wf implement` (or `/wf implement <slug> [<slice>] reviews`), then come forward through verify and review again. Each stage is now responsible for producing either a passing artifact or a substantively-blocked one — without bouncing the user back to stage 5 for routine fixes.
+
+- **`/wf verify` gains a single-round, user-gated fix loop (new Step 7.6).** After all checks run and the user-observable AC gate (Step 7.5) partitions issues, verify presents every failing check and every unmet AC via `AskUserQuestion` with three options per issue: `Fix` (spawn a sub-agent to apply the minimal patch in this run), `Skip` (record but do not fix), `Escalate` (route to manual implement). For each `Fix` decision verify dispatches one sonnet sub-agent sequentially, then re-runs **only** the affected checks once. **ONE round only.** A second round requires the user to re-invoke `/wf verify`; the cap is enforced by contract so each invocation produces a clean audit point. Verify-owned fixes commit atomically as `fix(<slug>): verify-time fixes for <slice-slug>` when `branch-strategy` is `dedicated` or `shared`.
+- **`/wf review` Step 4b's `Fix` decision now executes immediately, not later.** The triage UI (BLOCKER/HIGH individually + MED batched) is unchanged in shape, but its description is updated: `Fix` now means "spawn a sub-agent to apply the minimal patch in this run" rather than "address in next implement pass". New Step 4c is the fix dispatch — one sequential sub-agent per `Fix` finding using the same prompt shape as `/wf implement reviews` (kept identical so behavior matches across both paths). After all fix sub-agents return, review writes a consolidated artifact with `## Fix Status` and commits as `fix(<slug>): review-time fixes for <slice-slug>` (per-slice) or `fix(<slug>): review-time fixes` (slug-wide). Again: ONE round only.
+- **Always `AskUserQuestion` — never silent auto-fixes.** Both stages require explicit per-issue triage before any sub-agent spawns. The cost is one more prompt per run; the gain is a clean audit trail of *which* fixes the user authorized, not just "verify patched things".
+- **Adaptive routing rewrites for both stages.** The old default Option B "Fix and re-implement → `/wf implement <slug> <slice>`" is removed. New routing:
+  - **`convergence: not-needed | converged`** → recommend the forward stage (review after verify; handoff after review).
+  - **`convergence: escalated`** → recommend re-invoking the same stage for a second fix round (the user re-invokes; the agent does not auto-loop), with manual implement as a clearly-labeled escape hatch only.
+- **Frontmatter additions to both `06-verify-<slice>.md` and `07-review-<slice>.md` (and `07-review.md`):**
+  - `fix-rounds-run: <0 | 1>`
+  - `convergence: <not-needed | converged | escalated>`
+  - `metric-issues-found-initial` / `metric-issues-found-final` (snapshots pre- and post-loop)
+  - `verify-owned-fix-commit` / `review-owned-fix-commit` (commit SHA or `null`)
+  - Review-only: `metric-fix-decisions`, `metric-fix-patched`.
+  - For review: `metric-findings-blocker` is now the **post-fix** count, so `/wf handoff`'s existing blocker gate (`handoff.md:48`, `handoff.md:52`) reads correctly without any handoff-side changes — patched findings are no longer counted as blockers.
+- **Artifact body additions:**
+  - `06-verify-<slice>.md` gains a `## Verify-Owned Fixes` section when `fix-rounds-run > 0` listing every issue with its triage decision, sub-agent outcome, and re-check result.
+  - `07-review-<slice>.md` (and `07-review.md`) gains a `## Fix Status` section when `fix-rounds-run > 0`, separate from `## Triage Decisions` so the historical record (what was triaged) and the execution record (what was patched) are both visible.
+- **`/wf implement <slug> [<slice>] reviews` preserved as an escape hatch.** The mode is unchanged in `implement.md:198-279`. Adaptive routing labels it as the "escalate to manual implement" option for `convergence: escalated` runs where the user prefers stage 5's sequential per-finding UI to review's batched fix dispatch.
+- **Chat return contract for both stages now reports `convergence` and a one-line "what the loop did" summary** when the loop ran, so the user sees the verdict at a glance without opening the artifact.
+
+### Decisions (recorded)
+
+1. **One round per invocation, user re-invokes for a second.** Chosen over an unlimited loop (which would have no natural pause) and over "two rounds" (which would obscure the audit trail). Each invocation produces a clean point-in-time artifact.
+2. **Always `AskUserQuestion`, never silent auto-fixes.** Including for mechanically-fixable verify failures (lint, format). The cost of the extra prompt is small; the gain is that every fix that lands has a triage decision attached.
+
+### Files
+
+- **Modified:** `plugins/sdlc-workflow/skills/wf/reference/verify.md` (CRITICAL discipline, Step 7.6 fix-loop section, frontmatter additions, adaptive routing, chat return contract, `Next` row, body template), `plugins/sdlc-workflow/skills/wf/reference/review.md` (CRITICAL discipline, Step 4b `Fix` semantics, new Step 4c fix-loop dispatch, frontmatter additions, adaptive routing, chat return contract, `Next` row, body template, Task Tracking), `plugins/sdlc-workflow/skills/wf/SKILL.md` (dispatcher-table descriptions for `verify` and `review`).
+
 ## [9.14.1] - 2026-05-16
 
 ### Changed

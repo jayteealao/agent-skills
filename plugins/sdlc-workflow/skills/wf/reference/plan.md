@@ -38,6 +38,10 @@ You are a **workflow orchestrator**, not a problem solver.
    - `02-shape.md` must exist. If missing → STOP. Tell the user which command to run first.
    - If `03-slice.md` exists, read it and all `03-slice-<slice-slug>.md` files it links to. If it does not exist, this is a single-scope workflow. Proceed with single-plan mode.
    - If any prerequisite shows `Status: Awaiting input` → STOP.
+   - **Stack gate (do NOT silently re-detect):** Inspect the `stack:` block in `00-index.md`.
+     - If the block is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Re-run `/wf intake <slug>` to capture it; planning's verification tooling decisions depend on it." Do NOT attempt to re-detect the stack inside plan — sub-agent 3 below MUST read from `stack:`, not from a fresh repo scan.
+     - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but the PO has not confirmed it. The plan's interactive verification section may pick tooling the PO does not want. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Use AskUserQuestion if available. If the user proceeds, mark `stack-source: unconfirmed-auto-detect` in the plan's frontmatter so downstream stages know.
+     - If `stack.user-confirmed: true` → proceed. Sub-agent 3 and the plan's interactive verification template both consume this confirmed block as their source of truth.
    - If `current-stage` in the index is already past plan → WARN before overwriting.
 4. **Read** `02-shape.md`, `03-slice.md` (if exists), the relevant `03-slice-<slice-slug>.md` file(s), and `po-answers.md`.
 4b. **Read design context if present** (optional):
@@ -155,14 +159,19 @@ Prompt the agent with ALL of the following:
 - How are async operations tested? (async/await, done callbacks, fake timers, test servers)
 
 **Interactive & visual verification tooling:**
-- Is `dev-browser` installed? (`command -v dev-browser`) — preferred tool for web app interactive verification (sandboxed Playwright API, persistent pages, screenshots, `page.snapshotForAI()`). If not installed and the project is a web app, note this as a gap and recommend: `npm install -g dev-browser && dev-browser install`
-- Identify E2E/UI test frameworks: Playwright (check `playwright.config.*`), Cypress (`cypress.config.*`), Maestro (`maestro/`, `.maestro/`, `*.yaml` flows), Detox, Appium
-- Identify device/emulator tooling: Is `adb` available for Android? Is there an emulator configured? Are there connected device profiles?
-- Are Chrome MCP tools available? (`mcp__claude-in-chrome__*` — fallback for web verification if dev-browser is not installed)
-- Check for screenshot/visual regression infrastructure: Percy, Chromatic, Playwright `toHaveScreenshot()`, Maestro `assertVisible`/`takeScreenshot`, `adb shell screencap`
-- Check for dev server / preview environment scripts: `npm run dev`, `npm run preview`, Android `./gradlew installDebug`, iOS build schemes
-- Look for existing smoke test scripts, QA checklists, or manual test plans in the repo
-- **Report which acceptance criteria from `02-shape.md` → `## Verification Strategy` need interactive verification and what tools are available to do it**
+
+Read the `stack:` block from `00-index.md` (written by intake Step 0.5 and confirmed by the PO in Batch B). That block is the source of truth — do NOT re-derive recommendations from a fresh repo scan, and do NOT propose installing new tools without going back through shape. This sub-agent's job is to **describe how `stack:`-listed tooling will be wired into this slice's verification**, not to re-pick the tooling.
+
+1. **Quote the confirmed stack.** Restate `stack.platforms`, `stack.testing`, `stack.observability`, and any relevant `stack.available-skills` / `stack.available-mcp` entries verbatim from `00-index.md`. If the plan's frontmatter says `stack-source: unconfirmed-auto-detect`, note it explicitly: "Stack was not PO-confirmed; verification tooling assumptions in this plan are advisory."
+2. **Map the confirmed adapter to in-repo wiring.** For each platform in `stack.platforms`, locate the matched runtime adapter in [runtime-adapters.md](runtime-adapters.md) and confirm the slice's verification will use its drivers. Examples (drive from `stack:`, not from this list):
+   - `platforms: [web]` + `stack.testing: [playwright]` → use the in-repo Playwright suite for E2E; for ad-hoc interactive runs, use whatever driver the PO selected in shape (e.g., dev-browser, Chrome MCP, Playwright inline).
+   - `platforms: [android]` + `stack.testing: [maestro]` → use existing `.maestro.yaml` flows; companion skills from `stack.available-skills` (e.g., `lazylogcat`) for log evidence if listed.
+   - `platforms: [ios]` + `stack.testing: [xcuitest]` → use existing XCUITest schemes; fall back to simctl only if criteria require flows the suite doesn't cover.
+3. **Surface what's missing.** If a slice's acceptance criterion needs a verification capability that `stack:` does not cover (e.g., visual regression with no Percy/Chromatic in `stack:`), surface it as a **plan blocker**, not as an "auto-recommend installing X." The PO decides whether to add tooling — that decision routes back through shape.
+4. **Confirm the dev/preview entry point.** Record the exact command (`npm run dev`, `./gradlew installDebug`, `xcodebuild`, etc.) the plan's verification steps will invoke. Read it from `package.json` / `build.gradle*` / `Cargo.toml` / etc. — this is reading code, not making tooling choices.
+5. **Report which acceptance criteria from `02-shape.md` → `## Verification Strategy` need interactive verification and how the confirmed stack will cover each one.** If a criterion needs tooling outside `stack:`, list it as a blocker rather than silently filling the gap with a default.
+
+Anti-pattern to avoid: rerunning the shape's "what driver should we use?" question inside the plan. If the PO answered it in shape, the plan executes against that answer. If the answer is missing, route back to shape — do not silently pick.
 
 ### Web research sub-agent — Dependencies & External Knowledge
 
@@ -436,6 +445,7 @@ metric-step-count: <N>
 has-blockers: false
 revision-count: 0
 tags: []
+stack-source: <confirmed|unconfirmed-auto-detect>   # read from 00-index.md stack.user-confirmed at plan time; downstream stages may refuse to proceed on `unconfirmed-auto-detect`
 refs:
   index: 00-index.md
   plan-index: 04-plan.md
@@ -472,14 +482,18 @@ If none found: "No reuse candidates identified." -->
 - integration tests: ...
 
 ### Interactive verification (human-in-the-loop)
-For each acceptance criterion tagged `interactive` in the shape's verification strategy:
+For each acceptance criterion tagged `interactive` in the shape's verification strategy, use the confirmed `stack:` from `00-index.md` as the source of truth for tooling. Do NOT introduce drivers, screenshot tools, or skills not present in `stack:` — if a criterion needs something missing, list it as a blocker below instead of silently filling the gap.
+
 - **What to verify**: describe the user-visible behavior
-- **Platform & tool**: Android (adb + Maestro) / Web (Playwright / browser automation) / iOS / Desktop / CLI
-- **Steps**: exact commands or tool invocations to run the app, navigate to the feature, and observe the behavior
-- **Evidence capture**: how to capture proof it works — screenshot (`adb shell screencap`, Playwright `page.screenshot()`, Maestro `takeScreenshot`), screen recording, console output, network trace
-- **Pass criteria**: what the screenshot/output must show for this to be considered verified
+- **Platform & tool**: read from `stack.platforms` + the PO's shape selection. Do not enumerate generic options here; name the exact tool the PO chose (e.g., "Android — Maestro flow `flows/auth.maestro.yaml` + `lazylogcat` for log evidence" or "Web — in-repo Playwright suite, single ad-hoc run via dev-browser").
+- **Companion skills** (if any): list entries from `stack.available-skills` that this criterion will lean on (e.g., `lazylogcat`, `perfetto-trace-analysis`, `adaptive`). Skip the line if none apply — do not pad with hypotheticals.
+- **Steps**: exact commands or tool invocations to run the app, navigate to the feature, and observe the behavior. Bootstrap commands MUST match the runtime adapter for `stack.platforms`.
+- **Evidence capture**: use the evidence layout from the matched runtime adapter ([runtime-adapters.md](runtime-adapters.md)). Screenshot mechanism follows from the adapter, not from a default.
+- **Pass criteria**: what the screenshot/output must show for this to be considered verified.
 
 If no interactive verification needed: "Automated only — [reason]"
+
+If a criterion needs tooling outside `stack:`: do NOT pick a default. Add an entry under `## Blockers` naming the missing capability and route back to shape so the PO can decide whether to expand the stack.
 
 ## Risks / Watchouts
 - ...

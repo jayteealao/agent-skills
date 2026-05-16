@@ -57,11 +57,16 @@ Combinations are allowed: `--strict` + `<target>`, `--from <path>` + `--adapter 
 
 # Step 0 — Orient (MANDATORY)
 
-1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present).
+1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), and the **`stack:` block** (written by `/wf intake` Step 0.5 and confirmed in Batch B). The `stack:` block — when `user-confirmed: true` — narrows adapter selection in Step 3 and tooling choice during drive/observe.
 2. **Read the slice index `03-slice.md`** (or the compressed-mode equivalent — `01-quick.md` for `workflow-type: quick`). Note every slice slug and the slug's source-mode (standard / compressed / forwarded).
 3. **Read every per-slice file** referenced from the slice index. These carry the AC that the slug-wide sweep partitions against. For compressed and forwarded modes, the AC lives in the single source artifact (`01-quick.md`, `01-rca.md`, `01-investigate.md`).
 4. **Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md`** for the adapter registry — bootstrap, drive, observe, teardown recipes per platform.
-5. **Capture invocation parameters** from `$ARGUMENTS` per the argument grammar above. Default values:
+5. **Stack awareness (advisory — probe is observational by nature).** Probe's job is to drive the running artifact, so it cannot refuse to run when `stack:` is missing. But it MUST be honest about provenance:
+   - **If `stack:` is missing entirely** → emit a one-line chat warning: *"`stack:` is not set on `<slug>`. Probe will run adapter detection cold; consider running `/wf intake <slug>` to capture stack so future runs respect PO intent."* Set `stack-source: probe-detected-from-repo` in the slice frontmatter. Proceed.
+   - **If `stack.user-confirmed: false`** → emit the same warning text but referencing unconfirmed-auto-detect; set `stack-source: unconfirmed-auto-detect` in the slice frontmatter. Proceed.
+   - **If `stack.user-confirmed: true`** → set `stack-source: confirmed` in the slice frontmatter. Step 3 below will intersect probe's matched adapters with `stack.platforms` and surface any divergence as an artifact-level signal (not a stop).
+   - In all cases, record the `stack:` block (verbatim or just the keys consulted) under `## Stack context` in the probe slice body so a reader can reconcile what probe saw against what intake confirmed.
+6. **Capture invocation parameters** from `$ARGUMENTS` per the argument grammar above. Default values:
    - `target` = `slug-wide` (if no positional or `--from` specified)
    - `scope-mode` = `focus` (unless `--strict`)
    - `adapter-narrow` = none (unless `--adapter <key>` specified)
@@ -137,9 +142,13 @@ Ad-hoc targets are not failures — they are data. The slice records them and th
 # Step 3 — Adapter selection
 
 1. **Match adapters.** Run every adapter's detection signal (from `runtime-adapters.md`) against the repo. Collect every match into `matched-adapters: [<key>, ...]`.
-2. **Honor `--adapter <key>` narrowing.** If the user passed `--adapter <key>`, verify `<key>` is in `matched-adapters`. If not, STOP with: `wf-quick probe stopped: adapter <key> does not match this repo. Matched adapters: <list>. Drop --adapter to run all matched.` If yes, restrict `adapters-used` to `[<key>]` and set `adapter-narrowed-by-user: true` in the slice frontmatter.
-3. **Default — run all matched.** When no narrowing, `adapters-used = matched-adapters` and `adapter-narrowed-by-user: false`.
-4. **No matches → ad-hoc adapter unavailable.** If `matched-adapters` is empty, write a probe slice with `status: awaiting-environment`, `bootstrap-failure: { step: adapter-detection, remediation: "No runtime adapter matched this repo. Add detection signals for a new platform to runtime-adapters.md, or run probe in a directory containing a recognized project." }`. Skip Steps 4 and 5.
+2. **Stack intersection (when `stack-source: confirmed`).** If Step 0 set `stack-source: confirmed`, compute `stack-intersected-adapters = matched-adapters ∩ stack.platforms` from `00-index.md`.
+   - **Divergence handling** — record both sets in the slice frontmatter as `matched-adapters` and `stack-intersected-adapters`. If they differ, set `stack-adapter-divergence: true` and add a `## Stack divergence` note to the slice body listing which adapters were excluded and why. Divergence is a signal, not a stop — the PO may want probe to surface unexpected platforms (e.g., an Android repo that has accidentally grown a web admin tool).
+   - **Default behavior on divergence** — probe drives `stack-intersected-adapters` (the PO's confirmed surfaces) unless the user passed `--adapter <key>` to override. If the intersection is empty (detection found platforms but none are in `stack.platforms`), drive `matched-adapters` anyway and set `stack-adapter-divergence-mode: full-bypass` — probe must not refuse to observe, but the artifact records that the run bypassed the confirmed stack.
+   - **When `stack-source: unconfirmed-auto-detect` or `probe-detected-from-repo`** → skip intersection entirely. `adapters-used` defaults to `matched-adapters`. The artifact's `stack-source` already records that no intersection was authoritative.
+3. **Honor `--adapter <key>` narrowing.** If the user passed `--adapter <key>`, verify `<key>` is in `matched-adapters`. If not, STOP with: `wf-quick probe stopped: adapter <key> does not match this repo. Matched adapters: <list>. Drop --adapter to run all matched.` If yes, restrict `adapters-used` to `[<key>]` and set `adapter-narrowed-by-user: true` in the slice frontmatter. `--adapter` takes precedence over stack intersection — explicit user intent wins.
+4. **Default — run the appropriate set.** When no `--adapter` narrowing: `adapters-used = stack-intersected-adapters` (when stack confirmed and intersection non-empty), else `adapters-used = matched-adapters`. Set `adapter-narrowed-by-user: false`.
+5. **No matches → ad-hoc adapter unavailable.** If `matched-adapters` is empty, write a probe slice with `status: awaiting-environment`, `bootstrap-failure: { step: adapter-detection, remediation: "No runtime adapter matched this repo. Add detection signals for a new platform to runtime-adapters.md, or run probe in a directory containing a recognized project." }`. Skip Steps 4 and 5.
 
 # Step 4 — Two-phase bootstrap
 

@@ -14,6 +14,15 @@ Each adapter section follows the same shape:
 | **Observe** | How to capture observable output (screenshots, page snapshots, stdout, HTTP responses, log scrapes). |
 | **Tear down** | How to leave the environment clean after the run completes. |
 | **Evidence layout** | Where the caller writes captured evidence files. |
+| **Skill catalog hints** (optional) | Session-level skills/MCP servers that complement this adapter (e.g., `lazylogcat` for android logcat capture). Hints are *opt-in candidates*, not mandatory drivers — the PO picks during shape. |
+
+## Stack fingerprint integration
+
+Callers should re-use the `stack:` block written by `wf intake` Step 0.5 (and confirmed by the PO in intake Batch B) to short-circuit adapter selection. The contract:
+
+1. If `stack.platforms` is present and `user-confirmed: true`, intersect it with available adapters to narrow the match set before running detection signals. Detection signals stay authoritative for *how* to drive; the fingerprint is just a fast filter for *which* adapters are in scope.
+2. If `stack:` is missing or `user-confirmed: false`, fall back to running every adapter's detection signal against the repo as described below.
+3. If `stack.available-skills` or `stack.available-mcp` names a session-visible helper that an adapter calls out under **Skill catalog hints**, surface that helper as a *suggested companion* — not a required tool. Record the PO's choice in the calling artifact (`verify` per slice, `probe` once per slug).
 
 ## Adapter selection (read by callers)
 
@@ -53,13 +62,14 @@ Each adapter section follows the same shape:
 2. **Start the dev server** — run `npm run dev` / `yarn dev` / `pnpm dev` (or the equivalent from `package.json scripts`) in the background. Wait for the server to bind (poll the port up to 30 seconds).
 3. **Resolution attempts before failing:** if the start command exits non-zero, try `npm install` (or yarn/pnpm equivalent) once and retry the start. If that still fails, surface `bootstrap-failure: { step: dev-server-start, ... }`.
 
-## Drive — tool selection (in priority order)
+## Drive — candidate tools
 
-### 1. `dev-browser` (preferred)
-Check if installed: `command -v dev-browser`. If not installed, instruct the user:
-> "Interactive web verification benefits from `dev-browser`. Install with: `npm install -g dev-browser && dev-browser install`. See https://github.com/SawyerHood/dev-browser"
+The PO chose a driver during shape (from `02-shape.md` and the `stack:` block); use whatever they picked. The list below is a menu of candidates the shape question draws from, ordered roughly by *already-installed first*. Do not propose installing a new tool without going back through shape.
 
-If available, use dev-browser for all web verification. It provides Playwright's full Page API in a sandboxed QuickJS runtime with persistent pages across scripts:
+### 1. `dev-browser` (if installed or PO opted in)
+Check if installed: `command -v dev-browser`. If not installed AND the PO did not select it during shape, skip this option — do not auto-prompt for installation here.
+
+If available, dev-browser provides Playwright's full Page API in a sandboxed QuickJS runtime with persistent pages across scripts:
 
 ```bash
 dev-browser --headless <<'SCRIPT'
@@ -119,6 +129,15 @@ If configured in the project, run existing Playwright test suites or write inlin
 - Port already in use → "Another process is bound to the dev port; stop it or run probe with the existing server (probe will detect and reuse it)."
 - Build error during startup → "Run `npm run build` to surface the build-time error before retrying probe."
 
+## Skill catalog hints
+
+Surface these only if they appear in `stack.available-skills` / `stack.available-mcp` and the task touches the relevant area. None are required.
+
+- **`frontend-design`** — when the work introduces a new UI surface and the PO wants design-quality output rather than a wired-up component.
+- **`playground`** — when the deliverable is an interactive single-file explorer rather than a production-wired feature.
+- **`claude-api` / `claude-code-guide`** — when the work involves the Anthropic SDK or Claude Code itself.
+- **MCP browsers** (`mcp__Claude_in_Chrome__*`, `mcp__Claude_Preview__*`) — if available, these are session-native alternatives to dev-browser; surface alongside dev-browser as drive candidates.
+
 ---
 
 # Adapter: `android`
@@ -168,6 +187,21 @@ If configured in the project, run existing Playwright test suites or write inlin
 - `adb devices` empty AND no AVDs → "Install at least one Android Virtual Device via Android Studio's AVD Manager, or connect a physical device with USB debugging enabled."
 - `installDebug` fails → "Run `./gradlew assembleDebug` manually to see the build error. Common causes: missing signing config, expired Gradle cache, network failure fetching dependencies."
 - App crashes on launch → "Probe captured the crash in logcat; the runtime probe cannot proceed past launch. Treat as a high-severity finding."
+
+## Skill catalog hints
+
+These session-level skills/MCP servers complement the android adapter. Surface them as candidates when matched in `stack.available-skills` / `stack.available-mcp`; the PO picks during shape. None are required.
+
+- **`android-cli`** — orchestrates project creation, deployment, SDK management, and environment diagnostics via the `android` CLI. Good companion when bootstrap (AVD, SDK paths) is shaky.
+- **`lazylogcat`** — non-interactive logcat capture, filter by package/tag/text, programmatic parsing. Prefer over raw `adb logcat` when criteria need structured log evidence.
+- **`adaptive`** — Compose multi-form-factor (phone/tablet/foldable/desktop/TV/Auto/XR) UI guidance. Surface when the work touches layouts that may render across window sizes.
+- **`migrate-xml-views-to-jetpack-compose`** — workflow for converting XML views to Compose. Surface when both `ui: [xml-views]` and `ui: [compose]` appear in `stack:`, or when the PO mentions migration.
+- **`testing-setup`** — installs unit/UI/screenshot/E2E test infra. Surface when `stack.testing` is thin or empty.
+- **`perfetto-trace-analysis`** + **`perfetto-sql`** — when criteria involve latency, jank, or memory investigation against a captured trace.
+- **`edge-to-edge`**, **`styles`**, **`navigation-3`** — narrower Compose surface migrations; surface only when the intake/shape narrative mentions the area.
+- **`agp-9-upgrade`**, **`r8-analyzer`**, **`play-billing-library-version-upgrade`**, **`engage-sdk-integration`**, **`camera1-to-camerax`**, **`appfunctions`**, **`display-glasses-with-jetpack-compose-glimmer`** — specialist skills; surface only when intake names the matching domain.
+
+The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.available-skills`, and (b) the intake/shape narrative or `stack:` block mentions a signal the skill targets. Skip a hint silently rather than suggesting an irrelevant tool.
 
 ---
 

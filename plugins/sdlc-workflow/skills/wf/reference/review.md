@@ -22,16 +22,18 @@ You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 | Conditional inputs (mandatory when present) | `02b-design.md`, `02c-craft.md`, `04b-instrument.md`, `04c-experiment.md`, `05c-benchmark.md`, `07-design-audit.md`, `07-design-critique.md`, `augmentations:` list in `00-index.md` — every artifact that exists MUST be checked by the relevant review (e.g., 02c-craft.md anti-goals MUST be honored; 04b-instrument.md signals MUST be present; 05c-benchmark.md baseline MUST not regress; every augmentation MUST get a type-specific re-check). |
 | Produces (per-slice mode) | `07-review-<slice-slug>.md` + `07-review-<slice-slug>-<command>.md` per selected command (per-slice scoping — running review on a different slice does NOT overwrite a sibling slice's files) |
 | Produces (slug-wide mode) | `07-review.md` + `07-review-<command>.md` per selected command (single set per workflow — re-running review overwrites). Sibling per-slice review files (if any from prior runs) are left untouched. |
-| Next | `/wf handoff <slug>` (if approved + all slices complete), `/wf implement <slug> <slice>` (if bugs to fix), `/wf plan <slug> <next-slice>` (if more slices remain), `/wf-meta amend <slug> from-review` (if spec was wrong), or `/wf-meta extend <slug> from-review` (if new scope needed) |
+| Next | `/wf handoff <slug>` (when `convergence: not-needed` or `converged` and `verdict: ship`/`ship-with-caveats` + all slices complete). When `convergence: escalated`: re-invoke `/wf review <slug> [<slice>]` for a second round, or escalate to `/wf implement <slug> [<slice>] reviews` as a manual escape. Also: `/wf plan <slug> <next-slice>` (if more slices remain), `/wf-meta amend <slug> from-review` (if spec was wrong), or `/wf-meta extend <slug> from-review` (if new scope needed). |
 
 # CRITICAL — execution discipline
-You are a **review dispatch orchestrator**, not a problem solver.
-- Do NOT fix issues — only report and prioritise them. Fixes belong in `/wf implement`.
+You are a **review dispatch orchestrator that also owns its own triage→fix loop**.
+- Do NOT run the reviews yourself — you **select review commands and dispatch sub-agents**. Each review sub-agent runs one review command independently and reports findings.
+- Do NOT improvise fixes while review sub-agents are running. The fix loop runs only at Step 4c, AFTER aggregation and AFTER user triage at Step 4b.
+- At Step 4c you own a **single-round, user-gated fix loop**: every finding marked `Fix` by the user at Step 4b spawns a fix sub-agent that applies the minimal patch. After all `Fix` sub-agents return, you write the consolidated review artifact with `## Fix Status`.
+- ONE round only. Re-review after fixes requires the user to re-invoke `/wf review`. Verify-after-fixes requires the user to re-invoke `/wf verify`. Do not auto-loop in this invocation.
 - Do NOT handoff or ship — those are later stages.
-- Do NOT run the reviews yourself — you **select commands and dispatch sub-agents**. Each sub-agent runs one review command independently.
-- Your job is: **orient → gather change stats → select commands → dispatch sub-agents → aggregate → write verdict**.
+- Your job is: **orient → gather change stats → select commands → dispatch review sub-agents → aggregate → triage → dispatch fix sub-agents for `Fix` decisions → write verdict and Fix Status**.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
-- If you catch yourself about to start reviewing code directly, STOP — spawn a sub-agent instead.
+- If you catch yourself about to start reviewing code directly, STOP — spawn a review sub-agent instead. If you catch yourself about to fix code outside the Step 4c fix-sub-agent dispatch, STOP — the fix loop only runs at Step 4c.
 
 # TRIAGE MODE
 
@@ -126,8 +128,9 @@ After writing files, return ONLY:
 - `slug: <slug>`
 - `wrote: <paths>` (list all review files written)
 - `verdict: <Ship / Ship with caveats / Don't Ship>`
+- `convergence: <not-needed | converged | escalated>` — include `fix-rounds-run` and a one-line "what the loop did" summary when `convergence != not-needed` (e.g., "converged: 3 of 3 Fix sub-agents patched", "escalated: 1 of 2 could-not-fix")
 - `options:` (list all viable next options — see Adaptive Routing below)
-- ≤3 short blocker bullets if needed
+- ≤3 short blocker bullets if needed (remaining BLOCKERs only — anything Patched is no longer a blocker)
 
 ---
 
@@ -138,10 +141,16 @@ After completing Step 2 (command selection), create a task list using TaskCreate
 - Review command tasks are independent — no `addBlockedBy` between them (they run as parallel sub-agents).
 - Add bookkeeping tasks:
   - "Aggregate + deduplicate findings" — `addBlockedBy: [all review command tasks]`
-  - "Write 07-review-<slice-slug>.md + verdict" — `addBlockedBy: [aggregate task]`
+  - "Triage findings via AskUserQuestion" — `addBlockedBy: [aggregate task]`
+  - "Fix loop (Step 4c)" — `addBlockedBy: [triage task]` — gets `status: deleted` if Step 4b produced zero `Fix` decisions.
+  - "Write 07-review-<slice-slug>.md + verdict + Fix Status" — `addBlockedBy: [fix-loop task]`
 
-As each sub-agent returns its `07-review-<slice-slug>-<command>.md` file: `TaskUpdate(taskId, status: "completed")`.
+Inside the fix loop (Step 4c), `TaskCreate` one additional task per `Fix` decision: `subject: "Fix [{ID}] {SEV}: {title}"`, `activeForm: "Fixing [{ID}]"`, `addBlockedBy: ["Fix loop (Step 4c)"]` (parent — the loop coordinates them sequentially). Mark each `completed` (with `description: "COULD NOT FIX: <reason>"` if applicable) before moving to the next.
+
+As each review sub-agent returns its `07-review-<slice-slug>-<command>.md` file: `TaskUpdate(taskId, status: "completed")`.
 When starting aggregation: `TaskUpdate(aggregateTaskId, status: "in_progress")`. Mark `completed` when done.
+When starting triage: `TaskUpdate(triageTaskId, status: "in_progress")`. Mark `completed` when AskUserQuestion finishes.
+When starting the fix loop: `TaskUpdate(fixLoopTaskId, status: "in_progress")`. Mark `completed` when every per-finding fix task is done.
 When writing final verdict: `TaskUpdate(writeTaskId, status: "in_progress")`. Mark `completed` when done.
 
 ---
@@ -387,7 +396,7 @@ After all sub-agents finish:
 
 # Step 4b: Triage ALL Findings via AskUserQuestion
 
-After deduplication, present ALL deduplicated findings to the user for triage using AskUserQuestion. This gives the user explicit control over what gets fixed, deferred, or dismissed.
+After deduplication, present ALL deduplicated findings to the user for triage using AskUserQuestion. This gives the user explicit control over what gets fixed, deferred, or dismissed. **`Fix` decisions execute in Step 4c — they are no longer deferred to a separate `/wf implement reviews` invocation.**
 
 **For BLOCKER and HIGH findings** — present each individually:
 
@@ -395,20 +404,100 @@ Use AskUserQuestion with one question per finding (batch up to 4 per call):
 - **header**: the finding ID (e.g., "CR-1", "CS-2", "SEC-3")
 - **question**: `"{Source command}: {one-line issue description} at {file}:{line}"`
 - Options:
-  - `Fix` / label: "Fix this", description: "Address in next implement pass"
-  - `Defer` / label: "Defer", description: "Revisit later — run /wf review <slug> triage"
-  - `Dismiss` / label: "Not an issue", description: "False positive or intentional"
+  - `Fix` / label: "Fix now", description: "Spawn a sub-agent to apply the minimal patch in this run (Step 4c)."
+  - `Defer` / label: "Defer", description: "Record but do not fix — revisit later via `/wf review <slug> triage`."
+  - `Dismiss` / label: "Not an issue", description: "False positive or intentional — record the reason."
 
 **For MED findings** — present as a batch:
 
 Use AskUserQuestion with `multiSelect: true`:
 - **header**: "MED findings"
-- **question**: "Select which MED findings to address"
+- **question**: "Select which MED findings to fix now (Step 4c will spawn fix sub-agents for the selected ones)"
 - Options: one per MED finding, label is `{ID}: {title}`, description is `{file}:{line} — {one-line description}`
 
-**For LOW and NIT findings** — list in the report but do NOT prompt. Mention count in the triage summary.
+MED findings not selected default to `Defer` (recorded but not fixed in this run).
 
-If there are no findings (all commands returned clean), skip this step.
+**For LOW and NIT findings** — list in the report but do NOT prompt and do NOT fix in this run.
+
+If there are no findings (all commands returned clean), skip Step 4b and Step 4c — there is nothing to triage and nothing to fix.
+
+---
+
+# Step 4c: Single-round review-owned fix loop
+
+This step runs only if Step 4b produced at least one `Fix` decision. It is bounded to **one round** per invocation — a second round requires the user to re-invoke `/wf review`.
+
+## Snapshot
+
+Before dispatching any fix sub-agent, snapshot:
+- `metric-issues-found-initial`: total deduplicated findings count (Step 4 output).
+- `metric-fix-decisions`: count of findings triaged `Fix` at Step 4b.
+
+If `metric-fix-decisions == 0`, set `fix-rounds-run: 0`, `convergence: not-needed`, and skip to Step 5.
+
+## Fix dispatch (sequential)
+
+For each finding triaged `Fix`, sequentially (one at a time):
+1. `TaskCreate` or `TaskUpdate`: `subject: "Fix [{ID}] {SEV}: {title}"`, `activeForm: "Fixing [{ID}]"`, `metadata: { slug, stage: "review-fix", slice: "<slice-slug or empty>", findingId: "{ID}", severity: "{SEV}", sourceCommand: "{command}" }`.
+2. Spawn ONE sonnet sub-agent with this prompt (this is the same fix prompt shape used by `/wf implement reviews` mode — kept identical so behavior matches when the user routes through either path):
+   ```
+   Fix the following review finding in the codebase:
+
+   Finding ID: {ID}
+   Source review command: {command}
+   Severity: {severity}
+   Location: {file}:{line-range}
+   Issue: {issue description}
+   Suggested fix: {fix suggestion}
+
+   Read the file(s) at the specified location. Understand the issue.
+   Apply the minimal fix that resolves the issue without introducing
+   new problems. Do NOT change anything beyond what is needed for this
+   specific finding. Do NOT refactor. Do NOT broaden scope.
+
+   After fixing, verify your change is correct:
+   - The fix addresses the specific issue described
+   - No new lint/type/test failures are introduced in the affected files
+   - The surrounding code still makes sense
+
+   Return a brief summary of what you changed and whether the fix is confirmed correct.
+   ```
+3. Wait for the sub-agent to complete.
+4. Read the changed file(s) yourself; sanity-check the patch addresses the finding and does not obviously break sibling code.
+5. `TaskUpdate(taskId, status: "completed")`. If the sub-agent could not fix, record `description: "COULD NOT FIX: <reason>"` then mark completed — this counts toward `convergence: escalated`.
+
+## Re-review (optional, narrow)
+
+After every `Fix` sub-agent has returned, **do not re-dispatch the full review command set**. That would be a second round and contradicts the one-round contract. Instead:
+- For each `Fix` finding whose sub-agent returned successfully, mark it as `fix-result: patched` in the Fix Status table.
+- For each `Fix` finding whose sub-agent could not fix, mark it as `fix-result: could-not-fix` and surface it under `## Recommendations → Must Fix (remaining)`.
+- Do not re-run the review commands — the user re-invokes `/wf review` for that if they want fresh findings.
+
+## Convergence verdict
+
+Compute `metric-issues-found-final` as `metric-issues-found-initial - (count of Fix decisions with fix-result: patched)`.
+
+| Condition | `convergence:` | `verdict:` |
+|---|---|---|
+| `metric-fix-decisions == 0` AND `metric-findings-blocker == 0` | `not-needed` | unchanged from Step 4.6 verdict |
+| `metric-fix-decisions == 0` AND `metric-findings-blocker > 0` | `not-needed` | `dont-ship` (user explicitly chose not to fix blockers) |
+| All `Fix` decisions returned `fix-result: patched` AND no remaining `metric-findings-blocker` | `converged` | `ship` (unless HIGH/MED deferrals warrant `ship-with-caveats`) |
+| At least one `Fix` decision returned `fix-result: could-not-fix` OR a deferred BLOCKER remains | `escalated` | `dont-ship` (or `ship-with-caveats` if all remaining are HIGH/MED) |
+
+When `convergence: escalated`:
+- Adaptive routing surfaces "Option B: Re-invoke `/wf review` for a second round" (if the user wants to attempt more fixes) and "Option C: `/wf implement` (manual escape)" — never auto-loop.
+- The `## Recommendations` body lists every `could-not-fix` finding with the sub-agent's reason attached.
+
+## Commit (only when fixes landed)
+
+If at least one `Fix` sub-agent successfully modified files AND `branch-strategy` is `dedicated` or `shared`:
+- Stage every file the fix sub-agents touched.
+- Commit with message: `fix(<slug>): review-time fixes for <slice-slug>` (per-slice mode) or `fix(<slug>): review-time fixes` (slug-wide mode).
+- Record the commit SHA in the review artifact's `## Fix Status` section.
+- Do NOT push.
+- If `branch-strategy: none`, skip the commit; the fixes remain in the working tree.
+
+The fix sub-agents and the commit replace the manual `/wf implement <slug> [<slice>] reviews` round-trip for the common case. That mode still exists as a manual escape (e.g., when `convergence: escalated` and the user wants the sequential per-finding fix UI again, or when the user prefers to fix outside the review run).
 
 ---
 
@@ -435,11 +524,18 @@ commands-run: [correctness, security, ...]
 metric-commands-run: <N>
 metric-findings-total: <N>
 metric-findings-raw: <N>
-metric-findings-blocker: <N>
+metric-findings-blocker: <N>     # POST-fix-loop count — fixes that landed reduce this. Handoff's blocker gate reads this field.
 metric-findings-high: <N>
 metric-findings-med: <N>
 metric-findings-low: <N>
 metric-findings-nit: <N>
+metric-issues-found-initial: <N>          # findings-total snapshot BEFORE the fix loop
+metric-issues-found-final: <N>            # findings-total snapshot AFTER the fix loop
+metric-fix-decisions: <N>                 # how many findings the user triaged "Fix" at Step 4b
+metric-fix-patched: <N>                   # how many of those the sub-agent successfully fixed
+fix-rounds-run: <0 | 1>                   # 0 if no Fix decisions; 1 if Step 4c ran
+convergence: <not-needed | converged | escalated>
+review-owned-fix-commit: "<SHA | null>"   # null if no fixes landed or branch-strategy: none
 tags: []
 refs:
   index: 00-index.md
@@ -507,6 +603,21 @@ next-invocation: "<based on verdict>"
 
 {All BLOCKER/HIGH/MED findings from Step 4b. LOW/NIT listed as "untriaged".}
 
+## Fix Status
+
+Only present when `fix-rounds-run > 0`. Records what Step 4c actually did.
+
+| ID | Sev | Source | Sub-agent outcome | Notes |
+|----|-----|--------|-------------------|-------|
+| {ID} | {SEV} | {command} | Patched / Could not fix | {one-line summary} |
+
+**Round count:** {fix-rounds-run}
+**Convergence:** {not-needed | converged | escalated}
+**Initial findings:** {metric-issues-found-initial} → **Final findings:** {metric-issues-found-final}
+**Commit:** {SHA or "(no commit — branch-strategy: none)" or "(no files changed)"}
+
+{If convergence: escalated, list each could-not-fix finding here with the sub-agent's stated reason so the next stage knows what's still broken.}
+
 ## Recommendations
 
 ### Must Fix (triaged "fix")
@@ -525,12 +636,13 @@ next-invocation: "<based on verdict>"
 {List}
 
 ## Recommended Next Stage
-- **Option A:** `/wf handoff <slug>` — all slices complete, approved, ready for PR [reason]
-- **Option B:** `/wf implement <slug> <slice>` — fix blocking issues [list what needs fixing]
-- **Option C:** `/wf ship <slug>` — skip handoff [reason, if applicable]
+- **Option A:** `/wf handoff <slug>` — converged or no blockers; all slices complete, ready for PR [reason]
+- **Option B:** `/wf review <slug> [<slice>]` — escalated; re-invoke for a second fix round [reason, only if applicable]
+- **Option C:** `/wf implement <slug> [<slice>] reviews` — escape hatch; remaining findings need stage-5 fix UI [reason, only if applicable]
 - **Option D:** `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>` — more slices to implement before handoff [reason, if applicable]
-- **Option E:** `/wf-meta extend <slug> from-review` — add new slices from findings [reason, if applicable]
-- **Option F:** `/wf-meta amend <slug> from-review` — correct the spec/approach of an existing slice [reason, if applicable]
+- **Option E:** `/wf ship <slug>` — skip handoff [reason, if applicable]
+- **Option F:** `/wf-meta extend <slug> from-review` — add new slices from findings [reason, if applicable]
+- **Option G:** `/wf-meta amend <slug> from-review` — correct the spec/approach of an existing slice [reason, if applicable]
 
 ---
 
@@ -547,27 +659,33 @@ next-invocation: "<based on verdict>"
 2. Return the compact chat summary with verdict and options.
 
 # Adaptive routing — evaluate what's actually next
-After completing the review, evaluate the findings and present the user with ALL viable options:
+
+Routing is **driven by `convergence:`** plus the post-fix-loop `verdict:`. Review no longer routes to `/wf implement` as the default fix path — the fix loop is owned by this stage. `/wf implement <slug> [<slice>] reviews` survives only as a manual escape (e.g., when `convergence: escalated` and the user wants to retry fixes with that mode's sequential UI).
+
+After completing the fix loop, evaluate the post-fix verdict and present the user with ALL viable options:
 
 **Option A: Handoff** → `/wf handoff <slug>`
-Use when: No blocking issues AND all intended slices on this branch are complete. Handoff aggregates all complete slices automatically.
+Use when: `convergence: not-needed` OR `convergence: converged` AND `verdict: ship` (or `ship-with-caveats` where the caveats are not blockers) AND all intended slices on this branch are complete. Handoff aggregates all complete slices automatically.
 **If more slices remain** on this branch before handoff: use Option D (next slice) — implement remaining slices first, then run `/wf handoff <slug>` once for the full PR.
 
-**Option B: Fix and re-implement** → `/wf implement <slug> <selected-slice>`
-Use when: There are blocking issues. List what needs changing.
-**Compact recommended before proceeding** — review dispatch chatter (sub-agent outputs, aggregation, triage) is noise for fixing. Tell the user: "Consider running `/compact` before `/wf implement` — the PreCompact hook will preserve workflow state and triage decisions are in `07-review-<slice-slug>.md`."
+**Option B: Re-invoke review for a second round** → `/wf review <slug> [<slice>]`
+Use when: `convergence: escalated` AND the user wants to attempt another round of fixes on the remaining findings. Review enforces a one-round cap per invocation; a second round requires a fresh invocation. State the unresolved findings (`could-not-fix` plus any deferred BLOCKER) clearly before recommending.
+**Compact recommended before re-invoking** — fix sub-agent chatter and triage UI is noise for the next review pass. Tell the user: "Consider running `/compact` before re-invoking — the PreCompact hook will preserve workflow state and the triage record is in `07-review-<slice-slug>.md`."
 
-**Option C: Skip handoff, go to Ship** → `/wf ship <slug>`
-Use when: No team to hand off to, no PR description needed, CI/CD handles the rest.
+**Option C: Escalate to manual implement** → `/wf implement <slug> [<slice>] reviews`
+Use when: The remaining findings cannot be addressed by sub-agent patches — they need design rethink, cross-cutting refactor, or input the review agent cannot supply. This is the explicit escape hatch back to stage 5; use only when re-invoking review would just escalate again. Also available when the user prefers stage 5's per-finding sequential UI over review's batched fix dispatch.
 
 **Option D: Next slice** → `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>`
 Use when: This slice is approved AND more slices remain. Check `03-slice.md`.
 **Compact recommended** — previous slice's full lifecycle (implement + verify + review) is noise for the next slice.
 
-**Option E: Extend scope** → `/wf-meta extend <slug> from-review`
-Use when: Review findings reveal **missing capability** rather than broken implementation — scope that was never built, not code that is wrong. Signal: findings describe "X should also do Y" or "there is no handler for Z" rather than "X does Y incorrectly". Use this over wf-implement when the work required is net-new rather than corrective.
+**Option E: Skip handoff, go to Ship** → `/wf ship <slug>`
+Use when: No team to hand off to, no PR description needed, CI/CD handles the rest.
 
-**Option F: Amend spec** → `/wf-meta amend <slug> from-review`
+**Option F: Extend scope** → `/wf-meta extend <slug> from-review`
+Use when: Review findings reveal **missing capability** rather than broken implementation — scope that was never built, not code that is wrong. Signal: findings describe "X should also do Y" or "there is no handler for Z" rather than "X does Y incorrectly". Use this over Option C when the work required is net-new rather than corrective.
+
+**Option G: Amend spec** → `/wf-meta amend <slug> from-review`
 Use when: Review findings reveal that the **slice definition or acceptance criteria were themselves wrong** — the implementation did what it was told, but what it was told to do was incorrect. Signal: multiple findings stem from the same incorrect assumption in the spec, or a finding says the approach is fundamentally wrong rather than buggy.
 
 Write ALL viable options into `## Recommended Next Stage`.

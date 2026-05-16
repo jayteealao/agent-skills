@@ -8,6 +8,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Claude Code local user settings (per Claude Code convention; output-style etc.)
+.claude/settings.local.json
+
 # Logs
 *.log
 

@@ -88,13 +88,20 @@ Prompt the agent with ALL of the following. It must report findings for each sec
 - What areas have thin or missing test coverage relevant to this work?
 
 **Interactive & visual verification tooling:**
-- Is `dev-browser` installed? (`command -v dev-browser`) — preferred tool for web app verification. Provides sandboxed Playwright API with persistent pages, screenshots, and AI-friendly DOM snapshots. If not installed and the project is a web app, note: "recommend installing dev-browser (`npm install -g dev-browser && dev-browser install`)"
-- What E2E/UI test frameworks exist? (Playwright, Cypress, Maestro, Detox, Appium, Selenium, etc.) — check config files and test directories
-- What device/emulator tooling is available? (adb for Android, iOS Simulator, connected devices)
-- Are Chrome MCP tools available in the session? (`mcp__claude-in-chrome__*` — navigate, read_page, computer, screenshots)
-- Are there screenshot comparison or visual regression tools configured? (Percy, Chromatic, Playwright visual comparisons, `adb shell screencap`)
-- What manual/smoke test scripts or checklists exist in the repo? (check `docs/`, `scripts/`, `testing/`, `QA/`)
-- Is there a dev server, preview environment, or local emulator setup for interactive testing?
+
+Drive this block from the `stack:` fingerprint in `00-index.md` (written by intake Step 0.5 and confirmed in Batch B) and the runtime-adapter registry at [runtime-adapters.md](runtime-adapters.md). The job is to **describe what's available and let the PO pick**, not to default to one tool. Stay descriptive.
+
+1. **Re-read `stack:`** from `00-index.md`. If the block is missing or `user-confirmed: false`, note it as an open question and propose re-running intake; do NOT silently re-detect.
+2. **Match `stack.platforms` to runtime adapters.** For each platform present, surface the matched adapter (web, android, ios, cli, desktop, service, notebook) and its detected drivers — already-installed ones first, additions-to-install last. Examples (do **not** treat as exhaustive; the adapter registry is the source of truth):
+   - `platforms: [web]` → existing in-repo Playwright/Cypress > Chrome MCP if session-available > `dev-browser` if installed > propose `dev-browser` install only if the PO wants a richer interactive driver
+   - `platforms: [android]` → in-repo Maestro flows > adb input > Espresso/UI Automator if configured. Cross-reference companion session skills from `stack.available-skills` (e.g., `android-cli`, `lazylogcat`, `perfetto-trace-analysis`, `adaptive`) and list them as opt-in helpers.
+   - `platforms: [ios]` → existing XCUITest / Detox > Maestro (1.30+ supports iOS) > simctl fallbacks
+   - `platforms: [service]` → existing integration test suites > curl/httpie ad-hoc drives
+3. **Cross-reference the session catalog.** From `stack.available-skills` and `stack.available-mcp`, list anything that maps to this task (e.g., a Compose UI change → `adaptive`, `migrate-xml-views-to-jetpack-compose`, `styles`; a Postgres change → `postgresql-mcp`; a docs deliverable → `diataxis`). Present them as **candidates** with a one-line "why this fits," not selections.
+4. **What's already wired in.** Note dev servers, emulator AVDs, simulator configs, screenshot/regression tools (Percy, Chromatic, `adb shell screencap`), and manual smoke scripts under `docs/`, `scripts/`, `testing/`, `QA/`.
+5. **Surface a tooling question for the PO.** End the section by recording a single concrete question for `02-shape.md` along the lines of: *"For verification, the available drivers are A, B, C. Companion skills that look relevant: X, Y. Any preference, or any of these off-limits?"* Capture the answer in `po-answers.md`. The shaped spec's acceptance criteria must reference *whatever the PO chose* — not a baked-in default.
+
+Anti-pattern to avoid: writing "use dev-browser" or "use Maestro" into the spec because the workflow defaults there. The workflow's job is to map the design space; the PO picks the point in it.
 
 ### Explore sub-agent 2 — External Dependencies & Freshness
 

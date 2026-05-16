@@ -37,6 +37,10 @@ You are a **workflow orchestrator**, not a problem solver.
 3. **Check prerequisites:**
    - `01-intake.md` and `02-shape.md` must exist. If missing → STOP. Tell the user which command to run first (e.g., "Run `/wf shape <slug>` first.").
    - If `02-shape.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open shape questions first.
+   - **Stack gate (do NOT silently re-detect):** Inspect the `stack:` block in `00-index.md`.
+     - If the block is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Re-run `/wf intake <slug>` to capture it; that step is the source of truth for downstream tooling decisions." Do NOT attempt to re-detect the stack here — slice is not the place for that, and silent re-detection would diverge from intake's user-confirmed truth.
+     - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but the PO has not confirmed it. Slicing decisions that depend on tooling/platform (e.g., which surfaces ship together) may be wrong. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Use AskUserQuestion if available. If the user proceeds, treat the unconfirmed stack as advisory only — do not let it drive slice boundaries.
+     - If `stack.user-confirmed: true` → proceed. The slice strategy MAY reference confirmed platforms/tooling to justify groupings, but MUST NOT introduce new tooling assumptions beyond what's in `stack:`.
    - If `current-stage` in the index is already past slice → WARN: "Stage 3 (slice) has already been completed. Running it again will overwrite slice files. Proceed?"
 4. **Read** `01-intake.md`, `02-shape.md`, and `po-answers.md`.
 5. **Read design artifacts — mandatory when present** (file existence is optional; consumption is required):

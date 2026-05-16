@@ -69,6 +69,44 @@ You are a **workflow orchestrator**, not a problem solver.
    - If it does not exist → this is a fresh start. Proceed normally.
 4. **Carry forward** any `open-questions` from the index if resuming.
 
+# Step 0.5 — Repo stack fingerprint (MANDATORY — observation only, do NOT prescribe)
+
+Goal: cheaply observe what the repo *already uses* and what *tooling is available in this session*, then write both into `00-index.md` as durable signal for shape/plan/implement. This is **not** a recommendation step — those happen in shape, with the user in the loop. Stay descriptive: record only what is actually detected.
+
+1. **Repo signals (cheap globs/reads, no network).** Run these probes and record what hits. Do not infer beyond direct evidence; absence ≠ proof of absence, leave keys out rather than guess.
+   - **Manifests:** `package.json`, `pyproject.toml` / `requirements.txt` / `setup.py`, `Cargo.toml`, `go.mod`, `pom.xml` / `build.gradle*` / `settings.gradle*`, `Gemfile`, `composer.json`, `pubspec.yaml`, `mix.exs`, `*.csproj` / `*.sln`. Capture language(s) + package manager(s).
+   - **Platforms:** `AndroidManifest.xml` or `app/src/main/**` → `android`. `*.xcodeproj` / `*.xcworkspace` or `ios/Runner.xcodeproj` → `ios`. `next.config.*` / `vite.config.*` / `nuxt.config.*` / `astro.config.*` / `remix.config.*` / `svelte.config.*` → `web`. `src-tauri/` or `electron` dep → `desktop`. `Dockerfile` exposing HTTP or HTTP server framework imports → `service`. `*.ipynb` → `notebook`. `[[bin]]` in `Cargo.toml`, `bin` in `package.json`, `cmd/<name>/main.go` → `cli`.
+   - **UI / framework:** React/Vue/Svelte/Angular (from `package.json`), Jetpack Compose (`androidx.compose.*` in gradle), XML views (`res/layout/`), SwiftUI, UIKit, Flutter, React Native.
+   - **Build / package managers:** npm vs pnpm vs yarn vs bun (lockfile present), gradle/AGP version, cargo, go modules.
+   - **Testing & verification tooling:** Jest, Vitest, pytest, JUnit, Go testing, RSpec, XCTest, **Maestro** (`maestro/` dir or `*.maestro.yaml`), Detox, Playwright, Cypress, Appium, Selenium, Espresso. Visual: Percy, Chromatic.
+   - **Observability / logging:** `.lazylogcat*`, Perfetto trace configs, Sentry/OpenTelemetry SDKs, structured-log setup files.
+   - **Marker files for known integrations:** Hilt/Dagger (`hilt-` deps), Room (`androidx.room.*`), Engage SDK, Play Billing, R8/ProGuard rules.
+
+2. **Session catalog (what's available to *this* agent run).** Enumerate skills, slash commands, and MCP servers visible in the current session. Record names + a one-line description each — these become the matching surface in shape. Do not invent entries; only record what the session actually exposes.
+
+3. **Write into `00-index.md` frontmatter** as a `stack:` block (sibling to `tags:`). Every key is optional; omit rather than guess. Example shape (Android case):
+   ```yaml
+   stack:
+     detected-at: "<iso-8601>"
+     platforms: [android]
+     languages: [kotlin]
+     ui: [compose]
+     build: [gradle]
+     package-managers: [gradle]
+     testing: [junit, maestro]
+     observability: [lazylogcat]
+     integrations: [hilt, room]
+     available-skills:
+       - {name: android-cli, hint: "Android project + SDK orchestration"}
+       - {name: lazylogcat, hint: "Non-interactive logcat capture/filter"}
+       - {name: adaptive, hint: "Multi-form-factor UI adaptation"}
+     available-mcp: []
+     user-confirmed: false
+   ```
+   `user-confirmed: false` means "auto-detected, awaiting Batch B confirmation." Batch B (below) flips it to `true` after the PO has had a chance to correct.
+
+4. **Do NOT recommend anything yet.** No "you should use X." That happens in shape, after the user has confirmed or corrected the fingerprint. This step's only output is observation written to disk.
+
 # Purpose
 Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.
 
@@ -78,7 +116,7 @@ Convert a rough request into a clear intake brief, create the workflow folder, c
 - **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
-- `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, `pr-url`, `pr-number`, `open-questions`, `tags`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`.
+- `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, `pr-url`, `pr-number`, `open-questions`, `tags`, `stack`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`. The `stack` block is written by Step 0.5 (repo + session fingerprint) and confirmed/corrected in Batch B; it is observational, not prescriptive.
 - **Use AskUserQuestion** for multiple-choice PO questions (branch strategy, rollout preference, merge strategy, go/no-go, risk tolerance). Use freeform chat for open-ended questions (requirements, constraints, acceptance criteria). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
@@ -147,6 +185,7 @@ Do this in order:
    - explicit non-goals
    - timeline, compliance, operational, or platform constraints
    - already-decided technical constraints or vendor choices
+   - **stack confirmation** (always include this) — summarize the Step 0.5 `stack:` block in one or two human-readable lines and ask: *"I detected this is a `<platforms>` repo using `<ui>` + `<build>`, with `<testing>` for tests and `<observability>` for logging. Available session tooling that looks relevant: `<top 3-5 skills/MCP by name>`. Anything missing, wrong, or off-limits for this task?"* Capture corrections verbatim in `po-answers.md`. After the answer arrives, update the `stack:` block in `00-index.md` (add/remove entries to match reality) and set `stack.user-confirmed: true`. This is the descriptive contract: detection proposes, the PO disposes. Do **not** use the detected stack to recommend an implementation approach at this stage — that conversation belongs in shape.
 4. Capture ALL answers (structured + freeform) in `po-answers.md`.
 5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
 6. Write the intake brief without designing the implementation.
@@ -190,6 +229,19 @@ pr-url: ""
 pr-number: 0
 open-questions: []
 tags: []
+stack:                                  # Step 0.5 fingerprint. Observation only — user confirms in Batch B.
+  detected-at: "<iso-8601>"
+  platforms: []                         # e.g., [android], [web], [ios, web]
+  languages: []                         # e.g., [kotlin], [typescript]
+  ui: []                                # e.g., [compose], [react, tailwind]
+  build: []                             # e.g., [gradle], [vite]
+  package-managers: []                  # e.g., [gradle], [pnpm]
+  testing: []                           # e.g., [junit, maestro], [vitest, playwright]
+  observability: []                     # e.g., [lazylogcat], [sentry]
+  integrations: []                      # e.g., [hilt, room], [stripe, prisma]
+  available-skills: []                  # [{name, hint}] — session-visible skills
+  available-mcp: []                     # [{name, hint}] — session-visible MCP servers
+  user-confirmed: false                 # flipped to true after Batch B
 next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 workflow-files:
