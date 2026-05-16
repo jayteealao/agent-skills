@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.14.1] - 2026-05-16
+
+### Changed
+
+- **Docs site naming consistency.** Reverted newly-added `/wf-quick quick` references in `docs/site/` and `README.md` to `/wf-quick fix` to match the rest of the documentation. The implementation dispatcher key remains `quick` (in `skills/wf-quick/SKILL.md`, reference files, scripts, plans, and CHANGELOG history) — this is a docs-only consistency pass, not a sub-command rename. Affects: `docs/site/_build_pages.py` and the regenerated HTML pages; `README.md` rows for `/wf-quick investigate` routing.
+
 ## [9.14.0] - 2026-05-16
 
 ### Added — runtime-truth verification
