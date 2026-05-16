@@ -26,7 +26,7 @@ SITE_ROOT = Path(__file__).resolve().parent
 # `{active}` is replaced with the active-link href so we can mark it with class="active".
 # ---------------------------------------------------------------------------
 SIDEBAR = r"""<aside id="sidebar">
-<a class="brand" href="{base}index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
+<a class="brand" href="{base}index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -311,14 +311,15 @@ flowchart TD
   start -- "Single-file typo, one-line patch" --> fix["/wf-quick fix"]
   start -- "Dependency updates, security or major version" --> deps["/wf-quick update-deps"]
   start -- "Behaviour-preserving refactor" --> refactor["/wf-quick refactor"]
-  start -- "Bug report, root cause unknown" --> rca["/wf-quick rca"]
+  start -- "Bug report, root cause unknown (static diagnosis from code/git)" --> rca["/wf-quick rca"]
+  start -- "Runtime-truth check on a running artifact — verified but actually broken?" --> probe["/wf-quick probe &lt;slug&gt;"]
   start -- "Need 2–3 distinct engineering approaches sketched before committing" --> investigate["/wf-quick investigate"]
   start -- "Have a theory about how this code works and want it adjudicated" --> discover["/wf-quick discover"]
   start -- "A real feature or substantive change" --> wf["/wf intake"]
 
   classDef quick fill:#fef3c7,stroke:#b45309,color:#1f1f1d
   classDef full fill:#dbeafe,stroke:#1d4ed8,color:#1f1f1d
-  class hotfix,fix,deps,refactor,rca,investigate,discover quick
+  class hotfix,fix,deps,refactor,rca,probe,investigate,discover quick
   class wf full
 </pre>
 </div>
@@ -340,7 +341,10 @@ flowchart TD
 <dd><code>/wf-quick investigate "&lt;problem&gt;"</code>. Architecture cartographer + option generator + tradeoff characterizer sub-agents. Produces an A/B/C option set with effort/blast-radius/reversibility/risk for each; <em>no winner is picked</em>. After you pick, route to <code>/wf-quick fix</code> (small) or <code>/wf intake</code> (medium+).</dd>
 
 <dt><strong>"There's a bug. I don't know where it is yet."</strong></dt>
-<dd><code>/wf-quick rca "&lt;symptom + repro&gt;"</code>. Root-cause analysis with parallel sub-agents.</dd>
+<dd><code>/wf-quick rca "&lt;symptom + repro&gt;"</code>. Root-cause analysis with parallel sub-agents. Reads code and git history — static diagnosis. If the symptom is only observable at runtime (a button does nothing, a response is wrong, a screen renders incorrectly), reach for <code>probe</code> instead.</dd>
+
+<dt><strong>"The slice 'verified' but I think the running artifact is broken."</strong> <span class="badge">v9.14</span></dt>
+<dd><code>/wf-quick probe &lt;slug&gt; [target]</code>. Runtime-truth verification on an already-progressed slug. Drives the running artifact, captures observable output (screenshots, stdout, response bodies), compares against AC text, writes findings — without writing a fix. Sibling of <code>rca</code> on the runtime axis (rca reads code; probe runs the artifact). Slug-mode only — refuses to run without an existing slug. Use it to clear a deferred AC (<code>interactive-verification: deferred</code> in <code>06-verify-&lt;slice&gt;.md</code>), to investigate a "verified but actually broken" report, or to sweep a slug for unreported defects (invoke without a target).</dd>
 
 <dt><strong>"The deps are out of date. Some have CVEs."</strong></dt>
 <dd><code>/wf-quick update-deps</code>. Audits, tiers (P0 security → P1 major → P2 safe → hold), and applies in priority order.</dd>
@@ -1353,7 +1357,8 @@ This page is the overview. For per-command depth — argument hints, what it rea
 <tbody>
 <tr><td><code>/wf-quick fix</code></td><td>Trivial, one-file change.</td></tr>
 <tr><td><code>/wf-quick hotfix</code></td><td>Production incident (skips review).</td></tr>
-<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis.</td></tr>
+<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis — static diagnosis of a reported symptom (reads code and git history). Sibling of <code>probe</code> on the static axis.</td></tr>
+<tr><td><code>/wf-quick probe</code> <span class="badge">v9.14</span></td><td>Runtime-truth verification — drives the running artifact on an existing slug, captures observable output (screenshots, stdout, responses), compares against AC text, writes findings. <strong>Slug-mode only.</strong> Sibling of <code>rca</code> on the runtime axis. Clears <code>runtime-evidence-deferrals</code> when captured evidence satisfies a deferred AC.</td></tr>
 <tr><td><code>/wf-quick investigate</code></td><td>Solution-options sketcher — 2–3 distinct engineering approaches with tradeoffs (effort, blast radius, reversibility, risk); no winner picked.</td></tr>
 <tr><td><code>/wf-quick discover</code></td><td>Hypothesis-test — adjudicates a code-level theory with FOR/AGAINST/counter-hypothesis evidence. Verdict: holds / partial / fails / inconclusive.</td></tr>
 <tr><td><code>/wf-quick update-deps</code></td><td>Tiered dependency updates.</td></tr>
@@ -1847,7 +1852,7 @@ PAGES.append((
 <div class="summary"><table>
 <tr><th>Stage</th><td>6 — exercise the acceptance criteria, capture evidence</td></tr>
 <tr><th>Requires</th><td><code>05-implement-&lt;slice&gt;.md</code></td></tr>
-<tr><th>Produces</th><td><code>06-verify-&lt;slice&gt;.md</code> with <code>result: pass | fail | partial</code></td></tr>
+<tr><th>Produces</th><td><code>06-verify-&lt;slice&gt;.md</code> with <code>result: pass | fail | partial | blocked-runtime-evidence-missing</code> <span class="badge">v9.14</span></td></tr>
 <tr><th>Default next</th><td><code>/wf review &lt;slug&gt; &lt;slice&gt;</code></td></tr>
 </table></div>
 
@@ -1858,16 +1863,52 @@ PAGES.append((
   <li>Acceptance criteria from <code>02-shape.md</code> + <code>03-slice-&lt;slice&gt;.md</code></li>
   <li>The just-committed code</li>
   <li>Project test runner command (npm test, pytest, gradle test, etc.)</li>
+  <li><code>skills/wf/reference/runtime-adapters.md</code> — adapter registry consumed by interactive sub-agent 3 <span class="badge">v9.14</span></li>
 </ul>
 
 <h4>What it writes</h4>
 <ul>
   <li><code>06-verify-&lt;slice&gt;.md</code> with frontmatter: <code>result</code>, <code>metric-checks-run</code>, <code>metric-checks-passed</code>, <code>metric-acceptance-met</code></li>
-  <li>Body: evidence per acceptance criterion (test output, curl response, screenshot link, etc.)</li>
+  <li>v9.14 additions: <code>metric-acceptance-user-observable</code>, <code>metric-acceptance-code-only</code>, <code>interactive-verification: required | deferred | not-applicable</code>, <code>interactive-verification-defer-reason</code>, <code>adapters-used</code>, <code>bootstrap-failures</code></li>
+  <li>Body: evidence per acceptance criterion (test output, curl response, screenshot link, etc.), with a new <code>kind: code-only | user-observable</code> column on each entry</li>
 </ul>
 
+<h4 id="wf-verify-ac-gate">User-observable AC gate (Step 7.5, MANDATORY) <span class="badge">v9.14</span></h4>
+
+<p>Closes the "verified but actually broken" leak. The rule is simple: <strong>runtime evidence is required for every user-observable AC. No evidence, no pass.</strong></p>
+
+<p>Verify now partitions each slice's acceptance criteria into two kinds:</p>
+<ul>
+  <li><code>code-only</code> — "the new util function handles null inputs". Test suites are sufficient evidence.</li>
+  <li><code>user-observable</code> — "the Save button persists the value across page reloads". Requires interactive evidence (screenshot, response body, log line) captured by sub-agent 3 driving the running artifact via an adapter from <code>runtime-adapters.md</code>.</li>
+</ul>
+
+<p>Partitioning is hybrid: an explicit <code>observable: true | false</code> annotation on the AC entry wins; otherwise a wording heuristic checks for visible-surface / user-action / observable-post-condition signals.</p>
+
+<p>The gate runs at Step 7.5 (between Step 7 — write the artifact and Step 8 — route to next stage). For every user-observable AC, the gate requires a matching entry in the interactive sub-agent's results. The verdict matrix:</p>
+
+<table>
+<thead><tr><th>Condition</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>All AC met (code-only via tests, user-observable via interactive evidence)</td><td><code>pass</code></td></tr>
+<tr><td>At least one user-observable AC has no matching interactive evidence AND no deferral</td><td><code>blocked-runtime-evidence-missing</code> (new in v9.14)</td></tr>
+<tr><td>At least one AC fails or is partial; every user-observable AC has evidence (positive or negative)</td><td><code>fail</code> or <code>partial</code></td></tr>
+</tbody>
+</table>
+
+<p>The <code>blocked-runtime-evidence-missing</code> variant is distinct from <code>fail</code>: it's a <em>procedural</em> failure (evidence not produced) rather than a <em>substantive</em> one (evidence shows the AC is not met). The downstream routing differs — <code>fail</code> recommends <code>/wf implement</code> to fix the code; <code>blocked-runtime-evidence-missing</code> recommends either re-running verify in a capable environment, or applying a deferral.</p>
+
+<h4>Escape hatch — <code>interactive-verification: deferred</code> <span class="badge">v9.14</span></h4>
+
+<p>Some AC are user-observable but genuinely cannot be probed in the current environment (no emulator, no API key, no device). To proceed without a hard fail, the slice author annotates the verify file:</p>
+
+<pre><code>interactive-verification: deferred
+interactive-verification-defer-reason: "no iOS device available for the camera AC; will probe before ship"</code></pre>
+
+<p>Verify writes <code>result: partial</code> (not <code>pass</code>) and appends an entry to <code>00-index.md.runtime-evidence-deferrals[]</code> with <code>{slice, reason, deferred-at, cleared-by: null}</code>. Verify, review, and handoff surface deferrals as <strong>soft warnings</strong> and proceed. <code>/wf ship</code> <strong>hard-blocks</strong> while any deferral has <code>cleared-by: null</code> (see <a href="#wf-ship">/wf ship</a> Step 6.5 below). Clearing requires either a <code>/wf-quick probe</code> run whose captured evidence satisfies the deferred AC (which sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or a re-run of verify in a capable environment.</p>
+
 <h4>If verify fails</h4>
-<p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, route to <code>/wf-meta amend</code>.</p>
+<p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, route to <code>/wf-meta amend</code>. New v9.14 route: if <code>result: blocked-runtime-evidence-missing</code>, route either to a capable environment for re-run, or annotate with a deferral and proceed (the deferral blocks ship but allows review/handoff).</p>
 
 <hr>
 
@@ -1939,7 +1980,7 @@ PAGES.append((
 
 <p>Walks the 13-step ship sequence. Each step is independently re-runnable (detects already-done state before acting). Resumes paused runs.</p>
 
-<h4>13 steps</h4>
+<h4>13 steps (plus Step 6.5)</h4>
 <ol>
   <li>Orient — read plan, handoff verdict, detect paused runs.</li>
   <li>Pre-flight — version bump, secrets check, changelog regen.</li>
@@ -1955,6 +1996,19 @@ PAGES.append((
   <li>Update <code>09-ship-runs.md</code> index.</li>
   <li>Write the run artifact.</li>
 </ol>
+
+<h4>Step 6.5 — Runtime-evidence deferral gate (HARD BLOCK) <span class="badge">v9.14</span></h4>
+
+<p>Inserted between Step 6 (Go/No-Go) and Step 7 (Merge). Parses <code>runtime-evidence-deferrals</code> from <code>00-index.md</code> (treated as empty if absent on older workflows). For every entry whose <code>cleared-by: null</code>, the slug has an open runtime-evidence deferral that must be cleared before ship.</p>
+
+<p>If any entry has <code>cleared-by: null</code>, ship <strong>STOPS</strong> with a list of the open deferrals and the slices they're attached to. The user clears each by one of:</p>
+<ul>
+  <li>Running <code>/wf-quick probe &lt;slug&gt; &lt;target&gt;</code> in a capable environment — captured evidence that satisfies the deferred AC sets <code>cleared-by: probe-&lt;descriptor&gt;</code> automatically.</li>
+  <li>Re-running <code>/wf verify &lt;slug&gt; &lt;slice&gt;</code> in a capable environment — produces fresh runtime evidence and rewrites the verify artifact without the deferral.</li>
+  <li>Removing the deferral entry from <code>00-index.md</code> manually (only when the AC has been amended out via <code>/wf-meta amend</code>).</li>
+</ul>
+
+<p>Cleared deferrals (<code>cleared-by</code> non-null — typically a probe descriptor) do not block ship; they're kept in the index for audit. <strong>The block bites only on <code>cleared-by: null</code> entries.</strong> This is the hard-block half of the deferral mechanism — earlier stages (verify, review, handoff) surface deferrals as soft warnings; ship is where the block fires.</p>
 
 <p>See <a href="../how-to/run-a-release.html">Run a release</a> for the walkthrough and <a href="09-ship-run-schema.html">Ship-run schema</a> for the artifact contract.</p>
 
@@ -2077,7 +2131,17 @@ PAGES.append((
     "reference",
     '<a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf-quick router',
     """
-<p>The compressed-flow router. Nine entries trade artifact depth for speed (or — for <code>simplify</code> — review the work that already exists). Each writes fewer files than the full <code>/wf</code> pipeline. Set <code>workflow-type</code> in the index so downstream stages know they're in compressed mode.</p>
+<p>The compressed-flow router. Ten entries trade artifact depth for speed (or — for <code>simplify</code> and <code>probe</code> — review or test the work that already exists). Each writes fewer files than the full <code>/wf</code> pipeline. Set <code>workflow-type</code> in the index so downstream stages know they're in compressed mode.</p>
+
+<p><strong>Investigation axes (v9.14):</strong> the family now spans both static-vs-runtime and per-slice-vs-slug-wide:</p>
+
+<table>
+<thead><tr><th></th><th>Forward gate (per-slice)</th><th>Backward re-entry (slug-wide)</th></tr></thead>
+<tbody>
+<tr><th>Static</th><td>lint/types/tests in <code>/wf verify</code></td><td><code>/wf-quick rca</code> — reads code &amp; git history; diagnoses a reported symptom</td></tr>
+<tr><th>Runtime</th><td>interactive sub-agent in <code>/wf verify</code> (gated; refuses pass without runtime evidence)</td><td><code>/wf-quick probe</code> — drives the running artifact; detects reported <em>or</em> unreported defects</td></tr>
+</tbody>
+</table>
 
 <div class="toc">
 <h3>On this page</h3>
@@ -2085,6 +2149,7 @@ PAGES.append((
   <li><a href="#fix">/wf-quick fix</a></li>
   <li><a href="#hotfix">/wf-quick hotfix</a></li>
   <li><a href="#rca">/wf-quick rca</a></li>
+  <li><a href="#probe">/wf-quick probe</a> <span class="badge">v9.14</span></li>
   <li><a href="#investigate">/wf-quick investigate</a></li>
   <li><a href="#discover">/wf-quick discover</a></li>
   <li><a href="#update-deps">/wf-quick update-deps</a></li>
@@ -2179,6 +2244,81 @@ PAGES.append((
 <ul>
   <li>You have a bug report but don't yet know what's wrong.</li>
   <li>The fix isn't obvious — you need diagnosis first.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>The bug is observable only at runtime (a button does nothing, a response is wrong, a screen renders incorrectly) and you'd rather drive the running artifact than read code → <code>/wf-quick probe &lt;slug&gt;</code> (the runtime sibling of rca).</li>
+</ul>
+
+<hr>
+
+<h2 id="probe">/wf-quick probe &lt;slug&gt; [target | --from &lt;path&gt;] [--strict] [--adapter &lt;key&gt;] <span class="badge">v9.14</span></h2>
+
+<div class="summary"><table>
+<tr><th>Mode</th><td><strong>Slug-mode only.</strong> Refuses to run without an existing slug — runtime-truth verification only makes sense against work that has been implemented.</td></tr>
+<tr><th>Produces</th><td><code>.ai/workflows/&lt;slug&gt;/03-slice-probe-&lt;descriptor&gt;.md</code> (compressed slice; <code>slice-type: probe</code>, <code>compressed: true</code>, <code>origin: wf-quick/probe</code>). Plus an evidence dir <code>probe-evidence/&lt;descriptor&gt;/</code> with screenshots, stdout, response bodies, and log lines captured during the drive.</td></tr>
+<tr><th>Forwards to</th><td>Depends on findings: <code>findings-count: 0</code> → <code>/wf-meta status &lt;slug&gt;</code>; small fix → <code>/wf-quick quick &lt;slug&gt; probe-&lt;descriptor&gt;</code>; non-trivial → <code>/wf plan &lt;slug&gt; probe-&lt;descriptor&gt;</code>; <code>status: awaiting-environment</code> → re-run after applying remediation.</td></tr>
+<tr><th>Modifies</th><td><code>00-index.md.workflow-files</code>, <code>00-index.md.compressed-slices[]</code>, and (if captured evidence satisfies a deferred AC) <code>00-index.md.runtime-evidence-deferrals[i].cleared-by: probe-&lt;descriptor&gt;</code>. The slug's lifecycle stage, status, branch, and progress are <em>not</em> touched — probe is additive.</td></tr>
+</table></div>
+
+<p><strong>Runtime-truth verification on an already-progressed slug.</strong> Drives the running artifact, captures observable output (screenshots, stdout, response bodies, log lines), reads it, compares against AC text, and writes findings — without writing a fix. Sibling of <code>rca</code> on the runtime axis: where <code>rca</code> is a diagnostician reading code and git history, <code>probe</code> is an observer driving the artifact.</p>
+
+<h4>Argument grammar</h4>
+<table>
+<thead><tr><th>Form</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>probe &lt;slug&gt;</code></td><td>Slug-wide sweep — probe every AC across every slice in the slug.</td></tr>
+<tr><td><code>probe &lt;slug&gt; &lt;target&gt;</code></td><td>Focused probe on the target string (see Target resolution below).</td></tr>
+<tr><td><code>probe &lt;slug&gt; --from &lt;path&gt;</code></td><td>Multi-target: each top-level bullet or line in the file is a separate target.</td></tr>
+<tr><td><code>probe &lt;slug&gt; --strict &lt;target&gt;</code></td><td>Filter mode (strict-but-archive) — see Focus vs filter below. Default is focus mode.</td></tr>
+<tr><td><code>probe &lt;slug&gt; --adapter &lt;key&gt;</code></td><td>Narrow to a single matched adapter from the registry. Default is run-all-matched.</td></tr>
+</tbody>
+</table>
+<p>Flags compose: <code>--strict</code> + <code>&lt;target&gt;</code>, <code>--from &lt;path&gt;</code> + <code>--adapter &lt;key&gt;</code>, etc.</p>
+
+<h4>Four-layer target resolution (all run; no single interpretation)</h4>
+<p>When probe receives a target string, it does NOT pick one meaning — all four layers run and their results compose into the <code>target-resolution</code> frontmatter so the reader sees exactly how the target was interpreted:</p>
+<ol>
+  <li><strong>AC text match</strong> — fuzzy token-overlap against AC text across every slice in the slug (≥50% content words).</li>
+  <li><strong>Slice match</strong> — case-insensitive substring match against slice slugs and titles.</li>
+  <li><strong>Surface inference</strong> — extract routes, screens, commands, endpoints from the target string.</li>
+  <li><strong>Ad-hoc criterion</strong> — if layers 1–3 produced nothing, treat the target as a free-form check against general observable behavior.</li>
+</ol>
+
+<h4>Focus vs filter (<code>--strict</code>)</h4>
+<p>Default is <strong>focus mode</strong>: the main <code>## Findings</code> list reports findings tied to the target AND surfaces incidental defects observed during navigation. Opt in to <strong>filter mode</strong> with <code>--strict</code>: only target-tied findings appear in the main list; incidentals are recorded to <code>probe-evidence/&lt;descriptor&gt;/incidental.md</code> with <code>incidental-observed-count: N</code> in frontmatter. User opted out of being told about incidentals but the data is preserved for later review.</p>
+
+<h4>Branch posture on mismatch (probe is the one wf-quick command that interrupts)</h4>
+<p>Probe runs cold more often than verify does — the user may have moved branches days ago and forgotten — and silently switching can clobber uncommitted work. When the working tree's branch differs from the slug's <code>branch</code>, probe calls <code>AskUserQuestion</code> with three options:</p>
+<ul>
+  <li><strong>Switch to slug's branch</strong> — runs <code>git switch &lt;slug-branch&gt;</code>; refuses if uncommitted changes would be lost.</li>
+  <li><strong>Run on current branch and record</strong> (recommended when you know why you're here) — proceeds and writes <code>probed-on-branch: &lt;current-branch&gt;</code> in the slice frontmatter so a future reader knows the artifact under test wasn't the slug's.</li>
+  <li><strong>Abort</strong> — no artifact written; you decide whether to switch later.</li>
+</ul>
+
+<h4>Two-phase bootstrap with graceful fail</h4>
+<p><strong>Phase 1</strong> actively attempts the adapter's bootstrap steps (start dev server, boot emulator, build + install) with documented resolution attempts. <strong>Phase 2 (graceful fail):</strong> if any step fails after resolution, probe writes a compressed slice with <code>status: awaiting-environment</code> and a full <code>bootstrap-failure: { step, exit-code, output-tail, remediation }</code> block. The attempt is recorded; re-running probe after the user fixes the environment picks up where it left off. Multi-adapter partial failures are recorded under <code>partial-bootstrap-failures</code> and the run proceeds with the adapters that did boot.</p>
+
+<h4>Multi-adapter — run-all by default</h4>
+<p>Probe matches every adapter whose detection signal hits and runs them all in parallel. <code>adapters-used: [&lt;key&gt;, ...]</code> (plural) records what was driven. <code>--adapter &lt;key&gt;</code> narrows to a single matched adapter and sets <code>adapter-narrowed-by-user: true</code>. The adapter registry lives at <a href="../../../skills/wf/reference/runtime-adapters.md"><code>skills/wf/reference/runtime-adapters.md</code></a> — seven recipes (web, android, ios, cli, desktop, service, notebook), each declaring Detection / Bootstrap / Drive / Observe / Tear down / Evidence layout / Remediation hints. Adapters are markdown recipes the agent reads and executes, not code.</p>
+
+<h4>Deferral clearing</h4>
+<p>If <code>00-index.md.runtime-evidence-deferrals[]</code> contains entries whose <code>slice</code> appears in <code>target-resolution.matched-slices</code>, probe checks whether the captured evidence satisfies the deferred AC. If yes, <code>cleared-by: probe-&lt;descriptor&gt;</code> is written to the index. The deferral is now cleared and the <code>/wf ship</code> Step 6.5 hard block lifts for that entry.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>A slice shipped through <code>/wf verify</code> with <code>interactive-verification: deferred</code> (no environment for runtime checks at verify time) and you now have the environment to clear it.</li>
+  <li>You suspect the running artifact is broken despite all code-correctness checks passing — probe is the answer to "verified but actually broken".</li>
+  <li>A user reported a runtime defect on a slug and you want observable evidence (screenshots, response bodies) tied to a specific AC.</li>
+  <li>You want to sweep a slug for unreported defects — invoke without a target for slug-wide coverage.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>You don't have a slug yet — probe is slug-mode only by design. Run <code>/wf intake</code> first if the work isn't started.</li>
+  <li>The symptom is a code-correctness failure (test failing, type error, build broken) and you'd rather read code than run it → <code>/wf-quick rca &lt;symptom&gt;</code>.</li>
+  <li>You want to fix the defect inline. Probe never edits code — route findings through the recommended next command (<code>/wf-quick quick</code> or <code>/wf plan</code>).</li>
 </ul>
 
 <hr>
@@ -2463,16 +2603,33 @@ PAGES.append((
 <h2 id="status">/wf-meta status [slug]</h2>
 
 <div class="summary"><table>
-<tr><th>Reads</th><td>Every <code>.ai/workflows/*/00-index.md</code> (or one if slug given)</td></tr>
+<tr><th>Reads</th><td>Every <code>.ai/workflows/*/00-index.md</code> (or one if slug given). For the dashboard mode, also reads <code>runtime-evidence-deferrals[]</code> and <code>compressed-slices[]</code> (filtered for <code>slice-type: probe</code>) to compute the Runtime column. <span class="badge">v9.14</span></td></tr>
 <tr><th>Writes</th><td>Nothing</td></tr>
 </table></div>
 
 <p>Daily entry point. With no slug, lists every active workflow with current stage, slice status, blockers, recent activity. With a slug, shows the full progress map (10 stages × 5 states) + slice statuses + recent artifact writes.</p>
 
+<h4>Runtime column on every dashboard table <span class="badge">v9.14</span></h4>
+
+<p>All three dashboard tables (Active / Blocked / Completed) carry a <code>Runtime</code> column with the slug's <code>runtime-evidence-status</code>. The column is <strong>orthogonal to lifecycle status</strong> — a <code>Completed</code> workflow can still carry <code>deferrals: N</code> if it shipped via the legacy path; a <code>Blocked</code> workflow can carry <code>probe-findings: N</code> because the findings might be exactly what's blocking it.</p>
+
+<table>
+<thead><tr><th>Condition</th><th>Runtime value</th></tr></thead>
+<tbody>
+<tr><td><code>runtime-evidence-deferrals</code> absent OR every entry has <code>cleared-by</code> non-null AND no probe slice with <code>findings-count &gt; 0</code></td><td><code>clean</code> (rendered as <code>—</code>)</td></tr>
+<tr><td>Any <code>runtime-evidence-deferrals</code> entry has <code>cleared-by: null</code></td><td><code>deferrals: &lt;N&gt;</code> (count of null entries)</td></tr>
+<tr><td>Any probe compressed-slice exists with <code>findings-count &gt; 0</code> AND the findings haven't been routed through plan/quick</td><td><code>probe-findings: &lt;N&gt;</code></td></tr>
+<tr><td>Both apply</td><td>Both, separated by <code>+</code> (e.g., <code>deferrals: 2 + probe-findings: 3</code>)</td></tr>
+</tbody>
+</table>
+
+<p>This is the visible surface of the "verified but actually broken" failure mode at a glance. A slug that ships without clearing deferrals is impossible after v9.14 (<code>/wf ship</code> Step 6.5 hard-blocks), but legacy completed workflows or in-progress slugs may carry open deferrals — the dashboard makes that obvious.</p>
+
 <h4>When to use</h4>
 <ul>
   <li>Daily startup — "what's in flight?"</li>
   <li>Context-recovery — "what was I working on?"</li>
+  <li>Pre-ship audit — "are there open runtime-evidence deferrals on this slug that will block ship?" <span class="badge">v9.14</span></li>
 </ul>
 
 <hr>
@@ -3062,8 +3219,20 @@ PAGES.append((
 <tr><th><code>pr-url</code></th><td>Set by handoff.</td></tr>
 <tr><th><code>pr-number</code></th><td>Set by handoff.</td></tr>
 <tr><th><code>augmentations</code></th><td>Array of <code>{ kind, slice, ref, registered-at }</code> objects.</td></tr>
-<tr><th><code>workflow-type</code></th><td>For compressed flows: <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>discover</code>, <code>ideate</code>.</td></tr>
+<tr><th><code>workflow-type</code></th><td>For compressed flows: <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>discover</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
+<tr><th><code>compressed-slices</code></th><td>Array of <code>{ slug, slice-type, created-at }</code> objects. Appended by <code>/wf-quick</code> sub-commands when run in slug-mode. <code>slice-type</code> values: <code>quick</code>, <code>rca</code>, <code>probe</code> <span class="badge">v9.14</span>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
+<tr><th><code>runtime-evidence-deferrals</code> <span class="badge">v9.14</span></th><td>Array of <code>{ slice, reason, deferred-at, cleared-by }</code> objects. Appended by <code>/wf verify</code> when a slice's user-observable AC is annotated with <code>interactive-verification: deferred</code>. <code>/wf ship</code> Step 6.5 hard-blocks while any entry has <code>cleared-by: null</code>. Cleared by a <code>/wf-quick probe</code> run whose captured evidence satisfies the deferred AC (sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or by a verify re-run in a capable environment.</td></tr>
 </table>
+
+<h2>v9.14 runtime-evidence-deferrals shape</h2>
+
+<pre><code>runtime-evidence-deferrals:
+  - slice: <slice-slug>             # the slice whose verify deferred a user-observable AC
+    reason: <one-line explanation>  # mirrors interactive-verification-defer-reason from the verify artifact
+    deferred-at: <ISO 8601>          # when verify wrote the deferral
+    cleared-by: null                 # null until cleared; probe-<descriptor> when probe satisfies it</code></pre>
+
+<p>An entry never moves out of the array — clearing is recorded by mutating <code>cleared-by</code> from <code>null</code> to the clearing artifact's identifier. This preserves the audit trail: a future reader can see which slices once had open deferrals and how each was eventually closed. The <code>/wf-meta status</code> Runtime column derives its display from this field (count of <code>cleared-by: null</code> entries → <code>deferrals: N</code>).</p>
 
 <h2>v9.5.0 PR-readiness config keys</h2>
 

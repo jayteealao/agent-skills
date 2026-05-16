@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -123,16 +123,33 @@
 <h2 id="status">/wf-meta status [slug]</h2>
 
 <div class="summary"><table>
-<tr><th>Reads</th><td>Every <code>.ai/workflows/*/00-index.md</code> (or one if slug given)</td></tr>
+<tr><th>Reads</th><td>Every <code>.ai/workflows/*/00-index.md</code> (or one if slug given). For the dashboard mode, also reads <code>runtime-evidence-deferrals[]</code> and <code>compressed-slices[]</code> (filtered for <code>slice-type: probe</code>) to compute the Runtime column. <span class="badge">v9.14</span></td></tr>
 <tr><th>Writes</th><td>Nothing</td></tr>
 </table></div>
 
 <p>Daily entry point. With no slug, lists every active workflow with current stage, slice status, blockers, recent activity. With a slug, shows the full progress map (10 stages × 5 states) + slice statuses + recent artifact writes.</p>
 
+<h4>Runtime column on every dashboard table <span class="badge">v9.14</span></h4>
+
+<p>All three dashboard tables (Active / Blocked / Completed) carry a <code>Runtime</code> column with the slug's <code>runtime-evidence-status</code>. The column is <strong>orthogonal to lifecycle status</strong> — a <code>Completed</code> workflow can still carry <code>deferrals: N</code> if it shipped via the legacy path; a <code>Blocked</code> workflow can carry <code>probe-findings: N</code> because the findings might be exactly what's blocking it.</p>
+
+<table>
+<thead><tr><th>Condition</th><th>Runtime value</th></tr></thead>
+<tbody>
+<tr><td><code>runtime-evidence-deferrals</code> absent OR every entry has <code>cleared-by</code> non-null AND no probe slice with <code>findings-count &gt; 0</code></td><td><code>clean</code> (rendered as <code>—</code>)</td></tr>
+<tr><td>Any <code>runtime-evidence-deferrals</code> entry has <code>cleared-by: null</code></td><td><code>deferrals: &lt;N&gt;</code> (count of null entries)</td></tr>
+<tr><td>Any probe compressed-slice exists with <code>findings-count &gt; 0</code> AND the findings haven't been routed through plan/quick</td><td><code>probe-findings: &lt;N&gt;</code></td></tr>
+<tr><td>Both apply</td><td>Both, separated by <code>+</code> (e.g., <code>deferrals: 2 + probe-findings: 3</code>)</td></tr>
+</tbody>
+</table>
+
+<p>This is the visible surface of the "verified but actually broken" failure mode at a glance. A slug that ships without clearing deferrals is impossible after v9.14 (<code>/wf ship</code> Step 6.5 hard-blocks), but legacy completed workflows or in-progress slugs may carry open deferrals — the dashboard makes that obvious.</p>
+
 <h4>When to use</h4>
 <ul>
   <li>Daily startup — "what's in flight?"</li>
   <li>Context-recovery — "what was I working on?"</li>
+  <li>Pre-ship audit — "are there open runtime-evidence deferrals on this slug that will block ship?" <span class="badge">v9.14</span></li>
 </ul>
 
 <hr>

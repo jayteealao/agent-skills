@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -295,7 +295,7 @@
 <div class="summary"><table>
 <tr><th>Stage</th><td>6 — exercise the acceptance criteria, capture evidence</td></tr>
 <tr><th>Requires</th><td><code>05-implement-&lt;slice&gt;.md</code></td></tr>
-<tr><th>Produces</th><td><code>06-verify-&lt;slice&gt;.md</code> with <code>result: pass | fail | partial</code></td></tr>
+<tr><th>Produces</th><td><code>06-verify-&lt;slice&gt;.md</code> with <code>result: pass | fail | partial | blocked-runtime-evidence-missing</code> <span class="badge">v9.14</span></td></tr>
 <tr><th>Default next</th><td><code>/wf review &lt;slug&gt; &lt;slice&gt;</code></td></tr>
 </table></div>
 
@@ -306,16 +306,52 @@
   <li>Acceptance criteria from <code>02-shape.md</code> + <code>03-slice-&lt;slice&gt;.md</code></li>
   <li>The just-committed code</li>
   <li>Project test runner command (npm test, pytest, gradle test, etc.)</li>
+  <li><code>skills/wf/reference/runtime-adapters.md</code> — adapter registry consumed by interactive sub-agent 3 <span class="badge">v9.14</span></li>
 </ul>
 
 <h4>What it writes</h4>
 <ul>
   <li><code>06-verify-&lt;slice&gt;.md</code> with frontmatter: <code>result</code>, <code>metric-checks-run</code>, <code>metric-checks-passed</code>, <code>metric-acceptance-met</code></li>
-  <li>Body: evidence per acceptance criterion (test output, curl response, screenshot link, etc.)</li>
+  <li>v9.14 additions: <code>metric-acceptance-user-observable</code>, <code>metric-acceptance-code-only</code>, <code>interactive-verification: required | deferred | not-applicable</code>, <code>interactive-verification-defer-reason</code>, <code>adapters-used</code>, <code>bootstrap-failures</code></li>
+  <li>Body: evidence per acceptance criterion (test output, curl response, screenshot link, etc.), with a new <code>kind: code-only | user-observable</code> column on each entry</li>
 </ul>
 
+<h4 id="wf-verify-ac-gate">User-observable AC gate (Step 7.5, MANDATORY) <span class="badge">v9.14</span></h4>
+
+<p>Closes the "verified but actually broken" leak. The rule is simple: <strong>runtime evidence is required for every user-observable AC. No evidence, no pass.</strong></p>
+
+<p>Verify now partitions each slice's acceptance criteria into two kinds:</p>
+<ul>
+  <li><code>code-only</code> — "the new util function handles null inputs". Test suites are sufficient evidence.</li>
+  <li><code>user-observable</code> — "the Save button persists the value across page reloads". Requires interactive evidence (screenshot, response body, log line) captured by sub-agent 3 driving the running artifact via an adapter from <code>runtime-adapters.md</code>.</li>
+</ul>
+
+<p>Partitioning is hybrid: an explicit <code>observable: true | false</code> annotation on the AC entry wins; otherwise a wording heuristic checks for visible-surface / user-action / observable-post-condition signals.</p>
+
+<p>The gate runs at Step 7.5 (between Step 7 — write the artifact and Step 8 — route to next stage). For every user-observable AC, the gate requires a matching entry in the interactive sub-agent's results. The verdict matrix:</p>
+
+<table>
+<thead><tr><th>Condition</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>All AC met (code-only via tests, user-observable via interactive evidence)</td><td><code>pass</code></td></tr>
+<tr><td>At least one user-observable AC has no matching interactive evidence AND no deferral</td><td><code>blocked-runtime-evidence-missing</code> (new in v9.14)</td></tr>
+<tr><td>At least one AC fails or is partial; every user-observable AC has evidence (positive or negative)</td><td><code>fail</code> or <code>partial</code></td></tr>
+</tbody>
+</table>
+
+<p>The <code>blocked-runtime-evidence-missing</code> variant is distinct from <code>fail</code>: it's a <em>procedural</em> failure (evidence not produced) rather than a <em>substantive</em> one (evidence shows the AC is not met). The downstream routing differs — <code>fail</code> recommends <code>/wf implement</code> to fix the code; <code>blocked-runtime-evidence-missing</code> recommends either re-running verify in a capable environment, or applying a deferral.</p>
+
+<h4>Escape hatch — <code>interactive-verification: deferred</code> <span class="badge">v9.14</span></h4>
+
+<p>Some AC are user-observable but genuinely cannot be probed in the current environment (no emulator, no API key, no device). To proceed without a hard fail, the slice author annotates the verify file:</p>
+
+<pre><code>interactive-verification: deferred
+interactive-verification-defer-reason: "no iOS device available for the camera AC; will probe before ship"</code></pre>
+
+<p>Verify writes <code>result: partial</code> (not <code>pass</code>) and appends an entry to <code>00-index.md.runtime-evidence-deferrals[]</code> with <code>{slice, reason, deferred-at, cleared-by: null}</code>. Verify, review, and handoff surface deferrals as <strong>soft warnings</strong> and proceed. <code>/wf ship</code> <strong>hard-blocks</strong> while any deferral has <code>cleared-by: null</code> (see <a href="#wf-ship">/wf ship</a> Step 6.5 below). Clearing requires either a <code>/wf-quick probe</code> run whose captured evidence satisfies the deferred AC (which sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or a re-run of verify in a capable environment.</p>
+
 <h4>If verify fails</h4>
-<p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, route to <code>/wf-meta amend</code>.</p>
+<p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, route to <code>/wf-meta amend</code>. New v9.14 route: if <code>result: blocked-runtime-evidence-missing</code>, route either to a capable environment for re-run, or annotate with a deferral and proceed (the deferral blocks ship but allows review/handoff).</p>
 
 <hr>
 
@@ -387,7 +423,7 @@
 
 <p>Walks the 13-step ship sequence. Each step is independently re-runnable (detects already-done state before acting). Resumes paused runs.</p>
 
-<h4>13 steps</h4>
+<h4>13 steps (plus Step 6.5)</h4>
 <ol>
   <li>Orient — read plan, handoff verdict, detect paused runs.</li>
   <li>Pre-flight — version bump, secrets check, changelog regen.</li>
@@ -403,6 +439,19 @@
   <li>Update <code>09-ship-runs.md</code> index.</li>
   <li>Write the run artifact.</li>
 </ol>
+
+<h4>Step 6.5 — Runtime-evidence deferral gate (HARD BLOCK) <span class="badge">v9.14</span></h4>
+
+<p>Inserted between Step 6 (Go/No-Go) and Step 7 (Merge). Parses <code>runtime-evidence-deferrals</code> from <code>00-index.md</code> (treated as empty if absent on older workflows). For every entry whose <code>cleared-by: null</code>, the slug has an open runtime-evidence deferral that must be cleared before ship.</p>
+
+<p>If any entry has <code>cleared-by: null</code>, ship <strong>STOPS</strong> with a list of the open deferrals and the slices they're attached to. The user clears each by one of:</p>
+<ul>
+  <li>Running <code>/wf-quick probe &lt;slug&gt; &lt;target&gt;</code> in a capable environment — captured evidence that satisfies the deferred AC sets <code>cleared-by: probe-&lt;descriptor&gt;</code> automatically.</li>
+  <li>Re-running <code>/wf verify &lt;slug&gt; &lt;slice&gt;</code> in a capable environment — produces fresh runtime evidence and rewrites the verify artifact without the deferral.</li>
+  <li>Removing the deferral entry from <code>00-index.md</code> manually (only when the AC has been amended out via <code>/wf-meta amend</code>).</li>
+</ul>
+
+<p>Cleared deferrals (<code>cleared-by</code> non-null — typically a probe descriptor) do not block ship; they're kept in the index for audit. <strong>The block bites only on <code>cleared-by: null</code> entries.</strong> This is the hard-block half of the deferral mechanism — earlier stages (verify, review, handoff) surface deferrals as soft warnings; ship is where the block fires.</p>
 
 <p>See <a href="../how-to/run-a-release.html">Run a release</a> for the walkthrough and <a href="09-ship-run-schema.html">Ship-run schema</a> for the artifact contract.</p>
 

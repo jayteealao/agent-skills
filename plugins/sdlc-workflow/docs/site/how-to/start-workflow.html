@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -101,14 +101,15 @@ flowchart TD
   start -- "Single-file typo, one-line patch" --> fix["/wf-quick fix"]
   start -- "Dependency updates, security or major version" --> deps["/wf-quick update-deps"]
   start -- "Behaviour-preserving refactor" --> refactor["/wf-quick refactor"]
-  start -- "Bug report, root cause unknown" --> rca["/wf-quick rca"]
+  start -- "Bug report, root cause unknown (static diagnosis from code/git)" --> rca["/wf-quick rca"]
+  start -- "Runtime-truth check on a running artifact — verified but actually broken?" --> probe["/wf-quick probe &lt;slug&gt;"]
   start -- "Need 2–3 distinct engineering approaches sketched before committing" --> investigate["/wf-quick investigate"]
   start -- "Have a theory about how this code works and want it adjudicated" --> discover["/wf-quick discover"]
   start -- "A real feature or substantive change" --> wf["/wf intake"]
 
   classDef quick fill:#fef3c7,stroke:#b45309,color:#1f1f1d
   classDef full fill:#dbeafe,stroke:#1d4ed8,color:#1f1f1d
-  class hotfix,fix,deps,refactor,rca,investigate,discover quick
+  class hotfix,fix,deps,refactor,rca,probe,investigate,discover quick
   class wf full
 </pre>
 </div>
@@ -130,7 +131,10 @@ flowchart TD
 <dd><code>/wf-quick investigate "&lt;problem&gt;"</code>. Architecture cartographer + option generator + tradeoff characterizer sub-agents. Produces an A/B/C option set with effort/blast-radius/reversibility/risk for each; <em>no winner is picked</em>. After you pick, route to <code>/wf-quick fix</code> (small) or <code>/wf intake</code> (medium+).</dd>
 
 <dt><strong>"There's a bug. I don't know where it is yet."</strong></dt>
-<dd><code>/wf-quick rca "&lt;symptom + repro&gt;"</code>. Root-cause analysis with parallel sub-agents.</dd>
+<dd><code>/wf-quick rca "&lt;symptom + repro&gt;"</code>. Root-cause analysis with parallel sub-agents. Reads code and git history — static diagnosis. If the symptom is only observable at runtime (a button does nothing, a response is wrong, a screen renders incorrectly), reach for <code>probe</code> instead.</dd>
+
+<dt><strong>"The slice 'verified' but I think the running artifact is broken."</strong> <span class="badge">v9.14</span></dt>
+<dd><code>/wf-quick probe &lt;slug&gt; [target]</code>. Runtime-truth verification on an already-progressed slug. Drives the running artifact, captures observable output (screenshots, stdout, response bodies), compares against AC text, writes findings — without writing a fix. Sibling of <code>rca</code> on the runtime axis (rca reads code; probe runs the artifact). Slug-mode only — refuses to run without an existing slug. Use it to clear a deferred AC (<code>interactive-verification: deferred</code> in <code>06-verify-&lt;slice&gt;.md</code>), to investigate a "verified but actually broken" report, or to sweep a slug for unreported defects (invoke without a target).</dd>
 
 <dt><strong>"The deps are out of date. Some have CVEs."</strong></dt>
 <dd><code>/wf-quick update-deps</code>. Audits, tiers (P0 security → P1 major → P2 safe → hold), and applies in priority order.</dd>

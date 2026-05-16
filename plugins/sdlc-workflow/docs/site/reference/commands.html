@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -126,7 +126,8 @@ This page is the overview. For per-command depth — argument hints, what it rea
 <tbody>
 <tr><td><code>/wf-quick fix</code></td><td>Trivial, one-file change.</td></tr>
 <tr><td><code>/wf-quick hotfix</code></td><td>Production incident (skips review).</td></tr>
-<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis.</td></tr>
+<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis — static diagnosis of a reported symptom (reads code and git history). Sibling of <code>probe</code> on the static axis.</td></tr>
+<tr><td><code>/wf-quick probe</code> <span class="badge">v9.14</span></td><td>Runtime-truth verification — drives the running artifact on an existing slug, captures observable output (screenshots, stdout, responses), compares against AC text, writes findings. <strong>Slug-mode only.</strong> Sibling of <code>rca</code> on the runtime axis. Clears <code>runtime-evidence-deferrals</code> when captured evidence satisfies a deferred AC.</td></tr>
 <tr><td><code>/wf-quick investigate</code></td><td>Solution-options sketcher — 2–3 distinct engineering approaches with tradeoffs (effort, blast radius, reversibility, risk); no winner picked.</td></tr>
 <tr><td><code>/wf-quick discover</code></td><td>Hypothesis-test — adjudicates a code-level theory with FOR/AGAINST/counter-hypothesis evidence. Verdict: holds / partial / fails / inconclusive.</td></tr>
 <tr><td><code>/wf-quick update-deps</code></td><td>Tiered dependency updates.</td></tr>

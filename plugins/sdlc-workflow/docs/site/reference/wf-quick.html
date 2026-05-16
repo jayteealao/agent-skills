@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -80,7 +80,17 @@
 <span class="quadrant reference">reference</span>
 <h1>/wf-quick router — compressed flows in depth</h1>
 
-<p>The compressed-flow router. Nine entries trade artifact depth for speed (or — for <code>simplify</code> — review the work that already exists). Each writes fewer files than the full <code>/wf</code> pipeline. Set <code>workflow-type</code> in the index so downstream stages know they're in compressed mode.</p>
+<p>The compressed-flow router. Ten entries trade artifact depth for speed (or — for <code>simplify</code> and <code>probe</code> — review or test the work that already exists). Each writes fewer files than the full <code>/wf</code> pipeline. Set <code>workflow-type</code> in the index so downstream stages know they're in compressed mode.</p>
+
+<p><strong>Investigation axes (v9.14):</strong> the family now spans both static-vs-runtime and per-slice-vs-slug-wide:</p>
+
+<table>
+<thead><tr><th></th><th>Forward gate (per-slice)</th><th>Backward re-entry (slug-wide)</th></tr></thead>
+<tbody>
+<tr><th>Static</th><td>lint/types/tests in <code>/wf verify</code></td><td><code>/wf-quick rca</code> — reads code &amp; git history; diagnoses a reported symptom</td></tr>
+<tr><th>Runtime</th><td>interactive sub-agent in <code>/wf verify</code> (gated; refuses pass without runtime evidence)</td><td><code>/wf-quick probe</code> — drives the running artifact; detects reported <em>or</em> unreported defects</td></tr>
+</tbody>
+</table>
 
 <div class="toc">
 <h3>On this page</h3>
@@ -88,6 +98,7 @@
   <li><a href="#fix">/wf-quick fix</a></li>
   <li><a href="#hotfix">/wf-quick hotfix</a></li>
   <li><a href="#rca">/wf-quick rca</a></li>
+  <li><a href="#probe">/wf-quick probe</a> <span class="badge">v9.14</span></li>
   <li><a href="#investigate">/wf-quick investigate</a></li>
   <li><a href="#discover">/wf-quick discover</a></li>
   <li><a href="#update-deps">/wf-quick update-deps</a></li>
@@ -182,6 +193,81 @@
 <ul>
   <li>You have a bug report but don't yet know what's wrong.</li>
   <li>The fix isn't obvious — you need diagnosis first.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>The bug is observable only at runtime (a button does nothing, a response is wrong, a screen renders incorrectly) and you'd rather drive the running artifact than read code → <code>/wf-quick probe &lt;slug&gt;</code> (the runtime sibling of rca).</li>
+</ul>
+
+<hr>
+
+<h2 id="probe">/wf-quick probe &lt;slug&gt; [target | --from &lt;path&gt;] [--strict] [--adapter &lt;key&gt;] <span class="badge">v9.14</span></h2>
+
+<div class="summary"><table>
+<tr><th>Mode</th><td><strong>Slug-mode only.</strong> Refuses to run without an existing slug — runtime-truth verification only makes sense against work that has been implemented.</td></tr>
+<tr><th>Produces</th><td><code>.ai/workflows/&lt;slug&gt;/03-slice-probe-&lt;descriptor&gt;.md</code> (compressed slice; <code>slice-type: probe</code>, <code>compressed: true</code>, <code>origin: wf-quick/probe</code>). Plus an evidence dir <code>probe-evidence/&lt;descriptor&gt;/</code> with screenshots, stdout, response bodies, and log lines captured during the drive.</td></tr>
+<tr><th>Forwards to</th><td>Depends on findings: <code>findings-count: 0</code> → <code>/wf-meta status &lt;slug&gt;</code>; small fix → <code>/wf-quick quick &lt;slug&gt; probe-&lt;descriptor&gt;</code>; non-trivial → <code>/wf plan &lt;slug&gt; probe-&lt;descriptor&gt;</code>; <code>status: awaiting-environment</code> → re-run after applying remediation.</td></tr>
+<tr><th>Modifies</th><td><code>00-index.md.workflow-files</code>, <code>00-index.md.compressed-slices[]</code>, and (if captured evidence satisfies a deferred AC) <code>00-index.md.runtime-evidence-deferrals[i].cleared-by: probe-&lt;descriptor&gt;</code>. The slug's lifecycle stage, status, branch, and progress are <em>not</em> touched — probe is additive.</td></tr>
+</table></div>
+
+<p><strong>Runtime-truth verification on an already-progressed slug.</strong> Drives the running artifact, captures observable output (screenshots, stdout, response bodies, log lines), reads it, compares against AC text, and writes findings — without writing a fix. Sibling of <code>rca</code> on the runtime axis: where <code>rca</code> is a diagnostician reading code and git history, <code>probe</code> is an observer driving the artifact.</p>
+
+<h4>Argument grammar</h4>
+<table>
+<thead><tr><th>Form</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>probe &lt;slug&gt;</code></td><td>Slug-wide sweep — probe every AC across every slice in the slug.</td></tr>
+<tr><td><code>probe &lt;slug&gt; &lt;target&gt;</code></td><td>Focused probe on the target string (see Target resolution below).</td></tr>
+<tr><td><code>probe &lt;slug&gt; --from &lt;path&gt;</code></td><td>Multi-target: each top-level bullet or line in the file is a separate target.</td></tr>
+<tr><td><code>probe &lt;slug&gt; --strict &lt;target&gt;</code></td><td>Filter mode (strict-but-archive) — see Focus vs filter below. Default is focus mode.</td></tr>
+<tr><td><code>probe &lt;slug&gt; --adapter &lt;key&gt;</code></td><td>Narrow to a single matched adapter from the registry. Default is run-all-matched.</td></tr>
+</tbody>
+</table>
+<p>Flags compose: <code>--strict</code> + <code>&lt;target&gt;</code>, <code>--from &lt;path&gt;</code> + <code>--adapter &lt;key&gt;</code>, etc.</p>
+
+<h4>Four-layer target resolution (all run; no single interpretation)</h4>
+<p>When probe receives a target string, it does NOT pick one meaning — all four layers run and their results compose into the <code>target-resolution</code> frontmatter so the reader sees exactly how the target was interpreted:</p>
+<ol>
+  <li><strong>AC text match</strong> — fuzzy token-overlap against AC text across every slice in the slug (≥50% content words).</li>
+  <li><strong>Slice match</strong> — case-insensitive substring match against slice slugs and titles.</li>
+  <li><strong>Surface inference</strong> — extract routes, screens, commands, endpoints from the target string.</li>
+  <li><strong>Ad-hoc criterion</strong> — if layers 1–3 produced nothing, treat the target as a free-form check against general observable behavior.</li>
+</ol>
+
+<h4>Focus vs filter (<code>--strict</code>)</h4>
+<p>Default is <strong>focus mode</strong>: the main <code>## Findings</code> list reports findings tied to the target AND surfaces incidental defects observed during navigation. Opt in to <strong>filter mode</strong> with <code>--strict</code>: only target-tied findings appear in the main list; incidentals are recorded to <code>probe-evidence/&lt;descriptor&gt;/incidental.md</code> with <code>incidental-observed-count: N</code> in frontmatter. User opted out of being told about incidentals but the data is preserved for later review.</p>
+
+<h4>Branch posture on mismatch (probe is the one wf-quick command that interrupts)</h4>
+<p>Probe runs cold more often than verify does — the user may have moved branches days ago and forgotten — and silently switching can clobber uncommitted work. When the working tree's branch differs from the slug's <code>branch</code>, probe calls <code>AskUserQuestion</code> with three options:</p>
+<ul>
+  <li><strong>Switch to slug's branch</strong> — runs <code>git switch &lt;slug-branch&gt;</code>; refuses if uncommitted changes would be lost.</li>
+  <li><strong>Run on current branch and record</strong> (recommended when you know why you're here) — proceeds and writes <code>probed-on-branch: &lt;current-branch&gt;</code> in the slice frontmatter so a future reader knows the artifact under test wasn't the slug's.</li>
+  <li><strong>Abort</strong> — no artifact written; you decide whether to switch later.</li>
+</ul>
+
+<h4>Two-phase bootstrap with graceful fail</h4>
+<p><strong>Phase 1</strong> actively attempts the adapter's bootstrap steps (start dev server, boot emulator, build + install) with documented resolution attempts. <strong>Phase 2 (graceful fail):</strong> if any step fails after resolution, probe writes a compressed slice with <code>status: awaiting-environment</code> and a full <code>bootstrap-failure: { step, exit-code, output-tail, remediation }</code> block. The attempt is recorded; re-running probe after the user fixes the environment picks up where it left off. Multi-adapter partial failures are recorded under <code>partial-bootstrap-failures</code> and the run proceeds with the adapters that did boot.</p>
+
+<h4>Multi-adapter — run-all by default</h4>
+<p>Probe matches every adapter whose detection signal hits and runs them all in parallel. <code>adapters-used: [&lt;key&gt;, ...]</code> (plural) records what was driven. <code>--adapter &lt;key&gt;</code> narrows to a single matched adapter and sets <code>adapter-narrowed-by-user: true</code>. The adapter registry lives at <code>skills/wf/reference/runtime-adapters.md</code> — seven recipes (web, android, ios, cli, desktop, service, notebook), each declaring Detection / Bootstrap / Drive / Observe / Tear down / Evidence layout / Remediation hints. Adapters are markdown recipes the agent reads and executes, not code.</p>
+
+<h4>Deferral clearing</h4>
+<p>If <code>00-index.md.runtime-evidence-deferrals[]</code> contains entries whose <code>slice</code> appears in <code>target-resolution.matched-slices</code>, probe checks whether the captured evidence satisfies the deferred AC. If yes, <code>cleared-by: probe-&lt;descriptor&gt;</code> is written to the index. The deferral is now cleared and the <code>/wf ship</code> Step 6.5 hard block lifts for that entry.</p>
+
+<h4>When to use</h4>
+<ul>
+  <li>A slice shipped through <code>/wf verify</code> with <code>interactive-verification: deferred</code> (no environment for runtime checks at verify time) and you now have the environment to clear it.</li>
+  <li>You suspect the running artifact is broken despite all code-correctness checks passing — probe is the answer to "verified but actually broken".</li>
+  <li>A user reported a runtime defect on a slug and you want observable evidence (screenshots, response bodies) tied to a specific AC.</li>
+  <li>You want to sweep a slug for unreported defects — invoke without a target for slug-wide coverage.</li>
+</ul>
+
+<h4>When NOT to use</h4>
+<ul>
+  <li>You don't have a slug yet — probe is slug-mode only by design. Run <code>/wf intake</code> first if the work isn't started.</li>
+  <li>The symptom is a code-correctness failure (test failing, type error, build broken) and you'd rather read code than run it → <code>/wf-quick rca &lt;symptom&gt;</code>.</li>
+  <li>You want to fix the defect inline. Probe never edits code — route findings through the recommended next command (<code>/wf-quick quick</code> or <code>/wf plan</code>).</li>
 </ul>
 
 <hr>

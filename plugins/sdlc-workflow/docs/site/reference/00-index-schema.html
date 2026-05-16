@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.12.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -114,8 +114,20 @@
 <tr><th><code>pr-url</code></th><td>Set by handoff.</td></tr>
 <tr><th><code>pr-number</code></th><td>Set by handoff.</td></tr>
 <tr><th><code>augmentations</code></th><td>Array of <code>{ kind, slice, ref, registered-at }</code> objects.</td></tr>
-<tr><th><code>workflow-type</code></th><td>For compressed flows: <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>discover</code>, <code>ideate</code>.</td></tr>
+<tr><th><code>workflow-type</code></th><td>For compressed flows: <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>discover</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
+<tr><th><code>compressed-slices</code></th><td>Array of <code>{ slug, slice-type, created-at }</code> objects. Appended by <code>/wf-quick</code> sub-commands when run in slug-mode. <code>slice-type</code> values: <code>quick</code>, <code>rca</code>, <code>probe</code> <span class="badge">v9.14</span>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
+<tr><th><code>runtime-evidence-deferrals</code> <span class="badge">v9.14</span></th><td>Array of <code>{ slice, reason, deferred-at, cleared-by }</code> objects. Appended by <code>/wf verify</code> when a slice's user-observable AC is annotated with <code>interactive-verification: deferred</code>. <code>/wf ship</code> Step 6.5 hard-blocks while any entry has <code>cleared-by: null</code>. Cleared by a <code>/wf-quick probe</code> run whose captured evidence satisfies the deferred AC (sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or by a verify re-run in a capable environment.</td></tr>
 </table>
+
+<h2>v9.14 runtime-evidence-deferrals shape</h2>
+
+<pre><code>runtime-evidence-deferrals:
+  - slice: <slice-slug>             # the slice whose verify deferred a user-observable AC
+    reason: <one-line explanation>  # mirrors interactive-verification-defer-reason from the verify artifact
+    deferred-at: <ISO 8601>          # when verify wrote the deferral
+    cleared-by: null                 # null until cleared; probe-<descriptor> when probe satisfies it</code></pre>
+
+<p>An entry never moves out of the array — clearing is recorded by mutating <code>cleared-by</code> from <code>null</code> to the clearing artifact's identifier. This preserves the audit trail: a future reader can see which slices once had open deferrals and how each was eventually closed. The <code>/wf-meta status</code> Runtime column derives its display from this field (count of <code>cleared-by: null</code> entries → <code>deferrals: N</code>).</p>
 
 <h2>v9.5.0 PR-readiness config keys</h2>
 
