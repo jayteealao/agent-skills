@@ -16,7 +16,9 @@ Codex support is generated from the Claude source files. The generated Codex plu
 6. [Hooks](#hooks)
 7. [Artifact layout and schema](#artifact-layout-and-schema)
 
-> **v9.9.0** adds an optional `--slug <existing-slug>` flag on every `/wf-quick` sub-command. Pass it to attach the sub-command's output as a single **compressed slice** on an existing workflow (writes `03-slice-<sub>-<descriptor>.md` with `type: slice`, `slice-type: <sub>`, `compressed: true`, `origin: wf-quick/<sub>`), instead of starting a new workflow. No new directory, no new branch, no `01-<sub>.md`. Supported on all 9 sub-commands. See `plugins/sdlc-workflow/skills/wf-quick/SKILL.md` (Step 1 — Slug-mode contract) and `docs/site/reference/wf-quick.html#slug-mode` for the full contract.
+> **v9.10.0** removes v9.9.0's `--slug` flag and replaces it with **no-flag positional slug detection**. If the first argument after a `/wf-quick` sub-command exactly matches a non-closed slug in the new global registry `.ai/workflows/INDEX.md`, the sub-command attaches as a compressed slice on that workflow. Otherwise it runs standalone. The registry is a tab-separated `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at` file, maintained by `/wf-meta sync` (bootstrap on first run; refresh on every run). Quote-escape descriptions (`"metrics dashboard broken"`) to bypass slug detection when an unrelated description begins with a token that happens to be a slug. See `plugins/sdlc-workflow/skills/wf-quick/SKILL.md` (Step 0 + Step 1) and `plugins/sdlc-workflow/skills/wf-meta/reference/sync.md` (Step -1) for the full contract.
+>
+> **v9.9.0** added an optional `--slug <existing-slug>` flag on every `/wf-quick` sub-command (now removed in v9.10.0 — use positional slug instead). The compressed-slice semantic (writes `03-slice-<sub>-<descriptor>.md` with `type: slice`, `slice-type: <sub>`, `compressed: true`, `origin: wf-quick/<sub>`) is unchanged.
 >
 > **v8.10.0** adds `wf-how` — a five-mode question-answering and research command. See [How the question-answering system works](#how-the-question-answering-system-works-wf-how) and the [How to…](#how-to) entries below.
 >

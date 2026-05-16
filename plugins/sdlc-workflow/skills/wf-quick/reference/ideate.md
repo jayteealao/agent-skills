@@ -14,15 +14,15 @@ You are running `wf-ideate`, a **pre-pipeline ideation utility** for the SDLC li
 
 # Slug-mode (read before proceeding)
 
-If `/wf-quick`'s dispatcher extracted a `--slug <existing-slug>` flag from `$ARGUMENTS`, you are in **slug-mode** and the *Step 1 — Slug-mode contract* in `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/SKILL.md` overrides the standalone instructions below. Substantively:
+If `/wf-quick`'s dispatcher selected **slug-mode** in Step 0 (the first argument after the sub-command matched a non-closed slug in `.ai/workflows/INDEX.md`), the *Step 1 — Slug-mode contract* in `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/SKILL.md` overrides the standalone instructions below. Substantively:
 
 - **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-ideate-<descriptor>.md` (collision suffix `-2`, `-3` if needed; descriptor defaults to lens, then UTC date — e.g., `ideate-perf-2026-05-13`). Frontmatter: `type: slice`, `slice-slug: ideate-<descriptor>`, `slice-type: ideate`, `compressed: true`, `origin: wf-quick/ideate`, `stage-number: 3`, `status: defined`, `complexity: xs` (ideate produces ranked ideas, not implementation work).
 - **Same content, different home.** Body carries the same sections the standalone ideate would have written to `01-ideate.md` (lens summary, ranked opportunities with rationale, top-N recommendations and follow-up commands), under a `# Compressed Slice: ideate` heading with a one-line provenance preamble.
 - **No new workflow, no new branch, no `01-ideate.md`, no new top-level `00-index.md`.** The slug already owns those.
-- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: ideate-<descriptor>, slice-type: ideate, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: ideate, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`.
-- **Chat return:** one line — `wf-quick ideate → compressed slice ideate-<descriptor> on <slug>` — plus the top-ranked idea and its recommended next command (e.g., `/wf-quick refactor --slug <slug> <area>`, `/wf intake <description>`).
+- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: ideate-<descriptor>, slice-type: ideate, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: ideate, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see SKILL.md Step 1 step 6).
+- **Chat return:** one line — `wf-quick ideate → compressed slice ideate-<descriptor> on <slug>` — plus the top-ranked idea and its recommended next command (e.g., `/wf-quick refactor <slug> <area>`, `/wf intake <description>`). Use the positional-slug form (slug as the first argument after the sub-command) — there is no `--slug` flag in v9.10.0+.
 
-If no `--slug` flag was set, ignore this section and proceed standalone per the instructions below.
+If slug-mode was not selected (first argument was not a known slug, or `INDEX.md` did not exist), ignore this section and proceed standalone per the instructions below.
 
 # Pipeline position
 ```

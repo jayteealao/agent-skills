@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.9.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.10.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -82,12 +82,12 @@
 
 <p>The compressed-flow router. Nine entries trade artifact depth for speed (or — for <code>simplify</code> — review the work that already exists). Each writes fewer files than the full <code>/wf</code> pipeline. Set <code>workflow-type</code> in the index so downstream stages know they're in compressed mode.</p>
 
-<p><strong>v9.9.0 — slug-mode.</strong> Every sub-command also accepts an optional <code>--slug &lt;existing-slug&gt;</code> flag that attaches the output as a single <strong>compressed slice</strong> on an existing workflow instead of starting a new one. No new workflow dir, no new branch, no <code>01-&lt;sub&gt;.md</code>. See <a href="#slug-mode">Slug-mode (attach to existing workflow)</a> below.</p>
+<p><strong>v9.10.0 — no-flag positional slug detection.</strong> Every sub-command attaches to an existing workflow as a single <strong>compressed slice</strong> if the first argument after the sub-command exactly matches a non-closed slug in the new global registry <code>.ai/workflows/INDEX.md</code>. No flag, no prompt. Quote-escape descriptions (<code>"metrics dashboard broken"</code>) for the rare collision case. (v9.9.0's <code>--slug</code> flag is removed.) See <a href="#slug-mode">Slug-mode (attach to existing workflow)</a> below.</p>
 
 <div class="toc">
 <h3>On this page</h3>
 <ul>
-  <li><a href="#slug-mode"><strong>Slug-mode — attach to existing workflow (v9.9.0)</strong></a></li>
+  <li><a href="#slug-mode"><strong>Slug-mode — attach to existing workflow (v9.10.0)</strong></a></li>
   <li><a href="#fix">/wf-quick fix</a></li>
   <li><a href="#hotfix">/wf-quick hotfix</a></li>
   <li><a href="#rca">/wf-quick rca</a></li>
@@ -100,17 +100,21 @@
 </ul>
 </div>
 
-<h2 id="slug-mode">Slug-mode — attach to an existing workflow (v9.9.0)</h2>
+<h2 id="slug-mode">Slug-mode — attach to an existing workflow (v9.10.0)</h2>
 
 <div class="summary"><table>
-<tr><th>Flag</th><td><code>--slug &lt;existing-slug&gt;</code> (parsed by the <code>/wf-quick</code> dispatcher before sub-command resolution)</td></tr>
+<tr><th>Trigger</th><td><strong>Positional.</strong> The first argument after the sub-command must exactly match a non-closed slug in <code>.ai/workflows/INDEX.md</code> (tab-anchored exact match on the slug column). No flag.</td></tr>
 <tr><th>Supported on</th><td>All 9 sub-commands — <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code></td></tr>
+<tr><th>Registry</th><td><code>.ai/workflows/INDEX.md</code> — tab-separated <code>slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at</code>, one row per workflow, sorted alphabetically. Bootstrap via <code>/wf-meta sync</code> on first run; refreshed on every subsequent run.</td></tr>
 <tr><th>Produces</th><td>A single compressed slice at <code>.ai/workflows/&lt;slug&gt;/03-slice-&lt;sub&gt;-&lt;descriptor&gt;.md</code></td></tr>
-<tr><th>Side effects</th><td>Appends to <code>00-index.md.compressed-slices</code> (lazily created); appends to <code>03-slice.md.slices</code> only if that index already exists</td></tr>
+<tr><th>Side effects</th><td>Appends to <code>00-index.md.compressed-slices</code> (lazily created); appends to <code>03-slice.md.slices</code> only if that index already exists; rewrites the <code>updated-at</code> column on this slug's row in <code>INDEX.md</code></td></tr>
 <tr><th>Suppresses</th><td>New workflow dir, new branch (no <code>git checkout -b</code>), <code>01-&lt;sub&gt;.md</code>, new top-level <code>00-index.md</code></td></tr>
+<tr><th>Escape hatch</th><td>If your description happens to begin with a token that matches a slug, quote it: <code>/wf-quick rca "metrics dashboard broken"</code>. The resulting single token won't match <code>INDEX.md</code> and routes standalone.</td></tr>
 </table></div>
 
-<p>By default each <code>/wf-quick</code> sub-command starts a fresh workflow — its own directory, branch, and root artifact. Slug-mode flips that behavior: pass <code>--slug X</code> and the sub-command attaches to existing workflow <code>X</code> as a single <strong>compressed slice</strong> on its slice surface. The sub-command's <em>content discipline</em> (research, sub-agents, body sections, analysis depth) is unchanged — only the <em>output destination</em> and <em>index bookkeeping</em> change.</p>
+<p>By default each <code>/wf-quick</code> sub-command starts a fresh workflow — its own directory, branch, and root artifact. Slug-mode flips that behavior: pass the slug as the first argument and the sub-command attaches to that workflow as a single <strong>compressed slice</strong> on its slice surface. The sub-command's <em>content discipline</em> (research, sub-agents, body sections, analysis depth) is unchanged — only the <em>output destination</em> and <em>index bookkeeping</em> change.</p>
+
+<p><strong>How detection works (Step 0 of the dispatcher):</strong> the dispatcher reads <code>.ai/workflows/INDEX.md</code> and runs a tab-anchored regex (<code>^&lt;token&gt;\t</code>) against the first argument after the sub-command. A hit on a non-closed row selects slug-mode and consumes the token; the remaining tokens are the sub-command's arguments. A miss leaves all tokens as the sub-command's arguments (standalone mode). If <code>INDEX.md</code> doesn't exist, the dispatcher silently falls through to standalone and emits a one-line tip in the chat return suggesting <code>/wf-meta sync</code> to bootstrap the registry.</p>
 
 <h4>Frontmatter shape</h4>
 <pre><code>schema: sdlc/v1
@@ -136,7 +140,7 @@ refs:
 <h4>Slice-slug derivation</h4>
 <ul>
   <li>Form: <code>&lt;sub&gt;-&lt;short-descriptor&gt;</code> (kebab-case, ≤5 words).</li>
-  <li>Descriptor comes from the sub-command's first descriptive argument — e.g., <code>/wf-quick rca --slug X "payment spike"</code> → <code>rca-payment-spike</code>.</li>
+  <li>Descriptor comes from the sub-command's first descriptive argument (after the consumed slug token) — e.g., <code>/wf-quick rca X "payment spike"</code> → <code>rca-payment-spike</code>.</li>
   <li>If no descriptive arg, falls back to <code>&lt;sub&gt;-&lt;utc-date&gt;</code> — e.g., <code>ideate-2026-05-13</code>.</li>
   <li>On collision, appends <code>-2</code>, <code>-3</code>, … until unique.</li>
 </ul>
@@ -159,7 +163,7 @@ refs:
 <h4>Diagnostic vs implementation slices</h4>
 <p>The 9 sub-commands split into two natural categories under slug-mode:</p>
 <ul>
-  <li><strong>Diagnostic slices</strong> (default <code>complexity: xs</code>): <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>ideate</code>, <code>simplify</code>. These produce findings, opportunity rankings, or routing recommendations — not implementation work. Downstream <code>/wf plan</code> typically does not need to plan them; their <em>body</em> routes to other commands (often other <code>/wf-quick</code> sub-commands with <code>--slug</code> pre-applied).</li>
+  <li><strong>Diagnostic slices</strong> (default <code>complexity: xs</code>): <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>ideate</code>, <code>simplify</code>. These produce findings, opportunity rankings, or routing recommendations — not implementation work. Downstream <code>/wf plan</code> typically does not need to plan them; their <em>body</em> routes to other commands (often other <code>/wf-quick</code> sub-commands with the same slug pre-applied as a positional argument — e.g., <code>/wf-quick refactor &lt;slug&gt; &lt;target&gt;</code>).</li>
   <li><strong>Implementation slices</strong>: <code>quick</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>. These carry their own embedded plan, so <code>/wf implement &lt;slug&gt;</code> can read the slice body directly without a separate <code>04-plan-&lt;slice&gt;.md</code>.</li>
 </ul>
 
@@ -174,7 +178,7 @@ refs:
 <p>If the target workflow's index has <code>status: closed</code>, slug-mode prompts for confirmation before proceeding rather than silently appending.</p>
 
 <h4>Special case: simplify</h4>
-<p><code>/wf-quick simplify</code> normally writes <code>.ai/simplify/&lt;run-id&gt;.md</code> (outside <code>.ai/workflows/</code>). In slug-mode it does <strong>not</strong> write that file; the compressed slice is the single output. The <code>simplify-run</code> frontmatter fields (<code>findings-total</code>, <code>findings-reuse</code>, etc.) do not carry over — they belong to the standalone <code>simplify-run</code> artifact type, while the compressed slice is a <code>slice</code> artifact. The same numbers are reported in the body instead. Routing assignments emit with <code>--slug &lt;X&gt;</code> pre-applied so you can copy the next command straight from the chat return.</p>
+<p><code>/wf-quick simplify</code> normally writes <code>.ai/simplify/&lt;run-id&gt;.md</code> (outside <code>.ai/workflows/</code>). In slug-mode it does <strong>not</strong> write that file; the compressed slice is the single output. The <code>simplify-run</code> frontmatter fields (<code>findings-total</code>, <code>findings-reuse</code>, etc.) do not carry over — they belong to the standalone <code>simplify-run</code> artifact type, while the compressed slice is a <code>slice</code> artifact. The same numbers are reported in the body instead. Routing assignments emit with the slug pre-applied as the first positional argument (e.g., <code>/wf-quick refactor &lt;slug&gt; &lt;target&gt;</code>) so you can copy the next command straight from the chat return.</p>
 
 <h4>Schema impact</h4>
 <p>None. The frontmatter JSON schema (<code>tests/frontmatter.schema.json</code>) already permits additional properties on <code>sliceFrontmatter</code>, <code>sliceIndexFrontmatter.slices[]</code> items, and <code>indexFrontmatter</code>. The new <code>slice-type</code>, <code>compressed</code>, <code>origin</code>, and top-level <code>compressed-slices</code> fields validate cleanly against the existing schema without changes. The pre-write validator and the deep frontmatter verifier both accept compressed slices unchanged.</p>

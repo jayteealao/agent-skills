@@ -5,6 +5,45 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.10.0] - 2026-05-16
+
+### Changed
+
+- **`/wf-quick` slug detection is now no-flag positional.** v9.9.0's `--slug <existing-slug>` flag is removed. The dispatcher (`skills/wf-quick/SKILL.md` Step 0) now resolves slug-mode purely by looking at the first positional token after the sub-command: if that token exactly matches a non-closed slug in the new global registry `.ai/workflows/INDEX.md`, the sub-command attaches as a compressed slice on that workflow; otherwise it runs standalone. No flag, no prompt, no branch sniffing.
+- **9 reference files** (`skills/wf-quick/reference/*.md`) updated to drop `--slug` language. The slug-mode section in each reference now opens with *"If `/wf-quick`'s dispatcher selected **slug-mode** in Step 0 (the first argument after the sub-command matched a non-closed slug in `.ai/workflows/INDEX.md`), the *Step 1 — Slug-mode contract* … overrides the standalone instructions below."* Inline routing examples switched from `--slug <slug>` to positional (`<slug>` as first arg). The closing line was updated to *"If slug-mode was not selected (first argument was not a known slug, or `INDEX.md` did not exist), ignore this section and proceed standalone per the instructions below."*
+- **`skills/wf-meta/reference/sync.md` gains a new `Step -1 — Maintain the global workflow registry`** that runs unconditionally on every invocation, before Step 0. It bootstraps `.ai/workflows/INDEX.md` if missing (writes a fresh file from a glob+frontmatter scan of `.ai/workflows/*/00-index.md`) and refreshes it on every subsequent run (rewrites the sorted set, reports added/removed/updated counts, drops stale rows whose directory has been deleted). Step 7 (workflow index touch) was extended to also rewrite the `updated-at` column on the target slug's row so the registry stays in step with the `00-index.md` it just bumped.
+- **`skills/wf-quick/SKILL.md` Step 1 slug-mode contract gained a step 6** — after the sub-command writes the slice file and updates `00-index.md`, it rewrites the `updated-at` column on the target slug's row in `.ai/workflows/INDEX.md`. Status/workflow-type/branch are not touched (slug-mode is additive — the parent workflow's lifecycle position is unchanged). If the row is missing (registry drift), the sub-command appends a new row using the values just read from `00-index.md`; `/wf-meta sync` reconciles sort order on the next run.
+- **`hooks/scripts/validate-workflow-write.sh`** gained a non-blocking advisory for `00-index.md` writes — if `.ai/workflows/INDEX.md` is missing, or if there's no row for this slug, the hook emits a `systemMessage` suggesting `/wf-meta sync`. Per user choice, this is **warn-only**; the write still succeeds. Stage transitions (status/branch drift) are NOT warned about — that would be noise. `/wf-meta sync` is the canonical reconciler.
+
+### Added
+
+- **`.ai/workflows/INDEX.md`** — global workflow registry. New file (created on first `/wf-meta sync` invocation). Single header comment, then one row per workflow, tab-separated columns: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Sorted alphabetically by slug. Closed workflows are retained (status column shows `closed`; positional slug detection skips them, but a slug match still triggers an "append a slice to a closed workflow?" confirmation). Format is documented in `skills/wf-meta/reference/sync.md`'s new Step -1.
+
+### Removed
+
+- **`--slug` flag on `/wf-quick`.** No backward-compatibility shim; the flag is gone. Slug-mode is now positional-only.
+
+### Rationale
+
+The `--slug` flag was friction. The common case — "I'm working on a workflow, run a quick rca/ideate/refactor against it" — should not require remembering a flag name and typing it. A global single-line-per-workflow registry collapses the "which slugs exist?" question into a single grep-able file, which means the dispatcher can resolve slug-mode in one anchored regex (`^<token>\t`) without scanning every `00-index.md` in the repo. The format choice (tab-separated, one row per workflow, slug as the first column) is deliberately the cheapest possible lookup substrate: O(file-size) string scan, no parser load, no regex backtracking. The disambiguator between "the token is a slug" and "the token is the start of a description" exploits a strong invariant — workflow slugs are kebab-case identifiers, and natural-language descriptions almost never *start* with a kebab-case token that matches an existing workflow. For the rare collision (slug `metrics`, description starting with `metrics ...`), quote-escape the description (`/wf-quick rca "metrics dashboard broken"`) — the resulting single token won't match any slug and routes standalone. This is the same escape hatch shells use; it's universal and explicit.
+
+### Schema & validator impact
+
+**Zero schema migration.** `INDEX.md` is intentionally NOT a YAML-fronted workflow artifact — it's a registry, not a stage file. The validator (`hooks/scripts/validate-workflow-write.sh`) skips it via the existing `.ai/workflows/*.md` filename pattern only matching files directly under the slug directory; INDEX.md sits at `.ai/workflows/INDEX.md` (a sibling of slug dirs), so the validator's path filter naturally excludes it. The deep validator (`tests/verify_frontmatter.py`) only walks `.md` files with frontmatter, and INDEX.md has none. The frontmatter JSON schema is unchanged.
+
+### Migration
+
+For users on v9.9.0: existing `--slug <existing-slug>` invocations stop working. Replace with positional syntax — `/wf-quick rca --slug my-feature "incident"` becomes `/wf-quick rca my-feature "incident"`. Run `/wf-meta sync` once to bootstrap `.ai/workflows/INDEX.md`; subsequent runs refresh it automatically. If you forget to run sync, `/wf-quick` falls back to standalone mode (a slug that isn't in the registry is treated as the start of the description) — a hint in the chat return suggests running sync.
+
+For users on ≤v9.8.0: the slug-mode feature is new to you (v9.9.0 introduced it, v9.10.0 reshaped the surface). Read the `Slug-mode` section in `skills/wf-quick/SKILL.md` Step 1.
+
+### Notes
+
+- The registry is intentionally a flat denormalized cache of fields that already live on each `00-index.md`. The single source of truth for status/branch/type/updated-at is still the workflow's own index file — the registry is just a fast lookup structure. `/wf-meta sync` reconciles drift in either direction.
+- `compressed-slices` array on `00-index.md` (introduced in v9.9.0) is unchanged in v9.10.0. The mechanism for marking slug-mode writes is the same; only the user-side interface (positional vs flag) changed.
+- The hook warning is non-blocking. If you'd rather have hard invariants (block writes when INDEX.md is stale), open an issue — the current `warn` policy is the user-chosen default for v9.10.0.
+- `.codex-plugin/plugin.json` bumped to `9.10.0-codex.1` — the no-flag positional surface is a dispatcher-side change, not specific to Claude Code, so the Codex generation tracks the main version this time (unlike v9.9.0, which was Claude-only).
+
 ## [9.9.0] - 2026-05-13
 
 ### Added

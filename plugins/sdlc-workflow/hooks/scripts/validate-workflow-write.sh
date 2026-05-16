@@ -136,11 +136,56 @@ validate_filename
 validate_frontmatter
 
 # -------------------------------------------------------------------
+# Soft check (warn-only): global INDEX.md registry drift
+# Added in v9.10.0 alongside the no-flag positional slug detection on
+# /wf-quick. Only fires for 00-index.md writes — those are the writes
+# that mutate the per-workflow status/branch/type/updated-at fields
+# mirrored into .ai/workflows/INDEX.md. Non-blocking by design (the
+# user opted into warn-only enforcement for this drift class); the
+# canonical reconciler is /wf-meta sync.
+# -------------------------------------------------------------------
+
+WARNINGS=()
+
+if [ "$FILENAME" = "00-index.md" ]; then
+  # Derive the .ai/workflows/INDEX.md path from the file_path
+  # FILE_PATH is .../<repo>/.ai/workflows/<slug>/00-index.md, so the
+  # registry is the sibling of <slug>/.
+  WORKFLOWS_ROOT=$(echo "$FILE_PATH" | sed -n 's|\(.*/.ai/workflows\)/[^/]*/.*|\1|p')
+  if [ -n "$WORKFLOWS_ROOT" ]; then
+    REGISTRY="$WORKFLOWS_ROOT/INDEX.md"
+    if [ ! -f "$REGISTRY" ]; then
+      WARNINGS+=("Global workflow registry .ai/workflows/INDEX.md is missing. Run /wf-meta sync once to bootstrap it — this enables /wf-quick positional slug detection (the no-flag way to attach a compressed slice to '$WORKFLOW_DIR').")
+    elif ! grep -Pq "^${WORKFLOW_DIR}\t" "$REGISTRY" 2>/dev/null; then
+      WARNINGS+=("Slug '$WORKFLOW_DIR' has no row in .ai/workflows/INDEX.md. Run /wf-meta sync to register it — until then, '/wf-quick <sub> $WORKFLOW_DIR ...' falls through to standalone mode instead of attaching as a compressed slice.")
+    fi
+    # Note: we do NOT diff frontmatter status/branch against the
+    # registry row here. Stage transitions land mid-flight all the
+    # time; warning on every transition would be noise. /wf-meta sync
+    # is the reconciler.
+  fi
+fi
+
+# -------------------------------------------------------------------
 # Report results
 # -------------------------------------------------------------------
 
 if [ ${#ERRORS[@]} -eq 0 ]; then
-  # All checks passed
+  if [ ${#WARNINGS[@]} -gt 0 ]; then
+    # Emit non-blocking advisory via systemMessage (exit 0, allows write)
+    WARN_MSG="wf-validate: write to $FILENAME allowed. Advisory:"
+    for i in "${!WARNINGS[@]}"; do
+      WARN_MSG+=" ${WARNINGS[$i]}"
+    done
+    # JSON-escape: wrap in jq if available, else best-effort sed
+    if command -v jq &>/dev/null; then
+      printf '%s' "$WARN_MSG" | jq -Rs '{systemMessage: .}'
+    else
+      ESCAPED=$(printf '%s' "$WARN_MSG" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r//g' | tr '\n' ' ')
+      printf '{"systemMessage": "%s"}\n' "$ESCAPED"
+    fi
+  fi
+  # All checks passed (errors clean; warnings, if any, were surfaced)
   exit 0
 else
   # Build error message

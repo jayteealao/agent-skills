@@ -15,7 +15,7 @@
 <div class="layout">
 
 <aside id="sidebar">
-<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.9.0</small></a>
+<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.10.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -180,9 +180,16 @@ flowchart LR
 
 <h2>What's new</h2>
 
+<h3>v9.10.0</h3>
+<ul>
+  <li><strong>No-flag positional slug detection on <code>/wf-quick</code></strong> — v9.9.0's <code>--slug &lt;existing-slug&gt;</code> flag is <strong>removed</strong>. The dispatcher now detects slug-mode by checking whether the first argument after the sub-command exactly matches a non-closed slug in the new global registry <code>.ai/workflows/INDEX.md</code>. Hit → attach as compressed slice on that workflow. Miss → run standalone (the token is treated as the start of the description). No flag, no prompt, no branch sniffing. Quote-escape descriptions (<code>"metrics dashboard broken"</code>) for the rare case where a description starts with a token that happens to collide with a slug.</li>
+  <li><strong><code>.ai/workflows/INDEX.md</code> registry</strong> — single header comment + one row per workflow, tab-separated columns <code>slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at</code>, sorted alphabetically by slug. Closed workflows are retained (status column = <code>closed</code>). Maintained by <code>/wf-meta sync</code> (bootstrap on first run; refresh on every run) and additively touched (<code>updated-at</code> column only) by every <code>/wf-quick</code> slug-mode write. See the <a href="reference/wf-quick.html#slug-mode">slug-mode reference</a> and <code>skills/wf-meta/reference/sync.md</code> Step -1.</li>
+  <li><strong><code>validate-workflow-write.sh</code> drift advisory</strong> — when a <code>00-index.md</code> write happens and <code>INDEX.md</code> is missing (or has no row for this slug), the pre-write hook emits a non-blocking <code>systemMessage</code> suggesting <code>/wf-meta sync</code>. Stage transitions (status/branch drift) are NOT warned about — too noisy.</li>
+</ul>
+
 <h3>v9.9.0</h3>
 <ul>
-  <li><strong><code>--slug &lt;existing-slug&gt;</code> flag on every <code>/wf-quick</code> sub-command</strong> — attach the output as a single <strong>compressed slice</strong> on an existing workflow instead of starting a new one. Writes one file (<code>03-slice-&lt;sub&gt;-&lt;descriptor&gt;.md</code> with <code>type: slice</code>, <code>slice-type: &lt;sub&gt;</code>, <code>compressed: true</code>, <code>origin: wf-quick/&lt;sub&gt;</code>), appends to a new <code>compressed-slices:</code> array on <code>00-index.md</code>, and — if <code>03-slice.md</code> already exists — appends to its <code>slices</code> as well. No new workflow dir, no new branch, no <code>01-&lt;sub&gt;.md</code>. Supported uniformly on all 9 sub-commands: <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>. See <a href="reference/wf-quick.html#slug-mode">the slug-mode reference</a>.</li>
+  <li><strong><code>--slug &lt;existing-slug&gt;</code> flag on every <code>/wf-quick</code> sub-command</strong> — attach the output as a single <strong>compressed slice</strong> on an existing workflow instead of starting a new one. Writes one file (<code>03-slice-&lt;sub&gt;-&lt;descriptor&gt;.md</code> with <code>type: slice</code>, <code>slice-type: &lt;sub&gt;</code>, <code>compressed: true</code>, <code>origin: wf-quick/&lt;sub&gt;</code>), appends to a new <code>compressed-slices:</code> array on <code>00-index.md</code>, and — if <code>03-slice.md</code> already exists — appends to its <code>slices</code> as well. No new workflow dir, no new branch, no <code>01-&lt;sub&gt;.md</code>. Supported uniformly on all 9 sub-commands: <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>. <em>Note: v9.10.0 replaces this flag with no-flag positional slug detection. The compressed-slice mechanism itself is unchanged.</em> See <a href="reference/wf-quick.html#slug-mode">the slug-mode reference</a>.</li>
 </ul>
 
 <h3>v9.6.0</h3>

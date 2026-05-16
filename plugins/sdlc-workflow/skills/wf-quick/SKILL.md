@@ -1,8 +1,8 @@
 ---
 name: wf-quick
-description: Compressed and standalone SDLC workflows — orthogonal entry points that do not compose. Sub-commands: quick (small intentional change), rca (root-cause analysis), investigate (investment discovery), discover (problem validation), hotfix (emergency fix), update-deps, refactor, ideate, simplify (3-agent review+routing triage across branch/commit/plan/codebase; never writes code, routes findings to downstream commands). Optional `--slug <existing-workflow-slug>` flag lands the sub-command's output as a single compressed slice on an existing workflow — no new workflow dir, no new branch, one artifact at `.ai/workflows/<slug>/03-slice-<sub>-<descriptor>.md` with `type: slice` + `slice-type: <sub>` + `compressed: true`. Full-lifecycle intake lives at `/wf intake`; documentation lives at `/wf-docs`.
+description: Compressed and standalone SDLC workflows — orthogonal entry points that do not compose. Sub-commands: quick (small intentional change), rca (root-cause analysis), investigate (investment discovery), discover (problem validation), hotfix (emergency fix), update-deps, refactor, ideate, simplify (3-agent review+routing triage across branch/commit/plan/codebase; never writes code, routes findings to downstream commands). Positional slug detection (v9.10.0): if the first token after the sub-command exactly matches a non-closed slug in `.ai/workflows/INDEX.md`, the sub-command attaches to that workflow as a single compressed slice (`type: slice` + `slice-type: <sub>` + `compressed: true`); otherwise it runs standalone (creates a fresh workflow). No flags. Full-lifecycle intake lives at `/wf intake`; documentation lives at `/wf-docs`.
 disable-model-invocation: true
-argument-hint: "<quick|rca|investigate|discover|hotfix|update-deps|refactor|ideate|simplify> [--slug <existing-slug>] [args...]"
+argument-hint: "<quick|rca|investigate|discover|hotfix|update-deps|refactor|ideate|simplify> [<existing-slug>] [args...]"
 ---
 
 # External Output Boundary (MANDATORY)
@@ -12,45 +12,46 @@ Workflow artifacts and command internals are private implementation context. Nev
 - When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
 - Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
 
-You are the **standalone-workflow dispatcher** for the SDLC plugin. The 9 sub-commands you route to are *orthogonal entry points* — none of them compose, so there are no `sweep` modes here. Your job is to identify which sub-command the user wants, decide whether the run is **standalone** (creates a new workflow) or **slug-mode** (attaches to an existing workflow as a compressed slice), and follow the matching contract.
+You are the **standalone-workflow dispatcher** for the SDLC plugin. The 9 sub-commands you route to are *orthogonal entry points* — none of them compose, so there are no `sweep` modes here. Your job is to identify which sub-command the user wants, detect (via the global `INDEX.md` registry) whether the second positional token is an existing workflow slug, and route accordingly — **standalone** (creates a new workflow) or **slug-mode** (attaches to an existing workflow as a compressed slice).
 
-# Step 0 — Parse arguments
+# Step 0 — Identify the sub-command and detect slug
 
-Parse `$ARGUMENTS` in two passes:
+There are no flags. Parse `$ARGUMENTS` positionally:
 
-1. **Pass 1 — extract `--slug <slug>` if present.** The flag may appear anywhere in `$ARGUMENTS`. Strip both the flag and its value out before pass 2. Slug values must match `^[a-z0-9][a-z0-9-]*$`. If `--slug` is present without a value or with an invalid value → STOP with: *"--slug requires a kebab-case workflow slug as its value."*
-2. **Pass 2 — identify the sub-command.** The first remaining positional token must be one of the 9 known keys below; the remaining tokens become the sub-command's `$ARGUMENTS`.
+1. **Tokenize** respecting shell quoting (`"two words"` is one token).
+2. **First token = sub-command key.** It must match one of the 9 keys in the table below.
+   - Empty `$ARGUMENTS` → render the menu and ask which sub-command the user wants.
+   - Unknown token → STOP: *"`<token>` is not a known wf-quick sub-command. Pick one of: quick, rca, investigate, discover, hotfix, update-deps, refactor, ideate, simplify."* If the token is `intake`, redirect: *"`intake` moved to `/wf intake` in v9.1.0 — all canonical lifecycle stages now live under `/wf`."* If the token is `docs`, redirect: *"`docs` moved to `/wf-docs` in v9.4.0 — documentation now has its own router with 7 Diátaxis primitives."*
+3. **Slug detection on the second token (positional, no flag).** This is the only way to opt into slug-mode in v9.10.0 — there is no `--slug` flag.
+   - Read `.ai/workflows/INDEX.md` (the global workflow registry; format documented in `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/reference/sync.md`).
+   - **If `INDEX.md` does not exist** → mode is **standalone**. Treat every token after the sub-command as the sub-command's `$ARGUMENTS`. Append a single line to the chat return at end: *"Tip: run `/wf-meta sync` once to enable positional slug detection on `/wf-quick` (creates `.ai/workflows/INDEX.md`)."*
+   - **If `INDEX.md` exists** → take the second token (the first arg after the sub-command). Run an anchored grep: `grep -P "^<token>\t" .ai/workflows/INDEX.md` (tab-anchored, exact match on the slug column).
+     - **Hit AND status column ≠ `closed`** → mode is **slug-mode**. Consume the second token as `<slug>`. All remaining tokens become the sub-command's `$ARGUMENTS`.
+     - **Hit AND status column = `closed`** → ASK: *"Workflow `<slug>` is closed. Append a compressed slice anyway?"* — wait for explicit confirmation. On yes → slug-mode; on no → STOP.
+     - **No hit** → mode is **standalone**. Leave all tokens after the sub-command in the sub-command's `$ARGUMENTS`. Do NOT prompt or warn — a token that is not in `INDEX.md` is simply the start of the description.
+4. **Slug-mode sanity check (if slug-mode).** Verify `.ai/workflows/<slug>/00-index.md` actually exists on disk (the registry could be stale). If missing → STOP: *"`INDEX.md` references slug `<slug>` but `.ai/workflows/<slug>/00-index.md` is missing. Run `/wf-meta sync` to reconcile, or retry without the slug for a standalone run."* Otherwise read the index frontmatter and record `branch`, `current-stage`, `status` for Step 1.
 
-**If `--slug` was extracted, validate slug-mode preconditions before continuing:**
-- `.ai/workflows/<slug>/00-index.md` MUST exist. If not → STOP with: *"Slug `<slug>` not found under `.ai/workflows/`. Run `/wf-meta status` to list workflows, or omit `--slug` to start a fresh standalone run."*
-- Read the index's YAML frontmatter. Record `branch`, `current-stage`, `status` for use in Step 1.
-- If `status: closed` → ASK: *"Workflow `<slug>` is closed. Continue and append a compressed slice anyway?"* — wait for explicit confirmation before proceeding.
+**Quote-escape for ambiguous descriptions.** Slugs cannot contain whitespace, so a multi-word quoted description (e.g., `/wf-quick rca "metrics dashboard broken"`) becomes a single token that never matches `INDEX.md` and routes standalone. Document this in user guidance for the rare case where a workflow's slug collides with the first word of an intended description.
 
 **Known sub-command keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/reference/<key>.md`:
 
-| Key | Argument hint | What it does (one line) |
+| Key | Argument hint (after optional slug) | What it does (one line) |
 |---|---|---|
-| `quick`        | `<description-or-slug>`  | Compressed planning workflow for small intentional changes (collapses intake/shape/design/slice/plan into one artifact). |
+| `quick`        | `<description>`  | Compressed planning workflow for small intentional changes (collapses intake/shape/design/slice/plan into one artifact). |
 | `rca`          | `<incident> [date]`      | Root-cause analysis with parallel diagnosis sub-agents; recommends a downstream command (plan, quick, hotfix). |
 | `investigate`  | `<domain>`               | Investment discovery — surveys a codebase domain, ranks improvement opportunities by ROI. |
 | `discover`     | `<problem>`              | Problem validation using external signals (competitors, user feedback, market data); produces build/do-not-build recommendation. |
 | `hotfix`       | `<incident-description>` | Emergency-only escape hatch. Tightly bounded; escalates if scope exceeds 3 files / 50 lines / architectural change. |
 | `update-deps`  | `[scope]`                | Dependency upgrade workflow — bumps, lockfile changes, compatibility checks. |
-| `refactor`     | `<target-or-slug>`       | Pure refactoring workflow — never adds new functionality. |
+| `refactor`     | `<target>`               | Pure refactoring workflow — never adds new functionality. |
 | `ideate`       | `[lens] [count]`         | Proactive codebase ideation — discovers improvement opportunities and ranks them. |
-| `simplify`     | `[branch [<base>] \| commit <sha-or-range> \| plan <slug> <slice> \| codebase [<path>]]` | Three parallel sub-agents (Code Reuse, Code Quality, Efficiency) review one of four scopes, classify each accepted finding, and route it to the appropriate downstream command (`/wf-quick fix`, `/wf-quick refactor`, `/wf intake`, `/wf-meta amend`, `/wf-docs`, etc.). Never writes code. Writes `.ai/simplify/<run-id>.md` in standalone mode (slug-mode writes a compressed slice instead — see Step 1). |
+| `simplify`     | `[branch [<base>] \| commit <sha-or-range> \| plan <slug> <slice> \| codebase [<path>]]` | Three parallel sub-agents (Code Reuse, Code Quality, Efficiency) review one of four scopes, classify each accepted finding, and route it to the appropriate downstream command. Never writes code. Writes `.ai/simplify/<run-id>.md` in standalone mode (slug-mode writes a compressed slice instead — see Step 1). |
 
-Every sub-command also accepts the global `--slug <existing-slug>` flag described in Step 1.
+Every sub-command participates in positional slug detection — pass an existing slug as the first argument after the sub-command to attach as a compressed slice, omit it for a fresh standalone run.
 
-**Resolution rules:**
+# Step 1 — Slug-mode contract (only when slug-mode was selected in Step 0)
 
-1. If the first positional token (after `--slug` extraction) matches one of the 9 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`.
-2. If `$ARGUMENTS` is empty (no key, no flag), render the menu above and ask the user which sub-command they want.
-3. If the first token is *not* a known key, **do not** silently treat it as a slug for any default sub-command. Tell the user: *"`<token>` is not a known wf-quick sub-command. Pick one of: quick, rca, investigate, discover, hotfix, update-deps, refactor, ideate, simplify."* If the token is `intake`, redirect: *"`intake` moved to `/wf intake` in v9.1.0 — all canonical lifecycle stages now live under `/wf`."* If the token is `docs`, redirect: *"`docs` moved to `/wf-docs` in v9.4.0 — documentation now has its own router with 7 Diátaxis primitives. Use `/wf-docs` for the full audit pipeline or `/wf-docs <primitive>` for single-document writes."*
-
-# Step 1 — Slug-mode contract (only when `--slug` was set)
-
-When the user passed `--slug <slug>`, the sub-command's output is rerouted to a **single compressed slice** on the existing workflow. This contract overrides any "create new workflow" / "create branch" / "write `01-<sub>.md`" / "write a new `00-index.md`" instructions in the loaded reference. The reference's *content discipline* (research, sub-agents, body sections, analysis depth) still applies in full — only the *output destination* and *index bookkeeping* change.
+When Step 0 selected slug-mode (the second positional token matched a non-closed slug in `INDEX.md`), the sub-command's output is rerouted to a **single compressed slice** on the existing workflow. This contract overrides any "create new workflow" / "create branch" / "write `01-<sub>.md`" / "write a new `00-index.md`" instructions in the loaded reference. The reference's *content discipline* (research, sub-agents, body sections, analysis depth) still applies in full — only the *output destination* and *index bookkeeping* change.
 
 **Slice-slug derivation:**
 - Form: `<sub>-<short-descriptor>` (lowercase kebab-case, ≤5 words).
@@ -90,6 +91,9 @@ refs:
 4. Update `updated-at` to the current ISO timestamp.
 5. **Do not** modify `current-stage`, `stage-number`, `selected-slice`, `status`, `branch`, or `progress`. The compressed slice is additive — it does not advance the main lifecycle.
 
+**Global registry update** (after `00-index.md` is rewritten):
+6. Open `.ai/workflows/INDEX.md`. Locate the row whose first tab-separated column equals `<slug>`. Rewrite only the `updated-at` column (last column) to the same ISO timestamp used in step 4. Do NOT change `status`, `workflow-type`, or `branch` — slug-mode is additive, the parent workflow's lifecycle position is unchanged. If the row is missing for any reason (registry drift), append a new row using the values just read from `00-index.md` (`<slug>\t<status>\t<workflow-type>\t<branch>\t<updated-at>`); the next `/wf-meta sync` will reconcile sort order.
+
 **Slice-index update (conditional):** if `.ai/workflows/<slug>/03-slice.md` exists:
 1. Read it. Append `{slug: <slice-slug>, status: defined, slice-type: <sub>, compressed: true}` to `slices`.
 2. Bump `total-slices` by 1.
@@ -112,6 +116,6 @@ If `03-slice.md` does NOT exist (the workflow has not reached slicing yet), skip
 # Step 2 — Execute
 
 1. Read the reference file in full from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/reference/<key>.md`.
-2. Treat its content as your instructions for this invocation. Do not summarize, paraphrase, or skip — follow it verbatim, **with one exception**: if slug-mode is active (Step 0 extracted a valid `--slug`), the Step 1 slug-mode contract above overrides any reference instructions that would create a new workflow, write `01-<key>.md`, switch branches, or write a top-level `00-index.md`. The reference's *content production* (research, sub-agents, body sections, output discipline) still applies — only the *output destination* and *index bookkeeping* change.
-3. The reference body contains a complete workflow definition (preamble, pipeline, stages, output contract). In standalone mode, honor every conditional input, every artifact write, and every routing rule the reference describes. In slug-mode, honor the same content discipline but write only the compressed slice file plus the additive index updates.
-4. The remaining `$ARGUMENTS` after the matched key (and after `--slug` extraction) are the sub-command's own arguments — pass them through verbatim.
+2. Treat its content as your instructions for this invocation. Do not summarize, paraphrase, or skip — follow it verbatim, **with one exception**: if slug-mode is active (Step 0 detected a matching `INDEX.md` slug), the Step 1 slug-mode contract above overrides any reference instructions that would create a new workflow, write `01-<key>.md`, switch branches, or write a top-level `00-index.md`. The reference's *content production* (research, sub-agents, body sections, output discipline) still applies — only the *output destination* and *index bookkeeping* change.
+3. The reference body contains a complete workflow definition (preamble, pipeline, stages, output contract). In standalone mode, honor every conditional input, every artifact write, and every routing rule the reference describes. In slug-mode, honor the same content discipline but write only the compressed slice file plus the additive index updates (including the global `INDEX.md` row touch in step 6 of Step 1).
+4. The remaining `$ARGUMENTS` after the matched key (and after the slug, if Step 0 consumed it) are the sub-command's own arguments — pass them through verbatim.

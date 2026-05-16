@@ -14,15 +14,15 @@ You are running `wf-investigate`, an **investment discovery workflow** that surv
 
 # Slug-mode (read before proceeding)
 
-If `/wf-quick`'s dispatcher extracted a `--slug <existing-slug>` flag from `$ARGUMENTS`, you are in **slug-mode** and the *Step 1 — Slug-mode contract* in `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/SKILL.md` overrides the standalone instructions below. Substantively:
+If `/wf-quick`'s dispatcher selected **slug-mode** in Step 0 (the first argument after the sub-command matched a non-closed slug in `.ai/workflows/INDEX.md`), the *Step 1 — Slug-mode contract* in `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/SKILL.md` overrides the standalone instructions below. Substantively:
 
 - **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-investigate-<descriptor>.md` (collision suffix `-2`, `-3` if needed). Frontmatter: `type: slice`, `slice-slug: investigate-<descriptor>`, `slice-type: investigate`, `compressed: true`, `origin: wf-quick/investigate`, `stage-number: 3`, `status: defined`, `complexity: xs` (investigate produces an opportunity-ranking report, not implementation work).
 - **Same content, different home.** Body carries the same sections the standalone investigate would have written to `01-investigate.md` (domain map, ranked opportunities, ROI assessment, recommended next command), under a `# Compressed Slice: investigate` heading with a one-line provenance preamble.
 - **No new workflow, no new branch, no `01-investigate.md`, no new top-level `00-index.md`.** The slug already owns those.
-- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: investigate-<descriptor>, slice-type: investigate, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: investigate, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`.
-- **Chat return:** one line — `wf-quick investigate → compressed slice investigate-<descriptor> on <slug>` — plus the top-ranked recommendation (e.g., `/wf-quick refactor --slug <slug> <area>`, `/wf intake <description>`), still scoped where investigate says it should go.
+- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: investigate-<descriptor>, slice-type: investigate, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: investigate, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see SKILL.md Step 1 step 6).
+- **Chat return:** one line — `wf-quick investigate → compressed slice investigate-<descriptor> on <slug>` — plus the top-ranked recommendation (e.g., `/wf-quick refactor <slug> <area>`, `/wf intake <description>`), still scoped where investigate says it should go. Use the positional-slug form (slug as the first argument after the sub-command) — there is no `--slug` flag in v9.10.0+.
 
-If no `--slug` flag was set, ignore this section and proceed standalone per the instructions below.
+If slug-mode was not selected (first argument was not a known slug, or `INDEX.md` did not exist), ignore this section and proceed standalone per the instructions below.
 
 # Pipeline
 `1·surface` → `2·investigate` → `3·rank` → `/wf intake` | `/wf-quick quick` | `/wf-quick discover`

@@ -1,5 +1,5 @@
 ---
-description: Reconcile workflow state with reality. Checks whether referenced code, tests, PRs, branches, and dependencies actually exist or have changed. Writes a sync report to 00-sync.md.
+description: Reconcile workflow state with reality. Two responsibilities — (a) maintain the global workflow registry `.ai/workflows/INDEX.md` (bootstrap on first run; refresh every run) so `/wf-quick` positional slug detection works; (b) check whether referenced code, tests, PRs, branches, and dependencies actually exist or have changed (per-workflow drift report). Writes a sync report to 00-sync.md.
 argument-hint: "[slug]"
 ---
 
@@ -19,10 +19,45 @@ This command can be run at **any point** in the lifecycle. It is most valuable m
 
 # CRITICAL — execution discipline
 You are a **reality checker**, not a fixer.
-- Do NOT modify workflow stage files. Do NOT advance any workflow.
-- Do NOT fix drift — only surface it. The user decides how to respond.
+- Do NOT modify workflow stage files (other than the bookkeeping touch in Step 7 and the INDEX.md maintenance in the new Step -1). Do NOT advance any workflow.
+- Do NOT fix drift in per-workflow stage files — only surface it. The user decides how to respond.
+- The global `.ai/workflows/INDEX.md` registry IS your responsibility to keep accurate — bootstrap it if missing, refresh it on every run (Step -1). This is bookkeeping, not stage-file mutation.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
-- If you catch yourself about to fix something, STOP. This command is diagnostic.
+- If you catch yourself about to fix anything beyond the INDEX.md registry, STOP. This command is diagnostic.
+
+# Step -1 — Maintain the global workflow registry (`.ai/workflows/INDEX.md`)
+
+This step runs **unconditionally on every invocation, before Step 0**, even if the user passed a specific slug. It is the *only* read-side guarantee that `/wf-quick`'s positional slug detection has a fresh registry to consult.
+
+**File: `.ai/workflows/INDEX.md`**
+
+Format — single header line (one-line comment starting with `#`), then one row per workflow. Columns are tab-separated. Rows sorted alphabetically by slug. Closed workflows are retained for history (they show up as `closed` in the status column; `/wf-quick`'s positional slug detection skips closed rows but a slug match still triggers an "append a slice to a closed workflow?" confirmation).
+
+```
+# .ai/workflows/INDEX.md — global workflow registry. Maintained by /wf-meta sync (bootstrap+refresh, Step -1) and additively touched by /wf-quick slug-mode writes (updated-at only). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
+<slug>	<status>	<workflow-type>	<branch>	<updated-at>
+<slug>	<status>	<workflow-type>	<branch>	<updated-at>
+```
+
+Column semantics (all values pulled directly from each workflow's `00-index.md` YAML frontmatter):
+
+| Column | Source field on `00-index.md` | Notes |
+|---|---|---|
+| `slug` | `slug` (and must equal the directory name) | The lookup key. |
+| `status` | `status` | Common values: `defined`, `shaped`, `sliced`, `planned`, `implementing`, `verifying`, `reviewing`, `handed-off`, `shipped`, `closed`, `abandoned`. |
+| `workflow-type` | `workflow-type` (or `compressed`, `quick`, `rca`, `investigate`, `discover`, `hotfix`, `update-deps`, `refactor`, `docs`, `standard`). Use `standard` if the field is missing on legacy indexes. |
+| `branch` | `branch` | The git branch the workflow lives on (informational; not used for routing). |
+| `updated-at` | `updated-at` (ISO 8601 UTC, e.g. `2026-05-16T12:34:56Z`) | Used by `/wf-meta status` ordering and by humans skimming the registry. |
+
+**Procedure:**
+
+1. **Glob** `.ai/workflows/*/00-index.md` to discover every workflow directory.
+2. For each `00-index.md`, parse its YAML frontmatter and extract the five columns above.
+3. If `.ai/workflows/INDEX.md` does **not** exist → **bootstrap**: write a fresh file from scratch with the header comment + one sorted row per discovered workflow. Surface this in the chat return as: *"Bootstrapped `.ai/workflows/INDEX.md` with N workflows. `/wf-quick` positional slug detection is now enabled."*
+4. If `.ai/workflows/INDEX.md` **does** exist → **refresh**: rewrite the file with the current sorted set of discovered workflows. Compare against the previous content and report a one-line diff summary in the chat return: *"Refreshed INDEX.md: A added, R removed, U status/branch updates."*
+5. If a row in the previous INDEX.md references a slug whose `.ai/workflows/<slug>/00-index.md` is missing on disk → omit the row from the rewritten file and flag it in the chat return as *"Removed stale row: `<slug>` (directory missing)."*
+
+This step is fast (one frontmatter read per workflow dir; no git ops, no external calls) and idempotent — running it twice produces an identical file. The per-workflow drift check (Steps 1–7 below) runs *after* this is done.
 
 # Step 0 — Resolve target workflow
 
@@ -182,6 +217,8 @@ Read the current `00-index.md` frontmatter. Update ONLY these fields:
 - Add `00-sync.md` to `workflow-files` if not already present
 
 Do NOT change `status`, `current-stage`, or any other field.
+
+Then rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` to the same timestamp. (Step -1 refreshed the file based on the pre-Step-7 state; this small touch keeps it consistent with the just-bumped `00-index.md.updated-at`.)
 
 # Chat return contract
 Return ONLY:
