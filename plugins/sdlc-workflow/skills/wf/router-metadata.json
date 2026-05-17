@@ -1,6 +1,6 @@
 {
   "skill": "wf",
-  "description": "Skill router for /wf. 13 sub-commands (shape, slice, plan, implement, verify, review, handoff, ship, retro, instrument, experiment, benchmark, profile) covering the canonical SDLC lifecycle plus perf/observability augmentations. No sweep mode — sub-commands are sequential lifecycle stages. Invoke as /wf <subcommand> <args>.",
+  "description": "Run one canonical SDLC stage (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) or a perf/observability augmentation (instrument, experiment, benchmark, profile), and write its artifact to `.ai/workflows/<slug>/`. For navigating existing workflows, use `/wf-meta`; for compressed or standalone flows, use `/wf-quick`.",
   "dimensions": [
     "benchmark",
     "experiment",

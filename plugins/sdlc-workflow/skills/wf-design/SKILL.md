@@ -1,6 +1,6 @@
 ---
 name: wf-design
-description: Design router for the SDLC plugin. Three modes — workflow stage 2b (`/wf-design <slug>`), workflow + sub-command (`/wf-design <slug> <sub>`), or freestanding (`/wf-design <sub>`). 22 sub-commands across planning (shape, craft), review (audit, critique, extract), transformations (animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset, adapt), and project context (setup, teach).
+description: Design router for UI/UX work — runs as workflow stage 2b (`/wf-design <slug>`), as a focused sub-command on an active workflow (`/wf-design <slug> <sub>`), or freestanding (`/wf-design <sub>`). 22 sub-commands span planning, review, surface-level transformations, and project setup; see argument-hint for the full list.
 disable-model-invocation: true
 argument-hint: "[slug] [shape|craft|audit|critique|extract|animate|bolder|clarify|colorize|delight|distill|harden|layout|onboard|optimize|overdrive|polish|quieter|typeset|adapt|setup|teach] [target]"
 ---

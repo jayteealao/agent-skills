@@ -1,6 +1,6 @@
 ---
 name: refactoring-patterns
-description: This skill provides patterns for safe, systematic refactoring including extract, rename, move, and simplification operations with proper testing and rollback strategies.
+description: Patterns for safe behavior-preserving refactoring — extract, rename, move, simplify — with test-baseline and rollback guidance. Trigger on refactor or restructure requests.
 context: fork
 user-invocable: false
 ---

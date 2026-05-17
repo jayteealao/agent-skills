@@ -1,17 +1,25 @@
 {
   "skill": "wf-quick",
-  "description": "Skill router for /wf-quick. 10 sub-commands (quick, rca, probe, investigate, discover, hotfix, update-deps, refactor, ideate, simplify). No sweep mode — sub-commands are orthogonal entry points. `probe` is the only sub-command that is slug-mode only (refuses to run without an existing slug). Documentation work moved to /wf-docs in v9.4.0; intake moved to /wf in v9.1.0. Invoke as /wf-quick <subcommand> <args>.",
+  "description": "Compressed, standalone SDLC entry points (fix, rca, probe, investigate, discover, hotfix, update-deps, refactor, ideate, simplify) — orthogonal sub-commands that don't compose into the full lifecycle. If the first arg after the sub-command matches a non-closed workflow slug, the run attaches as a compressed slice; otherwise it runs standalone and creates a fresh workflow. For full-lifecycle work, use `/wf intake`; for documentation, `/wf-docs`.",
   "dimensions": [
     "discover",
+    "fix",
     "hotfix",
     "ideate",
     "investigate",
     "probe",
-    "quick",
     "rca",
     "refactor",
     "simplify",
     "update-deps"
   ],
-  "aggregates": {}
+  "aggregates": {},
+  "models": {
+    "default": "haiku",
+    "overrides": {
+      "investigate": "sonnet",
+      "rca": "sonnet",
+      "hotfix": "sonnet"
+    }
+  }
 }

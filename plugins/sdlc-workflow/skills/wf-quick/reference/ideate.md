@@ -67,6 +67,8 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 
 Launch exploration sub-agents in parallel. Each sub-agent gets a specific lens and must return **structured findings** — not generic advice, but specific evidence from this codebase. Launch only the lenses relevant to the focus area (or all six if no focus).
 
+**Model for every dispatched lens agent:** `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.default` — `ideate` has no override). REQUIRED on every `Task` call. Each lens reads code + emits structured findings against a rubric (complexity, performance, security, DX, gaps, architecture). The adversarial filtering step that comes later does the judgment work; the per-lens fan-out is bounded extraction. Haiku is the right tier.
+
 ---
 
 ## Lens 1 — Code Quality & Technical Debt

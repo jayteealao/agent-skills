@@ -89,7 +89,7 @@
         },
         "workflow-type": {
           "enum": [
-            "feature", "quick", "rca", "investigate",
+            "feature", "fix", "quick", "rca", "investigate",
             "rf", "hotfix", "dep-update", "docs"
           ]
         },

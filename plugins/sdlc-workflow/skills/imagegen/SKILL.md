@@ -1,6 +1,6 @@
 ---
 name: imagegen
-description: Generate a visual image from a text prompt using the best available image generation method. Capability waterfall: built-in image_gen tool (Codex/Claude Code native) → gpt-image-2 via codex exec (ChatGPT subscription) → nano-banana-pro via Gemini API (GEMINI_API_KEY) → text-only scene sentence fallback. Returns image file path and method used. Used internally by wf-design shape and craft sub-commands for north-star visual probes.
+description: Generate an image from a text prompt using the best available method, with automatic fallback (built-in image_gen → gpt-image-2 → nano-banana-pro → text-only scene sentence). Returns the image file path and the method used. Internal to `/wf-design`; not user-invocable.
 version: 1.0.0
 user-invocable: false
 argument-hint: "<prompt> [--output path] [--resolution 1K|2K|4K] [--count 1-4] [--skip-reason text]"

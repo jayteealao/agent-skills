@@ -1,6 +1,6 @@
 {
   "skill": "review",
-  "description": "Code review skill. 31 per-dimension reviews (correctness, security, performance, ...) plus 7 named multi-dimension sweeps (each dispatches one sub-agent per dimension in its composition). Single dimension: /review <dim>. Sweep: /review sweep <aggregate>.",
+  "description": "Code review across 31 dimensions (correctness, security, performance, architecture, accessibility, supply-chain, and more). `/review <dimension>` runs one rubric inline; `/review sweep <aggregate>` fans out one reviewer sub-agent per dimension in parallel and synthesizes a unified verdict. Auto-trigger on review or audit requests scoped to a PR, worktree, diff, file, or repo.",
   "dimensions": [
     "accessibility",
     "api-contracts",
@@ -109,5 +109,13 @@
       "frontend-performance",
       "ux-copy"
     ]
+  },
+  "models": {
+    "default": "haiku",
+    "overrides": {
+      "architecture": "sonnet",
+      "refactor-safety": "sonnet",
+      "security": "sonnet"
+    }
   }
 }

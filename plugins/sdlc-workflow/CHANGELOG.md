@@ -5,6 +5,158 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.18.0] - 2026-05-17
+
+### Changed — `/wf-quick quick` renamed to `/wf-quick fix`
+
+Sub-command rename. `/wf-quick quick` was the odd one out in a verb-noun-shaped sibling set (`rca`, `probe`, `investigate`, `discover`, `hotfix`, `refactor`, `ideate`, `simplify`, `update-deps`) — an adverb where the rest are verbs/nouns — and the duplicate `/wf-quick quick` was awkward to say and to write. `fix` is verb-first, parallel with siblings, and reads naturally: `/wf-quick fix add-rate-limiting`. Following the established cutover pattern (v9.1.0 moved `intake` to `/wf`, v9.4.0 moved `docs` to `/wf-docs`), this is a clean rename — the dispatcher emits a redirect message rather than a back-compat shim.
+
+**User-visible changes:**
+
+- **`/wf-quick fix <description>`** replaces `/wf-quick quick <description>`. The sub-command's behavior — compressed planning that collapses intake, shape, design, slice, and plan into one artifact — is unchanged.
+- **`/wf-quick quick` now returns a redirect message** at the Step 0 dispatcher: *"`quick` was renamed to `fix` in v9.18.0 — use `/wf-quick fix <description>`."* (Parallel to how `intake` and `docs` redirects work.)
+- **New artifacts use the `fix` namespace:** `01-fix.md` (planning), `workflow-type: fix`, branch `fix/<slug>`, slice-slug `fix-<descriptor>`, compressed slice `03-slice-fix-<descriptor>.md`, slice-type `fix`, origin `wf-quick/fix`. Slug derivation: `fix-<short-description>` (e.g., `fix-checkout-button-spacing`).
+- **Pre-v9.18.0 artifacts on disk are still readable.** Resume mode in `fix.md` detects both `workflow-type: fix` (new) and `workflow-type: quick` (legacy), and reads `01-fix.md` (new) or `01-quick.md` (legacy). `/wf implement`'s compressed-mode prerequisite check also reads both paths. The `frontmatter.schema.json` `workflow-type` enum keeps `quick` alongside `fix` for back-compat. The `/wf-meta sync` registry tolerates both values.
+
+**Files renamed:**
+
+- `skills/wf-quick/reference/quick.md` → `skills/wf-quick/reference/fix.md` (via `git mv` to preserve history). Body edits inside: all sub-command-name references (`01-quick.md`, `workflow-type: quick`, `quick-plan` type, branch `quick/<slug>`, slug-derivation pattern) updated to `fix`; router-name references (`wf-quick`, "wf-quick envelope", chat-return prefix `wf-quick complete:`) untouched.
+
+**Files updated:**
+
+- `skills/wf-quick/SKILL.md` — description, argument-hint, dispatcher Step 0 redirect message, sub-command table, slice-type comment.
+- `skills/wf-quick/router-metadata.json` — `dimensions` (replaced `quick` with `fix`); `description` synced. `models.overrides` unchanged (`quick` had no override; `fix` uses the default `haiku`).
+- `skills/wf-quick/reference/rca.md`, `probe.md`, `investigate.md`, `discover.md` — every `/wf-quick quick` callsite → `/wf-quick fix`.
+- `skills/wf/reference/implement.md` — compressed-mode prerequisite check supports both `01-fix.md` and `01-quick.md` (legacy).
+- `skills/wf/reference/profile.md` — every `/wf-quick quick` callsite → `/wf-quick fix`.
+- `skills/wf-meta/reference/sync.md` — workflow-type list includes both `fix` and legacy `quick`.
+- `tests/wf-quick-fixtures.json` — fixture `wf-quick-quick-slug` replaced with two fixtures: `wf-quick-fix-slug` (new sub-command resolves to `fix.md`) and `wf-quick-quick-rejected` (legacy invocation must error with redirect).
+- `tests/frontmatter.schema.json` — `workflow-type` enum gains `fix`; legacy `quick` retained for back-compat.
+
+**Files NOT changed (intentionally):**
+
+- The `wf-quick` router name itself is unchanged. Only the sub-command is renamed.
+- The `/review sweep quick` aggregate (`skills/review/router-metadata.json` `aggregates.quick`, `skills/review/SKILL.md`) is a different `quick` — a review-aggregate, not a wf-quick sub-command. Untouched.
+- Historical files: CHANGELOG.md (history), `ROUTER-MIGRATION-PLAN.md`, `RUNTIME-PROBE-PLAN.md`, `scripts/relocate-wf-quick.mjs` (one-shot historical migration). Mentions of `quick` in those files refer to past states and should stay.
+
+### Decisions (recorded)
+
+1. **Clean cutover, no shim.** Matches v9.1.0 (`intake` move) and v9.4.0 (`docs` move). The dispatcher's redirect message is the only back-compat for the sub-command name. Resume mode for *existing artifacts on disk* still works because legacy `workflow-type: quick` is recognized — but new invocations must use `fix`.
+2. **Minor bump (9.18.0), not patch.** A renamed sub-command is a breaking change to user-facing CLI surface, even though existing artifacts keep working. Semver minor reflects "new feature + intentional behavior change with redirect path".
+3. **Artifact paths renamed (not just the sub-command name).** Wrote `01-fix.md` instead of keeping `01-quick.md` despite the rename touching multiple cross-references. Reason: the artifact name is the long-lived signal of provenance — three years from now, reading `01-quick.md` in a repo with `/wf-quick fix` should be confusing. Better to have `01-fix.md` mean "made by `/wf-quick fix`" and `01-quick.md` mean "made by the pre-v9.18.0 sub-command."
+
+### Files
+
+See "Files renamed", "Files updated", and "Files NOT changed" sections above. Additionally: `plugins/sdlc-workflow/.claude-plugin/plugin.json` (9.17.1 → 9.18.0), `.claude-plugin/marketplace.json` (sdlc-workflow 9.17.1 → 9.18.0; marketplace 1.52.3 → 1.53.0 — minor because of the breaking sub-command rename).
+
+---
+
+## [9.17.1] - 2026-05-17
+
+### Changed — skill descriptions rewritten with Diátaxis-style reference voice
+
+Copy-only refresh. No behavior change; all four router verifiers still PASS. The skill description field (read by the routing model when deciding what to load, and by users browsing the marketplace) had drifted into feature laundry lists, version-history fragments, and internal lingo. Diátaxis's separation-by-purpose principle says: a description should be reference-voiced (factual, present-tense, no narrative), state the triggering condition, and let the `argument-hint` carry the enumeration of sub-commands instead of duplicating it inline.
+
+**Worst-case before/after** (`/wf-quick`):
+
+| | Length | Content |
+|---|---:|---|
+| Before | ~190 words | 10-item sub-command enumeration with inline definitions, version-history note (`Positional slug detection (v9.10.0):`), internal lingo (`type: slice`, `slice-type: <sub>`, `compressed: true`), per-sub-command flag enumeration |
+| After | ~60 words | Verb-first behavior, slug-detection rule in one sentence, sibling-skill cross-references |
+
+**All 11 SKILL.md descriptions updated.** Three small skills (`error-analysis`, `refactoring-patterns`, `test-patterns`) lose their "This skill should be used when…" preamble (dead words before the verb). The `/review` description drops a 17-item dimension enumeration and refers to `argument-hint` for the full list. The six router skills (`wf`, `wf-meta`, `wf-quick`, `wf-design`, `wf-docs`, `review`) get verb-first leads, drop "Skill router for /xyz." preambles, and let the argument-hint do the enumeration work.
+
+**`router-metadata.json` descriptions synced to match.** Both source-of-truth surfaces (SKILL.md frontmatter + router-metadata.json) now carry the same copy. Note: this is two-sources-of-truth — a latent Diátaxis smell — kept aligned manually until a follow-up unifies them.
+
+### Decisions (recorded)
+
+1. **Patch bump (9.17.1), not minor.** No behavior change. The descriptions affect discovery and routing context, not execution. Keep-a-Changelog convention: copy-only refresh = patch.
+2. **Don't enumerate when you can categorize.** The `/review` description names the kinds of dimensions reviewed (correctness, security, performance, …) and the total count (31), instead of listing all 31. The full enumeration moves to where it already lives in `argument-hint`.
+3. **`imagegen` description trims the capability-waterfall implementation detail.** That's a runtime mechanism, not part of the behavioral contract a description should carry. The fallback chain is documented in the SKILL body.
+4. **`wide-event-observability` left as-is.** Already concise and uses both a `description` (what it does) and a separate `when_to_use` (trigger condition) — the only skill in the plugin that explicitly separates those two purposes. Good model for future skills.
+
+### Files
+
+- **Modified (11 SKILL.md descriptions):** `skills/error-analysis/SKILL.md`, `skills/imagegen/SKILL.md`, `skills/refactoring-patterns/SKILL.md`, `skills/review/SKILL.md`, `skills/test-patterns/SKILL.md`, `skills/wf-design/SKILL.md`, `skills/wf-docs/SKILL.md`, `skills/wf-meta/SKILL.md`, `skills/wf-quick/SKILL.md`, `skills/wf/SKILL.md`, `skills/wide-event-observability/SKILL.md` (unchanged — already good).
+- **Modified (6 router-metadata.json descriptions):** `skills/review/router-metadata.json`, `skills/wf/router-metadata.json`, `skills/wf-design/router-metadata.json`, `skills/wf-docs/router-metadata.json`, `skills/wf-meta/router-metadata.json`, `skills/wf-quick/router-metadata.json`.
+- **Modified:** `plugins/sdlc-workflow/.claude-plugin/plugin.json` (9.17.0 → 9.17.1), `.claude-plugin/marketplace.json` (sdlc-workflow 9.17.0 → 9.17.1; marketplace 1.52.2 → 1.52.3).
+
+---
+
+## [9.17.0] - 2026-05-17
+
+### Changed — model tiering extended across `/wf`, `/wf-meta`, and `/wf-quick`
+
+v9.16.0 added the `models` block to `/review`. v9.17.0 propagates the same pattern to every other fan-out dispatch site in the plugin, closing the gap where ~20+ sites were silently inheriting the parent session's model (Opus on Opus sessions).
+
+**Tier-2 → Tier-1 (explicit `model: sonnet` at each fix-loop dispatch):**
+
+- **`skills/wf/reference/review.md` Step 3 (fan-out)** — was prose-only "spawn a sonnet sub-agent"; now requires explicit `model: sonnet` on every `Task` call with enforcement language. The fan-out reviewers run one rubric each — Sonnet is the right tier; synthesis (Step 4) inherits parent.
+- **`skills/wf/reference/review.md` Step 4c (fix-loop)** — same upgrade: explicit `model: sonnet`, REQUIRED.
+- **`skills/wf/reference/verify.md` Step 7.6 (fix-loop)** — same upgrade.
+- **`skills/wf/reference/implement.md` reviews mode fix-loop** — same upgrade.
+
+The "Do not omit; sub-agents must not silently inherit the parent's model" enforcement language is identical across all four sites so future prose simplifications can't drift back to inheritance.
+
+**Tier-3 → Tier-1 (new `models` blocks in `wf-meta` and `wf-quick` router-metadata, wired at every dispatch site):**
+
+- **`skills/wf-meta/router-metadata.json` adds `models: { default: "haiku", overrides: {} }`**. `how` is the only sub-command that fans out; synthesizers within `how` (Mode B synth, Mode C synth, Mode D, Mode E) use an explicit `model: omit` override in the SKILL prose because synthesis genuinely benefits from the parent reasoner.
+- **`skills/wf-quick/router-metadata.json` adds `models` block with `default: "haiku"`** and three `overrides`: `investigate`, `rca`, `hotfix` → `sonnet`. The overrides reflect the judgment density of each sub-command: investigate trades off across design space, rca traces causal chains under uncertainty, hotfix reasons about root cause and blast radius under time pressure. All three underserve on Haiku.
+- **SKILL prose updated at every dispatch site to read from the block:** `wf-meta/reference/how.md` (×7 spawn sites, four `haiku` + three `parent-inherit`), `wf-quick/reference/simplify.md`, `discover.md`, `investigate.md`, `hotfix.md`, `quick.md`, `rca.md`, `refactor.md`, `update-deps.md`, `ideate.md`.
+
+**Tooling:**
+
+- **`scripts/migrate-router.mjs` now preserves the `models` block across regenerations.** Was a real bug — only `aggregates` was preserved, so the v9.16 `/review` models block would have been destroyed the next time anyone regenerated manifests. Fixed by treating `models` as policy data alongside `aggregates`.
+- **`scripts/migrate-router.mjs` now skips reference files without YAML frontmatter** (e.g., `skills/wf/reference/runtime-adapters.md` — a shared reference table, not a sub-command) rather than crashing. Surfaces a `skip:` warning instead of throwing.
+- **`scripts/verify-router-migration.mjs` Check 4 (added in v9.16) now validates all four routers** — `models` is optional-when-absent, so this required zero changes to the verifier.
+
+### Decisions (recorded)
+
+1. **`wf-meta` `models.overrides` is empty.** Only `how` fans out, and the synthesizer exceptions inside `how` are handled in SKILL prose (explicit "omit `model:`"), not as router-metadata overrides. Reason: a `how: parent` override at the router level would be misleading — it would imply the *whole* `how` sub-command keeps parent, but only the synthesis steps do.
+2. **`/wf-meta how` Mode C is the largest single win.** 6-8 research agents per question moving from parent (Opus on Opus sessions) to Haiku is the biggest cost delta in the plugin. The synthesizer still uses parent so output quality is unchanged.
+3. **`/wf-quick investigate`, `rca`, `hotfix` are the only Sonnet overrides.** Tradeoff analysis, root-cause investigation, and incident response are causal-reasoning tasks that materially underserve on Haiku. Every other `/wf-quick` sub-command (`simplify`, `discover`, `quick`, `refactor`, `update-deps`, `ideate`) does structured exploration with bounded output — exactly the Haiku 4.5 profile.
+4. **`wf` skill not modeled in this PR.** Has many dispatch sites (`verify` functional 1-5, `plan` Explore 1-3, `shape` Explore 1-2, `implement` Explore 1-2, `ship` freshness 1-3, `retro` Analysis 1-3, `experiment`, `benchmark`, `instrument`). Modeling these requires deciding per-sub-command tiers across nine dimensions plus per-agent role distinctions — larger blast radius than the scope of this PR. Left as follow-up.
+
+### Files
+
+- **Modified:**
+  - `plugins/sdlc-workflow/skills/wf/reference/review.md` (Step 3 fan-out + Step 4c fix-loop dispatches require explicit `model: sonnet`).
+  - `plugins/sdlc-workflow/skills/wf/reference/verify.md` (Step 7.6 fix-loop requires explicit `model: sonnet`).
+  - `plugins/sdlc-workflow/skills/wf/reference/implement.md` (reviews-mode fix-loop requires explicit `model: sonnet`).
+  - `plugins/sdlc-workflow/skills/wf-meta/router-metadata.json` (added `models` block).
+  - `plugins/sdlc-workflow/skills/wf-meta/migration-manifest.json` (regenerated; picks up `init-ship-plan.md` which was previously missing from dimensions).
+  - `plugins/sdlc-workflow/skills/wf-meta/reference/how.md` (7 spawn sites updated with `model:` directives).
+  - `plugins/sdlc-workflow/skills/wf-quick/router-metadata.json` (added `models` block with three Sonnet overrides).
+  - `plugins/sdlc-workflow/skills/wf-quick/migration-manifest.json` (regenerated).
+  - `plugins/sdlc-workflow/skills/wf-quick/reference/simplify.md`, `discover.md`, `investigate.md`, `hotfix.md`, `quick.md`, `rca.md`, `refactor.md`, `update-deps.md`, `ideate.md` (dispatch sites updated with `model:` directives).
+  - `plugins/sdlc-workflow/skills/wf/migration-manifest.json` (regenerated to match current bodies).
+  - `plugins/sdlc-workflow/scripts/migrate-router.mjs` (preserves `models` block across regenerations; tolerates frontmatter-less reference files).
+  - `plugins/sdlc-workflow/.claude-plugin/plugin.json` (9.16.0 → 9.17.0).
+
+---
+
+## [9.16.0] - 2026-05-17
+
+### Changed — `/review sweep` reviewers run on Haiku by default, Sonnet for judgment-heavy dimensions
+
+Previously every per-dimension reviewer dispatched by `/review sweep <aggregate>` inherited the parent session's model. On Opus-class sessions this meant `/review sweep all` paid Opus prices 31 times for what are fundamentally rubric-bound, single-input/structured-output tasks. The fan-out is now explicitly tiered.
+
+- **New `models` block in `skills/review/router-metadata.json`.** `default: "haiku"` for the rubric-bound dimensions; `overrides` map `architecture`, `refactor-safety`, and `security` to `sonnet` because those three call for subjective tradeoff judgment, abstraction critique, or threat modeling that Haiku underserves. Synthesis (Step 5 — dedupe, severity mapping, interactive triage) keeps the parent model.
+- **`skills/review/SKILL.md` Step 1b.2 now requires the `model` parameter on every dispatched `Task`.** The SKILL reads `models.overrides[D] ?? models.default` and passes the resolved value. The rule is explicit ("Do not omit this; reviewers must not silently inherit the parent's model") to prevent silent regression on future prompt edits.
+- **New Check 4 in `scripts/verify-router-migration.mjs` enforces the invariant statically.** Validates `models.default` is in `{haiku, sonnet, opus}`, every `overrides` key is a real dimension, every override value is in the allowed set, and every dimension resolves to a valid model. The check is optional-when-absent so other routers (`wf-design`, `wf-quick`, etc.) that don't fan out aren't forced into the schema.
+
+### Decisions (recorded)
+
+1. **Sonnet, not Opus, on the three judgment-heavy overrides.** The per-dimension reviewer still applies a single rubric; the Opus-class cross-finding reasoning lives in synthesis, which inherits parent. Sonnet 4.6 gives the abstraction-critique quality Haiku underserves without overpaying for cross-dimension reasoning that happens later.
+2. **Single-dimension `/review <dim>` is unchanged — no model override.** It's one reviewer at parent quality; the cost-savings argument that justifies the Haiku fan-out doesn't apply, and the quality argument does.
+3. **Data-driven (router-metadata.json) over inline pin.** Matches the v9.x runtime-truth pattern: config is the source of truth, SKILL prompt is the interpreter. The static verifier makes the invariant testable.
+
+### Files
+
+- **Modified:** `plugins/sdlc-workflow/skills/review/router-metadata.json` (added `models` block), `plugins/sdlc-workflow/skills/review/SKILL.md` (Step 1b.2 — `model` parameter required, resolution rule, model-tiering rationale), `plugins/sdlc-workflow/scripts/verify-router-migration.mjs` (Check 4 — model resolution), `plugins/sdlc-workflow/.claude-plugin/plugin.json` (9.15.0 → 9.16.0).
+
+---
+
 ## [9.15.0] - 2026-05-16
 
 ### Changed — verify and review own their triage→fix loop

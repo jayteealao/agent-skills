@@ -95,6 +95,8 @@ created-at: <real timestamp via bash>
 # Step 2 — Research
 For each package that needs updating, launch parallel web research sub-agents. Group packages into batches of 3–5 to avoid over-parallelization.
 
+**Model for every dispatched batch agent:** `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.default` — `update-deps` has no override). REQUIRED on every `Task` call. Each agent does web search + structured extraction (CVE list, breaking-change list, migration steps) per package — bounded extraction, not cross-package reasoning. Haiku is the right tier.
+
 **For each package batch, launch one general-purpose sub-agent** prompted with:
 
 For each package in this batch:

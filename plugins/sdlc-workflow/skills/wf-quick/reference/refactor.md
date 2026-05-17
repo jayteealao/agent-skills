@@ -86,7 +86,9 @@ Write `00-index.md` immediately after with `workflow-type: refactor`, `current-s
 # Step 2 — Baseline
 **This step is the most important step in the workflow.** It captures the ground truth before any code changes.
 
-Launch parallel sub-agents:
+Launch parallel sub-agents.
+
+**Model for every dispatched agent:** `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.default` — `refactor` has no override). REQUIRED on every `Task` call. Both agents do inventorying with structured output (file states, test coverage) — straightforward bounded extraction. Haiku is the right tier.
 
 ### Explore sub-agent 1 — Code State Snapshot
 

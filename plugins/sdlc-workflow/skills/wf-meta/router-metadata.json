@@ -1,17 +1,22 @@
 {
   "skill": "wf-meta",
-  "description": "Skill router for /wf-meta. 10 sub-commands (next, status, resume, sync, amend, extend, skip, close, how, announce) for lifecycle navigation, status, and meta-control. No sweep mode — sub-commands are orthogonal meta-actions. Invoke as /wf-meta <subcommand> <args>.",
+  "description": "Navigate, inspect, and meta-control existing SDLC workflows — pick what to run next, check status, resume, sync the registry, amend or extend a plan, skip a stage, close a slug, or explain how something works. Does not produce stage artifacts; for those use `/wf`.",
   "dimensions": [
     "amend",
     "announce",
     "close",
     "extend",
     "how",
+    "init-ship-plan",
     "next",
     "resume",
     "skip",
     "status",
     "sync"
   ],
-  "aggregates": {}
+  "aggregates": {},
+  "models": {
+    "default": "haiku",
+    "overrides": {}
+  }
 }

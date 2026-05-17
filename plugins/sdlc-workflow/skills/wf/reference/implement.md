@@ -42,9 +42,9 @@ You are a **workflow orchestrator** running the implementation stage.
    - `workflow-type: rca` or `workflow-type: investigate` → **forwarded mode**. The source artifacts (`01-rca.md` / `01-investigate.md`) hold the rich context. A synthesized `02-shape.md` exists; planning may have been added later via `/wf plan` (full mode) or this may be a quick-style continuation.
    - `workflow-type: rf` (refactor) / `workflow-type: hotfix` / `workflow-type: dep-update` / `workflow-type: docs` → **alternate workflows**. These have their own implement stages and should NOT be using `/wf implement`. STOP and direct the user to the workflow's own implement command (e.g., `/wf-quick refactor`, `/wf-quick hotfix`).
    - `workflow-type: feature` (default for `/wf intake`) or unset → **standard mode**. Use the canonical pipeline files.
-5. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. In compressed mode, slice-slug may be empty — `01-quick.md` covers a single intentional change.
+5. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. In compressed mode, slice-slug may be empty — `01-fix.md` (or legacy `01-quick.md` for pre-v9.18.0 slugs) covers a single intentional change.
 6. **Check prerequisites by mode:**
-   - **Compressed mode**: `01-quick.md` must exist. If missing → STOP. "Run `/wf-quick quick <slug>` first or use a different workflow type."
+   - **Compressed mode**: `01-fix.md` must exist (or legacy `01-quick.md` for pre-v9.18.0 slugs — check both paths). If missing → STOP. "Run `/wf-quick fix <slug>` first or use a different workflow type."
    - **Standard / forwarded mode**: A plan must exist for this slice: either `04-plan-<slice-slug>.md` or `04-plan.md`. If missing → STOP. Tell the user: "Run `/wf plan <slug> <slice-slug>` first."
    - If the source plan/quick artifact shows `Status: Awaiting input` → STOP.
    - Check if `05-implement-<slice-slug>.md` (or `05-implement.md` in compressed mode) already exists → WARN: "This has already been implemented. Running again will overwrite. Proceed?"
@@ -224,7 +224,7 @@ Do this in order for reviews mode:
    ```
 6. **For each finding, sequentially (one at a time):**
    a. `TaskUpdate(taskId, status: "in_progress")`.
-   b. **Spawn a single sub-agent (sonnet)** with this prompt:
+   b. **Spawn a single sub-agent with explicit `model: sonnet`** on the `Task` call (REQUIRED — do not omit; fix-loop sub-agents must not silently inherit the parent session's model). Sonnet handles read-finding-then-patch-code well without Opus cost. Use this prompt:
       ```
       Fix the following review finding in the codebase:
 

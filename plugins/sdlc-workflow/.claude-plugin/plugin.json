@@ -1,6 +1,6 @@
 {
   "name": "sdlc-workflow",
-  "version": "9.15.0",
+  "version": "9.18.0",
   "description": "Six skill-mode routers (`/wf`, `/wf-quick`, `/wf-meta`, `/wf-design`, `/wf-docs`, `/review`) driving a 13-stage SDLC lifecycle from intake through ship — with per-slice artifacts, runtime-truth verification, and PO-confirmed stack fingerprinting.",
   "author": {
     "name": "jayte"

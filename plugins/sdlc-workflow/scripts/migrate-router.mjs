@@ -51,7 +51,7 @@ function parseArgs() {
 
 function splitFrontmatter(text) {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
-  if (!m) throw new Error('No frontmatter found');
+  if (!m) return null;
   return { frontmatter: m[1], body: m[2] };
 }
 
@@ -119,6 +119,13 @@ function main() {
   const aggregates = existing.aggregates && typeof existing.aggregates === 'object'
     ? existing.aggregates
     : {};
+  // Policy block — preserved across regenerations like aggregates. The regenerator
+  // rebuilds dimensions and descriptions from the reference files but must NOT
+  // destroy hand-edited model assignments. See verify-router-migration.mjs Check 4
+  // for the schema this expects.
+  const models = existing.models && typeof existing.models === 'object'
+    ? existing.models
+    : undefined;
 
   const entries = [];
   const dimensions = [];
@@ -131,7 +138,12 @@ function main() {
     }
     const abs = join(REF_DIR, file);
     const text = readFileSync(abs, 'utf-8');
-    const { frontmatter, body } = splitFrontmatter(text);
+    const split = splitFrontmatter(text);
+    if (!split) {
+      console.warn(`  skip: ${file} has no YAML frontmatter — treating as plain reference, not a sub-command.`);
+      continue;
+    }
+    const { frontmatter, body } = split;
     const description = readField(frontmatter, 'description') || '';
     const argumentHint = readField(frontmatter, 'argument-hint') || '[args]';
     const key = file.replace(/\.md$/, '');
@@ -174,6 +186,7 @@ function main() {
     description,
     dimensions,
     aggregates,
+    ...(models !== undefined ? { models } : {}),
   };
   writeFileSync(META_PATH, JSON.stringify(routerMeta, null, 2) + '\n', 'utf-8');
 

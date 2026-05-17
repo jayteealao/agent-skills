@@ -1,6 +1,6 @@
 ---
 name: test-patterns
-description: This skill provides patterns and best practices for generating and organizing tests. It covers unit testing, integration testing, test data factories, and coverage strategies across multiple languages and frameworks.
+description: Patterns for generating and organizing tests — unit, integration, data factories, coverage strategies — across multiple languages and frameworks. Trigger on test-writing or coverage-improvement requests.
 context: fork
 user-invocable: false
 ---

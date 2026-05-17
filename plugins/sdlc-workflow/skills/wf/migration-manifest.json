@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-06T18:39:56.255Z",
+  "generatedAt": "2026-05-17T01:16:51.834Z",
   "entries": [
     {
       "key": "benchmark",
@@ -23,8 +23,8 @@
       "key": "handoff",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/handoff.md",
-      "bodyHash": "9381380712519f1b1f515e0fdafd9b98cf251fd83553b57bcc98c40ef9b0fb32",
-      "bodyBytes": 17741,
+      "bodyHash": "86ecbc783c7e1a1ddd04e25a5ab71dd1020aa93cefb75df650f99377b2a63e94",
+      "bodyBytes": 36569,
       "description": "Turn the completed and reviewed work into a PR-ready handoff package with reviewer and QA context. Aggregates ALL complete slices by default — pass a slice-slug only when each slice has its own separate PR.",
       "argumentHint": "<slug> [slice-slug]"
     },
@@ -32,8 +32,8 @@
       "key": "implement",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/implement.md",
-      "bodyHash": "4c83f1631d7793cd70be75e0496accff52611820008e2cbbc072ecb4913be052",
-      "bodyBytes": 26309,
+      "bodyHash": "ce2f76e47382129169b7bc8258059bb7458b3ff185ebeb2b70a64f0478efd2b6",
+      "bodyBytes": 26635,
       "description": "Implement one selected planned slice. Writes per-slice implementation record with cross-links to slice definition and plan.",
       "argumentHint": "<slug> [slice-slug|reviews]"
     },
@@ -50,8 +50,8 @@
       "key": "intake",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/intake.md",
-      "bodyHash": "a1e694ebe976678d13768c525fc41af9d80873f3df50f9171a85483a40581ca6",
-      "bodyBytes": 11015,
+      "bodyHash": "b3b77d97ae77de92d5200a1684f8d3b1621eefae7f9c2c1f4e44e3b68bc1c081",
+      "bodyBytes": 19879,
       "description": "Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.",
       "argumentHint": "<task description>"
     },
@@ -59,8 +59,8 @@
       "key": "plan",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/plan.md",
-      "bodyHash": "d0f33cb4d44560e7117ca92a62e359c8aa856d6e4743ebc3ed45f64b665c6214",
-      "bodyBytes": 33133,
+      "bodyHash": "1c274119ac4d4391abbebe2633c1bb9b4d02b7f7e0f7c85e40687637a6263164",
+      "bodyBytes": 36373,
       "description": "Create or review-and-fix implementation plans. First invocation creates plans. Re-invocation auto-reviews against current codebase and artifacts, fixes issues found. Supports single slice, all slices (parallel), or explicit feedback.",
       "argumentHint": "<slug> [slice-slug|all] [review/fix instructions]"
     },
@@ -68,8 +68,8 @@
       "key": "profile",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/profile.md",
-      "bodyHash": "8273afbb8dcc941566a46c8ac6b0f7a6f16c8d87acdad4695c6205a0d9662fe9",
-      "bodyBytes": 11340,
+      "bodyHash": "cb490d5458c19ea94f714242bf1e7d84efc7d1e52ca905be06194069f197489a",
+      "bodyBytes": 11336,
       "description": "Standalone performance profiling command. Detects language and available profiling tools, runs static analysis (call graph, algorithmic complexity, allocation patterns, I/O), runs dynamic profiling when tools are available, and writes the analysis to a durable artifact at .ai/profiles/<run-id>/01-profile.md. Use when you need to understand WHERE time or memory is spent in a code area before optimizing it. Does NOT modify application code. For repeated before/after measurement, use /wf benchmark instead.",
       "argumentHint": "<area-or-function-or-file>"
     },
@@ -86,8 +86,8 @@
       "key": "review",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/review.md",
-      "bodyHash": "574fb56860fd7e901403738b20a533e02c0ae33722c9bce73be4c066554c87bc",
-      "bodyBytes": 28560,
+      "bodyHash": "125c14384afa2cc582d2f3667a88df321a99437636605294ab751a9ef124e02c",
+      "bodyBytes": 43683,
       "description": "Intelligent review dispatch. Reads workflow artifacts and diff, selects relevant review commands, spawns one parallel sonnet sub-agent per command (each writes its findings to file), then aggregates, deduplicates, and triages findings via AskUserQuestion into a unified review verdict. Re-run with \"triage\" to revisit deferred findings.",
       "argumentHint": "<slug> [slice | triage]"
     },
@@ -95,8 +95,8 @@
       "key": "shape",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/shape.md",
-      "bodyHash": "fe10396c2200c4140e457d292751b69bb9844c27f677ade0595bf239d301f144",
-      "bodyBytes": 20910,
+      "bodyHash": "8fbc12020bf8e42bc673ced4fbd6308d480d8e23c589bcfa5f07d8cd12ff1bc9",
+      "bodyBytes": 22598,
       "description": "Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.",
       "argumentHint": "<slug> [focus area]"
     },
@@ -104,17 +104,17 @@
       "key": "ship",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/ship.md",
-      "bodyHash": "59b16cc3b2b873ae38985e1cb4c8441fa3aca5e6b4e0d567a8f3bd9ada670884",
-      "bodyBytes": 19496,
-      "description": "Assess release readiness, ask mandatory rollout questions, and define rollout plus rollback. Operates at the workflow level — reads 08-handoff.md, the PR, and the branch. No slice argument needed.",
-      "argumentHint": "<slug> [environment]"
+      "bodyHash": "9254244036a0ab81bf84a3b138804437cd8e88b05c53f29956acbcfbdcf16d6c",
+      "bodyBytes": 25889,
+      "description": "Run a release using the project's `.ai/ship-plan.md`. Reads the plan, generates a run-id, and walks the 13-step idempotent ship sequence (pre-flight → publish dry-run → rollout → freshness delta → go/no-go → merge → tag → workflow watch → post-publish poll → post-release bump → index update → write run artifact). Replayable: re-running after a partial failure resumes at the failed step. Refuses to start when `08-handoff.md` `readiness-verdict ≠ ready`.",
+      "argumentHint": "<slug> [environment] [--init-plan]"
     },
     {
       "key": "slice",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/slice.md",
-      "bodyHash": "63ecd881e9b97a5214665b729564216572f14a24e4ee7af334b5849ca1069956",
-      "bodyBytes": 12836,
+      "bodyHash": "c11f5e7bc50c29cd4c2ef4ffe8d4481b047cd59dc9b087dc0807919db0acd6bb",
+      "bodyBytes": 13957,
       "description": "Break a shaped work item into thin, independently verifiable vertical slices. Writes a master index and one file per slice.",
       "argumentHint": "<slug> [focus area]"
     },
@@ -122,8 +122,8 @@
       "key": "verify",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/verify.md",
-      "bodyHash": "835629f029a16207e8e0f5c12f1789aa6367de4ef1e40131fb108b818827f550",
-      "bodyBytes": 28290,
+      "bodyHash": "626bfe50d14fa271e0ee1ca51a455204eb7c1bdd84419e9eaabfe7fe60736706",
+      "bodyBytes": 46253,
       "description": "Verify that the selected slice meets acceptance criteria and is ready for review.",
       "argumentHint": "<slug> [slice]"
     }

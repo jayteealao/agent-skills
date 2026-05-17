@@ -116,6 +116,7 @@ ELSE
 
 Spawn **1 sub-agent**:
 - `subagent_type`: Explore
+- `model`: `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/router-metadata.json` `models.default`; REQUIRED on the `Task` call — do not omit, sub-agents must not silently inherit the parent's model)
 - `readonly`: true
 - Prompt:
 
@@ -172,6 +173,7 @@ Announce the decomposition in chat before spawning.
 
 Spawn all explorer agents in a **single message**:
 - `subagent_type`: Explore
+- `model`: `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/router-metadata.json` `models.default`; REQUIRED on the `Task` call — fan-out explorers must not silently inherit the parent's model)
 - `readonly`: true
 - Each gets a different `{EXPLORATION_ANGLE}`
 
@@ -223,6 +225,7 @@ Anything you couldn't fully trace. Be honest about gaps.
 
 After all explorers return, spawn **1 synthesis sub-agent**:
 - `subagent_type`: general-purpose
+- `model`: **omit** — synthesis benefits from the strong reasoner; let the synthesizer inherit the parent session's model. Do not pass `model:` for this Task call. (Exception to the `models.default` rule because synthesis is genuinely cross-finding reasoning, not fan-out exploration.)
 - `readonly`: true
 - Prompt:
 
@@ -301,6 +304,7 @@ For broad architectural or process questions: use all 8.
 
 Spawn all agents in a **single message**:
 - `subagent_type`: general-purpose
+- `model`: `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/router-metadata.json` `models.default`; REQUIRED on every `Task` call — research fan-out must not silently inherit the parent's model. Haiku is the right choice here: each agent does targeted search + structured extraction, not cross-source reasoning. With 6-8 agents per question, this is the single largest unmodeled fan-out in the plugin.)
 - `readonly`: false (needs WebSearch)
 
 Prompt for each agent:
@@ -347,6 +351,7 @@ What you couldn't find. What seems absent from the literature on your angle. Whe
 
 After all research agents return, spawn **1 synthesis sub-agent**:
 - `subagent_type`: general-purpose
+- `model`: **omit** — synthesis benefits from the strong reasoner; let it inherit the parent session's model. Do not pass `model:` for this Task call.
 - `readonly`: true
 - Prompt:
 
@@ -420,6 +425,7 @@ Total unique sources: <N>
 
 Spawn **1 sub-agent**:
 - `subagent_type`: general-purpose
+- `model`: **omit** — workflow-explanation needs the parent context and reasoning depth; let it inherit the parent session's model. Do not pass `model:` for this Task call.
 - `readonly`: true
 - Prompt:
 
@@ -474,6 +480,7 @@ Given what this artifact says, what does the next stage need to know or do? What
 
 Spawn **1 sub-agent**:
 - `subagent_type`: general-purpose
+- `model`: **omit** — findings explanation needs the parent context and cross-finding reasoning; let it inherit the parent session's model. Do not pass `model:` for this Task call.
 - `readonly`: true
 - Prompt:
 

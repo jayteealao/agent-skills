@@ -9,10 +9,17 @@
       "expectedReferencePath": "skills/wf-quick/reference/rca.md"
     },
     {
-      "id": "wf-quick-quick-slug",
-      "purpose": "Original /wf-quick semantics now reached via the explicit 'quick' key.",
+      "id": "wf-quick-fix-slug",
+      "purpose": "Original /wf-quick semantics reached via the 'fix' key (renamed from 'quick' in v9.18.0).",
+      "invocation": "/wf-quick fix add-rate-limiting",
+      "expectedReferencePath": "skills/wf-quick/reference/fix.md"
+    },
+    {
+      "id": "wf-quick-quick-rejected",
+      "purpose": "'quick' was renamed to 'fix' in v9.18.0. Router must reject with a redirect message rather than silently treat it as a slug.",
       "invocation": "/wf-quick quick add-rate-limiting",
-      "expectedReferencePath": "skills/wf-quick/reference/quick.md"
+      "expectedBehavior": "error",
+      "expectedReferencePath": null
     },
     {
       "id": "wf-quick-intake-rejected",

@@ -292,7 +292,7 @@ findings-severity:
   low: <N>
   incidental: <N>                       # only counted in focus mode; tracked-but-segregated in filter mode
 
-recommended-next: "/wf plan <slug> probe-<descriptor>" | "/wf-quick quick <slug> probe-<descriptor>" | "/wf-meta status <slug>" | "<re-run instruction>"
+recommended-next: "/wf plan <slug> probe-<descriptor>" | "/wf-quick fix <slug> probe-<descriptor>" | "/wf-meta status <slug>" | "<re-run instruction>"
 
 depends-on: []
 tags: [probe]
@@ -367,7 +367,7 @@ Routing logic:
 | Condition | Recommendation |
 |---|---|
 | `findings-count: 0` AND no tripwires fired | `/wf-meta status <slug>` — slug is genuinely ready; status will surface "runtime-evidence-status: clean" |
-| Findings exist, severity ≤ high, fits in ≤3 files | `/wf-quick quick <slug> probe-<descriptor>` |
+| Findings exist, severity ≤ high, fits in ≤3 files | `/wf-quick fix <slug> probe-<descriptor>` |
 | Findings exist, severity ≥ high OR cross-cutting OR multi-adapter divergence | `/wf plan <slug> probe-<descriptor>` |
 | `status: awaiting-environment` | Re-run probe after applying the remediation hint, or re-run with `--adapter <other-key>` |
 | `interactive-verification: deferred` on the original slice was the trigger | Recommend the appropriate fix command per above; additionally instruct that clearing the deferral happens when the new fix slice's verify produces matching evidence — the `00-index.md` `runtime-evidence-deferrals[].cleared-by` field is updated by verify, not by probe. |
@@ -436,7 +436,7 @@ Both modes record `scope-mode` in frontmatter so a later reader knows which post
 # Routing notes (read carefully)
 
 - **`/wf plan <slug> probe-<descriptor>` is the default downstream path** when findings exist and are non-trivial. The probe slice acts as the input artifact for planning, exactly as an `rca` slice does.
-- **`/wf-quick quick <slug> probe-<descriptor>`** for small fixes that fit ≤3 files. Same slug-mode pattern as routing from `rca`.
+- **`/wf-quick fix <slug> probe-<descriptor>`** for small fixes that fit ≤3 files. Same slug-mode pattern as routing from `rca`.
 - **Deferral clearing** happens at verify time, not at probe time — probe writes evidence, verify reads the evidence and updates `cleared-by`. The exception is Step 7 above, where probe directly clears a deferral whose matched AC was successfully observed during this run.
 - **No auto-fix.** Probe reports; downstream commands fix. This matches the discipline `rca` already enforces.
 

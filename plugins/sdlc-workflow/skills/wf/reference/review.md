@@ -298,7 +298,7 @@ Print to chat:
 
 # Step 3: Dispatch Parallel Sub-Agents (sonnet)
 
-For EACH selected command, spawn a **sonnet** sub-agent. All agents run in parallel.
+For EACH selected command, spawn a sub-agent **with explicit `model: sonnet`** on the `Task` call. All agents run in parallel. The model parameter is REQUIRED — do not omit it; reviewers must not silently inherit the parent session's model. Each review command runs a single rubric and benefits from Sonnet's judgment without needing Opus-tier reasoning. Synthesis (Step 4 — aggregation, dedup, triage) keeps the parent model.
 
 **Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`):
 
@@ -439,7 +439,7 @@ If `metric-fix-decisions == 0`, set `fix-rounds-run: 0`, `convergence: not-neede
 
 For each finding triaged `Fix`, sequentially (one at a time):
 1. `TaskCreate` or `TaskUpdate`: `subject: "Fix [{ID}] {SEV}: {title}"`, `activeForm: "Fixing [{ID}]"`, `metadata: { slug, stage: "review-fix", slice: "<slice-slug or empty>", findingId: "{ID}", severity: "{SEV}", sourceCommand: "{command}" }`.
-2. Spawn ONE sonnet sub-agent with this prompt (this is the same fix prompt shape used by `/wf implement reviews` mode — kept identical so behavior matches when the user routes through either path):
+2. Spawn ONE sub-agent **with explicit `model: sonnet`** on the `Task` call (REQUIRED — do not omit; fix-loop sub-agents must not silently inherit the parent session's model). Sonnet handles read-finding-then-patch-code well without Opus cost. This is the same fix prompt shape used by `/wf implement reviews` mode — kept identical so behavior matches when the user routes through either path:
    ```
    Fix the following review finding in the codebase:
 

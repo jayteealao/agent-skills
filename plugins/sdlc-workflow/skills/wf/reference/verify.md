@@ -373,7 +373,7 @@ The triage is **always required**. Verify never silently auto-fixes. If the user
 
 For each issue triaged `Fix`, sequentially (one at a time):
 1. `TaskUpdate` a new task: `subject: "Fix [{ID}]: {title}"`, `activeForm: "Fixing [{ID}]"`, `metadata: { slug, stage: "verify-fix", slice: "<slice-slug>", issueId: "{ID}" }`.
-2. Spawn ONE sonnet sub-agent with this prompt:
+2. Spawn ONE sub-agent **with explicit `model: sonnet`** on the `Task` call (REQUIRED — do not omit; fix-loop sub-agents must not silently inherit the parent session's model). Sonnet handles read-issue-then-patch-code well without Opus cost.
    ```
    Fix the following verify-stage issue in the codebase:
 

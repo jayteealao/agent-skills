@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-05-06T13:14:28.242Z",
+  "generatedAt": "2026-05-17T01:16:51.913Z",
   "entries": [
     {
       "key": "amend",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/amend.md",
-      "bodyHash": "de84fc204ed901d1a39becbe3ab75b73ace0476121ad5011dd96c4e41f8c1f12",
-      "bodyBytes": 12214,
+      "bodyHash": "30a4ca580d384f53a3e4082372c4c663b5b7a522bcbe730f34b1dd34d4df4ff7",
+      "bodyBytes": 15601,
       "description": "Amend an existing workflow — correct the scope, acceptance criteria, or approach of existing slices without overwriting completed work. Creates versioned amendment artifacts. Use when a review or retro reveals that a slice needs rethinking, not just bug-fixing. Distinct from wf-extend (which adds new slices) and wf-implement (which fixes implementation bugs).",
       "argumentHint": "<slug> [slice-slug | from-review | from-retro]"
     },
@@ -14,8 +14,8 @@
       "key": "announce",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/announce.md",
-      "bodyHash": "ef783f1e10b1fef3bbfdf2168d87902e9fe7d9676c384231c076005e09056fbb",
-      "bodyBytes": 13426,
+      "bodyHash": "22577d5e07742a57c2ecccf972d2eb8b1936935f14192e2c06fd5254e9e0538b",
+      "bodyBytes": 13228,
       "description": "Generate stakeholder-facing announcements for shipped workflows. Plain language, no jargon, tailored by audience (eng, product, users). Pulls from handoff and ship artifacts.",
       "argumentHint": "<slug> [audience]"
     },
@@ -33,7 +33,7 @@
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/extend.md",
       "bodyHash": "2d242ed33d155c7bfaf73f8c58485d04837b3e2445dc44e4cb941b1e5e80db63",
-      "bodyBytes": 11948,
+      "bodyBytes": 11714,
       "description": "Add net-new slices to an existing workflow — in-progress or completed — without modifying completed work. Two modes: general (describe new scope) or from-review/from-retro (seed from findings). Creates new slice files and updates the master index non-destructively. Routes to wf-plan for the new slices.",
       "argumentHint": "<slug> [from-review | from-retro]"
     },
@@ -41,17 +41,26 @@
       "key": "how",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/how.md",
-      "bodyHash": "e36ef3bc8d13bd9052b68ce0c3da0bc3b1336dd92ec29b02c9eb2b012c950168",
-      "bodyBytes": 25792,
+      "bodyHash": "918834684ed0406c387ffae46fc3b4dbaea19d97d9863035203ded5e2a4e7a13",
+      "bodyBytes": 27451,
       "description": "Ask how something works in the codebase, commission deep multi-source web research (200+ sources), get quick code answers, explain workflow plans and decisions, or understand implementation and review findings. Routes automatically across five modes — Quick (Mode A), Codebase Explore (Mode B, fan-out to parallel Explore agents + synthesis), Deep Research (Mode C, 6–8 parallel web research agents, 200+ sources), Workflow Explain (Mode D), and Findings Explain (Mode E) — with optional Diátaxis artifact output at the end of every mode.",
       "argumentHint": "<question> | <slug> plan|shape|slice|review|findings | --research <question> | --quick <question>"
+    },
+    {
+      "key": "init-ship-plan",
+      "kind": "dimension",
+      "referencePath": "skills/wf-meta/reference/init-ship-plan.md",
+      "bodyHash": "65730eb94accdec821701a9d0e0cc92e625296e6c54d79deebe621e0a105cdd6",
+      "bodyBytes": 22555,
+      "description": "Author the project-level `.ai/ship-plan.md` — a one-time, repo-scoped contract that captures what \"ship\" means for this project (publishing, version scheme, CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, announcements). Works by **discovery → hypothesis → confirm**: reads what's already in the repo (CI workflows, infra-as-code, package manifests, runbooks), proposes a ship-shape hypothesis, then lets the user confirm or correct each contract. Optional `--from-template <kind>` biases the hypothesis toward a known shape; the template is a *seed*, not a control-flow branch. Read by every subsequent `/wf ship <slug>` invocation.",
+      "argumentHint": "[--from-template <kotlin-maven-central|npm-public|pypi|container-image|server-deploy|library-internal>]"
     },
     {
       "key": "next",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/next.md",
-      "bodyHash": "f23414d1c52b14dbfc0afb15e19a30c2a4218d6bf3a2a896eac235e1ffea53fd",
-      "bodyBytes": 5930,
+      "bodyHash": "42b32261403c3855874a0d6936a967cf7322dcc5a6d44ebc1410962e9ef69406",
+      "bodyBytes": 6564,
       "description": "Read the workflow index and tell the user the exact next command to run, carrying forward the correct slug and slice.",
       "argumentHint": "[slug]"
     },
@@ -59,8 +68,8 @@
       "key": "resume",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/resume.md",
-      "bodyHash": "e0eef55a5bd43a1d56f59d42bf8240d3e2d1984e6bcf5803a621ab996b1006f1",
-      "bodyBytes": 7347,
+      "bodyHash": "19c330aab7b078afd07a4583430d76950868ab74dd24d67adf0b4aabeb8d5965",
+      "bodyBytes": 7935,
       "description": "Generate a dense, token-efficient context brief for a workflow. Reads all stage files and po-answers, distills into ~500 words. Designed for resuming after a break, onboarding a sub-agent, or recovering context in a new session.",
       "argumentHint": "[slug]"
     },
@@ -77,8 +86,8 @@
       "key": "status",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/status.md",
-      "bodyHash": "2cb1634b37f3e317406e444adad8bea7af0a2c3b2635b6eddb7277c3ecf153c9",
-      "bodyBytes": 7533,
+      "bodyHash": "da3da28af326b22d3b1c0f11fc5e8d8525a789b9a2fd2cdeac7389b20e601604",
+      "bodyBytes": 10551,
       "description": "Read-only dashboard across all workflows. Reads every .ai/workflows/*/00-index.md, parses frontmatter, and renders a grouped status table. No side effects. Optional slug argument for single-workflow detail view.",
       "argumentHint": "[slug]"
     },
@@ -86,9 +95,9 @@
       "key": "sync",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/sync.md",
-      "bodyHash": "6158edc97316fbbc28ae09f9e2b5c6743f956577167cad31a1b220c9e4e26e2f",
-      "bodyBytes": 8973,
-      "description": "Reconcile workflow state with reality. Checks whether referenced code, tests, PRs, branches, and dependencies actually exist or have changed. Writes a sync report to 00-sync.md.",
+      "bodyHash": "64bf84ca412f0573c9d3ac6c0c3efc6d9d9257c2c4242e450641a86354853e92",
+      "bodyBytes": 12731,
+      "description": "Reconcile workflow state with reality. Two responsibilities — (a) maintain the global workflow registry `.ai/workflows/INDEX.md` (bootstrap on first run; refresh every run) so `/wf-quick` positional slug detection works; (b) check whether referenced code, tests, PRs, branches, and dependencies actually exist or have changed (per-workflow drift report). Writes a sync report to 00-sync.md.",
       "argumentHint": "[slug]"
     }
   ]

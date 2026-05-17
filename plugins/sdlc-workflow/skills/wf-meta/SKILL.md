@@ -1,6 +1,6 @@
 ---
 name: wf-meta
-description: Navigate and manage existing SDLC workflows. Sub-commands: next, status, resume, sync, amend, extend, skip, close, how, announce, init-ship-plan. Does not produce stage artifacts — for those use `/wf`.
+description: Navigate, inspect, and meta-control existing SDLC workflows — pick what to run next, check status, resume, sync the registry, amend or extend a plan, skip a stage, close a slug, or explain how something works. Does not produce stage artifacts; for those use `/wf`.
 disable-model-invocation: true
 argument-hint: "<next|status|resume|sync|amend|extend|skip|close|how|announce|init-ship-plan> [args...]"
 ---

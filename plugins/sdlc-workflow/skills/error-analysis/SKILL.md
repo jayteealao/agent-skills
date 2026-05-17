@@ -1,6 +1,6 @@
 ---
 name: error-analysis
-description: This skill should be used when analyzing errors, stack traces, and logs to identify root causes and implement fixes.
+description: Analyze errors, stack traces, and logs to identify root causes and propose targeted fixes. Trigger on debugging, incident-response, or "why is this failing" requests.
 ---
 
 # Error Analysis Skill

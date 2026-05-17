@@ -123,6 +123,44 @@ function verifyRouter(routerKey) {
     }
   }
 
+  // Check 4: model resolution — every dimension resolves to a Task-tool-valid
+  // model string. Optional block: routers without `models` are unaffected
+  // (single-dimension routers and skill-style routers that don't fan out).
+  // When present, the block must declare a `default` and may declare per-
+  // dimension `overrides`; both must use values from ALLOWED_MODELS. Every
+  // key in `overrides` must be a real dimension. The point is that sweep
+  // dispatch never silently inherits the parent's (expensive) model.
+  const ALLOWED_MODELS = new Set(['haiku', 'sonnet', 'opus']);
+  if (routerMeta.models !== undefined) {
+    const m = routerMeta.models;
+    if (typeof m !== 'object' || m === null) {
+      failures.push(`[${routerKey}] models block is not an object`);
+    } else {
+      if (!m.default || !ALLOWED_MODELS.has(m.default)) {
+        failures.push(`[${routerKey}] models.default must be one of ${[...ALLOWED_MODELS].join('|')}, got: ${JSON.stringify(m.default)}`);
+      }
+      const overrides = m.overrides || {};
+      for (const [dim, model] of Object.entries(overrides)) {
+        if (!dimSet.has(dim)) {
+          failures.push(`[${routerKey}] models.overrides references unknown dimension "${dim}"`);
+        }
+        if (!ALLOWED_MODELS.has(model)) {
+          failures.push(`[${routerKey}] models.overrides["${dim}"] must be one of ${[...ALLOWED_MODELS].join('|')}, got: ${JSON.stringify(model)}`);
+        }
+      }
+      // Every dimension must resolve to *something* — trivially true when
+      // default is valid, but we assert it explicitly so a future schema
+      // change (e.g. making `default` optional) can't silently break the
+      // invariant that no reviewer inherits the parent model.
+      for (const d of dimSet) {
+        const resolved = overrides[d] ?? m.default;
+        if (!ALLOWED_MODELS.has(resolved)) {
+          failures.push(`[${routerKey}] dimension "${d}" does not resolve to a valid model (got ${JSON.stringify(resolved)})`);
+        }
+      }
+    }
+  }
+
   return failures;
 }
 

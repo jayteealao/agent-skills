@@ -45,7 +45,7 @@ Column semantics (all values pulled directly from each workflow's `00-index.md` 
 |---|---|---|
 | `slug` | `slug` (and must equal the directory name) | The lookup key. |
 | `status` | `status` | Common values: `defined`, `shaped`, `sliced`, `planned`, `implementing`, `verifying`, `reviewing`, `handed-off`, `shipped`, `closed`, `abandoned`. |
-| `workflow-type` | `workflow-type` (or `compressed`, `quick`, `rca`, `investigate`, `discover`, `hotfix`, `update-deps`, `refactor`, `docs`, `standard`). Use `standard` if the field is missing on legacy indexes. |
+| `workflow-type` | `workflow-type` (or `compressed`, `fix`, `quick` (legacy pre-v9.18.0), `rca`, `investigate`, `discover`, `hotfix`, `update-deps`, `refactor`, `docs`, `standard`). Use `standard` if the field is missing on legacy indexes. |
 | `branch` | `branch` | The git branch the workflow lives on (informational; not used for routing). |
 | `updated-at` | `updated-at` (ISO 8601 UTC, e.g. `2026-05-16T12:34:56Z`) | Used by `/wf-meta status` ordering and by humans skimming the registry. |
 

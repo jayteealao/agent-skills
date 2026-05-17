@@ -69,6 +69,8 @@ Do NOT write the artifact yet. Hold answers in working memory and proceed.
 # Step 2 — Parallel adjudication
 Launch all three sub-agents simultaneously. Each is a separate `Explore` sub-agent dispatch. Do not proceed to synthesis until all three complete.
 
+**Model for every dispatched agent:** `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.default` — `discover` has no override). REQUIRED on every `Task` call. Each agent does targeted code reading + structured-output extraction (FOR / AGAINST / counter-hypotheses) — exactly the bounded-rubric profile Haiku handles cleanly.
+
 ### Explore sub-agent 1 — Evidence FOR
 
 Prompt with ALL of the following:
@@ -177,7 +179,7 @@ For `inconclusive` verdicts, list exactly what runtime data or external informat
 
 | Verdict | Suggested next step |
 |---|---|
-| `holds` (any confidence) | None required. Your understanding is confirmed; proceed with whatever you intended to do. If acting on it requires code changes, the right next command depends on the size of the work (`/wf-quick quick` for small, `/wf intake` for medium+). |
+| `holds` (any confidence) | None required. Your understanding is confirmed; proceed with whatever you intended to do. If acting on it requires code changes, the right next command depends on the size of the work (`/wf-quick fix` for small, `/wf intake` for medium+). |
 | `partial` | Refine the hypothesis using the "which part holds / which part fails" finding, then re-run `/wf-quick discover <refined-hypothesis>` if precision matters. Otherwise, treat the partial verdict as the answer and proceed. |
 | `fails` | If the original hypothesis was an explanation for an observed bad behavior → `/wf-quick rca <symptom>` to find the actual cause. If it was a guess about how some feature works → `/wf-docs how <topic>` to actually learn the code rather than guess again. |
 | `inconclusive` | List the runtime signal needed. If it requires a profile → `/wf profile <area>`. If it requires a benchmark → `/wf benchmark <slug>`. If it requires more code reading at wider scope → re-run `/wf-quick discover` with a broader starting area. |
@@ -259,5 +261,5 @@ If `inconclusive`, prefix with:
 
 - **Not an explainer** — if the user wants to know *how* something works, that is `/wf-docs how <topic>`. `discover` answers "is my theory correct?", not "what is happening here?"
 - **Not a diagnostician** — if there is an observed bug or symptom and the user wants to find the root cause, that is `/wf-quick rca <symptom>`. `discover` starts from a theory; `rca` starts from a symptom.
-- **Not a planner** — even when the verdict is `holds`, this command does not write a plan or propose changes. Acting on the confirmed understanding is the user's call (and usually `/wf-quick quick` or `/wf intake`).
+- **Not a planner** — even when the verdict is `holds`, this command does not write a plan or propose changes. Acting on the confirmed understanding is the user's call (and usually `/wf-quick fix` or `/wf intake`).
 - **Not a substitute for running the code** — `inconclusive` is a valid verdict. When static reading cannot tell, say so rather than guessing.

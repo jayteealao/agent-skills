@@ -16,22 +16,22 @@ You are running `wf-quick`, a **compressed planning workflow** for small intenti
 
 If `/wf-quick`'s dispatcher selected **slug-mode** in Step 0 (the first argument after the sub-command matched a non-closed slug in `.ai/workflows/INDEX.md`), the *Step 1 — Slug-mode contract* in `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/SKILL.md` overrides the standalone instructions below. Substantively:
 
-- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-quick-<descriptor>.md` (collision suffix `-2`, `-3` if needed). Frontmatter: `type: slice`, `slice-slug: quick-<descriptor>`, `slice-type: quick`, `compressed: true`, `origin: wf-quick/quick`, `stage-number: 3`, `status: defined`.
-- **Same content, different home.** Body uses the same sections you would have written to `01-quick.md` standalone (Brief / Shape / Design-skip / Slice-skip / Plan / Skipped / Tripwire breaches), under a `# Compressed Slice: quick` heading with a one-line provenance preamble.
-- **No new workflow, no new branch, no `01-quick.md`, no new top-level `00-index.md`.** The slug already owns those.
-- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: quick-<descriptor>, slice-type: quick, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: quick, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see SKILL.md Step 1 step 6).
-- **Chat return:** one line — `wf-quick quick → compressed slice quick-<descriptor> on <slug>` — plus the downstream recommendation you would normally make (`/wf implement <slug>` or `/wf-meta status <slug>`), now scoped to this slice rather than a fresh workflow.
+- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-fix-<descriptor>.md` (collision suffix `-2`, `-3` if needed). Frontmatter: `type: slice`, `slice-slug: fix-<descriptor>`, `slice-type: fix`, `compressed: true`, `origin: wf-quick/fix`, `stage-number: 3`, `status: defined`.
+- **Same content, different home.** Body uses the same sections you would have written to `01-fix.md` standalone (Brief / Shape / Design-skip / Slice-skip / Plan / Skipped / Tripwire breaches), under a `# Compressed Slice: fix` heading with a one-line provenance preamble.
+- **No new workflow, no new branch, no `01-fix.md`, no new top-level `00-index.md`.** The slug already owns those.
+- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: fix-<descriptor>, slice-type: fix, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: fix, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see SKILL.md Step 1 step 6).
+- **Chat return:** one line — `wf-quick fix → compressed slice fix-<descriptor> on <slug>` — plus the downstream recommendation you would normally make (`/wf implement <slug>` or `/wf-meta status <slug>`), now scoped to this slice rather than a fresh workflow.
 
 If slug-mode was not selected (first argument was not a known slug, or `INDEX.md` did not exist), ignore this section and proceed standalone per the instructions below.
 
 # Pipeline
-`1·quick-plan` → `/wf implement` → `/wf verify` → `/wf review` → `/wf handoff` → `/wf ship`
+`1·fix-plan` → `/wf implement` → `/wf verify` → `/wf review` → `/wf handoff` → `/wf ship`
 
 | | Detail |
 |---|---|
 | Requires | Nothing — starts fresh. Pass a description or an existing slug to resume. |
-| Produces | `01-quick.md` (compressed brief + shape + plan) and `00-index.md` |
-| Skips | Stage 2 (shape standalone), stage 2b (design), stage 3 (slice), stage 4 (plan standalone) — all merged into `01-quick.md`. Design is **never auto-included**; user must opt in by passing `--design`. |
+| Produces | `01-fix.md` (compressed brief + shape + plan) and `00-index.md` |
+| Skips | Stage 2 (shape standalone), stage 2b (design), stage 3 (slice), stage 4 (plan standalone) — all merged into `01-fix.md`. Design is **never auto-included**; user must opt in by passing `--design`. |
 | Next | `/wf implement <slug>` (full lifecycle takes over from stage 5 onward) |
 | Escalate | If during planning the work no longer fits the wf-quick envelope, **warn and continue** — record the breach in the artifact and recommend `/wf intake <description>` for next time. Do not refuse. |
 
@@ -44,11 +44,11 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: quick` → **resume mode**. Read that index and `01-quick.md`. If `01-quick.md` is complete, the user likely meant to run `/wf implement` — tell them and stop. If incomplete, pick up from the missing section.
-   - Otherwise → **new wf-quick**. Derive a slug: `quick-<short-description>` (kebab-case, max 5 words, e.g., `quick-fix-checkout-button-spacing`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `quick` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf-meta resume <slug>` to continue the existing workflow." Stop.
+   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: fix` (new) OR `workflow-type: quick` (legacy — slugs created before v9.18.0, when this sub-command was named `quick`) → **resume mode**. Read that index and the planning artifact (`01-fix.md` for new slugs, or the legacy `01-quick.md` for pre-v9.18.0 slugs — check both paths). If the artifact is complete, the user likely meant to run `/wf implement` — tell them and stop. If incomplete, pick up from the missing section.
+   - Otherwise → **new wf-quick fix workflow**. Derive a slug: `fix-<short-description>` (kebab-case, max 5 words, e.g., `fix-checkout-button-spacing`).
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is neither `fix` nor `quick` (legacy) → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf-meta resume <slug>` to continue the existing workflow." Stop.
 3. **Branch check:**
-   - Default `branch-strategy: dedicated` with branch name `quick/<slug>`. Create the branch off the current base if it does not exist: `git checkout -b quick/<slug>`.
+   - Default `branch-strategy: dedicated` with branch name `fix/<slug>`. Create the branch off the current base if it does not exist: `git checkout -b fix/<slug>`.
    - If the user explicitly passed `branch-strategy: none` or is mid-task on an existing branch they want to keep using → record `branch-strategy: none` in the index and do not switch branches.
 4. **Read project context (lightweight):**
    - Read `.impeccable.md` if present (for design context — informs the warn-and-continue if UI is touched).
@@ -56,10 +56,12 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
    - Do NOT read the full codebase here. The Step 1 sub-agent does targeted exploration.
 
 # Step 1 — Compressed planning (single pass, parallel research)
-Write `01-quick.md` in **one pass** covering all five collapsed sections. Use parallel Explore sub-agents to gather what is needed before writing — do not write from memory.
+Write `01-fix.md` in **one pass** covering all five collapsed sections. Use parallel Explore sub-agents to gather what is needed before writing — do not write from memory.
 
 ### Parallel research (use sub-agents)
 Launch sub-agents in parallel before writing the artifact. Do not spin up sub-agents if the change is a one-line fix in a file the user has explicitly named.
+
+**Model for every dispatched agent:** `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.default` — `fix` has no override). REQUIRED on every `Task` call. Both agents do targeted reads with structured-output extraction; this is exactly the bounded profile Haiku handles cleanly.
 
 #### Explore sub-agent 1 — Codebase grounding
 
@@ -84,17 +86,17 @@ Prompt with ALL of the following:
 - Look for known gotchas, deprecation notices, or breaking changes in the last 12 months for the affected API surface.
 - Return: 2-3 source URLs, 1-line takeaway each, and a **go/no-go** signal on whether the planned approach is current.
 
-# Step 2 — Write `01-quick.md`
+# Step 2 — Write `01-fix.md`
 
 After both sub-agents return (or sub-agent 1 only, if 2 was skipped), merge findings and write the artifact in one pass.
 
-**`01-quick.md` frontmatter:**
+**`01-fix.md` frontmatter:**
 ```yaml
 ---
 schema: sdlc/v1
-type: quick-plan
+type: fix-plan
 slug: <slug>
-workflow-type: quick
+workflow-type: fix
 intent: <one-line description>
 files-in-scope: [<list>]
 estimated-steps: <number, must be ≤ 5>
@@ -171,7 +173,7 @@ Standard index file, with:
 schema: sdlc/v1
 type: workflow-index
 slug: <slug>
-workflow-type: quick
+workflow-type: fix
 current-stage: implement
 status: ready
 selected-slice: <slug>
@@ -182,12 +184,12 @@ next-command: /wf implement
 next-invocation: /wf implement <slug>
 open-questions: []
 progress:
-  - quick-plan: complete
+  - fix-plan: complete
 created-at: <timestamp>
 ---
 ```
 
-Body: one-line description of the workflow + a short pointer to `01-quick.md`.
+Body: one-line description of the workflow + a short pointer to `01-fix.md`.
 
 # Step 4 — Hand off to user
 
@@ -210,9 +212,9 @@ If any tripwire fired, prefix the summary with one extra line:
 
 # Compact and crash-safe behavior
 
-- Write `01-quick.md` and `00-index.md` atomically (write to a temp path within the run, then rename) so a crash mid-write does not leave a half-written workflow.
-- If the run is interrupted before `01-quick.md` exists, resume mode (Step 0) treats this as a fresh start — there is nothing to resume from.
-- If the run is interrupted after `01-quick.md` exists but before `00-index.md`, resume mode reads `01-quick.md` and writes `00-index.md` as the only remaining work.
+- Write `01-fix.md` and `00-index.md` atomically (write to a temp path within the run, then rename) so a crash mid-write does not leave a half-written workflow.
+- If the run is interrupted before `01-fix.md` exists, resume mode (Step 0) treats this as a fresh start — there is nothing to resume from.
+- If the run is interrupted after `01-fix.md` exists but before `00-index.md`, resume mode reads `01-fix.md` and writes `00-index.md` as the only remaining work.
 
 # What this command is NOT
 

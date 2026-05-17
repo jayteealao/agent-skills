@@ -1,6 +1,6 @@
 ---
 name: review
-description: Code review skill. Use to review code for correctness, security, performance, architecture, scalability, accessibility, UX, infrastructure, observability, supply chain, privacy, data integrity, refactor safety, maintainability, testing, and 16+ other dimensions. Single-dimension reviews (`/review <dim>`) run inline against one rubric. Multi-dimension sweeps (`/review sweep <aggregate>` — all, architecture, infra, pre-merge, quick, security, ux) dispatch one reviewer sub-agent per dimension in parallel and synthesize a unified verdict. Auto-trigger on review/audit requests scoped to a PR, worktree, diff, file, or repo.
+description: Code review across 31 dimensions (correctness, security, performance, architecture, accessibility, supply-chain, and more — see `argument-hint`). `/review <dimension>` runs one rubric inline; `/review sweep <aggregate>` fans out one reviewer sub-agent per dimension in parallel and synthesizes a unified verdict. Auto-trigger on review or audit requests scoped to a PR, worktree, diff, file, or repo.
 ---
 
 # External Output Boundary (MANDATORY)
@@ -63,12 +63,15 @@ Mode resolution rules:
 
 2. **Prepare one Task invocation per dimension.** For each dimension key D in the composition:
    - `subagent_type`: `general-purpose`
+   - `model`: resolve from `router-metadata.json` `models` block — `models.overrides[D]` if present, otherwise `models.default`. Pass the resolved value (`"haiku"` or `"sonnet"`) as the Task tool's `model` parameter. Do not omit this; reviewers must not silently inherit the parent's model.
    - `description`: `"review-{D}"` (3-5 words, satisfies the Task tool's description constraint)
    - `prompt`: a self-contained prompt assembled as:
      1. The dimension reference body (read from `skills/review/reference/{D}.md`).
      2. Concrete scope context: scope mode, target, paths, session slug.
      3. Output instruction: produce findings in the standard schema (severity + confidence + file:line + evidence + suggested fix).
      4. Artifact instruction: when a workflow slice is active, write `.ai/workflows/<slug>/07-review-<slice>-{D}.md` with the findings; otherwise return them inline only.
+
+   **Why the model split.** Rubric-bound dimensions (the default) run on Haiku 4.5: bounded input, fixed output schema, no cross-dimension reasoning needed — Haiku follows the schema cleanly at a fraction of the cost. The three `overrides` (`architecture`, `refactor-safety`, `security`) call for subjective tradeoff judgment, abstraction critique, or threat modeling, so they get Sonnet 4.6. Synthesis (Step 5 below) keeps the parent model — cross-finding dedup, severity-scale mapping, and interactive triage benefit from the stronger reasoner.
 
 3. **Dispatch in parallel.** Issue ONE assistant message containing all N `Task` tool calls. Sequential dispatch defeats the purpose of sweep mode and is forbidden.
 

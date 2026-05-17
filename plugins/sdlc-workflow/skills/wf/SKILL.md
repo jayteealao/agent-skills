@@ -1,6 +1,6 @@
 ---
 name: wf
-description: SDLC lifecycle-stage executor. Runs one canonical stage (intake, shape, slice, plan, implement, verify, review, handoff, ship, retro) or a perf/observability augmentation (instrument, experiment, benchmark, profile) and writes its stage artifact under `.ai/workflows/<slug>/`. Use `/wf-meta` to navigate workflows and `/wf-quick` for compressed/standalone flows.
+description: Run one canonical SDLC stage (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) or a perf/observability augmentation (instrument, experiment, benchmark, profile), and write its artifact to `.ai/workflows/<slug>/`. For navigating existing workflows, use `/wf-meta`; for compressed or standalone flows, use `/wf-quick`.
 disable-model-invocation: true
 argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|instrument|experiment|benchmark|profile> [args...]"
 ---

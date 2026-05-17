@@ -20,19 +20,19 @@ If `/wf-quick`'s dispatcher selected **slug-mode** in Step 0 (the first argument
 - **Same content, different home.** Body carries the same sections the standalone investigate would have written to `01-investigate.md` (problem restatement, architecture map, 2–3 option sketches with tradeoffs, user-decides routing footer), under a `# Compressed Slice: investigate` heading with a one-line provenance preamble.
 - **No new workflow, no new branch, no `01-investigate.md`, no new top-level `00-index.md`.** The slug already owns those. Do NOT synthesize `02-shape.md` either — slug-mode is additive and a slice never overwrites the parent's stage 2.
 - **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: investigate-<descriptor>, slice-type: investigate, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: investigate, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see SKILL.md Step 1 step 6).
-- **Chat return:** one line — `wf-quick investigate → compressed slice investigate-<descriptor> on <slug>` — plus a one-line summary of the option count and the picker prompt: "Pick A, B, or C and run /wf-quick quick or /wf intake with that option's description."
+- **Chat return:** one line — `wf-quick investigate → compressed slice investigate-<descriptor> on <slug>` — plus a one-line summary of the option count and the picker prompt: "Pick A, B, or C and run /wf-quick fix or /wf intake with that option's description."
 
 If slug-mode was not selected (first argument was not a known slug, or `INDEX.md` did not exist), ignore this section and proceed standalone per the instructions below.
 
 # Pipeline
-`1·problem-intake` → `2·map-and-sketch` → `3·characterize-tradeoffs` → user picks → `/wf intake` | `/wf-quick quick`
+`1·problem-intake` → `2·map-and-sketch` → `3·characterize-tradeoffs` → user picks → `/wf intake` | `/wf-quick fix`
 
 | | Detail |
 |---|---|
 | Requires | Nothing — starts fresh. Pass a problem statement or an existing slug to resume. |
-| Produces | `01-investigate.md` (problem + architecture map + 2–3 option sketches with tradeoffs), `00-index.md`. **No `02-shape.md`** — the user chooses an option first; the downstream command (`/wf intake` or `/wf-quick quick`) does the shape pass on the chosen option. |
+| Produces | `01-investigate.md` (problem + architecture map + 2–3 option sketches with tradeoffs), `00-index.md`. **No `02-shape.md`** — the user chooses an option first; the downstream command (`/wf intake` or `/wf-quick fix`) does the shape pass on the chosen option. |
 | Skips | No fix, no plan, no implementation, no recommendation. The option set *is* the output. |
-| Next | User picks an option, then: `/wf-quick quick <option-description>` (small option, ≤3 files / ≤5 steps / no new dependency) or `/wf intake <option-description>` (medium+). |
+| Next | User picks an option, then: `/wf-quick fix <option-description>` (small option, ≤3 files / ≤5 steps / no new dependency) or `/wf intake <option-description>` (medium+). |
 | Escalate | If sub-agents agree no viable option exists within the current architecture → surface `architecture-blocking` and recommend a design pass via `/wf intake` with the problem framed as an architecture question. |
 
 # CRITICAL — sketching discipline
@@ -68,6 +68,8 @@ Do NOT write the artifact yet. Hold answers in working memory and proceed.
 
 # Step 2 — Parallel map-and-sketch
 Launch all three sub-agents simultaneously. Each is a separate `Explore` sub-agent dispatch. Do not proceed to synthesis until all three complete.
+
+**Model for every dispatched agent:** `sonnet` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.overrides["investigate"]`). REQUIRED on every `Task` call. Investigation is judgment-heavy — the Cartographer must surface non-obvious architectural constraints, the Option generator must trade off across the design space, the Tradeoff characterizer must reason about effort/risk/blast-radius. Haiku underserves the abstraction-critique work; Opus is overkill since each agent still runs against a bounded scope. Sonnet 4.6 is the right tier.
 
 ### Explore sub-agent 1 — Architecture cartographer
 
@@ -200,7 +202,7 @@ This command does not pick a winner. Pick the option you want and route accordin
 
 | If you pick … | Route to |
 |---|---|
-| An option with `effort: small`, mechanism is clear, scope is ≤3 files | `/wf-quick quick <option-label> — <one-line option description>` |
+| An option with `effort: small`, mechanism is clear, scope is ≤3 files | `/wf-quick fix <option-label> — <one-line option description>` |
 | An option with `effort: medium` or `large`, OR `requires_schema_change: yes`, OR `requires_new_dependency: yes` with non-trivial integration | `/wf intake <option-label> — <one-line option description>` |
 | You're not sure which option to pick | Stop and think. If the tradeoff matrix in section 4 doesn't disambiguate, ask a human or run `/wf-docs how <area>` to deepen understanding of the area before choosing. |
 
@@ -259,7 +261,7 @@ Options sketched: <N>
   C — <label> — effort:<X> radius:<Y> reversibility:<Z>   # if present
 Cross-option observation: <one line from section 4>
 Tripwires: <none | comma-separated list>
-Next: pick A, B, or C — then /wf-quick quick <option> (small) or /wf intake <option> (medium+)
+Next: pick A, B, or C — then /wf-quick fix <option> (small) or /wf intake <option> (medium+)
 Artifact: .ai/workflows/<slug>/01-investigate.md
 ```
 

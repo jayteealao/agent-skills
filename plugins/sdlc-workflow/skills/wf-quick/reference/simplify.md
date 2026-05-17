@@ -106,6 +106,8 @@ Capture the file list + sampled content. For codebase scope the agents read by-n
 
 **MANDATORY**: issue a single message containing all three `Agent` (Task) tool calls. Sequential dispatch defeats the purpose and is forbidden.
 
+**Model for every dispatched agent:** `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.default` — `simplify` has no override, so it uses the default). REQUIRED on every `Task` call — fan-out reviewers must not silently inherit the parent's model. Each agent applies one rubric to a known scope and emits the structured `findings:` schema below; this is exactly the rubric-bound profile Haiku 4.5 handles cleanly.
+
 Each agent receives:
 - The scope token + target.
 - The input from Step 1 (`INPUT_DIFF`, `INPUT_PLAN_TEXT`, or codebase file list).

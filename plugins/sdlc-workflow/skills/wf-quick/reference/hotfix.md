@@ -83,6 +83,8 @@ Write `00-index.md` immediately after with `workflow-type: hotfix`, `current-sta
 # Step 2 — Diagnose
 Launch parallel sub-agents to identify root cause. Do not proceed to planning until both complete.
 
+**Model for every dispatched agent:** `sonnet` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.overrides["hotfix"]`). REQUIRED on every `Task` call. Both agents do causal reasoning under time pressure — Root Cause must trace symptom-to-cause across recent changes, Impact must reason about blast radius. Haiku's pattern-matching is insufficient for an incident-mode root-cause hunt; Opus is too slow. Sonnet 4.6 is the right tier.
+
 ### Explore sub-agent 1 — Root Cause Investigation
 
 Prompt with ALL of the following:

@@ -1,6 +1,6 @@
 ---
 name: wf-docs
-description: Documentation router for the SDLC plugin. Orchestrator mode runs the full discover → audit → plan → generate → review pipeline (`/wf-docs`, `/wf-docs <slug>`, `/wf-docs --audit-only`, `/wf-docs <path>`). Primitive mode writes one document via a Diátaxis reference: plan, tutorial, how-to, reference, explanation, readme, review.
+description: Documentation router. Orchestrator mode runs the full discover → audit → plan → generate → review pipeline against a project or workflow slug. Primitive mode writes a single Diátaxis document — tutorial, how-to, reference, explanation, or readme — or runs a docs review.
 disable-model-invocation: true
 argument-hint: "[plan|tutorial|how-to|reference|explanation|readme|review|<slug>|--audit-only|<path>] [target]"
 ---
