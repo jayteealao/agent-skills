@@ -121,3 +121,35 @@ If `03-slice.md` does NOT exist (the workflow has not reached slicing yet), skip
 2. Treat its content as your instructions for this invocation. Do not summarize, paraphrase, or skip — follow it verbatim, **with one exception**: if slug-mode is active (Step 0 detected a matching `INDEX.md` slug), the Step 1 slug-mode contract above overrides any reference instructions that would create a new workflow, write `01-<key>.md`, switch branches, or write a top-level `00-index.md`. The reference's *content production* (research, sub-agents, body sections, output discipline) still applies — only the *output destination* and *index bookkeeping* change.
 3. The reference body contains a complete workflow definition (preamble, pipeline, stages, output contract). In standalone mode, honor every conditional input, every artifact write, and every routing rule the reference describes. In slug-mode, honor the same content discipline but write only the compressed slice file plus the additive index updates (including the global `INDEX.md` row touch in step 6 of Step 1).
 4. The remaining `$ARGUMENTS` after the matched key (and after the slug, if Step 0 consumed it) are the sub-command's own arguments — pass them through verbatim.
+
+# Step 3 — Emit Final Summary (MANDATORY)
+
+After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across every sub-command this router dispatches; the reference may carry its own chat-return content, but this section governs the shape.
+
+**Format (max 8 lines) — standalone mode:**
+
+```
+wf-quick <sub-command> complete: <slug>
+Artifacts: <comma-separated paths, or "none">
+<1–3 lines of key facts — verdict, counts, decisions, tripwires>
+Next: <recommended command, or "Done">
+```
+
+**Format (max 8 lines) — slug-mode (compressed slice):**
+
+```
+wf-quick <sub-command> → compressed slice <slice-slug> on <slug>
+Artifacts: .ai/workflows/<slug>/03-slice-<slice-slug>.md
+<1–3 lines of key facts — same shape as standalone>
+Next: <recommended command scoped to <slug>, or "Done">
+```
+
+**Rules:**
+
+- **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
+- **Verb-first first line.** Name the sub-command and the slug (standalone: the workflow this run created; slug-mode: the workflow this slice attached to).
+- **Artifacts** are the paths created or modified in this invocation. Use `"none"` for read-only sub-commands (e.g., `simplify`, `discover`, `investigate` in standalone non-routing modes).
+- **Key facts (1–3 lines)** surface the most load-bearing outcomes for whoever runs the Next command: tripwire breaches for `fix`, verdict + confidence for `discover`/`rca`, option count for `investigate`, finding counts + routing summary for `simplify`. Skip if there's nothing material.
+- **Next** is a concrete invocation, or `Done` for terminal sub-commands. In slug-mode, scope Next with `<slug>` as the first positional arg (`/wf implement <slug>`, not `/wf implement`).
+- **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
+- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and trim to fit the 8-line cap. The rich detail belongs in the artifact, not in chat.

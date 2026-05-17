@@ -5,6 +5,49 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.19.0] - 2026-05-17
+
+### Changed — uniform Final Summary Contract across every sub-command
+
+Every sub-command of every router now ends with a uniform chat summary. Previously, summaries were ad-hoc: some sub-commands had "Chat return contract" sections (inconsistent shapes), some had "Step N — Hand off to user" sections (different content), and others had no explicit final step at all. Users couldn't predict what would land in chat at the end of a run.
+
+The fix is architectural, not file-by-file: each of the six router SKILL.md files (`/wf`, `/wf-quick`, `/wf-meta`, `/wf-design`, `/wf-docs`, `/review`) gains a `# Step N — Emit Final Summary (MANDATORY)` section. The dispatcher applies it to every sub-command it loads. References that already define their own chat-return content supply the *values*; the router contract supplies the *shape*.
+
+**The contract:** max 8 lines, four required fields:
+
+```
+<router> <sub-command> complete: <slug-or-scope>
+Artifacts: <comma-separated paths, or "none">
+<1–3 lines of key facts — verdict, counts, decisions, tripwires>
+Next: <recommended command, or "Done">
+```
+
+Verb-first first line. Concrete `Next` invocation, never vague. `Done` is allowed for terminal sub-commands (`ship`, `retro`) and for read-only `wf-meta` actions.
+
+**Per-router specializations** (same shape, router-specific fields):
+
+- **`/wf`** — straightforward 4-field summary. Workflow slug or `area` (for `profile`) is the scope.
+- **`/wf-quick`** — two format variants based on Step 0 mode: **standalone** writes a fresh workflow; **slug-mode** writes a compressed slice to an existing workflow. Both honor the same 4-field shape; slug-mode's first line uses the `→ compressed slice <slice-slug> on <slug>` shape.
+- **`/wf-meta`** — most sub-commands are read-only or registry-only, so `Artifacts: "none"` is the common case. The exception is `sync` (writes `.ai/workflows/INDEX.md`) and `amend`/`extend` (touch stage files).
+- **`/wf-design`** — adds two router-specific required fields (`Register: <brand|product>` and `Image gate: <pass|skipped:<reason>|n/a>`) because those are load-bearing for every design-mode run.
+- **`/wf-docs`** — two format variants for the two invocation modes (orchestrator vs primitive). Orchestrator surfaces `Files: <created> created | <updated> updated | <deleted> deleted | <skipped> skipped`. Primitive surfaces `Quadrant:` (the Diátaxis quadrant).
+- **`/review`** — adds `Verdict: <Ship | Ship with caveats | Don't ship>` and `Findings: BLOCKER <n> | HIGH <n> | MED <n> | LOW <n> | NIT <n>` because those are the load-bearing signals after a review. Existing `Step 2 — Output to the user` (the rich markdown report) is unchanged; the Final Summary is the terse cap that lands after it.
+
+### Decisions (recorded)
+
+1. **Centralize at the dispatcher, not at every reference.** Editing 60+ sub-command references individually would have produced 60 near-identical sections with predictable drift. The dispatcher reads the reference *and* the contract; the contract is enforced once per router.
+2. **Shape spec vs content spec.** References that already have a "Chat return contract" or "Hand off to user" section keep their *content* (verdicts, counts, key facts they know how to compute). The router contract supplies the *shape* (4 fields, max 8 lines, format template). This is the Diátaxis-aligned separation: data versus rendering.
+3. **Always emit, with one exception.** When a reference STOPs with an error message, the error replaces the summary. Avoids double-output on aborted runs.
+4. **Internal audience.** The Final Summary is explicitly internal output (the chat return, not external-facing copy), so workflow artifact paths under `.ai/` ARE allowed here. The plugin's External Output Boundary still governs commit messages, PR text, release notes, and anything else that lands outside the conversation.
+
+### Files
+
+- **Modified:** `plugins/sdlc-workflow/skills/wf/SKILL.md`, `skills/wf-quick/SKILL.md`, `skills/wf-meta/SKILL.md`, `skills/wf-design/SKILL.md`, `skills/wf-docs/SKILL.md`, `skills/review/SKILL.md` (Final Summary Contract section added — replacing the existing ad-hoc "Hand off to user" in `wf-design` and the two mode-specific "Chat return contract" sections in `wf-docs`).
+- **Modified:** `plugins/sdlc-workflow/.claude-plugin/plugin.json` (9.18.0 → 9.19.0), `.claude-plugin/marketplace.json` (sdlc-workflow 9.18.0 → 9.19.0; marketplace 1.53.0 → 1.54.0 — minor for the new uniform contract).
+- **NOT modified:** the 60+ sub-command reference files under `skills/*/reference/`. Their existing "Chat return contract" / "Hand off to user" sections (where present) remain as the *content spec* — the new router-level contract supplies the *shape* on top. References that previously had no final-step section now inherit the contract from the router automatically; no per-file edits required.
+
+---
+
 ## [9.18.0] - 2026-05-17
 
 ### Changed — `/wf-quick quick` renamed to `/wf-quick fix`

@@ -74,3 +74,26 @@ After sub-command resolution, before dispatch: if the user passed a positional s
 2. Treat its content as your instructions for this invocation. Do not summarize, paraphrase, or skip — follow it verbatim.
 3. The reference body contains the stage's full definition (preamble, prerequisites, conditional inputs, output contract, adaptive routing). Honor every conditional input and every artifact write the reference describes.
 4. The remaining `$ARGUMENTS` after the matched key are the sub-command's own arguments — pass them through verbatim.
+
+# Step 2 — Emit Final Summary (MANDATORY)
+
+After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across every sub-command this router dispatches; the reference may carry its own chat-return content, but this section governs the shape.
+
+**Format (max 8 lines):**
+
+```
+wf <sub-command> complete: <slug-or-scope>
+Artifacts: <comma-separated paths, or "none">
+<1–3 lines of key facts — verdict, counts, decisions, tripwires>
+Next: <recommended command, or "Done">
+```
+
+**Rules:**
+
+- **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
+- **Verb-first first line.** Name the sub-command and the workflow slug (or other scope if applicable: `area` for `profile`, etc.).
+- **Artifacts** are the paths created or modified in this invocation (e.g., `.ai/workflows/<slug>/04-plan-<slice>.md`). Use `"none"` for read-only sub-commands.
+- **Key facts (1–3 lines)** surface the most load-bearing outcomes for whoever runs the Next command: verdict, counts, convergence state, tripwires. Skip if there's nothing material.
+- **Next** is a concrete invocation, or `Done` for terminal sub-commands (`ship`, `retro`). Never vague like "consider your next step".
+- **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
+- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and trim to fit the 8-line cap. The rich detail belongs in the artifact, not in chat.

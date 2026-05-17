@@ -268,16 +268,37 @@ Invoked only when Step 0 resolved to a primitive (first token matched a known ke
 - Diátaxis quadrant discipline is non-negotiable. When in doubt, consult the [Diátaxis framework](https://diataxis.fr).
 - For `mode: workflow`: check `02-shape.md → ## Documentation Plan` first — that plan was written by the author who knew the intent. Fulfill it before adding new docs.
 
-# Chat return contract (orchestrator mode)
-After completing, return ONLY:
-- `run-id: <run-id>`
-- `wrote: <audit artifact paths>`
-- Summary: files created | updated | deleted | skipped
-- ≤3 bullets on the most impactful gaps found or changes made
-- `options:` — always include "Review generated docs" and "Run wf-docs again to verify" as options
+# Step 7 — Emit Final Summary (MANDATORY)
 
-# Chat return contract (primitive mode)
-- File written: `<path>`
-- Primitive used: `<key>`
-- Diátaxis quadrant: `<tutorial|how-to|reference|explanation|readme|n/a>`
-- ≤2 bullets on the document's main content or key decisions
+After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across both modes (orchestrator and primitive).
+
+**Format (max 8 lines) — orchestrator mode:**
+
+```
+wf-docs orchestrator complete: <slug-or-path>
+Artifacts: <comma-separated paths>
+Files: <created> created | <updated> updated | <deleted> deleted | <skipped> skipped
+<1–3 lines of key gaps found or changes made>
+Next: <recommended command, or "Done">
+```
+
+**Format (max 8 lines) — primitive mode:**
+
+```
+wf-docs <primitive> complete: <path-or-slug>
+Artifacts: <comma-separated paths>
+Quadrant: <tutorial|how-to|reference|explanation|readme|n/a>
+<1–2 lines on the document's main content or key decisions>
+Next: <recommended command, or "Done">
+```
+
+**Rules:**
+
+- **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
+- **First line.** Name the mode and the scope: a workflow slug, a project path, or `--audit-only` for orchestrator runs without a slug. For primitive mode, name the primitive (`tutorial`, `how-to`, `reference`, `explanation`, `readme`, `review`) and the target.
+- **Artifacts.** The docs files created or modified in this invocation. For orchestrator mode, include the audit and plan artifacts. For primitive mode, the single document written.
+- **Files counts** (orchestrator only) — the audit verdict in four numbers. Use `0` rather than omitting a row.
+- **Quadrant** (primitive only) — the Diátaxis quadrant the primitive emitted. `n/a` for `readme` and `review` primitives.
+- **Key facts (1–3 lines)** — top gaps found, decisions made, or impactful changes. Skip if there's nothing material.
+- **Next.** For orchestrator: typically "Review generated docs" or "Run wf-docs again to verify". For primitive: usually `Done` unless a follow-up is warranted (e.g., `Done — consider /wf-docs review` after writing a long reference).
+- **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.

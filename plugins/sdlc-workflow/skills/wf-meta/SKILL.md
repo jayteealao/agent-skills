@@ -46,3 +46,26 @@ Parse `$ARGUMENTS`. The first token must be one of the 11 known keys below; the 
 2. Treat its content as your instructions for this invocation. Do not summarize, paraphrase, or skip — follow it verbatim.
 3. The reference body contains the meta-action's full definition (preamble, rules, output contract). Honor every conditional input and every artifact write the reference describes.
 4. The remaining `$ARGUMENTS` after the matched key are the sub-command's own arguments — pass them through verbatim.
+
+# Step 2 — Emit Final Summary (MANDATORY)
+
+After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across every sub-command this router dispatches; the reference may carry its own chat-return content, but this section governs the shape.
+
+**Format (max 8 lines):**
+
+```
+wf-meta <sub-command> complete: <slug-or-scope>
+Artifacts: <comma-separated paths, or "none">
+<1–3 lines of key facts — state changes, counts, decisions>
+Next: <recommended command, or "Done">
+```
+
+**Rules:**
+
+- **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
+- **Verb-first first line.** Name the sub-command and the slug (or other scope: `INDEX.md` for `sync`, the topic for `how`, etc.).
+- **Artifacts** are the paths created or modified in this invocation. Most `wf-meta` sub-commands are read-only or registry-only — use `"none"` when no per-workflow files changed. For `sync`, the artifact is `.ai/workflows/INDEX.md`. For `amend`, the touched per-workflow stage file. For `announce`, the announcement output (chat-only unless `--write` is implied).
+- **Key facts (1–3 lines)** — pick what's load-bearing for the next step. For `status`: the workflow's current stage + status. For `sync`: A added / R removed / U updated counts. For `next`/`resume`: which workflow + stage was picked. For `amend`/`extend`: what changed. For `how`: the mode (A/B/C/D/E) + brief topic.
+- **Next** is a concrete invocation when applicable, or `Done` when the meta-action is its own terminal step (e.g., `status` after enumerating workflows).
+- **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
+- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and trim to fit the 8-line cap. The rich detail belongs in the artifact, not in chat.

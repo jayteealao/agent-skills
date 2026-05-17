@@ -249,17 +249,32 @@ Body sections:
 
 This artifact lets `/wf review` and `/wf handoff` see exactly what design augmentations were applied during implement.
 
-# Step 5 — Hand off to user
+# Step 5 — Emit Final Summary (MANDATORY)
 
-Compact chat summary (≤ 8 lines):
+After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across every sub-command this router dispatches and across all three invocation modes (workflow stage 2b, workflow + sub-command, freestanding).
+
+**Format (max 8 lines):**
 
 ```
-wf-design <sub-command> complete: <slug or "freestanding">
+wf-design <sub-command> complete: <slug-or-"freestanding">
+Artifacts: <comma-separated paths, or "none">
 Register: <brand|product>
 Image gate: <pass|skipped:<reason>>
-[For workflow modes]: Artifact: .ai/workflows/<slug>/<artifact>
-[For workflow modes]: Next: <next-invocation>
+<optional 1 line of key facts — what changed, count, decision>
+Next: <recommended command, or "Done">
 ```
+
+**Rules:**
+
+- **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
+- **First line.** Name the sub-command and the slug; in freestanding mode (no slug), the scope is `"freestanding"`.
+- **Artifacts.** Workflow modes write to `.ai/workflows/<slug>/` (e.g., `02b-design.md`, `02c-craft.md`, `07-design-audit.md`, `07-design-critique.md`, `design-notes/<sub>-<timestamp>.md`). Freestanding mode writes `"none"` unless the sub-command produces a standalone output. Comma-separate multiple paths.
+- **Register** is `brand` or `product` — always emit; this is the load-bearing design-mode signal.
+- **Image gate** records whether the imagegen check passed for sub-commands that use it. For sub-commands that don't run the gate, write `n/a`.
+- **Key facts (1 optional line)** — only when there's a load-bearing outcome the user needs before the Next command (e.g., "Tripwire: contrast failed AA on heading" for audit; "3 candidate directions" for shape).
+- **Next** is a concrete invocation, or `Done` for terminal runs. Workflow-mode runs typically route forward (`/wf slice <slug>` after shape, `/wf intake <slug>` for craft, `/wf review <slug>` after audit). Freestanding runs usually `Done`.
+- **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
+- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and trim to fit the 8-line cap. The rich detail belongs in the artifact, not in chat.
 
 # Shared design laws
 
