@@ -27,3 +27,7 @@ plugins/sdlc-workflow/WF-DESIGN-UNIFIED-PLAN.md
 # Node
 node_modules/
 plugins/sdlc-workflow/tests/transcripts/
+
+# Design handoff bundle (source artifact from claude.ai/design — not implementation)
+sdlc-handoff/
+sdlc-handoff.zip

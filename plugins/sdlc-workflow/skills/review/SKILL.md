@@ -134,3 +134,41 @@ Next: <recommended command, or "Done">
 - **Verdict + Findings counts** are mandatory — they're what determines whether the user can ship.
 - **Next.** Concrete invocation tied to the verdict: `/wf handoff <slug>` when `Ship`, the fix-loop command or specific BLOCKER address when `Don't ship`, or `Done` if this was an ad-hoc review with no follow-up needed.
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
+
+---
+
+## Step — Write the rich review fragment (v9.20.0+)
+
+After writing `07-review.md` (and any per-dimension `07-review/<dim>.md`),
+write the sibling `07-review.yaml` and `07-review.html.fragment`.
+
+The fragment is one `<section class="fragment-review" data-artifact="review"
+data-rev="<n>">` that reproduces the gallery's review fragment 1:1:
+
+- **Verdict block** — `<section class="verdict verdict-{ship|caveats|no}">`
+  with glyph + label + summary.
+- **5-cell metric row** by severity (blocker / high / med / low / nit).
+- **Dimension chip filter** — `<nav class="fr-dim-bar">` with
+  `aria-pressed`-toggled buttons, multi-select.
+- **Severity checkbox filter + sort dropdown + visible-count badge**.
+- **`<ol class="fr-findings">`** with one `<li>` per finding carrying
+  `data-finding / data-severity / data-sev-weight / data-dimension /
+  data-conf / data-conf-weight / data-file`.
+- Each finding's `<details>` expands to show diff evidence + suggested
+  fix + `<button class="btn copy-btn">Copy as PR comment</button>`.
+
+Authoring rules (verifier Check 7 enforces):
+
+- Inline `<style>` scoped under `.fragment-review` / `.fr-*`.
+- Inline `<script>` scoped via
+  `document.currentScript.closest('.fragment-review')` — filter / sort /
+  copy-as-PR-comment behaviours live here.
+- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready',
+  { detail: { name: 'review', artifact: 'review',
+    findings: <n>, rev: <rev> } }))`.
+- Data deterministic from `07-review.yaml`. Re-running on the same YAML
+  must produce byte-identical fragment output.
+
+Full contract:
+[`reference/fragment-author-contract.md`](../../reference/fragment-author-contract.md).
+Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.

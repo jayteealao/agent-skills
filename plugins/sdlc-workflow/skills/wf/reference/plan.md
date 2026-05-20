@@ -514,3 +514,35 @@ If a criterion needs tooling outside `stack:`: do NOT pick a default. Add an ent
 
 ## Recommended Next Stage
 - **Option A (default):** `/wf implement <slug> <slice-slug>` — [reason]
+
+---
+
+## Step F — Write the rich fragment (v9.20.0+)
+
+After writing `slices/<slice-slug>/04-plan.md` and its sibling
+`04-plan.yaml`, write `04-plan.html.fragment` next to them.
+
+The fragment is one `<section class="fragment-plan" data-artifact="plan"
+data-slice="<slice-slug>" data-rev="<n>">` that reproduces the gallery's
+plan fragment 1:1 — file-change topology SVG, `<table class="files-touched">`
+with collapsible planned-change cards per row, three `.callout-*` risk
+callouts, and a `<details class="pl-revs">` prior-revisions block populated
+from `history/`.
+
+Authoring rules (do not skip — verifier Check 7 enforces these):
+
+- Inline `<style>` with every selector scoped under `.fragment-plan` /
+  `.pl-*`.
+- Inline `<script>` scoped via `document.currentScript.closest('.fragment-plan')`.
+- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready',
+  { detail: { name: 'plan', artifact: 'plan',
+    counts: { files: <n>, modules: <n>, risks: <n> } } }))`.
+- Inline SVG only; no remote anything.
+- All chart data deterministic from `04-plan.yaml` — re-running on the
+  same YAML must produce byte-identical output.
+
+The full contract (allowed shared classes, forbidden tags, YAML→fragment
+mapping per fragment shape) lives in
+[`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
+The authoritative gallery is at
+`sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.

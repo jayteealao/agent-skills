@@ -490,3 +490,34 @@ If the user keeps running into the missing-plan error, suggest the `--from-templ
 ```
 
 Each template seeds Blocks A–G with sensible defaults and one or two recovery playbooks distilled from common failure modes.
+
+---
+
+## Step Z — Write the rich fragment (v9.20.0+)
+
+After writing `ship/<run-id>/09-ship-run.md` and its sibling
+`09-ship-run.yaml`, write `09-ship-run.html.fragment` next to them.
+
+The fragment is one `<section class="fragment-shiprun" data-artifact="ship-run"
+data-release="<release>">` that reproduces the gallery's ship-run fragment 1:1:
+
+- Deploy-timeline SVG (build → test → stage → canary → prod, segments tinted
+  by status).
+- `<table class="sr-checks">` with rows = checks, columns = envs, cells
+  carrying `.is-pass / .is-fail / .is-flake / .is-skip / .is-running`.
+- `<aside class="sr-log-panel" hidden>` that reveals on cell click.
+- `<div class="sr-actions">` with `.btn-primary "Promote to 100%"` and
+  `.btn-danger "Roll back"`.
+
+Authoring rules (verifier Check 7 enforces):
+
+- Inline `<style>` scoped under `.fragment-shiprun` / `.sr-*`.
+- Inline `<script>` scoped via `document.currentScript.closest('.fragment-shiprun')`.
+- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready',
+  { detail: { name: 'ship-run', artifact: 'ship-run',
+    counts: { checks: <n>, stages: <n> }, status: '<latest-stage-status>' } }))`.
+- Inline SVG only. Data deterministic from `09-ship-run.yaml`.
+
+Full contract:
+[`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
+Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.

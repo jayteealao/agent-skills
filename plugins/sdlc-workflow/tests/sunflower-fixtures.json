@@ -1,0 +1,64 @@
+{
+  "$comment": "Fixture data for sunflower renderer tests. Each entry produces a temp .ai/workflows/<slug>/<file>.md (+optional .yaml +.html.fragment) when the test harness materialises it on disk.",
+  "slugs": {
+    "feat-checkout-v2": {
+      "files": {
+        "00-index.md": {
+          "frontmatter": {
+            "schema": "sdlc/v1",
+            "type": "index",
+            "slug": "feat-checkout-v2",
+            "title": "Checkout v2 redesign",
+            "status": "active",
+            "current-stage": "review",
+            "stage-number": 7,
+            "created-at": "2026-05-10T09:00:00Z",
+            "updated-at": "2026-05-19T15:30:00Z",
+            "selected-slice": "auth-cache",
+            "branch-strategy": "dedicated",
+            "branch": "feat/checkout-v2",
+            "base-branch": "main",
+            "review-scope": "slug-wide",
+            "pr-url": "",
+            "pr-number": null,
+            "open-questions": [],
+            "tags": ["checkout", "payments"],
+            "next-command": "/wf review",
+            "next-invocation": "/wf review",
+            "workflow-files": [],
+            "progress": { "done": 5, "total": 7 }
+          },
+          "body": "# Checkout v2 redesign\n\nMulti-region checkout with regional payment methods.\n"
+        },
+        "01-intake.md": {
+          "frontmatter": {
+            "schema": "sdlc/v1",
+            "type": "intake",
+            "slug": "feat-checkout-v2",
+            "title": "Checkout v2 intake",
+            "status": "complete",
+            "stage-number": 1,
+            "created-at": "2026-05-10T09:00:00Z",
+            "updated-at": "2026-05-10T17:00:00Z"
+          },
+          "body": "Problem statement: existing checkout doesn't support regional pay methods.\n"
+        },
+        "07-review.md": {
+          "frontmatter": {
+            "schema": "sdlc/v1",
+            "type": "review",
+            "slug": "feat-checkout-v2",
+            "title": "Review sweep — checkout v2",
+            "status": "complete",
+            "stage-number": 7,
+            "created-at": "2026-05-18T10:00:00Z",
+            "updated-at": "2026-05-18T14:22:00Z",
+            "verdict": "caveats",
+            "tags": []
+          },
+          "body": "See sibling YAML for findings.\n"
+        }
+      }
+    }
+  }
+}

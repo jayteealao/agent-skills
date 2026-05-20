@@ -22,10 +22,11 @@
  *   node plugins/sdlc-workflow/scripts/verify-router-migration.mjs --router review
  */
 
-import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..');
@@ -227,6 +228,130 @@ function findOrphanedReferences() {
   return failures;
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+   Checks 5–8 — sunflower view layer additions (v9.20.0).
+   See SUNFLOWER-VIEW-PLAN §"Verifier additions".
+   ───────────────────────────────────────────────────────────────────── */
+
+function check5_viewFreshness(viewRoot, storageRoot) {
+  // Warn-only. Returns an array of warning strings.
+  if (!existsSync(viewRoot) || !existsSync(storageRoot)) return [];
+  const warns = [];
+  function walk(dir) {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); }
+    catch { return; }
+    for (const e of entries) {
+      const abs = join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+        walk(abs);
+      } else if (e.isFile() && abs.endsWith('.md')) {
+        // Compute candidate view counterpart (best-effort heuristic; renderer
+        // is authoritative; this check just nudges).
+        try {
+          const md = statSync(abs);
+          // Look for any view file in a similarly-shaped folder
+          const rel = abs.replace(storageRoot, '').replace(/\\/g, '/');
+          const slugMatch = rel.match(/^\/?([^/]+)\//);
+          if (!slugMatch) continue;
+          const slugView = join(viewRoot, slugMatch[1]);
+          if (!existsSync(slugView)) continue;
+          const view = statSync(slugView);
+          if (md.mtimeMs > view.mtimeMs + 60_000) {  // 60s grace
+            warns.push(`storage newer than view: ${rel}`);
+          }
+        } catch { /* ignore */ }
+      }
+    }
+  }
+  walk(storageRoot);
+  return warns;
+}
+
+function check6_rendererCoverage(pluginRoot, storageRoot) {
+  // Warn-only. For every `type:` value in any storage frontmatter, confirm
+  // renderers/<type>.mjs exists.
+  if (!existsSync(storageRoot)) return [];
+  const renderersDir = join(pluginRoot, 'renderers');
+  const haveRenderer = new Set();
+  if (existsSync(renderersDir)) {
+    for (const f of readdirSync(renderersDir)) {
+      if (f.endsWith('.mjs') && !f.startsWith('_')) {
+        haveRenderer.add(f.replace(/\.mjs$/, ''));
+      }
+    }
+  }
+  const missing = new Set();
+  function walk(dir) {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); }
+    catch { return; }
+    for (const e of entries) {
+      const abs = join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+        walk(abs);
+      } else if (e.isFile() && abs.endsWith('.md')) {
+        try {
+          const text = readFileSync(abs, 'utf-8');
+          const m = text.match(/^---[\s\S]*?\ntype:\s*([a-z-]+)/);
+          if (m && !haveRenderer.has(m[1])) missing.add(m[1]);
+        } catch { /* ignore */ }
+      }
+    }
+  }
+  walk(storageRoot);
+  return [...missing].map((t) => `no renderer for type: ${t}`);
+}
+
+function check7_fragmentValidity(pluginRoot, storageRoot) {
+  // ERROR. Delegate to scripts/verify-fragment.mjs. Returns failure strings.
+  // Spawns a child to avoid leaking ajv state across runs.
+  const errors = [];
+  if (!existsSync(storageRoot)) return errors;
+  const scriptPath = join(pluginRoot, 'scripts', 'verify-fragment.mjs');
+  if (!existsSync(scriptPath)) return errors;
+  try {
+    const child = spawnSync(process.execPath, [scriptPath, '--root', storageRoot], { encoding: 'utf-8' });
+    if (child.status !== 0) {
+      const lines = (child.stderr || child.stdout || '').split('\n').filter(Boolean);
+      for (const l of lines) errors.push(`fragment-validity: ${l}`);
+    }
+  } catch (err) {
+    errors.push(`fragment-validity: spawn failed — ${err.message}`);
+  }
+  return errors;
+}
+
+function check8_figureRenderability(storageRoot) {
+  // Warn-only. For every artifact that opens with a figure-canvas page, the
+  // inputs needed to derive the SVG should exist (frontmatter + sibling YAML).
+  // For phase 1 we check the simpler invariant: every fragment-bearing artifact
+  // has a sibling .yaml. (Deeper YAML-shape verification is Check 7's job.)
+  if (!existsSync(storageRoot)) return [];
+  const warns = [];
+  function walk(dir) {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); }
+    catch { return; }
+    for (const e of entries) {
+      const abs = join(dir, e.name);
+      if (e.isDirectory()) {
+        if (e.name.startsWith('.') || e.name === 'node_modules') continue;
+        walk(abs);
+      } else if (e.isFile() && abs.endsWith('.html.fragment')) {
+        const yamlPath = abs.replace(/\.html\.fragment$/, '.yaml');
+        if (!existsSync(yamlPath)) {
+          warns.push(`fragment without sibling .yaml: ${abs.replace(PLUGIN_ROOT, '<plugin>')}`);
+        }
+      }
+    }
+  }
+  walk(storageRoot);
+  return warns;
+}
+
 function main() {
   const argRouter = process.argv.includes('--router')
     ? process.argv[process.argv.indexOf('--router') + 1]
@@ -261,6 +386,50 @@ function main() {
     console.log(`  FAIL — ${orphans.length} orphan(s):`);
     for (const f of orphans) console.log(`    - ${f}`);
     totalFailures += orphans.length;
+  }
+
+  /* ── Sunflower view layer checks (5–8) ──────────────────────────── */
+
+  const cwd = process.cwd();
+  const storageRoot = resolve(cwd, '.ai/workflows');
+  const viewRoot    = resolve(cwd, '.ai/_view');
+
+  console.log(`\n== Check 5: view-tree freshness (warn) ==`);
+  const c5 = check5_viewFreshness(viewRoot, storageRoot);
+  if (c5.length === 0) {
+    console.log(`  PASS — view tree absent or up-to-date.`);
+  } else {
+    console.log(`  WARN — ${c5.length} stale artifact${c5.length === 1 ? '' : 's'}:`);
+    for (const w of c5.slice(0, 8)) console.log(`    - ${w}`);
+    if (c5.length > 8) console.log(`    … and ${c5.length - 8} more`);
+  }
+
+  console.log(`\n== Check 6: renderer coverage (warn) ==`);
+  const c6 = check6_rendererCoverage(PLUGIN_ROOT, storageRoot);
+  if (c6.length === 0) {
+    console.log(`  PASS — every artifact type has a renderer.`);
+  } else {
+    console.log(`  WARN — ${c6.length} missing renderer${c6.length === 1 ? '' : 's'}:`);
+    for (const w of c6) console.log(`    - ${w}`);
+  }
+
+  console.log(`\n== Check 7: fragment validity (error) ==`);
+  const c7 = check7_fragmentValidity(PLUGIN_ROOT, storageRoot);
+  if (c7.length === 0) {
+    console.log(`  PASS — all *.html.fragment files conform to the gallery contract.`);
+  } else {
+    console.log(`  FAIL — ${c7.length} fragment issue${c7.length === 1 ? '' : 's'}:`);
+    for (const f of c7) console.log(`    - ${f}`);
+    totalFailures += c7.length;
+  }
+
+  console.log(`\n== Check 8: figure renderability (warn) ==`);
+  const c8 = check8_figureRenderability(storageRoot);
+  if (c8.length === 0) {
+    console.log(`  PASS — every fragment-bearing artifact ships a sibling .yaml.`);
+  } else {
+    console.log(`  WARN — ${c8.length} fragment${c8.length === 1 ? '' : 's'} missing sibling .yaml:`);
+    for (const w of c8) console.log(`    - ${w}`);
   }
 
   console.log('');

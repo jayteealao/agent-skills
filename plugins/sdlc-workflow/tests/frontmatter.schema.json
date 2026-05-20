@@ -30,7 +30,11 @@
       "properties": {
         "schema": { "const": "sdlc/v1" },
         "type":   { "type": "string" },
-        "slug":   { "$ref": "#/$defs/slug" }
+        "slug":   { "$ref": "#/$defs/slug" },
+        "regenerable": {
+          "type": "boolean",
+          "description": "When true, the renderer treats this artifact as a view over other state. Sub-commands may overwrite freely; the calm-reader surfaces a `regenerable` badge. Added in v9.20.0 as part of the additive-write contract."
+        }
       },
       "required": ["schema", "type"]
     },
@@ -939,5 +943,325 @@
         { "$ref": "#/$defs/designCritiqueOrAuditFrontmatter" }
       ]
     }
-  ]
+  ],
+
+  "siblingYamlSchemas": {
+    "description": "Schemas for sibling .yaml files that ride alongside a .md artifact to carry structured display data the renderer's fragment + figure-canvas builders consume. Validated by scripts/verify-fragment.mjs Check 7. Added in v9.20.0.",
+
+    "review": {
+      "type": "object",
+      "required": ["artifact", "parent", "rev", "model", "run_at", "verdict", "summary", "counts", "dimensions", "findings"],
+      "properties": {
+        "artifact": { "const": "review" },
+        "parent":   { "type": "string" },
+        "rev":      { "type": "integer", "minimum": 1 },
+        "model":    { "type": "string" },
+        "run_at":   { "$ref": "#/$defs/iso8601" },
+        "verdict":  { "enum": ["ship", "caveats", "no"] },
+        "summary":  { "type": "string", "maxLength": 500 },
+        "counts": {
+          "type": "object",
+          "required": ["blocker", "high", "med", "low", "nit"],
+          "properties": {
+            "blocker": { "type": "integer", "minimum": 0 },
+            "high":    { "type": "integer", "minimum": 0 },
+            "med":     { "type": "integer", "minimum": 0 },
+            "low":     { "type": "integer", "minimum": 0 },
+            "nit":     { "type": "integer", "minimum": 0 }
+          }
+        },
+        "dimensions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "count"],
+            "properties": {
+              "name":  { "type": "string" },
+              "count": { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "dimension", "msg"],
+            "properties": {
+              "id":         { "type": "string" },
+              "severity":   { "enum": ["blocker", "high", "med", "low", "nit"] },
+              "dimension":  { "type": "string" },
+              "file":       { "type": "string" },
+              "line":       { "type": "integer" },
+              "confidence": { "enum": ["high", "med", "low"] },
+              "action":     { "enum": ["accept", "defer", "reject"] },
+              "msg":        { "type": "string" },
+              "evidence":   { "type": "object" },
+              "fix":        { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "rca": {
+      "type": "object",
+      "required": ["artifact", "incident", "title", "started_at", "resolved_at", "metrics", "timeline", "chain", "heatmap"],
+      "properties": {
+        "artifact":    { "const": "rca" },
+        "incident":    { "type": "string" },
+        "title":       { "type": "string" },
+        "started_at":  { "$ref": "#/$defs/iso8601" },
+        "resolved_at": { "$ref": "#/$defs/iso8601" },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "duration":           { "type": "string" },
+            "time_to_detect":     { "type": "string" },
+            "time_to_mitigate":   { "type": "string" },
+            "user_failures":      { "type": "integer", "minimum": 0 },
+            "revenue_impact_usd": { "type": "number", "minimum": 0 }
+          }
+        },
+        "timeline": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["id", "at", "kind", "title"],
+            "properties": {
+              "id":    { "type": "string" },
+              "at":    { "type": "string" },
+              "kind":  { "enum": ["alert", "escalation", "deploy", "mitigation", "resolution"] },
+              "title": { "type": "string" },
+              "body":  { "type": "string" },
+              "who":   { "type": "string" }
+            }
+          }
+        },
+        "chain": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "required": ["step", "body"],
+            "properties": {
+              "step": { "enum": ["TRIGGER", "CHANGE", "CASCADE", "ROOT_CAUSE"] },
+              "body": { "type": "string" }
+            }
+          }
+        },
+        "heatmap": {
+          "type": "object",
+          "required": ["buckets", "systems"],
+          "properties": {
+            "buckets": { "type": "array", "items": { "type": "string" } },
+            "systems": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        },
+        "contributing_causes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "title", "body"],
+            "properties": {
+              "kind":  { "enum": ["process", "infra", "observability", "code", "people"] },
+              "title": { "type": "string" },
+              "body":  { "type": "string" }
+            }
+          }
+        },
+        "mitigations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["at", "kind", "title"],
+            "properties": {
+              "at":    { "type": "string" },
+              "kind":  { "enum": ["hotfix", "rollback", "scale", "feature-flag", "drain"] },
+              "title": { "type": "string" },
+              "body":  { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "plan": {
+      "type": "object",
+      "required": ["artifact", "slice", "parent", "rev", "modules", "files", "risks"],
+      "properties": {
+        "artifact": { "const": "plan" },
+        "slice":    { "type": "string" },
+        "parent":   { "type": "string" },
+        "rev":      { "type": "integer", "minimum": 1 },
+        "modules":  { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path", "role"],
+            "properties": {
+              "path":    { "type": "string" },
+              "role":    { "enum": ["new", "modified", "deleted", "external"] },
+              "loc":     { "type": ["integer", "null"] },
+              "delta":   {
+                "type": "object",
+                "properties": {
+                  "add": { "type": "integer", "minimum": 0 },
+                  "rem": { "type": "integer", "minimum": 0 }
+                }
+              },
+              "imports":       { "type": "array", "items": { "type": "string" } },
+              "planned_change": {
+                "type": "object",
+                "properties": {
+                  "intent": { "type": "string" },
+                  "diff":   { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to", "kind"],
+            "properties": {
+              "from": { "type": "string" },
+              "to":   { "type": "string" },
+              "kind": { "enum": ["import", "replaces", "calls", "extends"] }
+            }
+          }
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["level", "title"],
+            "properties": {
+              "level": { "enum": ["high", "med", "low"] },
+              "title": { "type": "string" },
+              "body":  { "type": "string" }
+            }
+          }
+        },
+        "history": { "type": "string" }
+      }
+    },
+
+    "design": {
+      "type": "object",
+      "required": ["artifact", "component", "themes", "states", "sizes", "tokens", "specs"],
+      "properties": {
+        "artifact":  { "const": "design" },
+        "component": { "type": "string" },
+        "themes":    { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "states":    { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "sizes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "height"],
+            "properties": {
+              "id":     { "type": "string" },
+              "height": { "type": "number" },
+              "padx":   { "type": "number" },
+              "pady":   { "type": "number" },
+              "font":   { "type": "number" },
+              "radius": { "type": "number" }
+            }
+          }
+        },
+        "tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "category", "value"],
+            "properties": {
+              "name":     { "type": "string" },
+              "category": { "enum": ["color", "radius", "spacing", "font", "easing", "shadow"] },
+              "value":    { "type": "string" },
+              "note":     { "type": "string" }
+            }
+          }
+        },
+        "specs": {
+          "type": "object",
+          "required": ["reference", "annotate"],
+          "properties": {
+            "reference": { "type": "string" },
+            "annotate":  { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "ship-run": {
+      "type": "object",
+      "required": ["artifact", "release", "run_at", "stages", "checks", "rollback"],
+      "properties": {
+        "artifact": { "const": "ship-run" },
+        "release":  { "type": "string" },
+        "run_at":   { "$ref": "#/$defs/iso8601" },
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "status"],
+            "properties": {
+              "name":       { "enum": ["build", "test", "stage", "canary", "prod"] },
+              "started_at": { "type": "string" },
+              "ended_at":   { "type": "string" },
+              "status":     { "enum": ["ok", "flake", "fail", "running", "pending"] }
+            }
+          }
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "kind", "results"],
+            "properties": {
+              "name":    { "type": "string" },
+              "kind":    { "enum": ["e2e", "unit", "int", "perf", "smoke"] },
+              "results": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": ["status"],
+                  "properties": {
+                    "status":     { "enum": ["pass", "fail", "flake", "skip", "running", "pending"] },
+                    "duration_s": { "type": ["number", "null"] }
+                  }
+                }
+              },
+              "logs": { "type": "object", "additionalProperties": { "type": "string" } }
+            }
+          }
+        },
+        "rollback": {
+          "type": "object",
+          "required": ["window_minutes", "target_release"],
+          "properties": {
+            "window_minutes": { "type": "integer", "minimum": 0 },
+            "target_release": { "type": "string" },
+            "approvers":      { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    }
+  }
 }

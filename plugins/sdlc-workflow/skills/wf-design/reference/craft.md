@@ -194,3 +194,38 @@ After initial implementation, run at least one critique-and-fix pass:
 6. Check responsive behavior at relevant breakpoints.
 
 Apply fixes. Repeat until no material defects remain.
+
+---
+
+## Step — Write the rich fragment (v9.20.0+)
+
+After writing `02b-design.md` and its sibling `02b-design.yaml`, write
+`02b-design.html.fragment` next to them.
+
+The fragment is one `<section class="fragment-design" data-artifact="design"
+data-component="<component-name>">` that reproduces the gallery's design
+fragment 1:1:
+
+- **24-cell swatch matrix** (4 sizes × 3 states × 2 themes), each cell
+  renders a live `<button class="ck-btn is-{default|hover|pressed}">` so
+  the visual states show without JS.
+- **Token table** with per-row inline swatch / spacing bar / easing curve
+  preview / `<button class="btn copy-btn" data-token-copy="<value>">Copy</button>`.
+- **Annotated specs SVG** with dimension lines and labels (padding-y,
+  padding-x, gap, border-radius, height) referencing one cell from
+  `specs.reference` in the YAML.
+
+Authoring rules (verifier Check 7 enforces):
+
+- Inline `<style>` scoped under `.fragment-design` / `.dz-*` / `.ck-*`.
+- Inline `<script>` scoped via `document.currentScript.closest('.fragment-design')`
+  — token-copy uses `data-token-copy` attributes and applies `.is-copied`
+  flash.
+- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready',
+  { detail: { name: 'design', artifact: 'design',
+    counts: { tokens: <n>, sizes: <n>, states: <n> } } }))`.
+- Inline SVG only. Data deterministic from `02b-design.yaml`.
+
+Full contract:
+[`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
+Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.

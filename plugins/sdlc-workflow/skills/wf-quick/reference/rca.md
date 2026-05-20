@@ -328,3 +328,40 @@ If the recommendation is `human-triage`, replace the `Recommended next:` line wi
 - **Not a fixer** — `wf-rca` produces an RCA artifact and a routing recommendation. It does not edit application code. It does not run mutating commands. It does not commit, push, or open a PR.
 - **Not a hotfix** — `wf-hotfix` is what you run *after* `wf-rca` recommends it. `wf-rca` decides whether the situation warrants the hotfix path.
 - **Not a how/explain** — `wf-how` is for explaining existing code or artifacts on demand. `wf-rca` is for *finding* a cause that is not yet explained.
+
+---
+
+## Step — Write the rich fragment (v9.20.0+)
+
+When the RCA produces an augmentation artifact, write a sibling
+`<rca-id>.html.fragment` next to the `.md` and `.yaml`.
+
+The fragment is one `<section class="fragment-rca" data-artifact="rca"
+data-incident="<INC-id>">` that reproduces the gallery's RCA fragment 1:1:
+
+- **5-metric row** — duration / time-to-detect / time-to-mitigate /
+  user-failures / revenue impact.
+- **Horizontal SVG timeline** — circles per event (alert / escalation /
+  deploy / mitigation / resolution), each wrapped in `<a href="#evt-N">`
+  so the right-side `<aside class="rca-detail-panel">` swaps on `:target`.
+- **Causal-chain SVG** — 4 boxes + arrows; the root-cause box uses the
+  `--blocker` colour.
+- **Severity heatmap grid** — rows = systems, columns = 30-min buckets,
+  cells tinted `s0`–`s3` from the YAML's `heatmap.systems[name][bucket]`.
+- Contributing-causes and mitigations-applied as `.callout-warn` /
+  `.callout-info` blocks.
+
+Authoring rules (verifier Check 7 enforces):
+
+- Inline `<style>` scoped under `.fragment-rca` / `.rca-*`.
+- Inline `<script>` scoped via `document.currentScript.closest('.fragment-rca')`.
+  CSS-only `:target` navigation drives the detail panel; JS only enhances
+  hover/focus and Esc-to-reset.
+- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready',
+  { detail: { name: 'rca', artifact: 'rca', incident: '<INC-id>',
+    counts: { events: <n>, causes: <n>, mitigations: <n> } } }))`.
+- Inline SVG only. Data deterministic from the sibling `.yaml`.
+
+Full contract:
+[`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
+Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.

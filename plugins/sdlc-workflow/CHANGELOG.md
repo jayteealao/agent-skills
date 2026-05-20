@@ -5,6 +5,88 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.20.0] - 2026-05-20
+
+### Added — Sunflower view layer
+
+HTML projection of `.ai/workflows/` artifacts. New `scripts/render-sunflower.mjs`
+walks the storage tree and emits a navigable HTML site under `.ai/_view/` with
+shared CSS/JS at the root. Pre-existing slugs render with no migration. Visual
+design follows the calm paper-and-ink reader from `sdlc-handoff/sdlc/project/`.
+Conceptual reference: Thariq Shihipar, "The Unreasonable Effectiveness of HTML"
+(2026-05-08).
+
+- **30 per-artifact-type renderer modules** under `renderers/`, each mapped 1:1
+  to a branch of `tests/frontmatter.schema.json`. Plus 10 shared helpers
+  (`_shell`, `_markdown`, `_yaml`, `_validator`, `_paths`, `_link-graph`,
+  `_icons`, `_mtime`, `_history`, `_figure`).
+- **Shared design system**: `assets/sdlc.css` (~600 lines), `assets/sdlc.js`
+  (~100 lines), `assets/favicon.svg`. Single file each. No build step. Paper/ink
+  palette, serif display headings (Iowan Old Style), severity glyphs paired
+  with colour for deuteranope safety.
+- **Five page-level figure-canvas SVG builders** — derived automatically from
+  frontmatter + sibling YAML:
+  - Dashboard: workflow swimlanes (rows = projects, columns = 10 stages).
+  - Slug overview: stage stripe with "← you are here" marker.
+  - Plan: file-change topology (modules as dashed rects, files tinted by role,
+    import edges with arrowheads, "replaces" edges dashed in blocker red).
+  - Review: severity × dimension heatmap.
+  - Slice-index: slice grid with status-tinted cards.
+  - RCA augmentation: incident timeline + causal chain.
+- **PostToolUse hook** (`hooks/render-sunflower.json` +
+  `hooks/render-on-artifact-write.mjs`) auto-renders touched artifacts in the
+  background with 2s debounce. Suppressed during plugin install
+  (`CLAUDE_PLUGIN_INSTALL=1`) or when `.ai/_view/.render-suppress` exists.
+- **Sibling YAML data files**: any artifact `.md` may have a sibling `.yaml`
+  carrying structured display data. Renderer merges it into frontmatter
+  (sibling-yaml wins on conflict). **New schemas** for `review`, `rca`, `plan`,
+  `design`, and `ship-run` sibling YAML under the new `siblingYamlSchemas`
+  root in `tests/frontmatter.schema.json`.
+- **Additive renderer mode** (default): only artifacts with newer storage
+  mtimes re-render; existing view files are preserved. `--clean` flag forces
+  full wipe. `--only <glob>` narrows the work-set (used by the hook).
+- **Additive sub-command write contract**: primary artifacts append
+  `## Revision <n>` sections; full rewrites snapshot to
+  `<slug>/history/<basename>-<rev>.md` first. `regenerable: true` frontmatter
+  flag opts out for view-style artifacts (RESUME, sync reports).
+- **Verifier Checks 5–8** in `scripts/verify-router-migration.mjs`:
+  view-tree freshness (warn), renderer coverage (warn), fragment validity
+  (**error**), figure renderability (warn). Plus new
+  `scripts/verify-fragment.mjs` invoked by Check 7.
+- **`sdlc:fragment-ready` window event** — every fragment dispatches one when
+  its script settles; `assets/sdlc.js` subscribes and records
+  `data-fragment-ready` on `<body>` for manifest tooling.
+- **Tailscale serve wrappers**: `scripts/serve-sunflower.{ps1,sh}`.
+
+### Decisions
+
+- **View-as-projection over storage-rewrite**: existing markdown stays the
+  source-of-truth; HTML is regenerated. Trade-off: HTML diffs not git-tracked
+  by default. Benefit: back-compat is free.
+- **Schema-driven renderers** reuse `frontmatter.schema.json` as the template
+  directory rather than introducing a parallel `templates/<kind>/` tree.
+- **Calm-reader palette** (paper-and-ink, Iowan Old Style serif, sandstone
+  neutrals) per the design handoff; supersedes the original dark-mode proposal.
+- **Fragment-author reference rewrites** (review, plan, design, ship-run, rca)
+  are stubbed in v9.20.0 and will roll out incrementally in v9.20.1+ patches.
+  Phase 1 ships the renderer's fragment support; gallery-faithful fragment
+  emission lands per-router as references are audited.
+- **MDX considered and rejected** for v9.20.0 — build step cost outweighs the
+  component-reuse benefit at this surface area. Components/snippet helper at
+  v9.20.1 (Phase 1.5) covers the dedupe motivation without a compiler.
+- **PostToolUse hook is enabled by default** on plugin install. No opt-in
+  gate. Suppress via `.ai/_view/.render-suppress` touch-file (per-project).
+- **No retroactive migration** of pre-v9.20.0 artifacts to the additive
+  contract. Existing slugs continue forward with append-only semantics; missing
+  history renders as the current body being the latest revision.
+
+### Dependencies
+
+- `js-yaml` (^4.1.0) — parse YAML frontmatter and sibling files.
+- `ajv` + `ajv-formats` (^8.17 / ^3.0) — schema validation.
+- `markdown-it` + `markdown-it-anchor` (^14.1 / ^9.2) — MD-to-HTML conversion
+  with anchor-IDs. All MIT-licensed, run-time only, no build step.
+
 ## [9.19.0] - 2026-05-17
 
 ### Changed — uniform Final Summary Contract across every sub-command
