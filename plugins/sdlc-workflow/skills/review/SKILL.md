@@ -172,3 +172,30 @@ Authoring rules (verifier Check 7 enforces):
 Full contract:
 [`reference/fragment-author-contract.md`](../../reference/fragment-author-contract.md).
 Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.
+
+### Use `@include` for shared chrome (v9.20.1+)
+
+```html
+<section class="fragment-review" data-artifact="review" data-rev="2">
+  <!-- @include verdict { "kind": "caveats", "glyph": "◐",
+       "label": "Caveats — 2 high",
+       "summary": "No blockers remain; address two highs before merge." } -->
+
+  <!-- @include metric-row { "metrics": [
+    { "label": "Blocker", "value": 0, "sev": ["blocker"] },
+    { "label": "High",    "value": 2, "sev": ["high"] },
+    { "label": "Med",     "value": 4, "sev": ["med"] },
+    { "label": "Low",     "value": 7, "sev": ["low"] },
+    { "label": "Nit",     "value": 5, "sev": ["nit"] }
+  ] } -->
+
+  <nav class="fr-dim-bar"> …dimension chips with aria-pressed… </nav>
+  <ol class="fr-findings"> …<li> per finding with data-* attributes… </ol>
+
+  <!-- @include fragment-ready { "name": "review", "artifact": "review",
+       "detailJson": "{\"findings\":18,\"rev\":2}" } -->
+</section>
+```
+
+Snippet catalogue: `metric-row`, `callout`, `verdict`, `severity-chip`,
+`fragment-ready`, `files-touched-row`, `diff-block`.

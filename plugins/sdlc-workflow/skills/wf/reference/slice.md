@@ -222,3 +222,42 @@ refs:
 
 ## Risks
 - ...
+
+---
+
+## Additive-write contract (v9.20.1+)
+
+Both `03-slice-index.md` and per-slice `03-slices/<slice-slug>.md` are
+revisable. When `/wf slice` is re-invoked on an existing slug:
+
+1. **Snapshot existing slice files** that will be rewritten to
+   `.ai/workflows/<slug>/history/`:
+   - `03-slice-index-<rev>.md` for the index file.
+   - `slices/<slice-slug>/history/03-slice-<rev>.md` for per-slice detail
+     files, where `<rev>` is the current `revision-count`.
+2. **Bump `revision-count`** on each rewritten file by 1. Refresh
+   `updated-at`.
+3. **Append**, don't overwrite:
+   ```
+   ## Revision <new-revision-count> — <ISO timestamp>
+
+   Why this slice changed:
+   - …
+
+   <updated slice content here>
+   ```
+4. **New slices added in this run** start fresh — they have no prior
+   revision and no history snapshot. Their `revision-count` begins at 1.
+5. **Removed slices** stay in storage. Mark their frontmatter
+   `status: dropped` with a `dropped-reason:` field and append a final
+   `## Dropped — <ISO>` section to the body. Removal of a slice file
+   from disk is reserved for explicit `/wf-meta` operations that the
+   renderer surfaces with a tombstone view.
+
+**Exception**: if frontmatter carries `regenerable: true`, overwrite
+freely. The slice index does NOT normally carry this flag.
+
+The renderer aggregates per-slice history into the slug overview's
+prior-revisions block. The slice-grid figure-canvas reflects the current
+slice status across the whole slug, including dropped slices (rendered
+in `--blocker` with a strikethrough).

@@ -5,6 +5,72 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.20.1] - 2026-05-20
+
+### Added — `components/` snippet helper (Phase 1.5)
+
+The five fragment-bearing references overlap on chrome — every one carries a
+5-cell `.metric-row`, several share the `.callout` shape, every fragment
+dispatches `sdlc:fragment-ready`. Without dedupe, drift is inevitable. v9.20.1
+ships the cheap middle-ground to MDX: a `components/` directory of HTML
+snippets expanded by the renderer at render-time via a documented include
+token. No build step.
+
+- **New** `plugins/sdlc-workflow/components/_components.mjs` — render-time
+  expander. `expand(html, ctx) → html`. Walks the fragment HTML, recognises
+  `<!-- @include <name> <json> -->` opener/closer, loads
+  `components/<name>.html.snippet`, substitutes `{{token}}` (HTML-escaped) and
+  `{{{token}}}` (raw) placeholders from the JSON payload. Supports
+  `{{#each list}}…{{/each}}` loops for array-driven snippets. Runs to fixed
+  point bounded by `maxDepth=4`. Throws on missing snippet, invalid JSON, or
+  recursion exceeded.
+- **New** seven initial snippets under `plugins/sdlc-workflow/components/`:
+  `metric-row.html.snippet`, `callout.html.snippet`, `verdict.html.snippet`,
+  `severity-chip.html.snippet`, `fragment-ready.html.snippet`,
+  `files-touched-row.html.snippet`, `diff-block.html.snippet`. Each maps 1:1
+  to a shared class catalogue entry in `assets/sdlc.css`.
+- **Pipeline integration**: `scripts/render-sunflower.mjs` now runs the
+  expander on every fragment between fragment-validity (Check 7) and
+  `_shell.mjs` wrap. The MD-to-HTML path is untouched — `markdown-it` never
+  sees include tokens.
+- **Verifier Check 9** (warn-only) added to `scripts/verify-fragment.mjs`:
+  fingerprints inline markup matching a published snippet (e.g. an inlined
+  `<div class="metric-row">…`) and warns that the author should use
+  `<!-- @include metric-row … -->` instead. Suppress legitimate variants
+  with an adjacent `<!-- @include-skip <reason> -->` comment.
+- **Five fragment-author references** (`/wf plan`, `/wf ship`,
+  `/wf-design craft`, `/wf-quick rca`, `/review` SKILL) now teach the
+  `@include` syntax with concrete examples mapped to each fragment's
+  domain.
+
+### Added — Additive-write contract (Phase 1.x)
+
+Two revisable references gain the additive-write contract from
+[`SUNFLOWER-VIEW-PLAN.md`](SUNFLOWER-VIEW-PLAN.md) §"Additive write semantics
+for sub-commands":
+
+- **`/wf shape`** (`skills/wf/reference/shape.md`) — re-invocation snapshots
+  the existing `02-shape.md` to `<slug>/history/02-shape-<rev>.md` first,
+  bumps `revision-count`, appends `## Revision <n> — <ISO>` rather than
+  rewriting body content. Sibling YAML follows the same rule.
+- **`/wf slice`** (`skills/wf/reference/slice.md`) — same contract for
+  `03-slice-index.md` and per-slice files. New slices in a run start fresh;
+  removed slices stay on disk marked `status: dropped`.
+
+Both honour the `regenerable: true` opt-out introduced in v9.20.0.
+
+### Decisions
+
+- **Snippet syntax is HTML comments**, not custom tags. Reason: comments
+  render cleanly during authoring (unaware editors don't break) and
+  `markdown-it`'s autolink + inline-HTML rules can't fire on them.
+- **Expansion is render-time, not build-time.** No compiler, no AST, no
+  hot-reload server. Roughly 80–120 LOC of string substitution.
+- **`maxDepth=4`** bounds snippet recursion. Real nesting is 1–2 levels;
+  4 is generous and catches cycles cheaply.
+- **`{{token}}` is HTML-escaped by default; `{{{token}}}` is raw.** This
+  matches Mustache/Handlebars semantics so the syntax is familiar.
+
 ## [9.20.0] - 2026-05-20
 
 ### Added — Sunflower view layer

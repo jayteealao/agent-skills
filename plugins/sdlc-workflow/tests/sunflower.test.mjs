@@ -21,6 +21,7 @@ import { buildPathMap, relativeBetween } from '../renderers/_link-graph.mjs';
 import { isDirty, workSetFilter, maxMtime } from '../renderers/_mtime.mjs';
 import { severityChip, verdictBlock } from '../renderers/_icons.mjs';
 import { figureCanvas, evenX } from '../renderers/_figure.mjs';
+import { expand as expandSnippets, clearCache as clearSnippetCache } from '../components/_components.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..');
@@ -147,7 +148,7 @@ test('renderShell: wraps content with breadcrumbs and asset links', () => {
     headerHtml: '<h1>X</h1>', bodyHtml: '<p>body</p>',
   });
   match(html, /<title>Test — sdlc/);
-  match(html, /sdlc\.css\?v=9\.20\.0/);
+  match(html, /sdlc\.css\?v=9\.20\.\d+/);
   match(html, /data-artifact-type="index"/);
 });
 
@@ -229,6 +230,83 @@ test('figureCanvas: wraps SVG with figcaption', () => {
 test('evenX: spaces n items evenly across width', () => {
   const xs = evenX(100, 10, 3);
   deepStrictEqual(xs, [10, 50, 90]);
+});
+
+/* ── _components (v9.20.1 expander) ────────────────────────────────── */
+
+const COMPONENTS_ROOT = resolve(PLUGIN_ROOT, 'components');
+
+test('expand: empty input returns empty', () => {
+  strictEqual(expandSnippets('', { componentsRoot: COMPONENTS_ROOT }), '');
+});
+
+test('expand: passes through HTML without @include tokens unchanged', () => {
+  const html = '<section class="fragment-x"><p>hello</p></section>';
+  strictEqual(expandSnippets(html, { componentsRoot: COMPONENTS_ROOT }), html);
+});
+
+test('expand: replaces a callout @include with rendered snippet', () => {
+  clearSnippetCache();
+  const html = '<div><!-- @include callout { "kind": "warn", "title": "T", "body": "<em>B</em>" } --></div>';
+  const out = expandSnippets(html, { componentsRoot: COMPONENTS_ROOT });
+  match(out, /<aside class="callout callout-warn">/);
+  match(out, /callout-hd">T</);
+  // {{{body}}} should NOT be HTML-escaped (raw substitution)
+  match(out, /<em>B<\/em>/);
+});
+
+test('expand: HTML-escapes {{token}} substitutions', () => {
+  clearSnippetCache();
+  // verdict uses {{label}} (escaped), passing < and & should appear escaped
+  const html = '<div><!-- @include verdict { "kind": "no", "glyph": "✗", "label": "A < B & C", "summary": "" } --></div>';
+  const out = expandSnippets(html, { componentsRoot: COMPONENTS_ROOT });
+  match(out, /A &lt; B &amp; C/);
+});
+
+test('expand: throws on missing snippet', () => {
+  clearSnippetCache();
+  try {
+    expandSnippets('<!-- @include does-not-exist { "x": 1 } -->', { componentsRoot: COMPONENTS_ROOT });
+    ok(false, 'should have thrown');
+  } catch (err) {
+    match(err.message, /snippet not found/);
+  }
+});
+
+test('expand: throws on invalid JSON payload', () => {
+  clearSnippetCache();
+  try {
+    expandSnippets('<!-- @include callout { not valid json } -->', { componentsRoot: COMPONENTS_ROOT });
+    ok(false, 'should have thrown');
+  } catch (err) {
+    match(err.message, /invalid JSON/);
+  }
+});
+
+test('expand: metric-row renders multiple cells via {{#each}}', () => {
+  clearSnippetCache();
+  const payload = JSON.stringify({ metrics: [
+    { label: 'A', value: 1 },
+    { label: 'B', value: 2 },
+    { label: 'C', value: 3 },
+  ] });
+  const html = `<!-- @include metric-row ${payload} -->`;
+  const out = expandSnippets(html, { componentsRoot: COMPONENTS_ROOT });
+  match(out, /metric-value">1</);
+  match(out, /metric-value">2</);
+  match(out, /metric-value">3</);
+});
+
+test('expand: respects maxDepth bound', () => {
+  // Setting maxDepth=0 on an input containing an include token must throw.
+  clearSnippetCache();
+  const html = '<!-- @include callout { "kind": "warn", "title": "X", "body": "y" } -->';
+  try {
+    expandSnippets(html, { componentsRoot: COMPONENTS_ROOT, maxDepth: 0 });
+    ok(false, 'should have thrown at maxDepth=0');
+  } catch (err) {
+    match(err.message, /maxDepth/);
+  }
 });
 
 /* ── End-to-end: render fixtures via orchestrator ──────────────────── */

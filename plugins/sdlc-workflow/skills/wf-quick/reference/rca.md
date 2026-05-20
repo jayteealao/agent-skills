@@ -365,3 +365,31 @@ Authoring rules (verifier Check 7 enforces):
 Full contract:
 [`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
 Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.
+
+### Use `@include` for shared chrome (v9.20.1+)
+
+```html
+<section class="fragment-rca" data-artifact="rca" data-incident="INC-2026-0512">
+  <!-- @include metric-row { "metrics": [
+    { "label": "duration",  "value": "3h 43m" },
+    { "label": "detect",    "value": "6m" },
+    { "label": "mitigate",  "value": "32m" },
+    { "label": "failures",  "value": 12400, "tone": ["warn"] },
+    { "label": "revenue",   "value": "$38k",  "tone": ["warn"] }
+  ] } -->
+
+  <svg class="rca-timeline"> …incident timeline (anchors → :target panels)… </svg>
+  <aside class="rca-detail-panel"> …per-event detail blocks… </aside>
+  <svg class="rca-chain"> …4-box causal chain… </svg>
+  <table class="rca-heatmap"> …systems × buckets, s0–s3 tinted cells… </table>
+
+  <!-- @include callout { "kind": "warn", "title": "Load-test gate not enforced", "body": "…" } -->
+  <!-- @include callout { "kind": "info", "title": "Mitigation: memoise Stripe", "body": "…" } -->
+
+  <!-- @include fragment-ready { "name": "rca", "artifact": "rca",
+       "detailJson": "{\"incident\":\"INC-2026-0512\",\"counts\":{\"events\":5,\"causes\":3,\"mitigations\":2}}" } -->
+</section>
+```
+
+Snippet catalogue: `metric-row`, `callout`, `verdict`, `severity-chip`,
+`fragment-ready`, `files-touched-row`, `diff-block`.

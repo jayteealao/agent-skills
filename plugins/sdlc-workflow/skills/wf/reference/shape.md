@@ -324,3 +324,44 @@ If no docs needed: "None required — [reason]"
 - **Option A (default):** `/wf slice <slug>` — [reason]
 - **Option B:** `/wf plan <slug>` — [reason, if single-scope]
 - **Option C:** `/wf intake <slug>` — revisit intake [reason, if applicable]
+
+---
+
+## Additive-write contract (v9.20.1+)
+
+`02-shape.md` is a revisable artifact. When `/wf shape` is re-invoked on a
+slug that already has one, **do not overwrite the body**. Instead:
+
+1. **Snapshot the current file** to
+   `.ai/workflows/<slug>/history/02-shape-<rev>.md` where `<rev>` is the
+   current `revision-count` (before this run's increment). Use a verbatim
+   byte-copy — do not re-emit, do not reformat.
+2. **Bump `revision-count`** in frontmatter by 1. Refresh `updated-at` to
+   the current ISO timestamp.
+3. **Append** a new section to the body rather than rewriting earlier
+   content:
+   ```
+   ## Revision <new-revision-count> — <ISO timestamp>
+
+   What changed and why:
+   - …
+
+   <new shape content here>
+   ```
+   Earlier `## Initial` / `## Revision N` blocks stay intact. Readers can
+   diff history snapshots when they need the exact prior wording, but the
+   live document narrates the evolution in-place.
+4. **`02-shape.yaml` sibling** (when present) follows the same rule:
+   top-level scalars update in place; array fields append rather than
+   replace. On structurally incompatible rewrites, snapshot the YAML
+   alongside the MD as `history/02-shape-<rev>.yaml`.
+
+**Exception**: if frontmatter declares `regenerable: true`, overwrite
+freely. The shape artifact does not normally carry this flag — it would
+only apply if `/wf shape` is wrapping an auto-derived shape (e.g.,
+post-amendment regeneration).
+
+The renderer surfaces prior revisions as a collapsible `<details class="history">`
+at the bottom of the page. The history view paths are stable
+(`<slug>/shape/history/<rev>/INDEX.html`) — old revisions remain linkable
+from PRs and docs forever.

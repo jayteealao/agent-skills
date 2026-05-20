@@ -521,3 +521,30 @@ Authoring rules (verifier Check 7 enforces):
 Full contract:
 [`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
 Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.
+
+### Use `@include` for shared chrome (v9.20.1+)
+
+```html
+<section class="fragment-shiprun" data-artifact="ship-run" data-release="v3.2.0">
+  <!-- @include metric-row { "metrics": [
+    { "label": "build",  "value": "7m" },
+    { "label": "tests",  "value": 12 },
+    { "label": "canary", "value": "live" },
+    { "label": "errors", "value": 0, "sev": ["low"] }
+  ] } -->
+
+  <svg class="sr-timeline" viewBox="…"> …deploy timeline… </svg>
+  <table class="sr-checks"> …check matrix… </table>
+
+  <div class="sr-actions">
+    <button class="btn btn-primary">Promote to 100%</button>
+    <button class="btn btn-danger">Roll back</button>
+  </div>
+
+  <!-- @include fragment-ready { "name": "ship-run", "artifact": "ship-run",
+       "detailJson": "{\"counts\":{\"checks\":4,\"stages\":5}}" } -->
+</section>
+```
+
+Snippet catalogue: `metric-row`, `callout`, `verdict`, `severity-chip`,
+`fragment-ready`, `files-touched-row`, `diff-block`.

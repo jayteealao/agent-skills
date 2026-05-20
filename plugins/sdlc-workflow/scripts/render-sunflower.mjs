@@ -35,6 +35,7 @@ import { buildPathMap } from '../renderers/_link-graph.mjs';
 import { workSetFilter } from '../renderers/_mtime.mjs';
 import { loadHistory } from '../renderers/_history.mjs';
 import { renderShell } from '../renderers/_shell.mjs';
+import { expand as expandSnippets } from '../components/_components.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT_DEFAULT = resolve(__dirname, '..');
@@ -241,9 +242,21 @@ async function main() {
       console.warn(`[parse] ${a.mdAbs}: ${err.message}`);
       continue;
     }
-    const fragmentHtml = fragmentAbs && existsSync(fragmentAbs)
+    let fragmentHtml = fragmentAbs && existsSync(fragmentAbs)
       ? readFileSync(fragmentAbs, 'utf-8')
       : null;
+    // v9.20.1 — expand `<!-- @include … -->` snippet tokens. Runs after
+    // verify-fragment.mjs (Check 7) and before _shell.mjs wraps the doc.
+    if (fragmentHtml) {
+      try {
+        fragmentHtml = expandSnippets(fragmentHtml, {
+          componentsRoot: join(args.pluginRoot, 'components'),
+          maxDepth: 4,
+        });
+      } catch (err) {
+        console.warn(`[expand] ${fragmentAbs}: ${err.message}`);
+      }
+    }
     const history = loadHistory(a.mdAbs);
     parsed.push({
       ...a,
@@ -396,7 +409,7 @@ async function main() {
 
   // 9. manifest pass
   const manifest = {
-    version:     '9.20.0',
+    version:     '9.20.1',
     generatedAt: new Date().toISOString(),
     slugs: [...slugArtifacts.keys()].map((slug) => ({
       slug,

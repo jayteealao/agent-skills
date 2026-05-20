@@ -229,3 +229,26 @@ Authoring rules (verifier Check 7 enforces):
 Full contract:
 [`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
 Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.
+
+### Use `@include` for shared chrome (v9.20.1+)
+
+```html
+<section class="fragment-design" data-artifact="design" data-component="checkout-button">
+  <!-- @include metric-row { "metrics": [
+    { "label": "tokens", "value": 14 },
+    { "label": "sizes",  "value": 4 },
+    { "label": "states", "value": 3 },
+    { "label": "themes", "value": 2 }
+  ] } -->
+
+  <div class="dz-matrix"> …24-cell swatch matrix… </div>
+  <table class="dz-tokens"> …token rows… </table>
+  <svg class="dz-specs"> …annotated specs… </svg>
+
+  <!-- @include fragment-ready { "name": "design", "artifact": "design",
+       "detailJson": "{\"counts\":{\"tokens\":14,\"sizes\":4,\"states\":3}}" } -->
+</section>
+```
+
+Snippet catalogue: `metric-row`, `callout`, `verdict`, `severity-chip`,
+`fragment-ready`, `files-touched-row`, `diff-block`.

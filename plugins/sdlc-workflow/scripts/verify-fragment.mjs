@@ -24,7 +24,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, resolve, join, relative, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
-import Ajv from 'ajv';
+import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -61,9 +61,53 @@ function* walk(dir) {
   }
 }
 
+/* ── Check 9 — published-snippet detection (warn-only, v9.20.1+) ────
+   Fingerprints inline markup that exactly matches a published snippet,
+   suggesting the author should have used `<!-- @include … -->` instead.
+   Suppress via an `<!-- @include-skip <reason> -->` comment adjacent to
+   the inline markup. Plan §"Verifier addition (Check 9)" lines 1063-1065.
+   ──────────────────────────────────────────────────────────────────── */
+
+const PUBLISHED_SNIPPET_FINGERPRINTS = [
+  // metric-row — the .metric-row wrapper + first .metric cell
+  { snippet: 'metric-row', pattern: /<div\s+class="metric-row"\s*>\s*<div\s+class="metric/i },
+  // callout
+  { snippet: 'callout',    pattern: /<aside\s+class="callout\s+callout-(?:risk|warn|info|ok)"/i },
+  // verdict
+  { snippet: 'verdict',    pattern: /<section\s+class="verdict\s+verdict-(?:ship|caveats|no)"/i },
+  // severity-chip
+  { snippet: 'severity-chip', pattern: /<span\s+class="sev\s+severity-(?:blocker|high|med|low|nit)"/i },
+  // fragment-ready inline script
+  { snippet: 'fragment-ready', pattern: /dispatchEvent\(new\s+CustomEvent\(\s*['"]sdlc:fragment-ready/i },
+];
+
+function detectInlineSnippets(text) {
+  const warnings = [];
+  for (const { snippet, pattern } of PUBLISHED_SNIPPET_FINGERPRINTS) {
+    pattern.lastIndex = 0;
+    if (!pattern.test(text)) continue;
+    // Check for a suppression directive within ~200 chars of the first match
+    const idx = text.search(pattern);
+    const window = text.slice(Math.max(0, idx - 120), Math.min(text.length, idx + 120));
+    if (/<!--\s*@include-skip\b/.test(window)) continue;
+    // If the matching markup is itself the @include's expansion result, skip.
+    // We approximate by checking that the same snippet is NOT @included anywhere
+    // — if it is, this fragment is partial-include and the author may have chosen
+    // to inline one instance for a legitimate variant.
+    const includesThisSnippet = new RegExp(`<!--\\s*@include\\s+${snippet}\\b`).test(text);
+    if (includesThisSnippet) continue;
+    warnings.push(`could use @include ${snippet} (inline markup matches published snippet)`);
+  }
+  return warnings;
+}
+
 function validateFragment(absPath, ajv, siblingSchemas) {
   const errs = [];
+  const warns = [];
   const text = readFileSync(absPath, 'utf-8');
+
+  // Check 9 — published-snippet detection (warnings, not errors)
+  for (const w of detectInlineSnippets(text)) warns.push(w);
 
   // Detect fragment name from <section class="fragment-X">
   const sectionMatch = text.match(/<section\s+class="fragment-([a-z-]+)"/);
@@ -119,7 +163,7 @@ function validateFragment(absPath, ajv, siblingSchemas) {
     }
   }
 
-  return errs;
+  return { errs, warns };
 }
 
 function main() {
@@ -129,21 +173,39 @@ function main() {
   const schema = JSON.parse(schemaText);
   const siblingSchemas = schema.siblingYamlSchemas ?? {};
 
-  const ajv = new Ajv({ allErrors: true, strict: false, allowUnionTypes: true });
+  const ajv = new Ajv2020({
+    allErrors: true,
+    strict: false,
+    allowUnionTypes: true,
+    validateSchema: false,
+  });
   addFormats(ajv);
 
-  let total = 0, failed = 0;
+  let total = 0, failed = 0, warned = 0;
   const failures = [];
+  const warnings = [];
 
   for (const abs of walk(root)) {
     total++;
-    const errs = validateFragment(abs, ajv, siblingSchemas);
+    const { errs, warns } = validateFragment(abs, ajv, siblingSchemas);
+    const rel = relative(process.cwd(), abs);
     if (errs.length) {
       failed++;
-      const rel = relative(process.cwd(), abs);
       failures.push({ path: rel, errs });
     } else if (args.verbose) {
-      console.log(`[ok] ${relative(process.cwd(), abs)}`);
+      console.log(`[ok] ${rel}`);
+    }
+    if (warns.length) {
+      warned++;
+      warnings.push({ path: rel, warns });
+    }
+  }
+
+  if (warned > 0) {
+    console.log(`[verify-fragment] Check 9 (snippet-suggestion) — ${warned} fragment${warned === 1 ? '' : 's'} could use @include:`);
+    for (const w of warnings) {
+      console.log(`  ${w.path}`);
+      for (const warn of w.warns) console.log(`    - ${warn}`);
     }
   }
 

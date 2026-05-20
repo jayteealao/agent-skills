@@ -546,3 +546,45 @@ mapping per fragment shape) lives in
 [`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
 The authoritative gallery is at
 `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.
+
+### Use `@include` for shared chrome (v9.20.1+)
+
+Instead of hand-emitting the 5-cell metric row, prior-revisions block, risk
+callouts, and `sdlc:fragment-ready` boilerplate, use the shared snippets:
+
+```html
+<section class="fragment-plan" data-artifact="plan" data-slice="<slice>" data-rev="3">
+  <header class="pl-head">
+    <div class="sdlc-crumb">{{slug}}/slices/{{slice}}/04-plan.md</div>
+    <h1 class="sdlc-h1">Plan · <code>{{slice}}</code></h1>
+  </header>
+
+  <!-- @include metric-row { "metrics": [
+    { "label": "files",   "value": 14 },
+    { "label": "steps",   "value": 7 },
+    { "label": "modules", "value": 5 },
+    { "label": "risks",   "value": 3, "tone": ["warn"] }
+  ] } -->
+
+  <svg class="pl-topology" viewBox="…"> …file topology… </svg>
+
+  <table class="files-touched">
+    <!-- @include files-touched-row { "role": "modified", "path": "…", "delta": { "add": 118, "rem": 96 } } -->
+    <!-- … one row per file … -->
+  </table>
+
+  <!-- @include callout { "kind": "risk", "title": "Region detection silently wrong", "body": "…" } -->
+  <!-- @include callout { "kind": "warn", "title": "Tax surcharge moves server-side", "body": "…" } -->
+
+  <!-- @include fragment-ready { "name": "plan", "artifact": "plan",
+       "detailJson": "{\"counts\":{\"files\":14,\"modules\":5,\"risks\":3}}" } -->
+</section>
+```
+
+Available snippets: `metric-row`, `callout`, `verdict`, `severity-chip`,
+`fragment-ready`, `files-touched-row`, `diff-block`. The expander
+(`plugins/sdlc-workflow/components/_components.mjs`) runs after fragment
+validation and before shell wrap; missing snippets, invalid JSON payloads, or
+recursion past `maxDepth=4` throw at render time. Hand-inlined markup that
+matches a published snippet triggers a warn from verifier Check 9 — suppress
+legitimate variants with `<!-- @include-skip <reason> -->` adjacent.
