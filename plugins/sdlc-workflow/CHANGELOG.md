@@ -5,6 +5,56 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.20.2] - 2026-05-20
+
+### Added — Additive-write contract: remaining revisable references
+
+Closes the Phase 1.x rollout begun in v9.20.1. The additive-write contract
+from [`SUNFLOWER-VIEW-PLAN.md`](SUNFLOWER-VIEW-PLAN.md) §"Additive write
+semantics for sub-commands" now covers every revisable reference in the
+plugin. Each gets a section tuned to its artifact's reality:
+
+- **`/wf intake`** (`skills/wf/reference/intake.md`) — re-invocation happens
+  when the user returns with answers to open questions or scope changes.
+  Snapshot to `<slug>/history/01-intake-<rev>.md`, bump `revision-count`,
+  append `## Revision <n>`. Open-question resolution is marked inline with
+  a `→` rather than silently deleting questions. Status transitions
+  (`awaiting-input` → `complete`) are called out in the revision section.
+- **`/wf retro`** (`skills/wf/reference/retro.md`) — usually one-shot but
+  revisable for 30-day check-ins / quarterly look-backs / post-incident
+  follow-ups. Snapshot + append; the renderer aggregates retro revisions
+  into a date-stamped timeline view rather than burying them in a
+  `<details>` block (retros are short enough to display in full).
+- **`/wf handoff`** (`skills/wf/reference/handoff.md`) — re-invocation
+  happens when reviewers request changes pre-ship, or when a late-breaking
+  issue forces a re-handoff. Snapshot + append. PR descriptions regenerated
+  from the current revision in full (not just the diff from prior) — the
+  PR is external comms; the on-disk handoff is the reasoning trail.
+- **`/wf-quick simplify`** (`skills/wf-quick/reference/simplify.md`) —
+  *inverse* contract: each invocation produces a new
+  `.ai/simplify/<run-id>.md` file. Never overwrite an existing run.
+  `regenerable: false` explicit. No `revision-count`. Cross-run lineage is
+  via `refs.prior-run`, not by appending to prior files.
+- **`/wf-meta sync`** (`skills/wf-meta/reference/sync.md`) — *inverse*
+  contract: sync-report is a view over branch state, not source-of-truth.
+  `regenerable: true` explicit. Overwrite freely. No `revision-count`.
+  `synced-at` ISO timestamp in frontmatter. The renderer shows a
+  `regenerable` badge and suppresses the prior-revisions block.
+
+### Decisions
+
+- **`regenerable: true` is now used in two canonical places**: `RESUME.md`
+  (session resume) and `sync-report` (branch-state view). Other artifacts
+  do not normally carry the flag — additive-write is the default discipline.
+- **Off-pipeline artifacts (simplify-run, profile) are stateless across
+  invocations.** Each run is time-keyed and immutable. There is no slug-
+  rooted history folder; `.ai/simplify/` and `.ai/profiles/` are themselves
+  the history.
+- **PR descriptions and on-disk handoff stay in sync** but serve different
+  audiences: PR description is external (the GitHub UI shows the current
+  revision); on-disk handoff carries the reasoning + history (the view
+  shows prior revisions). Both update on `/wf handoff` re-invocation.
+
 ## [9.20.1] - 2026-05-20
 
 ### Added — `components/` snippet helper (Phase 1.5)

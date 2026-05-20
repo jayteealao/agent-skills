@@ -332,3 +332,43 @@ next-invocation: "/wf shape <slug>"
 - **Option C:** Blocked — [what's missing]
 
 If required answers are still missing, set frontmatter `status: awaiting-input` and set `next-invocation` to rerun `/wf intake <same-slug>` after answers arrive.
+
+---
+
+## Additive-write contract (v9.20.2+)
+
+`01-intake.md` is a revisable artifact. Re-invocation happens when the user
+returns with answers to open questions, when scope changes, or when a related
+intake informs the current one. **Do not overwrite the body** — preserve the
+narrative of how the problem statement evolved.
+
+1. **Snapshot the current file** to
+   `.ai/workflows/<slug>/history/01-intake-<rev>.md` where `<rev>` is the
+   current `revision-count` (before this run's increment). Verbatim byte-copy.
+2. **Bump `revision-count`** in frontmatter by 1. Refresh `updated-at`.
+3. **Append** a new section rather than rewriting prior content:
+   ```
+   ## Revision <new-revision-count> — <ISO timestamp>
+
+   What changed and why:
+   - User returned with answers to open questions (or: scope expanded …)
+   - …
+
+   <new intake content here — restated problem / acceptance criteria>
+   ```
+   The `## Initial` and any prior `## Revision N` sections stay intact.
+4. **Open-question resolution**: when a previously-open question is now
+   answered, do NOT silently delete the question from the body. Instead, add
+   the answer below the original question with a `→` marker, or call it out
+   in the new `## Revision <n>` section's "What changed" list.
+5. **`status: awaiting-input` transitions**: if this run resolves all open
+   questions, transition `status` to `complete` and clear `open-questions`
+   in frontmatter. Note the transition in the new revision section.
+
+**Exception**: if frontmatter declares `regenerable: true`, overwrite freely.
+The intake artifact does not normally carry this flag.
+
+The renderer surfaces prior revisions as a collapsible `<details class="history">`
+at the bottom of the page. History view paths are stable
+(`<slug>/intake/history/<rev>/INDEX.html`) — prior intakes remain linkable
+from later artifacts (shape, plan) that reference an intake-at-the-time.

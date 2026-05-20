@@ -213,3 +213,37 @@ Drop:
 - **Option B:** `/wf intake <follow-up>` — [reason, if applicable]
 - **Option C:** `/wf plan <slug> <next-slice>` — next slice [reason, if applicable]
 - **Option D:** Apply improvements — [list quick wins, if applicable]
+
+---
+
+## Additive-write contract (v9.20.2+)
+
+`10-retro.md` is usually one-shot (a retro runs once at workflow close), but
+it IS revisable — extended retrospectives sometimes add a follow-up "30-day
+check" or "quarterly look-back" section. When `/wf retro` is re-invoked on a
+slug that already has one:
+
+1. **Snapshot the current file** to
+   `.ai/workflows/<slug>/history/10-retro-<rev>.md` where `<rev>` is the
+   current `revision-count` (before this run's increment).
+2. **Bump `revision-count`** in frontmatter by 1. Refresh `updated-at`.
+3. **Append** a new section rather than rewriting prior content:
+   ```
+   ## Revision <new-revision-count> — <ISO timestamp>
+
+   What this revisit adds:
+   - 30-day check-in (or: follow-up after incident, or: quarterly review)
+
+   <new retro content — updated outcomes, new lessons, fresh action items>
+   ```
+   Earlier `## Initial` retro content stays intact. A retro's value is largely
+   *historical* — reading the original "things we'd do differently" alongside
+   "what we actually did differently 30 days later" is more useful than
+   reading a single edited-in-place document.
+
+**Exception**: `regenerable: true` opts out. Retros do not normally carry
+this flag.
+
+The renderer aggregates retro revisions into a single timeline view — each
+revision is a date-stamped entry on the retro page rather than buried under
+a `<details>` block (retros are short enough to display in full).

@@ -432,3 +432,34 @@ This sub-command **adapts** the Claude Code bundled `simplify` skill (see `.scra
 The divergence on action is intentional: every command in this plugin operates as an **orchestrator, not a problem-solver**. Plan plans; implement implements; review reviews. Simplify routes. If a finding deserves code action, the user invokes the appropriate downstream command (`/wf-quick fix`, `/wf-quick refactor`, `/wf intake`, etc.) — each of which runs its own discipline. That separation keeps the artifact trail clean and prevents simplify from becoming a back-door "I'll just write code" path that bypasses review, verify, or planning.
 
 The agent rubrics are stable across the two implementations — if the upstream rubric evolves in Claude Code, update the rubric blocks above to match and bump the plugin's CHANGELOG.
+
+---
+
+## Additive-write contract (v9.20.2+) — no rewrites; one file per run
+
+`simplify-run` is off-pipeline and **each invocation produces a new artifact
+file** at `.ai/simplify/<run-id>.md` (compact-timestamp `run-id`, e.g.
+`20260520T1430Z`). There is no in-place rewrite scenario — the contract is
+the inverse of shape/slice/plan:
+
+1. **Never overwrite an existing `<run-id>.md`.** If a collision is detected
+   (same compact timestamp resolution), increment by one second and retry.
+2. **Do not carry `revision-count`** in the simplify-run frontmatter. The
+   file is immutable at write time; subsequent runs author *new* files.
+3. **Set `regenerable: false`** explicitly. The renderer treats simplify-run
+   artifacts as historical evidence, not view-over-state.
+4. **Cross-run linking is by `refs:`**, not by appending to prior files. If
+   this run was triggered by a finding in an earlier run, the new run's
+   `refs.prior-run` points to the earlier file. The renderer's history block
+   surfaces this lineage as a backlink, not as a `## Revision <n>` chain.
+
+The renderer emits each simplify-run at `.ai/_view/simplify/<run-id>/INDEX.html`
+— a stable URL forever. There is no slug-rooted history folder for off-pipeline
+runs; the `.ai/simplify/` directory itself is the history.
+
+**Why this differs from on-pipeline artifacts**: in-pipeline artifacts
+(shape, slice, plan, intake, …) belong to a slug and have a natural primary
+key (the artifact name within the slug). Off-pipeline runs (simplify,
+profile) are time-keyed and stateless across invocations — there's no
+"the current simplify-run for slug X" because there's no slug binding. Each
+run stands alone.

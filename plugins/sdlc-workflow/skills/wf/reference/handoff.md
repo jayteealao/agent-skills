@@ -528,3 +528,42 @@ For each row: `Action` is one of `fixed (sha=<short-sha>)`, `applied (sha=<short
 - **Option B:** `/wf retro <slug>` — skip ship [reason, if applicable]
 - **Option C:** `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>` — implement remaining slices before shipping [reason, if applicable]
 - **Option D:** `/wf implement <slug> <slice>` — fix issue found while writing handoff [reason, if applicable]
+
+---
+
+## Additive-write contract (v9.20.2+)
+
+`08-handoff.md` is revisable when reviewers request changes pre-ship, when a
+late-breaking issue forces a re-handoff, or when the PR description needs to
+evolve as reviewers add comments. When `/wf handoff` is re-invoked on a slug
+that already has one:
+
+1. **Snapshot the current file** to
+   `.ai/workflows/<slug>/history/08-handoff-<rev>.md` where `<rev>` is the
+   current `revision-count` (before this run's increment). Verbatim byte-copy.
+2. **Bump `revision-count`** in frontmatter by 1. Refresh `updated-at`.
+3. **Append** a new section rather than rewriting prior content:
+   ```
+   ## Revision <new-revision-count> — <ISO timestamp>
+
+   What changed and why:
+   - Addressed reviewer feedback on the rollback runbook (or: …)
+
+   <updated handoff content — revised summary, runbook, comms plan>
+   ```
+   Earlier handoff content stays intact. This matters: the PR description
+   was generated from rev 1, and rev 2's reviewers will want to see what
+   the original handoff looked like vs. what changed in response to their
+   feedback.
+4. **PR description regeneration**: if this run will re-post a PR description
+   (via `gh pr edit`), the new description must match the *current* revision
+   in full — not just the diff from prior. The PR description is the
+   authoritative external comms artifact; the on-disk handoff is the
+   reasoning trail. Both stay in sync.
+
+**Exception**: `regenerable: true` opts out. Handoffs do not normally carry
+this flag — they are deliberate communication artifacts, not view-over-state.
+
+The renderer surfaces prior revisions as a collapsible `<details class="history">`.
+PR-comment tooling may consume `<slug>/handoff/history/<rev>/INDEX.html` to
+quote earlier handoff phrasings when reviewer feedback referenced them.
