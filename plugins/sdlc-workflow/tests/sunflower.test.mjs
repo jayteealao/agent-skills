@@ -19,7 +19,7 @@ import { renderShell, statusBadge, stageBadge, metricRow } from '../renderers/_s
 import { validateFrontmatter } from '../renderers/_validator.mjs';
 import { buildPathMap, relativeBetween } from '../renderers/_link-graph.mjs';
 import { isDirty, workSetFilter, maxMtime } from '../renderers/_mtime.mjs';
-import { severityChip, verdictBlock } from '../renderers/_icons.mjs';
+import { severityChip, verdictBlock, findingListItem } from '../renderers/_icons.mjs';
 import { figureCanvas, evenX } from '../renderers/_figure.mjs';
 import { expand as expandSnippets, clearCache as clearSnippetCache } from '../components/_components.mjs';
 
@@ -208,6 +208,61 @@ test('severityChip: pairs glyph with class', () => {
   match(html, /▲/);
 });
 
+test('findingListItem: composes chip + ref + action + msg + fix into the shared <li>', () => {
+  const html = findingListItem({
+    chip:     '<span class="sev severity-high">high</span>',
+    file:     'src/auth.ts',
+    line:     42,
+    action:   'accept',
+    msg:      'JWT lifetime too long',
+    fix:      'shorten to 15m',
+    id:       'sec-1',
+    dataAttr: { name: 'severity', value: 'high' },
+  });
+  match(html, /^<li class="finding" data-severity="high" id="sec-1">/);
+  match(html, /finding-head[\s\S]*severity-high[\s\S]*src\/auth\.ts:42[\s\S]*finding-action is-accept/);
+  match(html, /<p class="finding-msg">JWT lifetime too long<\/p>/);
+  match(html, /callout-info[\s\S]*suggested fix[\s\S]*shorten to 15m/);
+});
+
+test('findingListItem: variant adds extra class; dataAttr uses given name', () => {
+  const html = findingListItem({
+    chip:     '<span class="finding-cat is-reuse">reuse</span>',
+    msg:      'duplicate util',
+    id:       'SR-1',
+    variant:  'finding-compact',
+    dataAttr: { name: 'category', value: 'reuse' },
+  });
+  match(html, /^<li class="finding finding-compact" data-category="reuse" id="SR-1">/);
+});
+
+test('findingListItem: missing optional fields render minimally', () => {
+  const html = findingListItem({ chip: 'CHIP', msg: 'just a message' });
+  match(html, /^<li class="finding" id="">/);
+  // No data-attr emitted when caller omits dataAttr
+  ok(!/data-(severity|category)/.test(html));
+  // No fix callout when fix is absent
+  ok(!/callout-info/.test(html));
+  // No ref when file is absent
+  ok(!/finding-ref/.test(html));
+  // No action chip when action is absent
+  ok(!/finding-action/.test(html));
+});
+
+test('findingListItem: escapes user-provided strings to prevent injection', () => {
+  const html = findingListItem({
+    chip: 'C',
+    file: '<script>x</script>',
+    msg:  'a < b & c > d',
+    fix:  '"quoted" text',
+    id:   '<svg>',
+  });
+  ok(!/<script>x<\/script>/.test(html), 'file path must be escaped');
+  ok(!/<svg>/.test(html), 'id must be escaped');
+  match(html, /a &lt; b &amp; c &gt; d/);
+  match(html, /&quot;quoted&quot;/);
+});
+
 test('verdictBlock: renders verdict with glyph', () => {
   match(verdictBlock('caveats', 'caveats — 2 high', 'mostly ok'), /verdict-caveats/);
   match(verdictBlock('ship',    'ship it',           ''),         /verdict-ship/);
@@ -316,6 +371,10 @@ import { render as renderPlan } from '../renderers/plan.mjs';
 import { render as renderAugmentation } from '../renderers/augmentation.mjs';
 import { render as renderSimplifyRun } from '../renderers/simplify-run.mjs';
 import { render as renderProfile } from '../renderers/profile.mjs';
+import { render as renderDesign } from '../renderers/design.mjs';
+import { render as renderShipRun } from '../renderers/ship-run.mjs';
+import { render as renderIndex } from '../renderers/index.mjs';
+import { render as renderSlice } from '../renderers/slice.mjs';
 
 test('review-command: sibling YAML drives focused verdict + filtered findings', () => {
   const artifact = {
@@ -748,6 +807,284 @@ test('augmentation: unknown subtype with sibling YAML falls back to simple rende
   };
   const out = renderAugmentation(artifact, {});
   ok(!/aug-benchmark|aug-experiment|aug-instrument/.test(out.bodyHtml));
+});
+
+/* ── Phase 4 — design + ship-run sibling-YAML branches (S1.2) ─────── */
+
+test('design: sibling YAML drives tokens table grouped by category + sizes + chip rows', () => {
+  const artifact = {
+    type: 'design',
+    path: 'design/button.md',
+    frontmatter: { type: 'design', status: 'complete', title: 'Button' },
+    body: 'narrative body',
+    siblingYaml: {
+      artifact: 'design', component: 'Button',
+      themes: ['light', 'dark'],
+      states: ['default', 'hover', 'focus', 'disabled'],
+      sizes: [
+        { id: 'sm', height: 32, padx: 12, font: 13, radius: 6 },
+        { id: 'md', height: 40, padx: 16, font: 14, radius: 8 },
+      ],
+      tokens: [
+        { name: '--btn-fg', category: 'color',   value: '#1f1b16', note: 'ink' },
+        { name: '--btn-bg', category: 'color',   value: '#fbfaf6' },
+        { name: '--btn-r',  category: 'radius',  value: '8px' },
+        { name: '--btn-px', category: 'spacing', value: '16px' },
+      ],
+      specs: { reference: 'figma://Button-v3', annotate: ['min target 44x44', 'aria-pressed when toggle'] },
+    },
+    history: [], fragment: null,
+  };
+  const out = renderDesign(artifact, {});
+  match(out.headerHtml, /Design · <code>Button/);
+  match(out.bodyHtml, /design-themes/);
+  match(out.bodyHtml, /design-states/);
+  match(out.bodyHtml, /design-sizes/);
+  match(out.bodyHtml, /design-tokens-color/);
+  match(out.bodyHtml, /design-tokens-radius/);
+  match(out.bodyHtml, /token-swatch/);
+  match(out.bodyHtml, /design-specs/);
+  match(out.bodyHtml, /figma:\/\/Button-v3/);
+});
+
+test('design: missing siblingYaml falls back to simple renderer', () => {
+  const artifact = {
+    type: 'design',
+    path: 'design/x.md',
+    frontmatter: { type: 'design', title: 'x' },
+    body: '# x',
+    siblingYaml: null, history: [], fragment: null,
+  };
+  const out = renderDesign(artifact, {});
+  ok(!/design-tokens-group/.test(out.bodyHtml), 'rich tokens block must not render without sibling YAML');
+});
+
+test('ship-run: sibling YAML drives stages timeline + checks table + rollback panel', () => {
+  const artifact = {
+    type: 'ship-run',
+    path: 'ship/20260522T1430Z.md',
+    frontmatter: { type: 'ship-run', status: 'shipped' },
+    body: '',
+    siblingYaml: {
+      artifact: 'ship-run', release: 'v1.42.0', run_at: '2026-05-22T14:30:00Z',
+      stages: [
+        { name: 'build',  status: 'ok' },
+        { name: 'test',   status: 'flake' },
+        { name: 'stage',  status: 'ok' },
+        { name: 'canary', status: 'ok' },
+        { name: 'prod',   status: 'pending' },
+      ],
+      checks: [
+        { name: 'auth-flow', kind: 'e2e', results: { stage: { status: 'pass', duration_s: 12 }, prod: { status: 'pending' } } },
+        { name: 'cart-perf', kind: 'perf', results: { stage: { status: 'flake', duration_s: 8 } } },
+      ],
+      rollback: { window_minutes: 30, target_release: 'v1.41.2', approvers: ['oncall@example.com'] },
+    },
+    history: [], fragment: null,
+  };
+  const out = renderShipRun(artifact, {});
+  match(out.headerHtml, /Ship run · <code>v1\.42\.0/);
+  match(out.bodyHtml, /ship-stages/);
+  match(out.bodyHtml, /ship-timeline/);
+  match(out.bodyHtml, /ship-checks/);
+  match(out.bodyHtml, /check-status is-ok/);
+  match(out.bodyHtml, /check-status is-warn/);
+  match(out.bodyHtml, /ship-rollback/);
+  match(out.bodyHtml, /v1\.41\.2/);
+});
+
+test('ship-run: missing siblingYaml falls back to simple renderer', () => {
+  const artifact = {
+    type: 'ship-run',
+    path: 'ship/x.md',
+    frontmatter: { type: 'ship-run', release: 'v1.0.0' },
+    body: '# todo',
+    siblingYaml: null, history: [], fragment: null,
+  };
+  const out = renderShipRun(artifact, {});
+  ok(!/ship-timeline/.test(out.bodyHtml), 'timeline must not render without sibling YAML');
+});
+
+/* ── S2.2 — off-pipeline path resolution + link-graph kind threading ── */
+
+test('resolveViewPath: simplify kind maps run-id to /simplify/<run-id>/', () => {
+  const r = resolveViewPath('20260520T1430Z.md', { kind: 'simplify' });
+  deepStrictEqual(r, { viewRel: 'simplify/20260520T1430Z/INDEX.html', kind: 'simplify' });
+});
+
+test('resolveViewPath: profile kind preserves nested run-id/file path', () => {
+  const r = resolveViewPath('prof-run-1/01-profile.md', { kind: 'profile' });
+  deepStrictEqual(r, { viewRel: 'profiles/prof-run-1/01-profile/INDEX.html', kind: 'profile' });
+});
+
+test('resolveViewPath: workflow kind (default) still returns slug-relative path', () => {
+  // Backwards-compat: omitting opts should behave exactly as v9.22.x.
+  const r = resolveViewPath('00-index.md');
+  deepStrictEqual(r, { viewRel: 'INDEX.html', kind: '00-index' });
+});
+
+test('buildPathMap: threads kind so off-pipeline artifacts land in the map', () => {
+  const map = buildPathMap([
+    { path: '00-index.md', kind: 'workflow' },
+    { path: '20260520T1430Z.md', kind: 'simplify' },
+    { path: 'prof-1/01-profile.md', kind: 'profile' },
+  ]);
+  strictEqual(map.get('00-index.md'), 'INDEX.html');
+  strictEqual(map.get('20260520T1430Z.md'), 'simplify/20260520T1430Z/INDEX.html');
+  strictEqual(map.get('prof-1/01-profile.md'), 'profiles/prof-1/01-profile/INDEX.html');
+});
+
+/* ── S2.3 — hotspot candidate chip uses is-yes / is-no modifier ────── */
+
+test('profile hotspot chip uses is-yes for candidates and is-no otherwise', () => {
+  const artifact = {
+    type: 'profile',
+    path: 'profile/run-3.md',
+    frontmatter: { type: 'profile', 'run-id': 'prof-3' },
+    body: '',
+    siblingYaml: {
+      artifact: 'profile', run_id: 'prof-3', method: 'static',
+      hotspots: [
+        { id: 'H1', function: 'fn1', cost_pct: 30, candidate: true },
+        { id: 'H2', function: 'fn2', cost_pct: 10 },
+      ],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderProfile(artifact, {});
+  match(out.bodyHtml, /hotspot-cand is-yes/);
+  match(out.bodyHtml, /hotspot-cand is-no/);
+  // The tautological `is-cand` modifier must no longer appear in output.
+  ok(!/is-cand(?![a-z])/.test(out.bodyHtml), 'is-cand modifier should be retired');
+});
+
+/* ── S2.4 — slug-overview navigation (stages grid + slices + activity) ─ */
+
+function buildSlugAllArtifacts() {
+  // Minimal shape consumed by renderers/index.mjs — keyed by frontmatter.type.
+  return {
+    intake: [{ frontmatter: { type: 'intake', 'updated-at': '2026-05-20T10:00:00Z' }, storageRel: '01-intake.md', viewRel: 'intake/INDEX.html' }],
+    shape:  [{ frontmatter: { type: 'shape',  'updated-at': '2026-05-20T11:00:00Z' }, storageRel: '02-shape.md',  viewRel: 'shape/INDEX.html' }],
+    slice:  [
+      { frontmatter: { type: 'slice', 'slice-slug': 'auth-cache', title: 'Auth cache', status: 'active', 'updated-at': '2026-05-21T09:00:00Z' }, storageRel: 'slices/auth-cache/03-slice.md', viewRel: 'slice/auth-cache/INDEX.html' },
+      { frontmatter: { type: 'slice', 'slice-slug': 'rate-limit', title: 'Rate limit', status: 'complete', 'updated-at': '2026-05-21T10:00:00Z' }, storageRel: 'slices/rate-limit/03-slice.md', viewRel: 'slice/rate-limit/INDEX.html' },
+    ],
+    plan: [{ frontmatter: { type: 'plan', 'slice-slug': 'auth-cache', 'updated-at': '2026-05-22T09:00:00Z' }, storageRel: 'slices/auth-cache/04-plan.md', viewRel: 'plan/auth-cache/INDEX.html' }],
+    // implement, verify, review, handoff, ship, retro intentionally empty (test "not started" cards)
+  };
+}
+
+test('index (slug overview): stages grid emits clickable cards for populated stages', () => {
+  const artifact = {
+    type: 'index',
+    path: '00-index.md',
+    frontmatter: { type: 'workflow-index', slug: 'demo-slug', title: 'Demo', 'current-stage': 'plan', status: 'active' },
+    body: '',
+    history: [], fragment: null,
+  };
+  const out = renderIndex(artifact, { allArtifacts: buildSlugAllArtifacts() });
+  match(out.bodyHtml, /class="slug-stages"/);
+  // Populated stages link to the canonical sub-dir.
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="intake\/"/);
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="shape\/"/);
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="slice\/"/);
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="plan\/"/);
+  // The current stage gets the is-current modifier.
+  match(out.bodyHtml, /slice-card is-current[^"]*"\s+href="plan\//);
+});
+
+test('index (slug overview): empty stages render as non-clickable is-missing cards', () => {
+  const artifact = {
+    type: 'index',
+    path: '00-index.md',
+    frontmatter: { type: 'workflow-index', slug: 'demo-slug', 'current-stage': 'plan' },
+    body: '',
+    history: [], fragment: null,
+  };
+  const out = renderIndex(artifact, { allArtifacts: buildSlugAllArtifacts() });
+  // implement is empty in the fixture → is-missing, no anchor
+  match(out.bodyHtml, /<div class="slice-card[^"]*is-missing[^"]*">\s*<span class="slice-slug"><code>implement<\/code><\/span>/);
+  match(out.bodyHtml, /not started/);
+});
+
+test('index (slug overview): slices preview surfaces each slice with status tone', () => {
+  const artifact = {
+    type: 'index',
+    path: '00-index.md',
+    frontmatter: { type: 'workflow-index', slug: 'demo-slug' },
+    body: '',
+    history: [], fragment: null,
+  };
+  const out = renderIndex(artifact, { allArtifacts: buildSlugAllArtifacts() });
+  match(out.bodyHtml, /class="slug-slices"/);
+  // Each slice card links into slice/<slice-slug>/ and carries the status badge.
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="slice\/auth-cache\/"/);
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="slice\/rate-limit\/"/);
+  match(out.bodyHtml, /is-current/);   // active → is-current tone
+  match(out.bodyHtml, /is-ok/);        // complete → is-ok tone
+});
+
+test('index (slug overview): recent-activity entries wrap content in clickable links', () => {
+  const artifact = {
+    type: 'index',
+    path: '00-index.md',
+    frontmatter: { type: 'workflow-index', slug: 'demo-slug' },
+    body: '',
+    history: [], fragment: null,
+  };
+  const out = renderIndex(artifact, { allArtifacts: buildSlugAllArtifacts() });
+  match(out.bodyHtml, /class="activity-list"/);
+  match(out.bodyHtml, /class="activity-link" href="plan\/auth-cache\/"/);
+});
+
+/* ── S2.4 — slice page navigation (stage grid + missing cards + reviews) ─ */
+
+test('slice page: stage nav grid links plan / implement / verify under the same slice', () => {
+  const artifact = {
+    type: 'slice',
+    path: 'slices/auth-cache/03-slice.md',
+    frontmatter: { type: 'slice', 'slice-slug': 'auth-cache', title: 'Auth cache', status: 'active' },
+    body: '',
+    history: [], fragment: null,
+  };
+  const ctx = {
+    allArtifacts: {
+      plan:      [{ frontmatter: { 'slice-slug': 'auth-cache', status: 'complete' } }],
+      implement: [{ frontmatter: { 'slice-slug': 'auth-cache', status: 'active'   } }],
+      verify:    [],  // intentionally absent — should render as is-missing
+    },
+  };
+  const out = renderSlice(artifact, ctx);
+  match(out.bodyHtml, /class="slice-stages"/);
+  match(out.bodyHtml, /<a class="slice-card" href="\.\.\/\.\.\/plan\/auth-cache\/"/);
+  match(out.bodyHtml, /<a class="slice-card" href="\.\.\/\.\.\/implement\/auth-cache\/"/);
+  // verify is missing → div, not anchor
+  match(out.bodyHtml, /<div class="slice-card is-missing">[\s\S]*?verify[\s\S]*?not started/);
+});
+
+test('slice page: per-dimension review cards link to review/<dimension>/', () => {
+  const artifact = {
+    type: 'slice',
+    path: 'slices/auth-cache/03-slice.md',
+    frontmatter: { type: 'slice', 'slice-slug': 'auth-cache' },
+    body: '',
+    history: [], fragment: null,
+  };
+  const ctx = {
+    allArtifacts: {
+      'review-command': [
+        { frontmatter: { 'slice-slug': 'auth-cache', dimension: 'security',    status: 'caveats' } },
+        { frontmatter: { slices: ['auth-cache'],     dimension: 'performance', status: 'ship'    } },
+        { frontmatter: { 'slice-slug': 'other',      dimension: 'a11y',        status: 'no'      } },
+      ],
+    },
+  };
+  const out = renderSlice(artifact, ctx);
+  match(out.bodyHtml, /class="slice-reviews"/);
+  match(out.bodyHtml, /href="\.\.\/\.\.\/review\/security\/"/);
+  match(out.bodyHtml, /href="\.\.\/\.\.\/review\/performance\/"/);
+  // The 'a11y' review on a different slice must be filtered out.
+  ok(!/review\/a11y\//.test(out.bodyHtml), 'review for other slice must not appear');
 });
 
 /* ── End-to-end: render fixtures via orchestrator ──────────────────── */

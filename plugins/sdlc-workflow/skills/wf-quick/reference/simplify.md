@@ -463,3 +463,66 @@ key (the artifact name within the slug). Off-pipeline runs (simplify,
 profile) are time-keyed and stateless across invocations — there's no
 "the current simplify-run for slug X" because there's no slug binding. Each
 run stands alone.
+
+---
+
+## Step — Sibling YAML `simplify-run` (v9.22.0+, Phase 3)
+
+When standalone-mode writes `.ai/simplify/<run-id>.md`, write a sibling
+`.ai/simplify/<run-id>.yaml` next to it with `artifact: simplify-run`.
+The view-layer renderer projects this YAML as a finding-table page at
+`/sdlc/simplify/<run-id>/` — categorical chips (reuse/quality/efficiency)
+instead of severity, optional code-deltas summary, no verdict block.
+Without this YAML the page falls back to a plain frontmatter card.
+
+This step is **standalone-mode only.** In slug-mode the simplify findings
+are written into a compressed slice (`type: slice`), which renders via
+the slice template and does NOT consume a `simplify-run` sibling YAML.
+
+Shape:
+
+```yaml
+# .ai/simplify/20260520T1430Z.yaml
+artifact: simplify-run
+run_id:   "20260520T1430Z"
+scope:    branch          # branch | commit | plan | codebase
+target:   "feat/checkout-v2..master"
+rev:      1
+model:    "claude-opus-4-7"
+run_at:   "2026-05-20T14:30:00Z"
+summary:  "Eight findings: 5 reuse, 2 quality, 1 efficiency. Five routed to /wf-quick refactor."
+counts:
+  reuse: 5
+  quality: 2
+  efficiency: 1
+  accepted: 7
+  skipped: 0
+  deferred: 1
+findings:
+  - id:       SR-1
+    category: reuse           # reuse | quality | efficiency
+    action:   accept          # accept | skip | defer (matches the routing decision)
+    file:     "src/cart/total.ts"
+    line:     42
+    msg:      "Duplicate validator implementation — see src/lib/validate.ts."
+    fix:      "Replace inline impl with the shared validator."
+  - id:       SR-2
+    category: quality
+    action:   defer
+    msg:      "Naming inconsistency between cart and checkout modules."
+deltas:
+  - file:    "src/cart/total.ts"
+    add:     0
+    rem:     24
+    summary: "Removed inline validator; imports from src/lib/validate.ts."
+```
+
+Authoring rules:
+- One YAML per `.ai/simplify/<run-id>.md`. The MD's `id` / `category` /
+  `action` per-finding stays the same as the YAML's — the body is a
+  human-readable mirror, the YAML is the structured projection.
+- `deltas[]` is optional. Include it when the run identified concrete
+  file-level changes the downstream commands will likely make. Skip when
+  the findings are advisory rather than transformational.
+- `counts` is the authoritative tally — the renderer reads it directly
+  rather than recomputing from `findings[]`. Keep them in sync.

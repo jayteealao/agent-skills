@@ -239,3 +239,58 @@ If dark paths are zero, note:
 - **Not an observability platform** — it does not set up Datadog, Grafana, Prometheus, or any tooling. It plans what signals to emit; the platform choice is the user's.
 - **Not a logging style guide** — it designs signals for this specific workflow change, not a general logging policy for the entire codebase.
 - **Not a prerequisite** — instrumentation is optional. `wf-implement` works without it. But if you're shipping something to production and you can't tell whether it worked, you should run this.
+
+---
+
+## Step — Sibling YAML `instrument` (v9.22.0+, Phase 3)
+
+After writing the instrument MD (`.ai/workflows/<slug>/04b-instrument.md`
+or, when invoked as an augmentation under a slug,
+`.ai/workflows/<slug>/augmentations/<inst-id>.md`), write a sibling
+`.yaml` next to it with `artifact: instrument`. The view-layer renderer
+projects this as a signal table (kind-coloured chips per row) plus a
+dark-paths callout list and an optional PII-warning counter.
+
+Shape:
+
+```yaml
+# 04b-instrument.yaml — or augmentations/<inst-id>.yaml
+artifact:   instrument
+framework:  "opentelemetry"
+signals:
+  - name: "checkout.attempt"
+    kind: counter            # counter | gauge | histogram | log | trace | event
+    path: "services/cart/handlers/checkout.ts:start"
+    note: "Increment on every POST /checkout, before validation."
+  - name: "checkout.duration_ms"
+    kind: histogram
+    path: "services/cart/handlers/checkout.ts:end"
+  - name: "checkout.failure"
+    kind: log
+    pii:  true              # mark when payload contains user identifiers
+    path: "services/cart/handlers/checkout.ts:catch"
+    note: "Redact stripe_customer_id before emit."
+  - name: "checkout.span"
+    kind: trace
+    path: "services/cart/handlers/checkout.ts:full"
+dark_paths:
+  - path:   "services/cart/promo/apply.ts:rejection"
+    reason: "No signal on rejected promo codes — silent failure mode."
+  - path:   "services/cart/webhooks/stripe.ts:retry"
+    reason: "Retry loop has no histogram; cannot tell tail latency from happy path."
+pii_warnings: 1
+```
+
+Authoring rules:
+- `signals[]` must have at least one entry. `kind:` is required —
+  the renderer colours each row by kind, so misclassifying a histogram
+  as a counter gets the wrong visual treatment.
+- Mark `pii: true` on any signal whose payload includes user-level
+  identifiers (email, account id, IP). The renderer surfaces these
+  with a redaction warning chip.
+- `dark_paths[]` is optional but is usually the most useful section to
+  a reviewer — it names places where the *absence* of signal is the
+  finding. Skip when the audit found no dark paths (the chat summary
+  already handles that case).
+- `pii_warnings:` is the count of `pii: true` entries in `signals[]`.
+  Keep them in sync — the renderer reads this directly for the badge.

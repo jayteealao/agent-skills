@@ -1,4 +1,11 @@
 // renderers/dashboard.mjs — cross-slug dashboard at .ai/_view/INDEX.html
+//
+// Synthetic — invoked by the orchestrator after slug renders; no storage
+// artifact backs this page. Unlike every other renderer in this directory,
+// there is no `frontmatter.type: dashboard` entry in the schema's `oneOf`
+// and no `00-dashboard.md` on disk. The orchestrator builds the artifact
+// shape in-memory from the cross-slug index, then dispatches here.
+//
 // Figure 1 of the design handoff: workflow swimlanes — rows = projects,
 // columns = 8 stages (intake → retro), bullets mark completed stages, accent
 // ring marks current, dashed line marks not-yet-reached. Blocked = --blocker.

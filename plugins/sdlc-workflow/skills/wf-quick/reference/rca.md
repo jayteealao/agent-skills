@@ -393,3 +393,43 @@ Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.
 
 Snippet catalogue: `metric-row`, `callout`, `verdict`, `severity-chip`,
 `fragment-ready`, `files-touched-row`, `diff-block`.
+
+### Sibling YAML — `five_whys[]` block (v9.21.0+, Phase 2)
+
+When the RCA artifact reaches a definite root cause through a sequential
+ladder of questions (the classic 5-whys technique), record the chain in the
+sibling `<rca-id>.yaml` under a top-level `five_whys:` key. The view-layer
+renderer expands this into a collapsible drill panel below the causal-chain
+figure. Without this block the panel is omitted — the rest of the RCA still
+renders normally.
+
+When to emit:
+- Root cause confidence is `high` or `medium` AND the diagnosis actually
+  laddered through ≥3 questions.
+- Skip when the root cause was named directly from a stack trace with no
+  intermediate reasoning steps (the 5-whys structure would be artificial).
+
+Shape (between 1 and 7 steps; mark the final step as `root: true`):
+
+```yaml
+# excerpt from <rca-id>.yaml — riding alongside the existing artifact: rca block
+five_whys:
+  - question: "Why did checkout return 500 for 12k users?"
+    answer:   "Stripe webhook handler timed out at p99."
+  - question: "Why did the webhook handler time out?"
+    answer:   "Each event re-fetched the full customer record."
+  - question: "Why did each event re-fetch?"
+    answer:   "The memoisation key included a request-scoped trace id."
+  - question: "Why was the trace id in the key?"
+    answer:   "Copy-pasted from a per-request cache. Nobody noticed in review."
+    root: true
+```
+
+Authoring rules:
+- Each `answer` is one sentence — long enough to be a causal claim, short
+  enough to read in the collapsed-detail panel without scrolling.
+- Set `root: true` on exactly one step (the final one). If multiple plausible
+  roots survived investigation, pick the strongest and note the alternatives
+  in Section 4 of `01-rca.md` instead.
+- The chain must end where Section 4 ("Root cause") points; if they
+  disagree, fix Section 4 first.

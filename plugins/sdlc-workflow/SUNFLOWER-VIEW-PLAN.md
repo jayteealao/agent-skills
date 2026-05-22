@@ -1076,6 +1076,27 @@ The MD-to-HTML path (non-fragment artifacts) is untouched — `markdown-it` neve
 
 Lands as v9.20.1 alongside the additive-write reference rollover for `/wf shape` and `/wf slice` — keeping the patch release small but coherent.
 
+### Status marker convention
+
+Each phase item below carries one of three markers. As of v9.23.0 (Phase 4
+writer rollout), `[shipped]` means **all five layers landed** — schema +
+verifier + renderer + CSS + writer instructions. The audit caught the
+earlier conflation of "renderer ships" with "feature ships end-to-end"
+(see [SUNFLOWER-VIEW-AUDIT.md](SUNFLOWER-VIEW-AUDIT.md) S3.2); v9.23.0
+closed the writer-side gap and the convention is now consistent.
+
+| Marker | Means |
+|---|---|
+| `[shipped]` | Schema validated, verifier accepts the fragment name, renderer emits the rich branch, CSS hooks present, **and** a skill writer authors the sibling YAML. Feature reaches the user with no manual YAML editing. |
+| `[renderer-shipped, writer-pending]` | Renderer + CSS land in the named release; writer rollout deferred. Used during transition windows. Items in this state are tracked in CHANGELOG "Known follow-ups". |
+| `[planned]` | Not yet shipped in any form. |
+
+When new features land, prefer landing all five layers in the same release.
+Splitting (renderer first, writer later) re-introduces the v9.22.0
+"structurally complete but functionally dormant" failure mode the audit
+named — passes its own tests, accepted by the verifier, but no real agent
+run ever produces the input.
+
 ### Phase 2 (v9.21.0) — fragment polish + per-dimension review pages — **shipped 2026-05-21**
 
 - **[shipped]** Per-dimension review pages get their own scoped fragments (currently the gallery shows one combined review fragment; phase 2 splits per-dimension into separate cards).
@@ -1102,6 +1123,44 @@ Lands as v9.20.1 alongside the additive-write reference rollover for `/wf shape`
   - Schema: three new sibling YAML schemas — `benchmark` (metric comparison), `experiment` (arms + guardrails), `instrument` (signals + dark-paths).
   - Renderer: `renderers/augmentation.mjs` dispatches on `augmentation-type` ∈ {`rca`, `benchmark`, `experiment`, `instrument`}; existing RCA branch unchanged.
   - Verifier: `scripts/verify-fragment.mjs` ALLOWED_FRAGMENT_NAMES extended with all five new names.
+
+### Phase 4 (v9.23.0) — writer rollout + S1.2 renderer fill-in — **shipped 2026-05-22**
+
+Phase 3 left the system "structurally complete but functionally dormant"
+(see [SUNFLOWER-VIEW-AUDIT.md](SUNFLOWER-VIEW-AUDIT.md)). Phase 4 closes
+the contract: the skill writers now author the sibling YAMLs the
+renderers have been consuming, and the two Phase 1 fragment-bearing
+types that never grew sibling-YAML branches (`design`, `ship-run`) get
+them.
+
+- **[shipped]** Skill writer rollout (S1.1) — six writer reference docs
+  gain a "Sibling YAML" section with the schema shape, when-to-emit
+  rules, and a worked example matching the renderer's expectations.
+  - `skills/review/SKILL.md` — `review-dimension` (Phase 2).
+  - `skills/wf-quick/reference/rca.md` — `five_whys[]` (Phase 2).
+  - `skills/wf/reference/plan.md` — `lanes[]` / `crosses-service`
+    (Phase 2).
+  - `skills/wf-quick/reference/simplify.md` — `simplify-run` (Phase 3).
+  - `skills/wf/reference/profile.md` — `profile` (Phase 3).
+  - `skills/wf/reference/benchmark.md` — `benchmark` (Phase 3).
+  - `skills/wf/reference/experiment.md` — `experiment` (Phase 3).
+  - `skills/wf/reference/instrument.md` — `instrument` (Phase 3).
+- **[shipped]** `renderers/design.mjs` gains a sibling-YAML branch
+  (S1.2). Tokens grouped by category, sizes table, themes + states
+  chip rows, specs reference block. Falls back to `_simple.mjs` when
+  no sibling YAML is present.
+- **[shipped]** `renderers/ship-run.mjs` gains a sibling-YAML branch
+  (S1.2). Horizontal stages timeline coloured by `stages[].status`
+  enum, checks table with per-env status cells, rollback metadata
+  panel. Falls back to `_simple.mjs` otherwise.
+- **[shipped]** `docs/site/sunflower-view.md` refreshed (S1.3).
+  Fragment-bearing types list expanded from 5 → 11 with per-phase
+  table. New Phase 2/3 highlights section. URL routing now includes
+  per-slice plan/implement/verify, augmentations, and
+  `/sdlc/profiles/<run-id>/`. Modes table documents `--simplify`,
+  `--profiles`, `--asset-base`, `--plugin-root`.
+- **[shipped]** `assets/sdlc.css` — ~120 lines for design + ship-run
+  rich render. `tests/sunflower.test.mjs` — 4 new tests (56/56 pass).
 
 ### Indefinite — most types stay MD-only
 

@@ -8,7 +8,7 @@
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
 import { renderHistoryBlock } from './_history.mjs';
-import { callout } from './_icons.mjs';
+import { findingListItem } from './_icons.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { renderSimple } from './_simple.mjs';
 
@@ -88,19 +88,17 @@ export function render(artifact, ctx) {
 
 function findingItem(f) {
   const cat = f.category ?? 'reuse';
-  const chip = `<span class="finding-cat is-${escapeHtml(cat)}">${escapeHtml(cat)}</span>`;
-  const ref = f.file
-    ? `<code class="finding-ref">${escapeHtml(f.file)}${f.line != null ? `:${escapeHtml(f.line)}` : ''}</code>`
-    : '';
-  const action = f.action
-    ? `<span class="finding-action is-${escapeHtml(f.action)}">${escapeHtml(f.action)}</span>`
-    : '';
-  const fix = f.fix ? callout('info', 'suggested fix', `<p>${escapeHtml(f.fix)}</p>`) : '';
-  return `<li class="finding finding-compact" data-category="${escapeHtml(cat)}" id="${escapeHtml(f.id ?? '')}">
-    <div class="finding-head">${chip}${ref}${action}</div>
-    <p class="finding-msg">${escapeHtml(f.msg ?? '')}</p>
-    ${fix}
-  </li>`;
+  return findingListItem({
+    chip:     `<span class="finding-cat is-${escapeHtml(cat)}">${escapeHtml(cat)}</span>`,
+    file:     f.file,
+    line:     f.line,
+    action:   f.action,
+    msg:      f.msg,
+    fix:      f.fix,
+    id:       f.id,
+    variant:  'finding-compact',
+    dataAttr: { name: 'category', value: cat },
+  });
 }
 
 function deltaRow(d) {

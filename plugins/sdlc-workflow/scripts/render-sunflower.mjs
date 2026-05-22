@@ -278,11 +278,11 @@ async function main() {
   const slugArtifacts = new Map();   // slug → all parsed artifacts (for context)
   const workSet = [];
   for (const a of parsed) {
-    const r = resolveViewPath(a.storageRel);
-    if (!r && a.kind === 'workflow') continue;
-    const viewRel = a.kind === 'workflow'
-      ? r.viewRel
-      : (a.kind === 'simplify' ? `simplify/${a.storageRel.replace(/\.md$/, '/INDEX.html')}` : `profiles/${a.storageRel.replace(/\.md$/, '/INDEX.html')}`);
+    // v9.23.0 (S2.2) — resolveViewPath now handles off-pipeline kinds
+    // when given the kind hint. Drops the prior inline ternary.
+    const r = resolveViewPath(a.storageRel, { kind: a.kind });
+    if (!r) continue;
+    const viewRel = r.viewRel;
     const viewAbs = a.kind === 'workflow'
       ? join(viewRoot, a.slug, viewRel)
       : join(viewRoot, viewRel);
@@ -297,10 +297,12 @@ async function main() {
     }
   }
 
-  // 6. build link-graph pathMap across ALL artifacts (per slug)
+  // 6. build link-graph pathMap across ALL artifacts (per slug). Pass `kind`
+  //    so buildPathMap can route off-pipeline artifacts through the matching
+  //    resolveViewPath branch.
   const pathMaps = new Map();
   for (const [slug, list] of slugArtifacts) {
-    pathMaps.set(slug, buildPathMap(list.map((x) => ({ path: x.storageRel }))));
+    pathMaps.set(slug, buildPathMap(list.map((x) => ({ path: x.storageRel, kind: x.kind }))));
   }
 
   // 7. render pass
@@ -415,7 +417,7 @@ async function main() {
 
   // 9. manifest pass
   const manifest = {
-    version:     '9.22.0',
+    version:     '9.23.0',
     generatedAt: new Date().toISOString(),
     slugs: [...slugArtifacts.keys()].map((slug) => ({
       slug,

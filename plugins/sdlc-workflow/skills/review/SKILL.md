@@ -199,3 +199,63 @@ Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.
 
 Snippet catalogue: `metric-row`, `callout`, `verdict`, `severity-chip`,
 `fragment-ready`, `files-touched-row`, `diff-block`.
+
+### Sibling YAML — per-dimension `review-dimension` (v9.21.0+, Phase 2)
+
+When the review writes per-dimension MD files (`07-review/<dim>.md` or
+`07-review-<slice>-<dim>.md`), **each one** must ship its own sibling
+`<dim>.yaml` with `artifact: review-dimension`. This drives the focused
+per-dimension review page (one verdict, one severity tally row, one
+finding list narrowed to that dimension) under
+`/sdlc/<slug>/review/<dimension>/`.
+
+The combined `07-review.yaml` (`artifact: review`) still aggregates all
+dimensions and powers the hero verdict — the per-dimension YAMLs are
+**additional**, not a replacement.
+
+When to emit:
+- One sibling YAML per per-dimension MD file. If `07-review/security.md`
+  exists, write `07-review/security.yaml`.
+- Skip the per-dimension YAML if there are no findings for that dimension
+  (the per-dimension MD itself should also be skipped in that case).
+
+Shape:
+
+```yaml
+# 07-review/security.yaml
+artifact: review-dimension
+dimension: security
+parent:    "07-review.md"
+rev:       2
+model:     "claude-opus-4-7"
+run_at:    "2026-05-22T14:30:00Z"
+verdict:   caveats        # ship | caveats | no
+verdict_label: "Caveats — 2 high"
+summary:   "No blockers; two CSRF gaps to address."
+counts:    { blocker: 0, high: 2, med: 1, low: 0, nit: 0 }
+findings:
+  - id:       SEC-1
+    severity: high
+    file:     "services/cart/handlers/checkout.ts"
+    line:     142
+    confidence: high
+    action:   accept
+    msg:      "CSRF token not validated on POST /checkout."
+    fix:      "Wrap the handler with the csrfGuard middleware."
+  - id:       SEC-2
+    severity: high
+    msg:      "Origin header allow-list is permissive."
+```
+
+Authoring rules:
+- `parent:` references the master review file so the renderer can build
+  the up-link back to the hero verdict.
+- `findings[]` is **already filtered** to this dimension — do not include
+  findings from other dimensions, even if cross-cutting. The renderer
+  also filters by `dimension:` as a defense-in-depth, but the YAML should
+  arrive pre-narrowed.
+- `verdict` may differ from the master review's verdict. A single
+  dimension can be `no` while the aggregate is `caveats`, in which case
+  the per-dimension page tells the reviewer to read this dimension first.
+- `rev` must match the master review's `rev` at the time of writing.
+  Bump both together on revision.

@@ -5,6 +5,179 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.23.0] - 2026-05-22
+
+### Added — Phase 4: writer rollout + S1.2 renderer fill-in (closes the contract)
+
+Phase 3 (v9.22.0) shipped the rendering pipeline for the eleven fragment-bearing
+artifact types but left the **authoring layer** behind — no skill writer
+instructed the agent to emit the sibling YAML the renderers consume. The
+[v9.22.0 audit](SUNFLOWER-VIEW-AUDIT.md) characterised the system as
+"structurally complete but functionally dormant". Phase 4 closes that gap.
+
+Two structural fixes ride along:
+
+1. **S1.2** — `renderers/design.mjs` and `renderers/ship-run.mjs` were
+   declared fragment-bearing in Phase 1 but never grew sibling-YAML
+   branches in their renderers. Phase 1 was only 60% shipped at the
+   renderer layer; this release brings it to 100%.
+2. **S1.3** — `docs/site/sunflower-view.md` was frozen at Phase 1 and
+   claimed "five fragment-bearing types" (the count is now eleven, across
+   three phases). Refreshed end-to-end with new feature highlights, URL
+   routing, and CLI flags.
+
+### Added
+
+- **`renderers/design.mjs` sibling-YAML branch.** Tokens grouped by
+  category (color/radius/spacing/font/easing/shadow) — each color token
+  rendered with an inline swatch. Sizes table (id × height × padx × pady
+  × font × radius). Themes and states chip rows. Specs reference + the
+  annotate bullet list. Schema (`siblingYamlSchemas.design`) was already
+  in place from Phase 1; only the renderer's `if (sy) {…}` branch and
+  the matching CSS were missing.
+- **`renderers/ship-run.mjs` sibling-YAML branch.** Horizontal SVG
+  stages timeline (build → test → stage → canary → prod) coloured by
+  `stages[].status` enum (`ok / flake / fail / running / pending`).
+  Checks table with per-environment status cells (`check-status.is-ok |
+  is-warn | is-bad | is-skip`). Rollback metadata panel with window,
+  target release, and approvers.
+- **CSS for design + ship-run rich render** in `assets/sdlc.css` (~120
+  lines): `.design-chip-row`, `.sizes-table`, `.tokens-table`,
+  `.token-swatch`, `.design-tokens-{color,radius,spacing,font,easing,shadow}`,
+  `.ship-timeline`, `.checks-table`, `.check-status.is-*`, `.ship-rollback`,
+  `.rollback-meta`. All built from existing tokens — no new theme vars.
+
+### Edited — skill writer rollout (S1.1)
+
+The six writer reference files that author Phase 2 / Phase 3 fragment
+types now document the sibling-YAML shape. Each gets a new
+"Sibling YAML — `<schema-name>`" section with a worked example matching
+the schema, when to emit, and the non-obvious authoring rules. The
+features themselves shipped in earlier releases; this release teaches
+the agent to actually write the YAML so the renderers stop falling
+through to `_simple.mjs`.
+
+- `skills/review/SKILL.md` — added `review-dimension` block (Phase 2,
+  per-dimension review pages at `/sdlc/<slug>/review/<dimension>/`).
+- `skills/wf-quick/reference/rca.md` — added `five_whys[]` block
+  (Phase 2, collapsible drill panel below the causal chain).
+- `skills/wf/reference/plan.md` — added `lanes[]` + `crosses-service`
+  block (Phase 2, data-flow swim-lane figure for cross-service plans).
+- `skills/wf-quick/reference/simplify.md` — added `simplify-run` block
+  (Phase 3, off-pipeline finding-table page).
+- `skills/wf/reference/profile.md` — added `profile` block (Phase 3,
+  hotspots + optional comparison figure + optimization candidates).
+- `skills/wf/reference/benchmark.md` — added `benchmark` block
+  (Phase 3, metric comparison table with `direction:`-aware tone).
+- `skills/wf/reference/experiment.md` — added `experiment` block
+  (Phase 3, arm-allocation bar + guardrail thresholds).
+- `skills/wf/reference/instrument.md` — added `instrument` block
+  (Phase 3, signal table + dark-paths callouts + PII warnings).
+
+### Edited
+
+- `docs/site/sunflower-view.md` — fragment-bearing types list expanded
+  from 5 to 11 (now a per-phase table with sibling-YAML names + page
+  URLs). New "Phase 2 / Phase 3 highlights" section. URL routing
+  table now includes per-slice plan / implement / verify,
+  augmentations, and `/sdlc/profiles/<run-id>/`. Modes table now
+  documents `--simplify`, `--profiles`, `--asset-base`, and
+  `--plugin-root`. Auto-render hook description now lists
+  `.ai/simplify/` and `.ai/profiles/` alongside `.ai/workflows/`.
+  Cache-bust example bumped to `?v=9.23.0`.
+- `tests/sunflower.test.mjs` — 19 new tests this release. 4 cover the
+  Phase 4 design + ship-run sibling/fallback branches (S1.2). 11 close
+  the S2 audit findings: 4 for off-pipeline path resolution and
+  link-graph kind threading (S2.2), 1 for the hotspot candidate chip
+  rename (S2.3), and 6 for slug-overview + slice navigation regressions
+  (S2.4). 4 cover the `findingListItem` extraction (S3.3):
+  composition, variant/data-attr threading, minimal-field rendering,
+  and HTML-escaping. **71/71 tests pass** (was 52).
+- `.claude-plugin/plugin.json`, `package.json`,
+  `.claude-plugin/marketplace.json`, `renderers/_shell.mjs`,
+  `scripts/render-sunflower.mjs` — version bumped to 9.23.0
+  (marketplace 1.57.0 → 1.58.0).
+
+### Edited — Section 2 audit closure
+
+- **S2.2** — `renderers/_paths.mjs` `resolveViewPath()` now accepts an
+  optional `{ kind: 'workflow'|'simplify'|'profile' }` second arg.
+  When `kind === 'simplify' | 'profile'` the resolver emits the
+  off-pipeline view path the orchestrator previously computed inline.
+  `renderers/_link-graph.mjs` `buildPathMap()` threads `kind` through
+  so off-pipeline artifacts no longer drop out of the cross-artifact
+  link map. `scripts/render-sunflower.mjs` calls the new signature and
+  drops its inline ternary. Behaviour for slug-rooted paths is
+  unchanged (no `kind` opt → `'workflow'`).
+- **S2.3** — `renderers/profile.mjs` hotspot candidate chip renamed
+  from `.hotspot-cand.is-cand` to `.hotspot-cand.is-yes` /
+  `.hotspot-cand.is-no` to match the `.{base}.is-{semantic-value}`
+  convention used elsewhere (status-badge, check-status). Added
+  `aria-label="candidate"` / `"not a candidate"` so the ✓/— glyphs
+  are screen-reader announced semantically. CSS updated.
+
+### Edited — Section 3 audit closure
+
+- **S3.1** — `renderers/dashboard.mjs` top-of-file comment now states
+  explicitly that the dashboard is orchestrator-synthesized — no
+  `frontmatter.type: dashboard` exists, no `00-dashboard.md` is on
+  disk. Prevents future-reader confusion when grepping for the missing
+  schema entry.
+- **S3.2** — `SUNFLOWER-VIEW-PLAN.md` gains a "Status marker
+  convention" preamble before the phase tables. Codifies that
+  `[shipped]` means **all five layers landed** (schema + verifier +
+  renderer + CSS + writer). The earlier conflation that prompted the
+  audit ("renderer ships" ≠ "feature works end-to-end") is named, and
+  a `[renderer-shipped, writer-pending]` marker is introduced for
+  transition windows so the failure mode can't recur silently.
+- **S3.3** — `renderers/_icons.mjs` gains `findingListItem({chip,
+  file, line, action, msg, fix, id, variant, dataAttr})` — a shared
+  `<li class="finding">` builder. Replaces the duplicated
+  `findingItem()` helpers in `review-command.mjs` and
+  `simplify-run.mjs`. Both callers shrink to a single
+  parameter-object call; the per-renderer differences (severity chip
+  vs category chip, `data-severity` vs `data-category`, optional
+  `finding-compact` variant) flow through as parameters. 4 new
+  dedicated tests cover composition, variant/data-attr threading,
+  minimal-field rendering, and HTML-escaping. **71/71 tests pass.**
+
+### Decisions
+
+- **Why writer rollout is its own release.** The audit recommended
+  shipping the writer documentation as a separate phase. The
+  renderer-side changes from v9.22.0 were already in production; the
+  writer work doesn't change any output until the *next* agent run
+  writes a new artifact. Bundling avoided a phantom "v9.22.1" where
+  only docs changed.
+- **Why writer instructions reference v9.21.0 / v9.22.0 rather than v9.23.0.**
+  Each "Sibling YAML — `<schema-name>`" section documents *when the
+  feature became consumable* (the renderer + schema landed in those
+  releases) rather than when the writer doc landed. The agent reading
+  the reference cares about feature availability, not changelog
+  ordering.
+- **Why `resolveViewPath()` takes an opts arg instead of inferring
+  kind from the path shape.** The simplify and profile path
+  conventions don't carry a unique prefix the resolver could match on
+  (a bare `<run-id>.md` is ambiguous with workflow-root files). The
+  orchestrator already tracks `kind` per artifact during discovery,
+  so passing it through is cheaper than fingerprinting the path.
+- **Why no orchestrator integration test for `--simplify` /
+  `--profiles` end-to-end.** The 11 new unit tests cover the public
+  surface of the off-pipeline pipeline (path resolution, link-graph
+  threading) and the navigation regressions. The remaining gap — a
+  full disk-rendering test with fixtures under both `.ai/simplify/`
+  and `.ai/profiles/` — is deferred. The existing
+  `orchestrator renders fixture slug end-to-end` test plus the unit
+  coverage is enough to catch most regressions without bloating
+  CI runtime.
+
+### Known follow-ups (carried from audit)
+
+All Section 1, 2, and 3 audit findings closed in this release.
+See [SUNFLOWER-VIEW-AUDIT.md](SUNFLOWER-VIEW-AUDIT.md) for the
+original audit findings and [Sunflower view plan](SUNFLOWER-VIEW-PLAN.md)
+Phase 4 entry for the per-finding shipping notes.
+
 ## [9.22.0] - 2026-05-22
 
 ### Added — Phase 3: simplify, profile, augmentations

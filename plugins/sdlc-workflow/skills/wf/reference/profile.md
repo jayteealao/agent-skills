@@ -241,3 +241,67 @@ Artifact: .ai/profiles/<run-id>/01-profile.md
 - **Not a workflow stage** — profiling results do not advance any workflow. They are inputs to a decision about which workflow to start next.
 - **Not a substitute for APM** — it cannot see distributed traces, database query plans, or real production traffic without external tooling.
 - **Not a full call-graph profiler** — it cannot see OS-level context switches or kernel time without external instrumentation.
+
+---
+
+## Step — Sibling YAML `profile` (v9.22.0+, Phase 3)
+
+After writing `.ai/profiles/<run-id>/01-profile.md`, write
+`.ai/profiles/<run-id>/01-profile.yaml` next to it with `artifact: profile`.
+The view-layer renderer projects this YAML as a hotspots-table page at
+`/sdlc/profiles/<run-id>/` — optional before/after comparison figure (when
+`comparisons:` is populated), optimization candidates list with confidence
+chips. Without this YAML the page falls back to a plain frontmatter card.
+
+Shape:
+
+```yaml
+# 01-profile.yaml
+artifact:        profile
+run_id:          "20260520T1430Z"
+target:          "POST /api/checkout"
+language:        "typescript"
+method:          dynamic-cpu       # static | dynamic-cpu | dynamic-memory | hybrid | fallback-timing
+confidence:      high              # high | medium | low
+measured_at:     "2026-05-20T14:30:00Z"
+baseline_commit: "a3f7d12"
+hotspots:
+  - id:        H1
+    function:  "validateCart"
+    file:      "src/cart/validate.ts"
+    line:      24
+    cost_pct:  32.4
+    candidate: true
+  - id:        H2
+    function:  "computeTaxes"
+    cost_pct:  11.0
+optimization_candidates:
+  - id:                 OC1
+    hotspot:            H1
+    intent:             "Memoize per-request validators by cart-shape hash."
+    estimated_gain_pct: 18.0
+    confidence:         high
+comparisons:                       # optional — omit when no after-data exists
+  - metric:    "p50_ms"
+    before:    124
+    after:     92
+    unit:      ms
+    direction: lower-is-better
+  - metric:    "rps"
+    before:    310
+    after:     420
+    unit:      req/s
+    direction: higher-is-better
+```
+
+Authoring rules:
+- `hotspots[]` must include at least one entry. If none were found, do
+  NOT write a `profile` sibling YAML — the artifact is informational
+  text only, the simple-renderer fallback is appropriate.
+- `comparisons[]` is optional. Include it only when a meaningful
+  before/after measurement exists (re-run after a candidate landed, or
+  baseline-vs-current on the same workload). Each metric needs the
+  `direction:` enum so the renderer can color "improved" vs "regressed".
+- `optimization_candidates[]` is optional but recommended — each
+  candidate should reference a `hotspot:` id so the renderer can draw
+  the visual connection.

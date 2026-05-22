@@ -588,3 +588,58 @@ validation and before shell wrap; missing snippets, invalid JSON payloads, or
 recursion past `maxDepth=4` throw at render time. Hand-inlined markup that
 matches a published snippet triggers a warn from verifier Check 9 — suppress
 legitimate variants with `<!-- @include-skip <reason> -->` adjacent.
+
+### Sibling YAML — `lanes[]` and `crosses-service` edges (v9.21.0+, Phase 2)
+
+When the plan spans **two or more services** (a separate process boundary,
+deploy unit, or repo), record the swim-lane projection in
+`04-plan.yaml` under a top-level `lanes:` key. The view-layer renderer
+swaps the per-module file-topology figure for a data-flow swim-lane figure,
+laying each lane out horizontally with the files that belong to it.
+
+When to emit `lanes:`:
+- **≥2 services touched** by the plan (e.g., `web` + `api`, or `api` +
+  `worker` + `db-migrations`).
+- **Any edge** in `edges:` has `kind: crosses-service` — the renderer treats
+  this as an implicit signal even without an explicit `lanes:` block.
+- Skip for single-service plans — the file-topology figure is the better
+  visualization there, and an artificial one-lane swim-lane adds noise.
+
+Shape:
+
+```yaml
+# excerpt from 04-plan.yaml — riding alongside the existing artifact: plan block
+lanes:
+  - service: web
+    label:   "Next.js frontend"
+    files:
+      - apps/web/checkout/page.tsx
+      - apps/web/checkout/total.ts
+  - service: api
+    label:   "Cart service"
+    files:
+      - services/cart/handlers/checkout.ts
+      - services/cart/db/orders.ts
+  - service: worker
+    label:   "Webhook consumer"
+    files:
+      - workers/webhooks/stripe.ts
+
+edges:
+  - from: apps/web/checkout/total.ts
+    to:   services/cart/handlers/checkout.ts
+    kind: crosses-service
+  - from: services/cart/handlers/checkout.ts
+    to:   workers/webhooks/stripe.ts
+    kind: crosses-service
+```
+
+Authoring rules:
+- Every file listed in any `lane.files[]` must also appear in the existing
+  `files:` array of the plan YAML. The lanes block is a projection, not a
+  separate file list.
+- `crosses-service` edges should name the actual source/target file rather
+  than the lane id, so a future reader can navigate to the planned change.
+- `label` is optional but recommended for lanes whose `service` slug isn't
+  self-explanatory (e.g. `service: rev-svc-2` → `label: "Revenue Service
+  (compat shim)"`).

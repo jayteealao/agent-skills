@@ -283,3 +283,60 @@ If regressions found, prefix compare summary with:
 - **Not a load tester** — it measures single-request or single-operation performance. For concurrency and throughput under load, `wf-load-test` is needed (not yet available).
 - **Not a CI gate** — it is a developer workflow tool. Integrating benchmark regression detection into CI is a separate infrastructure concern.
 - **Not a profiling substitute** — if a regression is found but the cause is unclear, run `/wf profile <area>` to find the hotspot before attempting to fix it.
+
+---
+
+## Step — Sibling YAML `benchmark` (v9.22.0+, Phase 3)
+
+After writing the benchmark MD (`.ai/workflows/<slug>/05c-benchmark.md`
+or, when invoked as an augmentation under a slug,
+`.ai/workflows/<slug>/augmentations/<bench-id>.md`), write a sibling
+`.yaml` next to it with `artifact: benchmark`. The view-layer renderer
+projects this as a metric-comparison table with per-row improvement/
+regression tone driven by `direction:` + delta sign.
+
+Shape:
+
+```yaml
+# 05c-benchmark.yaml — or augmentations/<bench-id>.yaml
+artifact:        benchmark
+target:          "POST /api/checkout"
+language:        "typescript"
+framework:       "vitest-bench"
+mode:            compare           # baseline | compare | complete
+measured_at:     "2026-05-20T14:30:00Z"
+baseline_commit: "a3f7d12"
+metrics:
+  - name:      "p50_ms"
+    before:    124
+    after:     92
+    unit:      ms
+    delta_pct: -25.8
+    direction: lower-is-better     # → tone "improved" when delta is negative
+  - name:      "p99_ms"
+    before:    480
+    after:     395
+    unit:      ms
+    delta_pct: -17.7
+    direction: lower-is-better
+  - name:      "cold_start_ms"
+    before:    180
+    after:     205
+    unit:      ms
+    delta_pct: 13.9
+    direction: lower-is-better     # → tone "regressed" when delta is positive
+regressions:  ["cold_start_ms"]
+improvements: ["p50_ms", "p99_ms"]
+notes: "Cold-start regression is the cost of the new memo cache warmup."
+```
+
+Authoring rules:
+- `metrics[]` must include at least one entry with `name` + `after`.
+  `before` is required for `mode: compare` and recommended for
+  `mode: complete`.
+- `direction:` is the **goal** of the metric, not the observed change.
+  The renderer combines it with the delta sign to color the row.
+- `regressions[]` and `improvements[]` are name-lists matching
+  `metrics[].name`. Keep them in sync with the rows or omit both —
+  the renderer can derive them but reads them when present for the
+  banner summary.

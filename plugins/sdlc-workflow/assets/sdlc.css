@@ -907,7 +907,8 @@ details.history li, details.revisions li { padding: 4px 0; }
   text-align: center;
   width: 1%;
 }
-.hotspot-cand.is-cand { color: #3e7d4a; font-weight: 700; }
+.hotspot-cand.is-yes { color: #3e7d4a; font-weight: 700; }
+.hotspot-cand.is-no  { color: var(--ink-3); }
 .cand-meta {
   margin-top: 4px;
   font-size: 12px;
@@ -980,6 +981,122 @@ details.history li, details.revisions li { padding: 4px 0; }
   background: #fbeaf0;
   color: #b5305f;
   border-radius: 2px;
+}
+
+/* ── Design rich render (Phase 4, v9.23.0) ────────────────────────────── */
+
+.design-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 18px;
+}
+.design-chip {
+  display: inline-block;
+  padding: 3px 8px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--paper-2);
+}
+.design-themes h2, .design-states h2, .design-sizes h2,
+.design-tokens-group h2, .design-specs h2 { margin-top: 22px; }
+
+.sizes-table, .tokens-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 14px;
+  font-size: 13px;
+}
+.sizes-table th, .sizes-table td,
+.tokens-table th, .tokens-table td {
+  border-bottom: 1px solid var(--rule);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+.sizes-table th, .tokens-table th {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.design-tokens .sdlc-h3 {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink-2);
+  margin: 14px 0 4px;
+}
+.token-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  vertical-align: middle;
+  margin-right: 6px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+}
+.design-annotate {
+  margin: 6px 0 0 18px;
+  padding: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* ── Ship-run rich render (Phase 4, v9.23.0) ──────────────────────────── */
+
+.ship-stages h2, .ship-checks h2, .ship-rollback h2 { margin-top: 22px; }
+
+.ship-timeline {
+  display: block;
+  margin: 4px 0 14px;
+  max-width: 760px;
+}
+
+.checks-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0 14px;
+  font-size: 13px;
+}
+.checks-table th, .checks-table td {
+  border-bottom: 1px solid var(--rule);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+.checks-table th {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.check-status {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 11px;
+  border: 1px solid var(--rule);
+}
+.check-status.is-ok   { background: #e8f3ea; color: #3e7d4a; border-color: #cde2d2; }
+.check-status.is-warn { background: #fbf3dc; color: #a07b1b; border-color: #ead8a8; }
+.check-status.is-bad  { background: #fbeaf0; color: #b5305f; border-color: #ecc6d2; }
+.check-status.is-skip { background: var(--paper-2); color: var(--ink-3); }
+.check-kind {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+
+.ship-rollback .rollback-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 6px 0;
+  font-size: 13px;
 }
 
 /* ── Fragment containers ──────────────────────────────────────────────── */

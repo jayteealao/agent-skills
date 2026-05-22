@@ -10,7 +10,7 @@
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
 import { renderHistoryBlock } from './_history.mjs';
-import { verdictBlock, severityChip, callout } from './_icons.mjs';
+import { verdictBlock, severityChip, findingListItem } from './_icons.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { renderSimple } from './_simple.mjs';
 
@@ -86,15 +86,14 @@ function deriveCounts(findings) {
 }
 
 function findingItem(f) {
-  const chip = severityChip(f.severity, f.severity);
-  const ref = f.file
-    ? `<code class="finding-ref">${escapeHtml(f.file)}${f.line != null ? `:${escapeHtml(f.line)}` : ''}</code>`
-    : '';
-  const action = f.action ? `<span class="finding-action is-${escapeHtml(f.action)}">${escapeHtml(f.action)}</span>` : '';
-  const fix = f.fix ? callout('info', 'suggested fix', `<p>${escapeHtml(f.fix)}</p>`) : '';
-  return `<li class="finding" data-severity="${escapeHtml(f.severity)}" id="${escapeHtml(f.id ?? '')}">
-    <div class="finding-head">${chip}${ref}${action}</div>
-    <p class="finding-msg">${escapeHtml(f.msg ?? '')}</p>
-    ${fix}
-  </li>`;
+  return findingListItem({
+    chip:     severityChip(f.severity, f.severity),
+    file:     f.file,
+    line:     f.line,
+    action:   f.action,
+    msg:      f.msg,
+    fix:      f.fix,
+    id:       f.id,
+    dataAttr: { name: 'severity', value: f.severity ?? '' },
+  });
 }

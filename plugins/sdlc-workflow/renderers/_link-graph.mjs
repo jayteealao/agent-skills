@@ -9,13 +9,17 @@ import { resolveViewPath } from './_paths.mjs';
  * Build pathMap: storagePath → viewPath for every artifact in a slug. Used
  * before any renderer runs so refs: can be rewritten.
  *
- * @param {Array<{ path: string }>} artifacts — list with storage-relative paths
+ * Off-pipeline artifacts (kind: simplify | profile) need their kind passed
+ * to `resolveViewPath` so the off-pipeline branch fires; otherwise they
+ * return null and silently drop out of the path map.
+ *
+ * @param {Array<{ path: string, kind?: string }>} artifacts — list with storage-relative paths
  * @returns {Map<string,string>}
  */
 export function buildPathMap(artifacts) {
   const map = new Map();
   for (const a of artifacts) {
-    const r = resolveViewPath(a.path);
+    const r = resolveViewPath(a.path, { kind: a.kind });
     if (r) map.set(a.path, r.viewRel);
   }
   return map;

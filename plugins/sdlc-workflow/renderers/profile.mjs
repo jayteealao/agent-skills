@@ -87,7 +87,9 @@ export function render(artifact, ctx) {
 
 function hotspotRow(h) {
   const cost = `${Number(h.cost_pct).toFixed(1)}%`;
-  const cand = h.candidate ? '<span class="hotspot-cand is-cand">✓</span>' : '<span class="hotspot-cand">—</span>';
+  const cand = h.candidate
+    ? '<span class="hotspot-cand is-yes" aria-label="candidate">✓</span>'
+    : '<span class="hotspot-cand is-no" aria-label="not a candidate">—</span>';
   const loc = h.file
     ? `<code>${escapeHtml(h.file)}${h.line != null ? `:${escapeHtml(h.line)}` : ''}</code>`
     : '';

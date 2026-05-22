@@ -30,16 +30,51 @@ const PHASE_BY_BASENAME = {
 };
 
 /**
- * Resolve storage-relative path to a view-relative path. Storage paths are
- * relative to the slug root (e.g. "slices/auth-cache/04-plan.md"); view paths
- * are relative to the view root for that slug.
+ * Resolve storage-relative path to a view-relative path. The interpretation
+ * depends on the artifact `kind`:
  *
- * @param {string} storageRel — POSIX path relative to slug root, no leading slash
+ * - `workflow` (default) — `storageRel` is relative to the slug root inside
+ *   `.ai/workflows/<slug>/`. The returned `viewRel` is relative to the slug's
+ *   view directory (`.ai/_view/<slug>/...`).
+ * - `simplify` — `storageRel` is relative to `.ai/simplify/` (e.g. just
+ *   `<run-id>.md`). The returned `viewRel` is relative to the view root
+ *   (`.ai/_view/simplify/<run-id>/INDEX.html`).
+ * - `profile` — `storageRel` is relative to `.ai/profiles/` (e.g.
+ *   `<run-id>/01-profile.md`). The returned `viewRel` is rooted under
+ *   `.ai/_view/profiles/<run-id>/01-profile/INDEX.html`.
+ *
+ * Off-pipeline support (v9.23.0+, S2.2): prior versions returned `null` for
+ * simplify/profile paths and the orchestrator computed the view URL inline,
+ * which left the link-graph rewriter blind to cross-references. Now any
+ * caller (link-graph, breadcrumb, future cross-slug nav) gets the same view
+ * path the orchestrator emits.
+ *
+ * @param {string} storageRel — POSIX path, no leading slash
+ * @param {{ kind?: 'workflow'|'simplify'|'profile' }} [opts]
  * @returns {{ viewRel: string, kind: string } | null}
  */
-export function resolveViewPath(storageRel) {
+export function resolveViewPath(storageRel, opts = {}) {
   // Normalise — accept Windows separators, strip leading "./"
   const rel = storageRel.replace(/\\/g, '/').replace(/^\.\//, '');
+  const kindHint = opts.kind ?? 'workflow';
+
+  // Off-pipeline kinds — keyed by orchestrator. The storageRel here is
+  // relative to the off-pipeline root (.ai/simplify/ or .ai/profiles/),
+  // not the slug root, so the regexes above don't apply.
+  if (kindHint === 'simplify') {
+    const stem = rel.replace(/\.md$/, '');
+    return {
+      viewRel: path.join('simplify', stem, 'INDEX.html'),
+      kind: 'simplify',
+    };
+  }
+  if (kindHint === 'profile') {
+    const stem = rel.replace(/\.md$/, '');
+    return {
+      viewRel: path.join('profiles', stem, 'INDEX.html'),
+      kind: 'profile',
+    };
+  }
 
   // history/<basename>-<rev>.md → embed as side-route on the parent
   let m = rel.match(HISTORY_RE);

@@ -49,6 +49,10 @@ artifact at `https://<host>.<tailnet>/sdlc/<slug>/`.
 | (none) | **Additive** — only artifacts with storage-mtime > view-mtime re-render. Safe default for the PostToolUse hook. |
 | `--clean` | Wipe the view tree first, then full re-render. Use when changing CSS/JS and you want a guaranteed fresh build. |
 | `--only <glob>` | Narrow the work-set to a glob (e.g. `feat-auth-cache/**`). The hook uses this to render a single slug. |
+| `--simplify` | Include off-pipeline simplify runs from `.ai/simplify/<run-id>.md`. Off by default to keep one-shot scripts focused on the workflow tree. |
+| `--profiles` | Include off-pipeline profile runs from `.ai/profiles/<run-id>/01-profile.md`. Same opt-in shape as `--simplify`. |
+| `--asset-base <url>` | Override the CSS / JS prefix in the rendered HTML. Defaults to `/sdlc/_assets`. Pass `/_assets` for local preview at `http://localhost:N/` (without the `/sdlc/` mount). |
+| `--plugin-root <path>` | Locate plugin assets (templates, schema) when the renderer is invoked outside the plugin source tree (used by tests). |
 
 ## Sibling files
 
@@ -74,25 +78,70 @@ it stays:
 4. **`regenerable: true`** in frontmatter opts an artifact out (e.g.,
    `RESUME.md`, sync reports). The view shows a regenerable badge.
 
-## Fragment contract (phase 1)
+## Fragment contract
 
 A `*.html.fragment` is **one** `<section class="fragment-<name>" data-artifact="<type>">`
 with no `<html>`, `<head>`, `<body>`, `<iframe>`, `<link>`, or `<script src="…">`.
 Inline `<style>` and `<script>` blocks only. Every fragment dispatches
 `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', { detail: {…} }))`
-on settle. The five fragment-bearing types are: `review`, `rca`, `plan`,
-`design`, `ship-run`.
+on settle.
+
+Eleven fragment-bearing artifact types ship across three phases:
+
+| Phase | Type | Sibling YAML `artifact:` | Page |
+|---|---|---|---|
+| 1 (v9.20.0) | `review` | `review` | `/sdlc/<slug>/review/` hero verdict |
+| 1 (v9.20.0) | `rca` | `rca` | augmentation incident page (with optional `five_whys`) |
+| 1 (v9.20.0) | `plan` | `plan` | per-slice plan page (with optional `lanes`) |
+| 1 (v9.20.0) | `design` | `design` | design artifact page (tokens table, sizes, themes/states) |
+| 1 (v9.20.0) | `ship-run` | `ship-run` | per-deploy run page (stages timeline + checks + rollback) |
+| 2 (v9.21.0) | `review-command` | `review-dimension` | `/sdlc/<slug>/review/<dimension>/` per-dimension page |
+| 3 (v9.22.0) | `simplify-run` | `simplify-run` | `/sdlc/simplify/<run-id>/` finding-table page |
+| 3 (v9.22.0) | `profile` | `profile` | `/sdlc/profiles/<run-id>/` hotspots + comparisons |
+| 3 (v9.22.0) | `augmentation` (benchmark) | `benchmark` | benchmark comparison table |
+| 3 (v9.22.0) | `augmentation` (experiment) | `experiment` | arm-allocation bar + guardrails |
+| 3 (v9.22.0) | `augmentation` (instrument) | `instrument` | signal table + dark paths |
+
+Each type's authoring contract — when to emit the sibling YAML, what
+shape it takes, and what gets surfaced visually — lives in the
+relevant `skills/wf*/reference/*.md` writer doc. Without the sibling
+YAML the page falls back to a plain frontmatter card + body render.
 
 Validation: `node scripts/verify-fragment.mjs` (also runs as Check 7 of
 `verify-router-migration.mjs`).
 
+### Phase 2 / Phase 3 highlights
+
+- **Per-dimension review pages.** When `07-review/<dim>.yaml` ships
+  with `artifact: review-dimension`, the renderer emits a focused
+  page narrowed to that dimension's findings.
+- **Plan data-flow lanes.** When `04-plan.yaml` includes a `lanes:`
+  block (or any edge with `kind: crosses-service`), the per-module
+  file-topology figure is swapped for a swim-lane figure that visually
+  separates the services the plan touches.
+- **RCA 5-whys drill panel.** When `<rca-id>.yaml` includes a
+  `five_whys:` block of 1–7 question/answer pairs, the renderer adds
+  a collapsible drill panel under the causal-chain figure.
+- **Simplify finding-table.** Off-pipeline simplify runs at
+  `.ai/simplify/<run-id>.md` render with categorical chips
+  (reuse/quality/efficiency) and an optional code-deltas summary.
+- **Profile hotspots + benchmark comparison.** Off-pipeline profile
+  runs at `.ai/profiles/<run-id>/01-profile.md` render with a
+  hotspots table and (when `comparisons:` is populated) a before/after
+  metric figure that auto-tones each bar from `direction:` + delta sign.
+- **Augmentation subtypes.** `augmentation` artifacts dispatch on the
+  sibling YAML's `artifact:` field — `benchmark`, `experiment`, and
+  `instrument` each get a dedicated rich body. Unknown subtypes still
+  render via the simple fallback.
+
 ## Auto-render hook
 
 The PostToolUse hook fires after `Write|Edit|MultiEdit|NotebookEdit`. It
-filters to `.ai/workflows/**/*.{md,yaml,html.fragment}`, debounces 2s via
-`.ai/_view/.render-pending`, and spawns a detached render in the background.
-Failures land in `.ai/_view/.render-errors.log`. Exit code is always 0 so a
-stale view never blocks a slash command.
+filters to `.ai/workflows/**/*.{md,yaml,html.fragment}`,
+`.ai/simplify/**/*.{md,yaml}`, and `.ai/profiles/**/*.{md,yaml}`,
+debounces 2s via `.ai/_view/.render-pending`, and spawns a detached render
+in the background. Failures land in `.ai/_view/.render-errors.log`. Exit
+code is always 0 so a stale view never blocks a slash command.
 
 ### Suppression
 
@@ -106,13 +155,18 @@ The folder graph IS the URL graph IS the workflow state graph:
 
 ```
 /sdlc/                                   → dashboard
-/sdlc/<slug>/                            → slug overview
+/sdlc/<slug>/                            → slug overview (stages grid + slices preview)
+/sdlc/<slug>/intake/                     → intake / shape / slice / verify / handoff / retro
 /sdlc/<slug>/plan/                       → plan-index
-/sdlc/<slug>/plan/<slice-slug>/          → per-slice plan
+/sdlc/<slug>/plan/<slice-slug>/          → per-slice plan (lanes figure when present)
+/sdlc/<slug>/implement/<slice-slug>/     → per-slice implement
+/sdlc/<slug>/verify/<slice-slug>/        → per-slice verify
 /sdlc/<slug>/review/                     → review hero verdict
 /sdlc/<slug>/review/<dimension>/         → per-dimension review
 /sdlc/<slug>/ship/<run-id>/              → single ship run
+/sdlc/<slug>/augmentations/<id>/         → augmentation (rca / benchmark / experiment / instrument)
 /sdlc/simplify/<run-id>/                 → off-pipeline simplify
+/sdlc/profiles/<run-id>/                 → off-pipeline profile
 ```
 
 PR comments paste any of these and reviewers land on the exact artifact.
@@ -126,7 +180,7 @@ shared class catalogue is documented in the
 
 Re-render with `node scripts/render-sunflower.mjs --clean` to pick up CSS
 changes everywhere; for incremental work, the version cache-bust query string
-(`?v=9.22.0`) is bumped by the plugin version.
+(`?v=9.23.0`) is bumped by the plugin version.
 
 ## Troubleshooting
 
