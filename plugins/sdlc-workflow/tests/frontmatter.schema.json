@@ -946,7 +946,54 @@
   ],
 
   "siblingYamlSchemas": {
-    "description": "Schemas for sibling .yaml files that ride alongside a .md artifact to carry structured display data the renderer's fragment + figure-canvas builders consume. Validated by scripts/verify-fragment.mjs Check 7. Added in v9.20.0.",
+    "description": "Schemas for sibling .yaml files that ride alongside a .md artifact to carry structured display data the renderer's fragment + figure-canvas builders consume. Validated by scripts/verify-fragment.mjs Check 7. Added in v9.20.0. Phase 2 (v9.21.0) added review-dimension for per-dimension review pages. Phase 3 (v9.22.0) added simplify-run, profile, benchmark, experiment, and instrument for off-pipeline simplify, profile, and generic augmentation artifacts.",
+
+    "review-dimension": {
+      "type": "object",
+      "description": "Per-dimension review (07-review/<dimension>.yaml). One card per dimension; the combined 07-review.yaml still aggregates all dimensions, and the renderer cross-links the two. Added in v9.21.0.",
+      "required": ["artifact", "dimension", "parent", "rev", "verdict", "summary", "counts", "findings"],
+      "properties": {
+        "artifact":  { "const": "review-dimension" },
+        "dimension": { "type": "string" },
+        "parent":    { "type": "string" },
+        "rev":       { "type": "integer", "minimum": 1 },
+        "model":     { "type": "string" },
+        "run_at":    { "$ref": "#/$defs/iso8601" },
+        "verdict":   { "enum": ["ship", "caveats", "no"] },
+        "verdict_label": { "type": "string" },
+        "summary":   { "type": "string", "maxLength": 500 },
+        "counts": {
+          "type": "object",
+          "required": ["blocker", "high", "med", "low", "nit"],
+          "properties": {
+            "blocker": { "type": "integer", "minimum": 0 },
+            "high":    { "type": "integer", "minimum": 0 },
+            "med":     { "type": "integer", "minimum": 0 },
+            "low":     { "type": "integer", "minimum": 0 },
+            "nit":     { "type": "integer", "minimum": 0 }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "msg"],
+            "properties": {
+              "id":         { "type": "string" },
+              "severity":   { "enum": ["blocker", "high", "med", "low", "nit"] },
+              "dimension":  { "type": "string" },
+              "file":       { "type": "string" },
+              "line":       { "type": "integer" },
+              "confidence": { "enum": ["high", "med", "low"] },
+              "action":     { "enum": ["accept", "defer", "reject"] },
+              "msg":        { "type": "string" },
+              "evidence":   { "type": "object" },
+              "fix":        { "type": "string" }
+            }
+          }
+        }
+      }
+    },
 
     "review": {
       "type": "object",
@@ -1090,6 +1137,21 @@
               "body":  { "type": "string" }
             }
           }
+        },
+        "five_whys": {
+          "type": "array",
+          "description": "Optional collapsible drill chain rendered below the causal-chain figure. Each step ladders from the surface symptom toward the root cause. Phase 2 (v9.21.0).",
+          "minItems": 1,
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "required": ["question", "answer"],
+            "properties": {
+              "question": { "type": "string" },
+              "answer":   { "type": "string" },
+              "root":     { "type": "boolean" }
+            }
+          }
         }
       }
     },
@@ -1139,7 +1201,21 @@
             "properties": {
               "from": { "type": "string" },
               "to":   { "type": "string" },
-              "kind": { "enum": ["import", "replaces", "calls", "extends"] }
+              "kind": { "enum": ["import", "replaces", "calls", "extends", "crosses-service"] }
+            }
+          }
+        },
+        "lanes": {
+          "type": "array",
+          "description": "Optional swim-lane projection for plans that span services. When present (or when an edge has kind=crosses-service), the renderer emits a data-flow lane figure instead of the per-module file topology. Added in v9.21.0.",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["service", "files"],
+            "properties": {
+              "service": { "type": "string" },
+              "label":   { "type": "string" },
+              "files":   { "type": "array", "items": { "type": "string" } }
             }
           }
         },
@@ -1205,6 +1281,237 @@
             "annotate":  { "type": "array", "items": { "type": "string" } }
           }
         }
+      }
+    },
+
+    "simplify-run": {
+      "type": "object",
+      "description": "Sibling YAML for off-pipeline simplify runs (.ai/simplify/<run-id>.md). Drives the finding-table fragment introduced in v9.22.0 (Phase 3). Styled like the review fragment but at smaller scale: no verdict block, categorical chips (reuse/quality/efficiency) instead of severity, optional deltas summary.",
+      "required": ["artifact", "run_id", "scope", "counts", "findings"],
+      "properties": {
+        "artifact": { "const": "simplify-run" },
+        "run_id":   { "type": "string" },
+        "scope":    { "enum": ["branch", "commit", "plan", "codebase"] },
+        "target":   { "type": "string" },
+        "rev":      { "type": "integer", "minimum": 1 },
+        "model":    { "type": "string" },
+        "run_at":   { "$ref": "#/$defs/iso8601" },
+        "summary":  { "type": "string", "maxLength": 500 },
+        "counts": {
+          "type": "object",
+          "required": ["reuse", "quality", "efficiency", "accepted", "skipped", "deferred"],
+          "properties": {
+            "reuse":      { "type": "integer", "minimum": 0 },
+            "quality":    { "type": "integer", "minimum": 0 },
+            "efficiency": { "type": "integer", "minimum": 0 },
+            "accepted":   { "type": "integer", "minimum": 0 },
+            "skipped":    { "type": "integer", "minimum": 0 },
+            "deferred":   { "type": "integer", "minimum": 0 }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "category", "msg"],
+            "properties": {
+              "id":       { "type": "string" },
+              "category": { "enum": ["reuse", "quality", "efficiency"] },
+              "action":   { "enum": ["accept", "skip", "defer"] },
+              "file":     { "type": "string" },
+              "line":     { "type": "integer" },
+              "msg":      { "type": "string" },
+              "fix":      { "type": "string" }
+            }
+          }
+        },
+        "deltas": {
+          "type": "array",
+          "description": "Optional summary of proposed code deltas (file-level add/rem counts).",
+          "items": {
+            "type": "object",
+            "required": ["file"],
+            "properties": {
+              "file":    { "type": "string" },
+              "add":     { "type": "integer", "minimum": 0 },
+              "rem":     { "type": "integer", "minimum": 0 },
+              "summary": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "profile": {
+      "type": "object",
+      "description": "Sibling YAML for off-pipeline profile/benchmark runs (.ai/profiles/<run-id>/01-profile.md). Drives the benchmark-comparison fragment introduced in v9.22.0 (Phase 3): hotspots table + before/after metric bars + optimization candidates list.",
+      "required": ["artifact", "run_id", "method", "hotspots"],
+      "properties": {
+        "artifact":         { "const": "profile" },
+        "run_id":           { "type": "string" },
+        "target":           { "type": "string" },
+        "language":         { "type": "string" },
+        "method":           { "enum": ["static", "dynamic-cpu", "dynamic-memory", "hybrid", "fallback-timing"] },
+        "confidence":       { "enum": ["high", "medium", "low"] },
+        "measured_at":      { "$ref": "#/$defs/iso8601" },
+        "baseline_commit":  { "type": "string" },
+        "hotspots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "function", "cost_pct"],
+            "properties": {
+              "id":         { "type": "string" },
+              "function":   { "type": "string" },
+              "file":       { "type": "string" },
+              "line":       { "type": "integer" },
+              "cost_pct":   { "type": "number", "minimum": 0, "maximum": 100 },
+              "candidate":  { "type": "boolean" }
+            }
+          }
+        },
+        "optimization_candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "intent"],
+            "properties": {
+              "id":                { "type": "string" },
+              "hotspot":           { "type": "string" },
+              "intent":            { "type": "string" },
+              "estimated_gain_pct":{ "type": "number" },
+              "confidence":        { "enum": ["high", "medium", "low"] }
+            }
+          }
+        },
+        "comparisons": {
+          "type": "array",
+          "description": "Before/after metric pairs for the benchmark-comparison figure. When absent the figure is omitted.",
+          "items": {
+            "type": "object",
+            "required": ["metric", "before", "after"],
+            "properties": {
+              "metric":    { "type": "string" },
+              "before":    { "type": "number" },
+              "after":     { "type": "number" },
+              "unit":      { "type": "string" },
+              "direction": { "enum": ["lower-is-better", "higher-is-better"] }
+            }
+          }
+        }
+      }
+    },
+
+    "benchmark": {
+      "type": "object",
+      "description": "Sibling YAML for augmentation/benchmark artifacts. Drives the augmentation structured-result fragment (v9.22.0).",
+      "required": ["artifact", "target", "metrics"],
+      "properties": {
+        "artifact":        { "const": "benchmark" },
+        "target":          { "type": "string" },
+        "language":        { "type": "string" },
+        "framework":       { "type": "string" },
+        "mode":            { "enum": ["baseline", "compare", "complete"] },
+        "measured_at":     { "$ref": "#/$defs/iso8601" },
+        "baseline_commit": { "type": "string" },
+        "metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "after"],
+            "properties": {
+              "name":      { "type": "string" },
+              "before":    { "type": "number" },
+              "after":     { "type": "number" },
+              "unit":      { "type": "string" },
+              "delta_pct": { "type": "number" },
+              "direction": { "enum": ["lower-is-better", "higher-is-better"] }
+            }
+          }
+        },
+        "regressions":  { "type": "array", "items": { "type": "string" } },
+        "improvements": { "type": "array", "items": { "type": "string" } },
+        "notes":        { "type": "string" }
+      }
+    },
+
+    "experiment": {
+      "type": "object",
+      "description": "Sibling YAML for augmentation/experiment artifacts. Drives the augmentation structured-result fragment (v9.22.0).",
+      "required": ["artifact", "experiment_type", "hypothesis", "arms"],
+      "properties": {
+        "artifact":        { "const": "experiment" },
+        "experiment_type": { "enum": ["feature-flag", "a-b-test", "canary", "shadow"] },
+        "flag":            { "type": "string" },
+        "framework":       { "type": "string" },
+        "hypothesis":      { "type": "string" },
+        "split":           { "type": "string" },
+        "status":          { "enum": ["ready", "running", "completed", "abandoned"] },
+        "arms": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["id", "allocated_pct"],
+            "properties": {
+              "id":            { "type": "string" },
+              "description":   { "type": "string" },
+              "allocated_pct": { "type": "number", "minimum": 0, "maximum": 100 }
+            }
+          }
+        },
+        "guardrails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "threshold", "direction"],
+            "properties": {
+              "name":      { "type": "string" },
+              "threshold": { "type": "number" },
+              "direction": { "enum": ["lower-is-better", "higher-is-better"] },
+              "unit":      { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "instrument": {
+      "type": "object",
+      "description": "Sibling YAML for augmentation/instrument artifacts. Drives the augmentation structured-result fragment (v9.22.0).",
+      "required": ["artifact", "framework", "signals"],
+      "properties": {
+        "artifact":  { "const": "instrument" },
+        "framework": { "type": "string" },
+        "signals": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "kind"],
+            "properties": {
+              "name": { "type": "string" },
+              "kind": { "enum": ["counter", "gauge", "histogram", "log", "trace", "event"] },
+              "pii":  { "type": "boolean" },
+              "path": { "type": "string" },
+              "note": { "type": "string" }
+            }
+          }
+        },
+        "dark_paths": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "properties": {
+              "path":   { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "pii_warnings": { "type": "integer", "minimum": 0 }
       }
     },
 

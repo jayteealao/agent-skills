@@ -1,7 +1,151 @@
-// renderers/profile.mjs — off-pipeline benchmark/profiling run
+// renderers/profile.mjs — off-pipeline benchmark/profiling run.
+//
+// Phase 3 (v9.22.0): when the run ships a sibling .yaml the renderer emits a
+// hotspots table, an optional before/after comparison figure, and an
+// optimization-candidates list. Falls back to the v9.21.x simple renderer when
+// sibling YAML is absent.
+
+import { md2html } from './_markdown.mjs';
+import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
+import { renderHistoryBlock } from './_history.mjs';
+import { figureCanvas } from './_figure.mjs';
+import { callout } from './_icons.mjs';
+import { escapeHtml } from './_validator.mjs';
 import { renderSimple } from './_simple.mjs';
+
 export function render(artifact, ctx) {
-  return renderSimple(artifact, ctx, {
-    title: `Profile · ${artifact.frontmatter?.['run-id'] ?? ''}`,
+  const fm = artifact.frontmatter ?? {};
+  const sy = artifact.siblingYaml ?? null;
+  const runId = sy?.run_id ?? fm['run-id'] ?? '';
+
+  if (!sy) {
+    return renderSimple(artifact, ctx, {
+      title: `Profile · ${escapeHtml(runId)}`,
+    });
+  }
+
+  const headerHtml = artifactHeader({
+    crumb: artifact.path,
+    h1: `Profile · <code>${escapeHtml(runId)}</code>`,
+    badges: [
+      statusBadge(fm.status),
+      stageBadge('profile'),
+      sy.target && `<span class="meta">target <code>${escapeHtml(sy.target)}</code></span>`,
+      sy.method && `<span class="meta">method <strong>${escapeHtml(sy.method)}</strong></span>`,
+      sy.confidence && `<span class="meta">confidence ${escapeHtml(sy.confidence)}</span>`,
+      sy.measured_at && `<span class="meta">${escapeHtml(sy.measured_at)}</span>`,
+    ],
   });
+
+  const candidates = sy.optimization_candidates ?? [];
+  const metricsHtml = metricRow([
+    { label: 'hotspots',   value: (sy.hotspots ?? []).length },
+    { label: 'candidates', value: candidates.length, tone: candidates.length ? 'ok' : undefined },
+    sy.comparisons?.length && { label: 'comparisons', value: sy.comparisons.length, tone: 'info' },
+  ].filter(Boolean));
+
+  const hotspotsHtml = (sy.hotspots ?? []).length
+    ? `<section class="profile-hotspots">
+        <h2 class="sdlc-h2">hotspots</h2>
+        <table class="hotspot-table">
+          <thead><tr><th>id</th><th>function</th><th>file</th><th>cost</th><th>candidate</th></tr></thead>
+          <tbody>${sy.hotspots.map(hotspotRow).join('')}</tbody>
+        </table>
+       </section>`
+    : '';
+
+  const comparisonsHtml = sy.comparisons?.length
+    ? figureCanvas({
+        figureNumber: 1,
+        title: 'Before / after',
+        svgInner: comparisonFigure(sy.comparisons),
+        legend: [
+          { swatch: '#cbc4b1', label: 'before' },
+          { swatch: '#3e7d4a', label: 'after — improved' },
+          { swatch: '#b5305f', label: 'after — regressed' },
+        ],
+      })
+    : '';
+
+  const candidatesHtml = candidates.length
+    ? `<section class="profile-candidates">
+        <h2 class="sdlc-h2">optimization candidates</h2>
+        ${candidates.map(candidateCard).join('')}
+       </section>`
+    : '';
+
+  const bodyContent = artifact.fragment
+    ? `<div class="fragment">${artifact.fragment}</div>`
+    : `<div class="prose">${md2html(artifact.body ?? '')}</div>`;
+
+  return {
+    headerHtml,
+    bodyHtml: `${metricsHtml}${hotspotsHtml}${comparisonsHtml}${candidatesHtml}${bodyContent}${renderHistoryBlock(artifact.history)}`,
+    links: [], children: [],
+  };
+}
+
+function hotspotRow(h) {
+  const cost = `${Number(h.cost_pct).toFixed(1)}%`;
+  const cand = h.candidate ? '<span class="hotspot-cand is-cand">✓</span>' : '<span class="hotspot-cand">—</span>';
+  const loc = h.file
+    ? `<code>${escapeHtml(h.file)}${h.line != null ? `:${escapeHtml(h.line)}` : ''}</code>`
+    : '';
+  return `<tr>
+    <td><code>${escapeHtml(h.id ?? '')}</code></td>
+    <td>${escapeHtml(h.function ?? '')}</td>
+    <td>${loc}</td>
+    <td class="hotspot-cost">${cost}</td>
+    <td class="hotspot-cand-cell">${cand}</td>
+  </tr>`;
+}
+
+function candidateCard(c) {
+  const gain = c.estimated_gain_pct != null
+    ? `<span class="cand-gain">est. ${Number(c.estimated_gain_pct).toFixed(1)}%</span>`
+    : '';
+  const conf = c.confidence
+    ? `<span class="cand-conf is-${escapeHtml(c.confidence)}">${escapeHtml(c.confidence)} confidence</span>`
+    : '';
+  return callout(
+    'info',
+    `${escapeHtml(c.id)}${c.hotspot ? ` → ${escapeHtml(c.hotspot)}` : ''}`,
+    `<p>${escapeHtml(c.intent ?? '')}</p><p class="cand-meta">${gain}${conf}</p>`
+  );
+}
+
+/**
+ * Render the before/after comparison as paired horizontal bars per metric.
+ * Width is normalized within each metric (before vs. after) so the eye sees
+ * relative change rather than absolute magnitude across heterogeneous units.
+ */
+function comparisonFigure(comparisons) {
+  const W = 980, padX = 100, rowH = 50;
+  const H = comparisons.length * rowH + 30;
+  const barAreaW = W - padX - 220;
+
+  const rows = comparisons.map((c, i) => {
+    const y = 20 + i * rowH;
+    const before = Number(c.before);
+    const after  = Number(c.after);
+    const max = Math.max(before, after, 0.0001);
+    const beforeW = (before / max) * barAreaW;
+    const afterW  = (after  / max) * barAreaW;
+    const isLower = c.direction !== 'higher-is-better';
+    const improved = isLower ? after < before : after > before;
+    const afterColor = improved ? '#3e7d4a' : '#b5305f';
+    const deltaPct = before === 0 ? 0 : ((after - before) / before) * 100;
+    const deltaSign = deltaPct > 0 ? '+' : '';
+    const deltaLabel = `${deltaSign}${deltaPct.toFixed(1)}%`;
+    const unit = c.unit ? ` ${escapeHtml(c.unit)}` : '';
+    return `<g>
+      <text x="${padX - 8}" y="${y + 16}" text-anchor="end" font-size="11" fill="#1f1b16">${escapeHtml(c.metric)}</text>
+      <rect x="${padX}" y="${y + 4}" width="${beforeW}" height="12" fill="#cbc4b1"/>
+      <text x="${padX + beforeW + 6}" y="${y + 14}" font-size="10" fill="#4a443c">${before}${unit}</text>
+      <rect x="${padX}" y="${y + 22}" width="${afterW}" height="12" fill="${afterColor}"/>
+      <text x="${padX + afterW + 6}" y="${y + 32}" font-size="10" fill="${afterColor}" font-weight="600">${after}${unit} (${deltaLabel})</text>
+    </g>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Before / after benchmark comparison">${rows}</svg>`;
 }

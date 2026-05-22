@@ -5,6 +5,155 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.22.0] - 2026-05-22
+
+### Added — Phase 3: simplify, profile, augmentations
+
+Phase 2 (v9.21.0) closed out the review / plan / RCA fragment family. Phase 3
+extends sibling-YAML support to the remaining off-pipeline artifact types and
+the three non-RCA augmentation subtypes. As in Phase 2, every new projection
+is additive: artifacts without a sibling `.yaml` continue to render exactly
+as they did in v9.21.x.
+
+- **simplify-run finding-table fragment** (`renderers/simplify-run.mjs`,
+  `tests/frontmatter.schema.json` — new `simplify-run` sibling YAML schema):
+  - When the off-pipeline simplify-run MD ships a sibling `.yaml`, the
+    renderer emits a review-shaped finding table (smaller scale — no
+    verdict block, categorical chips for reuse / quality / efficiency
+    instead of severity), a 6-cell counts row (reuse, quality, efficiency,
+    accepted, skipped, deferred), and an optional code-deltas summary table.
+- **profile benchmark-comparison fragment** (`renderers/profile.mjs`,
+  `tests/frontmatter.schema.json` — new `profile` sibling YAML schema):
+  - Hotspots table (function / file:line / cost % / candidate flag).
+  - Optional before/after metric-bar figure when the YAML supplies a
+    `comparisons:` block. Bars are normalized per-metric so the eye reads
+    relative change rather than absolute magnitude across heterogeneous
+    units. Improvement vs. regression is tone-coded based on each metric's
+    `direction:` (`lower-is-better` | `higher-is-better`).
+  - Optional optimization-candidates list with estimated-gain + confidence
+    metadata.
+- **Generic augmentation structured-result fragment**
+  (`renderers/augmentation.mjs`, three new sibling YAML schemas
+  `benchmark`, `experiment`, `instrument`):
+  - **benchmark**: metric comparison table with per-row delta tone (`is-ok`
+    on improvements, `is-bad` on regressions — direction-aware).
+  - **experiment**: arm-allocation horizontal-bar figure (one band per
+    arm, width proportional to `allocated_pct`), arm description list,
+    guardrail-threshold table.
+  - **instrument**: signal table (kind chip + PII flag + source path) and
+    dark-paths callout list.
+  - The existing RCA branch is unchanged; all four subtypes now flow
+    through a single dispatch in `render()`.
+
+### Edited
+
+- `scripts/verify-fragment.mjs` — `ALLOWED_FRAGMENT_NAMES` extended with
+  `simplify-run`, `profile`, `benchmark`, `experiment`, `instrument`.
+- `assets/sdlc.css` — ~150 lines added under three new section headers:
+  "Simplify finding-table (Phase 3)", "Profile hotspots + candidates
+  (Phase 3)", "Augmentation structured results (Phase 3)". All rules use
+  existing tokens; no new tokens introduced.
+- `tests/sunflower.test.mjs` — 10 new tests covering simplify-run sibling
+  + fallback, profile sibling (with and without comparisons) + fallback,
+  benchmark improvement + regression tone, experiment, instrument, and
+  unknown-subtype fallback. **52/52 tests pass.**
+- `scripts/render-sunflower.mjs`, `renderers/_shell.mjs`,
+  `.claude-plugin/plugin.json`, `package.json`,
+  `.claude-plugin/marketplace.json` — version bumped to 9.22.0
+  (marketplace 1.56.0 → 1.57.0).
+- `SUNFLOWER-VIEW-PLAN.md` — Phase 3 entries marked shipped.
+- `docs/site/sunflower-view.md` — cache-bust example bumped to `?v=9.22.0`.
+
+### Decisions
+
+- **Why per-subtype schemas instead of a polymorphic union.** Each of the
+  three non-RCA subtypes has a distinct visual projection (table / figure
+  pair / signal list) and its own required fields. Keeping the schemas
+  separate lets `verify-fragment.mjs` validate each fragment against the
+  schema matching its `<section class="fragment-<name>">` wrapper without
+  branching inside the validator. Cost: five sibling-YAML schemas at the
+  end of the file rather than one. Worth it.
+- **Why `simplify-run` reuses the review CSS hooks (.finding-list,
+  .finding) but adds compact variants.** The plan calls for "styled like
+  the review fragment but at smaller scale". A separate `.finding-compact`
+  modifier lets us tweak padding/severity-coloring without forking the
+  base styles. The categorical chip (`.finding-cat.is-reuse|is-quality|
+  is-efficiency`) replaces the severity chip — same shape, different
+  semantic.
+- **Why before/after bars are normalized per-metric.** Comparing
+  `latency_ms` (12 → 8) against `qps` (8100 → 11500) in the same figure
+  with shared axes would visually drown the latency change. Per-metric
+  normalization makes each row read as its own ratio. Trade-off: the
+  reader can't compare *across* metrics by bar length. Direction-aware
+  tone partly compensates — green/red shows the direction of the change
+  even when bar widths are normalised.
+
+## [9.21.0] - 2026-05-21
+
+### Added — Phase 2: fragment polish + per-dimension review pages
+
+Phase 1 (v9.20.0) shipped the renderer foundation and a single combined
+review fragment. Phase 2 splits that combined fragment per dimension, gives
+the plan figure a swim-lane projection for cross-service work, and adds an
+optional 5-whys drill panel to the RCA renderer. All three features sit
+behind sibling-YAML opt-ins — slugs that don't supply the new fields render
+exactly as they did in v9.20.x.
+
+- **Per-dimension review pages** (`renderers/review-command.mjs`,
+  `tests/frontmatter.schema.json` — new `review-dimension` sibling YAML
+  schema):
+  - When a per-dimension review MD (`07-review/<dimension>.md`) ships a
+    sibling `.yaml` (and optionally a `.html.fragment`), the renderer
+    emits a focused page with its own verdict block, severity tally, and
+    a finding list narrowed to that dimension.
+  - Findings filter to `f.dimension === dimension`; entries with no
+    `dimension` field fall through (single-dimension YAML stays valid).
+  - Allowed fragment names extended with `review-dimension` in
+    `scripts/verify-fragment.mjs`.
+- **Plan data-flow lane variant** (`renderers/plan.mjs`,
+  `tests/frontmatter.schema.json` — plan schema gains `lanes` array and
+  `edges[].kind` enum gains `crosses-service`):
+  - Triggered when the plan YAML declares `lanes:` (≥2) or any edge has
+    `kind: crosses-service`. Triggered plans render a swim-lane SVG in
+    place of the per-module file topology — services run as horizontal
+    tracks, cross-service edges are dashed long-haul arcs labelled with
+    the edge kind.
+  - When `lanes:` is omitted but cross-service edges exist, lanes are
+    inferred by taking each file's first path segment as the service hint.
+- **RCA 5-whys drill panel** (`renderers/augmentation.mjs`,
+  `tests/frontmatter.schema.json` — rca schema gains optional `five_whys`):
+  - When sibling YAML carries a `five_whys` chain (1–7 entries), the
+    renderer emits a collapsible `<details class="rca-five-whys">` panel
+    between the causal-chain figure and the contributing-causes section.
+  - The root cause is rendered with a distinct visual treatment, marked
+    either explicitly via `root: true` on an entry or implicitly when the
+    last entry's answer text starts with `ROOT:`.
+
+### Edited
+
+- `assets/sdlc.css` — new sections for `.findings` / `.finding-list` /
+  `.finding-action`, `.plan-lanes-legend`, and `.rca-five-whys`. All
+  reuse the existing token palette; no new tokens introduced.
+- `scripts/render-sunflower.mjs`, `renderers/_shell.mjs`,
+  `.claude-plugin/plugin.json`, `package.json`,
+  `.claude-plugin/marketplace.json` — version bumped to 9.21.0
+  (marketplace 1.55.2 → 1.56.0).
+- `SUNFLOWER-VIEW-PLAN.md` — Phase 2 entries marked shipped.
+
+### Decisions
+
+- **Sibling-YAML opt-ins, not breaking changes.** Each Phase 2 feature
+  triggers off an optional field. Slugs that don't supply the field keep
+  the v9.20.x rendering. This matches Phase 1's calm-default-then-polish
+  philosophy.
+- **Lane inference falls back to path-segment grouping** rather than
+  asking authors to write `lanes:` for every cross-service plan.
+  Explicit `lanes:` always wins; inference is the cheap-rollout path.
+- **5-whys panel is collapsible by default.** The causal-chain figure
+  already shows the trigger → root path; 5-whys is the *why* drill that
+  most readers won't need on every visit. Defaulting to collapsed keeps
+  the page calm.
+
 ## [9.20.2] - 2026-05-20
 
 ### Added — Additive-write contract: remaining revisable references

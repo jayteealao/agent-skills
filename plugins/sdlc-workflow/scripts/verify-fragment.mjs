@@ -31,7 +31,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..');
 
 const ALLOWED_FRAGMENT_NAMES = new Set([
-  'review', 'rca', 'plan', 'design', 'ship-run', 'shiprun',
+  'review', 'review-dimension', 'rca', 'plan', 'design', 'ship-run', 'shiprun',
+  // Phase 3 (v9.22.0)
+  'simplify-run', 'profile', 'benchmark', 'experiment', 'instrument',
 ]);
 
 const FORBIDDEN_TAGS = ['<html', '<head', '<body', '<iframe', '<link'];
@@ -148,6 +150,10 @@ function validateFragment(absPath, ajv, siblingSchemas) {
   } else {
     const schemaKey = name === 'shiprun' ? 'ship-run' : name;
     const schema = siblingSchemas?.[schemaKey];
+    if (name === 'review-dimension' && !schema) {
+      // Defensive — shouldn't happen now the schema ships, but don't crash.
+      errs.push('sibling .yaml schema "review-dimension" missing from frontmatter.schema.json');
+    }
     if (schema) {
       let parsed;
       try { parsed = yaml.load(readFileSync(yamlPath, 'utf-8')); }

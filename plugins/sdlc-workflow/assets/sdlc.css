@@ -641,6 +641,323 @@ details.history li, details.revisions li { padding: 4px 0; }
 
 .rca-causes, .rca-mitigations { margin: var(--gap-lg) 0; }
 
+/* 5-whys drill panel (Phase 2, v9.21.0). Collapsible <details> rendered
+   when sibling YAML carries a `five_whys` chain. */
+.rca-five-whys {
+  margin: var(--gap-lg) 0;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper-2);
+}
+.rca-five-whys > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 18px;
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rca-five-whys > summary::-webkit-details-marker { display: none; }
+.rca-five-whys > summary::before {
+  content: "▸";
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+.rca-five-whys[open] > summary::before { transform: rotate(90deg); }
+.rca-five-whys .why-chain {
+  list-style: none;
+  padding: 0 18px 18px;
+  margin: 0;
+  counter-reset: why;
+}
+.rca-five-whys .why-chain > li {
+  counter-increment: why;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px dashed var(--rule);
+}
+.rca-five-whys .why-chain > li:first-child { border-top: none; }
+.rca-five-whys .why-chain > li::before {
+  content: "why " counter(why);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--ink-3);
+  padding-top: 3px;
+}
+.rca-five-whys .why-q {
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 4px;
+}
+.rca-five-whys .why-a {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.rca-five-whys.is-root .why-chain > li:last-child {
+  background: var(--blocker-bg);
+  margin: 4px -18px -18px;
+  padding: 12px 18px 14px;
+  border-radius: 0 0 6px 6px;
+  border-top: 1px solid var(--blocker);
+}
+.rca-five-whys.is-root .why-chain > li:last-child::before {
+  content: "root";
+  color: var(--blocker);
+}
+
+/* ── Per-dimension review findings (Phase 2, v9.21.0) ─────────────────── */
+
+.findings { margin: var(--gap-lg) 0; }
+.finding-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.finding {
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 12px 14px;
+  background: var(--paper);
+}
+.finding[data-severity="blocker"] { border-left: 3px solid var(--blocker); }
+.finding[data-severity="high"]    { border-left: 3px solid var(--high); }
+.finding[data-severity="med"]     { border-left: 3px solid var(--med); }
+.finding[data-severity="low"]     { border-left: 3px solid var(--low); }
+.finding[data-severity="nit"]     { border-left: 3px solid var(--nit); }
+.finding-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.finding-ref {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  background: var(--paper-2);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.finding-action {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.finding-action.is-accept { color: var(--low);     background: var(--low-bg); }
+.finding-action.is-defer  { color: var(--med);     background: var(--med-bg); }
+.finding-action.is-reject { color: var(--blocker); background: var(--blocker-bg); }
+.finding-msg { margin: 0 0 6px; }
+
+/* ── Plan data-flow lanes (Phase 2, v9.21.0) ──────────────────────────── */
+
+.plan-lanes-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin: 6px 0 2px;
+}
+.plan-lanes-legend .crosses {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.plan-lanes-legend .crosses::before {
+  content: "";
+  width: 18px;
+  height: 0;
+  border-top: 1.5px dashed #b5305f;
+}
+
+/* ── Simplify finding-table (Phase 3, v9.22.0) ─────────────────────────── */
+
+.simplify-summary {
+  margin: var(--gap) 0;
+  padding: 12px 16px;
+  background: var(--paper-2);
+  border-left: 3px solid var(--accent);
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.finding-list-compact {
+  padding-left: 0;
+  list-style: none;
+}
+.finding-compact {
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--paper-2);
+  border-left: 3px solid var(--rule);
+}
+.finding-cat {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border-radius: 2px;
+  background: #e9eef4;
+  color: #4a6c8c;
+  margin-right: 6px;
+}
+.finding-cat.is-reuse      { background: #e3edf6; color: #335a85; }
+.finding-cat.is-quality    { background: #f0ece1; color: #806120; }
+.finding-cat.is-efficiency { background: #ecf3e7; color: #3e7d4a; }
+.delta-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+  margin-top: 8px;
+}
+.delta-table th,
+.delta-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+}
+.delta-table th { color: var(--ink-3); font-weight: 600; }
+.delta-table .delta-add { color: #3e7d4a; text-align: right; width: 1%; }
+.delta-table .delta-rem { color: #b5305f; text-align: right; width: 1%; }
+
+/* ── Profile hotspots + candidates (Phase 3, v9.22.0) ──────────────────── */
+
+.hotspot-table,
+.benchmark-table,
+.guardrail-table,
+.signal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 8px;
+  margin-bottom: var(--gap);
+}
+.hotspot-table th,
+.hotspot-table td,
+.benchmark-table th,
+.benchmark-table td,
+.guardrail-table th,
+.guardrail-table td,
+.signal-table th,
+.signal-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+  vertical-align: top;
+}
+.hotspot-table th,
+.benchmark-table th,
+.guardrail-table th,
+.signal-table th {
+  color: var(--ink-3);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.hotspot-cost {
+  font-family: var(--mono);
+  text-align: right;
+  width: 1%;
+}
+.hotspot-cand-cell {
+  text-align: center;
+  width: 1%;
+}
+.hotspot-cand.is-cand { color: #3e7d4a; font-weight: 700; }
+.cand-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.cand-gain {
+  font-family: var(--mono);
+  color: #3e7d4a;
+  margin-right: 12px;
+}
+.cand-conf {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 2px;
+  background: var(--paper-2);
+}
+.cand-conf.is-high   { color: #3e7d4a; }
+.cand-conf.is-medium { color: #806120; }
+.cand-conf.is-low    { color: #b5305f; }
+
+/* ── Augmentation structured results (Phase 3, v9.22.0) ────────────────── */
+
+.aug-result {
+  margin: var(--gap) 0;
+}
+.benchmark-table .delta-cell {
+  font-family: var(--mono);
+  text-align: right;
+  width: 1%;
+}
+.benchmark-table .delta-cell.is-ok  { color: #3e7d4a; font-weight: 600; }
+.benchmark-table .delta-cell.is-bad { color: #b5305f; font-weight: 600; }
+.exp-arms {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: var(--gap) 0;
+  font-size: 13px;
+}
+.exp-arms dt {
+  font-family: var(--mono);
+  color: var(--ink-2);
+}
+.exp-arms dd {
+  margin: 0;
+  color: var(--ink-2);
+}
+.signal-kind {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border-radius: 2px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+}
+.signal-kind.is-counter   { background: #e3edf6; color: #335a85; }
+.signal-kind.is-gauge     { background: #ecf3e7; color: #3e7d4a; }
+.signal-kind.is-histogram { background: #f0ece1; color: #806120; }
+.signal-kind.is-log       { background: #f3f1ea; color: var(--ink-3); }
+.signal-kind.is-trace     { background: #f5e3ec; color: #6b4a8a; }
+.signal-kind.is-event     { background: #fbeaf0; color: #b5305f; }
+.signal-pii {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #fbeaf0;
+  color: #b5305f;
+  border-radius: 2px;
+}
+
 /* ── Fragment containers ──────────────────────────────────────────────── */
 
 .fragment {

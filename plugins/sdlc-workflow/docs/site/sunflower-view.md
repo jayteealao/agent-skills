@@ -126,7 +126,7 @@ shared class catalogue is documented in the
 
 Re-render with `node scripts/render-sunflower.mjs --clean` to pick up CSS
 changes everywhere; for incremental work, the version cache-bust query string
-(`?v=9.20.0`) is bumped by the plugin version.
+(`?v=9.22.0`) is bumped by the plugin version.
 
 ## Troubleshooting
 

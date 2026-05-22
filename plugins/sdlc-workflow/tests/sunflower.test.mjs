@@ -148,7 +148,7 @@ test('renderShell: wraps content with breadcrumbs and asset links', () => {
     headerHtml: '<h1>X</h1>', bodyHtml: '<p>body</p>',
   });
   match(html, /<title>Test — sdlc/);
-  match(html, /sdlc\.css\?v=9\.20\.\d+/);
+  match(html, /sdlc\.css\?v=9\.\d+\.\d+/);
   match(html, /data-artifact-type="index"/);
 });
 
@@ -307,6 +307,447 @@ test('expand: respects maxDepth bound', () => {
   } catch (err) {
     match(err.message, /maxDepth/);
   }
+});
+
+/* ── Phase 2 (v9.21.0) — review-command per-dimension ─────────────── */
+
+import { render as renderReviewCommand } from '../renderers/review-command.mjs';
+import { render as renderPlan } from '../renderers/plan.mjs';
+import { render as renderAugmentation } from '../renderers/augmentation.mjs';
+import { render as renderSimplifyRun } from '../renderers/simplify-run.mjs';
+import { render as renderProfile } from '../renderers/profile.mjs';
+
+test('review-command: sibling YAML drives focused verdict + filtered findings', () => {
+  const artifact = {
+    type: 'review-command',
+    path: '07-review/security.md',
+    frontmatter: { type: 'review-command', status: 'complete', dimension: 'security' },
+    body: 'fallback body',
+    siblingYaml: {
+      artifact: 'review-dimension', dimension: 'security', parent: '07-review.md', rev: 1,
+      verdict: 'caveats', summary: 'one high finding to triage',
+      counts: { blocker: 0, high: 1, med: 0, low: 0, nit: 0 },
+      findings: [
+        { id: 'sec-1', severity: 'high', dimension: 'security', file: 'src/auth.ts', line: 42, msg: 'JWT lifetime too long', fix: 'shorten to 15m' },
+        { id: 'cor-1', severity: 'low',  dimension: 'correctness', msg: 'unrelated' },
+      ],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderReviewCommand(artifact, {});
+  match(out.headerHtml, /Review · <code>security/);
+  match(out.bodyHtml, /verdict-caveats/);
+  match(out.bodyHtml, /finding-list/);
+  match(out.bodyHtml, /JWT lifetime too long/);
+  // correctness finding from other dimension must be filtered out
+  ok(!/unrelated/.test(out.bodyHtml), 'cross-dimension finding must be filtered out');
+  match(out.bodyHtml, /metric-row/);
+});
+
+test('review-command: missing siblingYaml falls back to simple renderer', () => {
+  const artifact = {
+    type: 'review-command',
+    path: '07-review/security.md',
+    frontmatter: { type: 'review-command', status: 'complete', dimension: 'security' },
+    body: '# Security review\n\nNo siblings yet.',
+    siblingYaml: null, history: [], fragment: null,
+  };
+  const out = renderReviewCommand(artifact, {});
+  // Simple renderer emits a frontmatter-card; rich renderer never does
+  match(out.bodyHtml, /frontmatter-card|prose/);
+  ok(!/verdict-/.test(out.bodyHtml), 'fallback must not emit a verdict block');
+});
+
+/* ── Phase 2 — plan data-flow lane variant ────────────────────────── */
+
+test('plan: lanes block triggers data-flow projection', () => {
+  const artifact = {
+    type: 'plan',
+    path: 'slices/checkout/04-plan.md',
+    frontmatter: { type: 'plan', 'slice-slug': 'checkout', status: 'complete' },
+    body: '',
+    siblingYaml: {
+      artifact: 'plan', slice: 'checkout', parent: '03-slices/checkout.md', rev: 1,
+      modules: ['service-a', 'service-b'],
+      lanes: [
+        { service: 'service-a', files: ['service-a/api.ts'] },
+        { service: 'service-b', files: ['service-b/worker.ts'] },
+      ],
+      files: [
+        { path: 'service-a/api.ts',     role: 'modified' },
+        { path: 'service-b/worker.ts',  role: 'new' },
+      ],
+      edges: [{ from: 'service-a/api.ts', to: 'service-b/worker.ts', kind: 'crosses-service' }],
+      risks: [],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderPlan(artifact, {});
+  match(out.bodyHtml, /Data-flow lanes/);
+  match(out.bodyHtml, /plan-lanes-legend/);
+  // crosses-service label is drawn on the edge
+  match(out.bodyHtml, /crosses-service/);
+  // SERVICE lane labels are uppercased
+  match(out.bodyHtml, /SERVICE-A/);
+});
+
+test('plan: crosses-service edge alone triggers inferred lanes', () => {
+  const artifact = {
+    type: 'plan',
+    path: 'slices/checkout/04-plan.md',
+    frontmatter: { type: 'plan', 'slice-slug': 'checkout' },
+    body: '',
+    siblingYaml: {
+      artifact: 'plan', slice: 'checkout', parent: 'p', rev: 1,
+      modules: ['service-a', 'service-b'],
+      files: [
+        { path: 'service-a/api.ts',    role: 'modified' },
+        { path: 'service-b/worker.ts', role: 'new' },
+      ],
+      edges: [{ from: 'service-a/api.ts', to: 'service-b/worker.ts', kind: 'crosses-service' }],
+      risks: [],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderPlan(artifact, {});
+  match(out.bodyHtml, /Data-flow lanes/);
+});
+
+test('plan: no lanes + plain edges stays on file-topology figure', () => {
+  const artifact = {
+    type: 'plan',
+    path: 'slices/checkout/04-plan.md',
+    frontmatter: { type: 'plan', 'slice-slug': 'checkout' },
+    body: '',
+    siblingYaml: {
+      artifact: 'plan', slice: 'checkout', parent: 'p', rev: 1,
+      modules: ['core'],
+      files: [{ path: 'core/index.ts', role: 'modified' }],
+      edges: [],
+      risks: [],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderPlan(artifact, {});
+  match(out.bodyHtml, /File-change topology/);
+  ok(!/Data-flow lanes/.test(out.bodyHtml));
+});
+
+/* ── Phase 2 — RCA 5-whys drill panel ─────────────────────────────── */
+
+test('rca: five_whys array renders collapsible details with root marker', () => {
+  const artifact = {
+    type: 'augmentation',
+    path: 'augmentations/INC-0512.md',
+    frontmatter: { type: 'augmentation', 'augmentation-type': 'rca', status: 'complete' },
+    body: '',
+    siblingYaml: {
+      artifact: 'rca', incident: 'INC-0512', title: 'Checkout outage',
+      started_at: '2026-05-12T10:00:00Z', resolved_at: '2026-05-12T11:30:00Z',
+      metrics: { duration: '1h30m' },
+      timeline: [
+        { id: 'a', at: '10:00', kind: 'alert', title: 'Pager fires' },
+        { id: 'b', at: '11:30', kind: 'resolution', title: 'Restored' },
+      ],
+      chain: [
+        { step: 'TRIGGER',     body: 'Burst of traffic' },
+        { step: 'CHANGE',      body: 'New cache config' },
+        { step: 'CASCADE',     body: 'Cascading timeouts' },
+        { step: 'ROOT_CAUSE',  body: 'Connection pool too small' },
+      ],
+      heatmap: { buckets: [], systems: {} },
+      five_whys: [
+        { question: 'Why did checkout time out?', answer: 'DB connection pool exhausted.' },
+        { question: 'Why was the pool exhausted?', answer: 'Pool size was 10.' },
+        { question: 'Why was it 10?', answer: 'Default never tuned.' },
+        { question: 'Why never tuned?', answer: 'Capacity review skipped.', root: true },
+      ],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderAugmentation(artifact, {});
+  match(out.bodyHtml, /<details class="rca-five-whys is-root">/);
+  match(out.bodyHtml, /5 whys/);
+  match(out.bodyHtml, /Capacity review skipped/);
+  // Root entry tagged
+  match(out.bodyHtml, /li class="is-root"/);
+});
+
+test('rca: missing five_whys omits the panel entirely', () => {
+  const artifact = {
+    type: 'augmentation',
+    path: 'augmentations/INC-0512.md',
+    frontmatter: { type: 'augmentation', 'augmentation-type': 'rca', status: 'complete' },
+    body: '',
+    siblingYaml: {
+      artifact: 'rca', incident: 'INC-0512', title: 'x',
+      started_at: '2026-05-12T10:00:00Z', resolved_at: '2026-05-12T11:00:00Z',
+      metrics: {},
+      timeline: [{ id: 'a', at: '10', kind: 'alert', title: 't' }, { id: 'b', at: '11', kind: 'resolution', title: 'r' }],
+      chain: [
+        { step: 'TRIGGER', body: 'a' }, { step: 'CHANGE', body: 'b' },
+        { step: 'CASCADE', body: 'c' }, { step: 'ROOT_CAUSE', body: 'd' },
+      ],
+      heatmap: { buckets: [], systems: {} },
+    },
+    history: [], fragment: null,
+  };
+  const out = renderAugmentation(artifact, {});
+  ok(!/rca-five-whys/.test(out.bodyHtml), '5-whys panel must be omitted when field is absent');
+});
+
+test('rca: ROOT: prefix on last answer infers root marker', () => {
+  const artifact = {
+    type: 'augmentation',
+    path: 'augmentations/x.md',
+    frontmatter: { type: 'augmentation', 'augmentation-type': 'rca' },
+    body: '',
+    siblingYaml: {
+      artifact: 'rca', incident: 'x', title: 'x',
+      started_at: '2026-05-12T10:00:00Z', resolved_at: '2026-05-12T11:00:00Z',
+      metrics: {},
+      timeline: [{ id: 'a', at: '10', kind: 'alert', title: 't' }, { id: 'b', at: '11', kind: 'resolution', title: 'r' }],
+      chain: [
+        { step: 'TRIGGER', body: 'a' }, { step: 'CHANGE', body: 'b' },
+        { step: 'CASCADE', body: 'c' }, { step: 'ROOT_CAUSE', body: 'd' },
+      ],
+      heatmap: { buckets: [], systems: {} },
+      five_whys: [
+        { question: 'q1', answer: 'a1' },
+        { question: 'q2', answer: 'ROOT: implicit root' },
+      ],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderAugmentation(artifact, {});
+  match(out.bodyHtml, /rca-five-whys is-root/);
+  // ROOT: prefix stripped from rendered text
+  ok(!/ROOT: implicit root/.test(out.bodyHtml));
+  match(out.bodyHtml, /implicit root/);
+});
+
+/* ── Phase 3 — simplify-run finding table ─────────────────────────── */
+
+test('simplify-run: sibling YAML drives finding table + counts + deltas', () => {
+  const artifact = {
+    type: 'simplify-run',
+    path: 'simplify/2026-05-22.md',
+    frontmatter: { type: 'simplify-run', status: 'complete', 'run-id': 'sr-2026-05-22' },
+    body: 'fallback body',
+    siblingYaml: {
+      artifact: 'simplify-run', run_id: 'sr-2026-05-22', scope: 'branch', target: 'master',
+      counts: { reuse: 2, quality: 1, efficiency: 1, accepted: 3, skipped: 0, deferred: 1 },
+      summary: 'four findings, three accepted',
+      findings: [
+        { id: 'SR-1', category: 'reuse', action: 'accept', file: 'src/a.ts', line: 12, msg: 'dup of b.ts', fix: 'extract' },
+        { id: 'SR-2', category: 'quality', action: 'defer', msg: 'naming' },
+      ],
+      deltas: [
+        { file: 'src/a.ts', add: 0, rem: 24, summary: 'extract to util' },
+      ],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderSimplifyRun(artifact, {});
+  match(out.headerHtml, /Simplify · <code>sr-2026-05-22/);
+  match(out.bodyHtml, /metric-row/);
+  match(out.bodyHtml, /simplify-findings/);
+  match(out.bodyHtml, /finding-list-compact/);
+  match(out.bodyHtml, /finding-cat is-reuse/);
+  match(out.bodyHtml, /finding-cat is-quality/);
+  match(out.bodyHtml, /simplify-deltas/);
+  match(out.bodyHtml, /dup of b\.ts/);
+});
+
+test('simplify-run: missing siblingYaml falls back to simple renderer', () => {
+  const artifact = {
+    type: 'simplify-run',
+    path: 'simplify/x.md',
+    frontmatter: { type: 'simplify-run', 'run-id': 'sr-x' },
+    body: '# nothing here yet',
+    siblingYaml: null, history: [], fragment: null,
+  };
+  const out = renderSimplifyRun(artifact, {});
+  ok(!/simplify-findings/.test(out.bodyHtml), 'rich finding table must not render without sibling YAML');
+  match(out.bodyHtml, /frontmatter-card|prose/);
+});
+
+/* ── Phase 3 — profile benchmark comparison ───────────────────────── */
+
+test('profile: sibling YAML drives hotspots + before/after figure + candidates', () => {
+  const artifact = {
+    type: 'profile',
+    path: 'profile/run-1.md',
+    frontmatter: { type: 'profile', status: 'complete', 'run-id': 'prof-1' },
+    body: '',
+    siblingYaml: {
+      artifact: 'profile', run_id: 'prof-1', target: 'api-handler', method: 'dynamic-cpu', confidence: 'high',
+      hotspots: [
+        { id: 'H1', function: 'handleRequest', file: 'src/api.ts', line: 24, cost_pct: 32.4, candidate: true },
+        { id: 'H2', function: 'parseHeaders',  cost_pct: 11.0 },
+      ],
+      optimization_candidates: [
+        { id: 'OC1', hotspot: 'H1', intent: 'memoize validators', estimated_gain_pct: 18.0, confidence: 'high' },
+      ],
+      comparisons: [
+        { metric: 'p50_ms', before: 124, after: 92, unit: 'ms', direction: 'lower-is-better' },
+      ],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderProfile(artifact, {});
+  match(out.headerHtml, /Profile · <code>prof-1/);
+  match(out.bodyHtml, /profile-hotspots/);
+  match(out.bodyHtml, /handleRequest/);
+  match(out.bodyHtml, /Before \/ after/);
+  match(out.bodyHtml, /profile-candidates/);
+  match(out.bodyHtml, /est\. 18\.0%/);
+});
+
+test('profile: no comparisons block omits the figure but keeps hotspots', () => {
+  const artifact = {
+    type: 'profile',
+    path: 'profile/run-2.md',
+    frontmatter: { type: 'profile', 'run-id': 'prof-2' },
+    body: '',
+    siblingYaml: {
+      artifact: 'profile', run_id: 'prof-2', method: 'static',
+      hotspots: [{ id: 'H1', function: 'fn', cost_pct: 5.0 }],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderProfile(artifact, {});
+  match(out.bodyHtml, /profile-hotspots/);
+  ok(!/Before \/ after/.test(out.bodyHtml), 'comparison figure must not render without comparisons block');
+});
+
+test('profile: missing siblingYaml falls back to simple renderer', () => {
+  const artifact = {
+    type: 'profile',
+    path: 'profile/x.md',
+    frontmatter: { type: 'profile', 'run-id': 'p-x' },
+    body: '# todo',
+    siblingYaml: null, history: [], fragment: null,
+  };
+  const out = renderProfile(artifact, {});
+  ok(!/profile-hotspots/.test(out.bodyHtml));
+});
+
+/* ── Phase 3 — augmentation structured-result branches ────────────── */
+
+test('augmentation/benchmark: emits metric comparison table with improvement tone', () => {
+  const artifact = {
+    type: 'augmentation',
+    path: 'augmentations/bench-1.md',
+    frontmatter: { type: 'augmentation', 'augmentation-type': 'benchmark', status: 'complete' },
+    body: '',
+    siblingYaml: {
+      artifact: 'benchmark', target: 'cache-lookup', framework: 'criterion', mode: 'compare',
+      metrics: [
+        { name: 'latency_p50_ms', before: 12.4, after: 8.1, unit: 'ms', direction: 'lower-is-better' },
+        { name: 'qps',            before: 8100, after: 11500, unit: 'qps', direction: 'higher-is-better' },
+      ],
+      improvements: ['latency_p50_ms', 'qps'],
+      notes: 'warm cache, 5 runs',
+    },
+    history: [], fragment: null,
+  };
+  const out = renderAugmentation(artifact, {});
+  match(out.headerHtml, /Benchmark · <code>cache-lookup/);
+  match(out.bodyHtml, /aug-benchmark/);
+  match(out.bodyHtml, /benchmark-table/);
+  match(out.bodyHtml, /latency_p50_ms/);
+  // improvements get is-ok tone
+  match(out.bodyHtml, /delta-cell is-ok/);
+  match(out.bodyHtml, /warm cache/);
+});
+
+test('augmentation/benchmark: regression on lower-is-better metric tones is-bad', () => {
+  const artifact = {
+    type: 'augmentation',
+    path: 'augmentations/bench-2.md',
+    frontmatter: { type: 'augmentation', 'augmentation-type': 'benchmark' },
+    body: '',
+    siblingYaml: {
+      artifact: 'benchmark', target: 'cold-start',
+      metrics: [
+        { name: 'cold_start_ms', before: 100, after: 140, unit: 'ms', direction: 'lower-is-better' },
+      ],
+      regressions: ['cold_start_ms'],
+    },
+    history: [], fragment: null,
+  };
+  const out = renderAugmentation(artifact, {});
+  match(out.bodyHtml, /delta-cell is-bad/);
+});
+
+test('augmentation/experiment: emits arm-allocation figure + guardrail table', () => {
+  const artifact = {
+    type: 'augmentation',
+    path: 'augmentations/exp-1.md',
+    frontmatter: { type: 'augmentation', 'augmentation-type': 'experiment', status: 'complete' },
+    body: '',
+    siblingYaml: {
+      artifact: 'experiment', experiment_type: 'feature-flag', flag: 'new-prompt-cache',
+      hypothesis: 'prompt-cache cuts p50 by >15%',
+      arms: [
+        { id: 'control',  description: 'current behavior', allocated_pct: 50 },
+        { id: 'treatment', description: 'cache on',         allocated_pct: 50 },
+      ],
+      guardrails: [
+        { name: 'p99_latency_ms', threshold: 800, direction: 'lower-is-better', unit: 'ms' },
+      ],
+      status: 'ready',
+    },
+    history: [], fragment: null,
+  };
+  const out = renderAugmentation(artifact, {});
+  match(out.headerHtml, /Experiment · <code>new-prompt-cache/);
+  match(out.bodyHtml, /Arm allocation/);
+  match(out.bodyHtml, /exp-arms/);
+  match(out.bodyHtml, /guardrail-table/);
+  match(out.bodyHtml, /p99_latency_ms/);
+  match(out.bodyHtml, /prompt-cache cuts p50/);
+});
+
+test('augmentation/instrument: emits signal table + dark-paths callouts', () => {
+  const artifact = {
+    type: 'augmentation',
+    path: 'augmentations/inst-1.md',
+    frontmatter: { type: 'augmentation', 'augmentation-type': 'instrument', status: 'complete' },
+    body: '',
+    siblingYaml: {
+      artifact: 'instrument', framework: 'opentelemetry',
+      signals: [
+        { name: 'dispatch_q_depth',    kind: 'gauge',     pii: false, path: 'server/queue/enqueue.ts:48' },
+        { name: 'session_start_latency', kind: 'histogram', pii: false, path: 'server/sm/dispatch.ts:90' },
+      ],
+      dark_paths: [
+        { path: 'src/DispatchPanel.tsx:120', reason: 'no close-event telemetry' },
+      ],
+      pii_warnings: 0,
+    },
+    history: [], fragment: null,
+  };
+  const out = renderAugmentation(artifact, {});
+  match(out.headerHtml, /Instrument · <code>opentelemetry/);
+  match(out.bodyHtml, /signal-table/);
+  match(out.bodyHtml, /signal-kind is-gauge/);
+  match(out.bodyHtml, /signal-kind is-histogram/);
+  match(out.bodyHtml, /aug-instrument-dark/);
+  match(out.bodyHtml, /no close-event telemetry/);
+});
+
+test('augmentation: unknown subtype with sibling YAML falls back to simple renderer', () => {
+  const artifact = {
+    type: 'augmentation',
+    path: 'augmentations/x.md',
+    frontmatter: { type: 'augmentation', 'augmentation-type': 'unknown' },
+    body: '# unknown',
+    siblingYaml: { artifact: 'unknown' }, history: [], fragment: null,
+  };
+  const out = renderAugmentation(artifact, {});
+  ok(!/aug-benchmark|aug-experiment|aug-instrument/.test(out.bodyHtml));
 });
 
 /* ── End-to-end: render fixtures via orchestrator ──────────────────── */

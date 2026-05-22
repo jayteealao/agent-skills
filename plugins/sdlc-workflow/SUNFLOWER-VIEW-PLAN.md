@@ -1076,17 +1076,32 @@ The MD-to-HTML path (non-fragment artifacts) is untouched — `markdown-it` neve
 
 Lands as v9.20.1 alongside the additive-write reference rollover for `/wf shape` and `/wf slice` — keeping the patch release small but coherent.
 
-### Phase 2 (v9.21.0) — fragment polish + per-dimension review pages
+### Phase 2 (v9.21.0) — fragment polish + per-dimension review pages — **shipped 2026-05-21**
 
-- Per-dimension review pages get their own scoped fragments (currently the gallery shows one combined review fragment; phase 2 splits per-dimension into separate cards).
-- Plan fragment gains a data-flow lane variant when frontmatter declares cross-service edges.
-- RCA fragment gains "5 whys" optional drill panel.
+- **[shipped]** Per-dimension review pages get their own scoped fragments (currently the gallery shows one combined review fragment; phase 2 splits per-dimension into separate cards).
+  - Renderer: `renderers/review-command.mjs` now consumes a new `review-dimension` sibling YAML schema (single-dimension verdict + counts + findings).
+  - Verifier: `scripts/verify-fragment.mjs` extends `ALLOWED_FRAGMENT_NAMES` with `review-dimension`.
+  - Falls back to the v9.20.x simple renderer when sibling YAML is absent.
+- **[shipped]** Plan fragment gains a data-flow lane variant when frontmatter declares cross-service edges.
+  - Schema: `plan.edges[].kind` enum gains `crosses-service`; new optional `plan.lanes` array (service + files).
+  - Renderer: `renderers/plan.mjs` `dataFlowLaneSvg` + `inferLanes`. Explicit `lanes:` wins; otherwise lanes inferred from first path segment.
+- **[shipped]** RCA fragment gains "5 whys" optional drill panel.
+  - Schema: `rca.five_whys` optional array (1–7 entries of `{question, answer, root?}`).
+  - Renderer: `renderers/augmentation.mjs` `renderFiveWhys` — collapsible `<details>` between causal chain and contributing causes; root entry rendered with a blocker-tinted band.
 
-### Phase 3 (v9.22.0) — simplify, profile, augmentations
+### Phase 3 (v9.22.0) — simplify, profile, augmentations — **shipped 2026-05-22**
 
-- `/wf-quick simplify` simplify-run artifacts gain a finding-table fragment styled like the review fragment but at smaller scale.
-- `profile` (off-pipeline) gains a benchmark-comparison fragment.
-- Generic augmentation gains a structured-result fragment based on `augmentation-type`.
+- **[shipped]** `/wf-quick simplify` simplify-run artifacts gain a finding-table fragment styled like the review fragment but at smaller scale.
+  - Schema: new `simplify-run` sibling YAML — categorical findings (reuse/quality/efficiency), 6-cell counts row, optional code-deltas table.
+  - Renderer: `renderers/simplify-run.mjs` consumes sibling YAML; falls back to v9.21.x simple renderer otherwise.
+  - CSS: new `.finding-list-compact` / `.finding-compact` / `.finding-cat.is-{reuse|quality|efficiency}` hooks in `assets/sdlc.css`.
+- **[shipped]** `profile` (off-pipeline) gains a benchmark-comparison fragment.
+  - Schema: new `profile` sibling YAML — hotspots[], optimization_candidates[], optional comparisons[] (before/after metric pairs).
+  - Renderer: `renderers/profile.mjs` emits a hotspots table, optional per-metric-normalised before/after SVG (improvement vs. regression tone derived from each metric's `direction:`), and a candidates list with gain + confidence metadata.
+- **[shipped]** Generic augmentation gains a structured-result fragment based on `augmentation-type`.
+  - Schema: three new sibling YAML schemas — `benchmark` (metric comparison), `experiment` (arms + guardrails), `instrument` (signals + dark-paths).
+  - Renderer: `renderers/augmentation.mjs` dispatches on `augmentation-type` ∈ {`rca`, `benchmark`, `experiment`, `instrument`}; existing RCA branch unchanged.
+  - Verifier: `scripts/verify-fragment.mjs` ALLOWED_FRAGMENT_NAMES extended with all five new names.
 
 ### Indefinite — most types stay MD-only
 
