@@ -478,6 +478,30 @@ pre.diff .diff-ctx::before { content: "  "; }
 .slice-card.is-ok      { border-left: 3px solid var(--low); }
 .slice-card.is-bad     { border-left: 3px solid var(--blocker); }
 .slice-card.is-current { border-left: 3px solid var(--accent); }
+.slice-card.is-missing {
+  opacity: 0.5;
+  cursor: default;
+  pointer-events: none;
+  background: var(--paper-2);
+  font-style: italic;
+}
+.slice-stages,
+.slice-reviews,
+.slug-stages,
+.slug-slices {
+  margin-bottom: var(--gap);
+}
+.activity-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+.activity-link:hover {
+  text-decoration: underline;
+}
+.activity-link:hover code {
+  color: var(--accent);
+}
 
 /* ── Dashboard project list ───────────────────────────────────────────── */
 

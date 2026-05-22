@@ -229,12 +229,18 @@ async function main() {
   const parsed = [];
   for (const a of artifacts) {
     const siblings = siblingPaths(a.storageRel);
-    const yamlAbs = a.kind === 'workflow'
-      ? join(storageRoot, a.slug, siblings.yaml)
-      : null;
-    const fragmentAbs = a.kind === 'workflow'
-      ? join(storageRoot, a.slug, siblings.fragment)
-      : null;
+    // Phase 3 (v9.22.0) — sibling YAML / fragment discovery now spans the
+    // three artifact kinds: workflow (rooted at storageRoot/slug), simplify
+    // (rooted at simplifyRoot), and profile (rooted at profilesRoot). Prior
+    // to this, off-pipeline kinds always passed `null` siblings, so
+    // simplify-run + profile renderers never received their siblingYaml.
+    const siblingRoot =
+      a.kind === 'workflow' ? join(storageRoot, a.slug) :
+      a.kind === 'simplify' ? simplifyRoot :
+      a.kind === 'profile'  ? profilesRoot :
+      null;
+    const yamlAbs     = siblingRoot ? join(siblingRoot, siblings.yaml)     : null;
+    const fragmentAbs = siblingRoot ? join(siblingRoot, siblings.fragment) : null;
     let loaded;
     try {
       loaded = loadArtifact(a.mdAbs, yamlAbs);

@@ -14,6 +14,22 @@ const STAGES = [
   'verify', 'review', 'handoff', 'ship', 'retro',
 ];
 
+// Map each stage to the artifact `type` values that count as a member of
+// that stage, plus the canonical sub-path under the slug root (which is the
+// href emitted by the stages-grid cards on the slug overview).
+const STAGE_NAV = {
+  intake:    { types: ['intake'],                                       dir: 'intake' },
+  shape:     { types: ['shape', 'design', 'craft', 'design-brief'],     dir: 'shape' },
+  slice:     { types: ['slice-index', 'slice'],                         dir: 'slice' },
+  plan:      { types: ['plan-index', 'plan'],                           dir: 'plan' },
+  implement: { types: ['implement-index', 'implement'],                 dir: 'implement' },
+  verify:    { types: ['verify-index', 'verify'],                       dir: 'verify' },
+  review:    { types: ['review', 'review-command'],                     dir: 'review' },
+  handoff:   { types: ['handoff'],                                      dir: 'handoff' },
+  ship:      { types: ['ship-runs-index', 'ship-run'],                  dir: 'ship' },
+  retro:     { types: ['retro'],                                        dir: 'retro' },
+};
+
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
   const current = fm['current-stage'] ?? 'intake';
@@ -57,9 +73,14 @@ export function render(artifact, ctx) {
 
   const proseHtml = artifact.body ? md2html(artifact.body) : '';
 
+  const stagesGridHtml = stagesGrid(current, ctx.allArtifacts);
+  const slicesHtml = slicesPreview(ctx.allArtifacts);
+
   const bodyHtml = `
     ${figureHtml}
     ${metricsHtml}
+    ${stagesGridHtml}
+    ${slicesHtml}
     <section class="so-grid">
       <div class="so-rail prose">
         ${proseHtml || '<p class="sdlc-lede">Slug overview pulls together every artifact in this workflow.</p>'}
@@ -111,17 +132,85 @@ function buildActivityList(allArtifacts) {
   const flat = [];
   for (const list of Object.values(allArtifacts ?? {})) {
     for (const a of list) {
+      const viewRel = a.viewRel ?? '';
+      const href = viewRel ? viewRel.replace(/INDEX\.html$/, '') : '';
       flat.push({
         type:  a.frontmatter?.type ?? a.type,
         updated: a.frontmatter?.['updated-at'] ?? '',
         path: a.storageRel ?? a.path ?? '',
+        href,
       });
     }
   }
   flat.sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
   const top = flat.slice(0, 8);
   if (!top.length) return '<p class="sdlc-lede">No artifacts yet.</p>';
-  return `<ol class="activity-list">${top.map((a) =>
-    `<li><span class="stage-badge">${escapeHtml(a.type)}</span> <span class="meta">${escapeHtml(a.updated)}</span><br><code>${escapeHtml(a.path)}</code></li>`,
-  ).join('')}</ol>`;
+  return `<ol class="activity-list">${top.map((a) => {
+    const head = `<span class="stage-badge">${escapeHtml(a.type)}</span> <span class="meta">${escapeHtml(a.updated)}</span>`;
+    const ref  = `<code>${escapeHtml(a.path)}</code>`;
+    return a.href
+      ? `<li><a class="activity-link" href="${escapeHtml(a.href)}">${head}<br>${ref}</a></li>`
+      : `<li>${head}<br>${ref}</li>`;
+  }).join('')}</ol>`;
+}
+
+/**
+ * Emit a clickable stages grid. Each card links to the canonical phase
+ * sub-directory under the slug root (e.g. `plan/`, `slice/`). Stages with
+ * zero artifacts render as a non-clickable "not started" placeholder so
+ * the user can see the overall shape of progress.
+ */
+function stagesGrid(current, allArtifacts) {
+  const cards = STAGES.map((stage) => {
+    const cfg = STAGE_NAV[stage];
+    const count = (cfg.types ?? [stage]).reduce(
+      (n, t) => n + ((allArtifacts?.[t] ?? []).length),
+      0,
+    );
+    const isCurrent = stage === current;
+    const present = count > 0;
+    const cls = ['slice-card'];
+    if (isCurrent) cls.push('is-current');
+    if (!present) cls.push('is-missing');
+    const inner = `<span class="slice-slug"><code>${escapeHtml(stage)}</code></span>
+      ${present
+        ? `<span class="meta">${count} artifact${count === 1 ? '' : 's'}</span>`
+        : '<span class="meta">not started</span>'}`;
+    if (!present) {
+      return `<div class="${cls.join(' ')}">${inner}</div>`;
+    }
+    return `<a class="${cls.join(' ')}" href="${escapeHtml(cfg.dir)}/">${inner}</a>`;
+  }).join('');
+  return `<section class="slug-stages">
+    <h2 class="sdlc-h2">stages</h2>
+    <div class="slice-grid">${cards}</div>
+  </section>`;
+}
+
+/**
+ * If the slug has slices, surface them inline so the slug page links into
+ * each one (in addition to the `slice/` phase card above). Without this
+ * the only path into a slice from the slug overview is one extra hop
+ * through the slice-index.
+ */
+function slicesPreview(allArtifacts) {
+  const slices = allArtifacts?.slice ?? [];
+  if (!slices.length) return '';
+  const cards = slices.map((s) => {
+    const fm = s.frontmatter ?? {};
+    const slug = fm['slice-slug'] ?? fm.slug ?? '';
+    const tone = fm.status === 'complete' ? 'is-ok'
+               : fm.status === 'blocked'  ? 'is-bad'
+               : fm.status === 'active'   ? 'is-current'
+               : '';
+    return `<a class="slice-card ${tone}" href="slice/${escapeHtml(slug)}/">
+      <span class="slice-slug"><code>${escapeHtml(slug)}</code></span>
+      <span class="slice-title">${escapeHtml(fm.title ?? '')}</span>
+      <span class="slice-status">${statusBadge(fm.status)}</span>
+    </a>`;
+  }).join('');
+  return `<section class="slug-slices">
+    <h2 class="sdlc-h2">slices · ${slices.length}</h2>
+    <div class="slice-grid">${cards}</div>
+  </section>`;
 }
