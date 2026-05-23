@@ -47,9 +47,12 @@ export function render(artifact, ctx) {
   const tokensHtml = tokensByCategory(sy.tokens);
   const specsHtml  = specsBlock(sy.specs);
 
-  const bodyContent = artifact.fragment
-    ? `<div class="fragment">${artifact.fragment}</div>`
-    : `<div class="prose">${md2html(artifact.body ?? '')}</div>`;
+  // v9.24.0: markdown body always rendered alongside fragment (if present).
+  const fragmentBlock = artifact.fragment
+    ? `<div class="fragment">${artifact.fragment}</div>` : '';
+  const proseBlock = artifact.body
+    ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
+  const bodyContent = `${fragmentBlock}${proseBlock}`;
 
   return {
     headerHtml,

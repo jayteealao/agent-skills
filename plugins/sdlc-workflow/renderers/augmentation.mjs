@@ -67,9 +67,12 @@ function renderRca(artifact, ctx) {
   const mitigations = (sy.mitigations ?? []).map((mi) =>
     callout('info', `${escapeHtml(mi.at ?? '')} · ${escapeHtml(mi.title)}`, `<p>${escapeHtml(mi.body ?? '')}</p>`)).join('');
 
-  const bodyContent = artifact.fragment
-    ? `<div class="fragment">${artifact.fragment}</div>`
-    : `<div class="prose">${md2html(artifact.body ?? '')}</div>`;
+  // v9.24.0: markdown body always rendered alongside fragment (if present).
+  const fragmentBlock = artifact.fragment
+    ? `<div class="fragment">${artifact.fragment}</div>` : '';
+  const proseBlock = artifact.body
+    ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
+  const bodyContent = `${fragmentBlock}${proseBlock}`;
 
   // Phase 2 (v9.21.0) — optional 5-whys drill panel. Sourced from sibling
   // YAML; when absent the panel is omitted. Sits between the causal-chain
@@ -171,9 +174,12 @@ function renderBenchmark(artifact, ctx) {
     ? callout('info', 'notes', `<p>${escapeHtml(sy.notes)}</p>`)
     : '';
 
-  const bodyContent = artifact.fragment
-    ? `<div class="fragment">${artifact.fragment}</div>`
-    : `<div class="prose">${md2html(artifact.body ?? '')}</div>`;
+  // v9.24.0: markdown body always rendered alongside fragment (if present).
+  const fragmentBlock = artifact.fragment
+    ? `<div class="fragment">${artifact.fragment}</div>` : '';
+  const proseBlock = artifact.body
+    ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
+  const bodyContent = `${fragmentBlock}${proseBlock}`;
 
   return {
     headerHtml,
@@ -254,9 +260,12 @@ function renderExperiment(artifact, ctx) {
        </section>`
     : '';
 
-  const bodyContent = artifact.fragment
-    ? `<div class="fragment">${artifact.fragment}</div>`
-    : `<div class="prose">${md2html(artifact.body ?? '')}</div>`;
+  // v9.24.0: markdown body always rendered alongside fragment (if present).
+  const fragmentBlock = artifact.fragment
+    ? `<div class="fragment">${artifact.fragment}</div>` : '';
+  const proseBlock = artifact.body
+    ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
+  const bodyContent = `${fragmentBlock}${proseBlock}`;
 
   return {
     headerHtml,
@@ -328,9 +337,12 @@ function renderInstrument(artifact, ctx) {
        </section>`
     : '';
 
-  const bodyContent = artifact.fragment
-    ? `<div class="fragment">${artifact.fragment}</div>`
-    : `<div class="prose">${md2html(artifact.body ?? '')}</div>`;
+  // v9.24.0: markdown body always rendered alongside fragment (if present).
+  const fragmentBlock = artifact.fragment
+    ? `<div class="fragment">${artifact.fragment}</div>` : '';
+  const proseBlock = artifact.body
+    ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
+  const bodyContent = `${fragmentBlock}${proseBlock}`;
 
   return {
     headerHtml,

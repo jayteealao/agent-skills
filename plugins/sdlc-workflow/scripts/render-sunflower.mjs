@@ -417,7 +417,7 @@ async function main() {
 
   // 9. manifest pass
   const manifest = {
-    version:     '9.23.0',
+    version:     '9.24.0',
     generatedAt: new Date().toISOString(),
     slugs: [...slugArtifacts.keys()].map((slug) => ({
       slug,

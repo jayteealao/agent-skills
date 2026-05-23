@@ -1,0 +1,3201 @@
+<!doctype html>
+<html lang="en" data-artifact-type="gallery">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SDLC plugin — fragments gallery</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────────────
+     BASE DESIGN SYSTEM (sdlc.css) — inlined here so each fragment renders
+     standalone. In production, fragments are embedded into a shell page
+     that already has these classes loaded; the shell sets the same
+     tokens and provides .verdict-*, .severity-*, .callout-*, .files-
+     touched, .diff-*, .metric, .stage-badge, .status-badge, .timeline.
+     Fragments do NOT redefine these; they scope additions to their own
+     .fragment-<name> ancestor selector.
+     ──────────────────────────────────────────────────────────────────── */
+  :root {
+    --paper: #fbfaf6;
+    --paper-2: #f3f1ea;
+    --paper-3: #ebe7dc;
+    --ink: #1f1b16;
+    --ink-2: #4a443c;
+    --ink-3: #8a8377;
+    --rule: #e0dbcd;
+    --rule-2: #cbc4b1;
+    --accent: #4a6c8c;
+    --accent-soft: #e9eef4;
+    --blocker: #b5305f;
+    --high: #b94e3d;
+    --med: #a07417;
+    --low: #3e7d4a;
+    --nit: #8a8377;
+    --blocker-bg: #fbeaf0;
+    --high-bg: #fbece6;
+    --med-bg: #fbf3df;
+    --low-bg: #ecf3e7;
+    --nit-bg: #f0ece1;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  code { font-family: var(--mono); font-size: 0.9em; background: var(--paper-2); padding: 1px 5px; border-radius: 3px; color: var(--ink-2); }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  a:hover { border-bottom-color: var(--accent); }
+
+  /* Headings used by fragments */
+  .sdlc-h1 {
+    font-family: var(--serif);
+    font-size: 30px;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    font-weight: 600;
+    margin: 0 0 6px;
+  }
+  .sdlc-h2 {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 28px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .sdlc-lede {
+    font-size: 15px;
+    color: var(--ink-3);
+    line-height: 1.55;
+    margin: 0 0 24px;
+    max-width: 60ch;
+  }
+  .sdlc-crumb {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink-3);
+    margin: 0 0 4px;
+  }
+
+  /* Verdict */
+  .verdict {
+    padding: 22px 26px;
+    border-radius: 8px;
+    margin: 12px 0 22px;
+    border: 1px solid var(--rule);
+  }
+  .verdict-ship { background: #eaf3e6; border-color: #c9deba; }
+  .verdict-caveats { background: #f6efd9; border-color: #e6d49d; }
+  .verdict-no { background: #f5e3ea; border-color: #e2b5c5; }
+  .verdict .v-label {
+    font-size: 11px; letter-spacing: 0.10em; text-transform: uppercase; color: var(--ink-3);
+  }
+  .verdict .v-text {
+    font-family: var(--serif); font-size: 26px; font-weight: 600; margin: 4px 0 6px; letter-spacing: -0.01em;
+  }
+  .verdict-ship .v-text { color: var(--low); }
+  .verdict-caveats .v-text { color: var(--med); }
+  .verdict-no .v-text { color: var(--blocker); }
+  .verdict .v-text::before { content: "◐"; margin-right: 10px; font-family: var(--mono); font-size: 22px; vertical-align: 1px; }
+  .verdict-ship .v-text::before { content: "✓"; }
+  .verdict-no .v-text::before { content: "✗"; }
+  .verdict .v-sum { font-size: 15px; color: var(--ink-2); line-height: 1.55; max-width: 70ch; }
+
+  /* Severity chips */
+  .sev {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--sans);
+    font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 2px 9px; border-radius: 12px;
+    border: 1px solid; white-space: nowrap;
+  }
+  .sev::before { font-family: var(--mono); font-weight: 700; font-size: 10.5px; }
+  .severity-blocker, .sev.severity-blocker { color: var(--blocker); border-color: var(--blocker); background: var(--blocker-bg); }
+  .severity-blocker::before { content: "●"; }
+  .severity-high, .sev.severity-high { color: var(--high); border-color: var(--high); background: var(--high-bg); }
+  .severity-high::before { content: "▲"; }
+  .severity-med, .sev.severity-med { color: var(--med); border-color: var(--med); background: var(--med-bg); }
+  .severity-med::before { content: "◆"; }
+  .severity-low, .sev.severity-low { color: var(--low); border-color: var(--low); background: var(--low-bg); }
+  .severity-low::before { content: "—"; }
+  .severity-nit, .sev.severity-nit { color: var(--nit); border-color: var(--nit); background: var(--nit-bg); }
+  .severity-nit::before { content: "·"; }
+
+  /* Callouts */
+  .callout {
+    padding: 14px 18px;
+    border-radius: 6px;
+    margin: 10px 0;
+    background: var(--paper-2);
+    border-left: 3px solid var(--rule-2);
+    font-size: 14.5px;
+    line-height: 1.55;
+  }
+  .callout .callout-hd {
+    font-family: var(--sans); font-size: 11.5px; font-weight: 600;
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 4px;
+  }
+  .callout-risk { border-left-color: var(--high); background: #f8ece8; }
+  .callout-risk .callout-hd { color: var(--high); }
+  .callout-warn { border-left-color: var(--med); background: #f5eedd; }
+  .callout-warn .callout-hd { color: var(--med); }
+  .callout-info { border-left-color: var(--accent); background: var(--accent-soft); }
+  .callout-info .callout-hd { color: var(--accent); }
+  .callout-ok { border-left-color: var(--low); background: var(--low-bg); }
+  .callout-ok .callout-hd { color: var(--low); }
+
+  /* Metric */
+  .metric-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    margin: 16px 0 22px;
+  }
+  .metric {
+    padding: 14px 18px;
+    border-right: 1px solid var(--rule);
+  }
+  .metric:last-child { border-right: 0; }
+  .metric-label {
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-3); margin-bottom: 4px;
+  }
+  .metric-value {
+    font-family: var(--serif); font-size: 26px; font-weight: 600;
+    line-height: 1.1; color: var(--ink); letter-spacing: -0.01em;
+  }
+  .metric-ann { font-size: 13px; color: var(--ink-3); margin-top: 4px; }
+
+  /* Status badges */
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: var(--mono); font-size: 11.5px;
+    padding: 2px 8px; border-radius: 10px;
+    background: var(--paper-2); color: var(--ink-2);
+  }
+  .status-badge::before { font-size: 9px; }
+  .status-badge.is-ok { color: var(--low); background: var(--low-bg); }
+  .status-badge.is-ok::before { content: "●"; color: var(--low); }
+  .status-badge.is-warn { color: var(--med); background: var(--med-bg); }
+  .status-badge.is-warn::before { content: "●"; color: var(--med); }
+  .status-badge.is-bad { color: var(--blocker); background: var(--blocker-bg); }
+  .status-badge.is-bad::before { content: "●"; color: var(--blocker); }
+  .status-badge.is-skip { color: var(--ink-3); }
+  .status-badge.is-skip::before { content: "○"; }
+
+  /* Stage badge */
+  .stage-badge {
+    font-family: var(--mono); font-size: 11.5px;
+    color: var(--accent); background: var(--accent-soft);
+    padding: 3px 10px; border-radius: 12px;
+    letter-spacing: 0.04em; text-transform: lowercase;
+  }
+
+  /* Files-touched table */
+  .files-touched {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14.5px;
+  }
+  .files-touched th, .files-touched td {
+    padding: 12px 12px;
+    border-top: 1px solid var(--rule);
+    text-align: left;
+    vertical-align: top;
+  }
+  .files-touched thead th {
+    border-top: 0;
+    border-bottom: 1px solid var(--rule-2);
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600;
+  }
+  .files-touched td.path { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+  .files-touched td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .files-touched .role {
+    font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 2px 8px; border-radius: 10px;
+    background: var(--paper-2); color: var(--ink-2);
+  }
+  .files-touched .role.is-new { background: var(--low-bg); color: var(--low); }
+  .files-touched .role.is-modified { background: var(--accent-soft); color: var(--accent); }
+  .files-touched .role.is-deleted { background: var(--blocker-bg); color: var(--blocker); }
+
+  /* Diff blocks */
+  pre.diff {
+    margin: 8px 0;
+    padding: 10px 12px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.55;
+    overflow-x: auto;
+    color: var(--ink-2);
+  }
+  .diff-add { color: var(--low); display: block; }
+  .diff-add::before { content: "+ "; }
+  .diff-rem { color: var(--blocker); display: block; }
+  .diff-rem::before { content: "− "; }
+  .diff-ctx { color: var(--ink-3); display: block; }
+  .diff-ctx::before { content: "  "; }
+
+  /* Buttons (utility) */
+  .btn {
+    font-family: var(--sans);
+    font-size: 13px;
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--rule-2);
+    padding: 6px 12px;
+    border-radius: 14px;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--paper);
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+  .btn-danger {
+    background: var(--paper);
+    color: var(--blocker);
+    border-color: var(--blocker);
+  }
+  .btn-danger:hover { background: var(--blocker); color: var(--paper); }
+
+  /* Timeline (base shared mark) */
+  .timeline {
+    position: relative;
+    padding: 4px 0;
+  }
+
+  /* ──────────────── Gallery wrapper ──────────────── */
+  .gw-header {
+    padding: 32px 40px 22px;
+    background: var(--paper-2);
+    border-bottom: 1px solid var(--rule);
+  }
+  .gw-header h1 {
+    font-family: var(--serif);
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0 0 6px;
+  }
+  .gw-header p {
+    color: var(--ink-3);
+    font-size: 14.5px;
+    max-width: 80ch;
+    line-height: 1.55;
+    margin: 0;
+  }
+  .gw-header .gw-nav {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .gw-header .gw-nav a {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-2);
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    padding: 4px 10px;
+    border-radius: 12px;
+  }
+  .gw-header .gw-nav a:hover { border-color: var(--accent); color: var(--accent); }
+
+  .gw-fragment {
+    border-top: 8px solid var(--paper-3);
+    position: relative;
+  }
+  .gw-fragment-bar {
+    display: grid;
+    grid-template-columns: auto 1fr auto auto;
+    gap: 18px;
+    align-items: center;
+    padding: 12px 40px;
+    background: var(--ink);
+    color: var(--paper-2);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .gw-fragment-bar .gw-tag {
+    font-weight: 700;
+    color: var(--paper);
+    background: var(--accent);
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+  }
+  .gw-fragment-bar .gw-title { color: var(--paper); }
+  .gw-fragment-bar .gw-path { color: var(--ink-3); }
+  .gw-fragment-bar button.gw-raw {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    background: transparent;
+    color: var(--paper-2);
+    border: 1px solid #4a443c;
+    padding: 4px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+  }
+  .gw-fragment-bar button.gw-raw:hover { border-color: var(--accent); color: var(--accent); }
+  .gw-fragment-bar button.gw-raw[aria-pressed="true"] {
+    background: var(--accent); border-color: var(--accent); color: var(--paper);
+  }
+  .gw-raw-pane {
+    background: #14161a;
+    color: #d4d0c8;
+    padding: 16px 40px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.6;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--rule);
+  }
+  .gw-raw-pane[hidden] { display: none; }
+  .gw-raw-pane .k { color: #9cc0d9; }
+  .gw-raw-pane .a { color: #d9b58a; }
+  .gw-raw-pane .s { color: #b8c98a; }
+  .gw-raw-pane .c { color: #6e6a60; font-style: italic; }
+  .gw-raw-pane pre { margin: 0; white-space: pre; }
+
+  /* Fragment body padding */
+  .gw-fragment > section { padding: 36px 40px 48px; }
+
+  /* API summary */
+  .gw-api {
+    padding: 48px 40px 64px;
+    background: var(--paper-2);
+    border-top: 8px solid var(--paper-3);
+  }
+  .gw-api h2 {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 600;
+    margin: 0 0 8px;
+  }
+  .gw-api > p {
+    color: var(--ink-3);
+    font-size: 14px;
+    max-width: 80ch;
+    margin: 0 0 20px;
+  }
+  .gw-api table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .gw-api th, .gw-api td {
+    padding: 12px 14px;
+    text-align: left;
+    vertical-align: top;
+    border-top: 1px solid var(--rule);
+  }
+  .gw-api thead th {
+    border-top: 0;
+    border-bottom: 1px solid var(--rule-2);
+    font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600;
+    background: var(--paper-2);
+  }
+  .gw-api code { font-size: 12px; }
+  .gw-api pre.yaml {
+    margin: 6px 0 0;
+    padding: 10px 12px;
+    background: #1f1b16;
+    color: #d4d0c8;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    line-height: 1.55;
+    overflow-x: auto;
+  }
+  .gw-api pre.yaml .k { color: #9cc0d9; }
+  .gw-api pre.yaml .s { color: #d9b58a; }
+  .gw-api pre.yaml .c { color: #6e6a60; font-style: italic; }
+  .gw-api pre.yaml .n { color: #b8c98a; }
+
+  @media (max-width: 720px) {
+    .gw-header, .gw-fragment > section, .gw-api { padding-left: 20px; padding-right: 20px; }
+    .gw-fragment-bar { padding: 10px 20px; grid-template-columns: 1fr auto; gap: 10px; }
+    .gw-fragment-bar .gw-path { grid-column: 1 / -1; font-size: 10.5px; }
+    .gw-raw-pane { padding-left: 20px; padding-right: 20px; }
+    .sdlc-h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="gw-header">
+  <h1>SDLC plugin · fragments gallery</h1>
+  <p>Five rich HTML fragments the agent writes at artifact-write time. Each is a self-contained <code>&lt;section&gt;</code> that embeds into a shell page already loading <code>sdlc.css</code>; the shell sets <code>&lt;html data-artifact-type="…"&gt;</code>. Vanilla JS only, inline SVG only, scoped styles under <code>.fragment-&lt;name&gt;</code>. Each fragment dispatches <code>sdlc:fragment-ready</code> on the window when its script settles.</p>
+  <nav class="gw-nav" aria-label="Jump to fragment">
+    <a href="#fragment-review">07-review</a>
+    <a href="#fragment-rca">01-rca</a>
+    <a href="#fragment-plan">04-plan</a>
+    <a href="#fragment-design">02b-design</a>
+    <a href="#fragment-shiprun">09-ship-run</a>
+    <a href="#api-summary">API summary</a>
+  </nav>
+</header>
+
+<!-- ═══════════════════ FRAGMENT 1 · 07-review ═══════════════════ -->
+<div class="gw-fragment" id="fragment-review">
+  <div class="gw-fragment-bar">
+    <span class="gw-tag">07</span>
+    <span class="gw-title">Review findings table</span>
+    <span class="gw-path">review/07-review.html.fragment</span>
+    <button class="gw-raw" data-raw-target="raw-review" aria-pressed="false">Show source</button>
+  </div>
+  <div class="gw-raw-pane" id="raw-review" hidden><pre><span class="c">&lt;!-- 07-review.html.fragment — produced by /review --&gt;</span>
+<span class="k">&lt;section</span> <span class="a">class</span>=<span class="s">"fragment-review"</span> <span class="a">data-artifact</span>=<span class="s">"review"</span> <span class="a">data-rev</span>=<span class="s">"2"</span><span class="k">&gt;</span>
+  <span class="k">&lt;header</span> <span class="a">class</span>=<span class="s">"fr-head"</span><span class="k">&gt;</span>
+    <span class="k">&lt;p</span> <span class="a">class</span>=<span class="s">"sdlc-crumb"</span><span class="k">&gt;</span>review / rev-2.md<span class="k">&lt;/p&gt;</span>
+    <span class="k">&lt;h1</span> <span class="a">class</span>=<span class="s">"sdlc-h1"</span><span class="k">&gt;</span>Review sweep, revision 2<span class="k">&lt;/h1&gt;</span>
+  <span class="k">&lt;/header&gt;</span>
+
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"verdict verdict-caveats"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"metric-row"</span><span class="k">&gt;</span>
+    <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"metric"</span><span class="k">&gt;&lt;div</span> <span class="a">class</span>=<span class="s">"metric-label"</span><span class="k">&gt;</span>Blocker<span class="k">&lt;/div&gt;&lt;div</span> <span class="a">class</span>=<span class="s">"metric-value"</span><span class="k">&gt;</span>0<span class="k">&lt;/div&gt;&lt;/div&gt;</span>
+    …
+  <span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- Dimension chip filter (multi-select) --&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"fr-dim-bar"</span> <span class="a">role</span>=<span class="s">"group"</span><span class="k">&gt;</span>
+    <span class="k">&lt;button</span> <span class="a">class</span>=<span class="s">"fr-chip"</span> <span class="a">data-dim</span>=<span class="s">"security"</span> <span class="a">aria-pressed</span>=<span class="s">"true"</span><span class="k">&gt;</span>security · 3<span class="k">&lt;/button&gt;</span>
+    …
+  <span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- Severity checkbox filter + sort dropdown + findings list --&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"fr-controls"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+  <span class="k">&lt;ol</span> <span class="a">class</span>=<span class="s">"fr-findings"</span><span class="k">&gt;</span>
+    <span class="k">&lt;li</span> <span class="a">data-finding</span>=<span class="s">"F-038"</span> <span class="a">data-severity</span>=<span class="s">"high"</span> <span class="a">data-dimension</span>=<span class="s">"security"</span> <span class="a">data-conf</span>=<span class="s">"high"</span><span class="k">&gt;</span>
+      <span class="k">&lt;details&gt;&lt;summary&gt;</span>…<span class="k">&lt;/summary&gt;</span>
+        <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"fr-evidence"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+        <span class="k">&lt;button</span> <span class="a">class</span>=<span class="s">"btn fr-copy"</span> <span class="a">data-copy-finding</span>=<span class="s">"F-038"</span><span class="k">&gt;</span>Copy as PR comment<span class="k">&lt;/button&gt;</span>
+      <span class="k">&lt;/details&gt;</span>
+    <span class="k">&lt;/li&gt;</span>
+    … (17 more) …
+  <span class="k">&lt;/ol&gt;</span>
+
+  <span class="k">&lt;script&gt;</span>
+    <span class="c">// scoped to .fragment-review; filters + sort + copy-as-PR-comment</span>
+    <span class="c">// emits sdlc:fragment-ready with { name: 'review', counts: {…} }</span>
+  <span class="k">&lt;/script&gt;</span>
+<span class="k">&lt;/section&gt;</span></pre></div>
+
+  <style>
+    .fragment-review .fr-head { margin-bottom: 6px; }
+    .fragment-review .fr-dim-bar {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      margin: 6px 0 12px;
+    }
+    .fragment-review .fr-chip {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: var(--paper);
+      color: var(--ink-2);
+      border: 1px solid var(--rule-2);
+      padding: 4px 10px;
+      border-radius: 14px;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+    }
+    .fragment-review .fr-chip:hover { border-color: var(--accent); color: var(--accent); }
+    .fragment-review .fr-chip[aria-pressed="true"] {
+      background: var(--accent); color: var(--paper); border-color: var(--accent);
+    }
+    .fragment-review .fr-chip .ct { opacity: 0.75; margin-left: 4px; }
+    .fragment-review .fr-controls {
+      display: flex; flex-wrap: wrap; gap: 14px 20px; align-items: center;
+      padding: 14px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+      margin-bottom: 0;
+      font-size: 13.5px;
+    }
+    .fragment-review .fr-controls .group {
+      display: inline-flex; gap: 8px 12px; align-items: center; flex-wrap: wrap;
+    }
+    .fragment-review .fr-controls label {
+      display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
+    }
+    .fragment-review .fr-controls input[type="checkbox"] {
+      appearance: none;
+      width: 16px; height: 16px;
+      border: 1px solid var(--rule-2); background: var(--paper);
+      border-radius: 3px; position: relative; cursor: pointer;
+    }
+    .fragment-review .fr-controls input[type="checkbox"]:checked {
+      background: var(--accent); border-color: var(--accent);
+    }
+    .fragment-review .fr-controls input[type="checkbox"]:checked::after {
+      content: "✓"; position: absolute; color: var(--paper);
+      font-size: 12px; font-weight: 700; top: -2px; left: 2px;
+    }
+    .fragment-review .fr-controls .sort-label {
+      font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+    }
+    .fragment-review .fr-controls select {
+      font-family: var(--mono); font-size: 12.5px;
+      background: var(--paper); color: var(--ink); border: 1px solid var(--rule-2);
+      padding: 4px 8px; border-radius: 6px; cursor: pointer;
+    }
+    .fragment-review .fr-controls .visible-count {
+      margin-left: auto; font-size: 13px; color: var(--ink-3);
+    }
+    .fragment-review .fr-controls .visible-count b { color: var(--ink); }
+    .fragment-review .fr-findings { list-style: none; padding: 0; margin: 0; }
+    .fragment-review .fr-findings > li {
+      border-top: 1px solid var(--rule);
+      padding: 16px 0;
+    }
+    .fragment-review .fr-findings > li:first-child { border-top: 0; }
+    .fragment-review .fr-row {
+      display: grid;
+      grid-template-columns: 60px auto auto 1fr auto auto;
+      gap: 14px;
+      align-items: baseline;
+      font-size: 14px;
+    }
+    .fragment-review .fr-row .fid { font-family: var(--mono); font-size: 12.5px; color: var(--ink-3); }
+    .fragment-review .fr-row .fdim {
+      font-family: var(--mono); font-size: 11.5px;
+      color: var(--ink-2); background: var(--paper-2);
+      padding: 1px 7px; border-radius: 10px;
+    }
+    .fragment-review .fr-row .ffile { font-family: var(--mono); font-size: 12.5px; color: var(--accent); }
+    .fragment-review .fr-row .fconf {
+      font-family: var(--mono); font-size: 11.5px;
+      color: var(--ink-3); letter-spacing: 0.04em;
+    }
+    .fragment-review .fr-row .fconf::before {
+      content: ""; display: inline-block; vertical-align: 1px;
+      width: 28px; height: 4px;
+      background: var(--rule); border-radius: 2px;
+      margin-right: 6px;
+      position: relative;
+    }
+    .fragment-review .fr-row .fconf.is-high::before { background: linear-gradient(to right, var(--low) 90%, var(--rule) 90%); }
+    .fragment-review .fr-row .fconf.is-med::before { background: linear-gradient(to right, var(--med) 60%, var(--rule) 60%); }
+    .fragment-review .fr-row .fconf.is-low::before { background: linear-gradient(to right, var(--high) 30%, var(--rule) 30%); }
+    .fragment-review .fr-row .fact {
+      font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 10px; border: 1px solid currentColor;
+      color: var(--ink-3);
+    }
+    .fragment-review .fr-row .fact.is-accept { color: var(--low); }
+    .fragment-review .fr-row .fact.is-defer { color: var(--med); }
+
+    .fragment-review .fr-msg {
+      grid-column: 4 / 5;
+      font-size: 15px; color: var(--ink); line-height: 1.55;
+      max-width: 70ch; margin-top: 2px;
+    }
+
+    .fragment-review .fr-findings details { margin-top: 8px; }
+    .fragment-review .fr-findings details summary {
+      list-style: none; cursor: pointer; color: var(--accent);
+      font-size: 13px;
+    }
+    .fragment-review .fr-findings details summary::-webkit-details-marker { display: none; }
+    .fragment-review .fr-findings details summary::before {
+      content: "›"; margin-right: 6px; display: inline-block; transition: transform 0.15s;
+    }
+    .fragment-review .fr-findings details[open] summary::before { transform: rotate(90deg); }
+    .fragment-review .fr-evidence {
+      margin-top: 10px; padding: 14px 18px;
+      background: var(--paper-2); border-radius: 6px;
+    }
+    .fragment-review .fr-evidence h4 {
+      font-family: var(--sans); font-size: 11px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+      margin: 0 0 6px;
+    }
+    .fragment-review .fr-evidence h4 + h4 { margin-top: 12px; }
+    .fragment-review .fr-evidence p { margin: 0; font-size: 14px; line-height: 1.55; }
+    .fragment-review .fr-actions { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+    .fragment-review .fr-actions .copied { font-size: 12.5px; color: var(--low); }
+
+    .fragment-review .fr-empty {
+      padding: 36px 0; text-align: center; color: var(--ink-3); font-style: italic;
+    }
+
+    @media (max-width: 720px) {
+      .fragment-review .fr-row {
+        grid-template-columns: auto auto 1fr;
+        gap: 8px 12px;
+      }
+      .fragment-review .fr-row .fid { grid-column: 1; }
+      .fragment-review .fr-row .sev { grid-column: 2; }
+      .fragment-review .fr-row .fdim { grid-column: 3; }
+      .fragment-review .fr-row .ffile { grid-column: 1 / -1; font-size: 12px; }
+      .fragment-review .fr-row .fconf { grid-column: 1 / 3; font-size: 11px; }
+      .fragment-review .fr-row .fact { grid-column: 3; justify-self: end; }
+      .fragment-review .fr-msg { grid-column: 1 / -1; }
+    }
+  </style>
+
+  <section class="fragment-review" data-artifact="review" data-rev="2">
+    <header class="fr-head">
+      <p class="sdlc-crumb">review / rev-2.md</p>
+      <h1 class="sdlc-h1">Review sweep, revision 2</h1>
+      <p class="sdlc-lede">Second pass over <b>feat/checkout-v2</b>. Run 2026-05-18 at 14:22 by claude-opus-4.5. Eighteen findings, no remaining blockers.</p>
+    </header>
+
+    <div class="verdict verdict-caveats">
+      <div class="v-label">Verdict</div>
+      <div class="v-text">Ship with caveats</div>
+      <div class="v-sum">No blockers remain. Two HIGHs need maintainer sign-off before merge; the rest are either deferred to follow-up tickets or accepted into this PR. Reviewer confidence is high.</div>
+    </div>
+
+    <div class="metric-row">
+      <div class="metric"><div class="metric-label" style="color: var(--blocker);">● Blocker</div><div class="metric-value" style="color: var(--blocker);">0</div><div class="metric-ann">all clear</div></div>
+      <div class="metric"><div class="metric-label" style="color: var(--high);">▲ High</div><div class="metric-value" style="color: var(--high);">2</div><div class="metric-ann">−1 from rev 1</div></div>
+      <div class="metric"><div class="metric-label" style="color: var(--med);">◆ Medium</div><div class="metric-value" style="color: var(--med);">4</div><div class="metric-ann">2 deferred</div></div>
+      <div class="metric"><div class="metric-label" style="color: var(--low);">— Low</div><div class="metric-value" style="color: var(--low);">7</div><div class="metric-ann">accept-on-merge</div></div>
+      <div class="metric"><div class="metric-label" style="color: var(--nit);">· Nit</div><div class="metric-value" style="color: var(--nit);">5</div><div class="metric-ann">style / naming</div></div>
+    </div>
+
+    <h2 class="sdlc-h2">Filter by dimension</h2>
+    <div class="fr-dim-bar" role="group" aria-label="Filter findings by dimension">
+      <button class="fr-chip" data-dim="security" aria-pressed="true">security <span class="ct">· 3</span></button>
+      <button class="fr-chip" data-dim="correctness" aria-pressed="true">correctness <span class="ct">· 4</span></button>
+      <button class="fr-chip" data-dim="accessibility" aria-pressed="true">accessibility <span class="ct">· 3</span></button>
+      <button class="fr-chip" data-dim="performance" aria-pressed="true">performance <span class="ct">· 2</span></button>
+      <button class="fr-chip" data-dim="refactor-safety" aria-pressed="true">refactor-safety <span class="ct">· 6</span></button>
+    </div>
+
+    <div class="fr-controls" role="group">
+      <div class="group" aria-label="Filter by severity">
+        <span class="sort-label">Severity</span>
+        <label><input type="checkbox" data-severity-filter value="blocker" checked /><span class="sev severity-blocker">Blocker</span></label>
+        <label><input type="checkbox" data-severity-filter value="high" checked /><span class="sev severity-high">High</span></label>
+        <label><input type="checkbox" data-severity-filter value="med" checked /><span class="sev severity-med">Med</span></label>
+        <label><input type="checkbox" data-severity-filter value="low" checked /><span class="sev severity-low">Low</span></label>
+        <label><input type="checkbox" data-severity-filter value="nit" /><span class="sev severity-nit">Nit</span></label>
+      </div>
+      <div class="group">
+        <span class="sort-label">Sort</span>
+        <select data-sort>
+          <option value="severity">Severity (default)</option>
+          <option value="file">File : line</option>
+          <option value="dimension">Dimension</option>
+          <option value="confidence">Confidence</option>
+        </select>
+      </div>
+      <span class="visible-count"><b data-finding-count>—</b> of <b>18</b> findings shown</span>
+    </div>
+
+    <ol class="fr-findings" data-findings>
+      <li data-finding="F-038" data-severity="high" data-sev-weight="4" data-dimension="security" data-conf="high" data-conf-weight="3" data-file="server/billing/intent.ts:42">
+        <div class="fr-row">
+          <span class="fid">F-038</span>
+          <span class="sev severity-high">High</span>
+          <span class="fdim">security</span>
+          <span class="ffile">server/billing/intent.ts : 42</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Hardcoded JWT secret fallback when <code>STRIPE_WEBHOOK_SECRET</code> is unset. Dangerous in any environment that loads this file.</p>
+        <details>
+          <summary>Evidence and suggested fix</summary>
+          <div class="fr-evidence">
+            <h4>Evidence</h4>
+            <pre class="diff"><span class="diff-ctx">function verifyWebhook(req: Request) {</span>
+<span class="diff-rem">  const secret = process.env.STRIPE_WEBHOOK_SECRET ?? 'whsec_dev_default';</span>
+<span class="diff-add">  const secret = process.env.STRIPE_WEBHOOK_SECRET;</span>
+<span class="diff-add">  if (!secret) throw new Error('STRIPE_WEBHOOK_SECRET not configured');</span>
+<span class="diff-ctx">  return stripe.webhooks.constructEvent(req.rawBody, sig, secret);</span></pre>
+            <h4>Suggested fix</h4>
+            <p>Remove the fallback. Fail closed at startup if the env var is unset, and add a deploy preflight so a build that can take this branch never ships.</p>
+            <div class="fr-actions">
+              <button class="btn fr-copy" data-copy-finding="F-038">Copy as PR comment</button>
+            </div>
+          </div>
+        </details>
+      </li>
+
+      <li data-finding="F-041" data-severity="high" data-sev-weight="4" data-dimension="correctness" data-conf="med" data-conf-weight="2" data-file="app/components/checkout/PaymentForm.tsx:118">
+        <div class="fr-row">
+          <span class="fid">F-041</span>
+          <span class="sev severity-high">High</span>
+          <span class="fdim">correctness</span>
+          <span class="ffile">PaymentForm.tsx : 118</span>
+          <span class="fconf is-med">conf med</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Race condition: <code>setSession</code> is called from a <code>useEffect</code> promise without a cancellation guard; unmounting mid-confirm sets state on a dead component.</p>
+        <details>
+          <summary>Evidence and suggested fix</summary>
+          <div class="fr-evidence">
+            <h4>Evidence</h4>
+            <pre class="diff"><span class="diff-ctx">useEffect(() =&gt; {</span>
+<span class="diff-ctx">  stripe.confirmPayment(opts).then(r =&gt; {</span>
+<span class="diff-rem">    setSession(r.paymentIntent);</span>
+<span class="diff-add">    if (!cancelled) setSession(r.paymentIntent);</span>
+<span class="diff-ctx">  });</span>
+<span class="diff-add">  return () =&gt; { cancelled = true; };</span>
+<span class="diff-ctx">}, [opts]);</span></pre>
+            <h4>Suggested fix</h4>
+            <p>Track a <code>cancelled</code> flag inside the effect closure; ignore the promise result if the component has unmounted.</p>
+            <div class="fr-actions">
+              <button class="btn fr-copy" data-copy-finding="F-041">Copy as PR comment</button>
+            </div>
+          </div>
+        </details>
+      </li>
+
+      <li data-finding="F-042" data-severity="med" data-sev-weight="3" data-dimension="accessibility" data-conf="high" data-conf-weight="3" data-file="app/components/checkout/PaymentForm.tsx:204">
+        <div class="fr-row">
+          <span class="fid">F-042</span>
+          <span class="sev severity-med">Med</span>
+          <span class="fdim">accessibility</span>
+          <span class="ffile">PaymentForm.tsx : 204</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Three form labels missing <code>htmlFor</code>; NVDA and JAWS both announce "edit, edit, edit" rather than the field names.</p>
+        <details>
+          <summary>Evidence and suggested fix</summary>
+          <div class="fr-evidence">
+            <h4>Evidence</h4>
+            <pre class="diff"><span class="diff-rem">&lt;label&gt;Card number&lt;/label&gt; &lt;input id="cc" /&gt;</span>
+<span class="diff-add">&lt;label htmlFor="cc"&gt;Card number&lt;/label&gt; &lt;input id="cc" /&gt;</span></pre>
+            <h4>Suggested fix</h4>
+            <p>Add <code>htmlFor</code> on all three labels and pair with matching <code>id</code> on the input.</p>
+            <div class="fr-actions">
+              <button class="btn fr-copy" data-copy-finding="F-042">Copy as PR comment</button>
+            </div>
+          </div>
+        </details>
+      </li>
+
+      <li data-finding="F-044" data-severity="med" data-sev-weight="3" data-dimension="performance" data-conf="high" data-conf-weight="3" data-file="app/data/CartRepo.ts:78">
+        <div class="fr-row">
+          <span class="fid">F-044</span>
+          <span class="sev severity-med">Med</span>
+          <span class="fdim">performance</span>
+          <span class="ffile">CartRepo.ts : 78</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-defer">defer</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>N+1 query: line items load one-at-a-time, 32 queries on a 31-item cart, 218ms p95. Use a single <code>IN (…)</code> query.</p>
+      </li>
+
+      <li data-finding="F-046" data-severity="med" data-sev-weight="3" data-dimension="correctness" data-conf="high" data-conf-weight="3" data-file="app/components/checkout/ExpressCheckout.tsx:34">
+        <div class="fr-row">
+          <span class="fid">F-046</span>
+          <span class="sev severity-med">Med</span>
+          <span class="fdim">correctness</span>
+          <span class="ffile">ExpressCheckout.tsx : 34</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg><code>useRegion()</code> returns <code>undefined</code> on first render; Express buttons flash in and out during hydration.</p>
+      </li>
+
+      <li data-finding="F-047" data-severity="med" data-sev-weight="3" data-dimension="refactor-safety" data-conf="med" data-conf-weight="2" data-file="app/components/checkout/PaymentForm.tsx:312">
+        <div class="fr-row">
+          <span class="fid">F-047</span>
+          <span class="sev severity-med">Med</span>
+          <span class="fdim">refactor-safety</span>
+          <span class="ffile">PaymentForm.tsx : 312</span>
+          <span class="fconf is-med">conf med</span>
+          <span class="fact is-defer">defer</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>State machine implicit in nested ternaries (<code>idle → submitting → success | error</code>); adjacent slice 06-3ds-fallback adds a fourth state, expect a regression unless we model this explicitly.</p>
+      </li>
+
+      <li data-finding="F-052" data-severity="low" data-sev-weight="2" data-dimension="accessibility" data-conf="high" data-conf-weight="3" data-file="app/components/checkout/PaymentForm.tsx:312">
+        <div class="fr-row">
+          <span class="fid">F-052</span>
+          <span class="sev severity-low">Low</span>
+          <span class="fdim">accessibility</span>
+          <span class="ffile">PaymentForm.tsx : 312</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Error state signals failure through colour alone (red). Pair with a leading icon or "Error:" prefix so the cue isn't lost to a deuteranope.</p>
+      </li>
+
+      <li data-finding="F-053" data-severity="low" data-sev-weight="2" data-dimension="refactor-safety" data-conf="high" data-conf-weight="3" data-file="app/components/checkout/PaymentForm.tsx:88">
+        <div class="fr-row">
+          <span class="fid">F-053</span>
+          <span class="sev severity-low">Low</span>
+          <span class="fdim">refactor-safety</span>
+          <span class="ffile">PaymentForm.tsx : 88</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Magic number <code>86400</code>; extract to a named <code>SECONDS_PER_DAY</code> constant in the shared time utilities.</p>
+      </li>
+
+      <li data-finding="F-054" data-severity="low" data-sev-weight="2" data-dimension="security" data-conf="med" data-conf-weight="2" data-file="server/billing/intent.ts:91">
+        <div class="fr-row">
+          <span class="fid">F-054</span>
+          <span class="sev severity-low">Low</span>
+          <span class="fdim">security</span>
+          <span class="ffile">intent.ts : 91</span>
+          <span class="fconf is-med">conf med</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Idempotency key derived from <code>orderId + Date.now()</code>; retries within the same millisecond collide. Use order id alone.</p>
+      </li>
+
+      <li data-finding="F-055" data-severity="low" data-sev-weight="2" data-dimension="refactor-safety" data-conf="high" data-conf-weight="3" data-file="app/components/checkout/PaymentForm.tsx:202">
+        <div class="fr-row">
+          <span class="fid">F-055</span>
+          <span class="sev severity-low">Low</span>
+          <span class="fdim">refactor-safety</span>
+          <span class="ffile">PaymentForm.tsx : 202</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Imports from <code>../../utils/date</code> and <code>../utils/date</code> mixed in the same file; canonicalise one form.</p>
+      </li>
+
+      <li data-finding="F-056" data-severity="low" data-sev-weight="2" data-dimension="performance" data-conf="low" data-conf-weight="1" data-file="app/data/CartRepo.ts:142">
+        <div class="fr-row">
+          <span class="fid">F-056</span>
+          <span class="sev severity-low">Low</span>
+          <span class="fdim">performance</span>
+          <span class="ffile">CartRepo.ts : 142</span>
+          <span class="fconf is-low">conf low</span>
+          <span class="fact is-defer">defer</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Memoising <code>cartSummary</code> would skip ~12ms of recompute per render, but the call site re-renders rarely; flagged for context, not urgency.</p>
+      </li>
+
+      <li data-finding="F-057" data-severity="low" data-sev-weight="2" data-dimension="correctness" data-conf="high" data-conf-weight="3" data-file="server/billing/intent.ts:108">
+        <div class="fr-row">
+          <span class="fid">F-057</span>
+          <span class="sev severity-low">Low</span>
+          <span class="fdim">correctness</span>
+          <span class="ffile">intent.ts : 108</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Currency lookup defaults to <code>'USD'</code> on a missing locale; should default to the merchant's region instead.</p>
+      </li>
+
+      <li data-finding="F-058" data-severity="low" data-sev-weight="2" data-dimension="security" data-conf="med" data-conf-weight="2" data-file="app/components/checkout/PaymentForm.tsx:54">
+        <div class="fr-row">
+          <span class="fid">F-058</span>
+          <span class="sev severity-low">Low</span>
+          <span class="fdim">security</span>
+          <span class="ffile">PaymentForm.tsx : 54</span>
+          <span class="fconf is-med">conf med</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Logging the cart subtotal to the browser console on submit. Strip in production builds — no PII, but unnecessary.</p>
+      </li>
+
+      <li data-finding="F-061" data-severity="nit" data-sev-weight="1" data-dimension="refactor-safety" data-conf="high" data-conf-weight="3" data-file="app/components/checkout/PaymentForm.tsx:204">
+        <div class="fr-row">
+          <span class="fid">F-061</span>
+          <span class="sev severity-nit">Nit</span>
+          <span class="fdim">refactor-safety</span>
+          <span class="ffile">PaymentForm.tsx : 204</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact">reject</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Trailing whitespace, lines 204 / 207 / 219. Linter catches this on save; reject.</p>
+      </li>
+
+      <li data-finding="F-062" data-severity="nit" data-sev-weight="1" data-dimension="refactor-safety" data-conf="high" data-conf-weight="3" data-file="app/components/checkout/ExpressCheckout.tsx:18">
+        <div class="fr-row">
+          <span class="fid">F-062</span>
+          <span class="sev severity-nit">Nit</span>
+          <span class="fdim">refactor-safety</span>
+          <span class="ffile">ExpressCheckout.tsx : 18</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Single-quote vs double-quote inconsistency inside a single component; let Prettier sort it.</p>
+      </li>
+
+      <li data-finding="F-063" data-severity="nit" data-sev-weight="1" data-dimension="accessibility" data-conf="med" data-conf-weight="2" data-file="app/components/checkout/PaymentForm.tsx:266">
+        <div class="fr-row">
+          <span class="fid">F-063</span>
+          <span class="sev severity-nit">Nit</span>
+          <span class="fdim">accessibility</span>
+          <span class="ffile">PaymentForm.tsx : 266</span>
+          <span class="fconf is-med">conf med</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Focus ring on the submit button is the default browser blue; matches accent but technically not in the design tokens.</p>
+      </li>
+
+      <li data-finding="F-064" data-severity="nit" data-sev-weight="1" data-dimension="correctness" data-conf="high" data-conf-weight="3" data-file="app/components/checkout/PaymentForm.tsx:178">
+        <div class="fr-row">
+          <span class="fid">F-064</span>
+          <span class="sev severity-nit">Nit</span>
+          <span class="fdim">correctness</span>
+          <span class="ffile">PaymentForm.tsx : 178</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>JSDoc above <code>handleSubmit</code> references an older parameter name (<code>e</code>); rename to <code>event</code> for consistency with the rest of the file.</p>
+      </li>
+
+      <li data-finding="F-065" data-severity="nit" data-sev-weight="1" data-dimension="refactor-safety" data-conf="high" data-conf-weight="3" data-file="server/billing/intent.ts:120">
+        <div class="fr-row">
+          <span class="fid">F-065</span>
+          <span class="sev severity-nit">Nit</span>
+          <span class="fdim">refactor-safety</span>
+          <span class="ffile">intent.ts : 120</span>
+          <span class="fconf is-high">conf high</span>
+          <span class="fact is-accept">accept</span>
+        </div>
+        <p class="fr-msg" data-finding-msg>Unused import <code>type { Locale }</code>; remove.</p>
+      </li>
+
+      <li class="fr-empty" hidden data-empty-row>No findings match the current filters.</li>
+    </ol>
+
+    <script>
+    (function () {
+      var root = document.currentScript.closest('.fragment-review');
+      if (!root) return;
+
+      var sevBoxes = root.querySelectorAll('[data-severity-filter]');
+      var dimChips = root.querySelectorAll('[data-dim]');
+      var sortSel  = root.querySelector('[data-sort]');
+      var list     = root.querySelector('[data-findings]');
+      var items    = Array.from(root.querySelectorAll('[data-finding]'));
+      var emptyRow = root.querySelector('[data-empty-row]');
+      var counter  = root.querySelector('[data-finding-count]');
+
+      function activeSevs() {
+        var s = new Set();
+        sevBoxes.forEach(function (b) { if (b.checked) s.add(b.value); });
+        return s;
+      }
+      function activeDims() {
+        var s = new Set();
+        dimChips.forEach(function (c) {
+          if (c.getAttribute('aria-pressed') === 'true') s.add(c.dataset.dim);
+        });
+        return s;
+      }
+      function apply() {
+        var sevs = activeSevs();
+        var dims = activeDims();
+        var shown = 0;
+        items.forEach(function (li) {
+          var ok = sevs.has(li.dataset.severity) && dims.has(li.dataset.dimension);
+          li.hidden = !ok;
+          if (ok) shown++;
+          // collapse any expanded detail that's now hidden
+          if (!ok) {
+            var det = li.querySelector('details');
+            if (det) det.open = false;
+          }
+        });
+        if (counter) counter.textContent = shown;
+        if (emptyRow) emptyRow.hidden = shown > 0;
+        sort();
+      }
+      function sort() {
+        var mode = sortSel ? sortSel.value : 'severity';
+        var sortedItems = items.slice().sort(function (a, b) {
+          if (mode === 'severity') {
+            return (+b.dataset.sevWeight) - (+a.dataset.sevWeight)
+                || a.dataset.file.localeCompare(b.dataset.file);
+          }
+          if (mode === 'file') return a.dataset.file.localeCompare(b.dataset.file);
+          if (mode === 'dimension') return a.dataset.dimension.localeCompare(b.dataset.dimension);
+          if (mode === 'confidence') return (+b.dataset.confWeight) - (+a.dataset.confWeight);
+          return 0;
+        });
+        sortedItems.forEach(function (li) { list.appendChild(li); });
+        if (emptyRow) list.appendChild(emptyRow); // keep at end
+      }
+
+      sevBoxes.forEach(function (b) { b.addEventListener('change', apply); });
+      dimChips.forEach(function (c) {
+        c.addEventListener('click', function () {
+          var on = c.getAttribute('aria-pressed') === 'true';
+          c.setAttribute('aria-pressed', String(!on));
+          apply();
+        });
+      });
+      if (sortSel) sortSel.addEventListener('change', sort);
+
+      // Copy-as-PR-comment
+      root.querySelectorAll('[data-copy-finding]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var li = btn.closest('[data-finding]');
+          if (!li) return;
+          var id  = li.dataset.finding;
+          var sev = li.dataset.severity.toUpperCase();
+          var dim = li.dataset.dimension;
+          var file = li.dataset.file;
+          var msg = (li.querySelector('[data-finding-msg]') || {}).textContent || '';
+          var diff = li.querySelector('pre.diff');
+          var diffText = diff ? '\n\n```diff\n' + diff.textContent.trim() + '\n```' : '';
+          var body = '> **' + id + ' · ' + sev + ' · ' + dim + '** — `' + file + '`\n>\n> ' + msg.trim() + diffText;
+          try { navigator.clipboard && navigator.clipboard.writeText(body); } catch (e) {}
+          var actions = btn.parentElement;
+          var flash = actions.querySelector('.copied');
+          if (!flash) {
+            flash = document.createElement('span');
+            flash.className = 'copied';
+            actions.appendChild(flash);
+          }
+          flash.textContent = 'copied ✓';
+          setTimeout(function () { flash.textContent = ''; }, 1400);
+        });
+      });
+
+      apply();
+
+      window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', {
+        detail: { name: 'review', artifact: '07-review', findings: items.length, rev: root.dataset.rev }
+      }));
+    })();
+    </script>
+  </section>
+</div>
+<!-- ═══════════════════ /FRAGMENT 1 ═══════════════════ -->
+<!-- ═══════════════════ FRAGMENT 2 · 01-rca ═══════════════════ -->
+<div class="gw-fragment" id="fragment-rca">
+  <div class="gw-fragment-bar">
+    <span class="gw-tag">01</span>
+    <span class="gw-title">RCA timeline</span>
+    <span class="gw-path">rca/01-rca.html.fragment</span>
+    <button class="gw-raw" data-raw-target="raw-rca" aria-pressed="false">Show source</button>
+  </div>
+  <div class="gw-raw-pane" id="raw-rca" hidden><pre><span class="c">&lt;!-- 01-rca.html.fragment — produced by /rca --&gt;</span>
+<span class="k">&lt;section</span> <span class="a">class</span>=<span class="s">"fragment-rca"</span> <span class="a">data-artifact</span>=<span class="s">"rca"</span><span class="k">&gt;</span>
+  <span class="k">&lt;header&gt;…&lt;/header&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"metric-row"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- 1. Horizontal SVG timeline. Each node is &lt;a href="#evt-N"&gt;
+       wrapping a &lt;circle&gt;; details on the right use :target. --&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"rca-system"</span><span class="k">&gt;</span>
+    <span class="k">&lt;svg</span> <span class="a">class</span>=<span class="s">"rca-tl"</span><span class="k">&gt;</span>
+      <span class="k">&lt;a</span> <span class="a">href</span>=<span class="s">"#evt-1"</span><span class="k">&gt;&lt;circle</span> <span class="a">class</span>=<span class="s">"node node-alert"</span> <span class="k">/&gt;&lt;/a&gt;</span>
+      …
+    <span class="k">&lt;/svg&gt;</span>
+    <span class="k">&lt;aside</span> <span class="a">class</span>=<span class="s">"rca-detail-panel"</span><span class="k">&gt;</span>
+      <span class="k">&lt;article</span> <span class="a">id</span>=<span class="s">"evt-1"</span> <span class="a">class</span>=<span class="s">"rca-detail"</span><span class="k">&gt;</span>…<span class="k">&lt;/article&gt;</span>
+    <span class="k">&lt;/aside&gt;</span>
+  <span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- 2. Causal chain (SVG, 4 boxes + arrows) --&gt;</span>
+  <span class="k">&lt;svg</span> <span class="a">class</span>=<span class="s">"rca-chain"</span><span class="k">&gt;</span>…<span class="k">&lt;/svg&gt;</span>
+
+  <span class="c">&lt;!-- 3. Severity heatmap (HTML grid: rows = systems, cols = 30-min buckets) --&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"rca-heatmap"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- 4. Contributing causes (.callout-warn / .callout-risk) --&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"callout callout-risk"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+<span class="k">&lt;/section&gt;</span></pre></div>
+
+  <style>
+    .fragment-rca .rca-system {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 24px;
+      align-items: start;
+      margin: 16px 0 24px;
+      padding: 22px 26px;
+      background: var(--paper);
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+    }
+    @media (max-width: 880px) {
+      .fragment-rca .rca-system { grid-template-columns: 1fr; }
+    }
+    .fragment-rca svg { display: block; max-width: 100%; height: auto; }
+    .fragment-rca .rca-tl text { font-family: var(--mono); font-size: 11px; fill: var(--ink-3); }
+    .fragment-rca .rca-tl .lbl { font-family: var(--sans); font-size: 12px; fill: var(--ink-2); }
+    .fragment-rca .rca-tl .nodelink { cursor: pointer; outline: none; }
+    .fragment-rca .rca-tl .nodelink:hover .node,
+    .fragment-rca .rca-tl .nodelink:focus .node { stroke-width: 3; }
+    .fragment-rca .rca-tl .node { stroke: var(--ink); stroke-width: 1.5; }
+    .fragment-rca .rca-tl .node-alert      { fill: var(--blocker-bg); stroke: var(--blocker); }
+    .fragment-rca .rca-tl .node-escalation { fill: var(--med-bg);     stroke: var(--med); }
+    .fragment-rca .rca-tl .node-deploy     { fill: var(--accent-soft); stroke: var(--accent); }
+    .fragment-rca .rca-tl .node-mitigation { fill: #ebe1f2;            stroke: #6b4a8a; }
+    .fragment-rca .rca-tl .node-resolution { fill: var(--low-bg);      stroke: var(--low); }
+
+    .fragment-rca .rca-tl-legend {
+      display: flex; gap: 14px; flex-wrap: wrap;
+      font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+      margin-top: 8px;
+    }
+    .fragment-rca .rca-tl-legend .sw {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 50%; vertical-align: -1px;
+      margin-right: 5px; border: 1px solid;
+    }
+    .fragment-rca .rca-tl-legend .sw-alert      { background: var(--blocker-bg);  border-color: var(--blocker); }
+    .fragment-rca .rca-tl-legend .sw-escalation { background: var(--med-bg);      border-color: var(--med); }
+    .fragment-rca .rca-tl-legend .sw-deploy     { background: var(--accent-soft); border-color: var(--accent); }
+    .fragment-rca .rca-tl-legend .sw-mitigation { background: #ebe1f2;            border-color: #6b4a8a; }
+    .fragment-rca .rca-tl-legend .sw-resolution { background: var(--low-bg);      border-color: var(--low); }
+
+    .fragment-rca .rca-detail-panel {
+      position: relative; min-height: 200px;
+      padding: 16px 18px;
+      background: var(--paper-2); border-radius: 6px; border: 1px solid var(--rule);
+    }
+    .fragment-rca .rca-detail { display: none; }
+    .fragment-rca .rca-detail:target { display: block; }
+    .fragment-rca .rca-detail-panel > .rca-detail:first-of-type { display: block; }
+    .fragment-rca .rca-detail-panel:has(> .rca-detail:target) > .rca-detail:first-of-type { display: none; }
+    .fragment-rca .rca-detail-panel:has(> .rca-detail:target) > .rca-detail:target { display: block; }
+
+    .fragment-rca .rca-detail .when {
+      font-family: var(--mono); font-size: 12px; color: var(--ink-3); letter-spacing: 0.04em;
+    }
+    .fragment-rca .rca-detail .kind {
+      font-family: var(--mono); font-size: 10.5px;
+      letter-spacing: 0.10em; text-transform: uppercase;
+      padding: 1px 6px; border-radius: 8px; margin-left: 6px;
+      background: var(--paper); color: var(--ink-2);
+    }
+    .fragment-rca .rca-detail .kind.k-alert      { background: var(--blocker-bg);  color: var(--blocker); }
+    .fragment-rca .rca-detail .kind.k-escalation { background: var(--med-bg);      color: var(--med); }
+    .fragment-rca .rca-detail .kind.k-deploy     { background: var(--accent-soft); color: var(--accent); }
+    .fragment-rca .rca-detail .kind.k-mitigation { background: #ebe1f2;            color: #6b4a8a; }
+    .fragment-rca .rca-detail .kind.k-resolution { background: var(--low-bg);      color: var(--low); }
+    .fragment-rca .rca-detail h4 {
+      font-family: var(--serif); font-size: 17px; font-weight: 600;
+      margin: 4px 0 6px; letter-spacing: -0.005em;
+    }
+    .fragment-rca .rca-detail p {
+      font-size: 13.5px; color: var(--ink-2); margin: 0 0 6px; line-height: 1.55;
+    }
+    .fragment-rca .rca-detail .who {
+      font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
+    }
+
+    .fragment-rca .rca-chain {
+      background: var(--paper); border: 1px solid var(--rule);
+      border-radius: 8px; padding: 22px 26px; margin: 12px 0 24px;
+    }
+    .fragment-rca .rca-chain svg text { font-family: var(--sans); font-size: 12px; fill: var(--ink); }
+    .fragment-rca .rca-chain svg text.step-num {
+      font-family: var(--mono); font-size: 11px; fill: var(--ink-3); letter-spacing: 0.08em;
+    }
+    .fragment-rca .rca-chain svg .box { fill: var(--paper-2); stroke: var(--ink-2); stroke-width: 1; }
+    .fragment-rca .rca-chain svg .box.is-trigger { fill: var(--accent-soft); stroke: var(--accent); }
+    .fragment-rca .rca-chain svg .box.is-root    { fill: var(--blocker-bg); stroke: var(--blocker); }
+
+    .fragment-rca .rca-heatmap {
+      background: var(--paper); border: 1px solid var(--rule);
+      border-radius: 8px; padding: 22px 26px; margin: 12px 0 24px;
+      overflow-x: auto;
+    }
+    .fragment-rca .rca-hm-grid {
+      display: grid; gap: 3px;
+      font-family: var(--mono); font-size: 11px;
+      grid-template-columns: 150px repeat(8, minmax(48px, 1fr));
+      align-items: center;
+      min-width: 580px;
+    }
+    .fragment-rca .rca-hm-grid .hd {
+      font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase;
+      color: var(--ink-3); text-align: center; padding: 6px 0;
+    }
+    .fragment-rca .rca-hm-grid .hd-row {
+      font-size: 12px; color: var(--ink-2); text-transform: none; letter-spacing: 0;
+      text-align: left; padding-right: 8px;
+    }
+    .fragment-rca .rca-hm-grid .cell {
+      height: 28px; border-radius: 3px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--ink-3);
+    }
+    .fragment-rca .rca-hm-grid .cell.s0 { background: var(--paper-2); }
+    .fragment-rca .rca-hm-grid .cell.s1 { background: var(--med-bg); color: var(--med); }
+    .fragment-rca .rca-hm-grid .cell.s2 { background: var(--high-bg); color: var(--high); font-weight: 600; }
+    .fragment-rca .rca-hm-grid .cell.s3 { background: var(--blocker-bg); color: var(--blocker); font-weight: 700; }
+    .fragment-rca .rca-hm-legend {
+      display: flex; gap: 10px; align-items: center;
+      font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+      margin-top: 12px;
+    }
+    .fragment-rca .rca-hm-legend .step {
+      display: inline-block; width: 18px; height: 14px; border-radius: 2px;
+      vertical-align: -2px; margin-right: 4px;
+    }
+
+    .fragment-rca .rca-causes-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 24px;
+      margin-top: 16px;
+    }
+    @media (max-width: 880px) {
+      .fragment-rca .rca-causes-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+
+  <section class="fragment-rca" data-artifact="rca" data-incident="INC-2026-0512-checkout">
+    <header>
+      <p class="sdlc-crumb">rca / INC-2026-0512-checkout.md</p>
+      <h1 class="sdlc-h1">Checkout outage · May 15, 2026 (14:02 – 17:45)</h1>
+      <p class="sdlc-lede">Confirm-payment failures spiked to 38% in production for nearly an hour. Root cause traced to slice <b>03-payment-element rev 2</b>, which de-memoised the Stripe instance and exhausted the backend WS connection pool under hydration load.</p>
+    </header>
+
+    <div class="metric-row">
+      <div class="metric"><div class="metric-label">Duration</div><div class="metric-value">3h 43m</div><div class="metric-ann">first alert → all clear</div></div>
+      <div class="metric"><div class="metric-label">Time to detect</div><div class="metric-value">6m</div><div class="metric-ann">deploy 13:56 · alert 14:02</div></div>
+      <div class="metric"><div class="metric-label">Time to mitigate</div><div class="metric-value">32m</div><div class="metric-ann">hotfix 14:21 · rollback 15:02</div></div>
+      <div class="metric"><div class="metric-label">User failures</div><div class="metric-value" style="color: var(--blocker);">~12,400</div><div class="metric-ann">38% confirm-rate, 76m window</div></div>
+      <div class="metric"><div class="metric-label">Revenue impact</div><div class="metric-value">~$38k</div><div class="metric-ann">est. abandoned carts</div></div>
+    </div>
+
+    <h2 class="sdlc-h2">Incident timeline</h2>
+    <div class="rca-system" aria-label="Incident timeline with selectable events">
+      <div>
+        <svg class="rca-tl" viewBox="0 0 920 180" role="group" aria-label="Eight events across four hours">
+          <line x1="50" y1="100" x2="890" y2="100" stroke="#cbc4b1" stroke-width="1"/>
+          <g>
+            <line x1="50" y1="96" x2="50" y2="104" stroke="#cbc4b1"/>
+            <line x1="260" y1="96" x2="260" y2="104" stroke="#cbc4b1"/>
+            <line x1="470" y1="96" x2="470" y2="104" stroke="#cbc4b1"/>
+            <line x1="680" y1="96" x2="680" y2="104" stroke="#cbc4b1"/>
+            <line x1="890" y1="96" x2="890" y2="104" stroke="#cbc4b1"/>
+            <text x="50" y="124" text-anchor="middle">14:00</text>
+            <text x="260" y="124" text-anchor="middle">15:00</text>
+            <text x="470" y="124" text-anchor="middle">16:00</text>
+            <text x="680" y="124" text-anchor="middle">17:00</text>
+            <text x="890" y="124" text-anchor="middle">18:00</text>
+          </g>
+          <a href="#evt-1" class="nodelink" aria-label="14:02 alert">
+            <circle class="node node-alert" cx="57" cy="100" r="10"/>
+            <text x="57" y="80" text-anchor="middle" class="lbl">14:02</text>
+            <text x="57" y="148" text-anchor="middle" class="lbl">alert</text>
+          </a>
+          <a href="#evt-2" class="nodelink" aria-label="14:08 on-call paged">
+            <circle class="node node-escalation" cx="78" cy="100" r="9"/>
+            <text x="78" y="60" text-anchor="start" class="lbl">14:08</text>
+          </a>
+          <a href="#evt-3" class="nodelink" aria-label="14:14 deploy correlated">
+            <circle class="node node-escalation" cx="99" cy="100" r="9"/>
+            <text x="99" y="44" text-anchor="start" class="lbl">14:14</text>
+          </a>
+          <a href="#evt-4" class="nodelink" aria-label="14:21 hotfix deploy">
+            <circle class="node node-deploy" cx="124" cy="100" r="10"/>
+            <text x="124" y="148" text-anchor="middle" class="lbl">hotfix deploy</text>
+          </a>
+          <a href="#evt-5" class="nodelink" aria-label="14:34 mitigation observed">
+            <circle class="node node-mitigation" cx="169" cy="100" r="9"/>
+            <text x="169" y="76" text-anchor="middle" class="lbl">14:34</text>
+          </a>
+          <a href="#evt-6" class="nodelink" aria-label="15:02 full rollback">
+            <circle class="node node-mitigation" cx="267" cy="100" r="10"/>
+            <text x="267" y="80" text-anchor="middle" class="lbl">15:02</text>
+            <text x="267" y="148" text-anchor="middle" class="lbl">rollback rev 2</text>
+          </a>
+          <a href="#evt-7" class="nodelink" aria-label="15:18 errors clear">
+            <circle class="node node-resolution" cx="323" cy="100" r="9"/>
+            <text x="323" y="76" text-anchor="middle" class="lbl">15:18</text>
+          </a>
+          <a href="#evt-8" class="nodelink" aria-label="17:45 post-mortem">
+            <circle class="node node-resolution" cx="884" cy="100" r="9"/>
+            <text x="884" y="76" text-anchor="end" class="lbl">17:45</text>
+            <text x="884" y="148" text-anchor="end" class="lbl">post-mortem</text>
+          </a>
+        </svg>
+        <div class="rca-tl-legend" aria-hidden="true">
+          <span><span class="sw sw-alert"></span>alert</span>
+          <span><span class="sw sw-escalation"></span>escalation</span>
+          <span><span class="sw sw-deploy"></span>deploy</span>
+          <span><span class="sw sw-mitigation"></span>mitigation</span>
+          <span><span class="sw sw-resolution"></span>resolution</span>
+          <span style="opacity:0.6; margin-left:auto;">click or hover a node →</span>
+        </div>
+      </div>
+      <aside class="rca-detail-panel" aria-live="polite">
+        <article id="evt-1" class="rca-detail">
+          <div><span class="when">14:02:11</span><span class="kind k-alert">Alert</span></div>
+          <h4>checkout-confirm error rate &gt; 5% (threshold)</h4>
+          <p>Datadog monitor <code>checkout.confirm.error_rate</code> fired. Last 5-minute window: 8.2% (was 0.4% at 13:50). Spike confined to confirm-payment endpoint.</p>
+          <p class="who">source: datadog · routed to: #oncall-billing</p>
+        </article>
+        <article id="evt-2" class="rca-detail">
+          <div><span class="when">14:08:34</span><span class="kind k-escalation">Escalation</span></div>
+          <h4>on-call (jay.r) paged · ack 14:09:02</h4>
+          <p>PagerDuty escalation P2 → P1. Jay acknowledged in 28s; opened the runbook for confirm-payment failures.</p>
+          <p class="who">on-call: jay.r · runbook: rb/billing/confirm-fail</p>
+        </article>
+        <article id="evt-3" class="rca-detail">
+          <div><span class="when">14:14:50</span><span class="kind k-escalation">Escalation</span></div>
+          <h4>Deploy correlated · PR #1842 rev 2 landed 13:56</h4>
+          <p>Jay noticed the spike began six minutes after a production deploy. Pulled in sara.k, the slice author, to triage. The deploy touched <code>PaymentForm.tsx</code>.</p>
+          <p class="who">flagged-by: jay.r · pulled-in: sara.k</p>
+        </article>
+        <article id="evt-4" class="rca-detail">
+          <div><span class="when">14:21:08</span><span class="kind k-deploy">Deploy</span></div>
+          <h4>Hotfix deployed · memoise Stripe instance</h4>
+          <p>Sara pushed <code>fix/memoise-stripe</code> as a 4-line patch wrapping the Stripe instance in <code>useMemo</code>. Build in 4m, canary deploy 5m.</p>
+          <p class="who">deploy: sara.k · build: ci-9821 · diff: <code>+4 / −2</code></p>
+        </article>
+        <article id="evt-5" class="rca-detail">
+          <div><span class="when">14:34:02</span><span class="kind k-mitigation">Mitigation</span></div>
+          <h4>Error rate halved · 18% → 9%</h4>
+          <p>Hotfix took partial effect; confirm error rate dropped but remained well above baseline. Connection pool was still saturated from in-flight sessions.</p>
+          <p class="who">confirmed-by: datadog · oncall: jay.r</p>
+        </article>
+        <article id="evt-6" class="rca-detail">
+          <div><span class="when">15:02:41</span><span class="kind k-mitigation">Mitigation</span></div>
+          <h4>Full rollback of PR #1842</h4>
+          <p>Hotfix wasn't enough — pool exhaustion lingered. Jay called the rollback. Full revert of the merge, redeployed rev 1 in 8m.</p>
+          <p class="who">decision: jay.r · approved: dev.h · build: ci-9824</p>
+        </article>
+        <article id="evt-7" class="rca-detail">
+          <div><span class="when">15:18:55</span><span class="kind k-resolution">Resolution</span></div>
+          <h4>Error rate back to baseline · 0.3%</h4>
+          <p>Below the 1% threshold for 30 minutes. Incident closed at 15:48 after the stability window.</p>
+          <p class="who">monitor: green · status-page: resolved</p>
+        </article>
+        <article id="evt-8" class="rca-detail">
+          <div><span class="when">17:45</span><span class="kind k-resolution">Resolution</span></div>
+          <h4>Post-mortem scheduled (this document)</h4>
+          <p>Dev.h opened <code>rca/INC-2026-0512-checkout.md</code> with the timeline. Causal chain and contributing factors drafted 2026-05-16.</p>
+          <p class="who">scribe: dev.h · attendees: sara.k, jay.r, mira.l, kai.p</p>
+        </article>
+      </aside>
+    </div>
+
+    <h2 class="sdlc-h2">Causal chain</h2>
+    <div class="rca-chain">
+      <svg viewBox="0 0 920 180" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Four-step causal chain from trigger to root cause">
+        <g transform="translate(20, 50)">
+          <text class="step-num" y="-6">1 · TRIGGER</text>
+          <rect class="box is-trigger" width="190" height="92" rx="4"/>
+          <foreignObject x="10" y="10" width="170" height="82">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: ui-sans-serif, system-ui; font-size: 12.5px; color: #1f1b16; line-height: 1.45;">
+              Slice <b>03-payment-element rev 2</b> deployed without a load-test gate.
+            </div>
+          </foreignObject>
+        </g>
+        <g transform="translate(245, 50)">
+          <text class="step-num" y="-6">2 · CHANGE</text>
+          <rect class="box" width="190" height="92" rx="4"/>
+          <foreignObject x="10" y="10" width="170" height="82">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: ui-sans-serif, system-ui; font-size: 12.5px; color: #1f1b16; line-height: 1.45;">
+              <code>PaymentForm.tsx</code> took a path that did <i>not</i> memoise the Stripe instance.
+            </div>
+          </foreignObject>
+        </g>
+        <g transform="translate(470, 50)">
+          <text class="step-num" y="-6">3 · CASCADE</text>
+          <rect class="box" width="190" height="92" rx="4"/>
+          <foreignObject x="10" y="10" width="170" height="82">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: ui-sans-serif, system-ui; font-size: 12.5px; color: #1f1b16; line-height: 1.45;">
+              Each rerender opened a new WebSocket. Backend pool (250) saturated within 6m.
+            </div>
+          </foreignObject>
+        </g>
+        <g transform="translate(695, 50)">
+          <text class="step-num" y="-6">4 · ROOT CAUSE</text>
+          <rect class="box is-root" width="205" height="92" rx="4"/>
+          <foreignObject x="10" y="10" width="185" height="82">
+            <div xmlns="http://www.w3.org/1999/xhtml" style="font-family: ui-sans-serif, system-ui; font-size: 12.5px; color: #1f1b16; line-height: 1.45;">
+              Confirm-intent calls timed out at 8s; client retries multiplied load until the pool was permanently full.
+            </div>
+          </foreignObject>
+        </g>
+        <g stroke="#4a443c" stroke-width="1.3" fill="none">
+          <path d="M210 96 L240 96"/>
+          <path d="M435 96 L465 96"/>
+          <path d="M660 96 L690 96"/>
+        </g>
+        <g fill="#4a443c">
+          <polygon points="240,96 232,92 232,100"/>
+          <polygon points="465,96 457,92 457,100"/>
+          <polygon points="690,96 682,92 682,100"/>
+        </g>
+      </svg>
+    </div>
+
+    <h2 class="sdlc-h2">Severity by system × time</h2>
+    <div class="rca-heatmap">
+      <div class="rca-hm-grid" role="grid" aria-label="Severity by system across thirty-minute buckets">
+        <span class="hd hd-row"></span>
+        <span class="hd">14:00</span>
+        <span class="hd">14:30</span>
+        <span class="hd">15:00</span>
+        <span class="hd">15:30</span>
+        <span class="hd">16:00</span>
+        <span class="hd">16:30</span>
+        <span class="hd">17:00</span>
+        <span class="hd">17:30</span>
+
+        <span class="hd-row">checkout-api</span>
+        <span class="cell s3" aria-label="severity 3">3</span>
+        <span class="cell s3">3</span>
+        <span class="cell s2">2</span>
+        <span class="cell s1">1</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+
+        <span class="hd-row">billing-service</span>
+        <span class="cell s2">2</span>
+        <span class="cell s3">3</span>
+        <span class="cell s2">2</span>
+        <span class="cell s1">1</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+
+        <span class="hd-row">frontend-cdn</span>
+        <span class="cell s1">1</span>
+        <span class="cell s1">1</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+
+        <span class="hd-row">postgres-primary</span>
+        <span class="cell s0">·</span>
+        <span class="cell s2">2</span>
+        <span class="cell s2">2</span>
+        <span class="cell s1">1</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+
+        <span class="hd-row">stripe-webhooks</span>
+        <span class="cell s1">1</span>
+        <span class="cell s2">2</span>
+        <span class="cell s1">1</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+        <span class="cell s0">·</span>
+      </div>
+      <div class="rca-hm-legend">
+        <span><span class="step" style="background: var(--paper-2);"></span>0 · nominal</span>
+        <span><span class="step" style="background: var(--med-bg);"></span>1 · degraded</span>
+        <span><span class="step" style="background: var(--high-bg);"></span>2 · impaired</span>
+        <span><span class="step" style="background: var(--blocker-bg);"></span>3 · failing</span>
+      </div>
+    </div>
+
+    <h2 class="sdlc-h2">Contributing causes</h2>
+    <div class="rca-causes-grid">
+      <div class="callout callout-risk">
+        <div class="callout-hd">Process · Load-test gate not enforced</div>
+        Slices touching <code>PaymentForm.tsx</code> should require a load-test pass before merge. The rule existed in the CI config but was opted-out for "trivial UI changes"; rev 2 was misclassified.
+      </div>
+      <div class="callout callout-warn">
+        <div class="callout-hd">Infra · Pool sized for steady state, not hydration storms</div>
+        The backend WebSocket pool is 250. Hydration of a popular page can briefly open more than 250 sockets even under good code; under bad code, recovery is impossible.
+      </div>
+      <div class="callout callout-warn">
+        <div class="callout-hd">Observability · Alert fires after user impact, not before</div>
+        Confirm-latency alert is at 10s, but the client timeout is 8s. The alert can only fire after the client has already given up. Threshold should be 6s.
+      </div>
+    </div>
+
+    <h2 class="sdlc-h2">Mitigations applied during the incident</h2>
+    <div class="rca-causes-grid">
+      <div class="callout callout-info">
+        <div class="callout-hd">14:21 · Hotfix · Memoise Stripe instance</div>
+        4-line patch wrapping the Stripe constructor in <code>useMemo</code>. Reduced error rate from 18% → 9% but did not fully recover.
+      </div>
+      <div class="callout callout-ok">
+        <div class="callout-hd">15:02 · Rollback · Revert PR #1842 entirely</div>
+        Full revert redeployed in 8 minutes. Errors returned to baseline within 16 minutes; rev 1 served traffic until 2026-05-17 when rev 3 (gated) shipped.
+      </div>
+    </div>
+
+    <script>
+    (function () {
+      var root = document.currentScript.closest('.fragment-rca');
+      if (!root) return;
+      var details = root.querySelectorAll('.rca-detail');
+      var links = root.querySelectorAll('.rca-tl .nodelink');
+      function show(id) {
+        details.forEach(function (d) { d.style.display = d.id === id ? 'block' : 'none'; });
+      }
+      links.forEach(function (a) {
+        var href = a.getAttribute('href');
+        var id = href && href.slice(1);
+        if (!id) return;
+        a.addEventListener('mouseenter', function () { show(id); });
+        a.addEventListener('focus', function () { show(id); });
+      });
+      root.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          details.forEach(function (d) { d.style.display = ''; });
+        }
+      });
+      window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', {
+        detail: { name: 'rca', artifact: '01-rca', incident: root.dataset.incident, events: links.length }
+      }));
+    })();
+    </script>
+  </section>
+</div>
+<!-- ═══════════════════ /FRAGMENT 2 ═══════════════════ -->
+<!-- ═══════════════════ FRAGMENT 3 · 04-plan ═══════════════════ -->
+<div class="gw-fragment" id="fragment-plan">
+  <div class="gw-fragment-bar">
+    <span class="gw-tag">04</span>
+    <span class="gw-title">Plan file-change topology</span>
+    <span class="gw-path">plan/04-plan.html.fragment</span>
+    <button class="gw-raw" data-raw-target="raw-plan" aria-pressed="false">Show source</button>
+  </div>
+  <div class="gw-raw-pane" id="raw-plan" hidden><pre><span class="c">&lt;!-- 04-plan.html.fragment — produced by /plan --&gt;</span>
+<span class="k">&lt;section</span> <span class="a">class</span>=<span class="s">"fragment-plan"</span> <span class="a">data-artifact</span>=<span class="s">"plan"</span> <span class="a">data-slice</span>=<span class="s">"04-checkout-multi-region"</span> <span class="a">data-rev</span>=<span class="s">"3"</span><span class="k">&gt;</span>
+  <span class="k">&lt;header&gt;…&lt;/header&gt;</span>
+
+  <span class="c">&lt;!-- 1. Module + file topology (inline SVG) --&gt;</span>
+  <span class="k">&lt;svg</span> <span class="a">class</span>=<span class="s">"pl-topo"</span> <span class="a">viewBox</span>=<span class="s">"0 0 920 460"</span><span class="k">&gt;</span>
+    <span class="k">&lt;g</span> <span class="a">class</span>=<span class="s">"module"</span> <span class="a">data-module</span>=<span class="s">"checkout"</span><span class="k">&gt;</span>
+      <span class="k">&lt;rect</span> <span class="a">class</span>=<span class="s">"mod"</span> … <span class="k">/&gt;</span>
+      <span class="k">&lt;rect</span> <span class="a">class</span>=<span class="s">"file is-modified"</span> … <span class="k">/&gt;</span>
+      <span class="k">&lt;rect</span> <span class="a">class</span>=<span class="s">"file is-new"</span> … <span class="k">/&gt;</span>
+    <span class="k">&lt;/g&gt;</span>
+    …
+  <span class="k">&lt;/svg&gt;</span>
+
+  <span class="c">&lt;!-- 2. Files-to-touch table with per-row collapsible planned changes --&gt;</span>
+  <span class="k">&lt;table</span> <span class="a">class</span>=<span class="s">"files-touched"</span><span class="k">&gt;</span>…<span class="k">&lt;/table&gt;</span>
+
+  <span class="c">&lt;!-- 3. Risks (.callout-risk / .callout-warn / .callout-info) --&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"callout callout-risk"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- 4. Prior revisions — collapsible, fed by history/ folder --&gt;</span>
+  <span class="k">&lt;details</span> <span class="a">class</span>=<span class="s">"pl-revs"</span><span class="k">&gt;&lt;summary&gt;</span>Prior revisions (3)<span class="k">&lt;/summary&gt;&lt;/details&gt;</span>
+<span class="k">&lt;/section&gt;</span></pre></div>
+
+  <style>
+    .fragment-plan .pl-topo-wrap {
+      background: var(--paper); border: 1px solid var(--rule);
+      border-radius: 8px; padding: 22px 26px; margin: 16px 0 24px;
+      position: relative;
+      overflow-x: auto;
+    }
+    .fragment-plan .pl-topo-legend {
+      position: absolute;
+      top: 16px; right: 24px;
+      display: flex; gap: 14px;
+      font-family: var(--mono); font-size: 11px; color: var(--ink-3);
+    }
+    .fragment-plan .pl-topo-legend .sw {
+      display: inline-block; width: 12px; height: 12px;
+      border-radius: 2px; vertical-align: -2px;
+      margin-right: 5px; border: 1px solid;
+    }
+    .fragment-plan .pl-topo-legend .sw.new { background: var(--low-bg); border-color: var(--low); }
+    .fragment-plan .pl-topo-legend .sw.mod { background: var(--accent-soft); border-color: var(--accent); }
+    .fragment-plan .pl-topo-legend .sw.del { background: var(--blocker-bg); border-color: var(--blocker); }
+    .fragment-plan .pl-topo-legend .sw.ext { background: var(--paper); border: 1px dashed var(--rule-2); }
+
+    .fragment-plan svg { display: block; max-width: 100%; height: auto; }
+    .fragment-plan .pl-topo svg, .fragment-plan .pl-topo {
+      min-width: 760px;
+    }
+    .fragment-plan .pl-topo text { font-family: var(--mono); font-size: 11px; fill: var(--ink); }
+    .fragment-plan .pl-topo text.module-label {
+      font-family: var(--mono); font-size: 11px; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase; fill: var(--ink-3);
+    }
+    .fragment-plan .pl-topo text.file-label {
+      font-family: var(--mono); font-size: 10.5px; fill: var(--ink);
+    }
+    .fragment-plan .pl-topo text.file-meta { font-family: var(--mono); font-size: 9.5px; fill: var(--ink-3); }
+    .fragment-plan .pl-topo .mod-bg {
+      fill: var(--paper-2);
+      stroke: var(--rule-2); stroke-width: 1; stroke-dasharray: 4 3;
+      rx: 6;
+    }
+    .fragment-plan .pl-topo .file { stroke-width: 1.25; rx: 3; }
+    .fragment-plan .pl-topo .file.is-new      { fill: var(--low-bg); stroke: var(--low); }
+    .fragment-plan .pl-topo .file.is-modified { fill: var(--accent-soft); stroke: var(--accent); }
+    .fragment-plan .pl-topo .file.is-deleted  { fill: var(--blocker-bg); stroke: var(--blocker); }
+    .fragment-plan .pl-topo .file.is-external { fill: var(--paper); stroke: var(--rule-2); stroke-dasharray: 3 3; }
+    .fragment-plan .pl-topo .edge { stroke: #4a443c; stroke-width: 1; fill: none; }
+    .fragment-plan .pl-topo .edge.is-import { stroke-dasharray: none; }
+    .fragment-plan .pl-topo .edge.is-replaces { stroke-dasharray: 5 3; stroke: var(--blocker); }
+    .fragment-plan .pl-topo .arrow { fill: #4a443c; }
+
+    .fragment-plan .pl-files-wrap {
+      background: var(--paper); border: 1px solid var(--rule);
+      border-radius: 8px; padding: 8px 22px 18px;
+      margin: 12px 0 24px;
+    }
+    .fragment-plan .files-touched details summary {
+      cursor: pointer; list-style: none; color: var(--ink-2);
+    }
+    .fragment-plan .files-touched details summary::-webkit-details-marker { display: none; }
+    .fragment-plan .files-touched details summary::before {
+      content: "›"; color: var(--ink-3); margin-right: 8px; display: inline-block; transition: transform 0.15s;
+    }
+    .fragment-plan .files-touched details[open] summary::before { transform: rotate(90deg); }
+    .fragment-plan .files-touched details > .planned-change {
+      margin-top: 10px; padding: 10px 14px;
+      background: var(--paper-2); border-radius: 6px;
+      font-size: 14px; color: var(--ink-2); line-height: 1.55;
+    }
+    .fragment-plan .files-touched details > .planned-change pre.diff {
+      background: var(--paper); margin: 8px 0 0;
+    }
+    .fragment-plan .files-touched details > .planned-change h5 {
+      font-family: var(--sans); font-size: 11px; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3);
+      margin: 10px 0 4px;
+    }
+    .fragment-plan .files-touched details > .planned-change h5:first-child { margin-top: 0; }
+
+    .fragment-plan .pl-revs {
+      margin-top: 32px;
+      padding: 18px 22px;
+      background: var(--paper-2);
+      border-radius: 6px;
+    }
+    .fragment-plan .pl-revs > summary {
+      cursor: pointer; font-size: 14px; color: var(--ink-2);
+      list-style: none;
+    }
+    .fragment-plan .pl-revs > summary::-webkit-details-marker { display: none; }
+    .fragment-plan .pl-revs > summary::before {
+      content: "›"; margin-right: 8px; color: var(--ink-3);
+      display: inline-block; transition: transform 0.15s;
+    }
+    .fragment-plan .pl-revs[open] > summary::before { transform: rotate(90deg); }
+    .fragment-plan .pl-revs ul { list-style: none; padding: 0; margin: 14px 0 0; }
+    .fragment-plan .pl-revs li {
+      padding: 10px 0; border-top: 1px solid var(--rule); font-size: 14px;
+      display: grid; grid-template-columns: 90px 100px 1fr; gap: 14px;
+    }
+    .fragment-plan .pl-revs li:first-child { border-top: 0; }
+    .fragment-plan .pl-revs .rev-id {
+      font-family: var(--mono); font-weight: 600; color: var(--ink);
+    }
+    .fragment-plan .pl-revs .rev-id.is-current { color: var(--accent); }
+    .fragment-plan .pl-revs .rev-when { font-family: var(--mono); color: var(--ink-3); }
+
+    @media (max-width: 720px) {
+      .fragment-plan .pl-topo-legend {
+        position: static;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+      }
+      .fragment-plan .pl-revs li {
+        grid-template-columns: 1fr;
+        gap: 2px;
+      }
+    }
+  </style>
+
+  <section class="fragment-plan" data-artifact="plan" data-slice="04-checkout-multi-region" data-rev="3">
+    <header>
+      <p class="sdlc-crumb">plan / slices / 04-checkout-multi-region.md</p>
+      <h1 class="sdlc-h1">Slice 04 · multi-region checkout</h1>
+      <p class="sdlc-lede">Pull the checkout flow into a region-aware layer so EU and US-east see different payment-method lists, different tax surcharges, and different currency formatting. Fourteen files across six modules; rev 3.</p>
+    </header>
+
+    <h2 class="sdlc-h2">File-change topology</h2>
+    <div class="pl-topo-wrap">
+      <div class="pl-topo-legend" aria-hidden="true">
+        <span><span class="sw new"></span>new</span>
+        <span><span class="sw mod"></span>modified</span>
+        <span><span class="sw del"></span>deleted</span>
+        <span><span class="sw ext"></span>external</span>
+      </div>
+      <svg class="pl-topo" viewBox="0 0 920 460" role="img" aria-label="File-change topology across six modules">
+
+        <!-- Module 1: app/components/checkout -->
+        <g>
+          <rect class="mod-bg" x="20" y="40" width="280" height="170"/>
+          <text class="module-label" x="34" y="58">app/components/checkout</text>
+          <rect class="file is-modified" x="34" y="74" width="252" height="36"/>
+          <text class="file-label" x="44" y="92">PaymentForm.tsx</text>
+          <text class="file-meta" x="44" y="104">modified · +118 / −96</text>
+          <rect class="file is-new" x="34" y="120" width="252" height="36"/>
+          <text class="file-label" x="44" y="138">RegionGate.tsx</text>
+          <text class="file-meta" x="44" y="150">new · +96</text>
+          <rect class="file is-modified" x="34" y="166" width="252" height="36"/>
+          <text class="file-label" x="44" y="184">CurrencyDisplay.tsx</text>
+          <text class="file-meta" x="44" y="196">modified · +24 / −12</text>
+        </g>
+
+        <!-- Module 2: app/hooks -->
+        <g>
+          <rect class="mod-bg" x="320" y="40" width="270" height="120"/>
+          <text class="module-label" x="334" y="58">app/hooks</text>
+          <rect class="file is-new" x="334" y="74" width="242" height="36"/>
+          <text class="file-label" x="344" y="92">useRegion.ts</text>
+          <text class="file-meta" x="344" y="104">new · +64</text>
+          <rect class="file is-modified" x="334" y="120" width="242" height="36"/>
+          <text class="file-label" x="344" y="138">useCart.ts</text>
+          <text class="file-meta" x="344" y="150">modified · +18 / −4</text>
+        </g>
+
+        <!-- Module 3: app/data -->
+        <g>
+          <rect class="mod-bg" x="610" y="40" width="290" height="170"/>
+          <text class="module-label" x="624" y="58">app/data</text>
+          <rect class="file is-modified" x="624" y="74" width="262" height="36"/>
+          <text class="file-label" x="634" y="92">CartRepo.ts</text>
+          <text class="file-meta" x="634" y="104">modified · +42 / −18</text>
+          <rect class="file is-new" x="624" y="120" width="262" height="36"/>
+          <text class="file-label" x="634" y="138">RegionRepo.ts</text>
+          <text class="file-meta" x="634" y="150">new · +88</text>
+          <rect class="file is-deleted" x="624" y="166" width="262" height="36"/>
+          <text class="file-label" x="634" y="184" text-decoration="line-through">LegacyCurrency.ts</text>
+          <text class="file-meta" x="634" y="196">deleted · −146</text>
+        </g>
+
+        <!-- Module 4: server/billing -->
+        <g>
+          <rect class="mod-bg" x="20" y="240" width="280" height="120"/>
+          <text class="module-label" x="34" y="258">server/billing</text>
+          <rect class="file is-modified" x="34" y="274" width="252" height="36"/>
+          <text class="file-label" x="44" y="292">intent.ts</text>
+          <text class="file-meta" x="44" y="304">modified · +56 / −12</text>
+          <rect class="file is-new" x="34" y="320" width="252" height="36"/>
+          <text class="file-label" x="44" y="338">regionPolicy.ts</text>
+          <text class="file-meta" x="44" y="350">new · +72</text>
+        </g>
+
+        <!-- Module 5: shared/types -->
+        <g>
+          <rect class="mod-bg" x="320" y="240" width="270" height="120"/>
+          <text class="module-label" x="334" y="258">shared/types</text>
+          <rect class="file is-modified" x="334" y="274" width="242" height="36"/>
+          <text class="file-label" x="344" y="292">checkout.d.ts</text>
+          <text class="file-meta" x="344" y="304">modified · +12 / −0</text>
+          <rect class="file is-new" x="334" y="320" width="242" height="36"/>
+          <text class="file-label" x="344" y="338">region.d.ts</text>
+          <text class="file-meta" x="344" y="350">new · +28</text>
+        </g>
+
+        <!-- Module 6: tests -->
+        <g>
+          <rect class="mod-bg" x="610" y="240" width="290" height="170"/>
+          <text class="module-label" x="624" y="258">tests/checkout</text>
+          <rect class="file is-new" x="624" y="274" width="262" height="36"/>
+          <text class="file-label" x="634" y="292">payment-form.region.test.tsx</text>
+          <text class="file-meta" x="634" y="304">new · +124</text>
+          <rect class="file is-new" x="624" y="320" width="262" height="36"/>
+          <text class="file-label" x="634" y="338">region.gate.test.tsx</text>
+          <text class="file-meta" x="634" y="350">new · +86</text>
+          <rect class="file is-modified" x="624" y="366" width="262" height="36"/>
+          <text class="file-label" x="634" y="384">payment-form.test.tsx</text>
+          <text class="file-meta" x="634" y="396">modified · +24 / −8</text>
+        </g>
+
+        <!-- Edges (imports) -->
+        <g>
+          <!-- PaymentForm.tsx → useRegion.ts -->
+          <path class="edge is-import" d="M286 92 L334 92"/>
+          <polygon class="arrow" points="334,92 326,88 326,96"/>
+          <!-- RegionGate.tsx → useRegion.ts -->
+          <path class="edge is-import" d="M286 138 Q310 138 310 110 L334 92" stroke-dasharray="0"/>
+          <polygon class="arrow" points="334,92 326,88 326,96"/>
+          <!-- PaymentForm.tsx → CartRepo.ts -->
+          <path class="edge is-import" d="M286 92 L624 92"/>
+          <polygon class="arrow" points="624,92 616,88 616,96"/>
+          <!-- useRegion.ts → RegionRepo.ts -->
+          <path class="edge is-import" d="M576 92 L624 138"/>
+          <polygon class="arrow" points="624,138 614,134 618,144"/>
+          <!-- intent.ts → CartRepo.ts (across modules) -->
+          <path class="edge is-import" d="M286 292 Q450 292 450 200 L624 110"/>
+          <polygon class="arrow" points="624,110 614,106 618,116"/>
+          <!-- intent.ts → regionPolicy.ts (same module) -->
+          <path class="edge is-import" d="M160 310 Q160 330 160 320"/>
+          <!-- regionPolicy.ts → region.d.ts -->
+          <path class="edge is-import" d="M286 338 L334 338"/>
+          <polygon class="arrow" points="334,338 326,334 326,342"/>
+          <!-- region.d.ts → useRegion.ts (type) -->
+          <path class="edge is-import" d="M450 320 L450 156 L576 110" stroke-dasharray="2 2"/>
+          <!-- tests → PaymentForm.tsx -->
+          <path class="edge is-import" d="M624 384 Q420 384 420 200 L286 96" stroke-dasharray="2 2"/>
+          <!-- replaces: RegionRepo.ts ← LegacyCurrency.ts -->
+          <path class="edge is-replaces" d="M755 166 L755 138"/>
+          <text x="762" y="156" class="file-meta" fill="var(--blocker)">replaces</text>
+        </g>
+      </svg>
+    </div>
+
+    <h2 class="sdlc-h2">Files to touch</h2>
+    <div class="pl-files-wrap">
+      <table class="files-touched">
+        <thead>
+          <tr><th style="width: 40%;">Path</th><th class="num">LOC</th><th class="num">Δ</th><th>Role</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="path">
+              <details>
+                <summary>app/components/checkout/PaymentForm.tsx</summary>
+                <div class="planned-change">
+                  <h5>Intent</h5>
+                  Wire <code>useRegion()</code> into the submit handler. Use the result to gate the payment-method list passed to the Stripe Payment Element and to format the currency shown in the summary footer.
+                  <h5>Diff sketch</h5>
+                  <pre class="diff"><span class="diff-ctx">import { useStripe } from '@stripe/react-stripe-js';</span>
+<span class="diff-add">import { useRegion } from '../../hooks/useRegion';</span>
+<span class="diff-add">import { CurrencyDisplay } from './CurrencyDisplay';</span>
+<span class="diff-ctx">export function PaymentForm({ cart }) {</span>
+<span class="diff-add">  const region = useRegion();</span>
+<span class="diff-rem">  const methods = ['card', 'apple_pay'];</span>
+<span class="diff-add">  const methods = region.paymentMethods;</span></pre>
+                </div>
+              </details>
+            </td>
+            <td class="num">412</td>
+            <td class="num">+118 / −96</td>
+            <td><span class="role is-modified">modified</span></td>
+          </tr>
+          <tr>
+            <td class="path">
+              <details>
+                <summary>app/components/checkout/RegionGate.tsx</summary>
+                <div class="planned-change">
+                  <h5>Intent</h5>
+                  New wrapper component. Reads the region cookie (or the geo-IP fallback) and renders <code>children</code> with a <code>RegionContext</code>. Server-side rendered for fast first paint.
+                </div>
+              </details>
+            </td>
+            <td class="num">—</td>
+            <td class="num">+96</td>
+            <td><span class="role is-new">new</span></td>
+          </tr>
+          <tr>
+            <td class="path">
+              <details>
+                <summary>app/hooks/useRegion.ts</summary>
+                <div class="planned-change">
+                  <h5>Intent</h5>
+                  Consumer hook reading from <code>RegionContext</code>. Throws in development if used outside the gate; returns a typed <code>Region</code> object with <code>code</code>, <code>currency</code>, <code>paymentMethods</code>, and <code>taxSurcharge</code>.
+                </div>
+              </details>
+            </td>
+            <td class="num">—</td>
+            <td class="num">+64</td>
+            <td><span class="role is-new">new</span></td>
+          </tr>
+          <tr>
+            <td class="path">
+              <details>
+                <summary>app/data/RegionRepo.ts</summary>
+                <div class="planned-change">
+                  <h5>Intent</h5>
+                  Region lookup: takes a 2-letter country code, returns the Region object. Source-of-truth is a static YAML in <code>config/regions/</code>, hot-reloaded in dev.
+                </div>
+              </details>
+            </td>
+            <td class="num">—</td>
+            <td class="num">+88</td>
+            <td><span class="role is-new">new</span></td>
+          </tr>
+          <tr>
+            <td class="path">
+              <details>
+                <summary>app/data/LegacyCurrency.ts</summary>
+                <div class="planned-change">
+                  <h5>Intent</h5>
+                  Removed. Old per-call currency-formatting helper; superseded by <code>CurrencyDisplay.tsx</code> + <code>RegionRepo</code>'s typed currency lookup.
+                </div>
+              </details>
+            </td>
+            <td class="num">146</td>
+            <td class="num">−146</td>
+            <td><span class="role is-deleted">deleted</span></td>
+          </tr>
+          <tr>
+            <td class="path">server/billing/intent.ts</td>
+            <td class="num">76</td>
+            <td class="num">+56 / −12</td>
+            <td><span class="role is-modified">modified</span></td>
+          </tr>
+          <tr>
+            <td class="path">server/billing/regionPolicy.ts</td>
+            <td class="num">—</td>
+            <td class="num">+72</td>
+            <td><span class="role is-new">new</span></td>
+          </tr>
+          <tr>
+            <td class="path">app/data/CartRepo.ts</td>
+            <td class="num">218</td>
+            <td class="num">+42 / −18</td>
+            <td><span class="role is-modified">modified</span></td>
+          </tr>
+          <tr>
+            <td class="path">app/components/checkout/CurrencyDisplay.tsx</td>
+            <td class="num">68</td>
+            <td class="num">+24 / −12</td>
+            <td><span class="role is-modified">modified</span></td>
+          </tr>
+          <tr>
+            <td class="path">app/hooks/useCart.ts</td>
+            <td class="num">144</td>
+            <td class="num">+18 / −4</td>
+            <td><span class="role is-modified">modified</span></td>
+          </tr>
+          <tr>
+            <td class="path">shared/types/checkout.d.ts</td>
+            <td class="num">86</td>
+            <td class="num">+12 / −0</td>
+            <td><span class="role is-modified">modified</span></td>
+          </tr>
+          <tr>
+            <td class="path">shared/types/region.d.ts</td>
+            <td class="num">—</td>
+            <td class="num">+28</td>
+            <td><span class="role is-new">new</span></td>
+          </tr>
+          <tr>
+            <td class="path">tests/checkout/payment-form.region.test.tsx</td>
+            <td class="num">—</td>
+            <td class="num">+124</td>
+            <td><span class="role is-new">new</span></td>
+          </tr>
+          <tr>
+            <td class="path">tests/checkout/region.gate.test.tsx</td>
+            <td class="num">—</td>
+            <td class="num">+86</td>
+            <td><span class="role is-new">new</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="sdlc-h2">Risks</h2>
+    <div class="callout callout-risk">
+      <div class="callout-hd">High · Region detection is silently wrong</div>
+      <code>useRegion()</code> reads from a cookie set by the CDN at the edge. The cookie lags geo-IP updates by ~5min, and travelling users carry it across borders. A user in France can briefly see USD pricing on first session. Mitigation: surface a region badge in the checkout summary so the mismatch is visible to the user.
+    </div>
+    <div class="callout callout-warn">
+      <div class="callout-hd">Medium · Tax surcharge calc moves server-side</div>
+      The old client-side <code>LegacyCurrency.ts</code> did naive surcharge math. <code>regionPolicy.ts</code> moves this to the server, which means the cart summary may briefly show a stale total on first render. Mitigation: optimistic placeholder + reconcile in the <code>useCart</code> effect.
+    </div>
+    <div class="callout callout-info">
+      <div class="callout-hd">Low · Bundle size +3.2 KB gz</div>
+      The new region YAML + lookup adds ~3 KB gz to the client bundle. Within budget; flagged so the perf dashboard expects it.
+    </div>
+
+    <details class="pl-revs">
+      <summary>Prior revisions (3) — from history/</summary>
+      <ul>
+        <li><span class="rev-id">Rev 1</span><span class="rev-when">2026-05-10</span><span>Initial. Region in a JS object literal; payments hardcoded per region; rejected as too rigid.</span></li>
+        <li><span class="rev-id">Rev 2</span><span class="rev-when">2026-05-12</span><span>Pulled into a hook; YAML moved to <code>config/regions/</code>; type signature still loose.</span></li>
+        <li><span class="rev-id is-current">Rev 3 (current)</span><span class="rev-when">2026-05-15</span><span>Strict typing via <code>region.d.ts</code>; gate component added so SSR can resolve region before paint; review-feedback addressed.</span></li>
+      </ul>
+    </details>
+
+    <script>
+    (function () {
+      var root = document.currentScript.closest('.fragment-plan');
+      if (!root) return;
+      var fileCount = root.querySelectorAll('.files-touched tbody tr').length;
+      var modules = new Set();
+      root.querySelectorAll('.files-touched .path').forEach(function (td) {
+        var p = td.textContent.trim();
+        // crude module = first 2 segments
+        var parts = p.split('/');
+        if (parts.length >= 2) modules.add(parts.slice(0, 2).join('/'));
+      });
+      window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', {
+        detail: {
+          name: 'plan', artifact: '04-plan',
+          slice: root.dataset.slice, rev: root.dataset.rev,
+          files: fileCount, modules: modules.size
+        }
+      }));
+    })();
+    </script>
+  </section>
+</div>
+<!-- ═══════════════════ /FRAGMENT 3 ═══════════════════ -->
+<!-- ═══════════════════ FRAGMENT 4 · 02b-design ═══════════════════ -->
+<div class="gw-fragment" id="fragment-design">
+  <div class="gw-fragment-bar">
+    <span class="gw-tag">02b</span>
+    <span class="gw-title">Design swatch matrix</span>
+    <span class="gw-path">design/02b-design.html.fragment</span>
+    <button class="gw-raw" data-raw-target="raw-design" aria-pressed="false">Show source</button>
+  </div>
+  <div class="gw-raw-pane" id="raw-design" hidden><pre><span class="c">&lt;!-- 02b-design.html.fragment — produced by /design --&gt;</span>
+<span class="k">&lt;section</span> <span class="a">class</span>=<span class="s">"fragment-design"</span> <span class="a">data-artifact</span>=<span class="s">"design"</span> <span class="a">data-component</span>=<span class="s">"checkout-button"</span><span class="k">&gt;</span>
+  <span class="k">&lt;header&gt;…&lt;/header&gt;</span>
+
+  <span class="c">&lt;!-- 1. 4 (size) × 3 (state) × 2 (theme) = 24 swatches.
+       Two themed blocks; each block has a state × size grid.
+       Buttons inline-rendered with .ck-btn modifiers; visual states
+       forced by class (.is-default / .is-hover / .is-pressed). --&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"dz-matrix dz-theme-light"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"dz-matrix dz-theme-dark"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- 2. Token table — each row has a swatch preview + copy-as-CSS button --&gt;</span>
+  <span class="k">&lt;table</span> <span class="a">class</span>=<span class="s">"dz-tokens"</span><span class="k">&gt;</span>…<span class="k">&lt;/table&gt;</span>
+
+  <span class="c">&lt;!-- 3. Specs panel — annotated reference render with SVG callout lines --&gt;</span>
+  <span class="k">&lt;svg</span> <span class="a">class</span>=<span class="s">"dz-specs"</span><span class="k">&gt;</span>…<span class="k">&lt;/svg&gt;</span>
+<span class="k">&lt;/section&gt;</span></pre></div>
+
+  <style>
+    .fragment-design {
+      /* Component tokens — the subject of this artifact */
+      --ck-bg:           #2a6f8a;
+      --ck-bg-hover:     #245d75;
+      --ck-bg-pressed:   #1e4b5d;
+      --ck-fg:           #fbfaf6;
+      --ck-fg-disabled:  #c5d3da;
+      --ck-border:       transparent;
+      --ck-ring:         rgba(42, 111, 138, 0.32);
+      --ck-radius-sm:    4px;
+      --ck-radius-md:    6px;
+      --ck-radius-lg:    8px;
+      --ck-radius-xl:    10px;
+      --ck-padx-sm:      10px;  --ck-pady-sm: 5px;  --ck-font-sm: 12px;
+      --ck-padx-md:      14px;  --ck-pady-md: 8px;  --ck-font-md: 14px;
+      --ck-padx-lg:      18px;  --ck-pady-lg: 11px; --ck-font-lg: 15px;
+      --ck-padx-xl:      22px;  --ck-pady-xl: 14px; --ck-font-xl: 17px;
+      --ck-gap:          8px;
+      --ck-ease:         cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    .fragment-design .dz-matrix {
+      background: var(--paper); border: 1px solid var(--rule);
+      border-radius: 8px; padding: 22px 26px;
+      margin: 12px 0 16px;
+      overflow-x: auto;
+    }
+    .fragment-design .dz-matrix.dz-theme-dark {
+      background: #1f1b16; border-color: #1f1b16;
+    }
+    .fragment-design .dz-matrix.dz-theme-dark .dz-mat-label,
+    .fragment-design .dz-matrix.dz-theme-dark .dz-mat-col-label,
+    .fragment-design .dz-matrix.dz-theme-dark .dz-mat-row-label {
+      color: #c5c0b4;
+    }
+    .fragment-design .dz-matrix.dz-theme-dark .dz-mat-cell {
+      border-color: #3a342c;
+    }
+    .fragment-design .dz-mat-label {
+      font-family: var(--mono); font-size: 11px;
+      letter-spacing: 0.10em; text-transform: uppercase;
+      color: var(--ink-3); margin-bottom: 14px;
+    }
+    .fragment-design .dz-mat-label b { color: var(--ink); font-weight: 600; }
+    .fragment-design .dz-matrix.dz-theme-dark .dz-mat-label b { color: var(--paper-2); }
+    .fragment-design .dz-mat-grid {
+      display: grid;
+      grid-template-columns: 90px repeat(4, 1fr);
+      gap: 4px;
+      min-width: 580px;
+    }
+    .fragment-design .dz-mat-col-label, .fragment-design .dz-mat-row-label {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--ink-3); letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 8px 4px;
+    }
+    .fragment-design .dz-mat-col-label { text-align: center; }
+    .fragment-design .dz-mat-row-label { text-align: right; padding-right: 14px; }
+    .fragment-design .dz-mat-cell {
+      border: 1px dashed var(--rule);
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      min-height: 70px;
+      padding: 12px 8px;
+    }
+    /* Dark-theme adjustments for the button */
+    .fragment-design .dz-matrix.dz-theme-dark {
+      --ck-bg:         #4a8fa8;
+      --ck-bg-hover:   #5da3bc;
+      --ck-bg-pressed: #3c7e98;
+      --ck-fg:         #0e1014;
+      --ck-ring:       rgba(74, 143, 168, 0.4);
+    }
+
+    /* The checkout button itself */
+    .fragment-design .ck-btn {
+      display: inline-flex; align-items: center; gap: var(--ck-gap);
+      background: var(--ck-bg);
+      color: var(--ck-fg);
+      border: 1px solid var(--ck-border);
+      font-family: var(--sans);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 120ms var(--ck-ease), transform 120ms var(--ck-ease), box-shadow 120ms var(--ck-ease);
+      user-select: none;
+      letter-spacing: -0.005em;
+    }
+    .fragment-design .ck-btn.ck-sm {
+      padding: var(--ck-pady-sm) var(--ck-padx-sm);
+      border-radius: var(--ck-radius-sm);
+      font-size: var(--ck-font-sm);
+    }
+    .fragment-design .ck-btn.ck-md {
+      padding: var(--ck-pady-md) var(--ck-padx-md);
+      border-radius: var(--ck-radius-md);
+      font-size: var(--ck-font-md);
+    }
+    .fragment-design .ck-btn.ck-lg {
+      padding: var(--ck-pady-lg) var(--ck-padx-lg);
+      border-radius: var(--ck-radius-lg);
+      font-size: var(--ck-font-lg);
+    }
+    .fragment-design .ck-btn.ck-xl {
+      padding: var(--ck-pady-xl) var(--ck-padx-xl);
+      border-radius: var(--ck-radius-xl);
+      font-size: var(--ck-font-xl);
+    }
+    .fragment-design .ck-btn.is-hover {
+      background: var(--ck-bg-hover);
+      box-shadow: 0 0 0 4px var(--ck-ring);
+    }
+    .fragment-design .ck-btn.is-pressed {
+      background: var(--ck-bg-pressed);
+      transform: translateY(1px);
+      box-shadow: 0 0 0 4px var(--ck-ring), inset 0 1px 2px rgba(0,0,0,0.15);
+    }
+    .fragment-design .ck-btn .ck-icon {
+      display: inline-block;
+      width: 0.9em; height: 0.9em;
+    }
+
+    /* Token table */
+    .fragment-design .dz-tokens-wrap {
+      background: var(--paper); border: 1px solid var(--rule);
+      border-radius: 8px; padding: 8px 22px 22px;
+      margin: 14px 0 24px;
+      overflow-x: auto;
+    }
+    .fragment-design .dz-tokens {
+      width: 100%; border-collapse: collapse; font-size: 13.5px;
+      min-width: 640px;
+    }
+    .fragment-design .dz-tokens th, .fragment-design .dz-tokens td {
+      padding: 9px 12px; text-align: left;
+      border-top: 1px solid var(--rule);
+      vertical-align: middle;
+    }
+    .fragment-design .dz-tokens thead th {
+      border-top: 0; border-bottom: 1px solid var(--rule-2);
+      font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--ink-3); font-weight: 600;
+    }
+    .fragment-design .dz-tokens .tk-name { font-family: var(--mono); font-size: 12.5px; color: var(--accent); }
+    .fragment-design .dz-tokens .tk-value { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+    .fragment-design .dz-tokens .tk-cat {
+      font-family: var(--mono); font-size: 11px;
+      color: var(--ink-2); background: var(--paper-2);
+      padding: 1px 7px; border-radius: 8px;
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .fragment-design .dz-tokens .tk-swatch {
+      display: inline-block; width: 20px; height: 20px;
+      border-radius: 3px;
+      border: 1px solid var(--rule-2);
+      vertical-align: -5px; margin-right: 6px;
+    }
+    .fragment-design .dz-tokens .tk-bar {
+      display: inline-block; height: 8px;
+      background: var(--ink-3);
+      border-radius: 2px; vertical-align: 2px; margin-right: 6px;
+    }
+    .fragment-design .dz-tokens .tk-curve {
+      display: inline-block; width: 36px; height: 18px; vertical-align: -5px;
+      margin-right: 6px;
+    }
+    .fragment-design .dz-tokens .tk-num-preview {
+      font-family: var(--serif); display: inline-block;
+      color: var(--ink); margin-right: 6px;
+    }
+    .fragment-design .dz-tokens .tk-copy {
+      font-family: var(--mono); font-size: 11px;
+      background: var(--paper); color: var(--ink-2);
+      border: 1px solid var(--rule-2); padding: 3px 9px;
+      border-radius: 10px; cursor: pointer;
+    }
+    .fragment-design .dz-tokens .tk-copy:hover { border-color: var(--accent); color: var(--accent); }
+    .fragment-design .dz-tokens .tk-copy.is-copied {
+      background: var(--low-bg); color: var(--low); border-color: var(--low);
+    }
+
+    /* Specs panel */
+    .fragment-design .dz-specs-wrap {
+      background: var(--paper); border: 1px solid var(--rule);
+      border-radius: 8px; padding: 22px 26px;
+      margin: 14px 0 24px;
+    }
+    .fragment-design .dz-specs {
+      display: block; max-width: 100%; height: auto;
+    }
+    .fragment-design .dz-specs text {
+      font-family: var(--mono); font-size: 11px; fill: var(--ink-2);
+    }
+    .fragment-design .dz-specs text.spec-num {
+      font-family: var(--mono); font-weight: 600; fill: var(--accent);
+    }
+    .fragment-design .dz-specs text.spec-label {
+      font-family: var(--sans); font-size: 12px; fill: var(--ink); font-weight: 500;
+    }
+    .fragment-design .dz-specs .spec-line { stroke: var(--accent); stroke-width: 1; fill: none; }
+    .fragment-design .dz-specs .spec-line.is-dim { stroke: var(--ink-3); stroke-width: 0.75; stroke-dasharray: 3 2; }
+    .fragment-design .dz-specs .spec-tick { stroke: var(--accent); stroke-width: 1; }
+    .fragment-design .dz-specs .spec-arrow { fill: var(--accent); }
+  </style>
+
+  <section class="fragment-design" data-artifact="design" data-component="checkout-button">
+    <header>
+      <p class="sdlc-crumb">design / 02b-design.md</p>
+      <h1 class="sdlc-h1">Checkout button · redesign</h1>
+      <p class="sdlc-lede">Tighten the size scale (sm → xl), normalise radius to <code>radius × 1.5</code> per step up, drop the legacy dark-button outline. Three interaction states × four sizes × two themes = 24 swatches below.</p>
+    </header>
+
+    <h2 class="sdlc-h2">Swatch matrix · light theme</h2>
+    <div class="dz-matrix dz-theme-light">
+      <div class="dz-mat-label"><b>light theme</b> · 3 states × 4 sizes</div>
+      <div class="dz-mat-grid">
+        <span></span>
+        <span class="dz-mat-col-label">sm · 28h</span>
+        <span class="dz-mat-col-label">md · 36h</span>
+        <span class="dz-mat-col-label">lg · 44h</span>
+        <span class="dz-mat-col-label">xl · 52h</span>
+
+        <span class="dz-mat-row-label">default</span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-sm">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-md">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-lg">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-xl">Place order</button></span>
+
+        <span class="dz-mat-row-label">hover</span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-sm is-hover">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-md is-hover">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-lg is-hover">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-xl is-hover">Place order</button></span>
+
+        <span class="dz-mat-row-label">pressed</span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-sm is-pressed">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-md is-pressed">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-lg is-pressed">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-xl is-pressed">Place order</button></span>
+      </div>
+    </div>
+
+    <h2 class="sdlc-h2">Swatch matrix · dark theme</h2>
+    <div class="dz-matrix dz-theme-dark">
+      <div class="dz-mat-label"><b>dark theme</b> · same scale, recoloured</div>
+      <div class="dz-mat-grid">
+        <span></span>
+        <span class="dz-mat-col-label">sm</span>
+        <span class="dz-mat-col-label">md</span>
+        <span class="dz-mat-col-label">lg</span>
+        <span class="dz-mat-col-label">xl</span>
+
+        <span class="dz-mat-row-label">default</span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-sm">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-md">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-lg">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-xl">Place order</button></span>
+
+        <span class="dz-mat-row-label">hover</span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-sm is-hover">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-md is-hover">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-lg is-hover">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-xl is-hover">Place order</button></span>
+
+        <span class="dz-mat-row-label">pressed</span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-sm is-pressed">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-md is-pressed">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-lg is-pressed">Place order</button></span>
+        <span class="dz-mat-cell"><button type="button" class="ck-btn ck-xl is-pressed">Place order</button></span>
+      </div>
+    </div>
+
+    <h2 class="sdlc-h2">Design tokens</h2>
+    <div class="dz-tokens-wrap">
+      <table class="dz-tokens">
+        <thead>
+          <tr>
+            <th>Token</th>
+            <th>Category</th>
+            <th>Value</th>
+            <th>Preview</th>
+            <th style="text-align: right;">Copy</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="tk-name">--ck-bg</td><td><span class="tk-cat">color</span></td><td class="tk-value">#2a6f8a</td><td><span class="tk-swatch" style="background: #2a6f8a;"></span>steel-blue</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-bg: #2a6f8a;">copy</button></td></tr>
+          <tr><td class="tk-name">--ck-bg-hover</td><td><span class="tk-cat">color</span></td><td class="tk-value">#245d75</td><td><span class="tk-swatch" style="background: #245d75;"></span>−8% L</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-bg-hover: #245d75;">copy</button></td></tr>
+          <tr><td class="tk-name">--ck-bg-pressed</td><td><span class="tk-cat">color</span></td><td class="tk-value">#1e4b5d</td><td><span class="tk-swatch" style="background: #1e4b5d;"></span>−16% L</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-bg-pressed: #1e4b5d;">copy</button></td></tr>
+          <tr><td class="tk-name">--ck-fg</td><td><span class="tk-cat">color</span></td><td class="tk-value">#fbfaf6</td><td><span class="tk-swatch" style="background: #fbfaf6;"></span>paper</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-fg: #fbfaf6;">copy</button></td></tr>
+          <tr><td class="tk-name">--ck-ring</td><td><span class="tk-cat">color</span></td><td class="tk-value">rgba(42,111,138,0.32)</td><td><span class="tk-swatch" style="background: rgba(42,111,138,0.32);"></span>focus ring</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-ring: rgba(42,111,138,0.32);">copy</button></td></tr>
+
+          <tr><td class="tk-name">--ck-radius-sm</td><td><span class="tk-cat">radius</span></td><td class="tk-value">4px</td><td><span style="display: inline-block; width: 20px; height: 20px; background: var(--accent); border-radius: 4px; vertical-align: -5px; margin-right: 6px;"></span>4px</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-radius-sm: 4px;">copy</button></td></tr>
+          <tr><td class="tk-name">--ck-radius-md</td><td><span class="tk-cat">radius</span></td><td class="tk-value">6px</td><td><span style="display: inline-block; width: 20px; height: 20px; background: var(--accent); border-radius: 6px; vertical-align: -5px; margin-right: 6px;"></span>6px</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-radius-md: 6px;">copy</button></td></tr>
+          <tr><td class="tk-name">--ck-radius-lg</td><td><span class="tk-cat">radius</span></td><td class="tk-value">8px</td><td><span style="display: inline-block; width: 20px; height: 20px; background: var(--accent); border-radius: 8px; vertical-align: -5px; margin-right: 6px;"></span>8px</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-radius-lg: 8px;">copy</button></td></tr>
+          <tr><td class="tk-name">--ck-radius-xl</td><td><span class="tk-cat">radius</span></td><td class="tk-value">10px</td><td><span style="display: inline-block; width: 20px; height: 20px; background: var(--accent); border-radius: 10px; vertical-align: -5px; margin-right: 6px;"></span>10px</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-radius-xl: 10px;">copy</button></td></tr>
+
+          <tr><td class="tk-name">--ck-padx-md / --ck-pady-md</td><td><span class="tk-cat">spacing</span></td><td class="tk-value">14px / 8px</td><td><span class="tk-bar" style="width: 28px;"></span><span class="tk-bar" style="width: 16px;"></span></td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-padx-md: 14px; --ck-pady-md: 8px;">copy</button></td></tr>
+          <tr><td class="tk-name">--ck-padx-lg / --ck-pady-lg</td><td><span class="tk-cat">spacing</span></td><td class="tk-value">18px / 11px</td><td><span class="tk-bar" style="width: 36px;"></span><span class="tk-bar" style="width: 22px;"></span></td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-padx-lg: 18px; --ck-pady-lg: 11px;">copy</button></td></tr>
+          <tr><td class="tk-name">--ck-gap</td><td><span class="tk-cat">spacing</span></td><td class="tk-value">8px</td><td><span class="tk-bar" style="width: 16px;"></span>icon ↔ label</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-gap: 8px;">copy</button></td></tr>
+
+          <tr><td class="tk-name">--ck-font-md</td><td><span class="tk-cat">font</span></td><td class="tk-value">14px / 600</td><td><span class="tk-num-preview" style="font-size: 14px; font-weight: 600;">Aa</span>medium</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-font-md: 14px;">copy</button></td></tr>
+          <tr><td class="tk-name">--ck-font-lg</td><td><span class="tk-cat">font</span></td><td class="tk-value">15px / 600</td><td><span class="tk-num-preview" style="font-size: 15px; font-weight: 600;">Aa</span>large</td><td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-font-lg: 15px;">copy</button></td></tr>
+
+          <tr><td class="tk-name">--ck-ease</td><td><span class="tk-cat">easing</span></td><td class="tk-value">cubic-bezier(0.32, 0.72, 0, 1)</td>
+            <td>
+              <svg class="tk-curve" viewBox="0 0 36 18" aria-hidden="true">
+                <path d="M2 16 C 13.5 12.96, 2 0.36, 34 2" fill="none" stroke="#4a6c8c" stroke-width="1.4"/>
+              </svg>
+              ease-out
+            </td>
+            <td style="text-align: right;"><button class="tk-copy" data-token-copy="--ck-ease: cubic-bezier(0.32, 0.72, 0, 1);">copy</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="sdlc-h2">Specs · reference render (md, default)</h2>
+    <div class="dz-specs-wrap">
+      <svg class="dz-specs" viewBox="0 0 920 240" preserveAspectRatio="xMidYMid meet" aria-label="Annotated specs for the medium-size default button">
+        <!-- Button body, drawn manually to be measurable -->
+        <!-- Outer button rect: x=330 y=92 w=260 h=56  (label text + icon) -->
+        <rect x="330" y="92" width="260" height="56" rx="6" fill="#2a6f8a"/>
+        <!-- Icon (lock) -->
+        <g transform="translate(360, 112)" fill="#fbfaf6">
+          <rect x="0" y="6" width="16" height="12" rx="2"/>
+          <path d="M3 6 V3 a5 5 0 0 1 10 0 V6" fill="none" stroke="#fbfaf6" stroke-width="1.5"/>
+        </g>
+        <!-- Label -->
+        <text x="394" y="124" fill="#fbfaf6" font-family="ui-sans-serif, system-ui" font-size="14" font-weight="600">Place order · $42.18</text>
+
+        <!-- (1) padding-y top -->
+        <g>
+          <line class="spec-line is-dim" x1="180" y1="92" x2="320" y2="92"/>
+          <line class="spec-line is-dim" x1="180" y1="100" x2="320" y2="100"/>
+          <line class="spec-line" x1="200" y1="92" x2="200" y2="100"/>
+          <line class="spec-tick" x1="196" y1="92" x2="204" y2="92"/>
+          <line class="spec-tick" x1="196" y1="100" x2="204" y2="100"/>
+          <text x="120" y="100" class="spec-label">padding-y</text>
+          <text x="120" y="116" class="spec-num">8px · --ck-pady-md</text>
+        </g>
+
+        <!-- (2) padding-x left -->
+        <g>
+          <line class="spec-line is-dim" x1="330" y1="180" x2="330" y2="200"/>
+          <line class="spec-line is-dim" x1="358" y1="180" x2="358" y2="200"/>
+          <line class="spec-line" x1="330" y1="195" x2="358" y2="195"/>
+          <line class="spec-tick" x1="330" y1="191" x2="330" y2="199"/>
+          <line class="spec-tick" x1="358" y1="191" x2="358" y2="199"/>
+          <text x="344" y="220" class="spec-label" text-anchor="middle">padding-x</text>
+          <text x="344" y="234" class="spec-num" text-anchor="middle">14px · --ck-padx-md</text>
+        </g>
+
+        <!-- (3) gap (between icon and label) -->
+        <g>
+          <line class="spec-line is-dim" x1="378" y1="60" x2="378" y2="115"/>
+          <line class="spec-line is-dim" x1="394" y1="60" x2="394" y2="115"/>
+          <line class="spec-line" x1="378" y1="70" x2="394" y2="70"/>
+          <line class="spec-tick" x1="378" y1="66" x2="378" y2="74"/>
+          <line class="spec-tick" x1="394" y1="66" x2="394" y2="74"/>
+          <text x="408" y="68" class="spec-label">gap</text>
+          <text x="408" y="82" class="spec-num">8px · --ck-gap</text>
+        </g>
+
+        <!-- (4) border-radius -->
+        <g>
+          <path d="M610 100 Q 670 100 690 130" class="spec-line"/>
+          <polygon class="spec-arrow" points="690,130 684,125 682,133"/>
+          <text x="700" y="106" class="spec-label">border-radius</text>
+          <text x="700" y="120" class="spec-num">6px · --ck-radius-md</text>
+        </g>
+
+        <!-- (5) height -->
+        <g>
+          <line class="spec-line is-dim" x1="610" y1="92" x2="800" y2="92"/>
+          <line class="spec-line is-dim" x1="610" y1="148" x2="800" y2="148"/>
+          <line class="spec-line" x1="770" y1="92" x2="770" y2="148"/>
+          <line class="spec-tick" x1="766" y1="92" x2="774" y2="92"/>
+          <line class="spec-tick" x1="766" y1="148" x2="774" y2="148"/>
+          <text x="785" y="124" class="spec-label">height</text>
+          <text x="785" y="140" class="spec-num">56px · pad+text</text>
+        </g>
+
+        <!-- baseline + side caption -->
+        <text x="20" y="40" fill="#8a8377" font-family="ui-monospace, monospace" font-size="11" letter-spacing="0.10em">REFERENCE · ck-md · default</text>
+      </svg>
+    </div>
+
+    <script>
+    (function () {
+      var root = document.currentScript.closest('.fragment-design');
+      if (!root) return;
+      root.querySelectorAll('[data-token-copy]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var v = btn.getAttribute('data-token-copy');
+          try { navigator.clipboard && navigator.clipboard.writeText(v); } catch (e) {}
+          btn.classList.add('is-copied');
+          var prev = btn.textContent;
+          btn.textContent = 'copied ✓';
+          setTimeout(function () {
+            btn.classList.remove('is-copied');
+            btn.textContent = prev;
+          }, 1300);
+        });
+      });
+
+      var swatches = root.querySelectorAll('.dz-mat-cell').length;
+      var tokens   = root.querySelectorAll('[data-token-copy]').length;
+      window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', {
+        detail: { name: 'design', artifact: '02b-design', component: root.dataset.component, swatches: swatches, tokens: tokens }
+      }));
+    })();
+    </script>
+  </section>
+</div>
+<!-- ═══════════════════ /FRAGMENT 4 ═══════════════════ -->
+<!-- ═══════════════════ FRAGMENT 5 · 09-ship-run ═══════════════════ -->
+<div class="gw-fragment" id="fragment-shiprun">
+  <div class="gw-fragment-bar">
+    <span class="gw-tag">09</span>
+    <span class="gw-title">Ship-run check matrix</span>
+    <span class="gw-path">ship/09-ship-run.html.fragment</span>
+    <button class="gw-raw" data-raw-target="raw-shiprun" aria-pressed="false">Show source</button>
+  </div>
+  <div class="gw-raw-pane" id="raw-shiprun" hidden><pre><span class="c">&lt;!-- 09-ship-run.html.fragment — produced by /ship --&gt;</span>
+<span class="k">&lt;section</span> <span class="a">class</span>=<span class="s">"fragment-shiprun"</span> <span class="a">data-artifact</span>=<span class="s">"ship-run"</span> <span class="a">data-release</span>=<span class="s">"v3.2.0"</span><span class="k">&gt;</span>
+  <span class="k">&lt;header&gt;…&lt;/header&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"metric-row"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- 1. Deploy timeline · build → test → stage → canary → prod --&gt;</span>
+  <span class="k">&lt;svg</span> <span class="a">class</span>=<span class="s">"sr-timeline"</span><span class="k">&gt;</span>…<span class="k">&lt;/svg&gt;</span>
+
+  <span class="c">&lt;!-- 2. Check matrix (rows = checks, cols = envs); cell click expands log --&gt;</span>
+  <span class="k">&lt;table</span> <span class="a">class</span>=<span class="s">"sr-checks"</span><span class="k">&gt;</span>…<span class="k">&lt;/table&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"sr-log-panel"</span><span class="k">&gt;</span>…<span class="k">&lt;/div&gt;</span>
+
+  <span class="c">&lt;!-- 3. Rollback affordance (visual only) --&gt;</span>
+  <span class="k">&lt;div</span> <span class="a">class</span>=<span class="s">"sr-actions"</span><span class="k">&gt;</span>
+    <span class="k">&lt;button</span> <span class="a">class</span>=<span class="s">"btn btn-primary"</span><span class="k">&gt;</span>Promote to 100%<span class="k">&lt;/button&gt;</span>
+    <span class="k">&lt;button</span> <span class="a">class</span>=<span class="s">"btn btn-danger"</span><span class="k">&gt;</span>Roll back<span class="k">&lt;/button&gt;</span>
+  <span class="k">&lt;/div&gt;</span>
+<span class="k">&lt;/section&gt;</span></pre></div>
+
+  <style>
+    .fragment-shiprun .sr-tl-wrap {
+      background: var(--paper); border: 1px solid var(--rule);
+      border-radius: 8px; padding: 22px 26px;
+      margin: 14px 0 24px;
+    }
+    .fragment-shiprun svg { display: block; max-width: 100%; height: auto; }
+    .fragment-shiprun .sr-timeline text {
+      font-family: var(--mono); font-size: 11px; fill: var(--ink-2);
+    }
+    .fragment-shiprun .sr-timeline text.stage-name {
+      font-family: var(--sans); font-size: 12.5px; font-weight: 600; fill: var(--ink);
+    }
+    .fragment-shiprun .sr-timeline text.muted { fill: var(--ink-3); }
+    .fragment-shiprun .sr-timeline .seg { stroke-width: 14; stroke-linecap: butt; fill: none; }
+    .fragment-shiprun .sr-timeline .seg.is-ok { stroke: var(--low); }
+    .fragment-shiprun .sr-timeline .seg.is-warn { stroke: var(--med); }
+    .fragment-shiprun .sr-timeline .seg.is-running { stroke: var(--accent); }
+    .fragment-shiprun .sr-timeline .station { fill: var(--paper); stroke: var(--ink); stroke-width: 1.25; }
+    .fragment-shiprun .sr-timeline .station.is-done { fill: var(--ink); }
+    .fragment-shiprun .sr-timeline .station-glyph {
+      font-family: var(--mono); font-size: 11px; fill: var(--paper); font-weight: 700;
+    }
+    .fragment-shiprun .sr-timeline .pulse {
+      fill: var(--accent); opacity: 0.18;
+    }
+
+    /* Check matrix */
+    .fragment-shiprun .sr-checks-wrap {
+      background: var(--paper); border: 1px solid var(--rule);
+      border-radius: 8px; padding: 8px 22px 18px;
+      margin: 14px 0 12px;
+      overflow-x: auto;
+    }
+    .fragment-shiprun .sr-checks {
+      width: 100%; border-collapse: collapse; font-size: 13.5px;
+      min-width: 620px;
+    }
+    .fragment-shiprun .sr-checks th, .fragment-shiprun .sr-checks td {
+      padding: 8px 10px; text-align: left;
+      border-top: 1px solid var(--rule);
+      vertical-align: middle;
+    }
+    .fragment-shiprun .sr-checks thead th {
+      border-top: 0; border-bottom: 1px solid var(--rule-2);
+      font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--ink-3); font-weight: 600;
+    }
+    .fragment-shiprun .sr-checks .check-name {
+      font-family: var(--mono); font-size: 12.5px; color: var(--ink);
+    }
+    .fragment-shiprun .sr-checks .check-name .ck-kind {
+      font-size: 10.5px; color: var(--ink-3); margin-left: 4px;
+      letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .fragment-shiprun .sr-checks td.env { text-align: center; }
+    .fragment-shiprun .sr-cell {
+      font-family: var(--mono); font-size: 12px;
+      padding: 5px 11px; border-radius: 10px;
+      border: 1px solid var(--rule-2);
+      background: var(--paper-2); color: var(--ink-2);
+      cursor: pointer; user-select: none;
+      display: inline-flex; align-items: center; gap: 5px;
+    }
+    .fragment-shiprun .sr-cell::before { font-size: 10px; }
+    .fragment-shiprun .sr-cell.is-pass { background: var(--low-bg); color: var(--low); border-color: var(--low); }
+    .fragment-shiprun .sr-cell.is-pass::before { content: "✓"; font-weight: 700; }
+    .fragment-shiprun .sr-cell.is-fail { background: var(--blocker-bg); color: var(--blocker); border-color: var(--blocker); }
+    .fragment-shiprun .sr-cell.is-fail::before { content: "✗"; font-weight: 700; }
+    .fragment-shiprun .sr-cell.is-flake { background: var(--med-bg); color: var(--med); border-color: var(--med); }
+    .fragment-shiprun .sr-cell.is-flake::before { content: "~"; font-weight: 700; }
+    .fragment-shiprun .sr-cell.is-skip { background: var(--paper); color: var(--ink-3); border-style: dashed; }
+    .fragment-shiprun .sr-cell.is-skip::before { content: "○"; }
+    .fragment-shiprun .sr-cell.is-running { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .fragment-shiprun .sr-cell.is-running::before { content: "…"; }
+    .fragment-shiprun .sr-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .fragment-shiprun .sr-cell:hover { transform: translateY(-1px); }
+    .fragment-shiprun .sr-cell.is-active {
+      box-shadow: 0 0 0 3px var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    .fragment-shiprun .sr-checks-foot {
+      display: flex; gap: 14px; align-items: center;
+      padding: 12px 0 4px;
+      font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
+    }
+    .fragment-shiprun .sr-checks-foot .sw {
+      display: inline-block; width: 10px; height: 10px; border-radius: 3px;
+      vertical-align: -1px; margin-right: 4px;
+      border: 1px solid;
+    }
+    .fragment-shiprun .sr-checks-foot .sw.is-pass { background: var(--low-bg); border-color: var(--low); }
+    .fragment-shiprun .sr-checks-foot .sw.is-fail { background: var(--blocker-bg); border-color: var(--blocker); }
+    .fragment-shiprun .sr-checks-foot .sw.is-flake { background: var(--med-bg); border-color: var(--med); }
+    .fragment-shiprun .sr-checks-foot .sw.is-skip { background: var(--paper); border: 1px dashed var(--rule-2); }
+
+    /* Log panel */
+    .fragment-shiprun .sr-log-panel {
+      background: #1f1b16; color: #d4d0c8;
+      border-radius: 8px;
+      padding: 14px 18px 18px;
+      margin: 12px 0 16px;
+      font-family: var(--mono); font-size: 12px;
+      min-height: 200px;
+    }
+    .fragment-shiprun .sr-log-panel .lh {
+      display: flex; align-items: baseline; justify-content: space-between;
+      gap: 14px;
+      padding-bottom: 10px;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #4a443c;
+    }
+    .fragment-shiprun .sr-log-panel .lh .name {
+      color: #fbfaf6; font-weight: 600; font-size: 13px;
+    }
+    .fragment-shiprun .sr-log-panel .lh .meta {
+      color: #95897a; font-size: 11.5px;
+    }
+    .fragment-shiprun .sr-log-panel .lh .meta b { color: #c5c0b4; font-weight: 500; }
+    .fragment-shiprun .sr-log-panel pre {
+      margin: 0; white-space: pre-wrap;
+      font-size: 11.5px; line-height: 1.6;
+    }
+    .fragment-shiprun .sr-log-panel pre .ts { color: #7c7468; }
+    .fragment-shiprun .sr-log-panel pre .info { color: #95b7d8; }
+    .fragment-shiprun .sr-log-panel pre .ok { color: #9ec07a; }
+    .fragment-shiprun .sr-log-panel pre .warn { color: #d9b58a; }
+    .fragment-shiprun .sr-log-panel pre .err { color: #e08aa8; }
+    .fragment-shiprun .sr-log-panel .empty {
+      color: #7c7468; font-style: italic; font-size: 12px;
+    }
+
+    /* Actions */
+    .fragment-shiprun .sr-actions {
+      display: flex; flex-wrap: wrap; gap: 12px;
+      padding: 18px 22px;
+      background: var(--paper-2);
+      border-radius: 8px;
+      margin: 14px 0 0;
+      align-items: center;
+    }
+    .fragment-shiprun .sr-actions .btn {
+      font-size: 14px; padding: 8px 16px;
+    }
+    .fragment-shiprun .sr-actions .btn-danger { font-weight: 600; }
+    .fragment-shiprun .sr-actions .sr-action-note {
+      font-size: 13px; color: var(--ink-3);
+      margin-left: auto;
+    }
+    .fragment-shiprun .sr-actions .sr-action-note b { color: var(--ink-2); }
+  </style>
+
+  <section class="fragment-shiprun" data-artifact="ship-run" data-release="v3.2.0">
+    <header>
+      <p class="sdlc-crumb">ship / 09-ship-run.md · run 2026-05-19T09:14Z</p>
+      <h1 class="sdlc-h1">Release v3.2.0 · ship-run</h1>
+      <p class="sdlc-lede">Deploy of <code>v3.2.0</code> (slice 03 + 04). Twelve checks across staging, canary, and production. Eleven passed, one flake (visual-regression on canary, retried green).</p>
+    </header>
+
+    <div class="metric-row">
+      <div class="metric"><div class="metric-label">Total duration</div><div class="metric-value">38m 12s</div><div class="metric-ann">build start → 100% prod</div></div>
+      <div class="metric"><div class="metric-label">Checks passed</div><div class="metric-value" style="color: var(--low);">35 / 36</div><div class="metric-ann">97.2% · 1 flake</div></div>
+      <div class="metric"><div class="metric-label">Canary window</div><div class="metric-value">12m 04s</div><div class="metric-ann">5% → 100%, monitored</div></div>
+      <div class="metric"><div class="metric-label">Regressions detected</div><div class="metric-value" style="color: var(--low);">0</div><div class="metric-ann">vs. v3.1.4 baseline</div></div>
+      <div class="metric"><div class="metric-label">Release stage</div><div class="metric-value">prod 100%</div><div class="metric-ann">since 09:52Z · monitoring</div></div>
+    </div>
+
+    <h2 class="sdlc-h2">Deploy timeline</h2>
+    <div class="sr-tl-wrap">
+      <svg class="sr-timeline" viewBox="0 0 920 170" role="img" aria-label="Five-stage deploy pipeline">
+        <!-- segments -->
+        <line class="seg is-ok"      x1="60"  y1="80" x2="220" y2="80"/>
+        <line class="seg is-ok"      x1="220" y1="80" x2="380" y2="80"/>
+        <line class="seg is-ok"      x1="380" y1="80" x2="540" y2="80"/>
+        <line class="seg is-warn"    x1="540" y1="80" x2="700" y2="80"/>
+        <line class="seg is-ok"      x1="700" y1="80" x2="860" y2="80"/>
+
+        <!-- stations -->
+        <g>
+          <circle class="station is-done" cx="60" cy="80" r="14"/>
+          <text class="station-glyph" x="60" y="84" text-anchor="middle">✓</text>
+          <text class="stage-name" x="60" y="46" text-anchor="middle">build</text>
+          <text x="60" y="118" text-anchor="middle">09:14 → 09:21</text>
+          <text x="60" y="132" text-anchor="middle" class="muted">7m 02s</text>
+        </g>
+        <g>
+          <circle class="station is-done" cx="220" cy="80" r="14"/>
+          <text class="station-glyph" x="220" y="84" text-anchor="middle">✓</text>
+          <text class="stage-name" x="220" y="46" text-anchor="middle">test</text>
+          <text x="220" y="118" text-anchor="middle">09:21 → 09:28</text>
+          <text x="220" y="132" text-anchor="middle" class="muted">6m 41s · 4 checks</text>
+        </g>
+        <g>
+          <circle class="station is-done" cx="380" cy="80" r="14"/>
+          <text class="station-glyph" x="380" y="84" text-anchor="middle">✓</text>
+          <text class="stage-name" x="380" y="46" text-anchor="middle">stage</text>
+          <text x="380" y="118" text-anchor="middle">09:28 → 09:35</text>
+          <text x="380" y="132" text-anchor="middle" class="muted">6m 38s · 12 checks</text>
+        </g>
+        <g>
+          <circle class="pulse" cx="540" cy="80" r="22"/>
+          <circle class="station is-done" cx="540" cy="80" r="14"/>
+          <text class="station-glyph" x="540" y="84" text-anchor="middle">~</text>
+          <text class="stage-name" x="540" y="46" text-anchor="middle">canary</text>
+          <text x="540" y="118" text-anchor="middle" fill="#a07417" font-weight="600">09:35 → 09:47</text>
+          <text x="540" y="132" text-anchor="middle" class="muted">12m 04s · 1 flake</text>
+        </g>
+        <g>
+          <circle class="station is-done" cx="700" cy="80" r="14"/>
+          <text class="station-glyph" x="700" y="84" text-anchor="middle">✓</text>
+          <text class="stage-name" x="700" y="46" text-anchor="middle">prod 5%</text>
+          <text x="700" y="118" text-anchor="middle">09:47 → 09:52</text>
+          <text x="700" y="132" text-anchor="middle" class="muted">5m 09s</text>
+        </g>
+        <g>
+          <circle class="station is-done" cx="860" cy="80" r="14"/>
+          <text class="station-glyph" x="860" y="84" text-anchor="middle">✓</text>
+          <text class="stage-name" x="860" y="46" text-anchor="middle">prod 100%</text>
+          <text x="860" y="118" text-anchor="middle">09:52 →</text>
+          <text x="860" y="132" text-anchor="middle" class="muted">since 09:52Z</text>
+        </g>
+      </svg>
+    </div>
+
+    <h2 class="sdlc-h2">Check matrix</h2>
+    <div class="sr-checks-wrap">
+      <table class="sr-checks" role="table">
+        <thead>
+          <tr>
+            <th style="width: 40%;">Check</th>
+            <th class="env">Staging</th>
+            <th class="env">Canary</th>
+            <th class="env">Production</th>
+          </tr>
+        </thead>
+        <tbody data-checks>
+          <tr>
+            <td class="check-name">unit-tests <span class="ck-kind">test</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="unit-tests/staging">pass · 12s</button></td>
+            <td class="env"><span class="sr-cell is-skip" title="not run on canary">n/a</span></td>
+            <td class="env"><span class="sr-cell is-skip" title="not run in prod">n/a</span></td>
+          </tr>
+          <tr>
+            <td class="check-name">integration-tests <span class="ck-kind">test</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="integration/staging">pass · 1m 14s</button></td>
+            <td class="env"><span class="sr-cell is-skip">n/a</span></td>
+            <td class="env"><span class="sr-cell is-skip">n/a</span></td>
+          </tr>
+          <tr>
+            <td class="check-name">e2e-checkout <span class="ck-kind">e2e</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="e2e-checkout/staging">pass · 3m 02s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="e2e-checkout/canary">pass · 2m 48s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="e2e-checkout/prod">pass · 2m 51s</button></td>
+          </tr>
+          <tr>
+            <td class="check-name">e2e-onboarding <span class="ck-kind">e2e</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="e2e-onboarding/staging">pass · 2m 18s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="e2e-onboarding/canary">pass · 2m 06s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="e2e-onboarding/prod">pass · 2m 09s</button></td>
+          </tr>
+          <tr>
+            <td class="check-name">smoke <span class="ck-kind">probe</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="smoke/staging">pass · 8s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="smoke/canary">pass · 9s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="smoke/prod">pass · 7s</button></td>
+          </tr>
+          <tr>
+            <td class="check-name">db-migration <span class="ck-kind">migrate</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="db-migration/staging">pass · 2s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="db-migration/canary">pass · 3s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="db-migration/prod">pass · 4s</button></td>
+          </tr>
+          <tr>
+            <td class="check-name">ssl-cert <span class="ck-kind">infra</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="ssl-cert/staging">pass</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="ssl-cert/canary">pass</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="ssl-cert/prod">pass</button></td>
+          </tr>
+          <tr>
+            <td class="check-name">health-endpoints <span class="ck-kind">probe</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="health/staging">pass · 4s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="health/canary">pass · 3s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="health/prod">pass · 3s</button></td>
+          </tr>
+          <tr>
+            <td class="check-name">dependency-audit <span class="ck-kind">security</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="dep-audit/staging">pass · 0 high</button></td>
+            <td class="env"><span class="sr-cell is-skip">n/a</span></td>
+            <td class="env"><span class="sr-cell is-skip">n/a</span></td>
+          </tr>
+          <tr>
+            <td class="check-name">visual-regression <span class="ck-kind">visual</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="visreg/staging">pass · 0 diffs</button></td>
+            <td class="env"><button class="sr-cell is-flake" data-cell="visreg/canary">flake · retried green</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="visreg/prod">pass · 0 diffs</button></td>
+          </tr>
+          <tr>
+            <td class="check-name">perf-budget <span class="ck-kind">perf</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="perf/staging">pass · LCP 1.8s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="perf/canary">pass · LCP 1.9s</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="perf/prod">pass · LCP 1.7s</button></td>
+          </tr>
+          <tr>
+            <td class="check-name">accessibility-axe <span class="ck-kind">a11y</span></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="axe/staging">pass · 0 violations</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="axe/canary">pass · 0 violations</button></td>
+            <td class="env"><button class="sr-cell is-pass" data-cell="axe/prod">pass · 0 violations</button></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="sr-checks-foot" aria-hidden="true">
+        <span><span class="sw is-pass"></span>pass</span>
+        <span><span class="sw is-flake"></span>flake</span>
+        <span><span class="sw is-fail"></span>fail</span>
+        <span><span class="sw is-skip"></span>not run</span>
+        <span style="margin-left: auto;">click any cell to view logs ↓</span>
+      </div>
+    </div>
+
+    <div class="sr-log-panel" aria-live="polite" data-log-panel>
+      <div class="lh">
+        <span class="name">visreg/canary · visual-regression</span>
+        <span class="meta">run <b>vr-9821-canary</b> · 09:39:14Z · duration 1m 47s · result <b style="color: #d9b58a;">flake</b></span>
+      </div>
+<pre><span class="ts">09:39:14.012</span> <span class="info">[visreg]</span> Loading baseline from s3://ci-baselines/v3.1.4/canary
+<span class="ts">09:39:14.418</span> <span class="info">[visreg]</span> 142 screenshots queued across 6 viewport × 3 theme combinations
+<span class="ts">09:39:22.811</span> <span class="info">[visreg]</span> 41 / 142 captured
+<span class="ts">09:39:38.044</span> <span class="info">[visreg]</span> 102 / 142 captured
+<span class="ts">09:39:47.118</span> <span class="info">[visreg]</span> 142 / 142 captured · diffing
+<span class="ts">09:40:21.622</span> <span class="warn">[visreg]</span> diff &gt; 0.2% on <span class="warn">checkout/payment-form @ 414×820 dark</span>
+<span class="ts">09:40:21.625</span> <span class="warn">[visreg]</span>   baseline: 18 changed px / 339,200 (0.005%)
+<span class="ts">09:40:21.625</span> <span class="warn">[visreg]</span>   current : 6,210 changed px / 339,200 (1.83%)
+<span class="ts">09:40:21.811</span> <span class="warn">[visreg]</span> retrying flaky test once (policy: visreg.flake-retry)
+<span class="ts">09:40:34.014</span> <span class="info">[visreg]</span> retry: capturing checkout/payment-form @ 414×820 dark
+<span class="ts">09:40:58.802</span> <span class="ok">[visreg]</span> retry: diff = 0 px · within tolerance
+<span class="ts">09:41:01.114</span> <span class="ok">[visreg]</span> result: PASS (flaked once; canary header injection raced the screenshot)
+<span class="ts">09:41:01.115</span> <span class="ok">[visreg]</span> exit 0</pre>
+    </div>
+
+    <div class="sr-actions" role="group" aria-label="Release actions (display only)">
+      <button type="button" class="btn btn-primary" disabled aria-disabled="true">Promote to 100% (done · 09:52Z)</button>
+      <button type="button" class="btn btn-danger">Roll back to v3.1.4</button>
+      <button type="button" class="btn">Pause monitor</button>
+      <span class="sr-action-note">Roll-back window closes at <b>10:52Z</b> (60m). Approver required: <b>release-managers</b>.</span>
+    </div>
+
+    <script>
+    (function () {
+      var root = document.currentScript.closest('.fragment-shiprun');
+      if (!root) return;
+      var panel = root.querySelector('[data-log-panel]');
+      var cells = root.querySelectorAll('.sr-cell[data-cell]');
+
+      // Per-cell mock logs — short, illustrative
+      var logs = {
+        'unit-tests/staging':       { name: 'unit-tests · staging', meta: '847 passed · 0 failed · 12s', cls: 'ok',
+          text: '[unit] vitest run\n[unit] 847 tests across 92 files\n[unit] PASS in 12.04s' },
+        'integration/staging':      { name: 'integration · staging', meta: '124 passed · 0 failed · 1m 14s', cls: 'ok',
+          text: '[int] booting test postgres\n[int] running 124 specs\n[int] PASS in 74.2s' },
+        'e2e-checkout/staging':     { name: 'e2e-checkout · staging', meta: '18 scenarios passed · 3m 02s', cls: 'ok',
+          text: '[playwright] launching chromium\n[playwright] 18 scenarios · 3 retries used\n[playwright] PASS' },
+        'e2e-checkout/canary':      { name: 'e2e-checkout · canary',  meta: '18 scenarios passed · 2m 48s', cls: 'ok',
+          text: '[playwright] launching chromium @ canary.tailnet\n[playwright] 18 scenarios · 0 retries\n[playwright] PASS' },
+        'e2e-checkout/prod':        { name: 'e2e-checkout · production', meta: '18 scenarios passed · 2m 51s', cls: 'ok',
+          text: '[playwright] launching chromium @ prod\n[playwright] 18 scenarios · 1 retry\n[playwright] PASS' },
+        'e2e-onboarding/staging':   { name: 'e2e-onboarding · staging', meta: '11 scenarios passed · 2m 18s', cls: 'ok',
+          text: '[playwright] 11 scenarios · PASS' },
+        'e2e-onboarding/canary':    { name: 'e2e-onboarding · canary', meta: '11 scenarios passed · 2m 06s', cls: 'ok',
+          text: '[playwright] 11 scenarios · PASS' },
+        'e2e-onboarding/prod':      { name: 'e2e-onboarding · production', meta: '11 scenarios passed · 2m 09s', cls: 'ok',
+          text: '[playwright] 11 scenarios · PASS' },
+        'smoke/staging':            { name: 'smoke · staging', meta: '8s · 200 OK on all routes', cls: 'ok',
+          text: '[smoke] GET / 200\n[smoke] GET /checkout 200\n[smoke] GET /healthz 200' },
+        'smoke/canary':             { name: 'smoke · canary', meta: '9s · 200 OK on all routes', cls: 'ok',
+          text: '[smoke] GET / 200\n[smoke] GET /checkout 200' },
+        'smoke/prod':               { name: 'smoke · production', meta: '7s · 200 OK on all routes', cls: 'ok',
+          text: '[smoke] GET / 200\n[smoke] GET /checkout 200' },
+        'db-migration/staging':     { name: 'db-migration · staging', meta: '1 migration · 2s', cls: 'ok',
+          text: '[migrate] 20260518145610_add_region_table.sql\n[migrate] applied · 1 statement · 1.8s' },
+        'db-migration/canary':      { name: 'db-migration · canary', meta: '1 migration · 3s', cls: 'ok',
+          text: '[migrate] 20260518145610_add_region_table.sql · applied' },
+        'db-migration/prod':        { name: 'db-migration · production', meta: '1 migration · 4s', cls: 'ok',
+          text: '[migrate] 20260518145610_add_region_table.sql · applied' },
+        'ssl-cert/staging':         { name: 'ssl-cert · staging', meta: 'valid · 89d remaining', cls: 'ok', text: '[tls] CN=*.staging.tailnet · 89d' },
+        'ssl-cert/canary':          { name: 'ssl-cert · canary', meta: 'valid · 89d remaining', cls: 'ok', text: '[tls] CN=*.canary.tailnet · 89d' },
+        'ssl-cert/prod':            { name: 'ssl-cert · production', meta: 'valid · 89d remaining', cls: 'ok', text: '[tls] CN=*.prod.tailnet · 89d' },
+        'health/staging':           { name: 'health · staging', meta: '4s · all green', cls: 'ok', text: '[health] checkout-api ok\n[health] billing-service ok\n[health] postgres-primary ok' },
+        'health/canary':            { name: 'health · canary', meta: '3s · all green', cls: 'ok', text: '[health] checkout-api ok\n[health] billing-service ok' },
+        'health/prod':              { name: 'health · production', meta: '3s · all green', cls: 'ok', text: '[health] checkout-api ok\n[health] billing-service ok' },
+        'dep-audit/staging':        { name: 'dependency-audit · staging', meta: '0 high · 2 low · 14s', cls: 'ok', text: '[npm audit] 0 high\n[npm audit] 2 low (info-only)' },
+        'visreg/staging':           { name: 'visreg · staging', meta: '142 captures · 0 diffs · 1m 32s', cls: 'ok',
+          text: '[visreg] 142 captures · 0 diffs · PASS' },
+        'visreg/canary':            { name: 'visreg · canary', meta: '142 captures · 1 flake retried green · 1m 47s', cls: 'warn',
+          text: '[visreg] diff > 0.2% on checkout/payment-form @ 414×820 dark · retrying\n[visreg] retry: 0 px diff · PASS (flake)' },
+        'visreg/prod':              { name: 'visreg · production', meta: '142 captures · 0 diffs · 1m 21s', cls: 'ok',
+          text: '[visreg] 142 captures · 0 diffs · PASS' },
+        'perf/staging':             { name: 'perf-budget · staging', meta: 'LCP 1.8s · CLS 0.04 · within budget', cls: 'ok',
+          text: '[perf] LCP=1.81s (budget 2.0s) · CLS=0.041 · FID=18ms · PASS' },
+        'perf/canary':              { name: 'perf-budget · canary', meta: 'LCP 1.9s · within budget', cls: 'ok',
+          text: '[perf] LCP=1.92s · CLS=0.038 · PASS' },
+        'perf/prod':                { name: 'perf-budget · production', meta: 'LCP 1.7s · within budget', cls: 'ok',
+          text: '[perf] LCP=1.72s · CLS=0.029 · PASS' },
+        'axe/staging':              { name: 'axe · staging', meta: '0 violations · 142 pages', cls: 'ok', text: '[axe-core] 0 violations across 142 routes · PASS' },
+        'axe/canary':               { name: 'axe · canary', meta: '0 violations · 142 pages', cls: 'ok', text: '[axe-core] 0 violations · PASS' },
+        'axe/prod':                 { name: 'axe · production', meta: '0 violations · 142 pages', cls: 'ok', text: '[axe-core] 0 violations · PASS' }
+      };
+
+      function render(cellId) {
+        var info = logs[cellId];
+        if (!info) {
+          panel.innerHTML = '<div class="empty">Click a cell to view its logs.</div>';
+          return;
+        }
+        panel.innerHTML =
+          '<div class="lh"><span class="name">' + info.name + '</span>' +
+          '<span class="meta">' + info.meta + ' · result <b style="color: ' + (info.cls === 'warn' ? '#d9b58a' : info.cls === 'err' ? '#e08aa8' : '#9ec07a') + ';">' +
+          (info.cls === 'warn' ? 'flake' : info.cls === 'err' ? 'fail' : 'pass') + '</b></span></div>' +
+          '<pre>' + info.text.split('\n').map(function (ln) {
+            var cls = info.cls === 'err' ? 'err' : info.cls === 'warn' ? 'warn' : 'ok';
+            return '<span class="' + cls + '">' + ln + '</span>';
+          }).join('\n') + '</pre>';
+      }
+      cells.forEach(function (c) {
+        c.addEventListener('click', function () {
+          root.querySelectorAll('.sr-cell.is-active').forEach(function (x) { x.classList.remove('is-active'); });
+          c.classList.add('is-active');
+          render(c.dataset.cell);
+        });
+      });
+
+      // Rollback button mockup: confirm dialog, but don't actually do anything
+      var rollback = root.querySelector('.btn-danger');
+      if (rollback) {
+        rollback.addEventListener('click', function (e) {
+          e.preventDefault();
+          var ok = window.confirm('Roll back v3.2.0 → v3.1.4?\nThis is a mock-up — no action will be taken.');
+          if (ok) rollback.textContent = 'Roll-back queued (mock)';
+        });
+      }
+
+      window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', {
+        detail: { name: 'ship-run', artifact: '09-ship-run', release: root.dataset.release, checks: cells.length }
+      }));
+    })();
+    </script>
+  </section>
+</div>
+<!-- ═══════════════════ /FRAGMENT 5 ═══════════════════ -->
+<!-- ═══════════════════ API SUMMARY ═══════════════════ -->
+<section class="gw-api" id="api-summary">
+  <h2>Fragment API summary</h2>
+  <p>What each fragment expects and produces. The renderer reads a sibling <code>.yaml</code> file (or YAML frontmatter in the source markdown) and pipes its fields into the agent that produces the <code>.html.fragment</code>. The fragment, once mounted, dispatches <code>sdlc:fragment-ready</code> on <code>window</code> so the shell can register it in the navigation tree.</p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 20%;">Fragment</th>
+        <th>Classes it uses</th>
+        <th>Events it emits</th>
+        <th style="width: 38%;">Sample sibling .yaml (input)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>
+          <code>07-review</code><br>
+          <span style="color: var(--ink-3); font-size: 12px;">review sweep</span>
+        </td>
+        <td>
+          <code>.verdict</code> · <code>.verdict-caveats</code> · <code>.metric</code> · <code>.metric-value</code> · <code>.sev</code> · <code>.severity-*</code> · <code>.fragment-review</code> (scope) · <code>.fr-chip</code> · <code>.fr-findings</code> · <code>pre.diff</code> · <code>.diff-add</code>/<code>-rem</code>/<code>-ctx</code> · <code>.btn</code>
+        </td>
+        <td>
+          <code>sdlc:fragment-ready</code><br>
+          <small style="color: var(--ink-3);">detail: <code>{ name: 'review', artifact: '07-review', findings: N, rev: N }</code></small>
+        </td>
+        <td>
+<pre class="yaml"><span class="k">artifact</span>: review
+<span class="k">parent</span>: feat/checkout-v2
+<span class="k">rev</span>: <span class="n">2</span>
+<span class="k">model</span>: claude-opus-4.5
+<span class="k">run_at</span>: <span class="s">2026-05-18T14:22Z</span>
+<span class="k">verdict</span>: caveats        <span class="c"># ship | caveats | no</span>
+<span class="k">findings</span>:
+  - <span class="k">id</span>: F-038
+    <span class="k">severity</span>: high     <span class="c"># blocker|high|med|low|nit</span>
+    <span class="k">dimension</span>: security
+    <span class="k">file</span>: server/billing/intent.ts
+    <span class="k">line</span>: <span class="n">42</span>
+    <span class="k">confidence</span>: high
+    <span class="k">action</span>: accept
+    <span class="k">msg</span>: <span class="s">"Hardcoded JWT secret fallback…"</span>
+    <span class="k">evidence</span>:
+      <span class="k">diff</span>: |
+        - const secret = process.env.X ?? 'dev'
+        + const secret = process.env.X
+    <span class="k">fix</span>: <span class="s">"Remove the fallback…"</span></pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <code>01-rca</code><br>
+          <span style="color: var(--ink-3); font-size: 12px;">root-cause analysis</span>
+        </td>
+        <td>
+          <code>.metric-row</code> · <code>.metric</code> · <code>.callout</code> · <code>.callout-risk</code>/<code>-warn</code>/<code>-info</code>/<code>-ok</code> · <code>.fragment-rca</code> (scope) · <code>.rca-tl</code>/<code>-detail-panel</code>/<code>-chain</code>/<code>-heatmap</code> · inline SVG · CSS-only <code>:target</code> switching
+        </td>
+        <td>
+          <code>sdlc:fragment-ready</code><br>
+          <small style="color: var(--ink-3);">detail: <code>{ name: 'rca', artifact: '01-rca', incident: 'INC-…', events: N }</code></small>
+        </td>
+        <td>
+<pre class="yaml"><span class="k">artifact</span>: rca
+<span class="k">incident</span>: INC-2026-0512-checkout
+<span class="k">title</span>: <span class="s">"Checkout outage"</span>
+<span class="k">started_at</span>: <span class="s">2026-05-15T14:02Z</span>
+<span class="k">resolved_at</span>: <span class="s">2026-05-15T15:48Z</span>
+<span class="k">timeline</span>:
+  - <span class="k">at</span>: <span class="s">14:02:11</span>
+    <span class="k">kind</span>: alert         <span class="c"># alert|escalation|deploy|mitigation|resolution</span>
+    <span class="k">title</span>: <span class="s">"error-rate &gt; 5%"</span>
+    <span class="k">who</span>: datadog
+chain:
+  - <span class="s">"trigger: rev 2 deployed without load-test gate"</span>
+  - <span class="s">"change: stripe instance no longer memoised"</span>
+  - <span class="s">"cascade: pool saturated"</span>
+  - <span class="s">"root-cause: client retries multiply load"</span>
+<span class="k">heatmap</span>:
+  <span class="k">buckets</span>: <span class="s">[14:00, 14:30, …]</span>
+  <span class="k">systems</span>:
+    checkout-api:    <span class="s">[3, 3, 2, 1, 0, 0, 0, 0]</span>
+    billing-service: <span class="s">[2, 3, 2, 1, 0, 0, 0, 0]</span></pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <code>04-plan</code><br>
+          <span style="color: var(--ink-3); font-size: 12px;">implementation plan</span>
+        </td>
+        <td>
+          <code>.files-touched</code> · <code>.role</code>/<code>.is-new</code>/<code>.is-modified</code>/<code>.is-deleted</code> · <code>.callout-risk</code>/<code>-warn</code>/<code>-info</code> · <code>pre.diff</code> + <code>.diff-*</code> · <code>.fragment-plan</code> (scope) · <code>.pl-topo</code>/<code>-revs</code> · inline SVG
+        </td>
+        <td>
+          <code>sdlc:fragment-ready</code><br>
+          <small style="color: var(--ink-3);">detail: <code>{ name: 'plan', artifact: '04-plan', slice, rev, files, modules }</code></small>
+        </td>
+        <td>
+<pre class="yaml"><span class="k">artifact</span>: plan
+<span class="k">slice</span>: 04-checkout-multi-region
+<span class="k">parent</span>: feat/checkout-v2
+<span class="k">rev</span>: <span class="n">3</span>
+<span class="k">modules</span>:
+  - app/components/checkout
+  - app/hooks
+  - app/data
+  - server/billing
+  - shared/types
+  - tests/checkout
+<span class="k">files</span>:
+  - <span class="k">path</span>: app/components/checkout/PaymentForm.tsx
+    <span class="k">role</span>: modified
+    <span class="k">loc</span>: <span class="n">412</span>
+    <span class="k">delta</span>:
+      <span class="k">add</span>: <span class="n">118</span>
+      <span class="k">rem</span>: <span class="n">96</span>
+    <span class="k">imports</span>: <span class="s">[useRegion, CurrencyDisplay]</span>
+    <span class="k">planned_change</span>: <span class="s">"Wire useRegion…"</span>
+<span class="k">edges</span>:
+  - <span class="k">from</span>: PaymentForm.tsx
+    <span class="k">to</span>: useRegion.ts
+    <span class="k">kind</span>: import
+<span class="k">risks</span>: <span class="s">[…]</span>
+<span class="k">history</span>: <span class="s">history/</span></pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <code>02b-design</code><br>
+          <span style="color: var(--ink-3); font-size: 12px;">design artifact</span>
+        </td>
+        <td>
+          <code>.fragment-design</code> (scope) · <code>.dz-matrix</code>/<code>-tokens</code>/<code>-specs</code> · <code>.ck-btn</code> (component) · <code>.is-hover</code>/<code>.is-pressed</code> (forced visual states) · <code>.tk-copy</code> · <code>.btn</code> · inline SVG (callouts)
+        </td>
+        <td>
+          <code>sdlc:fragment-ready</code><br>
+          <small style="color: var(--ink-3);">detail: <code>{ name: 'design', artifact: '02b-design', component, swatches, tokens }</code></small>
+        </td>
+        <td>
+<pre class="yaml"><span class="k">artifact</span>: design
+<span class="k">component</span>: checkout-button
+<span class="k">themes</span>: <span class="s">[light, dark]</span>
+<span class="k">states</span>: <span class="s">[default, hover, pressed]</span>
+<span class="k">sizes</span>:
+  - <span class="k">id</span>: sm
+    <span class="k">height</span>: <span class="n">28</span>
+    <span class="k">padx</span>: <span class="n">10</span>
+    <span class="k">pady</span>: <span class="n">5</span>
+  - <span class="k">id</span>: md
+    <span class="k">height</span>: <span class="n">36</span>
+    <span class="k">padx</span>: <span class="n">14</span>
+    <span class="k">pady</span>: <span class="n">8</span>
+  <span class="c"># lg, xl follow same schema</span>
+<span class="k">tokens</span>:
+  - <span class="k">name</span>: --ck-bg
+    <span class="k">category</span>: color
+    <span class="k">value</span>: <span class="s">"#2a6f8a"</span>
+  - <span class="k">name</span>: --ck-radius-md
+    <span class="k">category</span>: radius
+    <span class="k">value</span>: <span class="s">"6px"</span>
+  <span class="c"># …color, radius, spacing, font, easing</span>
+<span class="k">specs</span>:
+  <span class="k">reference</span>: md.default
+  <span class="k">annotate</span>: <span class="s">[padding-y, padding-x, gap, radius, height]</span></pre>
+        </td>
+      </tr>
+
+      <tr>
+        <td>
+          <code>09-ship-run</code><br>
+          <span style="color: var(--ink-3); font-size: 12px;">deploy report</span>
+        </td>
+        <td>
+          <code>.metric-row</code> · <code>.metric</code> · <code>.fragment-shiprun</code> (scope) · <code>.sr-timeline</code>/<code>-checks</code>/<code>-log-panel</code>/<code>-actions</code> · <code>.sr-cell</code> with <code>.is-pass</code>/<code>-fail</code>/<code>-flake</code>/<code>-skip</code>/<code>-running</code> · <code>.btn</code>/<code>.btn-primary</code>/<code>.btn-danger</code>
+        </td>
+        <td>
+          <code>sdlc:fragment-ready</code><br>
+          <small style="color: var(--ink-3);">detail: <code>{ name: 'ship-run', artifact: '09-ship-run', release, checks }</code></small>
+        </td>
+        <td>
+<pre class="yaml"><span class="k">artifact</span>: ship-run
+<span class="k">release</span>: v3.2.0
+<span class="k">run_at</span>: <span class="s">2026-05-19T09:14Z</span>
+<span class="k">stages</span>:
+  - <span class="k">name</span>: build
+    <span class="k">started_at</span>: <span class="s">09:14</span>
+    <span class="k">ended_at</span>: <span class="s">09:21</span>
+    <span class="k">status</span>: ok
+  - <span class="k">name</span>: canary
+    <span class="k">status</span>: flake  <span class="c"># ok|flake|fail|running</span>
+<span class="k">checks</span>:
+  - <span class="k">name</span>: e2e-checkout
+    <span class="k">kind</span>: e2e
+    <span class="k">results</span>:
+      <span class="k">staging</span>:    <span class="s">{status: pass, duration: 182s}</span>
+      <span class="k">canary</span>:     <span class="s">{status: pass, duration: 168s}</span>
+      <span class="k">production</span>: <span class="s">{status: pass, duration: 171s}</span>
+      <span class="k">logs</span>:
+        <span class="k">staging</span>:    s3://ci-logs/run-9821/staging.log
+        <span class="k">canary</span>:     s3://ci-logs/run-9821/canary.log
+        <span class="k">production</span>: s3://ci-logs/run-9821/prod.log
+<span class="k">rollback</span>:
+  <span class="k">window_minutes</span>: <span class="n">60</span>
+  <span class="k">target_release</span>: v3.1.4
+  <span class="k">approvers</span>: <span class="s">[release-managers]</span></pre>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top: 24px; max-width: 80ch;">
+    <b style="color: var(--ink);">Authoring guidance.</b> When you tell Claude to produce a fragment, point at the matching reference file (<code>skills/review/reference/security.md</code> et al.) and remind it: (1) one <code>&lt;section class="fragment-X"&gt;</code>, no head/body wrappers; (2) only the classes listed above (don't invent globals); (3) scope every new selector under <code>.fragment-X</code>; (4) emit <code>sdlc:fragment-ready</code> on script settle; (5) inline SVG, inline data, no <code>&lt;iframe&gt;</code>, no fetch. Mobile-responsive down to 320 px (heatmaps and matrices may scroll horizontally).
+  </p>
+</section>
+<!-- ═══════════════════ /API SUMMARY ═══════════════════ -->
+<!-- FRAGMENT_3 -->
+<!-- FRAGMENT_4 -->
+<!-- FRAGMENT_5 -->
+<!-- API_SUMMARY -->
+
+<script>
+  // Gallery: raw-view toggles (works for any fragment with a <pre class="gw-raw-src">)
+  document.querySelectorAll('.gw-raw').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var id = btn.getAttribute('data-raw-target');
+      var pane = document.getElementById(id);
+      if (!pane) return;
+      var open = !pane.hidden;
+      pane.hidden = open;
+      btn.setAttribute('aria-pressed', String(!open));
+      btn.textContent = open ? 'Show source' : 'Hide source';
+    });
+  });
+
+  // Gallery: log every sdlc:fragment-ready event so you can see fragments
+  // announcing themselves to the host page.
+  window.addEventListener('sdlc:fragment-ready', function (e) {
+    if (window.console) console.log('[sdlc] fragment-ready', e.detail);
+  });
+</script>
+
+</body>
+</html>

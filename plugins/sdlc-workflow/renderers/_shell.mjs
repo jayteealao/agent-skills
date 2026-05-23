@@ -6,7 +6,7 @@
 
 import { escapeHtml } from './_validator.mjs';
 
-const PLUGIN_VERSION = '9.23.0';
+const PLUGIN_VERSION = '9.24.0';
 
 /**
  * Wrap rendered content in the full HTML shell.

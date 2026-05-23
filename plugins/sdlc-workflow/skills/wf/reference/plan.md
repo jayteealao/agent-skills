@@ -544,8 +544,8 @@ Authoring rules (do not skip — verifier Check 7 enforces these):
 The full contract (allowed shared classes, forbidden tags, YAML→fragment
 mapping per fragment shape) lives in
 [`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
-The authoritative gallery is at
-`sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.
+The authoritative gallery is bundled at
+[`reference/fragments-gallery.html`](../../../reference/fragments-gallery.html).
 
 ### Use `@include` for shared chrome (v9.20.1+)
 

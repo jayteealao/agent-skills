@@ -5,6 +5,114 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.24.0] - 2026-05-22
+
+### Added — markdown always rendered + plugin-bundled gallery
+
+Two behaviour changes that resolve "what skills can see at install time" and
+"how the markdown body relates to the rich fragment".
+
+1. **Markdown body is now always emitted in the view page**, even when a
+   `.html.fragment` sibling is present. The fragment becomes the "rich
+   projection on top" (interactive verdict / metric row / SVG topology /
+   finding list with filters and copy-as-PR-comment buttons); the markdown
+   becomes the "narrative below" (the long-form prose the writer authored
+   in the `.md` source). Both are visible on every page that has either.
+   This makes the writer ladder fully additive: a writer who only ships
+   `.md` sees prose; one who adds `.yaml` sees structured chrome + prose;
+   one who adds `.html.fragment` sees fragment + prose. Each step adds a
+   layer; none removes one.
+
+   Affected renderers (9 files): `_simple.mjs`, `design.mjs`, `ship-run.mjs`,
+   `simplify-run.mjs`, `profile.mjs`, `review.mjs`, `review-command.mjs`,
+   `plan.mjs`, `augmentation.mjs` (4 subtypes).
+
+2. **`reference/fragments-gallery.html` is now bundled inside the plugin**.
+   Previously the authoritative gallery lived at the `agent-skills/sdlc-handoff/`
+   path, which is invisible to plugins after install. The 173 KB gallery
+   file is now duplicated into `plugins/sdlc-workflow/reference/` so
+   installed agents reading `reference/fragment-author-contract.md` can
+   resolve the gallery link. All six skill writer references that pointed
+   at the old upstream path now point at the bundled copy.
+
+### Changed — markdown-it configuration enhancements
+
+`renderers/_markdown.mjs` keeps the same dependencies (markdown-it +
+markdown-it-anchor) but emits classed HTML so the calm-reader CSS and any
+future client-side syntax highlighter can hook in without re-parsing:
+
+- Fenced code blocks → `<pre><code class="hljs language-X">` (highlight.js
+  class convention, ready for a drop-in JS bundle later)
+- Tables → `<table class="prose-table">`
+- Blockquotes → `<blockquote class="prose-quote">`
+
+The library research (markdown-it vs unified/remark/rehype vs marked, and
+highlight.js vs prism vs shiki for syntax highlighting) is summarised at
+the top of `_markdown.mjs` so future maintainers don't repeat the survey.
+
+### Compatibility
+
+- All 71 unit tests pass unchanged (`node --test tests/sunflower.test.mjs`).
+- The new markdown classes (`hljs`, `language-X`, `prose-table`, `prose-quote`)
+  are additive — existing CSS selectors continue to match the same elements.
+- Fragments authored against v9.20.0+ continue to verify; the contract is
+  unchanged. Only the rendered envelope around them differs.
+- Re-rendering test fixtures shows every artifact with a `.md` body now
+  carrying a visible prose section in the page, regardless of whether a
+  fragment is present.
+
+## [9.23.1] - 2026-05-22
+
+### Fixed — handoff-fidelity audit pass (three CSS / renderer drifts)
+
+A side-by-side read of `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`
+(the design source-of-truth shipped to coding agents by Claude Design) against
+production `assets/sdlc.css` + the `renderers/` output surfaced three
+divergences from the calm-reader spec. All three are now closed.
+
+1. **Severity-chip glyph drift** — handoff styles chips with
+   `.severity-X::before` injecting the deuteranope-safe glyph (`● ▲ ◆ — ·`);
+   production CSS dropped the pseudo-element rule, relying entirely on the
+   renderer-emitted inner `<span class="sev-glyph">`. A hand-authored
+   fragment following the handoff convention (no inner span) rendered
+   without a glyph. Now `assets/sdlc.css` carries a `::before` fallback
+   guarded by `:not(:has(.sev-glyph))` so renderer chips don't double up
+   while hand-authored chips still get the glyph.
+2. **Lede color drift** — `.sdlc-lede { color: var(--ink-2) }` was darker
+   than the handoff intent (`--ink-3`). Restoring `--ink-3` widens the
+   contrast between title and lede and matches the gallery exactly.
+3. **Verdict block shape drift** — handoff renders the verdict as a single
+   inline serif phrase with a `::before` glyph; production wrapped the
+   glyph in a 48 px circle and offset the label to a second column. The
+   renderer (`_icons.mjs` `verdictBlock`), the `verdict.html.snippet`
+   template, and the CSS now follow the handoff: no glyph circle, glyph
+   inline via `.v-label::before`, per-kind tint via the `.verdict-*` class.
+   `VERDICT_GLYPH` remains exported for external consumers.
+
+### Known follow-ups (deferred — not fixable by editing the renderer)
+
+- The rendered fixtures under `.scratch/test-ai/_view/` are pinned at
+  `data-sdlc-version="9.22.0"` and `?v=9.22.0` asset URLs because they
+  predate the v9.23.0 writer rollout. To see the rich sibling-YAML output
+  the audit promises, re-run the orchestrator over a fresh fixture set.
+- The per-dimension review fragment in `sdlc-fragments-gallery.html`
+  envisions filter chips, sort dropdown, expandable evidence with diffs,
+  and copy-as-PR-comment buttons. The current `review-command.mjs`
+  rich-render emits only the verdict + metric tally + a finding list.
+  Closing this would require a `review` writer that authors a real
+  `.html.fragment` conforming to the `fragment-review` contract — out of
+  scope for a CSS/renderer pass.
+
+### Compatibility
+
+- No schema or fragment-allow-list changes. No writer signature changes.
+- All 71 unit tests pass unchanged (`node --test tests/sunflower.test.mjs`).
+- Existing `.html.fragment` artifacts that follow the renderer markup
+  pattern (with `.v-glyph` div and inner `.sev-glyph` span) continue to
+  render correctly — the `:has()` guard on severity chips keeps the
+  fallback dormant, and the verdict CSS simply ignores any leftover
+  `.v-glyph` div (zero-cost extra element until artifacts re-render).
+
 ## [9.23.0] - 2026-05-22
 
 ### Added — Phase 4: writer rollout + S1.2 renderer fill-in (closes the contract)

@@ -82,8 +82,10 @@ After writing the primary artifact `.md` and its sibling `.yaml`, write
 ## Per-fragment structure
 
 The five fragment shapes are documented in
-`sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`. Each block is a
+[`reference/fragments-gallery.html`](fragments-gallery.html). Each block is a
 complete reference implementation including CSS + JS scoped to the fragment.
+The gallery is **bundled inside the plugin** — installed agents can read it
+without any access to the upstream `agent-skills/sdlc-handoff/` bundle.
 
 ### `fragment-review`
 
@@ -226,7 +228,8 @@ a malformed fragment fails the verifier.
 
 ## Where to look for reference implementations
 
-- **Authoritative**: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`
+- **Authoritative** (bundled, plugin-relative): [`reference/fragments-gallery.html`](fragments-gallery.html)
+- **Upstream design source** (dev-only, lives at `agent-skills/sdlc-handoff/`): not present in installed plugins
 - **CSS shared catalogue**: `plugins/sdlc-workflow/assets/sdlc.css`
 - **Design tokens**: `:root` block at the top of `sdlc.css`
 - **Shell behaviour**: `plugins/sdlc-workflow/assets/sdlc.js`

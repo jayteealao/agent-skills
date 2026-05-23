@@ -1,8 +1,8 @@
 /* ─────────────────────────────────────────────────────────────────────────
    sdlc.css — calm paper-and-ink design system
    Reference: SUNFLOWER-VIEW-PLAN §"CSS design system"
-              sdlc-handoff/sdlc/project/sdlc-design-iterations.html (.vb scope)
-              sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html
+              reference/fragments-gallery.html (bundled)
+              (upstream dev-only: agent-skills/sdlc-handoff/sdlc/project/*)
    No build step. Hand-rolled.
    ───────────────────────────────────────────────────────────────────────── */
 
@@ -113,7 +113,16 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: var(--gap-lg) 0; }
 .prose code { background: var(--paper-2); padding: 1px 6px; border-radius: var(--rad-sm); font-size: 13px; }
 .prose pre { background: var(--paper-2); padding: 14px 16px; border-radius: var(--rad-md); overflow-x: auto; font-size: 13px; }
 .prose pre code { background: transparent; padding: 0; }
+/* Fenced code blocks tagged with a language hint get a small language label
+   in the top-right via a CSS counter-style trick on data-lang. Empty by
+   default — themes (highlight.js / prism / shiki) can override colors. */
+.prose pre code.hljs { display: block; color: var(--ink); }
+.prose pre code[class*="language-"]::before {
+  content: attr(class);
+  display: none;  /* opt-in: themes can toggle to inline-block */
+}
 .prose table { border-collapse: collapse; margin: 14px 0; }
+.prose .prose-table { width: auto; font-size: 14px; }
 .prose th, .prose td { border-bottom: 1px solid var(--rule); padding: 8px 12px; text-align: left; }
 .prose blockquote { border-left: 3px solid var(--rule-2); padding-left: 16px; color: var(--ink-2); margin: 14px 0; }
 
@@ -140,7 +149,7 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: var(--gap-lg) 0; }
 }
 .sdlc-lede {
   font-size: 15px;
-  color: var(--ink-2);
+  color: var(--ink-3);
   margin: 8px 0 var(--gap);
   max-width: 64ch;
 }
@@ -224,44 +233,62 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: var(--gap-lg) 0; }
 .severity-low     { color: var(--low);     background: var(--low-bg); }
 .severity-nit     { color: var(--nit);     background: var(--nit-bg); }
 
+/* Glyph fallback for hand-authored fragments matching the handoff pattern
+   (chip without an inner .sev-glyph span). The :has() guard keeps renderer-
+   emitted chips — which carry their own <span class="sev-glyph"> — from
+   doubling up the glyph. */
+.sev:not(:has(.sev-glyph))::before {
+  font-family: var(--mono); font-weight: 700;
+  font-size: 11px; margin-right: 5px;
+}
+.severity-blocker:not(:has(.sev-glyph))::before { content: "●"; }
+.severity-high:not(:has(.sev-glyph))::before    { content: "▲"; }
+.severity-med:not(:has(.sev-glyph))::before     { content: "◆"; }
+.severity-low:not(:has(.sev-glyph))::before     { content: "—"; }
+.severity-nit:not(:has(.sev-glyph))::before     { content: "·"; }
+
 /* ── Verdict ──────────────────────────────────────────────────────────── */
 
+/* Verdict — handoff "calm reader" shape: serif label with inline ::before
+   glyph (✓ / ◐ / ✗), optional summary paragraph. No discrete glyph circle —
+   the glyph sits in the same baseline as the label so the block reads like
+   a sentence rather than a badge. Matches sdlc-fragments-gallery.html. */
 .verdict {
-  display: flex;
-  align-items: center;
-  gap: 18px;
   padding: 22px 26px;
   border-radius: var(--rad-lg);
   border: 1px solid var(--rule);
   background: var(--paper-2);
   margin: var(--gap) 0 var(--gap-lg);
 }
-.verdict .v-glyph {
-  font-size: 32px;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--paper);
-  border: 2px solid currentColor;
-  flex-shrink: 0;
-}
 .verdict .v-label {
   font-family: var(--serif);
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.01em;
+  margin: 0;
 }
+.verdict .v-label::before {
+  content: "◐";
+  margin-right: 10px;
+  font-family: var(--mono);
+  font-size: 20px;
+  vertical-align: 1px;
+}
+.verdict-ship .v-label::before { content: "✓"; }
+.verdict-no   .v-label::before { content: "✗"; }
 .verdict .v-sum {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: var(--ink-2);
-  font-size: 14px;
+  font-size: 14.5px;
+  line-height: 1.55;
+  max-width: 70ch;
 }
-.verdict-ship    { color: var(--low);     background: var(--low-bg); }
-.verdict-caveats { color: var(--med);     background: var(--med-bg); }
-.verdict-no      { color: var(--blocker); background: var(--blocker-bg); }
+.verdict-ship    { background: var(--low-bg);     border-color: var(--low); }
+.verdict-caveats { background: var(--med-bg);     border-color: var(--med); }
+.verdict-no      { background: var(--blocker-bg); border-color: var(--blocker); }
+.verdict-ship    .v-label { color: var(--low); }
+.verdict-caveats .v-label { color: var(--med); }
+.verdict-no      .v-label { color: var(--blocker); }
 
 /* ── Metric row ───────────────────────────────────────────────────────── */
 

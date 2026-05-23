@@ -228,7 +228,7 @@ Authoring rules (verifier Check 7 enforces):
 
 Full contract:
 [`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
-Gallery reference: `sdlc-handoff/sdlc/project/sdlc-fragments-gallery.html`.
+Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../reference/fragments-gallery.html).
 
 ### Use `@include` for shared chrome (v9.20.1+)
 

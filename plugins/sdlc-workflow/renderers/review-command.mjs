@@ -66,9 +66,14 @@ export function render(artifact, ctx) {
        </section>`
     : '';
 
-  const bodyContent = artifact.fragment
-    ? `<div class="fragment">${artifact.fragment}</div>`
-    : `${findingsHtml}<div class="prose">${md2html(artifact.body ?? '')}</div>`;
+  // v9.24.0: markdown body always rendered. The renderer's findings list
+  // (derived from YAML) is suppressed when a fragment ships its own.
+  const fragmentBlock = artifact.fragment
+    ? `<div class="fragment">${artifact.fragment}</div>` : '';
+  const findingsBlock = artifact.fragment ? '' : findingsHtml;
+  const proseBlock = artifact.body
+    ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
+  const bodyContent = `${fragmentBlock}${findingsBlock}${proseBlock}`;
 
   return {
     headerHtml,

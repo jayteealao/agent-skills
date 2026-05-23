@@ -60,9 +60,13 @@ export function render(artifact, ctx) {
     }
   }
 
-  const bodyHtml = artifact.fragment
-    ? `${figureHtml}<div class="fragment">${artifact.fragment}</div>`
-    : `${figureHtml}<div class="prose">${md2html(artifact.body ?? '')}</div>`;
+  // v9.24.0: markdown body always rendered alongside fragment (if present).
+  // The figure (file-topology SVG) renders in either case.
+  const fragmentBlock = artifact.fragment
+    ? `<div class="fragment">${artifact.fragment}</div>` : '';
+  const proseBlock = artifact.body
+    ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
+  const bodyHtml = `${figureHtml}${fragmentBlock}${proseBlock}`;
 
   return {
     headerHtml,

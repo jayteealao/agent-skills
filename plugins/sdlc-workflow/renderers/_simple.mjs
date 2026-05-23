@@ -55,10 +55,17 @@ export function renderSimple(artifact, ctx, { title, lede = '', metricFields = [
     badges,
   }) + (metrics.length ? metricRow(metrics) : '');
 
+  // v9.24.0: markdown body is ALWAYS rendered, even when a .html.fragment
+  // sibling is present. The fragment is the "rich projection on top"; the
+  // markdown is the "narrative below". The frontmatter card is suppressed
+  // when a fragment ships its own metadata header.
   const fmCard = frontmatterCard(fm);
-  const bodyHtml = artifact.fragment
-    ? `<div class="fragment">${artifact.fragment}</div>`
-    : `${fmCard}<div class="prose">${md2html(artifact.body)}</div>`;
+  const fragmentBlock = artifact.fragment
+    ? `<div class="fragment">${artifact.fragment}</div>` : '';
+  const fmCardBlock = artifact.fragment ? '' : fmCard;
+  const proseBlock = artifact.body
+    ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
+  const bodyHtml = `${fragmentBlock}${fmCardBlock}${proseBlock}`;
 
   return {
     headerHtml,
