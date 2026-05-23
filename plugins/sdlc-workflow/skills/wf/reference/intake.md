@@ -33,8 +33,8 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it.
-2. **Registry collision check** (v9.11.0). Before touching disk, consult `.ai/workflows/INDEX.md` if it exists:
-   - **If `INDEX.md` does NOT exist** → skip this sub-step entirely (no registry → no collision detection possible; the disk check in sub-step 3 still gates). Append a one-line tip to the final chat return: *"Tip: run `/wf-meta sync` once to bootstrap `.ai/workflows/INDEX.md` — intake gains collision detection against the registry."*
+2. **Registry collision check** (v9.11.0; opportunistic-bootstrap added in v9.25.0). Before touching disk, consult `.ai/workflows/INDEX.md` if it exists:
+   - **If `INDEX.md` does NOT exist** → no registry yet, so no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do NOT bail out — Step 10 (below) will bootstrap `.ai/workflows/INDEX.md` with a header line + this workflow's row at the end of intake, so the *next* intake gets full collision detection without requiring an explicit `/wf-meta sync`. (Sync remains authoritative for full refresh — removing stale rows, fixing status drift across all workflows. Intake only does additive "append self if absent.")
    - **If `INDEX.md` exists**, grep for an exact slug match: `grep -P "^<derived-slug>\t" .ai/workflows/INDEX.md`. Three branches based on the result:
      - **Row exists AND status column ≠ `closed`** → the slug is already in active use. STOP and call `AskUserQuestion`:
        ```
@@ -192,6 +192,15 @@ Do this in order:
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 8. Update `00-index.md` with the recommended default option.
 9. Write `.ai/workflows/<slug>/01-intake.md`.
+10. **Register this workflow in `.ai/workflows/INDEX.md`** (additive bootstrap, v9.25.0). After `00-index.md` is finalized, ensure the registry contains a row for this slug. Re-read the just-written `00-index.md` frontmatter so the row reflects the *final* values (the branch/status/workflow-type fields can change between Step 0 and now based on PO answers in Batch A).
+    - **If `.ai/workflows/INDEX.md` does NOT exist** → create it with the header comment (verbatim from the [sync.md spec](../../wf-meta/reference/sync.md#step--1)) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
+      ```
+      # .ai/workflows/INDEX.md — global workflow registry. Maintained by /wf-meta sync (bootstrap+refresh, Step -1) and additively touched by /wf-quick slug-mode writes (updated-at only) and /wf intake (append self if absent, v9.25.0). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
+      ```
+      Surface in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with this workflow's row. `/wf-quick` positional slug detection is now enabled."*
+    - **If `.ai/workflows/INDEX.md` exists AND the slug is already present** → do nothing (the collision check in Step 0 should have already redirected us; reaching Step 10 with a matching row means this is a resume on a row written by an earlier intake run — leave the existing row in place so sync owns updates).
+    - **If `.ai/workflows/INDEX.md` exists AND the slug is missing** → append a single new row for this workflow, then **re-sort the file alphabetically by slug** (preserving the header line at the top). Surface in the chat return: *"Added `<slug>` to `.ai/workflows/INDEX.md`."*
+    - **Do NOT mutate other rows.** Status/branch/updated-at drift on other workflows is sync's responsibility, not intake's. Intake's contract here is strictly *append self if absent*.
 
 # Adaptive routing — evaluate what's actually next
 After completing this stage, do NOT blindly recommend `/wf shape`. Evaluate the intake and present the user with ALL viable options:

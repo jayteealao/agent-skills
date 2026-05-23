@@ -5,6 +5,48 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [9.25.0] - 2026-05-22
+
+### Added — `/wf intake` opportunistically bootstraps `.ai/workflows/INDEX.md`
+
+Closes a chicken-and-egg gap in the registry collision check. Previously, on a
+fresh repo where `.ai/workflows/INDEX.md` did not yet exist, `/wf intake` would
+skip the registry collision check entirely and emit a chat-return tip asking
+the user to run `/wf-meta sync` once to bootstrap the registry. Until the user
+acted on that tip, the *second* `/wf intake` in the repo would also skip the
+collision check — meaning two intakes could race to the same slug before sync
+ever ran.
+
+Intake now does the bootstrap itself, as a new **Step 10** at the end of the
+intake flow (after `00-index.md` is finalized so branch/status/workflow-type
+reflect the final PO answers):
+
+- If `.ai/workflows/INDEX.md` does not exist → create it with the canonical
+  header comment + exactly one row for this workflow.
+- If `.ai/workflows/INDEX.md` exists but does not contain this slug → append
+  the row and re-sort alphabetically.
+- If the slug is already present → leave the existing row alone (sync owns
+  full refresh).
+
+**Single-writer invariant preserved.** Sync remains authoritative for full
+refresh (removing stale rows, fixing status/branch drift across all
+workflows). Intake's new contract is strictly *append self if absent* —
+the same additive shape as the `/wf-quick` slug-mode `updated-at` touch
+already documented in the INDEX.md header comment. The header comment is
+updated to credit `/wf intake` as a third additive writer.
+
+**Net effect.** The second `/wf intake` in a new repo now gets full registry
+collision detection without any explicit sync step. The "Tip: run
+`/wf-meta sync` once to bootstrap" hint in intake is gone — the other hints
+in `wf-quick`, `wf-meta status`, `wf-meta next`, and `wf-meta resume` still
+fire on truly cold repos (those commands can run before any intake exists)
+but will be naturally satisfied as soon as the first intake completes.
+
+Files touched:
+- `skills/wf/reference/intake.md` (Step 0 sub-step 2 rewritten; new Step 10).
+- `skills/wf-meta/reference/sync.md` (header comment template updated).
+- `.claude-plugin/plugin.json` (version → 9.25.0).
+
 ## [9.24.0] - 2026-05-22
 
 ### Added — markdown always rendered + plugin-bundled gallery

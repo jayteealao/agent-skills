@@ -34,7 +34,7 @@ This step runs **unconditionally on every invocation, before Step 0**, even if t
 Format — single header line (one-line comment starting with `#`), then one row per workflow. Columns are tab-separated. Rows sorted alphabetically by slug. Closed workflows are retained for history (they show up as `closed` in the status column; `/wf-quick`'s positional slug detection skips closed rows but a slug match still triggers an "append a slice to a closed workflow?" confirmation).
 
 ```
-# .ai/workflows/INDEX.md — global workflow registry. Maintained by /wf-meta sync (bootstrap+refresh, Step -1) and additively touched by /wf-quick slug-mode writes (updated-at only). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
+# .ai/workflows/INDEX.md — global workflow registry. Maintained by /wf-meta sync (bootstrap+refresh, Step -1), additively touched by /wf-quick slug-mode writes (updated-at only), and bootstrap+append-self by /wf intake (v9.25.0). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
 <slug>	<status>	<workflow-type>	<branch>	<updated-at>
 <slug>	<status>	<workflow-type>	<branch>	<updated-at>
 ```
