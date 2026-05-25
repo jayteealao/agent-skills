@@ -113,6 +113,7 @@ inferred:
   ci:
     release-workflow-candidates:
       - { path: ".github/workflows/<file>.yml", trigger: "<on: ...>", jobs: [<name>, ...] }
+    pre-merge-checks-candidates: [<job-or-check-name>]   # from on:pull_request: job names + gh api branch protection required_status_checks
     publish-step-evidence: ["<file>:<line> → <command>"]
     registry-hostnames-seen: [<host>, ...]
     secret-refs-seen: [<NAME>, ...]   # from `${{ secrets.X }}` patterns
@@ -196,6 +197,7 @@ Hypothesis from `inferred.version`. Confirm:
 ## Block C — CI/CD contract
 
 Hypothesis from `inferred.ci`. Confirm:
+- `ci-pipeline.pre-merge-checks[]` — required checks that must pass before a PR merges. Pre-fill from `inferred.ci.pre-merge-checks-candidates` (discovered from `on: pull_request:` workflow job names). Also try `gh api repos/<owner>/<repo>/branches/<base-branch>/protection --jq '.required_status_checks.contexts[]' 2>/dev/null` for enforced branch-protection checks. Confirm or adjust. If none are discoverable, leave empty — this field is informational; `/wf ship` does not enforce it but records it for retro analysis.
 - `release-trigger` (tag-on-main, merge-to-main, manual-dispatch, branch-push, or freeform) — derive from the chosen workflow's `on:` block.
 - `release-workflow-file` — present candidates; if multiple workflows look release-y, ask which one.
 - `release-jobs[]` — pre-fill from the workflow file's job names, in order.
@@ -233,6 +235,36 @@ If no seeds and no template defaults, leave the list empty. The list grows as ru
 Freeform:
 - `announcement.channels[]` (e.g., `["#releases", "release-notes@example.com"]`)
 - `announcement.template-path` (default `.ai/release-announcement-template.md`)
+
+## Block G follow-up — Announcement template
+
+If `announcement.channels[]` is non-empty and `announcement.template-path` does not already exist as a file, offer to create it now:
+
+```yaml
+question: "Create a seed announcement template at `<announcement.template-path>`?"
+header: "Announcement template"
+options:
+  - label: "Create seed template (Recommended)"
+    description: "Write a markdown template with {{version}}, {{project-name}}, {{release-url}}, {{changelog-summary}} placeholders. /wf-meta announce will fill these at release time."
+  - label: "Skip — I'll create it manually"
+    description: "The file must exist before /wf-meta announce runs. You can create it at any time before the next ship run."
+multiSelect: false
+```
+
+If "Create seed template", write `<announcement.template-path>` with this content (adjust tone/format to match the project's discovered channel conventions):
+
+```markdown
+## {{project-name}} {{version}} released
+
+{{changelog-summary}}
+
+**Full release notes:** {{release-url}}
+
+---
+*Released by the {{project-name}} team.*
+```
+
+If `announcement.channels[]` is empty, skip this follow-up entirely.
 
 ---
 
@@ -409,8 +441,11 @@ Return only:
 - `template-hint: <kind | none>`
 - `plan-version: 1`
 - `additional-contracts: [<id>, ...]` (or `[]`)
+- `announcement-template-created: <true | false | skipped>` (from Block G follow-up)
 - `next-steps:`
-  - `/wf ship <slug>` — run a release using this plan
+  - `/wf-meta build-pipeline` — audit and implement the GitHub Actions CI/CD pipeline from this plan (creates missing workflows, patches non-compliant ones)
+  - `/wf ship <slug>` — run a release using this plan (requires the pipeline to be in place)
+  - `/wf-meta announce <slug>` — send release announcement to configured channels (run after ship completes; requires `announcement.channels[]` to be set in the plan)
   - `/wf-meta amend ship-plan` — edit any block
 
 ---

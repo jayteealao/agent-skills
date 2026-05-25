@@ -4,6 +4,7 @@
   "dimensions": [
     "amend",
     "announce",
+    "build-pipeline",
     "close",
     "extend",
     "how",

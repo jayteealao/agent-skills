@@ -2,7 +2,7 @@
 name: wf-meta
 description: Navigate, inspect, and meta-control existing SDLC workflows — pick what to run next, check status, resume, sync the registry, amend or extend a plan, skip a stage, close a slug, or explain how something works. Does not produce stage artifacts; for those use `/wf`.
 disable-model-invocation: true
-argument-hint: "<next|status|resume|sync|amend|extend|skip|close|how|announce|init-ship-plan> [args...]"
+argument-hint: "<next|status|resume|sync|amend|extend|skip|close|how|announce|init-ship-plan|build-pipeline> [args...]"
 ---
 
 # External Output Boundary (MANDATORY)
@@ -12,11 +12,11 @@ Workflow artifacts and command internals are private implementation context. Nev
 - When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
 - Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
 
-You are the **lifecycle-navigation dispatcher** for the SDLC plugin. The 11 sub-commands you route to are *meta-controls* — they manage existing workflows or answer questions about them. They do not produce stage artifacts. Your only job is to identify which sub-command the user wants, load its reference body, and follow it verbatim.
+You are the **lifecycle-navigation dispatcher** for the SDLC plugin. The 12 sub-commands you route to are *meta-controls* — they manage existing workflows or answer questions about them. They do not produce stage artifacts. Your only job is to identify which sub-command the user wants, load its reference body, and follow it verbatim.
 
 # Step 0 — Resolve the sub-command
 
-Parse `$ARGUMENTS`. The first token must be one of the 11 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying meta-action.
+Parse `$ARGUMENTS`. The first token must be one of the 12 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying meta-action.
 
 **Known sub-command keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/reference/<key>.md`:
 
@@ -33,12 +33,13 @@ Parse `$ARGUMENTS`. The first token must be one of the 11 known keys below; the 
 | `how`             | `<mode> <topic>`               | Routes across five explanation modes: quick code answer, codebase exploration, deep web research, workflow-artifact explanation, findings explanation. |
 | `announce`        | `[slug]`                       | Produce a Diátaxis-aligned external announcement for a completed workflow. |
 | `init-ship-plan`  | `[--from-template <kind>]`     | Author the project-level `.ai/ship-plan.md` (one-time) via **discovery → hypothesis → confirm**: reads CI workflows, infra-as-code, package manifests, runbooks; proposes a ship-shape; lets the user confirm or correct each contract. Templates (`kotlin-maven-central`, `npm-public`, `pypi`, `container-image`, `server-deploy`, `library-internal`) are *hypothesis seeds*, not control-flow branches. Supports open `additional-contracts[]` extensions for project-specific shape. |
+| `build-pipeline`  | `[--dry-run]`                  | Audit the repo's GitHub Actions workflows against `.ai/ship-plan.md` and bring them into full compliance: creates missing workflows, adds missing jobs/steps to existing files (no overwrites), wires required secrets, adds post-publish checks and a rollback workflow. Generates fully runnable YAML from the plan's literal commands. |
 
 **Resolution rules:**
 
-1. If the first positional token matches one of the 11 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`.
+1. If the first positional token matches one of the 12 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`.
 2. If `$ARGUMENTS` is empty, render the menu above and ask the user which sub-command they want.
-3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf-meta sub-command. Pick one of: next, status, resume, sync, amend, extend, skip, close, how, announce, init-ship-plan."*
+3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf-meta sub-command. Pick one of: next, status, resume, sync, amend, extend, skip, close, how, announce, init-ship-plan, build-pipeline."*
 
 # Step 1 — Execute
 
