@@ -3,7 +3,9 @@
  * hooks/render-on-artifact-write.mjs — PostToolUse hook entry point.
  *
  * Fires after Write|Edit|MultiEdit|NotebookEdit. Filters to artifact paths
- * under .ai/workflows/, .ai/simplify/, .ai/profiles/. Debounces with a 2s
+ * under .ai/workflows/, .ai/simplify/, .ai/profiles/, wf-docs indexes,
+ * and project context.
+ * Debounces with a 2s
  * touch-file. Renders incrementally via `node scripts/render-sunflower.mjs
  * --only <slug-glob>`. Errors land in .ai/_view/.render-errors.log; the hook
  * always exits 0 so a stale view never blocks a slash command.
@@ -40,7 +42,10 @@ function shouldSkipForPath(touchedAbs, viewRoot) {
   return !(
     norm.includes('/.ai/workflows/') ||
     norm.includes('/.ai/simplify/')  ||
-    norm.includes('/.ai/profiles/')
+    norm.includes('/.ai/profiles/')  ||
+    /\/\.ai\/docs\/[^/]+\/08b-docs-index\.(md|yaml|html\.fragment)$/.test(norm) ||
+    /\/(PRODUCT|DESIGN)\.md$/.test(norm) ||
+    /\/\.ai\/ship-plan\.md$/.test(norm)
   );
 }
 
@@ -60,11 +65,13 @@ function pickArtifactPaths(input) {
   );
 }
 
-function detectSlug(touchedAbs, cwd) {
+function detectRenderBucket(touchedAbs, cwd) {
   const norm = touchedAbs.replace(/\\/g, '/');
   // Match .ai/workflows/<slug>/...
   const m = norm.match(/\/\.ai\/workflows\/([^/]+)\//);
   if (m) return m[1];
+  if (/\/\.ai\/docs\/[^/]+\/08b-docs-index\.(md|yaml|html\.fragment)$/.test(norm)) return 'docs';
+  if (/\/(PRODUCT|DESIGN)\.md$/.test(norm) || /\/\.ai\/ship-plan\.md$/.test(norm)) return 'project';
   return null;
 }
 
@@ -88,10 +95,10 @@ async function main() {
   if (!relevant.length) exitClean();
 
   // Build a slug-glob from the touched paths (union, deduped)
-  const slugs = new Set();
+  const buckets = new Set();
   for (const p of relevant) {
-    const slug = detectSlug(resolve(cwd, p), cwd);
-    if (slug) slugs.add(slug);
+    const bucket = detectRenderBucket(resolve(cwd, p), cwd);
+    if (bucket) buckets.add(bucket);
   }
 
   // Touch-file debounce
@@ -101,7 +108,7 @@ async function main() {
   writeFileSync(touchFile, String(now), 'utf-8');
 
   // Detach a child that sleeps DEBOUNCE_MS, then re-checks
-  const child = spawn(process.execPath, [__filename, '--debounce-stage2', String(now), [...slugs].join(',')], {
+  const child = spawn(process.execPath, [__filename, '--debounce-stage2', String(now), [...buckets].join(',')], {
     cwd,
     env: { ...process.env, SDLC_DEBOUNCE_ORIGIN_TS: String(now) },
     detached: true,
@@ -115,7 +122,7 @@ async function main() {
 async function debounceStage2() {
   const argv = process.argv;
   const originTs = Number(argv[3] ?? 0);
-  const slugCsv = String(argv[4] ?? '');
+  const bucketCsv = String(argv[4] ?? '');
   const viewRoot = resolve(process.cwd(), '.ai/_view');
   const touchFile = join(viewRoot, '.render-pending');
 
@@ -127,15 +134,11 @@ async function debounceStage2() {
     if (current > originTs) process.exit(0);
   } catch { /* ignore */ }
 
-  const onlyGlob = slugCsv
-    ? slugCsv.split(',').map((s) => `${s}/**`).join('|')
-    : null;
+  const buckets = bucketCsv ? bucketCsv.split(',').filter(Boolean) : [];
 
   const renderArgs = ['scripts/render-sunflower.mjs'];
-  if (onlyGlob) {
-    // The --only flag accepts a single glob; use the first slug. For multi-slug
-    // touches we fall back to a full additive render (still fast — mtime-gated).
-    renderArgs.push('--only', slugCsv.split(',')[0] + '/**');
+  if (buckets.length === 1) {
+    renderArgs.push('--only', `${buckets[0]}/**`);
   }
   renderArgs.push('--plugin-root', PLUGIN_ROOT);
 

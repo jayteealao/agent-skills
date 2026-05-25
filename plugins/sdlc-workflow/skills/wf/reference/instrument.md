@@ -251,6 +251,10 @@ or, when invoked as an augmentation under a slug,
 projects this as a signal table (kind-coloured chips per row) plus a
 dark-paths callout list and an optional PII-warning counter.
 
+If you also write an instrument `.html.fragment`, first load
+`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
+the shared wrapper, snippet, and verifier rules.
+
 Shape:
 
 ```yaml

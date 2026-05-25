@@ -1,6 +1,6 @@
 {
   "name": "@sdlc-workflow/sunflower-view",
-  "version": "9.25.0",
+  "version": "9.27.0",
   "private": true,
   "type": "module",
   "description": "Sunflower view layer for the sdlc-workflow plugin — HTML projection of .ai/workflows/ artifacts.",
@@ -11,7 +11,7 @@
     "render": "node scripts/render-sunflower.mjs",
     "render:clean": "node scripts/render-sunflower.mjs --clean",
     "verify": "node scripts/verify-router-migration.mjs",
-    "test": "node --test tests/sunflower.test.mjs"
+    "test": "node --test tests/sunflower.test.mjs tests/unit/lib/foundation.test.mjs tests/unit/hooks/hooks.test.mjs tests/unit/gap-closure/design-phase1.test.mjs tests/unit/gap-closure/renderers-phase2.test.mjs tests/unit/gap-closure/walker-phase3.test.mjs"
   },
   "dependencies": {
     "ajv": "^8.17.1",

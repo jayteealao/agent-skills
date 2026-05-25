@@ -253,6 +253,10 @@ The view-layer renderer projects this YAML as a hotspots-table page at
 `comparisons:` is populated), optimization candidates list with confidence
 chips. Without this YAML the page falls back to a plain frontmatter card.
 
+If you also write `01-profile.html.fragment`, first load
+`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
+the shared wrapper, snippet, and verifier rules.
+
 Shape:
 
 ```yaml

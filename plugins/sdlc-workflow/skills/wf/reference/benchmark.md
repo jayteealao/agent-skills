@@ -295,6 +295,10 @@ or, when invoked as an augmentation under a slug,
 projects this as a metric-comparison table with per-row improvement/
 regression tone driven by `direction:` + delta sign.
 
+If you also write a benchmark `.html.fragment`, first load
+`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
+the shared wrapper, snippet, and verifier rules.
+
 Shape:
 
 ```yaml

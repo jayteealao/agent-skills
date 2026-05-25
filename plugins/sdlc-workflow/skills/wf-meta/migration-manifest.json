@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-17T01:16:51.913Z",
+  "generatedAt": "2026-05-25T09:18:46.577Z",
   "entries": [
     {
       "key": "amend",
@@ -95,8 +95,8 @@
       "key": "sync",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/sync.md",
-      "bodyHash": "64bf84ca412f0573c9d3ac6c0c3efc6d9d9257c2c4242e450641a86354853e92",
-      "bodyBytes": 12731,
+      "bodyHash": "69738946daf6aae9d015baa131d67a303e051dbf4270204bfa337ed737ebac28",
+      "bodyBytes": 14817,
       "description": "Reconcile workflow state with reality. Two responsibilities — (a) maintain the global workflow registry `.ai/workflows/INDEX.md` (bootstrap on first run; refresh every run) so `/wf-quick` positional slug detection works; (b) check whether referenced code, tests, PRs, branches, and dependencies actually exist or have changed (per-workflow drift report). Writes a sync report to 00-sync.md.",
       "argumentHint": "[slug]"
     }

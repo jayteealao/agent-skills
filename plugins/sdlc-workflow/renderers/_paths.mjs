@@ -27,6 +27,10 @@ const PHASE_BY_BASENAME = {
   '09-ship-runs-index':    ['ship', null],
   '10-retro':              ['retro', null],
   'RESUME':                ['resume', null],
+  'announce':              ['announce', null],
+  'risk-register':         ['risk-register', null],
+  'estimate':              ['estimate', null],
+  '08b-docs-index':        ['docs-index', null],
 };
 
 /**
@@ -42,6 +46,11 @@ const PHASE_BY_BASENAME = {
  * - `profile` — `storageRel` is relative to `.ai/profiles/` (e.g.
  *   `<run-id>/01-profile.md`). The returned `viewRel` is rooted under
  *   `.ai/_view/profiles/<run-id>/01-profile/INDEX.html`.
+ * - `docs` — `storageRel` is relative to `.ai/docs/`, currently the
+ *   wf-docs run index at `<run-id>/08b-docs-index.md`.
+ * - `project` — `storageRel` is relative to the project root for PRODUCT.md,
+ *   DESIGN.md, and `.ai/ship-plan.md`. The returned `viewRel` is rooted under
+ *   `.ai/_view/project/`.
  *
  * Off-pipeline support (v9.23.0+, S2.2): prior versions returned `null` for
  * simplify/profile paths and the orchestrator computed the view URL inline,
@@ -50,7 +59,7 @@ const PHASE_BY_BASENAME = {
  * path the orchestrator emits.
  *
  * @param {string} storageRel — POSIX path, no leading slash
- * @param {{ kind?: 'workflow'|'simplify'|'profile' }} [opts]
+ * @param {{ kind?: 'workflow'|'simplify'|'profile'|'docs'|'project' }} [opts]
  * @returns {{ viewRel: string, kind: string } | null}
  */
 export function resolveViewPath(storageRel, opts = {}) {
@@ -73,6 +82,23 @@ export function resolveViewPath(storageRel, opts = {}) {
     return {
       viewRel: path.join('profiles', stem, 'INDEX.html'),
       kind: 'profile',
+    };
+  }
+  if (kindHint === 'docs') {
+    const stem = rel.replace(/\.md$/, '');
+    const runId = path.dirname(stem);
+    const page = path.basename(stem).replace(/^08b-/, '');
+    return {
+      viewRel: path.join('docs', runId === '.' ? 'run' : runId, page, 'INDEX.html'),
+      kind: 'docs-index',
+    };
+  }
+  if (kindHint === 'project') {
+    const stem = rel.replace(/^\.ai\//, '').replace(/\.md$/, '');
+    const file = stem.split('/').pop();
+    return {
+      viewRel: path.join('project', `${file}.html`),
+      kind: file === 'ship-plan' ? 'ship-plan' : 'project-context',
     };
   }
 

@@ -188,8 +188,10 @@ function findOrphanedReferences() {
     // Note: `quick` is intentionally NOT in this alternation — /wf-quick is
     // the v9 router name (still valid). The legacy /wf-quick command lives on
     // as /wf-quick quick. The orphan scan only flags the genuinely-removed
+    // /wf-docs is a current documentation router, so it is intentionally not
+    // part of this legacy alternation.
     // /wf-rca, /wf-investigate, /wf-discover, etc.
-    /\/wf-(?:rca|investigate|discover|hotfix|update-deps|docs|refactor|ideate|intake)(?![A-Za-z0-9_/-])/g,
+    /\/wf-(?:rca|investigate|discover|hotfix|update-deps|refactor|ideate|intake)(?![A-Za-z0-9_/-])/g,
     // /wf-* legacy commands removed by v9.0.0-alpha.3 PR-3 (rolled into /wf-meta).
     // /wf-meta is the v9 router (no collision with this alternation), so we
     // do NOT need a second negative lookahead — every match is genuinely

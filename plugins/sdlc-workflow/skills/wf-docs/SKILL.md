@@ -236,6 +236,45 @@ Launch one Explore sub-agent to review the generated files:
 
 Write a `## Review Notes` section to `generate.md` with any issues found. For any accuracy issue found at review: fix it immediately before completing this step.
 
+**Write the docs-index artifact:** Before committing, write a compact index of
+this documentation run. In `mode: workflow`, write
+`.ai/workflows/<target-slug>/08b-docs-index.md`; in project/path mode, write
+`.ai/docs/<run-id>/08b-docs-index.md` unless the run is explicitly attached to
+an existing workflow slug.
+
+**`08b-docs-index.md` frontmatter:**
+```yaml
+---
+schema: sdlc/v1
+type: docs-index
+slug: <target-slug or docs-run slug>
+title: Documentation index
+status: complete
+run-id: <run-id>
+gaps-found: <count>
+actions-completed: <count>
+created-at: <real timestamp>
+updated-at: <real timestamp>
+---
+```
+
+Body structure:
+```
+## Generated or Updated Docs
+| File | Diataxis type | Action | Status |
+|------|---------------|--------|--------|
+
+## Remaining Gaps
+- ...
+
+## Review Notes
+- ...
+```
+
+Also write sibling `08b-docs-index.yaml` beside the docs-index artifact with a
+`docs:` array of `{path, type, action, status}` so the view layer can render
+the docs table in both workflow and project/path mode.
+
 **Commit all documentation changes:**
 `docs: update documentation via wf-docs run <run-id>`
 

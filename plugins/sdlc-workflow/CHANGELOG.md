@@ -5,6 +5,91 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added — gap closure Phase 1 design schema admission
+
+- Added strict frontmatter branches for `design-contract`, `design-critique`,
+  and `design-audit`.
+- Added sibling YAML schemas for `design-critique` and `design-audit`
+  fragments.
+- Added `scripts/migrate-design-types.mjs` with `--dry-run` support for
+  legacy `craft`, `design-brief`, `critique`, and `audit` artifacts.
+- Added focused unit coverage for schema admission, fragment whitelist
+  behavior, sibling YAML validation, and migration idempotence.
+- Added dedicated renderer coverage for gap closure Phase 2:
+  `benchmark`, `experiment`, `instrument`, `rca`, and `review-dimension`.
+- Added renderer coverage for the Phase 1 design artifact types:
+  `design-contract`, `design-critique`, and `design-audit`.
+- Added Hooks Phase 2 bootstrap rendering: `render-sunflower.mjs --bootstrap`
+  scans active workflows, compares artifact/view mtimes, honors
+  `.ai/_view/.render-suppress`, serializes with `.bootstrap.pid`, logs to
+  `.bootstrap.log`, supports `--dry-run` and `--concurrency`, and is launched
+  asynchronously by `session-start-orient.mjs`.
+- Added Gap Closure Phase 3+ walker support for `PRODUCT.md`, `DESIGN.md`,
+  `.ai/ship-plan.md`, workflow extras (`announce.md`, `risk-register.md`,
+  `estimate.md`), workflow docs indexes (`08b-docs-index.md`), and
+  project/path docs indexes under `.ai/docs/<run-id>/08b-docs-index.md`.
+- Added renderers and schema admission for `project-context`, `ship-plan`,
+  `announce`, `risk-register`, `estimate`, and `docs-index`.
+- Added a config-gated renderer-hosted static server:
+  `scripts/render-sunflower-serve.mjs`, health endpoint
+  `/__sdlc/health`, SSE endpoint `/__sdlc/events`, path-traversal protection,
+  live reload injection, `.serve.pid` lifecycle, and optional Tailscale
+  serve/funnel setup behind explicit config.
+- Added shared fragment authoring guidance at
+  `skills/wf/reference/_fragment-authoring.md`.
+
+### Changed
+
+- `/wf-design craft`, `/wf-design critique`, and `/wf-design audit`
+  references now emit the new strict artifact metadata.
+- Fragment verification now resolves `$defs` for sibling schemas and
+  normalizes YAML timestamp scalars before Ajv validation.
+- `augmentation.mjs` now delegates to the concrete augmentation renderers,
+  and `review-command.mjs` delegates to `review-dimension.mjs` as a
+  compatibility alias.
+- `post-write-render.mjs` now treats project context files as render inputs,
+  and the pre/post write hooks understand project context markdown without
+  forcing frontmatter on plain `PRODUCT.md`, `DESIGN.md`, or `.ai/ship-plan.md`.
+- `/wf-docs` now emits a docs-index artifact for orchestrator runs, with
+  sibling YAML for workflow-scoped and project/path docs tables.
+- `announce`, `risk-register`, and `estimate` frontmatter now validates the
+  concrete required fields from the gap-closure plan instead of accepting only
+  generic title/status metadata.
+- Renderer-hosted serve now exposes the planned `status: "ok"` health shape
+  and `reload` SSE event, while keeping `ok: true` for existing lifecycle
+  probes.
+- Bootstrap render jobs now suppress child writes to shared dashboard,
+  manifest, and `.last-render` files, then run one final shared-output pass to
+  avoid concurrent last-writer-wins races.
+- Fragment-writing references now point at the shared authoring contract for
+  profile, simplify, benchmark, experiment, instrument, craft, critique, and
+  audit flows.
+
+## [9.26.0] - 2026-05-24
+
+### Changed — hooks migrated from bash/Python/yq/jq to Node
+
+The live Claude hook manifest now points at Node entrypoints under `hooks/`:
+
+- `session-start-orient.mjs` for active workflow orientation.
+- `pre-write-validate.mjs` for shallow Write validation.
+- `post-write-auto-stage.mjs` for implementation-stage `git add`.
+- `post-write-verify.mjs` for deep Ajv schema validation.
+- `post-write-render.mjs` for debounced sunflower rendering.
+- `pre-compact-preserve.mjs` for compaction preservation instructions.
+
+The old shell scripts remain under `hooks/scripts/` for one release as
+migration references, but they are no longer invoked by `hooks/hooks.json`.
+`hooks/render-sunflower.json` was removed so rendering is managed by the
+single unified hook manifest.
+
+Runtime requirements changed: hooks no longer require Git Bash, `bash`, `yq`,
+`jq`, or Python. Node 20+ is required, and `git` is only needed for the
+auto-stage hook. Deep frontmatter verification now uses the plugin's Node/Ajv
+schema validator against `tests/frontmatter.schema.json`.
+
 ## [9.25.0] - 2026-05-22
 
 ### Added — `/wf intake` opportunistically bootstraps `.ai/workflows/INDEX.md`

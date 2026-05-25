@@ -90,3 +90,44 @@ Would someone say "AI made this"?
 
 When invoked as `/wf-design <slug> critique`:
 - Write to `.ai/workflows/<slug>/07-design-critique.md`
+- Use this frontmatter:
+
+```yaml
+---
+schema: sdlc/v1
+type: design-critique
+slug: <slug>
+title: Design critique
+status: ready
+created-at: <timestamp>
+updated-at: <timestamp>
+scope: <surface|flow|system|narrative>
+findings-count: <number>
+severity-distribution:
+  blocker: <number>
+  high: <number>
+  medium: <number>
+  low: <number>
+  nit: <number>
+refs:
+  implementation: 05-implement.md
+---
+```
+
+- When also writing a renderer fragment, first load
+  `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md`, then
+  write sibling YAML to `.ai/workflows/<slug>/07-design-critique.yaml`:
+
+```yaml
+artifact: design-critique
+scope: <surface|flow|system|narrative>
+summary: <one-sentence summary>
+run_at: <timestamp>
+findings:
+  - id: C1
+    severity: <blocker|high|medium|low|nit>
+    dimension: <dimension>
+    where: <file/component/area>
+    observation: <specific problem>
+    recommendation: <specific fix>
+```

@@ -1,13 +1,35 @@
 {
-  "description": "sdlc-workflow hooks: workflow file write validation and post-write auto-stage / verification",
+  "description": "sdlc-workflow hooks (Node)",
   "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-orient.mjs\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-compact-preserve.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Write",
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/validate-workflow-write.sh",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-validate.mjs\"",
             "timeout": 5
           }
         ]
@@ -15,17 +37,22 @@
     ],
     "PostToolUse": [
       {
-        "matcher": "Write|Edit",
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
         "hooks": [
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/auto-stage.sh",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/post-write-auto-stage.mjs\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/verify-workflow-postwrite.sh",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/post-write-verify.mjs\"",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/post-write-render.mjs\"",
+            "timeout": 30
           }
         ]
       }

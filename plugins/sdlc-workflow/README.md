@@ -953,23 +953,23 @@ The 7 Diátaxis primitives live as references inside the `wf-docs` skill at `ski
 
 ## Hooks
 
-The Claude plugin installs four hooks that run automatically — no configuration required. They fire in the background and never block normal operation.
+The Claude plugin installs Node-based hooks that run automatically — no configuration required. They fire in the background and keep workflow artifacts validated, rendered, and resumable.
 
 The generated Codex plugin currently does **not** enable hooks. The workflow and generated skills are installable in Codex, but the hook layer remains Claude-only until Codex hook path behavior is validated well enough to avoid shipping a broken runtime path.
 
+**Requires:** Node.js 20 or newer. `git` is optional but needed for the auto-stage hook. The hooks no longer require Git Bash, `bash`, `yq`, `jq`, or Python.
+
 ### SessionStart — workflow discovery
 
-**Script:** `hooks/scripts/workflow-discovery.sh`
+**Script:** `hooks/session-start-orient.mjs`
 
 Fires at the start of every Claude Code session. Scans `.ai/workflows/*/00-index.md` for active (non-complete, non-abandoned) workflows and injects a compact summary into Claude's system context for the session. This means Claude always knows what workflow you were working on, what stage it's at, what slice is active, and what the next command is — without you having to explain it.
 
 If multiple active workflows exist, all summaries are injected. If the current git branch doesn't match the workflow's expected branch, the summary includes a `WRONG BRANCH` warning.
 
-**Requires:** `yq` installed on your system (`brew install yq` or `apt-get install yq`). If `yq` is not available, the hook exits silently — no error, no injection.
-
 ### PreToolUse (Write) — workflow file validation
 
-**Script:** `hooks/scripts/validate-workflow-write.sh`
+**Script:** `hooks/pre-write-validate.mjs`
 
 Fires before every Write tool call that targets a `.ai/workflows/` file. Validates four structural invariants before allowing the write:
 
@@ -978,15 +978,15 @@ Fires before every Write tool call that targets a `.ai/workflows/` file. Validat
 | **Schema version** | `schema` field must be `sdlc/v1` |
 | **Required fields** | `type`, `slug` must be present in frontmatter |
 | **Slug stability** | The `slug` value in frontmatter must match the workflow directory name |
-| **Stage file naming** | File name must follow `NN-stagename.md` convention (or `NNb-` substage, or non-numbered utility files like `po-answers.md`) |
+| **Stage file naming** | File name must follow `NN-stagename.md` convention (or `NNb-` substage, or non-numbered utility files like `announce.md`, `risk-register.md`, `estimate.md`) |
 
 If any check fails, the write is **blocked** and a structured error message is fed back to Claude — prompting self-correction before the file is written. This prevents corrupted artifacts that would break future stage reads.
 
 Edit operations (partial changes) pass through validation — only full Write calls are validated.
 
-### PostToolUse (Write/Edit) — auto-stage
+### PostToolUse — auto-stage
 
-**Script:** `hooks/scripts/auto-stage.sh`
+**Script:** `hooks/post-write-auto-stage.mjs`
 
 Fires after every Write or Edit tool call. When a workflow is in the **implement stage** with `branch-strategy: dedicated` or `shared`, it automatically runs `git add <file>` on the changed file — keeping the git staging area current with implementation progress. This supports the atomic-commit-per-slice pattern: when `wf-implement` is ready to commit, all the relevant files are already staged.
 
@@ -994,11 +994,25 @@ Fires after every Write or Edit tool call. When a workflow is in the **implement
 
 The hook is naturally inactive outside of the implement stage — it checks the workflow's `current-stage` field before doing anything.
 
-**Requires:** `yq`, `jq`, and `git`.
+**Requires:** `git`. If `git` is unavailable or staging fails, the hook exits cleanly and never blocks the write.
+
+### PostToolUse — schema verification
+
+**Script:** `hooks/post-write-verify.mjs`
+
+Fires after Write, Edit, MultiEdit, and NotebookEdit for markdown artifacts under `.ai/workflows/`, `.ai/simplify/`, and `.ai/profiles/`. It validates the written file against `tests/frontmatter.schema.json` with Ajv. Passing writes are silent; failures return exit code 2 with diagnostics so Claude can immediately repair the frontmatter.
+
+This replaces the former Python `tests/verify_frontmatter.py` runtime path. The Python verifier remains in `tests/` as a parity reference for now, but hooks do not invoke it.
+
+### PostToolUse — sunflower render
+
+**Script:** `hooks/post-write-render.mjs`
+
+Fires after Write, Edit, MultiEdit, and NotebookEdit for workflow, simplify, and profile artifacts. It debounces writes and launches the renderer in the background, so `.ai/_view/` catches up without blocking normal tool use.
 
 ### PreCompact — context preservation
 
-**Script:** `hooks/scripts/pre-compact.sh`
+**Script:** `hooks/pre-compact-preserve.mjs`
 
 Fires before Claude Code's context compaction. Reads every active workflow's `00-index.md` and outputs detailed preservation instructions to the compaction model, telling it what state must survive in the summary:
 
@@ -1013,24 +1027,7 @@ Without this hook, compaction might summarise away the workflow state — the ar
 
 This is why `/compact` is safe to run during a workflow — the hook protects the critical state.
 
-**Requires:** `yq`, `jq`.
-
-### Hook dependency: yq
-
-All hooks depend on `yq` for YAML frontmatter parsing. If `yq` is not installed, the SessionStart and PreCompact hooks will exit silently (no workflow context in sessions, no compaction preservation). The PreToolUse validation hook also degrades gracefully. Install it:
-
-```bash
-# macOS
-brew install yq
-
-# Ubuntu/Debian
-apt-get install yq
-
-# Or via pip
-pip install yq
-
-# Or download binary from https://github.com/mikefarah/yq/releases
-```
+The old shell hook scripts remain under `hooks/scripts/` for one release as migration references only. The live hook manifest points at the Node entrypoints above.
 
 ---
 
@@ -1066,6 +1063,9 @@ All artifacts for a workflow live under a single directory:
 │   ├── 09-ship-runs.md                  # Lightweight per-workflow run index
 │   ├── 10-retro.md
 │   ├── announce.md                      # Written by wf-announce if run
+│   ├── risk-register.md                 # Optional per-workflow risk register
+│   ├── estimate.md                      # Optional per-workflow estimate
+│   ├── 08b-docs-index.md                # Docs written for this workflow, if wf-docs runs
 │   ├── 90-next.md                       # Written by wf-next if run
 │   ├── 90-resume.md                     # Written by wf-resume if run
 │   ├── 90-how-<topic>.md                # Written by wf-how (Modes A/D) — codebase/artifact explanations
@@ -1085,12 +1085,24 @@ All artifacts for a workflow live under a single directory:
     ├── discover.md                      # Documentation inventory
     ├── audit.md                         # Per-file accuracy, quadrant, and freshness findings
     ├── plan.md                          # Prioritized action plan (create/update/rewrite/delete)
-    └── generate.md                      # Record of docs written and review notes
+    ├── generate.md                      # Record of docs written and review notes
+    └── 08b-docs-index.md                # Compact docs run index rendered by the sunflower view
 ```
 
 Hotfix and refactor workflows use the standard `.ai/workflows/` tree with `workflow-type: hotfix` or `workflow-type: refactor` in `00-index.md` frontmatter, and `hf-`/`rf-` prefixed artifact names instead of numbered stage files.
 
 Every file starts with YAML frontmatter (`schema: sdlc/v1`) containing all machine-readable state. Commit these files alongside your code — they form a permanent, queryable record of how and why a change was made.
+
+### Local config and generated view files
+
+Optional local view and hook settings live in `.ai/sdlc-config.json`. The file can include per-machine choices such as a local serve port, host binding, Tailscale exposure, render concurrency, and hook opt-outs, so most projects should not commit it. The generated sunflower view under `.ai/_view/` is also derived output.
+
+Recommended `.gitignore` entries:
+
+```gitignore
+.ai/sdlc-config.json
+.ai/_view/
+```
 
 ### Control file fields (`00-index.md`)
 

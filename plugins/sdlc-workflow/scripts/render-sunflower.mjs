@@ -16,6 +16,7 @@
  *   --view <path>        Default ".ai/_view"
  *   --simplify <path>    Default ".ai/simplify"
  *   --profiles <path>    Default ".ai/profiles"
+ *   --docs <path>        Default ".ai/docs"
  *   --asset-base <path>  Default "/sdlc/_assets"
  *   --plugin-root <path> Default plugin install dir (auto-detected)
  *   --schema <path>      Default <plugin-root>/tests/frontmatter.schema.json
@@ -23,8 +24,9 @@
 
 import {
   existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync,
-  statSync, rmSync, cpSync,
+  statSync, rmSync, cpSync, appendFileSync,
 } from 'node:fs';
+import { spawn } from 'node:child_process';
 import { dirname, resolve, join, relative, basename } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -36,6 +38,11 @@ import { workSetFilter } from '../renderers/_mtime.mjs';
 import { loadHistory } from '../renderers/_history.mjs';
 import { renderShell } from '../renderers/_shell.mjs';
 import { expand as expandSnippets } from '../components/_components.mjs';
+import { loadConfigWithMeta, configHash as computeConfigHash } from '../lib/config.mjs';
+import { ensureServeLifecycle } from '../lib/serve-lifecycle.mjs';
+import { pidFileStatus, removePidFile, writePidFile } from '../lib/pid-file.mjs';
+import { latestMtimeMs, latestTreeMtimeMs, classifyRenderState, viewMtimeForSlug } from '../lib/render-state.mjs';
+import { activeWorkflowIndexes, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT_DEFAULT = resolve(__dirname, '..');
@@ -48,23 +55,38 @@ function parseArgs(argv) {
     view:       '.ai/_view',
     simplify:   '.ai/simplify',
     profiles:   '.ai/profiles',
+    docs:       '.ai/docs',
     assetBase:  '/sdlc/_assets',
     pluginRoot: PLUGIN_ROOT_DEFAULT,
     schema:     null,
     mode:       'additive',
     onlyGlob:   null,
+    bootstrap:  false,
+    dryRun:     false,
+    diag:       false,
+    includeProjectContext: true,
+    concurrency: null,
+    sharedOutput: true,
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === '--clean')             args.mode = 'clean';
     else if (a === '--only')         args.onlyGlob = argv[++i];
+    else if (a === '--bootstrap')    args.bootstrap = true;
+    else if (a === '--dry-run')      args.dryRun = true;
+    else if (a === '--diag')         args.diag = true;
+    else if (a === '--concurrency')  args.concurrency = Number(argv[++i]);
+    else if (a === '--include-project-context') args.includeProjectContext = true;
+    else if (a === '--no-include-project-context') args.includeProjectContext = false;
     else if (a === '--storage')      args.storage = argv[++i];
     else if (a === '--view')         args.view = argv[++i];
     else if (a === '--simplify')     args.simplify = argv[++i];
     else if (a === '--profiles')     args.profiles = argv[++i];
+    else if (a === '--docs')         args.docs = argv[++i];
     else if (a === '--asset-base')   args.assetBase = argv[++i];
     else if (a === '--plugin-root')  args.pluginRoot = resolve(argv[++i]);
     else if (a === '--schema')       args.schema = resolve(argv[++i]);
+    else if (a === '--no-shared-output') args.sharedOutput = false;
   }
   args.schema ??= join(args.pluginRoot, 'tests', 'frontmatter.schema.json');
   return args;
@@ -100,7 +122,7 @@ function* walkStorage(root) {
 
 /* ───────────────────────── Artifact discovery ───────────────────────── */
 
-function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot }) {
+function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, projectRoot, includeProjectContext = true }) {
   const artifacts = [];
   // Workflow tree — bucket .md files (other extensions handled as siblings)
   for (const abs of walkStorage(storageRoot)) {
@@ -144,7 +166,54 @@ function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot }) {
       });
     }
   }
+  // Documentation run indexes. The wf-docs orchestrator writes audit/generate
+  // scratch artifacts under .ai/docs/<run-id>/ as well, but the view only owns
+  // the compact docs-index artifact.
+  artifacts.push(...discoverDocsArtifacts({ docsRoot }));
+  if (includeProjectContext) {
+    artifacts.push(...discoverProjectArtifacts({ projectRoot }));
+  }
   return artifacts;
+}
+
+function discoverDocsArtifacts({ docsRoot }) {
+  const out = [];
+  if (!existsSync(docsRoot)) return out;
+  for (const abs of walkStorage(docsRoot)) {
+    if (!abs.endsWith('/08b-docs-index.md') && !abs.endsWith('\\08b-docs-index.md')) continue;
+    const rel = relative(docsRoot, abs).replace(/\\/g, '/');
+    out.push({
+      mdAbs: abs,
+      slug: '__docs__',
+      storageRel: rel,
+      kind: 'docs',
+      siblingRoot: docsRoot,
+    });
+  }
+  return out;
+}
+
+function discoverProjectArtifacts({ projectRoot }) {
+  const out = [];
+  const candidates = [
+    { rel: 'PRODUCT.md', type: 'project-context', title: 'Product context', siblingRoot: projectRoot },
+    { rel: 'DESIGN.md', type: 'project-context', title: 'Design context', siblingRoot: projectRoot },
+    { rel: '.ai/ship-plan.md', type: 'ship-plan', title: 'Ship plan', siblingRoot: projectRoot },
+  ];
+  for (const candidate of candidates) {
+    const mdAbs = join(projectRoot, candidate.rel);
+    if (!existsSync(mdAbs)) continue;
+    out.push({
+      mdAbs,
+      slug: '__project__',
+      storageRel: candidate.rel.replace(/\\/g, '/'),
+      kind: 'project',
+      siblingRoot: candidate.siblingRoot,
+      syntheticType: candidate.type,
+      syntheticTitle: candidate.title,
+    });
+  }
+  return out;
 }
 
 /* ───────────────────────── Renderer load ───────────────────────── */
@@ -199,15 +268,40 @@ function escape(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function synthesizeProjectFrontmatter(artifact, frontmatter) {
+  const fm = frontmatter && typeof frontmatter === 'object' ? frontmatter : {};
+  if (fm.schema && fm.type) return fm;
+  return {
+    schema: 'sdlc/v1',
+    type: artifact.syntheticType,
+    title: fm.title ?? artifact.syntheticTitle ?? basename(artifact.storageRel, '.md'),
+    status: fm.status ?? 'active',
+    source: artifact.storageRel,
+    ...fm,
+  };
+}
+
 /* ───────────────────────── Main render loop ───────────────────────── */
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  if (args.bootstrap) {
+    await bootstrapMain(args);
+    return;
+  }
+  await renderMain(args);
+}
+
+async function renderMain(args) {
   const cwd = process.cwd();
   const storageRoot  = resolve(cwd, args.storage);
   const viewRoot     = resolve(cwd, args.view);
   const simplifyRoot = resolve(cwd, args.simplify);
   const profilesRoot = resolve(cwd, args.profiles);
+  const docsRoot     = resolve(cwd, args.docs);
+  const configMeta = await loadConfigWithMeta(cwd);
+  const config = configMeta.config;
+  const liveReload = config.view?.serve?.enabled === true && config.view?.serve?.liveReload !== false;
 
   // 1. ensure viewRoot exists; --clean wipes slug folders
   mkdirSync(viewRoot, { recursive: true });
@@ -223,7 +317,18 @@ async function main() {
   copyAssets(args.pluginRoot, viewRoot);
 
   // 3. discover artifacts
-  const artifacts = discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot });
+  const artifacts = discoverArtifacts({
+    storageRoot,
+    simplifyRoot,
+    profilesRoot,
+    docsRoot,
+    projectRoot: cwd,
+    includeProjectContext: args.includeProjectContext,
+  });
+  if (args.diag) {
+    console.log(`[render:diag] discovered ${artifacts.length} artifact candidate${artifacts.length === 1 ? '' : 's'}`);
+    for (const warning of configMeta.warnings) console.log(`[render:diag] config warning: ${warning}`);
+  }
 
   // 4. parse + bucket per slug
   const parsed = [];
@@ -238,6 +343,8 @@ async function main() {
       a.kind === 'workflow' ? join(storageRoot, a.slug) :
       a.kind === 'simplify' ? simplifyRoot :
       a.kind === 'profile'  ? profilesRoot :
+      a.kind === 'docs'     ? a.siblingRoot :
+      a.kind === 'project'  ? a.siblingRoot :
       null;
     const yamlAbs     = siblingRoot ? join(siblingRoot, siblings.yaml)     : null;
     const fragmentAbs = siblingRoot ? join(siblingRoot, siblings.fragment) : null;
@@ -247,6 +354,9 @@ async function main() {
     } catch (err) {
       console.warn(`[parse] ${a.mdAbs}: ${err.message}`);
       continue;
+    }
+    if (a.kind === 'project') {
+      loaded.frontmatter = synthesizeProjectFrontmatter(a, loaded.frontmatter);
     }
     let fragmentHtml = fragmentAbs && existsSync(fragmentAbs)
       ? readFileSync(fragmentAbs, 'utf-8')
@@ -287,12 +397,20 @@ async function main() {
       ? join(viewRoot, a.slug, viewRel)
       : join(viewRoot, viewRel);
     const storageInputs = [a.mdAbs, a.siblingPaths.yaml, a.siblingPaths.fragment].filter(Boolean);
+    const filterStoragePath = a.kind === 'workflow'
+      ? `${a.slug}/${a.storageRel}`
+      : a.kind === 'project'
+        ? `project/${a.storageRel}`
+        : a.kind === 'docs'
+          ? `docs/${a.storageRel}`
+        : a.storageRel;
     a.viewRel = viewRel;
     a.viewAbs = viewAbs;
     a.storageInputs = storageInputs;
+    a.filterStoragePath = filterStoragePath;
     if (!slugArtifacts.has(a.slug)) slugArtifacts.set(a.slug, []);
     slugArtifacts.get(a.slug).push(a);
-    if (filter({ storagePath: a.storageRel, storageInputs, viewOutput: viewAbs })) {
+    if (filter({ storagePath: filterStoragePath, storageInputs, viewOutput: viewAbs })) {
       workSet.push(a);
     }
   }
@@ -325,8 +443,9 @@ async function main() {
       return acc;
     }, {});
 
+    const displaySlug = a.kind === 'docs' ? 'docs' : a.slug;
     const ctx = {
-      slug: a.slug,
+      slug: displaySlug,
       slugRoot: a.kind === 'workflow' ? join(storageRoot, a.slug) : null,
       viewRoot: a.kind === 'workflow' ? join(viewRoot, a.slug) : viewRoot,
       assetBase: args.assetBase,
@@ -352,11 +471,11 @@ async function main() {
       result = fallbackRender({ ...a, type, path: a.storageRel }, ctx);
     }
 
-    const breadcrumbs = breadcrumbFromView(a.viewRel, a.slug);
+    const breadcrumbs = breadcrumbFromView(a.viewRel, displaySlug);
     const html = renderShell({
       title:     a.frontmatter?.title ?? `${a.slug} · ${type}`,
       type,
-      slug:      a.slug,
+      slug:      displaySlug,
       status:    a.frontmatter?.status ?? '',
       breadcrumbs,
       assetBase: args.assetBase,
@@ -365,6 +484,7 @@ async function main() {
       warnBanner,
       storageHref: relative(dirname(a.viewAbs), a.mdAbs).replace(/\\/g, '/'),
       updatedAt:   a.frontmatter?.['updated-at'] ?? '',
+      liveReload,
     });
 
     mkdirSync(dirname(a.viewAbs), { recursive: true });
@@ -384,53 +504,263 @@ async function main() {
     }
   }
 
-  // 8. dashboard pass — always re-render (one file)
-  const dashboardMod = await loadRenderer('dashboard', args.pluginRoot);
-  if (dashboardMod?.render) {
-    try {
-      const slugsSummary = [];
-      for (const [slug, list] of slugArtifacts) {
-        const indexArt = list.find((x) => x.frontmatter?.type === 'index');
-        if (indexArt) slugsSummary.push({ slug, frontmatter: indexArt.frontmatter });
+  if (args.sharedOutput) {
+    // 8. dashboard pass — always re-render (one file)
+    const dashboardMod = await loadRenderer('dashboard', args.pluginRoot);
+    if (dashboardMod?.render) {
+      try {
+        const slugsSummary = [];
+        for (const [slug, list] of slugArtifacts) {
+          if (slug.startsWith('__')) continue;
+          const indexArt = list.find((x) => x.frontmatter?.type === 'index');
+          if (indexArt) slugsSummary.push({ slug, frontmatter: indexArt.frontmatter });
+        }
+        const projectSummary = (slugArtifacts.get('__project__') ?? []).map((x) => ({
+          path: x.storageRel,
+          viewRel: x.viewRel,
+          frontmatter: x.frontmatter,
+        }));
+        const result = dashboardMod.render(
+          { type: 'dashboard', frontmatter: { title: 'sdlc dashboard' }, body: '', siblingYaml: null, history: [], fragment: null, path: '__dashboard__' },
+          { slug: '', viewRoot, assetBase: args.assetBase, allArtifacts: { __summary__: slugsSummary, __project__: projectSummary } },
+        );
+        const html = renderShell({
+          title: 'sdlc · dashboard',
+          type:  'dashboard',
+          slug:  '',
+          status: '',
+          breadcrumbs: [{ label: 'sdlc', href: './' }],
+          assetBase: args.assetBase,
+          headerHtml: result.headerHtml ?? '',
+          bodyHtml:   result.bodyHtml ?? '',
+          upHref: './',
+          liveReload,
+        });
+        writeFileSync(join(viewRoot, 'INDEX.html'), html, 'utf-8');
+        renderedCount++;
+      } catch (err) {
+        console.warn(`[dashboard] ${err.message}`);
       }
-      const result = dashboardMod.render(
-        { type: 'dashboard', frontmatter: { title: 'sdlc dashboard' }, body: '', siblingYaml: null, history: [], fragment: null, path: '__dashboard__' },
-        { slug: '', viewRoot, assetBase: args.assetBase, allArtifacts: { __summary__: slugsSummary } },
-      );
-      const html = renderShell({
-        title: 'sdlc · dashboard',
-        type:  'dashboard',
-        slug:  '',
-        status: '',
-        breadcrumbs: [{ label: 'sdlc', href: './' }],
-        assetBase: args.assetBase,
-        headerHtml: result.headerHtml ?? '',
-        bodyHtml:   result.bodyHtml ?? '',
-        upHref: './',
-      });
-      writeFileSync(join(viewRoot, 'INDEX.html'), html, 'utf-8');
-      renderedCount++;
-    } catch (err) {
-      console.warn(`[dashboard] ${err.message}`);
     }
-  }
 
-  // 9. manifest pass
-  const manifest = {
-    version:     '9.24.0',
-    generatedAt: new Date().toISOString(),
-    slugs: [...slugArtifacts.keys()].map((slug) => ({
-      slug,
-      artifacts: (slugArtifacts.get(slug) ?? []).length,
-    })),
-  };
-  writeFileSync(join(viewRoot, 'INDEX.yaml'), `# sdlc view manifest\n${toYaml(manifest)}`, 'utf-8');
+    // 9. manifest pass
+    const manifest = {
+      version:     '9.27.0',
+      generatedAt: new Date().toISOString(),
+      slugs: [...slugArtifacts.keys()].map((slug) => ({
+        slug,
+        artifacts: (slugArtifacts.get(slug) ?? []).length,
+      })),
+    };
+    writeFileSync(join(viewRoot, 'INDEX.yaml'), `# sdlc view manifest\n${toYaml(manifest)}`, 'utf-8');
+    writeFileSync(join(viewRoot, '.last-render'), `${JSON.stringify({
+      renderedAt: manifest.generatedAt,
+      renderedCount,
+      schemaWarnings,
+      configHash: computeConfigHash(config),
+    }, null, 2)}\n`, 'utf-8');
+  }
 
   // 10. report
   console.log(`[render] ${slugArtifacts.size} slug${slugArtifacts.size === 1 ? '' : 's'} · ${renderedCount} files written · ${parsed.length - workSet.length} skipped · ${schemaWarnings} schema warnings`);
   if (missingRenderers.size) {
     console.log(`[render] no renderer for: ${[...missingRenderers].join(', ')}`);
   }
+}
+
+/* ───────────────────────── Bootstrap render loop ───────────────────────── */
+
+async function bootstrapMain(args) {
+  const cwd = process.cwd();
+  const storageRoot = resolve(cwd, args.storage);
+  const viewRoot = resolve(cwd, args.view);
+  const docsRoot = resolve(cwd, args.docs);
+  const configMeta = await loadConfigWithMeta(cwd);
+  const config = configMeta.config;
+  const hash = computeConfigHash(config);
+  const logPath = join(viewRoot, '.bootstrap.log');
+
+  mkdirSync(viewRoot, { recursive: true });
+  const log = (line) => logBootstrap(logPath, line);
+  for (const warning of configMeta.warnings) log(`[config] ${warning}`);
+
+  if (config.view?.bootstrap?.enabled === false) {
+    log('[bootstrap] disabled by config');
+    return;
+  }
+
+  if (existsSync(join(viewRoot, '.render-suppress'))) {
+    log('[bootstrap] skipped: .render-suppress present');
+    return;
+  }
+
+  const pidPath = join(viewRoot, '.bootstrap.pid');
+  const status = await pidFileStatus(pidPath);
+  if (status.alive) {
+    log(`[bootstrap] skipped: already running pid ${status.record.pid}`);
+    return;
+  }
+  if (status.stale) await removePidFile(pidPath);
+  await writePidFile(pidPath, { pid: process.pid, kind: 'bootstrap', configHash: hash });
+
+  try {
+    const bootstrapConfig = config.view?.bootstrap ?? {};
+    const workflows = await scanWorkflowIndexes({ projectRoot: cwd, workflowsRoot: storageRoot });
+    const active = activeWorkflowIndexes(workflows);
+    for (const invalid of workflows.filter((workflow) => workflow.classification === 'invalid')) {
+      log(`[bootstrap] invalid workflow skipped: ${invalid.directorySlug}`);
+    }
+
+    const jobs = [];
+    for (const workflow of active) {
+      const viewMtime = await viewMtimeForSlug(viewRoot, workflow.slug);
+      const state = classifyRenderState({
+        latestArtifactMtime: workflow.latestArtifactMtime,
+        viewMtime,
+        renderMissing: bootstrapConfig.renderMissing !== false,
+        renderStale: bootstrapConfig.renderStale !== false,
+      });
+      log(`[bootstrap] ${state.action} ${workflow.slug} (${state.reason})`);
+      if (state.action === 'render') {
+        jobs.push({ label: workflow.slug, only: `${workflow.slug}/**`, reason: state.reason });
+      }
+    }
+
+    if (args.includeProjectContext) {
+      const projectArtifacts = discoverProjectArtifacts({ projectRoot: cwd });
+      if (projectArtifacts.length) {
+        const latestProjectMtime = await latestMtimeMs(projectArtifactInputs(projectArtifacts));
+        const projectViewMtime = await latestTreeMtimeMs(join(viewRoot, 'project'));
+        const projectState = classifyRenderState({
+          latestArtifactMtime: latestProjectMtime,
+          viewMtime: projectViewMtime,
+          renderMissing: bootstrapConfig.renderMissing !== false,
+          renderStale: bootstrapConfig.renderStale !== false,
+        });
+        log(`[bootstrap] ${projectState.action} project (${projectState.reason})`);
+        if (projectState.action === 'render') {
+          jobs.push({ label: 'project', only: 'project/**', reason: projectState.reason });
+        }
+      }
+    }
+
+    const docsArtifacts = discoverDocsArtifacts({ docsRoot });
+    if (docsArtifacts.length) {
+      const latestDocsMtime = await latestMtimeMs(artifactInputs(docsArtifacts));
+      const docsViewMtime = await latestTreeMtimeMs(join(viewRoot, 'docs'));
+      const docsState = classifyRenderState({
+        latestArtifactMtime: latestDocsMtime,
+        viewMtime: docsViewMtime,
+        renderMissing: bootstrapConfig.renderMissing !== false,
+        renderStale: bootstrapConfig.renderStale !== false,
+      });
+      log(`[bootstrap] ${docsState.action} docs (${docsState.reason})`);
+      if (docsState.action === 'render') {
+        jobs.push({ label: 'docs', only: 'docs/**', reason: docsState.reason });
+      }
+    }
+
+    if (args.dryRun) {
+      log(`[bootstrap] dry-run complete: ${jobs.length} render job${jobs.length === 1 ? '' : 's'}`);
+      return;
+    }
+
+    const concurrency = normalizeConcurrency(
+      args.concurrency ?? config.view?.render?.concurrency ?? 4,
+    );
+    await runRenderJobs(jobs, { args, cwd, concurrency, log });
+    if (jobs.length) {
+      await runRenderJob(
+        { label: 'shared outputs', only: '__sdlc_shared__/**', reason: 'finalize' },
+        { args, cwd, log, sharedOutput: true },
+      );
+    }
+    await ensureServeLifecycle({
+      projectRoot: cwd,
+      pluginRoot: args.pluginRoot,
+      viewRoot,
+      config,
+      configHash: hash,
+      log,
+    });
+    log(`[bootstrap] complete: ${jobs.length} render job${jobs.length === 1 ? '' : 's'}`);
+  } finally {
+    await removePidFile(pidPath);
+  }
+}
+
+function projectArtifactInputs(projectArtifacts) {
+  return artifactInputs(projectArtifacts);
+}
+
+function artifactInputs(artifacts) {
+  const inputs = [];
+  for (const artifact of artifacts) {
+    inputs.push(artifact.mdAbs);
+    const siblings = siblingPaths(artifact.storageRel);
+    inputs.push(join(artifact.siblingRoot, siblings.yaml));
+    inputs.push(join(artifact.siblingRoot, siblings.fragment));
+  }
+  return inputs;
+}
+
+function normalizeConcurrency(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(Math.floor(n), 16);
+}
+
+async function runRenderJobs(jobs, { args, cwd, concurrency, log }) {
+  if (!jobs.length) return;
+  let next = 0;
+  const workers = Array.from({ length: Math.min(concurrency, jobs.length) }, async () => {
+    while (next < jobs.length) {
+      const job = jobs[next++];
+      await runRenderJob(job, { args, cwd, log, sharedOutput: false });
+    }
+  });
+  await Promise.all(workers);
+}
+
+function runRenderJob(job, { args, cwd, log, sharedOutput = true }) {
+  return new Promise((resolveJob) => {
+    log(`[bootstrap] rendering ${job.label} (${job.reason})`);
+    const renderArgs = [
+      fileURLToPath(import.meta.url),
+      '--only', job.only,
+      '--storage', args.storage,
+      '--view', args.view,
+      '--simplify', args.simplify,
+      '--profiles', args.profiles,
+      '--docs', args.docs,
+      '--plugin-root', args.pluginRoot,
+      '--schema', args.schema,
+      args.includeProjectContext ? '--include-project-context' : '--no-include-project-context',
+      sharedOutput ? null : '--no-shared-output',
+    ].filter(Boolean);
+    const child = spawn(process.execPath, renderArgs, {
+      cwd,
+      env: process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    child.on('close', (code) => {
+      if (stdout.trim()) log(stdout.trim());
+      if (stderr.trim()) log(stderr.trim());
+      if (code !== 0) log(`[bootstrap] render failed for ${job.label}: exit ${code}`);
+      resolveJob();
+    });
+  });
+}
+
+function logBootstrap(logPath, line) {
+  const entry = `[${new Date().toISOString()}] ${line}`;
+  appendFileSync(logPath, `${entry}\n`, 'utf-8');
+  console.log(entry);
 }
 
 /* ───────────────────────── Minimal YAML emitter ───────────────────────── */

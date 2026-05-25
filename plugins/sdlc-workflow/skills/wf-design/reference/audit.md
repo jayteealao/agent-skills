@@ -90,3 +90,47 @@ Format as a structured report:
 When invoked as `/wf-design <slug> audit`:
 - Write report to `.ai/workflows/<slug>/07-design-audit.md`
 - Update `00-index.md` if at review stage
+- Use this frontmatter:
+
+```yaml
+---
+schema: sdlc/v1
+type: design-audit
+slug: <slug>
+title: Design audit
+status: ready
+created-at: <timestamp>
+updated-at: <timestamp>
+verdict: <pass|fail|conditional>
+audited-against: [02b-design.md, 02c-craft.md]
+violations-count: <number>
+severity-distribution:
+  blocker: <number>
+  high: <number>
+  medium: <number>
+  low: <number>
+remediation-state: <none|in-progress|complete|deferred>
+refs:
+  implementation: 05-implement.md
+---
+```
+
+- When also writing a renderer fragment, first load
+  `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md`, then
+  write sibling YAML to `.ai/workflows/<slug>/07-design-audit.yaml`:
+
+```yaml
+artifact: design-audit
+verdict: <pass|fail|conditional>
+audited-against: [02b-design.md, 02c-craft.md]
+remediation-state: <none|in-progress|complete|deferred>
+run_at: <timestamp>
+violations:
+  - id: A1
+    severity: <blocker|high|medium|low>
+    token-or-rule: <token name or audit rule>
+    where: <file/component/area>
+    observation: <specific problem>
+    remediation-status: <open|in-progress|fixed|deferred>
+    recommendation: <specific fix>
+```

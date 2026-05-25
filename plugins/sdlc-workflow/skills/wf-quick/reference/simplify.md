@@ -475,6 +475,10 @@ The view-layer renderer projects this YAML as a finding-table page at
 instead of severity, optional code-deltas summary, no verdict block.
 Without this YAML the page falls back to a plain frontmatter card.
 
+If you also write a simplify-run `.html.fragment`, first load
+`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
+the shared wrapper, snippet, and verifier rules.
+
 This step is **standalone-mode only.** In slug-mode the simplify findings
 are written into a compressed slice (`type: slice`), which renders via
 the slice template and does NOT consume a `simplify-run` sibling YAML.

@@ -52,9 +52,10 @@ FILENAME_TO_EXPECTED_TYPE: dict[str, str] = {
     "00-index.md": "index",
     "00-sync.md": "sync-report",
     "01-intake.md": "intake",
+    "01-rca.md": "rca",
     "02-shape.md": "shape",
     "02b-design.md": "design",
-    "02c-craft.md": "design-brief",
+    "02c-craft.md": "design-contract",
     "03-slice.md": "slice-index",
     "04-plan.md": "plan-index",
     "04b-instrument.md": "augmentation",   # augmentation-type: instrument

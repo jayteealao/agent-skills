@@ -7,6 +7,7 @@
 export const SEVERITY_GLYPH = {
   blocker: '●',
   high:    '▲',
+  medium:  '◆',
   med:     '◆',
   low:     '—',
   nit:     '·',
@@ -20,8 +21,9 @@ export const VERDICT_GLYPH = {
 
 /** Severity chip — `.sev .severity-X` pairing glyph + label. */
 export function severityChip(level, label) {
-  const glyph = SEVERITY_GLYPH[level] ?? '?';
-  return `<span class="sev severity-${level}" aria-label="${level}"><span class="sev-glyph" aria-hidden="true">${glyph}</span>${label ?? level}</span>`;
+  const cssLevel = level === 'medium' ? 'med' : level;
+  const glyph = SEVERITY_GLYPH[level] ?? SEVERITY_GLYPH[cssLevel] ?? '?';
+  return `<span class="sev severity-${cssLevel}" aria-label="${level}"><span class="sev-glyph" aria-hidden="true">${glyph}</span>${label ?? level}</span>`;
 }
 
 /** Verdict block — `.verdict.verdict-X` with label + optional summary.

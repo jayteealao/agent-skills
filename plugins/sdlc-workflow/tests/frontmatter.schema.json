@@ -48,6 +48,27 @@
         ]
       }
     },
+    "designCritiqueSeverityDistribution": {
+      "type": "object",
+      "required": ["blocker", "high", "medium", "low", "nit"],
+      "properties": {
+        "blocker": { "type": "integer", "minimum": 0 },
+        "high":    { "type": "integer", "minimum": 0 },
+        "medium":  { "type": "integer", "minimum": 0 },
+        "low":     { "type": "integer", "minimum": 0 },
+        "nit":     { "type": "integer", "minimum": 0 }
+      }
+    },
+    "designAuditSeverityDistribution": {
+      "type": "object",
+      "required": ["blocker", "high", "medium", "low"],
+      "properties": {
+        "blocker": { "type": "integer", "minimum": 0 },
+        "high":    { "type": "integer", "minimum": 0 },
+        "medium":  { "type": "integer", "minimum": 0 },
+        "low":     { "type": "integer", "minimum": 0 }
+      }
+    },
 
     "indexFrontmatter": {
       "type": "object",
@@ -202,26 +223,38 @@
       }
     },
 
-    "designBriefFrontmatter": {
+    "designContractFrontmatter": {
       "type": "object",
-      "description": "02c-craft.md — written by /wf-design craft. The hook canonical name is 'design-brief'; templates use 'craft'. Both accepted.",
+      "description": "02c-craft.md — written by /wf-design craft as the implementation-facing visual contract.",
       "required": [
-        "schema", "type", "slug", "created-at", "based-on",
-        "register", "image-gate", "north-star-mock", "references-loaded"
+        "schema", "type", "slug", "title", "status", "created-at",
+        "updated-at", "component", "based-on", "tokens", "states",
+        "sizes", "themes", "refs"
       ],
       "properties": {
-        "type": { "enum": ["design-brief", "craft"] },
-        "register": { "enum": ["brand", "product"] },
+        "type": { "const": "design-contract" },
+        "title": { "type": "string" },
+        "status": { "enum": ["draft", "ready", "frozen"] },
         "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "component": { "type": "string" },
+        "based-on": { "type": "string" },
+        "tokens": { "$ref": "#/$defs/stringArray" },
+        "states": { "$ref": "#/$defs/stringArray" },
+        "sizes": { "$ref": "#/$defs/stringArray" },
+        "themes": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" },
+        "register": { "enum": ["brand", "product"] },
         "image-gate": {
           "oneOf": [
             { "const": "pass" },
             { "type": "string", "pattern": "^skipped:" }
           ]
         },
-        "based-on": { "type": "string" },
         "north-star-mock": { "type": ["string", "null"] },
-        "references-loaded": { "$ref": "#/$defs/stringArray" }
+        "references-loaded": { "$ref": "#/$defs/stringArray" },
+        "pen-doc": { "type": ["string", "null"] },
+        "regenerable": { "type": "boolean" }
       }
     },
 
@@ -781,7 +814,7 @@
       "properties": {
         "type": { "const": "augmentation" },
         "augmentation-type": {
-          "enum": ["benchmark", "experiment", "instrument"]
+          "enum": ["benchmark", "experiment", "instrument", "rca"]
         },
         "parent-workflow": { "type": "string" }
       },
@@ -842,6 +875,29 @@
       ]
     },
 
+    "rcaFrontmatter": {
+      "type": "object",
+      "description": "01-rca.md — root-cause analysis workflow produced by /wf-quick rca.",
+      "required": [
+        "schema", "type", "slug", "workflow-type", "symptom",
+        "impact", "root-cause-confidence", "blast-radius",
+        "recommended-next", "status", "created-at"
+      ],
+      "properties": {
+        "type": { "const": "rca" },
+        "workflow-type": { "const": "rca" },
+        "symptom": { "type": "string" },
+        "impact": { "enum": ["critical", "high", "medium", "low"] },
+        "root-cause-confidence": { "enum": ["high", "medium", "low"] },
+        "blast-radius": { "enum": ["low", "medium", "high", "skipped"] },
+        "recommended-next": { "type": "string" },
+        "status": { "enum": ["draft", "ready-for-fix-routing", "complete"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
     "profileFrontmatter": {
       "type": "object",
       "description": "Written to .ai/profiles/<run-id>/01-profile.md — standalone, no workflow slug.",
@@ -896,12 +952,202 @@
       }
     },
 
-    "designCritiqueOrAuditFrontmatter": {
+    "designCritiqueFrontmatter": {
       "type": "object",
-      "description": "07-design-critique.md and 07-design-audit.md only specify a markdown body; their YAML schema is intentionally loose.",
-      "required": ["schema", "type", "slug"],
+      "description": "07-design-critique.md — prescriptive visual/design decision critique.",
+      "required": [
+        "schema", "type", "slug", "title", "status", "created-at",
+        "updated-at", "scope", "findings-count",
+        "severity-distribution", "refs"
+      ],
       "properties": {
-        "type": { "enum": ["critique", "audit", "design-critique", "design-audit"] }
+        "type": { "const": "design-critique" },
+        "title": { "type": "string" },
+        "status": { "enum": ["draft", "ready"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "scope": { "enum": ["surface", "flow", "system", "narrative"] },
+        "findings-count": { "type": "integer", "minimum": 0 },
+        "severity-distribution": { "$ref": "#/$defs/designCritiqueSeverityDistribution" },
+        "refs": { "$ref": "#/$defs/refs" },
+        "dimensions-touched": { "$ref": "#/$defs/stringArray" },
+        "regenerable": { "type": "boolean" }
+      }
+    },
+
+    "designAuditFrontmatter": {
+      "type": "object",
+      "description": "07-design-audit.md — measurable technical quality audit for implemented design.",
+      "required": [
+        "schema", "type", "slug", "title", "status", "created-at",
+        "updated-at", "verdict", "audited-against", "violations-count",
+        "severity-distribution", "remediation-state", "refs"
+      ],
+      "properties": {
+        "type": { "const": "design-audit" },
+        "title": { "type": "string" },
+        "status": { "enum": ["draft", "ready"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "verdict": { "enum": ["pass", "fail", "conditional"] },
+        "audited-against": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/stringArray" }
+          ]
+        },
+        "violations-count": { "type": "integer", "minimum": 0 },
+        "severity-distribution": { "$ref": "#/$defs/designAuditSeverityDistribution" },
+        "remediation-state": { "enum": ["none", "in-progress", "complete", "deferred"] },
+        "refs": { "$ref": "#/$defs/refs" },
+        "regenerable": { "type": "boolean" }
+      }
+    },
+
+    "projectContextFrontmatter": {
+      "type": "object",
+      "description": "PRODUCT.md / DESIGN.md project-level context rendered under .ai/_view/project/.",
+      "required": ["schema", "type", "title", "status", "source"],
+      "properties": {
+        "type": { "const": "project-context" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "source": { "type": "string" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "shipPlanFrontmatter": {
+      "type": "object",
+      "description": ".ai/ship-plan.md project-level shipping context rendered under .ai/_view/project/.",
+      "required": ["schema", "type", "title", "status", "source"],
+      "properties": {
+        "type": { "const": "ship-plan" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "source": { "type": "string" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "announceFrontmatter": {
+      "type": "object",
+      "required": ["schema", "type", "slug", "title", "status", "scope", "audience", "channel", "scheduled-at"],
+      "properties": {
+        "type": { "const": "announce" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "scope": { "enum": ["internal", "external", "customer"] },
+        "audience": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/stringArray" }
+          ]
+        },
+        "channel": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/stringArray" }
+          ]
+        },
+        "scheduled-at": { "$ref": "#/$defs/iso8601" },
+        "audiences-count": { "type": "integer", "minimum": 0 },
+        "channels-count": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "riskRegisterFrontmatter": {
+      "type": "object",
+      "required": ["schema", "type", "slug", "title", "status", "risks"],
+      "properties": {
+        "type": { "const": "risk-register" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "description", "likelihood", "impact", "mitigation", "owner", "status"],
+            "properties": {
+              "id": { "type": "string" },
+              "description": { "type": "string" },
+              "likelihood": { "type": "string" },
+              "impact": { "type": "string" },
+              "mitigation": { "type": "string" },
+              "owner": { "type": "string" },
+              "status": { "type": "string" }
+            }
+          }
+        },
+        "risks-total": { "type": "integer", "minimum": 0 },
+        "risks-high": { "type": "integer", "minimum": 0 },
+        "risks-open": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "estimateFrontmatter": {
+      "type": "object",
+      "required": ["schema", "type", "slug", "title", "status", "methodology", "estimates", "total", "confidence-range"],
+      "properties": {
+        "type": { "const": "estimate" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "methodology": { "enum": ["story-points", "t-shirt", "hours"] },
+        "estimates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slice-or-task", "value", "confidence"],
+            "properties": {
+              "slice-or-task": { "type": "string" },
+              "value": {
+                "oneOf": [
+                  { "type": "number" },
+                  { "type": "string" }
+                ]
+              },
+              "confidence": { "type": "string" }
+            }
+          }
+        },
+        "total": {
+          "oneOf": [
+            { "type": "number" },
+            { "type": "string" }
+          ]
+        },
+        "confidence-range": { "type": "string" },
+        "estimate-points": { "type": ["number", "integer"] },
+        "confidence": { "enum": ["high", "medium", "low", "unknown"] },
+        "uncertainty-count": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "docsIndexFrontmatter": {
+      "type": "object",
+      "required": ["schema", "type", "slug", "title", "status"],
+      "properties": {
+        "type": { "const": "docs-index" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "run-id": { "type": "string" },
+        "docs": { "type": "array" },
+        "gaps-found": { "type": "integer", "minimum": 0 },
+        "actions-completed": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
       }
     }
   },
@@ -915,7 +1161,7 @@
         { "$ref": "#/$defs/intakeFrontmatter" },
         { "$ref": "#/$defs/shapeFrontmatter" },
         { "$ref": "#/$defs/designFrontmatter" },
-        { "$ref": "#/$defs/designBriefFrontmatter" },
+        { "$ref": "#/$defs/designContractFrontmatter" },
         { "$ref": "#/$defs/sliceIndexFrontmatter" },
         { "$ref": "#/$defs/sliceFrontmatter" },
         { "$ref": "#/$defs/planIndexFrontmatter" },
@@ -937,10 +1183,18 @@
         { "$ref": "#/$defs/sliceAmendmentFrontmatter" },
         { "$ref": "#/$defs/simplifyRunFrontmatter" },
         { "$ref": "#/$defs/augmentationFrontmatter" },
+        { "$ref": "#/$defs/rcaFrontmatter" },
         { "$ref": "#/$defs/profileFrontmatter" },
         { "$ref": "#/$defs/designAugmentationFrontmatter" },
         { "$ref": "#/$defs/shipLegacyFrontmatter" },
-        { "$ref": "#/$defs/designCritiqueOrAuditFrontmatter" }
+        { "$ref": "#/$defs/designCritiqueFrontmatter" },
+        { "$ref": "#/$defs/designAuditFrontmatter" },
+        { "$ref": "#/$defs/projectContextFrontmatter" },
+        { "$ref": "#/$defs/shipPlanFrontmatter" },
+        { "$ref": "#/$defs/announceFrontmatter" },
+        { "$ref": "#/$defs/riskRegisterFrontmatter" },
+        { "$ref": "#/$defs/estimateFrontmatter" },
+        { "$ref": "#/$defs/docsIndexFrontmatter" }
       ]
     }
   ],
@@ -1279,6 +1533,69 @@
           "properties": {
             "reference": { "type": "string" },
             "annotate":  { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "design-critique": {
+      "type": "object",
+      "description": "Sibling YAML for design critique fragments. Carries row-level findings so renderers can build critique tables without scraping prose.",
+      "required": ["artifact", "scope", "summary", "findings"],
+      "properties": {
+        "artifact": { "const": "design-critique" },
+        "scope": { "enum": ["surface", "flow", "system", "narrative"] },
+        "summary": { "type": "string", "maxLength": 500 },
+        "run_at": { "$ref": "#/$defs/iso8601" },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "observation", "recommendation"],
+            "properties": {
+              "id": { "type": "string" },
+              "severity": { "enum": ["blocker", "high", "medium", "low", "nit"] },
+              "dimension": { "type": "string" },
+              "where": { "type": "string" },
+              "observation": { "type": "string" },
+              "recommendation": { "type": "string" },
+              "refs": { "$ref": "#/$defs/refs" }
+            }
+          }
+        }
+      }
+    },
+
+    "design-audit": {
+      "type": "object",
+      "description": "Sibling YAML for design audit fragments. Carries severity-graded violations and remediation status for renderer tables.",
+      "required": ["artifact", "verdict", "audited-against", "remediation-state", "violations"],
+      "properties": {
+        "artifact": { "const": "design-audit" },
+        "verdict": { "enum": ["pass", "fail", "conditional"] },
+        "audited-against": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/stringArray" }
+          ]
+        },
+        "remediation-state": { "enum": ["none", "in-progress", "complete", "deferred"] },
+        "run_at": { "$ref": "#/$defs/iso8601" },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "token-or-rule", "observation", "remediation-status"],
+            "properties": {
+              "id": { "type": "string" },
+              "severity": { "enum": ["blocker", "high", "medium", "low"] },
+              "token-or-rule": { "type": "string" },
+              "where": { "type": "string" },
+              "observation": { "type": "string" },
+              "remediation-status": { "enum": ["open", "in-progress", "fixed", "deferred"] },
+              "recommendation": { "type": "string" },
+              "refs": { "$ref": "#/$defs/refs" }
+            }
           }
         }
       }

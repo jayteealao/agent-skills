@@ -98,10 +98,20 @@ When invoked as `/wf-design <slug> craft`, **DO NOT write code**. Instead, write
 ```yaml
 ---
 schema: sdlc/v1
-type: craft
+type: design-contract
 slug: <slug>
+title: <component> visual contract
+status: ready
 created-at: <timestamp>
+updated-at: <timestamp>
+component: <component or surface name>
 based-on: 02b-design.md
+tokens: [list of token names or token groups used]
+states: [default, hover, focus, active, disabled, loading, empty, error]
+sizes: [mobile, tablet, desktop]
+themes: [light, dark]
+refs:
+  design: 02b-design.md
 register: <brand|product>
 image-gate: <pass|skipped:<reason>>
 north-star-mock: <path or "none">
@@ -201,6 +211,11 @@ Apply fixes. Repeat until no material defects remain.
 
 After writing `02b-design.md` and its sibling `02b-design.yaml`, write
 `02b-design.html.fragment` next to them.
+
+Before authoring the fragment, load
+`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and apply
+the shared wrapper, snippet, and verifier rules in addition to the design-
+specific requirements below.
 
 The fragment is one `<section class="fragment-design" data-artifact="design"
 data-component="<component-name>">` that reproduces the gallery's design

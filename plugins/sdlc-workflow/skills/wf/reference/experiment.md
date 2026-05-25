@@ -244,6 +244,10 @@ or, when invoked as an augmentation under a slug,
 projects this as an arm-allocation figure (horizontal bar split by
 `allocated_pct`) plus a guardrail-threshold table.
 
+If you also write an experiment `.html.fragment`, first load
+`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
+the shared wrapper, snippet, and verifier rules.
+
 Shape:
 
 ```yaml

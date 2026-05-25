@@ -32,8 +32,10 @@ const PLUGIN_ROOT = resolve(__dirname, '..');
 
 const ALLOWED_FRAGMENT_NAMES = new Set([
   'review', 'review-dimension', 'rca', 'plan', 'design', 'ship-run', 'shiprun',
+  'design-critique', 'design-audit',
   // Phase 3 (v9.22.0)
   'simplify-run', 'profile', 'benchmark', 'experiment', 'instrument',
+  'docs-index',
 ]);
 
 const FORBIDDEN_TAGS = ['<html', '<head', '<body', '<iframe', '<link'];
@@ -103,6 +105,17 @@ function detectInlineSnippets(text) {
   return warnings;
 }
 
+function normalizeYamlScalars(value) {
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map((item) => normalizeYamlScalars(item));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, normalizeYamlScalars(item)]),
+    );
+  }
+  return value;
+}
+
 function validateFragment(absPath, ajv, siblingSchemas) {
   const errs = [];
   const warns = [];
@@ -156,7 +169,7 @@ function validateFragment(absPath, ajv, siblingSchemas) {
     }
     if (schema) {
       let parsed;
-      try { parsed = yaml.load(readFileSync(yamlPath, 'utf-8')); }
+      try { parsed = normalizeYamlScalars(yaml.load(readFileSync(yamlPath, 'utf-8'))); }
       catch (e) { errs.push(`sibling .yaml parse error: ${e.message}`); }
       if (parsed) {
         const validate = ajv.compile(schema);
@@ -177,7 +190,16 @@ function main() {
   const root = resolve(process.cwd(), args.root);
   const schemaText = readFileSync(args.schema, 'utf-8');
   const schema = JSON.parse(schemaText);
-  const siblingSchemas = schema.siblingYamlSchemas ?? {};
+  const siblingSchemas = Object.fromEntries(
+    Object.entries(schema.siblingYamlSchemas ?? {}).map(([key, siblingSchema]) => [
+      key,
+      {
+        ...siblingSchema,
+        $schema: schema.$schema,
+        $defs: schema.$defs ?? {},
+      },
+    ]),
+  );
 
   const ajv = new Ajv2020({
     allErrors: true,

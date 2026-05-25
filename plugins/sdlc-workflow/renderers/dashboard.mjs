@@ -24,6 +24,7 @@ export function render(artifact, ctx) {
     slug: s.slug,
     fm:   s.frontmatter ?? {},
   }));
+  const project = ctx.allArtifacts?.__project__ ?? [];
 
   const active = slugs.filter((s) => s.fm.status === 'active');
   const complete = slugs.filter((s) => s.fm.status === 'complete' || s.fm.status === 'shipped');
@@ -48,6 +49,7 @@ export function render(artifact, ctx) {
   });
 
   const bodyHtml = `
+    ${projectSection(project)}
     ${figureHtml}
     ${slugSection('Active', active)}
     ${slugSection('Complete', complete)}
@@ -55,6 +57,26 @@ export function render(artifact, ctx) {
   `;
 
   return { headerHtml, bodyHtml, links: [], children: [] };
+}
+
+function projectSection(list) {
+  if (!list.length) return '';
+  const rows = list.map((item) => {
+    const fm = item.frontmatter ?? {};
+    const title = fm.title ?? item.path;
+    const href = item.viewRel ?? '';
+    const status = fm.status ?? '';
+    return `<a class="project-row" href="${escapeHtml(href)}">
+      <span class="slug"><code>${escapeHtml(item.path)}</code></span>
+      <span class="title">${escapeHtml(title)}</span>
+      <span class="stage-pill">${escapeHtml(fm.type ?? 'context')}</span>
+      <span class="meta">${escapeHtml(status)}</span>
+    </a>`;
+  }).join('');
+  return `<section class="project-list">
+    <h2 class="sdlc-h2">Project context <span class="meta">(${list.length})</span></h2>
+    ${rows}
+  </section>`;
 }
 
 function slugSection(label, list) {

@@ -6,7 +6,7 @@
 
 import { escapeHtml } from './_validator.mjs';
 
-const PLUGIN_VERSION = '9.24.0';
+const PLUGIN_VERSION = '9.27.0';
 
 /**
  * Wrap rendered content in the full HTML shell.
@@ -24,6 +24,7 @@ const PLUGIN_VERSION = '9.24.0';
  * @param {string} [params.storageHref] — link target for the "md ↗" footer link
  * @param {string} [params.updatedAt] — ISO date for the footer
  * @param {string} [params.upHref] — href for the "↑ up" footer link (defaults to "../")
+ * @param {boolean} [params.liveReload] — connect to renderer-hosted SSE reload
  */
 export function renderShell(params) {
   const {
@@ -32,6 +33,7 @@ export function renderShell(params) {
     headerHtml = '', bodyHtml = '',
     warnBanner = '',
     storageHref = '', updatedAt = '', upHref = '../',
+    liveReload = false,
   } = params;
 
   const breadcrumbHtml = breadcrumbs.map((c, i) => {
@@ -43,6 +45,14 @@ export function renderShell(params) {
   }).join('<li class="sep" aria-hidden="true">/</li>');
 
   const versionTag = `?v=${PLUGIN_VERSION}`;
+  const liveReloadScript = liveReload ? `
+  <script>
+    (() => {
+      if (!('EventSource' in window)) return;
+      const events = new EventSource('/__sdlc/events');
+      events.addEventListener('reload', () => window.location.reload());
+    })();
+  </script>` : '';
 
   return `<!DOCTYPE html>
 <html lang="en" data-sdlc-version="${PLUGIN_VERSION}">
@@ -74,6 +84,7 @@ export function renderShell(params) {
       ? `<a href="${escapeHtml(storageHref)}" class="src-link" title="storage source">md ↗</a>`
       : ''}
   </footer>
+  ${liveReloadScript}
 </body>
 </html>
 `;
