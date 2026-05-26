@@ -49,7 +49,7 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
    - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → WARN: "This has already been verified. Running again will overwrite. Proceed?"
    - **Stack gate (do NOT silently re-detect):** Inspect the `stack:` block in `00-index.md` and `stack-source` in `04-plan-<slice-slug>.md` (standard/forwarded modes).
      - If `stack:` is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Verify's interactive sub-agent (functional sub-agent 3) needs the PO-confirmed stack to pick adapters and companion skills. Re-run `/wf intake <slug>` to capture it before verifying." Verify must NOT re-detect — sub-agent 3 below constrains adapter matching against `stack.platforms`, so detection alone is insufficient evidence of intent.
-     - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but the PO never confirmed it. Sub-agent 3 will run against unconfirmed tooling. Re-run intake Batch B confirmation, or proceed and record the weaker truth?" Use AskUserQuestion if available. If the user proceeds, set `stack-source: unconfirmed-auto-detect` in the verify slice frontmatter and surface it under `## Caveats` in the verify report so review/handoff can see the weaker provenance.
+     - If `stack.user-confirmed: false` → **HARD GATE — do not proceed silently.** Call `AskUserQuestion` with header `"Stack unconfirmed"` and question `"stack: was auto-detected but the PO never confirmed it. Sub-agent 3 will run against unconfirmed tooling — adapter selection may be wrong. Options: (1) Stop and re-run intake Batch B to confirm the stack first. (2) Proceed with unconfirmed stack — verify will stamp result as weak-provenance and review/ship may refuse it."` Options: `Stop (recommended)` / `Proceed with unconfirmed stack`. If the user chooses Stop → STOP. If the user explicitly chooses Proceed → set `stack-source: unconfirmed-auto-detect` in the verify slice frontmatter AND surface it under `## Caveats`. Never auto-proceed.
      - If `04-plan-<slice-slug>.md` carries `stack-source: unconfirmed-auto-detect` → propagate the same warning and frontmatter stamp. Verification inherits the plan's stack provenance — if the plan was built on weak truth, the verify report says so.
      - If `stack.user-confirmed: true` and plan agrees → proceed. Sub-agent 3 MUST intersect matched adapters with `stack.platforms`; companion skills used for evidence MUST come from `stack.available-skills`.
 6. **Read the source context by mode:**
@@ -98,6 +98,19 @@ Prompt the agent with ALL of the following:
 - Run the project build command: `npm run build`, `go build ./...`, `cargo build`, `make`, etc.
 - Report: success/failure, build warnings, output artifact verification
 
+**Default performance gate (MANDATORY — runs on every slice, even without the `benchmark` augmentation):**
+- **Bundle size (web):** If a build was produced, compare the output artifact size against the base branch: `git stash && npm run build && du -sh dist/ && git stash pop && npm run build && du -sh dist/`. A size increase ≥ 20% in any chunk is a HIGH issue. Record `metric-bundle-size-delta-pct`.
+- **Build time delta:** Record the wall-clock time of the current build vs. the base branch build (from git stash comparison above if run, otherwise from CI cache statistics). A build time increase ≥ 30% is a WARN.
+- **Startup time (service/CLI):** If the adapter is `service` or `cli`, measure cold-start time (`time curl -s localhost:<port>/health` after a fresh start). A cold-start increase ≥ 15% vs. the base branch is a HIGH issue.
+- Skip the base-branch comparison if `git stash` would destroy in-progress work (check `git stash list` first; if non-empty, record `metric-bundle-size-delta-pct: skipped — stash non-empty` and proceed). In that case, still record the absolute artifact size.
+- This gate is **separate from** the `benchmark` augmentation. The augmentation adds detailed profiling; this gate adds a lightweight size/startup floor that runs every time.
+
+**Security scanning (MANDATORY — runs on every slice):**
+- **Dependency CVEs:** Run `npm audit --audit-level=high`, `cargo audit`, `pip-audit`, `go list -json -m all | nancy sleuth`, or the project's equivalent. Report: count of critical/high CVEs in files this slice changed vs. pre-existing. New CVEs introduced by this slice are BLOCKER issues.
+- **Secret detection:** Run `git diff <base-branch>...HEAD | trufflehog --stdin` or `gitleaks detect --source=. --log-opts="<base>..<head>"` if available; otherwise grep the diff for patterns matching API key, secret, password, token, credential assignments in string literals. Any finding is a BLOCKER.
+- **SAST (if tooling is present):** Run `semgrep --config=auto` on files this slice touched if semgrep is installed. Report new findings in slice-modified files at severity HIGH or above.
+- Report: `security-scan-result: pass | fail | skipped` (skipped only when no tooling is installed and no patterns matched). New findings introduced by the slice are BLOCKER issues regardless of convergence verdict.
+
 ### Functional sub-agent 2 — Test Execution
 
 Prompt the agent with ALL of the following:
@@ -118,6 +131,13 @@ Prompt the agent with ALL of the following:
 - Run tests with coverage enabled if the project has it configured
 - Report coverage percentage for the files this slice changed
 - Flag any new code paths with 0% coverage
+
+**Cross-slice regression check (MANDATORY when sibling slices have been verified):**
+- Read `06-verify.md` (master verify index). Collect every `slice-slug` listed with `result: pass` or `result: partial` that is NOT the current slice.
+- For each sibling slice, identify its `files-modified` list from `05-implement-<sibling-slug>.md`. If any sibling's files overlap with the current slice's `files-modified`, flag the sibling as a potential regression target.
+- Re-run the test suite scoped to the overlapping files (or the sibling's recorded test command from its `06-verify-<sibling-slug>.md` `## Automated Checks Run` section).
+- Report: `cross-slice-regressions-found: <N>`, list of sibling slices re-checked, pass/fail per sibling. Any sibling that newly fails is a BLOCKER issue.
+- If no sibling slices exist (first slice), record `cross-slice-regressions-found: 0` and note "no prior verified slices."
 
 ### Functional sub-agent 3 — Interactive & Runtime-Truth Verification
 
@@ -146,11 +166,21 @@ Prompt the agent with ALL of the following:
 
 The runtime-adapters.md `Evidence protocol` and `Accessibility checks` sections apply across all platforms; do not duplicate them here.
 
+**Accessibility gate (MANDATORY for all UI adapters — web, android, ios, desktop):**
+
+After driving each user-observable criterion, run an a11y scan on the surface just exercised:
+- **Web:** run `axe-core` via `@axe-core/playwright` or `page.evaluate(() => axe.run())` if axe is injected. Alternatively: `npx @axe-core/cli <url>`. Capture new WCAG AA violations only (diff against a baseline scan of the same route on the base branch if possible; otherwise report all violations found in modified components).
+- **Android / iOS:** run the platform's built-in accessibility scanner (`adb shell am start -a android.intent.action.MAIN -n com.google.android.marvin.talkback/.TalkBackService` is not scriptable; use Accessibility Scanner APK via `adb install` if available, or report "a11y scan: not-automatable" with a note to manually verify).
+- **Result:** `a11y-result: pass | fail | not-automatable`. Any new WCAG AA violation in a component this slice introduced or modified is a HIGH issue (not BLOCKER by default, but surfaces in triage).
+- This gate fires whether or not `design-harden` augmentation is present. The augmentation adds a deeper scan; the gate adds a minimum floor.
+
 **Output to the calling stage:**
 - `interactive-verification-results: [{criterion, adapter, evidence-path, observation, result}, ...]`
 - `bootstrap-failures: [{adapter, step, remediation}, ...]` (empty if all bootstrapped cleanly)
 - `metric-interactive-checks-run: <N>`
 - `metric-interactive-checks-passed: <N>`
+- `a11y-result: <pass | fail | not-automatable>`
+- `metric-a11y-violations-new: <N>`  — new WCAG AA violations in slice-modified UI components
 - `stack-source: <confirmed|unconfirmed-auto-detect>` — inherited from `00-index.md` `stack.user-confirmed` and `04-plan-<slice-slug>.md` `stack-source`. Downstream stages (review, handoff, ship) may refuse to proceed on `unconfirmed-auto-detect` without explicit override.
 - `adapters-excluded-by-stack: [<key>, ...]` — adapters whose detection signals matched but were filtered out because they were not in `stack.platforms`. Empty list when stack was unconfirmed (no intersection performed).
 
@@ -184,14 +214,21 @@ Prompt with:
 - Pass: all mock fidelity items honored, all augmentation type-checks pass, no critical findings outstanding.
 - Fail: list each failure with severity. These become BLOCKER or HIGH issues for `wf-review`.
 
-### Web research sub-agent 5 — Freshness Impact on Test Results (only if external dependencies could affect tests)
+### Web research sub-agent 5 — Freshness: Dependencies, AC Staleness, and Standards Drift
 
-Launch ONLY if test results could be affected by external dependency state changes. Prompt with:
+Launch when ANY of the following is true: (a) any test failure occurred, (b) the plan was written more than 14 days ago (check `created-at` in `04-plan-<slice-slug>.md`), or (c) the slice modifies an integration point with an external API or schema. This sub-agent previously only ran on test failures — it now also catches AC staleness and standards drift proactively.
+
+Prompt with:
 
 **Dependency drift:**
 - If any test failures occur, check whether the failing library/API has released breaking changes since the plan was written
 - Web search for known test compatibility issues with the project's dependency versions
 - Check if test fixtures or mock data reference external schemas/APIs that may have changed
+
+**AC staleness check (MANDATORY when plan age > 14 days or slice touches external integrations):**
+- Read the acceptance criteria from `03-slice-<slice-slug>.md`. For each criterion that names an external API, schema, protocol, or third-party service: web search for breaking changes or deprecations announced since the plan's `created-at` date.
+- If any criterion references behavior of an external dependency that has since changed, flag it as `ac-stale: true` with a one-line description of the change. AC staleness is not a verify failure — it surfaces as a `## Freshness Research` finding and routes to `/wf plan` (Option E) if the drift is material.
+- Record `ac-staleness-checked: true | false` and `ac-stale-count: <N>` in the output.
 
 Merge all sub-agent results. For each check, record: command run, pass/fail, relevant output. Do NOT fix issues at this stage — the user-gated fix loop runs once in Step 7.6 after all check results are merged and the AC gate has partitioned issues.
 
@@ -209,6 +246,7 @@ Verify that the selected slice meets acceptance criteria and is ready for review
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
+- **Evidence versioning across re-invocations:** When `06-verify-<slice-slug>.md` already exists (i.e., this is a re-run), do NOT overwrite the previous evidence directory. Before writing new evidence, move the existing evidence to a timestamped snapshot: `mv .ai/workflows/<slug>/verify-evidence/<slice-slug>/ .ai/workflows/<slug>/verify-evidence/<slice-slug>-run-<N>/` where `N` is the re-run count (read from the existing artifact's `fix-rounds-run` field + 1). New evidence goes into the fresh `<slice-slug>/` directory. This preserves a diff-able record of what changed between rounds — reviewers can compare `<slice-slug>-run-1/` vs. `<slice-slug>/` to see whether fixes changed observable behavior.
 
 # Chat return contract
 After writing files, return ONLY:
@@ -281,7 +319,9 @@ This gate closes the "verified but actually broken" leak. It runs in Step 7.5 of
 
 Read every AC entry from `03-slice-<slice-slug>.md` (or the compressed-mode equivalent — see Step 0.4 source-mode rules). For each AC entry, apply this two-step rule:
 
-**Step A — explicit override wins.** If the AC entry carries an `observable: true | false` annotation (inline tag in the slice file), that value is final. Authors use this to correct heuristic miscalls.
+**Authoring note (for `/wf slice` authors):** The `observable:` annotation is the only mechanism to correct a heuristic miscall, and it must be set at slice-authoring time — not discovered at verify time. When writing AC entries in `03-slice-<slice-slug>.md`, tag any criterion whose classification is ambiguous: `<!-- observable: true -->` or `<!-- observable: false -->` immediately after the criterion text. Criteria that name an internal function but whose observable outcome is user-visible MUST be tagged `observable: true`; criteria that describe a user-visible outcome that is fully covered by an existing automated assertion with no need for a live adapter run may be tagged `observable: false`. When in doubt, omit the tag and let the heuristic run — but if the slice author knows the heuristic will miscall, tag it now to avoid a blocked result at stage 6.
+
+**Step A — explicit override wins.** If the AC entry carries an `observable: true | false` annotation (inline tag or comment in the slice file), that value is final. Authors use this to correct heuristic miscalls.
 
 **Step B — heuristic when unannotated.** When the AC entry has no `observable` annotation, the gate considers it user-observable when any of the following hold:
 - It names a visible surface (screen, page, route, view, panel, dialog, command output).
@@ -373,7 +413,10 @@ The triage is **always required**. Verify never silently auto-fixes. If the user
 
 For each issue triaged `Fix`, sequentially (one at a time):
 1. `TaskUpdate` a new task: `subject: "Fix [{ID}]: {title}"`, `activeForm: "Fixing [{ID}]"`, `metadata: { slug, stage: "verify-fix", slice: "<slice-slug>", issueId: "{ID}" }`.
-2. Spawn ONE sub-agent **with explicit `model: sonnet`** on the `Task` call (REQUIRED — do not omit; fix-loop sub-agents must not silently inherit the parent session's model). Sonnet handles read-issue-then-patch-code well without Opus cost.
+2. Spawn ONE sub-agent **with explicit `model: sonnet` and `isolation: worktree`** on the `Task` call (REQUIRED — both flags must be set; fix-loop sub-agents must not silently inherit the parent session's model, and worktree isolation prevents a bad fix from landing in the working tree until it is verified). Sonnet handles read-issue-then-patch-code well without Opus cost.
+
+   The worktree is automatically cleaned up if the sub-agent makes no changes. If the sub-agent does make changes, the worktree path and branch are returned in the result — do NOT merge them into the main working tree until Step 3 (sanity-check) passes.
+
    ```
    Fix the following verify-stage issue in the codebase:
 
@@ -391,7 +434,7 @@ For each issue triaged `Fix`, sequentially (one at a time):
 
    Return a brief summary of what you changed.
    ```
-3. When the sub-agent returns: read the changed file(s) yourself; sanity-check the patch addresses the issue and does not obviously break sibling code.
+3. When the sub-agent returns: read the changed file(s) from the worktree path; sanity-check the patch addresses the issue and does not obviously break sibling code. If the patch looks correct, merge the worktree changes into the main working tree (e.g., `git checkout <worktree-branch> -- <changed-files>`). If the patch is wrong, discard the worktree without merging and record `COULD NOT FIX`.
 4. `TaskUpdate(taskId, status: "completed")`. If the sub-agent could not fix, record `description: "COULD NOT FIX: <reason>"` then mark completed and treat this issue as `convergence: escalated` material in the next step.
 
 ## Re-check (single round)
@@ -418,14 +461,16 @@ When `convergence: escalated`:
 - Adaptive routing surfaces "Option B: Re-invoke `/wf verify` to attempt another fix round" and "Option C: `/wf implement` (manual escape)" — never auto-loop.
 - The `## Issues Found` body lists the still-broken issues with their triage decision attached (`Skip` and `Escalate`, plus any `Fix` that the sub-agent could not resolve).
 
-## Commit (only when fixes landed)
+## Commit (only when fixes landed AND re-check passed)
 
-If at least one `Fix` sub-agent successfully modified files AND `branch-strategy` is `dedicated` or `shared`:
+If at least one `Fix` sub-agent successfully modified files **AND all re-checks for `Fix`-triaged issues passed** AND `branch-strategy` is `dedicated` or `shared`:
 - Stage every file the fix sub-agents touched.
 - Commit with message: `fix(<slug>): verify-time fixes for <slice-slug>`.
 - Record the commit SHA in the verify artifact `## Verify-Owned Fixes` section.
 - Do NOT push.
 - If `branch-strategy: none`, skip the commit; the fixes remain in the working tree.
+
+**Do NOT commit if any `Fix`-triaged re-check still fails.** In that case, record `convergence: escalated`, leave the working tree as-is, and route the user to re-invoke verify. A commit that does not resolve the issue it was meant to fix must not enter git history — it would make the audit trail misleading.
 
 ## Fix Status table (in artifact body)
 
@@ -497,12 +542,20 @@ metric-issues-found-initial: <N>                # snapshot BEFORE the fix loop
 metric-issues-found-final: <N>                  # snapshot AFTER the fix loop (== metric-issues-found)
 fix-rounds-run: <0 | 1>                          # 0 if no issues OR no Fix triage decisions; 1 if the loop ran
 convergence: <not-needed | converged | escalated>
-verify-owned-fix-commit: "<SHA | null>"         # null if no fixes landed or branch-strategy: none
+verify-owned-fix-commit: "<SHA | null>"         # null if no fixes landed, re-check still failed, or branch-strategy: none
 interactive-verification: <required | deferred | not-applicable>
 interactive-verification-defer-reason: "<string>"  # required when interactive-verification == deferred
 adapters-used: [<key>, ...]                     # which runtime adapters were driven
 bootstrap-failures: []                          # list of {adapter, step, remediation} from sub-agent 3
 evidence-dir: ".ai/workflows/<slug>/verify-evidence/<slice-slug>/"
+evidence-run-count: <N>                         # 1 for first run; increments on re-invocations; prior evidence archived to <slice-slug>-run-<N-1>/
+security-scan-result: <pass | fail | skipped>  # BLOCKER if fail; skipped only when no tooling installed
+metric-a11y-violations-new: <N>                # new WCAG AA violations in slice-modified UI components
+a11y-result: <pass | fail | not-automatable>   # HIGH issue if fail; not-automatable surfaces as a gap
+cross-slice-regressions-found: <N>             # sibling slices that newly fail after this slice's changes; 0 if first slice
+metric-bundle-size-delta-pct: <N | "skipped">  # % change in output artifact size vs. base branch; HIGH if ≥ 20%
+ac-staleness-checked: <true | false>
+ac-stale-count: <N>                            # AC entries referencing external APIs/schemas that have changed
 tags: []
 refs:
   index: 00-index.md
@@ -569,6 +622,26 @@ The `kind` column is what makes the user-observable AC gate auditable. A reviewe
 - **Instrumentation signal coverage** (from `04b-instrument.md`): <N firing / <N missing>
 - **Experiment wiring** (from `04c-experiment.md`): <pass/fail> — flag, cohort, metrics, rollback
 - **Benchmark compare-mode delta** (from `05c-benchmark.md`): <within tripwires / regression>
+
+## Security Scan
+- **CVE scan:** `<tool>` — `<pass | fail | skipped>`, `<N>` new critical/high CVEs introduced by this slice
+- **Secret detection:** `<pass | fail | skipped>`, findings: `<none | list>`
+- **SAST:** `<pass | fail | skipped>`, new HIGH+ findings in slice-modified files: `<N>`
+
+## Accessibility Gate
+- **Tool used:** `<axe-core | not-automatable | none>`
+- **New WCAG AA violations in slice-modified components:** `<N>`
+- Per-violation: `<rule-id>`: `<element>` — `<description>`
+
+## Performance Gate
+- **Bundle size delta:** `<+N% | -N% | skipped — stash non-empty>` (HIGH if ≥ +20%)
+- **Build time delta:** `<+N% | -N% | not-measured>`
+- **Cold-start delta (service/CLI only):** `<+N% | -N% | not-applicable>`
+
+## Cross-Slice Regression
+- **Sibling slices checked:** `<list or "none — first slice">`
+- **Regressions found:** `<N>`
+- Per regression: `<sibling-slug>` — `<test-suite>`: `<failure summary>`
 
 ## Gaps / Unverified Areas
 - ...
