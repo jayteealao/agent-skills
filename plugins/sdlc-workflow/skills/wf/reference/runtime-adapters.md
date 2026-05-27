@@ -105,23 +105,54 @@ If `mcp__claude-in-chrome__*` tools are available in the session:
 If configured in the project, run existing Playwright test suites or write inline scripts.
 
 ## Observe
-- Screenshots via the driver's screenshot API; copy into the evidence directory.
+- **Multi-point screenshots (MANDATORY — Gap 12 fix):** For each criterion drive, capture three frames: immediately after action trigger (`-t0.png`), at ~250 ms (`-t250.png`), and after `waitForSelector` resolves (`-final.png`). Use `page.screenshot()` at each point. Report on each frame: was a loading indicator shown? Did transitions complete smoothly? Was there any blank/broken intermediate state?
+- **Video recording (MANDATORY for UI criteria — Gap 8 fix):** Start a Playwright video recording before driving each criterion (`context.newPage()` with `{ recordVideo: { dir: '<evidence-dir>/video/' } }`). The video captures all intermediate states, animations, and transitions that screenshots miss. Stop recording after the criterion drive and note the path. For non-Playwright drivers, use `xcrun simctl io booted recordVideo` (iOS) or `adb screenrecord` (Android).
+- **Web Vitals via CDP (MANDATORY — Gap 8 fix):** After driving each criterion, extract Core Web Vitals from the Chrome DevTools Protocol:
+  ```js
+  const metrics = await page.evaluate(() => ({
+    lcp: performance.getEntriesByType('largest-contentful-paint').at(-1)?.startTime,
+    cls: performance.getEntriesByType('layout-shift').reduce((s, e) => s + e.value, 0),
+    inp: performance.getEntriesByType('event').filter(e => e.duration > 40)
+           .reduce((max, e) => Math.max(max, e.duration), 0)
+  }));
+  ```
+  Report `lcp`, `cls`, `inp`. INP > 200 ms is a HIGH issue; LCP > 2500 ms is WARN; CLS > 0.1 is WARN.
 - Browser console messages — check for errors after each interaction.
 - Network requests — verify correct requests sent, responses received when the criterion involves API calls.
 - DOM snapshots for AI-readable reasoning when supported (`page.snapshotForAI()`).
 - Accessibility scan: axe-core via Playwright (`@axe-core/playwright`), eslint-plugin-jsx-a11y, or built-in browser accessibility audit.
 
+## Cross-browser sweep (MANDATORY for web adapter — Gap 7 fix)
+After verifying all criteria in the primary browser (Chromium), re-drive each criterion in a second browser. Use Playwright's multi-browser support:
+```js
+const firefox = await playwright.firefox.launch();
+const ctx = await firefox.newContext();
+const page = await ctx.newPage();
+// drive same criterion
+await page.goto(url);
+// screenshot for comparison
+await page.screenshot({ path: '<evidence-dir>/<criterion>-firefox.png' });
+```
+Compare primary and secondary browser screenshots for each criterion. Report divergences (layout breakage, missing elements, different rendering) under `## Cross-Browser Delta`. Divergences are HIGH issues. If WebKit is also available, add a third pass. Record which browsers were used under `adapters-used`.
+
 ## Tear down
 - If this run started the dev server (i.e., it was not already running at bootstrap), terminate the background process.
+- Stop all video recordings before teardown — Playwright finalizes video files on context close (`await context.close()`).
 - If `dev-browser --headless` was used, no extra teardown needed — its tmp directory self-prunes.
 - Persistent named pages in dev-browser survive across verification scripts within the same run; they are not torn down between criteria.
 
 ## Evidence layout
 ```
 <evidence-dir>/
-  <criterion-or-target-slug>.png        # screenshot
-  <criterion-or-target-slug>.console.log  # console output
-  <criterion-or-target-slug>.network.json # network captures (if applicable)
+  <criterion-or-target-slug>-t0.png           # screenshot at action trigger (t=0)
+  <criterion-or-target-slug>-t250.png         # screenshot at ~250 ms (transition state)
+  <criterion-or-target-slug>-final.png        # screenshot after waitForSelector resolves
+  <criterion-or-target-slug>-firefox.png      # cross-browser secondary screenshot
+  <criterion-or-target-slug>.console.log      # console output
+  <criterion-or-target-slug>.network.json     # network captures (if applicable)
+  <criterion-or-target-slug>.web-vitals.json  # {lcp, cls, inp} from CDP
+  video/
+    <criterion-or-target-slug>.webm           # full interaction recording
 ```
 
 ## Remediation hints (surface in bootstrap-failure)

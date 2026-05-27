@@ -149,20 +149,67 @@ Prompt the agent with ALL of the following:
 
 Prompt the agent with ALL of the following:
 
+0. **Read product context before driving (MANDATORY — Gap 11 fix).** Before matching adapters or driving any criterion, build a mental model of product conventions so that observations can be held against them:
+   - Read `PRODUCT-CONTEXT.md` or `docs/product-conventions.md` at repo root if either exists.
+   - Read `02b-design.md`, `02c-craft.md`, `07-design-audit.md`, `07-design-critique.md` if present — extract any prescriptive UI/UX norms.
+   - Grep the codebase for the 3 most similar existing components to the surface being verified (by component name or route). Read them for visual and interaction conventions.
+   - Read the git log for the top 5 files this slice modified (`git log --oneline -10 -- <file>`) to understand the component's history and prior reviewers' concerns.
+   - Synthesize a one-paragraph "product conventions" note. Hold all observations during the drive against these conventions — not just against the criterion text. Record divergences from convention under `## Friction Notes` even when the criterion is technically met.
+
 1. **Match adapters — constrained by confirmed stack.** Run every adapter's detection signal against the repo. Then **intersect the matches with `stack.platforms`** from `00-index.md`:
    - If `stack.user-confirmed: true` → the effective adapter set is `matched-adapters ∩ stack.platforms`. If detection finds a platform NOT in `stack.platforms` (e.g., an incidental `package.json` in an Android repo), exclude it — the PO did not confirm that surface as in-scope. Record the exclusion under `## Caveats` so the report explains why the adapter was skipped.
    - If `stack.user-confirmed: false` OR `stack-source: unconfirmed-auto-detect` → run all matched adapters but stamp each evidence record with `stack-confirmed: false`. The verify report's `## Caveats` section MUST state that adapter selection was not PO-confirmed.
    - If `stack.platforms` is empty after intersection → record `bootstrap-failure: { adapter: none, step: stack-intersection, remediation: "Confirmed stack lists no platforms matching repo detection. Re-run /wf intake to reconcile." }` and skip to teardown. Do NOT pick a default adapter to fill the gap.
    - Multi-match (e.g., web + service) is common and must be driven when both are in `stack.platforms`. Record the final adapter keys under `adapters-used:` in the verify report.
 2. **Bootstrap each matched adapter** per its `Bootstrap` section. If any bootstrap step fails after the adapter's documented resolution attempts, the sub-agent reports `bootstrap-failure: { adapter, step, exit-code, output-tail, remediation }` and does NOT proceed past bootstrap for that adapter. The user-observable AC gate (Step 6.5) will then refuse `result: pass` and require either an `interactive-verification: deferred` annotation with a reason, or a remediation pass via `/wf-quick probe` once the environment is repaired.
-3. **For each user-observable AC**, follow the adapter's `Drive` and `Observe` recipes:
+
+2b. **Capture longitudinal baseline before driving (MANDATORY — Gap 3 fix).** Before driving any criterion on the current branch, capture before-state screenshots for each surface named in the AC:
+   - Check whether a prior evidence run exists at `.ai/workflows/<slug>/verify-evidence/<slice-slug>-run-*/`. If prior evidence exists, read those screenshots as the before-state — no git stash needed.
+   - If no prior evidence exists, stash current changes (`git stash --include-untracked`), boot the adapter against the base branch, screenshot each named surface, then restore (`git stash pop`). Store these as `baseline-<surface>.png` in the evidence directory.
+   - If stashing would destroy in-progress work (check `git stash list` first), skip the baseline capture and record `longitudinal-baseline-compared: skipped — stash non-empty`.
+   - During the drive phase, compare each criterion's post-drive screenshot against its baseline. Report visual deltas (layout changes, missing elements, new elements, color or typography shifts) under `## Longitudinal Delta` for each criterion. A delta is informational — it is only a finding if it contradicts the criterion or product conventions.
+
+3. **For each user-observable AC**, follow the adapter's `Drive` and `Observe` recipes, with these mandatory extensions:
+
+   **a. Multi-point evidence capture (Gap 12 fix):** Do not capture only the final settled state. For each criterion drive:
+   - Screenshot immediately after triggering the action (t=0 — captures initial response / loading state).
+   - Screenshot at ~250 ms (captures transition / spinner state).
+   - Screenshot after `waitForSelector` resolves (captures final settled state).
+   - Name files: `<criterion-slug>-t0.png`, `<criterion-slug>-t250.png`, `<criterion-slug>-final.png`. Report on each frame: was a loading indicator shown? Did transitions complete smoothly? Was there any blank/broken intermediate state?
+
+   **b. Stability check — drive each criterion 3 times (Gap 4 fix):** After the first drive passes, re-drive the same criterion 2 more times without resetting state. If any of the 3 runs produces a different outcome (different final screenshot, different console errors, different response body), flag the criterion as `stability: flaky`. Flaky criteria are HIGH issues — they indicate race conditions or state leakage. Record `stability-check-flaky-count: <N>`.
+
+   **c. Perceptual review pass (Gap 2 fix):** After determining pass/fail against the criterion text, make a second independent pass on the final screenshot. Ask: *independent of the criterion, what do I notice about this screen?* Report on: visual hierarchy, spacing consistency, font rendering, element alignment, truncated text, color that diverges from surrounding conventions, anything that would make a first-time user pause. Record these observations under `## Friction Notes` (not under issues — they are informational unless they contradict product conventions from step 0).
+
+   **d. Anomaly investigation mandate (Gap 9 fix):** When reading evidence (screenshot, response body, console output), if anything appears unexpected — a console error, a network request to an unexpected endpoint, a visual element that is present but should not be, or absent but should be — do not just record the observation and move on. Pivot: open the browser DevTools console (via CDP or MCP browser tools), read the network tab for the relevant time window, inspect the DOM for the anomalous element. Report what you find as a sub-finding attached to the criterion. Never filter an anomaly as "probably unrelated" — record and let the reviewer decide.
+
    - Navigate or invoke the surface named in the criterion.
    - Perform the user actions described.
-   - Capture observable output (screenshot, stdout, response body) per the adapter's `Evidence layout`.
-   - **Read the captured output** (multimodal for visuals, parsed for textual) and compare to the criterion's text.
-   - Record: criterion id or quoted text, adapter used, evidence path, observation, pass/fail.
+   - Apply the multi-point capture, stability check, perceptual review, and anomaly investigation protocols above.
+   - Record: criterion id or quoted text, adapter used, evidence paths (all frames), stability result, perceptual notes, anomaly findings, pass/fail.
 4. **Tear down each adapter** per its `Tear down` section. Idempotent — re-runs of verify must not leave the environment dirtier each pass.
 5. **Run existing test suites** that target the same surface (Playwright/Cypress E2E for web, Maestro suites for Android, XCUITest for iOS, etc.) in addition to the per-criterion drives, when they exist. The adapter's `Drive` section names the relevant suite invocations.
+
+6. **Free exploration (MANDATORY — Gap 1 fix).** After verifying all AC, set aside the criteria list entirely and navigate the surface as a first-time user would. Spend at minimum 3 minutes (or 10 distinct interactions) exploring:
+   - Click or tap every interactive element on the surface, including ones not mentioned in any AC.
+   - Navigate to adjacent routes/screens that the feature touches or links to.
+   - Try the feature in a different order than the AC describes (e.g., complete step 3 before step 1 if possible).
+   - Note anything that surprises you, feels incomplete, or breaks — even if it passes every AC.
+   Record findings under `## Free Exploration Notes`. These are informational and do not affect `result:`, but they surface as reviewer-visible observations. A finding that contradicts any AC becomes a standard issue.
+
+7. **Adversarial micro-tests (MANDATORY — Gaps 5 & 10 fix).** After free exploration, run this fixed test set against the primary action surface, regardless of whether AC specify these scenarios:
+   - **Empty submission:** Submit the primary form/action with no input. Record response — crash or unhandled error is a BLOCKER; a graceful validation message is informational.
+   - **Max-length input:** Paste 10,000 characters into each text field. Record response — crash or UI breakage is HIGH; truncation is informational.
+   - **Double-click / rapid repeat:** Click or tap the primary action twice in rapid succession (< 200 ms). Record whether duplicate submissions occur, the action is correctly debounced, or the UI breaks.
+   - **Mid-flow interruption:** Navigate away mid-flow (back button, different route), then navigate back. Record whether state is preserved, cleared gracefully, or broken.
+   - **Offline / network failure:** If the adapter supports network throttling (Playwright: `page.route('**/*', r => r.abort())`), trigger an offline state during the primary action. Record whether the error is handled gracefully.
+   Record all results under `## Adversarial Tests`. BLOCKER and HIGH findings enter the main issue list. Informational findings stay in the adversarial section.
+
+8. **Failure mode probes (MANDATORY — Gap 10 fix).** For each user-observable AC, after verifying the happy path, probe the boundary conditions that AC never specify:
+   - **Slow response:** Enable network throttling (Fast 3G or equivalent) and re-drive the criterion. Record whether loading states appear, whether timeouts are handled, whether the final result is still correct.
+   - **Concurrent session:** Open the same surface in a second browser context (Playwright: `browser.newContext()`) and perform the same action simultaneously. Record whether state collisions, double-writes, or UI desync occur.
+   - **Session expiry:** If authentication is in scope, expire the session token mid-flow (delete the cookie or token in the adapter) and re-drive. Record whether the expiry is handled gracefully or causes a crash/blank screen.
+   Record all results under `## Failure Mode Probes`. Findings that expose unhandled error states are HIGH issues.
 
 The runtime-adapters.md `Evidence protocol` and `Accessibility checks` sections apply across all platforms; do not duplicate them here.
 
@@ -175,14 +222,23 @@ After driving each user-observable criterion, run an a11y scan on the surface ju
 - This gate fires whether or not `design-harden` augmentation is present. The augmentation adds a deeper scan; the gate adds a minimum floor.
 
 **Output to the calling stage:**
-- `interactive-verification-results: [{criterion, adapter, evidence-path, observation, result}, ...]`
+- `interactive-verification-results: [{criterion, adapter, evidence-paths: [t0, t250, final], stability-result, perceptual-notes, anomaly-findings, observation, result}, ...]`
 - `bootstrap-failures: [{adapter, step, remediation}, ...]` (empty if all bootstrapped cleanly)
 - `metric-interactive-checks-run: <N>`
 - `metric-interactive-checks-passed: <N>`
 - `a11y-result: <pass | fail | not-automatable>`
-- `metric-a11y-violations-new: <N>`  — new WCAG AA violations in slice-modified UI components
+- `metric-a11y-violations-new: <N>` — new WCAG AA violations in slice-modified UI components
 - `stack-source: <confirmed|unconfirmed-auto-detect>` — inherited from `00-index.md` `stack.user-confirmed` and `04-plan-<slice-slug>.md` `stack-source`. Downstream stages (review, handoff, ship) may refuse to proceed on `unconfirmed-auto-detect` without explicit override.
 - `adapters-excluded-by-stack: [<key>, ...]` — adapters whose detection signals matched but were filtered out because they were not in `stack.platforms`. Empty list when stack was unconfirmed (no intersection performed).
+- `longitudinal-baseline-compared: <true | false | skipped — stash non-empty>` — whether a before/after screenshot comparison was performed
+- `stability-check-flaky-count: <N>` — criteria that produced different results across the 3 stability drives; >0 is a HIGH issue
+- `friction-notes: [<string>, ...]` — observations from the perceptual review and product-convention audit; informational, not issues
+- `free-exploration-findings: [<string>, ...]` — unexpected observations from the open-ended exploration step; findings that contradict AC become standard issues
+- `adversarial-tests-run: <N>` — count of adversarial micro-tests executed
+- `adversarial-tests-failed: <N>` — count that produced BLOCKER or HIGH findings
+- `failure-mode-probes-run: <N>` — count of failure mode probes executed
+- `cross-browser-delta: <none | findings>` — summary of cross-browser divergence from the web adapter sweep; findings are HIGH issues
+- `web-vitals: {lcp: <ms>, cls: <score>, inp: <ms>}` — Interaction to Next Paint and Core Web Vitals from CDP; INP > 200 ms is HIGH
 
 ### Functional sub-agent 4 — Augmentation Re-verification (only if `02c-craft.md` or `00-index.md` `augmentations:` list is non-empty)
 
@@ -556,6 +612,15 @@ cross-slice-regressions-found: <N>             # sibling slices that newly fail 
 metric-bundle-size-delta-pct: <N | "skipped">  # % change in output artifact size vs. base branch; HIGH if ≥ 20%
 ac-staleness-checked: <true | false>
 ac-stale-count: <N>                            # AC entries referencing external APIs/schemas that have changed
+longitudinal-baseline-compared: <true | false | "skipped — stash non-empty">
+stability-check-flaky-count: <N>               # criteria that differed across 3 stability drives; >0 is HIGH
+adversarial-tests-run: <N>
+adversarial-tests-failed: <N>                  # BLOCKER/HIGH adversarial findings
+failure-mode-probes-run: <N>
+cross-browser-delta: <"none" | "findings">     # HIGH if findings; detail in ## Cross-Browser Delta section
+web-vitals-lcp-ms: <N | null>                  # Largest Contentful Paint; null if non-web
+web-vitals-cls: <N | null>                     # Cumulative Layout Shift
+web-vitals-inp-ms: <N | null>                  # Interaction to Next Paint; HIGH if > 200 ms
 tags: []
 refs:
   index: 00-index.md
@@ -642,6 +707,51 @@ The `kind` column is what makes the user-observable AC gate auditable. A reviewe
 - **Sibling slices checked:** `<list or "none — first slice">`
 - **Regressions found:** `<N>`
 - Per regression: `<sibling-slug>` — `<test-suite>`: `<failure summary>`
+
+## Longitudinal Delta
+For each criterion surface, comparison between baseline (base branch or prior evidence run) and current:
+- **Surface**: `<route / screen / command>`
+- **Baseline source**: `<prior evidence run N | base branch screenshot | skipped>`
+- **Visual delta**: `<none | description of change>`
+- **Interpretation**: `<expected change from this slice | unexpected — flagged>`
+
+## Friction Notes
+Perceptual observations and product-convention divergences recorded independently of AC pass/fail. Informational — not issues unless explicitly escalated.
+- `<observation>`
+
+## Free Exploration Notes
+Observations from open-ended exploration beyond the AC list:
+- `<finding>` — `<informational | escalated to issue: <severity>>`
+
+## Adversarial Tests
+Results of the fixed adversarial micro-test set:
+| Test | Result | Finding |
+|---|---|---|
+| Empty submission | pass / fail / n-a | |
+| Max-length input | pass / fail / n-a | |
+| Double-click / rapid repeat | pass / fail / n-a | |
+| Mid-flow interruption | pass / fail / n-a | |
+| Offline / network failure | pass / fail / n-a | |
+
+## Failure Mode Probes
+Results of boundary condition probes beyond the happy path:
+| Probe | Result | Finding |
+|---|---|---|
+| Slow response (Fast 3G) | pass / fail / n-a | |
+| Concurrent session | pass / fail / n-a | |
+| Session expiry mid-flow | pass / fail / n-a | |
+
+## Cross-Browser Delta
+Web-only. Results of re-driving AC in a second browser after primary verification:
+- **Primary browser**: `<Chromium | other>`
+- **Secondary browser**: `<Firefox | WebKit>`
+- **Divergences found**: `<N>` — list any layout breakage, missing elements, or rendering differences
+
+## Web Vitals
+Web-only. Core Web Vitals captured via Chrome DevTools Protocol during the primary drive:
+- **LCP** (Largest Contentful Paint): `<N ms>` — good < 2500 ms
+- **CLS** (Cumulative Layout Shift): `<score>` — good < 0.1
+- **INP** (Interaction to Next Paint): `<N ms>` — HIGH if > 200 ms; good < 200 ms
 
 ## Gaps / Unverified Areas
 - ...
