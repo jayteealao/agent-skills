@@ -4,6 +4,9 @@ import { basename, join, relative } from 'node:path';
 import { safeLoadFrontmatterFile } from './frontmatter.mjs';
 import { latestMtimeMs } from './render-state.mjs';
 
+// Wider than the schema's `status` enum (active/complete/closed) on purpose —
+// tolerates legacy or hand-edited 00-index.md files using `completed`,
+// `abandoned`, or `cancelled` as terminal markers.
 export const TERMINAL_WORKFLOW_STATUSES = new Set([
   'complete',
   'completed',

@@ -86,7 +86,7 @@ export function isManagedArtifactMarkdownPath(filePath) {
     /(?:^|\/)\.ai\/workflows\/[^/]+\/.+\.md$/.test(normalized) ||
     /(?:^|\/)\.ai\/simplify\/.+\.md$/.test(normalized) ||
     /(?:^|\/)\.ai\/profiles\/.+\/.+\.md$/.test(normalized) ||
-    isDocsIndexMarkdownPath(normalized) ||
+    /(?:^|\/)\.ai\/docs\/[^/]+\/.+\.md$/.test(normalized) ||
     isProjectContextMarkdownPath(normalized)
   );
 }

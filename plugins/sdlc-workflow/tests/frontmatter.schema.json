@@ -1178,7 +1178,7 @@
 
     "docsDiscoverFrontmatter": {
       "type": "object",
-      "description": "Step 1 artifact written by /wf-docs to .ai/docs/<run-id>/01-discover.md.",
+      "description": "Step 1 artifact written by /wf-docs to .ai/docs/<run-id>/discover.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "docs-discover" },
@@ -1193,7 +1193,7 @@
 
     "docsAuditFrontmatter": {
       "type": "object",
-      "description": "Step 2 artifact written by /wf-docs to .ai/docs/<run-id>/02-audit.md.",
+      "description": "Step 2 artifact written by /wf-docs to .ai/docs/<run-id>/audit.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "docs-audit" },
@@ -1208,7 +1208,7 @@
 
     "docsPlanFrontmatter": {
       "type": "object",
-      "description": "Step 3 artifact written by /wf-docs to .ai/docs/<run-id>/03-plan.md.",
+      "description": "Step 3 artifact written by /wf-docs to .ai/docs/<run-id>/plan.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "docs-plan" },
@@ -1223,7 +1223,7 @@
 
     "docsGenerateFrontmatter": {
       "type": "object",
-      "description": "Step 4 artifact written by /wf-docs to .ai/docs/<run-id>/04-generate.md.",
+      "description": "Step 4 artifact written by /wf-docs to .ai/docs/<run-id>/generate.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "docs-generate" },

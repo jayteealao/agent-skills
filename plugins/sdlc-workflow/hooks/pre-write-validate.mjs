@@ -83,8 +83,15 @@ async function main() {
 
   const filename = basename(info.filename);
   const errors = [];
-  const filenameError = validateFilename(filename);
-  if (filenameError) errors.push(filenameError);
+  // design-notes/ holds per-sub-command transformation artifacts whose
+  // names (animate-<ts>.md, extract.md, etc.) deliberately skip the
+  // NN-stagename convention. Mirrors the Python validator's carve-out at
+  // tests/verify_frontmatter.py (`design-notes` → design-augmentation).
+  const inDesignNotes = info.storageRel.startsWith('design-notes/');
+  if (!inDesignNotes) {
+    const filenameError = validateFilename(filename);
+    if (filenameError) errors.push(filenameError);
+  }
 
   if (!hasFrontmatterFence(content)) {
     errors.push('Missing YAML frontmatter. All workflow files must start with --- delimited YAML frontmatter containing at minimum: schema, type, slug.');
@@ -103,7 +110,7 @@ async function main() {
       }
 
       if (!type) {
-        errors.push("Missing 'type' field in frontmatter. Expected values: index, intake, shape, slice, slice-index, plan, plan-index, implement, implement-index, verify, verify-index, review, review-command, handoff, ship, ship-run, ship-runs-index, retro, design, design-contract, design-critique, design-audit, design-augmentation, augmentation, rca, profile, announce, risk-register, estimate, docs-index, sync-report, resume, skip-record, shape-amendment, slice-amendment, simplify-run, project-context, ship-plan.");
+        errors.push("Missing 'type' field in frontmatter. Expected values: index, intake, shape, slice, slice-index, plan, plan-index, implement, implement-index, verify, verify-index, review, review-command, handoff, ship, ship-run, ship-runs-index, retro, design, design-contract, design-critique, design-audit, design-augmentation, augmentation, rca, profile, announce, risk-register, estimate, docs-index, docs-discover, docs-audit, docs-plan, docs-generate, sync-report, resume, skip-record, shape-amendment, slice-amendment, simplify-run, project-context, ship-plan.");
       }
 
       if (!slug) {
