@@ -115,7 +115,8 @@
         "workflow-type": {
           "enum": [
             "feature", "fix", "quick", "rca", "investigate",
-            "rf", "hotfix", "dep-update", "docs"
+            "rf", "refactor", "hotfix", "dep-update", "update-deps",
+            "docs", "discover", "standard"
           ]
         },
         "public-surface": {},
@@ -148,6 +149,26 @@
               "created-at": { "$ref": "#/$defs/iso8601" }
             }
           }
+        },
+        "stage-status": {
+          "type": "string",
+          "description": "Human-readable progress label for the current stage (e.g. 'in-progress', 'blocked', 'awaiting-review'). Written by stage reference files; surfaced by session-start hook."
+        },
+        "selected-slice-or-focus": {
+          "type": "string",
+          "description": "Alias for selected-slice used by stage reference files and the session-start hook when a focus target (rather than a formal slice) is in play. Preferred over selected-slice by skill references; the hook falls back to selected-slice when this is absent."
+        },
+        "recommended-next-command": {
+          "type": "string",
+          "description": "Preferred-alias next-command written by some stage references and the hotfix/resume skills. The session-start hook reads this first with next-command as fallback."
+        },
+        "recommended-next-invocation": {
+          "type": "string",
+          "description": "Preferred-alias next-invocation written by some stage references and the hotfix/resume skills. The session-start hook reads this first with next-invocation as fallback."
+        },
+        "recommended-next-stage": {
+          "type": "string",
+          "description": "Optional stage recommendation written by stage reference files to guide the next /wf invocation."
         }
       }
     },
@@ -457,6 +478,10 @@
         "metric-interactive-checks-passed": { "type": "integer", "minimum": 0 },
         "metric-issues-found":              { "type": "integer", "minimum": 0 },
         "evidence-dir": { "type": "string" },
+        "convergence": {
+          "enum": ["not-needed", "converged", "escalated"],
+          "description": "Whether verify results converged, escalated, or were not applicable. Written by /wf verify to 06-verify-<slice>.md."
+        },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "tags": { "$ref": "#/$defs/stringArray" },
@@ -1149,6 +1174,66 @@
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "refs": { "$ref": "#/$defs/refs" }
       }
+    },
+
+    "docsDiscoverFrontmatter": {
+      "type": "object",
+      "description": "Step 1 artifact written by /wf-docs to .ai/docs/<run-id>/01-discover.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "docs-discover" },
+        "run-id": { "type": "string" },
+        "status": { "enum": ["complete", "in-progress"] },
+        "gaps-found": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "docsAuditFrontmatter": {
+      "type": "object",
+      "description": "Step 2 artifact written by /wf-docs to .ai/docs/<run-id>/02-audit.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "docs-audit" },
+        "run-id": { "type": "string" },
+        "status": { "enum": ["complete", "in-progress"] },
+        "issues-found": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "docsPlanFrontmatter": {
+      "type": "object",
+      "description": "Step 3 artifact written by /wf-docs to .ai/docs/<run-id>/03-plan.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "docs-plan" },
+        "run-id": { "type": "string" },
+        "status": { "enum": ["complete", "in-progress"] },
+        "actions-planned": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "docsGenerateFrontmatter": {
+      "type": "object",
+      "description": "Step 4 artifact written by /wf-docs to .ai/docs/<run-id>/04-generate.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "docs-generate" },
+        "run-id": { "type": "string" },
+        "status": { "enum": ["complete", "in-progress"] },
+        "docs-written": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
     }
   },
 
@@ -1194,7 +1279,11 @@
         { "$ref": "#/$defs/announceFrontmatter" },
         { "$ref": "#/$defs/riskRegisterFrontmatter" },
         { "$ref": "#/$defs/estimateFrontmatter" },
-        { "$ref": "#/$defs/docsIndexFrontmatter" }
+        { "$ref": "#/$defs/docsIndexFrontmatter" },
+        { "$ref": "#/$defs/docsDiscoverFrontmatter" },
+        { "$ref": "#/$defs/docsAuditFrontmatter" },
+        { "$ref": "#/$defs/docsPlanFrontmatter" },
+        { "$ref": "#/$defs/docsGenerateFrontmatter" }
       ]
     }
   ],

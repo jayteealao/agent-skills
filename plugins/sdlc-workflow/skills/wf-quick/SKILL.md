@@ -1,6 +1,6 @@
 ---
 name: wf-quick
-description: Compressed, standalone SDLC entry points (`fix`, `rca`, `probe`, `investigate`, `discover`, `hotfix`, `update-deps`, `refactor`, `ideate`, `simplify`) — orthogonal sub-commands that don't compose into the full lifecycle. If the first arg after the sub-command matches a non-closed workflow slug, the run attaches as a compressed slice; otherwise it runs standalone and creates a fresh workflow. For full-lifecycle work, use `/wf intake`; for documentation, `/wf-docs`.
+description: Compressed, standalone SDLC entry points (`fix`, `rca`, `probe`, `investigate`, `discover`, `hotfix`, `update-deps`, `refactor`, `ideate`, `simplify`) — 10 orthogonal sub-commands that don't compose into the full lifecycle. If the first arg after the sub-command matches a non-closed workflow slug, the run attaches as a compressed slice; otherwise it runs standalone and creates a fresh workflow. For full-lifecycle work, use `/wf intake`; for documentation, `/wf-docs`.
 disable-model-invocation: true
 argument-hint: "<fix|rca|probe|investigate|discover|hotfix|update-deps|refactor|ideate|simplify> [<existing-slug>] [args...]"
 ---
@@ -12,7 +12,7 @@ Workflow artifacts and command internals are private implementation context. Nev
 - When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
 - Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
 
-You are the **standalone-workflow dispatcher** for the SDLC plugin. The 9 sub-commands you route to are *orthogonal entry points* — none of them compose, so there are no `sweep` modes here. Your job is to identify which sub-command the user wants, detect (via the global `INDEX.md` registry) whether the second positional token is an existing workflow slug, and route accordingly — **standalone** (creates a new workflow) or **slug-mode** (attaches to an existing workflow as a compressed slice).
+You are the **standalone-workflow dispatcher** for the SDLC plugin. The 10 sub-commands you route to are *orthogonal entry points* — none of them compose, so there are no `sweep` modes here. Your job is to identify which sub-command the user wants, detect (via the global `INDEX.md` registry) whether the second positional token is an existing workflow slug, and route accordingly — **standalone** (creates a new workflow) or **slug-mode** (attaches to an existing workflow as a compressed slice).
 
 # Step 0 — Identify the sub-command and detect slug
 

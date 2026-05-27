@@ -103,7 +103,7 @@ async function main() {
       }
 
       if (!type) {
-        errors.push("Missing 'type' field in frontmatter. Expected values: index, intake, shape, slice, plan, implement, verify, review, handoff, ship, ship-run, ship-runs-index, retro, design, design-contract, design-critique, design-audit, announce, risk-register, estimate, docs-index, sync-report, resume, skip, amendment, simplify-run.");
+        errors.push("Missing 'type' field in frontmatter. Expected values: index, intake, shape, slice, slice-index, plan, plan-index, implement, implement-index, verify, verify-index, review, review-command, handoff, ship, ship-run, ship-runs-index, retro, design, design-contract, design-critique, design-audit, design-augmentation, augmentation, rca, profile, announce, risk-register, estimate, docs-index, sync-report, resume, skip-record, shape-amendment, slice-amendment, simplify-run, project-context, ship-plan.");
       }
 
       if (!slug) {

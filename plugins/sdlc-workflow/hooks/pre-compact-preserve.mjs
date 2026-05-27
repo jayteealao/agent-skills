@@ -36,7 +36,8 @@ function formatPreserveSummary(workflow) {
     `  Status: ${fm.status ?? ''}`,
     `  Current stage: ${fm['current-stage'] ?? ''} (stage ${fm['stage-number'] ?? ''} of 10)`,
   ];
-  if (fm['selected-slice']) lines.push(`  Selected slice: ${fm['selected-slice']}`);
+  const selectedSlice = fm['selected-slice-or-focus'] ?? fm['selected-slice'];
+  if (selectedSlice) lines.push(`  Selected slice: ${selectedSlice}`);
   if (fm['branch-strategy']) lines.push(`  Branch strategy: ${fm['branch-strategy']}`);
   if (fm.branch) lines.push(`  Branch: ${fm.branch}`);
 
@@ -46,7 +47,7 @@ function formatPreserveSummary(workflow) {
   const openQuestions = stringifyField(fm['open-questions']);
   if (openQuestions) lines.push(`  Open questions: ${openQuestions}`);
 
-  const next = fm['next-invocation'] || fm['next-command'];
+  const next = fm['recommended-next-invocation'] ?? fm['next-invocation'] ?? fm['recommended-next-command'] ?? fm['next-command'];
   if (next) lines.push(`  Next command: ${next}`);
 
   return lines.join('\n');
