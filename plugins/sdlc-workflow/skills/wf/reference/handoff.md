@@ -56,6 +56,12 @@ You are a **workflow orchestrator**, not a problem solver.
    - `02-shape.md` — overall spec and docs plan
    - `03-slice.md` — master index (slice statuses)
    - For each slice in scope: `03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`, `06-verify-<slice-slug>.md` (if exists). Plus `07-review-<slice-slug>.md` if `review-scope: per-slice`.
+   - When reading each `06-verify-<slice-slug>.md`, check the following signals and surface them in `## Reviewer Focus Areas` if present:
+     - `stability-check-flaky-count > 0` → note as "N criteria showed intermittent behaviour during verification — may indicate race conditions."
+     - `adversarial-tests-failed > 0` → note as "Adversarial edge case failures found during verification — see verify report." List the specific failures from `## Adversarial Tests`.
+     - `cross-browser-delta: findings` → note as "Cross-browser rendering divergences found — reviewer should check browser compatibility." List from `## Cross-Browser Delta`.
+     - `web-vitals-inp-ms > 200` → note as "Interaction responsiveness (INP) measured above threshold — may affect perceived performance."
+     - `## Friction Notes` and `## Free Exploration Notes` (if non-empty) → include under a "Soft Observations" subsection in `## Reviewer Focus Areas` so the human reviewer sees what the verifier noticed beyond the acceptance criteria.
    - If `review-scope: slug-wide`: read the single `07-review.md` (review verdict and all findings for the whole branch).
    - `po-answers.md`
 6. **Read augmentation context (optional — surfaces all augmentation work for the reviewer):**

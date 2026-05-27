@@ -171,13 +171,9 @@ Prompt the agent with ALL of the following:
 
 3. **For each user-observable AC**, follow the adapter's `Drive` and `Observe` recipes, with these mandatory extensions:
 
-   **a. Multi-point evidence capture (Gap 12 fix):** Do not capture only the final settled state. For each criterion drive:
-   - Screenshot immediately after triggering the action (t=0 — captures initial response / loading state).
-   - Screenshot at ~250 ms (captures transition / spinner state).
-   - Screenshot after `waitForSelector` resolves (captures final settled state).
-   - Name files: `<criterion-slug>-t0.png`, `<criterion-slug>-t250.png`, `<criterion-slug>-final.png`. Report on each frame: was a loading indicator shown? Did transitions complete smoothly? Was there any blank/broken intermediate state?
+   **a. Multi-point evidence capture (Gap 12 fix):** Do not capture only the final settled state. For each criterion drive, capture evidence at three distinct moments: the initial response immediately after triggering the action, the transition or loading state while the system is processing, and the final settled state after the action completes. Name files to reflect the moment (`-initial`, `-transition`, `-final` or equivalent). Report on each frame: was a loading indicator shown? Did transitions complete cleanly? Was there any blank, broken, or inconsistent intermediate state?
 
-   **b. Stability check — drive each criterion 3 times (Gap 4 fix):** After the first drive passes, re-drive the same criterion 2 more times without resetting state. If any of the 3 runs produces a different outcome (different final screenshot, different console errors, different response body), flag the criterion as `stability: flaky`. Flaky criteria are HIGH issues — they indicate race conditions or state leakage. Record `stability-check-flaky-count: <N>`.
+   **b. Stability check (Gap 4 fix):** After the first drive produces a result, re-drive the same criterion at least twice more without resetting state. If any re-drive produces a different outcome — different visual state, different console output, different response — flag the criterion as `stability: flaky`. Flaky criteria are HIGH issues indicating race conditions or state leakage. Record `stability-check-flaky-count: <N>`.
 
    **c. Perceptual review pass (Gap 2 fix):** After determining pass/fail against the criterion text, make a second independent pass on the final screenshot. Ask: *independent of the criterion, what do I notice about this screen?* Report on: visual hierarchy, spacing consistency, font rendering, element alignment, truncated text, color that diverges from surrounding conventions, anything that would make a first-time user pause. Record these observations under `## Friction Notes` (not under issues — they are informational unless they contradict product conventions from step 0).
 
@@ -190,25 +186,20 @@ Prompt the agent with ALL of the following:
 4. **Tear down each adapter** per its `Tear down` section. Idempotent — re-runs of verify must not leave the environment dirtier each pass.
 5. **Run existing test suites** that target the same surface (Playwright/Cypress E2E for web, Maestro suites for Android, XCUITest for iOS, etc.) in addition to the per-criterion drives, when they exist. The adapter's `Drive` section names the relevant suite invocations.
 
-6. **Free exploration (MANDATORY — Gap 1 fix).** After verifying all AC, set aside the criteria list entirely and navigate the surface as a first-time user would. Spend at minimum 3 minutes (or 10 distinct interactions) exploring:
-   - Click or tap every interactive element on the surface, including ones not mentioned in any AC.
-   - Navigate to adjacent routes/screens that the feature touches or links to.
-   - Try the feature in a different order than the AC describes (e.g., complete step 3 before step 1 if possible).
-   - Note anything that surprises you, feels incomplete, or breaks — even if it passes every AC.
-   Record findings under `## Free Exploration Notes`. These are informational and do not affect `result:`, but they surface as reviewer-visible observations. A finding that contradicts any AC becomes a standard issue.
+6. **Free exploration (MANDATORY — Gap 1 fix).** After verifying all AC, set aside the criteria list entirely and navigate the surface as a first-time user would. Cover every interactive element on the surface, at least one adjacent flow the feature connects to, and try reaching the same outcome via a path different from the one the AC describes. Note anything that surprises you, feels incomplete, or breaks — even if every AC passes. Record findings under `## Free Exploration Notes`. These are informational and do not affect `result:`, but surface as reviewer-visible observations. A finding that directly contradicts any AC becomes a standard issue.
 
 7. **Adversarial micro-tests (MANDATORY — Gaps 5 & 10 fix).** After free exploration, run this fixed test set against the primary action surface, regardless of whether AC specify these scenarios:
-   - **Empty submission:** Submit the primary form/action with no input. Record response — crash or unhandled error is a BLOCKER; a graceful validation message is informational.
-   - **Max-length input:** Paste 10,000 characters into each text field. Record response — crash or UI breakage is HIGH; truncation is informational.
-   - **Double-click / rapid repeat:** Click or tap the primary action twice in rapid succession (< 200 ms). Record whether duplicate submissions occur, the action is correctly debounced, or the UI breaks.
+   - **Empty submission:** Submit the primary form/action with no input. A crash or unhandled error is a BLOCKER; a graceful validation message is informational.
+   - **Extreme input:** Paste a very large input into each text field (enough to stress field limits). A crash or UI breakage is HIGH; clean truncation or rejection is informational.
+   - **Rapid repeat:** Trigger the primary action multiple times in rapid succession. Record whether duplicate submissions occur, whether debouncing works, or whether the UI breaks.
    - **Mid-flow interruption:** Navigate away mid-flow (back button, different route), then navigate back. Record whether state is preserved, cleared gracefully, or broken.
-   - **Offline / network failure:** If the adapter supports network throttling (Playwright: `page.route('**/*', r => r.abort())`), trigger an offline state during the primary action. Record whether the error is handled gracefully.
+   - **Network failure:** Use the adapter's network simulation capability to trigger an offline or degraded-network state during the primary action. Record whether the error is handled gracefully or produces a crash/blank screen.
    Record all results under `## Adversarial Tests`. BLOCKER and HIGH findings enter the main issue list. Informational findings stay in the adversarial section.
 
 8. **Failure mode probes (MANDATORY — Gap 10 fix).** For each user-observable AC, after verifying the happy path, probe the boundary conditions that AC never specify:
    - **Slow response:** Enable network throttling (Fast 3G or equivalent) and re-drive the criterion. Record whether loading states appear, whether timeouts are handled, whether the final result is still correct.
-   - **Concurrent session:** Open the same surface in a second browser context (Playwright: `browser.newContext()`) and perform the same action simultaneously. Record whether state collisions, double-writes, or UI desync occur.
-   - **Session expiry:** If authentication is in scope, expire the session token mid-flow (delete the cookie or token in the adapter) and re-drive. Record whether the expiry is handled gracefully or causes a crash/blank screen.
+   - **Concurrent session:** Open the same surface in a second independent session and perform the same action simultaneously. Record whether state collisions, double-writes, or UI desync occur.
+   - **Session expiry:** If authentication is in scope, invalidate the session mid-flow (remove or expire the token or cookie) and re-drive. Record whether expiry is handled gracefully or causes a crash/blank screen.
    Record all results under `## Failure Mode Probes`. Findings that expose unhandled error states are HIGH issues.
 
 The runtime-adapters.md `Evidence protocol` and `Accessibility checks` sections apply across all platforms; do not duplicate them here.

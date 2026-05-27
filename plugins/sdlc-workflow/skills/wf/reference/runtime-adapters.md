@@ -105,35 +105,16 @@ If `mcp__claude-in-chrome__*` tools are available in the session:
 If configured in the project, run existing Playwright test suites or write inline scripts.
 
 ## Observe
-- **Multi-point screenshots (MANDATORY — Gap 12 fix):** For each criterion drive, capture three frames: immediately after action trigger (`-t0.png`), at ~250 ms (`-t250.png`), and after `waitForSelector` resolves (`-final.png`). Use `page.screenshot()` at each point. Report on each frame: was a loading indicator shown? Did transitions complete smoothly? Was there any blank/broken intermediate state?
-- **Video recording (MANDATORY for UI criteria — Gap 8 fix):** Start a Playwright video recording before driving each criterion (`context.newPage()` with `{ recordVideo: { dir: '<evidence-dir>/video/' } }`). The video captures all intermediate states, animations, and transitions that screenshots miss. Stop recording after the criterion drive and note the path. For non-Playwright drivers, use `xcrun simctl io booted recordVideo` (iOS) or `adb screenrecord` (Android).
-- **Web Vitals via CDP (MANDATORY — Gap 8 fix):** After driving each criterion, extract Core Web Vitals from the Chrome DevTools Protocol:
-  ```js
-  const metrics = await page.evaluate(() => ({
-    lcp: performance.getEntriesByType('largest-contentful-paint').at(-1)?.startTime,
-    cls: performance.getEntriesByType('layout-shift').reduce((s, e) => s + e.value, 0),
-    inp: performance.getEntriesByType('event').filter(e => e.duration > 40)
-           .reduce((max, e) => Math.max(max, e.duration), 0)
-  }));
-  ```
-  Report `lcp`, `cls`, `inp`. INP > 200 ms is a HIGH issue; LCP > 2500 ms is WARN; CLS > 0.1 is WARN.
+- **Multi-point screenshots (MANDATORY — Gap 12 fix):** For each criterion drive, capture evidence at three distinct moments: the initial response immediately after triggering the action, the transition or loading state while the system is processing, and the final settled state after completion. Use whatever screenshot mechanism the chosen driver provides. Report on each frame: was a loading indicator shown? Did transitions complete cleanly? Was there any blank or broken intermediate state?
+- **Video recording (MANDATORY for UI criteria — Gap 8 fix):** Record video of each criterion drive using the chosen driver's recording capability. All major web drivers (Playwright, Cypress, WebdriverIO) and dev-browser support screen recording. The video captures intermediate states, animations, and transitions that discrete screenshots miss. Store the recording in the evidence directory and note the path.
+- **Web Vitals (MANDATORY — Gap 8 fix):** After driving each criterion, capture Core Web Vitals — Largest Contentful Paint (LCP), Cumulative Layout Shift (CLS), and Interaction to Next Paint (INP). Use whatever measurement mechanism the driver supports: the browser's Performance API via script evaluation, Lighthouse, Playwright's built-in tracing, or a web-vitals library injected into the page. Record the values as structured data. INP > 200 ms is a HIGH issue; LCP > 2500 ms is WARN; CLS > 0.1 is WARN.
 - Browser console messages — check for errors after each interaction.
 - Network requests — verify correct requests sent, responses received when the criterion involves API calls.
 - DOM snapshots for AI-readable reasoning when supported (`page.snapshotForAI()`).
 - Accessibility scan: axe-core via Playwright (`@axe-core/playwright`), eslint-plugin-jsx-a11y, or built-in browser accessibility audit.
 
 ## Cross-browser sweep (MANDATORY for web adapter — Gap 7 fix)
-After verifying all criteria in the primary browser (Chromium), re-drive each criterion in a second browser. Use Playwright's multi-browser support:
-```js
-const firefox = await playwright.firefox.launch();
-const ctx = await firefox.newContext();
-const page = await ctx.newPage();
-// drive same criterion
-await page.goto(url);
-// screenshot for comparison
-await page.screenshot({ path: '<evidence-dir>/<criterion>-firefox.png' });
-```
-Compare primary and secondary browser screenshots for each criterion. Report divergences (layout breakage, missing elements, different rendering) under `## Cross-Browser Delta`. Divergences are HIGH issues. If WebKit is also available, add a third pass. Record which browsers were used under `adapters-used`.
+After verifying all criteria in the primary browser, re-drive each criterion in at least one additional browser. Playwright supports Chromium, Firefox, and WebKit natively — switch engines via the driver's browser-selection mechanism. If using a different driver (dev-browser, Cypress, WebdriverIO), use its equivalent cross-browser capability. Compare the secondary browser's screenshots against the primary for each criterion. Report any divergence — layout breakage, missing elements, different rendering, different interaction behaviour — under `## Cross-Browser Delta`. Divergences are HIGH issues. If a third browser is available, add a third pass. Record which browsers were used under `adapters-used`.
 
 ## Tear down
 - If this run started the dev server (i.e., it was not already running at bootstrap), terminate the background process.

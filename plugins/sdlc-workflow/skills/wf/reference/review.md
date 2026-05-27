@@ -106,7 +106,13 @@ Then STOP — do not continue to the full review workflow.
 
    Also read `02b-design.md` and `02c-craft.md` if present for register, anti-goals, and visual contract — review must check anti-goals were honored.
 
-   Cross-reference `06-verify-<slice-slug>.md` (per-slice mode) or every `06-verify-*.md` file (slug-wide mode) → `## Augmentation Verification` to see which augmentation re-checks failed — those become BLOCKER or HIGH review findings automatically.
+   Cross-reference `06-verify-<slice-slug>.md` (per-slice mode) or every `06-verify-*.md` file (slug-wide mode). Mandatory reads from each verify artifact:
+   - `## Augmentation Verification` — failed augmentation re-checks become BLOCKER or HIGH findings automatically.
+   - `stability-check-flaky-count` (frontmatter) — any value > 0 is a HIGH finding; flaky criteria indicate race conditions or state leakage that review sub-agents should investigate in the diff.
+   - `adversarial-tests-failed` (frontmatter) — any value > 0 means `## Adversarial Tests` contains BLOCKER or HIGH findings; surface them in the aggregated finding list.
+   - `cross-browser-delta` (frontmatter) — if `findings`, read `## Cross-Browser Delta` and surface each divergence as a HIGH compatibility finding.
+   - `web-vitals-inp-ms` (frontmatter) — if > 200, surface as a HIGH performance finding; `web-vitals-lcp-ms` > 2500 and `web-vitals-cls` > 0.1 are WARN.
+   - `## Friction Notes` and `## Free Exploration Notes` — these are informational (not auto-promoted to issues) but must appear in the review's `## Soft Findings` or `## Reviewer Notes` section so the human reviewer can see them. They represent observations a first-time user would notice that no AC captured.
 8. **Carry forward** `open-questions` from the index.
 9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch. Review diffs must be generated against the implementation branch. Use `git diff <base-branch>...<branch>` to get the full change set for review dispatch.
 
