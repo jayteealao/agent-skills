@@ -22,6 +22,15 @@ const FLAT_REVIEW_RE = /^07-review-(.+)\.md$/;
 const PHASE_BY_BASENAME = {
   '00-index':              ['', null],            // slug overview at root
   '01-intake':             ['intake', null],
+  // Quick / investigative workflows (/wf-quick rca|fix|probe|investigate) name
+  // their lead artifact `01-<workflow-type>.md`. Without these entries
+  // resolveViewPath returns null and the orchestrator skips them entirely —
+  // the RCA/fix/probe writeup is then never rendered and the slug overview has
+  // nothing to link to.
+  '01-rca':                ['rca', null],
+  '01-fix':                ['fix', null],
+  '01-probe':              ['probe', null],
+  '01-investigate':        ['investigate', null],
   '02-shape':              ['shape', null],
   '02b-design':            ['design', null],
   '02c-craft':             ['design-brief', null],

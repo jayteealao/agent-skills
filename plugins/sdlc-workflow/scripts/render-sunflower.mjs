@@ -637,7 +637,15 @@ async function renderMain(args) {
         const slugsSummary = [];
         for (const [slug, list] of slugArtifacts) {
           if (slug.startsWith('__')) continue;
-          const indexArt = list.find((x) => x.frontmatter?.type === 'index');
+          // Both full pipeline workflows (type: index) and quick / investigative
+          // workflows (type: workflow-index, from /wf-quick) own a 00-index.md
+          // and must surface on the dashboard. Fall back to any 00-index.md so a
+          // future index variant is never silently dropped — that omission is
+          // what previously left workflow-index slug pages rendered-but-
+          // unreachable (no dashboard link ever pointed at them).
+          const indexArt =
+            list.find((x) => x.frontmatter?.type === 'index' || x.frontmatter?.type === 'workflow-index')
+            ?? list.find((x) => /(?:^|[\\/])00-index\.md$/.test(x.storageRel ?? ''));
           if (indexArt) slugsSummary.push({ slug, frontmatter: indexArt.frontmatter });
         }
         const projectSummary = (slugArtifacts.get('__project__') ?? []).map((x) => ({
@@ -670,7 +678,7 @@ async function renderMain(args) {
 
     // 9. manifest pass
     const manifest = {
-      version:     '9.31.0',
+      version:     '9.31.1',
       generatedAt: new Date().toISOString(),
       slugs: [...slugArtifacts.keys()]
         .filter((slug) => !slug.startsWith('__'))   // drop synthetic off-pipeline buckets

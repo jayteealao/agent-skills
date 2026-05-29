@@ -20,6 +20,14 @@ const STAGES = [
   'verify', 'review', 'handoff', 'ship', 'retro',
 ];
 
+// Terminal status vocabulary (kept in sync with lib/workflow-index.mjs's
+// TERMINAL_WORKFLOW_STATUSES). Bucketing below is exhaustive — anything not
+// terminal is treated as active — so no workflow is ever silently dropped from
+// the dashboard the way the old `status === 'active'` test dropped `ready`,
+// `blocked`, `in-progress`, etc.
+const TERMINAL_COMPLETE = new Set(['complete', 'completed', 'shipped', 'done']);
+const TERMINAL_CLOSED = new Set(['closed', 'abandoned', 'cancelled']);
+
 export function render(artifact, ctx) {
   const slugs = (ctx.allArtifacts?.__summary__ ?? []).map((s) => ({
     slug: s.slug,
@@ -27,16 +35,28 @@ export function render(artifact, ctx) {
   }));
   const project = ctx.allArtifacts?.__project__ ?? [];
 
-  const active = slugs.filter((s) => s.fm.status === 'active');
-  const complete = slugs.filter((s) => s.fm.status === 'complete' || s.fm.status === 'shipped');
-  const closed = slugs.filter((s) => s.fm.status === 'closed');
+  // Two workflow shapes share the dashboard:
+  //   • pipeline workflows (type: index) walk the 10-stage lifecycle and map
+  //     cleanly onto the swimlanes figure.
+  //   • quick / investigative workflows (type: workflow-index — e.g. /wf-quick
+  //     rca|fix|probe) use their own routing vocabulary (`routing`,
+  //     `fix-routing`, …) and a `ready` status. Forcing them into the 10-stage
+  //     swimlane renders a misleading all-empty lane (STAGES.indexOf → -1), so
+  //     they get their own list section instead of a swimlane row.
+  const pipeline = slugs.filter((s) => s.fm.type !== 'workflow-index');
+  const quick    = slugs.filter((s) => s.fm.type === 'workflow-index');
+
+  const statusOf = (s) => String(s.fm.status ?? '').trim().toLowerCase();
+  const complete = pipeline.filter((s) => TERMINAL_COMPLETE.has(statusOf(s)));
+  const closed   = pipeline.filter((s) => TERMINAL_CLOSED.has(statusOf(s)));
+  const active   = pipeline.filter((s) => !TERMINAL_COMPLETE.has(statusOf(s)) && !TERMINAL_CLOSED.has(statusOf(s)));
 
   const headerHtml = artifactHeader({
     h1: 'sdlc dashboard',
     lede: `${slugs.length} workflow${slugs.length === 1 ? '' : 's'} · generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`,
   });
 
-  const figureSvg = swimlanesSvg(slugs);
+  const figureSvg = swimlanesSvg(pipeline);
   const figureHtml = figureCanvas({
     figureNumber: 1,
     title: 'Workflow swimlanes',
@@ -55,6 +75,7 @@ export function render(artifact, ctx) {
     ${slugSection('Active', active)}
     ${slugSection('Complete', complete)}
     ${slugSection('Closed', closed)}
+    ${quickSection(quick)}
   `;
 
   return { headerHtml, bodyHtml, links: [], children: [] };
@@ -85,6 +106,32 @@ function slugSection(label, list) {
   const rows = list.map((s) => projectRow(s)).join('');
   return `<section class="project-list">
     <h2 class="sdlc-h2">${label} <span class="meta">(${list.length})</span></h2>
+    ${rows}
+  </section>`;
+}
+
+// Quick / investigative workflows (type: workflow-index). These don't fit the
+// 10-stage swimlane, so they're listed here with their workflow-type (rca /
+// fix / probe / investigate) and routing stage. Without this section their
+// rendered slug pages — which DO exist on disk via the fallback renderer —
+// have no inbound link from the dashboard and are unreachable.
+function quickSection(list) {
+  if (!list.length) return '';
+  const rows = list.map(({ slug, fm }) => {
+    const wfType = fm['workflow-type'] ?? 'quick';
+    const stage  = fm['current-stage'] ?? '';
+    const title  = fm.title ?? slug;
+    const status = fm.status ?? '';
+    return `<a class="project-row" href="${escapeHtml(pageHref(slug))}">
+      <span class="slug"><code>${escapeHtml(slug)}</code></span>
+      <span class="title">${escapeHtml(title)}</span>
+      <span class="stage-pill">${escapeHtml(wfType)}</span>
+      <span class="stage-pill">${escapeHtml(stage)}</span>
+      <span class="meta">${escapeHtml(status)}</span>
+    </a>`;
+  }).join('');
+  return `<section class="project-list">
+    <h2 class="sdlc-h2">Quick &amp; investigative <span class="meta">(${list.length})</span></h2>
     ${rows}
   </section>`;
 }

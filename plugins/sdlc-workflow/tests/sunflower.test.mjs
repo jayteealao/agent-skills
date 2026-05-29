@@ -42,6 +42,14 @@ test('resolveViewPath: phase files', () => {
   strictEqual(resolveViewPath('10-retro.md').viewRel, 'retro/INDEX.html');
 });
 
+test('resolveViewPath: quick-workflow lead artifacts (rca/fix/probe/investigate)', () => {
+  // Previously unmapped → returned null → silently skipped (never rendered).
+  strictEqual(resolveViewPath('01-rca.md').viewRel, 'rca/INDEX.html');
+  strictEqual(resolveViewPath('01-fix.md').viewRel, 'fix/INDEX.html');
+  strictEqual(resolveViewPath('01-probe.md').viewRel, 'probe/INDEX.html');
+  strictEqual(resolveViewPath('01-investigate.md').viewRel, 'investigate/INDEX.html');
+});
+
 test('resolveViewPath: slice sub-paths', () => {
   strictEqual(
     resolveViewPath('slices/auth-cache/04-plan.md').viewRel,
@@ -375,6 +383,8 @@ import { render as renderDesign } from '../renderers/design.mjs';
 import { render as renderShipRun } from '../renderers/ship-run.mjs';
 import { render as renderIndex } from '../renderers/index.mjs';
 import { render as renderSlice } from '../renderers/slice.mjs';
+import { render as renderDashboard } from '../renderers/dashboard.mjs';
+import { render as renderWorkflowIndex } from '../renderers/workflow-index.mjs';
 
 test('review-command: sibling YAML drives focused verdict + filtered findings', () => {
   const artifact = {
@@ -1085,6 +1095,91 @@ test('slice page: per-dimension review cards link to review/<dimension>/', () =>
   match(out.bodyHtml, /href="\.\.\/\.\.\/review\/performance\/INDEX\.html"/);
   // The 'a11y' review on a different slice must be filtered out.
   ok(!/review\/a11y\//.test(out.bodyHtml), 'review for other slice must not appear');
+});
+
+/* ── Dashboard: reachability of every workflow shape ───────────────── */
+
+function dashboardSummary() {
+  return {
+    __summary__: [
+      { slug: 'full-active',   frontmatter: { type: 'index', title: 'Full active',   status: 'active',   'current-stage': 'plan' } },
+      { slug: 'full-ready',    frontmatter: { type: 'index', title: 'Full ready',    status: 'ready',    'current-stage': 'shape' } },
+      { slug: 'full-done',     frontmatter: { type: 'index', title: 'Full done',     status: 'complete', 'current-stage': 'ship' } },
+      { slug: 'full-closed',   frontmatter: { type: 'index', title: 'Full closed',   status: 'closed',   'current-stage': 'retro' } },
+      { slug: 'rca-thing',     frontmatter: { type: 'workflow-index', 'workflow-type': 'rca', title: 'RCA thing', status: 'ready', 'current-stage': 'fix-routing' } },
+      { slug: 'probe-thing',   frontmatter: { type: 'workflow-index', 'workflow-type': 'probe', title: 'Probe thing', status: 'ready', 'current-stage': 'routing' } },
+    ],
+    __project__: [],
+  };
+}
+
+test('dashboard: workflow-index (quick) slugs are reachable, not just type:index', () => {
+  const out = renderDashboard({ type: 'dashboard', frontmatter: {}, body: '' }, { allArtifacts: dashboardSummary() });
+  // Every slug — pipeline AND quick — must have an inbound link.
+  for (const slug of ['full-active', 'full-ready', 'full-done', 'full-closed', 'rca-thing', 'probe-thing']) {
+    match(out.bodyHtml, new RegExp(`href="${slug}/INDEX\\.html"`), `${slug} should be linked from dashboard`);
+  }
+  // Quick workflows get their own section + workflow-type pill.
+  match(out.bodyHtml, /Quick &amp; investigative/);
+  match(out.bodyHtml, /<span class="stage-pill">rca<\/span>/);
+  match(out.bodyHtml, /<span class="stage-pill">probe<\/span>/);
+});
+
+test('dashboard: status bucketing is exhaustive — a non-canonical status still shows', () => {
+  const out = renderDashboard({ type: 'dashboard', frontmatter: {}, body: '' }, { allArtifacts: dashboardSummary() });
+  // `ready` is neither complete nor closed → must land in Active, not vanish.
+  match(out.bodyHtml, /href="full-ready\/INDEX\.html"/);
+  // Section counts: Active has full-active + full-ready (2), Complete 1, Closed 1.
+  match(out.bodyHtml, /Active <span class="meta">\(2\)<\/span>/);
+  match(out.bodyHtml, /Complete <span class="meta">\(1\)<\/span>/);
+  match(out.bodyHtml, /Closed <span class="meta">\(1\)<\/span>/);
+});
+
+test('dashboard: swimlanes exclude off-pipeline quick workflows', () => {
+  const out = renderDashboard({ type: 'dashboard', frontmatter: {}, body: '' }, { allArtifacts: dashboardSummary() });
+  const svg = out.bodyHtml.slice(out.bodyHtml.indexOf('<svg'), out.bodyHtml.indexOf('</svg>'));
+  // Pipeline slug labels appear in the swimlane SVG; quick ones do not.
+  match(svg, /full-active/);
+  ok(!svg.includes('rca-thing'), 'quick workflow rca-thing should not appear as a swimlane row');
+  ok(!svg.includes('probe-thing'), 'quick workflow probe-thing should not appear as a swimlane row');
+});
+
+/* ── workflow-index renderer (quick / investigative overview) ──────── */
+
+test('workflow-index: surfaces routes, progress, and links every sibling artifact', () => {
+  const artifact = {
+    type: 'workflow-index',
+    path: '00-index.md',
+    frontmatter: {
+      type: 'workflow-index', slug: 'rca-signin', 'workflow-type': 'rca',
+      title: 'Sign-in RCA', status: 'ready', 'current-stage': 'fix-routing',
+      'recommended-routes': { primary: 'human-triage', alternates: ['/wf-quick fix rca-signin'] },
+      progress: { rca: 'complete', 'shape-synthesized': 'complete' },
+      tags: ['auth', 'firebase'],
+    },
+    body: '# RCA\nRoot cause writeup.',
+    history: [], fragment: null,
+  };
+  const ctx = {
+    allArtifacts: {
+      'workflow-index': [{ frontmatter: { type: 'workflow-index' }, viewRel: 'INDEX.html', storageRel: '00-index.md' }],
+      rca:   [{ frontmatter: { type: 'rca', title: 'Root cause' }, viewRel: 'rca/INDEX.html', storageRel: '01-rca.md' }],
+      shape: [{ frontmatter: { type: 'shape', title: 'Shape' }, viewRel: 'shape/INDEX.html', storageRel: '02-shape.md' }],
+    },
+  };
+  const out = renderWorkflowIndex(artifact, ctx);
+  // Recommended next route + alternate.
+  match(out.bodyHtml, /recommended next/);
+  match(out.bodyHtml, /human-triage/);
+  match(out.bodyHtml, /\/wf-quick fix rca-signin/);
+  // Sibling artifacts are linked; the index page itself is not listed.
+  match(out.bodyHtml, /href="rca\/INDEX\.html"/);
+  match(out.bodyHtml, /href="shape\/INDEX\.html"/);
+  ok(!/href="INDEX\.html"/.test(out.bodyHtml), 'should not link to itself');
+  // Progress map + tags.
+  match(out.bodyHtml, /progress/);
+  match(out.bodyHtml, /shape-synthesized/);
+  match(out.bodyHtml, /firebase/);
 });
 
 /* ── End-to-end: render fixtures via orchestrator ──────────────────── */

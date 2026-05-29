@@ -67,6 +67,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profile, simplify, benchmark, experiment, instrument, craft, critique, and
   audit flows.
 
+## [9.31.1] - 2026-05-29
+
+### Fixed — quick / investigative workflows unreachable on the dashboard
+
+- **Dashboard dropped `workflow-index` slugs.** The cross-slug dashboard summary
+  only collected `type: index` workflows, so quick / investigative workflows
+  (`/wf-quick rca|fix|probe|investigate`, `type: workflow-index`) were rendered
+  to `.ai/_view/<slug>/` but had no inbound link — rendered yet unreachable. The
+  summary now also collects `workflow-index` (with a `00-index.md` fallback so a
+  future index variant can never be silently dropped).
+- **Non-canonical statuses vanished.** Dashboard bucketing tested
+  `status === 'active'`, so a `ready`/`blocked`/`in-progress` workflow fell
+  through every section. Bucketing is now exhaustive — anything not terminal
+  (complete/closed) is treated as active.
+- **Quick-workflow lead artifacts were never rendered.** `resolveViewPath`
+  returned `null` for `01-rca.md`, `01-fix.md`, `01-probe.md`, and
+  `01-investigate.md`, so the orchestrator skipped them entirely (counted in
+  "skipped"). Added `PHASE_BY_BASENAME` entries mapping each to
+  `rca|fix|probe|investigate/INDEX.html`.
+
+### Added
+
+- `renderers/workflow-index.mjs` — a dedicated overview page for quick /
+  investigative workflows surfacing workflow-type, recommended next route(s),
+  the progress map, open questions, tags, and links to every sibling artifact
+  (instead of forcing them through the empty 10-stage `index.mjs` grid).
+- Dashboard "Quick & investigative" section listing `workflow-index` workflows
+  with their workflow-type and routing stage; the 10-stage swimlanes now show
+  only pipeline (`type: index`) workflows so quick ones no longer render as
+  misleading all-empty lanes.
+- Five new unit tests covering dashboard reachability, exhaustive bucketing,
+  swimlane exclusion, quick-artifact path resolution, and the new renderer.
+
 ## [9.31.0] - 2026-05-29
 
 ### Fixed — render-pipeline audit (10-dimension sweep, 41 fixes)
