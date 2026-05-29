@@ -3,6 +3,7 @@ import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, metricRow } from './_shell.mjs';
 import { renderHistoryBlock } from './_history.mjs';
 import { escapeHtml } from './_validator.mjs';
+import { pageHref } from './_paths.mjs';
 
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
@@ -14,7 +15,7 @@ export function render(artifact, ctx) {
   });
   const rows = plans.map((p) => {
     const slice = p.frontmatter?.['slice-slug'] ?? '';
-    return `<a class="slice-card" href="${escapeHtml(slice)}/">
+    return `<a class="slice-card" href="${escapeHtml(pageHref(slice))}">
       <span class="slice-slug"><code>${escapeHtml(slice)}</code></span>
       <span class="slice-title">${escapeHtml(p.frontmatter?.title ?? '')}</span>
       ${statusBadge(p.frontmatter?.status)}

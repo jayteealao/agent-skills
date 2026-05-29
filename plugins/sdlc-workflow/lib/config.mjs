@@ -41,7 +41,7 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
   },
 });
 
-let configValidator = null;
+const configValidators = new Map();   // schemaPath → compiled validator
 
 export function configPathFor(projectRoot = process.cwd()) {
   return join(projectRoot, '.ai', 'sdlc-config.json');
@@ -77,12 +77,14 @@ export function deepMerge(base, override) {
 }
 
 async function ensureConfigValidator(schemaPath = DEFAULT_SCHEMA_PATH) {
-  if (configValidator) return configValidator;
+  const cached = configValidators.get(schemaPath);
+  if (cached) return cached;
   const schema = JSON.parse(await readFile(schemaPath, 'utf-8'));
   const ajv = new Ajv2020({ allErrors: true, strict: false });
   addFormats(ajv);
-  configValidator = ajv.compile(schema);
-  return configValidator;
+  const validate = ajv.compile(schema);
+  configValidators.set(schemaPath, validate);
+  return validate;
 }
 
 export async function validateConfig(config, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {

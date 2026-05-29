@@ -17,14 +17,14 @@
  *   --simplify <path>    Default ".ai/simplify"
  *   --profiles <path>    Default ".ai/profiles"
  *   --docs <path>        Default ".ai/docs"
- *   --asset-base <path>  Default "/sdlc/_assets"
+ *   --asset-base <path>  Override asset URL prefix (default: depth-relative path)
  *   --plugin-root <path> Default plugin install dir (auto-detected)
  *   --schema <path>      Default <plugin-root>/tests/frontmatter.schema.json
  */
 
 import {
   existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync,
-  statSync, rmSync, cpSync, appendFileSync,
+  statSync, rmSync, copyFileSync, renameSync, appendFileSync,
 } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { dirname, resolve, join, relative, basename } from 'node:path';
@@ -56,7 +56,7 @@ function parseArgs(argv) {
     simplify:   '.ai/simplify',
     profiles:   '.ai/profiles',
     docs:       '.ai/docs',
-    assetBase:  '/sdlc/_assets',
+    assetBase:  null,
     pluginRoot: PLUGIN_ROOT_DEFAULT,
     schema:     null,
     mode:       'additive',
@@ -90,6 +90,20 @@ function parseArgs(argv) {
   }
   args.schema ??= join(args.pluginRoot, 'tests', 'frontmatter.schema.json');
   return args;
+}
+
+/**
+ * Compute a depth-relative asset base for a rendered HTML file.
+ * The _assets/ directory always lives at the view root, so the prefix is
+ * purely a function of how many directory levels separate fileAbs from viewRoot.
+ *
+ *   viewRoot/INDEX.html             → '_assets'
+ *   viewRoot/slug/INDEX.html        → '../_assets'
+ *   viewRoot/slug/stage/INDEX.html  → '../../_assets'
+ */
+function relativeAssetBase(fileAbs, viewRoot) {
+  const up = relative(dirname(fileAbs), viewRoot);
+  return up ? `${up.replace(/\\/g, '/')}/_assets` : '_assets';
 }
 
 /* ───────────────────────── Storage walk ───────────────────────── */
@@ -243,8 +257,78 @@ function copyAssets(pluginRoot, viewRoot) {
   const src = join(pluginRoot, 'assets');
   const dst = join(viewRoot, '_assets');
   if (!existsSync(src)) return;
-  mkdirSync(dst, { recursive: true });
-  cpSync(src, dst, { recursive: true });
+  copyDirResilient(src, dst);
+}
+
+// Copy a directory tree file-by-file, skipping any file whose destination is
+// already up to date (same size, dest mtime ≥ src mtime). This avoids the
+// wholesale unlink+rewrite that `cpSync({ force: true })` performs on every
+// render: an unchanged asset (favicon, css, js, fonts) is never touched, so a
+// destination held open by the serve daemon or a browser tab on Windows can't
+// trip EBUSY. A file that genuinely changed but is momentarily locked is
+// logged and skipped rather than aborting the entire render job.
+function copyDirResilient(srcDir, dstDir) {
+  mkdirSync(dstDir, { recursive: true });
+  for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
+    const s = join(srcDir, entry.name);
+    const d = join(dstDir, entry.name);
+    if (entry.isDirectory()) {
+      copyDirResilient(s, d);
+    } else if (entry.isFile()) {
+      try {
+        if (assetUpToDate(s, d)) continue;
+        copyFileSync(s, d);
+      } catch (err) {
+        console.warn(`[assets] skipped ${entry.name}: ${err.code ?? err.message}`);
+      }
+    }
+  }
+}
+
+function assetUpToDate(src, dst) {
+  if (!existsSync(dst)) return false;
+  try {
+    if (statSync(src).size !== statSync(dst).size) return false;
+    // Sizes match — compare bytes to catch same-size edits an mtime heuristic
+    // misses (e.g. a git checkout that preserves timestamps). Assets are few and
+    // small, so a full read is cheap and exact; identical files are skipped, so
+    // an open browser/serve handle never trips an unlink (EBUSY).
+    return readFileSync(src).equals(readFileSync(dst));
+  } catch {
+    return false;
+  }
+}
+
+// Atomic write: write a sibling .tmp then rename into place, so a crash or
+// ENOSPC mid-write can never leave a torn/zero-byte file that the mtime check
+// would later treat as fresh. Mirrors lib/pid-file.mjs. On failure the temp
+// file is removed and the error re-thrown for the caller to handle.
+function writeFileAtomic(absPath, content) {
+  const tmp = `${absPath}.tmp`;
+  writeFileSync(tmp, content, 'utf-8');
+  try {
+    renameSync(tmp, absPath);
+  } catch (err) {
+    try { rmSync(tmp, { force: true }); } catch { /* ignore */ }
+    throw err;
+  }
+}
+
+// Yield every INDEX.html under a directory tree (used for orphan cleanup).
+function* walkViewIndexes(dir) {
+  if (!existsSync(dir)) return;
+  const stack = [dir];
+  while (stack.length) {
+    const d = stack.pop();
+    let entries;
+    try { entries = readdirSync(d, { withFileTypes: true }); }
+    catch { continue; }
+    for (const e of entries) {
+      const abs = join(d, e.name);
+      if (e.isDirectory()) stack.push(abs);
+      else if (e.isFile() && e.name === 'INDEX.html') yield abs;
+    }
+  }
 }
 
 /* ───────────────────────── Generic fallback renderer ───────────────────────── */
@@ -265,7 +349,7 @@ function fallbackRender(artifact, ctx) {
 
 function escape(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 }
 
 function synthesizeProjectFrontmatter(artifact, frontmatter) {
@@ -311,6 +395,11 @@ async function renderMain(args) {
         rmSync(join(viewRoot, entry.name), { recursive: true, force: true });
       }
     }
+    // Also drop root-level outputs so a stale dashboard/manifest can't survive a
+    // --clean (especially when paired with --no-shared-output).
+    for (const f of ['INDEX.html', 'INDEX.yaml', '.last-render']) {
+      rmSync(join(viewRoot, f), { force: true });
+    }
   }
 
   // 2. copy assets
@@ -327,8 +416,10 @@ async function renderMain(args) {
   });
   if (args.diag) {
     console.log(`[render:diag] discovered ${artifacts.length} artifact candidate${artifacts.length === 1 ? '' : 's'}`);
-    for (const warning of configMeta.warnings) console.log(`[render:diag] config warning: ${warning}`);
   }
+  // Surface config-load warnings on every run (not only --diag) so a malformed
+  // sdlc config is never silently ignored. Mirrors bootstrapMain.
+  for (const warning of configMeta.warnings) console.warn(`[render] config warning: ${warning}`);
 
   // 4. parse + bucket per slug
   const parsed = [];
@@ -387,6 +478,7 @@ async function renderMain(args) {
   const filter = workSetFilter({ mode: args.mode, onlyGlob: args.onlyGlob });
   const slugArtifacts = new Map();   // slug → all parsed artifacts (for context)
   const workSet = [];
+  const viewAbsSeen = new Map();     // viewAbs → "slug/storageRel" (collision guard)
   for (const a of parsed) {
     // v9.23.0 (S2.2) — resolveViewPath now handles off-pipeline kinds
     // when given the kind hint. Drops the prior inline ternary.
@@ -396,6 +488,14 @@ async function renderMain(args) {
     const viewAbs = a.kind === 'workflow'
       ? join(viewRoot, a.slug, viewRel)
       : join(viewRoot, viewRel);
+    // Two source artifacts that resolve to the same view path (e.g. the nested
+    // slices/<s>/04-plan.md and the flat 04-plan-<s>.md conventions) would
+    // silently overwrite each other. Keep the first, warn, and skip the rest.
+    if (viewAbsSeen.has(viewAbs)) {
+      console.warn(`[render] path collision: ${a.slug}/${a.storageRel} and ${viewAbsSeen.get(viewAbs)} both map to ${viewRel} — keeping the first`);
+      continue;
+    }
+    viewAbsSeen.set(viewAbs, `${a.slug}/${a.storageRel}`);
     const storageInputs = [a.mdAbs, a.siblingPaths.yaml, a.siblingPaths.fragment].filter(Boolean);
     const filterStoragePath = a.kind === 'workflow'
       ? `${a.slug}/${a.storageRel}`
@@ -444,11 +544,12 @@ async function renderMain(args) {
     }, {});
 
     const displaySlug = a.kind === 'docs' ? 'docs' : a.slug;
+    const effectiveAssetBase = args.assetBase ?? relativeAssetBase(a.viewAbs, viewRoot);
     const ctx = {
       slug: displaySlug,
       slugRoot: a.kind === 'workflow' ? join(storageRoot, a.slug) : null,
       viewRoot: a.kind === 'workflow' ? join(viewRoot, a.slug) : viewRoot,
-      assetBase: args.assetBase,
+      assetBase: effectiveAssetBase,
       allArtifacts,
       pathMap: pathMaps.get(a.slug),
       mode: args.mode,
@@ -478,7 +579,7 @@ async function renderMain(args) {
       slug:      displaySlug,
       status:    a.frontmatter?.status ?? '',
       breadcrumbs,
-      assetBase: args.assetBase,
+      assetBase: effectiveAssetBase,
       headerHtml: result.headerHtml ?? '',
       bodyHtml:   result.bodyHtml ?? '',
       warnBanner,
@@ -487,18 +588,42 @@ async function renderMain(args) {
       liveReload,
     });
 
-    mkdirSync(dirname(a.viewAbs), { recursive: true });
-    writeFileSync(a.viewAbs, html, 'utf-8');
-    renderedCount++;
+    try {
+      mkdirSync(dirname(a.viewAbs), { recursive: true });
+      writeFileAtomic(a.viewAbs, html);
+      renderedCount++;
 
-    // Drain children (sub-blooms)
-    if (result.children?.length) {
-      for (const child of result.children) {
-        if (child.viewRel && child.html) {
-          const childAbs = join(viewRoot, a.slug, child.viewRel);
-          mkdirSync(dirname(childAbs), { recursive: true });
-          writeFileSync(childAbs, child.html, 'utf-8');
-          renderedCount++;
+      // Drain children (sub-blooms)
+      if (result.children?.length) {
+        for (const child of result.children) {
+          if (child.viewRel && child.html) {
+            const childAbs = join(viewRoot, a.slug, child.viewRel);
+            mkdirSync(dirname(childAbs), { recursive: true });
+            writeFileAtomic(childAbs, child.html);
+            renderedCount++;
+          }
+        }
+      }
+    } catch (err) {
+      // A locked destination (EBUSY/EACCES on Windows when a browser tab or the
+      // serve daemon holds the file) must not abort the whole render — warn and
+      // move on, consistent with copyDirResilient.
+      console.warn(`[render] write failed for ${a.viewRel}: ${err.code ?? err.message}`);
+    }
+  }
+
+  // Orphan cleanup (additive only — clean mode already wiped). For each slug we
+  // touched this run, remove view INDEX.html pages whose source artifact no
+  // longer exists. slugArtifacts holds the full current artifact set per slug
+  // (history snapshots parse as artifacts too), and no renderer emits child
+  // pages, so anything on disk not in `expected` is a true orphan.
+  if (args.mode !== 'clean') {
+    const touchedSlugs = new Set(workSet.filter((a) => a.kind === 'workflow').map((a) => a.slug));
+    for (const slug of touchedSlugs) {
+      const expected = new Set((slugArtifacts.get(slug) ?? []).map((a) => a.viewAbs));
+      for (const abs of walkViewIndexes(join(viewRoot, slug))) {
+        if (!expected.has(abs)) {
+          try { rmSync(abs, { force: true }); } catch { /* ignore */ }
         }
       }
     }
@@ -522,7 +647,7 @@ async function renderMain(args) {
         }));
         const result = dashboardMod.render(
           { type: 'dashboard', frontmatter: { title: 'sdlc dashboard' }, body: '', siblingYaml: null, history: [], fragment: null, path: '__dashboard__' },
-          { slug: '', viewRoot, assetBase: args.assetBase, allArtifacts: { __summary__: slugsSummary, __project__: projectSummary } },
+          { slug: '', viewRoot, assetBase: args.assetBase ?? relativeAssetBase(join(viewRoot, 'INDEX.html'), viewRoot), allArtifacts: { __summary__: slugsSummary, __project__: projectSummary } },
         );
         const html = renderShell({
           title: 'sdlc · dashboard',
@@ -530,13 +655,13 @@ async function renderMain(args) {
           slug:  '',
           status: '',
           breadcrumbs: [{ label: 'sdlc', href: './' }],
-          assetBase: args.assetBase,
+          assetBase: args.assetBase ?? relativeAssetBase(join(viewRoot, 'INDEX.html'), viewRoot),
           headerHtml: result.headerHtml ?? '',
           bodyHtml:   result.bodyHtml ?? '',
           upHref: './',
           liveReload,
         });
-        writeFileSync(join(viewRoot, 'INDEX.html'), html, 'utf-8');
+        writeFileAtomic(join(viewRoot, 'INDEX.html'), html);
         renderedCount++;
       } catch (err) {
         console.warn(`[dashboard] ${err.message}`);
@@ -545,20 +670,22 @@ async function renderMain(args) {
 
     // 9. manifest pass
     const manifest = {
-      version:     '9.27.0',
+      version:     '9.31.0',
       generatedAt: new Date().toISOString(),
-      slugs: [...slugArtifacts.keys()].map((slug) => ({
-        slug,
-        artifacts: (slugArtifacts.get(slug) ?? []).length,
-      })),
+      slugs: [...slugArtifacts.keys()]
+        .filter((slug) => !slug.startsWith('__'))   // drop synthetic off-pipeline buckets
+        .map((slug) => ({
+          slug,
+          artifacts: (slugArtifacts.get(slug) ?? []).length,
+        })),
     };
-    writeFileSync(join(viewRoot, 'INDEX.yaml'), `# sdlc view manifest\n${toYaml(manifest)}`, 'utf-8');
-    writeFileSync(join(viewRoot, '.last-render'), `${JSON.stringify({
+    writeFileAtomic(join(viewRoot, 'INDEX.yaml'), `# sdlc view manifest\n${toYaml(manifest)}`);
+    writeFileAtomic(join(viewRoot, '.last-render'), `${JSON.stringify({
       renderedAt: manifest.generatedAt,
       renderedCount,
       schemaWarnings,
       configHash: computeConfigHash(config),
-    }, null, 2)}\n`, 'utf-8');
+    }, null, 2)}\n`);
   }
 
   // 10. report
@@ -608,12 +735,12 @@ async function bootstrapMain(args) {
     const workflows = await scanWorkflowIndexes({ projectRoot: cwd, workflowsRoot: storageRoot });
     const active = activeWorkflowIndexes(workflows);
     for (const invalid of workflows.filter((workflow) => workflow.classification === 'invalid')) {
-      log(`[bootstrap] invalid workflow skipped: ${invalid.directorySlug}`);
+      log(`[bootstrap] invalid workflow skipped: ${invalid.directorySlug}${invalid.invalidReason ? ` (${invalid.invalidReason})` : ''}`);
     }
 
     const jobs = [];
     for (const workflow of active) {
-      const viewMtime = await viewMtimeForSlug(viewRoot, workflow.slug);
+      const viewMtime = await viewMtimeForSlug(viewRoot, workflow.directorySlug);
       const state = classifyRenderState({
         latestArtifactMtime: workflow.latestArtifactMtime,
         viewMtime,
@@ -622,7 +749,7 @@ async function bootstrapMain(args) {
       });
       log(`[bootstrap] ${state.action} ${workflow.slug} (${state.reason})`);
       if (state.action === 'render') {
-        jobs.push({ label: workflow.slug, only: `${workflow.slug}/**`, reason: state.reason });
+        jobs.push({ label: workflow.directorySlug, only: `${workflow.directorySlug}/**`, reason: state.reason });
       }
     }
 
@@ -668,12 +795,17 @@ async function bootstrapMain(args) {
     const concurrency = normalizeConcurrency(
       args.concurrency ?? config.view?.render?.concurrency ?? 4,
     );
-    await runRenderJobs(jobs, { args, cwd, concurrency, log });
+    const failedJobs = await runRenderJobs(jobs, { args, cwd, concurrency, log });
     if (jobs.length) {
-      await runRenderJob(
+      const sharedCode = await runRenderJob(
         { label: 'shared outputs', only: '__sdlc_shared__/**', reason: 'finalize' },
         { args, cwd, log, sharedOutput: true },
       );
+      if (sharedCode) log(`[bootstrap] shared-output pass failed: exit ${sharedCode}`);
+    }
+    if (failedJobs) {
+      log(`[bootstrap] ${failedJobs} render job${failedJobs === 1 ? '' : 's'} failed — see entries above`);
+      process.exitCode = 1;
     }
     await ensureServeLifecycle({
       projectRoot: cwd,
@@ -711,15 +843,18 @@ function normalizeConcurrency(value) {
 }
 
 async function runRenderJobs(jobs, { args, cwd, concurrency, log }) {
-  if (!jobs.length) return;
+  if (!jobs.length) return 0;
   let next = 0;
+  let failed = 0;
   const workers = Array.from({ length: Math.min(concurrency, jobs.length) }, async () => {
     while (next < jobs.length) {
       const job = jobs[next++];
-      await runRenderJob(job, { args, cwd, log, sharedOutput: false });
+      const code = await runRenderJob(job, { args, cwd, log, sharedOutput: false });
+      if (code) failed++;
     }
   });
   await Promise.all(workers);
+  return failed;
 }
 
 function runRenderJob(job, { args, cwd, log, sharedOutput = true }) {
@@ -735,6 +870,7 @@ function runRenderJob(job, { args, cwd, log, sharedOutput = true }) {
       '--docs', args.docs,
       '--plugin-root', args.pluginRoot,
       '--schema', args.schema,
+      ...(args.assetBase ? ['--asset-base', args.assetBase] : []),
       args.includeProjectContext ? '--include-project-context' : '--no-include-project-context',
       sharedOutput ? null : '--no-shared-output',
     ].filter(Boolean);
@@ -752,14 +888,19 @@ function runRenderJob(job, { args, cwd, log, sharedOutput = true }) {
       if (stdout.trim()) log(stdout.trim());
       if (stderr.trim()) log(stderr.trim());
       if (code !== 0) log(`[bootstrap] render failed for ${job.label}: exit ${code}`);
-      resolveJob();
+      resolveJob(code ?? 0);
     });
   });
 }
 
 function logBootstrap(logPath, line) {
   const entry = `[${new Date().toISOString()}] ${line}`;
-  appendFileSync(logPath, `${entry}\n`, 'utf-8');
+  try {
+    if (existsSync(logPath) && statSync(logPath).size > 1024 * 1024) {
+      renameSync(logPath, `${logPath}.1`);   // 1 MB single-generation rotation
+    }
+  } catch { /* ignore rotation failure */ }
+  try { appendFileSync(logPath, `${entry}\n`, 'utf-8'); } catch { /* ignore */ }
   console.log(entry);
 }
 

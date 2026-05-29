@@ -7,6 +7,7 @@
 import { readdirSync, existsSync, readFileSync, statSync } from 'node:fs';
 import { join, basename, dirname } from 'node:path';
 import { splitFrontmatter } from './_yaml.mjs';
+import { pageHref } from './_paths.mjs';
 
 /**
  * Load all history snapshots for an artifact. The history/ folder lives next
@@ -60,7 +61,7 @@ export function renderHistoryBlock(history) {
   if (!history?.length) return '';
   const items = history.map((h) => {
     const when = h.snapshotFrontmatter?.['updated-at'] ?? new Date(h.mtime).toISOString().slice(0, 16).replace('T', ' ');
-    return `<li><a href="history/${h.rev}/">Rev ${h.rev} — ${escape(when)}</a></li>`;
+    return `<li><a href="${escape(pageHref(`history/${h.rev}`))}">Rev ${h.rev} — ${escape(when)}</a></li>`;
   }).join('');
   return `<details class="history revisions">
     <summary>${history.length} prior revision${history.length === 1 ? '' : 's'}</summary>
@@ -71,5 +72,5 @@ export function renderHistoryBlock(history) {
 function escape(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 }

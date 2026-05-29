@@ -82,10 +82,10 @@ function renderExperiment(artifact, ctx) {
        </section>`
     : '';
 
-  const switchesHtml = [
-    sy['kill-switch'] && `kill switch <code>${escapeHtml(sy['kill-switch'])}</code>`,
-    sy.kill_switch && `kill switch <code>${escapeHtml(sy.kill_switch)}</code>`,
-  ].filter(Boolean).map((text) => callout('warn', 'operational control', `<p>${text}</p>`)).join('');
+  const killSwitch = sy['kill-switch'] ?? sy.kill_switch;
+  const switchesHtml = killSwitch
+    ? callout('warn', 'operational control', `<p>kill switch <code>${escapeHtml(killSwitch)}</code></p>`)
+    : '';
 
   const fragmentBlock = artifact.fragment
     ? `<div class="fragment">${artifact.fragment}</div>`

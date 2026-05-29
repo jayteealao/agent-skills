@@ -13,6 +13,7 @@
 import { artifactHeader } from './_shell.mjs';
 import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
+import { pageHref } from './_paths.mjs';
 
 const STAGES = [
   'intake', 'shape', 'slice', 'plan', 'implement',
@@ -92,7 +93,7 @@ function projectRow({ slug, fm }) {
   const stage = fm['current-stage'] ?? 'intake';
   const title = fm.title ?? slug;
   const updated = fm['updated-at'] ?? '';
-  return `<a class="project-row" href="${escapeHtml(slug)}/">
+  return `<a class="project-row" href="${escapeHtml(pageHref(slug))}">
     <span class="slug"><code>${escapeHtml(slug)}</code></span>
     <span class="title">${escapeHtml(title)}</span>
     <span class="stage-pill">${escapeHtml(stage)}</span>

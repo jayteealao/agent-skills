@@ -31,7 +31,7 @@ export function severityChip(level, label) {
  *  rendered markup stays semantic. VERDICT_GLYPH remains exported for the
  *  snippet template + external consumers that still want the codepoint. */
 export function verdictBlock(kind, label, summary) {
-  return `<section class="verdict verdict-${kind}">
+  return `<section class="verdict verdict-${escape(kind)}">
     <div class="v-label">${escape(label ?? kind)}</div>
     ${summary ? `<p class="v-sum">${escape(summary)}</p>` : ''}
   </section>`;
@@ -93,5 +93,5 @@ export function findingListItem(params) {
 function escape(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 }

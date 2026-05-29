@@ -6,6 +6,7 @@ import {
   readFileSync,
   readdirSync,
   statSync,
+  realpathSync,
   watch,
 } from 'node:fs';
 import { createReadStream } from 'node:fs';
@@ -29,6 +30,13 @@ const MIME = {
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
 };
+
+const MAX_SSE_CLIENTS = 50;   // cap live-reload connections to avoid fd exhaustion
+
+// Blocks injected inline scripts (raw .html.fragment / markdown HTML passthrough)
+// while allowing our external css/js and inline SVG styles. The live-reload
+// script is served from _assets/livereload.js so it satisfies script-src 'self'.
+const CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'";
 
 export function parseServeArgs(argv) {
   const args = {
@@ -89,6 +97,10 @@ export function createSdlcStaticServer({
         res.writeHead(404).end('live reload disabled');
         return;
       }
+      if (clients.size >= MAX_SSE_CLIENTS) {
+        res.writeHead(503).end('too many live-reload clients');
+        return;
+      }
       res.writeHead(200, {
         'content-type': 'text/event-stream; charset=utf-8',
         'cache-control': 'no-cache',
@@ -138,6 +150,7 @@ function serveStatic({ root, req, res }) {
     'content-type': type,
     'content-length': stats.size,
     'cache-control': 'no-cache',
+    'content-security-policy': CSP,
   });
   if (req.method === 'HEAD') {
     res.end();
@@ -168,6 +181,20 @@ function resolveRequestPath(root, rawUrl) {
   const rootWithSep = root.endsWith(sep) ? root : `${root}${sep}`;
   if (candidate !== root && !candidate.startsWith(rootWithSep)) {
     return { ok: false, status: 403, message: 'forbidden' };
+  }
+  // The lexical check above is not sufficient: statSync/createReadStream follow
+  // symlinks, so a link inside the view tree pointing outside it would be
+  // served. Resolve the real path and re-check containment against the real root.
+  if (existsSync(candidate)) {
+    let real;
+    try { real = realpathSync.native(candidate); }
+    catch { return { ok: false, status: 404, message: 'not found' }; }
+    const realRoot = realpathSync.native(root);
+    const realRootWithSep = realRoot.endsWith(sep) ? realRoot : `${realRoot}${sep}`;
+    if (real !== realRoot && !real.startsWith(realRootWithSep)) {
+      return { ok: false, status: 403, message: 'forbidden' };
+    }
+    return { ok: true, path: real };
   }
   return { ok: true, path: candidate };
 }

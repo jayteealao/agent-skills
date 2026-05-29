@@ -21,7 +21,8 @@ import { spawn } from 'node:child_process';
 import { dirname, resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const PLUGIN_ROOT = resolve(__dirname, '..');
 const DEBOUNCE_MS = 2000;
 
@@ -100,6 +101,10 @@ async function main() {
     const bucket = detectRenderBucket(resolve(cwd, p), cwd);
     if (bucket) buckets.add(bucket);
   }
+  // No recognized slug bucket (e.g. simplify/profiles writes) → skip the
+  // incremental pass rather than spawning a full-site re-render. These
+  // off-pipeline artifacts are picked up by the next bootstrap render.
+  if (!buckets.size) exitClean();
 
   // Touch-file debounce
   mkdirSync(viewRoot, { recursive: true });
@@ -136,7 +141,7 @@ async function debounceStage2() {
 
   const buckets = bucketCsv ? bucketCsv.split(',').filter(Boolean) : [];
 
-  const renderArgs = ['scripts/render-sunflower.mjs'];
+  const renderArgs = [join(PLUGIN_ROOT, 'scripts', 'render-sunflower.mjs')];
   if (buckets.length === 1) {
     renderArgs.push('--only', `${buckets[0]}/**`);
   }
@@ -162,7 +167,7 @@ async function debounceStage2() {
 }
 
 if (process.argv[2] === '--debounce-stage2') {
-  debounceStage2();
+  debounceStage2().catch(() => process.exit(0));
 } else {
-  main();
+  main().catch(() => process.exit(0));
 }

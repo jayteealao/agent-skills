@@ -4,7 +4,10 @@ import yaml from 'js-yaml';
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
 export function parseFrontmatter(text, { filePath = '<memory>' } = {}) {
-  const match = String(text ?? '').match(FRONTMATTER_RE);
+  // Strip a leading UTF-8 BOM (common from Windows editors) so the `^---`
+  // anchor matches; otherwise the file parses as having no frontmatter and
+  // surfaces a misleading "missing required field" error downstream.
+  const match = String(text ?? '').replace(/^﻿/, '').match(FRONTMATTER_RE);
   if (!match) {
     return {
       data: {},

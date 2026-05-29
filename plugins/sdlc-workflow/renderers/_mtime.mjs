@@ -30,7 +30,10 @@ export function isDirty({ storageInputs, viewOutput }) {
   if (!existsSync(viewOutput)) return true;
   const inputMtime  = maxMtime(storageInputs);
   const outputMtime = maxMtime([viewOutput]);
-  return inputMtime > outputMtime;
+  // `>=` (not `>`): on coarse-grained filesystems (FAT32 2s, some NFS 1s) a
+  // source edited in the same mtime bucket as the view would be missed by `>`,
+  // serving a stale page. Equal-mtime re-renders are cheap and self-correcting.
+  return inputMtime >= outputMtime;
 }
 
 /**

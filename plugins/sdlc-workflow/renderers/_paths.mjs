@@ -11,6 +11,13 @@ const SHIPRUN_RE = /^ship\/([^/]+)\/(\d+[a-z]?)-([a-z-]+)\.md$/;
 const AUG_RE     = /^augmentations\/([^/]+)\.md$/;
 const AMEND_RE   = /^amendments\/(\d+)-(shape|slice)(?:[^/]*)\.md$/;
 const HISTORY_RE = /^(?:(.+)\/)?history\/([^/]+)-(\d+)\.md$/;
+// Flat per-slice layout: `NN-<stage>-<slice>.md` at the workflow root (e.g.
+// `04-plan-toolchain.md`), as opposed to the nested `slices/<slice>/04-plan.md`
+// handled by SLICE_RE. Both conventions appear in the wild.
+const FLAT_PHASE_SLICE_RE = /^\d+[a-z]?-(slice|plan|implement|verify)-(.+)\.md$/;
+// Flat per-dimension review files: `07-review-<command>.md` (incl. `-round2`),
+// vs the nested `07-review/<command>.md` handled by REVIEW_RE.
+const FLAT_REVIEW_RE = /^07-review-(.+)\.md$/;
 
 const PHASE_BY_BASENAME = {
   '00-index':              ['', null],            // slug overview at root
@@ -22,7 +29,15 @@ const PHASE_BY_BASENAME = {
   '04-plan-index':         ['plan', null],
   '05-implement-index':    ['implement', null],
   '06-verify-index':       ['verify', null],
+  // Bare stage-index basenames used by the flat layout (no `-index` suffix).
+  '03-slice':              ['slice', null],
+  '04-plan':               ['plan', null],
+  '05-implement':          ['implement', null],
+  '06-verify':             ['verify', null],
   '07-review':             ['review', null],
+  '07-design-critique':    ['design-critique', null],   // /wf-design critique
+  '07-design-audit':       ['design-audit', null],      // /wf-design audit
+  '00-sync':               ['sync', null],               // /wf sync health report
   '08-handoff':            ['handoff', null],
   '09-ship-runs-index':    ['ship', null],
   '10-retro':              ['retro', null],
@@ -199,6 +214,28 @@ export function resolveViewPath(storageRel, opts = {}) {
     return { viewRel, kind: basename };
   }
 
+  // Flat per-slice files: NN-<stage>-<slice>.md (e.g. 04-plan-toolchain.md).
+  // Checked AFTER PHASE_BY_BASENAME so bare/`-index` stage files win and a
+  // slice literally named "index" can't shadow the stage index.
+  m = rel.match(FLAT_PHASE_SLICE_RE);
+  if (m) {
+    const [, stage, sliceSlug] = m;
+    return {
+      viewRel: path.join(stage, sliceSlug, 'INDEX.html'),
+      kind: stage === 'slice' ? 'slice-detail' : `slice-${stage}`,
+    };
+  }
+
+  // Flat per-dimension review files: 07-review-<command>.md (incl. -round2).
+  m = rel.match(FLAT_REVIEW_RE);
+  if (m) {
+    const [, command] = m;
+    return {
+      viewRel: path.join('review', command, 'INDEX.html'),
+      kind: 'review-command',
+    };
+  }
+
   // Skip-records skips/<stage>.md
   m = rel.match(/^skips\/([^/]+)\.md$/);
   if (m) {
@@ -223,6 +260,30 @@ export function siblingPaths(storageRel) {
 }
 
 /**
+ * Convert a directory-style relative URL into an explicit INDEX.html file URL.
+ *
+ * Every internal nav link must resolve to a real file: neither file:// nor a
+ * plain static host can be relied on to map `foo/` → `foo/INDEX.html` (most
+ * only auto-serve lowercase `index.html`, and file:// serves nothing). Links
+ * that already point at a concrete `.html` file pass through unchanged, so
+ * this is safe to apply to any internal href.
+ *
+ *   ''               → 'INDEX.html'
+ *   './'             → 'INDEX.html'
+ *   '../'            → '../INDEX.html'
+ *   '../../'         → '../../INDEX.html'
+ *   'shape/'         → 'shape/INDEX.html'
+ *   'slice/x'        → 'slice/x/INDEX.html'
+ *   'project/P.html' → 'project/P.html'   (unchanged)
+ */
+export function pageHref(dirHref) {
+  const s = String(dirHref ?? '');
+  if (s.endsWith('.html')) return s;
+  if (s === '' || s === './') return 'INDEX.html';
+  return s.endsWith('/') ? `${s}INDEX.html` : `${s}/INDEX.html`;
+}
+
+/**
  * Compute the breadcrumb chain from a view-relative path. Each entry is
  * { label, href } where href is relative to the view root.
  */
@@ -231,23 +292,23 @@ export function breadcrumbFromView(viewRel, slug) {
   // Last segment is INDEX.html — drop it
   if (parts[parts.length - 1] === 'INDEX.html') parts.pop();
   const crumbs = [
-    { label: 'sdlc', href: '../'.repeat(parts.length + 1) || './' },
-    { label: slug,   href: '../'.repeat(parts.length)     || './' },
+    { label: 'sdlc', href: pageHref('../'.repeat(parts.length + 1)) },
+    { label: slug,   href: pageHref('../'.repeat(parts.length)) },
   ];
   for (let i = 0; i < parts.length; i++) {
     const remaining = parts.length - i - 1;
     crumbs.push({
       label: parts[i],
-      href:  remaining === 0 ? './' : '../'.repeat(remaining),
+      href:  pageHref('../'.repeat(remaining)),
     });
   }
   return crumbs;
 }
 
 /**
- * Asset base resolver — returns an absolute-style path from the configured
- * assetBase. Default `/sdlc/_assets`. Renderer-supplied; never derived from
- * the view-tree depth (absolute paths resolve from the server root).
+ * Asset base resolver — returns a URL-joined path from the configured
+ * assetBase. The caller typically supplies a depth-relative path (e.g.
+ * `../../_assets`) so links work when opened via file:// or any server root.
  */
 export function assetUrl(assetBase, filename) {
   const base = assetBase.replace(/\/$/, '');

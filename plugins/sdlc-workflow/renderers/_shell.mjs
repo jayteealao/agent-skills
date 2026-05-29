@@ -5,8 +5,9 @@
 // into a full document.
 
 import { escapeHtml } from './_validator.mjs';
+import { pageHref } from './_paths.mjs';
 
-const PLUGIN_VERSION = '9.27.0';
+const PLUGIN_VERSION = '9.31.0';
 
 /**
  * Wrap rendered content in the full HTML shell.
@@ -17,7 +18,7 @@ const PLUGIN_VERSION = '9.27.0';
  * @param {string} params.slug — workflow slug
  * @param {string} params.status — header status badge value
  * @param {Array<{label,href}>} params.breadcrumbs — pre-built breadcrumb chain
- * @param {string} params.assetBase — absolute URL prefix for /sdlc.css and /sdlc.js
+ * @param {string} params.assetBase — URL prefix for sdlc.css/sdlc.js/favicon (relative or absolute)
  * @param {string} params.headerHtml — renderer-produced header markup
  * @param {string} params.bodyHtml — renderer-produced body markup
  * @param {string} [params.warnBanner] — optional warn-banner HTML
@@ -29,7 +30,7 @@ const PLUGIN_VERSION = '9.27.0';
 export function renderShell(params) {
   const {
     title, type, slug, status, breadcrumbs = [],
-    assetBase = '/sdlc/_assets',
+    assetBase = '_assets',
     headerHtml = '', bodyHtml = '',
     warnBanner = '',
     storageHref = '', updatedAt = '', upHref = '../',
@@ -45,14 +46,11 @@ export function renderShell(params) {
   }).join('<li class="sep" aria-hidden="true">/</li>');
 
   const versionTag = `?v=${PLUGIN_VERSION}`;
-  const liveReloadScript = liveReload ? `
-  <script>
-    (() => {
-      if (!('EventSource' in window)) return;
-      const events = new EventSource('/__sdlc/events');
-      events.addEventListener('reload', () => window.location.reload());
-    })();
-  </script>` : '';
+  // External (not inline) so served pages can run a strict `script-src 'self'`
+  // CSP that blocks injected inline scripts. See render-sunflower-serve.mjs.
+  const liveReloadScript = liveReload
+    ? `\n  <script src="${escapeHtml(assetBase)}/livereload.js" defer></script>`
+    : '';
 
   return `<!DOCTYPE html>
 <html lang="en" data-sdlc-version="${PLUGIN_VERSION}">
@@ -60,13 +58,13 @@ export function renderShell(params) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${escapeHtml(title)} — sdlc</title>
-  <link rel="stylesheet" href="${assetBase}/sdlc.css${versionTag}">
-  <script src="${assetBase}/sdlc.js${versionTag}" defer></script>
-  <link rel="icon" href="${assetBase}/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="${escapeHtml(assetBase)}/sdlc.css${versionTag}">
+  <script src="${escapeHtml(assetBase)}/sdlc.js${versionTag}" defer></script>
+  <link rel="icon" href="${escapeHtml(assetBase)}/favicon.svg" type="image/svg+xml">
 </head>
 <body class="artifact" data-artifact-type="${escapeHtml(type)}">
   <nav class="topnav">
-    <a class="brand" href="${assetBase}/../">sdlc</a>
+    <a class="brand" href="${escapeHtml(pageHref(`${assetBase}/..`))}">sdlc</a>
     <ol class="breadcrumb">${breadcrumbHtml}</ol>
     <span class="meta">${escapeHtml(slug)}${status ? ' · ' + escapeHtml(status) : ''}</span>
   </nav>
@@ -78,7 +76,7 @@ export function renderShell(params) {
   </main>
 
   <footer class="bottom">
-    <a href="${escapeHtml(upHref)}">↑ up</a>
+    <a href="${escapeHtml(pageHref(upHref))}">↑ up</a>
     <span class="updated">${updatedAt ? 'updated ' + escapeHtml(updatedAt) : ''}</span>
     ${storageHref
       ? `<a href="${escapeHtml(storageHref)}" class="src-link" title="storage source">md ↗</a>`

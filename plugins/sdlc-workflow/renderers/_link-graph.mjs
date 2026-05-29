@@ -32,7 +32,7 @@ export function buildPathMap(artifacts) {
 export function resolveRefs(refs, pathMap, currentStorageRel) {
   if (!refs) return [];
   const out = [];
-  const currentRefs = pathMap.get(currentStorageRel) ?? '';
+  const currentViewRel = pathMap.get(currentStorageRel) ?? '';
   for (const [role, val] of Object.entries(refs)) {
     const vals = Array.isArray(val) ? val : [val];
     for (const v of vals) {
@@ -42,7 +42,7 @@ export function resolveRefs(refs, pathMap, currentStorageRel) {
         out.push({
           role,
           label: v,
-          href:  relativeBetween(currentRefs, target),
+          href:  relativeBetween(currentViewRel, target),
           broken: false,
         });
       } else {
@@ -88,5 +88,5 @@ export function renderRefs(resolved) {
 function escape(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 }

@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import { spawnDetachedNode } from './detach.mjs';
-import { isPidAlive, pidFileStatus, removePidFile } from './pid-file.mjs';
+import { isPidAlive, pidFileStatus, removePidFile, writePidFile } from './pid-file.mjs';
 
 export function servePidPath(projectRoot) {
   return join(projectRoot, '.ai', '_view', '.serve.pid');
@@ -31,8 +31,8 @@ export async function ensureServeLifecycle({
 
   const host = serve.host ?? '127.0.0.1';
   const port = Number(serve.port ?? 4173);
-  if (host === '0.0.0.0' && serve.tailscale?.enabled !== true) {
-    log('[serve] refused host 0.0.0.0 without view.serve.tailscale.enabled');
+  if (host === '0.0.0.0' && !(serve.tailscale?.enabled === true && serve.tailscale?.acknowledgedPublic === true)) {
+    log('[serve] refused host 0.0.0.0 without view.serve.tailscale.enabled + acknowledgedPublic');
     return { action: 'refused-host' };
   }
 
@@ -65,6 +65,13 @@ export async function ensureServeLifecycle({
     cwd: projectRoot,
     env: process.env,
   });
+
+  // Write the pid file immediately (the daemon also writes it once it binds,
+  // but doing it here first closes the window where a concurrent bootstrap sees
+  // no pid file and spawns a duplicate server that fails with EADDRINUSE).
+  if (child.pid) {
+    await writePidFile(pidPath, { pid: child.pid, host, port, configHash });
+  }
 
   const healthy = await waitForHealth({ host, port, timeoutMs: 2500 });
   if (!healthy) {

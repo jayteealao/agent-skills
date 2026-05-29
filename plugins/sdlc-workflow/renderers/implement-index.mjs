@@ -3,6 +3,7 @@ import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, metricRow } from './_shell.mjs';
 import { renderHistoryBlock } from './_history.mjs';
 import { escapeHtml } from './_validator.mjs';
+import { pageHref } from './_paths.mjs';
 
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
@@ -17,7 +18,7 @@ export function render(artifact, ctx) {
   ]);
   const cards = sli.map((s) => {
     const slice = s.frontmatter?.['slice-slug'] ?? '';
-    return `<a class="slice-card" href="${escapeHtml(slice)}/">
+    return `<a class="slice-card" href="${escapeHtml(pageHref(slice))}">
       <span class="slice-slug"><code>${escapeHtml(slice)}</code></span>
       ${statusBadge(s.frontmatter?.status)}
     </a>`;

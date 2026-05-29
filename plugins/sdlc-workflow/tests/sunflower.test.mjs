@@ -985,12 +985,12 @@ test('index (slug overview): stages grid emits clickable cards for populated sta
   const out = renderIndex(artifact, { allArtifacts: buildSlugAllArtifacts() });
   match(out.bodyHtml, /class="slug-stages"/);
   // Populated stages link to the canonical sub-dir.
-  match(out.bodyHtml, /<a class="slice-card[^"]*" href="intake\/"/);
-  match(out.bodyHtml, /<a class="slice-card[^"]*" href="shape\/"/);
-  match(out.bodyHtml, /<a class="slice-card[^"]*" href="slice\/"/);
-  match(out.bodyHtml, /<a class="slice-card[^"]*" href="plan\/"/);
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="intake\/INDEX\.html"/);
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="shape\/INDEX\.html"/);
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="slice\/INDEX\.html"/);
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="plan\/INDEX\.html"/);
   // The current stage gets the is-current modifier.
-  match(out.bodyHtml, /slice-card is-current[^"]*"\s+href="plan\//);
+  match(out.bodyHtml, /slice-card is-current[^"]*"\s+href="plan\/INDEX\.html/);
 });
 
 test('index (slug overview): empty stages render as non-clickable is-missing cards', () => {
@@ -1018,8 +1018,8 @@ test('index (slug overview): slices preview surfaces each slice with status tone
   const out = renderIndex(artifact, { allArtifacts: buildSlugAllArtifacts() });
   match(out.bodyHtml, /class="slug-slices"/);
   // Each slice card links into slice/<slice-slug>/ and carries the status badge.
-  match(out.bodyHtml, /<a class="slice-card[^"]*" href="slice\/auth-cache\/"/);
-  match(out.bodyHtml, /<a class="slice-card[^"]*" href="slice\/rate-limit\/"/);
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="slice\/auth-cache\/INDEX\.html"/);
+  match(out.bodyHtml, /<a class="slice-card[^"]*" href="slice\/rate-limit\/INDEX\.html"/);
   match(out.bodyHtml, /is-current/);   // active → is-current tone
   match(out.bodyHtml, /is-ok/);        // complete → is-ok tone
 });
@@ -1034,7 +1034,7 @@ test('index (slug overview): recent-activity entries wrap content in clickable l
   };
   const out = renderIndex(artifact, { allArtifacts: buildSlugAllArtifacts() });
   match(out.bodyHtml, /class="activity-list"/);
-  match(out.bodyHtml, /class="activity-link" href="plan\/auth-cache\/"/);
+  match(out.bodyHtml, /class="activity-link" href="plan\/auth-cache\/INDEX\.html"/);
 });
 
 /* ── S2.4 — slice page navigation (stage grid + missing cards + reviews) ─ */
@@ -1056,8 +1056,8 @@ test('slice page: stage nav grid links plan / implement / verify under the same 
   };
   const out = renderSlice(artifact, ctx);
   match(out.bodyHtml, /class="slice-stages"/);
-  match(out.bodyHtml, /<a class="slice-card" href="\.\.\/\.\.\/plan\/auth-cache\/"/);
-  match(out.bodyHtml, /<a class="slice-card" href="\.\.\/\.\.\/implement\/auth-cache\/"/);
+  match(out.bodyHtml, /<a class="slice-card" href="\.\.\/\.\.\/plan\/auth-cache\/INDEX\.html"/);
+  match(out.bodyHtml, /<a class="slice-card" href="\.\.\/\.\.\/implement\/auth-cache\/INDEX\.html"/);
   // verify is missing → div, not anchor
   match(out.bodyHtml, /<div class="slice-card is-missing">[\s\S]*?verify[\s\S]*?not started/);
 });
@@ -1081,8 +1081,8 @@ test('slice page: per-dimension review cards link to review/<dimension>/', () =>
   };
   const out = renderSlice(artifact, ctx);
   match(out.bodyHtml, /class="slice-reviews"/);
-  match(out.bodyHtml, /href="\.\.\/\.\.\/review\/security\/"/);
-  match(out.bodyHtml, /href="\.\.\/\.\.\/review\/performance\/"/);
+  match(out.bodyHtml, /href="\.\.\/\.\.\/review\/security\/INDEX\.html"/);
+  match(out.bodyHtml, /href="\.\.\/\.\.\/review\/performance\/INDEX\.html"/);
   // The 'a11y' review on a different slice must be filtered out.
   ok(!/review\/a11y\//.test(out.bodyHtml), 'review for other slice must not appear');
 });

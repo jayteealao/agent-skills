@@ -67,6 +67,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   profile, simplify, benchmark, experiment, instrument, craft, critique, and
   audit flows.
 
+## [9.31.0] - 2026-05-29
+
+### Fixed — render-pipeline audit (10-dimension sweep, 41 fixes)
+
+- **Blocker:** `render-on-artifact-write.mjs` referenced an undefined `__filename`
+  in ESM, throwing on every PostToolUse write — the incremental render never
+  fired. Added the `fileURLToPath` definition and `.catch()` guards on both
+  entry points.
+- **Blocker:** the debounced render spawned `scripts/render-sunflower.mjs` by a
+  bare relative path resolved against the project root (`MODULE_NOT_FOUND`); now
+  resolved against `PLUGIN_ROOT`.
+- Atomic view writes (temp file + rename) for every output, so a crash or ENOSPC
+  can no longer leave torn HTML that the mtime check then treats as fresh.
+- Bootstrap now keys `--only` globs and view-mtime checks on the directory slug
+  rather than the frontmatter slug (workflows whose slug differed never rendered
+  and re-scheduled forever).
+- Path-collision guard: two source artifacts resolving to the same view path now
+  warn and keep the first, instead of silently overwriting.
+- Created `renderers/ship.mjs` so `type: ship` artifacts render through the
+  ship-legacy renderer instead of falling through to the generic fallback.
+- Registered `00-sync`, `07-design-critique`, and `07-design-audit` routes in
+  `resolveViewPath` (their renderers existed but were unreachable).
+- Serve hardening: realpath symlink-containment check (path traversal), SSE
+  client cap, `0.0.0.0` binding now gated on `acknowledgedPublic`, and a
+  `script-src 'self'` CSP (live-reload script externalized to
+  `_assets/livereload.js`).
+- Escaping: `verdict` class attribute, project-context / ship-plan `lede`,
+  `assetBase`, and single-quote (`'`) encoding across all `escapeHtml` copies.
+- Robustness: per-artifact write try/catch (EBUSY on Windows no longer aborts
+  the run), orphan-page cleanup in additive mode, bootstrap non-zero exit on
+  failed jobs, `--asset-base` forwarded to render subprocesses, config warnings
+  surfaced on every run, exact byte-compare asset freshness, `>=` mtime
+  comparison for coarse filesystems, BOM-tolerant frontmatter parsing,
+  whitespace-only status guard, config/schema validators cached by path, and
+  log rotation for `.hook-errors.log` / `.bootstrap.log`.
+
+### Changed
+
+- Synced internal `PLUGIN_VERSION`, the view manifest version, `package.json`,
+  and `package-lock.json` to 9.31.0 (they had drifted to 9.27.0 / 9.28.0).
+
 ## [9.26.0] - 2026-05-24
 
 ### Changed — hooks migrated from bash/Python/yq/jq to Node

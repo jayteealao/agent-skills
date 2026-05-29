@@ -8,6 +8,7 @@ import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs
 import { renderHistoryBlock } from './_history.mjs';
 import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
+import { pageHref } from './_paths.mjs';
 
 const STAGES = [
   'intake', 'shape', 'slice', 'plan', 'implement',
@@ -19,7 +20,7 @@ const STAGES = [
 // href emitted by the stages-grid cards on the slug overview).
 const STAGE_NAV = {
   intake:    { types: ['intake'],                                       dir: 'intake' },
-  shape:     { types: ['shape', 'design', 'craft', 'design-brief'],     dir: 'shape' },
+  shape:     { types: ['shape', 'design', 'design-contract', 'design-brief'], dir: 'shape' },
   slice:     { types: ['slice-index', 'slice'],                         dir: 'slice' },
   plan:      { types: ['plan-index', 'plan'],                           dir: 'plan' },
   implement: { types: ['implement-index', 'implement'],                 dir: 'implement' },
@@ -133,7 +134,7 @@ function buildActivityList(allArtifacts) {
   for (const list of Object.values(allArtifacts ?? {})) {
     for (const a of list) {
       const viewRel = a.viewRel ?? '';
-      const href = viewRel ? viewRel.replace(/INDEX\.html$/, '') : '';
+      const href = viewRel || '';
       flat.push({
         type:  a.frontmatter?.type ?? a.type,
         updated: a.frontmatter?.['updated-at'] ?? '',
@@ -179,7 +180,7 @@ function stagesGrid(current, allArtifacts) {
     if (!present) {
       return `<div class="${cls.join(' ')}">${inner}</div>`;
     }
-    return `<a class="${cls.join(' ')}" href="${escapeHtml(cfg.dir)}/">${inner}</a>`;
+    return `<a class="${cls.join(' ')}" href="${escapeHtml(pageHref(cfg.dir))}">${inner}</a>`;
   }).join('');
   return `<section class="slug-stages">
     <h2 class="sdlc-h2">stages</h2>
@@ -203,7 +204,7 @@ function slicesPreview(allArtifacts) {
                : fm.status === 'blocked'  ? 'is-bad'
                : fm.status === 'active'   ? 'is-current'
                : '';
-    return `<a class="slice-card ${tone}" href="slice/${escapeHtml(slug)}/">
+    return `<a class="slice-card ${tone}" href="${escapeHtml(pageHref(`slice/${slug}`))}">
       <span class="slice-slug"><code>${escapeHtml(slug)}</code></span>
       <span class="slice-title">${escapeHtml(fm.title ?? '')}</span>
       <span class="slice-status">${statusBadge(fm.status)}</span>

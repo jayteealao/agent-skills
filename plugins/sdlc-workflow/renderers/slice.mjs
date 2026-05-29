@@ -8,6 +8,7 @@
 
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
+import { pageHref } from './_paths.mjs';
 import { renderHistoryBlock } from './_history.mjs';
 import { frontmatterCard } from './_simple.mjs';
 import { escapeHtml } from './_validator.mjs';
@@ -70,7 +71,7 @@ function renderStageNav(sliceSlug, ctx) {
 }
 
 function stageCard({ label, slice, dir, status, present }) {
-  const href = `../../${escapeHtml(dir)}/${escapeHtml(slice)}/`;
+  const href = escapeHtml(pageHref(`../../${dir}/${slice}`));
   const inner = `<span class="slice-slug"><code>${escapeHtml(label)}</code></span>
     ${present ? statusBadge(status) : '<span class="meta">not started</span>'}`;
   if (!present) {
@@ -90,7 +91,7 @@ function renderSliceReviewNav(sliceSlug, ctx) {
   if (!reviews.length) return '';
   const cards = reviews.map((r) => {
     const dim = r.frontmatter?.dimension ?? r.frontmatter?.command ?? r.frontmatter?.['review-command'] ?? '';
-    return `<a class="slice-card" href="../../review/${escapeHtml(dim)}/">
+    return `<a class="slice-card" href="${escapeHtml(pageHref(`../../review/${dim}`))}">
       <span class="slice-slug"><code>${escapeHtml(dim)}</code></span>
       ${statusBadge(r.frontmatter?.status ?? '')}
     </a>`;

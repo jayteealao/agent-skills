@@ -3,6 +3,7 @@ import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, metricRow } from './_shell.mjs';
 import { renderHistoryBlock } from './_history.mjs';
 import { escapeHtml } from './_validator.mjs';
+import { pageHref } from './_paths.mjs';
 
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
@@ -19,7 +20,7 @@ export function render(artifact, ctx) {
 
   const rows = runs.map((r) => {
     const id = r.frontmatter?.['run-id'] ?? r.frontmatter?.release ?? '';
-    return `<a class="slice-card" href="${escapeHtml(id)}/">
+    return `<a class="slice-card" href="${escapeHtml(pageHref(id))}">
       <span class="slice-slug"><code>${escapeHtml(id)}</code></span>
       <span class="slice-title">${escapeHtml(r.frontmatter?.title ?? '')}</span>
       ${statusBadge(r.frontmatter?.status)}

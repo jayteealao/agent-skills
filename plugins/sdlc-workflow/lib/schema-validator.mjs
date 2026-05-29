@@ -82,13 +82,16 @@ function schemaWithDefs(rootSchema, subSchema) {
 }
 
 function compileValidator({ schemaPath = DEFAULT_SCHEMA_PATH, kind = 'frontmatter', name = null }) {
+  // Compute the cache key from inputs alone and check the cache BEFORE loading
+  // the schema, so cached calls skip the schema read+parse entirely.
+  const cacheKey = `${resolve(schemaPath)}::${kind}::${name ?? '<root>'}`;
+  if (validatorCache.has(cacheKey)) return validatorCache.get(cacheKey);
+
   const rootSchema = loadJsonSchemaSync(schemaPath);
   let schema;
-  let cacheName = name ?? '<root>';
   if (kind === 'frontmatter' && name) {
     const branch = findFrontmatterBranch(rootSchema, name);
     schema = branch ? schemaWithDefs(rootSchema, branch) : rootSchema;
-    if (!branch) cacheName = '<root>';
   } else if (kind === 'sibling-yaml') {
     const branch = rootSchema.siblingYamlSchemas?.[name];
     schema = branch ? schemaWithDefs(rootSchema, branch) : null;
@@ -97,9 +100,6 @@ function compileValidator({ schemaPath = DEFAULT_SCHEMA_PATH, kind = 'frontmatte
   }
 
   if (!schema) return null;
-  const cacheKey = `${resolve(schemaPath)}::${kind}::${cacheName}`;
-  if (validatorCache.has(cacheKey)) return validatorCache.get(cacheKey);
-
   const ajv = ajvFor(schemaPath);
   const validate = ajv.compile(schema);
   validatorCache.set(cacheKey, validate);

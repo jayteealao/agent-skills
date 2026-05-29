@@ -8,7 +8,6 @@
  * - Exit 0 always.
  */
 
-import { loadConfig } from '../lib/config.mjs';
 import { logError } from '../lib/error-log.mjs';
 import { projectRootFromInput, stringifyField } from '../lib/hook-utils.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
@@ -19,7 +18,6 @@ async function main() {
 
   const input = await readStdinJson();
   const projectRoot = projectRootFromInput(input);
-  await loadConfig(projectRoot);
 
   const workflows = activeWorkflowIndexes(await scanWorkflowIndexes({ projectRoot }));
   if (!workflows.length) return;

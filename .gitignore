@@ -31,3 +31,6 @@ plugins/sdlc-workflow/tests/transcripts/
 # Design handoff bundle (source artifact from claude.ai/design — not implementation)
 sdlc-handoff/
 sdlc-handoff.zip
+
+# Generated sunflower view output (HTML projection of .ai/workflows — rebuilt on render)
+.ai/_view/

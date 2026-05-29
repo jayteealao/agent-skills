@@ -4,6 +4,7 @@ import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, metricRow } from './_shell.mjs';
 import { figureCanvas } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
+import { pageHref } from './_paths.mjs';
 import { renderHistoryBlock } from './_history.mjs';
 
 export function render(artifact, ctx) {
@@ -56,7 +57,7 @@ function sliceCard({ slug, fm }) {
              : fm.status === 'blocked'  ? 'is-bad'
              : fm.status === 'active'   ? 'is-current'
              : '';
-  return `<a class="slice-card ${tone}" href="${escapeHtml(slug)}/">
+  return `<a class="slice-card ${tone}" href="${escapeHtml(pageHref(slug))}">
     <span class="slice-slug"><code>${escapeHtml(slug)}</code></span>
     <span class="slice-title">${escapeHtml(fm.title ?? '')}</span>
     <span class="slice-status">${statusBadge(fm.status)}</span>

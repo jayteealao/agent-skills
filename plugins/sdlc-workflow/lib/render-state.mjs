@@ -21,7 +21,6 @@ export async function latestMtimeMs(paths) {
 }
 
 export async function latestTreeMtimeMs(root, {
-  patterns = ['**/*'],
   ignore = ['node_modules'],
 } = {}) {
   if (!root || !existsSync(root)) return null;
@@ -50,7 +49,7 @@ export function classifyRenderState({
   if (
     latestArtifactMtime !== null &&
     latestArtifactMtime !== undefined &&
-    latestArtifactMtime > viewMtime
+    latestArtifactMtime >= viewMtime
   ) {
     return {
       action: renderStale ? 'render' : 'skip',

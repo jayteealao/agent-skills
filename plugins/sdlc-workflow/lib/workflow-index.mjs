@@ -55,11 +55,22 @@ export function classifyWorkflowIndex({ frontmatter, parseError, indexMtime, lat
     parseError ||
     !frontmatter ||
     typeof frontmatter !== 'object' ||
-    !frontmatter.slug ||
-    !frontmatter.status
+    !String(frontmatter.slug ?? '').trim() ||
+    !String(frontmatter.status ?? '').trim()
   ) {
+    let invalidReason;
+    if (parseError) {
+      invalidReason = `parse error: ${parseError}`;
+    } else if (!frontmatter || typeof frontmatter !== 'object') {
+      invalidReason = 'no frontmatter found';
+    } else if (!String(frontmatter.slug ?? '').trim()) {
+      invalidReason = 'missing required field: slug';
+    } else {
+      invalidReason = 'missing required field: status';
+    }
     return {
       classification: 'invalid',
+      invalidReason,
       status: null,
       isActive: false,
       isTerminal: false,
