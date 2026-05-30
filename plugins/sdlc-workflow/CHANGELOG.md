@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — severity-token misuse on non-severity UI (9.32.1)
+
+- `experiment.mjs` arm-allocation palette (`--blocker` → neutral `#c07820`),
+  `plan.mjs` data-flow lane "service" label (`--med` → `--ink-3`), and
+  `.cand-conf.is-low` (`--blocker` → `--high`) no longer borrow a severity
+  colour for elements that carry no severity meaning. Cross-service edge strokes
+  and the `.plan-lanes-legend .crosses` legend (which intentionally mirror the
+  figure) are left intact. Suite 113/113.
+
 ### Changed — Sunflower view design-parity (9.32.0)
 
 Implemented `SUNFLOWER-PARITY-FIX-PLAN.md` Slices 1–8 (deterministic CSS +

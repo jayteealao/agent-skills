@@ -110,7 +110,10 @@ function armsBar(arms) {
   const barH = 28;
   const allocations = arms.map((arm) => Number(arm.allocated_pct ?? arm['allocation-pct'] ?? arm.allocation_pct ?? 0));
   const total = allocations.reduce((sum, pct) => sum + pct, 0) || 100;
-  const colors = ['#4a6c8c', '#3e7d4a', '#a07417', '#6b4a8a', '#b5305f'];
+  // Categorical arm colours — neutral hues only. The 5th slot was the reserved
+  // --blocker token #b5305f, which made a control/variant arm read as a critical
+  // error; swapped to a non-severity warm-orange.
+  const colors = ['#4a6c8c', '#3e7d4a', '#a07417', '#6b4a8a', '#c07820'];
   let x = padX;
   const cells = arms.map((arm, i) => {
     const pct = allocations[i];

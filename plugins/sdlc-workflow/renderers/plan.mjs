@@ -353,7 +353,7 @@ function dataFlowLaneSvg(sy) {
   const laneSvg = laneBoxes.map(({ y, lane }) => {
     const banner = `<rect x="${padX}" y="${y}" width="${W - 2 * padX}" height="${laneH}" rx="6" fill="none" stroke="#cbc4b1" stroke-dasharray="4 3" stroke-width="1"/>`;
     const label = `<text x="${lane._labelX + 6}" y="${y + 22}" font-size="10" font-weight="700" letter-spacing="0.8" fill="#8a8377">${escapeHtml((lane.label ?? lane.service).toUpperCase())}</text>`;
-    const sub = `<text x="${lane._labelX + 6}" y="${y + 38}" font-size="9" fill="#a07417">service</text>`;
+    const sub = `<text x="${lane._labelX + 6}" y="${y + 38}" font-size="9" fill="#8a8377">service</text>`;
     return banner + label + sub;
   }).join('');
 
