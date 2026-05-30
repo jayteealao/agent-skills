@@ -35,18 +35,22 @@ export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
   const current = fm['current-stage'] ?? 'intake';
 
-  const headerHtml = artifactHeader({
-    crumb: artifact.path,
-    h1: escapeHtml(fm.title ?? fm.slug ?? 'untitled'),
-    lede: '',
-    badges: [
-      statusBadge(fm.status),
-      stageBadge(current),
-      fm.branch && `<span class="meta">branch <code>${escapeHtml(fm.branch)}</code></span>`,
-      fm['pr-number'] && `<span class="meta">PR #${escapeHtml(fm['pr-number'])}</span>`,
-      fm['updated-at'] && `<span class="meta">updated ${escapeHtml(fm['updated-at'])}</span>`,
-    ],
-  });
+  // so-hd two-column identity block (D4.1): pg-title + restored lede on the
+  // left, branch badge + status/stage chips on the right.
+  const lede = fm.description ?? fm.lede ?? fm.summary ?? '';
+  const headerHtml = `<header class="so-hd">
+    <div class="so-hd-main">
+      <h1 class="pg-title">${escapeHtml(fm.title ?? fm.slug ?? 'untitled')}</h1>
+      ${lede ? `<p class="sdlc-lede">${escapeHtml(lede)}</p>` : ''}
+    </div>
+    <aside class="so-hd-aside">
+      ${fm.branch ? `<span class="badge">⎇ ${escapeHtml(fm.branch)}</span>` : ''}
+      ${statusBadge(fm.status)}
+      ${stageBadge(current)}
+      ${fm['pr-number'] ? `<span class="meta">PR #${escapeHtml(fm['pr-number'])}</span>` : ''}
+      ${fm['updated-at'] ? `<span class="meta">updated ${escapeHtml(fm['updated-at'])}</span>` : ''}
+    </aside>
+  </header>`;
 
   const metrics = [
     fm.progress && { label: 'progress', value: typeof fm.progress === 'object' ? `${fm.progress.done ?? 0}/${fm.progress.total ?? 0}` : fm.progress },
@@ -57,89 +61,163 @@ export function render(artifact, ctx) {
   const metricsHtml = metrics.length ? metricRow(metrics) : '';
 
   // Figure 2 — Stage stripe (slug-overview canonical figure)
-  const figureSvg = stageStripeSvg({ current, allArtifacts: ctx.allArtifacts });
+  const figureSvg = stageStripeSvg({ current, allArtifacts: ctx.allArtifacts, fm });
   const figureHtml = figureCanvas({
     figureNumber: 2,
-    title: `Slug stage stripe — ${escapeHtml(fm.slug ?? '')}`,
+    title: `Slug stage stripe — ${fm.slug ?? ''}`,
     svgInner: figureSvg,
     legend: [
-      { swatch: '#3e7d4a', label: 'done' },
-      { swatch: '#4a6c8c', label: 'current' },
-      { swatch: '#cbc4b1', label: 'upcoming' },
+      { state: 'done',    label: 'done' },
+      { state: 'current', label: 'current' },
+      { state: 'queued',  label: 'queued' },
     ],
   });
 
-  // Activity feed — list of recently-touched artifacts
+  // Activity feed + jump rail (D4.9 / D4.10). so-grid roles: activity left,
+  // jump rail right (D4.11). Stages grid + slices + prose move below (D4.14).
   const activity = buildActivityList(ctx.allArtifacts);
-
+  const railHtml = jumpRail(current, ctx.allArtifacts);
   const proseHtml = artifact.body ? md2html(artifact.body) : '';
-
   const stagesGridHtml = stagesGrid(current, ctx.allArtifacts);
   const slicesHtml = slicesPreview(ctx.allArtifacts);
 
   const bodyHtml = `
     ${figureHtml}
     ${metricsHtml}
-    ${stagesGridHtml}
-    ${slicesHtml}
     <section class="so-grid">
-      <div class="so-rail prose">
-        ${proseHtml || '<p class="sdlc-lede">Slug overview pulls together every artifact in this workflow.</p>'}
-      </div>
-      <aside class="activity">
-        <h2 class="sdlc-h2">recent activity</h2>
+      <div class="so-main">
+        <h2 class="sec">recent activity</h2>
         ${activity}
+      </div>
+      <aside class="so-side">
+        ${railHtml}
       </aside>
     </section>
+    ${proseHtml ? `<section class="so-prose"><div class="prose">${proseHtml}</div></section>` : ''}
+    ${stagesGridHtml}
+    ${slicesHtml}
     ${renderHistoryBlock(artifact.history)}
   `;
 
   return { headerHtml, bodyHtml, links: [], children: [] };
 }
 
-function stageStripeSvg({ current, allArtifacts }) {
-  const W = 980, H = 130, padX = 40;
-  const xs = evenX(W, padX, STAGES.length);
-  const cy = 60;
-  const currentIdx = STAGES.indexOf(current);
+const SVG_SERIF = 'Iowan Old Style, Palatino, Georgia, serif';
 
-  const rail = `<line x1="${padX}" y1="${cy}" x2="${W - padX}" y2="${cy}" stroke="#cbc4b1" stroke-width="2"/>`;
+// Count the artifacts belonging to a stage by mapping the stage to its member
+// types (STAGE_NAV), since ctx.allArtifacts is keyed by frontmatter.type — not
+// by stage name. Returns { count, latest } for date + annotation rendering.
+function stageArtifacts(stage, allArtifacts) {
+  const cfg = STAGE_NAV[stage] ?? { types: [stage] };
+  const list = (cfg.types ?? [stage]).flatMap((t) => allArtifacts?.[t] ?? []);
+  const dates = list.map((a) => a.frontmatter?.['updated-at']).filter(Boolean).sort();
+  return { count: list.length, latest: dates[dates.length - 1] ?? '' };
+}
+
+function stationAnnotation(stage, count) {
+  if (stage === 'slice')  return `${count} slice${count === 1 ? '' : 's'}`;
+  if (stage === 'review') return `${count} review${count === 1 ? '' : 's'}`;
+  if (stage === 'ship')   return `${count} run${count === 1 ? '' : 's'}`;
+  return `${count} artifact${count === 1 ? '' : 's'}`;
+}
+
+function stageStripeSvg({ current, allArtifacts, fm = {} }) {
+  const W = 920, H = 230, padX = 60;
+  const xs = evenX(W, padX, STAGES.length);
+  const cy = 96;
+  const currentIdx = Math.max(0, STAGES.indexOf(current));
+
+  const baseRail = `<line x1="${padX}" y1="${cy}" x2="${W - padX}" y2="${cy}" stroke="#cbc4b1" stroke-width="2"/>`;
+  // Solid ink-strong progress overlay from the first station to current (D4.4).
+  const progress = currentIdx > 0
+    ? `<line x1="${xs[0]}" y1="${cy}" x2="${xs[currentIdx]}" y2="${cy}" stroke="#1f1b16" stroke-width="2.5"/>`
+    : '';
 
   const stations = STAGES.map((stage, i) => {
     const x = xs[i];
-    const done    = currentIdx > i;
-    const isCur   = currentIdx === i;
-    const fill    = done ? '#3e7d4a' : isCur ? '#4a6c8c' : '#fbfaf6';
-    const stroke  = done ? '#3e7d4a' : isCur ? '#4a6c8c' : '#cbc4b1';
-    const r       = isCur ? 11 : 7;
-    const ring    = isCur ? `<circle cx="${x}" cy="${cy}" r="${r + 5}" fill="none" stroke="#4a6c8c" stroke-width="1.5" opacity="0.5"/>` : '';
-    const label   = `<text x="${x}" y="${cy + 28}" text-anchor="middle" font-size="11" fill="#1f1b16" font-weight="${isCur ? 600 : 500}">${stage}</text>`;
-    const youHere = isCur ? `<text x="${x}" y="${cy - 22}" text-anchor="middle" font-size="10" fill="#4a6c8c" font-style="italic">← you are here</text>` : '';
-    const list = allArtifacts?.[stage] ?? [];
-    const count = list.length;
-    const annotation = count > 0
-      ? `<text x="${x}" y="${cy + 44}" text-anchor="middle" font-size="10" fill="#8a8377">${count} artifact${count === 1 ? '' : 's'}</text>`
+    const done  = currentIdx > i;
+    const isCur = currentIdx === i;
+    const fill   = done ? '#3e7d4a' : isCur ? '#4a6c8c' : '#fbfaf6';
+    const stroke = done ? '#3e7d4a' : isCur ? '#4a6c8c' : '#cbc4b1';
+    const { count, latest } = stageArtifacts(stage, allArtifacts);
+
+    // Current station is an enlarged disc (r=22) with an inner dashed ring (D4.7).
+    const dot = isCur
+      ? `<circle cx="${x}" cy="${cy}" r="22" fill="${fill}" stroke="${stroke}" stroke-width="2"/>` +
+        `<circle cx="${x}" cy="${cy}" r="14" fill="none" stroke="#fbfaf6" stroke-width="1.2" stroke-dasharray="3 3"/>`
+      : done
+        ? `<circle cx="${x}" cy="${cy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`
+        : `<circle cx="${x}" cy="${cy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="2.5 2"/>`;
+
+    const date  = latest
+      ? `<text x="${x}" y="${cy - 44}" text-anchor="middle" font-size="9" fill="#8a8377" font-family="ui-monospace, monospace">${escapeHtml(String(latest).slice(5, 10))}</text>`
       : '';
-    return `${ring}<circle cx="${x}" cy="${cy}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>${label}${youHere}${annotation}`;
+    const youHere = isCur ? `<text x="${x}" y="${cy - 30}" text-anchor="middle" font-size="10" fill="#4a6c8c" font-style="italic">you are here</text>` : '';
+    const label = `<text x="${x}" y="${cy + 42}" text-anchor="middle" font-size="11" fill="#1f1b16" font-weight="${isCur ? 600 : 500}">${stage}</text>`;
+    const ann = count > 0
+      ? `<text x="${x}" y="${cy + 56}" text-anchor="middle" font-size="9" fill="#8a8377">${escapeHtml(stationAnnotation(stage, count))}</text>`
+      : '';
+    return `${date}${youHere}${dot}${label}${ann}`;
   }).join('');
 
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Slug stage stripe">
-    ${rail}
-    ${stations}
+    ${baseRail}${progress}${stations}
+    ${metricCalloutBand(W, 186, fm, allArtifacts)}
   </svg>`;
 }
 
+// Bottom metric-callout band (D4.8): a second hairline rule and five summary
+// groups. Values come from index frontmatter where available, else from
+// derived artifact counts, else an em-dash placeholder (filled by Slice 6 data).
+function metricCalloutBand(W, y, fm, allArtifacts) {
+  const sliceCount  = (allArtifacts?.slice ?? []).length;
+  const reviewCount = (allArtifacts?.review ?? []).length + (allArtifacts?.['review-command'] ?? []).length;
+  const groups = [
+    { lbl: 'LOC TOUCHED', val: fm['loc-touched'] ?? fm['metric-loc'] ?? '—' },
+    { lbl: 'SLICES',      val: sliceCount || '—' },
+    { lbl: 'REVIEWS',     val: reviewCount || '—' },
+    { lbl: 'BLOCKERS',    val: fm.blockers ?? fm['blocker-count'] ?? 0 },
+    { lbl: 'TESTS',       val: fm['tests-passed'] ?? fm['metric-tests'] ?? '—' },
+  ];
+  const rule = `<line x1="20" y1="${y}" x2="${W - 20}" y2="${y}" stroke="#e0dbcd" stroke-width="1"/>`;
+  const gx = evenX(W, 110, groups.length);
+  const cells = groups.map((g, i) => {
+    const x = gx[i];
+    return `<text x="${x}" y="${y + 18}" text-anchor="middle" font-size="9" letter-spacing="1" fill="#8a8377">${g.lbl}</text>` +
+      `<text x="${x}" y="${y + 38}" text-anchor="middle" font-size="18" font-weight="600" fill="#1f1b16" font-family="${SVG_SERIF}">${escapeHtml(String(g.val))}</text>`;
+  }).join('');
+  return `${rule}${cells}`;
+}
+
+// Jump rail (D4.10): one link per lifecycle stage with a per-stage artifact
+// count. Stages with no artifacts render as a non-clickable muted entry.
+function jumpRail(current, allArtifacts) {
+  const items = STAGES.map((stage) => {
+    const cfg = STAGE_NAV[stage] ?? { types: [stage], dir: stage };
+    const { count } = stageArtifacts(stage, allArtifacts);
+    const cur = stage === current ? ' aria-current="true"' : '';
+    const inner = `<span class="lbl">${escapeHtml(stage)}</span><span class="count">${count || '·'}</span>`;
+    return count > 0
+      ? `<a href="${escapeHtml(pageHref(cfg.dir))}"${cur}>${inner}</a>`
+      : `<span class="rail-empty"${cur}>${inner}</span>`;
+  }).join('');
+  return `<nav class="so-rail" aria-label="jump to stage"><h2 class="sec">jump to</h2>${items}</nav>`;
+}
+
+// Activity feed (D4.9): each row is a human-relative `when` paired with a
+// `what` block (the touched file + the actor/type), inside the clickable
+// activity-link. Structure mirrors the design's 88px / 1fr two-column rows.
 function buildActivityList(allArtifacts) {
   const flat = [];
   for (const list of Object.values(allArtifacts ?? {})) {
+    if (!Array.isArray(list)) continue;
     for (const a of list) {
-      const viewRel = a.viewRel ?? '';
-      const href = viewRel || '';
       flat.push({
         type:  a.frontmatter?.type ?? a.type,
         updated: a.frontmatter?.['updated-at'] ?? '',
-        path: a.storageRel ?? a.path ?? '',
-        href,
+        who: a.frontmatter?.author ?? a.frontmatter?.['updated-by'] ?? '',
+        file: a.storageRel ?? a.path ?? '',
+        href: a.viewRel ?? '',
       });
     }
   }
@@ -147,12 +225,41 @@ function buildActivityList(allArtifacts) {
   const top = flat.slice(0, 8);
   if (!top.length) return '<p class="sdlc-lede">No artifacts yet.</p>';
   return `<ol class="activity-list">${top.map((a) => {
-    const head = `<span class="stage-badge">${escapeHtml(a.type)}</span> <span class="meta">${escapeHtml(a.updated)}</span>`;
-    const ref  = `<code>${escapeHtml(a.path)}</code>`;
+    const when = a.updated ? humanRelative(a.updated) : a.type;
+    const who  = a.who || a.type;
+    const inner = `<span class="when">${escapeHtml(when)}</span>` +
+      `<span class="what"><span class="file"><code>${escapeHtml(a.file)}</code></span><span class="who">${escapeHtml(who)}</span></span>`;
     return a.href
-      ? `<li><a class="activity-link" href="${escapeHtml(a.href)}">${head}<br>${ref}</a></li>`
-      : `<li>${head}<br>${ref}</li>`;
+      ? `<li><a class="activity-link" href="${escapeHtml(a.href)}">${inner}</a></li>`
+      : `<li>${inner}</li>`;
   }).join('')}</ol>`;
+}
+
+// Map a raw slice status to a slice-card tone class, mirroring slice-index's
+// sliceState() vocabulary so the slug-overview preview and the slice grid agree.
+function sliceTone(status) {
+  const s = String(status ?? '').trim().toLowerCase();
+  if (['complete', 'completed', 'done', 'shipped'].includes(s)) return 'is-ok';
+  if (s === 'blocked') return 'is-bad';
+  if (['active', 'in-progress', 'in progress', 'wip', 'review', 'in-review'].includes(s)) return 'is-current';
+  return '';
+}
+
+// ISO timestamp → "12 min ago". Returns raw text (escaped at call site).
+function humanRelative(iso) {
+  if (!iso) return '';
+  const then = Date.parse(iso);
+  if (Number.isNaN(then)) return String(iso);
+  const diff = Date.now() - then;
+  if (diff < 0) return String(iso);
+  const min = Math.round(diff / 60000);
+  if (min < 1) return 'just now';
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.round(min / 60);
+  if (hr < 24) return `${hr} hr ago`;
+  const d = Math.round(hr / 24);
+  if (d < 30) return `${d} day${d === 1 ? '' : 's'} ago`;
+  return `${Math.round(d / 30)} mo ago`;
 }
 
 /**
@@ -200,10 +307,9 @@ function slicesPreview(allArtifacts) {
   const cards = slices.map((s) => {
     const fm = s.frontmatter ?? {};
     const slug = fm['slice-slug'] ?? fm.slug ?? '';
-    const tone = fm.status === 'complete' ? 'is-ok'
-               : fm.status === 'blocked'  ? 'is-bad'
-               : fm.status === 'active'   ? 'is-current'
-               : '';
+    // Route through the same status→state vocabulary the slice-index cards use,
+    // so 'done'/'shipped'/'wip'/etc. get the right tone (not a blank card).
+    const tone = sliceTone(fm.status);
     return `<a class="slice-card ${tone}" href="${escapeHtml(pageHref(`slice/${slug}`))}">
       <span class="slice-slug"><code>${escapeHtml(slug)}</code></span>
       <span class="slice-title">${escapeHtml(fm.title ?? '')}</span>

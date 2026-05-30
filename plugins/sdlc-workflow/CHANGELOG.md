@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Sunflower view design-parity (9.32.0)
+
+Implemented `SUNFLOWER-PARITY-FIX-PLAN.md` Slices 1–8 (deterministic CSS +
+renderer parity). Full suite 113/113 green. Bumped to 9.32.0 to cache-bust the
+rewritten `assets/sdlc.css`.
+
+- **Tokens** (`assets/sdlc.css`): `--rad-sm` 3px; `.metric-label`/`.metric-value`
+  type; `.sdlc-h1` line-height; `.sdlc-h2`/`.sec` 12px/40px; `.sdlc-crumb`
+  12.5px; `.sdlc-lede` 60ch; desaturated verdict border tints; slide-in
+  content-link border; global inline-`code` chip; semantic
+  `.sw.{done|current|queued|new|modified|…}` legend swatches; `.v-text` 30px
+  serif; `.fact.{accept|defer|reject}`; compound `callout risk-*`;
+  `table.files-touched`; glyph-based `.ac-list .chk`.
+- **Shell** (`renderers/_shell.mjs`): `div.b-topbar` three-column grid,
+  `.ai/workflows` brand, editorial `div.crumb`, `⌘K`/viewing-as actions slot,
+  `h1.pg-title` 36px, `data-artifact-type` on `<html>`, non-sticky topbar.
+- **Figure 1 dashboard** (`renderers/dashboard.mjs`): swimlane column rules,
+  solid ink progress overlay, SHIPPED separator, dashed queued circles,
+  blocker/rev annotations; `<article>` ledger rows with health glyph +
+  human-relative time + `stage-pill cur|done`; "Recently shipped" bucket.
+- **Figure 2 slug overview** (`renderers/index.mjs`, `workflow-index.mjs`):
+  stage-stripe viewBox 920×230 + ink-strong overlay + per-station dates +
+  semantic annotations + current r=22 ring + bottom metric-callout band;
+  `so-hd` identity block; `nav.so-rail` jump rail; when/what activity feed;
+  routing-stripe Figure 2 for quick/investigative slugs.
+- **Figure 5 slice grid** (`renderers/slice-index.mjs`): `depends-on`
+  dependency-graph SVG with arrowheads; `sc-hd`/`sc-meta`/`sc-bar`/`sc-foot`
+  cards mapped to `complete|in-progress|blocked|not-started`.
+- **Figure 3 plan** (`renderers/plan.mjs`): frontmatter-card, glyph
+  acceptance-criteria, files-touched `<table>` with role pills + signed deltas +
+  intent disclosures, `callout risk-*`, prior-revisions; topology LOC sublabels,
+  line-through deleted nodes, edge relationship labels, placeholder figure when
+  no sibling YAML.
+- **Figure 4 review** (`renderers/review.mjs`, `_icons.mjs`): heatmap widened to
+  920 with a Σ totals column + totals row and curated stepped tints;
+  `verdictBlock` emits the 30px serif `.v-text` display line.
+- Documented per-artifact sibling-YAML field shapes in
+  `tests/frontmatter.schema.json`.
+
 ### Added — gap closure Phase 1 design schema admission
 
 - Added strict frontmatter branches for `design-contract`, `design-critique`,

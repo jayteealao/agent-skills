@@ -30,43 +30,34 @@ export function render(artifact, ctx) {
   // Figure 3 — file-change topology from sibling YAML. Phase 2 (v9.21.0)
   // swaps in a swim-lane projection when the plan declares cross-service
   // structure (either via a `lanes:` block or a `crosses-service` edge).
+  const PLAN_LEGEND = [
+    { state: 'modified', label: 'modified' },
+    { state: 'new',      label: 'new' },
+    { state: 'deleted',  label: 'deleted' },
+    { state: 'external', label: 'external' },
+  ];
   let figureHtml = '';
   if (sy?.files?.length) {
     const dataFlow = hasDataFlowLanes(sy);
-    if (dataFlow) {
-      figureHtml = figureCanvas({
-        figureNumber: 3,
-        title: 'Data-flow lanes',
-        svgInner: dataFlowLaneSvg(sy),
-        legend: [
-          { swatch: '#e9eef4', label: 'modified' },
-          { swatch: '#ecf3e7', label: 'new' },
-          { swatch: '#fbeaf0', label: 'deleted' },
-          { swatch: '#f0ece1', label: 'external' },
-        ],
-      }) + dataFlowLegendExtra();
-    } else {
-      figureHtml = figureCanvas({
-        figureNumber: 3,
-        title: 'File-change topology',
-        svgInner: fileTopologySvg(sy),
-        legend: [
-          { swatch: '#e9eef4', label: 'modified' },
-          { swatch: '#ecf3e7', label: 'new' },
-          { swatch: '#fbeaf0', label: 'deleted' },
-          { swatch: '#f0ece1', label: 'external' },
-        ],
-      });
-    }
+    figureHtml = dataFlow
+      ? figureCanvas({ figureNumber: 3, title: 'Data-flow lanes', svgInner: dataFlowLaneSvg(sy), legend: PLAN_LEGEND }) + dataFlowLegendExtra()
+      : figureCanvas({ figureNumber: 3, title: 'File-change topology', svgInner: fileTopologySvg(sy), legend: PLAN_LEGEND });
+  } else {
+    // Placeholder topology so the figure is never wholly missing (D5.1).
+    figureHtml = figureCanvas({ figureNumber: 3, title: 'File-change topology', svgInner: placeholderTopologySvg(), legend: PLAN_LEGEND });
   }
 
+  // Structured body sections (D5.7–D5.12, D5.15) projected from frontmatter +
+  // sibling YAML. When an authored fragment is present it owns the rich body,
+  // so the structured sections are suppressed to avoid duplication.
+  const structured = artifact.fragment ? '' : structuredSections(fm, sy);
+
   // v9.24.0: markdown body always rendered alongside fragment (if present).
-  // The figure (file-topology SVG) renders in either case.
   const fragmentBlock = artifact.fragment
     ? `<div class="fragment">${artifact.fragment}</div>` : '';
   const proseBlock = artifact.body
     ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
-  const bodyHtml = `${figureHtml}${fragmentBlock}${proseBlock}`;
+  const bodyHtml = `${figureHtml}${structured}${fragmentBlock}${proseBlock}`;
 
   return {
     headerHtml,
@@ -140,8 +131,11 @@ function fileTopologySvg(sy) {
                  : role === 'external' ? '#cbc4b1'
                  : '#4a6c8c';
     const short = escapeHtml(String(f.path).split('/').slice(-1)[0]);
+    const deco = role === 'deleted' ? ' text-decoration="line-through"' : '';   // D5.3
+    const sub = locSublabel(f);   // D5.2 — "new · +142" sublabel
     return `<rect x="${p.x}" y="${p.y}" width="${p.w}" height="${fileH - 2}" rx="3" fill="${fill}" stroke="${stroke}" stroke-width="1"/>
-      <text x="${p.x + 8}" y="${p.y + 17}" font-size="11" fill="#1f1b16" font-family="ui-monospace, monospace">${short}</text>`;
+      <text x="${p.x + 8}" y="${p.y + (sub ? 12 : 17)}" font-size="11" fill="#1f1b16" font-family="ui-monospace, monospace"${deco}>${short}</text>
+      ${sub ? `<text x="${p.x + 8}" y="${p.y + 22}" font-size="8" fill="#8a8377">${escapeHtml(sub)}</text>` : ''}`;
   }).join('');
 
   const edgeSvg = edges.map((e) => {
@@ -153,7 +147,11 @@ function fileTopologySvg(sy) {
     const dash = e.kind === 'replaces' ? ' stroke-dasharray="3 3"' : '';
     const stroke = e.kind === 'replaces' ? '#b5305f' : '#8a8377';
     const cpx = (fx + tx) / 2;
-    return `<path d="M ${fx} ${fy} C ${cpx} ${fy}, ${cpx} ${ty}, ${tx} ${ty}" fill="none" stroke="${stroke}" stroke-width="1.2"${dash} marker-end="url(#arrow)"/>`;
+    // Inline relationship label for semantic edges (D5.4).
+    const label = (e.kind === 'replaces' || e.kind === 'styles')
+      ? `<text x="${cpx}" y="${(fy + ty) / 2 - 4}" text-anchor="middle" font-size="8" fill="${stroke}">${escapeHtml(e.kind)}</text>`
+      : '';
+    return `<path d="M ${fx} ${fy} C ${cpx} ${fy}, ${cpx} ${ty}, ${tx} ${ty}" fill="none" stroke="${stroke}" stroke-width="1.2"${dash} marker-end="url(#arrow)"/>${label}`;
   }).join('');
 
   const defs = `<defs>
@@ -165,6 +163,144 @@ function fileTopologySvg(sy) {
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="File-change topology">
     ${defs}${moduleSvg}${fileSvg}${edgeSvg}
   </svg>`;
+}
+
+/* ───────────────────── Structured plan body (Slice 7) ───────────────────── */
+
+// Compose the structured sections beneath the topology figure: a frontmatter
+// card, acceptance-criteria checklist, files-touched table, risk callouts, and
+// a prior-revisions disclosure. Each piece renders only when it has data.
+function structuredSections(fm, sy) {
+  const parts = [
+    planFrontmatterCard(fm),
+    sectionWrap('acceptance criteria', acList(sy?.acceptance ?? fm['acceptance-criteria'] ?? fm.acceptance)),
+    sectionWrap('files touched', filesTable(sy?.files)),
+    sectionWrap('risks', riskCallouts(sy?.risks)),
+    revisionsBlock(fm, sy),
+  ];
+  return parts.filter(Boolean).join('');
+}
+
+function sectionWrap(title, inner) {
+  return inner ? `<section><h2 class="sec">${escapeHtml(title)}</h2>${inner}</section>` : '';
+}
+
+// D5.7 — curated plan metadata as a <dl class="frontmatter-card">.
+function planFrontmatterCard(fm) {
+  const rows = [
+    ['slug', fm['slice-slug'] ?? fm.slug],
+    ['parent', fm.parent],
+    ['files', fm['metric-files-to-touch']],
+    ['steps', fm['metric-step-count']],
+    ['revisions', fm['revision-count']],
+    ['blockers', fm['has-blockers'] ? 'yes' : null],
+    ['est-loc', fm['est-loc'] ?? fm['estimated-loc']],
+    ['depends-on', Array.isArray(fm['depends-on']) ? fm['depends-on'].join(', ') : fm['depends-on']],
+    ['tags', Array.isArray(fm.tags) ? fm.tags.join(', ') : fm.tags],
+    ['updated', fm['updated-at']],
+  ].filter(([, v]) => v != null && v !== '');
+  if (!rows.length) return '';
+  return `<dl class="frontmatter-card">${rows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl>`;
+}
+
+// D5.8 / D5.13 — acceptance criteria as a glyph checklist with id + note parts.
+function acList(items) {
+  if (!Array.isArray(items) || !items.length) return '';
+  const lis = items.map((it) => {
+    const o = typeof it === 'string' ? { text: it } : (it ?? {});
+    const state = o.state ?? (o.done ? 'done' : o.failed ? 'fail' : 'todo');
+    const cls = state === 'done' ? 'done' : state === 'fail' ? 'fail' : 'todo';
+    const id = o.id ? `<span class="ac-id">${escapeHtml(o.id)}</span>` : '';
+    const note = o.note ? `<span class="ac-note">${escapeHtml(o.note)}</span>` : '';
+    const text = escapeHtml(o.text ?? o.criterion ?? '');
+    return `<li><span class="chk ${cls}" aria-hidden="true"></span><span class="ac-body">${id}${text}${note}</span></li>`;
+  }).join('');
+  return `<ul class="ac-list">${lis}</ul>`;
+}
+
+// D5.9 / D5.10 — files-touched as a semantic <table> with role pills, signed
+// deltas, and an expandable per-row intent disclosure.
+function filesTable(files) {
+  if (!Array.isArray(files) || !files.length) return '';
+  const rows = files.map((f) => {
+    const role = f.role ?? 'modified';
+    const loc = f.loc != null ? String(f.loc) : '';
+    const intent = f.intent ?? f.note ?? f.summary ?? '';
+    const pathCell = intent
+      ? `<details><summary><code>${escapeHtml(f.path)}</code></summary><div class="ft-intent">${escapeHtml(intent)}</div></details>`
+      : `<code>${escapeHtml(f.path)}</code>`;
+    return `<tr>
+      <td class="path">${pathCell}</td>
+      <td class="loc">${escapeHtml(loc)}</td>
+      <td class="delta">${formatDelta(f.delta)}</td>
+      <td><span class="role is-${escapeHtml(role)}">${escapeHtml(role)}</span></td>
+    </tr>`;
+  }).join('');
+  return `<table class="files-touched">
+    <thead><tr><th>Path</th><th>LOC</th><th>&#916;</th><th>Role</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+function formatDelta(delta) {
+  if (delta == null) return '';
+  if (typeof delta === 'object') {
+    const add = Number(delta.add ?? 0), rem = Number(delta.rem ?? delta.del ?? 0);
+    return `<span class="pos">+${add}</span> <span class="neg">&minus;${rem}</span>`;
+  }
+  const n = Number(delta);
+  if (Number.isNaN(n)) return escapeHtml(String(delta));
+  return n >= 0 ? `<span class="pos">+${n}</span>` : `<span class="neg">&minus;${Math.abs(n)}</span>`;
+}
+
+// D5.2 — node sublabel "role · +142" when LOC/delta info is present.
+function locSublabel(f) {
+  if (f.delta != null) {
+    const d = typeof f.delta === 'object'
+      ? `+${Number(f.delta.add ?? 0)}/−${Number(f.delta.rem ?? f.delta.del ?? 0)}`
+      : (Number(f.delta) >= 0 ? `+${f.delta}` : `−${Math.abs(Number(f.delta))}`);
+    return `${f.role ?? 'modified'} · ${d}`;
+  }
+  if (f.loc != null) return `${f.role ?? 'modified'} · ${f.loc} loc`;
+  return '';
+}
+
+// D5.11 — risk callouts using the compound `callout risk-*` classes.
+function riskCallouts(risks) {
+  if (!Array.isArray(risks) || !risks.length) return '';
+  return risks.map((r) => {
+    const level = String(r.level ?? r.severity ?? 'med').toLowerCase();
+    const cls = (level.startsWith('high') || level === 'blocker') ? 'risk-high'
+      : level.startsWith('low') ? 'risk-low' : 'risk-med';
+    return `<div class="callout ${cls}">
+      <div class="callout-hd">${escapeHtml(r.title ?? r.name ?? 'risk')}</div>
+      <div class="callout-body">${escapeHtml(r.body ?? r.description ?? r.detail ?? '')}</div>
+    </div>`;
+  }).join('');
+}
+
+// D5.12 — prior revisions disclosure from an explicit revisions list (git
+// history is rendered separately by renderHistoryBlock).
+function revisionsBlock(fm, sy) {
+  const revs = sy?.revisions ?? fm.revisions;
+  if (!Array.isArray(revs) || !revs.length) return '';
+  const items = revs.map((r) => {
+    const when = typeof r === 'object' ? (r.when ?? r.at ?? '') : '';
+    const what = typeof r === 'object' ? (r.summary ?? r.note ?? r.what ?? '') : String(r);
+    return `<li>${when ? `<span class="when">${escapeHtml(when)}</span> ` : ''}${escapeHtml(what)}</li>`;
+  }).join('');
+  return `<details class="revisions"><summary>Prior revisions (${revs.length})</summary><ol>${items}</ol></details>`;
+}
+
+// D5.1 — placeholder topology shown when no sibling YAML declares files.
+function placeholderTopologySvg() {
+  const W = 920, H = 150;
+  const nodes = [[140, 56], [380, 38], [380, 96], [620, 66]];
+  const rects = nodes.map(([x, y]) =>
+    `<rect x="${x}" y="${y}" width="150" height="30" rx="4" fill="#fbfaf6" stroke="#cbc4b1" stroke-width="1" stroke-dasharray="4 3"/>`,
+  ).join('');
+  const note = `<text x="${W / 2}" y="${H - 16}" text-anchor="middle" font-size="11" fill="#8a8377">topology renders once the plan declares files in its sibling YAML</text>`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="File-change topology (placeholder)">${rects}${note}</svg>`;
 }
 
 /** Phase 2 (v9.21.0): true when the plan should render as data-flow lanes.

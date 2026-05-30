@@ -1131,7 +1131,7 @@ test('dashboard: status bucketing is exhaustive — a non-canonical status still
   match(out.bodyHtml, /href="full-ready\/INDEX\.html"/);
   // Section counts: Active has full-active + full-ready (2), Complete 1, Closed 1.
   match(out.bodyHtml, /Active <span class="meta">\(2\)<\/span>/);
-  match(out.bodyHtml, /Complete <span class="meta">\(1\)<\/span>/);
+  match(out.bodyHtml, /Recently shipped <span class="meta">\(1\)<\/span>/);
   match(out.bodyHtml, /Closed <span class="meta">\(1\)<\/span>/);
 });
 

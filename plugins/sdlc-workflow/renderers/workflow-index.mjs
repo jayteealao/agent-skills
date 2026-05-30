@@ -11,6 +11,7 @@
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
 import { renderHistoryBlock } from './_history.mjs';
+import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
 
@@ -22,7 +23,7 @@ export function render(artifact, ctx) {
   const headerHtml = artifactHeader({
     crumb: artifact.path,
     h1: escapeHtml(fm.title ?? fm.slug ?? 'untitled'),
-    lede: '',
+    lede: escapeHtml(fm.description ?? fm.lede ?? fm.summary ?? ''),   // D4.1 (was hard-coded '')
     badges: [
       statusBadge(fm.status),
       `<span class="stage-badge">${escapeHtml(wfType)}</span>`,
@@ -39,6 +40,9 @@ export function render(artifact, ctx) {
   ].filter(Boolean);
   const metricsHtml = metrics.length ? metricRow(metrics) : '';
 
+  // Figure 2 for quick/investigative slugs (D4.12) — a routing stripe derived
+  // from the free-form progress map (falling back to the sibling artifacts).
+  const figureHtml   = quickFigure(fm, ctx.allArtifacts);
   const routesHtml    = routesSection(fm);
   const artifactsHtml = artifactsSection(ctx.allArtifacts);
   const progressHtml  = progressSection(fm.progress);
@@ -47,6 +51,7 @@ export function render(artifact, ctx) {
   const proseHtml     = artifact.body ? md2html(artifact.body) : '';
 
   const bodyHtml = `
+    ${figureHtml}
     ${metricsHtml}
     ${routesHtml}
     ${artifactsHtml}
@@ -139,4 +144,64 @@ function tagsSection(tags) {
   if (!Array.isArray(tags) || !tags.length) return '';
   const chips = tags.map((t) => `<span class="stage-badge">${escapeHtml(String(t))}</span>`).join(' ');
   return `<h2 class="sdlc-h2">tags</h2><div class="meta-row">${chips}</div>`;
+}
+
+// Figure 2 for quick/investigative workflows (D4.12). Quick workflows don't
+// walk the 10-stage pipeline, so the stripe is built from the routing progress
+// map (ordered steps with done flags) or, absent that, the sibling artifacts.
+function quickFigure(fm, allArtifacts) {
+  const progress = (fm.progress && typeof fm.progress === 'object' && !Array.isArray(fm.progress)) ? fm.progress : null;
+  let steps;
+  if (progress) {
+    steps = Object.entries(progress).map(([k, v]) => ({
+      label: k,
+      done: v === true || String(v).toLowerCase() === 'complete',
+    }));
+  } else {
+    steps = [];
+    for (const list of Object.values(allArtifacts ?? {})) {
+      if (!Array.isArray(list)) continue;
+      for (const a of list) {
+        if (a?.frontmatter?.type === 'workflow-index') continue;
+        steps.push({ label: a.frontmatter?.type ?? 'step', done: true });
+      }
+    }
+  }
+  if (!steps.length) return '';
+  return figureCanvas({
+    figureNumber: 2,
+    title: `Routing — ${fm['workflow-type'] ?? 'quick'}`,
+    svgInner: quickStripeSvg(steps),
+    legend: [
+      { state: 'done',    label: 'done' },
+      { state: 'current', label: 'current' },
+      { state: 'queued',  label: 'queued' },
+    ],
+  });
+}
+
+function quickStripeSvg(steps) {
+  const W = 920, padX = 60, cy = 70, H = 130;
+  const xs = evenX(W, padX, steps.length);
+  const rail = `<line x1="${padX}" y1="${cy}" x2="${W - padX}" y2="${cy}" stroke="#cbc4b1" stroke-width="2"/>`;
+  const lastDone = steps.reduce((acc, s, i) => (s.done ? i : acc), -1);
+  // >= 0 (not > 0): a single done step at index 0 should still anchor the
+  // overlay — same clamp/sentinel edge as the dashboard shipped-dot fix.
+  const progress = lastDone >= 0
+    ? `<line x1="${xs[0]}" y1="${cy}" x2="${xs[lastDone]}" y2="${cy}" stroke="#1f1b16" stroke-width="2.5"/>`
+    : '';
+  const nodes = steps.map((s, i) => {
+    const x = xs[i];
+    const isCur = !s.done && i === lastDone + 1;
+    const fill   = s.done ? '#3e7d4a' : isCur ? '#4a6c8c' : '#fbfaf6';
+    const stroke = s.done ? '#3e7d4a' : isCur ? '#4a6c8c' : '#cbc4b1';
+    const dot = isCur
+      ? `<circle cx="${x}" cy="${cy}" r="13" fill="${fill}" stroke="${stroke}" stroke-width="2"/><circle cx="${x}" cy="${cy}" r="8" fill="none" stroke="#fbfaf6" stroke-width="1.2" stroke-dasharray="3 3"/>`
+      : s.done
+        ? `<circle cx="${x}" cy="${cy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`
+        : `<circle cx="${x}" cy="${cy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="2.5 2"/>`;
+    const label = `<text x="${x}" y="${cy + 28}" text-anchor="middle" font-size="10" fill="#1f1b16">${escapeHtml(String(s.label).slice(0, 16))}</text>`;
+    return `${dot}${label}`;
+  }).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Routing stripe">${rail}${progress}${nodes}</svg>`;
 }

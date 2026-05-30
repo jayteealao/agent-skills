@@ -30,9 +30,14 @@ export function figureCanvas({ figureNumber, title, svgInner, legend = [] }) {
 }
 
 function legendEntry(e) {
-  const swatch = e.swatch
-    ? `<span class="sw" style="background:${escapeHtml(e.swatch)}"></span>`
-    : '';
+  // Prefer a semantic state class (`sw done`, `sw queued`, …) so swatches like
+  // the dashed `sw.queued` are reproducible from CSS; fall back to an inline
+  // background for callers that still pass a raw `swatch` hex.
+  const swatch = e.state
+    ? `<span class="sw ${escapeHtml(e.state)}"></span>`
+    : e.swatch
+      ? `<span class="sw" style="background:${escapeHtml(e.swatch)}"></span>`
+      : '';
   return `<span class="legend-entry">${swatch}${escapeHtml(e.label)}</span>`;
 }
 

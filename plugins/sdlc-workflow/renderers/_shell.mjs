@@ -7,7 +7,7 @@
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
 
-const PLUGIN_VERSION = '9.31.1';
+const PLUGIN_VERSION = '9.32.0';
 
 /**
  * Wrap rendered content in the full HTML shell.
@@ -37,13 +37,16 @@ export function renderShell(params) {
     liveReload = false,
   } = params;
 
-  const breadcrumbHtml = breadcrumbs.map((c, i) => {
+  // Editorial breadcrumb (div.crumb): sans-serif prose with the current
+  // segment bold, slash separators between links. Replaces the mono ol/li
+  // path-list model to match the design's three-column topbar.
+  const crumbHtml = breadcrumbs.map((c, i) => {
     const last = i === breadcrumbs.length - 1;
     const text = escapeHtml(c.label);
     return last
-      ? `<li aria-current="page">${text}</li>`
-      : `<li><a href="${escapeHtml(c.href)}">${text}</a></li>`;
-  }).join('<li class="sep" aria-hidden="true">/</li>');
+      ? `<b aria-current="page">${text}</b>`
+      : `<a href="${escapeHtml(c.href)}">${text}</a>`;
+  }).join('<span class="crumb-sep" aria-hidden="true">/</span>');
 
   const versionTag = `?v=${PLUGIN_VERSION}`;
   // External (not inline) so served pages can run a strict `script-src 'self'`
@@ -53,7 +56,7 @@ export function renderShell(params) {
     : '';
 
   return `<!DOCTYPE html>
-<html lang="en" data-sdlc-version="${PLUGIN_VERSION}">
+<html lang="en" data-sdlc-version="${PLUGIN_VERSION}" data-artifact-type="${escapeHtml(type)}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -63,11 +66,11 @@ export function renderShell(params) {
   <link rel="icon" href="${escapeHtml(assetBase)}/favicon.svg" type="image/svg+xml">
 </head>
 <body class="artifact" data-artifact-type="${escapeHtml(type)}">
-  <nav class="topnav">
-    <a class="brand" href="${escapeHtml(pageHref(`${assetBase}/..`))}">sdlc</a>
-    <ol class="breadcrumb">${breadcrumbHtml}</ol>
-    <span class="meta">${escapeHtml(slug)}${status ? ' · ' + escapeHtml(status) : ''}</span>
-  </nav>
+  <div class="b-topbar">
+    <a class="brand" href="${escapeHtml(pageHref(`${assetBase}/..`))}">.ai/workflows</a>
+    <div class="crumb">${crumbHtml}</div>
+    <div class="actions"><span class="kbd">⌘K</span> to search · viewing as <b>you</b></div>
+  </div>
 
   <main class="content">
     ${warnBanner}
@@ -100,7 +103,7 @@ export function artifactHeader({ h1, lede = '', crumb = '', badges = [] }) {
   return `
     <header class="artifact-header">
       ${crumb ? `<div class="sdlc-crumb">${escapeHtml(crumb)}</div>` : ''}
-      <h1 class="sdlc-h1">${h1}</h1>
+      <h1 class="pg-title">${h1}</h1>
       ${lede ? `<p class="sdlc-lede">${lede}</p>` : ''}
       ${badgeHtml ? `<div class="meta-row">${badgeHtml}</div>` : ''}
     </header>`;

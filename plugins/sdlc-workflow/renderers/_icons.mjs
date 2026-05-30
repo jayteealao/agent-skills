@@ -26,13 +26,15 @@ export function severityChip(level, label) {
   return `<span class="sev severity-${cssLevel}" aria-label="${level}"><span class="sev-glyph" aria-hidden="true">${glyph}</span>${label ?? level}</span>`;
 }
 
-/** Verdict block — `.verdict.verdict-X` with label + optional summary.
- *  The glyph (✓ / ◐ / ✗) is injected by CSS via `.v-label::before`, so the
- *  rendered markup stays semantic. VERDICT_GLYPH remains exported for the
- *  snippet template + external consumers that still want the codepoint. */
+/** Verdict block — `.verdict.verdict-X` with a small eyebrow label, a 30px
+ *  serif display line, and an optional summary. The glyph (✓ / ◐ / ✗) is
+ *  injected by CSS via `.v-text::before`, keyed off `.verdict-X`, so the markup
+ *  stays semantic (D6.9 / D1.8). VERDICT_GLYPH stays exported for the snippet
+ *  template + external consumers that still want the codepoint. */
 export function verdictBlock(kind, label, summary) {
   return `<section class="verdict verdict-${escape(kind)}">
-    <div class="v-label">${escape(label ?? kind)}</div>
+    <div class="v-label">verdict</div>
+    <div class="v-text">${escape(label ?? kind)}</div>
     ${summary ? `<p class="v-sum">${escape(summary)}</p>` : ''}
   </section>`;
 }

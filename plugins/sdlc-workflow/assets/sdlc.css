@@ -39,7 +39,7 @@
   --mono:  ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
 
   /* Geometry */
-  --rad-sm: 4px;
+  --rad-sm: 3px;
   --rad-md: 6px;
   --rad-lg: 8px;
   --rad-xl: 10px;
@@ -63,38 +63,74 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a:hover { text-decoration: none; }
+/* Slide-in border-bottom on content links (matches the design's a:hover).
+   Scoped to prose/inline contexts so structural card + nav anchors keep their
+   own background-change hover instead of growing an underline. */
+.prose a, p a, li a, .callout-body a, .sdlc-lede a {
+  border-bottom: 1px solid transparent;
+  transition: border-color 120ms;
+}
+.prose a:hover, p a:hover, li a:hover, .callout-body a:hover, .sdlc-lede a:hover {
+  border-bottom-color: var(--accent);
+}
 code, pre { font-family: var(--mono); }
+/* Global inline-code chip — applies to <code> outside .prose (breadcrumb,
+   slug, meta rows). Neutralised inside <pre>, where code is the block body. */
+code {
+  background: var(--paper-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: var(--ink-2);
+}
+pre code { background: transparent; padding: 0; }
 hr { border: 0; border-top: 1px solid var(--rule); margin: var(--gap-lg) 0; }
 
 /* ── Top nav ──────────────────────────────────────────────────────────── */
 
-.topnav {
-  display: flex;
+.b-topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: var(--gap);
-  padding: 14px 32px;
-  background: var(--paper);
+  gap: var(--gap-lg);
+  padding: 22px 64px;
+  background: var(--paper-2);
   border-bottom: 1px solid var(--rule);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink-2);
-  position: sticky; top: 0; z-index: 10;
 }
-.topnav .brand {
+.b-topbar .brand {
   font-family: var(--serif);
   font-weight: 600;
   font-size: 17px;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.005em;
   color: var(--ink);
 }
-.topnav .breadcrumb {
-  list-style: none; padding: 0; margin: 0;
-  display: flex; gap: 6px; align-items: center; flex: 1;
+.b-topbar .crumb {
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink-3);
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  min-width: 0;
 }
-.topnav .breadcrumb li { font-family: var(--mono); font-size: 12px; }
-.topnav .breadcrumb li.sep { color: var(--ink-3); }
-.topnav .breadcrumb [aria-current="page"] { color: var(--ink); font-weight: 600; }
-.topnav .meta { color: var(--ink-3); font-size: 12px; font-family: var(--mono); }
+.b-topbar .crumb a { color: var(--ink-2); }
+.b-topbar .crumb b { color: var(--ink); font-weight: 600; }
+.b-topbar .crumb .crumb-sep { color: var(--ink-3); }
+.b-topbar .actions {
+  justify-self: end;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.b-topbar .actions b { color: var(--ink-2); font-weight: 600; }
+.b-topbar .actions .kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border: 1px solid var(--rule-2);
+  border-radius: 3px;
+  background: var(--paper);
+}
 
 /* ── Main content ─────────────────────────────────────────────────────── */
 
@@ -132,36 +168,45 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: var(--gap-lg) 0; }
   font-family: var(--serif);
   font-size: 30px;
   font-weight: 600;
+  line-height: 1.15;
   letter-spacing: -0.015em;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
   color: var(--ink);
 }
-.sdlc-h2 {
+.sdlc-h2, .sec {
   font-family: var(--sans);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.10em;
   text-transform: uppercase;
   color: var(--ink-3);
-  margin: 24px 0 12px;
-  padding-bottom: 6px;
+  margin: 40px 0 14px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--rule);
 }
 .sdlc-lede {
   font-size: 15px;
+  line-height: 1.55;
   color: var(--ink-3);
-  margin: 8px 0 var(--gap);
-  max-width: 64ch;
+  margin: 8px 0 36px;
+  max-width: 60ch;
 }
 .sdlc-crumb {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--ink-3);
-  margin-bottom: 6px;
-  letter-spacing: 0.02em;
+  margin-bottom: 4px;
 }
 
-.pg-title { font-family: var(--serif); font-size: 36px; font-weight: 600; }
+.pg-title {
+  font-family: var(--serif);
+  font-size: 36px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  margin: 0 0 6px;
+  color: var(--ink);
+}
 
 /* ── Artifact header ──────────────────────────────────────────────────── */
 
@@ -261,21 +306,14 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: var(--gap-lg) 0; }
   margin: var(--gap) 0 var(--gap-lg);
 }
 .verdict .v-label {
-  font-family: var(--serif);
-  font-size: 24px;
+  font-family: var(--sans);
+  font-size: 11px;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  margin: 0;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 4px;
 }
-.verdict .v-label::before {
-  content: "◐";
-  margin-right: 10px;
-  font-family: var(--mono);
-  font-size: 20px;
-  vertical-align: 1px;
-}
-.verdict-ship .v-label::before { content: "✓"; }
-.verdict-no   .v-label::before { content: "✗"; }
 .verdict .v-sum {
   margin: 6px 0 0;
   color: var(--ink-2);
@@ -283,9 +321,11 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: var(--gap-lg) 0; }
   line-height: 1.55;
   max-width: 70ch;
 }
-.verdict-ship    { background: var(--low-bg);     border-color: var(--low); }
-.verdict-caveats { background: var(--med-bg);     border-color: var(--med); }
-.verdict-no      { background: var(--blocker-bg); border-color: var(--blocker); }
+/* Desaturated soft border tints (calmer than the full-strength severity tokens
+   they replace) — matches the fragments-gallery verdict palette (D1.9). */
+.verdict-ship    { background: var(--low-bg);     border-color: #c9deba; }
+.verdict-caveats { background: var(--med-bg);     border-color: #e6d49d; }
+.verdict-no      { background: var(--blocker-bg); border-color: #e2b5c5; }
 .verdict-ship    .v-label { color: var(--low); }
 .verdict-caveats .v-label { color: var(--med); }
 .verdict-no      .v-label { color: var(--blocker); }
@@ -300,23 +340,25 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: var(--gap-lg) 0; }
   margin: var(--gap) 0;
 }
 .metric {
-  padding: 14px 16px;
+  padding: 14px 18px;
   border-right: 1px solid var(--rule);
 }
 .metric:last-child { border-right: 0; }
 .metric-label {
   display: block;
-  font-size: 10px;
-  letter-spacing: 0.10em;
+  font-size: 11px;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-3);
-  font-weight: 600;
+  font-weight: 400;
 }
 .metric-value {
   display: block;
   font-family: var(--serif);
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
   margin-top: 4px;
 }
@@ -534,19 +576,34 @@ pre.diff .diff-ctx::before { content: "  "; }
 
 .project-list { margin: var(--gap) 0 var(--gap-lg); }
 .project-row {
-  display: grid;
-  grid-template-columns: minmax(160px, 1fr) 2fr auto auto;
-  gap: var(--gap);
+  display: flex;
   align-items: center;
-  padding: 12px 14px;
+  gap: var(--gap);
+  padding: 14px;
   border-bottom: 1px solid var(--rule);
   text-decoration: none;
   color: var(--ink);
   font-size: 14px;
 }
 .project-row:hover { background: var(--paper-2); text-decoration: none; }
+.project-row .pr-id { display: flex; flex-direction: column; gap: 1px; min-width: 180px; }
+.project-row .pr-id .name { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--ink); }
+.project-row .pr-id .name:hover { text-decoration: none; }
+.project-row .pr-id .slug { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.project-row .desc {
+  flex: 1; min-width: 0;
+  font-size: 13px; color: var(--ink-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.project-row .title { font-family: var(--serif); flex: 1; min-width: 0; }
+.project-row .status { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; }
+.project-row .status .glyph { font-size: 11px; line-height: 1; }
+.project-row .status.ok   { color: var(--low); }
+.project-row .status.warn { color: var(--med); }
+.project-row .status.bad  { color: var(--blocker); }
+.project-row .status.idle { color: var(--ink-3); }
+.project-row .time { font-size: 12px; color: var(--ink-3); font-family: var(--mono); white-space: nowrap; }
 .project-row .slug code { font-size: 12px; }
-.project-row .title { font-family: var(--serif); }
 .project-row .meta { font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
 .stage-pill {
   font-family: var(--mono);
@@ -556,17 +613,22 @@ pre.diff .diff-ctx::before { content: "  "; }
   background: var(--accent-soft);
   color: var(--accent);
   border: 1px solid var(--accent);
+  white-space: nowrap;
 }
+.stage-pill.cur  { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.stage-pill.done { background: var(--low-bg);      color: var(--low);    border-color: var(--low); }
 
 /* ── Slug overview layout ─────────────────────────────────────────────── */
 
 .so-grid {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
+  grid-template-columns: 1fr 280px;
   gap: var(--gap-lg);
   margin-top: var(--gap);
 }
 .so-rail { min-width: 0; }
+.so-main, .so-side { min-width: 0; }
+.so-prose { margin-top: var(--gap-lg); }
 .activity {
   background: var(--paper);
   border: 1px solid var(--rule);
@@ -620,8 +682,9 @@ pre.diff .diff-ctx::before { content: "  "; }
 .frontmatter-card dt {
   font-family: var(--mono);
   color: var(--ink-3);
-  font-size: 11px;
-  letter-spacing: 0.02em;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   align-self: center;
 }
 .frontmatter-card dd { margin: 0; align-self: center; }
@@ -646,19 +709,24 @@ pre.diff .diff-ctx::before { content: "  "; }
   display: flex; gap: 10px; align-items: flex-start;
   font-size: 14px;
 }
+/* Checklist marker is a literal mono glyph (✓ / ○ / ✗), matching the design's
+   text-glyph treatment rather than a CSS box (D5.13). */
 .ac-list .chk {
   display: inline-block;
-  width: 16px; height: 16px;
-  border-radius: 3px;
-  border: 1px solid var(--rule-2);
+  width: 1.1em;
   flex-shrink: 0;
-  margin-top: 2px;
+  margin-top: 1px;
+  font-family: var(--mono);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.3;
 }
-.ac-list .chk.done { background: var(--low); border-color: var(--low); }
-.ac-list .chk.done::after { content: "✓"; color: var(--paper); font-size: 12px; display: block; text-align: center; line-height: 14px; }
-.ac-list .chk.todo { background: var(--paper); }
-.ac-list .chk.fail { background: var(--blocker); border-color: var(--blocker); }
-.ac-list .chk.fail::after { content: "×"; color: var(--paper); font-size: 14px; display: block; text-align: center; line-height: 14px; }
+.ac-list .chk.done { color: var(--low); }
+.ac-list .chk.done::before { content: "\2713"; }
+.ac-list .chk.todo { color: var(--ink-3); }
+.ac-list .chk.todo::before { content: "\25CB"; }
+.ac-list .chk.fail { color: var(--blocker); }
+.ac-list .chk.fail::before { content: "\2717"; }
 
 /* ── Revisions / history ──────────────────────────────────────────────── */
 
@@ -1159,10 +1227,9 @@ details.history li, details.revisions li { padding: 4px 0; }
 }
 @media (max-width: 880px) {
   .content { padding: 40px 28px; }
-  .project-row { grid-template-columns: 1fr 1fr; row-gap: 6px; }
-  .stage-pill { justify-self: start; }
-  .topnav { padding: 12px 20px; gap: 10px; }
-  .topnav .breadcrumb { display: none; }
+  .project-row { flex-wrap: wrap; row-gap: 6px; }
+  .b-topbar { padding: 16px 24px; gap: 14px; }
+  .b-topbar .crumb { display: none; }
 }
 @media (max-width: 720px) {
   .content { padding: 32px 20px; }
@@ -1178,3 +1245,235 @@ details.history li, details.revisions li { padding: 4px 0; }
   .files-touched .row { grid-template-columns: 60px 1fr; row-gap: 4px; }
   .files-touched .delta { grid-column: 1 / -1; text-align: left; }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Parity additions (Slice 1) — design-handoff component classes that the
+   structured renderers (Slices 5/7/8) and authored fragments (Slice 9) emit.
+   Kept additive so existing markup keeps working.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Legend swatches as named state classes (D3.13 / D4.13 / D5.6 / D7.9). Lets
+   `.sw.queued` show a dashed-border swatch an inline background can't. */
+.figure-canvas .figure-legend .sw.done     { background: var(--low);         border-color: var(--low); }
+.figure-canvas .figure-legend .sw.current,
+.figure-canvas .figure-legend .sw.review   { background: var(--accent);      border-color: var(--accent); }
+.figure-canvas .figure-legend .sw.blocked  { background: var(--blocker);     border-color: var(--blocker); }
+.figure-canvas .figure-legend .sw.upcoming { background: var(--rule-2);      border-color: var(--rule-2); }
+.figure-canvas .figure-legend .sw.queued   { background: transparent;        border: 1px dashed var(--rule-2); }
+.figure-canvas .figure-legend .sw.new      { background: var(--low-bg);      border-color: var(--low); }
+.figure-canvas .figure-legend .sw.modified { background: var(--accent-soft); border-color: var(--accent); }
+.figure-canvas .figure-legend .sw.deleted  { background: var(--blocker-bg);  border-color: var(--blocker); }
+.figure-canvas .figure-legend .sw.external { background: var(--paper-3);     border-color: var(--rule-2); }
+
+/* Verdict display line — 30px serif headline beneath the small eyebrow label
+   (D1.8 / D6.9). verdictBlock() emits `.v-text` in Slice 8. */
+.verdict .v-text {
+  font-family: var(--serif);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+.verdict .v-text::before {
+  content: "◐";
+  margin-right: 10px;
+  font-family: var(--mono);
+  font-size: 24px;
+  vertical-align: 1px;
+}
+.verdict-ship .v-text::before { content: "✓"; }
+.verdict-no   .v-text::before { content: "✗"; }
+.verdict-ship    .v-text { color: var(--low); }
+.verdict-caveats .v-text { color: var(--med); }
+.verdict-no      .v-text { color: var(--blocker); }
+
+/* Finding action chip — design's `.fact.{accept|defer|reject}` (D6.15). */
+.fact {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--rule-2);
+}
+.fact.accept { color: var(--low); background: var(--low-bg); }
+.fact.defer  { color: var(--med); background: var(--med-bg); }
+/* Rejected findings read muted/neutral, not as an error (the blocker tint made
+   them look alarming) — P1 #3. */
+.fact.reject { color: var(--ink-3); background: transparent; }
+
+/* Compound callout modifiers `callout risk-high|risk-med|risk-low` (D5.11),
+   alongside the existing `.callout-risk/-warn/-info/-ok` set. */
+.callout.risk-high { border-left-color: var(--high); background: var(--high-bg); }
+.callout.risk-high .callout-hd { color: var(--high); }
+.callout.risk-med  { border-left-color: var(--med);     background: var(--med-bg); }
+.callout.risk-med  .callout-hd { color: var(--med); }
+.callout.risk-low  { border-left-color: var(--low);     background: var(--low-bg); }
+.callout.risk-low  .callout-hd { color: var(--low); }
+
+/* Files-touched as a semantic <table> (D5.10) — the plan + fragments emit
+   thead/tbody. The legacy `.files-touched .row` grid above stays for any
+   markup that still uses it. */
+table.files-touched {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--gap) 0;
+}
+table.files-touched th,
+table.files-touched td {
+  border-bottom: 1px solid var(--rule);
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
+}
+table.files-touched th {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+table.files-touched td.path  { font-family: var(--mono); font-size: 12px; }
+table.files-touched td.delta { font-family: var(--mono); font-size: 11px; text-align: right; white-space: nowrap; }
+table.files-touched .pos { color: var(--low); }
+table.files-touched .neg { color: var(--blocker); }
+table.files-touched .role {
+  font-family: var(--mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--paper-2);
+}
+table.files-touched .role.is-new      { color: var(--low); }
+table.files-touched .role.is-modified { color: var(--accent); }
+table.files-touched .role.is-deleted  { color: var(--blocker); }
+table.files-touched .role.is-external { color: var(--ink-3); }
+table.files-touched details > summary { cursor: pointer; list-style: none; }
+table.files-touched details > summary::-webkit-details-marker { display: none; }
+table.files-touched details[open] > summary { margin-bottom: 6px; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Slug overview (Slice 4) — so-hd identity block, jump rail, activity rows.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.so-hd {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: var(--gap);
+  margin: 0 0 var(--gap-lg);
+  padding-bottom: var(--gap);
+  border-bottom: 1px solid var(--rule);
+}
+.so-hd-main { min-width: 0; }
+.so-hd-aside {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  justify-content: flex-end; align-items: center;
+}
+.so-hd-aside .meta { font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
+.badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: var(--paper-2);
+  border: 1px solid var(--rule-2);
+  color: var(--ink-2);
+}
+
+nav.so-rail {
+  position: sticky;
+  top: var(--gap);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+nav.so-rail .sec { margin-top: 0; }
+nav.so-rail a,
+nav.so-rail .rail-empty {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--rad-sm);
+  font-size: 13px;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+nav.so-rail a:hover { background: var(--paper-2); }
+nav.so-rail a[aria-current="true"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+nav.so-rail .rail-empty { color: var(--ink-3); }
+nav.so-rail .count {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--ink-3);
+  background: var(--paper-2);
+  padding: 0 7px; border-radius: 9px; min-width: 20px; text-align: center;
+}
+nav.so-rail a[aria-current="true"] .count { background: var(--paper); color: var(--accent); }
+
+.activity-link { display: grid; grid-template-columns: 84px 1fr; gap: 10px; align-items: baseline; }
+.activity-list .when { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.activity-list .what { min-width: 0; }
+.activity-list .file code { font-size: 12px; color: var(--ink-2); }
+.activity-list .who { display: block; font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+
+@media (max-width: 1024px) {
+  .so-hd { grid-template-columns: 1fr; }
+  .so-hd-aside { justify-content: flex-start; }
+  nav.so-rail { position: static; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Slice cards (Slice 5) — sc-hd / sc-meta / sc-bar / sc-foot + state classes.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.slice-card .sc-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.slice-card .sc-name { font-family: var(--serif); font-size: 17px; font-weight: 600; color: var(--ink); }
+.slice-card .sc-pill {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+  background: var(--paper-2); color: var(--ink-3); border: 1px solid var(--rule-2);
+}
+.slice-card .sc-pill.complete    { background: var(--low-bg);     color: var(--low);     border-color: var(--low); }
+.slice-card .sc-pill.in-progress { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.slice-card .sc-pill.blocked     { background: var(--blocker-bg); color: var(--blocker); border-color: var(--blocker); }
+.slice-card .sc-pill.not-started { background: var(--paper-2);    color: var(--ink-3); }
+.slice-card .sc-meta { font-size: 12px; color: var(--ink-2); }
+.slice-card .sc-meta .blocker-cnt { color: var(--blocker); }
+.slice-card .sc-bar { height: 6px; border-radius: 3px; background: var(--paper-3); overflow: hidden; margin: 2px 0; }
+.slice-card .sc-bar i { display: block; height: 100%; background: var(--accent); }
+.slice-card.complete    .sc-bar i { background: var(--low); }
+.slice-card.blocked     .sc-bar i { background: var(--blocker); }
+.slice-card.in-progress .sc-bar i { background: var(--accent); }
+.slice-card.not-started .sc-bar i { background: var(--rule-2); }
+.slice-card .sc-foot { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-3); }
+.slice-card .sc-foot .pct { font-family: var(--mono); }
+.slice-card.complete    { border-left: 3px solid var(--low); }
+.slice-card.blocked     { border-left: 3px solid var(--blocker); }
+.slice-card.in-progress { border-left: 3px solid var(--accent); }
+.slice-card.not-started { border-left: 3px solid var(--rule-2); }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Plan structured body (Slice 7) — ac-list parts, files-table intent cell.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.ac-list .ac-body { min-width: 0; }
+.ac-list .ac-id {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-right: 8px;
+}
+.ac-list .ac-note {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+table.files-touched td.loc { font-family: var(--mono); font-size: 11px; color: var(--ink-3); text-align: right; }
+table.files-touched .ft-intent { font-size: 12px; color: var(--ink-2); margin-top: 6px; padding-left: 4px; }
