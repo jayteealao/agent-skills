@@ -6,14 +6,14 @@ import {
   readFileSync,
   readdirSync,
   statSync,
-  realpathSync,
   watch,
 } from 'node:fs';
 import { createReadStream } from 'node:fs';
 import { createServer } from 'node:http';
-import { dirname, extname, join, resolve, sep } from 'node:path';
+import { extname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { writePidFile, removePidFile } from '../lib/pid-file.mjs';
+import { resolveRequestPath as resolveInView } from '../lib/resolve-request-path.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -159,44 +159,12 @@ function serveStatic({ root, req, res }) {
   createReadStream(resolved.path).pipe(res);
 }
 
+// Thin wrapper over the shared containment kernel (lib/resolve-request-path.mjs).
+// The per-repo daemon historically served itself under an optional `/sdlc` URL
+// prefix (a path-prefix deployment), so it opts the strip back in here; the
+// shared kernel omits the strip so the hub can serve a slug named `sdlc`.
 function resolveRequestPath(root, rawUrl) {
-  let pathname;
-  try {
-    pathname = decodeURIComponent(new URL(rawUrl, 'http://sdlc.local').pathname);
-  } catch {
-    return { ok: false, status: 400, message: 'bad request' };
-  }
-
-  if (pathname === '/sdlc') pathname = '/';
-  if (pathname.startsWith('/sdlc/')) pathname = pathname.slice('/sdlc'.length) || '/';
-  if (pathname === '/') pathname = '/INDEX.html';
-
-  let candidate = resolve(root, `.${pathname}`);
-  if (existsSync(candidate) && statSync(candidate).isDirectory()) {
-    candidate = join(candidate, 'INDEX.html');
-  } else if (!extname(candidate) && existsSync(`${candidate}/INDEX.html`)) {
-    candidate = join(candidate, 'INDEX.html');
-  }
-
-  const rootWithSep = root.endsWith(sep) ? root : `${root}${sep}`;
-  if (candidate !== root && !candidate.startsWith(rootWithSep)) {
-    return { ok: false, status: 403, message: 'forbidden' };
-  }
-  // The lexical check above is not sufficient: statSync/createReadStream follow
-  // symlinks, so a link inside the view tree pointing outside it would be
-  // served. Resolve the real path and re-check containment against the real root.
-  if (existsSync(candidate)) {
-    let real;
-    try { real = realpathSync.native(candidate); }
-    catch { return { ok: false, status: 404, message: 'not found' }; }
-    const realRoot = realpathSync.native(root);
-    const realRootWithSep = realRoot.endsWith(sep) ? realRoot : `${realRoot}${sep}`;
-    if (real !== realRoot && !real.startsWith(realRootWithSep)) {
-      return { ok: false, status: 403, message: 'forbidden' };
-    }
-    return { ok: true, path: real };
-  }
-  return { ok: true, path: candidate };
+  return resolveInView(root, rawUrl, { stripPrefix: '/sdlc' });
 }
 
 function healthPayload(root, configHash) {

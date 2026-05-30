@@ -1,8 +1,9 @@
-import { spawnSync } from 'node:child_process';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import { spawnDetachedNode } from './detach.mjs';
-import { isPidAlive, pidFileStatus, removePidFile, writePidFile } from './pid-file.mjs';
+import { isPidAlive, pidFileStatus, readPidFile, removePidFile, writePidFile } from './pid-file.mjs';
+import { maybeConfigureTailscale } from './tailscale.mjs';
+import { hubPidPath } from './registry.mjs';
 
 export function servePidPath(projectRoot) {
   return join(projectRoot, '.ai', '_view', '.serve.pid');
@@ -20,6 +21,20 @@ export async function ensureServeLifecycle({
   const pidPath = servePidPath(projectRoot);
   const status = await pidFileStatus(pidPath);
 
+  // Hub guard (§4.5): when a machine-wide hub is alive and the user has NOT
+  // explicitly opted into a direct per-repo daemon (view.serve.enabled:true),
+  // the hub serves this repo at /r/<id>/ — don't spawn a per-repo daemon. The
+  // probe is PID-file-gated (no HTTP cost), so a cold start pays zero latency.
+  if (serve.enabled !== true) {
+    const hub = await liveHub();
+    if (hub) {
+      if (status.alive) stopPid(status.record.pid, log);
+      if (status.record) await removePidFile(pidPath);
+      log(`[serve] hub active at http://${displayHost(hub.host ?? '127.0.0.1')}:${hub.port} — this repo is served there under /r/<id>/`);
+      return { action: 'hub-active', hub: { host: hub.host ?? '127.0.0.1', port: hub.port, pid: hub.pid } };
+    }
+  }
+
   if (serve.enabled === false) {
     if (status.alive) {
       stopPid(status.record.pid, log);
@@ -30,17 +45,30 @@ export async function ensureServeLifecycle({
   }
 
   const host = serve.host ?? '127.0.0.1';
-  const port = Number(serve.port ?? 4173);
+  let port = Number(serve.port ?? 4173);
   if (host === '0.0.0.0' && !(serve.tailscale?.enabled === true && serve.tailscale?.acknowledgedPublic === true)) {
     log('[serve] refused host 0.0.0.0 without view.serve.tailscale.enabled + acknowledgedPublic');
     return { action: 'refused-host' };
+  }
+
+  // Port collision (§4.5): the hub owns 4173 (the canonical SDLC URL). If the
+  // user force-enabled a direct per-repo daemon while a hub holds that same
+  // port, bind the per-repo daemon to 4174 instead so `4173/` always means "the
+  // SDLC view" and both can run. (No collision when the hub is off — the
+  // default — where the per-repo daemon owns 4173 exactly as before.)
+  if (serve.enabled === true) {
+    const hub = await liveHub();
+    if (hub && Number(hub.port) === port) {
+      port = 4174;
+      log(`[serve] hub holds port ${hub.port}; binding per-repo daemon to ${port} instead`);
+    }
   }
 
   if (status.alive) {
     const healthy = await waitForHealth({ host, port, timeoutMs: 600 });
     if (healthy) {
       log(`[serve] already running at http://${displayHost(host)}:${port}`);
-      maybeConfigureTailscale({ serve, port, log });
+      maybeConfigureTailscale({ tailscale: serve.tailscale, port, log });
       return { action: 'already-running', pid: status.record.pid };
     }
     stopPid(status.record.pid, log);
@@ -80,8 +108,16 @@ export async function ensureServeLifecycle({
   }
 
   log(`[serve] started pid ${child.pid} at http://${displayHost(host)}:${port}`);
-  maybeConfigureTailscale({ serve, port, log });
+  maybeConfigureTailscale({ tailscale: serve.tailscale, port, log });
   return { action: 'started', pid: child.pid };
+}
+
+// PID-file-gated hub probe (no HTTP cost): read ~/.sdlc/hub.pid and confirm the
+// pid is alive. Returns the record { pid, host, port, token, ... } or null.
+async function liveHub() {
+  const record = await readPidFile(hubPidPath());
+  if (!record || !record.pid || !isPidAlive(record.pid)) return null;
+  return record;
 }
 
 function stopPid(pid, log) {
@@ -127,39 +163,6 @@ function probeHealth({ host, port, timeoutMs }) {
     req.on('error', () => resolve(false));
     req.end();
   });
-}
-
-function maybeConfigureTailscale({ serve, port, log }) {
-  const tailscale = serve.tailscale ?? {};
-  if (tailscale.enabled !== true) return;
-
-  const target = `http://127.0.0.1:${port}`;
-  const mode = tailscale.mode === 'funnel' ? 'funnel' : 'serve';
-  if (mode === 'funnel' && tailscale.acknowledgedPublic !== true) {
-    log('[tailscale] refused funnel without acknowledgedPublic:true');
-    return;
-  }
-
-  const args = [mode, '--bg'];
-  if (mode === 'serve') {
-    if (tailscale.https === false) args.push('--http=80');
-    const path = tailscale.path || '/';
-    if (path !== '/') args.push(`--set-path=${path}`);
-  }
-  args.push(target);
-
-  const result = spawnSync('tailscale', args, {
-    encoding: 'utf-8',
-    windowsHide: true,
-    timeout: 10000,
-  });
-  if (result.error) {
-    log(`[tailscale] ${mode} unavailable: ${result.error.message}`);
-  } else if (result.status !== 0) {
-    log(`[tailscale] ${mode} failed: ${(result.stderr || result.stdout || '').trim()}`);
-  } else {
-    log(`[tailscale] ${mode} configured for ${target}`);
-  }
 }
 
 function displayHost(host) {

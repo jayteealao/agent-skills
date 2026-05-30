@@ -191,7 +191,11 @@ function humanRelative(iso) {
   return `${mo} mo ago`;
 }
 
-function swimlanesSvg(active = [], shipped = []) {
+// Exported (was module-private) so the multi-repo hub landing page
+// (renderers/hub-dashboard.mjs) can reuse the same swimlane figure per repo.
+// Pure helper — depends only on STAGES + _figure/_validator imports, never on
+// the per-repo dashboard pass. See MULTI-REPO-REGISTRY-PLAN §5 must-fix #7.
+export function swimlanesSvg(active = [], shipped = []) {
   const rows = [...active, ...shipped];
   if (!rows.length) {
     return `<svg viewBox="0 0 600 80" width="100%"><text x="300" y="44" text-anchor="middle" fill="#8a8377" font-size="13">No workflows yet</text></svg>`;

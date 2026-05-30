@@ -33,6 +33,11 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
       renderMissing: true,
       renderStale: true,
     },
+    // Per-repo opt-in to the machine-wide multi-repo hub. The ONLY per-repo hub
+    // field — all singleton hub settings live in ~/.sdlc/hub-config.json (§6.1).
+    hub: {
+      enabled: false,
+    },
   },
   hooks: {
     autoStage: true,

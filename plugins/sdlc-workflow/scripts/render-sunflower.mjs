@@ -40,9 +40,11 @@ import { renderShell } from '../renderers/_shell.mjs';
 import { expand as expandSnippets } from '../components/_components.mjs';
 import { loadConfigWithMeta, configHash as computeConfigHash } from '../lib/config.mjs';
 import { ensureServeLifecycle } from '../lib/serve-lifecycle.mjs';
+import { ensureHubLifecycle } from '../lib/hub-lifecycle.mjs';
 import { pidFileStatus, removePidFile, writePidFile } from '../lib/pid-file.mjs';
 import { latestMtimeMs, latestTreeMtimeMs, classifyRenderState, viewMtimeForSlug } from '../lib/render-state.mjs';
 import { activeWorkflowIndexes, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
+import { upsertRegistryEntry } from '../lib/registry.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT_DEFAULT = resolve(__dirname, '..');
@@ -678,7 +680,7 @@ async function renderMain(args) {
 
     // 9. manifest pass
     const manifest = {
-      version:     '9.32.1',
+      version:     '9.33.0',
       generatedAt: new Date().toISOString(),
       slugs: [...slugArtifacts.keys()]
         .filter((slug) => !slug.startsWith('__'))   // drop synthetic off-pipeline buckets
@@ -694,6 +696,18 @@ async function renderMain(args) {
       schemaWarnings,
       configHash: computeConfigHash(config),
     }, null, 2)}\n`);
+
+    // Register this checkout in the machine-wide multi-repo registry, right
+    // after the .last-render flush (the registry's freshness signal). This is
+    // pure convention — no flag, no new gesture. Best-effort and idempotent:
+    // upsertRegistryEntry never throws (the .catch is belt-and-braces), so a
+    // registry write can never affect render success — the next render
+    // re-registers. See MULTI-REPO-REGISTRY-PLAN §3.4.
+    await upsertRegistryEntry({
+      projectRoot: cwd,
+      viewDir: viewRoot,
+      configHash: computeConfigHash(config),
+    }).catch(() => {});
   }
 
   // 10. report
@@ -814,6 +828,18 @@ async function bootstrapMain(args) {
     if (failedJobs) {
       log(`[bootstrap] ${failedJobs} render job${failedJobs === 1 ? '' : 's'} failed — see entries above`);
       process.exitCode = 1;
+    }
+    // Multi-repo hub: when this repo opts in (view.hub.enabled), start the
+    // single machine-wide hub. It is PRIMARY on 4173 (Q4 resolved), so it starts
+    // BEFORE ensureServeLifecycle — that way the per-repo daemon's hub guard
+    // sees a live hub and yields (returns hub-active, or binds 4174 if the user
+    // force-enabled a direct daemon too). This refines the plan's "after
+    // ensureServeLifecycle" wording so the 4173-collision resolution actually
+    // fires on a cold start. The per-repo render already wrote this repo's shard,
+    // so the hub picks it up when it merges shards at startup. Lazy supervision
+    // (§11.7): a stale/dead hub is healed here on the next bootstrap at no cost.
+    if (config.view?.hub?.enabled === true) {
+      await ensureHubLifecycle({ pluginRoot: args.pluginRoot, log });
     }
     await ensureServeLifecycle({
       projectRoot: cwd,

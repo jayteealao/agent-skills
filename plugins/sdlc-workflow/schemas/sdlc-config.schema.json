@@ -99,6 +99,17 @@
               "default": true
             }
           }
+        },
+        "hub": {
+          "type": "object",
+          "description": "Per-repo opt-in to the machine-wide multi-repo hub. This is the ONLY per-repo hub field: it decides whether this repo participates (registers + is willing to start/use the hub). Every singleton hub setting (host, port, limits, Tailscale) lives in the machine-wide ~/.sdlc/hub-config.json instead, so the two files share zero fields and there are no precedence rules. additionalProperties:false rejects any singleton setting placed here by mistake. See MULTI-REPO-REGISTRY-PLAN §6.1.",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            }
+          }
         }
       }
     },

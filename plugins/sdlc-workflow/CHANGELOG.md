@@ -7,6 +7,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Multi-repo registry + one-service hub + aggregate landing page (9.33.0)
+
+Implemented `MULTI-REPO-REGISTRY-PLAN.md` end to end (Phases 0–6). One browser
+URL (`127.0.0.1:4173`) now shows every active SDLC workflow across all repos on
+the machine — live reload, correct cross-repo isolation, zero port
+proliferation. Strictly additive and opt-in: default behaviour is unchanged
+(`view.hub.enabled: false`). Suite 134/134 (21 new multi-repo tests).
+
+- **Phase 0 — shared primitives.** Extracted the symlink-escape containment
+  kernel to [lib/resolve-request-path.mjs](lib/resolve-request-path.mjs)
+  (the `/sdlc` strip is now an opt-in `stripPrefix` so a slug literally named
+  `sdlc` is served correctly under the hub; the per-repo daemon keeps the strip
+  via a thin wrapper) and `maybeConfigureTailscale` to
+  [lib/tailscale.mjs](lib/tailscale.mjs). Byte-identical per-repo behaviour.
+- **Phase 1 — registry.** [lib/registry.mjs](lib/registry.mjs): git
+  repo+branch+worktree identity, branch-sensitive 12-char ids, `validateEntry`
+  (viewDir must realpath under its own repoRoot and end in `.ai/_view` — a
+  poisoned `viewDir:"C:\\"` is rejected on read AND write), lock-free per-entry
+  shard writes (concurrent renders never lose an entry), writer-as-janitor
+  (folds shards past a 100-shard cap), lazy pruning. A render registers itself
+  right after the `.last-render` flush — best-effort, never affects render
+  success. Per-repo schema gains `view.hub.enabled` (the only per-repo hub
+  field; `additionalProperties:false`).
+- **Phase 2 — hub daemon.** [scripts/hub-serve.mjs](scripts/hub-serve.mjs)
+  routes `/r/<id>/...` to each repo's `.ai/_view` with per-`viewDir`
+  containment. Security hardening over the read-only per-repo daemon: a
+  Host-header allowlist on every request (defeats DNS-rebinding) and a
+  `hub.pid` write token on every state-changing route (invariants #5/#6).
+  [lib/hub-config.mjs](lib/hub-config.mjs) holds the machine-wide
+  `~/.sdlc/hub-config.json` (Option C split-scope — singleton settings only,
+  never committable); [lib/hub-lifecycle.mjs](lib/hub-lifecycle.mjs) mirrors
+  serve-lifecycle with PID-gated stale-PID recovery and mints the token.
+- **Phase 3 — cross-repo live reload.** One SSE stream; each viewDir is
+  directory-watched (filtered on `.last-render`, Windows-safe). The hub injects
+  `<meta name=sdlc-repo-id>` and the livereload client at serve time, so
+  [assets/livereload.js](assets/livereload.js) reloads only the tab whose repo
+  re-rendered (unconditional fallback for the per-repo daemon — backward
+  compatible).
+- **Phase 4 — landing page.** [renderers/hub-dashboard.mjs](renderers/hub-dashboard.mjs)
+  `renderHubLanding()` at `GET /` (2-second micro-cache, inline CSS, swimlanes
+  reusing the now-exported `swimlanesSvg`, repo grouping, slug deep-links, stale
+  dimming, aggregate live reload).
+- **Cross-repo inbox (§11.3).** The landing page's **default tab** is a single
+  attention work-queue across all repos — everything blocked, in review, or
+  stale — with the swimlane grid as the secondary tab. CSS-only radio tabs (no
+  inline JS, CSP-safe); `inboxItems()` classifier; pure view-layer on existing
+  `slugMeta` + `lastRenderedAt`. Remaining §11 follow-ons (editor links,
+  tab-title status, richer git state, `sdlc hub` CLI, wide-event logging) are
+  catalogued in `VIEW-FEATURE-IDEAS.md`.
+- **Phase 5 — serve-time hub-root brand.** The hub repoints the topnav brand to
+  the hub root in INDEX.html responses; breadcrumbs stay per-repo. No render
+  flags (honours convention-over-flags) — the per-repo daemon path is untouched.
+- **Phase 6 — hardening.** Single hub Tailscale binding gated on the
+  machine-wide `tailscale.{enabled,acknowledgedPublic}` (a per-repo config can
+  never trigger public exposure); SSE-safe request/header timeouts; Windows
+  `process.on('exit')` pid cleanup; aggregate SSE cap.
+
 ### Fixed — severity-token misuse on non-severity UI (9.32.1)
 
 - `experiment.mjs` arm-allocation palette (`--blocker` → neutral `#c07820`),
