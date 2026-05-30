@@ -218,7 +218,8 @@ test('config: loads defaults, merges local overrides, validates schema, and hash
   try {
     const defaults = await loadConfigWithMeta(tmp);
     equal(defaults.exists, false);
-    equal(defaults.config.view.serve.enabled, false);
+    equal(defaults.config.view.serve.enabled, true);
+    equal(defaults.config.view.hub.enabled, true);
     equal(defaults.config.view.render.concurrency, DEFAULT_SDLC_CONFIG.view.render.concurrency);
 
     const cfgPath = configPathFor(tmp);

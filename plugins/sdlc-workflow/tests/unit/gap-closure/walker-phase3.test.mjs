@@ -280,6 +280,12 @@ test('bootstrap dry-run reports missing workflow and project renders', () => {
 test('bootstrap wet run renders concurrent jobs and finalizes shared outputs once', () => {
   const tmp = tempDir();
   try {
+    // serve + hub default to enabled since v9.34.0; for a render-only wet run
+    // that would spawn a daemon (locks tmp on Windows → EBUSY) and touch the
+    // real ~/.sdlc/. Disable both so this test stays hermetic to render output.
+    write(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({
+      view: { serve: { enabled: false }, hub: { enabled: false } },
+    }));
     write(join(tmp, 'PRODUCT.md'), '# Product\n');
     write(join(tmp, '.ai', 'workflows', 'demo', '00-index.md'), md(indexFrontmatter()));
     write(join(tmp, '.ai', 'workflows', 'second', '00-index.md'), md({

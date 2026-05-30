@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — Serve + hub now on by default (9.34.0)
+
+The SDLC view is now **serve-first and hub-first out of the box**. Two shipped
+defaults flipped in `lib/config.mjs` `DEFAULT_SDLC_CONFIG` (mirrored in
+`schemas/sdlc-config.schema.json`):
+
+- `view.serve.enabled`: `false → true` — a repo that renders now starts its
+  local serve daemon without needing a `.ai/sdlc-config.json`.
+- `view.hub.enabled`: `false → true` — every rendering repo now registers with
+  and participates in the machine-wide multi-repo hub by default.
+
+This **reverses the 9.33.0 contract** that hub participation was strictly opt-in
+(`view.hub.enabled: false`). After upgrading, the first render in any repo will
+bring up the per-repo serve daemon and join the single machine-wide hub on
+`127.0.0.1:4173`. Exposure is unchanged: Tailscale stays off by default
+(`view.serve.tailscale.enabled` and the hub's `tailscale.enabled` both remain
+`false`), so nothing leaves localhost without an explicit opt-in.
+
+To restore the previous quiet behaviour, set either flag back to `false` in a
+repo's `.ai/sdlc-config.json` (`view.serve.enabled` / `view.hub.enabled`).
+
 ### Added — Multi-repo registry + one-service hub + aggregate landing page (9.33.0)
 
 Implemented `MULTI-REPO-REGISTRY-PLAN.md` end to end (Phases 0–6). One browser

@@ -16,7 +16,7 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
       debounceMs: 2000,
     },
     serve: {
-      enabled: false,
+      enabled: true,
       host: '127.0.0.1',
       port: 4173,
       liveReload: true,
@@ -36,7 +36,7 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     // Per-repo opt-in to the machine-wide multi-repo hub. The ONLY per-repo hub
     // field — all singleton hub settings live in ~/.sdlc/hub-config.json (§6.1).
     hub: {
-      enabled: false,
+      enabled: true,
     },
   },
   hooks: {
