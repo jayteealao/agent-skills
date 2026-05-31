@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed — retired the legacy shell hooks + Python frontmatter validator (9.34.3)
+
+Completed the validator migration that the v9.26 CHANGELOG and
+`QUALITY-GATES-PLAN.md` (Phase 6) scheduled for v9.28 but never landed. The hook
+runtime has been native Node/Ajv since the HOOKS-NODE migration; the shell and
+Python validators were dead-but-carried parity references, and keeping them in
+sync was pure overhead (it's why the 9.34.1/9.34.2 carve-out had to be applied
+in five places instead of two).
+
+Deleted:
+- `hooks/scripts/validate-workflow-write.sh` — superseded by
+  [hooks/pre-write-validate.mjs](hooks/pre-write-validate.mjs). Not wired in
+  [hooks.json](hooks/hooks.json).
+- `hooks/scripts/verify-workflow-postwrite.sh` — superseded by
+  [hooks/post-write-verify.mjs](hooks/post-write-verify.mjs). Not wired.
+- `tests/verify_frontmatter.py` — the Python deep validator, replaced by
+  `lib/schema-validator.mjs` (Ajv). Its parity test in
+  `tests/unit/lib/foundation.test.mjs` (and the now-unused `findPython` helper +
+  `spawnSync` import) is removed with it.
+
+The stale "Parity table vs …sh" headers in both `.mjs` hooks and the README's
+"remains as a parity reference" note are scrubbed. The artifact-validation
+surface is now two enforcement points (the wired pre/post-write `.mjs` hooks),
+both sharing `isProseLogPath`. `hooks/scripts/` still holds three other unwired
+legacy twins (`auto-stage.sh`, `pre-compact.sh`, `workflow-discovery.sh`) — left
+untouched here, candidates for a follow-up sweep.
+
 ### Fixed — `po-answers.md` post-write schema check + centralised exemption (9.34.2)
 
 9.34.1 relaxed the *pre*-write hook so `po-answers.md` could be created — but the

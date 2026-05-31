@@ -1002,7 +1002,7 @@ The hook is naturally inactive outside of the implement stage — it checks the 
 
 Fires after Write, Edit, MultiEdit, and NotebookEdit for markdown artifacts under `.ai/workflows/`, `.ai/simplify/`, and `.ai/profiles/`. It validates the written file against `tests/frontmatter.schema.json` with Ajv. Passing writes are silent; failures return exit code 2 with diagnostics so Claude can immediately repair the frontmatter.
 
-This replaces the former Python `tests/verify_frontmatter.py` runtime path. The Python verifier remains in `tests/` as a parity reference for now, but hooks do not invoke it.
+This replaced the former Python `tests/verify_frontmatter.py`, which has now been removed (v9.34.3) — frontmatter validation is entirely native Node/Ajv.
 
 ### PostToolUse — sunflower render
 

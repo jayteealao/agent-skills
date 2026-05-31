@@ -1,15 +1,13 @@
 #!/usr/bin/env node
 /**
- * Parity table vs hooks/scripts/verify-workflow-postwrite.sh:
+ * PostToolUse deep validator for .ai/workflows/ artifacts:
  * - Skip when no artifact markdown path is present.
  * - Validate markdown under .ai/workflows/, .ai/simplify/, and .ai/profiles/.
  * - Skip paths that do not exist on disk.
- * - Run deep schema validation against tests/frontmatter.schema.json.
+ * - Exempt the po-answers.md prose log (see isProseLogPath).
+ * - Run deep schema validation against tests/frontmatter.schema.json (native Ajv).
  * - Silent exit 0 on success.
  * - Exit 2 + stderr when validation fails.
- *
- * Intentional Phase 1 divergence:
- * - No Python discovery or fail-open warning. Validation is native Node/Ajv.
  */
 
 import { existsSync } from 'node:fs';

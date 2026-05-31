@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -42,7 +41,6 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..', '..', '..');
 const SCHEMA_PATH = defaultFrontmatterSchemaPath();
-const VERIFY_FRONTMATTER = join(PLUGIN_ROOT, 'tests', 'verify_frontmatter.py');
 
 function tempDir(prefix = 'sdlc-foundation-') {
   return mkdtempSync(join(tmpdir(), prefix));
@@ -118,38 +116,6 @@ test('schema-validator: validates frontmatter and sibling YAML schemas', () => {
     findings: [],
   }, { schemaPath: SCHEMA_PATH });
   equal(sibling.valid, true);
-});
-
-test('schema-validator: file validation matches Python verifier pass/fail for representative files', async (t) => {
-  const python = findPython();
-  if (!python) {
-    t.skip('python executable unavailable');
-    return;
-  }
-
-  const tmp = tempDir();
-  try {
-    const validPath = join(tmp, 'valid-intake.md');
-    const invalidPath = join(tmp, 'invalid-intake.md');
-    writeMd(validPath, validIntakeFrontmatter());
-    writeMd(invalidPath, { schema: 'sdlc/v1', type: 'intake' });
-
-    for (const path of [validPath, invalidPath]) {
-      const nodeResult = await validateFrontmatterFile(path, { schemaPath: SCHEMA_PATH });
-      const pyResult = spawnSync(python.command, [
-        ...python.args,
-        VERIFY_FRONTMATTER,
-        '--schema',
-        SCHEMA_PATH,
-        '--quiet',
-        path,
-      ], { encoding: 'utf-8' });
-
-      equal(pyResult.status, nodeResult.valid ? 0 : 1, pyResult.stderr || pyResult.stdout);
-    }
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
-  }
 });
 
 test('render-state: classifies missing, stale, and fresh views', async () => {
@@ -314,16 +280,3 @@ test('workflow-index: scans active, stale, complete, and invalid workflow indexe
     rmSync(tmp, { recursive: true, force: true });
   }
 });
-
-function findPython() {
-  const candidates = [
-    { command: 'python', args: [] },
-    { command: 'py', args: ['-3'] },
-    { command: 'python3', args: [] },
-  ];
-  for (const candidate of candidates) {
-    const result = spawnSync(candidate.command, [...candidate.args, '--version'], { encoding: 'utf-8' });
-    if (!result.error && result.status === 0) return candidate;
-  }
-  return null;
-}

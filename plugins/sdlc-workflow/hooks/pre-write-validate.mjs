@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Parity table vs hooks/scripts/validate-workflow-write.sh:
+ * PreToolUse(Write) validator for .ai/workflows/ artifacts:
  * - Skip missing file_path.
  * - Skip non-.ai/workflows markdown paths.
  * - Skip Write inputs without content.
@@ -8,6 +8,7 @@
  * - Require YAML frontmatter with schema/type/slug.
  * - Require schema: sdlc/v1.
  * - Require frontmatter slug to match .ai/workflows/<slug>/.
+ * - Exempt the po-answers.md prose log (see isProseLogPath).
  * - Warn, do not block, when .ai/workflows/INDEX.md is missing or lacks the slug row.
  * - Block with exit 2 + stderr on validation errors.
  */
@@ -89,8 +90,7 @@ async function main() {
   const isProseLog = isProseLogPath(filePath);
   // design-notes/ holds per-sub-command transformation artifacts whose
   // names (animate-<ts>.md, extract.md, etc.) deliberately skip the
-  // NN-stagename convention. Mirrors the Python validator's carve-out at
-  // tests/verify_frontmatter.py (`design-notes` → design-augmentation).
+  // NN-stagename convention (they carry the design-augmentation type instead).
   const inDesignNotes = info.storageRel.startsWith('design-notes/');
   if (!inDesignNotes && !isProseLog) {
     const filenameError = validateFilename(filename);
