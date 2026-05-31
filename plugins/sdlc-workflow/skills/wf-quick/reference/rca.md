@@ -229,8 +229,18 @@ type: shape
 slug: <slug>
 workflow-type: rca
 status: ready
+stage-number: 2
 derived-from: 01-rca.md
 created-at: <timestamp>
+updated-at: <timestamp>
+docs-needed: false
+docs-types: []
+tags: []
+refs:
+  rca: 01-rca.md
+  index: 00-index.md
+next-command: wf-plan
+next-invocation: "/wf plan <slug>"
 ---
 ```
 

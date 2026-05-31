@@ -36,6 +36,9 @@ import {
 function validateFilename(filename) {
   if (/^\d{2}[a-z]?-.+\.md$/.test(filename)) return null;
   if (['risk-register.md', 'estimate.md', 'announce.md'].includes(filename)) return null;
+  // wf-quick hotfix/refactor mini-pipelines + wf-meta skip records use stable
+  // prefix names rather than the NN convention (hf-brief.md, rf-plan.md, skip-shape.md).
+  if (/^(?:hf|rf|skip)-.+\.md$/.test(filename)) return null;
   return `Filename '${filename}' does not follow the NN-stagename.md convention (e.g., 01-intake.md, 04-plan.md). Use two-digit prefix + hyphen + name.`;
 }
 

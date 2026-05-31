@@ -277,6 +277,7 @@ Append (or update the entry for) this run. Refresh the run table from frontmatte
 schema: sdlc/v1
 type: ship-runs-index
 slug: <slug>
+updated-at: "<iso>"
 runs:
   - { run-id: <run-id>, version: <version>, environment: <env>, status: <status>, go-nogo: <go|conditional-go|no-go>, notes: "<short>" }
   - ...

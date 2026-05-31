@@ -7,7 +7,7 @@
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
 
-const PLUGIN_VERSION = '9.34.5';
+const PLUGIN_VERSION = '9.35.0';
 
 /**
  * Wrap rendered content in the full HTML shell.

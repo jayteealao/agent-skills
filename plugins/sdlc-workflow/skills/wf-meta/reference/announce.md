@@ -176,7 +176,7 @@ Write `.ai/workflows/<slug>/announce.md`:
 ```yaml
 ---
 schema: sdlc/v1
-type: announcement
+type: announce
 slug: <slug>
 created-at: "<ISO 8601 timestamp>"
 audiences: [<list of audiences generated>]

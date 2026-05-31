@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — registered wf-quick/wf-meta artifact types + prefix filenames; fixed announce/ship-plan/ship-runs-index/rca (9.35.0)
+
+The follow-up promised in 9.34.5. A fine-tooth-comb audit found that whole
+wf-quick and wf-meta lanes hit the same class of bug as `po-answers`: they write
+artifacts under `.ai/workflows/<slug>/` with a `type:` that has no schema branch
+and/or a filename that fails the `NN-` rule, so the pre/post-write hooks reject
+them. Verified by running both hooks against each artifact.
+
+**Schema — register the lane types.** New `quickMetaArtifactFrontmatter` branch
+in [tests/frontmatter.schema.json](tests/frontmatter.schema.json) admits the 15
+previously-unregistered lightweight types (`workflow-index`, `discover`,
+`fix-plan`, `investigate`, `hf-brief|hf-plan|hf-implement|hf-verify`,
+`rf-brief|rf-baseline|rf-plan|rf-implement|rf-verify`, `close-record`, `routing`)
+on a known-type + schema/type/slug contract. Each `type` stays uniquely
+discriminating, so the `oneOf` is unambiguous. (`workflow-index` already had a
+renderer but no schema branch — the clearest sign these were intended.)
+
+**Pre-write — allow the prefix filenames.** `validateFilename` in
+[hooks/pre-write-validate.mjs](hooks/pre-write-validate.mjs) now allows the
+`hf-`, `rf-`, and `skip-` prefixes (hotfix/refactor mini-pipelines + skip
+records) alongside the existing `NN-` convention and named allowlist.
+
+**Field-contract fixes:**
+- `announce` template declared `type: announcement` (no such type) → fixed to
+  `announce`; `announceFrontmatter.required` relaxed to schema/type/slug to match
+  the real template (which emits `audiences`/`channels` lists + `created-at`, not
+  the stale strict `title/status/scope/audience/channel/scheduled-at`).
+- `shipPlanFrontmatter.required` realigned from the stray `title`/`status`/
+  `source` (copied from project-context) to the `project-name`/`plan-version` the
+  init-ship-plan template actually emits.
+- `ship.md` `ship-runs-index` template was missing schema-required `updated-at`.
+- `/wf-quick rca`'s synthesized `02-shape.md` was missing 8 shape-required fields.
+
+Correctly-exempt, no change: `ideate`→`.ai/ideation/`,
+`update-deps`→`.ai/dep-updates/`, `build-pipeline`→`.ai/pipeline-compliance.md`,
+wf-design→`design-notes/`, wf-docs→`.ai/docs/`. Two regression tests added; two
+gap-closure fixtures updated to the corrected ship-plan/announce contracts.
+Suite 141/141.
+
 ### Removed — last 3 legacy shell hooks + refreshed hooks docs (9.34.5)
 
 Completes the shell-hook retirement begun in 9.34.3. The final three unwired

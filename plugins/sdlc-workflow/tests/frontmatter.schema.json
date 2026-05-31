@@ -1045,13 +1045,18 @@
 
     "shipPlanFrontmatter": {
       "type": "object",
-      "description": ".ai/ship-plan.md project-level shipping context rendered under .ai/_view/project/.",
-      "required": ["schema", "type", "title", "status", "source"],
+      "description": ".ai/ship-plan.md project-level shipping contract read by /wf ship. v9.35.0: required[] aligned to the actual init-ship-plan template (project-name/plan-version), dropping the stray title/status/source that were copied from project-context and never emitted.",
+      "required": ["schema", "type", "slug", "project-name", "plan-version"],
       "properties": {
         "type": { "const": "ship-plan" },
+        "slug": { "$ref": "#/$defs/slug" },
+        "project-name": { "type": "string" },
+        "plan-version": { "type": "integer", "minimum": 1 },
+        "template-hint": { "type": "string" },
         "title": { "type": "string" },
         "status": { "type": "string" },
         "source": { "type": "string" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "refs": { "$ref": "#/$defs/refs" }
       }
@@ -1059,7 +1064,8 @@
 
     "announceFrontmatter": {
       "type": "object",
-      "required": ["schema", "type", "slug", "title", "status", "scope", "audience", "channel", "scheduled-at"],
+      "description": "Release/change announcement. v9.35.0: required[] relaxed to schema/type/slug to match the wf-meta announce template (which emits created-at + audiences/channels lists); the richer fields below stay optional.",
+      "required": ["schema", "type", "slug"],
       "properties": {
         "type": { "const": "announce" },
         "title": { "type": "string" },
@@ -1234,6 +1240,22 @@
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "refs": { "$ref": "#/$defs/refs" }
       }
+    },
+
+    "quickMetaArtifactFrontmatter": {
+      "type": "object",
+      "description": "Lightweight wf-quick / wf-meta lane artifacts written under .ai/workflows/<slug>/ (e.g. 00-index.md with type workflow-index, 01-fix.md, hf-brief.md, 99-close.md, 90-next.md). Validated for a known type + schema/type/slug presence; richer per-lane fields are renderer-defensive and most fall through to the generic renderer. Registered in v9.35.0 after an audit found these lanes were silently blocked by the pre/post-write hooks. Each type stays uniquely discriminating, so the oneOf remains unambiguous. Tighten into per-type branches if/when their field contracts stabilize.",
+      "required": ["schema", "type", "slug"],
+      "properties": {
+        "type": {
+          "enum": [
+            "workflow-index", "discover", "fix-plan", "investigate",
+            "hf-brief", "hf-plan", "hf-implement", "hf-verify",
+            "rf-brief", "rf-baseline", "rf-plan", "rf-implement", "rf-verify",
+            "close-record", "routing"
+          ]
+        }
+      }
     }
   },
 
@@ -1283,7 +1305,8 @@
         { "$ref": "#/$defs/docsDiscoverFrontmatter" },
         { "$ref": "#/$defs/docsAuditFrontmatter" },
         { "$ref": "#/$defs/docsPlanFrontmatter" },
-        { "$ref": "#/$defs/docsGenerateFrontmatter" }
+        { "$ref": "#/$defs/docsGenerateFrontmatter" },
+        { "$ref": "#/$defs/quickMetaArtifactFrontmatter" }
       ]
     }
   ],

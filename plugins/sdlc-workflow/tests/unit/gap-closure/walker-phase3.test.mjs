@@ -176,7 +176,7 @@ test('phase 3 walker renders project context, workflow extras, and docs index', 
 test('phase 3 schema admits project, extras, and docs-index artifact types', () => {
   const samples = [
     { schema: 'sdlc/v1', type: 'project-context', title: 'Product', status: 'active', source: 'PRODUCT.md' },
-    { schema: 'sdlc/v1', type: 'ship-plan', title: 'Ship plan', status: 'active', source: '.ai/ship-plan.md' },
+    { schema: 'sdlc/v1', type: 'ship-plan', slug: 'demo', 'project-name': 'demo', 'plan-version': 1 },
     {
       schema: 'sdlc/v1',
       type: 'announce',
@@ -226,8 +226,10 @@ test('phase 3 schema admits project, extras, and docs-index artifact types', () 
 });
 
 test('phase 3 schema rejects loose workflow extras without planned required fields', () => {
+  // announce relaxed to schema/type/slug in v9.35.0 — the wf-meta template emits
+  // audiences/channels lists + created-at, not the old strict title/status/scope/
+  // audience/channel/scheduled-at — so it's no longer a "strict reject" case.
   const samples = [
-    { schema: 'sdlc/v1', type: 'announce', slug: 'demo', title: 'Announcement', status: 'ready' },
     { schema: 'sdlc/v1', type: 'risk-register', slug: 'demo', title: 'Risks', status: 'active' },
     { schema: 'sdlc/v1', type: 'estimate', slug: 'demo', title: 'Estimate', status: 'ready' },
   ];

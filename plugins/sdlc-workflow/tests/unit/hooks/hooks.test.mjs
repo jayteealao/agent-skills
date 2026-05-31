@@ -363,3 +363,61 @@ test('hooks honor CLAUDE_PLUGIN_INSTALL suppression', () => {
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('pre+post-write accept registered wf-quick/wf-meta artifact types and prefix filenames', () => {
+  const tmp = tempDir();
+  try {
+    // Regression guard for v9.35.0: these lanes were silently blocked — unregistered
+    // types (post-write Ajv) and/or non-NN filenames (pre-write). Both gates must pass now.
+    const cases = [
+      { file: '01-fix.md', type: 'fix-plan' },
+      { file: '00-index.md', type: 'workflow-index' },
+      { file: '01-discover.md', type: 'discover' },
+      { file: '01-investigate.md', type: 'investigate' },
+      { file: 'hf-brief.md', type: 'hf-brief' },        // prefix filename, not NN
+      { file: 'rf-plan.md', type: 'rf-plan' },          // prefix filename, not NN
+      { file: '99-close.md', type: 'close-record' },
+      { file: '90-next.md', type: 'routing' },
+    ];
+    for (const c of cases) {
+      const rel = `.ai/workflows/demo/${c.file}`;
+      const content = md({ schema: 'sdlc/v1', type: c.type, slug: 'demo' });
+      writeFile(join(tmp, rel), content);
+
+      const pre = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: rel, content } }, tmp);
+      equal(pre.status, 0, `pre-write blocked ${c.file} (${c.type}): ${pre.stderr}`);
+
+      const post = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+      equal(post.status, 0, `post-write blocked ${c.file} (${c.type}): ${post.stderr}`);
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('skip-record prefix filename clears pre-write, and ship-plan needs only project-name + plan-version', () => {
+  const tmp = tempDir();
+  try {
+    // skip-<stage>.md: prefix filename (pre-write) + strict skip-record schema (post-write).
+    const skipRel = '.ai/workflows/demo/skip-shape.md';
+    const skipContent = md({
+      schema: 'sdlc/v1', type: 'skip-record', slug: 'demo',
+      'skipped-stage': 'shape', 'skipped-stage-artifact': '02-shape.md',
+      reason: 'covered by rca', 'skipped-at': '2026-05-31T00:00:00Z', 'high-risk': false,
+    });
+    writeFile(join(tmp, skipRel), skipContent);
+    let r = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: skipRel, content: skipContent } }, tmp);
+    equal(r.status, 0, `pre-write blocked skip-shape.md: ${r.stderr}`);
+    r = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: skipRel } }, tmp);
+    equal(r.status, 0, `post-write blocked skip-shape.md: ${r.stderr}`);
+
+    // ship-plan: required[] aligned to the real template (no title/status/source).
+    const planRel = '.ai/ship-plan.md';
+    const planContent = md({ schema: 'sdlc/v1', type: 'ship-plan', slug: 'demo', 'project-name': 'demo', 'plan-version': 1 });
+    writeFile(join(tmp, planRel), planContent);
+    r = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: planRel } }, tmp);
+    equal(r.status, 0, `post-write blocked ship-plan.md: ${r.stderr}`);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
