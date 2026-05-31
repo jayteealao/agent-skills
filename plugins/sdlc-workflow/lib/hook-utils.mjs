@@ -53,6 +53,17 @@ export function isWorkflowMarkdownPath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/.+\.md$/.test(normalized);
 }
 
+// po-answers.md is the cumulative product-owner Q/A log: frontmatter-less prose
+// that stage references create and append to across a workflow's life. It has no
+// sdlc/v1 schema type and is NOT a validated artifact, so every enforcement point
+// must exempt it — the pre-write filename + frontmatter gates AND the post-write
+// schema verifier. Centralised here so the carve-out can't drift between the two
+// hooks (that exact drift shipped a broken post-write check in 9.34.1).
+export function isProseLogPath(filePath) {
+  const normalized = normalizePathForMatch(filePath);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/po-answers\.md$/.test(normalized);
+}
+
 export function isProjectContextMarkdownPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return (

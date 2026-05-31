@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `po-answers.md` post-write schema check + centralised exemption (9.34.2)
+
+9.34.1 relaxed the *pre*-write hook so `po-answers.md` could be created — but the
+PostToolUse verifier
+([hooks/post-write-verify.mjs](hooks/post-write-verify.mjs)) still
+schema-validated the written file against sdlc/v1 and rejected it (there is no
+`po-answers` type). Net effect: the write went through, then a second hook
+failed it. The prose-log exemption had only reached one of the two write hooks.
+
+The "is this the product-owner prose log?" test is now a single shared
+predicate — `isProseLogPath` in [lib/hook-utils.mjs](lib/hook-utils.mjs) —
+consumed by **both** the pre-write validator and the post-write verifier, so the
+carve-out can no longer drift between them (that drift was the 9.34.1 bug). The
+exemption is mirrored in both shell parity twins
+([validate-workflow-write.sh](hooks/scripts/validate-workflow-write.sh),
+[verify-workflow-postwrite.sh](hooks/scripts/verify-workflow-postwrite.sh)) and
+in [tests/verify_frontmatter.py](tests/verify_frontmatter.py) — which previously
+also rejected a frontmatter-less `po-answers.md` on its "no YAML frontmatter"
+check. A regression test asserts the post-write verifier skips `po-answers.md`
+even when stray frontmatter is present.
+
 ### Fixed — `po-answers.md` write-validation regression (9.34.1)
 
 The `PreToolUse` write-validate hook

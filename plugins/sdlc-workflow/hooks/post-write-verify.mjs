@@ -24,6 +24,7 @@ import {
   hasFrontmatterFence,
   isManagedArtifactMarkdownPath,
   isProjectContextMarkdownPath,
+  isProseLogPath,
   projectRootFromInput,
   readTextIfExists,
   resolveProjectPath,
@@ -49,6 +50,9 @@ async function main() {
 
   const failures = [];
   for (const path of paths) {
+    // po-answers.md is a frontmatter-less prose log with no sdlc/v1 type —
+    // never schema-validate it (mirrors the pre-write-validate carve-out).
+    if (isProseLogPath(path.original)) continue;
     if (isProjectContextMarkdownPath(path.original)) {
       const text = await readTextIfExists(path.absolute);
       if (!hasFrontmatterFence(text)) continue;

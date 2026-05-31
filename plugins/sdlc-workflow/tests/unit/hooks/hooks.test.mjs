@@ -218,6 +218,31 @@ test('post-write-verify validates written workflow artifacts with Ajv', () => {
   }
 });
 
+test('post-write-verify skips po-answers.md prose log instead of schema-validating it', () => {
+  const tmp = tempDir();
+  try {
+    // po-answers.md has no sdlc/v1 schema type. The `type: po-answers` below
+    // would fail Ajv if validated — the hook must skip the prose log entirely
+    // (path-based exemption, matching pre-write-validate).
+    const poLog = join(tmp, '.ai', 'workflows', 'demo', 'po-answers.md');
+    writeFile(poLog, md(
+      { schema: 'sdlc/v1', type: 'po-answers', slug: 'demo' },
+      '# Product Owner Answers\n\n## 2026-05-31 — 01-intake\n\n**Q:** Branch?\n**A:** Shared.\n',
+    ));
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/po-answers.md' },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('project context hooks allow plain markdown and validate typed frontmatter when present', () => {
   const tmp = tempDir();
   try {

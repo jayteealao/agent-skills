@@ -40,6 +40,13 @@ case "$FILE_PATH" in
   *) exit 0 ;;
 esac
 
+# po-answers.md is the frontmatter-less product-owner prose log — no sdlc/v1
+# schema type, never deep-validated (mirrors post-write-verify.mjs and the
+# verify_frontmatter.py carve-out).
+case "$FILE_PATH" in
+  */po-answers.md) exit 0 ;;
+esac
+
 # File must exist on disk — PostToolUse fires after the write, but if
 # the path was relative or the previous step failed we may not find it.
 [ -f "$FILE_PATH" ] || exit 0

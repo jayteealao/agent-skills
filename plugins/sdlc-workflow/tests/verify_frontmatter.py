@@ -242,6 +242,10 @@ def _minimal_validate(data: Any, file_path: Path) -> list[Issue]:
 
 
 def validate_file(file_path: Path, schema: dict[str, Any]) -> FileResult:
+    # po-answers.md is the frontmatter-less product-owner prose log — no sdlc/v1
+    # schema type, not a validated artifact (mirrors the JS/shell hook carve-outs).
+    if file_path.name == "po-answers.md":
+        return FileResult(file_path, [], None)
     try:
         text = file_path.read_text(encoding="utf-8")
     except OSError as exc:

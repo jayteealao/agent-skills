@@ -22,6 +22,7 @@ import {
   formatList,
   hasFrontmatterFence,
   isProjectContextMarkdownPath,
+  isProseLogPath,
   isWorkflowMarkdownPath,
   outputSystemMessage,
   projectContextPathInfo,
@@ -83,13 +84,9 @@ async function main() {
 
   const filename = basename(info.filename);
   const errors = [];
-  // po-answers.md is the cumulative product-owner Q/A log: a human-readable
-  // prose file that stage references (intake/shape/plan/ship/…) create and
-  // append to across the workflow's life. By design it carries NO frontmatter
-  // and has no schema type, so it is exempt from BOTH the NN-stagename filename
-  // convention and the frontmatter requirement — mirroring the carve-out in
-  // tests/verify_frontmatter.py, which skips it for the same reason.
-  const isProseLog = filename === 'po-answers.md';
+  // po-answers.md is the frontmatter-less product-owner prose log — exempt from
+  // both the filename convention and the frontmatter requirement. See isProseLogPath.
+  const isProseLog = isProseLogPath(filePath);
   // design-notes/ holds per-sub-command transformation artifacts whose
   // names (animate-<ts>.md, extract.md, etc.) deliberately skip the
   // NN-stagename convention. Mirrors the Python validator's carve-out at
