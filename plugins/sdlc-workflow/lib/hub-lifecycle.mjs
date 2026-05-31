@@ -7,6 +7,7 @@
 // #6). See MULTI-REPO-REGISTRY-PLAN §4.5.
 
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
 
@@ -15,6 +16,15 @@ import { isPidAlive, pidFileStatus, removePidFile, writePidFile } from './pid-fi
 import { hubPidPath, sdlcHomeDir } from './registry.mjs';
 import { readHubConfig, hubConfigHash } from './hub-config.mjs';
 import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
+
+// Version of the SUPERVISING code (this installed plugin). A running hub reports
+// its own version in /__sdlc/health; a mismatch means a stale hub from a prior
+// install is still up, so we reap it and start the current one — making a new
+// install deterministically pick up new server code.
+const PLUGIN_VERSION = (() => {
+  try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version ?? ''; }
+  catch { return ''; }
+})();
 
 // Re-export so callers have one import for the hub's pid-file location (the plan
 // lists hubPidPath as part of this module's API; the path itself is defined in
@@ -37,19 +47,30 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
     return { action: 'refused-host' };
   }
 
-  if (status.alive) {
-    const healthy = await waitForHealth({ host, port, timeoutMs: 600 });
-    if (healthy) {
+  // Probe whatever is actually answering on the hub port — version- and
+  // identity-aware — independent of the pid file. One check resolves four cases:
+  //   • current hub, tracked   → adopt (already-running)
+  //   • stale version          → reap + respawn  (deterministic new-install pickup)
+  //   • current hub, untracked → reap + respawn  (heal an orphaned pid file)
+  //   • non-hub squatter       → reap + respawn  (evict a per-repo daemon on 4173)
+  const id = await probeHubIdentity({ host, port, timeoutMs: status.alive ? 700 : 350 });
+  if (id) {
+    const tracked = status.alive && status.record?.pid === id.pid;
+    if (id.isHub && id.version === PLUGIN_VERSION && tracked) {
       log(`[hub] already running at http://${displayHost(host)}:${port}`);
       maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
-      return { action: 'already-running', pid: status.record.pid };
+      return { action: 'already-running', pid: id.pid };
     }
-    // isPidAlive can be true for a reused PID on Windows (EPERM-as-alive); a
-    // failed health probe means the real hub is gone → kill, remove, respawn.
-    stopPid(status.record.pid, log);
+    const why = !id.isHub ? 'non-hub process on hub port'
+      : id.version !== PLUGIN_VERSION ? `stale hub v${id.version || '?'} → v${PLUGIN_VERSION}`
+      : 'untracked hub (orphaned pid file)';
+    if (id.pid) stopPid(id.pid, log);
     await removePidFile(pidPath);
-    log(`[hub] stopped unhealthy hub pid ${status.record.pid}`);
-  } else if (status.stale) {
+    // Wait for the port to actually free so the respawn doesn't hit EADDRINUSE.
+    await waitForGone({ host, port, timeoutMs: 2000 });
+    log(`[hub] reaped ${why} (pid ${id.pid ?? '?'})`);
+  } else if (status.record) {
+    // Nothing answering — clear a stale/dead pid file before respawn.
     await removePidFile(pidPath);
     log(`[hub] removed stale pid file for pid ${status.record?.pid}`);
   }
@@ -145,6 +166,57 @@ function probeHealth({ host, port, timeoutMs }) {
     req.on('timeout', () => { req.destroy(); resolve(false); });
     req.on('error', () => resolve(false));
     req.end();
+  });
+}
+
+// Like probeHealth but parses the body for identity: { pid, version, isHub }.
+// `isHub` (presence of the entries[] array) distinguishes the hub from a
+// per-repo daemon that grabbed the port. Returns null when nothing healthy
+// answers or the body can't be parsed.
+function probeHubIdentity({ host, port, timeoutMs }) {
+  const probeHost = host === '0.0.0.0' ? '127.0.0.1' : host;
+  return new Promise((resolve) => {
+    const req = request({
+      hostname: probeHost,
+      port,
+      path: '/__sdlc/health',
+      method: 'GET',
+      timeout: timeoutMs,
+    }, (res) => {
+      if (res.statusCode !== 200) { res.resume(); resolve(null); return; }
+      let buf = '';
+      res.setEncoding('utf-8');
+      res.on('data', (c) => { if (buf.length < 65536) buf += c; });
+      res.on('end', () => {
+        try {
+          const body = JSON.parse(buf);
+          resolve({
+            pid: Number.isInteger(body.pid) ? body.pid : null,
+            version: typeof body.version === 'string' ? body.version : '',
+            isHub: Array.isArray(body.entries),
+          });
+        } catch { resolve(null); }
+      });
+    });
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
+    req.end();
+  });
+}
+
+// Poll until nothing answers on the port (a reaped process released it) or the
+// timeout elapses — so the respawn doesn't race the dying process for the port.
+function waitForGone({ host, port, timeoutMs }) {
+  const started = Date.now();
+  return new Promise((resolve) => {
+    const tick = () => {
+      probeHealth({ host, port, timeoutMs: 200 }).then((up) => {
+        if (!up) return resolve(true);
+        if (Date.now() - started >= timeoutMs) return resolve(false);
+        setTimeout(tick, 120);
+      });
+    };
+    tick();
   });
 }
 

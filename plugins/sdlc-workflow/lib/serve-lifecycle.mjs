@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import { spawnDetachedNode } from './detach.mjs';
@@ -5,6 +6,14 @@ import { isPidAlive, pidFileStatus, readPidFile, removePidFile, writePidFile } f
 import { maybeConfigureTailscale } from './tailscale.mjs';
 import { hubPidPath } from './registry.mjs';
 import { readHubConfig } from './hub-config.mjs';
+
+// Version of the supervising code; a running per-repo daemon reporting a
+// different version in /__sdlc/health is stale, so we reap it and respawn — a
+// new install deterministically replaces the old daemon's code.
+const PLUGIN_VERSION = (() => {
+  try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version ?? ''; }
+  catch { return ''; }
+})();
 
 export function servePidPath(projectRoot) {
   return join(projectRoot, '.ai', '_view', '.serve.pid');
@@ -85,15 +94,18 @@ export async function ensureServeLifecycle({
   }
 
   if (status.alive) {
-    const healthy = await waitForHealth({ host, port, timeoutMs: 600 });
-    if (healthy) {
+    const id = await probeServeIdentity({ host, port, timeoutMs: 600 });
+    if (id && id.version === PLUGIN_VERSION) {
       log(`[serve] already running at http://${displayHost(host)}:${port}`);
       maybeConfigureTailscale({ tailscale: serve.tailscale, port, log });
       return { action: 'already-running', pid: status.record.pid };
     }
+    // Stale version (reap to pick up new install) or unhealthy (gone) → respawn.
     stopPid(status.record.pid, log);
     await removePidFile(pidPath);
-    log(`[serve] stopped unhealthy daemon pid ${status.record.pid}`);
+    log(id
+      ? `[serve] reaped stale daemon v${id.version || '?'} → v${PLUGIN_VERSION} (pid ${status.record.pid})`
+      : `[serve] stopped unhealthy daemon pid ${status.record.pid}`);
   } else if (status.stale) {
     await removePidFile(pidPath);
     log(`[serve] removed stale pid file for pid ${status.record?.pid}`);
@@ -181,6 +193,38 @@ function probeHealth({ host, port, timeoutMs }) {
       resolve(false);
     });
     req.on('error', () => resolve(false));
+    req.end();
+  });
+}
+
+// Like probeHealth but parses the daemon's reported version (for stale-version
+// reaping). Returns { pid, version } or null when nothing healthy answers.
+function probeServeIdentity({ host, port, timeoutMs }) {
+  const probeHost = host === '0.0.0.0' ? '127.0.0.1' : host;
+  return new Promise((resolve) => {
+    const req = request({
+      hostname: probeHost,
+      port,
+      path: '/__sdlc/health',
+      method: 'GET',
+      timeout: timeoutMs,
+    }, (res) => {
+      if (res.statusCode !== 200) { res.resume(); resolve(null); return; }
+      let buf = '';
+      res.setEncoding('utf-8');
+      res.on('data', (c) => { if (buf.length < 65536) buf += c; });
+      res.on('end', () => {
+        try {
+          const body = JSON.parse(buf);
+          resolve({
+            pid: Number.isInteger(body.pid) ? body.pid : null,
+            version: typeof body.version === 'string' ? body.version : '',
+          });
+        } catch { resolve(null); }
+      });
+    });
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
     req.end();
   });
 }

@@ -80,6 +80,7 @@ export function render(artifact, ctx) {
   const proseHtml = artifact.body ? md2html(artifact.body) : '';
   const stagesGridHtml = stagesGrid(current, ctx.allArtifacts);
   const slicesHtml = slicesPreview(ctx.allArtifacts);
+  const plansHtml = plansPreview(ctx.allArtifacts);
 
   const bodyHtml = `
     ${figureHtml}
@@ -96,6 +97,7 @@ export function render(artifact, ctx) {
     ${proseHtml ? `<section class="so-prose"><div class="prose">${proseHtml}</div></section>` : ''}
     ${stagesGridHtml}
     ${slicesHtml}
+    ${plansHtml}
     ${renderHistoryBlock(artifact.history)}
   `;
 
@@ -343,6 +345,32 @@ function slicesPreview(allArtifacts) {
   }).join('');
   return `<section class="slug-slices">
     <h2 class="sdlc-h2">slices · ${slices.length}</h2>
+    <div class="slice-grid">${cards}</div>
+  </section>`;
+}
+
+/**
+ * Surface per-slice plans inline, mirroring slicesPreview, so a specific slice's
+ * plan is one click from the slug overview — at parity with slices. Without
+ * this the only path into a per-slice plan is slug → plan/ → grid (one hop
+ * deeper than slices). Links resolve to `plan/<slice>/INDEX.html` (the rendered
+ * per-slice plan page), NOT the raw `04-plan-<slice>.md` source.
+ */
+function plansPreview(allArtifacts) {
+  const plans = (allArtifacts?.plan ?? []).filter((p) => (p.frontmatter?.['slice-slug'] ?? p.frontmatter?.slug));
+  if (!plans.length) return '';
+  const cards = plans.map((p) => {
+    const fm = p.frontmatter ?? {};
+    const slug = fm['slice-slug'] ?? fm.slug ?? '';
+    const tone = sliceTone(fm.status);
+    return `<a class="slice-card ${tone}" href="${escapeHtml(pageHref(`plan/${slug}`))}">
+      <span class="slice-slug"><code>${escapeHtml(slug)}</code></span>
+      <span class="slice-title">${escapeHtml(fm.title ?? '')}</span>
+      <span class="slice-status">${statusBadge(fm.status)}</span>
+    </a>`;
+  }).join('');
+  return `<section class="slug-plans">
+    <h2 class="sdlc-h2">slice plans · ${plans.length}</h2>
     <div class="slice-grid">${cards}</div>
   </section>`;
 }

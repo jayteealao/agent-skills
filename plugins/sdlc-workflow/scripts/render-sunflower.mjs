@@ -33,7 +33,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadArtifact } from '../renderers/_yaml.mjs';
 import { validateFrontmatter, renderWarnBanner } from '../renderers/_validator.mjs';
 import { resolveViewPath, siblingPaths, breadcrumbFromView } from '../renderers/_paths.mjs';
-import { buildPathMap } from '../renderers/_link-graph.mjs';
+import { buildPathMap, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
 import { workSetFilter } from '../renderers/_mtime.mjs';
 import { loadHistory } from '../renderers/_history.mjs';
 import { renderShell } from '../renderers/_shell.mjs';
@@ -573,6 +573,15 @@ async function renderMain(args) {
       console.warn(`[render] ${a.storageRel}: ${err.stack ?? err.message}`);
       result = fallbackRender({ ...a, type, path: a.storageRel }, ctx);
     }
+
+    // Rewrite inline body links that reference sibling source `.md` files to
+    // their rendered view pages (e.g. a plan summary's prose → plan/<slice>/).
+    // Central pass so every renderer benefits, not just the ones that opt in.
+    result.bodyHtml = rewriteBodyLinks(result.bodyHtml ?? '', {
+      pathMap: pathMaps.get(a.slug),
+      fromStorageRel: a.storageRel,
+      fromViewRel: a.viewRel,
+    });
 
     const breadcrumbs = breadcrumbFromView(a.viewRel, displaySlug);
     const html = renderShell({

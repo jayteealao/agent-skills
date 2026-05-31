@@ -504,6 +504,9 @@ test('hub: /__sdlc/health reports entries + metrics', async () => {
     equal(health.entries.length, 1);
     ok(typeof health.metrics.rssBytes === 'number');
     ok(typeof health.uptimeMs === 'number');
+    // Version stamp + the hub-vs-per-repo marker the supervisor reaps on.
+    ok(typeof health.version === 'string', 'health carries a version string');
+    ok(Array.isArray(health.entries), 'entries[] present = the isHub marker');
   } finally {
     await closeServer(server);
   }

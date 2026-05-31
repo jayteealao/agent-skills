@@ -17,7 +17,8 @@ import { splitFrontmatter, mergeFrontmatter } from '../renderers/_yaml.mjs';
 import { md2html, mdInline } from '../renderers/_markdown.mjs';
 import { renderShell, statusBadge, stageBadge, metricRow } from '../renderers/_shell.mjs';
 import { validateFrontmatter } from '../renderers/_validator.mjs';
-import { buildPathMap, relativeBetween } from '../renderers/_link-graph.mjs';
+import { buildPathMap, relativeBetween, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
+import { render as renderSlugIndex } from '../renderers/index.mjs';
 import { isDirty, workSetFilter, maxMtime } from '../renderers/_mtime.mjs';
 import { severityChip, verdictBlock, findingListItem } from '../renderers/_icons.mjs';
 import { figureCanvas, evenX } from '../renderers/_figure.mjs';
@@ -194,6 +195,29 @@ test('buildPathMap: maps storage → view per slug', () => {
 test('relativeBetween: computes correct up/down hops', () => {
   const r = relativeBetween('plan/auth/INDEX.html', 'review/INDEX.html');
   strictEqual(r, '../../review/INDEX.html');
+});
+
+test('rewriteBodyLinks: sibling .md prose links resolve to rendered pages, others untouched', () => {
+  const pathMap = new Map([
+    ['04-plan.md', 'plan/INDEX.html'],
+    ['04-plan-behaviors.md', 'plan/behaviors/INDEX.html'],
+  ]);
+  const html = '<a href="04-plan-behaviors.md#x">b</a> <a href="https://e/a.md">x</a> <a href="04-plan-gone.md">g</a>';
+  const out = rewriteBodyLinks(html, { pathMap, fromStorageRel: '04-plan.md', fromViewRel: 'plan/INDEX.html' });
+  match(out, /href="behaviors\/INDEX\.html#x"/);     // rewritten to rendered page, hash preserved
+  match(out, /href="https:\/\/e\/a\.md"/);            // external left alone
+  match(out, /href="04-plan-gone\.md"/);              // unknown target → not broken further
+});
+
+test('slug overview: surfaces per-slice plans inline at parity with slices', () => {
+  const ctx = { slug: 'demo', allArtifacts: { plan: [
+    { frontmatter: { type: 'plan', 'slice-slug': 'behaviors', title: 'Behaviors plan', status: 'active' } },
+    { frontmatter: { type: 'plan', 'slice-slug': 'tokens', title: 'Tokens plan', status: 'complete' } },
+  ] } };
+  const { bodyHtml } = renderSlugIndex({ frontmatter: { slug: 'demo', 'current-stage': 'plan' }, body: '' }, ctx);
+  match(bodyHtml, /slice plans · 2/);
+  match(bodyHtml, /href="plan\/behaviors\/INDEX\.html"/);
+  match(bodyHtml, /href="plan\/tokens\/INDEX\.html"/);
 });
 
 /* ── _mtime ────────────────────────────────────────────────────────── */

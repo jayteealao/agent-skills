@@ -17,6 +17,14 @@ import { resolveRequestPath as resolveInView } from '../lib/resolve-request-path
 
 const __filename = fileURLToPath(import.meta.url);
 
+// Plugin version of THIS running daemon, surfaced in /__sdlc/health so the
+// supervisor (ensureServeLifecycle) can reap a stale daemon and let a new
+// install take over deterministically.
+const PLUGIN_VERSION = (() => {
+  try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version ?? ''; }
+  catch { return ''; }
+})();
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -171,6 +179,8 @@ function healthPayload(root, configHash) {
   return {
     status: 'ok',
     ok: true,
+    pid: process.pid,
+    version: PLUGIN_VERSION,
     configHash,
     renderedAt: lastRenderAt(root),
     slugs: renderedSlugs(root),

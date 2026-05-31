@@ -3,6 +3,8 @@
 // collects every artifact's view path; pass 2 rewrites refs: in each renderer
 // invocation. Broken refs render with `.broken-link` class.
 
+import { posix as path } from 'node:path';
+
 import { resolveViewPath } from './_paths.mjs';
 
 /**
@@ -69,6 +71,38 @@ export function relativeBetween(fromViewRel, toViewRel) {
   const up = '../'.repeat(fromParts.length - common);
   const down = toParts.slice(common).join('/');
   return up + down || './';
+}
+
+/**
+ * Rewrite inline markdown body links that point at sibling source `.md` files
+ * (e.g. a plan summary's prose linking `04-plan-behaviors.md`) to the rendered
+ * view page (`plan/behaviors/INDEX.html`), made relative to the current page.
+ *
+ * `md2html` does NOT rewrite links, and `resolveRefs` only covers structured
+ * `refs:` frontmatter — so without this, prose cross-references to siblings
+ * resolve to source `.md` paths that don't exist in the view (404). Conservative:
+ * only `<a>` hrefs ending in `.md` whose target is in the slug's pathMap are
+ * rewritten; external/absolute/unknown links pass through untouched, so this
+ * never INTRODUCES a broken link.
+ *
+ * @param {string} html — rendered body HTML
+ * @param {{ pathMap: Map<string,string>, fromStorageRel: string, fromViewRel: string }} ctx
+ */
+export function rewriteBodyLinks(html, { pathMap, fromStorageRel, fromViewRel } = {}) {
+  if (!html || !pathMap || !fromViewRel) return html;
+  const fromDir = path.dirname(String(fromStorageRel || ''));
+  return html.replace(/(<a\b[^>]*?\shref=")([^"]+)(")/gi, (full, pre, href, post) => {
+    const hashAt = href.indexOf('#');
+    const rawPath = hashAt >= 0 ? href.slice(0, hashAt) : href;
+    const hash    = hashAt >= 0 ? href.slice(hashAt) : '';
+    // Skip empties, pure anchors, absolute paths, and scheme URLs (http:, mailto:…).
+    if (!rawPath || rawPath.startsWith('#') || rawPath.startsWith('/') || /^[a-z][a-z0-9+.-]*:/i.test(rawPath)) return full;
+    if (!/\.md$/i.test(rawPath)) return full;
+    const targetStorage = path.join(fromDir, rawPath).replace(/^\.\//, '');
+    const targetView = pathMap.get(targetStorage) ?? pathMap.get(rawPath);
+    if (!targetView) return full;   // unknown target → leave as authored (no new breakage)
+    return `${pre}${relativeBetween(fromViewRel, targetView)}${hash}${post}`;
+  });
 }
 
 /**

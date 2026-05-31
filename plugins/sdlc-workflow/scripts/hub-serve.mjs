@@ -202,6 +202,10 @@ export function createHubServer({
       ok: true,
       status: 'ok',
       pid: process.pid,
+      // Plugin version of THIS running hub. The supervisor compares it to its own
+      // PLUGIN_VERSION and reaps a stale hub so a new install deterministically
+      // takes over (the `entries` array below is the hub-vs-per-repo marker).
+      version: PLUGIN_VERSION,
       uptimeMs: Date.now() - startedAt,
       configHash,
       entries: entries.map((e) => ({

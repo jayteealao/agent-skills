@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — version-aware server reaping → deterministic new-install pickup (9.37.0)
+
+Detached daemons survive plugin upgrades, so a new install used to keep serving
+the OLD code until the daemon happened to die (the v9.30.2 zombie that started
+this whole investigation). Now both servers stamp their plugin `version` (and the
+hub its `entries[]` hub-marker) into `/__sdlc/health`, and the supervisors compare
+it to their own `PLUGIN_VERSION`:
+
+- [ensureHubLifecycle](lib/hub-lifecycle.mjs) probes the port identity-aware
+  (`probeHubIdentity`) and resolves four cases in one check: **current + tracked**
+  → adopt; **stale version** → reap + respawn (new-install pickup); **current but
+  untracked** → reap + respawn (heals an orphaned `hub.pid`, the "hub won't
+  restart" bug); **non-hub squatter** (no `entries[]`) → evict (the original
+  wrong-page/403 bug). A `waitForGone` poll after the kill prevents an
+  EADDRINUSE respawn race.
+- [ensureServeLifecycle](lib/serve-lifecycle.mjs) reaps a per-repo daemon whose
+  reported version differs (`probeServeIdentity`).
+
+Verified live: a running hub with no version stamp was reaped and replaced
+(`reaped stale hub v? → v9.36.0`), then adopted unchanged on the next pass
+(`already running`), with the tailnet allowlist preserved across the swap.
+
+### Fixed — slug overview surfaces per-slice plans + dead `.md` body links rewritten (9.37.0)
+
+Two slug-navigation gaps. (1) The slug overview surfaced every *slice* inline
+(`slicesPreview`) but had no equivalent for plans, so a per-slice plan was one hop
+deeper than a slice; new `plansPreview` in [index.mjs](renderers/index.mjs) lists
+them at parity, linking the rendered `plan/<slice>/INDEX.html` pages. (2) `md2html`
+doesn't rewrite links and `resolveRefs` only covers `refs:` frontmatter, so prose
+body links to sibling sources (`04-plan-behaviors.md`) pointed at `.md` files
+absent from the view → 404. New `rewriteBodyLinks` in
+[_link-graph.mjs](renderers/_link-graph.mjs), applied centrally in the orchestrator
+([render-sunflower.mjs](scripts/render-sunflower.mjs)), rewrites internal `.md`
+body links to their rendered pages via the slug pathMap; unknown/external links
+pass through untouched (never introduces a broken link). +4 tests.
+
 ### Fixed — hub reachable over `tailscale serve` (durable tailnet Host allowlist) (9.36.0)
 
 `tailscale serve` proxies tailnet requests to the hub preserving the MagicDNS
