@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — hub reachable over `tailscale serve` (durable tailnet Host allowlist) (9.36.0)
+
+`tailscale serve` proxies tailnet requests to the hub preserving the MagicDNS
+`Host` (e.g. `dragon.taild1fa8.ts.net`), which the hub's localhost-only
+Host-header allowlist (DNS-rebinding defence) rejected with **403** — so the
+tailnet URL was unreachable in a browser even though `127.0.0.1:4173` returned
+200. The allowlist only relaxed via `--allow-all-hosts`, which
+[ensureHubLifecycle](lib/hub-lifecycle.mjs) passed *only* for a `0.0.0.0` bind;
+`serve` mode uses a `127.0.0.1` bind, so the flag never fired.
+
+**Fix.** New [tailscaleDnsName()](lib/tailscale.mjs) discovers this node's
+MagicDNS name (`tailscale status --json` → `Self.DNSName`); `ensureHubLifecycle`
+calls it whenever `tailscale.enabled` and passes the name via a new
+`--allowed-hosts` flag on [hub-serve.mjs](scripts/hub-serve.mjs). `hostAllowed`
+admits those names **on top of** the localhost allowlist — a targeted addition,
+**not** allow-all: any other foreign `Host` is still 403'd. Because discovery
+runs at every (re)start, tailnet reachability survives supervisor restarts with
+no hand-maintained config. Strictly safer than `--allow-all-hosts` (which admits
+*any* Host). Covered by 2 new tests in
+[tests/unit/lib/multi-repo-hub.test.mjs](tests/unit/lib/multi-repo-hub.test.mjs).
+
+### Added — machine-wide `perRepoServe` kill switch so the hub can be the sole server (9.36.0)
+
+A new `perRepoServe` field in `~/.sdlc/hub-config.json` (default `true`, prior
+behaviour preserved). When set to `false`, [ensureServeLifecycle](lib/serve-lifecycle.mjs)
+reaps any running per-repo daemon and refuses to spawn one — **overriding even a
+repo's force `view.serve.enabled: true`**, because the switch is a machine-level
+authority, not a per-repo preference. The hub already serves every registered
+repo at `/r/<id>/`, so a per-repo daemon is pure redundancy whenever the hub
+runs — and the only thing that can squat the hub's port 4173 and hide the
+multi-repo inbox behind one repo's dashboard.
+
+**Why.** A zombie pre-hub (v9.30.2) per-repo daemon was found holding 4173 while
+the hub was down; because both server types answer `GET /__sdlc/health` with
+`200`, the hub bootstrap couldn't tell them apart and the served root showed one
+repo's dashboard instead of the inbox. `perRepoServe: false` removes the entire
+class of failure for machines that run the hub as the single server. Default set
+in [hub-config.mjs](lib/hub-config.mjs) `HUB_CONFIG_DEFAULTS`; enforced before the
+hub guard so it fires even when no hub is currently alive. Covered by two new
+tests in [tests/unit/lib/multi-repo-hub.test.mjs](tests/unit/lib/multi-repo-hub.test.mjs)
+(default stays `true`; `false` declines to spawn despite `serve.enabled: true`).
+
 ### Added — registered wf-quick/wf-meta artifact types + prefix filenames; fixed announce/ship-plan/ship-runs-index/rca (9.35.0)
 
 The follow-up promised in 9.34.5. A fine-tooth-comb audit found that whole

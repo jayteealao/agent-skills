@@ -52,3 +52,35 @@ export function maybeConfigureTailscale({ tailscale = {}, port, log = () => {} }
     log(`[tailscale] ${mode} configured for ${target}`);
   }
 }
+
+/**
+ * Best-effort discovery of this node's Tailscale MagicDNS name — e.g.
+ * `dragon.taild1fa8.ts.net` — lowercased and stripped of the trailing dot.
+ * Returns null when Tailscale is unavailable or the name can't be read.
+ *
+ * The hub allowlists this single Host header so requests proxied in by
+ * `tailscale serve` (which preserve the original MagicDNS Host) pass the
+ * Host-header check WITHOUT disabling it for everything else. That keeps the
+ * DNS-rebinding defence intact: only the machine's own tailnet identity — a name
+ * resolvable solely by Tailscale's controlled MagicDNS, never by an attacker —
+ * is added, not a blanket allow-all.
+ */
+export function tailscaleDnsName({ log = () => {} } = {}) {
+  try {
+    const result = spawnSync('tailscale', ['status', '--json'], {
+      encoding: 'utf-8',
+      windowsHide: true,
+      timeout: 10000,
+    });
+    if (result.status !== 0 || !result.stdout) {
+      log(`[tailscale] could not read status for DNS name: ${(result.stderr || '').trim()}`);
+      return null;
+    }
+    const dns = JSON.parse(result.stdout)?.Self?.DNSName;
+    if (!dns) return null;
+    return String(dns).replace(/\.$/, '').toLowerCase() || null;
+  } catch (err) {
+    log(`[tailscale] DNS name lookup failed: ${err.message}`);
+    return null;
+  }
+}

@@ -25,6 +25,14 @@ export const HUB_CONFIG_DEFAULTS = Object.freeze({
   // The canonical SDLC URL in both single-repo and hub modes (Q4 resolved). The
   // per-repo daemon falls back to 4174 only when forced alongside a live hub.
   port: 4173,
+  // Machine-wide authority over per-repo daemons. When false, ensureServeLifecycle
+  // reaps any running per-repo daemon and never spawns one — overriding even a
+  // repo's force `view.serve.enabled:true`. The hub serves every repo at /r/<id>/,
+  // so a per-repo daemon is pure redundancy whenever the hub runs, and the only
+  // thing that can squat the hub's port (a pre-hub daemon on 4173 = the inbox
+  // disappears behind one repo's dashboard). Default true preserves prior
+  // behaviour; set false to make the hub the sole server on this machine.
+  perRepoServe: true,
   maxSseClients: 200,    // aggregate across repos; client-side filtering scopes per-repo
   maxWatchedRepos: 50,   // beyond this, poll instead of fs.watch
   tailscale: {

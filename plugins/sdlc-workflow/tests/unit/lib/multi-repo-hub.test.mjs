@@ -12,7 +12,7 @@ import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
 import { test } from 'node:test';
-import { equal, match, notEqual, ok } from 'node:assert/strict';
+import { deepEqual, equal, match, notEqual, ok } from 'node:assert/strict';
 
 import {
   computeEntryId,
@@ -27,10 +27,11 @@ import {
   mergeShardsIntoRegistry,
   SHARD_SOFT_CAP,
 } from '../../../lib/registry.mjs';
-import { createHubServer } from '../../../scripts/hub-serve.mjs';
+import { createHubServer, parseHubArgs } from '../../../scripts/hub-serve.mjs';
 import { renderHubLanding, inboxItems } from '../../../renderers/hub-dashboard.mjs';
 import { readHubConfig, hubConfigPath, HUB_CONFIG_DEFAULTS } from '../../../lib/hub-config.mjs';
 import { ensureHubLifecycle } from '../../../lib/hub-lifecycle.mjs';
+import { ensureServeLifecycle, servePidPath } from '../../../lib/serve-lifecycle.mjs';
 import { maybeConfigureTailscale } from '../../../lib/tailscale.mjs';
 import { validateConfig } from '../../../lib/config.mjs';
 
@@ -327,6 +328,29 @@ test('hub-config: created with defaults on first read; never shares per-repo fie
   equal(HUB_CONFIG_DEFAULTS.host, '127.0.0.1');
 });
 
+test('hub-config: perRepoServe defaults true (per-repo daemons allowed unless opted out)', () => {
+  setHome();
+  equal(HUB_CONFIG_DEFAULTS.perRepoServe, true, 'default preserves prior behaviour');
+  equal(readHubConfig().perRepoServe, true, 'sparse/first-read config inherits the default');
+});
+
+test('serve-lifecycle: perRepoServe:false declines to spawn even when the repo forces serve.enabled:true', async () => {
+  const home = setHome();
+  // Machine-wide kill switch on.
+  writeFileSync(hubConfigPath(), JSON.stringify({ ...HUB_CONFIG_DEFAULTS, perRepoServe: false }, null, 2));
+  const projectRoot = tmp('sdlc-norepo-');
+
+  const result = await ensureServeLifecycle({
+    projectRoot,
+    pluginRoot: '/nonexistent',   // never used — the switch returns before any spawn
+    config: { view: { serve: { enabled: true, port: 4173 } } },   // repo TRIES to force a daemon
+    log: () => {},
+  });
+
+  equal(result.action, 'per-repo-disabled', 'the machine switch overrides the repo force-enable');
+  ok(!existsSync(servePidPath(projectRoot)), 'no per-repo daemon pid file was written (nothing spawned)');
+});
+
 /* ───────────────────────── hub serving (§4.1, §4.2) ───────────────────────── */
 
 test('hub: serves a registered repo at /r/<id>/ with CSP, assets, and id meta tag', async () => {
@@ -383,6 +407,25 @@ test('hub: Host-header allowlist rejects cross-origin / DNS-rebinding (invariant
   } finally {
     await closeServer(server);
   }
+});
+
+test('hub: --allowed-hosts admits the tailnet MagicDNS Host without surrendering the allowlist', async () => {
+  setHome();
+  // Case-mixed on purpose — the extra host set is normalised to lowercase.
+  const server = createHubServer({ token: 'tok', liveReload: false, allowedHosts: ['Dragon.taild1fa8.ts.net'] });
+  const port = await listen(server);
+  try {
+    equal((await httpReq(port, '/__sdlc/health', { host: 'dragon.taild1fa8.ts.net' })).status, 200, 'allowlisted tailnet Host admitted');
+    equal((await httpReq(port, '/__sdlc/health')).status, 200, 'localhost still allowed');
+    equal((await httpReq(port, '/__sdlc/health', { host: 'evil.example.com' })).status, 403, 'other foreign Host still rejected — allowlist not surrendered');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('hub: parseHubArgs parses --allowed-hosts into a trimmed, comma-split list', () => {
+  deepEqual(parseHubArgs(['--allowed-hosts', ' a.ts.net , b.ts.net ']).allowedHosts, ['a.ts.net', 'b.ts.net']);
+  deepEqual(parseHubArgs([]).allowedHosts, [], 'absent flag → empty list (localhost-only)');
 });
 
 test('hub: POST upsert is token-gated and validates the entry (invariants #5/#6)', async () => {

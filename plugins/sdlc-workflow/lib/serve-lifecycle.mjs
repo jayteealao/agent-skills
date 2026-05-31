@@ -4,6 +4,7 @@ import { spawnDetachedNode } from './detach.mjs';
 import { isPidAlive, pidFileStatus, readPidFile, removePidFile, writePidFile } from './pid-file.mjs';
 import { maybeConfigureTailscale } from './tailscale.mjs';
 import { hubPidPath } from './registry.mjs';
+import { readHubConfig } from './hub-config.mjs';
 
 export function servePidPath(projectRoot) {
   return join(projectRoot, '.ai', '_view', '.serve.pid');
@@ -20,6 +21,25 @@ export async function ensureServeLifecycle({
   const serve = config?.view?.serve ?? {};
   const pidPath = servePidPath(projectRoot);
   const status = await pidFileStatus(pidPath);
+
+  // Machine-wide kill switch (§4.5 hardening): when hub-config sets
+  // `perRepoServe:false`, per-repo daemons are disabled for the whole machine.
+  // This OVERRIDES a repo's force `view.serve.enabled:true` — the switch is a
+  // machine-level authority, not a per-repo preference — because a per-repo
+  // daemon is the only thing that can squat the hub's port and hide the
+  // multi-repo inbox behind one repo's dashboard. Reap any running daemon and
+  // decline to spawn; the hub serves this repo at /r/<id>/. Checked BEFORE the
+  // hub guard so it fires even when no hub is currently alive.
+  if (readHubConfig({ create: false }).perRepoServe === false) {
+    if (status.alive) {
+      stopPid(status.record.pid, log);
+      log(`[serve] per-repo daemons disabled machine-wide (hub-config.perRepoServe:false) — reaped pid ${status.record.pid}`);
+    } else {
+      log('[serve] per-repo daemons disabled machine-wide (hub-config.perRepoServe:false) — the hub serves this repo at /r/<id>/');
+    }
+    if (status.record) await removePidFile(pidPath);
+    return { action: 'per-repo-disabled' };
+  }
 
   // Hub guard (§4.5): when a machine-wide hub is alive and the user has NOT
   // explicitly opted into a direct per-repo daemon (view.serve.enabled:true),

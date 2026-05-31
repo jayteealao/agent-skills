@@ -14,7 +14,7 @@ import { spawnDetachedNode } from './detach.mjs';
 import { isPidAlive, pidFileStatus, removePidFile, writePidFile } from './pid-file.mjs';
 import { hubPidPath, sdlcHomeDir } from './registry.mjs';
 import { readHubConfig, hubConfigHash } from './hub-config.mjs';
-import { maybeConfigureTailscale } from './tailscale.mjs';
+import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
 
 // Re-export so callers have one import for the hub's pid-file location (the plan
 // lists hubPidPath as part of this module's API; the path itself is defined in
@@ -57,15 +57,26 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
   const token = randomBytes(24).toString('hex');
   const cfgHash = hubConfigHash(cfg);
   const script = join(pluginRoot, 'scripts', 'hub-serve.mjs');
-  const child = spawnDetachedNode(script, [
+  const childArgs = [
     '--host', host,
     '--port', String(port),
     '--pid-file', pidPath,
     '--config-hash', cfgHash,
     '--max-sse-clients', String(cfg.maxSseClients ?? 200),
     '--max-watched-repos', String(cfg.maxWatchedRepos ?? 50),
-    host === '0.0.0.0' && cfg.tailscale?.enabled === true ? '--allow-all-hosts' : '',
-  ].filter(Boolean), {
+  ];
+  if (host === '0.0.0.0' && cfg.tailscale?.enabled === true) childArgs.push('--allow-all-hosts');
+  // Durable tailnet reachability: `tailscale serve` proxies requests in with the
+  // MagicDNS Host, which the localhost-only allowlist would 403. Discover this
+  // node's tailnet name at start and allowlist JUST it — so every supervisor
+  // (re)start keeps the tailnet URL reachable WITHOUT disabling the Host check.
+  // Skipped for the 0.0.0.0/allow-all path (already permissive) and when the
+  // name can't be read (Tailscale down → localhost-only, as before).
+  if (host !== '0.0.0.0' && cfg.tailscale?.enabled === true) {
+    const dns = tailscaleDnsName({ log });
+    if (dns) { childArgs.push('--allowed-hosts', dns); log(`[hub] allowlisting tailnet host ${dns}`); }
+  }
+  const child = spawnDetachedNode(script, childArgs, {
     cwd: sdlcHomeDir(),
     // Token via env (not argv) so it isn't visible in process listings.
     env: { ...process.env, SDLC_HUB_TOKEN: token },

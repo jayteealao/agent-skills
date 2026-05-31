@@ -70,6 +70,7 @@ export function parseHubArgs(argv) {
     maxSseClients: 200,
     maxWatchedRepos: 50,
     allowAllHosts: false,
+    allowedHosts: [],
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -82,6 +83,9 @@ export function parseHubArgs(argv) {
     else if (a === '--no-live-reload') args.liveReload = false;
     else if (a === '--live-reload') args.liveReload = true;
     else if (a === '--allow-all-hosts') args.allowAllHosts = true;
+    // Comma-separated extra Host names to admit (e.g. the tailnet MagicDNS name)
+    // ON TOP OF the localhost allowlist — a targeted relaxation, not allow-all.
+    else if (a === '--allowed-hosts') args.allowedHosts = String(argv[++i] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   }
   return args;
 }
@@ -96,14 +100,17 @@ function hostnameOf(hostHeader) {
   return h.split(':')[0].toLowerCase();
 }
 
-function hostAllowed(req, allowAllHosts) {
+function hostAllowed(req, allowAllHosts, extraHosts) {
   // When bound for public (Tailscale) access the user has explicitly
   // acknowledged exposure (machine-wide acknowledgedPublic), and legitimate
   // traffic arrives with a non-localhost Host — so the allowlist is relaxed and
   // the write token remains the protection. In the default localhost mode the
   // allowlist is the DNS-rebinding defence.
   if (allowAllHosts) return true;
-  return ALLOWED_HOSTNAMES.has(hostnameOf(req.headers.host));
+  const h = hostnameOf(req.headers.host);
+  // extraHosts holds targeted additions (e.g. the tailnet MagicDNS name) so
+  // `tailscale serve` works without surrendering the allowlist for everything.
+  return ALLOWED_HOSTNAMES.has(h) || (extraHosts != null && extraHosts.has(h));
 }
 
 /* ───────────────────────── server ───────────────────────── */
@@ -117,8 +124,12 @@ export function createHubServer({
   maxSseClients = 200,
   maxWatchedRepos = 50,
   allowAllHosts = false,
+  allowedHosts = [],
 } = {}) {
   const startedAt = Date.now();
+  // Targeted Host-allowlist additions (e.g. the tailnet MagicDNS name), normalised
+  // to lowercase. Consulted by hostAllowed ON TOP OF the localhost allowlist.
+  const extraHosts = new Set((allowedHosts || []).map((h) => String(h).toLowerCase()).filter(Boolean));
   const clients = new Set();
   const metrics = { requests: 0, perRepoLastServed: {} };
   const watchers = new Map();   // id → fs watcher (Phase 3)
@@ -383,7 +394,7 @@ export function createHubServer({
     metrics.requests++;
 
     // Global gate (all routes): defeat DNS-rebinding (invariant #6).
-    if (!hostAllowed(req, allowAllHosts)) { res.writeHead(403).end('forbidden host'); return; }
+    if (!hostAllowed(req, allowAllHosts, extraHosts)) { res.writeHead(403).end('forbidden host'); return; }
 
     let url;
     try { url = new URL(req.url ?? '/', 'http://sdlc.hub'); }
