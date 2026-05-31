@@ -114,11 +114,34 @@ function stageArtifacts(stage, allArtifacts) {
   return { count: list.length, latest: dates[dates.length - 1] ?? '' };
 }
 
-function stationAnnotation(stage, count) {
-  if (stage === 'slice')  return `${count} slice${count === 1 ? '' : 's'}`;
-  if (stage === 'review') return `${count} review${count === 1 ? '' : 's'}`;
-  if (stage === 'ship')   return `${count} run${count === 1 ? '' : 's'}`;
-  return `${count} artifact${count === 1 ? '' : 's'}`;
+const SLICE_DONE = new Set(['complete', 'completed', 'done', 'shipped']);
+
+// Semantic per-stage caption under each station (D4.6): plan → revisions,
+// implement → done/total slices, verify → tests passed; the rest keep a plain
+// artifact count. Every richer branch falls back to the generic count when its
+// signal isn't present, so a sparse workflow never shows a misleading 0.
+function stationAnnotation(stage, count, allArtifacts = {}, fm = {}) {
+  const generic = `${count} artifact${count === 1 ? '' : 's'}`;
+  switch (stage) {
+    case 'slice':  return `${count} slice${count === 1 ? '' : 's'}`;
+    case 'review': return `${count} review${count === 1 ? '' : 's'}`;
+    case 'ship':   return `${count} run${count === 1 ? '' : 's'}`;
+    case 'implement': {
+      const slices = allArtifacts.slice ?? [];
+      if (!slices.length) return generic;
+      const done = slices.filter((s) => SLICE_DONE.has(String(s.frontmatter?.status ?? '').toLowerCase())).length;
+      return `${done}/${slices.length} slices`;
+    }
+    case 'verify': {
+      const tests = fm['tests-passed'] ?? fm['metric-tests'] ?? fm['tests-total'];
+      return (tests != null && tests !== '') ? `${tests} ✓` : generic;
+    }
+    case 'plan': {
+      const revs = (allArtifacts.plan ?? []).reduce((n, a) => n + (Number(a.frontmatter?.['revision-count']) || 0), 0);
+      return revs > 0 ? `${revs} revision${revs === 1 ? '' : 's'}` : generic;
+    }
+    default: return generic;
+  }
 }
 
 function stageStripeSvg({ current, allArtifacts, fm = {} }) {
@@ -149,13 +172,15 @@ function stageStripeSvg({ current, allArtifacts, fm = {} }) {
         ? `<circle cx="${x}" cy="${cy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`
         : `<circle cx="${x}" cy="${cy}" r="7" fill="${fill}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="2.5 2"/>`;
 
+    // Design stacks the current-station marker ABOVE its date (date sits ~28px
+    // off the rail for every station; "you are here" rises a line higher) — D4.5.
     const date  = latest
-      ? `<text x="${x}" y="${cy - 44}" text-anchor="middle" font-size="9" fill="#8a8377" font-family="ui-monospace, monospace">${escapeHtml(String(latest).slice(5, 10))}</text>`
+      ? `<text x="${x}" y="${cy - 28}" text-anchor="middle" font-size="9" fill="#8a8377" font-family="ui-monospace, monospace">${escapeHtml(String(latest).slice(5, 10))}</text>`
       : '';
-    const youHere = isCur ? `<text x="${x}" y="${cy - 30}" text-anchor="middle" font-size="10" fill="#4a6c8c" font-style="italic">you are here</text>` : '';
+    const youHere = isCur ? `<text x="${x}" y="${cy - 44}" text-anchor="middle" font-size="10" fill="#4a6c8c" font-style="italic">you are here</text>` : '';
     const label = `<text x="${x}" y="${cy + 42}" text-anchor="middle" font-size="11" fill="#1f1b16" font-weight="${isCur ? 600 : 500}">${stage}</text>`;
     const ann = count > 0
-      ? `<text x="${x}" y="${cy + 56}" text-anchor="middle" font-size="9" fill="#8a8377">${escapeHtml(stationAnnotation(stage, count))}</text>`
+      ? `<text x="${x}" y="${cy + 56}" text-anchor="middle" font-size="9" fill="#8a8377">${escapeHtml(stationAnnotation(stage, count, allArtifacts, fm))}</text>`
       : '';
     return `${date}${youHere}${dot}${label}${ann}`;
   }).join('');

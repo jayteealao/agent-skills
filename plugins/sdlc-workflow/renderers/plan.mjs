@@ -200,7 +200,7 @@ function planFrontmatterCard(fm) {
     ['updated', fm['updated-at']],
   ].filter(([, v]) => v != null && v !== '');
   if (!rows.length) return '';
-  return `<dl class="frontmatter-card">${rows.map(([k, v]) => `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd>`).join('')}</dl>`;
+  return `<dl class="frontmatter-card">${rows.map(([k, v]) => `<div><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(String(v))}</dd></div>`).join('')}</dl>`;
 }
 
 // D5.8 / D5.13 — acceptance criteria as a glyph checklist with id + note parts.

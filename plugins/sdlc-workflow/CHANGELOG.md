@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — sunflower view P2 parity polish (9.34.4)
+
+Closes the four P2 design-parity divergences from `SUNFLOWER-PARITY-FIX-PLAN.md`
+against the `sdlc-handoff` reference (the P1 bugs and Slices 1–8 landed in
+9.32.0). Verified by re-rendering real workflow artifacts.
+
+- **Slug-overview stage stripe**: station dates now sit ~28px off the rail with
+  the "you are here" marker stacked above (previously inverted), and the
+  per-station caption is semantic — `plan`→"N revisions", `implement`→
+  "done/total slices", `verify`→"N ✓" — each falling back to a plain artifact
+  count when the signal isn't present.
+- **Legend swatches** (`.figure-legend .sw.*`): aligned to the handoff palette
+  (done=ink, blocked/deleted=desaturated tint, external/queued=dashed,
+  review/modified=accent-soft) and added the missing `.sw.complete` rule the
+  slice legend relied on (it had been rendering as a generic grey box).
+- **`.frontmatter-card`**: now a responsive `repeat(auto-fit, minmax(180px,
+  1fr))` grid; each entry is wrapped in a `<div>` in both emitters (the plan
+  metadata card and the shared simple-renderer frontmatter dump) so label/value
+  pairs stay together.
+
 ### Removed — retired the legacy shell hooks + Python frontmatter validator (9.34.3)
 
 Completed the validator migration that the v9.26 CHANGELOG and

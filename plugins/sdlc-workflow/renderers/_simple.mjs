@@ -24,7 +24,7 @@ export function frontmatterCard(fm, keys = null) {
       const value = Array.isArray(v) ? v.join(', ')
                   : typeof v === 'object' ? JSON.stringify(v)
                   : String(v);
-      return `<dt>${escapeHtml(k)}</dt><dd>${escapeHtml(value)}</dd>`;
+      return `<div><dt>${escapeHtml(k)}</dt><dd>${escapeHtml(value)}</dd></div>`;
     }).join('');
   if (!rows) return '';
   return `<dl class="frontmatter-card">${rows}</dl>`;
