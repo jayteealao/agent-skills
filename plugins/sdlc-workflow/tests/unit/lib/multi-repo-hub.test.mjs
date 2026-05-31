@@ -322,7 +322,7 @@ test('hub-config: created with defaults on first read; never shares per-repo fie
   equal(cfg.tailscale.acknowledgedPublic, false, 'public exposure off by default');
   ok(existsSync(hubConfigPath()), 'file created on first read');
   // The machine config carries singleton settings only — never `enabled`
-  // (that is the per-repo opt-in).
+  // (that is the per-repo participation toggle).
   equal('enabled' in cfg, false, 'no per-repo enabled field leaks into machine config');
   equal(HUB_CONFIG_DEFAULTS.host, '127.0.0.1');
 });
