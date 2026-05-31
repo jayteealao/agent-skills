@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed — last 3 legacy shell hooks + refreshed hooks docs (9.34.5)
+
+Completes the shell-hook retirement begun in 9.34.3. The final three unwired
+parity twins under `hooks/scripts/` — `auto-stage.sh`, `pre-compact.sh`,
+`workflow-discovery.sh` — are deleted (superseded by `post-write-auto-stage.mjs`,
+`pre-compact-preserve.mjs`, `session-start-orient.mjs`). `hooks/scripts/` is now
+empty and removed entirely; the stale "Parity table vs …sh" headers in the three
+`.mjs` hooks are scrubbed.
+
+The docs-site hooks reference
+([docs/site/reference/hooks.html](docs/site/reference/hooks.html), source
+[docs/site/_build_pages.py](docs/site/_build_pages.py)) is rewritten — it
+described *four shell hooks* but the plugin ships *six Node hooks*. It now
+documents `pre-write-validate`, `post-write-verify`, `post-write-auto-stage`,
+`post-write-render`, `pre-compact-preserve`, and `session-start-orient` with
+their real triggers and the `po-answers.md` / `design-notes/` carve-outs.
+
+**Audit note (not fixed here):** a fine-tooth-comb pass over skill templates
+surfaced a broader, pre-existing class of the same bug — several wf-quick
+(`discover`, `fix`, `investigate`, `hotfix`, `refactor`) and wf-meta (`announce`,
+`close`, `next`, `skip`) artifacts write under `.ai/workflows/<slug>/` with a
+`type:` that has no schema branch and/or a filename that fails the `NN-` rule, so
+they would be blocked by the pre/post-write hooks. The `ship-plan.md` template is
+also missing schema-required `title`/`status`/`source`. Tracked for a dedicated
+follow-up release (needs a register-types-vs-reroute-paths decision).
+
 ### Fixed — sunflower view P2 parity polish (9.34.4)
 
 Closes the four P2 design-parity divergences from `SUNFLOWER-PARITY-FIX-PLAN.md`

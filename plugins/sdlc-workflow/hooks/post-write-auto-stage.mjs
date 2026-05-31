@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Parity table vs hooks/scripts/auto-stage.sh:
+ * Behavior:
  * - Exit 0 for all outcomes.
  * - Honor .ai/.no-auto-stage.
  * - Skip when no workflows directory exists.

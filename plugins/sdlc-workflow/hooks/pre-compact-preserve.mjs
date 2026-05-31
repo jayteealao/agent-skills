@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Parity table vs hooks/scripts/pre-compact.sh:
+ * Behavior:
  * - Scan workflow 00-index.md files under .ai/workflows/.
  * - Skip terminal statuses and malformed indexes.
  * - Emit no output when no active workflows exist.
