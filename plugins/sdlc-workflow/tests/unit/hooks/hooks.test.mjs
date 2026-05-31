@@ -169,6 +169,27 @@ test('pre-write-validate allows valid content and warns on missing registry', ()
   }
 });
 
+test('pre-write-validate allows po-answers.md prose log without frontmatter', () => {
+  const tmp = tempDir();
+  try {
+    // po-answers.md is the cumulative product-owner Q/A log — frontmatter-less
+    // prose by design. It must clear BOTH gates: the NN-stagename filename
+    // convention and the mandatory-frontmatter check.
+    const result = runHook(HOOKS.preWriteValidate, {
+      cwd: tmp,
+      tool_input: {
+        file_path: '.ai/workflows/demo/po-answers.md',
+        content: '# Product Owner Answers\n\n## 2026-05-31 — 01-intake\n\n**Q:** Branch strategy?\n**A:** Shared branch.\n',
+      },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('post-write-verify validates written workflow artifacts with Ajv', () => {
   const tmp = tempDir();
   try {

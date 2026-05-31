@@ -132,8 +132,14 @@ validate_frontmatter() {
 # Run validations
 # -------------------------------------------------------------------
 
-validate_filename
-validate_frontmatter
+# po-answers.md is the cumulative product-owner Q/A log — a frontmatter-less
+# prose file that stage references create and append to across the workflow's
+# life. Exempt from both the filename convention and the frontmatter checks,
+# matching pre-write-validate.mjs and tests/verify_frontmatter.py.
+if [ "$FILENAME" != "po-answers.md" ]; then
+  validate_filename
+  validate_frontmatter
+fi
 
 # -------------------------------------------------------------------
 # Soft check (warn-only): global INDEX.md registry drift

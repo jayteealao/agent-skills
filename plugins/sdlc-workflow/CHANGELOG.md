@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — `po-answers.md` write-validation regression (9.34.1)
+
+The `PreToolUse` write-validate hook
+([hooks/pre-write-validate.mjs](hooks/pre-write-validate.mjs)) blocked every
+attempt to create `po-answers.md` — the cumulative product-owner Q/A log that
+the intake, shape, plan, and ship stage references instruct you to create and
+append to. Two gates rejected it: the `NN-stagename.md` filename convention
+(no two-digit prefix) and the mandatory-frontmatter check. But `po-answers.md`
+is a deliberately frontmatter-less *prose* log with no schema `type`, and
+[tests/verify_frontmatter.py](tests/verify_frontmatter.py) already skips it for
+exactly that reason — so the hook was stricter than the rest of the system and
+contradicted its own stage references.
+
+The hook now exempts `po-answers.md` from **both** gates (a `isProseLog`
+carve-out), mirroring the existing `design-notes/` exemption and the Python
+validator. No rename, no schema change: the canonical name stays
+`po-answers.md`, and every stage reference remains correct as written. The
+documented parity twin
+([hooks/scripts/validate-workflow-write.sh](hooks/scripts/validate-workflow-write.sh))
+gets the same carve-out, and a regression test asserts a frontmatter-less
+`po-answers.md` write is allowed.
+
 ### Changed — Serve + hub now on by default (9.34.0)
 
 The SDLC view is now **serve-first and hub-first out of the box**. Two shipped

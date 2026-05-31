@@ -83,17 +83,26 @@ async function main() {
 
   const filename = basename(info.filename);
   const errors = [];
+  // po-answers.md is the cumulative product-owner Q/A log: a human-readable
+  // prose file that stage references (intake/shape/plan/ship/…) create and
+  // append to across the workflow's life. By design it carries NO frontmatter
+  // and has no schema type, so it is exempt from BOTH the NN-stagename filename
+  // convention and the frontmatter requirement — mirroring the carve-out in
+  // tests/verify_frontmatter.py, which skips it for the same reason.
+  const isProseLog = filename === 'po-answers.md';
   // design-notes/ holds per-sub-command transformation artifacts whose
   // names (animate-<ts>.md, extract.md, etc.) deliberately skip the
   // NN-stagename convention. Mirrors the Python validator's carve-out at
   // tests/verify_frontmatter.py (`design-notes` → design-augmentation).
   const inDesignNotes = info.storageRel.startsWith('design-notes/');
-  if (!inDesignNotes) {
+  if (!inDesignNotes && !isProseLog) {
     const filenameError = validateFilename(filename);
     if (filenameError) errors.push(filenameError);
   }
 
-  if (!hasFrontmatterFence(content)) {
+  if (isProseLog) {
+    // po-answers.md carries no frontmatter by design — skip the frontmatter checks.
+  } else if (!hasFrontmatterFence(content)) {
     errors.push('Missing YAML frontmatter. All workflow files must start with --- delimited YAML frontmatter containing at minimum: schema, type, slug.');
   } else {
     const parsed = safeParseFrontmatter(content, { filePath });
