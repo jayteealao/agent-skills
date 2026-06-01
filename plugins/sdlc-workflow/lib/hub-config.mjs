@@ -33,6 +33,9 @@ export const HUB_CONFIG_DEFAULTS = Object.freeze({
   // disappears behind one repo's dashboard). Default true preserves prior
   // behaviour; set false to make the hub the sole server on this machine.
   perRepoServe: true,
+  // Live-reload for the standalone per-repo fallback daemon (the hub always
+  // live-reloads). Machine-wide because serve settings are not per-repo.
+  liveReload: true,
   maxSseClients: 200,    // aggregate across repos; client-side filtering scopes per-repo
   maxWatchedRepos: 50,   // beyond this, poll instead of fs.watch
   tailscale: {

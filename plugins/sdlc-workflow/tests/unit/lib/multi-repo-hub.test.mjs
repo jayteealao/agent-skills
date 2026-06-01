@@ -334,20 +334,20 @@ test('hub-config: perRepoServe defaults true (per-repo daemons allowed unless op
   equal(readHubConfig().perRepoServe, true, 'sparse/first-read config inherits the default');
 });
 
-test('serve-lifecycle: perRepoServe:false declines to spawn even when the repo forces serve.enabled:true', async () => {
-  const home = setHome();
-  // Machine-wide kill switch on.
+test('serve-lifecycle: perRepoServe:false (machine-wide) disables per-repo daemons', async () => {
+  setHome();
+  // Machine-wide kill switch on. Serve config is machine-only now — there is no
+  // per-repo override to test against; the machine config is the sole authority.
   writeFileSync(hubConfigPath(), JSON.stringify({ ...HUB_CONFIG_DEFAULTS, perRepoServe: false }, null, 2));
   const projectRoot = tmp('sdlc-norepo-');
 
   const result = await ensureServeLifecycle({
     projectRoot,
     pluginRoot: '/nonexistent',   // never used — the switch returns before any spawn
-    config: { view: { serve: { enabled: true, port: 4173 } } },   // repo TRIES to force a daemon
     log: () => {},
   });
 
-  equal(result.action, 'per-repo-disabled', 'the machine switch overrides the repo force-enable');
+  equal(result.action, 'per-repo-disabled', 'machine kill switch disables per-repo daemons');
   ok(!existsSync(servePidPath(projectRoot)), 'no per-repo daemon pid file was written (nothing spawned)');
 });
 

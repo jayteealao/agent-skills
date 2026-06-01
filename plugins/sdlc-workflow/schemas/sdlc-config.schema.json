@@ -31,57 +31,6 @@
             }
           }
         },
-        "serve": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "enabled": {
-              "type": "boolean",
-              "default": true
-            },
-            "host": {
-              "type": "string",
-              "default": "127.0.0.1"
-            },
-            "port": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 65535,
-              "default": 4173
-            },
-            "liveReload": {
-              "type": "boolean",
-              "default": true
-            },
-            "tailscale": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "enabled": {
-                  "type": "boolean",
-                  "default": false
-                },
-                "mode": {
-                  "enum": ["serve", "funnel"],
-                  "default": "serve"
-                },
-                "path": {
-                  "type": "string",
-                  "pattern": "^/",
-                  "default": "/"
-                },
-                "https": {
-                  "type": "boolean",
-                  "default": true
-                },
-                "acknowledgedPublic": {
-                  "type": "boolean",
-                  "default": false
-                }
-              }
-            }
-          }
-        },
         "bootstrap": {
           "type": "object",
           "additionalProperties": false,

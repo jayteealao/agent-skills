@@ -184,7 +184,8 @@ test('config: loads defaults, merges local overrides, validates schema, and hash
   try {
     const defaults = await loadConfigWithMeta(tmp);
     equal(defaults.exists, false);
-    equal(defaults.config.view.serve.enabled, true);
+    // Serve config is machine-only (~/.sdlc/hub-config.json) — not in per-repo defaults.
+    equal(defaults.config.view.serve, undefined);
     equal(defaults.config.view.hub.enabled, true);
     equal(defaults.config.view.render.concurrency, DEFAULT_SDLC_CONFIG.view.render.concurrency);
 
@@ -193,7 +194,7 @@ test('config: loads defaults, merges local overrides, validates schema, and hash
     writeFileSync(cfgPath, JSON.stringify({
       view: {
         render: { concurrency: 2 },
-        serve: { enabled: true, port: 5123 },
+        hub: { enabled: false },
       },
       hooks: { autoStage: false },
     }), 'utf-8');
@@ -203,15 +204,30 @@ test('config: loads defaults, merges local overrides, validates schema, and hash
     equal(loaded.validation.valid, true);
     equal(loaded.config.view.render.concurrency, 2);
     equal(loaded.config.view.render.debounceMs, 2000);
-    equal(loaded.config.view.serve.enabled, true);
-    equal(loaded.config.view.serve.port, 5123);
-    equal(loaded.config.view.serve.tailscale.mode, 'serve');
+    equal(loaded.config.view.hub.enabled, false);
     equal(loaded.config.hooks.autoStage, false);
 
     equal(
       configHash({ b: 2, a: { z: true, y: false } }),
       configHash({ a: { y: false, z: true }, b: 2 }),
     );
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('config: per-repo view.serve is rejected — serve config is machine-only', async () => {
+  const tmp = tempDir();
+  try {
+    const cfgPath = configPathFor(tmp);
+    mkdirSync(dirname(cfgPath), { recursive: true });
+    // A repo trying to set serve/daemon options locally is now a schema error
+    // (view has additionalProperties:false; serve moved to ~/.sdlc/hub-config.json).
+    writeFileSync(cfgPath, JSON.stringify({ view: { serve: { enabled: true, port: 5123 } } }), 'utf-8');
+    const loaded = await loadConfigWithMeta(tmp);
+    equal(loaded.validation.valid, false, 'view.serve fails per-repo validation');
+    ok(loaded.warnings.some((w) => /invalid sdlc config/.test(w)), 'a validation warning is surfaced');
+    ok(loaded.validation.errors.some((e) => /additional/i.test(e.message)), 'rejected as an additional property');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

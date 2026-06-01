@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — serve config is machine-only; per-repo `view.serve` removed (9.38.0)
+
+Serve/daemon settings (`host`, `port`, `liveReload`, `tailscale`, and the
+`perRepoServe` master switch) are now settable **only** in the machine-wide
+`~/.sdlc/hub-config.json` — never in a repo's `.ai/sdlc-config.json`. This closes
+the leak that the schema already implied (it called `view.hub.enabled` "the ONLY
+per-repo hub field") and that caused this session's port-squat/dual-run bugs.
+
+- **Schema** ([sdlc-config.schema.json](schemas/sdlc-config.schema.json)): the
+  `view.serve` property is removed; `view` keeps `additionalProperties:false`, so
+  a per-repo config containing `view.serve` is a **hard validation error**.
+- **Per-repo defaults** ([config.mjs](lib/config.mjs)): the `view.serve` block is
+  gone; a repo's only serve-related control is `view.hub.enabled` (participation).
+- **Lifecycle** ([serve-lifecycle.mjs](lib/serve-lifecycle.mjs)): `ensureServeLifecycle`
+  reads host/port/tailscale/liveReload from `hub-config.json`, not the per-repo
+  config. The per-repo daemon is now purely the **standalone fallback** for a repo
+  that opts out of the hub (`view.hub.enabled:false`); the `view.serve.enabled`
+  force/dual-run knob (and its 4174 step-aside) is removed — when a hub is live it
+  always serves the repo and no per-repo daemon runs.
+- **Machine config** ([hub-config.mjs](lib/hub-config.mjs)): adds `liveReload`
+  (default true) for the fallback daemon.
+
+Migration: delete any `view.serve` block from `.ai/sdlc-config.json` and set the
+equivalents in `~/.sdlc/hub-config.json`. +1 test (per-repo `view.serve` rejected);
+existing config/foundation tests updated.
+
 ### Added — version-aware server reaping → deterministic new-install pickup (9.37.0)
 
 Detached daemons survive plugin upgrades, so a new install used to keep serving

@@ -15,19 +15,10 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
       concurrency: 4,
       debounceMs: 2000,
     },
-    serve: {
-      enabled: true,
-      host: '127.0.0.1',
-      port: 4173,
-      liveReload: true,
-      tailscale: {
-        enabled: false,
-        mode: 'serve',
-        path: '/',
-        https: true,
-        acknowledgedPublic: false,
-      },
-    },
+    // NOTE: there is deliberately no `serve` block here. Serve/daemon settings
+    // (host, port, liveReload, tailscale, and the perRepoServe master switch)
+    // are MACHINE-WIDE only and live in ~/.sdlc/hub-config.json — a repo cannot
+    // set them. `view.serve` is rejected by the per-repo schema. See §6.1.
     bootstrap: {
       enabled: true,
       renderMissing: true,

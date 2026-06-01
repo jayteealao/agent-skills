@@ -48,9 +48,9 @@ node scripts/render-sunflower-serve.mjs --view .ai/_view --host 127.0.0.1 --port
 ```
 
 Then visit `http://127.0.0.1:4173/sdlc/` for the dashboard, or any artifact at
-`http://127.0.0.1:4173/sdlc/<slug>/`. If `view.serve.tailscale.enabled` is set,
-bootstrap can also configure Tailscale Serve/Funnel after the local server is
-healthy.
+`http://127.0.0.1:4173/sdlc/<slug>/`. If `tailscale.enabled` is set in the
+machine-wide `~/.sdlc/hub-config.json`, bootstrap can also configure Tailscale
+Serve/Funnel after the local server is healthy.
 
 ## Modes
 
@@ -156,26 +156,27 @@ Shared authoring rules live in `skills/wf/reference/_fragment-authoring.md`.
 
 ## Renderer-hosted serve
 
-Set `.ai/sdlc-config.json`:
+Serve settings are **machine-wide** and live in `~/.sdlc/hub-config.json` — they
+are never per-repo (a `view.serve` block in a repo's `.ai/sdlc-config.json` is
+rejected by the schema):
 
 ```json
 {
-  "view": {
-    "serve": {
-      "enabled": true,
-      "host": "127.0.0.1",
-      "port": 4173,
-      "liveReload": true
-    }
-  }
+  "host": "127.0.0.1",
+  "port": 4173,
+  "liveReload": true,
+  "perRepoServe": true
 }
 ```
 
-Bootstrap starts `scripts/render-sunflower-serve.mjs` when enabled. The server
-serves only `.ai/_view`, blocks traversal, has no directory listings, exposes
-`/__sdlc/health` with `status: "ok"`, and streams `reload` SSE events from
-`/__sdlc/events`. Host `0.0.0.0` is refused unless Tailscale integration is
-explicitly enabled.
+A repo participates in serving via `view.hub.enabled` in its
+`.ai/sdlc-config.json`; the machine-wide hub then serves it at `/r/<id>/`. When a
+repo opts out of the hub (`view.hub.enabled: false`) and `perRepoServe` is true,
+the standalone `scripts/render-sunflower-serve.mjs` daemon serves just that repo
+using these machine settings. The server serves only `.ai/_view`, blocks
+traversal, has no directory listings, exposes `/__sdlc/health` with
+`status: "ok"`, and streams `reload` SSE events from `/__sdlc/events`. Host
+`0.0.0.0` is refused unless Tailscale integration is explicitly enabled.
 
 ## Auto-render hook
 

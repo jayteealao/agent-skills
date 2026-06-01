@@ -23,23 +23,27 @@ export async function ensureServeLifecycle({
   projectRoot = process.cwd(),
   pluginRoot,
   viewRoot = join(projectRoot, '.ai', '_view'),
-  config,
   configHash = '',
   log = () => {},
 } = {}) {
-  const serve = config?.view?.serve ?? {};
+  // Serve settings are MACHINE-WIDE only (~/.sdlc/hub-config.json), never
+  // per-repo. A repo's sole serve-related control is `view.hub.enabled`
+  // (participation); HOW the daemon binds — host, port, tailscale, live-reload,
+  // and whether it may run at all (perRepoServe) — comes from the machine config.
+  // `view.serve` is rejected by the per-repo schema. (`config` is intentionally
+  // not read here anymore.)
+  const hubCfg = readHubConfig({ create: false });
+  const host = hubCfg.host ?? '127.0.0.1';
+  const port = Number(hubCfg.port ?? 4173);
+  const tailscale = hubCfg.tailscale ?? {};
+  const liveReload = hubCfg.liveReload !== false;
   const pidPath = servePidPath(projectRoot);
   const status = await pidFileStatus(pidPath);
 
-  // Machine-wide kill switch (§4.5 hardening): when hub-config sets
-  // `perRepoServe:false`, per-repo daemons are disabled for the whole machine.
-  // This OVERRIDES a repo's force `view.serve.enabled:true` — the switch is a
-  // machine-level authority, not a per-repo preference — because a per-repo
-  // daemon is the only thing that can squat the hub's port and hide the
-  // multi-repo inbox behind one repo's dashboard. Reap any running daemon and
-  // decline to spawn; the hub serves this repo at /r/<id>/. Checked BEFORE the
-  // hub guard so it fires even when no hub is currently alive.
-  if (readHubConfig({ create: false }).perRepoServe === false) {
+  // Machine-wide kill switch: perRepoServe:false disables per-repo daemons for
+  // the whole machine — reap any running one and decline to spawn. The hub
+  // serves this repo at /r/<id>/.
+  if (hubCfg.perRepoServe === false) {
     if (status.alive) {
       stopPid(status.record.pid, log);
       log(`[serve] per-repo daemons disabled machine-wide (hub-config.perRepoServe:false) — reaped pid ${status.record.pid}`);
@@ -50,11 +54,13 @@ export async function ensureServeLifecycle({
     return { action: 'per-repo-disabled' };
   }
 
-  // Hub guard (§4.5): when a machine-wide hub is alive and the user has NOT
-  // explicitly opted into a direct per-repo daemon (view.serve.enabled:true),
-  // the hub serves this repo at /r/<id>/ — don't spawn a per-repo daemon. The
+  // Hub guard: when a machine-wide hub is alive it serves THIS repo at /r/<id>/,
+  // so a per-repo daemon would be redundant (and could squat the hub port). The
+  // per-repo daemon now exists ONLY as the standalone fallback for a repo that
+  // opted out of the hub (view.hub.enabled:false → no hub started) — there is no
+  // per-repo force/dual-run knob anymore (serve config is machine-only). The
   // probe is PID-file-gated (no HTTP cost), so a cold start pays zero latency.
-  if (serve.enabled !== true) {
+  {
     const hub = await liveHub();
     if (hub) {
       if (status.alive) stopPid(status.record.pid, log);
@@ -64,40 +70,19 @@ export async function ensureServeLifecycle({
     }
   }
 
-  if (serve.enabled === false) {
-    if (status.alive) {
-      stopPid(status.record.pid, log);
-      log(`[serve] stopped disabled daemon pid ${status.record.pid}`);
-    }
-    if (status.record) await removePidFile(pidPath);
-    return { action: 'disabled' };
-  }
-
-  const host = serve.host ?? '127.0.0.1';
-  let port = Number(serve.port ?? 4173);
-  if (host === '0.0.0.0' && !(serve.tailscale?.enabled === true && serve.tailscale?.acknowledgedPublic === true)) {
-    log('[serve] refused host 0.0.0.0 without view.serve.tailscale.enabled + acknowledgedPublic');
+  // No live hub → run the standalone fallback daemon, bound per the MACHINE
+  // serve settings (host/port/tailscale read from hub-config above). With no hub
+  // holding the port there is no collision, so no 4174 step-aside is needed.
+  if (host === '0.0.0.0' && !(tailscale.enabled === true && tailscale.acknowledgedPublic === true)) {
+    log('[serve] refused host 0.0.0.0 without hub-config.tailscale.enabled + acknowledgedPublic');
     return { action: 'refused-host' };
-  }
-
-  // Port collision (§4.5): the hub owns 4173 (the canonical SDLC URL). If the
-  // user force-enabled a direct per-repo daemon while a hub holds that same
-  // port, bind the per-repo daemon to 4174 instead so `4173/` always means "the
-  // SDLC view" and both can run. (No collision when the hub is off — the
-  // default — where the per-repo daemon owns 4173 exactly as before.)
-  if (serve.enabled === true) {
-    const hub = await liveHub();
-    if (hub && Number(hub.port) === port) {
-      port = 4174;
-      log(`[serve] hub holds port ${hub.port}; binding per-repo daemon to ${port} instead`);
-    }
   }
 
   if (status.alive) {
     const id = await probeServeIdentity({ host, port, timeoutMs: 600 });
     if (id && id.version === PLUGIN_VERSION) {
       log(`[serve] already running at http://${displayHost(host)}:${port}`);
-      maybeConfigureTailscale({ tailscale: serve.tailscale, port, log });
+      maybeConfigureTailscale({ tailscale, port, log });
       return { action: 'already-running', pid: status.record.pid };
     }
     // Stale version (reap to pick up new install) or unhealthy (gone) → respawn.
@@ -119,8 +104,8 @@ export async function ensureServeLifecycle({
     '--pid-file', pidPath,
     '--project-root', projectRoot,
     '--config-hash', configHash,
-    serve.liveReload === false ? '--no-live-reload' : '--live-reload',
-    host === '0.0.0.0' && serve.tailscale?.enabled === true ? '--allow-all-hosts' : '',
+    liveReload ? '--live-reload' : '--no-live-reload',
+    host === '0.0.0.0' && tailscale.enabled === true ? '--allow-all-hosts' : '',
   ].filter(Boolean), {
     cwd: projectRoot,
     env: process.env,
@@ -140,7 +125,7 @@ export async function ensureServeLifecycle({
   }
 
   log(`[serve] started pid ${child.pid} at http://${displayHost(host)}:${port}`);
-  maybeConfigureTailscale({ tailscale: serve.tailscale, port, log });
+  maybeConfigureTailscale({ tailscale, port, log });
   return { action: 'started', pid: child.pid };
 }
 
