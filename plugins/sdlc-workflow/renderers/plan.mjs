@@ -4,6 +4,7 @@
 
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
+import { callout } from './_icons.mjs';
 import { renderHistoryBlock } from './_history.mjs';
 import { figureCanvas } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
@@ -265,17 +266,17 @@ function locSublabel(f) {
   return '';
 }
 
-// D5.11 — risk callouts using the compound `callout risk-*` classes.
+// Decision 2 (2026-06-04) — risk callouts use the canonical callout() helper
+// (was the retired D5.11 `callout risk-*` compound). Map plan severity onto the
+// shared tones: high/blocker→risk, low→info, else→warn.
 function riskCallouts(risks) {
   if (!Array.isArray(risks) || !risks.length) return '';
   return risks.map((r) => {
     const level = String(r.level ?? r.severity ?? 'med').toLowerCase();
-    const cls = (level.startsWith('high') || level === 'blocker') ? 'risk-high'
-      : level.startsWith('low') ? 'risk-low' : 'risk-med';
-    return `<div class="callout ${cls}">
-      <div class="callout-hd">${escapeHtml(r.title ?? r.name ?? 'risk')}</div>
-      <div class="callout-body">${escapeHtml(r.body ?? r.description ?? r.detail ?? '')}</div>
-    </div>`;
+    const kind = (level.startsWith('high') || level === 'blocker') ? 'risk'
+      : level.startsWith('low') ? 'info' : 'warn';
+    const body = escapeHtml(r.body ?? r.description ?? r.detail ?? '');
+    return callout(kind, r.title ?? r.name ?? 'risk', body);
   }).join('');
 }
 
