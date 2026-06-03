@@ -90,6 +90,28 @@ function validIntake(overrides = {}) {
   };
 }
 
+function validPlan(overrides = {}) {
+  return {
+    schema: 'sdlc/v1',
+    type: 'plan',
+    slug: 'demo',
+    'slice-slug': 'core',
+    status: 'complete',
+    'stage-number': 4,
+    'created-at': '2026-06-04T12:00:00Z',
+    'updated-at': '2026-06-04T12:05:00Z',
+    'metric-files-to-touch': 3,
+    'metric-step-count': 5,
+    'has-blockers': false,
+    'revision-count': 0,
+    tags: [],
+    refs: {},
+    'next-command': '/wf implement demo',
+    'next-invocation': 'implement',
+    ...overrides,
+  };
+}
+
 test('pre-write-validate skips missing and non-workflow file paths', () => {
   const tmp = tempDir();
   try {
@@ -233,6 +255,51 @@ test('post-write-verify skips po-answers.md prose log instead of schema-validati
     const result = runHook(HOOKS.postWriteVerify, {
       cwd: tmp,
       tool_input: { file_path: '.ai/workflows/demo/po-answers.md' },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify reminds (non-blocking) when a rich-tier artifact lacks sibling fragment files', () => {
+  const tmp = tempDir();
+  try {
+    // S-1: a schema-valid plan written WITHOUT its sibling .yaml/.html.fragment
+    // must surface a non-blocking systemMessage reminder (exit 0, no stderr).
+    const rel = '.ai/workflows/demo/slices/core/04-plan.md';
+    writeFile(join(tmp, rel), md(validPlan()));
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: rel },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stderr, '');
+    const parsed = JSON.parse(result.stdout);
+    match(parsed.systemMessage, /sibling fragment files/);
+    match(parsed.systemMessage, /04-plan\.yaml \+ 04-plan\.html\.fragment/);
+    match(parsed.systemMessage, /fragment-author-contract\.md/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify stays silent when a rich-tier artifact has its sibling fragment files', () => {
+  const tmp = tempDir();
+  try {
+    const dir = join(tmp, '.ai', 'workflows', 'demo', 'slices', 'core');
+    writeFile(join(dir, '04-plan.md'), md(validPlan()));
+    writeFile(join(dir, '04-plan.yaml'), 'files: []\n');
+    writeFile(join(dir, '04-plan.html.fragment'), '<section class="fragment-plan"></section>\n');
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/slices/core/04-plan.md' },
     }, tmp);
 
     equal(result.status, 0, result.stderr);

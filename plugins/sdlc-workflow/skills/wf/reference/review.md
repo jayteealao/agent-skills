@@ -652,6 +652,41 @@ Only present when `fix-rounds-run > 0`. Records what Step 4c actually did.
 
 ---
 
+# Step 5b: Write the rich fragment (MANDATORY — do not skip)
+
+The sunflower view renders the review page from a sibling `.yaml` + `.html.fragment`
+written next to the review `.md`. **Without them the page silently degrades to plain
+prose** — the Σ severity-heatmap, dimension chips, severity filter, and findings list
+never appear. The `post-write-verify` hook reminds you if you forget, but author them
+here, now, while the findings are still in context.
+
+For each review `.md` you just wrote (`07-review.md` slug-wide, or each
+`07-review-<slice-slug>.md` per-slice):
+
+1. Write the sibling **`<stem>.yaml`** (same stem, `.yaml`) — the structured data:
+   `dimensions:` (the severity × dimension heatmap matrix), `verdict:`, `findings:`
+   (id, severity, dimension, file, line, message, evidence/diff, triage) and the metric
+   counts. Schema: `siblingYamlSchemas.review` in `tests/frontmatter.schema.json`.
+2. Write the sibling **`<stem>.html.fragment`** — one
+   `<section class="fragment-review" data-artifact="review" data-rev="<n>">` reproducing
+   the gallery's review fragment 1:1: the Σ severity-heatmap, dimension chips + severity
+   filter, and the findings list with per-finding evidence/diff/copy controls.
+
+Authoring rules (do not skip — verifier Check 7 enforces these):
+
+- Inline `<style>` with every selector scoped under `.fragment-review` / `.fr-*`.
+- Inline `<script>` scoped via `document.currentScript.closest('.fragment-review')`.
+- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', { detail: { name: 'review', artifact: 'review', counts: { findings: <n>, blockers: <n> } } }))`.
+- Inline SVG only; no remote anything.
+- All data deterministic from the `.yaml` — re-running on the same YAML must produce byte-identical output.
+
+The full contract (allowed shared classes, forbidden tags, YAML→fragment mapping) lives in
+[`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md);
+the authoritative gallery is bundled at
+[`reference/fragments-gallery.html`](../../../reference/fragments-gallery.html).
+
+---
+
 # Step 6: Update Index and Return
 
 1. Update `00-index.md` frontmatter:

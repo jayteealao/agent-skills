@@ -23,10 +23,58 @@ import {
   isManagedArtifactMarkdownPath,
   isProjectContextMarkdownPath,
   isProseLogPath,
+  outputSystemMessage,
   projectRootFromInput,
   readTextIfExists,
   resolveProjectPath,
 } from '../lib/hook-utils.mjs';
+
+// S-1 (2026-06-04): the rich rendering tier (Review/RCA/Plan/Design/Ship-run)
+// drives its structured + interactive output from a sibling `.yaml` and
+// `.html.fragment` co-located with the artifact `.md`. Those siblings are easy
+// to forget at write-time, and nothing previously surfaced their absence — so
+// in practice they were never authored and every rich page fell back to plain
+// prose. These are the artifact `type:` values that own a fragment contract.
+const RICH_TIER_TYPES = new Set(['review', 'plan', 'design', 'ship-run', 'rca']);
+
+/** Cheap frontmatter `type:` read (avoids a full YAML parse for the reminder). */
+function frontmatterType(text) {
+  if (!text) return null;
+  const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!fence) return null;
+  const m = /(?:^|\n)\s*type:\s*["']?([A-Za-z0-9-]+)/.exec(fence[1]);
+  return m ? m[1] : null;
+}
+
+/**
+ * Non-blocking write-time reminder: when a rich-tier artifact `.md` lands
+ * without its sibling `.yaml` / `.html.fragment`, surface a systemMessage so the
+ * agent authors them while it still has context. Fail-open — never blocks.
+ */
+async function remindMissingFragments(paths, config) {
+  if (config.hooks?.remindMissingFragments === false) return;
+  const reminders = [];
+  for (const path of paths) {
+    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
+    const text = await readTextIfExists(path.absolute);
+    const type = frontmatterType(text);
+    if (!type || !RICH_TIER_TYPES.has(type)) continue;
+    const stem = path.absolute.replace(/\.md$/, '');
+    const fileStem = path.original.replace(/\\/g, '/').split('/').at(-1).replace(/\.md$/, '');
+    const missing = [];
+    if (!existsSync(`${stem}.yaml`)) missing.push(`${fileStem}.yaml`);
+    if (!existsSync(`${stem}.html.fragment`)) missing.push(`${fileStem}.html.fragment`);
+    if (missing.length) reminders.push({ rel: path.original, type, missing });
+  }
+  if (!reminders.length) return;
+  const lines = reminders.map((r) => `  - ${r.rel} (type: ${r.type}) - missing ${r.missing.join(' + ')}`);
+  outputSystemMessage(
+    `wf: rich-tier artifact(s) written without their sibling fragment files:\n${lines.join('\n')}\n` +
+    'The sunflower view renders these pages as plain prose until you author the sibling ' +
+    '.yaml (structured data) and .html.fragment (interactive markup) next to each .md. ' +
+    'Author them now per reference/fragment-author-contract.md while you still have the context.',
+  );
+}
 
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -59,7 +107,11 @@ async function main() {
     if (!result.valid) failures.push({ path, result });
   }
 
-  if (!failures.length) return;
+  if (!failures.length) {
+    // Schema is clean — nudge for any missing rich-tier sibling fragments.
+    await remindMissingFragments(paths, config);
+    return;
+  }
 
   for (const failure of failures) {
     process.stderr.write(`wf-postwrite-verify: frontmatter validation FAILED for ${failure.path.original}\n\n`);
