@@ -69,8 +69,11 @@ export function render(artifact, ctx) {
     sy.rollback?.window_minutes != null && { label: 'rollback (min)', value: sy.rollback.window_minutes },
   ].filter(Boolean));
 
-  const timelineHtml = stagesTimeline(sy.stages ?? []);
-  const checksHtml = checksTable(sy.checks ?? []);
+  // Dual-DOM (M-S4): the horizontal timeline + wide checks table are recast as a
+  // vertical deploy stepper and per-check cards on phones (M-SHP-01/02). Gated
+  // behind sibling YAML like the rest of this renderer.
+  const timelineHtml = dualDom(stagesTimeline(sy.stages ?? []), mobileDeploy(sy.stages ?? []));
+  const checksHtml = dualDom(checksTable(sy.checks ?? []), mobileChecks(sy.checks ?? []));
   const rollbackHtml = rollbackPanel(sy.rollback);
 
   // v9.24.0: markdown body always rendered alongside fragment (if present).
@@ -85,6 +88,45 @@ export function render(artifact, ctx) {
     bodyHtml: `${metricsHtml}${timelineHtml}${checksHtml}${rollbackHtml}${bodyContent}${renderHistoryBlock(artifact.history)}`,
     links: [], children: [],
   };
+}
+
+// Wrap a desktop + mobile rendering in the .d-only/.m-only toggle (M-S4).
+function dualDom(desktop, mobile) {
+  return `${desktop ? `<div class="d-only">${desktop}</div>` : ''}${mobile ? `<div class="m-only">${mobile}</div>` : ''}`;
+}
+
+// Mobile ship-run (M-S3 / 5b): a vertical deploy stepper + per-check cards.
+function mobileDeploy(stages) {
+  if (!stages.length) return '';
+  const byName = new Map(stages.map((s) => [s.name, s]));
+  const present = SHIP_STAGE_ORDER.filter((n) => byName.has(n));
+  if (!present.length) return '';
+  const steps = present.map((name, i) => {
+    const s = byName.get(name);
+    const flake = s.status === 'flake' || s.status === 'fail';
+    return `<div class="dstep${flake ? ' flake' : ''}">
+      <span class="dn">${i + 1}</span>
+      <div class="dh"><span class="dnm">${escapeHtml(name)}</span></div>
+      <div class="dd">${escapeHtml(s.status ?? '')}</div>
+    </div>`;
+  }).join('');
+  return `<section class="ship-stages"><h2 class="sdlc-h2">stages</h2><div class="deploystep">${steps}</div></section>`;
+}
+
+function mobileChecks(checks) {
+  if (!checks.length) return '';
+  const cards = checks.map((c) => {
+    const envs = Object.entries(c.results ?? {}).map(([env, r]) => {
+      const status = r?.status ?? '';
+      const tone = status === 'pass' ? 'pass' : status === 'fail' ? 'fail' : status === 'flake' ? 'flake' : status === 'skip' ? 'skip' : '';
+      return `<div class="envcell ${tone}"><span class="el">${escapeHtml(env)}</span><span class="ev">${escapeHtml(status)}</span></div>`;
+    }).join('');
+    return `<div class="checkcard">
+      <div class="cc-top"><span class="cc-name">${escapeHtml(c.name ?? '')}</span><span class="cc-kind">${escapeHtml(c.kind ?? '')}</span></div>
+      ${envs ? `<div class="envs">${envs}</div>` : ''}
+    </div>`;
+  }).join('');
+  return `<section class="ship-checks"><h2 class="sdlc-h2">checks</h2>${cards}</section>`;
 }
 
 function countStageStatuses(stages) {

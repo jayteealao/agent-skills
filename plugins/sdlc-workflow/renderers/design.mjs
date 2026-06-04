@@ -44,7 +44,13 @@ export function render(artifact, ctx) {
   const themesHtml = chipRow('themes', sy.themes);
   const statesHtml = chipRow('states', sy.states);
   const sizesHtml  = sizesTable(sy.sizes);
-  const tokensHtml = tokensByCategory(sy.tokens);
+  // Dual-DOM (M-S4): the per-category token tables don't fit a phone, so <=480px
+  // gets touch token rows with a copy control (M-DSG-06). The live swatch matrix
+  // (themeseg/swrow) is the interactive fragment's job, not the static renderer.
+  const tokensDesktop = tokensByCategory(sy.tokens);
+  const tokensHtml = tokensDesktop
+    ? `<div class="d-only">${tokensDesktop}</div><div class="m-only"><section class="design-tokens-group"><h2 class="sdlc-h2">tokens</h2>${mobileTokens(sy.tokens)}</section></div>`
+    : '';
   const specsHtml  = specsBlock(sy.specs);
 
   // v9.24.0: markdown body always rendered alongside fragment (if present).
@@ -86,11 +92,23 @@ function sizesTable(sizes) {
   }).join('');
   return `<section class="design-sizes">
     <h2 class="sdlc-h2">sizes</h2>
-    <table class="sizes-table">
+    <div class="table-scroll"><table class="sizes-table">
       <thead><tr>${heads}</tr></thead>
       <tbody>${rows}</tbody>
-    </table>
+    </table></div>
    </section>`;
+}
+
+// Mobile design tokens (M-S3 / 5b): each token as a touch row — swatch (colors),
+// name, value, and a copy control wired by sdlc.js's wireTokenCopy.
+function mobileTokens(tokens) {
+  if (!Array.isArray(tokens) || !tokens.length) return '';
+  return tokens.map((t) => {
+    const sw = (t.category ?? '') === 'color'
+      ? `<span class="tsw" style="background:${escapeHtml(t.value ?? '')}" aria-hidden="true"></span>`
+      : '';
+    return `<div class="tokrow">${sw}<span class="tnm">${escapeHtml(t.name ?? '')}</span><span class="tvl">${escapeHtml(t.value ?? '')}</span><button class="tcopy" type="button" data-token-copy="${escapeHtml(t.value ?? '')}">copy</button></div>`;
+  }).join('');
 }
 
 function tokensByCategory(tokens) {

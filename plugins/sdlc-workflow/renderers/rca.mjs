@@ -46,10 +46,15 @@ function renderRca(artifact, ctx) {
 
   const timelineSvg = sy.timeline?.length ? timelineFigure(sy) : '';
   const chainSvg = sy.chain?.length ? causalChainFigure(sy) : '';
-  const figuresHtml = [
+  // Dual-DOM (M-S4): the horizontal timeline + chain SVGs are unreadable in
+  // portrait, so phones get a vertical event line + a stacked causal chain
+  // (M-RCA-02/03). Gated behind sibling YAML like the rest of this renderer.
+  const desktopFigures = [
     timelineSvg && figureCanvas({ figureNumber: 1, title: 'Incident timeline', svgInner: timelineSvg }),
     chainSvg && figureCanvas({ figureNumber: 2, title: 'Causal chain', svgInner: chainSvg }),
   ].filter(Boolean).join('');
+  const mobileFigures = `${mobileTimeline(sy)}${sy.chain?.length ? `<div class="subhead">Causal chain</div>${mobileChain(sy)}` : ''}`;
+  const figuresHtml = `${desktopFigures ? `<div class="d-only">${desktopFigures}</div>` : ''}${mobileFigures.trim() ? `<div class="m-only">${mobileFigures}</div>` : ''}`;
 
   const fragmentBlock = artifact.fragment
     ? `<div class="fragment">${artifact.fragment}</div>`
@@ -100,6 +105,34 @@ function renderFiveWhys(chain) {
     <summary>5 whys</summary>
     <ol class="why-chain">${items}</ol>
   </details>`;
+}
+
+// Mobile RCA (M-S3 / 5b): a vertical event line + a stacked causal chain.
+function mobileTimeline(sy) {
+  const events = sy.timeline ?? [];
+  if (!events.length) return '';
+  const items = events.map((e) => {
+    const kind = String(e.kind ?? '').toLowerCase();
+    return `<div class="evt k-${escapeHtml(kind)}">
+      <span class="node"></span>
+      <div class="et"><span class="when">${escapeHtml(e.at ?? '')}</span>${kind ? `<span class="kind">${escapeHtml(kind)}</span>` : ''}</div>
+      <div class="eh">${escapeHtml(e.title ?? '')}</div>
+      ${e.body ? `<div class="ed">${escapeHtml(e.body)}</div>` : ''}
+    </div>`;
+  }).join('');
+  return `<div class="evtline">${items}</div>`;
+}
+
+function mobileChain(sy) {
+  const steps = sy.chain ?? [];
+  if (!steps.length) return '';
+  const links = steps.map((s, i) => {
+    const isRoot = s.step === 'ROOT_CAUSE' || s.root === true;
+    const cls = isRoot ? 'clink is-root' : (i === 0 ? 'clink is-trigger' : 'clink');
+    const arrow = i < steps.length - 1 ? '<div class="carrow" aria-hidden="true">↓</div>' : '';
+    return `<div class="${cls}"><div class="ck">${escapeHtml(String(s.step ?? ''))}</div><div class="cx">${escapeHtml(s.body ?? '')}</div></div>${arrow}`;
+  }).join('');
+  return `<div class="chain">${links}</div>`;
 }
 
 function timelineFigure(sy) {
