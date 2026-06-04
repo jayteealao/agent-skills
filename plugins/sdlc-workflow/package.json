@@ -1,6 +1,6 @@
 {
   "name": "@sdlc-workflow/sunflower-view",
-  "version": "9.38.0",
+  "version": "9.40.0",
   "private": true,
   "type": "module",
   "description": "Sunflower view layer for the sdlc-workflow plugin — HTML projection of .ai/workflows/ artifacts.",
@@ -11,7 +11,11 @@
     "render": "node scripts/render-sunflower.mjs",
     "render:clean": "node scripts/render-sunflower.mjs --clean",
     "verify": "node scripts/verify-router-migration.mjs",
-    "test": "node --test tests/sunflower.test.mjs tests/unit/lib/foundation.test.mjs tests/unit/lib/multi-repo-hub.test.mjs tests/unit/hooks/hooks.test.mjs tests/unit/gap-closure/design-phase1.test.mjs tests/unit/gap-closure/renderers-phase2.test.mjs tests/unit/gap-closure/walker-phase3.test.mjs",
+    "test": "node --test tests/sunflower.test.mjs tests/unit/lib/foundation.test.mjs tests/unit/lib/multi-repo-hub.test.mjs tests/unit/hooks/hooks.test.mjs tests/unit/gap-closure/design-phase1.test.mjs tests/unit/gap-closure/renderers-phase2.test.mjs tests/unit/gap-closure/walker-phase3.test.mjs tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
+    "test:snapshots": "node --test tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
+    "test:update": "node scripts/update-snapshots.mjs",
+    "test:e2e": "node tests/e2e/acceptance.mjs",
+    "render:diag": "node scripts/render-sunflower.mjs --clean --diag",
     "hub": "node scripts/hub-serve.mjs",
     "hub:stop": "node -e \"import('./lib/hub-lifecycle.mjs').then(m=>m.stopHub({log:console.log}))\""
   },

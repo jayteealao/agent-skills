@@ -1095,7 +1095,7 @@ Every file starts with YAML frontmatter (`schema: sdlc/v1`) containing all machi
 
 ### Local config and generated view files
 
-Optional local view and hook settings live in `.ai/sdlc-config.json`. The file can include per-machine choices such as a local serve port, host binding, Tailscale exposure, render concurrency, and hook opt-outs, so most projects should not commit it. The generated sunflower view under `.ai/_view/` is also derived output.
+Optional local view and hook settings live in `.ai/sdlc-config.json`: render concurrency/debounce, bootstrap toggles, multi-repo **hub participation** (`view.hub.enabled`), and hook opt-outs — so most projects should not commit it. Serve settings (host, port, Tailscale exposure, the `perRepoServe` kill switch) are **machine-wide**, not per-repo: they live in `~/.sdlc/hub-config.json` and the per-repo schema rejects them. See the [serve reference](docs/site/reference/serve.html) for the full security model. The generated sunflower view under `.ai/_view/` is also derived output.
 
 Recommended `.gitignore` entries:
 
@@ -1103,6 +1103,20 @@ Recommended `.gitignore` entries:
 .ai/sdlc-config.json
 .ai/_view/
 ```
+
+### Local development (view layer)
+
+The view layer is an npm package rooted at `plugins/sdlc-workflow/`. From that directory:
+
+| Command | What it does |
+|---|---|
+| `npm test` | Full unit suite — foundation, hooks, gap-closure, renderer **snapshots**, and fragment **determinism** tests. |
+| `npm run test:snapshots` | Just the golden-file renderer snapshots + the fragment-determinism property tests. |
+| `npm run test:update` | Regenerate the goldens under `tests/snapshots/` after an intentional renderer change. Always review the golden diff before committing. |
+| `npm run test:e2e` | End-to-end acceptance — renders one schema-valid fixture per render-eligible type and fails if any admitted type loses its renderer or a fixture is schema-invalid. Prints `[render] no renderer for: (none)` on success. |
+| `npm run render:diag` | Render this project's real `.ai/` tree with `--clean --diag`, surfacing any types that fall through to the generic renderer. |
+
+`npm test && npm run test:e2e` is the joint CI gate. Third-party deps (Ajv, js-yaml, markdown-it) arrive via `npm install`; the engine and hooks themselves are dependency-free.
 
 ### Control file fields (`00-index.md`)
 

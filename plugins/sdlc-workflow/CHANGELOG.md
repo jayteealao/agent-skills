@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — all-artifacts projection: 23 bespoke renderers + 2 discovery roots (9.40.0)
+
+Every artifact the plugin writes now has a dedicated view-layer page. The only
+intentional exceptions are `routing` (`90-next.md`, a regenerable duplicate of the
+slug overview's next-command) and the schema-exempt `how-*` research notes. See
+[ALL-ARTIFACTS-PROJECTION-PLAN.md](ALL-ARTIFACTS-PROJECTION-PLAN.md).
+
+Previously ~28 admitted/written types were either never discovered, dropped by
+`resolveViewPath`, or rendered as a generic fallback card:
+
+- **Discovery** ([render-sunflower.mjs](scripts/render-sunflower.mjs)): two new
+  roots — `.ai/dep-updates/` (`__deps__`) and `.ai/ideation/` (`__ideation__`),
+  with `--dep-updates`/`--ideation` flags; `discoverDocsArtifacts` now yields all
+  `.md` under `.ai/docs/<run-id>/`, not just the index.
+- **Path resolution** ([_paths.mjs](renderers/_paths.mjs)): new
+  `PHASE_BY_BASENAME` entries (`01-discover`, `hf-*`, `rf-*`, `99-close`) and new
+  `deps`/`ideation` kind branches. Hotfix/refactor steps group under
+  `hotfix/` · `refactor/` view subtrees.
+- **23 bespoke renderers**: 13 workflow lanes (`discover`, `fix-plan`,
+  `investigate`, 4×`hf-*`, 5×`rf-*`, `close-record`), 4 `docs-*`, 5 `dep-*`, and
+  `ideation` (a ranked idea table). A shared [_lane.mjs](renderers/_lane.mjs)
+  factory backs the thin metric-card lanes; `ideation` renders bespoke.
+- **Schema**: 6 new branches (`ideation` + 5 `dep-*`) in
+  [frontmatter.schema.json](tests/frontmatter.schema.json) with foundation-test
+  coverage. `how-*` stays deliberately schema-exempt.
+- **Tests**: +24 renderer snapshots; the e2e acceptance corpus grows from 39 to
+  62 render-eligible types, with `NOT_RENDERED` shrunk to just `routing`.
+- **Docs**: [types.html](docs/site/reference/types.html) gains the quick-lane,
+  dep-update, and off-pipeline-run sections.
+
+### Added — quality gates: snapshot suite, e2e acceptance, mandatory fragments, doc pages (9.39.0)
+
+Closes the verification-and-hygiene gaps from the post-release review (see
+[QUALITY-GATES-PLAN.md](QUALITY-GATES-PLAN.md)). Six independent improvements:
+
+- **Golden-file snapshot suite** ([tests/unit/snapshots/](tests/unit/snapshots/)):
+  a dependency-free harness (`snapshot-harness.mjs`) plus shared fixtures
+  (`_fixtures.mjs`) snapshot 15 renderers × full/fallback/fragment variants
+  (38 goldens under `tests/snapshots/`). A `fragment-determinism.test.mjs`
+  property test asserts the 8 fragment-emitting renderers are byte-stable across
+  repeated calls. New scripts: `test:snapshots`, `test:update` (cross-platform
+  via `scripts/update-snapshots.mjs` — the plan's POSIX env-prefix doesn't work
+  under npm on Windows). Substring-match tests couldn't catch a wrong badge
+  colour or a dropped table column; snapshots can.
+- **Fragment authoring is now required** wherever a sibling YAML is written —
+  `profile`, `benchmark`, `experiment`, `instrument`, and `simplify-run` skill
+  references all changed from "If you also write…" to a mandatory step, so the
+  rich/fragment tier is finally exercised. (The conditional escape survives for
+  the legitimate no-data case: no sibling YAML → no fragment.)
+- **wf-docs intermediate types — schema test coverage**
+  ([foundation.test.mjs](tests/unit/lib/foundation.test.mjs)): `docs-discover`,
+  `docs-audit`, `docs-plan`, `docs-generate` already had `oneOf` branches and
+  `pre-write-validate` listing; added the missing test rows (branch selectable,
+  minimal fixture valid, missing `run-id` rejected).
+- **End-to-end acceptance test** ([tests/e2e/acceptance.mjs](tests/e2e/acceptance.mjs)):
+  a schema-driven generator plants one valid fixture per render-eligible type
+  (admitted types minus an explicit fall-through exclusion set) and runs the real
+  `render-sunflower.mjs --clean --diag`, gating on `[render] no renderer for:
+  (none)`, `0 schema warnings`, no render exceptions, and per-type
+  `data-artifact-type` coverage. New scripts: `test:e2e`, `render:diag`. A new
+  admitted type that forgets its renderer fails the gate.
+- **Doc-site reference pages**: [serve.html](docs/site/reference/serve.html)
+  (machine-wide `~/.sdlc/hub-config.json` keys + security model — corrected from
+  the plan's stale per-repo `view.serve` spec) and
+  [types.html](docs/site/reference/types.html) (every admitted type → producer →
+  storage → renderer → fragment-eligibility). Linked from the sidebar and pager
+  chain (hooks → serve → types → glossary).
+- **Cleanup**: [review-command.mjs](renderers/review-command.mjs) documented as a
+  load-bearing alias (NOT dead code — `review-command` is still the emitted
+  frontmatter type; removal gated on a future type rename). `verify_frontmatter.py`
+  was already retired (v9.34.3). Open question #4 resolved — standalone
+  `/wf-quick rca` writes to an ordinary `.ai/workflows/rca-<symptom>/` slug (no
+  synthetic `__rca__`), discovered by the standard walk; documented in `rca.md`.
+- **README**: new "Local development (view layer)" section documenting the npm
+  scripts; corrected the stale claim that serve port/host/Tailscale live in
+  per-repo `.ai/sdlc-config.json`.
+
 ### Changed — serve config is machine-only; per-repo `view.serve` removed (9.38.0)
 
 Serve/daemon settings (`host`, `port`, `liveReload`, `tailscale`, and the

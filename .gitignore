@@ -38,3 +38,5 @@ sdlc-handoff.zip
 
 # Generated sunflower view output (HTML projection of .ai/workflows — rebuilt on render)
 .ai/_view/
+sdlc.zip
+.claude/scheduled_tasks.lock
