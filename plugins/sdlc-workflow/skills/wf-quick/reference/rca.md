@@ -46,7 +46,7 @@ You are a **diagnostician**, not a fixer.
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: rca` → **resume mode**. Read that index. If `01-rca.md` is complete, the user likely meant to run the recommended next command — tell them and stop. If incomplete, pick up from the missing section.
-   - Otherwise → **new RCA**. Derive a slug: `rca-<short-symptom>` (kebab-case, max 5 words, e.g., `rca-checkout-double-charge`).
+   - Otherwise → **new RCA**. Derive a slug: `rca-<short-symptom>` (kebab-case, max 5 words, e.g., `rca-checkout-double-charge`). This is an ordinary `.ai/workflows/<slug>/` directory — there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route, so no special-casing is needed in the view layer.
 2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `rca` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf-meta resume <slug>` to continue the existing workflow." Stop.
 3. **Branch posture (do NOT switch branches):**
    - Investigation is read-only — do not create or switch branches.
@@ -341,10 +341,24 @@ If the recommendation is `human-triage`, replace the `Recommended next:` line wi
 
 ---
 
-## Step — Write the rich fragment (v9.20.0+)
+## Step — Write the rich `.yaml` + fragment (MANDATORY — do not skip)
 
-When the RCA produces an augmentation artifact, write a sibling
-`<rca-id>.html.fragment` next to the `.md` and `.yaml`.
+The sunflower view renders the RCA page from a sibling `.yaml` + `.html.fragment`
+written next to the RCA `.md`. **Without the `.yaml` the page silently degrades to
+plain prose** — the incident timeline, the causal chain, the severity heatmap, and
+the metric row never appear (`rca.mjs` returns `renderSimple` when the sibling YAML
+is absent). The `post-write-verify` hook reminds you if you forget; author them here,
+now, while the incident is still in context.
+
+For the RCA `.md` you just wrote (`01-rca.md`, or `augmentations/<rca-id>.md` for an
+RCA augmentation):
+
+1. Write the sibling **`<stem>.yaml`** — the structured data: `incident:`, `title:`,
+   `started_at:`, `resolved_at:`, `metrics:` (duration, time_to_detect,
+   time_to_mitigate, user_failures, revenue_impact), `timeline:` (at, kind, title,
+   who), `chain:` (causal steps, root last), `heatmap:` (buckets, systems[name][bucket]).
+   Schema: `siblingYamlSchemas.rca` in `tests/frontmatter.schema.json`.
+2. Write the sibling **`<stem>.html.fragment`** — the body-only interactive layer.
 
 The fragment is one `<section class="fragment-rca" data-artifact="rca"
 data-incident="<INC-id>">` that reproduces the gallery's RCA fragment 1:1:
@@ -378,15 +392,14 @@ Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../refer
 
 ### Use `@include` for shared chrome (v9.20.1+)
 
+The fragment is **body-only** (see `_fragment-authoring.md` → "Scope"): `rca.mjs`
+already emits the heading and the metric-row, and draws the timeline + causal-chain
+figures (suppressing its static copies when the fragment is present). Do **not**
+repeat the metric-row in the fragment — start at the interactive timeline:
+
 ```html
 <section class="fragment-rca" data-artifact="rca" data-incident="INC-2026-0512">
-  <!-- @include metric-row { "metrics": [
-    { "label": "duration",  "value": "3h 43m" },
-    { "label": "detect",    "value": "6m" },
-    { "label": "mitigate",  "value": "32m" },
-    { "label": "failures",  "value": 12400, "tone": ["warn"] },
-    { "label": "revenue",   "value": "$38k",  "tone": ["warn"] }
-  ] } -->
+  <!-- page owns the heading + metric-row (body-only) — fragment starts at the timeline -->
 
   <svg class="rca-timeline"> …incident timeline (anchors → :target panels)… </svg>
   <aside class="rca-detail-panel"> …per-event detail blocks… </aside>
