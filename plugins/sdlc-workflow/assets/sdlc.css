@@ -1222,6 +1222,50 @@ details.history li, details.revisions li { padding: 4px 0; }
   display: block;
 }
 
+/* SYS-R05 · fragment nav-registration. The shell emits an empty .frag-nav; once
+   sdlc.js registers a mounted fragment (on sdlc:fragment-ready) it gains
+   .is-active and surfaces as a compact "on this page" jump nav. Hidden until a
+   fragment registers, so non-fragment pages show nothing. */
+.frag-nav { display: none; }
+.frag-nav.is-active {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin: 0 0 28px;
+  padding: 10px 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--rad-md);
+  background: var(--paper-2);
+}
+.frag-nav .frag-nav-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.frag-nav .frag-nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.frag-nav .frag-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.frag-nav .frag-nav-badge { color: var(--ink-3); font-size: 11px; }
+
 /* ── Footer ───────────────────────────────────────────────────────────── */
 
 .bottom {

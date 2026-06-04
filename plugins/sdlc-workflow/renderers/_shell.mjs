@@ -75,6 +75,7 @@ export function renderShell(params) {
   <main class="content">
     ${warnBanner}
     ${headerHtml}
+    <nav class="frag-nav" aria-label="Fragments on this page"><span class="frag-nav-label">On this page</span><ul class="frag-nav-list"></ul></nav>
     ${bodyHtml}
   </main>
 
