@@ -1407,7 +1407,7 @@ details.history li, details.revisions li { padding: 4px 0; }
 
   /* vertical stage stepper (slug overview) */
   .stepper { position: relative; margin: 4px 0; padding-left: 8px; }
-  .stepper .step { position: relative; padding: 0 0 18px 34px; }
+  .stepper .step { display: block; position: relative; padding: 0 0 18px 34px; text-decoration: none; color: inherit; }
   .stepper .step:last-child { padding-bottom: 0; }
   .stepper .step::before { content: ""; position: absolute; left: 11px; top: 22px; bottom: -4px; width: 2px; background: var(--rule); }
   .stepper .step:last-child::before { display: none; }

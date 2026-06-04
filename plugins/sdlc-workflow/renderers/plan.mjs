@@ -185,7 +185,7 @@ function structuredSections(fm, sy) {
   const parts = [
     planFrontmatterCard(fm),
     sectionWrap('acceptance criteria', acList(sy?.acceptance ?? fm['acceptance-criteria'] ?? fm.acceptance)),
-    sectionWrap('files touched', filesTable(sy?.files)),
+    sectionWrap('files touched', filesTouchedDual(sy?.files)),
     sectionWrap('risks', riskCallouts(sy?.risks)),
     revisionsBlock(fm, sy),
   ];
@@ -251,6 +251,46 @@ function filesTable(files) {
     <thead><tr><th>Path</th><th>LOC</th><th>&#916;</th><th>Role</th></tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
+}
+
+// Dual-DOM files-touched: the semantic table on desktop, a grouped module list
+// (M-PLN-02) on phones where a 4-column table can't fit.
+function filesTouchedDual(files) {
+  const table = filesTable(files);
+  if (!table) return '';
+  return `<div class="d-only">${table}</div><div class="m-only">${filesModgroups(files)}</div>`;
+}
+
+function filesModgroups(files) {
+  if (!Array.isArray(files) || !files.length) return '';
+  const groups = new Map();
+  for (const f of files) {
+    const path = String(f.path ?? '');
+    const slash = path.lastIndexOf('/');
+    const mod = slash > 0 ? path.slice(0, slash) : '(root)';
+    if (!groups.has(mod)) groups.set(mod, []);
+    groups.get(mod).push(f);
+  }
+  return [...groups.entries()].map(([mod, fs]) => {
+    const rows = fs.map((f) => {
+      const role = String(f.role ?? 'modified');
+      const name = String(f.path ?? '').split('/').filter(Boolean).at(-1) ?? f.path;
+      const cls = role === 'new' ? 'is-new' : role === 'deleted' ? 'is-deleted' : 'is-modified';
+      return `<div class="frow ${cls}"><span class="role-dot"></span><span class="fname">${escapeHtml(String(name))}</span><span class="delta">${formatDeltaFrow(f.delta)}</span></div>`;
+    }).join('');
+    return `<div class="modgroup"><div class="modhd"><span>${escapeHtml(mod)}</span><span class="ct">${fs.length} file${fs.length === 1 ? '' : 's'}</span></div>${rows}</div>`;
+  }).join('');
+}
+
+function formatDeltaFrow(delta) {
+  if (delta == null) return '';
+  if (typeof delta === 'object') {
+    const add = Number(delta.add ?? 0), rem = Number(delta.rem ?? delta.del ?? 0);
+    return `<span class="a">+${add}</span> <span class="r">&minus;${rem}</span>`;
+  }
+  const n = Number(delta);
+  if (Number.isNaN(n)) return escapeHtml(String(delta));
+  return n >= 0 ? `<span class="a">+${n}</span>` : `<span class="r">&minus;${Math.abs(n)}</span>`;
 }
 
 function formatDelta(delta) {

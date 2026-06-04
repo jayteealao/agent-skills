@@ -72,16 +72,88 @@ export function render(artifact, ctx) {
     ],
   });
 
-  const bodyHtml = `
-    ${projectSection(project)}
+  // Dual-DOM (M-S4): desktop ships the swimlane figure + project-row ledgers;
+  // phones (<=480px) get metric tiles + native project cards instead, since the
+  // 10-column swimlane SVG is illegible at 390px (M-DASH-02..05).
+  const desktopBody = `
     ${figureHtml}
     ${slugSection('Active', active)}
     ${slugSection('Recently shipped', complete)}
     ${slugSection('Closed', closed)}
     ${quickSection(quick)}
   `;
+  const mobileBody = `
+    ${mobileTiles(active)}
+    ${mobileCardGroup('Active', active, false)}
+    ${mobileCardGroup('Recently shipped', complete, true)}
+    ${mobileQuickGroup(quick)}
+  `;
+  const bodyHtml = `
+    ${projectSection(project)}
+    <div class="d-only">${desktopBody}</div>
+    <div class="m-only">${mobileBody}</div>
+  `;
 
   return { headerHtml, bodyHtml, links: [], children: [] };
+}
+
+// ── Mobile dashboard (M-S3 / 5b) — metric tiles + native project cards. ──
+
+function mobileTiles(active) {
+  const blockers = active.reduce((a, s) =>
+    a + (Number(s.fm.blockers ?? s.fm['blocker-count'] ?? (isBlocked(s.fm) ? 1 : 0)) || 0), 0);
+  return `<div class="mtiles">
+    <div class="mtile"><div class="lbl">Active</div><div class="val">${active.length}</div></div>
+    <div class="mtile"><div class="lbl">Blockers</div><div class="val${blockers ? ' is-blocker' : ''}">${blockers}</div></div>
+  </div>`;
+}
+
+function mobileCardGroup(label, list, shipped) {
+  if (!list.length) return '';
+  const cards = list.map((s) => mobilePcard(s, shipped)).join('');
+  return `<div class="subhead">${escapeHtml(label)} <span class="ct">${list.length}</span></div>${cards}`;
+}
+
+function isBlocked(fm) {
+  return String(fm.status ?? '').trim().toLowerCase() === 'blocked' || fm.blocked === true;
+}
+
+// A native project card: slug + stage chip, description, a mini stage strip
+// (the swimlane's row reborn as dots), a relative timestamp, and a health line.
+function mobilePcard({ slug, fm }, shipped) {
+  const stage = fm['current-stage'] ?? 'intake';
+  const declaredIdx = STAGES.indexOf(stage);
+  const currentIdx = shipped ? STAGES.length - 1 : (declaredIdx < 0 ? 0 : declaredIdx);
+  const blocked = !shipped && isBlocked(fm);
+  const h = health(fm);
+  const desc = fm.description ?? '';
+  const dots = STAGES.map((_s, i) => {
+    const cur = !shipped && currentIdx === i;
+    const done = shipped ? true : currentIdx > i;
+    const cls = cur ? (blocked ? 'd blocked' : 'd cur') : done ? 'd done' : 'd';
+    return `<span class="${cls}"></span>`;
+  }).join('');
+  const chipCls = h.tone === 'ok' && h.label === 'shipped' ? 'stagechip done' : 'stagechip';
+  const lineTone = h.tone === 'bad' ? 'bad' : h.tone === 'warn' ? 'warn' : h.tone === 'idle' ? 'idle' : 'ok';
+  return `<a class="pcard" href="${escapeHtml(pageHref(slug))}">
+    <div class="top"><span class="slug">${escapeHtml(slug)}</span><span class="${chipCls}">${escapeHtml(stage)}</span></div>
+    ${desc ? `<p class="desc">${escapeHtml(desc)}</p>` : ''}
+    <div class="foot"><div class="stagestrip">${dots}</div><span class="when">${escapeHtml(humanRelative(fm['updated-at'] ?? ''))}</span></div>
+    <div class="statusline ${lineTone}"><span class="glyph" aria-hidden="true">${h.glyph}</span>${escapeHtml(h.label)}</div>
+  </a>`;
+}
+
+function mobileQuickGroup(list) {
+  if (!list.length) return '';
+  const cards = list.map(({ slug, fm }) => {
+    const h = health(fm);
+    const lineTone = h.tone === 'bad' ? 'bad' : h.tone === 'warn' ? 'warn' : h.tone === 'idle' ? 'idle' : 'ok';
+    return `<a class="pcard" href="${escapeHtml(pageHref(slug))}">
+      <div class="top"><span class="slug">${escapeHtml(slug)}</span><span class="stagechip">${escapeHtml(fm['workflow-type'] ?? 'quick')}</span></div>
+      <div class="statusline ${lineTone}"><span class="glyph" aria-hidden="true">${h.glyph}</span>${escapeHtml(fm['current-stage'] ?? h.label)}</div>
+    </a>`;
+  }).join('');
+  return `<div class="subhead">Quick &amp; investigative <span class="ct">${list.length}</span></div>${cards}`;
 }
 
 function projectSection(list) {

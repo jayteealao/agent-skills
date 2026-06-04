@@ -82,9 +82,13 @@ export function render(artifact, ctx) {
   const slicesHtml = slicesPreview(ctx.allArtifacts);
   const plansHtml = plansPreview(ctx.allArtifacts);
 
+  // Dual-DOM (M-S4): the 10-station stage stripe SVG is illegible at 390px, so
+  // phones (<=480px) get metric tiles + a vertical stepper instead (M-OVR-02/03).
+  const mobileStripeHtml = mobileStripe({ current, allArtifacts: ctx.allArtifacts, fm });
+
   const bodyHtml = `
-    ${figureHtml}
-    ${metricsHtml}
+    <div class="d-only">${figureHtml}${metricsHtml}</div>
+    <div class="m-only">${mobileStripeHtml}</div>
     <section class="so-grid">
       <div class="so-main">
         <h2 class="sec">recent activity</h2>
@@ -102,6 +106,33 @@ export function render(artifact, ctx) {
   `;
 
   return { headerHtml, bodyHtml, links: [], children: [] };
+}
+
+// Mobile slug overview (M-S3 / 5b): metric tiles + a vertical stage stepper,
+// the portrait reconception of the desktop stage-stripe SVG.
+function mobileStripe({ current, allArtifacts, fm }) {
+  const currentIdx = Math.max(0, STAGES.indexOf(current));
+  const sliceCount = (allArtifacts?.slice ?? []).length;
+  const reviewCount = (allArtifacts?.review ?? []).length + (allArtifacts?.['review-command'] ?? []).length;
+  const blockers = Number(fm.blockers ?? fm['blocker-count'] ?? 0) || 0;
+  const tests = fm['tests-passed'] ?? fm['metric-tests'] ?? '—';
+  const tiles = `<div class="mtiles">
+    <div class="mtile"><div class="lbl">Slices</div><div class="val">${sliceCount || '—'}</div></div>
+    <div class="mtile"><div class="lbl">Reviews</div><div class="val">${reviewCount || '—'}</div></div>
+    <div class="mtile"><div class="lbl">Blockers</div><div class="val${blockers ? ' is-blocker' : ''}">${blockers}</div></div>
+    <div class="mtile"><div class="lbl">Tests</div><div class="val">${escapeHtml(String(tests))}</div></div>
+  </div>`;
+  const steps = STAGES.map((stage, i) => {
+    const cfg = STAGE_NAV[stage] ?? { types: [stage], dir: stage };
+    const { count } = stageArtifacts(stage, allArtifacts);
+    const cls = currentIdx === i ? 'step cur' : currentIdx > i ? 'step done' : 'step';
+    const meta = count > 0 ? stationAnnotation(stage, count, allArtifacts, fm) : 'not started';
+    const inner = `<span class="ring">${i + 1}</span><div class="nm">${escapeHtml(stage)}</div><div class="meta">${escapeHtml(meta)}</div>`;
+    return count > 0
+      ? `<a class="${cls}" href="${escapeHtml(pageHref(cfg.dir))}">${inner}</a>`
+      : `<div class="${cls}">${inner}</div>`;
+  }).join('');
+  return `${tiles}<div class="subhead">Stages</div><div class="stepper">${steps}</div>`;
 }
 
 const SVG_SERIF = 'Iowan Old Style, Palatino, Georgia, serif';
