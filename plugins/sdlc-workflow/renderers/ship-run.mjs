@@ -155,10 +155,10 @@ function checksTable(checks) {
 
   return `<section class="ship-checks">
     <h2 class="sdlc-h2">checks</h2>
-    <table class="checks-table">
+    <div class="table-scroll"><table class="checks-table">
       <thead><tr>${heads}</tr></thead>
       <tbody>${rows}</tbody>
-    </table>
+    </table></div>
    </section>`;
 }
 

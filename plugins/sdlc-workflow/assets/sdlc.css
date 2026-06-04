@@ -1335,6 +1335,14 @@ details.history li, details.revisions li { padding: 4px 0; }
    set above (fragment-author-contract.md:47). plan.mjs maps its risk levels
    high→risk, med→warn, low→info through the shared callout() helper. */
 
+/* M-S2: wide tables (files-touched, ship-run checks) scroll horizontally inside
+   this wrapper instead of shrinking illegibly on narrow viewports. overflow-x is
+   inert until the table actually overflows, so it costs nothing on desktop and
+   preserves thead/tbody column alignment (which `display:block` on the table
+   itself would break). The contained table keeps a legible minimum width. */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: var(--gap) 0; }
+.table-scroll > table { margin: 0; min-width: var(--table-min-w, 520px); }
+
 /* Files-touched as a semantic <table> (D5.10) — the plan + fragments emit
    thead/tbody. The legacy `.files-touched .row` grid above stays for any
    markup that still uses it. */

@@ -13,9 +13,19 @@ export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
   const sy = artifact.siblingYaml ?? null;
 
+  // PLN-02: lead with the human plan title; keep the slice slug as a code
+  // sub-label only when it adds information beyond the title.
+  const sliceSlug = fm['slice-slug'] ?? '';
+  const planTitle = fm.title
+    ? escapeHtml(fm.title)
+    : `Plan · <code>${escapeHtml(sliceSlug)}</code>`;
+  // PLN-03: an editorial one-liner under the title when the plan summarises itself.
+  const planLede = fm.summary ?? fm.lede ?? (sliceSlug && fm.title ? `Plan · ${sliceSlug}` : '');
+
   const headerHtml = artifactHeader({
     crumb: artifact.path,
-    h1: `Plan · <code>${escapeHtml(fm['slice-slug'] ?? '')}</code>`,
+    h1: planTitle,
+    lede: planLede ? escapeHtml(planLede) : '',
     badges: [
       statusBadge(fm.status),
       stageBadge('plan'),
@@ -237,10 +247,10 @@ function filesTable(files) {
       <td><span class="role is-${escapeHtml(role)}">${escapeHtml(role)}</span></td>
     </tr>`;
   }).join('');
-  return `<table class="files-touched">
+  return `<div class="table-scroll"><table class="files-touched">
     <thead><tr><th>Path</th><th>LOC</th><th>&#916;</th><th>Role</th></tr></thead>
     <tbody>${rows}</tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function formatDelta(delta) {
