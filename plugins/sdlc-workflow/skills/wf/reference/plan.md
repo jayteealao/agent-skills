@@ -517,10 +517,23 @@ If a criterion needs tooling outside `stack:`: do NOT pick a default. Add an ent
 
 ---
 
-## Step F — Write the rich fragment (v9.20.0+)
+## Step F — Write the rich `.yaml` + fragment (MANDATORY — do not skip)
 
-After writing `slices/<slice-slug>/04-plan.md` and its sibling
-`04-plan.yaml`, write `04-plan.html.fragment` next to them.
+The sunflower view renders the plan page from a sibling `.yaml` + `.html.fragment`
+written next to `04-plan.md`. **Without the `.yaml` the page silently degrades to
+plain prose** — the file-change topology figure, the files-touched table, and the
+risk callouts never appear (`plan.mjs` gates the rich body on the sibling YAML). The
+`post-write-verify` hook reminds you if you forget; author them here, now, while the
+plan is still in context.
+
+For the `slices/<slice-slug>/04-plan.md` you just wrote:
+
+1. Write the sibling **`04-plan.yaml`** — the structured data: `modules:`, `files:`
+   (path, role, loc, delta{add,rem}, imports, planned_change), `edges:` (import /
+   replaces topology), `risks:`, `history:`. Schema: `siblingYamlSchemas.plan` in
+   `tests/frontmatter.schema.json`.
+2. Write the sibling **`04-plan.html.fragment`** — the body-only interactive layer
+   described next.
 
 The fragment is one `<section class="fragment-plan" data-artifact="plan"
 data-slice="<slice-slug>" data-rev="<n>">` that reproduces the gallery's

@@ -6,10 +6,24 @@ references includes a "Step N — write the rich fragment" section that points
 here. Authoring guidance lives in one place; per-router references stay focused
 on their domain logic.
 
-## When to author a fragment
+## Author the `.yaml` FIRST — it is mandatory, not a precondition
 
-After writing the primary artifact `.md` and its sibling `.yaml`, write
-`<artifact>.html.fragment` next to them:
+The rich tier renders from the sibling **`.yaml`** (the structured data the page
+reads) and, optionally, the **`.html.fragment`** (the interactive layer on top).
+The `.yaml` is the load-bearing file: **the renderer gates the rich figure/table on
+it — with no `.yaml` the page silently degrades to plain prose (`renderSimple`)**,
+and the `metric-row`, hero figure, verdict heatmap, etc. never appear. So for every
+rich artifact:
+
+1. **Write the sibling `<stem>.yaml`** — the structured data, conforming to
+   `siblingYamlSchemas.<type>` in `tests/frontmatter.schema.json` (one of
+   `review`, `rca`, `plan`, `design`, `ship-run`). This step is **MANDATORY** even
+   if you skip the fragment; the `post-write-verify` hook flags a rich `.md` written
+   without it.
+2. **Write the sibling `<stem>.html.fragment`** — the body-only interactive layer
+   (below). Optional but expected for the five rich types.
+
+Write the siblings next to the primary artifact `.md`:
 
 ```
 .ai/workflows/<slug>/07-review.md
@@ -32,6 +46,24 @@ After writing the primary artifact `.md` and its sibling `.yaml`, write
 .ai/workflows/<slug>/augmentations/<rca-id>.yaml
 .ai/workflows/<slug>/augmentations/<rca-id>.html.fragment
 ```
+
+## Scope — body-only (additive)
+
+A fragment is **additive**: the page (renderer) already builds the chrome — the one
+page heading (`pg-title`/`sdlc-h1` + breadcrumb), the lede, and the `metric-row`.
+The fragment is appended *below* that chrome and owns only the **interactive detail
+layer** (collapsible diff rows, clickable check cells + log panels, live swatches +
+copy controls, severity filters, `:target` timelines).
+
+- **Do NOT emit a page heading, verdict block, or `metric-row` inside the fragment**
+  — the page renders them; a copy double-renders. Start the fragment at its first
+  interactive element.
+- Where the renderer *also* draws a section from the YAML (a hero figure, a static
+  table), the fragment owns the **interactive** version and the renderer suppresses
+  its static copy — never ship both (precedence). No second static duplicate.
+
+The per-fragment structures below show the interactive elements only; the `<header>`
+chrome they once illustrated is the **page's**, not the fragment's.
 
 ## Hard contract — every fragment MUST
 
@@ -91,7 +123,7 @@ without any access to the upstream `agent-skills/sdlc-handoff/` bundle.
 
 ```
 <section class="fragment-review" data-artifact="review" data-rev="2">
-  <header>… verdict block + .sdlc-h1 + 5-cell .metric-row …</header>
+  <!-- page owns heading + verdict + metric-row (body-only) — fragment starts here -->
   <nav class="fr-dim-bar">… aria-pressed dimension chips …</nav>
   <div class="fr-controls">… severity checkboxes + sort dropdown + visible-count …</div>
   <ol class="fr-findings">
@@ -117,7 +149,7 @@ folds confidence into the sort.
 
 ```
 <section class="fragment-rca" data-artifact="rca" data-incident="INC-…">
-  <header>… 5-metric row: duration / detect / mitigate / failures / revenue …</header>
+  <!-- page owns heading + metric-row (body-only) — fragment starts here -->
   <svg class="timeline"> … alert/escalation/deploy/mitigation/resolution circles
        wrapped in <a href="#evt-N"> for :target panel navigation … </svg>
   <aside class="rca-detail-panel">
@@ -140,7 +172,7 @@ Timeline navigation is CSS-only via `:target`. JS only enhances hover/focus.
 
 ```
 <section class="fragment-plan" data-artifact="plan" data-slice="<slug>" data-rev="3">
-  <header>… .sdlc-h1 + 3-metric row …</header>
+  <!-- page owns heading + metric-row + topology figure (body-only) — fragment starts at the table -->
   <svg class="pl-topology"> file-change topology — modules as dashed <rect>;
        files as tinted rects (new/modified/deleted/external);
        import edges <path>; "replaces" edges dashed in --blocker </svg>
@@ -165,7 +197,7 @@ Timeline navigation is CSS-only via `:target`. JS only enhances hover/focus.
 
 ```
 <section class="fragment-design" data-artifact="design" data-component="…">
-  <header>… .sdlc-h1 + tokens metric-row …</header>
+  <!-- page owns heading + tokens metric-row (body-only) — fragment starts at the swatch matrix -->
   <div class="dz-matrix">
     … 24-cell swatch grid: 4 sizes × 3 states × 2 themes
        each cell renders <button class="ck-btn is-{default|hover|pressed}"> …
@@ -191,7 +223,7 @@ Timeline navigation is CSS-only via `:target`. JS only enhances hover/focus.
 
 ```
 <section class="fragment-shiprun" data-artifact="ship-run" data-release="v3.2.0">
-  <header>… release + run_at + 5-metric row …</header>
+  <!-- page owns heading + metric-row (body-only) — fragment starts at the timeline -->
   <svg class="sr-timeline"> build → test → stage → canary → prod
        segments tinted by status (ok/flake/fail/running/pending) </svg>
   <table class="sr-checks">

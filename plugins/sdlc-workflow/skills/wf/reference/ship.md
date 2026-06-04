@@ -494,10 +494,22 @@ Each template seeds Blocks A–G with sensible defaults and one or two recovery 
 
 ---
 
-## Step Z — Write the rich fragment (v9.20.0+)
+## Step Z — Write the rich `.yaml` + fragment (MANDATORY — do not skip)
 
-After writing `ship/<run-id>/09-ship-run.md` and its sibling
-`09-ship-run.yaml`, write `09-ship-run.html.fragment` next to them.
+The sunflower view renders the ship-run page from a sibling `.yaml` + `.html.fragment`
+written next to `09-ship-run.md`. **Without the `.yaml` the page silently degrades to
+plain prose** — the deploy timeline, the per-env checks matrix, and the rollback panel
+never appear (`ship-run.mjs` returns `renderSimple` when the sibling YAML is absent).
+The `post-write-verify` hook reminds you if you forget; author them here, now.
+
+For the `ship/<run-id>/09-ship-run.md` you just wrote:
+
+1. Write the sibling **`09-ship-run.yaml`** — the structured data: `release:`,
+   `run_at:`, `stages:` (name, status, started_at, ended_at), `checks:` (name, kind,
+   results per env → {status, duration}), `rollback:` (window_minutes, target_release,
+   approvers). Schema: `siblingYamlSchemas['ship-run']` in `tests/frontmatter.schema.json`.
+2. Write the sibling **`09-ship-run.html.fragment`** — the body-only interactive layer
+   described next.
 
 The fragment is one `<section class="fragment-shiprun" data-artifact="ship-run"
 data-release="<release>">` that reproduces the gallery's ship-run fragment 1:1:

@@ -207,10 +207,22 @@ Apply fixes. Repeat until no material defects remain.
 
 ---
 
-## Step — Write the rich fragment (v9.20.0+)
+## Step — Write the rich `.yaml` + fragment (MANDATORY — do not skip)
 
-After writing `02b-design.md` and its sibling `02b-design.yaml`, write
-`02b-design.html.fragment` next to them.
+The sunflower view renders the design page from a sibling `.yaml` + `.html.fragment`
+written next to `02b-design.md`. **Without the `.yaml` the page silently degrades to
+plain prose** — the swatch matrix, the token table, and the annotated specs never
+appear (`design.mjs` gates the rich body on the sibling YAML). The `post-write-verify`
+hook reminds you if you forget; author them here, now.
+
+For the `02b-design.md` you just wrote:
+
+1. Write the sibling **`02b-design.yaml`** — the structured data: `component:`,
+   `themes:`, `states:`, `sizes:` (id, height, padx, pady), `tokens:` (name, category,
+   value), `specs:` (reference, annotate). Schema: `siblingYamlSchemas.design` in
+   `tests/frontmatter.schema.json`.
+2. Write the sibling **`02b-design.html.fragment`** — the body-only interactive layer
+   described next.
 
 Before authoring the fragment, load
 `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and apply
