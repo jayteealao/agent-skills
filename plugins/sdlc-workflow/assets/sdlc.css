@@ -1264,11 +1264,44 @@ details.history li, details.revisions li { padding: 4px 0; }
   .metric-row { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
   .metric-value { font-size: 22px; }
   .bottom { padding: 16px 20px; flex-direction: column; gap: 4px; }
+
+  /* M-S1 · mobile chrome. The 880px tier hides the crumb with no replacement,
+     leaving phone pages context-free, while the desktop actions ("⌘K · viewing
+     as you") are meaningless on touch. Recompose the topbar into a compact
+     sticky mobile bar — brand + a single-line crumb, full-bleed, no actions —
+     so context and a back path survive on phones. (Faithful native appbar with
+     in-bar title + the bottom tabbar are the larger M-S3 port, still pending.) */
+  .b-topbar {
+    position: sticky; top: 0; z-index: 20;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    padding: max(10px, env(safe-area-inset-top)) 20px 10px;
+    max-width: none;
+    background: var(--paper);
+  }
+  .b-topbar .brand { font-size: 15px; }
+  .b-topbar .crumb { display: flex; flex-wrap: nowrap; overflow: hidden; font-size: 12px; white-space: nowrap; }
+  .b-topbar .crumb a, .b-topbar .crumb b { overflow: hidden; text-overflow: ellipsis; }
+  .b-topbar .actions { display: none; }
+
+  /* M-S6 · touch targets — lift tappable controls to the 44px minimum. */
+  .btn { min-height: 44px; }
+  nav.so-rail a { min-height: 44px; }
 }
 @media (max-width: 480px) {
   .verdict { flex-direction: column; align-items: flex-start; padding: 16px; }
   .files-touched .row { grid-template-columns: 60px 1fr; row-gap: 4px; }
   .files-touched .delta { grid-column: 1 / -1; text-align: left; }
+
+  /* M-S5 · slice cards reflow to one column fine, but their tokens should shift
+     to the mobile spec — a condensed mono name, a flex meta line with emphasised
+     mono values, and a rounder card. (These mobile targets intentionally differ
+     from the desktop SLC-* tuning.) */
+  .slice-card { border-radius: 14px; padding: 14px 16px; }
+  .slice-card .sc-name { font-family: var(--mono); font-size: 14px; letter-spacing: -0.01em; }
+  .slice-card .sc-meta { display: flex; flex-wrap: wrap; gap: 16px; font-family: var(--mono); }
+  .slice-card .sc-foot .pct { font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 }
 
 /* ─────────────────────────────────────────────────────────────────────────

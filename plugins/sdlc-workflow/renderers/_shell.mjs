@@ -59,7 +59,7 @@ export function renderShell(params) {
 <html lang="en" data-sdlc-version="${PLUGIN_VERSION}" data-artifact-type="${escapeHtml(type)}">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>${escapeHtml(title)} — sdlc</title>
   <link rel="stylesheet" href="${escapeHtml(assetBase)}/sdlc.css${versionTag}">
   <script src="${escapeHtml(assetBase)}/sdlc.js${versionTag}" defer></script>
