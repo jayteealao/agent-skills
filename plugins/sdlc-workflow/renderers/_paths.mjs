@@ -55,6 +55,21 @@ const PHASE_BY_BASENAME = {
   'risk-register':         ['risk-register', null],
   'estimate':              ['estimate', null],
   '08b-docs-index':        ['docs-index', null],
+  // wf-quick discover standalone lane (sibling of 01-fix / 01-investigate).
+  '01-discover':           ['discover', null],
+  // Hotfix mini-pipeline (/wf-quick hotfix) — grouped under a hotfix/ subtree.
+  'hf-brief':              ['hotfix/brief', null],
+  'hf-plan':               ['hotfix/plan', null],
+  'hf-implement':          ['hotfix/implement', null],
+  'hf-verify':             ['hotfix/verify', null],
+  // Refactor mini-pipeline (/wf-quick refactor) — grouped under refactor/.
+  'rf-brief':              ['refactor/brief', null],
+  'rf-baseline':           ['refactor/baseline', null],
+  'rf-plan':               ['refactor/plan', null],
+  'rf-implement':          ['refactor/implement', null],
+  'rf-verify':             ['refactor/verify', null],
+  // wf-meta close record.
+  '99-close':              ['close', null],
 };
 
 /**
@@ -106,6 +121,20 @@ export function resolveViewPath(storageRel, opts = {}) {
     return {
       viewRel: path.join('profiles', stem, 'INDEX.html'),
       kind: 'profile',
+    };
+  }
+  if (kindHint === 'deps') {
+    const stem = rel.replace(/\.md$/, '');
+    return {
+      viewRel: path.join('dep-updates', stem, 'INDEX.html'),
+      kind: 'deps',
+    };
+  }
+  if (kindHint === 'ideation') {
+    const stem = rel.replace(/\.md$/, '');
+    return {
+      viewRel: path.join('ideation', stem, 'INDEX.html'),
+      kind: 'ideation',
     };
   }
   if (kindHint === 'docs') {

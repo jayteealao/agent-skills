@@ -58,6 +58,8 @@ function parseArgs(argv) {
     simplify:   '.ai/simplify',
     profiles:   '.ai/profiles',
     docs:       '.ai/docs',
+    depUpdates: '.ai/dep-updates',
+    ideation:   '.ai/ideation',
     assetBase:  null,
     pluginRoot: PLUGIN_ROOT_DEFAULT,
     schema:     null,
@@ -85,6 +87,8 @@ function parseArgs(argv) {
     else if (a === '--simplify')     args.simplify = argv[++i];
     else if (a === '--profiles')     args.profiles = argv[++i];
     else if (a === '--docs')         args.docs = argv[++i];
+    else if (a === '--dep-updates')  args.depUpdates = argv[++i];
+    else if (a === '--ideation')     args.ideation = argv[++i];
     else if (a === '--asset-base')   args.assetBase = argv[++i];
     else if (a === '--plugin-root')  args.pluginRoot = resolve(argv[++i]);
     else if (a === '--schema')       args.schema = resolve(argv[++i]);
@@ -138,7 +142,7 @@ function* walkStorage(root) {
 
 /* ───────────────────────── Artifact discovery ───────────────────────── */
 
-function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, projectRoot, includeProjectContext = true }) {
+function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, depUpdatesRoot, ideationRoot, projectRoot, includeProjectContext = true }) {
   const artifacts = [];
   // Workflow tree — bucket .md files (other extensions handled as siblings)
   for (const abs of walkStorage(storageRoot)) {
@@ -185,6 +189,22 @@ function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, 
   // Documentation run indexes. The wf-docs orchestrator writes audit/generate
   // scratch artifacts under .ai/docs/<run-id>/ as well, but the view only owns
   // the compact docs-index artifact.
+  // Dependency-update runs (/wf-quick update-deps) under .ai/dep-updates/<run-id>/.
+  if (depUpdatesRoot && existsSync(depUpdatesRoot)) {
+    for (const abs of walkStorage(depUpdatesRoot)) {
+      if (!abs.endsWith('.md')) continue;
+      const rel = relative(depUpdatesRoot, abs).replace(/\\/g, '/');
+      artifacts.push({ mdAbs: abs, slug: '__deps__', storageRel: rel, kind: 'deps' });
+    }
+  }
+  // Ideation runs (/wf-quick ideate) under .ai/ideation/.
+  if (ideationRoot && existsSync(ideationRoot)) {
+    for (const abs of walkStorage(ideationRoot)) {
+      if (!abs.endsWith('.md')) continue;
+      const rel = relative(ideationRoot, abs).replace(/\\/g, '/');
+      artifacts.push({ mdAbs: abs, slug: '__ideation__', storageRel: rel, kind: 'ideation' });
+    }
+  }
   artifacts.push(...discoverDocsArtifacts({ docsRoot }));
   if (includeProjectContext) {
     artifacts.push(...discoverProjectArtifacts({ projectRoot }));
@@ -196,7 +216,7 @@ function discoverDocsArtifacts({ docsRoot }) {
   const out = [];
   if (!existsSync(docsRoot)) return out;
   for (const abs of walkStorage(docsRoot)) {
-    if (!abs.endsWith('/08b-docs-index.md') && !abs.endsWith('\\08b-docs-index.md')) continue;
+    if (!abs.endsWith('.md')) continue;
     const rel = relative(docsRoot, abs).replace(/\\/g, '/');
     out.push({
       mdAbs: abs,
@@ -385,6 +405,8 @@ async function renderMain(args) {
   const simplifyRoot = resolve(cwd, args.simplify);
   const profilesRoot = resolve(cwd, args.profiles);
   const docsRoot     = resolve(cwd, args.docs);
+  const depUpdatesRoot = resolve(cwd, args.depUpdates);
+  const ideationRoot   = resolve(cwd, args.ideation);
   const configMeta = await loadConfigWithMeta(cwd);
   const config = configMeta.config;
   const liveReload = config.view?.serve?.enabled === true && config.view?.serve?.liveReload !== false;
@@ -413,6 +435,8 @@ async function renderMain(args) {
     simplifyRoot,
     profilesRoot,
     docsRoot,
+    depUpdatesRoot,
+    ideationRoot,
     projectRoot: cwd,
     includeProjectContext: args.includeProjectContext,
   });
@@ -438,6 +462,8 @@ async function renderMain(args) {
       a.kind === 'profile'  ? profilesRoot :
       a.kind === 'docs'     ? a.siblingRoot :
       a.kind === 'project'  ? a.siblingRoot :
+      a.kind === 'deps'     ? depUpdatesRoot :
+      a.kind === 'ideation' ? ideationRoot :
       null;
     const yamlAbs     = siblingRoot ? join(siblingRoot, siblings.yaml)     : null;
     const fragmentAbs = siblingRoot ? join(siblingRoot, siblings.fragment) : null;

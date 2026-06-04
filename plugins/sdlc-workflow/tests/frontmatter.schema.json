@@ -1242,6 +1242,101 @@
       }
     },
 
+    "ideationFrontmatter": {
+      "type": "object",
+      "description": "Idea-backlog artifact written by /wf-quick ideate to .ai/ideation/<focus>-<ts>.md. Ranked candidate list; no slug/run-id/status.",
+      "required": ["schema", "type", "focus", "created-at"],
+      "properties": {
+        "type": { "const": "ideation" },
+        "focus": { "type": "string" },
+        "raw-candidates": { "type": "integer", "minimum": 0 },
+        "culled-count": { "type": "integer", "minimum": 0 },
+        "survivor-count": { "type": "integer", "minimum": 0 },
+        "shown-count": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "depScanFrontmatter": {
+      "type": "object",
+      "description": "/wf-quick update-deps step 1 — .ai/dep-updates/<run-id>/scan.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "dep-scan" },
+        "run-id": { "type": "string" },
+        "total-deps": { "type": "integer", "minimum": 0 },
+        "outdated-count": { "type": "integer", "minimum": 0 },
+        "vulnerable-count": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["complete", "in-progress", "awaiting-input"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "depResearchFrontmatter": {
+      "type": "object",
+      "description": "/wf-quick update-deps step 2 — .ai/dep-updates/<run-id>/research.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "dep-research" },
+        "run-id": { "type": "string" },
+        "packages-researched": { "type": "integer", "minimum": 0 },
+        "packages-update-now": { "type": "integer", "minimum": 0 },
+        "packages-migration-needed": { "type": "integer", "minimum": 0 },
+        "packages-hold": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["complete", "in-progress", "awaiting-input"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "depPlanFrontmatter": {
+      "type": "object",
+      "description": "/wf-quick update-deps step 3 — .ai/dep-updates/<run-id>/plan.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "dep-plan" },
+        "run-id": { "type": "string" },
+        "p0-count": { "type": "integer", "minimum": 0 },
+        "p1-count": { "type": "integer", "minimum": 0 },
+        "p2-count": { "type": "integer", "minimum": 0 },
+        "hold-count": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["complete", "in-progress", "awaiting-input"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "depImplementFrontmatter": {
+      "type": "object",
+      "description": "/wf-quick update-deps step 4 — .ai/dep-updates/<run-id>/implement.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "dep-implement" },
+        "run-id": { "type": "string" },
+        "updated": { "$ref": "#/$defs/stringArray" },
+        "blocked": { "$ref": "#/$defs/stringArray" },
+        "status": { "enum": ["complete", "in-progress", "awaiting-input"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "depVerifyFrontmatter": {
+      "type": "object",
+      "description": "/wf-quick update-deps step 5 — .ai/dep-updates/<run-id>/verify.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "dep-verify" },
+        "run-id": { "type": "string" },
+        "result": { "enum": ["pass", "fail", "partial"] },
+        "status": { "enum": ["complete", "in-progress", "awaiting-input"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
     "quickMetaArtifactFrontmatter": {
       "type": "object",
       "description": "Lightweight wf-quick / wf-meta lane artifacts written under .ai/workflows/<slug>/ (e.g. 00-index.md with type workflow-index, 01-fix.md, hf-brief.md, 99-close.md, 90-next.md). Validated for a known type + schema/type/slug presence; richer per-lane fields are renderer-defensive and most fall through to the generic renderer. Registered in v9.35.0 after an audit found these lanes were silently blocked by the pre/post-write hooks. Each type stays uniquely discriminating, so the oneOf remains unambiguous. Tighten into per-type branches if/when their field contracts stabilize.",
@@ -1306,6 +1401,12 @@
         { "$ref": "#/$defs/docsAuditFrontmatter" },
         { "$ref": "#/$defs/docsPlanFrontmatter" },
         { "$ref": "#/$defs/docsGenerateFrontmatter" },
+        { "$ref": "#/$defs/ideationFrontmatter" },
+        { "$ref": "#/$defs/depScanFrontmatter" },
+        { "$ref": "#/$defs/depResearchFrontmatter" },
+        { "$ref": "#/$defs/depPlanFrontmatter" },
+        { "$ref": "#/$defs/depImplementFrontmatter" },
+        { "$ref": "#/$defs/depVerifyFrontmatter" },
         { "$ref": "#/$defs/quickMetaArtifactFrontmatter" }
       ]
     }
