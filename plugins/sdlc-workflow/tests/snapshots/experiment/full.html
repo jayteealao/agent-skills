@@ -1,0 +1,47 @@
+
+    <header class="artifact-header">
+      <div class="sdlc-crumb">04c-experiment.md</div>
+      <h1 class="pg-title">Experiment · <code>new-onboarding</code></h1>
+      
+      <div class="meta-row"><span class="status-badge is-ok">ready</span><span class="stage-badge">experiment</span><span class="meta">feature-flag</span></div>
+    </header>
+<!-- body -->
+<aside class="callout callout-info">
+    <div class="callout-hd">hypothesis</div>
+    <div class="callout-body"><p>Shorter setup improves activation.</p></div>
+  </aside><figure class="figure-canvas">
+  <figcaption class="figure-meta">
+    <span class="figure-title"><b>Figure 1</b> · Arm allocation</span>
+    
+  </figcaption>
+  <svg viewBox="0 0 980 60" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Experiment arm allocation"><g>
+      <rect x="20" y="18" width="470" height="28" fill="#4a6c8c"/>
+      <text x="28" y="36" font-size="11" font-weight="600" fill="#fbf9f3">control</text>
+      <text x="28" y="60" font-size="10" fill="#4a443c">50%</text>
+    </g><g>
+      <rect x="490" y="18" width="470" height="28" fill="#3e7d4a"/>
+      <text x="498" y="36" font-size="11" font-weight="600" fill="#fbf9f3">variant</text>
+      <text x="498" y="60" font-size="10" fill="#4a443c">50%</text>
+    </g></svg>
+</figure><section class="aug-result aug-experiment-arms">
+        <h2 class="sdlc-h2">variants</h2>
+        <dl class="exp-arms"><dt><code>control</code> · 50%</dt>
+            <dd>Current flow</dd><dt><code>variant</code> · 50%</dt>
+            <dd>Guided flow</dd></dl>
+       </section><section class="aug-result aug-experiment-ramp">
+        <h2 class="sdlc-h2">ramp schedule</h2>
+        <ol><li><strong>day 1</strong> 10%</li><li><strong>day 3</strong> 50%</li></ol>
+       </section><section class="aug-result aug-experiment-guardrails">
+        <h2 class="sdlc-h2">guardrails</h2>
+        <table class="guardrail-table">
+          <thead><tr><th>metric</th><th>threshold</th><th>direction</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>error rate</td>
+              <td>2 %</td>
+              <td>lower-is-better</td>
+            </tr>
+          </tbody>
+        </table>
+       </section><div class="prose"><h2 id="notes" tabindex="-1"><a class="header-anchor" href="#notes"><span>Notes</span></a></h2>
+<p>Demo body.</p></div>

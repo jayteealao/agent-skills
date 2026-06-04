@@ -1,0 +1,62 @@
+
+    <header class="artifact-header">
+      <div class="sdlc-crumb">04b-instrument.md</div>
+      <h1 class="pg-title">Instrument · <code>opentelemetry</code></h1>
+      
+      <div class="meta-row"><span class="status-badge is-ok">ready</span><span class="stage-badge">instrument</span><span class="meta">opentelemetry</span></div>
+    </header>
+<!-- body -->
+<div class="metric-row"><div class="metric">
+      <span class="metric-label">signals</span>
+      <span class="metric-value">3</span>
+      
+    </div><div class="metric is-warn">
+      <span class="metric-label">dark paths</span>
+      <span class="metric-value">2</span>
+      
+    </div><div class="metric is-ok">
+      <span class="metric-label">PII warnings</span>
+      <span class="metric-value">0</span>
+      
+    </div></div><section class="aug-result aug-instrument-signals">
+        <h2 class="sdlc-h2">signals</h2>
+        <table class="signal-table">
+          <thead><tr><th>name</th><th>type</th><th>labels</th><th>where emitted</th><th>PII</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>checkout_started</td>
+              <td><span class="signal-kind is-counter">counter</span></td>
+              <td>tenant</td>
+              <td>Checkout.tsx:12</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>checkout_duration</td>
+              <td><span class="signal-kind is-histogram">histogram</span></td>
+              <td>tenant</td>
+              <td>Checkout.tsx:30</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td>checkout_failed</td>
+              <td><span class="signal-kind is-counter">counter</span></td>
+              <td>tenant, reason</td>
+              <td>Checkout.tsx:48</td>
+              <td>-</td>
+            </tr>
+          </tbody>
+        </table>
+       </section><section class="aug-result aug-instrument-dark">
+        <h2 class="sdlc-h2">dark paths</h2>
+        <aside class="callout callout-warn">
+    <div class="callout-hd">Checkout.tsx:44</div>
+    <div class="callout-body"><p>No failure metric</p></div>
+  </aside><aside class="callout callout-warn">
+    <div class="callout-hd">Cart.tsx:90</div>
+    <div class="callout-body"><p>No abandonment signal</p></div>
+  </aside>
+       </section><section class="aug-result aug-instrument-dashboards">
+        <h2 class="sdlc-h2">dashboards</h2>
+        <ul><li><code>Checkout health</code> · <span>https://dash.example/checkout</span></li></ul>
+       </section><div class="prose"><h2 id="notes" tabindex="-1"><a class="header-anchor" href="#notes"><span>Notes</span></a></h2>
+<p>Demo body.</p></div>

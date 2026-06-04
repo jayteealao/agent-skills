@@ -118,6 +118,83 @@ test('schema-validator: validates frontmatter and sibling YAML schemas', () => {
   equal(sibling.valid, true);
 });
 
+test('schema-validator: admits the four wf-docs intermediate artifact types', async () => {
+  // The /wf-docs orchestrator writes discover/audit/plan/generate artifacts that
+  // claim `schema: sdlc/v1`. Each must select its own branch (so the claim is
+  // backed) and require `run-id` (the field that links the four steps to one run).
+  const schema = await loadJsonSchema(SCHEMA_PATH);
+  const docsTypes = ['docs-discover', 'docs-audit', 'docs-plan', 'docs-generate'];
+
+  for (const type of docsTypes) {
+    // 1. The oneOf branch exists and is keyed on the right type const.
+    equal(
+      findFrontmatterBranch(schema, type)?.properties?.type?.const,
+      type,
+      `${type}: branch is selectable`,
+    );
+
+    // 2. A minimal valid fixture passes.
+    const valid = validateFrontmatter({
+      schema: 'sdlc/v1',
+      type,
+      'run-id': '20260603T1200Z',
+      status: 'complete',
+      'created-at': '2026-06-03T12:00:00Z',
+    }, { schemaPath: SCHEMA_PATH });
+    equal(valid.valid, true, `${type}: minimal fixture is valid`);
+
+    // 3. Dropping run-id trips the required-field check.
+    const missingRunId = validateFrontmatter({
+      schema: 'sdlc/v1',
+      type,
+      status: 'complete',
+      'created-at': '2026-06-03T12:00:00Z',
+    }, { schemaPath: SCHEMA_PATH });
+    equal(missingRunId.valid, false, `${type}: missing run-id is rejected`);
+    ok(
+      missingRunId.errors.some((err) => err.keyword === 'required'),
+      `${type}: reports a required-field error`,
+    );
+  }
+});
+
+test('schema-validator: admits ideation and the five dep-update artifact types', async () => {
+  const schema = await loadJsonSchema(SCHEMA_PATH);
+
+  // ideation is keyed on `focus` (no slug / run-id / status).
+  equal(findFrontmatterBranch(schema, 'ideation')?.properties?.type?.const, 'ideation');
+  equal(
+    validateFrontmatter(
+      { schema: 'sdlc/v1', type: 'ideation', focus: 'all', 'created-at': '2026-06-04T00:00:00Z' },
+      { schemaPath: SCHEMA_PATH },
+    ).valid,
+    true,
+    'ideation: minimal fixture valid',
+  );
+  const ideationBad = validateFrontmatter(
+    { schema: 'sdlc/v1', type: 'ideation', 'created-at': '2026-06-04T00:00:00Z' },
+    { schemaPath: SCHEMA_PATH },
+  );
+  equal(ideationBad.valid, false, 'ideation: missing focus rejected');
+  ok(ideationBad.errors.some((err) => err.keyword === 'required'));
+
+  // dep-* run families all require run-id.
+  for (const type of ['dep-scan', 'dep-research', 'dep-plan', 'dep-implement', 'dep-verify']) {
+    equal(findFrontmatterBranch(schema, type)?.properties?.type?.const, type, `${type}: branch selectable`);
+    const valid = validateFrontmatter(
+      { schema: 'sdlc/v1', type, 'run-id': '20260604T1200Z', status: 'complete', 'created-at': '2026-06-04T00:00:00Z' },
+      { schemaPath: SCHEMA_PATH },
+    );
+    equal(valid.valid, true, `${type}: minimal fixture valid`);
+    const bad = validateFrontmatter(
+      { schema: 'sdlc/v1', type, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' },
+      { schemaPath: SCHEMA_PATH },
+    );
+    equal(bad.valid, false, `${type}: missing run-id rejected`);
+    ok(bad.errors.some((err) => err.keyword === 'required'), `${type}: required error`);
+  }
+});
+
 test('render-state: classifies missing, stale, and fresh views', async () => {
   const tmp = tempDir();
   try {

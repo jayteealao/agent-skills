@@ -1,0 +1,64 @@
+
+    <header class="artifact-header">
+      <div class="sdlc-crumb">01-profile.md</div>
+      <h1 class="pg-title">Profile · <code>20260603T1200Z</code></h1>
+      
+      <div class="meta-row"><span class="status-badge is-ok">complete</span><span class="stage-badge">profile</span><span class="meta">target <code>POST /api/checkout</code></span><span class="meta">method <strong>dynamic-cpu</strong></span><span class="meta">confidence high</span><span class="meta">2026-06-03T12:00:00Z</span></div>
+    </header>
+<!-- body -->
+<div class="metric-row"><div class="metric">
+      <span class="metric-label">hotspots</span>
+      <span class="metric-value">2</span>
+      
+    </div><div class="metric is-ok">
+      <span class="metric-label">candidates</span>
+      <span class="metric-value">1</span>
+      
+    </div><div class="metric is-info">
+      <span class="metric-label">comparisons</span>
+      <span class="metric-value">2</span>
+      
+    </div></div><section class="profile-hotspots">
+        <h2 class="sdlc-h2">hotspots</h2>
+        <table class="hotspot-table">
+          <thead><tr><th>id</th><th>function</th><th>file</th><th>cost</th><th>candidate</th></tr></thead>
+          <tbody><tr>
+    <td><code>H1</code></td>
+    <td>validateCart</td>
+    <td><code>src/cart/validate.ts:24</code></td>
+    <td class="hotspot-cost">32.4%</td>
+    <td class="hotspot-cand-cell"><span class="hotspot-cand is-yes" aria-label="candidate">✓</span></td>
+  </tr><tr>
+    <td><code>H2</code></td>
+    <td>computeTaxes</td>
+    <td></td>
+    <td class="hotspot-cost">11.0%</td>
+    <td class="hotspot-cand-cell"><span class="hotspot-cand is-no" aria-label="not a candidate">—</span></td>
+  </tr></tbody>
+        </table>
+       </section><figure class="figure-canvas">
+  <figcaption class="figure-meta">
+    <span class="figure-title"><b>Figure 1</b> · Before / after</span>
+    <span class="figure-legend" aria-hidden="true"><span class="legend-entry"><span class="sw" style="background:#cbc4b1"></span>before</span><span class="legend-entry"><span class="sw" style="background:#3e7d4a"></span>after — improved</span><span class="legend-entry"><span class="sw" style="background:#b5305f"></span>after — regressed</span></span>
+  </figcaption>
+  <svg viewBox="0 0 980 130" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Before / after benchmark comparison"><g>
+      <text x="92" y="36" text-anchor="end" font-size="11" fill="#1f1b16">p50_ms</text>
+      <rect x="100" y="24" width="660" height="12" fill="#cbc4b1"/>
+      <text x="766" y="34" font-size="10" fill="#4a443c">120 ms</text>
+      <rect x="100" y="42" width="522.5" height="12" fill="#3e7d4a"/>
+      <text x="628.5" y="52" font-size="10" fill="#3e7d4a" font-weight="600">95 ms (-20.8%)</text>
+    </g><g>
+      <text x="92" y="86" text-anchor="end" font-size="11" fill="#1f1b16">p95_ms</text>
+      <rect x="100" y="74" width="660" height="12" fill="#cbc4b1"/>
+      <text x="766" y="84" font-size="10" fill="#4a443c">320 ms</text>
+      <rect x="100" y="92" width="577.5" height="12" fill="#3e7d4a"/>
+      <text x="683.5" y="102" font-size="10" fill="#3e7d4a" font-weight="600">280 ms (-12.5%)</text>
+    </g></svg>
+</figure><section class="profile-candidates">
+        <h2 class="sdlc-h2">optimization candidates</h2>
+        <aside class="callout callout-info">
+    <div class="callout-hd">OC1 → H1</div>
+    <div class="callout-body"><p>Memoize per-request validators by cart-shape hash.</p><p class="cand-meta"><span class="cand-gain">est. 18.0%</span><span class="cand-conf is-high">high confidence</span></p></div>
+  </aside>
+       </section><div class="prose"><h2 id="notes" tabindex="-1"><a class="header-anchor" href="#notes"><span>Notes</span></a></h2>
+<p>Demo body.</p></div>
