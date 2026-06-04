@@ -295,9 +295,12 @@ or, when invoked as an augmentation under a slug,
 projects this as a metric-comparison table with per-row improvement/
 regression tone driven by `direction:` + delta sign.
 
-If you also write a benchmark `.html.fragment`, first load
+**Required whenever you write the `benchmark` sibling YAML:** also write the
+sibling `.html.fragment` next to it. First load
 `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
-the shared wrapper, snippet, and verifier rules.
+its wrapper, snippet, and verifier rules. The fragment must stay deterministic
+from the sibling YAML (same YAML → byte-identical HTML) and pass
+`scripts/verify-fragment.mjs` (Check 7) clean.
 
 Shape:
 

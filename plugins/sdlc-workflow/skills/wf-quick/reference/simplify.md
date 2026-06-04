@@ -475,9 +475,12 @@ The view-layer renderer projects this YAML as a finding-table page at
 instead of severity, optional code-deltas summary, no verdict block.
 Without this YAML the page falls back to a plain frontmatter card.
 
-If you also write a simplify-run `.html.fragment`, first load
+**Required whenever you write the `simplify-run` sibling YAML:** also write the
+sibling `.html.fragment` next to it. First load
 `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
-the shared wrapper, snippet, and verifier rules.
+its wrapper, snippet, and verifier rules. The fragment must stay deterministic
+from the sibling YAML (same YAML → byte-identical HTML) and pass
+`scripts/verify-fragment.mjs` (Check 7) clean.
 
 This step is **standalone-mode only.** In slug-mode the simplify findings
 are written into a compressed slice (`type: slice`), which renders via

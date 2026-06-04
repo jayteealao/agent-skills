@@ -253,9 +253,21 @@ The view-layer renderer projects this YAML as a hotspots-table page at
 `comparisons:` is populated), optimization candidates list with confidence
 chips. Without this YAML the page falls back to a plain frontmatter card.
 
-If you also write `01-profile.html.fragment`, first load
+**Required whenever you write the `profile` sibling YAML:** also write
+`01-profile.html.fragment` next to it. First load
 `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
-the shared wrapper, snippet, and verifier rules.
+its wrapper, snippet, and verifier rules. The profile fragment must:
+
+- wrap everything in one `<section class="fragment-profile" …>`;
+- draw a hotspot bar chart from `hotspots[]` — one horizontal bar per hotspot,
+  width proportional to `cost_pct`, with candidate hotspots marked distinctly;
+- when `comparisons:` is present, add a before/after sparkline mirroring the
+  renderer's figure;
+- stay deterministic from the sibling YAML (re-running on the same YAML produces
+  byte-identical HTML) and pass `scripts/verify-fragment.mjs` (Check 7) clean.
+
+(If no hotspots were found you do not write the `profile` sibling YAML — and
+therefore no fragment either; the simple-renderer fallback is correct.)
 
 Shape:
 
