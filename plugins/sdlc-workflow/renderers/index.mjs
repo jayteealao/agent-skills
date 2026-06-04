@@ -254,8 +254,12 @@ function buildActivityList(allArtifacts) {
   return `<ol class="activity-list">${top.map((a) => {
     const when = a.updated ? humanRelative(a.updated) : a.type;
     const who  = a.who || a.type;
+    // Decision 6 (2026-06-04): render an editorial "{who} updated {file}"
+    // sentence (hand-off OVR-04) from the author + file already in hand — no
+    // schema change. Falls back to the artifact type when no author is recorded.
+    const fileBase = String(a.file).split('/').filter(Boolean).at(-1) ?? a.file;
     const inner = `<span class="when">${escapeHtml(when)}</span>` +
-      `<span class="what"><span class="file"><code>${escapeHtml(a.file)}</code></span><span class="who">${escapeHtml(who)}</span></span>`;
+      `<span class="what">${escapeHtml(who)} updated <span class="file"><code>${escapeHtml(fileBase)}</code></span></span>`;
     return a.href
       ? `<li><a class="activity-link" href="${escapeHtml(a.href)}">${inner}</a></li>`
       : `<li>${inner}</li>`;

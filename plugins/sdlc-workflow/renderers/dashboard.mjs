@@ -252,17 +252,18 @@ export function swimlanesSvg(active = [], shipped = []) {
       const x = xs[i];
       const isCur = !isShipped && currentIdx === i;
       // Shipped rows are fully traversed — every station is done (inclusive of
-      // the terminal stage), rendered in ink. Active rows go green-done →
-      // blue-current → dashed-queued. (Strict `>` on a clamped currentIdx left
-      // the shipped terminal dot falling through to the queued branch — P1 #1.)
+      // the terminal stage). Done stations render ink → current blue → queued
+      // dashed. (Strict `>` on a clamped currentIdx left the shipped terminal
+      // dot falling through to the queued branch — P1 #1.)
       const done = isShipped ? true : currentIdx > i;
       if (isCur) {
         const c = blocked ? '#b5305f' : '#4a6c8c';
         return `<circle cx="${x}" cy="${y}" r="10" fill="none" stroke="${c}" stroke-width="1.2" opacity="0.5"/><circle cx="${x}" cy="${y}" r="7" fill="${c}" stroke="${c}" stroke-width="1.5"/>`;
       }
       if (done) {
-        const c = isShipped ? '#1f1b16' : '#3e7d4a';
-        return `<circle cx="${x}" cy="${y}" r="5" fill="${c}" stroke="${c}" stroke-width="1.5"/>`;
+        // Decision 5 (2026-06-04) — all done dots are ink, matching the hand-off
+        // (DASH-10). The active-row green "in-flight health" extension was reverted.
+        return `<circle cx="${x}" cy="${y}" r="5" fill="#1f1b16" stroke="#1f1b16" stroke-width="1.5"/>`;
       }
       // queued / not started — dashed open circle (D3.5)
       return `<circle cx="${x}" cy="${y}" r="5" fill="#fbfaf6" stroke="#cbc4b1" stroke-width="1" stroke-dasharray="2.5 2"/>`;
