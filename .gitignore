@@ -24,6 +24,10 @@ plugins/sdlc-workflow/INVESTIGATIVE-COMMANDS-PLAN.md
 plugins/sdlc-workflow/MATTPOCOCK-LEARNINGS.md
 plugins/sdlc-workflow/WF-DESIGN-UNIFIED-PLAN.md
 
+# Sunflower view page × hand-off review working doc (audit tracker — not shipped)
+plugins/sdlc-workflow/SUNFLOWER-PAGE-REVIEW-CHECKLIST.md
+plugins/sdlc-workflow/SUNFLOWER-HANDOFF-DEVIATIONS.md
+
 # Node
 node_modules/
 plugins/sdlc-workflow/tests/transcripts/
