@@ -48,6 +48,35 @@ export function renderShell(params) {
       : `<a href="${escapeHtml(c.href)}">${text}</a>`;
   }).join('<span class="crumb-sep" aria-hidden="true">/</span>');
 
+  // ── Mobile chrome (M-S1 / 5b): a sticky appbar + a fixed bottom tabbar,
+  // rendered on every page but revealed only <=720px (the desktop .b-topbar is
+  // hidden there). The appbar carries the breadcrumb (with a back affordance)
+  // and the page title; since the body .pg-title is display:none on mobile and
+  // the appbar is display:none on desktop, exactly one <h1> is in the a11y tree
+  // per breakpoint. The tabbar links only to reliably-derivable destinations
+  // (Home / Overview / Up) from the breadcrumb trail — no invented nav model.
+  const TAB_ICONS = {
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
+    grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
+    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v6"/></svg>',
+  };
+  const homeHref = breadcrumbs[0]?.href ?? pageHref(`${assetBase}/..`);
+  const mCrumbTrail = breadcrumbs.length
+    ? breadcrumbs.map((c, i) => i === breadcrumbs.length - 1
+        ? `<span class="m-here">${escapeHtml(c.label)}</span>`
+        : `<a href="${escapeHtml(c.href)}">${escapeHtml(c.label)}</a>`).join('<span aria-hidden="true">/</span>')
+    : '<span class="m-here">.ai/workflows</span>';
+  const mBackHref = breadcrumbs.length >= 2 ? breadcrumbs[breadcrumbs.length - 2].href : upHref;
+  const mAppbar = `<header class="m-appbar">
+    <div class="m-crumb"><a class="m-back" href="${escapeHtml(mBackHref)}" aria-label="Back">&larr;</a><span class="m-trail">${mCrumbTrail}</span></div>
+    <h1 class="m-title">${escapeHtml(title)}</h1>
+  </header>`;
+  const mTabs = [{ href: homeHref, label: 'Home', icon: TAB_ICONS.home, active: breadcrumbs.length <= 1 }];
+  if (breadcrumbs.length >= 2) mTabs.push({ href: breadcrumbs[1].href, label: 'Overview', icon: TAB_ICONS.grid, active: breadcrumbs.length === 2 });
+  mTabs.push({ href: upHref, label: 'Up', icon: TAB_ICONS.up, active: false });
+  const mTabbar = `<nav class="m-tabbar" aria-label="Sections">${mTabs.map((t) =>
+    `<a class="m-tab${t.active ? ' is-active' : ''}" href="${escapeHtml(t.href)}">${t.icon}<span>${escapeHtml(t.label)}</span></a>`).join('')}</nav>`;
+
   const versionTag = `?v=${PLUGIN_VERSION}`;
   // External (not inline) so served pages can run a strict `script-src 'self'`
   // CSP that blocks injected inline scripts. See render-sunflower-serve.mjs.
@@ -66,6 +95,7 @@ export function renderShell(params) {
   <link rel="icon" href="${escapeHtml(assetBase)}/favicon.svg" type="image/svg+xml">
 </head>
 <body class="artifact" data-artifact-type="${escapeHtml(type)}">
+  ${mAppbar}
   <div class="b-topbar">
     <a class="brand" href="${escapeHtml(pageHref(`${assetBase}/..`))}">.ai/workflows</a>
     <div class="crumb">${crumbHtml}</div>
@@ -86,6 +116,7 @@ export function renderShell(params) {
       ? `<a href="${escapeHtml(storageHref)}" class="src-link" title="storage source">md ↗</a>`
       : ''}
   </footer>
+  ${mTabbar}
   ${liveReloadScript}
 </body>
 </html>
