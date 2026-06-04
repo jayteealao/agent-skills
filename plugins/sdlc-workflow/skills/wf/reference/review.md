@@ -668,9 +668,12 @@ For each review `.md` you just wrote (`07-review.md` slug-wide, or each
    (id, severity, dimension, file, line, message, evidence/diff, triage) and the metric
    counts. Schema: `siblingYamlSchemas.review` in `tests/frontmatter.schema.json`.
 2. Write the sibling **`<stem>.html.fragment`** — one
-   `<section class="fragment-review" data-artifact="review" data-rev="<n>">` reproducing
-   the gallery's review fragment 1:1: the Σ severity-heatmap, dimension chips + severity
-   filter, and the findings list with per-finding evidence/diff/copy controls.
+   `<section class="fragment-review" data-artifact="review" data-rev="<n>">` carrying the
+   gallery's review fragment's **interactive layer**: the Σ severity-heatmap, dimension
+   chips + severity filter, and the findings list with per-finding evidence/diff/copy
+   controls. The fragment is **body-only** (see `_fragment-authoring.md` → "Scope"): the
+   `review.mjs` page already renders the heading, the verdict block, and the metric-row —
+   do **not** repeat them in the fragment, start at the heatmap.
 
 Authoring rules (do not skip — verifier Check 7 enforces these):
 

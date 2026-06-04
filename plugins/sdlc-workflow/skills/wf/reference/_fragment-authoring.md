@@ -15,6 +15,27 @@ and `.yaml` artifacts.
 - Make the fragment deterministic from the sibling YAML so re-rendering the same
   YAML produces stable markup.
 
+## Scope: additive, body-only
+
+A fragment is **additive** — a detail block the renderer appends *below* the page
+chrome it already builds. The **page (renderer) owns the chrome**: the one page
+heading (`pg-title`/`sdlc-h1` + breadcrumb), the lede, and the `metric-row`.
+
+- **Do NOT emit a page heading or a `metric-row` inside the fragment.** The page
+  already renders them; a copy in the fragment double-renders (two titles, two
+  metric strips). Start the fragment at its interactive content.
+- The fragment owns the **interactive detail layer** the static renderer can't
+  produce: collapsible diff rows, clickable check cells + log panels, live
+  swatches + copy controls, severity filters, sortable findings lists,
+  `:target` timelines.
+- For a section the renderer *also* draws from the YAML (a hero figure or a
+  structured table), the fragment owns the **interactive** version and the
+  renderer suppresses its static copy — never ship both (Decision 3, precedence).
+  Do not include a second, static duplicate of the hero figure in the fragment.
+- Consequence: the `metric-row` and `verdict` snippets below are **page chrome**.
+  Only `@include` them in a fragment whose renderer does *not* already emit them
+  (the rich-tier review/plan/design/ship-run pages all do — so omit them there).
+
 ## Shared snippets
 
 Prefer snippets from `${CLAUDE_PLUGIN_ROOT}/components/` instead of hand-copying

@@ -549,28 +549,20 @@ The authoritative gallery is bundled at
 
 ### Use `@include` for shared chrome (v9.20.1+)
 
-Instead of hand-emitting the 5-cell metric row, prior-revisions block, risk
-callouts, and `sdlc:fragment-ready` boilerplate, use the shared snippets:
+The fragment is **body-only** (see `_fragment-authoring.md` → "Scope"): the
+`plan.mjs` renderer already emits the page heading, the metric-row, and Figure 3
+(the file-change topology). Do **not** repeat them in the fragment — start at the
+interactive files-touched table (collapsible diff rows), risk callouts, and the
+prior-revisions block, using the shared snippets:
 
 ```html
 <section class="fragment-plan" data-artifact="plan" data-slice="<slice>" data-rev="3">
-  <header class="pl-head">
-    <div class="sdlc-crumb">{{slug}}/slices/{{slice}}/04-plan.md</div>
-    <h1 class="sdlc-h1">Plan · <code>{{slice}}</code></h1>
-  </header>
-
-  <!-- @include metric-row { "metrics": [
-    { "label": "files",   "value": 14 },
-    { "label": "steps",   "value": 7 },
-    { "label": "modules", "value": 5 },
-    { "label": "risks",   "value": 3, "tone": ["warn"] }
-  ] } -->
-
-  <svg class="pl-topology" viewBox="…"> …file topology… </svg>
+  <!-- No heading, no metric-row, no topology SVG here — the page owns them.
+       The fragment is the interactive detail layer appended below the chrome. -->
 
   <table class="files-touched">
     <!-- @include files-touched-row { "role": "modified", "path": "…", "delta": { "add": 118, "rem": 96 } } -->
-    <!-- … one row per file … -->
+    <!-- … one row per file, each expandable to its diff … -->
   </table>
 
   <!-- @include callout { "kind": "risk", "title": "Region detection silently wrong", "body": "…" } -->

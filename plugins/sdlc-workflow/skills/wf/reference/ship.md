@@ -525,17 +525,18 @@ Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../refer
 
 ### Use `@include` for shared chrome (v9.20.1+)
 
+The fragment is **body-only** (see `_fragment-authoring.md` → "Scope"): the
+`ship-run.mjs` renderer owns the page heading and the metric-row. Do **not**
+repeat them in the fragment — it carries the interactive layer (the animated
+deploy timeline, the clickable check matrix with its log panel, and the rollback
+actions):
+
 ```html
 <section class="fragment-shiprun" data-artifact="ship-run" data-release="v3.2.0">
-  <!-- @include metric-row { "metrics": [
-    { "label": "build",  "value": "7m" },
-    { "label": "tests",  "value": 12 },
-    { "label": "canary", "value": "live" },
-    { "label": "errors", "value": 0, "sev": ["low"] }
-  ] } -->
+  <!-- No heading, no metric-row here — the page owns them. -->
 
-  <svg class="sr-timeline" viewBox="…"> …deploy timeline… </svg>
-  <table class="sr-checks"> …check matrix… </table>
+  <svg class="sr-timeline" viewBox="…"> …deploy timeline (pulse on live stage)… </svg>
+  <table class="sr-checks"> …clickable check matrix → log panel… </table>
 
   <div class="sr-actions">
     <button class="btn btn-primary">Promote to 100%</button>

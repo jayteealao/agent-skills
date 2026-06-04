@@ -247,17 +247,17 @@ Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../refer
 
 ### Use `@include` for shared chrome (v9.20.1+)
 
+The fragment is **body-only** (see `_fragment-authoring.md` → "Scope"): the
+`design.mjs` renderer owns the page heading and the metric-row. Do **not** repeat
+them in the fragment — it carries the interactive layer (the live swatch matrix,
+the token table with copy controls, and the theme toggle):
+
 ```html
 <section class="fragment-design" data-artifact="design" data-component="checkout-button">
-  <!-- @include metric-row { "metrics": [
-    { "label": "tokens", "value": 14 },
-    { "label": "sizes",  "value": 4 },
-    { "label": "states", "value": 3 },
-    { "label": "themes", "value": 2 }
-  ] } -->
+  <!-- No heading, no metric-row here — the page owns them. -->
 
-  <div class="dz-matrix"> …24-cell swatch matrix… </div>
-  <table class="dz-tokens"> …token rows… </table>
+  <div class="dz-matrix"> …24-cell live swatch matrix… </div>
+  <table class="dz-tokens"> …token rows, each with a copy control… </table>
   <svg class="dz-specs"> …annotated specs… </svg>
 
   <!-- @include fragment-ready { "name": "design", "artifact": "design",
