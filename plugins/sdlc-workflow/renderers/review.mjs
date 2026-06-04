@@ -24,13 +24,16 @@ export function render(artifact, ctx) {
   });
 
   const counts = sy?.counts ?? fm.counts ?? {};
-  const metricsHtml = metricRow([
+  // Dual-DOM (M-S4): the 5-cell metric grid wraps jaggedly on phones, so <=480px
+  // gets the scrollable severity-summary row instead (M-REV-03/09). The
+  // filterable finding cards are the interactive fragment's job, not the renderer.
+  const metricsHtml = `<div class="d-only">${metricRow([
     { label: 'blocker', value: counts.blocker ?? 0, sev: 'blocker' },
     { label: 'high',    value: counts.high    ?? 0, sev: 'high' },
     { label: 'med',     value: counts.med     ?? 0, sev: 'med' },
     { label: 'low',     value: counts.low     ?? 0, sev: 'low' },
     { label: 'nit',     value: counts.nit     ?? 0, sev: 'nit' },
-  ]);
+  ])}</div><div class="m-only">${mobileSevrow(counts)}</div>`;
 
   const verdictHtml = sy?.verdict || fm.verdict
     ? verdictBlock(sy?.verdict ?? fm.verdict, sy?.verdict_label ?? fm.verdict, sy?.summary ?? fm.summary ?? '')
@@ -58,6 +61,14 @@ export function render(artifact, ctx) {
     bodyHtml: bodyHtml + renderHistoryBlock(artifact.history),
     links: [], children: [],
   };
+}
+
+// Mobile review (M-S3 / 5b): a horizontally-scrollable severity summary row.
+function mobileSevrow(counts) {
+  const SEVS = [['blocker', 'c-blocker'], ['high', 'c-high'], ['med', 'c-med'], ['low', 'c-low'], ['nit', 'c-nit']];
+  const cells = SEVS.map(([k, cls]) =>
+    `<div class="sevcount ${cls}"><div class="n">${Number(counts[k] ?? 0)}</div><div class="k">${k}</div></div>`).join('');
+  return `<div class="sevrow">${cells}</div>`;
 }
 
 function heatmapSvg(sy) {
