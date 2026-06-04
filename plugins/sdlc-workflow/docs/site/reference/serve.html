@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Serve daemon reference · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
+  <span class="open-icon" aria-hidden="true">&#9776;</span>
+  <span class="close-icon" aria-hidden="true">&times;</span>
+</button>
+<div class="nav-backdrop" aria-hidden="true"></div>
+<div class="layout">
+<aside id="sidebar">
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<nav aria-label="Site navigation">
+  <h4>Start here</h4>
+  <ul>
+    <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
+  </ul>
+  <h4>How to&hellip;</h4>
+  <ul>
+    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
+    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
+    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
+    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
+    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
+    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
+    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
+    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
+    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
+    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
+    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
+    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
+    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
+  </ul>
+  <h4>Explanation</h4>
+  <ul>
+    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
+    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
+    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
+    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
+    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
+    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
+    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
+    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
+    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+  </ul>
+  <h4>Tips</h4>
+  <ul>
+    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
+    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
+    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
+    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
+  </ul>
+</nav>
+</aside><main>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Serve daemon</div>
+<span class="quadrant reference">reference</span>
+<h1>Renderer-hosted serve</h1>
+
+<p>The plugin can serve the rendered sunflower view (<code>.ai/_view/</code>) over HTTP so you can browse it in a real browser with live reload, instead of opening <code>file://</code> pages. There are two shapes:</p>
+
+<ul>
+  <li><strong>Hub</strong> — one machine-wide process that serves <em>every</em> registered repo at <code>/r/&lt;id&gt;/</code>, with a multi-repo inbox at <code>/</code>. Default-on since v9.34.0.</li>
+  <li><strong>Per-repo daemon</strong> — a standalone fallback that serves a single repo's view. Runs only when this repo opted out of the hub (no hub started) and the machine-wide kill switch allows it.</li>
+</ul>
+
+<div class="summary">
+<table>
+<tr><th>Config location</th><td><strong>Machine-wide</strong> — <code>~/.sdlc/hub-config.json</code>. Per-repo serve config does <em>not</em> exist.</td></tr>
+<tr><th>Per-repo control</th><td>One field only: <code>view.hub.enabled</code> in <code>.ai/sdlc-config.json</code> (does this repo participate?).</td></tr>
+<tr><th>Default bind</th><td><code>127.0.0.1:4173</code> — loopback, no network exposure.</td></tr>
+</table>
+</div>
+
+<h2>Why config is machine-wide</h2>
+
+<p>The hub is a single process for the whole machine, so every setting that governs how the one server binds — host, port, resource caps, Tailscale exposure — is a per-developer-machine choice, not a per-repo one. It lives in <code>~/.sdlc/hub-config.json</code> and is never committed. This mirrors git's model: repo-local choices in <code>.git/config</code>, machine identity and global behaviour in <code>~/.gitconfig</code>.</p>
+
+<p>The per-repo <code>.ai/sdlc-config.json</code> carries only <code>view.hub.enabled</code>. The two files share zero fields, so there are no precedence rules to reason about. Putting a serve setting (host, port, tailscale&hellip;) in the per-repo file is rejected — the per-repo schema is <code>additionalProperties: false</code>.</p>
+
+<h2>Configuration reference</h2>
+
+<p>Every key in <code>~/.sdlc/hub-config.json</code> (defaults shown — the file is created with these on first run):</p>
+
+<table>
+<thead><tr><th>Key</th><th>Type</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>version</code></td><td>integer</td><td><code>1</code></td><td>Config schema version (for forward migration).</td></tr>
+<tr><td><code>host</code></td><td>string</td><td><code>127.0.0.1</code></td><td>Bind address. <code>0.0.0.0</code> is refused unless Tailscale is enabled <em>and</em> acknowledged (see Security model).</td></tr>
+<tr><td><code>port</code></td><td>integer</td><td><code>4173</code></td><td>Listen port — the canonical SDLC URL in both hub and per-repo modes.</td></tr>
+<tr><td><code>perRepoServe</code></td><td>boolean</td><td><code>true</code></td><td>Machine-wide kill switch. When <code>false</code>, no per-repo daemon ever spawns (any running one is reaped); the hub is the sole server.</td></tr>
+<tr><td><code>liveReload</code></td><td>boolean</td><td><code>true</code></td><td>Inject the live-reload script into the standalone per-repo fallback daemon. (The hub always live-reloads.)</td></tr>
+<tr><td><code>maxSseClients</code></td><td>integer</td><td><code>200</code></td><td>Aggregate Server-Sent-Events client cap across all repos (live-reload channel).</td></tr>
+<tr><td><code>maxWatchedRepos</code></td><td>integer</td><td><code>50</code></td><td>Beyond this many registered repos the hub polls instead of using <code>fs.watch</code>.</td></tr>
+<tr><td><code>tailscale.enabled</code></td><td>boolean</td><td><code>false</code></td><td>Expose the server over Tailscale.</td></tr>
+<tr><td><code>tailscale.mode</code></td><td>string</td><td><code>serve</code></td><td><code>serve</code> = tailnet-only; <code>funnel</code> = public internet.</td></tr>
+<tr><td><code>tailscale.path</code></td><td>string</td><td><code>/</code></td><td>Path prefix to expose.</td></tr>
+<tr><td><code>tailscale.https</code></td><td>boolean</td><td><code>true</code></td><td>Terminate TLS via Tailscale.</td></tr>
+<tr><td><code>tailscale.acknowledgedPublic</code></td><td>boolean</td><td><code>false</code></td><td>One-time, per-machine acknowledgement that exposing the server publishes <em>every</em> registered repo at once. Required for any non-loopback bind.</td></tr>
+</tbody>
+</table>
+
+<h2>Security model</h2>
+
+<ul>
+  <li><strong>Loopback by default.</strong> The server binds <code>127.0.0.1</code> and changing that requires explicit machine-wide config.</li>
+  <li><strong>No write endpoints.</strong> The server is read-only — it projects rendered HTML, it never mutates artifacts.</li>
+  <li><strong>Path validation.</strong> Requests are confined to the view root; directory-traversal attempts are rejected.</li>
+  <li><strong>Live-reload only into HTML.</strong> The reload script is injected only into <code>text/html</code> responses.</li>
+  <li><strong>Non-loopback is gated twice.</strong> A <code>0.0.0.0</code> bind is refused unless <code>tailscale.enabled: true</code> <em>and</em> <code>tailscale.acknowledgedPublic: true</code>.</li>
+  <li><strong>Exposure is all-or-nothing.</strong> Because the hub serves every registered repo, enabling Tailscale publishes them all. That is why <code>acknowledgedPublic</code> is a deliberate, machine-level gate rather than a committable per-repo flag.</li>
+  <li><strong>Tailnet vs. public.</strong> <code>tailscale.mode: serve</code> exposes only to your own tailnet; <code>funnel</code> exposes to the public internet. On a shared tailnet, ACL the served port to yourself in your Tailscale ACLs.</li>
+</ul>
+
+<h2>Tailscale one-liners</h2>
+
+<p>Tailnet-only (your devices, not the public internet) — in <code>~/.sdlc/hub-config.json</code>:</p>
+
+<pre><code>{
+  "tailscale": { "enabled": true, "mode": "serve" }
+}</code></pre>
+
+<p>Public funnel — requires the explicit acknowledgement:</p>
+
+<pre><code>{
+  "host": "0.0.0.0",
+  "tailscale": { "enabled": true, "mode": "funnel", "acknowledgedPublic": true }
+}</code></pre>
+
+<h2>Lifecycle</h2>
+
+<p>The <code>session-start-orient</code> hook kicks off detached bootstrap rendering, which calls <code>ensureServeLifecycle</code>. That function:</p>
+
+<ol>
+  <li>Reads <code>~/.sdlc/hub-config.json</code> (host, port, tailscale, liveReload, perRepoServe).</li>
+  <li>If <code>perRepoServe: false</code> — reaps any running per-repo daemon and returns; the hub serves this repo at <code>/r/&lt;id&gt;/</code>.</li>
+  <li>If a hub is alive (PID-file-gated probe of <code>~/.sdlc/hub.pid</code>) — defers to it, reaping any redundant per-repo daemon.</li>
+  <li>Otherwise spawns the standalone fallback daemon (<code>scripts/render-sunflower-serve.mjs</code>), writing a PID file at <code>.ai/_view/.serve.pid</code>.</li>
+</ol>
+
+<p>A running daemon that reports a different plugin <code>version</code> on its health endpoint is treated as stale and reaped, so a new install deterministically replaces the old daemon's code.</p>
+
+<h2>Health endpoint</h2>
+
+<p><code>GET /__sdlc/health</code> &rarr; <code>200</code> with a JSON body. The supervisor uses the reported <code>version</code> for stale-daemon reaping:</p>
+
+<pre><code>{ "status": "ok", "pid": 12345, "version": "9.38.0", ... }</code></pre>
+
+<h2>Troubleshooting</h2>
+
+<table>
+<thead><tr><th>Symptom</th><th>Check</th></tr></thead>
+<tbody>
+<tr><td>Server not starting</td><td><code>.ai/_view/.bootstrap.log</code> for the bootstrap render's output.</td></tr>
+<tr><td>Wrong repo shown at <code>/</code></td><td>A pre-hub per-repo daemon may be squatting port 4173. Set <code>perRepoServe: false</code> and restart the session, or reap the stale PID in <code>.ai/_view/.serve.pid</code>.</td></tr>
+<tr><td>Port conflict</td><td>Change <code>port</code> in <code>~/.sdlc/hub-config.json</code>.</td></tr>
+<tr><td>Tailscale not routing</td><td><code>tailscale serve status</code> (or <code>tailscale funnel status</code>).</td></tr>
+<tr><td>Stale page after an edit</td><td>Confirm <code>liveReload</code> is not <code>false</code>; check the SSE client cap (<code>maxSseClients</code>).</td></tr>
+</tbody>
+</table>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="hooks.html">Hooks</a> — <code>session-start-orient</code> triggers bootstrap rendering and the serve lifecycle.</li>
+  <li><a href="types.html">Artifact types</a> — what the server projects.</li>
+</ul>
+</div>
+<div class="pager"><a class="prev" href="../reference/hooks.html"><span>← Previous</span>Hooks</a><a class="next" href="../reference/types.html"><span>Next →</span>Artifact types</a></div></main>
+</div>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
+
+  // Mark active sidebar link based on current path
+  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
+  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
+    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
+      a.classList.add("active");
+    }
+  });
+
+  // Mobile drawer toggle
+  const toggle = document.querySelector(".menu-toggle");
+  const backdrop = document.querySelector(".nav-backdrop");
+  const setOpen = (open) => {
+    document.body.classList.toggle("nav-open", open);
+    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
+  };
+  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
+  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
+  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
+</script>
+</body>
+</html>

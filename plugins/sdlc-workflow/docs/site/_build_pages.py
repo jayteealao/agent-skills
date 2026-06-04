@@ -65,6 +65,8 @@ SIDEBAR = r"""<aside id="sidebar">
     <li><a href="{base}reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="{base}reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="{base}reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="{base}reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="{base}reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="{base}reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
   <h4>Explanation</h4>
