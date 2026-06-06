@@ -714,7 +714,7 @@ Use when: `convergence: not-needed` OR `convergence: converged` AND `verdict: sh
 
 **Option B: Re-invoke review for a second round** → `/wf review <slug> [<slice>]`
 Use when: `convergence: escalated` AND the user wants to attempt another round of fixes on the remaining findings. Review enforces a one-round cap per invocation; a second round requires a fresh invocation. State the unresolved findings (`could-not-fix` plus any deferred BLOCKER) clearly before recommending.
-**Compact recommended before re-invoking** — fix sub-agent chatter and triage UI is noise for the next review pass. Tell the user: "Consider running `/compact` before re-invoking — the PreCompact hook will preserve workflow state and the triage record is in `07-review-<slice-slug>.md`."
+**Compact recommended before re-invoking** — fix sub-agent chatter and triage UI is noise for the next review pass. Tell the user: "Consider running `/compact` before re-invoking — workflow state lives in the artifact files on disk (the triage record is in `07-review-<slice-slug>.md`) and the SessionStart hook re-reads it automatically after compaction."
 
 **Option C: Escalate to manual implement** → `/wf implement <slug> [<slice>] reviews`
 Use when: The remaining findings cannot be addressed by sub-agent patches — they need design rethink, cross-cutting refactor, or input the review agent cannot supply. This is the explicit escape hatch back to stage 5; use only when re-invoking review would just escalate again. Also available when the user prefers stage 5's per-finding sequential UI over review's batched fix dispatch.

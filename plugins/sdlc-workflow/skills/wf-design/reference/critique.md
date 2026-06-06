@@ -114,9 +114,8 @@ refs:
 ---
 ```
 
-- When also writing a renderer fragment, first load
-  `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md`, then
-  write sibling YAML to `.ai/workflows/<slug>/07-design-critique.yaml`:
+- **Required — write the sibling YAML** to
+  `.ai/workflows/<slug>/07-design-critique.yaml`:
 
 ```yaml
 artifact: design-critique
@@ -131,3 +130,13 @@ findings:
     observation: <specific problem>
     recommendation: <specific fix>
 ```
+
+- **Required — write the sibling `07-design-critique.html.fragment`** next to the
+  `.md` and `.yaml`. First load
+  `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow its
+  wrapper, snippet, and verifier rules. Body-only — `design-critique.mjs` already
+  owns the heading + metric-row and suppresses its static findings list when a
+  fragment is present, so the fragment supplies the interactive layer (severity-
+  filter pills over the findings, expandable observation→recommendation rows, a
+  dimension-grouping toggle). Deterministic from the sibling YAML (same YAML →
+  byte-identical HTML); pass `scripts/verify-fragment.mjs` (Check 7) clean.

@@ -27,6 +27,7 @@ plugins/sdlc-workflow/WF-DESIGN-UNIFIED-PLAN.md
 # Sunflower view page × hand-off review working doc (audit tracker — not shipped)
 plugins/sdlc-workflow/SUNFLOWER-PAGE-REVIEW-CHECKLIST.md
 plugins/sdlc-workflow/SUNFLOWER-HANDOFF-DEVIATIONS.md
+plugins/sdlc-workflow/SUNFLOWER-FRAGMENT-COVERAGE-PLAN.md
 
 # Node
 node_modules/

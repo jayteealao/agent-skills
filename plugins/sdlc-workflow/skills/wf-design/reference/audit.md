@@ -115,9 +115,8 @@ refs:
 ---
 ```
 
-- When also writing a renderer fragment, first load
-  `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md`, then
-  write sibling YAML to `.ai/workflows/<slug>/07-design-audit.yaml`:
+- **Required — write the sibling YAML** to
+  `.ai/workflows/<slug>/07-design-audit.yaml`:
 
 ```yaml
 artifact: design-audit
@@ -134,3 +133,14 @@ violations:
     remediation-status: <open|in-progress|fixed|deferred>
     recommendation: <specific fix>
 ```
+
+- **Required — write the sibling `07-design-audit.html.fragment`** next to the
+  `.md` and `.yaml`. First load
+  `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow its
+  wrapper, snippet, and verifier rules. Body-only — `design-audit.mjs` already owns
+  the heading, metric-row, and verdict block, and suppresses its static violations
+  list when a fragment is present, so the fragment supplies the interactive layer
+  (severity-filter pills over the violations, remediation-status grouping,
+  expandable observation→recommendation rows). Deterministic from the sibling YAML
+  (same YAML → byte-identical HTML); pass `scripts/verify-fragment.mjs` (Check 7)
+  clean.

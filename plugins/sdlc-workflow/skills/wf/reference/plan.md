@@ -361,7 +361,7 @@ After completing this stage, evaluate the plan(s) and present ALL viable options
 
 **Option A (default): Implement** → `/wf implement <slug> <slice-slug>`
 Use when: The plan is complete and ready for execution.
-**Compact recommended before proceeding** — planning research (alternatives, web searches, codebase exploration) is noise for implementation. Tell the user: "Consider running `/compact` before `/wf implement` — the PreCompact hook will preserve workflow state."
+**Compact recommended before proceeding** — planning research (alternatives, web searches, codebase exploration) is noise for implementation. Tell the user: "Consider running `/compact` before `/wf implement` — workflow state lives in the artifact files on disk and the SessionStart hook re-reads it automatically after compaction."
 
 **Option B: Implement all (sequential)** → start with `/wf implement <slug> <first-slice-slug>`
 Use when: All slices are planned and the user wants to work through them in order.

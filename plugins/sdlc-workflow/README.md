@@ -611,7 +611,7 @@ Compatible parsers: `yq --front-matter=extract`, Obsidian Dataview, MarkdownDB, 
 
 ### The `/compact` command is your friend
 
-Review dispatch, planning research, and implementation all generate significant context. Before moving to the next slice or to fix mode, run `/compact`. The PreCompact hook automatically preserves all workflow state in the artifact files, so the context is available even after compression.
+Review dispatch, planning research, and implementation all generate significant context. Before moving to the next slice or to fix mode, run `/compact`. Workflow state lives in the artifact files on disk — not only in the conversation — and the SessionStart hook re-reads those files after compaction, so Claude re-orients automatically even after the context is compressed.
 
 The review command reminds you explicitly: "Consider running `/compact` before `/wf implement` — triage decisions are in `07-review-<slice-slug>.md`."
 
@@ -963,7 +963,9 @@ The generated Codex plugin currently does **not** enable hooks. The workflow and
 
 **Script:** `hooks/session-start-orient.mjs`
 
-Fires at the start of every Claude Code session. Scans `.ai/workflows/*/00-index.md` for active (non-complete, non-abandoned) workflows and injects a compact summary into Claude's system context for the session. This means Claude always knows what workflow you were working on, what stage it's at, what slice is active, and what the next command is — without you having to explain it.
+Fires at the start of every Claude Code session — and re-fires after a context compaction (`source: compact`) and after `/clear`. Scans `.ai/workflows/*/00-index.md` for active (non-complete, non-abandoned) workflows and injects a compact summary into Claude's system context for the session. This means Claude always knows what workflow you were working on, what stage it's at, what slice is active, and what the next command is — without you having to explain it.
+
+Because it re-fires after compaction, this is also the mechanism that re-orients Claude once the conversation is compressed: it re-reads workflow state from the artifact files on disk, so nothing depends on that state surviving inside the compaction summary.
 
 If multiple active workflows exist, all summaries are injected. If the current git branch doesn't match the workflow's expected branch, the summary includes a `WRONG BRANCH` warning.
 
@@ -1010,24 +1012,7 @@ This replaced the former Python `tests/verify_frontmatter.py`, which has now bee
 
 Fires after Write, Edit, MultiEdit, and NotebookEdit for workflow, simplify, and profile artifacts. It debounces writes and launches the renderer in the background, so `.ai/_view/` catches up without blocking normal tool use.
 
-### PreCompact — context preservation
-
-**Script:** `hooks/pre-compact-preserve.mjs`
-
-Fires before Claude Code's context compaction. Reads every active workflow's `00-index.md` and outputs detailed preservation instructions to the compaction model, telling it what state must survive in the summary:
-
-- Active workflow slug, current stage, and selected slice
-- Branch name and strategy
-- All open questions (blocking — losing these means re-asking you)
-- Progress map across all 10 stages
-- Recommended next command and full invocation
-- Any triage decisions, PO answers, or architectural choices made in this session
-
-Without this hook, compaction might summarise away the workflow state — the artifact files would still be on disk, but Claude would need to re-read them from scratch to reorient. The hook ensures the summary carries enough context for immediate orientation after compaction.
-
-This is why `/compact` is safe to run during a workflow — the hook protects the critical state.
-
-The old shell hook scripts remain under `hooks/scripts/` for one release as migration references only. The live hook manifest points at the Node entrypoints above.
+> **No PreCompact hook.** Earlier releases shipped a `PreCompact` hook that wrote "preserve this in the summary" instructions to stdout. Claude Code does **not** feed `PreCompact` stdout to the compaction summarizer (only `UserPromptSubmit`, `UserPromptExpansion`, and `SessionStart` have their stdout added to context), so that hook was a no-op and has been removed (v9.41.0). Post-compaction reorientation is handled by **SessionStart**, which re-fires with `source: compact` and re-reads workflow state from the on-disk artifact files — see above.
 
 ---
 

@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — handoff waits for CI + reviews; fixes run in subagents (9.41.0)
+
+`/wf handoff` no longer declares PR readiness off a single `gh pr view` snapshot.
+The old T5.3 "live readiness check" read check state once and set
+`readiness-verdict: awaiting-input` whenever CI was still running — so handoffs
+routinely stopped with CI still yellow and bot reviews not yet posted. Three
+coordinated changes ([handoff.md](skills/wf/reference/handoff.md)):
+
+- **New T5.0 — watch CI to green + settle reviews**, inserted *before* triage. A
+  bounded poll loop (`## CI watch procedure`) drives the PR's checks to a terminal
+  state; once green, a bounded settle window lets review-bots (coderabbit/greptile/
+  etc.) post before triage runs. Configurable via new `ci-watch:` / `review-settle:`
+  blocks in `00-index.md` (defaults: poll 30s, 30-min CI bound, 5-min bot settle).
+- **T5.3 is now a final re-watch, not a snapshot.** Triage fixes and the rebase
+  force-push both retrigger CI, so the verdict is recomputed against a freshly
+  watched terminal state rather than a stale mid-run reading.
+- **Fixes are delegated to subagents.** On CI red, a read-only diagnosis subagent
+  proposes a fix (applies nothing); after user approval a fix subagent applies and
+  commits it (`## Fix-subagent contract`). Review-thread fixes route the same way
+  instead of running the implement-reviews coordinator inline — check logs, diffs,
+  and patch churn stay out of the orchestrator context.
+
+Policy: handoff **never blocks on human reviewers** — a missing required approval is
+recorded as `awaiting-input`, not waited on. New frontmatter fields
+(`ci-watch-conclusion`, `ci-watch-rounds`, `ci-watch-fix-rounds`,
+`bot-reviews-landed`, `review-settle-elapsed-seconds`) with
+[schema](tests/frontmatter.schema.json) coverage.
+
+### Removed — dead PreCompact preserve hook (9.41.0)
+
+Deleted `hooks/pre-compact-preserve.mjs` and its `PreCompact` entry in
+[hooks.json](hooks/hooks.json). The hook wrote workflow-state "preserve this in the
+summary" instructions to stdout, but Claude Code does **not** feed `PreCompact` stdout
+to the compaction summarizer — only `UserPromptSubmit`, `UserPromptExpansion`, and
+`SessionStart` have their stdout added to context. The hook was a silent no-op that
+implied a guarantee (workflow state survives compaction) it never delivered.
+
+Post-compaction reorientation is unchanged and was always carried by **SessionStart**
+([session-start-orient.mjs](hooks/session-start-orient.mjs)): it re-fires with
+`source: compact` and re-reads workflow state from the on-disk artifact files — the
+durable, documented mechanism. Also removed the `pre-compact-preserve` unit test and
+the README / doc-site references.
+
 ### Added — all-artifacts projection: 23 bespoke renderers + 2 discovery roots (9.40.0)
 
 Every artifact the plugin writes now has a dedicated view-layer page. The only
@@ -52,10 +95,12 @@ Closes the verification-and-hygiene gaps from the post-release review (see
   under npm on Windows). Substring-match tests couldn't catch a wrong badge
   colour or a dropped table column; snapshots can.
 - **Fragment authoring is now required** wherever a sibling YAML is written —
-  `profile`, `benchmark`, `experiment`, `instrument`, and `simplify-run` skill
-  references all changed from "If you also write…" to a mandatory step, so the
-  rich/fragment tier is finally exercised. (The conditional escape survives for
-  the legitimate no-data case: no sibling YAML → no fragment.)
+  `profile`, `benchmark`, `experiment`, `instrument`, `simplify-run`, and
+  `design-critique`/`design-audit` skill references all changed from conditional
+  ("If you also write…" / "When also writing…") to a mandatory step, so the
+  rich/fragment tier is finally exercised. No fragment-owning skill remains
+  conditional. (The escape survives for the legitimate no-data case: no sibling
+  YAML → no fragment.)
 - **wf-docs intermediate types — schema test coverage**
   ([foundation.test.mjs](tests/unit/lib/foundation.test.mjs)): `docs-discover`,
   `docs-audit`, `docs-plan`, `docs-generate` already had `oneOf` branches and

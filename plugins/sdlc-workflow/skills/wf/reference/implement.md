@@ -184,7 +184,7 @@ After completing, evaluate and present ALL viable options:
 
 **Option A (default): Verify** → `/wf verify <slug> <slice-slug>`
 Use when: The implementation touches testable behavior.
-**Compact recommended before proceeding** — implementation details (debugging, file exploration, error resolution) are noise for verification. Tell the user: "Consider running `/compact` before `/wf verify` — the PreCompact hook will preserve workflow state."
+**Compact recommended before proceeding** — implementation details (debugging, file exploration, error resolution) are noise for verification. Tell the user: "Consider running `/compact` before `/wf verify` — workflow state lives in the artifact files on disk and the SessionStart hook re-reads it automatically after compaction."
 
 **Option B: Skip to Review** → `/wf review <slug> <slice-slug>`
 Use when: Purely declarative change with no testable behavior.

@@ -26,7 +26,8 @@ You are running `wf-handoff`, **stage 8 of 10** in the SDLC lifecycle.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
-- Do NOT make code changes, fix issues, or modify the implementation.
+- Do NOT make code changes, fix issues, or modify the implementation **yourself**. When CI fails or a review thread needs a code change, you **delegate** it: dispatch a diagnosis/fix **subagent** (see `## Fix-subagent contract`) and, for CI-red, get user approval first. The orchestrator reads no source and writes no patch — the subagent does, and only its compact result returns to your context. This is both the orchestrator-discipline rule and the "keep the context clean" requirement, satisfied by the same mechanism.
+- You DO wait. Pushing a branch and opening a PR is not the end of handoff — CI must reach a terminal state and bot reviews must get their settle window before you decide readiness. Snapshotting "pending" and stopping is a contract violation (see T5.0/T5.3).
 - Do NOT ship, merge, or deploy — that is a later stage.
 - Your job is to **summarise the completed work into a reviewer-friendly handoff package, push the branch, and create a pull request**.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
@@ -116,9 +117,10 @@ Do this in order:
    - T3.7: `subject: "Doc-mirror regen"`, `activeForm: "Regenerating doc mirrors"`, `addBlockedBy: ["T3.6"]`. If `00-index.md` has no `docs-mirror:` block, will be deleted in step 5d.
    - T4: `subject: "Push branch to remote"`, `activeForm: "Pushing branch"`, `addBlockedBy: ["T3.7"]`. If `branch-strategy` is not `dedicated` or `shared`, will be deleted.
    - T5: `subject: "Create or update pull request"`, `activeForm: "Creating/updating PR"`, `addBlockedBy: ["T4"]`. If `branch-strategy` is not `dedicated`, will be deleted.
-   - T5.1: `subject: "PR comment triage"`, `activeForm: "Triaging PR comments"`, `addBlockedBy: ["T5"]`. If `branch-strategy` is not `dedicated` or no PR exists, will be deleted in step 7b.
+   - T5.0: `subject: "Watch CI to green + settle reviews"`, `activeForm: "Watching CI and settling reviews"`, `addBlockedBy: ["T5"]`. If `branch-strategy` is not `dedicated` or no PR exists, will be deleted in step 7a. **This is the task whose absence caused the "stopped without CI green / didn't wait for reviews" failure — it must run before triage so check results and bot comments have actually landed.**
+   - T5.1: `subject: "PR comment triage"`, `activeForm: "Triaging PR comments"`, `addBlockedBy: ["T5.0"]`. If `branch-strategy` is not `dedicated` or no PR exists, will be deleted in step 7b.
    - T5.2: `subject: "Rebase onto base"`, `activeForm: "Rebasing onto base"`, `addBlockedBy: ["T5.1"]`. If `branch-strategy` is not `dedicated`, will be deleted (shared branches cannot be force-pushed).
-   - T5.3: `subject: "Live PR readiness check"`, `activeForm: "Checking live PR readiness"`, `addBlockedBy: ["T5.2"]`. If `branch-strategy` is not `dedicated`, will be deleted.
+   - T5.3: `subject: "Final readiness re-watch"`, `activeForm: "Re-watching CI and finalizing readiness"`, `addBlockedBy: ["T5.2"]`. If `branch-strategy` is not `dedicated`, will be deleted.
    - T6: `subject: "Write 08-handoff.md"`, `activeForm: "Writing handoff artifact"`, `addBlockedBy: ["T5.3"]`.
 3. Mark T1 `in_progress`. Read all prior artifacts needed for the summary. Mark T1 `completed`.
 4. Mark T2 `in_progress`. Summarize the problem, solution, affected areas, verification evidence, risks, and follow-ups in reviewer-friendly language. Mark T2 `completed`.
@@ -185,8 +187,39 @@ Do this in order:
       - **PR exists, state=CLOSED|MERGED** → STOP. The branch's prior PR is closed; ask the user whether to reopen it (`gh pr reopen <pr-number>`), open a new one (delete `pr-number` from `00-index.md` then re-run), or treat the workflow as already shipped (route to `/wf retro <slug>`).
    e. **PR template checkbox sweep.** If `.github/PULL_REQUEST_TEMPLATE.md` exists, cross-reference its checkboxes against the handoff state and tick the ones the artifact provides evidence for (e.g., "Tests pass" if `06-verify-*.md` shows green; "Docs updated" if `docs-generated:` is non-empty). Do not tick checkboxes the artifact does not justify.
    f. Record the PR URL and number. Update `00-index.md` with `pr-url` and `pr-number`. Mark T5 `completed`.
-   - If `branch-strategy` is `shared`: Push the branch but do NOT create a PR automatically — note in the handoff that the user should create the PR manually or use the handoff content. `TaskUpdate(T5, status: "deleted")`. `TaskUpdate(T5.1, status: "deleted")`. `TaskUpdate(T5.2, status: "deleted")` (no force-push on shared branches). Mark T4 `completed`. T5.3 still runs if a `pr-number` is recorded.
-   - If `branch-strategy` is `none`: Skip push/PR entirely. `TaskUpdate(T4, status: "deleted")`, `TaskUpdate(T5, status: "deleted")`, `TaskUpdate(T5.1, status: "deleted")`, `TaskUpdate(T5.2, status: "deleted")`, `TaskUpdate(T5.3, status: "deleted")`. The handoff document is the deliverable.
+   - If `branch-strategy` is `shared`: Push the branch but do NOT create a PR automatically — note in the handoff that the user should create the PR manually or use the handoff content. `TaskUpdate(T5, status: "deleted")`. `TaskUpdate(T5.1, status: "deleted")`. `TaskUpdate(T5.2, status: "deleted")` (no force-push on shared branches). Mark T4 `completed`. T5.0 and T5.3 still run if a `pr-number` is recorded (CI runs on the shared branch even without an auto-created PR).
+   - If `branch-strategy` is `none`: Skip push/PR entirely. `TaskUpdate(T4, status: "deleted")`, `TaskUpdate(T5, status: "deleted")`, `TaskUpdate(T5.0, status: "deleted")`, `TaskUpdate(T5.1, status: "deleted")`, `TaskUpdate(T5.2, status: "deleted")`, `TaskUpdate(T5.3, status: "deleted")`. The handoff document is the deliverable.
+
+7a. **T5.0 — Watch CI to green + settle reviews.** Mark T5.0 `in_progress`. Skip this step entirely (`TaskUpdate(T5.0, status: "deleted")`) if `branch-strategy` is not `dedicated`/`shared` or no `pr-number` is recorded.
+
+   This step is the fix for the most common handoff failure: declaring readiness off a single `gh pr view` snapshot while CI is still running and bot reviews have not posted. It does NOT decide the final verdict (T5.3 does, after fixes and rebase) — it gets CI to a terminal state and gives reviewers a bounded window to land, so triage in 7b operates on real signal.
+
+   a. **Read the wait config** from `00-index.md` frontmatter: the optional `ci-watch:` and `review-settle:` blocks (see `## Project-level handoff config`). Absent keys use the defaults documented there (`ci-watch`: poll every 30s, bound 30 min, 2 fix rounds; `review-settle`: 5 min window, poll every 30s).
+
+   b. **Watch CI to a terminal state.** Run the shared **`## CI watch procedure`** (below) against `pr-number`. Outcomes:
+      - **green** (all checks `SUCCESS`/`NEUTRAL`/`SKIPPED`) → record `ci-watch-conclusion: green`; go to step 7a.d.
+      - **bound-exceeded** (checks still `pending` when the wait bound elapsed) → record `ci-watch-conclusion: timed-out`, set `readiness-verdict: awaiting-input`, list the still-pending checks in `live-checks-pending`, and STOP (write the artifact via steps 8–10). Re-running `/wf handoff <slug>` resumes the watch — it is idempotent.
+      - **red** (one or more checks terminal-failed) → go to step 7a.c.
+
+   c. **On CI red — diagnose-only subagent, then ask (do NOT auto-fix).** Per the configured policy, the orchestrator never patches code itself.
+      1. **Dispatch ONE read-only diagnosis subagent** (Task tool, `subagent_type: general-purpose`, `model: sonnet` — REQUIRED on the call; diagnosis must not inherit the parent model). Prompt it with the failing check names and these instructions: pull the failing logs (`gh pr checks <pr-number>`, `gh run view <run-id> --log-failed`), read the implicated source, and return a structured diagnosis ONLY — **apply no edits, run no fixes, create no commits**. Required return fields: `root-cause` (one paragraph), `proposed-fix` (file:line + the change), `confidence` (high/med/low), and `class` (`product-bug` | `flaky-or-infra` | `preexisting-unrelated`). The subagent keeps the full log dump out of the orchestrator context — only its compact diagnosis returns.
+      2. **Surface the diagnosis to the user** with AskUserQuestion:
+         ```yaml
+         question: "CI failed: <check names>. The diagnosis subagent proposes <one-line>. How should we proceed?"
+         header: "CI failure"
+         options:
+           - { label: "Apply proposed fix",   description: "Route the fix to a fix subagent, push, and re-watch CI." }
+           - { label: "Treat as flaky — re-run", description: "Re-run the failed checks (`gh run rerun <run-id> --failed`) and re-watch. Use only if class is flaky-or-infra." }
+           - { label: "Stop — block handoff",  description: "Record the failure; set readiness-verdict: blocked and STOP." }
+         multiSelect: false
+         ```
+      3. **Apply proposed fix** → dispatch ONE **fix subagent** (Task, `subagent_type: general-purpose`, `model: sonnet` REQUIRED) with the subagent prompt in `## Fix-subagent contract` below, passing the diagnosis's `proposed-fix`. It applies the minimal fix, commits `fix(<slug>): resolve CI failure — <short>`, and returns the commit SHA. Then `git push origin <branch>` and **re-run the CI watch procedure** (step 7a.b). Increment `ci-watch-fix-rounds`. Bound the apply→push→re-watch loop by `ci-watch.max-fix-rounds` (default 2); on exceeding it, set `readiness-verdict: awaiting-input` and STOP.
+      4. **Re-run** → `gh run rerun <run-id> --failed`, then re-run the watch procedure (does not count against `max-fix-rounds`; cap re-runs at 2 to avoid masking a real failure).
+      5. **Stop — block** → record `ci-watch-conclusion: red`, `live-checks-failing: [<names>]`, set `readiness-verdict: blocked`, and proceed to steps 8–10 (write artifact). Recommend `/wf implement <slug> <slice>` in the routing options.
+
+   d. **Settle reviews (bounded — bots only, never block on humans).** Once CI is green, poll the PR's reviews so bot reviewers (coderabbit/greptile/etc.) have a chance to post before triage. Loop on `review-settle.poll-interval-seconds` until either every login in the effective `review-bots` list (see triage section default) has posted at least one review/thread, OR `review-settle.settle-minutes` elapses — whichever comes first. Record `bot-reviews-landed: [<logins that posted>]` and `review-settle-elapsed-seconds: <N>`. **Do not wait on human reviewers here** — a missing required human approval is handled as `awaiting-input` in T5.3, not by hanging the session.
+
+   e. Mark T5.0 `completed`.
 
 7b. **T5.1 — PR comment triage loop.** See the dedicated section `## PR comment triage (T5.1)` below for the full loop. Mark T5.1 `in_progress` before entering the loop, `completed` on exit, and record the loop's outcome in handoff frontmatter (`triage-iterations`, `triage-fixes-applied`, `triage-fixes-skipped`, `triage-deferred-thread-ids`, `has-deferred-comments`). Skip this step entirely if `branch-strategy` is not `dedicated` or no `pr-number` was recorded.
 
@@ -198,16 +231,20 @@ Do this in order:
       - **Clean** → `git push --force-with-lease origin <branch>`. If `--force-with-lease` fails (lease moved during T5.1 triage), re-fetch and retry once. If the second attempt also fails, set `rebase-status: lease-failure` and STOP — recommend re-running handoff. Otherwise `rebase-status: rebased-clean`; record `rebase-onto-sha`.
    d. Mark T5.2 `completed`.
 
-7d. **T5.3 — Live PR readiness check.** Mark T5.3 `in_progress` (only when `pr-number` is recorded).
-   a. Run `gh pr view <pr-number> --json reviewDecision,statusCheckRollup,mergeable,mergeStateStatus`.
-   b. Record into handoff frontmatter:
+7d. **T5.3 — Final readiness re-watch.** Mark T5.3 `in_progress` (only when `pr-number` is recorded).
+   The triage fixes (7b) and the rebase force-push (7c) both retrigger CI, so the green state proven in T5.0 is now stale. **Re-establish it before deciding the verdict — do NOT reuse the T5.0 result.** This single change is what closes the "stopped without CI green" gap: the verdict is computed against a freshly-watched terminal CI state, not a mid-run snapshot.
+   a. **Re-watch CI.** Re-run the shared `## CI watch procedure` against `pr-number`.
+      - **timed-out** → set `readiness-verdict: awaiting-input`, record the still-pending checks in `live-checks-pending`, STOP (write the artifact via steps 8–10; re-running handoff resumes the watch).
+      - **red** → this is post-fix/post-rebase breakage. Run the same diagnose-only branch as 7a.c once; if it is not resolved (user declines or the fix-round bound is hit), set `readiness-verdict: blocked` and proceed to write the artifact.
+      - **green** → continue.
+   b. Capture the review snapshot: `gh pr view <pr-number> --json reviewDecision,statusCheckRollup,mergeable,mergeStateStatus`. Record into handoff frontmatter:
       - `live-review-decision`: from `.reviewDecision` (`APPROVED` | `CHANGES_REQUESTED` | `REVIEW_REQUIRED` | null)
-      - `live-checks-failing`: list of `name` from `.statusCheckRollup[]` where `conclusion` ∈ {`FAILURE`, `CANCELLED`, `TIMED_OUT`, `ACTION_REQUIRED`}
-      - `live-checks-pending`: list of `name` from `.statusCheckRollup[]` where `status` ∈ {`QUEUED`, `IN_PROGRESS`, `PENDING`}
+      - `live-checks-failing`: terminal-failed `name`s from `.statusCheckRollup[]` (empty after a green re-watch)
+      - `live-checks-pending`: still-pending `name`s from `.statusCheckRollup[]` (empty after a green re-watch)
    c. Compute `readiness-verdict`:
       - `ready` — `live-review-decision` ∈ {`APPROVED`, `null` if no reviewers required}, `live-checks-failing` is empty, `commitlint-status` ≠ `fail`, `public-surface-drift` ≠ `drift-without-regen`, `rebase-status` ∈ {`fast-forward`, `rebased-clean`, `skipped`}, `has-deferred-comments` is `false`.
-      - `awaiting-input` — there are pending checks, deferred comments, or required reviewers haven't responded. Not blocked but not green either.
-      - `blocked` — anything that hard-fails the criteria above (failing checks, requested-changes review, drift without regen, rebase conflicts, deferred 🔴 blockers).
+      - `awaiting-input` — pending checks remain, there are deferred comments, OR a required human reviewer hasn't responded (`REVIEW_REQUIRED`). **This is the no-hang path**: per the configured policy, handoff records the missing human approval as `awaiting-input` and returns control rather than blocking the session for hours.
+      - `blocked` — anything that hard-fails the criteria above (failing checks after re-watch, `CHANGES_REQUESTED` review, drift without regen, rebase conflicts, deferred 🔴 blockers).
    d. Mark T5.3 `completed`.
 
 8. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
@@ -265,6 +302,14 @@ triage-deferred-thread-ids: [<id>, ...]
 has-deferred-comments: <true | false>
 rebase-status: <fast-forward | rebased-clean | conflicts | lease-failure | skipped>
 rebase-onto-sha: "<sha of origin/<base-branch> at rebase time>"
+
+# CI-watch + review-settle block (added by T5.0/T5.3; absent → step was skipped)
+ci-watch-conclusion: <green | red | timed-out | skipped>   # terminal state of the final CI watch
+ci-watch-rounds: <N>                # total poll iterations across all watches this run
+ci-watch-fix-rounds: <N>            # apply-fix → push → re-watch loops run on CI red
+bot-reviews-landed: [<login>, ...]  # review-bots that posted within the settle window
+review-settle-elapsed-seconds: <N>  # seconds spent in the bot-review settle window
+
 live-review-decision: <APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | null>
 live-checks-failing: [<check-name>, ...]
 live-checks-pending: [<check-name>, ...]
@@ -302,12 +347,74 @@ docs-mirror:
   source-paths: ["<glob of doc sources>"]
   mirror-paths: ["<glob of generated mirrors>"]
 
-# Optional. Overrides the default review-bots list used by T5.1 (PR comment triage).
+# Optional. Overrides the default review-bots list used by T5.1 (PR comment triage)
+# AND the bot-settle wait in T5.0.
 # Default if absent: [coderabbitai, greptile-dev, gemini-code-assist, "chatgpt-codex-connector[bot]"]
 review-bots:
   - <login>
   - ...
+
+# Optional. Drives T5.0 / T5.3 — CI watch. Absent → the defaults shown.
+ci-watch:
+  poll-interval-seconds: 30      # how often to re-read statusCheckRollup
+  max-wait-minutes: 30           # bound; on exceed → readiness-verdict: awaiting-input (resumable)
+  max-fix-rounds: 2              # apply-fix → push → re-watch loops before giving up (per CI-red policy)
+
+# Optional. Drives T5.0 — bot-review settle window. Absent → the defaults shown.
+review-settle:
+  settle-minutes: 5              # max time to wait for review-bots to post after CI goes green
+  poll-interval-seconds: 30      # how often to re-read PR reviews/threads
 ```
+
+# CI watch procedure (shared by T5.0 and T5.3)
+
+A **bounded poll loop** that drives the PR's checks to a terminal state. It is the piece the old one-shot `gh pr view` lacked. Idempotent and resumable: re-invoking handoff re-enters the loop against whatever the current check state is.
+
+Inputs: `pr-number`; `ci-watch.poll-interval-seconds` (default 30); `ci-watch.max-wait-minutes` (default 30). The wall-clock bound is the user's hard ceiling — never exceed it silently.
+
+1. **Read current state:** `gh pr view <pr-number> --json statusCheckRollup`. Partition `.statusCheckRollup[]`:
+   - **pending** — `status` ∈ {`QUEUED`, `IN_PROGRESS`, `PENDING`, `WAITING`} (or `state` ∈ {`PENDING`, `EXPECTED`} for legacy commit-status contexts).
+   - **failed** — terminal-failed: `conclusion` ∈ {`FAILURE`, `CANCELLED`, `TIMED_OUT`, `ACTION_REQUIRED`, `STARTUP_FAILURE`} (or `state: FAILURE`/`ERROR`).
+   - **passed** — terminal-ok: `conclusion` ∈ {`SUCCESS`, `NEUTRAL`, `SKIPPED`} (or `state: SUCCESS`).
+2. **Decide:**
+   - any **failed** → return **red** (with the failed check names). Stop watching — a red check won't go green on its own.
+   - no failed AND no pending → return **green**.
+   - else (some pending, none failed) → if the elapsed wall-clock since the watch started ≥ `max-wait-minutes`, return **timed-out** (with the pending names); otherwise `sleep <poll-interval-seconds>` and go to step 1.
+3. Prefer `gh pr checks <pr-number> --watch --interval <poll-interval-seconds>` when available — it blocks until checks finish and exits non-zero on failure — but still enforce the `max-wait-minutes` ceiling around it (run it under a timeout; on timeout, fall back to the snapshot decision in step 2). The hand-rolled poll in steps 1–2 is the portable fallback and the source of truth for the partition rules.
+
+Record `ci-watch-rounds: <N polls>` and the terminal outcome in handoff frontmatter (`ci-watch-conclusion`). Never report `green` off a snapshot that still contains pending checks — that is precisely the bug this procedure exists to prevent.
+
+# Fix-subagent contract (shared by 7a CI-red and 7b triage)
+
+Every code fix in handoff is delegated to a subagent so the orchestrator context stays clean and the orchestrator-discipline rule ("do NOT make code changes") holds. Dispatch with the `Task` tool:
+
+- `subagent_type`: `general-purpose`
+- `model`: `sonnet` — **REQUIRED on every call.** Read-finding-then-patch is the bounded profile Sonnet handles well; fix subagents must not silently inherit the parent (Opus) model.
+- `description`: 3–5 words, e.g. `"fix CI failure"` or `"fix review thread"`.
+- `prompt`: self-contained — include the exact target and these rules:
+  ```
+  Apply the following fix in this repository:
+
+  Location: <file:line-range>
+  Problem:  <root cause / thread body>
+  Proposed fix: <the change to make>
+
+  Read the file(s) at the location. Apply the MINIMAL change that resolves
+  the problem — do not refactor, reformat, or touch anything unrelated.
+  Do not broaden scope beyond this one item.
+
+  After editing, sanity-check: no new lint/type errors, surrounding code
+  still coherent, the specific problem is resolved.
+
+  Then commit ONLY the files you changed:
+    git commit -m "<the commit message the orchestrator gave you>"
+
+  Return ONLY: the commit SHA (`git rev-parse HEAD`), the list of files
+  changed, and one line on whether the fix is confirmed. Do NOT paste diffs
+  or full file contents back.
+  ```
+
+The subagent commits but does **not** push — the orchestrator pushes once after a batch (7b step 7) so a single CI run covers all fixes in the iteration. After the subagents return, the orchestrator re-runs the `## CI watch procedure` to confirm the fixes are green (in T5.3).
 
 # PR comment triage (T5.1)
 
@@ -388,9 +495,11 @@ When ambiguous, prefer the more severe class. Bots producing very long walkthrou
 
 ### 5. Address 🔴 blockers
 
-For each 🔴 thread:
-- Hand off to `/wf implement <slug> <slice> reviews` with the thread context as a sub-invocation. The implement-reviews mode is responsible for reading the thread, applying the fix, committing, and returning the resulting commit SHA.
-- Record `{ threadId, fix-sha }` for the resolve step in 7.
+Fixes run in **subagents, never inline** — this is what keeps the orchestrator context clean (the original "littering" complaint). The orchestrator collects approved threads and dispatches the fix work; it does not read source or patch code itself.
+
+- Collect every 🔴 thread the user has not declined into a batch of `{ threadId, file, line, body }`.
+- **Dispatch fix subagents** per the `## Fix-subagent contract` below — one `Task` per thread. Parallelize threads that touch disjoint files (issue the `Task` calls in a single message); serialize threads that touch the same file to avoid clobbering. Each subagent reads the thread context, applies the minimal fix, commits `fix(<slug>): address review thread — <short>`, and returns `{ threadId, fix-sha, status }`. Only that compact result returns to the orchestrator — not the diffs, log dumps, or file reads.
+- Record each `{ threadId, fix-sha }` for the resolve step in 7.
 
 If the user has a strong reason to decline a 🔴 (e.g., the bot is wrong about correctness) and confirms via AskUserQuestion, route to "deferred" and add `threadId` to `triage-deferred-thread-ids`. Set `has-deferred-comments: true`.
 
@@ -408,7 +517,7 @@ options:
 multiSelect: true
 ```
 
-For selected ones: route through the same `/wf implement <slug> <slice> reviews` path. For unselected: ask in a freeform chat round whether to **defer** (keep open, add to `triage-deferred-thread-ids`) or **decline** (resolve the thread with a brief decline rationale recorded in the comment via `gh pr comment`).
+For selected ones: route through the same fix-subagent path (`## Fix-subagent contract`) — one subagent per selected thread, same as 🔴. For unselected: ask in a freeform chat round whether to **defer** (keep open, add to `triage-deferred-thread-ids`) or **decline** (resolve the thread with a brief decline rationale recorded in the comment via `gh pr comment`).
 
 ### 7. Push fixes and resolve threads
 
@@ -511,6 +620,8 @@ Summary of T3.5–T5.3 outcomes (also recorded in frontmatter for machine consum
 - **Public-surface drift:** <none | regenerated | drift-without-regen | skipped> — <one-line note>
 - **Doc-mirror:** <up-to-date | regenerated | skipped> — <one-line note>
 - **Rebase onto base:** <fast-forward | rebased-clean | conflicts | lease-failure | skipped> — <one-line note; cite `rebase-onto-sha` if rebased>
+- **CI watch:** <green | red | timed-out | skipped> — <N rounds polled; `ci-watch-fix-rounds` fix loops if any>
+- **Bot reviews landed:** <list or "none"> — settled in <review-settle-elapsed-seconds>s of the <settle-minutes>m window
 - **Live review decision:** <APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | null>
 - **Live checks failing:** <list or "none">
 - **Live checks pending:** <list or "none">

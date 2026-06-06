@@ -14,7 +14,6 @@ const HOOKS = {
   postWriteVerify: join(PLUGIN_ROOT, 'hooks', 'post-write-verify.mjs'),
   postWriteAutoStage: join(PLUGIN_ROOT, 'hooks', 'post-write-auto-stage.mjs'),
   sessionStartOrient: join(PLUGIN_ROOT, 'hooks', 'session-start-orient.mjs'),
-  preCompactPreserve: join(PLUGIN_ROOT, 'hooks', 'pre-compact-preserve.mjs'),
 };
 
 function tempDir(prefix = 'sdlc-hooks-') {
@@ -356,21 +355,6 @@ test('session-start-orient emits compact JSON for active workflows only', () => 
     match(parsed.systemMessage, /Active workflow: demo - Demo workflow/);
     match(parsed.systemMessage, /Stage: implement/);
     ok(!parsed.systemMessage.includes('Done workflow'));
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
-  }
-});
-
-test('pre-compact-preserve emits preservation instructions for active workflows', () => {
-  const tmp = tempDir();
-  try {
-    writeFile(join(tmp, '.ai', 'workflows', 'demo', '00-index.md'), md(minimalIndex()));
-
-    const result = runHook(HOOKS.preCompactPreserve, { cwd: tmp }, tmp);
-    equal(result.status, 0, result.stderr);
-    match(result.stdout, /CRITICAL - Active SDLC workflow state/);
-    match(result.stdout, /WORKFLOW: demo/);
-    match(result.stdout, /Progress: intake: complete, implement: in-progress/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

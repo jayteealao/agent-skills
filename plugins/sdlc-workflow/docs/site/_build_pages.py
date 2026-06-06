@@ -3535,13 +3535,9 @@ PAGES.append((
 
 <p>Best-effort: re-renders the affected part of the sunflower HTML view under <code>.ai/_view/</code> after an artifact changes. Never blocks the write.</p>
 
-<h2>pre-compact-preserve (PreCompact)</h2>
-
-<p>Fires before the conversation is compacted. Captures active-workflow context (slug, stage, recent artifacts) so the post-compact assistant can rebuild orientation.</p>
-
 <h2>session-start-orient (SessionStart)</h2>
 
-<p>Fires once per session. Reads <code>.ai/workflows/*/00-index.md</code>, surfaces active workflows as session context, and kicks off detached bootstrap rendering of the view.</p>
+<p>Fires once per session and re-fires after a context compaction (<code>source: compact</code>). Reads <code>.ai/workflows/*/00-index.md</code>, surfaces active workflows as session context, and kicks off detached bootstrap rendering of the view. Because it re-reads workflow state from disk after compaction, it is also what re-orients Claude once the conversation is compressed.</p>
 
 <h2>Where to find them</h2>
 
@@ -3551,7 +3547,6 @@ PAGES.append((
 ├── post-write-verify.mjs
 ├── post-write-auto-stage.mjs
 ├── post-write-render.mjs
-├── pre-compact-preserve.mjs
 └── session-start-orient.mjs</code></pre>
 """,
     ("reference/09-ship-run-schema.html", "Ship-run schema"),
