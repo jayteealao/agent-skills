@@ -53,6 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
   <h4>Explanation</h4>
@@ -80,7 +82,7 @@
 <span class="quadrant reference">reference</span>
 <h1>/wf-meta router — navigation and management in depth</h1>
 
-<p>The navigation/management router. 11 sub-commands. None produce stage artifacts — they manage existing workflows or answer questions about them. <code>disable-model-invocation: true</code>, so you always invoke them explicitly.</p>
+<p>The navigation/management router. 12 sub-commands. None produce stage artifacts — they manage existing workflows or answer questions about them. <code>disable-model-invocation: true</code>, so you always invoke them explicitly.</p>
 
 <div class="toc">
 <h3>On this page</h3>
@@ -96,6 +98,7 @@
   <li><a href="#how">/wf-meta how</a></li>
   <li><a href="#announce">/wf-meta announce</a></li>
   <li><a href="#init-ship-plan">/wf-meta init-ship-plan</a></li>
+  <li><a href="#build-pipeline">/wf-meta build-pipeline</a></li>
 </ul>
 </div>
 
@@ -212,7 +215,7 @@
 <tr><td><code>amend &lt;slug&gt; from-retro</code></td><td>Seeds from <code>10-retro.md</code> items tagged as "scope was misunderstood" etc.</td></tr>
 <tr><td><code>amend &lt;slug&gt; &lt;slice&gt;</code></td><td>Direct slice amendment — user describes the correction.</td></tr>
 <tr><td><code>amend &lt;slug&gt;</code></td><td>General amendment — interview-driven discovery.</td></tr>
-<tr><td><code>amend ship-plan</code></td><td>Edits one block (A–G) of <code>.ai/ship-plan.md</code>; bumps <code>plan-version</code>.</td></tr>
+<tr><td><code>amend ship-plan</code></td><td>Edits one block (A–K) of <code>.ai/ship-plan.md</code>; bumps <code>plan-version</code>.</td></tr>
 </tbody>
 </table>
 
@@ -332,9 +335,10 @@
 <tr><th>Run frequency</th><td>Once per project. Use <code>amend ship-plan</code> to edit.</td></tr>
 </table></div>
 
-<p>One-time setup for the plan-driven ship stage. Loads the chosen template, asks 13 grouped questions covering blocks A–G, writes the plan.</p>
+<p>One-time setup for the whole pipeline. Works by <strong>discovery → hypothesis → confirm</strong>: reads what's already in the repo (CI workflows, infra-as-code, package manifests, runbooks, linters, hook frameworks, governance files), proposes a pipeline shape, then lets you confirm or correct each contract block. Templates are <em>hypothesis seeds</em>, not control-flow branches.</p>
 
-<h4>The 7 blocks</h4>
+<h4>The 11 blocks</h4>
+<p>The plan has two halves — the <strong>outbound</strong> release (A–G) and the <strong>inbound</strong> developer experience (H–K).</p>
 <table>
 <thead><tr><th>Block</th><th>What</th></tr></thead>
 <tbody>
@@ -345,10 +349,38 @@
 <tr><td>E</td><td>Rollout + rollback strategy</td></tr>
 <tr><td>F</td><td>Recovery playbooks (grow over time)</td></tr>
 <tr><td>G</td><td>Stakeholder + announcement channels</td></tr>
+<tr><td>H</td><td>Code-quality gates (format/lint/type-check/coverage, commit + PR-title convention)</td></tr>
+<tr><td>I</td><td>Local developer experience (git hooks, editorconfig, version files, task runner, bootstrap)</td></tr>
+<tr><td>J</td><td>Repo governance (branch protection + fidelity, merge controls, CODEOWNERS, PR/issue templates, dependency automation)</td></tr>
+<tr><td>K</td><td>Security &amp; supply-chain gates (SAST/CodeQL, dependency-audit, secret-scanning, SBOM, license policy)</td></tr>
+</tbody>
+</table>
+<p>Three extensions thread through existing blocks: per-environment GitHub protection (Block A), CI ergonomics — caching/matrix/concurrency (Block C), and merge controls (Block J).</p>
+
+<p>See <a href="ship-plan-schema.html">Ship-plan schema</a> for every field; <a href="../how-to/author-ship-plan.html">Author a ship plan</a> for the walkthrough. Once authored, run <a href="#build-pipeline">build-pipeline</a> to build it.</p>
+
+<hr>
+
+<h2 id="build-pipeline">/wf-meta build-pipeline [--dry-run]</h2>
+
+<div class="summary"><table>
+<tr><th>Reads</th><td><code>.ai/ship-plan.md</code> (the spec) + the repo's existing config/workflows</td></tr>
+<tr><th>Writes</th><td>GitHub Actions workflows + inbound-DX config files; <code>.ai/pipeline-compliance.md</code>; optionally mutates three remote settings — branch protection, environment protection, repo merge settings (each gated)</td></tr>
+<tr><th>Run frequency</th><td>After <code>init-ship-plan</code>, and again after any <code>amend ship-plan</code>.</td></tr>
+</table></div>
+
+<p>Treats the ship plan as the specification and the repo as the current implementation, then closes the gap. Audits each requirement as Compliant / Missing / Non-compliant, shows a gap report, and on confirmation creates missing files and patches existing ones — <strong>no file is ever overwritten</strong>. With <code>--dry-run</code> it reports the full gap report and writes nothing.</p>
+
+<h4>What it builds (Audits A–S)</h4>
+<table>
+<thead><tr><th>Half</th><th>Audits</th><th>Output</th></tr></thead>
+<tbody>
+<tr><td>Outbound</td><td>A–J</td><td>Pre-merge + release workflows, version-bump, post-publish checks, rollback workflow, runbook stubs</td></tr>
+<tr><td>Inbound</td><td>K–S</td><td>Code-quality CI gates, commitlint + PR-title CI + config, git hooks, dev-experience files, CODEOWNERS / templates / dependency automation, security gates (CodeQL, dependency-audit, secret-scan, SBOM, license), CI ergonomics, plus the three gated remote settings</td></tr>
 </tbody>
 </table>
 
-<p>See <a href="ship-plan-schema.html">Ship-plan schema</a> for every field; <a href="../how-to/author-ship-plan.html">Author a ship plan</a> for the walkthrough.</p>
+<p>Remote mutation is limited to three settings — <strong>branch protection, environment protection, and repo merge settings</strong> — each only when the plan opts in (<code>apply-via: gh-api</code>). Even then it shows the current-vs-desired diff and the exact <code>gh api</code> payload, then requires an explicit confirm — with a "print commands only" escape hatch. It never pushes code, opens PRs, sets secrets, or runs a release.</p>
 
 <div class="related">
 <h3>Related</h3>

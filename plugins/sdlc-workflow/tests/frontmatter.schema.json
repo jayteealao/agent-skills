@@ -1050,7 +1050,7 @@
 
     "shipPlanFrontmatter": {
       "type": "object",
-      "description": ".ai/ship-plan.md project-level shipping contract read by /wf ship. v9.35.0: required[] aligned to the actual init-ship-plan template (project-name/plan-version), dropping the stray title/status/source that were copied from project-context and never emitted.",
+      "description": ".ai/ship-plan.md project-level shipping contract read by /wf ship and built by /wf-meta build-pipeline. v9.35.0: required[] aligned to the actual init-ship-plan template (project-name/plan-version), dropping the stray title/status/source that were copied from project-context and never emitted. v9.42.0: documented the inbound-half blocks (code-quality / local-dx / governance) as optional objects — the branch stays open (no additionalProperties:false), so these are documentation, not enforcement; inner shapes live in the init-ship-plan reference. v9.43.0: added Block K (security) as a documented object; governance gained merge controls + branch-protection fidelity fields, ship-environments gained per-env protection, ci-pipeline gained ci-ergonomics, plus a repo-topology field — all nested in already-open keys.",
       "required": ["schema", "type", "slug", "project-name", "plan-version"],
       "properties": {
         "type": { "const": "ship-plan" },
@@ -1063,6 +1063,26 @@
         "source": { "type": "string" },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
+        "code-quality": {
+          "type": "object",
+          "description": "Block H — inbound code-quality gates: format-check / lint / type-check / test-coverage (each {tool,cmd}), commit-convention, pr-title-convention. Read by /wf-meta build-pipeline (Audits K-L)."
+        },
+        "local-dx": {
+          "type": "object",
+          "description": "Block I — local developer experience: git-hooks (framework + per-hook commands), editorconfig, runtime-version-files, task-runner, bootstrap-cmd, contributing-doc. Read by build-pipeline (Audits M-N)."
+        },
+        "governance": {
+          "type": "object",
+          "description": "Block J — repo governance: branch-protection (mechanism, code-owner/conversation/linear-history fidelity, apply-via: gh-api|manual), codeowners, pr-template, issue-templates, dependency-automation, and merge controls. Read by build-pipeline (Audits O, R)."
+        },
+        "security": {
+          "type": "object",
+          "description": "Block K — security & supply-chain gates: sast, dependency-audit, secret-scanning, sbom, license-check. Read by build-pipeline (Audit P). Aligns to skills/review/reference/supply-chain.md."
+        },
+        "repo-topology": {
+          "type": "object",
+          "description": "Discovery output (not a block): { monorepo, tool, workspaces[] }. Biases dependency-automation ecosystems, lint-staged scoping, and CI matrix."
+        },
         "refs": { "$ref": "#/$defs/refs" }
       }
     },
@@ -2103,6 +2123,36 @@
             "approvers":      { "type": "array", "items": { "type": "string" } }
           }
         }
+      }
+    },
+
+    "sync-report": {
+      "type": "object",
+      "description": "Branch-sync health report (00-sync.yaml beside 00-sync.md). A regenerable view over git/PR state: how far the feature branch has diverged from its base and whether a rebase is safe. `conflict_risk` drives the verdict tone; `diverged_files[]` drives both the desktop drift table and the mobile file rows; `recommendation` populates the callout. Added in v9.44.0.",
+      "required": ["artifact", "branch", "base_branch", "ahead_count", "behind_count", "conflict_risk"],
+      "properties": {
+        "artifact":      { "const": "sync" },
+        "branch":        { "type": "string" },
+        "base_branch":   { "type": "string" },
+        "ahead_count":   { "type": "integer", "minimum": 0 },
+        "behind_count":  { "type": "integer", "minimum": 0 },
+        "conflict_risk": { "enum": ["none", "low", "med", "high"] },
+        "rebase_status": { "enum": ["clean", "conflicts"] },
+        "stale_days":    { "type": "integer", "minimum": 0 },
+        "diverged_files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "properties": {
+              "path":         { "type": "string" },
+              "base_delta":   { "type": ["string", "null"] },
+              "branch_delta": { "type": ["string", "null"] },
+              "conflict":     { "type": "boolean" }
+            }
+          }
+        },
+        "recommendation": { "type": "string" }
       }
     }
   }

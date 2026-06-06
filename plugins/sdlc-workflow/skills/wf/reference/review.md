@@ -690,6 +690,46 @@ the authoritative gallery is bundled at
 
 ---
 
+# Step 5c: Write per-dimension rich fragments (MANDATORY — do not skip)
+
+Step 5b covers the **sweep-level** review page (`07-review.md` / `07-review-<slice-slug>.md`).
+Each **per-dimension** review file you wrote in Step 5 — `07-review-<command>.md` (slug-wide)
+or `07-review-<slice-slug>-<command>.md` (per-slice), one per selected review command
+(`security`, `correctness`, …) — renders through `review-dimension.mjs`. **Without a sibling
+fragment that page falls back to `renderSimple`** (plain prose, no interactive findings): the
+focused-dimension equivalent of the S-1 degradation.
+
+For each per-dimension review `.md`:
+
+1. Write the sibling **`<stem>.yaml`** — schema `siblingYamlSchemas.review-dimension` in
+   `tests/frontmatter.schema.json`: `artifact: review-dimension`, `dimension`, `parent`
+   (the sweep `07-review.md`), `rev`, `verdict` (`ship|caveats|no`), `summary`, `counts`
+   (blocker/high/med/low/nit), and `findings` (id, severity, file, line, confidence, action,
+   msg, evidence, fix) — scoped to **this dimension only**.
+2. Write the sibling **`<stem>.html.fragment`** — one
+   `<section class="fragment-review-dimension" data-artifact="review-dimension" data-rev="<n>">`
+   carrying the **interactive layer**: a severity-filter pill bar, a sortable findings list
+   (by severity / file:line), and per-finding expandable evidence→fix rows. The fragment is
+   **body-only** (see `_fragment-authoring.md` → "Scope"): `review-dimension.mjs` already
+   renders the heading, the verdict block, and the metric-row, and suppresses its static
+   findings list when a fragment is present (see `renderers/review-dimension.mjs` lines
+   64–67) — start at the filter bar, do not repeat the chrome.
+
+Authoring rules (verifier Check 7 enforces these):
+
+- Inline `<style>` with every new selector scoped under `.fragment-review-dimension`. Use a
+  **distinct prefix** (e.g. `.rd-*`) so it never collides with the sweep fragment's `.fr-*` —
+  both fragments can appear on one slug page.
+- Inline `<script>` scoped via `document.currentScript.closest('.fragment-review-dimension')`.
+- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', { detail: { name: 'review-dimension', artifact: 'review-dimension', dimension: '<dim>', counts: { findings: <n>, blockers: <n> } } }))`.
+- Inline SVG only; no remote anything.
+- All data deterministic from the `.yaml` — same YAML → byte-identical output.
+
+Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` first; the full
+contract lives in [`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
+
+---
+
 # Step 6: Update Index and Return
 
 1. Update `00-index.md` frontmatter:

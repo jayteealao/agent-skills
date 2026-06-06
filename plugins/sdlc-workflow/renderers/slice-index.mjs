@@ -56,8 +56,11 @@ export function render(artifact, ctx) {
   }).join('');
   const proseHtml = artifact.body ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
 
+  // Dual-DOM (M-SLC-03): the slice-grid figure is illegible at phone width, so
+  // it's desktop-only — phones fall to the always-present card list below, which
+  // already reflows to the mobile slice-card spec (M-S5).
   const bodyHtml = `
-    ${figureHtml}
+    <div class="d-only">${figureHtml}</div>
     ${proseHtml}
     <section class="slice-grid">${cards}</section>
     ${renderHistoryBlock(artifact.history)}

@@ -78,6 +78,67 @@ announcement:
   template-path: ".ai/release-announcement-template.md"
 ```
 
+# Inbound DX seed values
+
+```yaml
+# Block H — code-quality gates
+code-quality:
+  format-check: { tool: prettier, cmd: "npx prettier --check ." }
+  lint:         { tool: hadolint, cmd: "hadolint Dockerfile" }
+  type-check:   { tool: "n/a", cmd: "" }
+  test-coverage: { min-percent: null, cmd: "" }
+  commit-convention:   { spec: conventional, config-path: "commitlint.config.js", enforce: [local, ci] }   # feeds version-bump-rule: conventional-commits
+  pr-title-convention: { spec: conventional, enforce: [ci] }
+
+# Block I — local developer experience
+local-dx:
+  git-hooks:
+    framework: lefthook
+    hooks:
+      pre-commit: ["hadolint Dockerfile"]
+      commit-msg: ['npx commitlint --edit {1}']
+      pre-push: []
+  editorconfig: true
+  runtime-version-files: []                    # polyglot — pin the language used by the app image
+  task-runner: { kind: make, targets: { build: "docker buildx build .", scan: "trivy image $IMAGE:$VERSION" } }
+  bootstrap-cmd: ""
+  contributing-doc: true
+
+# Block J — repo governance
+governance:
+  branch-protection:
+    base-branch: main
+    required-checks: [build, test, lint, image-scan]
+    required-approvals: 1
+    dismiss-stale-reviews: true
+    require-up-to-date: true
+    enforce-admins: false
+    apply-via: manual
+  codeowners:
+    - { path: "Dockerfile*", owners: ["@<maintainer>"] }
+  pr-template: true
+  issue-templates: true
+  dependency-automation: { tool: renovate, ecosystems: [docker, github-actions], schedule: "weekly" }
+```
+
+# Security & hardening seed values
+
+```yaml
+# Block C — ci-ergonomics (ci-pipeline.ci-ergonomics) — buildx already uses gha cache
+ci-ergonomics: { dep-cache: true, matrix: { os: ["ubuntu-latest"], versions: [] }, release-concurrency: true, path-filters: false }
+
+# Block J — merge controls (governance.merge)
+merge: { method: squash, auto-merge: false, merge-queue: false }
+
+# Block K — security & supply-chain gates
+security:
+  sast:             { tool: codeql, cmd: "", schedule: "weekly" }
+  dependency-audit: { tool: trivy, cmd: "trivy image --exit-code 1 --severity HIGH,CRITICAL $IMAGE:$VERSION", fail-on: high }
+  secret-scanning:  { tool: gitleaks, cmd: "gitleaks detect --no-banner", pre-commit: true }
+  sbom:             { tool: syft, format: spdx, publish-with-release: true }
+  license-check:    { tool: none, allow: [], deny: [] }
+```
+
 # Notes for the author
 
 - The template defaults to **GHCR** (GitHub Container Registry) since it works out of the box with GITHUB_TOKEN. Swap secrets for ECR or Docker Hub.

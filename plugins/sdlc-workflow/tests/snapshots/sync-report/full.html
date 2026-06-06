@@ -1,0 +1,81 @@
+
+    <header class="artifact-header">
+      <div class="sdlc-crumb">00-sync.md</div>
+      <h1 class="pg-title">Branch sync · <code>feat/checkout-v2</code></h1>
+      <p class="sdlc-lede">12 commits ahead of <code>main</code>, 7 behind; last synced 14 days ago. Medium conflict risk.</p>
+      <div class="meta-row"><span class="status-badge is-ok">active</span><span class="stage-badge">sync</span><span class="meta">base <code>main</code></span><span class="meta">rebase conflicts</span></div>
+    </header>
+<!-- body -->
+
+    <section class="verdict verdict-caveats">
+    <div class="v-label">Verdict</div>
+    <div class="v-text">Drifting</div>
+    <p class="v-sum">7 upstream commits not yet merged · 2 files with edits on both sides · 14 days since last rebase.</p>
+  </section>
+    <div class="d-only"><div class="metric-row"><div class="metric">
+      <span class="metric-label">ahead</span>
+      <span class="metric-value">12</span>
+      <span class="metric-ann">commits not in main</span>
+    </div><div class="metric is-warn">
+      <span class="metric-label">behind</span>
+      <span class="metric-value">7</span>
+      <span class="metric-ann">upstream commits missing</span>
+    </div><div class="metric">
+      <span class="metric-label">stale</span>
+      <span class="metric-value">14</span>
+      <span class="metric-ann">days since last rebase</span>
+    </div><div class="metric is-bad">
+      <span class="metric-label">conflicts</span>
+      <span class="metric-value">2</span>
+      <span class="metric-ann">files with dual edits</span>
+    </div></div><h2 class="sec">Divergence from base</h2><figure class="figure-canvas">
+  <figcaption class="figure-meta">
+    <span class="figure-title"><b>Figure 1</b> · Commits ahead and behind main</span>
+    <span class="figure-legend" aria-hidden="true"><span class="legend-entry"><span class="sw ahead"></span>ahead (feat/checkout-v2)</span><span class="legend-entry"><span class="sw behind"></span>behind (main)</span></span>
+  </figcaption>
+  <svg viewBox="0 0 920 220" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Diverging bar: 12 commits ahead and 7 behind main">
+    <line x1="60" y1="110" x2="880" y2="110" stroke="#cbc4b1" stroke-width="1" stroke-dasharray="4 4"/><rect x="279" y="94" width="175" height="32" rx="3" fill="#fbf3df" stroke="#a07417" stroke-width="1"/>
+       <circle cx="429" cy="110" r="4" fill="#a07417"/><circle cx="404" cy="110" r="4" fill="#a07417"/><circle cx="379" cy="110" r="4" fill="#a07417"/><circle cx="354" cy="110" r="4" fill="#a07417"/><circle cx="329" cy="110" r="4" fill="#a07417"/><circle cx="304" cy="110" r="4" fill="#a07417"/><circle cx="279" cy="110" r="4" fill="#a07417"/>
+       <text x="271" y="85" text-anchor="end" font-size="13" font-weight="600" fill="#1f1b16">7 behind</text>
+       <text x="271" y="101" text-anchor="end" font-size="11" fill="#a07417">main has moved on</text><line x1="460" y1="68" x2="460" y2="155" stroke="#1f1b16" stroke-width="1.5"/>
+    <circle cx="460" cy="110" r="9" fill="#fbfaf6" stroke="#1f1b16" stroke-width="2"/>
+    <text x="460" y="168" text-anchor="middle" font-size="11" font-weight="600" fill="#8a8377" letter-spacing="0.5">base · main</text><rect x="466" y="94" width="300" height="32" rx="3" fill="#e9eef4" stroke="#4a6c8c" stroke-width="1"/>
+       <circle cx="491" cy="110" r="4" fill="#4a6c8c"/><circle cx="516" cy="110" r="4" fill="#4a6c8c"/><circle cx="541" cy="110" r="4" fill="#4a6c8c"/><circle cx="566" cy="110" r="4" fill="#4a6c8c"/><circle cx="591" cy="110" r="4" fill="#4a6c8c"/><circle cx="616" cy="110" r="4" fill="#4a6c8c"/><circle cx="641" cy="110" r="4" fill="#4a6c8c"/><circle cx="666" cy="110" r="4" fill="#4a6c8c"/><circle cx="691" cy="110" r="4" fill="#4a6c8c"/><circle cx="716" cy="110" r="4" fill="#4a6c8c"/><circle cx="741" cy="110" r="4" fill="#4a6c8c"/><circle cx="766" cy="110" r="4" fill="#4a6c8c"/>
+       <text x="774" y="85" text-anchor="start" font-size="13" font-weight="600" fill="#1f1b16">12 ahead</text>
+       <text x="774" y="101" text-anchor="start" font-size="11" fill="#4a6c8c">feat/checkout-v2</text>
+  </svg>
+</figure><h2 class="sec">Diverged files</h2><div class="table-scroll"><table class="files-touched">
+    <thead><tr><th>Path</th><th>Base Δ</th><th>Branch Δ</th><th>Conflict</th></tr></thead>
+    <tbody><tr class="is-modified">
+      <td class="path">src/checkout/CartSummary.tsx</td>
+      <td class="delta"><span class="pos">+42</span> / <span class="neg">−11</span></td>
+      <td class="delta"><span class="pos">+67</span> / <span class="neg">−8</span></td>
+      <td><span class="sev severity-blocker" aria-label="blocker"><span class="sev-glyph" aria-hidden="true">●</span>conflict</span></td>
+    </tr><tr class="is-modified">
+      <td class="path">src/api/payments.ts</td>
+      <td class="delta"><span class="pos">+18</span> / <span class="neg">−5</span></td>
+      <td class="delta"><span class="pos">+31</span> / <span class="neg">−14</span></td>
+      <td><span class="sev severity-blocker" aria-label="blocker"><span class="sev-glyph" aria-hidden="true">●</span>conflict</span></td>
+    </tr><tr class="is-new">
+      <td class="path">src/hooks/useCheckout.ts</td>
+      <td class="delta">—</td>
+      <td class="delta"><span class="pos">+94</span> / <span class="neg">−0</span></td>
+      <td>—</td>
+    </tr><tr class="is-modified">
+      <td class="path">src/components/PriceBreakdown.tsx</td>
+      <td class="delta"><span class="pos">+6</span> / <span class="neg">−2</span></td>
+      <td class="delta">—</td>
+      <td>—</td>
+    </tr></tbody>
+  </table></div></div><div class="m-only"><div class="mtiles">
+    <div class="mtile"><div class="lbl">Ahead</div><div class="val">12</div><div class="ann">commits</div></div>
+    <div class="mtile"><div class="lbl">Behind</div><div class="val is-blocker">7</div><div class="ann">upstream</div></div>
+    <div class="mtile"><div class="lbl">Stale</div><div class="val">14d</div><div class="ann">no rebase</div></div>
+    <div class="mtile"><div class="lbl">Conflicts</div><div class="val is-blocker">2</div><div class="ann">files</div></div>
+  </div><div class="subhead">Diverged files</div><div class="modgroup"><div class="modhd"><span>src/checkout</span><span class="ct">1 conflict</span></div><div class="frow is-modified"><span class="role-dot"></span><span class="fname">CartSummary.tsx</span><span class="delta"><span class="a">+67</span> <span class="r">−8</span></span></div><div class="frow-flag"><span class="sev severity-blocker" aria-label="blocker"><span class="sev-glyph" aria-hidden="true">●</span>conflict</span></div></div><div class="modgroup"><div class="modhd"><span>src/api</span><span class="ct">1 conflict</span></div><div class="frow is-modified"><span class="role-dot"></span><span class="fname">payments.ts</span><span class="delta"><span class="a">+31</span> <span class="r">−14</span></span></div><div class="frow-flag"><span class="sev severity-blocker" aria-label="blocker"><span class="sev-glyph" aria-hidden="true">●</span>conflict</span></div></div><div class="modgroup"><div class="modhd"><span>src/hooks</span><span class="ct">clean</span></div><div class="frow is-new"><span class="role-dot"></span><span class="fname">useCheckout.ts</span><span class="delta"><span class="a">+94</span></span></div></div><div class="modgroup"><div class="modhd"><span>src/components</span><span class="ct">clean</span></div><div class="frow is-modified"><span class="role-dot"></span><span class="fname">PriceBreakdown.tsx</span><span class="delta"></span></div></div></div>
+    <aside class="callout callout-warn">
+    <div class="callout-hd">Recommended next step</div>
+    <div class="callout-body"><p>Rebase on origin/main; resolve CartSummary + payments conflicts before merging.</p></div>
+  </aside><div class="prose"><h2 id="notes" tabindex="-1"><a class="header-anchor" href="#notes"><span>Notes</span></a></h2>
+<p>Demo body.</p></div>
+  

@@ -72,6 +72,67 @@ announcement:
   template-path: ".ai/release-announcement-template.md"
 ```
 
+# Inbound DX seed values
+
+```yaml
+# Block H — code-quality gates
+code-quality:
+  format-check: { tool: prettier, cmd: "npx prettier --check ." }
+  lint:         { tool: eslint,   cmd: "npm run lint" }
+  type-check:   { tool: tsc,      cmd: "npx tsc --noEmit" }
+  test-coverage: { min-percent: 80, cmd: "npm test -- --coverage" }
+  commit-convention:   { spec: conventional, config-path: "commitlint.config.js", enforce: [local, ci] }
+  pr-title-convention: { spec: conventional, enforce: [ci] }
+
+# Block I — local developer experience
+local-dx:
+  git-hooks:
+    framework: husky
+    hooks:
+      pre-commit: ['npx lint-staged']
+      commit-msg: ['npx --no -- commitlint --edit "$1"']
+      pre-push: []
+  editorconfig: true
+  runtime-version-files: [".nvmrc"]
+  task-runner: { kind: npm-scripts, targets: { setup: "npm install", check: "npm run lint && npx tsc --noEmit && npm test" } }
+  bootstrap-cmd: "npm install"
+  contributing-doc: true
+
+# Block J — repo governance
+governance:
+  branch-protection:
+    base-branch: main
+    required-checks: [build, test, lint, typecheck]
+    required-approvals: 1
+    dismiss-stale-reviews: true
+    require-up-to-date: true
+    enforce-admins: false
+    apply-via: manual
+  codeowners:
+    - { path: "*", owners: ["@<maintainer>"] }
+  pr-template: true
+  issue-templates: true
+  dependency-automation: { tool: renovate, ecosystems: [npm, github-actions], schedule: "weekly" }
+```
+
+# Security & hardening seed values
+
+```yaml
+# Block C — ci-ergonomics (ci-pipeline.ci-ergonomics)
+ci-ergonomics: { dep-cache: true, matrix: { os: ["ubuntu-latest"], versions: ["20", "22"] }, release-concurrency: true, path-filters: false }
+
+# Block J — merge controls (governance.merge)
+merge: { method: squash, auto-merge: true, merge-queue: false }
+
+# Block K — security & supply-chain gates
+security:
+  sast:             { tool: codeql, cmd: "", schedule: "weekly" }
+  dependency-audit: { tool: npm-audit, cmd: "npm audit --audit-level=high", fail-on: high }
+  secret-scanning:  { tool: gitleaks, cmd: "gitleaks detect --no-banner", pre-commit: true }
+  sbom:             { tool: none, format: spdx, publish-with-release: false }
+  license-check:    { tool: license-checker, allow: ["MIT", "ISC", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause"], deny: ["GPL-3.0"] }
+```
+
 # Notes for the author
 
 - npm propagation is fast (typically <1 minute) but the unpkg/jsdelivr CDN mirrors lag a few minutes. The `fresh-resolve` check goes through the registry directly.

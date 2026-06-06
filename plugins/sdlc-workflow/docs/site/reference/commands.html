@@ -154,7 +154,8 @@ This page is the overview. For per-command depth — argument hints, what it rea
 <tr><td><code>/wf-meta close</code></td><td><code>&lt;reason&gt; [slug]</code></td><td>Archive a workflow (shipped/abandoned/superseded/archived/stuck).</td></tr>
 <tr><td><code>/wf-meta how</code></td><td><code>&lt;mode&gt; &lt;topic&gt;</code></td><td>Five-mode question answering.</td></tr>
 <tr><td><code>/wf-meta announce</code></td><td><code>[slug]</code></td><td>Diátaxis announcement for a completed workflow.</td></tr>
-<tr><td><code>/wf-meta init-ship-plan</code></td><td><code>[--from-template &lt;kind&gt;]</code></td><td>Author <code>.ai/ship-plan.md</code> (one-time per project).</td></tr>
+<tr><td><code>/wf-meta init-ship-plan</code></td><td><code>[--from-template &lt;kind&gt;]</code></td><td>Author <code>.ai/ship-plan.md</code> (one-time per project) — the full pipeline contract: outbound release (Blocks A–G) + inbound developer experience (Blocks H–J: code-quality gates, commit/PR-title convention, local git hooks, branch protection, CODEOWNERS, dependency automation).</td></tr>
+<tr><td><code>/wf-meta build-pipeline</code></td><td><code>[--dry-run]</code></td><td>Audit the repo against <code>.ai/ship-plan.md</code> and build the entire CI/CD + DX pipeline: release + pre-merge workflows, code-quality + commit/PR-title CI, git hooks, dev-experience files, governance files, and (gated) branch protection via <code>gh api</code>. No file is overwritten.</td></tr>
 </tbody>
 </table>
 

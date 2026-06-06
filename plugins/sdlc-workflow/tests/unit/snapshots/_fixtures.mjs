@@ -25,6 +25,7 @@ import { render as riskRegister } from '../../../renderers/risk-register.mjs';
 import { render as estimate } from '../../../renderers/estimate.mjs';
 import { render as docsIndex } from '../../../renderers/docs-index.mjs';
 import { render as profile } from '../../../renderers/profile.mjs';
+import { render as syncReport } from '../../../renderers/sync-report.mjs';
 // All-artifacts projection — lane + run-family renderers.
 import { render as discover } from '../../../renderers/discover.mjs';
 import { render as fixPlan } from '../../../renderers/fix-plan.mjs';
@@ -565,6 +566,36 @@ export const CASES = [
           method: 'dynamic-cpu', confidence: 'high',
           hotspots: [{ id: 'H1', function: 'validateCart', file: 'src/cart/validate.ts', line: 24, cost_pct: 32.4, candidate: true }],
         },
+      }),
+    },
+  },
+
+  /* ── sync-report (branch-sync health) ──────────────────────────────── */
+  {
+    name: 'sync-report',
+    render: syncReport,
+    ctx: CTX,
+    variants: {
+      full: artifact({
+        type: 'sync-report',
+        path: '00-sync.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'sync-report', slug: 'demo', status: 'active', branch: 'feat/checkout-v2', health: 'significant-drift' },
+        siblingYaml: {
+          artifact: 'sync', branch: 'feat/checkout-v2', base_branch: 'main',
+          ahead_count: 12, behind_count: 7, conflict_risk: 'med', rebase_status: 'conflicts', stale_days: 14,
+          diverged_files: [
+            { path: 'src/checkout/CartSummary.tsx', base_delta: '+42/−11', branch_delta: '+67/−8', conflict: true },
+            { path: 'src/api/payments.ts', base_delta: '+18/−5', branch_delta: '+31/−14', conflict: true },
+            { path: 'src/hooks/useCheckout.ts', base_delta: null, branch_delta: '+94/0', conflict: false },
+            { path: 'src/components/PriceBreakdown.tsx', base_delta: '+6/−2', branch_delta: null, conflict: false },
+          ],
+          recommendation: 'Rebase on origin/main; resolve CartSummary + payments conflicts before merging.',
+        },
+      }),
+      fallback: artifact({
+        type: 'sync-report',
+        path: '00-sync.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'sync-report', slug: 'demo', status: 'active', branch: 'feat/checkout-v2' },
       }),
     },
   },

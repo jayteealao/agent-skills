@@ -35,7 +35,6 @@ const ALLOWED_FRAGMENT_NAMES = new Set([
   'design-critique', 'design-audit',
   // Phase 3 (v9.22.0)
   'simplify-run', 'profile', 'benchmark', 'experiment', 'instrument',
-  'docs-index',
 ]);
 
 const FORBIDDEN_TAGS = ['<html', '<head', '<body', '<iframe', '<link'];

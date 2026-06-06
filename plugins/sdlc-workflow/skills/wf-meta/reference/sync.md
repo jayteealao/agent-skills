@@ -165,6 +165,8 @@ schema: sdlc/v1
 type: sync-report
 slug: <slug>
 created-at: <ISO 8601 timestamp>
+synced-at: <ISO 8601 timestamp>      # last read — renderer surfaces "synced N ago"
+regenerable: true                     # automation-owned snapshot (see contract below)
 health: <in-sync | minor-drift | significant-drift | stale>
 refs:
   - 00-index.md
@@ -209,6 +211,45 @@ refs:
 ## Recommended Actions
 <ordered list of suggested responses — e.g., "Re-run /wf plan to update file references", "Run /wf-meta amend on 05-implement to reflect dependency upgrade">
 ```
+
+## Step 6b — Write the sibling `00-sync.yaml` (MANDATORY — do not skip)
+
+The markdown body above is the readable record; the **rich sync page**
+(`sync-report.mjs` → verdict + diverging-bar figure + diverged-files table +
+recommendation callout, plus the phone layout) is driven entirely by a sibling
+`00-sync.yaml` written next to `00-sync.md`. **Without it the page silently
+degrades to plain prose** (the `renderSimple` fallback) — no verdict, no figure,
+no drift table. Author it every run:
+
+```yaml
+artifact: sync                 # REQUIRED — discriminator
+branch: <feature branch>       # REQUIRED
+base_branch: <base, e.g. main> # REQUIRED
+ahead_count: <int ≥ 0>         # REQUIRED — commits on branch not in base
+behind_count: <int ≥ 0>        # REQUIRED — upstream commits the branch lacks
+conflict_risk: <none|low|med|high>   # REQUIRED — drives the verdict tone:
+                                     #   none|low → "In sync" (ok / ✓)
+                                     #   med      → "Drifting" (caveats / ◐)
+                                     #   high     → "Conflicts likely" (no / ✗)
+rebase_status: <clean|conflicts>     # optional
+stale_days: <int ≥ 0>                # optional — days since last rebase
+diverged_files:                      # optional — one row per drifted file
+  - path: src/checkout/CartSummary.tsx
+    base_delta: "+42/−11"            # display string (base-side churn) or null
+    branch_delta: "+67/−8"           # display string (branch-side churn) or null
+    conflict: true                   # true → row + mobile chip flagged --blocker
+recommendation: "Rebase on origin/main; resolve CartSummary + payments conflicts."
+```
+
+Notes:
+- The schema is `siblingYamlSchemas["sync-report"]` in `tests/frontmatter.schema.json`.
+- `conflict_risk` is the single field that sets the verdict tone — pick it from
+  the overall drift assessment, not from any single file.
+- `base_delta` / `branch_delta` are free display strings (`"+N/−M"`); the
+  renderer colours the `+N` green and `−M` red. Use `null` when a side did not
+  touch the file. Set `conflict: true` only for files edited on **both** sides.
+- This is a **regenerable** view: overwrite `00-sync.yaml` wholesale each run,
+  exactly like `00-sync.md`. No history, no revision append.
 
 # Step 7 — Update index
 

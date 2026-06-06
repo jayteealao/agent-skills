@@ -34,10 +34,7 @@ export function render(artifact, ctx) {
     ${listBlock('themes', fm.themes)}
   </section>`;
 
-  const fragmentBlock = artifact.fragment
-    ? `<div class="fragment">${artifact.fragment}</div>`
-    : '';
-  const frontmatterBlock = artifact.fragment ? '' : frontmatterCard(fm, [
+  const frontmatterBlock = frontmatterCard(fm, [
     'component', 'based-on', 'register', 'image-gate', 'north-star-mock', 'references-loaded', 'refs',
   ]);
   const proseBlock = artifact.body
@@ -46,7 +43,7 @@ export function render(artifact, ctx) {
 
   return {
     headerHtml,
-    bodyHtml: `${metricsHtml}${matrixHtml}${fragmentBlock}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
+    bodyHtml: `${metricsHtml}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
     links: [],
     children: [],
   };

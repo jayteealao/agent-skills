@@ -29,21 +29,42 @@ import {
   resolveProjectPath,
 } from '../lib/hook-utils.mjs';
 
-// S-1 (2026-06-04): the rich rendering tier (Review/RCA/Plan/Design/Ship-run)
-// drives its structured + interactive output from a sibling `.yaml` and
-// `.html.fragment` co-located with the artifact `.md`. Those siblings are easy
-// to forget at write-time, and nothing previously surfaced their absence — so
-// in practice they were never authored and every rich page fell back to plain
-// prose. These are the artifact `type:` values that own a fragment contract.
-const RICH_TIER_TYPES = new Set(['review', 'plan', 'design', 'ship-run', 'rca']);
+// S-1 (2026-06-04): a fragment-owning artifact drives its structured +
+// interactive output from a sibling `.yaml` and `.html.fragment` co-located with
+// the artifact `.md`. Those siblings are easy to forget at write-time, and
+// nothing previously surfaced their absence — so in practice they were never
+// authored and every rich page fell back to plain prose.
+//
+// v9.41 (Gap B): v9.39.0 made fragment authoring MANDATORY for benchmark /
+// experiment / instrument / profile / simplify-run whenever their sibling YAML
+// is written, but this reminder still nudged only the original 5 rich-tier
+// types — so a skipped now-required fragment got no runtime signal (the S-1
+// failure, reintroduced). The set below is the effective *fragment* type for
+// every artifact that owns a contract. benchmark / experiment / instrument ride
+// `type: augmentation` with an `augmentation-type:` discriminator, which
+// `fragmentOwningType()` resolves below, so they are listed here by fragment
+// name rather than by their literal `type:`.
+const RICH_TIER_TYPES = new Set([
+  'review', 'plan', 'design', 'ship-run', 'rca',
+  'benchmark', 'experiment', 'instrument', 'profile', 'simplify-run',
+]);
 
-/** Cheap frontmatter `type:` read (avoids a full YAML parse for the reminder). */
-function frontmatterType(text) {
+/**
+ * Cheap frontmatter fragment-type read (avoids a full YAML parse for the
+ * reminder). Returns the effective fragment type: the literal `type:`, except
+ * for `type: augmentation` artifacts where the fragment is named by the
+ * `augmentation-type:` discriminator (benchmark / experiment / instrument / rca).
+ */
+function fragmentOwningType(text) {
   if (!text) return null;
   const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
   if (!fence) return null;
-  const m = /(?:^|\n)\s*type:\s*["']?([A-Za-z0-9-]+)/.exec(fence[1]);
-  return m ? m[1] : null;
+  const block = fence[1];
+  const typeMatch = /(?:^|\n)\s*type:\s*["']?([A-Za-z0-9-]+)/.exec(block);
+  const type = typeMatch ? typeMatch[1] : null;
+  if (type !== 'augmentation') return type;
+  const augMatch = /(?:^|\n)\s*augmentation-type:\s*["']?([A-Za-z0-9-]+)/.exec(block);
+  return augMatch ? augMatch[1] : type;
 }
 
 /**
@@ -57,7 +78,7 @@ async function remindMissingFragments(paths, config) {
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
     const text = await readTextIfExists(path.absolute);
-    const type = frontmatterType(text);
+    const type = fragmentOwningType(text);
     if (!type || !RICH_TIER_TYPES.has(type)) continue;
     const stem = path.absolute.replace(/\.md$/, '');
     const fileStem = path.original.replace(/\\/g, '/').split('/').at(-1).replace(/\.md$/, '');
@@ -69,10 +90,12 @@ async function remindMissingFragments(paths, config) {
   if (!reminders.length) return;
   const lines = reminders.map((r) => `  - ${r.rel} (type: ${r.type}) - missing ${r.missing.join(' + ')}`);
   outputSystemMessage(
-    `wf: rich-tier artifact(s) written without their sibling fragment files:\n${lines.join('\n')}\n` +
+    `wf: fragment-owning artifact(s) written without their sibling fragment files:\n${lines.join('\n')}\n` +
     'The sunflower view renders these pages as plain prose until you author the sibling ' +
     '.yaml (structured data) and .html.fragment (interactive markup) next to each .md. ' +
-    'Author them now per reference/fragment-author-contract.md while you still have the context.',
+    'If an artifact has structured data to project, author its siblings now per ' +
+    'reference/fragment-author-contract.md while you still have the context. ' +
+    '(If it legitimately has none — e.g. a profile that found no hotspots — you can ignore this.)',
   );
 }
 

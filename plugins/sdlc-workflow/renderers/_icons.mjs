@@ -33,7 +33,7 @@ export function severityChip(level, label) {
  *  template + external consumers that still want the codepoint. */
 export function verdictBlock(kind, label, summary) {
   return `<section class="verdict verdict-${escape(kind)}">
-    <div class="v-label">verdict</div>
+    <div class="v-label">Verdict</div>
     <div class="v-text">${escape(label ?? kind)}</div>
     ${summary ? `<p class="v-sum">${escape(summary)}</p>` : ''}
   </section>`;

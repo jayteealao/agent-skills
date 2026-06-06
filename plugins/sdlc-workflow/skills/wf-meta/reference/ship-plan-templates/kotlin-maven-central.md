@@ -81,6 +81,62 @@ announcement:
   template-path: ".ai/release-announcement-template.md"
 ```
 
+# Inbound DX seed values
+
+```yaml
+# Block H — code-quality gates
+code-quality:
+  format-check: { tool: ktlint, cmd: "./gradlew ktlintCheck" }
+  lint:         { tool: detekt, cmd: "./gradlew detekt" }
+  type-check:   { tool: "n/a",  cmd: "" }   # Kotlin type-checks at compile
+  test-coverage: { min-percent: null, cmd: "./gradlew koverVerify" }
+  commit-convention:   { spec: conventional, config-path: "cliff.toml", enforce: [ci] }   # git-cliff parses conventional commits for the changelog
+  pr-title-convention: { spec: conventional, enforce: [ci] }
+
+# Block I — local developer experience
+local-dx:
+  git-hooks: { framework: none, hooks: { pre-commit: [], commit-msg: [], pre-push: [] } }   # JVM shops usually gate in CI, not via JS hook frameworks
+  editorconfig: true                          # ktlint reads .editorconfig
+  runtime-version-files: [".tool-versions"]   # asdf/mise; or .sdkmanrc
+  task-runner: { kind: none, targets: {} }    # gradle is the runner
+  bootstrap-cmd: "./gradlew dependencies --no-daemon"
+  contributing-doc: true
+
+# Block J — repo governance
+governance:
+  branch-protection:
+    base-branch: main
+    required-checks: [build, test, lint, apiCheck]
+    required-approvals: 1
+    dismiss-stale-reviews: true
+    require-up-to-date: true
+    enforce-admins: false
+    apply-via: manual
+  codeowners:
+    - { path: "*", owners: ["@<maintainer>"] }
+  pr-template: true
+  issue-templates: true
+  dependency-automation: { tool: dependabot, ecosystems: [gradle, github-actions], schedule: "weekly" }
+```
+
+# Security & hardening seed values
+
+```yaml
+# Block C — ci-ergonomics (ci-pipeline.ci-ergonomics)
+ci-ergonomics: { dep-cache: true, matrix: { os: ["ubuntu-latest"], versions: ["17", "21"] }, release-concurrency: true, path-filters: false }
+
+# Block J — merge controls (governance.merge)
+merge: { method: squash, auto-merge: false, merge-queue: false }
+
+# Block K — security & supply-chain gates
+security:
+  sast:             { tool: codeql, cmd: "", schedule: "weekly" }
+  dependency-audit: { tool: dependency-check, cmd: "./gradlew dependencyCheckAnalyze", fail-on: high }
+  secret-scanning:  { tool: gitleaks, cmd: "gitleaks detect --no-banner", pre-commit: false }
+  sbom:             { tool: cyclonedx, format: cyclonedx, publish-with-release: true }
+  license-check:    { tool: none, allow: [], deny: [] }
+```
+
 # Notes for the author
 
 - The `gradle.properties` `VERSION_NAME` convention is from the standard Android/Kotlin library template. If your project uses `version` in `build.gradle.kts` instead, change `version-source-of-truth` accordingly.

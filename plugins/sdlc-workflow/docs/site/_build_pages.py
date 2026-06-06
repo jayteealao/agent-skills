@@ -744,9 +744,9 @@ PAGES.append((
 
 <p>Correct misreads in plain English: <em>"the helm dir is dead code, ignore it"</em> or <em>"actually we publish to a private registry, not GHCR"</em>. Claude updates the in-memory discovery state before moving on.</p>
 
-<h2>Step 3 — Confirm each contract (Blocks A–G)</h2>
+<h2>Step 3 — Confirm each contract (Blocks A–K)</h2>
 
-<p>For each required-core block, Claude proposes the inferred value plus alternatives plus <code>Other (describe)</code>. The seven blocks:</p>
+<p>For each required-core block, Claude proposes the inferred value plus alternatives plus <code>Other (describe)</code>. The eleven blocks split into the <strong>outbound</strong> release (A–G) and the <strong>inbound</strong> developer experience (H–K):</p>
 
 <dl>
 <dt><strong>A — Ship meaning + environments + cadence</strong></dt>
@@ -769,11 +769,25 @@ PAGES.append((
 
 <dt><strong>G — Announcements</strong></dt>
 <dd>Channels (#releases, mailing list). Optional template path.</dd>
+
+<dt><strong>H — Code-quality gates</strong> <em>(inbound)</em></dt>
+<dd>format-check / lint / type-check / test-coverage (each tool + command). Commit-message convention and PR-title convention, and where each is enforced (local / CI). The enabled gates derive <code>ci-pipeline.pre-merge-checks[]</code>.</dd>
+
+<dt><strong>I — Local developer experience</strong> <em>(inbound)</em></dt>
+<dd>Git-hook framework (husky/lefthook/pre-commit) with per-hook commands. <code>.editorconfig</code>. Runtime-version files. Task-runner targets + bootstrap command. CONTRIBUTING.</dd>
+
+<dt><strong>J — Repo governance</strong> <em>(inbound)</em></dt>
+<dd>Branch protection (required checks, approvals, stale-dismissal, code-owner review, conversation resolution, linear history; <code>mechanism: branch-protection | ruleset</code>; <code>apply-via: gh-api | manual</code>). CODEOWNERS. PR/issue templates. Dependency automation (dependabot/renovate). Merge controls (method, auto-merge, queue).</dd>
+
+<dt><strong>K — Security &amp; supply-chain gates</strong> <em>(inbound)</em></dt>
+<dd>SAST (CodeQL/semgrep), dependency-audit (npm audit / pip-audit / cargo audit) with a fail-on threshold, secret-scanning (gitleaks/trufflehog), SBOM generation, and license allow/deny policy. PR-time gates also feed the pre-merge checks.</dd>
 </dl>
+
+<p>Two extensions ride on existing blocks: per-environment GitHub <strong>protection</strong> (Block A) and <strong>ci-ergonomics</strong> — caching/matrix/concurrency (Block C).</p>
 
 <h2>Step 4 — Pick additional contracts (extensions)</h2>
 
-<p>Claude asks whether the project has any contracts the standard Blocks A–G don't cover. Options seeded from discovery: <code>data-migration</code>, <code>feature-flag-rollout</code>, <code>infrastructure-as-code</code>, <code>mobile-app-store</code>, <code>compliance-gate</code>, <code>data-pipeline</code>, <code>schema-registry</code>, <code>Other (describe)</code>. Each picked one becomes an entry in <code>additional-contracts[]</code> with <code>{ id, purpose, fields, enforced-by }</code>. <code>/wf ship</code> ignores these by default; custom hooks or downstream commands opt in by <code>id</code>.</p>
+<p>Claude asks whether the project has any contracts the standard Blocks A–K don't cover. Options seeded from discovery: <code>data-migration</code>, <code>feature-flag-rollout</code>, <code>infrastructure-as-code</code>, <code>mobile-app-store</code>, <code>compliance-gate</code>, <code>data-pipeline</code>, <code>schema-registry</code>, <code>Other (describe)</code>. Each picked one becomes an entry in <code>additional-contracts[]</code> with <code>{ id, purpose, fields, enforced-by }</code>. <code>/wf ship</code> ignores these by default; custom hooks or downstream commands opt in by <code>id</code>.</p>
 
 <h2>Step 5 — Confirm + write</h2>
 
@@ -792,7 +806,7 @@ git commit -m "chore: author ship plan"</code></pre>
 
 <pre><code>/wf-meta amend ship-plan</code></pre>
 
-<p>Pick which block (A–G) or which additional-contract <code>id</code> to edit. The amend flow re-runs only that block's hypothesis loop — discovery is skipped because the existing plan is ground truth. <code>plan-version</code> bumps by 1.</p>
+<p>Pick which block (A–K) or which additional-contract <code>id</code> to edit. The amend flow re-runs only that block's hypothesis loop — discovery is skipped because the existing plan is ground truth. <code>plan-version</code> bumps by 1. Amending Block H or C also re-derives the pre-merge check lists in Blocks C and J. After amending an inbound block (H–K), re-run <code>/wf-meta build-pipeline</code> to bring the repo (and remote settings) back into compliance.</p>
 
 <div class="related">
 <h3>Related</h3>
@@ -1385,7 +1399,8 @@ This page is the overview. For per-command depth — argument hints, what it rea
 <tr><td><code>/wf-meta close</code></td><td><code>&lt;reason&gt; [slug]</code></td><td>Archive a workflow (shipped/abandoned/superseded/archived/stuck).</td></tr>
 <tr><td><code>/wf-meta how</code></td><td><code>&lt;mode&gt; &lt;topic&gt;</code></td><td>Five-mode question answering.</td></tr>
 <tr><td><code>/wf-meta announce</code></td><td><code>[slug]</code></td><td>Diátaxis announcement for a completed workflow.</td></tr>
-<tr><td><code>/wf-meta init-ship-plan</code></td><td><code>[--from-template &lt;kind&gt;]</code></td><td>Author <code>.ai/ship-plan.md</code> (one-time per project).</td></tr>
+<tr><td><code>/wf-meta init-ship-plan</code></td><td><code>[--from-template &lt;kind&gt;]</code></td><td>Author <code>.ai/ship-plan.md</code> (one-time per project) — the full pipeline contract: outbound release (Blocks A–G) + inbound developer experience (Blocks H–J: code-quality gates, commit/PR-title convention, local git hooks, branch protection, CODEOWNERS, dependency automation).</td></tr>
+<tr><td><code>/wf-meta build-pipeline</code></td><td><code>[--dry-run]</code></td><td>Audit the repo against <code>.ai/ship-plan.md</code> and build the entire CI/CD + DX pipeline: release + pre-merge workflows, code-quality + commit/PR-title CI, git hooks, dev-experience files, governance files, and (gated) branch protection via <code>gh api</code>. No file is overwritten.</td></tr>
 </tbody>
 </table>
 
@@ -2562,7 +2577,7 @@ PAGES.append((
     "reference",
     '<a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf-meta router',
     """
-<p>The navigation/management router. 11 sub-commands. None produce stage artifacts — they manage existing workflows or answer questions about them. <code>disable-model-invocation: true</code>, so you always invoke them explicitly.</p>
+<p>The navigation/management router. 12 sub-commands. None produce stage artifacts — they manage existing workflows or answer questions about them. <code>disable-model-invocation: true</code>, so you always invoke them explicitly.</p>
 
 <div class="toc">
 <h3>On this page</h3>
@@ -2578,6 +2593,7 @@ PAGES.append((
   <li><a href="#how">/wf-meta how</a></li>
   <li><a href="#announce">/wf-meta announce</a></li>
   <li><a href="#init-ship-plan">/wf-meta init-ship-plan</a></li>
+  <li><a href="#build-pipeline">/wf-meta build-pipeline</a></li>
 </ul>
 </div>
 
@@ -2694,7 +2710,7 @@ PAGES.append((
 <tr><td><code>amend &lt;slug&gt; from-retro</code></td><td>Seeds from <code>10-retro.md</code> items tagged as "scope was misunderstood" etc.</td></tr>
 <tr><td><code>amend &lt;slug&gt; &lt;slice&gt;</code></td><td>Direct slice amendment — user describes the correction.</td></tr>
 <tr><td><code>amend &lt;slug&gt;</code></td><td>General amendment — interview-driven discovery.</td></tr>
-<tr><td><code>amend ship-plan</code></td><td>Edits one block (A–G) of <code>.ai/ship-plan.md</code>; bumps <code>plan-version</code>.</td></tr>
+<tr><td><code>amend ship-plan</code></td><td>Edits one block (A–K) of <code>.ai/ship-plan.md</code>; bumps <code>plan-version</code>.</td></tr>
 </tbody>
 </table>
 
@@ -2814,9 +2830,10 @@ PAGES.append((
 <tr><th>Run frequency</th><td>Once per project. Use <code>amend ship-plan</code> to edit.</td></tr>
 </table></div>
 
-<p>One-time setup for the plan-driven ship stage. Loads the chosen template, asks 13 grouped questions covering blocks A–G, writes the plan.</p>
+<p>One-time setup for the whole pipeline. Works by <strong>discovery → hypothesis → confirm</strong>: reads what's already in the repo (CI workflows, infra-as-code, package manifests, runbooks, linters, hook frameworks, governance files), proposes a pipeline shape, then lets you confirm or correct each contract block. Templates are <em>hypothesis seeds</em>, not control-flow branches.</p>
 
-<h4>The 7 blocks</h4>
+<h4>The 11 blocks</h4>
+<p>The plan has two halves — the <strong>outbound</strong> release (A–G) and the <strong>inbound</strong> developer experience (H–K).</p>
 <table>
 <thead><tr><th>Block</th><th>What</th></tr></thead>
 <tbody>
@@ -2827,10 +2844,38 @@ PAGES.append((
 <tr><td>E</td><td>Rollout + rollback strategy</td></tr>
 <tr><td>F</td><td>Recovery playbooks (grow over time)</td></tr>
 <tr><td>G</td><td>Stakeholder + announcement channels</td></tr>
+<tr><td>H</td><td>Code-quality gates (format/lint/type-check/coverage, commit + PR-title convention)</td></tr>
+<tr><td>I</td><td>Local developer experience (git hooks, editorconfig, version files, task runner, bootstrap)</td></tr>
+<tr><td>J</td><td>Repo governance (branch protection + fidelity, merge controls, CODEOWNERS, PR/issue templates, dependency automation)</td></tr>
+<tr><td>K</td><td>Security &amp; supply-chain gates (SAST/CodeQL, dependency-audit, secret-scanning, SBOM, license policy)</td></tr>
+</tbody>
+</table>
+<p>Three extensions thread through existing blocks: per-environment GitHub protection (Block A), CI ergonomics — caching/matrix/concurrency (Block C), and merge controls (Block J).</p>
+
+<p>See <a href="ship-plan-schema.html">Ship-plan schema</a> for every field; <a href="../how-to/author-ship-plan.html">Author a ship plan</a> for the walkthrough. Once authored, run <a href="#build-pipeline">build-pipeline</a> to build it.</p>
+
+<hr>
+
+<h2 id="build-pipeline">/wf-meta build-pipeline [--dry-run]</h2>
+
+<div class="summary"><table>
+<tr><th>Reads</th><td><code>.ai/ship-plan.md</code> (the spec) + the repo's existing config/workflows</td></tr>
+<tr><th>Writes</th><td>GitHub Actions workflows + inbound-DX config files; <code>.ai/pipeline-compliance.md</code>; optionally mutates three remote settings — branch protection, environment protection, repo merge settings (each gated)</td></tr>
+<tr><th>Run frequency</th><td>After <code>init-ship-plan</code>, and again after any <code>amend ship-plan</code>.</td></tr>
+</table></div>
+
+<p>Treats the ship plan as the specification and the repo as the current implementation, then closes the gap. Audits each requirement as Compliant / Missing / Non-compliant, shows a gap report, and on confirmation creates missing files and patches existing ones — <strong>no file is ever overwritten</strong>. With <code>--dry-run</code> it reports the full gap report and writes nothing.</p>
+
+<h4>What it builds (Audits A–S)</h4>
+<table>
+<thead><tr><th>Half</th><th>Audits</th><th>Output</th></tr></thead>
+<tbody>
+<tr><td>Outbound</td><td>A–J</td><td>Pre-merge + release workflows, version-bump, post-publish checks, rollback workflow, runbook stubs</td></tr>
+<tr><td>Inbound</td><td>K–S</td><td>Code-quality CI gates, commitlint + PR-title CI + config, git hooks, dev-experience files, CODEOWNERS / templates / dependency automation, security gates (CodeQL, dependency-audit, secret-scan, SBOM, license), CI ergonomics, plus the three gated remote settings</td></tr>
 </tbody>
 </table>
 
-<p>See <a href="ship-plan-schema.html">Ship-plan schema</a> for every field; <a href="../how-to/author-ship-plan.html">Author a ship plan</a> for the walkthrough.</p>
+<p>Remote mutation is limited to three settings — <strong>branch protection, environment protection, and repo merge settings</strong> — each only when the plan opts in (<code>apply-via: gh-api</code>). Even then it shows the current-vs-desired diff and the exact <code>gh api</code> payload, then requires an explicit confirm — with a "print commands only" escape hatch. It never pushes code, opens PRs, sets secrets, or runs a release.</p>
 
 <div class="related">
 <h3>Related</h3>
@@ -3334,6 +3379,75 @@ db-migrations-reversible: true | false | n/a</code></pre>
 <pre><code>announcement:
   channels: ["#releases", "release-notes@example.com"]
   template-path: ".ai/release-announcement-template.md"</code></pre>
+
+<p>Blocks A–G are the <strong>outbound</strong> half (read by <code>/wf ship</code>). Blocks H–J below are the <strong>inbound</strong> half — the developer experience built by <code>/wf-meta build-pipeline</code> (Audits K–O).</p>
+
+<h2>Block H — Code-quality gates</h2>
+<pre><code>code-quality:
+  format-check: { tool: prettier, cmd: "npx prettier --check ." }
+  lint:         { tool: eslint,   cmd: "npm run lint" }
+  type-check:   { tool: tsc,      cmd: "npx tsc --noEmit" }
+  test-coverage: { min-percent: 80, cmd: "npm test -- --coverage" }
+  commit-convention:   { spec: conventional, config-path: "commitlint.config.js", enforce: [local, ci] }
+  pr-title-convention: { spec: conventional, enforce: [ci] }</code></pre>
+<p>The canonical source for each gate's literal command. Enabled gates derive <code>ci-pipeline.pre-merge-checks[]</code>. <code>commit-convention</code> is also honored by the local commit-lint gate in <code>/wf handoff</code>.</p>
+
+<h2>Block I — Local developer experience</h2>
+<pre><code>local-dx:
+  git-hooks:
+    framework: husky        # husky | lefthook | pre-commit | simple-git-hooks | none
+    hooks:
+      pre-commit: ["npx lint-staged"]
+      commit-msg: ['npx --no -- commitlint --edit "$1"']
+      pre-push: []
+  editorconfig: true
+  runtime-version-files: [".nvmrc"]
+  task-runner: { kind: npm-scripts, targets: { setup: "npm install" } }
+  bootstrap-cmd: "npm install"
+  contributing-doc: true</code></pre>
+
+<h2>Block J — Repo governance</h2>
+<pre><code>governance:
+  branch-protection:
+    base-branch: main
+    mechanism: branch-protection   # or: ruleset
+    required-checks: [build, test, lint, typecheck]
+    required-approvals: 1
+    dismiss-stale-reviews: true
+    require-up-to-date: true
+    enforce-admins: false
+    require-code-owner-reviews: true   # default true when codeowners[] non-empty — else CODEOWNERS is cosmetic
+    require-conversation-resolution: true
+    require-linear-history: false
+    allow-force-pushes: false
+    allow-deletions: false
+    apply-via: manual       # gh-api = build-pipeline applies via API (gated); manual = print commands only
+  codeowners:
+    - { path: "*", owners: ["@maintainer"] }
+  pr-template: true
+  issue-templates: true
+  dependency-automation: { tool: renovate, ecosystems: [npm, github-actions], schedule: "weekly" }
+  merge: { method: squash, auto-merge: true, merge-queue: false }</code></pre>
+<p><code>apply-via: gh-api</code> lets <code>/wf-meta build-pipeline</code> mutate remote state (branch protection — Audit O; merge settings — Audit R), each only behind an explicit confirm gate. <code>require-code-owner-reviews</code> is what makes the <code>CODEOWNERS</code> file actually enforced.</p>
+
+<h2>Block K — Security &amp; supply-chain gates</h2>
+<pre><code>security:
+  sast:             { tool: codeql, cmd: "", schedule: "weekly" }
+  dependency-audit: { tool: npm-audit, cmd: "npm audit --audit-level=high", fail-on: high }
+  secret-scanning:  { tool: gitleaks, cmd: "gitleaks detect --no-banner", pre-commit: true }
+  sbom:             { tool: syft, format: spdx, publish-with-release: true }
+  license-check:    { tool: license-checker, allow: [MIT, Apache-2.0], deny: [GPL-3.0] }</code></pre>
+<p>Built by <code>/wf-meta build-pipeline</code> (Audit P): CodeQL workflow, dependency-audit + license-check PR steps, secret-scanning (CI + pre-commit hook), SBOM in the release. Aligns to the <a href="../reference/glossary.html">supply-chain</a> review dimension. PR-time gates also feed <code>pre-merge-checks</code>.</p>
+
+<h2>Block A · environment protection &amp; Block C · ci-ergonomics (extensions)</h2>
+<pre><code>ship-environments:
+  - name: production
+    auto-promote: false
+    protection: { required-reviewers: ["@release-team"], wait-timer-minutes: 0, deployment-branch-policy: protected }
+
+ci-pipeline:
+  ci-ergonomics: { dep-cache: true, matrix: { os: [ubuntu-latest], versions: ["20","22"] }, release-concurrency: true, path-filters: false }</code></pre>
+<p>Environment protection is the third gated remote mutation (Audit Q, via <code>gh api</code>). CI-ergonomics (Audit S) folds caching/matrix/concurrency into the generated workflows.</p>
 
 <h2>Extensions — additional-contracts[]</h2>
 <pre><code>additional-contracts:

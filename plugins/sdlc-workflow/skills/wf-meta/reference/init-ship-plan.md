@@ -1,5 +1,5 @@
 ---
-description: Author the project-level `.ai/ship-plan.md` — a one-time, repo-scoped contract that captures what "ship" means for this project (publishing, version scheme, CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, announcements). Works by **discovery → hypothesis → confirm**: reads what's already in the repo (CI workflows, infra-as-code, package manifests, runbooks), proposes a ship-shape hypothesis, then lets the user confirm or correct each contract. Optional `--from-template <kind>` biases the hypothesis toward a known shape; the template is a *seed*, not a control-flow branch. Read by every subsequent `/wf ship <slug>` invocation.
+description: Author the project-level `.ai/ship-plan.md` — a one-time, repo-scoped contract that captures the project's *entire* CI/CD + developer-experience pipeline. The outbound half is what "ship" means (publishing, version scheme, release CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, announcements). The inbound half is the contributor experience (code-quality gates: commit-message + PR-title convention, format/lint/type-check/coverage; local developer experience: git hooks, editorconfig, runtime-version files, task runner; repo governance: branch protection, CODEOWNERS, PR/issue templates, dependency automation). Works by **discovery → hypothesis → confirm**: reads what's already in the repo (CI workflows, infra-as-code, package manifests, runbooks, linters, hook frameworks, governance files), proposes a pipeline-shape hypothesis, then lets the user confirm or correct each contract. Optional `--from-template <kind>` biases the hypothesis toward a known shape; the template is a *seed*, not a control-flow branch. Read by every subsequent `/wf ship <slug>` invocation and built by `/wf-meta build-pipeline`.
 argument-hint: "[--from-template <kotlin-maven-central|npm-public|pypi|container-image|server-deploy|library-internal>]"
 ---
 
@@ -13,7 +13,9 @@ You are running `wf-meta init-ship-plan`, a **one-time project-level setup utili
 
 # Design intent
 
-The plan is a *contract* between this project and `/wf ship`. Authoring it well means **understanding how this specific repo actually ships**, not picking the nearest preset and filling blanks.
+The plan is a *contract* between this project and the pipeline commands (`/wf ship` reads the outbound half; `/wf-meta build-pipeline` builds both halves). Authoring it well means **understanding how this specific repo actually ships *and* how a contributor actually works in it** — not picking the nearest preset and filling blanks.
+
+The contract has two halves. The **outbound** half (Blocks A–G) is the release: what ship means, versioning, release CI/CD, post-publish, rollout/rollback, recovery, announce. The **inbound** half (Blocks H–K) is the developer experience hit on every commit and PR: code-quality gates, local git hooks + dev-setup, repo governance, and security/supply-chain gates. Both are authored here so the pipeline is built whole.
 
 This command therefore runs three loops:
 1. **Discovery** — read what the repo already says (CI workflows, infra-as-code, package manifests, runbooks). Don't ask before reading.
@@ -33,6 +35,7 @@ A single file: **`.ai/ship-plan.md`** at the **repo root** (not under `.ai/workf
 - It does not author `09-ship-run-*.md` files (those are written per-release by `/wf ship`).
 - It does not duplicate work already in `08-handoff.md` (handoff is per-PR readiness; this plan is per-release).
 - It does not run any of the commands it discovers (no `gradle publish --dry-run`, no `terraform plan`, etc.). Discovery is read-only.
+- It does not **apply** anything to the repo or remote. Authoring the contract is all this command does; generating workflows/config and applying remote settings (branch protection, environment protection, merge settings) is `/wf-meta build-pipeline`'s job, behind its own confirm gates.
 
 # CRITICAL — execution discipline
 
@@ -92,6 +95,36 @@ Group E — **Release history**:
 - `git log --tags --simplify-by-decoration --pretty="%ai %d" | head -20`
 - Latest 5 GitHub releases via `gh release list --limit 5` (if `gh auth status` succeeds)
 
+Group F — **Inbound code-quality tooling** (the contributor-facing gate layer — read configs, don't run them):
+- **Commit / PR-title convention:** `.commitlintrc*`, `commitlint.config.{js,cjs,mjs,ts}`, `.czrc`, `.versionrc`; grep `.github/workflows/*` for any PR-title / semantic-PR linter — `amannn/action-semantic-pull-request`, `semantic-pull-request`, `release-drafter` (with title check), or a `commitlint`-on-PR-title job.
+- **Formatters:** `.prettierrc*` / `prettier` key in `package.json`, `.editorconfig`, `rustfmt.toml` / `.rustfmt.toml`, `.ktlint` / `.editorconfig` ktlint section, `[tool.black]` / `[tool.ruff.format]` in `pyproject.toml`, `gofmt`/`gofumpt` usage, `biome.json` (formatter).
+- **Linters:** `.eslintrc*` / `eslint.config.*`, `biome.json` (linter), `[tool.ruff]` / `ruff.toml`, `.flake8` / `setup.cfg [flake8]`, `.golangci.yml`, `detekt.yml`, `.rubocop.yml`, `clippy` in CI.
+- **Pre-commit staging:** `lint-staged` config (in `package.json`, `.lintstagedrc*`), `nano-staged`.
+- **Coverage thresholds:** jest `coverageThreshold` in `package.json`/`jest.config.*`, `[tool.coverage]` / `.coveragerc`, `codecov.yml` / `.codecov.yml`, `nyc` config, `tarpaulin.toml`.
+- **Runtime version pins:** `.nvmrc`, `.node-version`, `.tool-versions` (asdf/mise), `.python-version`, `.ruby-version`, `go.mod` `toolchain`/`go` directive, `rust-toolchain.toml`, `.sdkmanrc`.
+- **Task runners / bootstrap:** `Makefile`, `justfile` / `Justfile`, `Taskfile.yml`, `package.json` `scripts` (note `setup`/`bootstrap`/`dev`/`prepare`), `mise.toml` tasks, `bin/setup` / `script/bootstrap`.
+
+Group G — **Repo governance** (collaboration + protection layer):
+- **Ownership:** `.github/CODEOWNERS`, `CODEOWNERS`, `docs/CODEOWNERS`.
+- **Templates:** `.github/PULL_REQUEST_TEMPLATE.md` / `.github/PULL_REQUEST_TEMPLATE/`, `.github/ISSUE_TEMPLATE/` (note configs + `config.yml`).
+- **Dependency automation:** `.github/dependabot.yml`, `renovate.json` / `.renovaterc*` / `renovate` key in `package.json`.
+- **Contribution docs:** `CONTRIBUTING.md`, `.github/CONTRIBUTING.md`.
+- **Merge settings (read-only):** `gh api repos/<owner>/<repo> --jq '{merge:.allow_merge_commit, squash:.allow_squash_merge, rebase:.allow_rebase_merge, auto:.allow_auto_merge}' 2>/dev/null`.
+- **Branch protection (read-only):** `gh api repos/<owner>/<repo>/branches/<base-branch>/protection 2>/dev/null` and `gh api repos/<owner>/<repo>/rulesets 2>/dev/null` — capture which mechanism is in use plus required checks, approvals, stale-dismissal, admin enforcement, code-owner review, conversation resolution, linear history. If `gh` is unauthenticated or the call 404s, record `none`.
+- **Environments (read-only):** `gh api repos/<owner>/<repo>/environments 2>/dev/null` — capture env names + protection rules (required reviewers, wait timer, branch policy) to seed Block A.
+
+Group H — **Security & supply-chain tooling** (align categories to `${CLAUDE_PLUGIN_ROOT}/skills/review/reference/supply-chain.md`):
+- **SAST:** `.github/workflows/codeql*.yml` / `github/codeql-action`, `.semgrep.yml` / `semgrep` in CI, `sonar-project.properties`.
+- **Dependency audit / CVE scan:** `npm audit` / `pnpm audit`, `pip-audit` / `safety`, `cargo audit` / `cargo-deny`, `govulncheck`, `bundler-audit`, `osv-scanner`; Snyk/Dependabot alerts.
+- **Secret scanning:** `.gitleaks.toml` / gitleaks in CI, `trufflehog`, `.secrets.baseline` (detect-secrets), GitHub push protection.
+- **SBOM:** syft / `cyclonedx-*` / `anchore/sbom-action`, `spdx` artifacts.
+- **License policy:** `license-checker`, `pip-licenses`, `cargo-deny` license rules, FOSSA, `.licenserc`.
+
+Group I — **Repo topology** (one read; affects ecosystems, lint scoping, matrix):
+- Detect monorepo/workspaces: `workspaces` in `package.json`, `pnpm-workspace.yaml`, `nx.json`, `turbo.json`, `lerna.json`, Gradle `settings.gradle*` `include(...)`, Cargo `[workspace]`, `go.work`. Record `{ monorepo: bool, tool, workspaces: [...] }`.
+
+**Remote reads only.** Groups G–I issue read-only `gh api` calls and config reads; **none of them ever writes.** Applying remote settings is `/wf-meta build-pipeline`'s job.
+
 ## 1.2 What to extract
 
 From the reads above, build a discovery report with these inferred fields (each tagged with the source file it came from, and a confidence: `high | medium | low`):
@@ -128,6 +161,53 @@ inferred:
   recovery-playbook-seeds:
     - { source: "<file>", suggested-id: "<short-id>", triggers-hint: "<from-doc>" }
 
+  inbound-dx:                                  # Block H seed — from Group F
+    format-check:  { tool: "<prettier|black|ktlint|rustfmt|gofmt|biome|none>", cmd: "<observed or empty>", evidence: "<file>", confidence: <high|medium|low> }
+    lint:          { tool: "<eslint|ruff|flake8|golangci|detekt|clippy|biome|none>", cmd: "<observed or empty>", evidence: "<file>", confidence: <high|medium|low> }
+    type-check:    { tool: "<tsc|mypy|pyright|none>", cmd: "<observed or empty>", evidence: "<file>", confidence: <high|medium|low> }
+    test-coverage: { min-percent: <observed-threshold or null>, cmd: "<observed or empty>", evidence: "<file>" }
+    commit-convention:   { spec: "<conventional|gitmoji|custom|none>", config-path: "<file or empty>", enforced-where: [<local | ci>], evidence: "<file>" }
+    pr-title-convention: { spec: "<conventional|none>", action: "<workflow job or empty>", evidence: "<file>" }
+
+  local-dx:                                    # Block I seed — from Group F
+    git-hooks: { framework: "<husky|lefthook|pre-commit|simple-git-hooks|none>", config-path: "<file/dir or empty>", hooks-seen: [<pre-commit | commit-msg | pre-push>], evidence: "<file>" }
+    editorconfig-present: <true | false>
+    runtime-version-files: [<".nvmrc" | ".tool-versions" | ".python-version" | ...>]
+    task-runner: { kind: "<make|just|task|npm-scripts|mise|none>", setup-target-seen: "<target or empty>", evidence: "<file>" }
+    contributing-doc-present: <true | false>
+
+  governance:                                  # Block J seed — from Group G
+    codeowners-present: <true | false>
+    pr-template-present: <true | false>
+    issue-templates-present: <true | false>
+    dependency-automation: { tool: "<dependabot|renovate|none>", config-path: "<file or empty>", evidence: "<file>" }
+    branch-protection-current:                 # from read-only gh api; `none` if unset/unauthenticated
+      base-branch: "<branch>"
+      required-checks: [<context>, ...]
+      required-approvals: <int or null>
+      dismiss-stale-reviews: <true | false | unknown>
+      enforce-admins: <true | false | unknown>
+      require-code-owner-reviews: <true | false | unknown>
+      require-conversation-resolution: <true | false | unknown>
+      require-linear-history: <true | false | unknown>
+      mechanism: <branch-protection | ruleset | none>
+    merge-current: { method-allowed: [<merge|squash|rebase>], auto-merge: <true | false | unknown> }   # from Group G
+
+  environments:                                # Block A protection seed — from Group G
+    - { name: "<env>", required-reviewers: [<@team>], wait-timer-minutes: <int>, branch-policy: "<protected|custom|any>", evidence: "gh api environments" }
+
+  security:                                    # Block K seed — from Group H
+    sast:             { tool: "<codeql|semgrep|sonar|none>", evidence: "<file>" }
+    dependency-audit: { tool: "<npm-audit|pip-audit|cargo-audit|govulncheck|osv-scanner|none>", evidence: "<file>" }
+    secret-scanning:  { tool: "<gitleaks|trufflehog|detect-secrets|github-push-protection|none>", evidence: "<file>" }
+    sbom:             { tool: "<syft|cyclonedx|none>", evidence: "<file>" }
+    license-check:    { tool: "<license-checker|pip-licenses|cargo-deny|fossa|none>", evidence: "<file>" }
+
+  repo-topology:                               # from Group I
+    monorepo: <true | false>
+    tool: "<pnpm|yarn|npm|nx|turbo|lerna|gradle|cargo|go-work|none>"
+    workspaces: [<path>, ...]
+
   additional-contracts-suggested:
     - { id: data-migration,        reason: "<file evidence>" }   # e.g. liquibase/ found, alembic in pyproject
     - { id: feature-flag-rollout,  reason: "<file evidence>" }
@@ -149,6 +229,10 @@ Discovered:
 - Secret refs in workflows: GHCR_TOKEN, KUBECONFIG_PROD, KUBECONFIG_STAGING
 - Registry hostnames: ghcr.io
 - Runbook material: docs/runbooks/rollout-stuck.md, docs/runbooks/image-pull-failure.md → seed playbook candidates
+- Inbound DX: commitlint (commitlint.config.js) + husky (.husky/) found; lint=eslint, format=prettier, type-check=tsc; coverage threshold 80% (jest); .nvmrc pins node 20; PR-title lint NOT found
+- Governance: CODEOWNERS present; renovate.json found; branch protection on main = 1 approval + required checks [build, test] (gh api); code-owner review NOT required; merge = squash-only; 1 environment (production, no reviewers)
+- Security: CodeQL workflow found; dependency-audit NOT run in CI; gitleaks NOT found; no SBOM; no license policy
+- Topology: monorepo (pnpm workspaces, 4 packages)
 - Additional contracts suggested: data-migration (liquibase/ found)
 ```
 
@@ -178,6 +262,7 @@ Hypothesis from `inferred.ship-meaning`. Confirm:
 - `ship-meaning` (one of: `publish`, `merge-only`, `deploy-immutable`, `deploy-rolling`, `feature-flag-flip`, or freeform)
 - `ship-environments[]` — present discovered deploy targets first (e.g., from `k8s/`, `fly.toml`, multiple workflow envs); multi-select, with order capturing the promotion path.
 - For each environment, ask: `auto-promote: <true | false>`.
+- For each environment, optionally capture GitHub **`protection`** (seeded from `inferred.environments`): `{ required-reviewers: [<@team>], wait-timer-minutes: <int>, deployment-branch-policy: <protected | custom | any> }`. Leave empty when the env has no gate. `/wf-meta build-pipeline` applies these via `gh api` (gated, like branch protection).
 - `ship-cadence` (on-demand, per-merge, weekly, release-train, or freeform).
 
 ## Block B — Versioning contract
@@ -205,6 +290,7 @@ Hypothesis from `inferred.ci`. Confirm:
 - `publish-cmd` — capture even if it only ever runs in CI; it's useful for reference and recovery.
 - `required-secrets[]` — pre-fill from `inferred.ci.secret-refs-seen`. For each, ask the user for a one-sentence `purpose`. Allow freeform additions.
 - `secrets-staleness-threshold-days` — default `90`, freeform override.
+- `ci-ergonomics` — how the generated workflows should be tuned: `{ dep-cache: <true|false>, matrix: { os: [<runner>, ...], versions: [<version>, ...] }, release-concurrency: <true|false>, path-filters: <true|false> }`. Defaults: `dep-cache: true`, single-target matrix (no fan-out), `release-concurrency: true`, `path-filters: false`. `/wf-meta build-pipeline` folds these into the workflows it generates/patches.
 
 ## Block D — Post-publish verification contract
 
@@ -268,6 +354,58 @@ If `announcement.channels[]` is empty, skip this follow-up entirely.
 
 ---
 
+The remaining required-core blocks are the **inbound** half — the developer experience a contributor hits on every commit and PR. Run them with the same hypothesis pattern as A–G: state the inferred value + evidence, AskUserQuestion with discovery-ranked options plus `Other`, fold in the `template-hint` seed when it differs, capture the answer.
+
+## Block H — Code-quality gates (inbound CI contract)
+
+Hypothesis from `inferred.inbound-dx`. These are the gates that must pass before a PR can merge. Confirm each (a gate can be `none` — don't invent one the project doesn't want):
+- `format-check` — `{ tool, cmd }`. Pre-fill `cmd` from discovery (e.g. `prettier --check .`, `black --check .`, `cargo fmt --check`, `./gradlew ktlintCheck`, `gofmt -l .`).
+- `lint` — `{ tool, cmd }` (e.g. `eslint .`, `ruff check .`, `golangci-lint run`, `cargo clippy -- -D warnings`).
+- `type-check` — `{ tool, cmd }` (e.g. `tsc --noEmit`, `mypy .`, `pyright`). `n/a` for untyped languages.
+- `test-coverage` — `{ min-percent, cmd }`. Pre-fill `min-percent` from a discovered threshold; if none, ask whether to set one (default `none` — do not impose a gate the repo lacks).
+- `commit-convention` — `{ spec, config-path, enforce }`. `spec` ∈ {`conventional`, `gitmoji`, `custom`, `none`}. `enforce` is a multi-select of `[local, ci]` — where the convention is checked. If a commitlint config was discovered, pre-fill `spec: conventional` and the path. **This is the field `/wf handoff`'s local commit-lint gate already honors via config-file detection; CI enforcement is added by `/wf-meta build-pipeline`.**
+- `pr-title-convention` — `{ spec, enforce }`. `spec` ∈ {`conventional`, `none`}. Typically `enforce: [ci]` via a PR-title-lint action.
+
+After confirming, **derive `ci-pipeline.pre-merge-checks[]` (Block C) from the enabled gates here** — every gate with a non-empty `cmd` and every enforced convention becomes a named pre-merge check. Block H is the canonical source of each check's command; Block C holds the derived name list. Tell the user this linkage so they don't double-enter.
+
+## Block I — Local developer experience (pre-CI)
+
+Hypothesis from `inferred.local-dx`. The fast feedback loop a contributor runs locally before pushing. Confirm:
+- `git-hooks` — `{ framework, hooks }`. `framework` ∈ {`husky`, `lefthook`, `pre-commit`, `simple-git-hooks`, `none`}. For each of `pre-commit` / `commit-msg` / `pre-push`, ask which commands run. Sensible default wiring: `pre-commit` → `lint-staged` (format + lint changed files), `commit-msg` → commitlint (only if Block H `commit-convention.spec ≠ none`), `pre-push` → fast test subset. If no framework is discovered, ask whether to introduce one (offer the ecosystem default; `none` is valid).
+- `editorconfig` — `<true | false>`. Whether to ship a `.editorconfig` (pre-fill `true` if one exists).
+- `runtime-version-files` — `[...]`. Which version-pin files the project standardizes on (pre-fill from discovery).
+- `task-runner` — `{ kind, targets }`. `kind` ∈ {`make`, `just`, `task`, `npm-scripts`, `mise`, `none`}. Capture key targets, especially a `setup`/`bootstrap` target.
+- `bootstrap-cmd` — the single command a new contributor runs to get a working checkout (freeform; e.g. `make setup`, `npm install && npm run prepare`).
+- `contributing-doc` — `<true | false>`. Whether to ship/maintain a `CONTRIBUTING.md`.
+
+## Block J — Repo governance
+
+Hypothesis from `inferred.governance`. The collaboration + protection rules. Confirm:
+- `branch-protection` — `{ base-branch, required-checks[], required-approvals, dismiss-stale-reviews, require-up-to-date, enforce-admins, require-code-owner-reviews, require-conversation-resolution, require-linear-history, allow-force-pushes, allow-deletions, mechanism, apply-via }`. Pre-fill `required-checks[]` from Block H's derived pre-merge checks and `branch-protection-current`.
+  - `require-code-owner-reviews` — default `true` whenever `codeowners[]` (below) is non-empty; otherwise the CODEOWNERS file is cosmetic. `false` only if the user opts out.
+  - `require-conversation-resolution`, `require-linear-history` — defaults `true` / `false`; confirm.
+  - `allow-force-pushes`, `allow-deletions` — defaults `false` / `false` (locked).
+  - `mechanism` ∈ {`branch-protection`, `ruleset`} — which GitHub control to apply. Default `branch-protection` (universal); pre-fill `ruleset` only if discovery saw the repo already governs via rulesets.
+  - `apply-via` ∈ {`gh-api`, `manual`} — **whether `/wf-meta build-pipeline` is permitted to apply these settings to the remote repo via `gh api` (behind its own confirm gate), or only print the commands.** Default `gh-api` only if the user explicitly opts in; otherwise `manual`.
+- `codeowners` — `[{ path, owners[] }]`. Ownership rules. Seed from a discovered `CODEOWNERS`; freeform additions allowed. Empty list = don't ship one.
+- `pr-template` — `<true | false>`. Whether to ship/maintain `.github/PULL_REQUEST_TEMPLATE.md`.
+- `issue-templates` — `<true | false>`. Whether to ship `.github/ISSUE_TEMPLATE/`.
+- `dependency-automation` — `{ tool, ecosystems[], schedule }`. `tool` ∈ {`dependabot`, `renovate`, `none`}. `ecosystems[]` from the project's package managers (e.g. `npm`, `pip`, `gradle`, `github-actions`). When `inferred.repo-topology.monorepo` is true, seed one ecosystem entry per workspace. `schedule` freeform (default `weekly`).
+- `merge` — `{ method, auto-merge, merge-queue }`. `method` ∈ {`squash`, `merge`, `rebase`, `any`} (pre-fill from `inferred.governance.merge-current`). `auto-merge` `<true|false>`. `merge-queue` `<true|false>` — note it requires specific GitHub plan tiers; `/wf-meta build-pipeline` detects and warns if unavailable.
+
+## Block K — Security & supply-chain gates
+
+Hypothesis from `inferred.security`. The scanning + policy layer (align to `${CLAUDE_PLUGIN_ROOT}/skills/review/reference/supply-chain.md`). Each gate can be `none` — don't impose one the project doesn't want:
+- `sast` — `{ tool, cmd, schedule }`. `tool` ∈ {`codeql`, `semgrep`, `sonar`, `none`}. CodeQL runs as its own workflow (PR + scheduled); others as a CI step. `schedule` freeform (default `weekly`).
+- `dependency-audit` — `{ tool, cmd, fail-on }`. e.g. `npm audit --audit-level=high`, `pip-audit`, `cargo audit`, `govulncheck ./...`, `osv-scanner`. `fail-on` ∈ {`critical`, `high`, `moderate`, `low`}.
+- `secret-scanning` — `{ tool, cmd, pre-commit }`. e.g. gitleaks, trufflehog, detect-secrets. `pre-commit: <true|false>` — also wire it as a Block-I `pre-commit` hook when true.
+- `sbom` — `{ tool, format, publish-with-release }`. `tool` ∈ {`syft`, `cyclonedx`, `none`}; `format` ∈ {`spdx`, `cyclonedx`}; `publish-with-release` attaches the SBOM to the GitHub release.
+- `license-check` — `{ tool, allow[], deny[] }`. Allowed/denied SPDX license lists enforced in CI.
+
+These become pre-merge and/or scheduled CI gates built by `/wf-meta build-pipeline` (Audit P). Enabled PR-time gates also feed `ci-pipeline.pre-merge-checks[]` (Block C), same as Block H.
+
+---
+
 # Step 3 — Additional contracts (open extensions)
 
 Ask the user (AskUserQuestion, multi-select), seeded by `inferred.additional-contracts-suggested`:
@@ -297,7 +435,7 @@ Each becomes an entry in `additional-contracts[]`. `/wf ship` ignores these by d
 
 If, during Steps 2 or 3, the user asks *"what does a typical X plan look like?"* — or if they pick a `template-hint` they're unfamiliar with — open the relevant file under `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/reference/ship-plan-templates/<kind>.md` and show the seed values as **reference reading**, not a fill-in form.
 
-Templates also exist for stealing single fields. If the user is happy with their Block A but wants the `signing-failure` playbook from `kotlin-maven-central`, pull only that block.
+Templates also exist for stealing single fields. If the user is happy with their Block A but wants the `signing-failure` playbook from `kotlin-maven-central`, pull only that block. Each template carries both a `# Seed values` block (outbound Blocks A–G) and a `# Inbound DX seed values` block (Blocks H–K) — surface whichever half the user is asking about.
 
 ---
 
@@ -315,7 +453,7 @@ options:
 multiSelect: false
 ```
 
-If `Adjust`, ask which block (A–G or an additional-contract `id`) and re-run only that block's questions.
+If `Adjust`, ask which block (A–K or an additional-contract `id`) and re-run only that block's questions.
 
 ---
 
@@ -341,7 +479,12 @@ template-hint: <kind | none>     # records the seed used during authoring; infor
 # Block A — what ship means
 ship-meaning: <publish | merge-only | deploy-immutable | deploy-rolling | feature-flag-flip | <freeform>>
 ship-environments:
-  - { name: "<env>", auto-promote: <true|false> }
+  - name: "<env>"
+    auto-promote: <true|false>
+    protection:                                  # optional — GitHub Environment rules; omit for ungated envs
+      required-reviewers: ["@<team>", ...]
+      wait-timer-minutes: <int>
+      deployment-branch-policy: <protected | custom | any>
 ship-cadence: <on-demand | per-merge | weekly | release-train | <freeform>>
 
 # Block B — versioning contract
@@ -365,6 +508,11 @@ ci-pipeline:
   required-secrets:
     - { name: "<NAME>", purpose: "<short description>" }
   secrets-staleness-threshold-days: 90
+  ci-ergonomics:
+    dep-cache: <true | false>
+    matrix: { os: ["<runner>", ...], versions: ["<version>", ...] }
+    release-concurrency: <true | false>
+    path-filters: <true | false>
 
 # Block D — post-publish verification contract
 post-publish-checks:
@@ -391,6 +539,62 @@ recovery-playbooks:
 announcement:
   channels: ["<channel>", ...]
   template-path: ".ai/release-announcement-template.md"
+
+# === Inbound half — read by /wf-meta build-pipeline (and the local gate in /wf handoff) ===
+
+# Block H — code-quality gates
+code-quality:
+  format-check: { tool: "<tool|none>", cmd: "<command or empty>" }
+  lint:         { tool: "<tool|none>", cmd: "<command or empty>" }
+  type-check:   { tool: "<tool|n/a>", cmd: "<command or empty>" }
+  test-coverage: { min-percent: <int or null>, cmd: "<command or empty>" }
+  commit-convention:   { spec: <conventional | gitmoji | custom | none>, config-path: "<file or empty>", enforce: [<local | ci>] }
+  pr-title-convention: { spec: <conventional | none>, enforce: [<ci>] }
+
+# Block I — local developer experience
+local-dx:
+  git-hooks:
+    framework: <husky | lefthook | pre-commit | simple-git-hooks | none>
+    hooks:
+      pre-commit: ["<command>", ...]
+      commit-msg: ["<command>", ...]
+      pre-push:   ["<command>", ...]
+  editorconfig: <true | false>
+  runtime-version-files: ["<file>", ...]
+  task-runner: { kind: <make | just | task | npm-scripts | mise | none>, targets: { <name>: "<command>" } }
+  bootstrap-cmd: "<command or empty>"
+  contributing-doc: <true | false>
+
+# Block J — repo governance
+governance:
+  branch-protection:
+    base-branch: "<branch>"
+    mechanism: <branch-protection | ruleset>
+    required-checks: ["<context>", ...]
+    required-approvals: <int>
+    dismiss-stale-reviews: <true | false>
+    require-up-to-date: <true | false>
+    enforce-admins: <true | false>
+    require-code-owner-reviews: <true | false>   # default true when codeowners[] non-empty
+    require-conversation-resolution: <true | false>
+    require-linear-history: <true | false>
+    allow-force-pushes: <true | false>           # default false
+    allow-deletions: <true | false>              # default false
+    apply-via: <gh-api | manual>
+  codeowners:
+    - { path: "<glob>", owners: ["@<owner>", ...] }
+  pr-template: <true | false>
+  issue-templates: <true | false>
+  dependency-automation: { tool: <dependabot | renovate | none>, ecosystems: ["<ecosystem>", ...], schedule: "<cadence>" }
+  merge: { method: <squash | merge | rebase | any>, auto-merge: <true | false>, merge-queue: <true | false> }
+
+# Block K — security & supply-chain gates
+security:
+  sast:             { tool: <codeql | semgrep | sonar | none>, cmd: "<command or empty>", schedule: "<cadence>" }
+  dependency-audit: { tool: "<npm-audit | pip-audit | cargo-audit | govulncheck | osv-scanner | none>", cmd: "<command>", fail-on: <critical | high | moderate | low> }
+  secret-scanning:  { tool: <gitleaks | trufflehog | detect-secrets | none>, cmd: "<command>", pre-commit: <true | false> }
+  sbom:             { tool: <syft | cyclonedx | none>, format: <spdx | cyclonedx>, publish-with-release: <true | false> }
+  license-check:    { tool: "<license-checker | pip-licenses | cargo-deny | fossa | none>", allow: ["<SPDX>", ...], deny: ["<SPDX>", ...] }
 
 # === Extensions — open schema, not read by /wf ship unless a consumer opts in by id ===
 
@@ -428,6 +632,18 @@ additional-contracts:
 ## Stakeholder + announcement
 <who needs to know, what channel, what template>
 
+## Code-quality gates
+<each gate (format/lint/type-check/coverage) + its command; the commit-message and PR-title conventions and where they're enforced. Note which gates feed the pre-merge checks above.>
+
+## Local developer experience
+<the git-hook framework and what runs at each hook; the bootstrap command a new contributor runs; runtime version pins; task-runner targets; whether an editorconfig / CONTRIBUTING is shipped.>
+
+## Repo governance
+<branch-protection rules for the base branch (required checks, approvals, stale-dismissal, code-owner review, conversation resolution, linear history) and the mechanism (branch-protection vs ruleset) + whether applied via API or by hand; CODEOWNERS rules; PR/issue templates; dependency-automation tool + cadence; merge controls (method, auto-merge, queue); per-environment GitHub protection where set.>
+
+## Security & supply-chain gates
+<which scanners run and where (SAST, dependency-audit, secret-scanning), the fail-on threshold, SBOM generation + publishing, and the license allow/deny policy. Note which run at PR time (feeding pre-merge checks) vs on a schedule.>
+
 ## Additional contracts
 <one subsection per additional-contracts[] entry: purpose, fields, who enforces.>
 ```
@@ -442,8 +658,9 @@ Return only:
 - `plan-version: 1`
 - `additional-contracts: [<id>, ...]` (or `[]`)
 - `announcement-template-created: <true | false | skipped>` (from Block G follow-up)
+- `inbound-coverage:` one line summarizing Blocks H–K — e.g. `gates: lint+type-check+coverage(80%); commit-convention: conventional (local+ci); hooks: husky; branch-protection: gh-api (1 approval, code-owner req); merge: squash+auto; security: codeql+npm-audit(high)+gitleaks; deps: renovate; topology: monorepo(pnpm,4)`
 - `next-steps:`
-  - `/wf-meta build-pipeline` — audit and implement the GitHub Actions CI/CD pipeline from this plan (creates missing workflows, patches non-compliant ones)
+  - `/wf-meta build-pipeline` — audit and implement the **entire** pipeline from this plan: release + pre-merge workflows, code-quality + commit/PR-title CI, local git hooks, dev-experience files, and repo governance (CODEOWNERS, templates, dependency automation, and branch protection via `gh api` when `apply-via: gh-api`). Creates missing files, patches non-compliant ones.
   - `/wf ship <slug>` — run a release using this plan (requires the pipeline to be in place)
   - `/wf-meta announce <slug>` — send release announcement to configured channels (run after ship completes; requires `announcement.channels[]` to be set in the plan)
   - `/wf-meta amend ship-plan` — edit any block
@@ -453,6 +670,6 @@ Return only:
 # Notes on amendment vs. init
 
 - **init**: this command. One-time. Errors if a plan exists. Always runs discovery first.
-- **amend**: `/wf-meta amend ship-plan` — opens the existing plan, lets the user pick which block to edit (A–G, or an additional-contract `id`), runs the relevant questions for that block only, bumps `plan-version`. Used when CI/CD changes, secrets rotate, post-publish checks evolve, recovery playbooks are added, or a new additional-contract is introduced.
+- **amend**: `/wf-meta amend ship-plan` — opens the existing plan, lets the user pick which block to edit (A–K, or an additional-contract `id`), runs the relevant questions for that block only, bumps `plan-version`. Used when CI/CD changes, secrets rotate, post-publish checks evolve, recovery playbooks are added, code-quality/security gates or governance rules change, or a new additional-contract is introduced.
 
 The plan is intentionally project-scoped — every workflow on the same repo ships through the same pipeline, so the plan only needs to be authored once per project. Run history accumulates per workflow under `.ai/workflows/<slug>/09-ship-run-*.md`.

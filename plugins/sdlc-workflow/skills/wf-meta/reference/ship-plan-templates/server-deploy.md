@@ -72,6 +72,68 @@ announcement:
   template-path: ".ai/release-announcement-template.md"
 ```
 
+# Inbound DX seed values
+
+```yaml
+# Block H — code-quality gates
+code-quality:
+  format-check: { tool: prettier, cmd: "npx prettier --check ." }
+  lint:         { tool: eslint,   cmd: "npm run lint" }
+  type-check:   { tool: tsc,      cmd: "npx tsc --noEmit" }
+  test-coverage: { min-percent: 70, cmd: "npm test -- --coverage" }
+  commit-convention:   { spec: conventional, config-path: "commitlint.config.js", enforce: [local, ci] }
+  pr-title-convention: { spec: conventional, enforce: [ci] }
+
+# Block I — local developer experience
+local-dx:
+  git-hooks:
+    framework: lefthook
+    hooks:
+      pre-commit: ["npx lint-staged"]
+      commit-msg: ['npx commitlint --edit {1}']
+      pre-push: ["npm test"]
+  editorconfig: true
+  runtime-version-files: [".nvmrc", ".tool-versions"]
+  task-runner: { kind: make, targets: { setup: "npm ci", check: "npm run lint && npx tsc --noEmit && npm test", deploy-staging: "kubectl apply -f k8s/staging/" } }
+  bootstrap-cmd: "npm ci"
+  contributing-doc: true
+
+# Block J — repo governance
+governance:
+  branch-protection:
+    base-branch: main
+    required-checks: [build, test, lint, image-scan, db-migrate-dry-run]
+    required-approvals: 2                       # prod-impacting infra — stricter
+    dismiss-stale-reviews: true
+    require-up-to-date: true
+    enforce-admins: true
+    apply-via: manual
+  codeowners:
+    - { path: "k8s/**", owners: ["@platform-team"] }
+    - { path: "*", owners: ["@<maintainer>"] }
+  pr-template: true
+  issue-templates: true
+  dependency-automation: { tool: renovate, ecosystems: [npm, docker, github-actions], schedule: "weekly" }
+```
+
+# Security & hardening seed values
+
+```yaml
+# Block C — ci-ergonomics (ci-pipeline.ci-ergonomics)
+ci-ergonomics: { dep-cache: true, matrix: { os: ["ubuntu-latest"], versions: [] }, release-concurrency: true, path-filters: true }
+
+# Block J — merge controls (governance.merge) — prod infra: no auto-merge
+merge: { method: squash, auto-merge: false, merge-queue: true }
+
+# Block K — security & supply-chain gates
+security:
+  sast:             { tool: codeql, cmd: "", schedule: "weekly" }
+  dependency-audit: { tool: npm-audit, cmd: "npm audit --audit-level=high", fail-on: high }
+  secret-scanning:  { tool: gitleaks, cmd: "gitleaks detect --no-banner", pre-commit: true }
+  sbom:             { tool: syft, format: spdx, publish-with-release: false }
+  license-check:    { tool: none, allow: [], deny: [] }
+```
+
 # Notes for the author
 
 - This template assumes Kubernetes — swap `kubectl` commands for `aws ecs update-service` (ECS), `flyctl deploy` (fly.io), or `render deploys create` (Render) as appropriate.

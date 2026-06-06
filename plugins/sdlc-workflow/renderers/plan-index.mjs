@@ -18,10 +18,14 @@ export function render(artifact, ctx) {
       statusBadge(fm.status),
       `<span class="meta">${plans.length} plan${plans.length === 1 ? '' : 's'}</span>`,
     ],
-  }) + metricRow([
-    { label: 'plans',         value: plans.length },
-    { label: 'with blockers', value: plans.filter((p) => p.frontmatter?.['has-blockers']).length, tone: 'warn' },
-  ]);
+  }) + metricRow((() => {
+    const blocked = plans.filter((p) => p.frontmatter?.['has-blockers']).length;
+    return [
+      { label: 'plans',         value: plans.length },
+      // PLN-19: only tint amber when there actually are blocked plans.
+      { label: 'with blockers', value: blocked, tone: blocked ? 'warn' : undefined },
+    ];
+  })());
 
   const cards = plans.map((p) => {
     const f = p.frontmatter ?? {};

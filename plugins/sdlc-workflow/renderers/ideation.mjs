@@ -43,12 +43,11 @@ export function render(artifact, ctx) {
        </details>`
     : '';
 
-  const fragment = artifact.fragment ? `<div class="fragment">${artifact.fragment}</div>` : '';
   const prose = artifact.body ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
 
   return {
     headerHtml,
-    bodyHtml: `${metricsHtml}${ideasHtml}${culledHtml}${fragment}${prose}${renderHistoryBlock(artifact.history)}`,
+    bodyHtml: `${metricsHtml}${ideasHtml}${culledHtml}${prose}${renderHistoryBlock(artifact.history)}`,
     links: [],
     children: [],
   };

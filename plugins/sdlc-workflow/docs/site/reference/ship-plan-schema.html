@@ -53,6 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
   <h4>Explanation</h4>
@@ -146,6 +148,75 @@ db-migrations-reversible: true | false | n/a</code></pre>
 <pre><code>announcement:
   channels: ["#releases", "release-notes@example.com"]
   template-path: ".ai/release-announcement-template.md"</code></pre>
+
+<p>Blocks A–G are the <strong>outbound</strong> half (read by <code>/wf ship</code>). Blocks H–J below are the <strong>inbound</strong> half — the developer experience built by <code>/wf-meta build-pipeline</code> (Audits K–O).</p>
+
+<h2>Block H — Code-quality gates</h2>
+<pre><code>code-quality:
+  format-check: { tool: prettier, cmd: "npx prettier --check ." }
+  lint:         { tool: eslint,   cmd: "npm run lint" }
+  type-check:   { tool: tsc,      cmd: "npx tsc --noEmit" }
+  test-coverage: { min-percent: 80, cmd: "npm test -- --coverage" }
+  commit-convention:   { spec: conventional, config-path: "commitlint.config.js", enforce: [local, ci] }
+  pr-title-convention: { spec: conventional, enforce: [ci] }</code></pre>
+<p>The canonical source for each gate's literal command. Enabled gates derive <code>ci-pipeline.pre-merge-checks[]</code>. <code>commit-convention</code> is also honored by the local commit-lint gate in <code>/wf handoff</code>.</p>
+
+<h2>Block I — Local developer experience</h2>
+<pre><code>local-dx:
+  git-hooks:
+    framework: husky        # husky | lefthook | pre-commit | simple-git-hooks | none
+    hooks:
+      pre-commit: ["npx lint-staged"]
+      commit-msg: ['npx --no -- commitlint --edit "$1"']
+      pre-push: []
+  editorconfig: true
+  runtime-version-files: [".nvmrc"]
+  task-runner: { kind: npm-scripts, targets: { setup: "npm install" } }
+  bootstrap-cmd: "npm install"
+  contributing-doc: true</code></pre>
+
+<h2>Block J — Repo governance</h2>
+<pre><code>governance:
+  branch-protection:
+    base-branch: main
+    mechanism: branch-protection   # or: ruleset
+    required-checks: [build, test, lint, typecheck]
+    required-approvals: 1
+    dismiss-stale-reviews: true
+    require-up-to-date: true
+    enforce-admins: false
+    require-code-owner-reviews: true   # default true when codeowners[] non-empty — else CODEOWNERS is cosmetic
+    require-conversation-resolution: true
+    require-linear-history: false
+    allow-force-pushes: false
+    allow-deletions: false
+    apply-via: manual       # gh-api = build-pipeline applies via API (gated); manual = print commands only
+  codeowners:
+    - { path: "*", owners: ["@maintainer"] }
+  pr-template: true
+  issue-templates: true
+  dependency-automation: { tool: renovate, ecosystems: [npm, github-actions], schedule: "weekly" }
+  merge: { method: squash, auto-merge: true, merge-queue: false }</code></pre>
+<p><code>apply-via: gh-api</code> lets <code>/wf-meta build-pipeline</code> mutate remote state (branch protection — Audit O; merge settings — Audit R), each only behind an explicit confirm gate. <code>require-code-owner-reviews</code> is what makes the <code>CODEOWNERS</code> file actually enforced.</p>
+
+<h2>Block K — Security &amp; supply-chain gates</h2>
+<pre><code>security:
+  sast:             { tool: codeql, cmd: "", schedule: "weekly" }
+  dependency-audit: { tool: npm-audit, cmd: "npm audit --audit-level=high", fail-on: high }
+  secret-scanning:  { tool: gitleaks, cmd: "gitleaks detect --no-banner", pre-commit: true }
+  sbom:             { tool: syft, format: spdx, publish-with-release: true }
+  license-check:    { tool: license-checker, allow: [MIT, Apache-2.0], deny: [GPL-3.0] }</code></pre>
+<p>Built by <code>/wf-meta build-pipeline</code> (Audit P): CodeQL workflow, dependency-audit + license-check PR steps, secret-scanning (CI + pre-commit hook), SBOM in the release. Aligns to the <a href="../reference/glossary.html">supply-chain</a> review dimension. PR-time gates also feed <code>pre-merge-checks</code>.</p>
+
+<h2>Block A · environment protection &amp; Block C · ci-ergonomics (extensions)</h2>
+<pre><code>ship-environments:
+  - name: production
+    auto-promote: false
+    protection: { required-reviewers: ["@release-team"], wait-timer-minutes: 0, deployment-branch-policy: protected }
+
+ci-pipeline:
+  ci-ergonomics: { dep-cache: true, matrix: { os: [ubuntu-latest], versions: ["20","22"] }, release-concurrency: true, path-filters: false }</code></pre>
+<p>Environment protection is the third gated remote mutation (Audit Q, via <code>gh api</code>). CI-ergonomics (Audit S) folds caching/matrix/concurrency into the generated workflows.</p>
 
 <h2>Extensions — additional-contracts[]</h2>
 <pre><code>additional-contracts:

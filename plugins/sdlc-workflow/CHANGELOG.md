@@ -7,6 +7,120 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — sunflower: sync-report renderer, mobile dual-DOM completion, verified visual tuning (9.44.0)
+
+Closes the last gaps in the sunflower view's renderer coverage and mobile build.
+
+- **`sync-report.mjs` — the one NEW standalone renderer still missing.** `hub-dashboard.mjs`
+  and `profile.mjs` were already real; `sync-report` was a 5-line `renderSimple` stub. Built the
+  full **schema → renderer → skill triple** the fragment-coverage plan had deferred:
+  - **Schema** — new `siblingYamlSchemas["sync-report"]` in `tests/frontmatter.schema.json`
+    (`branch` / `base_branch` / `ahead_count` / `behind_count` / `conflict_risk` /
+    `rebase_status` / `stale_days` / `diverged_files[]` / `recommendation`).
+  - **Renderer** — a verdict (`conflict_risk` → ship/caveats/no), a metric-row, a
+    **diverging-bar figure** (commits ahead in `--accent` rising right, behind in `--med`
+    rising left from a shared base node; `px_per_commit=25`, arm clamped at 360px, literal-hex
+    SVG per the dashboard/plan convention so it stays deterministic), a `files-touched` drift
+    table with `pos`/`neg` deltas + severity-blocker conflict chips, and a recommendation
+    callout. **Dual-DOM mobile**: a 2×2 metric-tile grid + a directory-grouped file list with
+    per-file conflict flags. Falls back to `renderSimple` when the sibling YAML is absent.
+  - **Skill** — `wf-meta/reference/sync.md` Step 6b now mandates authoring `00-sync.yaml`
+    (without it the page silently degrades to prose) and aligns the frontmatter with the
+    `regenerable: true` additive-write contract (`synced-at`).
+  - Added `.sw.ahead` / `.sw.behind` figure-legend swatches + a `.frow-flag` mobile helper;
+    +2 golden snapshots.
+- **Mobile dual-DOM completion (M-SLC-03 · M-S4).** `slice-index.mjs` and
+  `implement-index.mjs` now wrap their illegible-at-phone-width Figure-5 (`sliceGridFigure`) in
+  `.d-only`, so phones drop the grid and fall to the always-present, M-S5-styled card list —
+  bringing dual-DOM coverage to 10 renderers. Added a **phone-S `@media ≤390px` tier**
+  (tighter content padding, 22px headings, 19px appbar title, forced 2×2 metric-row, condensed
+  tiles) for the 375–390px widths the 480px tier didn't cover (M-SYS-B01/B03/B04/T04).
+- **Verified per-page visual tuning.** Each deviation cite was checked against live code (much
+  of the backlog was already-closed or stale): **REV-07** verdict eyebrow `verdict` → `Verdict`
+  (shared `_icons.verdictBlock`; review-dimension + design-audit goldens regenerated);
+  **SYS-T03** body `line-height` 1.6 → 1.65 (matches `.prose`); **SYS-F05** `.figure-canvas svg`
+  gains `max-width:100%` (no upscaling of narrow figures); **DSG-11** `.token-swatch` 14 → 20px;
+  **PLN-19** plan-index "with blockers" metric only tints amber when > 0; **OVR-22** `.badge`
+  11 → 12px. Skipped as stale/wrong (e.g. `OVR-17` wanted `.lede` where production correctly
+  uses `.sdlc-lede`) or contract-risky (callout `aside`→`div`, verdict-md2html).
+
+Full test suite 227/227, e2e acceptance 0 missing renderers / 0 schema warnings.
+
+### Added — gap-closure: code-owner enforcement, branch-protection fidelity, security/env/merge/CI-ergonomics, derive-on-amend (9.43.0)
+
+Follow-up to 9.42.0 closing four classes of gap (A–D) found in an audit of `init-ship-plan` /
+`build-pipeline` / `amend`:
+
+- **A — wired the cosmetic seams.** Branch-protection now sets `require_code_owner_reviews` whenever
+  `governance.codeowners[]` is non-empty (Audit O flags it Non-compliant otherwise) — a generated
+  `CODEOWNERS` was previously unenforced. `amend ship-plan` re-derives Block C `pre-merge-checks[]`
+  and Block J `required-checks[]` when Block H or C changes (the single-source-of-truth they're
+  derived from). `build-pipeline` now warns that generated hooks/CI are **inert until dev-deps +
+  the framework install step are run**.
+- **B — branch-protection fidelity.** The `gh api` payload gained `require_code_owner_reviews`,
+  `required_conversation_resolution`, `required_linear_history`, `allow_force_pushes`/`allow_deletions`
+  (locked by default), and switched to the current `checks` shape. New `mechanism: branch-protection
+  | ruleset` (legacy default; ruleset payload documented), a **mechanism-mismatch guard**, and a
+  **stronger-than-plan guard** (never silently weakens existing protection).
+- **C — new contract surface.** **Block K — security & supply-chain gates** (SAST/CodeQL,
+  dependency-audit, secret-scanning, SBOM, license policy; Audit P), aligned to
+  [supply-chain.md](skills/review/reference/supply-chain.md). Extensions: per-environment GitHub
+  **protection** (Block A → Audit Q), **merge controls** (Block J `merge` → Audit R), and
+  **ci-ergonomics** — caching/matrix/release-concurrency/path-filters (Block C → Audit S). New
+  discovery groups H/I read security tooling + repo topology (monorepo/workspaces). `build-pipeline`
+  now mutates **three** gated remote settings (branch protection, environment protection, merge
+  settings) instead of one — same Apply / Print-only / Skip gate each.
+- **D — consistency.** Idempotency invariants on the inbound build steps (read-first/skip-if-equal;
+  `gh api` PUT/PATCH are idempotent), a crisp "what this does NOT do" list on `build-pipeline`,
+  broadened PR-title-linter detection (release-drafter / semantic-pull-request / commitlint), and
+  the `init-ship-plan` boundary clarified (it authors; build-pipeline applies).
+
+Plan blocks now run A–K; build-pipeline audits run A–S; the `amend` menu covers H–K.
+[init-ship-plan.md](skills/wf-meta/reference/init-ship-plan.md),
+[build-pipeline.md](skills/wf-meta/reference/build-pipeline.md),
+[amend.md](skills/wf-meta/reference/amend.md), the 6 ship-plan templates,
+[frontmatter.schema.json](tests/frontmatter.schema.json) (`security` + `repo-topology` documented),
+and the doc site all updated.
+
+### Added — full DX/CI/CD pipeline contract: inbound Blocks H–J + Audits K–O (9.42.0)
+
+`init-ship-plan` and `build-pipeline` now cover the **entire** developer-experience +
+CI + CD pipeline, not just the outbound release. The ship plan was CD-heavy and CI/DX-thin —
+`pre-merge-checks[]` was an informational name list and `build-pipeline` was "GitHub
+Actions only". Three new required-core blocks were appended to `.ai/ship-plan.md`
+(existing A–G labels are unchanged, so `amend`/docs/handoff keep working):
+
+- **Block H — code-quality gates** ([init-ship-plan.md](skills/wf-meta/reference/init-ship-plan.md)):
+  format-check / lint / type-check / test-coverage (each `{tool,cmd}`), commit-message
+  convention, and PR-title convention. Block H is now the canonical source of each
+  pre-merge check's literal command; `ci-pipeline.pre-merge-checks[]` is derived from it.
+- **Block I — local developer experience**: git-hook framework (husky/lefthook/pre-commit)
+  with per-hook commands, `.editorconfig`, runtime-version files, task-runner targets,
+  bootstrap command, CONTRIBUTING.
+- **Block J — repo governance**: branch protection (with `apply-via: gh-api | manual`),
+  CODEOWNERS, PR/issue templates, dependency automation (dependabot/renovate).
+
+`build-pipeline` ([build-pipeline.md](skills/wf-meta/reference/build-pipeline.md)) grew
+discovery Group F/G, **Audits K–O**, and implement Steps 8–12 to build all of it:
+quality CI gates, commitlint + `action-semantic-pull-request` CI + config, local git
+hooks, dev-experience files, and governance files. Its design contract changed from
+"GitHub Actions only" to file-generation **plus one gated remote mutation** — branch
+protection via `gh api -X PUT`, only when the plan opts in (`apply-via: gh-api`) and
+only behind an explicit confirm gate with a "print commands only" escape hatch.
+
+- [`amend.md`](skills/wf-meta/reference/amend.md): the ship-plan block menu + S2 mapping now
+  cover H–J.
+- [`SKILL.md`](skills/wf-meta/SKILL.md): broadened the `init-ship-plan` / `build-pipeline`
+  dispatch one-liners.
+- The 6 [ship-plan templates](skills/wf-meta/reference/ship-plan-templates/) each gained an
+  `# Inbound DX seed values` block with ecosystem-appropriate defaults.
+- [`frontmatter.schema.json`](tests/frontmatter.schema.json): documented `code-quality` /
+  `local-dx` / `governance` as optional objects (the `ship-plan` branch stays open).
+- Docs ([`_build_pages.py`](docs/site/_build_pages.py)): added the previously-missing
+  `build-pipeline` row to the `/wf-meta` command table, a `#build-pipeline` section in
+  `reference/wf-meta.html`, the discovery-led `init-ship-plan` refresh (10 blocks), and
+  Blocks H–J in `reference/ship-plan-schema.html`.
+
 ### Added — handoff waits for CI + reviews; fixes run in subagents (9.41.0)
 
 `/wf handoff` no longer declares PR readiness off a single `gh pr view` snapshot.

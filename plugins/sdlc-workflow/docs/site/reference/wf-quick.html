@@ -53,6 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
   <h4>Explanation</h4>
@@ -250,7 +252,7 @@
 <p><strong>Phase 1</strong> actively attempts the adapter's bootstrap steps (start dev server, boot emulator, build + install) with documented resolution attempts. <strong>Phase 2 (graceful fail):</strong> if any step fails after resolution, probe writes a compressed slice with <code>status: awaiting-environment</code> and a full <code>bootstrap-failure: { step, exit-code, output-tail, remediation }</code> block. The attempt is recorded; re-running probe after the user fixes the environment picks up where it left off. Multi-adapter partial failures are recorded under <code>partial-bootstrap-failures</code> and the run proceeds with the adapters that did boot.</p>
 
 <h4>Multi-adapter — run-all by default</h4>
-<p>Probe matches every adapter whose detection signal hits and runs them all in parallel. <code>adapters-used: [&lt;key&gt;, ...]</code> (plural) records what was driven. <code>--adapter &lt;key&gt;</code> narrows to a single matched adapter and sets <code>adapter-narrowed-by-user: true</code>. The adapter registry lives at <code>skills/wf/reference/runtime-adapters.md</code> — seven recipes (web, android, ios, cli, desktop, service, notebook), each declaring Detection / Bootstrap / Drive / Observe / Tear down / Evidence layout / Remediation hints. Adapters are markdown recipes the agent reads and executes, not code.</p>
+<p>Probe matches every adapter whose detection signal hits and runs them all in parallel. <code>adapters-used: [&lt;key&gt;, ...]</code> (plural) records what was driven. <code>--adapter &lt;key&gt;</code> narrows to a single matched adapter and sets <code>adapter-narrowed-by-user: true</code>. The adapter registry lives at <a href="../../../skills/wf/reference/runtime-adapters.md"><code>skills/wf/reference/runtime-adapters.md</code></a> — seven recipes (web, android, ios, cli, desktop, service, notebook), each declaring Detection / Bootstrap / Drive / Observe / Tear down / Evidence layout / Remediation hints. Adapters are markdown recipes the agent reads and executes, not code.</p>
 
 <h4>Deferral clearing</h4>
 <p>If <code>00-index.md.runtime-evidence-deferrals[]</code> contains entries whose <code>slice</code> appears in <code>target-resolution.matched-slices</code>, probe checks whether the captured evidence satisfies the deferred AC. If yes, <code>cleared-by: probe-&lt;descriptor&gt;</code> is written to the index. The deferral is now cleared and the <code>/wf ship</code> Step 6.5 hard block lifts for that entry.</p>

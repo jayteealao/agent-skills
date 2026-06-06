@@ -71,6 +71,67 @@ announcement:
   template-path: ".ai/release-announcement-template.md"
 ```
 
+# Inbound DX seed values
+
+```yaml
+# Block H — code-quality gates
+code-quality:
+  format-check: { tool: ruff, cmd: "ruff format --check ." }
+  lint:         { tool: ruff, cmd: "ruff check ." }
+  type-check:   { tool: mypy, cmd: "mypy ." }
+  test-coverage: { min-percent: null, cmd: "pytest --cov" }
+  commit-convention:   { spec: none, config-path: "", enforce: [] }   # Python projects rarely use conventional commits; flip to conventional if you do
+  pr-title-convention: { spec: none, enforce: [] }
+
+# Block I — local developer experience
+local-dx:
+  git-hooks:
+    framework: pre-commit
+    hooks:
+      pre-commit: ["ruff check --fix", "ruff format", "mypy"]
+      commit-msg: []
+      pre-push: []
+  editorconfig: true
+  runtime-version-files: [".python-version"]
+  task-runner: { kind: make, targets: { setup: "pip install -e '.[dev]'", check: "ruff check . && mypy . && pytest" } }
+  bootstrap-cmd: "pip install -e '.[dev]' && pre-commit install"
+  contributing-doc: true
+
+# Block J — repo governance
+governance:
+  branch-protection:
+    base-branch: main
+    required-checks: [build, test, lint, mypy]
+    required-approvals: 1
+    dismiss-stale-reviews: true
+    require-up-to-date: true
+    enforce-admins: false
+    apply-via: manual
+  codeowners:
+    - { path: "*", owners: ["@<maintainer>"] }
+  pr-template: true
+  issue-templates: true
+  dependency-automation: { tool: dependabot, ecosystems: [pip, github-actions], schedule: "weekly" }
+```
+
+# Security & hardening seed values
+
+```yaml
+# Block C — ci-ergonomics (ci-pipeline.ci-ergonomics)
+ci-ergonomics: { dep-cache: true, matrix: { os: ["ubuntu-latest"], versions: ["3.10", "3.11", "3.12"] }, release-concurrency: true, path-filters: false }
+
+# Block J — merge controls (governance.merge)
+merge: { method: squash, auto-merge: false, merge-queue: false }
+
+# Block K — security & supply-chain gates
+security:
+  sast:             { tool: codeql, cmd: "", schedule: "weekly" }
+  dependency-audit: { tool: pip-audit, cmd: "pip-audit", fail-on: high }
+  secret-scanning:  { tool: detect-secrets, cmd: "detect-secrets scan --baseline .secrets.baseline", pre-commit: true }
+  sbom:             { tool: none, format: spdx, publish-with-release: false }
+  license-check:    { tool: pip-licenses, allow: ["MIT", "Apache-2.0", "BSD-3-Clause"], deny: ["GPL-3.0"] }
+```
+
 # Notes for the author
 
 - Prefer **Trusted Publisher** (OIDC) over long-lived API tokens. If you use Trusted Publisher, you can drop `PYPI_API_TOKEN` from `required-secrets`.

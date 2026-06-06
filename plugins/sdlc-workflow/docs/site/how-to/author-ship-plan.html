@@ -53,6 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
   <h4>Explanation</h4>
@@ -107,9 +109,9 @@
 
 <p>Correct misreads in plain English: <em>"the helm dir is dead code, ignore it"</em> or <em>"actually we publish to a private registry, not GHCR"</em>. Claude updates the in-memory discovery state before moving on.</p>
 
-<h2>Step 3 — Confirm each contract (Blocks A–G)</h2>
+<h2>Step 3 — Confirm each contract (Blocks A–K)</h2>
 
-<p>For each required-core block, Claude proposes the inferred value plus alternatives plus <code>Other (describe)</code>. The seven blocks:</p>
+<p>For each required-core block, Claude proposes the inferred value plus alternatives plus <code>Other (describe)</code>. The eleven blocks split into the <strong>outbound</strong> release (A–G) and the <strong>inbound</strong> developer experience (H–K):</p>
 
 <dl>
 <dt><strong>A — Ship meaning + environments + cadence</strong></dt>
@@ -132,11 +134,25 @@
 
 <dt><strong>G — Announcements</strong></dt>
 <dd>Channels (#releases, mailing list). Optional template path.</dd>
+
+<dt><strong>H — Code-quality gates</strong> <em>(inbound)</em></dt>
+<dd>format-check / lint / type-check / test-coverage (each tool + command). Commit-message convention and PR-title convention, and where each is enforced (local / CI). The enabled gates derive <code>ci-pipeline.pre-merge-checks[]</code>.</dd>
+
+<dt><strong>I — Local developer experience</strong> <em>(inbound)</em></dt>
+<dd>Git-hook framework (husky/lefthook/pre-commit) with per-hook commands. <code>.editorconfig</code>. Runtime-version files. Task-runner targets + bootstrap command. CONTRIBUTING.</dd>
+
+<dt><strong>J — Repo governance</strong> <em>(inbound)</em></dt>
+<dd>Branch protection (required checks, approvals, stale-dismissal, code-owner review, conversation resolution, linear history; <code>mechanism: branch-protection | ruleset</code>; <code>apply-via: gh-api | manual</code>). CODEOWNERS. PR/issue templates. Dependency automation (dependabot/renovate). Merge controls (method, auto-merge, queue).</dd>
+
+<dt><strong>K — Security &amp; supply-chain gates</strong> <em>(inbound)</em></dt>
+<dd>SAST (CodeQL/semgrep), dependency-audit (npm audit / pip-audit / cargo audit) with a fail-on threshold, secret-scanning (gitleaks/trufflehog), SBOM generation, and license allow/deny policy. PR-time gates also feed the pre-merge checks.</dd>
 </dl>
+
+<p>Two extensions ride on existing blocks: per-environment GitHub <strong>protection</strong> (Block A) and <strong>ci-ergonomics</strong> — caching/matrix/concurrency (Block C).</p>
 
 <h2>Step 4 — Pick additional contracts (extensions)</h2>
 
-<p>Claude asks whether the project has any contracts the standard Blocks A–G don't cover. Options seeded from discovery: <code>data-migration</code>, <code>feature-flag-rollout</code>, <code>infrastructure-as-code</code>, <code>mobile-app-store</code>, <code>compliance-gate</code>, <code>data-pipeline</code>, <code>schema-registry</code>, <code>Other (describe)</code>. Each picked one becomes an entry in <code>additional-contracts[]</code> with <code>{ id, purpose, fields, enforced-by }</code>. <code>/wf ship</code> ignores these by default; custom hooks or downstream commands opt in by <code>id</code>.</p>
+<p>Claude asks whether the project has any contracts the standard Blocks A–K don't cover. Options seeded from discovery: <code>data-migration</code>, <code>feature-flag-rollout</code>, <code>infrastructure-as-code</code>, <code>mobile-app-store</code>, <code>compliance-gate</code>, <code>data-pipeline</code>, <code>schema-registry</code>, <code>Other (describe)</code>. Each picked one becomes an entry in <code>additional-contracts[]</code> with <code>{ id, purpose, fields, enforced-by }</code>. <code>/wf ship</code> ignores these by default; custom hooks or downstream commands opt in by <code>id</code>.</p>
 
 <h2>Step 5 — Confirm + write</h2>
 
@@ -155,7 +171,7 @@ git commit -m "chore: author ship plan"</code></pre>
 
 <pre><code>/wf-meta amend ship-plan</code></pre>
 
-<p>Pick which block (A–G) or which additional-contract <code>id</code> to edit. The amend flow re-runs only that block's hypothesis loop — discovery is skipped because the existing plan is ground truth. <code>plan-version</code> bumps by 1.</p>
+<p>Pick which block (A–K) or which additional-contract <code>id</code> to edit. The amend flow re-runs only that block's hypothesis loop — discovery is skipped because the existing plan is ground truth. <code>plan-version</code> bumps by 1. Amending Block H or C also re-derives the pre-merge check lists in Blocks C and J. After amending an inbound block (H–K), re-run <code>/wf-meta build-pipeline</code> to bring the repo (and remote settings) back into compliance.</p>
 
 <div class="related">
 <h3>Related</h3>
