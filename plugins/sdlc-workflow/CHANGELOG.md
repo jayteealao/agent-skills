@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — no Windows console flash on per-write rendering (9.44.1)
+
+The PostToolUse render hook flashed a terminal window on every artifact write on Windows.
+
+- **Root cause.** `hooks/render-on-artifact-write.mjs` was the only spawn site that bypassed the
+  shared `lib/detach.mjs` chokepoint and hand-rolled `spawn`. Its detached debounce child was
+  created without `windowsHide: true`, so Windows allocated a *visible* console (`conhost.exe`)
+  for the console-subsystem `node.exe` — a flash on each write to a workflow slug, docs index, or
+  `PRODUCT`/`DESIGN`/`ship-plan` file.
+- **Fix.** The debounce child now routes through `spawnDetachedNode` (which already supplies
+  `detached` / `stdio:'ignore'` / `.unref()` / `windowsHide:true`), and the stage-2 renderer
+  child gets `windowsHide:true` directly — needed because once stage-2 runs console-less, the
+  renderer would otherwise inherit the new window. Behavior is otherwise unchanged: rendering
+  stays detached, debounced, and off the critical path. All 18 hook unit tests green.
+
 ### Added — sunflower: sync-report renderer, mobile dual-DOM completion, verified visual tuning (9.44.0)
 
 Closes the last gaps in the sunflower view's renderer coverage and mobile build.

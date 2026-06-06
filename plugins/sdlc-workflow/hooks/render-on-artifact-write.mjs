@@ -20,6 +20,7 @@ import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync, appendFil
 import { spawn } from 'node:child_process';
 import { dirname, resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnDetachedNode } from '../lib/detach.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -112,14 +113,17 @@ async function main() {
   const now = Date.now();
   writeFileSync(touchFile, String(now), 'utf-8');
 
-  // Detach a child that sleeps DEBOUNCE_MS, then re-checks
-  const child = spawn(process.execPath, [__filename, '--debounce-stage2', String(now), [...buckets].join(',')], {
-    cwd,
-    env: { ...process.env, SDLC_DEBOUNCE_ORIGIN_TS: String(now) },
-    detached: true,
-    stdio: 'ignore',
-  });
-  child.unref();
+  // Detach a child that sleeps DEBOUNCE_MS, then re-checks. Routed through the
+  // shared helper so it inherits windowsHide:true — a bare detached `node`
+  // child gets its own console, which flashes a terminal window on Windows.
+  spawnDetachedNode(
+    __filename,
+    ['--debounce-stage2', String(now), [...buckets].join(',')],
+    {
+      cwd,
+      env: { ...process.env, SDLC_DEBOUNCE_ORIGIN_TS: String(now) },
+    },
+  );
 
   exitClean();
 }
@@ -151,6 +155,9 @@ async function debounceStage2() {
     cwd: process.cwd(),
     stdio: 'pipe',
     env: process.env,
+    // stage-2 now runs with no console (windowsHide), so this console-app
+    // child would otherwise get a fresh window of its own — suppress it too.
+    windowsHide: true,
   });
 
   let stderr = '';
