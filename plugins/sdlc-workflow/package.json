@@ -1,6 +1,6 @@
 {
   "name": "@sdlc-workflow/sunflower-view",
-  "version": "9.40.0",
+  "version": "9.45.0",
   "private": true,
   "type": "module",
   "description": "Sunflower view layer for the sdlc-workflow plugin — HTML projection of .ai/workflows/ artifacts.",
@@ -8,6 +8,8 @@
     "node": ">=20.0.0"
   },
   "scripts": {
+    "build": "node scripts/build.mjs",
+    "hooks:install": "git config core.hooksPath .githooks",
     "render": "node scripts/render-sunflower.mjs",
     "render:clean": "node scripts/render-sunflower.mjs --clean",
     "verify": "node scripts/verify-router-migration.mjs",
@@ -19,9 +21,12 @@
     "hub": "node scripts/hub-serve.mjs",
     "hub:stop": "node -e \"import('./lib/hub-lifecycle.mjs').then(m=>m.stopHub({log:console.log}))\""
   },
-  "dependencies": {
+  "comment:dependencies": "Runtime deps are EMPTY by design — every Claude-invoked entrypoint ships pre-bundled under dist/ (npm run build, esbuild). A fresh install needs no runtime `npm install`. The libs below are devDependencies: bundled into dist/ and imported by tests, never installed at a user's runtime. See SELF-CONTAINED-BUILD-PLAN.md.",
+  "dependencies": {},
+  "devDependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "esbuild": "^0.28.0",
     "js-yaml": "^4.1.0",
     "markdown-it": "^14.1.0",
     "markdown-it-anchor": "^9.2.0"

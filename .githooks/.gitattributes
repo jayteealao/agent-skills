@@ -1,0 +1,4 @@
+# Hook scripts must stay LF: they run under bash (git-bash on Windows). A CRLF
+# shebang/line ending breaks the interpreter. The repo default (core.autocrlf)
+# would otherwise hand Windows clones a CRLF working copy.
+* text eol=lf

@@ -1,0 +1,11 @@
+# This plugin ships SELF-CONTAINED (see SELF-CONTAINED-BUILD-PLAN.md): dist/ holds
+# committed, dependency-inlined esbuild bundles so a fresh marketplace install runs
+# with ZERO runtime `npm install`. dist/ is therefore INTENTIONALLY TRACKED — do not
+# add it here. The CI freshness gate rebuilds it and fails on drift.
+#
+# node_modules/ is a maintainer-only dev install (build + tests) and stays ignored.
+node_modules/
+
+# Never ignore the committed bundles, even if an ancestor .gitignore later adds dist/.
+!dist/
+!dist/**

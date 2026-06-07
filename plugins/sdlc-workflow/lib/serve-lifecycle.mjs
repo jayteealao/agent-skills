@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import { spawnDetachedNode } from './detach.mjs';
+import { resolveEntrypoint } from './entrypoint.mjs';
 import { isPidAlive, pidFileStatus, readPidFile, removePidFile, writePidFile } from './pid-file.mjs';
 import { maybeConfigureTailscale } from './tailscale.mjs';
 import { hubPidPath } from './registry.mjs';
@@ -96,7 +97,7 @@ export async function ensureServeLifecycle({
     log(`[serve] removed stale pid file for pid ${status.record?.pid}`);
   }
 
-  const script = join(pluginRoot, 'scripts', 'render-sunflower-serve.mjs');
+  const script = resolveEntrypoint(pluginRoot, 'render-sunflower-serve');
   const child = spawnDetachedNode(script, [
     '--view', viewRoot,
     '--host', host,

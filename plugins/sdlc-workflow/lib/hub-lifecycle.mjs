@@ -12,6 +12,7 @@ import { request } from 'node:http';
 import { join } from 'node:path';
 
 import { spawnDetachedNode } from './detach.mjs';
+import { resolveEntrypoint } from './entrypoint.mjs';
 import { isPidAlive, pidFileStatus, removePidFile, writePidFile } from './pid-file.mjs';
 import { hubPidPath, sdlcHomeDir } from './registry.mjs';
 import { readHubConfig, hubConfigHash } from './hub-config.mjs';
@@ -77,7 +78,7 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
 
   const token = randomBytes(24).toString('hex');
   const cfgHash = hubConfigHash(cfg);
-  const script = join(pluginRoot, 'scripts', 'hub-serve.mjs');
+  const script = resolveEntrypoint(pluginRoot, 'hub-serve');
   const childArgs = [
     '--host', host,
     '--port', String(port),

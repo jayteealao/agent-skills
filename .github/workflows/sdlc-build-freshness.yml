@@ -1,0 +1,67 @@
+name: sdlc-workflow self-contained build
+
+# Guards the committed dist/ bundles (SELF-CONTAINED-BUILD-PLAN.md): a fresh
+# marketplace install runs straight from dist/ with no runtime `npm install`, so
+# the committed bundles MUST equal a fresh build and MUST run with zero deps.
+on:
+  pull_request:
+    paths:
+      - 'plugins/sdlc-workflow/scripts/**'
+      - 'plugins/sdlc-workflow/hooks/**'
+      - 'plugins/sdlc-workflow/lib/**'
+      - 'plugins/sdlc-workflow/renderers/**'
+      - 'plugins/sdlc-workflow/components/**'
+      - 'plugins/sdlc-workflow/dist/**'
+      - 'plugins/sdlc-workflow/package.json'
+      - 'plugins/sdlc-workflow/package-lock.json'
+      - '.github/workflows/sdlc-build-freshness.yml'
+  push:
+    branches: [master, main]
+    paths:
+      - 'plugins/sdlc-workflow/scripts/**'
+      - 'plugins/sdlc-workflow/hooks/**'
+      - 'plugins/sdlc-workflow/lib/**'
+      - 'plugins/sdlc-workflow/renderers/**'
+      - 'plugins/sdlc-workflow/components/**'
+      - 'plugins/sdlc-workflow/dist/**'
+      - 'plugins/sdlc-workflow/package.json'
+
+jobs:
+  build-freshness:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugins/sdlc-workflow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install (pinned via lockfile — keeps esbuild output deterministic)
+        run: npm ci
+
+      - name: Build bundles
+        run: npm run build
+
+      - name: Fail if committed dist/ is stale
+        run: |
+          # --intent-to-add surfaces newly created bundles in `git diff` so the
+          # exit-code check catches additions, not just edits and deletions.
+          git add --intent-to-add dist
+          if ! git diff --exit-code -- dist; then
+            echo "::error::plugins/sdlc-workflow/dist is out of date. Run 'npm run build' in plugins/sdlc-workflow and commit the result."
+            exit 1
+          fi
+
+      - name: Prove bundles run with NO runtime deps
+        run: |
+          # Remove the dev install entirely: the committed bundles must be fully
+          # self-contained. Any leaked bare import throws ERR_MODULE_NOT_FOUND.
+          rm -rf node_modules
+          echo "engine dry-run (config -> ajv-formats inlined):"
+          node dist/render-sunflower.mjs --bootstrap --dry-run --plugin-root "$PWD"
+          echo "renderer import (markdown-it inlined):"
+          node -e "import('./dist/renderers/plan.mjs').then(m => { if (typeof m.render !== 'function') { console.error('renderer export missing'); process.exit(1); } console.log('  dep-free renderer OK'); })"
+          echo "session-start hook (load-time, the original silent-crash culprit):"
+          printf '{}' | node dist/session-start-orient.mjs

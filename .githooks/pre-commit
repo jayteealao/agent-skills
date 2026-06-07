@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# Pre-commit: keep plugins/sdlc-workflow/dist in lockstep with its source.
+#
+# core.hooksPath is LOCAL git config (not committed), so enable once per clone:
+#   git config core.hooksPath .githooks
+# or, equivalently:
+#   npm --prefix plugins/sdlc-workflow run hooks:install
+#
+# When a commit touches the plugin's build inputs, this rebuilds dist/ and stages
+# it, so the committed self-contained bundles never drift from source. The CI
+# freshness gate (.github/workflows/sdlc-build-freshness.yml) enforces the same
+# invariant server-side — this hook just keeps you from pushing a red build.
+set -euo pipefail
+
+PLUGIN="plugins/sdlc-workflow"
+# Build inputs: anything esbuild reads. NOT dist/ itself (a manual dist edit is
+# the CI gate's job to reject, not this hook's to silently overwrite).
+INPUT_RE="^${PLUGIN}/(scripts|hooks|lib|renderers|components)/|^${PLUGIN}/package(-lock)?\.json$"
+
+if git diff --cached --name-only | grep -qE "$INPUT_RE"; then
+  echo "[pre-commit] sdlc-workflow build inputs changed -> rebuilding dist/"
+  ( cd "$PLUGIN" && npm run build >/dev/null )
+  git add "$PLUGIN/dist"
+  echo "[pre-commit] dist/ rebuilt and staged"
+fi

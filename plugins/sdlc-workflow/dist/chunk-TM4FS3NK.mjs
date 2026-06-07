@@ -1,0 +1,144 @@
+import { createRequire as __sdlcCreateRequire } from 'module';
+const require = __sdlcCreateRequire(import.meta.url);
+import {
+  require__,
+  require_dist
+} from "./chunk-FZ2GR6GF.mjs";
+import {
+  __toESM
+} from "./chunk-SGA7NFMW.mjs";
+
+// lib/config.mjs
+var import__ = __toESM(require__(), 1);
+var import_ajv_formats = __toESM(require_dist(), 1);
+import { createHash } from "node:crypto";
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+var __dirname = dirname(fileURLToPath(import.meta.url));
+var DEFAULT_SCHEMA_PATH = resolve(__dirname, "..", "schemas", "sdlc-config.schema.json");
+var DEFAULT_SDLC_CONFIG = Object.freeze({
+  view: {
+    render: {
+      concurrency: 4,
+      debounceMs: 2e3
+    },
+    // NOTE: there is deliberately no `serve` block here. Serve/daemon settings
+    // (host, port, liveReload, tailscale, and the perRepoServe master switch)
+    // are MACHINE-WIDE only and live in ~/.sdlc/hub-config.json — a repo cannot
+    // set them. `view.serve` is rejected by the per-repo schema. See §6.1.
+    bootstrap: {
+      enabled: true,
+      renderMissing: true,
+      renderStale: true
+    },
+    // Per-repo participation toggle for the machine-wide multi-repo hub
+    // (default-on / opt-out since v9.34.0). The ONLY per-repo hub field — all
+    // singleton hub settings live in ~/.sdlc/hub-config.json (§6.1).
+    hub: {
+      enabled: true
+    }
+  },
+  hooks: {
+    autoStage: true,
+    validateOnWrite: true,
+    verifyOnWrite: true
+  }
+});
+var configValidators = /* @__PURE__ */ new Map();
+function configPathFor(projectRoot = process.cwd()) {
+  return join(projectRoot, ".ai", "sdlc-config.json");
+}
+function clone(value) {
+  return structuredClone(value);
+}
+function deepMerge(base, override) {
+  if (!override || typeof override !== "object" || Array.isArray(override)) {
+    return clone(base);
+  }
+  const out = clone(base);
+  for (const [key, value] of Object.entries(override)) {
+    if (key === "$schema") {
+      out[key] = value;
+    } else if (value && typeof value === "object" && !Array.isArray(value) && out[key] && typeof out[key] === "object" && !Array.isArray(out[key])) {
+      out[key] = deepMerge(out[key], value);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+async function ensureConfigValidator(schemaPath = DEFAULT_SCHEMA_PATH) {
+  const cached = configValidators.get(schemaPath);
+  if (cached) return cached;
+  const schema = JSON.parse(await readFile(schemaPath, "utf-8"));
+  const ajv = new import__.default({ allErrors: true, strict: false });
+  (0, import_ajv_formats.default)(ajv);
+  const validate = ajv.compile(schema);
+  configValidators.set(schemaPath, validate);
+  return validate;
+}
+async function validateConfig(config, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
+  const validate = await ensureConfigValidator(schemaPath);
+  const valid = validate(config);
+  return {
+    valid,
+    errors: valid ? [] : (validate.errors ?? []).map((err) => ({
+      path: err.instancePath || "/",
+      message: err.message ?? "schema violation",
+      keyword: err.keyword
+    }))
+  };
+}
+async function loadConfigWithMeta(projectRoot = process.cwd(), {
+  configPath = configPathFor(projectRoot),
+  schemaPath = DEFAULT_SCHEMA_PATH,
+  strict = false
+} = {}) {
+  const warnings = [];
+  let userConfig = {};
+  let exists = existsSync(configPath);
+  if (exists) {
+    try {
+      const text = await readFile(configPath, "utf-8");
+      userConfig = JSON.parse(text.replace(/^\uFEFF/, ""));
+    } catch (err) {
+      if (strict) throw err;
+      warnings.push(`could not parse ${configPath}: ${err.message}`);
+      userConfig = {};
+    }
+  }
+  const config = deepMerge(DEFAULT_SDLC_CONFIG, userConfig);
+  const validation = await validateConfig(config, { schemaPath });
+  if (!validation.valid) {
+    const message = validation.errors.map((err) => `${err.path}: ${err.message}`).join("; ");
+    if (strict) throw new Error(`invalid sdlc config: ${message}`);
+    warnings.push(`invalid sdlc config: ${message}`);
+  }
+  return {
+    config,
+    configPath,
+    exists,
+    warnings,
+    validation
+  };
+}
+async function loadConfig(projectRoot = process.cwd(), opts = {}) {
+  return (await loadConfigWithMeta(projectRoot, opts)).config;
+}
+function configHash(config) {
+  return createHash("sha256").update(stableStringify(config)).digest("hex").slice(0, 16);
+}
+function stableStringify(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map((item) => stableStringify(item)).join(",")}]`;
+  return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",")}}`;
+}
+
+export {
+  deepMerge,
+  loadConfigWithMeta,
+  loadConfig,
+  configHash
+};

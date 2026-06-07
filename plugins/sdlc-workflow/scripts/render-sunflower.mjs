@@ -48,6 +48,10 @@ import { upsertRegistryEntry } from '../lib/registry.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT_DEFAULT = resolve(__dirname, '..');
+// True when the engine runs from a built bundle (dist/render-sunflower.mjs).
+// Drives loadRenderer to the dep-inlined dist/renderers in prod while keeping
+// source-spawned tests (e2e) and dev on source renderers. See loadRenderer.
+const RUNNING_FROM_DIST = basename(__dirname) === 'dist';
 
 /* ───────────────────────── CLI parsing ───────────────────────── */
 
@@ -257,7 +261,14 @@ function discoverProjectArtifacts({ projectRoot }) {
 const rendererCache = new Map();
 async function loadRenderer(type, pluginRoot) {
   if (rendererCache.has(type)) return rendererCache.get(type);
-  const path = join(pluginRoot, 'renderers', `${type}.mjs`);
+  // From dist, load the dep-inlined bundled renderers (dist/renderers/<type>);
+  // from source, load source renderers. Keying off the engine's own location
+  // (RUNNING_FROM_DIST) keeps source-spawned tests/dev on source and prod on
+  // bundles — no env flag, no stale-bundle footgun.
+  const rendererDir = RUNNING_FROM_DIST
+    ? join(pluginRoot, 'dist', 'renderers')
+    : join(pluginRoot, 'renderers');
+  const path = join(rendererDir, `${type}.mjs`);
   if (!existsSync(path)) {
     rendererCache.set(type, null);
     return null;
