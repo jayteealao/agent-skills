@@ -84,12 +84,19 @@ export class Tray {
       try { proc = spawn(this.binPath, [], { windowsHide: true }); }
       catch (err) { reject(err); return; }
       this.proc = proc;
+      // Drain stderr so a chatty helper can't fill the OS pipe buffer and block.
+      proc.stderr?.resume();
       let settled = false;
       proc.on('error', (err) => {
         this._errorCbs.forEach((cb) => cb(err));
         if (!settled) { settled = true; reject(err); }
       });
-      proc.on('exit', (code) => this._exitCbs.forEach((cb) => cb(code)));
+      proc.on('exit', (code) => {
+        this._exitCbs.forEach((cb) => cb(code));
+        // If the helper dies before emitting `ready` (crash, missing libs, arch
+        // mismatch), settle the start() promise instead of hanging forever.
+        if (!settled) { settled = true; reject(new Error(`tray helper exited (code ${code}) before becoming ready`)); }
+      });
       this.rl = createInterface({ input: proc.stdout });
       this.rl.on('line', (line) => {
         const wasReady = this._onLine(line);

@@ -90,6 +90,7 @@ var Tray = class {
         return;
       }
       this.proc = proc;
+      proc.stderr?.resume();
       let settled = false;
       proc.on("error", (err) => {
         this._errorCbs.forEach((cb) => cb(err));
@@ -98,7 +99,13 @@ var Tray = class {
           reject(err);
         }
       });
-      proc.on("exit", (code) => this._exitCbs.forEach((cb) => cb(code)));
+      proc.on("exit", (code) => {
+        this._exitCbs.forEach((cb) => cb(code));
+        if (!settled) {
+          settled = true;
+          reject(new Error(`tray helper exited (code ${code}) before becoming ready`));
+        }
+      });
       this.rl = createInterface({ input: proc.stdout });
       this.rl.on("line", (line) => {
         const wasReady = this._onLine(line);
@@ -366,7 +373,7 @@ function openerCommand(platform, target) {
   return { command: "xdg-open", args: [t] };
 }
 function defaultOpener(command, args) {
-  const child = spawn2(command, args, { detached: true, stdio: "ignore", windowsHide: true });
+  const child = spawn2(command, args, { stdio: "ignore", windowsHide: true });
   child.unref();
 }
 function openTarget(target, { opener = defaultOpener, platform = process.platform } = {}) {
@@ -634,7 +641,13 @@ function ensureRuntimeBinary() {
     stale = !existsSync3(runtime) || statSync(runtime).size !== statSync(vendored).size;
   } catch {
   }
-  if (stale) copyFileSync(vendored, runtime);
+  if (stale) {
+    try {
+      copyFileSync(vendored, runtime);
+    } catch (err) {
+      if (!existsSync3(runtime)) throw new Error(`tray: failed to copy helper to ${runtime}: ${err.message}`);
+    }
+  }
   if (process.platform !== "win32") {
     try {
       chmodSync(runtime, 493);
