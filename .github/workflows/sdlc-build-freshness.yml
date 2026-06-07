@@ -49,7 +49,12 @@ jobs:
           # --intent-to-add surfaces newly created bundles in `git diff` so the
           # exit-code check catches additions, not just edits and deletions.
           git add --intent-to-add dist
-          if ! git diff --exit-code -- dist; then
+          # Compare CONTENT only (-c core.fileMode=false). esbuild sets the exec bit
+          # on bundles whose entry source has a `#!` shebang, so a Linux build emits
+          # 100755 while a Windows-authored commit stores 100644 — a mode-only delta
+          # that's irrelevant (bundles run via `node dist/x.mjs`, never executed
+          # directly). Without this, every cross-platform commit trips the gate.
+          if ! git -c core.fileMode=false diff --exit-code -- dist; then
             echo "::error::plugins/sdlc-workflow/dist is out of date. Run 'npm run build' in plugins/sdlc-workflow and commit the result."
             exit 1
           fi
