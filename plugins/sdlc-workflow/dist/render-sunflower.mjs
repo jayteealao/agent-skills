@@ -2,13 +2,17 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  ensureHubLifecycle,
+  maybeConfigureTailscale,
+  readHubConfig
+} from "./chunk-MF4YU3FW.mjs";
+import {
   loadArtifact,
   loadHistory,
   md2html
 } from "./chunk-LNLILMTK.mjs";
 import {
   configHash,
-  deepMerge,
   loadConfigWithMeta
 } from "./chunk-TM4FS3NK.mjs";
 import {
@@ -17,7 +21,6 @@ import {
 } from "./chunk-EHRAXSYW.mjs";
 import {
   hubPidPath,
-  sdlcHomeDir,
   upsertRegistryEntry
 } from "./chunk-63DO25U3.mjs";
 import {
@@ -50,19 +53,19 @@ import "./chunk-SGA7NFMW.mjs";
 
 // scripts/render-sunflower.mjs
 import {
-  existsSync as existsSync4,
-  mkdirSync as mkdirSync2,
+  existsSync as existsSync3,
+  mkdirSync,
   readdirSync,
-  readFileSync as readFileSync5,
-  writeFileSync as writeFileSync2,
+  readFileSync as readFileSync3,
+  writeFileSync,
   statSync as statSync2,
-  rmSync as rmSync2,
+  rmSync,
   copyFileSync,
-  renameSync as renameSync2,
+  renameSync,
   appendFileSync
 } from "node:fs";
 import { spawn } from "node:child_process";
-import { dirname as dirname2, resolve, join as join4, relative, basename } from "node:path";
+import { dirname, resolve, join as join3, relative, basename } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 // renderers/_link-graph.mjs
@@ -231,157 +234,23 @@ function expand(html, ctx) {
 }
 
 // lib/serve-lifecycle.mjs
-import { readFileSync as readFileSync3 } from "node:fs";
+import { readFileSync as readFileSync2 } from "node:fs";
 import { request } from "node:http";
-import { join as join3 } from "node:path";
-
-// lib/tailscale.mjs
-import { spawnSync } from "node:child_process";
-function maybeConfigureTailscale({ tailscale = {}, port, log = () => {
-} } = {}) {
-  if (tailscale.enabled !== true) return;
-  const target = `http://127.0.0.1:${port}`;
-  const mode = tailscale.mode === "funnel" ? "funnel" : "serve";
-  if (mode === "funnel" && tailscale.acknowledgedPublic !== true) {
-    log("[tailscale] refused funnel without acknowledgedPublic:true");
-    return;
-  }
-  const args = [mode, "--bg"];
-  if (mode === "serve") {
-    if (tailscale.https === false) args.push("--http=80");
-    const path2 = tailscale.path || "/";
-    if (path2 !== "/") args.push(`--set-path=${path2}`);
-  }
-  args.push(target);
-  const result = spawnSync("tailscale", args, {
-    encoding: "utf-8",
-    windowsHide: true,
-    timeout: 1e4
-  });
-  if (result.error) {
-    log(`[tailscale] ${mode} unavailable: ${result.error.message}`);
-  } else if (result.status !== 0) {
-    log(`[tailscale] ${mode} failed: ${(result.stderr || result.stdout || "").trim()}`);
-  } else {
-    log(`[tailscale] ${mode} configured for ${target}`);
-  }
-}
-function tailscaleDnsName({ log = () => {
-} } = {}) {
-  try {
-    const result = spawnSync("tailscale", ["status", "--json"], {
-      encoding: "utf-8",
-      windowsHide: true,
-      timeout: 1e4
-    });
-    if (result.status !== 0 || !result.stdout) {
-      log(`[tailscale] could not read status for DNS name: ${(result.stderr || "").trim()}`);
-      return null;
-    }
-    const dns = JSON.parse(result.stdout)?.Self?.DNSName;
-    if (!dns) return null;
-    return String(dns).replace(/\.$/, "").toLowerCase() || null;
-  } catch (err) {
-    log(`[tailscale] DNS name lookup failed: ${err.message}`);
-    return null;
-  }
-}
-
-// lib/hub-config.mjs
-import { existsSync as existsSync3, mkdirSync, readFileSync as readFileSync2, writeFileSync, renameSync, rmSync } from "node:fs";
-import { dirname, join as join2 } from "node:path";
-var HUB_CONFIG_VERSION = 1;
-var HUB_CONFIG_DEFAULTS = Object.freeze({
-  version: HUB_CONFIG_VERSION,
-  host: "127.0.0.1",
-  // The canonical SDLC URL in both single-repo and hub modes (Q4 resolved). The
-  // per-repo daemon falls back to 4174 only when forced alongside a live hub.
-  port: 4173,
-  // Machine-wide authority over per-repo daemons. When false, ensureServeLifecycle
-  // reaps any running per-repo daemon and never spawns one — overriding even a
-  // repo's force `view.serve.enabled:true`. The hub serves every repo at /r/<id>/,
-  // so a per-repo daemon is pure redundancy whenever the hub runs, and the only
-  // thing that can squat the hub's port (a pre-hub daemon on 4173 = the inbox
-  // disappears behind one repo's dashboard). Default true preserves prior
-  // behaviour; set false to make the hub the sole server on this machine.
-  perRepoServe: true,
-  // Live-reload for the standalone per-repo fallback daemon (the hub always
-  // live-reloads). Machine-wide because serve settings are not per-repo.
-  liveReload: true,
-  maxSseClients: 200,
-  // aggregate across repos; client-side filtering scopes per-repo
-  maxWatchedRepos: 50,
-  // beyond this, poll instead of fs.watch
-  tailscale: {
-    enabled: false,
-    mode: "serve",
-    path: "/",
-    https: true,
-    // Security-decisive: a public binding exposes EVERY registered repo at once,
-    // so this acknowledgement is a one-time, per-machine gate — never a
-    // committable per-repo flag (§6.1).
-    acknowledgedPublic: false
-  }
-});
-function hubConfigPath() {
-  return join2(sdlcHomeDir(), "hub-config.json");
-}
-function migrate(raw) {
-  const merged = deepMerge(HUB_CONFIG_DEFAULTS, raw && typeof raw === "object" ? raw : {});
-  merged.version = HUB_CONFIG_VERSION;
-  return merged;
-}
-function writeAtomic(path2, obj) {
-  mkdirSync(dirname(path2), { recursive: true });
-  const tmp = `${path2}.${process.pid}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify(obj, null, 2)}
-`, "utf-8");
-  try {
-    renameSync(tmp, path2);
-  } catch (err) {
-    try {
-      rmSync(tmp, { force: true });
-    } catch {
-    }
-    throw err;
-  }
-}
-function readHubConfig({ create = true } = {}) {
-  const path2 = hubConfigPath();
-  if (!existsSync3(path2)) {
-    if (create) {
-      try {
-        writeAtomic(path2, HUB_CONFIG_DEFAULTS);
-      } catch {
-      }
-    }
-    return structuredClone(HUB_CONFIG_DEFAULTS);
-  }
-  try {
-    return migrate(JSON.parse(readFileSync2(path2, "utf-8")));
-  } catch {
-    return structuredClone(HUB_CONFIG_DEFAULTS);
-  }
-}
-function hubConfigHash(cfg) {
-  return configHash(cfg);
-}
-
-// lib/serve-lifecycle.mjs
+import { join as join2 } from "node:path";
 var PLUGIN_VERSION = (() => {
   try {
-    return JSON.parse(readFileSync3(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
+    return JSON.parse(readFileSync2(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
   } catch {
     return "";
   }
 })();
 function servePidPath(projectRoot) {
-  return join3(projectRoot, ".ai", "_view", ".serve.pid");
+  return join2(projectRoot, ".ai", "_view", ".serve.pid");
 }
 async function ensureServeLifecycle({
   projectRoot = process.cwd(),
   pluginRoot,
-  viewRoot = join3(projectRoot, ".ai", "_view"),
+  viewRoot = join2(projectRoot, ".ai", "_view"),
   configHash: configHash2 = "",
   log = () => {
   }
@@ -553,189 +422,8 @@ function displayHost(host) {
   return host === "0.0.0.0" ? "127.0.0.1" : host;
 }
 
-// lib/hub-lifecycle.mjs
-import { randomBytes } from "node:crypto";
-import { readFileSync as readFileSync4 } from "node:fs";
-import { request as request2 } from "node:http";
-var PLUGIN_VERSION2 = (() => {
-  try {
-    return JSON.parse(readFileSync4(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
-  } catch {
-    return "";
-  }
-})();
-async function ensureHubLifecycle({ pluginRoot, log = () => {
-} } = {}) {
-  const cfg = readHubConfig();
-  const host = cfg.host ?? "127.0.0.1";
-  const port = Number(cfg.port ?? 4173);
-  const pidPath = hubPidPath();
-  const status = await pidFileStatus(pidPath);
-  if (host === "0.0.0.0" && !(cfg.tailscale?.enabled === true && cfg.tailscale?.acknowledgedPublic === true)) {
-    log("[hub] refused host 0.0.0.0 without tailscale.enabled + acknowledgedPublic");
-    return { action: "refused-host" };
-  }
-  const id = await probeHubIdentity({ host, port, timeoutMs: status.alive ? 700 : 350 });
-  if (id) {
-    const tracked = status.alive && status.record?.pid === id.pid;
-    if (id.isHub && id.version === PLUGIN_VERSION2 && tracked) {
-      log(`[hub] already running at http://${displayHost2(host)}:${port}`);
-      maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
-      return { action: "already-running", pid: id.pid };
-    }
-    const why = !id.isHub ? "non-hub process on hub port" : id.version !== PLUGIN_VERSION2 ? `stale hub v${id.version || "?"} \u2192 v${PLUGIN_VERSION2}` : "untracked hub (orphaned pid file)";
-    if (id.pid) stopPid2(id.pid, log);
-    await removePidFile(pidPath);
-    await waitForGone({ host, port, timeoutMs: 2e3 });
-    log(`[hub] reaped ${why} (pid ${id.pid ?? "?"})`);
-  } else if (status.record) {
-    await removePidFile(pidPath);
-    log(`[hub] removed stale pid file for pid ${status.record?.pid}`);
-  }
-  const token = randomBytes(24).toString("hex");
-  const cfgHash = hubConfigHash(cfg);
-  const script = resolveEntrypoint(pluginRoot, "hub-serve");
-  const childArgs = [
-    "--host",
-    host,
-    "--port",
-    String(port),
-    "--pid-file",
-    pidPath,
-    "--config-hash",
-    cfgHash,
-    "--max-sse-clients",
-    String(cfg.maxSseClients ?? 200),
-    "--max-watched-repos",
-    String(cfg.maxWatchedRepos ?? 50)
-  ];
-  if (host === "0.0.0.0" && cfg.tailscale?.enabled === true) childArgs.push("--allow-all-hosts");
-  if (host !== "0.0.0.0" && cfg.tailscale?.enabled === true) {
-    const dns = tailscaleDnsName({ log });
-    if (dns) {
-      childArgs.push("--allowed-hosts", dns);
-      log(`[hub] allowlisting tailnet host ${dns}`);
-    }
-  }
-  const child = spawnDetachedNode(script, childArgs, {
-    cwd: sdlcHomeDir(),
-    // Token via env (not argv) so it isn't visible in process listings.
-    env: { ...process.env, SDLC_HUB_TOKEN: token }
-  });
-  if (child.pid) {
-    await writePidFile(pidPath, { pid: child.pid, host, port, token, configHash: cfgHash });
-  }
-  const healthy = await waitForHealth2({ host, port, timeoutMs: 2500 });
-  if (!healthy) {
-    log(`[hub] started pid ${child.pid}, health check not ready yet`);
-    return { action: "started-unconfirmed", pid: child.pid };
-  }
-  log(`[hub] started pid ${child.pid} at http://${displayHost2(host)}:${port}`);
-  maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
-  return { action: "started", pid: child.pid };
-}
-function stopPid2(pid, log) {
-  if (!isPidAlive(pid)) return;
-  try {
-    process.kill(pid, "SIGTERM");
-  } catch (err) {
-    log(`[hub] could not stop pid ${pid}: ${err.message}`);
-  }
-}
-function waitForHealth2({ host, port, timeoutMs }) {
-  const started = Date.now();
-  return new Promise((resolve2) => {
-    const tick = () => {
-      probeHealth2({ host, port, timeoutMs: 250 }).then((ok) => {
-        if (ok) return resolve2(true);
-        if (Date.now() - started >= timeoutMs) return resolve2(false);
-        setTimeout(tick, 120);
-      });
-    };
-    tick();
-  });
-}
-function probeHealth2({ host, port, timeoutMs }) {
-  const probeHost = host === "0.0.0.0" ? "127.0.0.1" : host;
-  return new Promise((resolve2) => {
-    const req = request2({
-      hostname: probeHost,
-      port,
-      path: "/__sdlc/health",
-      method: "GET",
-      timeout: timeoutMs
-    }, (res) => {
-      res.resume();
-      resolve2(res.statusCode === 200);
-    });
-    req.on("timeout", () => {
-      req.destroy();
-      resolve2(false);
-    });
-    req.on("error", () => resolve2(false));
-    req.end();
-  });
-}
-function probeHubIdentity({ host, port, timeoutMs }) {
-  const probeHost = host === "0.0.0.0" ? "127.0.0.1" : host;
-  return new Promise((resolve2) => {
-    const req = request2({
-      hostname: probeHost,
-      port,
-      path: "/__sdlc/health",
-      method: "GET",
-      timeout: timeoutMs
-    }, (res) => {
-      if (res.statusCode !== 200) {
-        res.resume();
-        resolve2(null);
-        return;
-      }
-      let buf = "";
-      res.setEncoding("utf-8");
-      res.on("data", (c) => {
-        if (buf.length < 65536) buf += c;
-      });
-      res.on("end", () => {
-        try {
-          const body = JSON.parse(buf);
-          resolve2({
-            pid: Number.isInteger(body.pid) ? body.pid : null,
-            version: typeof body.version === "string" ? body.version : "",
-            isHub: Array.isArray(body.entries)
-          });
-        } catch {
-          resolve2(null);
-        }
-      });
-    });
-    req.on("timeout", () => {
-      req.destroy();
-      resolve2(null);
-    });
-    req.on("error", () => resolve2(null));
-    req.end();
-  });
-}
-function waitForGone({ host, port, timeoutMs }) {
-  const started = Date.now();
-  return new Promise((resolve2) => {
-    const tick = () => {
-      probeHealth2({ host, port, timeoutMs: 200 }).then((up) => {
-        if (!up) return resolve2(true);
-        if (Date.now() - started >= timeoutMs) return resolve2(false);
-        setTimeout(tick, 120);
-      });
-    };
-    tick();
-  });
-}
-function displayHost2(host) {
-  return host === "0.0.0.0" ? "127.0.0.1" : host;
-}
-
 // scripts/render-sunflower.mjs
-var __dirname = dirname2(fileURLToPath(import.meta.url));
+var __dirname = dirname(fileURLToPath(import.meta.url));
 var PLUGIN_ROOT_DEFAULT = resolve(__dirname, "..");
 var RUNNING_FROM_DIST = basename(__dirname) === "dist";
 function parseArgs(argv) {
@@ -781,15 +469,15 @@ function parseArgs(argv) {
     else if (a === "--schema") args.schema = resolve(argv[++i]);
     else if (a === "--no-shared-output") args.sharedOutput = false;
   }
-  args.schema ??= join4(args.pluginRoot, "tests", "frontmatter.schema.json");
+  args.schema ??= join3(args.pluginRoot, "tests", "frontmatter.schema.json");
   return args;
 }
 function relativeAssetBase(fileAbs, viewRoot) {
-  const up = relative(dirname2(fileAbs), viewRoot);
+  const up = relative(dirname(fileAbs), viewRoot);
   return up ? `${up.replace(/\\/g, "/")}/_assets` : "_assets";
 }
 function* walkStorage(root) {
-  if (!existsSync4(root)) return;
+  if (!existsSync3(root)) return;
   const stack = [root];
   while (stack.length) {
     const dir = stack.pop();
@@ -800,7 +488,7 @@ function* walkStorage(root) {
       continue;
     }
     for (const e of entries) {
-      const abs = join4(dir, e.name);
+      const abs = join3(dir, e.name);
       if (e.isDirectory()) {
         if (e.name.startsWith(".") && e.name !== ".ai") continue;
         if (e.name === "node_modules") continue;
@@ -829,7 +517,7 @@ function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, 
       kind: "workflow"
     });
   }
-  if (existsSync4(simplifyRoot)) {
+  if (existsSync3(simplifyRoot)) {
     for (const abs of walkStorage(simplifyRoot)) {
       if (!abs.endsWith(".md")) continue;
       const rel = relative(simplifyRoot, abs).replace(/\\/g, "/");
@@ -841,7 +529,7 @@ function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, 
       });
     }
   }
-  if (existsSync4(profilesRoot)) {
+  if (existsSync3(profilesRoot)) {
     for (const abs of walkStorage(profilesRoot)) {
       if (!abs.endsWith(".md")) continue;
       const rel = relative(profilesRoot, abs).replace(/\\/g, "/");
@@ -853,14 +541,14 @@ function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, 
       });
     }
   }
-  if (depUpdatesRoot && existsSync4(depUpdatesRoot)) {
+  if (depUpdatesRoot && existsSync3(depUpdatesRoot)) {
     for (const abs of walkStorage(depUpdatesRoot)) {
       if (!abs.endsWith(".md")) continue;
       const rel = relative(depUpdatesRoot, abs).replace(/\\/g, "/");
       artifacts.push({ mdAbs: abs, slug: "__deps__", storageRel: rel, kind: "deps" });
     }
   }
-  if (ideationRoot && existsSync4(ideationRoot)) {
+  if (ideationRoot && existsSync3(ideationRoot)) {
     for (const abs of walkStorage(ideationRoot)) {
       if (!abs.endsWith(".md")) continue;
       const rel = relative(ideationRoot, abs).replace(/\\/g, "/");
@@ -875,7 +563,7 @@ function discoverArtifacts({ storageRoot, simplifyRoot, profilesRoot, docsRoot, 
 }
 function discoverDocsArtifacts({ docsRoot }) {
   const out = [];
-  if (!existsSync4(docsRoot)) return out;
+  if (!existsSync3(docsRoot)) return out;
   for (const abs of walkStorage(docsRoot)) {
     if (!abs.endsWith(".md")) continue;
     const rel = relative(docsRoot, abs).replace(/\\/g, "/");
@@ -897,8 +585,8 @@ function discoverProjectArtifacts({ projectRoot }) {
     { rel: ".ai/ship-plan.md", type: "ship-plan", title: "Ship plan", siblingRoot: projectRoot }
   ];
   for (const candidate of candidates) {
-    const mdAbs = join4(projectRoot, candidate.rel);
-    if (!existsSync4(mdAbs)) continue;
+    const mdAbs = join3(projectRoot, candidate.rel);
+    if (!existsSync3(mdAbs)) continue;
     out.push({
       mdAbs,
       slug: "__project__",
@@ -914,9 +602,9 @@ function discoverProjectArtifacts({ projectRoot }) {
 var rendererCache = /* @__PURE__ */ new Map();
 async function loadRenderer(type, pluginRoot) {
   if (rendererCache.has(type)) return rendererCache.get(type);
-  const rendererDir = RUNNING_FROM_DIST ? join4(pluginRoot, "dist", "renderers") : join4(pluginRoot, "renderers");
-  const path2 = join4(rendererDir, `${type}.mjs`);
-  if (!existsSync4(path2)) {
+  const rendererDir = RUNNING_FROM_DIST ? join3(pluginRoot, "dist", "renderers") : join3(pluginRoot, "renderers");
+  const path2 = join3(rendererDir, `${type}.mjs`);
+  if (!existsSync3(path2)) {
     rendererCache.set(type, null);
     return null;
   }
@@ -931,16 +619,16 @@ async function loadRenderer(type, pluginRoot) {
   }
 }
 function copyAssets(pluginRoot, viewRoot) {
-  const src = join4(pluginRoot, "assets");
-  const dst = join4(viewRoot, "_assets");
-  if (!existsSync4(src)) return;
+  const src = join3(pluginRoot, "assets");
+  const dst = join3(viewRoot, "_assets");
+  if (!existsSync3(src)) return;
   copyDirResilient(src, dst);
 }
 function copyDirResilient(srcDir, dstDir) {
-  mkdirSync2(dstDir, { recursive: true });
+  mkdirSync(dstDir, { recursive: true });
   for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
-    const s = join4(srcDir, entry.name);
-    const d = join4(dstDir, entry.name);
+    const s = join3(srcDir, entry.name);
+    const d = join3(dstDir, entry.name);
     if (entry.isDirectory()) {
       copyDirResilient(s, d);
     } else if (entry.isFile()) {
@@ -954,29 +642,29 @@ function copyDirResilient(srcDir, dstDir) {
   }
 }
 function assetUpToDate(src, dst) {
-  if (!existsSync4(dst)) return false;
+  if (!existsSync3(dst)) return false;
   try {
     if (statSync2(src).size !== statSync2(dst).size) return false;
-    return readFileSync5(src).equals(readFileSync5(dst));
+    return readFileSync3(src).equals(readFileSync3(dst));
   } catch {
     return false;
   }
 }
 function writeFileAtomic(absPath, content) {
   const tmp = `${absPath}.tmp`;
-  writeFileSync2(tmp, content, "utf-8");
+  writeFileSync(tmp, content, "utf-8");
   try {
-    renameSync2(tmp, absPath);
+    renameSync(tmp, absPath);
   } catch (err) {
     try {
-      rmSync2(tmp, { force: true });
+      rmSync(tmp, { force: true });
     } catch {
     }
     throw err;
   }
 }
 function* walkViewIndexes(dir) {
-  if (!existsSync4(dir)) return;
+  if (!existsSync3(dir)) return;
   const stack = [dir];
   while (stack.length) {
     const d = stack.pop();
@@ -987,7 +675,7 @@ function* walkViewIndexes(dir) {
       continue;
     }
     for (const e of entries) {
-      const abs = join4(d, e.name);
+      const abs = join3(d, e.name);
       if (e.isDirectory()) stack.push(abs);
       else if (e.isFile() && e.name === "INDEX.html") yield abs;
     }
@@ -1037,15 +725,15 @@ async function renderMain(args) {
   const configMeta = await loadConfigWithMeta(cwd);
   const config = configMeta.config;
   const liveReload = config.view?.serve?.enabled === true && config.view?.serve?.liveReload !== false;
-  mkdirSync2(viewRoot, { recursive: true });
+  mkdirSync(viewRoot, { recursive: true });
   if (args.mode === "clean") {
     for (const entry of readdirSync(viewRoot, { withFileTypes: true })) {
       if (entry.isDirectory() && entry.name !== "_assets") {
-        rmSync2(join4(viewRoot, entry.name), { recursive: true, force: true });
+        rmSync(join3(viewRoot, entry.name), { recursive: true, force: true });
       }
     }
     for (const f of ["INDEX.html", "INDEX.yaml", ".last-render"]) {
-      rmSync2(join4(viewRoot, f), { force: true });
+      rmSync(join3(viewRoot, f), { force: true });
     }
   }
   copyAssets(args.pluginRoot, viewRoot);
@@ -1066,9 +754,9 @@ async function renderMain(args) {
   const parsed = [];
   for (const a of artifacts) {
     const siblings = siblingPaths(a.storageRel);
-    const siblingRoot = a.kind === "workflow" ? join4(storageRoot, a.slug) : a.kind === "simplify" ? simplifyRoot : a.kind === "profile" ? profilesRoot : a.kind === "docs" ? a.siblingRoot : a.kind === "project" ? a.siblingRoot : a.kind === "deps" ? depUpdatesRoot : a.kind === "ideation" ? ideationRoot : null;
-    const yamlAbs = siblingRoot ? join4(siblingRoot, siblings.yaml) : null;
-    const fragmentAbs = siblingRoot ? join4(siblingRoot, siblings.fragment) : null;
+    const siblingRoot = a.kind === "workflow" ? join3(storageRoot, a.slug) : a.kind === "simplify" ? simplifyRoot : a.kind === "profile" ? profilesRoot : a.kind === "docs" ? a.siblingRoot : a.kind === "project" ? a.siblingRoot : a.kind === "deps" ? depUpdatesRoot : a.kind === "ideation" ? ideationRoot : null;
+    const yamlAbs = siblingRoot ? join3(siblingRoot, siblings.yaml) : null;
+    const fragmentAbs = siblingRoot ? join3(siblingRoot, siblings.fragment) : null;
     let loaded;
     try {
       loaded = loadArtifact(a.mdAbs, yamlAbs);
@@ -1079,11 +767,11 @@ async function renderMain(args) {
     if (a.kind === "project") {
       loaded.frontmatter = synthesizeProjectFrontmatter(a, loaded.frontmatter);
     }
-    let fragmentHtml = fragmentAbs && existsSync4(fragmentAbs) ? readFileSync5(fragmentAbs, "utf-8") : null;
+    let fragmentHtml = fragmentAbs && existsSync3(fragmentAbs) ? readFileSync3(fragmentAbs, "utf-8") : null;
     if (fragmentHtml) {
       try {
         fragmentHtml = expand(fragmentHtml, {
-          componentsRoot: join4(args.pluginRoot, "components"),
+          componentsRoot: join3(args.pluginRoot, "components"),
           maxDepth: 4
         });
       } catch (err) {
@@ -1107,7 +795,7 @@ async function renderMain(args) {
     const r = resolveViewPath(a.storageRel, { kind: a.kind });
     if (!r) continue;
     const viewRel = r.viewRel;
-    const viewAbs = a.kind === "workflow" ? join4(viewRoot, a.slug, viewRel) : join4(viewRoot, viewRel);
+    const viewAbs = a.kind === "workflow" ? join3(viewRoot, a.slug, viewRel) : join3(viewRoot, viewRel);
     if (viewAbsSeen.has(viewAbs)) {
       console.warn(`[render] path collision: ${a.slug}/${a.storageRel} and ${viewAbsSeen.get(viewAbs)} both map to ${viewRel} \u2014 keeping the first`);
       continue;
@@ -1148,8 +836,8 @@ async function renderMain(args) {
     const effectiveAssetBase = args.assetBase ?? relativeAssetBase(a.viewAbs, viewRoot);
     const ctx = {
       slug: displaySlug,
-      slugRoot: a.kind === "workflow" ? join4(storageRoot, a.slug) : null,
-      viewRoot: a.kind === "workflow" ? join4(viewRoot, a.slug) : viewRoot,
+      slugRoot: a.kind === "workflow" ? join3(storageRoot, a.slug) : null,
+      viewRoot: a.kind === "workflow" ? join3(viewRoot, a.slug) : viewRoot,
       assetBase: effectiveAssetBase,
       allArtifacts,
       pathMap: pathMaps.get(a.slug),
@@ -1187,19 +875,19 @@ async function renderMain(args) {
       headerHtml: result.headerHtml ?? "",
       bodyHtml: result.bodyHtml ?? "",
       warnBanner,
-      storageHref: relative(dirname2(a.viewAbs), a.mdAbs).replace(/\\/g, "/"),
+      storageHref: relative(dirname(a.viewAbs), a.mdAbs).replace(/\\/g, "/"),
       updatedAt: a.frontmatter?.["updated-at"] ?? "",
       liveReload
     });
     try {
-      mkdirSync2(dirname2(a.viewAbs), { recursive: true });
+      mkdirSync(dirname(a.viewAbs), { recursive: true });
       writeFileAtomic(a.viewAbs, html);
       renderedCount++;
       if (result.children?.length) {
         for (const child of result.children) {
           if (child.viewRel && child.html) {
-            const childAbs = join4(viewRoot, a.slug, child.viewRel);
-            mkdirSync2(dirname2(childAbs), { recursive: true });
+            const childAbs = join3(viewRoot, a.slug, child.viewRel);
+            mkdirSync(dirname(childAbs), { recursive: true });
             writeFileAtomic(childAbs, child.html);
             renderedCount++;
           }
@@ -1213,10 +901,10 @@ async function renderMain(args) {
     const touchedSlugs = new Set(workSet.filter((a) => a.kind === "workflow").map((a) => a.slug));
     for (const slug of touchedSlugs) {
       const expected = new Set((slugArtifacts.get(slug) ?? []).map((a) => a.viewAbs));
-      for (const abs of walkViewIndexes(join4(viewRoot, slug))) {
+      for (const abs of walkViewIndexes(join3(viewRoot, slug))) {
         if (!expected.has(abs)) {
           try {
-            rmSync2(abs, { force: true });
+            rmSync(abs, { force: true });
           } catch {
           }
         }
@@ -1240,7 +928,7 @@ async function renderMain(args) {
         }));
         const result = dashboardMod.render(
           { type: "dashboard", frontmatter: { title: "sdlc dashboard" }, body: "", siblingYaml: null, history: [], fragment: null, path: "__dashboard__" },
-          { slug: "", viewRoot, assetBase: args.assetBase ?? relativeAssetBase(join4(viewRoot, "INDEX.html"), viewRoot), allArtifacts: { __summary__: slugsSummary, __project__: projectSummary } }
+          { slug: "", viewRoot, assetBase: args.assetBase ?? relativeAssetBase(join3(viewRoot, "INDEX.html"), viewRoot), allArtifacts: { __summary__: slugsSummary, __project__: projectSummary } }
         );
         const html = renderShell({
           title: "sdlc \xB7 dashboard",
@@ -1248,13 +936,13 @@ async function renderMain(args) {
           slug: "",
           status: "",
           breadcrumbs: [{ label: "sdlc", href: "./" }],
-          assetBase: args.assetBase ?? relativeAssetBase(join4(viewRoot, "INDEX.html"), viewRoot),
+          assetBase: args.assetBase ?? relativeAssetBase(join3(viewRoot, "INDEX.html"), viewRoot),
           headerHtml: result.headerHtml ?? "",
           bodyHtml: result.bodyHtml ?? "",
           upHref: "./",
           liveReload
         });
-        writeFileAtomic(join4(viewRoot, "INDEX.html"), html);
+        writeFileAtomic(join3(viewRoot, "INDEX.html"), html);
         renderedCount++;
       } catch (err) {
         console.warn(`[dashboard] ${err.message}`);
@@ -1268,9 +956,9 @@ async function renderMain(args) {
         artifacts: (slugArtifacts.get(slug) ?? []).length
       }))
     };
-    writeFileAtomic(join4(viewRoot, "INDEX.yaml"), `# sdlc view manifest
+    writeFileAtomic(join3(viewRoot, "INDEX.yaml"), `# sdlc view manifest
 ${toYaml(manifest)}`);
-    writeFileAtomic(join4(viewRoot, ".last-render"), `${JSON.stringify({
+    writeFileAtomic(join3(viewRoot, ".last-render"), `${JSON.stringify({
       renderedAt: manifest.generatedAt,
       renderedCount,
       schemaWarnings,
@@ -1297,19 +985,19 @@ async function bootstrapMain(args) {
   const configMeta = await loadConfigWithMeta(cwd);
   const config = configMeta.config;
   const hash = configHash(config);
-  const logPath = join4(viewRoot, ".bootstrap.log");
-  mkdirSync2(viewRoot, { recursive: true });
+  const logPath = join3(viewRoot, ".bootstrap.log");
+  mkdirSync(viewRoot, { recursive: true });
   const log = (line) => logBootstrap(logPath, line);
   for (const warning of configMeta.warnings) log(`[config] ${warning}`);
   if (config.view?.bootstrap?.enabled === false) {
     log("[bootstrap] disabled by config");
     return;
   }
-  if (existsSync4(join4(viewRoot, ".render-suppress"))) {
+  if (existsSync3(join3(viewRoot, ".render-suppress"))) {
     log("[bootstrap] skipped: .render-suppress present");
     return;
   }
-  const pidPath = join4(viewRoot, ".bootstrap.pid");
+  const pidPath = join3(viewRoot, ".bootstrap.pid");
   const status = await pidFileStatus(pidPath);
   if (status.alive) {
     log(`[bootstrap] skipped: already running pid ${status.record.pid}`);
@@ -1342,7 +1030,7 @@ async function bootstrapMain(args) {
       const projectArtifacts = discoverProjectArtifacts({ projectRoot: cwd });
       if (projectArtifacts.length) {
         const latestProjectMtime = await latestMtimeMs(projectArtifactInputs(projectArtifacts));
-        const projectViewMtime = await latestTreeMtimeMs(join4(viewRoot, "project"));
+        const projectViewMtime = await latestTreeMtimeMs(join3(viewRoot, "project"));
         const projectState = classifyRenderState({
           latestArtifactMtime: latestProjectMtime,
           viewMtime: projectViewMtime,
@@ -1358,7 +1046,7 @@ async function bootstrapMain(args) {
     const docsArtifacts = discoverDocsArtifacts({ docsRoot });
     if (docsArtifacts.length) {
       const latestDocsMtime = await latestMtimeMs(artifactInputs(docsArtifacts));
-      const docsViewMtime = await latestTreeMtimeMs(join4(viewRoot, "docs"));
+      const docsViewMtime = await latestTreeMtimeMs(join3(viewRoot, "docs"));
       const docsState = classifyRenderState({
         latestArtifactMtime: latestDocsMtime,
         viewMtime: docsViewMtime,
@@ -1413,8 +1101,8 @@ function artifactInputs(artifacts) {
   for (const artifact of artifacts) {
     inputs.push(artifact.mdAbs);
     const siblings = siblingPaths(artifact.storageRel);
-    inputs.push(join4(artifact.siblingRoot, siblings.yaml));
-    inputs.push(join4(artifact.siblingRoot, siblings.fragment));
+    inputs.push(join3(artifact.siblingRoot, siblings.yaml));
+    inputs.push(join3(artifact.siblingRoot, siblings.fragment));
   }
   return inputs;
 }
@@ -1487,8 +1175,8 @@ function runRenderJob(job, { args, cwd, log, sharedOutput = true }) {
 function logBootstrap(logPath, line) {
   const entry = `[${(/* @__PURE__ */ new Date()).toISOString()}] ${line}`;
   try {
-    if (existsSync4(logPath) && statSync2(logPath).size > 1024 * 1024) {
-      renameSync2(logPath, `${logPath}.1`);
+    if (existsSync3(logPath) && statSync2(logPath).size > 1024 * 1024) {
+      renameSync(logPath, `${logPath}.1`);
     }
   } catch {
   }

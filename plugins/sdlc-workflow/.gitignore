@@ -9,3 +9,11 @@ node_modules/
 # Never ignore the committed bundles, even if an ancestor .gitignore later adds dist/.
 !dist/
 !dist/**
+
+# The tray app (TRAY-APP-PLAN.md) ships fully self-contained: the systray2 Go
+# helper binaries and the rasterized sunflower icons are COMMITTED so the tray
+# runs on a fresh clone with zero `npm install`. Explicit allow-rules keep them
+# tracked despite any broad ancestor ignore.
+!bin/
+!bin/**
+!assets/app-icon*

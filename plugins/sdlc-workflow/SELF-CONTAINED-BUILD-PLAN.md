@@ -54,7 +54,7 @@ are interop-wrapped automatically.)
 | `scripts/render-sunflower.mjs` | spawned (bootstrap + render jobs) | `dist/render-sunflower.mjs` |
 | `scripts/hub-serve.mjs` | spawned by hub-lifecycle | `dist/hub-serve.mjs` |
 | `scripts/render-sunflower-serve.mjs` | spawned by serve-lifecycle | `dist/render-sunflower-serve.mjs` |
-| `scripts/tray.mjs` (later) | user `npm run tray` | `dist/tray.cjs` |
+| `scripts/tray.mjs` | user `npm run tray` | `dist/tray.mjs` (ESM, landed v9.46.0) |
 
 `hooks/render-on-artifact-write.mjs` is **live, not legacy** (reconciled 2026-06-07 —
 the original "not wired — possibly legacy" guess was stale). `hooks/post-write-render.mjs`
@@ -141,5 +141,5 @@ the drifted line numbers. Also noted: `package.json` version (`9.40.0`) trails `
 - [ ] **P1 — Resolver + re-point:** `lib/entrypoint.mjs`; update the 4 cross-spawn sites; point `hooks.json` at `dist/`. Verify self-spawns. Smoke-test a fresh-clone run with `node_modules` absent.
 - [ ] **P2 — Freshness:** CI workflow (build + diff + smoke) and the pre-commit hook.
 - [ ] **P3 — Deps + docs:** move runtime deps → devDeps; rewrite `sunflower-view.md` (drop "npm install once"); CHANGELOG; version bump — reconcile the `package.json` (9.40.0) ↔ `plugin.json` (9.44.1) skew while bumping.
-- [ ] **P4 — Tray:** add `scripts/tray.mjs` as a `dist/` entrypoint per [TRAY-APP-PLAN.md](TRAY-APP-PLAN.md) — now just one more entry in the same build, plus the vendored binaries + icons.
+- [x] **P4 — Tray:** ✅ LANDED v9.46.0 — `scripts/tray.mjs` added to `SCRIPT_ENTRIES` → `dist/tray.mjs` (one more entry in the same build), plus vendored binaries (`bin/tray/`) + icons (`assets/app-icon*`). See [TRAY-APP-PLAN.md](TRAY-APP-PLAN.md) (the tray drives the helper via `lib/tray-protocol.mjs`, so no systray2 JS enters the bundle).
 ```
