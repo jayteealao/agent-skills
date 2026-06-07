@@ -193,6 +193,49 @@ traversal, has no directory listings, exposes `/__sdlc/health` with
 `status: "ok"`, and streams `reload` SSE events from `/__sdlc/events`. Host
 `0.0.0.0` is refused unless Tailscale integration is explicitly enabled.
 
+## System-tray app
+
+A user-launched system-tray (notification-area) app puts a sunflower icon in your
+tray that controls the hub — no admin, no service, fully self-contained (it ships
+with its committed helper binaries and icons, so it needs **no `npm install`**):
+
+```sh
+npm run tray            # or:  node dist/tray.mjs
+.\scripts\tray.ps1      # Windows launcher
+```
+
+The icon reflects hub state at a glance — full colour when healthy, grey when the
+hub is down, amber when a stale-version hub is running — and the tooltip shows a
+one-line summary (`SDLC hub v9.46.0 · 3 repos · up 2h14m · 248 req`). The menu:
+
+| Item | Does |
+|---|---|
+| **● status** (top) | Health summary (`healthy` / `hub down — start it?` / `stale → restart`) |
+| Open dashboard | Opens `http://127.0.0.1:4173/` |
+| Refresh registry | Re-scans all repos (`POST /__sdlc/registry/refresh`) |
+| Health ▸ | Version, pid, uptime, requests, SSE clients, RSS, config hash |
+| ↳ per-repo rows | One per registered repo → opens `/r/<id>/` |
+| Restart / Stop hub | `stopHub()` → `ensureHubLifecycle()` / `stopHub()` |
+| Open hub config… / logs… | Opens `~/.sdlc/hub-config.json` / the bootstrap log |
+| Per-repo serve ✓ | Toggles `hub-config.perRepoServe` (next session) |
+| Start at login ✓ | Opt-in logon autostart (see below) |
+| Quit | Exits the tray; the hub keeps running |
+
+It polls health every ~5s and re-renders only when something changes. Launched by
+*you* (not Claude), so it resolves all paths from its own location and copies the
+helper binary to `~/.sdlc/bin/` before running (the plugin dir may be read-only).
+
+### Start at login (opt-in autostart)
+
+Off by default. Toggling **Start at login ✓** writes a per-user launcher to your
+OS autostart location (Windows Startup folder, macOS LaunchAgents, Linux XDG
+autostart) — file presence *is* the on/off state, no admin needed. When the tray
+starts with autostart enabled it also ensures the hub is up (so the hub comes up at
+logon, before any Claude session); this is safe because `ensureHubLifecycle` is
+idempotent and simply adopts an already-running hub. The launcher embeds absolute
+paths captured at enable-time and self-heals if a plugin upgrade relocates the
+bundle. Turn it off from the same menu item before uninstalling the plugin.
+
 ## Auto-render hook
 
 The PostToolUse hook fires after `Write|Edit|MultiEdit|NotebookEdit`. It

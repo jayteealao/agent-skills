@@ -60,6 +60,7 @@ const SCRIPT_ENTRIES = [
   'render-sunflower',        // spawned: bootstrap + incremental render jobs
   'hub-serve',               // spawned by lib/hub-lifecycle
   'render-sunflower-serve',  // spawned by lib/serve-lifecycle
+  'tray',                    // user-launched system-tray app (TRAY-APP-PLAN.md)
 ];
 
 // Public renderers are loaded at runtime by render-sunflower's loadRenderer()

@@ -1,6 +1,6 @@
 {
   "name": "@sdlc-workflow/sunflower-view",
-  "version": "9.45.0",
+  "version": "9.46.0",
   "private": true,
   "type": "module",
   "description": "Sunflower view layer for the sdlc-workflow plugin — HTML projection of .ai/workflows/ artifacts.",
@@ -9,11 +9,13 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:icon": "node scripts/build-icon.mjs",
     "hooks:install": "git config core.hooksPath .githooks",
     "render": "node scripts/render-sunflower.mjs",
     "render:clean": "node scripts/render-sunflower.mjs --clean",
     "verify": "node scripts/verify-router-migration.mjs",
-    "test": "node --test tests/sunflower.test.mjs tests/unit/lib/foundation.test.mjs tests/unit/lib/multi-repo-hub.test.mjs tests/unit/hooks/hooks.test.mjs tests/unit/gap-closure/design-phase1.test.mjs tests/unit/gap-closure/renderers-phase2.test.mjs tests/unit/gap-closure/walker-phase3.test.mjs tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
+    "tray": "node dist/tray.mjs",
+    "test": "node --test tests/sunflower.test.mjs tests/unit/lib/foundation.test.mjs tests/unit/lib/multi-repo-hub.test.mjs tests/unit/lib/tray-format.test.mjs tests/unit/lib/tray-actions.test.mjs tests/unit/lib/tray-autostart.test.mjs tests/unit/hooks/hooks.test.mjs tests/unit/gap-closure/design-phase1.test.mjs tests/unit/gap-closure/renderers-phase2.test.mjs tests/unit/gap-closure/walker-phase3.test.mjs tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
     "test:snapshots": "node --test tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
     "test:update": "node scripts/update-snapshots.mjs",
     "test:e2e": "node tests/e2e/acceptance.mjs",
@@ -22,7 +24,7 @@
     "hub:stop": "node -e \"import('./lib/hub-lifecycle.mjs').then(m=>m.stopHub({log:console.log}))\""
   },
   "comment:dependencies": "Runtime deps are EMPTY by design — every Claude-invoked entrypoint ships pre-bundled under dist/ (npm run build, esbuild). A fresh install needs no runtime `npm install`. The libs below are devDependencies: bundled into dist/ and imported by tests, never installed at a user's runtime. See SELF-CONTAINED-BUILD-PLAN.md.",
-  "dependencies": {},
+  "comment:tray": "The tray app ships self-contained: bin/tray/* (systray2 Go helpers) and assets/app-icon* are COMMITTED, and scripts/tray.mjs speaks the helper protocol directly via lib/tray-protocol.mjs (no systray2 JS dep). Regenerating those committed artifacts is a rare one-off needing ad-hoc dev tools, intentionally NOT in devDependencies (keeps `npm ci`/CI lean + vuln-free): icons → `npm i -D sharp to-ico && npm run build:icon`; binaries → `npm i -D systray2 && cp node_modules/systray2/traybin/* bin/tray/`. See TRAY-APP-PLAN.md.",
   "devDependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",

@@ -89,6 +89,18 @@ export function readHubConfig({ create = true } = {}) {
   }
 }
 
+/**
+ * Persist the machine-wide hub config (atomic temp-file + rename, mirroring
+ * readHubConfig). Stamps the current version so a written config is always
+ * migration-current. Used by the tray's `togglePerRepoServe`. Never partially
+ * writes — a crash mid-write leaves the prior file intact.
+ */
+export function writeHubConfig(cfg) {
+  const next = { ...(cfg && typeof cfg === 'object' ? cfg : {}), version: HUB_CONFIG_VERSION };
+  writeAtomic(hubConfigPath(), next);
+  return next;
+}
+
 /** Stable hash of the effective hub config (stored in hub.pid for drift detection). */
 export function hubConfigHash(cfg) {
   return configHash(cfg);
