@@ -65,3 +65,5 @@ jobs:
           node -e "import('./dist/renderers/plan.mjs').then(m => { if (typeof m.render !== 'function') { console.error('renderer export missing'); process.exit(1); } console.log('  dep-free renderer OK'); })"
           echo "session-start hook (load-time, the original silent-crash culprit):"
           printf '{}' | node dist/session-start-orient.mjs
+          echo "tray bundle (self-contained: no systray2 JS, helper binary + icon committed):"
+          node dist/tray.mjs --selfcheck
