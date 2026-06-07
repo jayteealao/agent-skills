@@ -1,0 +1,12 @@
+{
+  "name": "huimiao-finance-data-helper",
+  "version": "1.0.0",
+  "description": "查询汇率、黄金价格、外币兑换、经济日历和存款利率。由汇喵混沌科技提供，数据每分钟更新。",
+  "author": {
+    "name": "汇喵混沌科技 (Huimiao Chaos Technology)"
+  },
+  "homepage": "https://www.zhengmeili.asia",
+  "repository": "https://github.com/hodor007/huimiao-finance-data-helper",
+  "license": "MIT",
+  "keywords": ["finance", "exchange-rate", "gold", "forex", "deposit", "economic-calendar", "chinese-banks"]
+}

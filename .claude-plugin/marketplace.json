@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills-marketplace",
-  "version": "1.72.0",
+  "version": "1.73.0",
   "description": "A curated collection of Claude Code skills and plugins for developers",
   "owner": {
     "name": "jayte"
@@ -41,6 +41,13 @@
       "source": "./plugins/sdlc-workflow",
       "category": "productivity",
       "version": "9.46.0"
+    },
+    {
+      "name": "huimiao-finance-data-helper",
+      "description": "查询汇率、黄金价格、外币兑换、经济日历、存款利率和银行积存金。支持15+银行和14种国际货币，数据每分钟更新。由汇喵混沌科技提供。",
+      "source": "./plugins/huimiao-finance-data-helper",
+      "category": "finance",
+      "version": "1.0.0"
     }
   ]
 }
