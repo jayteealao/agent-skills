@@ -13,6 +13,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
 import { spawnDetachedNode } from '../lib/detach.mjs';
+import { resolveEntrypoint } from '../lib/entrypoint.mjs';
 import { logError } from '../lib/error-log.mjs';
 import {
   currentGitBranch,
@@ -49,7 +50,7 @@ function startBootstrap(projectRoot, config) {
   if (config.view?.bootstrap?.enabled === false) return;
   try {
     spawnDetachedNode(
-      resolve(PLUGIN_ROOT, 'scripts', 'render-sunflower.mjs'),
+      resolveEntrypoint(PLUGIN_ROOT, 'render-sunflower'),
       ['--bootstrap', '--plugin-root', PLUGIN_ROOT],
       { cwd: projectRoot, env: process.env },
     );

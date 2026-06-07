@@ -21,6 +21,7 @@ import { spawn } from 'node:child_process';
 import { dirname, resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnDetachedNode } from '../lib/detach.mjs';
+import { resolveEntrypoint } from '../lib/entrypoint.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -145,7 +146,7 @@ async function debounceStage2() {
 
   const buckets = bucketCsv ? bucketCsv.split(',').filter(Boolean) : [];
 
-  const renderArgs = [join(PLUGIN_ROOT, 'scripts', 'render-sunflower.mjs')];
+  const renderArgs = [resolveEntrypoint(PLUGIN_ROOT, 'render-sunflower')];
   if (buckets.length === 1) {
     renderArgs.push('--only', `${buckets[0]}/**`);
   }

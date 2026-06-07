@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start-orient.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/session-start-orient.mjs\"",
             "timeout": 30
           }
         ]
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-validate.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/pre-write-validate.mjs\"",
             "timeout": 5
           }
         ]
@@ -30,17 +30,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/post-write-auto-stage.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/post-write-auto-stage.mjs\"",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/post-write-verify.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/post-write-verify.mjs\"",
             "timeout": 15
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/post-write-render.mjs\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/dist/post-write-render.mjs\"",
             "timeout": 30
           }
         ]

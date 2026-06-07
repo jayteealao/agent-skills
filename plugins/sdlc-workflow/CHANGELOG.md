@@ -7,20 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed — no Windows console flash on per-write rendering (9.44.1)
+### Changed — self-contained build: retire the runtime `npm install` (9.45.0)
 
-The PostToolUse render hook flashed a terminal window on every artifact write on Windows.
+A fresh marketplace install now runs with **zero manual steps and zero runtime
+`node_modules`**. Every Claude-invoked entrypoint is esbuild-bundled (deps
+inlined) into committed `dist/*.mjs`; the only `npm install` left is a
+maintainer concern (building + tests). See `SELF-CONTAINED-BUILD-PLAN.md`.
 
-- **Root cause.** `hooks/render-on-artifact-write.mjs` was the only spawn site that bypassed the
-  shared `lib/detach.mjs` chokepoint and hand-rolled `spawn`. Its detached debounce child was
-  created without `windowsHide: true`, so Windows allocated a *visible* console (`conhost.exe`)
-  for the console-subsystem `node.exe` — a flash on each write to a workflow slug, docs index, or
-  `PRODUCT`/`DESIGN`/`ship-plan` file.
-- **Fix.** The debounce child now routes through `spawnDetachedNode` (which already supplies
-  `detached` / `stdio:'ignore'` / `.unref()` / `windowsHide:true`), and the stage-2 renderer
-  child gets `windowsHide:true` directly — needed because once stage-2 runs console-less, the
-  renderer would otherwise inherit the new window. Behavior is otherwise unchanged: rendering
-  stays detached, debounced, and off the critical path. All 18 hook unit tests green.
+- **Root cause it fixes.** The third-party deps (`markdown-it`, `js-yaml`,
+  `ajv`/`ajv-formats`) reached users **only** via an undocumented manual
+  `npm install` in the plugin dir. The **SessionStart hook** imports `loadConfig`
+  → `lib/config.mjs`'s **top-level** `import 'ajv-formats'`, which throws at
+  module-load (before any try/catch) on a fresh install — a silent hard-crash
+  (Claude tolerates hook failures), so no orientation and no auto-render. It only
+  "worked" on dev machines where `node_modules` was installed once.
+- **Build (`scripts/build.mjs`, `npm run build`).** One esbuild call, many
+  entrypoints → `dist/` at **depth-1** (`--format=esm --platform=node
+  --target=node20`). The depth-1 invariant is load-bearing: bundled `lib/` code
+  reads plugin-root files via `resolve(__dirname, '..', …)`, so emitting one
+  level under the root preserves identical `..` semantics — **including shared
+  chunks**, which are emitted flat in `dist/` (not a `chunks/` subdir) so a
+  hoisted `lib/config.mjs` still resolves `../schemas` to the real plugin root.
+- **Non-JS `lib/` assets are mirrored into `dist/`.** `build.mjs` copies every
+  non-`.mjs` file in `lib/` beside the bundles, so a bundled lib module that
+  resolves a runtime asset relative to its own location finds it at depth-1. The
+  first such asset is `detach.mjs`'s `launch-hidden.vbs` (see the detached-spawn
+  fix below) — the build carries it so the bundled path resolves.
+- **Renderers are entrypoints + code-splitting.** `render-sunflower` loads
+  renderers via a computed-path dynamic `import()` — the renderers (not the
+  engine) are the `markdown-it`/`js-yaml` consumers. Bundling the engine alone
+  would leave them loading from source and crashing on missing deps in prod. So
+  all ~71 public renderers are their own entrypoints under `dist/renderers/`,
+  and code-splitting inlines `markdown-it`/`ajv`/the shared `_*` helpers **once**
+  into flat shared chunks (≈980 KiB total, not 71× duplicated).
+- **Resolution (`lib/entrypoint.mjs`).** `resolveEntrypoint(pluginRoot, name)`
+  returns `dist/<name>.mjs` when built, else `scripts/<name>.mjs` — used by the 4
+  cross-spawn sites (`session-start-orient`, `render-on-artifact-write`,
+  `hub-lifecycle`, `serve-lifecycle`). `loadRenderer` keys off the engine's own
+  location (`RUNNING_FROM_DIST`): a dist engine loads dist renderers, a
+  source-spawned engine (e2e/tests/dev) loads source renderers — no env flag, no
+  stale-bundle footgun. `hooks/hooks.json` points directly at `dist/`.
+- **Freshness (both gates).** CI (`.github/workflows/sdlc-build-freshness.yml`):
+  `npm ci` → `npm run build` → `git diff --exit-code dist/`, then a **dep-free
+  smoke** (`rm -rf node_modules`; run the engine, a renderer, and the
+  session-start hook) proving the committed bundles need no deps. Build output is
+  deterministic (verified byte-identical across runs; LF pinned via the existing
+  `.gitattributes`, esbuild pinned via the lockfile). Opt-in pre-commit hook
+  (`.githooks/pre-commit`, `npm run hooks:install`) rebuilds + stages `dist/`
+  when build inputs change.
+- **Deps.** `markdown-it`, `markdown-it-anchor`, `js-yaml`, `ajv`, `ajv-formats`
+  moved `dependencies` → `devDependencies`; `esbuild` added; runtime
+  `dependencies` is now **empty**. `package.json` version reconciled from the
+  stale `9.40.0` to `9.45.0` (matching `plugin.json`).
+
+### Fixed — Windows console flash on every detached spawn (9.45.0)
+
+Every detached spawn (per-write render, SessionStart bootstrap, serve + hub daemons) flashed a
+terminal window on Windows. **This supersedes the incomplete 9.44.1 attempt**, which added
+`windowsHide: true` to the detached spawns — but `windowsHide` is silently *ignored* when
+`detached: true` (nodejs/node#21825), so the flash persisted.
+
+- **Root cause.** With `detached: true`, libuv sets `DETACHED_PROCESS`; the console-subsystem
+  `node.exe` then implicitly allocates a *visible* console at startup, which `windowsHide`
+  (`CREATE_NO_WINDOW`) cannot suppress in that combination. Survival, however, *requires*
+  `detached` — a non-detached child is killed by the parent's process-group signal (verified).
+  So the two requirements (no window, survives) appeared mutually exclusive.
+- **Fix — `lib/launch-hidden.vbs` + a Windows branch in `lib/detach.mjs`.** On Windows the helper
+  now launches through `wscript.exe`, a **GUI-subsystem** host that never allocates a console (so
+  no flash regardless of `detached`), spawned with `detached: true` so the real process lands in a
+  new process group and survives. The `.vbs` runs the command with hidden window style
+  (`WshShell.Run cmd, 0, False`); `cwd`/`env` are inherited through. POSIX is unchanged. Fails open:
+  if WSH is unavailable it reverts to the legacy detached spawn (flashes, but works).
+- **Build-safe path.** The `.vbs` is resolved as `../lib/launch-hidden.vbs` so it survives esbuild
+  bundling into `dist/` (depth-1): `lib/` (source) and `dist/` (bundled) both sit one level under
+  the plugin root. Verified against the bundled chunk: wscript branch taken, child survives, full
+  227-test suite green.
 
 ### Added — sunflower: sync-report renderer, mobile dual-DOM completion, verified visual tuning (9.44.0)
 

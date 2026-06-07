@@ -31,20 +31,35 @@ start launches a detached bootstrap pass for missing/stale active workflows.
 
 ## Quick start
 
-```sh
-# Install dependencies once
-cd plugins/sdlc-workflow
-npm install
+The plugin ships **self-contained**: every Claude-invoked entrypoint is
+pre-bundled with its dependencies inlined under `dist/`, so a fresh install runs
+with **no runtime `npm install`**. The PostToolUse/SessionStart hooks and the
+auto-render already point at `dist/`. To render manually, run the committed
+bundle — no install needed:
 
-# Render the view tree
-node scripts/render-sunflower.mjs
+```sh
+cd plugins/sdlc-workflow
+
+# Render the view tree (runs the committed, dependency-free bundle)
+node dist/render-sunflower.mjs
 
 # Bootstrap missing/stale active workflow views
-node scripts/render-sunflower.mjs --bootstrap --dry-run
-node scripts/render-sunflower.mjs --bootstrap
+node dist/render-sunflower.mjs --bootstrap --dry-run
+node dist/render-sunflower.mjs --bootstrap
 
 # Serve locally (normally started by bootstrap when enabled in config)
-node scripts/render-sunflower-serve.mjs --view .ai/_view --host 127.0.0.1 --port 4173
+node dist/render-sunflower-serve.mjs --view .ai/_view --host 127.0.0.1 --port 4173
+```
+
+**Maintainers** editing the plugin install the dev toolchain (esbuild + the
+bundled libs) and rebuild `dist/` from source. The committed bundles are
+verified fresh by CI (`.github/workflows/sdlc-build-freshness.yml`):
+
+```sh
+npm install            # dev toolchain only — never needed at a user's runtime
+npm run build          # rebuild dist/ from scripts|hooks|lib|renderers|components
+npm test               # run the suite against source
+npm run hooks:install  # optional: auto-rebuild+stage dist/ on each commit
 ```
 
 Then visit `http://127.0.0.1:4173/sdlc/` for the dashboard, or any artifact at
@@ -241,7 +256,7 @@ changes everywhere; for incremental work, the version cache-bust query string
 | Symptom | Likely cause |
 |---|---|
 | Page renders without styles | View tree served at a path other than `/sdlc` — pass `--path /your-path` to the serve wrapper, or override `--asset-base` on the renderer. |
-| `module 'ajv' not found` | `npm install` in `plugins/sdlc-workflow/`. |
+| `Cannot find package 'ajv'` (or `markdown-it`/`js-yaml`) | You're running a **source** script (`scripts/…`) without the dev toolchain. Run the committed bundle instead (`node dist/…` — deps inlined), or, if developing, `npm install` then `npm run build`. End users never hit this — the hooks run from `dist/`. |
 | Hook fires but view stays stale | Check `.ai/_view/.render-errors.log`. Or `.render-suppress` is set. |
 | Session start does not refresh the view | Check `.ai/_view/.bootstrap.log` and `.ai/_view/.bootstrap.pid`. Run `node scripts/render-sunflower.mjs --bootstrap --dry-run` for the planned jobs. |
 | Local server does not start | Check `.ai/_view/.serve.pid`, `view.serve.enabled`, and `/__sdlc/health`. Host `0.0.0.0` requires Tailscale config. |

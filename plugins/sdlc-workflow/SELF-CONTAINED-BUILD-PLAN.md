@@ -1,6 +1,6 @@
 # SELF-CONTAINED-BUILD-PLAN — Retire the runtime `npm install`
 
-Status: **planning** · scope locked via Q&A 2026-06-01 · target plugin v9.37.x+
+Status: **planning — 0% landed as of v9.44.1** · scope locked 2026-06-01 · reconciled 2026-06-07 · target plugin v9.45.x+
 
 Ship the plugin so a **fresh marketplace install runs with zero manual steps and
 zero runtime `node_modules`**. esbuild-bundle every Claude-invoked entrypoint into
@@ -47,7 +47,6 @@ are interop-wrapped automatically.)
 | Source | Invoked by | Bundle target |
 |---|---|---|
 | `hooks/session-start-orient.mjs` | hooks.json SessionStart | `dist/session-start-orient.mjs` |
-| `hooks/pre-compact-preserve.mjs` | hooks.json PreCompact | `dist/…` |
 | `hooks/pre-write-validate.mjs` | hooks.json PreToolUse | `dist/…` |
 | `hooks/post-write-auto-stage.mjs` | hooks.json PostToolUse | `dist/…` |
 | `hooks/post-write-verify.mjs` | hooks.json PostToolUse | `dist/…` |
@@ -57,8 +56,11 @@ are interop-wrapped automatically.)
 | `scripts/render-sunflower-serve.mjs` | spawned by serve-lifecycle | `dist/render-sunflower-serve.mjs` |
 | `scripts/tray.mjs` (later) | user `npm run tray` | `dist/tray.cjs` |
 
-Check whether `hooks/render-on-artifact-write.mjs` is still reachable (it is **not**
-wired in `hooks.json` — possibly legacy). If used, bundle it too; if dead, retire it.
+`hooks/render-on-artifact-write.mjs` is **live, not legacy** (reconciled 2026-06-07 —
+the original "not wired — possibly legacy" guess was stale). `hooks/post-write-render.mjs`
+is the wired PostToolUse entry and is a one-line shim: `import './render-on-artifact-write.mjs';`.
+So esbuild **inlines** render-on-artifact-write into `dist/post-write-render.mjs`; it gets
+**no `dist/` entry of its own** and **must not be retired**.
 
 **Not bundled** (stay as on-disk files, read via `fs` at depth-1-correct paths):
 `schemas/*.json`, `assets/*` (copied into the view at render time), `tests/*`.
@@ -68,15 +70,21 @@ as source `.mjs` requiring dev `node_modules` — they're never end-user entrypo
 ## Re-pointing the call sites
 
 Self-spawns auto-correct when bundled (they spawn `import.meta.url`/`__filename`,
-which becomes the bundle): `scripts/render-sunflower.mjs:907`,
-`hooks/render-on-artifact-write.mjs:116`. **No change.**
+which becomes the bundle): `scripts/render-sunflower.mjs:933`,
+`hooks/render-on-artifact-write.mjs:119`. **No change** — with one nuance: because
+render-on-artifact-write is inlined into `dist/post-write-render.mjs` (above), its
+`__filename` self-spawn re-enters that bundle as `node dist/post-write-render.mjs
+--debounce-stage2 …`. That routes correctly because the `--debounce-stage2` argv branch
+is top-level module code (inlined, runs on re-entry) and its
+`PLUGIN_ROOT = resolve(__dirname, '..')` still lands on the plugin root from `dist/`
+(the depth-1 invariant). ✓
 
 Cross-spawns hardcode `scripts/<name>.mjs` and need a resolver:
 
-- `hooks/session-start-orient.mjs:52` → render-sunflower
-- `hooks/render-on-artifact-write.mjs:144` → render-sunflower
-- `lib/hub-lifecycle.mjs:80` → hub-serve
-- `lib/serve-lifecycle.mjs:99` → render-sunflower-serve
+- `hooks/session-start-orient.mjs:52` → render-sunflower ✓ (line exact)
+- `hooks/render-on-artifact-write.mjs:148` → render-sunflower (was :144; now inlined into `dist/post-write-render.mjs`, so this resolver call lives in that bundle)
+- `lib/hub-lifecycle.mjs:80` → hub-serve ✓ (line exact)
+- `lib/serve-lifecycle.mjs:99` → render-sunflower-serve ✓ (line exact)
 
 Add `lib/entrypoint.mjs` → `resolveEntrypoint(pluginRoot, name)`: return
 `dist/<name>.mjs` if it exists, else fall back to `scripts/<name>.mjs`. This gives
@@ -111,11 +119,27 @@ becomes **empty**. Add `"build": "node scripts/build.mjs"` (multi-entry esbuild)
 4. **Stale `dist/`** — the dual enforcement (CI + pre-commit) covers forgetful commits.
 5. **`hooks.json` → `dist/`** means a broken build breaks hooks; the CI gate prevents shipping one.
 
+## Reconciliation snapshot (2026-06-07, repo at plugin v9.44.1)
+
+Verified against the live tree — **none of P0–P4 has landed**; the plan is fully pending
+and unaffected by intervening releases:
+
+- **P0** — no `dist/`, no `scripts/build.mjs`, no `build` script, `.gitignore` ignores only `node_modules/`.
+- **P1** — no `lib/entrypoint.mjs`; `hooks.json` still points at `hooks/*.mjs` (0 `dist/` refs); all 4 cross-spawn sites still hardcode `scripts/`.
+- **P2** — only CI workflow is `verify-router-migration.yml`; no build→diff→smoke gate; no pre-commit hook.
+- **P3** — all 5 deps still in `dependencies`; `devDependencies` empty (no `esbuild`); docs unchanged.
+- **P4** — tray not started.
+
+Corrections folded in above: dropped the `pre-compact-preserve` entry (hook deleted v9.41.0);
+reclassified `render-on-artifact-write` as a live transitive import (not legacy); refreshed
+the drifted line numbers. Also noted: `package.json` version (`9.40.0`) trails `plugin.json`
+(`9.44.1`) — fix during P3's bump.
+
 ## Phased checklist
 
 - [ ] **P0 — Build infra:** `scripts/build.mjs` (multi-entry esbuild → `dist/`); `npm run build`; `.gitignore` allow-rule for `dist/*.mjs`; commit first bundles.
 - [ ] **P1 — Resolver + re-point:** `lib/entrypoint.mjs`; update the 4 cross-spawn sites; point `hooks.json` at `dist/`. Verify self-spawns. Smoke-test a fresh-clone run with `node_modules` absent.
 - [ ] **P2 — Freshness:** CI workflow (build + diff + smoke) and the pre-commit hook.
-- [ ] **P3 — Deps + docs:** move runtime deps → devDeps; rewrite `sunflower-view.md` (drop "npm install once"); CHANGELOG; version bump.
+- [ ] **P3 — Deps + docs:** move runtime deps → devDeps; rewrite `sunflower-view.md` (drop "npm install once"); CHANGELOG; version bump — reconcile the `package.json` (9.40.0) ↔ `plugin.json` (9.44.1) skew while bumping.
 - [ ] **P4 — Tray:** add `scripts/tray.mjs` as a `dist/` entrypoint per [TRAY-APP-PLAN.md](TRAY-APP-PLAN.md) — now just one more entry in the same build, plus the vendored binaries + icons.
 ```
