@@ -125,7 +125,11 @@ export function openerCommand(platform, target) {
 }
 
 function defaultOpener(command, args) {
-  const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: true });
+  // No `detached` — on Windows detached:true forces a console window that
+  // windowsHide cannot suppress (nodejs/node#21825), flashing a prompt on every
+  // open. `cmd /c start` / `open` / `xdg-open` hand off and return immediately, so
+  // detaching is unnecessary; windowsHide then actually hides the launcher.
+  const child = spawn(command, args, { stdio: 'ignore', windowsHide: true });
   child.unref();
 }
 

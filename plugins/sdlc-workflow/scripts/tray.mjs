@@ -70,7 +70,15 @@ function ensureRuntimeBinary() {
   const runtime = join(dir, name);
   let stale = true;
   try { stale = !existsSync(runtime) || statSync(runtime).size !== statSync(vendored).size; } catch { /* copy */ }
-  if (stale) copyFileSync(vendored, runtime);
+  if (stale) {
+    try {
+      copyFileSync(vendored, runtime);
+    } catch (err) {
+      // A running/locked copy (another tray instance, or mid-upgrade) can't be
+      // overwritten — fall back to the existing binary; only fail if none exists.
+      if (!existsSync(runtime)) throw new Error(`tray: failed to copy helper to ${runtime}: ${err.message}`);
+    }
+  }
   if (process.platform !== 'win32') { try { chmodSync(runtime, 0o755); } catch { /* best-effort */ } }
   return runtime;
 }
