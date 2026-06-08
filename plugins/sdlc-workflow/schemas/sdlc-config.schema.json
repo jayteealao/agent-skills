@@ -77,6 +77,11 @@
         "verifyOnWrite": {
           "type": "boolean",
           "default": true
+        },
+        "remindMissingFragments": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook BLOCKS (exit 2) a rich-tier artifact (.md of type plan/review/design/ship-run/rca/benchmark/experiment/instrument/profile/simplify-run) written without its mandatory sibling .yaml, and softly nudges when only the .html.fragment is missing. Set false to disable both — the sunflower view will then render those pages as plain prose. A single artifact can opt out instead via `fragment: none` in its frontmatter."
         }
       }
     }

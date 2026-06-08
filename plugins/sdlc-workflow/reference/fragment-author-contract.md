@@ -18,8 +18,10 @@ rich artifact:
 1. **Write the sibling `<stem>.yaml`** — the structured data, conforming to
    `siblingYamlSchemas.<type>` in `tests/frontmatter.schema.json` (one of
    `review`, `rca`, `plan`, `design`, `ship-run`). This step is **MANDATORY** even
-   if you skip the fragment; the `post-write-verify` hook flags a rich `.md` written
-   without it.
+   if you skip the fragment; the `post-write-verify` hook **BLOCKS (exit 2)** a rich
+   `.md` written without its sibling `.yaml`. Write the `.yaml` first (or in the same
+   turn). An artifact that legitimately has no structured data to project may opt out
+   with `fragment: none` in its frontmatter.
 2. **Write the sibling `<stem>.html.fragment`** — the body-only interactive layer
    (below). Optional but expected for the five rich types.
 
@@ -30,17 +32,17 @@ Write the siblings next to the primary artifact `.md`:
 .ai/workflows/<slug>/07-review.yaml
 .ai/workflows/<slug>/07-review.html.fragment        ← this file
 
-.ai/workflows/<slug>/slices/<slice>/04-plan.md
-.ai/workflows/<slug>/slices/<slice>/04-plan.yaml
-.ai/workflows/<slug>/slices/<slice>/04-plan.html.fragment
+.ai/workflows/<slug>/04-plan-<slice-slug>.md
+.ai/workflows/<slug>/04-plan-<slice-slug>.yaml
+.ai/workflows/<slug>/04-plan-<slice-slug>.html.fragment
 
 .ai/workflows/<slug>/02b-design.md
 .ai/workflows/<slug>/02b-design.yaml
 .ai/workflows/<slug>/02b-design.html.fragment
 
-.ai/workflows/<slug>/ship/<run-id>/09-ship-run.md
-.ai/workflows/<slug>/ship/<run-id>/09-ship-run.yaml
-.ai/workflows/<slug>/ship/<run-id>/09-ship-run.html.fragment
+.ai/workflows/<slug>/09-ship-run-<run-id>.md
+.ai/workflows/<slug>/09-ship-run-<run-id>.yaml
+.ai/workflows/<slug>/09-ship-run-<run-id>.html.fragment
 
 .ai/workflows/<slug>/augmentations/<rca-id>.md            (when augmentation-type: rca)
 .ai/workflows/<slug>/augmentations/<rca-id>.yaml

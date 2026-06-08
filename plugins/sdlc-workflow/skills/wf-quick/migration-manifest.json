@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-25T09:18:46.591Z",
+  "generatedAt": "2026-06-08T08:03:29.119Z",
   "entries": [
     {
       "key": "discover",
@@ -59,8 +59,8 @@
       "key": "rca",
       "kind": "dimension",
       "referencePath": "skills/wf-quick/reference/rca.md",
-      "bodyHash": "5404c479f707e378c2881962e6db08f6a91da1aea13f43ae52ebb435815687fc",
-      "bodyBytes": 25860,
+      "bodyHash": "f36e89a14f4d785372ba01cdf497b90fbd0e0ccb14c56763070be4dffd4dba51",
+      "bodyBytes": 27375,
       "description": "Root-cause analysis workflow. Investigates a reported issue using parallel diagnosis sub-agents, writes a structured RCA artifact with confidence, blast radius, and suggested fix shape, then recommends the right downstream command (/wf plan for non-trivial work, /wf-quick fix for small fixes, /wf-quick hotfix for active incidents). Does NOT write a fix. Synthesizes a minimal 02-shape.md so /wf plan can consume the workflow directory without modification.",
       "argumentHint": "<description-or-slug>"
     },
@@ -77,8 +77,8 @@
       "key": "simplify",
       "kind": "dimension",
       "referencePath": "skills/wf-quick/reference/simplify.md",
-      "bodyHash": "be7051b5ea07c2fac0c21bdcdc027e51e4cf172048ca8fd2e93216dee0f31be1",
-      "bodyBytes": 29647,
+      "bodyHash": "d8dc55cd56873970a8d33225d06555482ebfac2a9b51e019771796c9778b7c79",
+      "bodyBytes": 29857,
       "description": "Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream command (/wf-quick fix, /wf-quick refactor, /wf intake, /wf-meta amend, /wf-docs, etc.). NEVER writes code directly. Adapted from the Claude Code bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.",
       "argumentHint": "[branch [<base>] | commit <sha-or-range> | plan <slug> <slice> | codebase [<path>]]"
     },

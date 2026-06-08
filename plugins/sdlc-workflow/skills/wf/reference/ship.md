@@ -500,16 +500,21 @@ The sunflower view renders the ship-run page from a sibling `.yaml` + `.html.fra
 written next to `09-ship-run.md`. **Without the `.yaml` the page silently degrades to
 plain prose** — the deploy timeline, the per-env checks matrix, and the rollback panel
 never appear (`ship-run.mjs` returns `renderSimple` when the sibling YAML is absent).
-The `post-write-verify` hook reminds you if you forget; author them here, now.
+The `post-write-verify` hook **BLOCKS the `.md` write (exit 2) when the sibling
+`.yaml` is missing**, so author the `.yaml` first (or in the same turn) — here, now.
+(If this is a genuine no-op ship-run with nothing to project, set `fragment: none` in
+its frontmatter to opt out.)
 
-For the `ship/<run-id>/09-ship-run.md` you just wrote:
+For the `09-ship-run-<run-id>.md` you just wrote (files are **flat** in the slug dir —
+`09-ship-run-<run-id>.{yaml,html.fragment}`, where `<run-id>` is the run timestamp,
+not a `ship/<run-id>/` subtree):
 
-1. Write the sibling **`09-ship-run.yaml`** — the structured data: `release:`,
+1. Write the sibling **`09-ship-run-<run-id>.yaml`** — the structured data: `release:`,
    `run_at:`, `stages:` (name, status, started_at, ended_at), `checks:` (name, kind,
    results per env → {status, duration}), `rollback:` (window_minutes, target_release,
    approvers). Schema: `siblingYamlSchemas['ship-run']` in `tests/frontmatter.schema.json`.
-2. Write the sibling **`09-ship-run.html.fragment`** — the body-only interactive layer
-   described next.
+2. Write the sibling **`09-ship-run-<run-id>.html.fragment`** — the body-only interactive
+   layer described next.
 
 The fragment is one `<section class="fragment-shiprun" data-artifact="ship-run"
 data-release="<release>">` that reproduces the gallery's ship-run fragment 1:1:

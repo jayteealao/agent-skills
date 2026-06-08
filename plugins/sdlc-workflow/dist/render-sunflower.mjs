@@ -5,7 +5,7 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   readHubConfig
-} from "./chunk-MF4YU3FW.mjs";
+} from "./chunk-QSBHP7NI.mjs";
 import {
   loadArtifact,
   loadHistory,
@@ -14,7 +14,7 @@ import {
 import {
   configHash,
   loadConfigWithMeta
-} from "./chunk-TM4FS3NK.mjs";
+} from "./chunk-NHBZ6X5M.mjs";
 import {
   resolveEntrypoint,
   spawnDetachedNode

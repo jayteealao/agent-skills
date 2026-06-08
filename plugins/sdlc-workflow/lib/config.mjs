@@ -35,6 +35,10 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     autoStage: true,
     validateOnWrite: true,
     verifyOnWrite: true,
+    // When true, post-write-verify BLOCKS a rich-tier .md written without its
+    // mandatory sibling .yaml (and nudges on a missing .html.fragment). Opt out
+    // globally here, or per-artifact with `fragment: none` in its frontmatter.
+    remindMissingFragments: true,
   },
 });
 

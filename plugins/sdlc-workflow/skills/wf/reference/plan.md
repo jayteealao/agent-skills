@@ -219,6 +219,7 @@ Launch one sub-agent PER SLICE. Each sub-agent:
 2. Also receives: the list of all other slice-slugs so it can note dependencies.
 3. Runs **all four exploration playbooks above** (affected code, second domain if applicable, test infrastructure, web research) scoped to its slice.
 4. **Writes its plan directly to `.ai/workflows/<slug>/04-plan-<slice-slug>.md`** using the per-slice template below.
+5. **Writes the rich siblings `04-plan-<slice-slug>.yaml` and `04-plan-<slice-slug>.html.fragment`** next to that `.md`, following **Step F** below. This is the **sub-agent's** job, not the orchestrator's: the rich `.md` and its siblings are authored together by the same agent that holds the slice in context — the orchestrator never re-opens each slice to backfill them. The `post-write-verify` hook **BLOCKS** the `.md` write when the sibling `.yaml` is missing, so write the `.yaml` first (or in the same turn). If a slice's plan genuinely has no file-change topology to project, set `fragment: none` in the plan frontmatter to opt that one slice out. **Each per-slice sub-agent prompt MUST include Step F verbatim (or a link to it) — a sub-agent that is only told to "write the plan .md" will silently skip the siblings and the page renders as plain prose.**
 
 After ALL slice sub-agents complete:
 1. **Read every `04-plan-<slice-slug>.md` file** they wrote.
@@ -520,20 +521,24 @@ If a criterion needs tooling outside `stack:`: do NOT pick a default. Add an ent
 ## Step F — Write the rich `.yaml` + fragment (MANDATORY — do not skip)
 
 The sunflower view renders the plan page from a sibling `.yaml` + `.html.fragment`
-written next to `04-plan.md`. **Without the `.yaml` the page silently degrades to
-plain prose** — the file-change topology figure, the files-touched table, and the
-risk callouts never appear (`plan.mjs` gates the rich body on the sibling YAML). The
-`post-write-verify` hook reminds you if you forget; author them here, now, while the
-plan is still in context.
+written next to each per-slice `04-plan-<slice-slug>.md` (a single-scope plan writes
+them next to its `04-plan-<slice-slug>.md` all the same). **Without the `.yaml` the
+page silently degrades to plain prose** — the file-change topology figure, the
+files-touched table, and the risk callouts never appear (`plan.mjs` gates the rich
+body on the sibling YAML). The `post-write-verify` hook **BLOCKS the `.md` write
+(exit 2) when the sibling `.yaml` is missing**, so author the `.yaml` first (or in
+the same turn), while the plan is still in context.
 
-For the `slices/<slice-slug>/04-plan.md` you just wrote:
+For the per-slice `04-plan-<slice-slug>.md` you just wrote (files are **flat** in the
+slug dir — `04-plan-<slice-slug>.{yaml,html.fragment}`, not a `slices/<slice>/`
+subtree):
 
-1. Write the sibling **`04-plan.yaml`** — the structured data: `modules:`, `files:`
-   (path, role, loc, delta{add,rem}, imports, planned_change), `edges:` (import /
-   replaces topology), `risks:`, `history:`. Schema: `siblingYamlSchemas.plan` in
-   `tests/frontmatter.schema.json`.
-2. Write the sibling **`04-plan.html.fragment`** — the body-only interactive layer
-   described next.
+1. Write the sibling **`04-plan-<slice-slug>.yaml`** — the structured data:
+   `modules:`, `files:` (path, role, loc, delta{add,rem}, imports, planned_change),
+   `edges:` (import / replaces topology), `risks:`, `history:`. Schema:
+   `siblingYamlSchemas.plan` in `tests/frontmatter.schema.json`.
+2. Write the sibling **`04-plan-<slice-slug>.html.fragment`** — the body-only
+   interactive layer described next.
 
 The fragment is one `<section class="fragment-plan" data-artifact="plan"
 data-slice="<slice-slug>" data-rev="<n>">` that reproduces the gallery's

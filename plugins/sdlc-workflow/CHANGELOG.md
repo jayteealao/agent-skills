@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — rich-tier sibling fragments now actually get authored (9.47.0)
+
+The sunflower "rich tier" (file-change topology, files-touched tables, verdict
+heatmaps, deploy timelines) renders from a sibling `<stem>.yaml` + `<stem>.html.fragment`
+written next to each rich artifact `.md`. In practice those siblings were **never
+authored in live repos** — every rich page silently fell back to plain prose — for
+two reasons this release fixes:
+
+- **Routing gap (plan, parallel mode):** the per-slice plan files are written by
+  sub-agents, but the MANDATORY "write the rich `.yaml` + fragment" step (Step F)
+  lived only in the orchestrator's section and was never injected into the sub-agent
+  prompt. `skills/wf/reference/plan.md` now makes sibling authoring an explicit part
+  of each per-slice sub-agent's job, and requires the orchestrator to pass Step F
+  into every sub-agent prompt.
+- **No teeth (all rich types):** a rich `.md` written without its sibling `.yaml`
+  produced only a **non-blocking** reminder, which agents routinely skipped. The
+  `post-write-verify` hook now **BLOCKS (exit 2)** when a rich-tier artifact (`plan`,
+  `review`, `design`, `ship-run`, `rca`, `benchmark`, `experiment`, `instrument`,
+  `profile`, `simplify-run`) lands without its mandatory `.yaml`, and softly nudges
+  when only the optional `.html.fragment` is missing. A contract-compliant agent
+  (which writes the `.yaml` first) never trips the block.
+
+Escapes: opt a single artifact out with `fragment: none` in its frontmatter (for a
+rich artifact with genuinely no structured data to project); disable enforcement
+repo-wide with `hooks.remindMissingFragments: false` in `.ai/sdlc-config.json` (now a
+recognised config key — it was previously rejected by the config schema, a latent
+bug also fixed here).
+
+Also corrected the stale `slices/<slice>/04-plan.*` and `ship/<run-id>/09-ship-run.*`
+**nested** path models in `plan.md`, `ship.md`, and `reference/fragment-author-contract.md`
+to the **flat** layout the workflow actually emits (`04-plan-<slice>.*`,
+`09-ship-run-<run-id>.*`) — writing siblings to a non-existent nested path was a third
+way they went missing.
+
 ### Added — system-tray control app with opt-in logon autostart (9.46.0)
 
 A user-launched **system-tray (notification-area) app** that controls the existing

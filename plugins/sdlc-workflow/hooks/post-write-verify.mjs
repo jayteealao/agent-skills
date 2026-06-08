@@ -6,8 +6,10 @@
  * - Skip paths that do not exist on disk.
  * - Exempt the po-answers.md prose log (see isProseLogPath).
  * - Run deep schema validation against tests/frontmatter.schema.json (native Ajv).
+ * - Enforce sibling fragments: a rich-tier artifact `.md` written without its
+ *   mandatory sibling `.yaml` BLOCKS (exit 2); see enforceSiblingFragments.
  * - Silent exit 0 on success.
- * - Exit 2 + stderr when validation fails.
+ * - Exit 2 + stderr when validation fails or a mandatory sibling .yaml is absent.
  */
 
 import { existsSync } from 'node:fs';
@@ -68,35 +70,82 @@ function fragmentOwningType(text) {
 }
 
 /**
- * Non-blocking write-time reminder: when a rich-tier artifact `.md` lands
- * without its sibling `.yaml` / `.html.fragment`, surface a systemMessage so the
- * agent authors them while it still has context. Fail-open — never blocks.
+ * Cheap frontmatter `fragment:` escape read. A rich-tier artifact that
+ * legitimately has no structured data to project (e.g. a profile that found no
+ * hotspots, a no-op ship-run) can set `fragment: none` (also `skip` / `n/a`) in
+ * its frontmatter to opt that one file out of the sibling requirement.
  */
-async function remindMissingFragments(paths, config) {
+function fragmentEscaped(text) {
+  if (!text) return false;
+  const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!fence) return false;
+  return /(?:^|\n)\s*fragment:\s*["']?(none|skip|n\/a)["']?\s*(?:#.*)?$/im.test(fence[1]);
+}
+
+/**
+ * Write-time sibling-fragment enforcement. When a rich-tier artifact `.md` lands:
+ *   - missing its sibling `.yaml` — the load-bearing structured data the renderer
+ *     gates the ENTIRE rich tier on — BLOCK (exit 2). Without it the page
+ *     silently degrades to plain prose, so a soft reminder (shipped through
+ *     v9.46) was empirically ignored and the rich tier stayed dark in
+ *     production. The block forces authoring while the artifact is in context.
+ *   - `.yaml` present but `.html.fragment` missing — non-blocking nudge. The
+ *     fragment is the optional interactive layer; the page already renders rich
+ *     from the YAML, so this stays a reminder, not a gate.
+ * Opt out globally with `hooks.remindMissingFragments: false`; opt out a single
+ * artifact with `fragment: none` in its frontmatter. A contract-compliant agent
+ * writes the `.yaml` before the `.md`, so it never trips the block.
+ */
+async function enforceSiblingFragments(paths, config) {
   if (config.hooks?.remindMissingFragments === false) return;
-  const reminders = [];
+  const blocking = [];   // missing the mandatory .yaml — hard gate
+  const nudges = [];     // .yaml present, only .html.fragment missing — soft
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
     const text = await readTextIfExists(path.absolute);
     const type = fragmentOwningType(text);
     if (!type || !RICH_TIER_TYPES.has(type)) continue;
+    if (fragmentEscaped(text)) continue;
     const stem = path.absolute.replace(/\.md$/, '');
     const fileStem = path.original.replace(/\\/g, '/').split('/').at(-1).replace(/\.md$/, '');
-    const missing = [];
-    if (!existsSync(`${stem}.yaml`)) missing.push(`${fileStem}.yaml`);
-    if (!existsSync(`${stem}.html.fragment`)) missing.push(`${fileStem}.html.fragment`);
-    if (missing.length) reminders.push({ rel: path.original, type, missing });
+    const hasYaml = existsSync(`${stem}.yaml`);
+    const hasFragment = existsSync(`${stem}.html.fragment`);
+    if (!hasYaml) {
+      const missing = [`${fileStem}.yaml`];
+      if (!hasFragment) missing.push(`${fileStem}.html.fragment`);
+      blocking.push({ rel: path.original, type, missing });
+    } else if (!hasFragment) {
+      nudges.push({ rel: path.original, type, missing: [`${fileStem}.html.fragment`] });
+    }
   }
-  if (!reminders.length) return;
-  const lines = reminders.map((r) => `  - ${r.rel} (type: ${r.type}) - missing ${r.missing.join(' + ')}`);
-  outputSystemMessage(
-    `wf: fragment-owning artifact(s) written without their sibling fragment files:\n${lines.join('\n')}\n` +
-    'The sunflower view renders these pages as plain prose until you author the sibling ' +
-    '.yaml (structured data) and .html.fragment (interactive markup) next to each .md. ' +
-    'If an artifact has structured data to project, author its siblings now per ' +
-    'reference/fragment-author-contract.md while you still have the context. ' +
-    '(If it legitimately has none — e.g. a profile that found no hotspots — you can ignore this.)',
-  );
+
+  if (blocking.length) {
+    const lines = blocking.map((r) => `  - ${r.rel} (type: ${r.type}) — missing ${r.missing.join(' + ')}`);
+    process.stderr.write(
+      `wf-postwrite-verify: rich-tier artifact written without its mandatory sibling .yaml:\n\n${lines.join('\n')}\n\n` +
+      'The sunflower view GATES the whole rich page (file-change topology, files-touched\n' +
+      'table, verdict heatmap, risk callouts, etc.) on the sibling .yaml — without it the\n' +
+      'page silently degrades to plain prose. Author the siblings NOW, while this artifact\n' +
+      'is still in context:\n' +
+      '  1. Write <stem>.yaml — the structured data (schema: siblingYamlSchemas.<type> in\n' +
+      '     plugins/sdlc-workflow/tests/frontmatter.schema.json).\n' +
+      '  2. Write <stem>.html.fragment — the body-only interactive layer.\n' +
+      'Full contract: plugins/sdlc-workflow/reference/fragment-author-contract.md.\n' +
+      'If this artifact legitimately has no structured data to project, set\n' +
+      '`fragment: none` in its frontmatter to opt out.\n',
+    );
+    process.exit(2);
+  }
+
+  if (nudges.length) {
+    const lines = nudges.map((r) => `  - ${r.rel} (type: ${r.type}) — missing ${r.missing.join(' + ')}`);
+    outputSystemMessage(
+      `wf: rich-tier artifact(s) have their sibling .yaml but no .html.fragment:\n${lines.join('\n')}\n` +
+      'The page already renders rich from the .yaml; the .html.fragment only adds the ' +
+      'interactive layer (collapsible rows, filters, copy controls). Author it per ' +
+      'reference/fragment-author-contract.md if this artifact warrants interactivity.',
+    );
+  }
 }
 
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -131,8 +180,9 @@ async function main() {
   }
 
   if (!failures.length) {
-    // Schema is clean — nudge for any missing rich-tier sibling fragments.
-    await remindMissingFragments(paths, config);
+    // Schema is clean — enforce sibling fragments (blocks on a missing rich-tier
+    // .yaml, nudges on a missing .html.fragment). May exit(2).
+    await enforceSiblingFragments(paths, config);
     return;
   }
 

@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-05-25T09:18:46.588Z",
+  "generatedAt": "2026-06-08T08:03:29.019Z",
   "entries": [
     {
       "key": "benchmark",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/benchmark.md",
-      "bodyHash": "c04e0996d3137c332423c4dc02c7914760cb4a9cf474af0d30a5bf512d7a8469",
-      "bodyBytes": 16052,
+      "bodyHash": "ab6c6e73a09b43130ce4cbdf84cbd61849877a29c00f6935bdf9c49da060e01e",
+      "bodyBytes": 16262,
       "description": "Performance benchmarking wrapper for an existing workflow. Runs in two modes: baseline (before implement — measures current performance) and compare (after implement — measures delta and flags regressions). Auto-detects which mode is needed based on whether a baseline already exists. Pass an explicit mode arg to override. Writes or updates 05c-benchmark.md in the existing workflow directory.",
       "argumentHint": "<slug> [baseline|compare]"
     },
@@ -14,8 +14,8 @@
       "key": "experiment",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/experiment.md",
-      "bodyHash": "3a64ee5cfc093edc86ba41d6a45f551776731c1552ab5b5e0099c6064981e370",
-      "bodyBytes": 15572,
+      "bodyHash": "7b28a9677eeeb891672f935aa4273b02a6974be40b0f41a5d59ecd9ea283af2d",
+      "bodyBytes": 15781,
       "description": "Experiment design augmentation for an existing workflow. Extracts the hypothesis from the workflow's shape, designs a controlled experiment (feature flag, A/B test, or canary rollout) with explicit success metrics and rollback criteria, and writes the design as 04c-experiment.md into the existing workflow directory. Does NOT implement flag infrastructure. Registers itself in the workflow's 00-index.md augmentations list so wf-implement can build the rollout scaffolding to spec.",
       "argumentHint": "<slug>"
     },
@@ -23,8 +23,8 @@
       "key": "handoff",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/handoff.md",
-      "bodyHash": "e019f6fdce831f7d0fd04d36342df94f072b17af8c13e13fe286550357c302c8",
-      "bodyBytes": 38387,
+      "bodyHash": "de1c453a2dc28cf7dc1c380bb594959b5dc71a75b4111ae44d90b13d5f405382",
+      "bodyBytes": 52629,
       "description": "Turn the completed and reviewed work into a PR-ready handoff package with reviewer and QA context. Aggregates ALL complete slices by default — pass a slice-slug only when each slice has its own separate PR.",
       "argumentHint": "<slug> [slice-slug]"
     },
@@ -32,8 +32,8 @@
       "key": "implement",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/implement.md",
-      "bodyHash": "ce2f76e47382129169b7bc8258059bb7458b3ff185ebeb2b70a64f0478efd2b6",
-      "bodyBytes": 26635,
+      "bodyHash": "0a57ed21e6d1819be9e2e70bed35e1f73c0c25cb643ffaa1e4395d425baa58a2",
+      "bodyBytes": 26706,
       "description": "Implement one selected planned slice. Writes per-slice implementation record with cross-links to slice definition and plan.",
       "argumentHint": "<slug> [slice-slug|reviews]"
     },
@@ -41,8 +41,8 @@
       "key": "instrument",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/instrument.md",
-      "bodyHash": "53dae6e63088bdbf39ac8358d1531c68a32461a1df51d3c3234218e0ad460062",
-      "bodyBytes": 14752,
+      "bodyHash": "bb73c41ee3b25145a20e29614a4813ab41dfc059a66608bf879cdd82365dc7c0",
+      "bodyBytes": 14961,
       "description": "Observability augmentation for an existing workflow. Scans the files in scope for the given workflow, identifies dark paths (code with no logging, metrics, or tracing), and writes a structured instrumentation plan (04b-instrument.md) into the existing workflow directory. Does NOT write application code. Registers itself in the workflow's 00-index.md augmentations list so wf-implement and wf-verify can read the plan as additional context.",
       "argumentHint": "<slug>"
     },
@@ -59,8 +59,8 @@
       "key": "plan",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/plan.md",
-      "bodyHash": "a4dc00aa6a55d5de0eb01649d6872e7f47e0d966f2afdf96ca9e7ee0f86b16a6",
-      "bodyBytes": 41758,
+      "bodyHash": "50342bdc73a457db19cbe2dc1a0e25063e0cf359bc2aef0604cd78ea248f10e1",
+      "bodyBytes": 43772,
       "description": "Create or review-and-fix implementation plans. First invocation creates plans. Re-invocation auto-reviews against current codebase and artifacts, fixes issues found. Supports single slice, all slices (parallel), or explicit feedback.",
       "argumentHint": "<slug> [slice-slug|all] [review/fix instructions]"
     },
@@ -68,8 +68,8 @@
       "key": "profile",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/profile.md",
-      "bodyHash": "694a85495ddec097b7721af2485f45ef11ac029043fafb12db535e1442e6890d",
-      "bodyBytes": 13804,
+      "bodyHash": "7255bc0dea1049ffe1bac7cd0f154bad6a82350b881f665adf819a34cf4bfb80",
+      "bodyBytes": 14526,
       "description": "Standalone performance profiling command. Detects language and available profiling tools, runs static analysis (call graph, algorithmic complexity, allocation patterns, I/O), runs dynamic profiling when tools are available, and writes the analysis to a durable artifact at .ai/profiles/<run-id>/01-profile.md. Use when you need to understand WHERE time or memory is spent in a code area before optimizing it. Does NOT modify application code. For repeated before/after measurement, use /wf benchmark instead.",
       "argumentHint": "<area-or-function-or-file>"
     },
@@ -86,8 +86,8 @@
       "key": "review",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/review.md",
-      "bodyHash": "125c14384afa2cc582d2f3667a88df321a99437636605294ab751a9ef124e02c",
-      "bodyBytes": 43683,
+      "bodyHash": "bf3762a157d49d9b025c0f81ab87ddd1e085346a7dbef3bea202091977e7fad7",
+      "bodyBytes": 49847,
       "description": "Intelligent review dispatch. Reads workflow artifacts and diff, selects relevant review commands, spawns one parallel sonnet sub-agent per command (each writes its findings to file), then aggregates, deduplicates, and triages findings via AskUserQuestion into a unified review verdict. Re-run with \"triage\" to revisit deferred findings.",
       "argumentHint": "<slug> [slice | triage]"
     },
@@ -104,8 +104,8 @@
       "key": "ship",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/ship.md",
-      "bodyHash": "81405a88dc2efdc155b68815f1c7f1dd3037f2ed298b9dcdbbbf3b7de56968bc",
-      "bodyBytes": 28271,
+      "bodyHash": "2d0cbf13ea9d90397c6d053a21ea0b2edff548e37cbd59183a930263ff637f62",
+      "bodyBytes": 29706,
       "description": "Run a release using the project's `.ai/ship-plan.md`. Reads the plan, generates a run-id, and walks the 13-step idempotent ship sequence (pre-flight → publish dry-run → rollout → freshness delta → go/no-go → merge → tag → workflow watch → post-publish poll → post-release bump → index update → write run artifact). Replayable: re-running after a partial failure resumes at the failed step. Refuses to start when `08-handoff.md` `readiness-verdict ≠ ready`.",
       "argumentHint": "<slug> [environment] [--init-plan]"
     },
@@ -122,8 +122,8 @@
       "key": "verify",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/verify.md",
-      "bodyHash": "626bfe50d14fa271e0ee1ca51a455204eb7c1bdd84419e9eaabfe7fe60736706",
-      "bodyBytes": 46253,
+      "bodyHash": "e6c31dac63dc4e64bf7419a029182b7669e3a339b44a1f008e0a4d9ef2c01002",
+      "bodyBytes": 67785,
       "description": "Verify that the selected slice meets acceptance criteria and is ready for review.",
       "argumentHint": "<slug> [slice]"
     }

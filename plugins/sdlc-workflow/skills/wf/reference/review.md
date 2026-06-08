@@ -657,7 +657,8 @@ Only present when `fix-rounds-run > 0`. Records what Step 4c actually did.
 The sunflower view renders the review page from a sibling `.yaml` + `.html.fragment`
 written next to the review `.md`. **Without them the page silently degrades to plain
 prose** — the Σ severity-heatmap, dimension chips, severity filter, and findings list
-never appear. The `post-write-verify` hook reminds you if you forget, but author them
+never appear. The `post-write-verify` hook **BLOCKS the `.md` write (exit 2) when the
+sibling `.yaml` is missing**, so author the `.yaml` first (or in the same turn) —
 here, now, while the findings are still in context.
 
 For each review `.md` you just wrote (`07-review.md` slug-wide, or each

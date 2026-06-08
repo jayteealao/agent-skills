@@ -16,7 +16,7 @@ import {
 } from "./chunk-GWL2LVFZ.mjs";
 import {
   loadConfig
-} from "./chunk-TM4FS3NK.mjs";
+} from "./chunk-NHBZ6X5M.mjs";
 import {
   safeLoadFrontmatterFile
 } from "./chunk-5U76735W.mjs";
@@ -187,28 +187,63 @@ function fragmentOwningType(text) {
   const augMatch = /(?:^|\n)\s*augmentation-type:\s*["']?([A-Za-z0-9-]+)/.exec(block);
   return augMatch ? augMatch[1] : type;
 }
-async function remindMissingFragments(paths, config) {
+function fragmentEscaped(text) {
+  if (!text) return false;
+  const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!fence) return false;
+  return /(?:^|\n)\s*fragment:\s*["']?(none|skip|n\/a)["']?\s*(?:#.*)?$/im.test(fence[1]);
+}
+async function enforceSiblingFragments(paths, config) {
   if (config.hooks?.remindMissingFragments === false) return;
-  const reminders = [];
+  const blocking = [];
+  const nudges = [];
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
     const text = await readTextIfExists(path.absolute);
     const type = fragmentOwningType(text);
     if (!type || !RICH_TIER_TYPES.has(type)) continue;
+    if (fragmentEscaped(text)) continue;
     const stem = path.absolute.replace(/\.md$/, "");
     const fileStem = path.original.replace(/\\/g, "/").split("/").at(-1).replace(/\.md$/, "");
-    const missing = [];
-    if (!existsSync(`${stem}.yaml`)) missing.push(`${fileStem}.yaml`);
-    if (!existsSync(`${stem}.html.fragment`)) missing.push(`${fileStem}.html.fragment`);
-    if (missing.length) reminders.push({ rel: path.original, type, missing });
+    const hasYaml = existsSync(`${stem}.yaml`);
+    const hasFragment = existsSync(`${stem}.html.fragment`);
+    if (!hasYaml) {
+      const missing = [`${fileStem}.yaml`];
+      if (!hasFragment) missing.push(`${fileStem}.html.fragment`);
+      blocking.push({ rel: path.original, type, missing });
+    } else if (!hasFragment) {
+      nudges.push({ rel: path.original, type, missing: [`${fileStem}.html.fragment`] });
+    }
   }
-  if (!reminders.length) return;
-  const lines = reminders.map((r) => `  - ${r.rel} (type: ${r.type}) - missing ${r.missing.join(" + ")}`);
-  outputSystemMessage(
-    `wf: fragment-owning artifact(s) written without their sibling fragment files:
+  if (blocking.length) {
+    const lines = blocking.map((r) => `  - ${r.rel} (type: ${r.type}) \u2014 missing ${r.missing.join(" + ")}`);
+    process.stderr.write(
+      `wf-postwrite-verify: rich-tier artifact written without its mandatory sibling .yaml:
+
 ${lines.join("\n")}
-The sunflower view renders these pages as plain prose until you author the sibling .yaml (structured data) and .html.fragment (interactive markup) next to each .md. If an artifact has structured data to project, author its siblings now per reference/fragment-author-contract.md while you still have the context. (If it legitimately has none \u2014 e.g. a profile that found no hotspots \u2014 you can ignore this.)`
-  );
+
+The sunflower view GATES the whole rich page (file-change topology, files-touched
+table, verdict heatmap, risk callouts, etc.) on the sibling .yaml \u2014 without it the
+page silently degrades to plain prose. Author the siblings NOW, while this artifact
+is still in context:
+  1. Write <stem>.yaml \u2014 the structured data (schema: siblingYamlSchemas.<type> in
+     plugins/sdlc-workflow/tests/frontmatter.schema.json).
+  2. Write <stem>.html.fragment \u2014 the body-only interactive layer.
+Full contract: plugins/sdlc-workflow/reference/fragment-author-contract.md.
+If this artifact legitimately has no structured data to project, set
+\`fragment: none\` in its frontmatter to opt out.
+`
+    );
+    process.exit(2);
+  }
+  if (nudges.length) {
+    const lines = nudges.map((r) => `  - ${r.rel} (type: ${r.type}) \u2014 missing ${r.missing.join(" + ")}`);
+    outputSystemMessage(
+      `wf: rich-tier artifact(s) have their sibling .yaml but no .html.fragment:
+${lines.join("\n")}
+The page already renders rich from the .yaml; the .html.fragment only adds the interactive layer (collapsible rows, filters, copy controls). Author it per reference/fragment-author-contract.md if this artifact warrants interactivity.`
+    );
+  }
 }
 var PLUGIN_ROOT = fileURLToPath2(new URL("..", import.meta.url));
 async function main() {
@@ -231,7 +266,7 @@ async function main() {
     if (!result.valid) failures.push({ path, result });
   }
   if (!failures.length) {
-    await remindMissingFragments(paths, config);
+    await enforceSiblingFragments(paths, config);
     return;
   }
   for (const failure of failures) {

@@ -327,12 +327,14 @@ test('post-write-verify skips po-answers.md prose log instead of schema-validati
   }
 });
 
-test('post-write-verify reminds (non-blocking) when a rich-tier artifact lacks sibling fragment files', () => {
+test('post-write-verify BLOCKS (exit 2) when a rich-tier artifact lacks its mandatory sibling .yaml', () => {
   const tmp = tempDir();
   try {
-    // S-1: a schema-valid plan written WITHOUT its sibling .yaml/.html.fragment
-    // must surface a non-blocking systemMessage reminder (exit 0, no stderr).
-    const rel = '.ai/workflows/demo/slices/core/04-plan.md';
+    // S-1 hardening (v9.47): a schema-valid plan written WITHOUT its sibling
+    // .yaml must BLOCK (exit 2 + stderr). The renderer gates the entire rich tier
+    // on the YAML, so the prior soft reminder was empirically ignored and the rich
+    // tier stayed dark. The block forces authoring while the artifact is in context.
+    const rel = '.ai/workflows/demo/04-plan-core.md';
     writeFile(join(tmp, rel), md(validPlan()));
 
     const result = runHook(HOOKS.postWriteVerify, {
@@ -340,28 +342,51 @@ test('post-write-verify reminds (non-blocking) when a rich-tier artifact lacks s
       tool_input: { file_path: rel },
     }, tmp);
 
-    equal(result.status, 0, result.stderr);
-    equal(result.stderr, '');
-    const parsed = JSON.parse(result.stdout);
-    match(parsed.systemMessage, /sibling fragment files/);
-    match(parsed.systemMessage, /04-plan\.yaml \+ 04-plan\.html\.fragment/);
-    match(parsed.systemMessage, /fragment-author-contract\.md/);
+    equal(result.status, 2);
+    match(result.stderr, /mandatory sibling \.yaml/);
+    match(result.stderr, /04-plan-core\.yaml \+ 04-plan-core\.html\.fragment/);
+    match(result.stderr, /fragment-author-contract\.md/);
+    match(result.stderr, /fragment: none/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
 });
 
-test('post-write-verify stays silent when a rich-tier artifact has its sibling fragment files', () => {
+test('post-write-verify nudges (non-blocking) when the .yaml is present but the .html.fragment is missing', () => {
   const tmp = tempDir();
   try {
-    const dir = join(tmp, '.ai', 'workflows', 'demo', 'slices', 'core');
-    writeFile(join(dir, '04-plan.md'), md(validPlan()));
-    writeFile(join(dir, '04-plan.yaml'), 'files: []\n');
-    writeFile(join(dir, '04-plan.html.fragment'), '<section class="fragment-plan"></section>\n');
+    // .yaml present → the page already renders rich; the missing .html.fragment is
+    // only the interactive layer, so this is a soft systemMessage, NOT a block.
+    const dir = join(tmp, '.ai', 'workflows', 'demo');
+    writeFile(join(dir, '04-plan-core.md'), md(validPlan()));
+    writeFile(join(dir, '04-plan-core.yaml'), 'files: []\n');
 
     const result = runHook(HOOKS.postWriteVerify, {
       cwd: tmp,
-      tool_input: { file_path: '.ai/workflows/demo/slices/core/04-plan.md' },
+      tool_input: { file_path: '.ai/workflows/demo/04-plan-core.md' },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stderr, '');
+    const parsed = JSON.parse(result.stdout);
+    match(parsed.systemMessage, /no \.html\.fragment/);
+    match(parsed.systemMessage, /04-plan-core\.html\.fragment/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify honours the `fragment: none` per-artifact escape', () => {
+  const tmp = tempDir();
+  try {
+    // A rich artifact that legitimately has no structured data opts out with
+    // `fragment: none` in frontmatter — no block, no nudge, no output.
+    const rel = '.ai/workflows/demo/04-plan-core.md';
+    writeFile(join(tmp, rel), md(validPlan({ fragment: 'none' })));
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: rel },
     }, tmp);
 
     equal(result.status, 0, result.stderr);
@@ -372,10 +397,54 @@ test('post-write-verify stays silent when a rich-tier artifact has its sibling f
   }
 });
 
-test('post-write-verify reminds for a profile artifact missing siblings (off-workflow .ai/profiles root)', () => {
+test('post-write-verify honours the global hooks.remindMissingFragments:false opt-out', () => {
   const tmp = tempDir();
   try {
-    // Gap B (v9.41): profile lives off .ai/workflows. Confirm the reminder both
+    // Global opt-out disables both the block and the nudge. Also exercises that
+    // the config schema accepts the key (additionalProperties:false on hooks).
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'),
+      JSON.stringify({ hooks: { remindMissingFragments: false } }));
+    const rel = '.ai/workflows/demo/04-plan-core.md';
+    writeFile(join(tmp, rel), md(validPlan()));
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: rel },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify stays silent when a rich-tier artifact has both sibling fragment files', () => {
+  const tmp = tempDir();
+  try {
+    const dir = join(tmp, '.ai', 'workflows', 'demo');
+    writeFile(join(dir, '04-plan-core.md'), md(validPlan()));
+    writeFile(join(dir, '04-plan-core.yaml'), 'files: []\n');
+    writeFile(join(dir, '04-plan-core.html.fragment'), '<section class="fragment-plan"></section>\n');
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/04-plan-core.md' },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify BLOCKS for a profile artifact missing its .yaml (off-workflow .ai/profiles root)', () => {
+  const tmp = tempDir();
+  try {
+    // Gap B (v9.41): profile lives off .ai/workflows. Confirm the block both
     // sees the .ai/profiles root and recognises the `profile` fragment type.
     const rel = '.ai/profiles/20260606T1200Z/01-profile.md';
     writeFile(join(tmp, rel), md(validProfile()));
@@ -385,18 +454,16 @@ test('post-write-verify reminds for a profile artifact missing siblings (off-wor
       tool_input: { file_path: rel },
     }, tmp);
 
-    equal(result.status, 0, result.stderr);
-    equal(result.stderr, '');
-    const parsed = JSON.parse(result.stdout);
-    match(parsed.systemMessage, /sibling fragment files/);
-    match(parsed.systemMessage, /01-profile\.yaml \+ 01-profile\.html\.fragment/);
-    match(parsed.systemMessage, /type: profile/);
+    equal(result.status, 2);
+    match(result.stderr, /mandatory sibling \.yaml/);
+    match(result.stderr, /01-profile\.yaml \+ 01-profile\.html\.fragment/);
+    match(result.stderr, /type: profile/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
 });
 
-test('post-write-verify reminds for a simplify-run artifact missing siblings (off-workflow .ai/simplify root)', () => {
+test('post-write-verify BLOCKS for a simplify-run artifact missing its .yaml (off-workflow .ai/simplify root)', () => {
   const tmp = tempDir();
   try {
     const rel = '.ai/simplify/20260606T1200Z.md';
@@ -407,20 +474,18 @@ test('post-write-verify reminds for a simplify-run artifact missing siblings (of
       tool_input: { file_path: rel },
     }, tmp);
 
-    equal(result.status, 0, result.stderr);
-    equal(result.stderr, '');
-    const parsed = JSON.parse(result.stdout);
-    match(parsed.systemMessage, /20260606T1200Z\.yaml \+ 20260606T1200Z\.html\.fragment/);
-    match(parsed.systemMessage, /type: simplify-run/);
+    equal(result.status, 2);
+    match(result.stderr, /20260606T1200Z\.yaml \+ 20260606T1200Z\.html\.fragment/);
+    match(result.stderr, /type: simplify-run/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
 });
 
-test('post-write-verify reminds for an augmentation artifact and resolves its augmentation-type', () => {
+test('post-write-verify BLOCKS for an augmentation artifact and resolves its augmentation-type', () => {
   const tmp = tempDir();
   try {
-    // benchmark/experiment/instrument carry `type: augmentation`; the reminder
+    // benchmark/experiment/instrument carry `type: augmentation`; the block
     // must resolve the fragment name from `augmentation-type:` (here: benchmark).
     const rel = '.ai/workflows/demo/augmentations/bench-1.md';
     writeFile(join(tmp, rel), md(validBenchmarkAugmentation()));
@@ -430,11 +495,9 @@ test('post-write-verify reminds for an augmentation artifact and resolves its au
       tool_input: { file_path: rel },
     }, tmp);
 
-    equal(result.status, 0, result.stderr);
-    equal(result.stderr, '');
-    const parsed = JSON.parse(result.stdout);
-    match(parsed.systemMessage, /bench-1\.yaml \+ bench-1\.html\.fragment/);
-    match(parsed.systemMessage, /type: benchmark/);
+    equal(result.status, 2);
+    match(result.stderr, /bench-1\.yaml \+ bench-1\.html\.fragment/);
+    match(result.stderr, /type: benchmark/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

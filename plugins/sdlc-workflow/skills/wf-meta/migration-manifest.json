@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-05-25T09:18:46.577Z",
+  "generatedAt": "2026-06-08T08:03:29.072Z",
   "entries": [
     {
       "key": "amend",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/amend.md",
-      "bodyHash": "30a4ca580d384f53a3e4082372c4c663b5b7a522bcbe730f34b1dd34d4df4ff7",
-      "bodyBytes": 15601,
+      "bodyHash": "dea1c168a07da2dd865732c1d5d0771ffa27cbf9f2ede0f8a469c07831c8d4d4",
+      "bodyBytes": 17623,
       "description": "Amend an existing workflow — correct the scope, acceptance criteria, or approach of existing slices without overwriting completed work. Creates versioned amendment artifacts. Use when a review or retro reveals that a slice needs rethinking, not just bug-fixing. Distinct from wf-extend (which adds new slices) and wf-implement (which fixes implementation bugs).",
       "argumentHint": "<slug> [slice-slug | from-review | from-retro]"
     },
@@ -14,10 +14,19 @@
       "key": "announce",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/announce.md",
-      "bodyHash": "22577d5e07742a57c2ecccf972d2eb8b1936935f14192e2c06fd5254e9e0538b",
-      "bodyBytes": 13228,
+      "bodyHash": "75a57ee64dd1e6ff51063f8a9477df474fb9fd31acd560ed296d0f8706221765",
+      "bodyBytes": 15348,
       "description": "Generate stakeholder-facing announcements for shipped workflows. Plain language, no jargon, tailored by audience (eng, product, users). Pulls from handoff and ship artifacts.",
       "argumentHint": "<slug> [audience]"
+    },
+    {
+      "key": "build-pipeline",
+      "kind": "dimension",
+      "referencePath": "skills/wf-meta/reference/build-pipeline.md",
+      "bodyHash": "d47ecf9fcd8261fd9896d4e3e0ef79d543e4c312749a5775098f31ca455a83d6",
+      "bodyBytes": 54427,
+      "description": "Reads `.ai/ship-plan.md` and brings the repo's *entire* CI/CD + developer-experience pipeline into compliance with it. Audits and builds the outbound half (release + pre-merge GitHub Actions workflows, post-publish checks, rollback) AND the inbound half (code-quality CI gates, commit-message + PR-title convention enforcement, local git hooks, editorconfig/version files/task targets, CODEOWNERS, PR/issue templates, dependency automation, and branch protection). Creates missing files, adds missing jobs/steps to existing files (no file is ever overwritten), and — when the plan opts in via `apply-via: gh-api` — applies branch-protection settings to the remote repo behind an explicit confirm gate. Each gap is shown to the user before any write or remote mutation occurs.",
+      "argumentHint": "[--dry-run]"
     },
     {
       "key": "close",
@@ -50,9 +59,9 @@
       "key": "init-ship-plan",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/init-ship-plan.md",
-      "bodyHash": "65730eb94accdec821701a9d0e0cc92e625296e6c54d79deebe621e0a105cdd6",
-      "bodyBytes": 22555,
-      "description": "Author the project-level `.ai/ship-plan.md` — a one-time, repo-scoped contract that captures what \"ship\" means for this project (publishing, version scheme, CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, announcements). Works by **discovery → hypothesis → confirm**: reads what's already in the repo (CI workflows, infra-as-code, package manifests, runbooks), proposes a ship-shape hypothesis, then lets the user confirm or correct each contract. Optional `--from-template <kind>` biases the hypothesis toward a known shape; the template is a *seed*, not a control-flow branch. Read by every subsequent `/wf ship <slug>` invocation.",
+      "bodyHash": "8ea70cd66221a40e1d5bb6d1ad247403698da8d0d291e28fc0f7c9b5091e7df4",
+      "bodyBytes": 47025,
+      "description": "Author the project-level `.ai/ship-plan.md` — a one-time, repo-scoped contract that captures the project's *entire* CI/CD + developer-experience pipeline. The outbound half is what \"ship\" means (publishing, version scheme, release CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, announcements). The inbound half is the contributor experience (code-quality gates: commit-message + PR-title convention, format/lint/type-check/coverage; local developer experience: git hooks, editorconfig, runtime-version files, task runner; repo governance: branch protection, CODEOWNERS, PR/issue templates, dependency automation). Works by **discovery → hypothesis → confirm**: reads what's already in the repo (CI workflows, infra-as-code, package manifests, runbooks, linters, hook frameworks, governance files), proposes a pipeline-shape hypothesis, then lets the user confirm or correct each contract. Optional `--from-template <kind>` biases the hypothesis toward a known shape; the template is a *seed*, not a control-flow branch. Read by every subsequent `/wf ship <slug>` invocation and built by `/wf-meta build-pipeline`.",
       "argumentHint": "[--from-template <kotlin-maven-central|npm-public|pypi|container-image|server-deploy|library-internal>]"
     },
     {
@@ -95,8 +104,8 @@
       "key": "sync",
       "kind": "dimension",
       "referencePath": "skills/wf-meta/reference/sync.md",
-      "bodyHash": "69738946daf6aae9d015baa131d67a303e051dbf4270204bfa337ed737ebac28",
-      "bodyBytes": 14817,
+      "bodyHash": "aca76e8b71031b4c9beab251fa561be7b88d32ded0e9fad6a37a54981ea37b4b",
+      "bodyBytes": 17314,
       "description": "Reconcile workflow state with reality. Two responsibilities — (a) maintain the global workflow registry `.ai/workflows/INDEX.md` (bootstrap on first run; refresh every run) so `/wf-quick` positional slug detection works; (b) check whether referenced code, tests, PRs, branches, and dependencies actually exist or have changed (per-workflow drift report). Writes a sync report to 00-sync.md.",
       "argumentHint": "[slug]"
     }
