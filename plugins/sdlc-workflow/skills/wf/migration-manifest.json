@@ -86,8 +86,8 @@
       "key": "review",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/review.md",
-      "bodyHash": "bf3762a157d49d9b025c0f81ab87ddd1e085346a7dbef3bea202091977e7fad7",
-      "bodyBytes": 49847,
+      "bodyHash": "dc34462852894f6c30aec23bcd4506e503a3727dc818fd6a224eb343e4b00f01",
+      "bodyBytes": 51326,
       "description": "Intelligent review dispatch. Reads workflow artifacts and diff, selects relevant review commands, spawns one parallel sonnet sub-agent per command (each writes its findings to file), then aggregates, deduplicates, and triages findings via AskUserQuestion into a unified review verdict. Re-run with \"triage\" to revisit deferred findings.",
       "argumentHint": "<slug> [slice | triage]"
     },

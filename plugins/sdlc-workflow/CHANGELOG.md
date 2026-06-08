@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — extend sibling-fragment enforcement to 3 more fragment-owning types (9.48.0)
+
+v9.47.0 hard-blocked a missing sibling `.yaml` for the 10 fragment-owning types in
+`post-write-verify`'s `RICH_TIER_TYPES`. But 3 more agent-authored types render a rich
+tier through their own renderer (`review-dimension.mjs`, `design-audit.mjs`,
+`design-critique.mjs`) yet were never gated — a missing sibling there got zero signal.
+This release adds them to the block set (by their literal frontmatter `type:`):
+
+- **`review-command`** — the per-dimension review files (`07-review-<command>.md`). These
+  are written by the Step-3 review sub-agents, so this also closes a **delivery gap**:
+  `skills/wf/reference/review.md` now injects the sibling-authoring step into the review
+  sub-agent prompt (the sub-agent holds that dimension's findings in context), mirroring
+  the v9.47.0 plan fix. A clean, zero-finding dimension opts out with `fragment: none`.
+- **`design-audit`** (`/wf-design audit`) and **`design-critique`** (`/wf-design critique`)
+  — both are orchestrator-written and already carried the "write the sibling `.yaml` +
+  `.html.fragment`" directive, so adding them to the gate is sufficient.
+
+The two remaining fragment-rendering types — `sync-report` (`/wf-meta sync`) and
+`docs-index` (`/wf-docs`) — are deliberately left **ungated**: they are
+automation-regenerable snapshots (`regenerable: true`), rewritten every run, so a hard
+block would wedge the regenerator rather than prompt an author. Enforcement now covers
+13 of the 15 fragment-rendering types; the 2 exclusions are by design.
+
 ### Fixed — rich-tier sibling fragments now actually get authored (9.47.0)
 
 The sunflower "rich tier" (file-change topology, files-touched tables, verdict

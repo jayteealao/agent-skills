@@ -174,7 +174,10 @@ var RICH_TIER_TYPES = /* @__PURE__ */ new Set([
   "experiment",
   "instrument",
   "profile",
-  "simplify-run"
+  "simplify-run",
+  "review-command",
+  "design-audit",
+  "design-critique"
 ]);
 function fragmentOwningType(text) {
   if (!text) return null;

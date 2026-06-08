@@ -369,7 +369,22 @@ refs:
 - Blockers: {N}
 - Status: {Clean / Issues Found / Blockers Found}
 
-Write the file, then return a brief summary of what you found.
+Then author the rich siblings next to that `.md` (you hold the findings in context —
+do NOT leave this for the orchestrator):
+  1. Write `<stem>.yaml` — schema `siblingYamlSchemas.review-dimension` in
+     `tests/frontmatter.schema.json` (`artifact: review-dimension`, `dimension`,
+     `parent`, `rev`, `verdict`, `summary`, `counts`, `findings`), scoped to THIS
+     dimension only. (`<stem>` = the review `.md` filename without `.md`.)
+  2. Write `<stem>.html.fragment` — one
+     `<section class="fragment-review-dimension" data-artifact="review-dimension">`
+     per the per-dimension shape in this reference's Step 5b tail and
+     `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md`.
+The `post-write-verify` hook BLOCKS (exit 2) the `.md` write when the sibling
+`.yaml` is missing — write the `.yaml` first (or in the same turn). If this
+dimension found NOTHING material (clean, zero findings), set `fragment: none` in the
+`.md` frontmatter instead of authoring an empty fragment.
+
+Write the files, then return a brief summary of what you found.
 ```
 
 Wait for ALL sub-agents to complete before proceeding.
@@ -694,13 +709,18 @@ the authoritative gallery is bundled at
 # Step 5c: Write per-dimension rich fragments (MANDATORY — do not skip)
 
 Step 5b covers the **sweep-level** review page (`07-review.md` / `07-review-<slice-slug>.md`).
-Each **per-dimension** review file you wrote in Step 5 — `07-review-<command>.md` (slug-wide)
-or `07-review-<slice-slug>-<command>.md` (per-slice), one per selected review command
+Each **per-dimension** review file — `07-review-<command>.md` (slug-wide) or
+`07-review-<slice-slug>-<command>.md` (per-slice), one per selected review command
 (`security`, `correctness`, …) — renders through `review-dimension.mjs`. **Without a sibling
-fragment that page falls back to `renderSimple`** (plain prose, no interactive findings): the
-focused-dimension equivalent of the S-1 degradation.
+`.yaml` that page falls back to `renderSimple`** (plain prose, no interactive findings): the
+focused-dimension equivalent of the S-1 degradation, and `post-write-verify` now BLOCKS
+(exit 2) a `type: review-command` `.md` written without it.
 
-For each per-dimension review `.md`:
+Those siblings are authored by the **Step-3 review sub-agent** that wrote each per-dimension
+file (it holds that dimension's findings in context — see the sub-agent prompt above). This
+section is the **shape spec** the sub-agent follows; at Step 5b confirm every per-dimension
+`.md` has its `.yaml` (or a `fragment: none` opt-out for a clean dimension) and author any the
+sub-agent missed. For each per-dimension review `.md`:
 
 1. Write the sibling **`<stem>.yaml`** — schema `siblingYamlSchemas.review-dimension` in
    `tests/frontmatter.schema.json`: `artifact: review-dimension`, `dimension`, `parent`

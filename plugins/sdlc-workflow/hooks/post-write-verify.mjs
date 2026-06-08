@@ -46,9 +46,20 @@ import {
 // `type: augmentation` with an `augmentation-type:` discriminator, which
 // `fragmentOwningType()` resolves below, so they are listed here by fragment
 // name rather than by their literal `type:`.
+//
+// v9.48 (coverage): added the three remaining agent-authored fragment-owning
+// types whose renderers degrade to renderSimple without a sibling but which the
+// gate previously ignored — `review-command` (the per-dimension review files
+// rendered by `review-dimension.mjs`), `design-audit`, and `design-critique`.
+// Entries are the literal frontmatter `type:` value (so review-dimension is
+// listed as `review-command`). The two automation-regenerable snapshots that
+// also render rich — `sync-report` (/wf-meta sync) and `docs-index` (/wf-docs) —
+// are intentionally NOT gated: they are rewritten by automation each run, so a
+// hard block would wedge the regenerator rather than prompt an author.
 const RICH_TIER_TYPES = new Set([
   'review', 'plan', 'design', 'ship-run', 'rca',
   'benchmark', 'experiment', 'instrument', 'profile', 'simplify-run',
+  'review-command', 'design-audit', 'design-critique',
 ]);
 
 /**

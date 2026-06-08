@@ -174,6 +174,62 @@ function validBenchmarkAugmentation(overrides = {}) {
   };
 }
 
+function validReviewCommand(overrides = {}) {
+  return {
+    schema: 'sdlc/v1',
+    type: 'review-command',
+    slug: 'demo',
+    'review-scope': 'slug-wide',
+    'slice-slug': '',
+    'review-command': 'correctness',
+    status: 'complete',
+    'updated-at': '2026-06-08T12:00:00Z',
+    'metric-findings-total': 2,
+    'metric-findings-blocker': 0,
+    'metric-findings-high': 1,
+    result: 'issues-found',
+    tags: [],
+    refs: {},
+    ...overrides,
+  };
+}
+
+function validDesignAudit(overrides = {}) {
+  return {
+    schema: 'sdlc/v1',
+    type: 'design-audit',
+    slug: 'demo',
+    title: 'Token audit',
+    status: 'ready',
+    'created-at': '2026-06-08T12:00:00Z',
+    'updated-at': '2026-06-08T12:00:00Z',
+    verdict: 'conditional',
+    'audited-against': 'tokens.css',
+    'violations-count': 3,
+    'severity-distribution': { blocker: 0, high: 1, medium: 1, low: 1 },
+    'remediation-state': 'in-progress',
+    refs: {},
+    ...overrides,
+  };
+}
+
+function validDesignCritique(overrides = {}) {
+  return {
+    schema: 'sdlc/v1',
+    type: 'design-critique',
+    slug: 'demo',
+    title: 'Surface critique',
+    status: 'ready',
+    'created-at': '2026-06-08T12:00:00Z',
+    'updated-at': '2026-06-08T12:00:00Z',
+    scope: 'surface',
+    'findings-count': 2,
+    'severity-distribution': { blocker: 0, high: 0, medium: 1, low: 1, nit: 0 },
+    refs: {},
+    ...overrides,
+  };
+}
+
 test('pre-write-validate skips missing and non-workflow file paths', () => {
   const tmp = tempDir();
   try {
@@ -498,6 +554,84 @@ test('post-write-verify BLOCKS for an augmentation artifact and resolves its aug
     equal(result.status, 2);
     match(result.stderr, /bench-1\.yaml \+ bench-1\.html\.fragment/);
     match(result.stderr, /type: benchmark/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify BLOCKS for a per-dimension review-command artifact missing its .yaml (v9.48 coverage)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/07-review-correctness.md';
+    writeFile(join(tmp, rel), md(validReviewCommand()));
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: rel },
+    }, tmp);
+
+    equal(result.status, 2);
+    match(result.stderr, /mandatory sibling \.yaml/);
+    match(result.stderr, /07-review-correctness\.yaml \+ 07-review-correctness\.html\.fragment/);
+    match(result.stderr, /type: review-command/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify BLOCKS for a design-audit artifact missing its .yaml (v9.48 coverage)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/07-design-audit.md';
+    writeFile(join(tmp, rel), md(validDesignAudit()));
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: rel },
+    }, tmp);
+
+    equal(result.status, 2);
+    match(result.stderr, /07-design-audit\.yaml \+ 07-design-audit\.html\.fragment/);
+    match(result.stderr, /type: design-audit/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify BLOCKS for a design-critique artifact missing its .yaml (v9.48 coverage)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/07-design-critique.md';
+    writeFile(join(tmp, rel), md(validDesignCritique()));
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: rel },
+    }, tmp);
+
+    equal(result.status, 2);
+    match(result.stderr, /07-design-critique\.yaml \+ 07-design-critique\.html\.fragment/);
+    match(result.stderr, /type: design-critique/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify honours fragment: none on a review-command artifact (v9.48)', () => {
+  const tmp = tempDir();
+  try {
+    // A clean dimension with zero findings opts out — no block, no output.
+    const rel = '.ai/workflows/demo/07-review-style-consistency.md';
+    writeFile(join(tmp, rel), md(validReviewCommand({ fragment: 'none', result: 'clean' })));
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: rel },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
