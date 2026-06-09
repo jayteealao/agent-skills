@@ -2,14 +2,84 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   scanWorkflowIndexes
-} from "./chunk-UFTZEN4P.mjs";
+} from "./chunk-NTSUEAI6.mjs";
 import {
   isPidAlive
 } from "./chunk-FIVVBFWT.mjs";
 
+// lib/branch-liveness.mjs
+import { execFileSync } from "node:child_process";
+function gitExit(repoRoot, args) {
+  try {
+    execFileSync("git", ["-C", repoRoot, ...args], {
+      windowsHide: true,
+      timeout: 2e3,
+      stdio: "ignore"
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+function gitAvailable(repoRoot) {
+  return gitExit(repoRoot, ["rev-parse", "--git-dir"]);
+}
+function prMerged(repoRoot, prNumber) {
+  if (!(Number.isInteger(prNumber) && prNumber > 0)) return false;
+  try {
+    const state = execFileSync(
+      "gh",
+      ["pr", "view", String(prNumber), "--json", "state", "-q", ".state"],
+      { cwd: repoRoot, encoding: "utf-8", windowsHide: true, timeout: 3e3, stdio: ["ignore", "pipe", "ignore"] }
+    ).trim();
+    return state === "MERGED";
+  } catch {
+    return false;
+  }
+}
+function computeBranchState({ repoRoot, branch, baseBranch, prNumber, checkPr = true } = {}) {
+  try {
+    const b = String(branch ?? "").trim();
+    if (!repoRoot || !b) return "unknown";
+    if (!gitAvailable(repoRoot)) return "unknown";
+    const refExists = gitExit(repoRoot, ["show-ref", "--verify", "--quiet", `refs/heads/${b}`]);
+    if (refExists) {
+      const base = String(baseBranch ?? "").trim();
+      if (base && base !== b && gitExit(repoRoot, ["merge-base", "--is-ancestor", b, base])) return "merged";
+      if (checkPr && prMerged(repoRoot, prNumber)) return "merged";
+      return "live";
+    }
+    return "gone";
+  } catch {
+    return "unknown";
+  }
+}
+function refreshEntriesLiveness(entries = [], { checkPr = false } = {}) {
+  try {
+    for (const e of entries ?? []) {
+      if (!e || !Array.isArray(e.slugMeta)) continue;
+      for (const sm of e.slugMeta) {
+        try {
+          sm.branchState = computeBranchState({
+            repoRoot: e.repoRoot,
+            branch: sm.branch,
+            baseBranch: sm.baseBranch,
+            prNumber: sm.prNumber,
+            checkPr
+          });
+        } catch {
+          sm.branchState = sm.branchState ?? "unknown";
+        }
+      }
+    }
+  } catch {
+  }
+  return entries;
+}
+
 // lib/registry.mjs
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { execFileSync as execFileSync2 } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -25,7 +95,7 @@ import {
 import { request } from "node:http";
 import { homedir } from "node:os";
 import { basename, dirname, join, sep } from "node:path";
-var REGISTRY_VERSION = 1;
+var REGISTRY_VERSION = 2;
 var SHARD_SOFT_CAP = 100;
 function sdlcHomeDir() {
   const override = process.env.SDLC_HOME;
@@ -45,7 +115,7 @@ function hubPidPath() {
 }
 function git(cwd, args) {
   try {
-    return execFileSync("git", ["-C", cwd, ...args], {
+    return execFileSync2("git", ["-C", cwd, ...args], {
       encoding: "utf-8",
       windowsHide: true,
       timeout: 2e3,
@@ -64,8 +134,8 @@ function gitIdentity(cwd) {
   } catch {
     repoRoot = topLevel.replace(/\//g, sep);
   }
-  let branch = git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
-  if (!branch || branch === "HEAD") branch = basename(repoRoot);
+  let headBranch = git(cwd, ["rev-parse", "--abbrev-ref", "HEAD"]);
+  if (!headBranch || headBranch === "HEAD") headBranch = basename(repoRoot);
   const gitDir = git(cwd, ["rev-parse", "--absolute-git-dir"]);
   const commonDirRaw = git(cwd, ["rev-parse", "--git-common-dir"]);
   let isWorktree = false;
@@ -75,7 +145,9 @@ function gitIdentity(cwd) {
   }
   return {
     repoRoot,
-    branch,
+    headBranch,
+    // A linked worktree has its OWN repoRoot, so repo-scoped ids keep worktrees
+    // distinct for free; the label is kept for display.
     worktreeLabel: isWorktree ? basename(repoRoot) : null
   };
 }
@@ -86,25 +158,23 @@ function canon(p) {
     return p;
   }
 }
-function computeEntryId(repoRoot, branch) {
+function computeEntryId(repoRoot, _ignoredBranch) {
   const fwd = String(repoRoot).replace(/\\/g, "/");
-  return createHash("sha256").update(`${fwd}
-${branch}`).digest("hex").slice(0, 12);
+  return createHash("sha256").update(fwd).digest("hex").slice(0, 12);
 }
-function resolveEntryId(repoRoot, branch, existing) {
-  const base = computeEntryId(repoRoot, branch);
-  const clash = existing.find(
-    (e) => e.id === base && (e.repoRoot !== repoRoot || e.branch !== branch)
-  );
+function resolveEntryId(repoRoot, existing) {
+  const base = computeEntryId(repoRoot);
+  const clash = existing.find((e) => e.id === base && e.repoRoot !== repoRoot);
   if (!clash) return base;
   const suffix = createHash("sha256").update(String(repoRoot)).digest("hex").slice(0, 4);
   return `${base}-${suffix}`;
 }
 function validateEntry(entry) {
   if (!entry || typeof entry !== "object") return { ok: false, reason: "not an object" };
-  const { id, repoRoot, branch, viewDir } = entry;
-  if (!id || !repoRoot || !branch || !viewDir) {
-    return { ok: false, reason: "missing id/repoRoot/branch/viewDir" };
+  const { id, repoRoot, viewDir } = entry;
+  const headBranch = entry.headBranch ?? entry.branch;
+  if (!id || !repoRoot || !headBranch || !viewDir) {
+    return { ok: false, reason: "missing id/repoRoot/headBranch/viewDir" };
   }
   let realView;
   try {
@@ -143,14 +213,30 @@ function readLastRender(viewDir) {
 async function collectSlugMeta({ projectRoot, workflowsRoot }) {
   try {
     const workflows = await scanWorkflowIndexes({ projectRoot, workflowsRoot });
-    return workflows.filter((w) => w.classification !== "invalid").map((w) => ({
-      slug: w.slug,
-      title: w.title ?? null,
-      currentStage: w.currentStage ?? null,
-      status: w.status ?? null,
-      classification: w.classification,
-      blocked: w.status === "blocked" || w.frontmatter?.blocked === true
-    }));
+    return workflows.filter((w) => w.classification !== "invalid").map((w) => {
+      const branch = w.branch ?? null;
+      const baseBranch = w.baseBranch ?? null;
+      const prNumber = w.prNumber ?? null;
+      return {
+        slug: w.slug,
+        title: w.title ?? null,
+        currentStage: w.currentStage ?? null,
+        status: w.status ?? null,
+        classification: w.classification,
+        blocked: w.status === "blocked" || w.frontmatter?.blocked === true,
+        branch,
+        branchStrategy: w.branchStrategy ?? null,
+        baseBranch,
+        prNumber,
+        prUrl: w.prUrl ?? null,
+        // Liveness stamped at render time — buildEntry already has repoRoot and
+        // runs git (§4.3). Best-effort: 'unknown' when there's no branch / no
+        // git. Local-git only (checkPr:false) so the hot artifact-write render
+        // path never makes a `gh` network call (R2); local ref + base-ancestry
+        // already yield gone/merged. The hub refresh is likewise local-only.
+        branchState: computeBranchState({ repoRoot: projectRoot, branch, baseBranch, prNumber, checkPr: false })
+      };
+    });
   } catch {
     return [];
   }
@@ -158,7 +244,7 @@ async function collectSlugMeta({ projectRoot, workflowsRoot }) {
 async function buildEntry({ projectRoot, viewDir, configHash = null, existing = [], nowIso }) {
   const identity = gitIdentity(projectRoot);
   if (!identity) return null;
-  const { repoRoot, branch, worktreeLabel } = identity;
+  const { repoRoot, headBranch, worktreeLabel } = identity;
   const resolvedViewDir = (() => {
     try {
       return realpathSync.native(viewDir);
@@ -166,7 +252,7 @@ async function buildEntry({ projectRoot, viewDir, configHash = null, existing = 
       return viewDir;
     }
   })();
-  const id = resolveEntryId(repoRoot, branch, existing);
+  const id = resolveEntryId(repoRoot, existing);
   const last = readLastRender(resolvedViewDir);
   const workflowsRoot = join(repoRoot, ".ai", "workflows");
   const slugMeta = await collectSlugMeta({ projectRoot: repoRoot, workflowsRoot });
@@ -175,7 +261,9 @@ async function buildEntry({ projectRoot, viewDir, configHash = null, existing = 
   return {
     id,
     repoRoot,
-    branch,
+    // Informational only — the checkout's current HEAD, NOT identity (§4.2).
+    // Per-slug branches (the authored truth) live on each slugMeta row.
+    headBranch,
     worktreeLabel,
     viewDir: resolvedViewDir,
     lastRenderedAt: last.renderedAt ?? stamp,
@@ -186,11 +274,44 @@ async function buildEntry({ projectRoot, viewDir, configHash = null, existing = 
     updatedAt: stamp
   };
 }
+function repoScopeEntries(entries) {
+  const byId = /* @__PURE__ */ new Map();
+  for (const raw of entries ?? []) {
+    if (!raw || typeof raw !== "object" || !raw.repoRoot) continue;
+    const id = computeEntryId(raw.repoRoot);
+    const headBranch = raw.headBranch ?? raw.branch ?? null;
+    const e = { ...raw, id, headBranch };
+    delete e.branch;
+    const prev = byId.get(id);
+    byId.set(id, prev ? mergeCollapsedEntries(prev, e) : e);
+  }
+  return [...byId.values()].sort(
+    (a, b) => String(a.registeredAt ?? "").localeCompare(String(b.registeredAt ?? ""))
+  );
+}
+function mergeCollapsedEntries(a, b) {
+  const newer = String(b.updatedAt ?? "") >= String(a.updatedAt ?? "") ? b : a;
+  const older = newer === b ? a : b;
+  const slugMap = /* @__PURE__ */ new Map();
+  for (const sm of older.slugMeta ?? []) slugMap.set(sm.slug, sm);
+  for (const sm of newer.slugMeta ?? []) slugMap.set(sm.slug, sm);
+  const slugMeta = [...slugMap.values()];
+  const registered = [a.registeredAt, b.registeredAt].filter(Boolean).sort();
+  return {
+    ...newer,
+    slugMeta,
+    slugs: slugMeta.map((s) => s.slug),
+    registeredAt: registered[0] ?? newer.registeredAt ?? null
+  };
+}
 function migrateRegistry(raw) {
   if (!raw || typeof raw !== "object" || !Array.isArray(raw.entries)) {
     return { version: REGISTRY_VERSION, entries: [] };
   }
-  return { version: REGISTRY_VERSION, entries: raw.entries };
+  if (raw.version === REGISTRY_VERSION) {
+    return { version: REGISTRY_VERSION, entries: raw.entries };
+  }
+  return { version: REGISTRY_VERSION, entries: repoScopeEntries(raw.entries) };
 }
 function readRegistryFile() {
   const path = registryPath();
@@ -220,21 +341,10 @@ function readShards() {
   }
   return out;
 }
-function mergeEntries(base, overlay) {
-  const byId = /* @__PURE__ */ new Map();
-  for (const e of base) byId.set(e.id, e);
-  for (const e of overlay) {
-    const prev = byId.get(e.id);
-    if (!prev || String(e.updatedAt ?? "") >= String(prev.updatedAt ?? "")) byId.set(e.id, e);
-  }
-  return [...byId.values()].sort(
-    (a, b) => String(a.registeredAt ?? "").localeCompare(String(b.registeredAt ?? ""))
-  );
-}
 function readRegistry({ validate = true, logInvalid = true } = {}) {
   const file = readRegistryFile();
   const shards = readShards().map((s) => s.entry);
-  let entries = mergeEntries(file.entries, shards);
+  let entries = repoScopeEntries([...file.entries, ...shards]);
   if (validate) {
     entries = entries.filter((e) => {
       const v = validateEntry(e);
@@ -269,7 +379,7 @@ function writeRegistry(entries) {
 function mergeShardsIntoRegistry() {
   const file = readRegistryFile();
   const shards = readShards();
-  const merged = mergeEntries(file.entries, shards.map((s) => s.entry)).filter((e) => validateEntry(e).ok);
+  const merged = repoScopeEntries([...file.entries, ...shards.map((s) => s.entry)]).filter((e) => validateEntry(e).ok);
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: merged });
   for (const { file: shardFile } of shards) {
     try {
@@ -290,7 +400,7 @@ function pruneRegistry() {
       kept.push(e);
     } else {
       pruned++;
-      logPrune(`prune ${e.id ?? "?"} (${e.repoRoot ?? "?"} @ ${e.branch ?? "?"}): ${valid ? "missing repoRoot/viewDir/.last-render" : "failed validation"}`);
+      logPrune(`prune ${e.id ?? "?"} (${e.repoRoot ?? "?"} @ ${e.headBranch ?? e.branch ?? "?"}): ${valid ? "missing repoRoot/viewDir/.last-render" : "failed validation"}`);
     }
   }
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: kept });
@@ -414,6 +524,8 @@ async function upsertRegistryEntry({ projectRoot = process.cwd(), viewDir, confi
 }
 
 export {
+  refreshEntriesLiveness,
+  REGISTRY_VERSION,
   sdlcHomeDir,
   hubPidPath,
   validateEntry,

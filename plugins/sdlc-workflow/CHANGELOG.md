@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — slug-branch identity: repo-scoped registry ids + branch-aware hub (9.49.0)
+
+The multi-repo hub keyed each registry entry's id off `hash(repoRoot + HEAD-branch)`.
+That single choice produced three defects: **phantom duplicates** (rendering on `main`,
+switching to `feat/x` in place, and re-rendering forked one entry into two that both pointed
+at the same branch-blind `.ai/_view`), **aliased routes** (`/r/<id_main>/` and
+`/r/<id_featx>/` served byte-identical last-render-wins content), and **no merge/delete
+awareness**. Root cause: branch was treated as a property of the *checkout* (one volatile
+HEAD) when it is really a property of the *slug* — every `00-index.md` already declares its
+own schema-required `branch` / `branch-strategy` / `base-branch` / `pr-number`, loaded by the
+scanner but never surfaced. This release moves branch *inside* the entry (per slug) and keys
+identity off the repo. See `SLUG-BRANCH-IDENTITY-PLAN.md`.
+
+- **Per-slug branch metadata (Slice 1).** `loadWorkflowIndex` + `collectSlugMeta` now surface
+  `branch` / `branchStrategy` / `baseBranch` / `prNumber` / `prUrl` on each slugMeta row. The
+  unset sentinels seen in live repos — `branch: ""` under `branch-strategy: none`, and
+  `pr-number: 0` / `pr-url: ""` for no-PR — are normalised to `null` at this single plumbing
+  point so downstream grouping and liveness never re-distinguish `""` from absent.
+- **Repo-scoped identity + v1→v2 migration (Slice 2).** `computeEntryId` now hashes
+  `repoRoot` ALONE; the collision rule is branch-insensitive; the checkout's HEAD is stored as
+  informational `headBranch` (no longer identity). `REGISTRY_VERSION` is bumped to **2** and a
+  pure-on-read migration re-keys v1 entries off `repoRoot` and merges any that collapse —
+  unioning slugMeta by slug, latest `updatedAt` winning scalar fields, earliest `registeredAt`
+  preserved. The same idempotent re-key powers the merged read view, so a stale pre-upgrade
+  shard can't resurrect a phantom duplicate. **One-time route-URL break**: existing
+  `/r/<id>/` bookmarks change once (ids drop the branch); they are *more* stable thereafter.
+- **Repo → branch → slug grouping (Slice 3).** The hub landing page renders one card per
+  repo (the worktree, a distinct `repoRoot`, gets its own card) with the HEAD branch shown as
+  informational context, and groups that card's slugs into per-branch sub-lanes driven by
+  `branch-strategy`: `dedicated` → its own lane, `shared` → a clustered lane, `none` → under
+  `base-branch`/trunk (never a literal empty lane). The cross-repo inbox row now shows each
+  slug's declared branch.
+- **Branch liveness — soft badges (Slice 4).** New `lib/branch-liveness.mjs` classifies each
+  slug's branch as `live` / `merged` / `gone` / `unknown` against its own repo (local git for
+  ref-existence + base-ancestry; a best-effort, network-guarded `gh pr view` for merged PRs).
+  Computed at render time and opportunistically refreshed on the hub's `reload()` (local-only,
+  so a reload never blocks), it renders a soft `merged` / `branch gone` badge and a fourth
+  inbox attention reason. It **never** deletes a slug or entry — the user closes the workflow.
+
+Invariants preserved: `/r/<id>/` still routes through `validateEntry` (no widening of path
+containment), the hub renders fully in-memory (all new fields ride in slugMeta — zero
+per-request disk/git), and every liveness/registry write is best-effort and never throws.
+Phase-0 survey of 8 live repos (≈50/50 gitignored-vs-committed `.ai/workflows`) confirmed the
+branch sub-lanes earn their complexity. 265 tests pass; dist rebuilt.
+
 ### Changed — extend sibling-fragment enforcement to 3 more fragment-owning types (9.48.0)
 
 v9.47.0 hard-blocked a missing sibling `.yaml` for the 10 fragment-owning types in

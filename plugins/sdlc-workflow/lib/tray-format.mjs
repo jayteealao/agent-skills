@@ -151,7 +151,9 @@ function buildDetailRows(payload, { isHub, now }) {
 function buildRepoItems(entries, now) {
   return entries.map((e) => {
     const id = String(e.id ?? '?');
-    const branch = String(e.branch ?? '?');
+    // headBranch is the checkout's current HEAD (informational); tolerate the
+    // legacy v1 `branch` field for un-migrated health payloads.
+    const branch = String(e.headBranch ?? e.branch ?? '?');
     const slugs = Array.isArray(e.slugs) ? e.slugs.length : 0;
     const rendered = fmtRelTime(e.lastRenderedAt, now);
     return {

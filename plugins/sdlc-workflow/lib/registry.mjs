@@ -35,8 +35,9 @@ import { basename, dirname, join, sep } from 'node:path';
 
 import { readPidFile, isPidAlive } from './pid-file.mjs';
 import { scanWorkflowIndexes } from './workflow-index.mjs';
+import { computeBranchState } from './branch-liveness.mjs';
 
-export const REGISTRY_VERSION = 1;
+export const REGISTRY_VERSION = 2;   // v2 (SLUG-BRANCH-IDENTITY §4.2): id = hash(repoRoot) only
 export const SHARD_SOFT_CAP = 100;   // §3.4 — writer-as-janitor merge trigger
 
 /* ───────────────────────── Home-dir paths ───────────────────────── */
@@ -79,8 +80,10 @@ function git(cwd, args) {
 }
 
 /**
- * Resolve repo+branch+worktree identity for a checkout. Returns null if `cwd`
- * is not inside a git repo (the registry is a git-repo concept).
+ * Resolve repo+worktree identity for a checkout, plus the checkout's current
+ * HEAD branch as INFORMATIONAL context (`headBranch` — no longer part of the
+ * entry id; see §4.2). Returns null if `cwd` is not inside a git repo (the
+ * registry is a git-repo concept).
  */
 export function gitIdentity(cwd) {
   const topLevel = git(cwd, ['rev-parse', '--show-toplevel']);
@@ -90,9 +93,9 @@ export function gitIdentity(cwd) {
   try { repoRoot = realpathSync.native(topLevel); }
   catch { repoRoot = topLevel.replace(/\//g, sep); }
 
-  let branch = git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
-  // Detached HEAD → fall back to the worktree basename so identity is stable.
-  if (!branch || branch === 'HEAD') branch = basename(repoRoot);
+  let headBranch = git(cwd, ['rev-parse', '--abbrev-ref', 'HEAD']);
+  // Detached HEAD → fall back to the worktree basename so the label is stable.
+  if (!headBranch || headBranch === 'HEAD') headBranch = basename(repoRoot);
 
   // Worktree detection: a linked worktree's git dir differs from the common dir.
   const gitDir = git(cwd, ['rev-parse', '--absolute-git-dir']);
@@ -107,7 +110,9 @@ export function gitIdentity(cwd) {
 
   return {
     repoRoot,
-    branch,
+    headBranch,
+    // A linked worktree has its OWN repoRoot, so repo-scoped ids keep worktrees
+    // distinct for free; the label is kept for display.
     worktreeLabel: isWorktree ? basename(repoRoot) : null,
   };
 }
@@ -119,26 +124,31 @@ function canon(p) {
 /* ───────────────────────── id computation (§3.3) ───────────────────────── */
 
 /**
- * sha256(repoRoot_fwdslash + "\n" + branch) → first 12 hex chars (48 bits).
- * repoRoot is normalised to forward slashes for cross-platform hash stability.
- * The id deliberately INCLUDES branch so an in-place branch switch produces a
- * new /r/<id>/ route (§3.3 design note).
+ * sha256(repoRoot_fwdslash) → first 12 hex chars (48 bits). repoRoot is
+ * normalised to forward slashes for cross-platform hash stability.
+ *
+ * REPO-SCOPED (§4.2/D1): the id is keyed off repoRoot ALONE — branch is no
+ * longer in the digest. One entry per checkout/worktree, so an in-place
+ * `git checkout` of a new branch can never fork the entry into a phantom
+ * duplicate. (A linked worktree has its own repoRoot, so it stays distinct.)
+ * The optional 2nd arg is accepted-and-ignored for source call-site
+ * compatibility during the transition; it does not affect the digest.
  */
-export function computeEntryId(repoRoot, branch) {
+export function computeEntryId(repoRoot, _ignoredBranch) {
   const fwd = String(repoRoot).replace(/\\/g, '/');
-  return createHash('sha256').update(`${fwd}\n${branch}`).digest('hex').slice(0, 12);
+  return createHash('sha256').update(fwd).digest('hex').slice(0, 12);
 }
 
 /**
  * Resolve an id against existing entries, appending a 4-char path-hash suffix on
- * a genuine collision (same id, different repoRoot/branch). Practical paranoia
- * for repo copies sharing the last path segment + branch.
+ * a genuine collision (same 12-hex id, GENUINELY different repoRoot). The clash
+ * test is branch-INSENSITIVE (§4.2): switching branches must NOT re-split the
+ * entry we just collapsed — only a different repoRoot colliding on the same
+ * 48-bit base earns a suffix.
  */
-function resolveEntryId(repoRoot, branch, existing) {
-  const base = computeEntryId(repoRoot, branch);
-  const clash = existing.find(
-    (e) => e.id === base && (e.repoRoot !== repoRoot || e.branch !== branch),
-  );
+function resolveEntryId(repoRoot, existing) {
+  const base = computeEntryId(repoRoot);
+  const clash = existing.find((e) => e.id === base && e.repoRoot !== repoRoot);
   if (!clash) return base;
   const suffix = createHash('sha256').update(String(repoRoot)).digest('hex').slice(0, 4);
   return `${base}-${suffix}`;
@@ -153,9 +163,12 @@ function resolveEntryId(repoRoot, branch, existing) {
  */
 export function validateEntry(entry) {
   if (!entry || typeof entry !== 'object') return { ok: false, reason: 'not an object' };
-  const { id, repoRoot, branch, viewDir } = entry;
-  if (!id || !repoRoot || !branch || !viewDir) {
-    return { ok: false, reason: 'missing id/repoRoot/branch/viewDir' };
+  const { id, repoRoot, viewDir } = entry;
+  // `headBranch` is canonical (§4.2); tolerate a legacy v1 `branch` so an
+  // un-migrated on-disk entry or stale shard still validates structurally.
+  const headBranch = entry.headBranch ?? entry.branch;
+  if (!id || !repoRoot || !headBranch || !viewDir) {
+    return { ok: false, reason: 'missing id/repoRoot/headBranch/viewDir' };
   }
 
   let realView;
@@ -202,14 +215,33 @@ async function collectSlugMeta({ projectRoot, workflowsRoot }) {
     const workflows = await scanWorkflowIndexes({ projectRoot, workflowsRoot });
     return workflows
       .filter((w) => w.classification !== 'invalid')
-      .map((w) => ({
-        slug: w.slug,
-        title: w.title ?? null,
-        currentStage: w.currentStage ?? null,
-        status: w.status ?? null,
-        classification: w.classification,
-        blocked: w.status === 'blocked' || w.frontmatter?.blocked === true,
-      }));
+      .map((w) => {
+        // Per-slug branch facts (SLUG-BRANCH-IDENTITY-PLAN §4.1). Already
+        // blank-normalised by loadWorkflowIndex; tolerate legacy/hand-edited
+        // indexes lacking them — default null, never throw.
+        const branch = w.branch ?? null;
+        const baseBranch = w.baseBranch ?? null;
+        const prNumber = w.prNumber ?? null;
+        return {
+          slug: w.slug,
+          title: w.title ?? null,
+          currentStage: w.currentStage ?? null,
+          status: w.status ?? null,
+          classification: w.classification,
+          blocked: w.status === 'blocked' || w.frontmatter?.blocked === true,
+          branch,
+          branchStrategy: w.branchStrategy ?? null,
+          baseBranch,
+          prNumber,
+          prUrl: w.prUrl ?? null,
+          // Liveness stamped at render time — buildEntry already has repoRoot and
+          // runs git (§4.3). Best-effort: 'unknown' when there's no branch / no
+          // git. Local-git only (checkPr:false) so the hot artifact-write render
+          // path never makes a `gh` network call (R2); local ref + base-ancestry
+          // already yield gone/merged. The hub refresh is likewise local-only.
+          branchState: computeBranchState({ repoRoot: projectRoot, branch, baseBranch, prNumber, checkPr: false }),
+        };
+      });
   } catch {
     return [];
   }
@@ -222,13 +254,13 @@ async function collectSlugMeta({ projectRoot, workflowsRoot }) {
 export async function buildEntry({ projectRoot, viewDir, configHash = null, existing = [], nowIso }) {
   const identity = gitIdentity(projectRoot);
   if (!identity) return null;
-  const { repoRoot, branch, worktreeLabel } = identity;
+  const { repoRoot, headBranch, worktreeLabel } = identity;
 
   const resolvedViewDir = (() => {
     try { return realpathSync.native(viewDir); } catch { return viewDir; }
   })();
 
-  const id = resolveEntryId(repoRoot, branch, existing);
+  const id = resolveEntryId(repoRoot, existing);
   const last = readLastRender(resolvedViewDir);
   const workflowsRoot = join(repoRoot, '.ai', 'workflows');
   const slugMeta = await collectSlugMeta({ projectRoot: repoRoot, workflowsRoot });
@@ -238,7 +270,9 @@ export async function buildEntry({ projectRoot, viewDir, configHash = null, exis
   return {
     id,
     repoRoot,
-    branch,
+    // Informational only — the checkout's current HEAD, NOT identity (§4.2).
+    // Per-slug branches (the authored truth) live on each slugMeta row.
+    headBranch,
     worktreeLabel,
     viewDir: resolvedViewDir,
     lastRenderedAt: last.renderedAt ?? stamp,
@@ -252,12 +286,60 @@ export async function buildEntry({ projectRoot, viewDir, configHash = null, exis
 
 /* ───────────────────────── registry read / migrate / merge ───────────────────────── */
 
+/**
+ * Re-key entries off repoRoot ALONE (D1) and collapse any that now map to the
+ * same id. The single mechanism behind BOTH the v1→v2 migration AND the merged
+ * read view, so it must be idempotent: re-keying an already-repo-scoped (v2)
+ * entry yields the same id and no collapse. Running it on the combined
+ * file ∪ shard set means a stale pre-upgrade (v1, branch-keyed) shard can't
+ * resurrect a phantom duplicate next to its migrated v2 twin. §4.2.
+ *
+ * Collapse rule: union slugMeta by slug (newer entry wins per slug), latest
+ * `updatedAt` wins the scalar fields, earliest `registeredAt` is preserved.
+ */
+function repoScopeEntries(entries) {
+  const byId = new Map();
+  for (const raw of (entries ?? [])) {
+    if (!raw || typeof raw !== 'object' || !raw.repoRoot) continue;
+    const id = computeEntryId(raw.repoRoot);
+    const headBranch = raw.headBranch ?? raw.branch ?? null;
+    const e = { ...raw, id, headBranch };
+    delete e.branch;   // drop the legacy v1 field once promoted to headBranch
+    const prev = byId.get(id);
+    byId.set(id, prev ? mergeCollapsedEntries(prev, e) : e);
+  }
+  return [...byId.values()].sort(
+    (a, b) => String(a.registeredAt ?? '').localeCompare(String(b.registeredAt ?? '')),
+  );
+}
+
+function mergeCollapsedEntries(a, b) {
+  const newer = String(b.updatedAt ?? '') >= String(a.updatedAt ?? '') ? b : a;
+  const older = newer === b ? a : b;
+  // Union slugMeta by slug; the newer entry's row wins on conflict.
+  const slugMap = new Map();
+  for (const sm of (older.slugMeta ?? [])) slugMap.set(sm.slug, sm);
+  for (const sm of (newer.slugMeta ?? [])) slugMap.set(sm.slug, sm);
+  const slugMeta = [...slugMap.values()];
+  const registered = [a.registeredAt, b.registeredAt].filter(Boolean).sort();
+  return {
+    ...newer,
+    slugMeta,
+    slugs: slugMeta.map((s) => s.slug),
+    registeredAt: registered[0] ?? newer.registeredAt ?? null,
+  };
+}
+
 function migrateRegistry(raw) {
   if (!raw || typeof raw !== 'object' || !Array.isArray(raw.entries)) {
     return { version: REGISTRY_VERSION, entries: [] };
   }
-  // version:1 is current; future versions add migration branches here.
-  return { version: REGISTRY_VERSION, entries: raw.entries };
+  if (raw.version === REGISTRY_VERSION) {
+    return { version: REGISTRY_VERSION, entries: raw.entries };
+  }
+  // v1 (or older / unversioned) → v2: repo-scope re-key + collapse phantom
+  // branch-forked duplicates. Pure transform on read — no migration command.
+  return { version: REGISTRY_VERSION, entries: repoScopeEntries(raw.entries) };
 }
 
 function readRegistryFile() {
@@ -286,28 +368,17 @@ function readShards() {
   return out;
 }
 
-// Merge a base entry list with overlay entries; later updatedAt wins per id.
-function mergeEntries(base, overlay) {
-  const byId = new Map();
-  for (const e of base) byId.set(e.id, e);
-  for (const e of overlay) {
-    const prev = byId.get(e.id);
-    if (!prev || String(e.updatedAt ?? '') >= String(prev.updatedAt ?? '')) byId.set(e.id, e);
-  }
-  return [...byId.values()].sort(
-    (a, b) => String(a.registeredAt ?? '').localeCompare(String(b.registeredAt ?? '')),
-  );
-}
-
 /**
  * The merged, validated view of the registry: registry.json ∪ shards. Pure read
- * — never writes or clears shards (use mergeShardsIntoRegistry for that). Invalid
- * entries (§3.6) are dropped and logged. `{ version, entries }`.
+ * — never writes or clears shards (use mergeShardsIntoRegistry for that). The
+ * combined set is repo-scoped (re-keyed + collapsed) so a v1 shard sitting next
+ * to its migrated v2 twin folds into one entry. Invalid entries (§3.6) are
+ * dropped and logged. `{ version, entries }`.
  */
 export function readRegistry({ validate = true, logInvalid = true } = {}) {
   const file = readRegistryFile();
   const shards = readShards().map((s) => s.entry);
-  let entries = mergeEntries(file.entries, shards);
+  let entries = repoScopeEntries([...file.entries, ...shards]);
   if (validate) {
     entries = entries.filter((e) => {
       const v = validateEntry(e);
@@ -347,7 +418,7 @@ export function writeRegistry(entries) {
 export function mergeShardsIntoRegistry() {
   const file = readRegistryFile();
   const shards = readShards();
-  const merged = mergeEntries(file.entries, shards.map((s) => s.entry))
+  const merged = repoScopeEntries([...file.entries, ...shards.map((s) => s.entry)])
     .filter((e) => validateEntry(e).ok);
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: merged });
   for (const { file: shardFile } of shards) {
@@ -377,7 +448,7 @@ export function pruneRegistry() {
       kept.push(e);
     } else {
       pruned++;
-      logPrune(`prune ${e.id ?? '?'} (${e.repoRoot ?? '?'} @ ${e.branch ?? '?'}): ${valid ? 'missing repoRoot/viewDir/.last-render' : 'failed validation'}`);
+      logPrune(`prune ${e.id ?? '?'} (${e.repoRoot ?? '?'} @ ${e.headBranch ?? e.branch ?? '?'}): ${valid ? 'missing repoRoot/viewDir/.last-render' : 'failed validation'}`);
     }
   }
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: kept });

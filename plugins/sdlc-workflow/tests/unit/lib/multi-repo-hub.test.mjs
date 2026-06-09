@@ -25,10 +25,13 @@ import {
   shardDir,
   gitIdentity,
   mergeShardsIntoRegistry,
+  sdlcHomeDir,
+  registryPath,
   SHARD_SOFT_CAP,
 } from '../../../lib/registry.mjs';
 import { createHubServer, parseHubArgs } from '../../../scripts/hub-serve.mjs';
 import { renderHubLanding, inboxItems } from '../../../renderers/hub-dashboard.mjs';
+import { computeBranchState, refreshEntriesLiveness } from '../../../lib/branch-liveness.mjs';
 import { readHubConfig, hubConfigPath, HUB_CONFIG_DEFAULTS } from '../../../lib/hub-config.mjs';
 import { ensureHubLifecycle } from '../../../lib/hub-lifecycle.mjs';
 import { ensureServeLifecycle, servePidPath } from '../../../lib/serve-lifecycle.mjs';
@@ -60,7 +63,10 @@ function initRepo(dir, branch = 'master') {
   gitQuiet(dir, ['commit', '-m', 'init']);
 }
 
-function renderView(repoDir, { slug = 'demo', stage = 'implement', status = 'active', blocked = false } = {}) {
+function renderView(repoDir, {
+  slug = 'demo', stage = 'implement', status = 'active', blocked = false,
+  branch, branchStrategy, baseBranch, prNumber, prUrl,
+} = {}) {
   const view = join(repoDir, '.ai', '_view');
   mkdirSync(view, { recursive: true });
   writeFileSync(join(view, '.last-render'), JSON.stringify({
@@ -82,6 +88,14 @@ function renderView(repoDir, { slug = 'demo', stage = 'implement', status = 'act
     'schema: sdlc/v1', 'type: index', `slug: ${slug}`,
     `status: ${status}`, `current-stage: ${stage}`,
     blocked ? 'blocked: true' : null,
+    // Per-slug branch frontmatter (SLUG-BRANCH-IDENTITY-PLAN §4.1). Quoted to
+    // survive `/` in branch names; emitted only when the caller opts in so the
+    // existing fixtures stay byte-stable.
+    branch != null ? `branch: "${branch}"` : null,
+    branchStrategy != null ? `branch-strategy: ${branchStrategy}` : null,
+    baseBranch != null ? `base-branch: "${baseBranch}"` : null,
+    prNumber != null ? `pr-number: ${prNumber}` : null,
+    prUrl != null ? `pr-url: "${prUrl}"` : null,
   ].filter(Boolean).join('\n');
   writeFileSync(join(wf, '00-index.md'), `---\n${fm}\n---\nbody\n`);
   return view;
@@ -137,18 +151,25 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ───────────────────────── id computation (§3.3) ───────────────────────── */
 
-test('registry: computeEntryId is forward-slash-stable and branch-sensitive', () => {
+test('registry: computeEntryId is forward-slash-stable and branch-INSENSITIVE (§4.2)', () => {
   equal(
-    computeEntryId('C:/Users/x/repo', 'master'),
-    computeEntryId('C:\\Users\\x\\repo', 'master'),
+    computeEntryId('C:/Users/x/repo'),
+    computeEntryId('C:\\Users\\x\\repo'),
     'native vs forward-slash repoRoot must hash identically',
   );
-  notEqual(
+  // Repo-scoped id (D1): branch is no longer part of identity. The optional 2nd
+  // arg is accepted-and-ignored, so two branches of one repoRoot share an id.
+  equal(
     computeEntryId('C:/Users/x/repo', 'master'),
     computeEntryId('C:/Users/x/repo', 'feature'),
-    'branch is part of identity',
+    'branch is NOT part of identity (repo-scoped id)',
   );
-  equal(computeEntryId('/a/b', 'main').length, 12, '12 hex chars (48 bits)');
+  notEqual(
+    computeEntryId('C:/Users/x/repo'),
+    computeEntryId('C:/Users/y/repo'),
+    'a different repoRoot still yields a different id',
+  );
+  equal(computeEntryId('/a/b').length, 12, '12 hex chars (48 bits)');
 });
 
 /* ───────────────────────── identity + 3-entry shape (§3.1) ───────────────────────── */
@@ -179,18 +200,111 @@ test('registry: two repos + a worktree register as three distinct entries', asyn
   equal(new Set(entries.map((e) => e.id)).size, 3, 'distinct ids');
   equal(new Set(entries.map((e) => e.viewDir)).size, 3, 'distinct viewDirs');
 
-  const wtEntry = entries.find((e) => e.branch === 'feature');
-  ok(wtEntry, 'worktree entry present on its own branch');
+  const wtEntry = entries.find((e) => e.headBranch === 'feature');
+  ok(wtEntry, 'worktree entry present on its own branch (distinct repoRoot)');
   ok(wtEntry.worktreeLabel, 'worktree entry carries a worktreeLabel');
   equal(wtEntry.worktreeLabel, 'repoA-wt');
 
-  const mainEntry = entries.find((e) => e.branch === 'master' && e.repoRoot.endsWith('repoA'));
+  const mainEntry = entries.find((e) => e.headBranch === 'master' && e.repoRoot.endsWith('repoA'));
   ok(mainEntry, 'main repoA entry present');
   equal(mainEntry.worktreeLabel, null, 'main checkout has no worktreeLabel');
 
   // slugMeta populated from scanWorkflowIndexes (§3.2).
   equal(mainEntry.slugMeta[0].slug, 'alpha');
   equal(mainEntry.slugMeta[0].currentStage, 'implement');
+});
+
+/* ───────────────────────── Slice 1: per-slug branch metadata (§4.1) ───────────────────────── */
+
+test('registry: slugMeta carries each slug\'s declared branch from frontmatter (§4.1)', async () => {
+  setHome();
+  const root = tmp('sdlc-branchmeta-');
+  const repo = join(root, 'repo');
+  initRepo(repo, 'master');   // one checkout (HEAD=master); slugs declare their OWN branches
+  renderView(repo, { slug: 'alpha', branch: 'feat/alpha', branchStrategy: 'dedicated', baseBranch: 'main', prNumber: 7, prUrl: 'https://x/pull/7' });
+  renderView(repo, { slug: 'beta', branch: 'feat/beta', branchStrategy: 'shared', baseBranch: 'main' });
+  // branch-strategy:none → empty-string branch + pr-number:0 in frontmatter (live-repo shape).
+  renderView(repo, { slug: 'gamma', branchStrategy: 'none', branch: '', baseBranch: 'main', prNumber: 0, prUrl: '' });
+
+  await upsertRegistryEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+  const { entries } = readRegistry();
+  equal(entries.length, 1, 'one checkout → one entry (branch lives inside slugMeta, not the id)');
+
+  const bySlug = Object.fromEntries(entries[0].slugMeta.map((s) => [s.slug, s]));
+  equal(bySlug.alpha.branch, 'feat/alpha');
+  equal(bySlug.alpha.branchStrategy, 'dedicated');
+  equal(bySlug.alpha.baseBranch, 'main');
+  equal(bySlug.alpha.prNumber, 7);
+  equal(bySlug.alpha.prUrl, 'https://x/pull/7');
+  equal(bySlug.beta.branch, 'feat/beta');
+  equal(bySlug.beta.branchStrategy, 'shared');
+  notEqual(bySlug.alpha.branch, bySlug.beta.branch, 'distinct declared branches survive into slugMeta from one checkout');
+  // Normalisation (Slice 0 findings): "" branch/pr-url → null; pr-number 0 → null.
+  equal(bySlug.gamma.branch, null, 'branch-strategy:none empty branch normalised to null');
+  equal(bySlug.gamma.branchStrategy, 'none');
+  equal(bySlug.gamma.baseBranch, 'main');
+  equal(bySlug.gamma.prNumber, null, 'pr-number 0 normalised to null');
+  equal(bySlug.gamma.prUrl, null, 'empty pr-url normalised to null');
+});
+
+/* ───────────────────────── Slice 2: repo-scoped identity (§4.2) ───────────────────────── */
+
+test('registry: an in-place branch switch yields ONE entry, no phantom duplicate (§4.2/D1)', async () => {
+  setHome();
+  const root = tmp('sdlc-inplace-');
+  const repo = join(root, 'repo');
+  initRepo(repo, 'master');
+  renderView(repo, { slug: 'on-master' });
+  await upsertRegistryEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+
+  // Switch HEAD in place to a new branch and re-render a second slug. The
+  // .ai/workflows tree is untracked, so both slugs coexist after the switch.
+  gitQuiet(repo, ['checkout', '-b', 'feat/x']);
+  renderView(repo, { slug: 'on-featx' });
+  await upsertRegistryEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+
+  const { entries } = readRegistry();
+  equal(entries.length, 1, 'one repoRoot → one entry regardless of the HEAD switch');
+  equal(entries[0].headBranch, 'feat/x', 'headBranch reflects the latest checkout HEAD');
+  deepEqual(
+    entries[0].slugMeta.map((s) => s.slug).sort(),
+    ['on-featx', 'on-master'],
+    'both slugs visible — branch no longer forks the entry',
+  );
+});
+
+test('registry: v1→v2 migration re-keys + merges branch-forked duplicates, unioning slugs (§4.2)', () => {
+  setHome();
+  const root = tmp('sdlc-migrate-');
+  const repo = join(root, 'repo');
+  initRepo(repo, 'master');
+  const view = renderView(repo, { slug: 'unused' });   // real .ai/_view so entries validate
+
+  // A hand-written v1 registry: TWO entries for the SAME repoRoot + viewDir,
+  // keyed the OLD branch-inclusive way (arbitrary distinct ids) — exactly the
+  // phantom-duplicate bug. The migration must collapse them to one v2 entry.
+  const base = { repoRoot: repo, viewDir: view, configHash: null, lastRenderedAt: '2026-06-01T00:00:00.000Z' };
+  const v1 = {
+    version: 1,
+    entries: [
+      { ...base, id: 'oldmaster', branch: 'master', registeredAt: '2026-06-01T00:00:00.000Z', updatedAt: '2026-06-01T00:00:00.000Z',
+        slugs: ['alpha'], slugMeta: [{ slug: 'alpha', status: 'active', classification: 'active' }] },
+      { ...base, id: 'oldfeat', branch: 'feature', registeredAt: '2026-06-02T00:00:00.000Z', updatedAt: '2026-06-03T00:00:00.000Z',
+        slugs: ['beta'], slugMeta: [{ slug: 'beta', status: 'active', classification: 'active' }] },
+    ],
+  };
+  mkdirSync(sdlcHomeDir(), { recursive: true });
+  writeFileSync(registryPath(), JSON.stringify(v1, null, 2));
+
+  const { version, entries } = readRegistry();
+  equal(version, 2, 'registry surfaces as v2');
+  equal(entries.length, 1, 'two branch-forked v1 entries collapse to one');
+  const e = entries[0];
+  equal(e.registeredAt, '2026-06-01T00:00:00.000Z', 'earliest registeredAt preserved');
+  equal(e.headBranch, 'feature', 'latest updatedAt wins scalar fields (headBranch from the newer entry)');
+  equal(e.branch, undefined, 'legacy `branch` field dropped on promotion to headBranch');
+  deepEqual(e.slugMeta.map((s) => s.slug).sort(), ['alpha', 'beta'], 'slugMeta unioned by slug across the two branches');
+  equal(computeEntryId(repo), e.id, 'collapsed id equals the repoRoot-scoped hash');
 });
 
 /* ───────────────────────── viewDir validation (§3.6) ───────────────────────── */
@@ -572,7 +686,7 @@ test('hub: GET / renders the aggregate landing page with swimlanes + slug links'
   for (const dir of [repoA, wt, repoB]) {
     await upsertRegistryEntry({ projectRoot: dir, viewDir: join(dir, '.ai', '_view') });
   }
-  const idA = readRegistry().entries.find((e) => e.repoRoot.endsWith(`${sep}alpha`) && e.branch === 'master').id;
+  const idA = readRegistry().entries.find((e) => e.repoRoot.endsWith(`${sep}alpha`) && e.headBranch === 'master').id;
 
   const server = createHubServer({ token: 'tok', liveReload: true });
   const port = await listen(server);
@@ -610,6 +724,49 @@ test('hub: GET / on an empty registry shows the empty-state hint', async () => {
   } finally {
     await closeServer(server);
   }
+});
+
+/* ───────────────────────── Slice 3: repo → branch → slug grouping (§4.4/D3) ───────────────────────── */
+
+test('hub landing: repo card groups slugs into per-branch sub-lanes by strategy (§4.4/D3)', () => {
+  const now = Date.parse('2026-06-08T12:00:00.000Z');
+  const fresh = '2026-06-08T11:00:00.000Z';
+  const slugMeta = [
+    { slug: 'auth', currentStage: 'implement', status: 'active', blocked: false, classification: 'active',
+      branch: 'feat/auth', branchStrategy: 'dedicated', baseBranch: 'main', prNumber: null, prUrl: null },
+    { slug: 'search', currentStage: 'plan', status: 'active', blocked: false, classification: 'active',
+      branch: 'feat/search', branchStrategy: 'dedicated', baseBranch: 'main', prNumber: null, prUrl: null },
+    { slug: 'sync', currentStage: 'implement', status: 'active', blocked: false, classification: 'active',
+      branch: 'feat/auth', branchStrategy: 'shared', baseBranch: 'main', prNumber: null, prUrl: null },
+    { slug: 'cleanup', currentStage: 'verify', status: 'active', blocked: false, classification: 'active',
+      branch: null, branchStrategy: 'none', baseBranch: 'main', prNumber: null, prUrl: null },
+  ];
+  const entries = [entryStub({ id: 'r1', repo: 'web', headBranch: 'master', lastRenderedAt: fresh, slugMeta })];
+  const html = renderHubLanding(entries, { now });
+
+  // ≥2 branch sub-lanes, keyed by each slug's DECLARED branch.
+  match(html, /lane-branch">⎇ feat\/auth/, 'dedicated/shared branch lane present');
+  match(html, /lane-branch">⎇ feat\/search/, 'a second dedicated branch lane present');
+  // branch-strategy:none clusters under its base-branch (main), never an empty lane.
+  match(html, /lane-branch">⎇ main/, 'none-strategy slug clustered under base-branch');
+  ok(!/lane-branch">⎇ <\/span>/.test(html), 'no literal empty lane rendered');
+  // Strategy hints: the two-slug feat/auth lane is shared; the base lane is hinted.
+  match(html, /lane-strat shared">shared/, 'shared cluster hinted');
+  match(html, /lane-strat base">base/, 'base/trunk lane hinted');
+  match(html, /2 slugs/, 'the shared lane reports its slug count');
+  // Repo header shows the checkout HEAD as informational context (R4 distinction).
+  match(html, /head-branch">on <code>master/, 'repo header shows headBranch context');
+  match(html, /<svg/, 'swimlane figure rendered per lane');
+});
+
+test('hub landing: inbox row surfaces the slug\'s declared branch (§4.4)', () => {
+  const now = Date.parse('2026-06-08T12:00:00.000Z');
+  const entries = [entryStub({ id: 'r1', repo: 'web', headBranch: 'master', lastRenderedAt: '2026-06-08T11:00:00.000Z', slugMeta: [
+    { slug: 'payment-bug', currentStage: 'implement', status: 'blocked', blocked: true, classification: 'active',
+      branch: 'fix/payment', branchStrategy: 'dedicated', baseBranch: 'main' },
+  ] })];
+  const html = renderHubLanding(entries, { now });
+  match(html, /ix-branch">⎇ fix\/payment/, 'inbox row shows the declared branch');
 });
 
 /* ───────────────────────── serve-time brand → hub root (§5, Phase 5) ───────────────────────── */
@@ -678,11 +835,85 @@ test('tailscale: funnel is refused without acknowledgedPublic (gate fires before
   equal(logs2.length, 0, 'disabled tailscale does nothing');
 });
 
+/* ───────────────────────── Slice 4: branch liveness (§4.3/D2) ───────────────────────── */
+
+test('branch-liveness: classifies live / merged / gone / unknown, never throws (§4.3)', () => {
+  const root = tmp('sdlc-liveness-');
+  const repo = join(root, 'repo');
+  initRepo(repo, 'main');   // main has one commit
+
+  // live: a branch with its own commit, not merged into main.
+  gitQuiet(repo, ['checkout', '-b', 'feat/live']);
+  writeFileSync(join(repo, 'a.txt'), 'a'); gitQuiet(repo, ['add', '.']); gitQuiet(repo, ['commit', '-m', 'wip']);
+  gitQuiet(repo, ['checkout', 'main']);
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/live', baseBranch: 'main' }), 'live');
+
+  // merged: a branch whose tip is an ancestor of main (points at main's commit).
+  gitQuiet(repo, ['branch', 'feat/merged', 'main']);
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/merged', baseBranch: 'main' }), 'merged');
+
+  // gone: a branch ref that does not exist locally.
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main' }), 'gone');
+
+  // unknown: no branch (branch-strategy:none), a non-git dir, and empty args.
+  equal(computeBranchState({ repoRoot: repo, branch: null, baseBranch: 'main' }), 'unknown');
+  equal(computeBranchState({ repoRoot: join(root, 'not-a-repo'), branch: 'x' }), 'unknown');
+  equal(computeBranchState({}), 'unknown', 'no args → unknown, never throws');
+});
+
+test('branch-liveness: refreshEntriesLiveness stamps branchState across entries, never throws', () => {
+  const root = tmp('sdlc-liveness-refresh-');
+  const repo = join(root, 'repo');
+  initRepo(repo, 'main');
+  gitQuiet(repo, ['branch', 'feat/merged', 'main']);
+  const entries = [{
+    id: 'x', repoRoot: repo, headBranch: 'main', viewDir: join(repo, '.ai', '_view'),
+    slugMeta: [
+      { slug: 's1', branch: 'feat/merged', baseBranch: 'main', prNumber: null },
+      { slug: 's2', branch: 'feat/ghost', baseBranch: 'main', prNumber: null },
+      { slug: 's3', branch: null, baseBranch: 'main', prNumber: null },
+    ],
+  }];
+  refreshEntriesLiveness(entries);
+  equal(entries[0].slugMeta[0].branchState, 'merged');
+  equal(entries[0].slugMeta[1].branchState, 'gone');
+  equal(entries[0].slugMeta[2].branchState, 'unknown');
+  // Garbage input never throws.
+  refreshEntriesLiveness(null);
+  refreshEntriesLiveness([{ no: 'slugMeta' }]);
+});
+
+test('inbox: surfaces merged / branch-gone active slugs as a 4th attention reason (§4.4)', () => {
+  const now = Date.parse('2026-06-08T12:00:00.000Z');
+  const fresh = '2026-06-08T11:00:00.000Z';
+  const entries = [entryStub({ id: 'a', repo: 'web', lastRenderedAt: fresh, slugMeta: [
+    { slug: 'merged-feat', currentStage: 'ship', status: 'active', blocked: false, classification: 'active', branch: 'feat/x', branchState: 'merged' },
+    { slug: 'gone-feat', currentStage: 'implement', status: 'active', blocked: false, classification: 'active', branch: 'feat/y', branchState: 'gone' },
+    { slug: 'live-feat', currentStage: 'implement', status: 'active', blocked: false, classification: 'active', branch: 'feat/z', branchState: 'live' },
+  ] })];
+  const items = inboxItems(entries, now);
+  const bySlug = Object.fromEntries(items.map((i) => [i.sm.slug, i]));
+  ok(bySlug['merged-feat']?.reasons.some((r) => r.key === 'merged'), 'merged slug surfaced with merged reason');
+  ok(bySlug['gone-feat']?.reasons.some((r) => r.key === 'gone'), 'gone slug surfaced with gone reason');
+  ok(!bySlug['live-feat'], 'a live, otherwise-healthy slug is NOT surfaced');
+});
+
+test('hub landing: renders soft merged / branch-gone badges on slug links (§4.3)', () => {
+  const now = Date.parse('2026-06-08T12:00:00.000Z');
+  const entries = [entryStub({ id: 'r', repo: 'web', headBranch: 'main', lastRenderedAt: '2026-06-08T11:00:00.000Z', slugMeta: [
+    { slug: 'done-feat', currentStage: 'ship', status: 'active', blocked: false, classification: 'active', branch: 'feat/done', branchStrategy: 'dedicated', baseBranch: 'main', branchState: 'merged' },
+    { slug: 'lost-feat', currentStage: 'implement', status: 'active', blocked: false, classification: 'active', branch: 'feat/lost', branchStrategy: 'dedicated', baseBranch: 'main', branchState: 'gone' },
+  ] })];
+  const html = renderHubLanding(entries, { now });
+  match(html, /lq merged">merged/, 'merged badge rendered');
+  match(html, /lq gone">branch gone/, 'branch-gone badge rendered');
+});
+
 /* ───────────────────────── cross-repo inbox (§11.3) ───────────────────────── */
 
-function entryStub({ id, repo, branch = 'master', lastRenderedAt, slugMeta }) {
+function entryStub({ id, repo, headBranch = 'master', lastRenderedAt, slugMeta }) {
   return {
-    id, repoRoot: `/work/${repo}`, branch, worktreeLabel: null,
+    id, repoRoot: `/work/${repo}`, headBranch, worktreeLabel: null,
     viewDir: `/work/${repo}/.ai/_view`, lastRenderedAt,
     slugs: slugMeta.map((s) => s.slug), slugMeta,
     configHash: null, registeredAt: lastRenderedAt, updatedAt: lastRenderedAt,

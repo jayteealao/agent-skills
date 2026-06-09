@@ -25,8 +25,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { writePidFile, removePidFile } from '../lib/pid-file.mjs';
 import { resolveRequestPath } from '../lib/resolve-request-path.mjs';
 import {
-  readRegistry, writeRegistry, pruneRegistry, validateEntry,
+  readRegistry, writeRegistry, pruneRegistry, validateEntry, REGISTRY_VERSION,
 } from '../lib/registry.mjs';
+import { refreshEntriesLiveness } from '../lib/branch-liveness.mjs';
 import { renderHubLanding } from '../renderers/hub-dashboard.mjs';
 
 // Read once at module load (avoids drift vs a hardcoded constant).
@@ -142,6 +143,10 @@ export function createHubServer({
   function reload() {
     try { pruneRegistry(); } catch { /* best-effort */ }
     try { entries = readRegistry().entries; } catch { entries = []; }
+    // Opportunistic liveness refresh (§4.3): a branch deleted AFTER the last
+    // render flips to `gone` here without needing a re-render. Local-git only
+    // (checkPr:false) so the reload never blocks on the network; best-effort.
+    try { refreshEntriesLiveness(entries); } catch { /* best-effort */ }
     rewatchAll();
     invalidateLanding();
   }
@@ -209,7 +214,7 @@ export function createHubServer({
       uptimeMs: Date.now() - startedAt,
       configHash,
       entries: entries.map((e) => ({
-        id: e.id, repoRoot: e.repoRoot, branch: e.branch,
+        id: e.id, repoRoot: e.repoRoot, headBranch: e.headBranch ?? e.branch ?? null,
         lastRenderedAt: e.lastRenderedAt, slugs: e.slugs,
       })),
       metrics: {
@@ -418,7 +423,7 @@ export function createHubServer({
       return;
     }
     if (p === '/__sdlc/events') { handleEvents(req, res); return; }
-    if (p === '/__sdlc/registry') { sendJson(res, { version: 1, entries }); return; }
+    if (p === '/__sdlc/registry') { sendJson(res, { version: REGISTRY_VERSION, entries }); return; }
     if (p === '/__sdlc/registry/refresh') {
       if (!tokenOk(req)) { res.writeHead(403).end('forbidden'); return; }
       reload();

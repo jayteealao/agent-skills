@@ -98,6 +98,15 @@ var TERMINAL_WORKFLOW_STATUSES = /* @__PURE__ */ new Set([
 function workflowsRootFor(projectRoot) {
   return join2(projectRoot, ".ai", "workflows");
 }
+function blankToNull(v) {
+  if (v == null) return null;
+  const s = typeof v === "string" ? v.trim() : v;
+  return s === "" ? null : s;
+}
+function prNumberOrNull(v) {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
 async function discoverWorkflowIndexFiles({
   projectRoot = process.cwd(),
   workflowsRoot = workflowsRootFor(projectRoot)
@@ -184,6 +193,15 @@ async function loadWorkflowIndex(indexPath, {
     indexMtime,
     currentStage: loaded.data?.["current-stage"] ?? null,
     title: loaded.data?.title ?? null,
+    // Branch is a per-slug fact authored in frontmatter (the slug's own branch),
+    // distinct from the checkout's volatile HEAD. Surfaced here so the registry
+    // can key identity off the repo and carry branch as slug metadata instead.
+    // See SLUG-BRANCH-IDENTITY-PLAN §4.1.
+    branch: blankToNull(loaded.data?.branch),
+    branchStrategy: blankToNull(loaded.data?.["branch-strategy"]),
+    baseBranch: blankToNull(loaded.data?.["base-branch"]),
+    prNumber: prNumberOrNull(loaded.data?.["pr-number"]),
+    prUrl: blankToNull(loaded.data?.["pr-url"]),
     ...classification
   };
 }

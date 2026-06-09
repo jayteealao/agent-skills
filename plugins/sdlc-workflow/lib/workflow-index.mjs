@@ -19,6 +19,21 @@ export function workflowsRootFor(projectRoot) {
   return join(projectRoot, '.ai', 'workflows');
 }
 
+// 00-index.md frontmatter carries `branch: ""` / `base-branch: ""` when
+// `branch-strategy: none` (verified in live repos — Aperture), and `pr-number: 0`
+// / `pr-url: ""` when there is no PR. Normalise those "unset" sentinels to null
+// at this single plumbing point so downstream grouping + liveness never has to
+// re-distinguish "" from absent.
+function blankToNull(v) {
+  if (v == null) return null;
+  const s = typeof v === 'string' ? v.trim() : v;
+  return s === '' ? null : s;
+}
+function prNumberOrNull(v) {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 export async function discoverWorkflowIndexFiles({
   projectRoot = process.cwd(),
   workflowsRoot = workflowsRootFor(projectRoot),
@@ -122,6 +137,15 @@ export async function loadWorkflowIndex(indexPath, {
     indexMtime,
     currentStage: loaded.data?.['current-stage'] ?? null,
     title: loaded.data?.title ?? null,
+    // Branch is a per-slug fact authored in frontmatter (the slug's own branch),
+    // distinct from the checkout's volatile HEAD. Surfaced here so the registry
+    // can key identity off the repo and carry branch as slug metadata instead.
+    // See SLUG-BRANCH-IDENTITY-PLAN §4.1.
+    branch: blankToNull(loaded.data?.branch),
+    branchStrategy: blankToNull(loaded.data?.['branch-strategy']),
+    baseBranch: blankToNull(loaded.data?.['base-branch']),
+    prNumber: prNumberOrNull(loaded.data?.['pr-number']),
+    prUrl: blankToNull(loaded.data?.['pr-url']),
     ...classification,
   };
 }

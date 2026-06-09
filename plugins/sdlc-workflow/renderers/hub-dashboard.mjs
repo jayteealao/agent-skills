@@ -20,23 +20,34 @@ const STALE_MS = 7 * 24 * 60 * 60 * 1000;   // dim entries not rendered in a wee
 
 function low(s) { return String(s ?? '').trim().toLowerCase(); }
 
+// The checkout's current HEAD branch (informational, §4.2). Tolerates the
+// legacy v1 `branch` field for un-migrated entries.
+function headBranchOf(entry) { return entry?.headBranch ?? entry?.branch ?? ''; }
+
 function isActiveSlug(sm) {
   const s = low(sm.status);
   return !TERMINAL_COMPLETE.has(s) && !TERMINAL_CLOSED.has(s);
 }
 
-// Map a registry entry's slugMeta into the { slug, fm } rows swimlanesSvg wants,
-// split into active vs recently-shipped lanes.
-function laneInputs(entry) {
-  const toRow = (sm) => ({
+// Map a slugMeta row into the { slug, fm } shape swimlanesSvg consumes.
+function slugRow(sm) {
+  return {
     slug: sm.slug,
     fm: { 'current-stage': sm.currentStage, status: sm.status, blocked: sm.blocked },
-  });
-  const meta = entry.slugMeta ?? [];
-  return {
-    active: meta.filter(isActiveSlug).map(toRow),
-    shipped: meta.filter((sm) => TERMINAL_COMPLETE.has(low(sm.status))).map(toRow),
   };
+}
+
+// Which branch lane a slug belongs to (D3). A blank declared branch — real in
+// the wild when branch-strategy:none (Slice 0 findings) — clusters under the
+// slug's base-branch, falling back to the checkout HEAD, then 'trunk'; never a
+// literal empty lane. Otherwise the slug's own declared branch is the lane key,
+// so `shared`-strategy slugs naturally cluster while `dedicated` ones stand alone.
+function laneKeyFor(sm, entry) {
+  const declared = String(sm.branch ?? '').trim();
+  if (low(sm.branchStrategy) === 'none' || !declared) {
+    return String(sm.baseBranch ?? '').trim() || headBranchOf(entry) || 'trunk';
+  }
+  return declared;
 }
 
 function humanRelative(iso, now) {
@@ -78,9 +89,16 @@ export function inboxItems(entries = [], now = Date.now()) {
         reasons.push({ key: 'review', label: 'in review', tone: 'cur' });
       }
       if (stale) reasons.push({ key: 'stale', label: `idle ${humanRelative(e.lastRenderedAt, now)}`, tone: 'idle' });
+      // Branch liveness (§4.3/§4.4): a still-active workflow whose branch is
+      // merged or gone needs closing — surfaced as a fourth attention reason.
+      const bs = low(sm.branchState);
+      if (bs === 'merged') reasons.push({ key: 'merged', label: 'merged', tone: 'ok' });
+      else if (bs === 'gone') reasons.push({ key: 'gone', label: 'branch gone', tone: 'idle' });
       if (!reasons.length) continue;
       const priority = reasons.some((r) => r.key === 'blocked') ? 0
-        : reasons.some((r) => r.key === 'review') ? 1 : 2;
+        : reasons.some((r) => r.key === 'review') ? 1
+        : reasons.some((r) => r.key === 'merged' || r.key === 'gone') ? 2
+        : 3;   // stale-only floats last
       items.push({ entry: e, sm, reasons, priority });
     }
   }
@@ -98,10 +116,16 @@ function renderInbox(items, totalRepos) {
     const idEnc = encodeURIComponent(it.entry.id);
     const slugEnc = encodeURIComponent(it.sm.slug);
     const badges = it.reasons.map((r) => `<span class="reason ${r.tone}">${escapeHtml(r.label)}</span>`).join('');
+    // The {repo}/{slug} line surfaces the slug's DECLARED branch (D3) — the work
+    // lives there, which may differ from the checkout's HEAD.
+    const branchTag = it.sm.branch
+      ? `<span class="ix-branch">⎇ ${escapeHtml(it.sm.branch)}</span>`
+      : '';
     return `<a class="inbox-item" href="/r/${idEnc}/${slugEnc}/">
       <span class="ix-repo">${escapeHtml(basenameOf(it.entry.repoRoot))}</span>
       <span class="ix-sep" aria-hidden="true">/</span>
       <code class="ix-slug">${escapeHtml(it.sm.slug)}</code>
+      ${branchTag}
       <span class="ix-stage">${escapeHtml(it.sm.currentStage ?? it.sm.status ?? '')}</span>
       <span class="ix-reasons">${badges}</span>
     </a>`;
@@ -145,7 +169,7 @@ export function renderHubLanding(entries = [], { pluginVersion = '', uptimeMs = 
     <p class="empty">No repos have rendered yet. Render any sdlc workflow with <code>view.hub.enabled: true</code> and it will appear here.</p>`);
   }
 
-  const repoGroups = sortedRepoRoots.map((repoRoot) => repoGroup(repoRoot, groups.get(repoRoot), now)).join('\n');
+  const repoGroups = sortedRepoRoots.map((repoRoot) => repoCard(repoRoot, groups.get(repoRoot), now)).join('\n');
 
   // CSS-only radio tabs: Inbox is the default tab (§11.3), the swimlane grid is
   // secondary. The radios precede .tabs + the panels as siblings so the
@@ -182,47 +206,99 @@ function htmlDoc(inner) {
 `;
 }
 
-function repoGroup(repoRoot, groupEntries, now) {
+// One card per repoRoot (post-D1 there is exactly one entry per repoRoot; a
+// linked worktree is a distinct repoRoot, so it gets its own card). The card
+// header shows the checkout's HEAD branch as informational context ("on main");
+// inside, the entry's slugMeta is grouped into per-branch sub-lanes (D3), each
+// reusing swimlanesSvg for its own slugs.
+function repoCard(repoRoot, groupEntries, now) {
   const label = basenameOf(repoRoot);
-  const cards = groupEntries
-    .slice()
-    .sort((a, b) => String(a.branch).localeCompare(String(b.branch)))
-    .map((e) => entryCard(e, now))
-    .join('\n');
+  // Defensive: if more than one entry ever shares a repoRoot, the most-recently
+  // updated is primary — its slugMeta is the full scan of that checkout.
+  const entry = groupEntries.slice().sort(
+    (a, b) => String(b.updatedAt ?? '').localeCompare(String(a.updatedAt ?? '')),
+  )[0];
+  const stale = !entry.lastRenderedAt || (now - Date.parse(entry.lastRenderedAt)) > STALE_MS;
+  const headBranch = headBranchOf(entry);
+  const idEnc = encodeURIComponent(entry.id);
+  const meta = entry.slugMeta ?? [];
+
+  // Group slugMeta into branch lanes, preserving first-seen order.
+  const lanes = new Map();   // laneKey → { slugs: [], strategies: Set }
+  for (const sm of meta) {
+    const key = laneKeyFor(sm, entry);
+    if (!lanes.has(key)) lanes.set(key, { slugs: [], strategies: new Set() });
+    const lane = lanes.get(key);
+    lane.slugs.push(sm);
+    if (sm.branchStrategy) lane.strategies.add(low(sm.branchStrategy));
+  }
+
+  const laneHtml = meta.length
+    ? [...lanes.entries()].map(([key, lane]) => branchLane(key, lane, idEnc)).join('\n')
+    : '<p class="no-wf">No workflows in this checkout.</p>';
+
+  const headHtml = headBranch
+    ? `<span class="head-branch">on <code>${escapeHtml(headBranch)}</code>${
+        entry.worktreeLabel ? ` <span class="wt">⌥ ${escapeHtml(entry.worktreeLabel)}</span>` : ''
+      }</span>`
+    : '';
+
   return `<section class="repo">
-    <h2 class="repo-name">${escapeHtml(label)} <span class="repo-path">${escapeHtml(repoRoot)}</span></h2>
-    ${cards}
+    <h2 class="repo-name">${escapeHtml(label)} <span class="repo-path">${escapeHtml(repoRoot)}</span> ${headHtml}</h2>
+    <article class="entry${stale ? ' stale' : ''}">
+      <div class="entry-head">
+        <a class="open-view" href="/r/${idEnc}/">open view →</a>
+        <span class="ago">${escapeHtml(humanRelative(entry.lastRenderedAt, now))}</span>
+      </div>
+      ${laneHtml}
+    </article>
   </section>`;
 }
 
-function entryCard(entry, now) {
-  const { active, shipped } = laneInputs(entry);
-  const stale = !entry.lastRenderedAt || (now - Date.parse(entry.lastRenderedAt)) > STALE_MS;
-  const branchLabel = entry.worktreeLabel
-    ? `${escapeHtml(entry.branch)} <span class="wt">⌥ ${escapeHtml(entry.worktreeLabel)}</span>`
-    : escapeHtml(entry.branch);
-  const idEnc = encodeURIComponent(entry.id);
+// A single branch sub-lane: the branch label + a strategy hint, the swimlane
+// figure for that lane's slugs, and the slug links. `dedicated` is the silent
+// default (one slug, its own lane); `shared` and base-clustered (`none`) lanes
+// get an explicit hint so the grouping reads clearly.
+function branchLane(laneKey, lane, idEnc) {
+  const active = lane.slugs.filter(isActiveSlug).map(slugRow);
+  const shipped = lane.slugs.filter((sm) => TERMINAL_COMPLETE.has(low(sm.status))).map(slugRow);
   const figure = (active.length || shipped.length)
     ? `<div class="fig">${swimlanesSvg(active, shipped)}</div>`
-    : '<p class="no-wf">No workflows in this checkout.</p>';
+    : '';
+  const slugLinks = lane.slugs.map((sm) => slugLinkHtml(sm, idEnc)).join('');
 
-  const slugLinks = (entry.slugMeta ?? []).map((sm) => {
-    const s = low(sm.status);
-    const tone = sm.blocked ? 'bad' : (TERMINAL_COMPLETE.has(s) ? 'ok' : (TERMINAL_CLOSED.has(s) ? 'idle' : 'cur'));
-    return `<li><a href="/r/${idEnc}/${encodeURIComponent(sm.slug)}/">
-        <code>${escapeHtml(sm.slug)}</code>
-        <span class="stage ${tone}">${escapeHtml(sm.currentStage ?? sm.status ?? '')}</span>
-      </a></li>`;
-  }).join('');
+  const hint = lane.strategies.has('shared') ? '<span class="lane-strat shared">shared</span>'
+    : (lane.strategies.has('none') || lane.strategies.size === 0) ? '<span class="lane-strat base">base</span>'
+    : '';
+  const n = lane.slugs.length;
 
-  return `<article class="entry${stale ? ' stale' : ''}">
-    <div class="entry-head">
-      <a class="branch" href="/r/${idEnc}/">${branchLabel}</a>
-      <span class="ago">${escapeHtml(humanRelative(entry.lastRenderedAt, now))}</span>
+  return `<div class="lane">
+    <div class="lane-head">
+      <span class="lane-branch">⎇ ${escapeHtml(laneKey)}</span>
+      <span class="lane-count">${n} slug${n === 1 ? '' : 's'}</span>
+      ${hint}
     </div>
     ${figure}
     ${slugLinks ? `<ul class="slugs">${slugLinks}</ul>` : ''}
-  </article>`;
+  </div>`;
+}
+
+function slugLinkHtml(sm, idEnc) {
+  const s = low(sm.status);
+  const tone = sm.blocked ? 'bad' : (TERMINAL_COMPLETE.has(s) ? 'ok' : (TERMINAL_CLOSED.has(s) ? 'idle' : 'cur'));
+  return `<li><a href="/r/${idEnc}/${encodeURIComponent(sm.slug)}/">
+      <code>${escapeHtml(sm.slug)}</code>
+      <span class="stage ${tone}">${escapeHtml(sm.currentStage ?? sm.status ?? '')}</span>${livenessBadge(sm)}
+    </a></li>`;
+}
+
+// Soft liveness badge (D2): merged / branch-gone. Never implies deletion — it's
+// a nudge to close the workflow. `live` / `unknown` render nothing.
+function livenessBadge(sm) {
+  const st = low(sm.branchState);
+  if (st === 'merged') return '<span class="lq merged">merged</span>';
+  if (st === 'gone') return '<span class="lq gone">branch gone</span>';
+  return '';
 }
 
 // Minimal editorial styling, inline (no hub /_assets/ route). Warm paper bg +
@@ -263,6 +339,7 @@ const STYLE = `
   .reason { font-size:11px; border-radius:999px; padding:2px 8px; border:1px solid var(--hair); white-space:nowrap; }
   .reason.bad { color:var(--bad); border-color:var(--bad); }
   .reason.cur { color:var(--cur); border-color:var(--cur); }
+  .reason.ok { color:var(--ok); border-color:var(--ok); }
   .reason.idle { color:var(--idle); }
   .repo { margin-top:34px; }
   .repo-name { font:600 18px/1.2 ui-sans-serif,system-ui,sans-serif; margin:0 0 12px; padding-bottom:6px; border-bottom:1px solid var(--hair); }
@@ -282,4 +359,22 @@ const STYLE = `
   ul.slugs code { font:12px/1 ui-monospace,monospace; }
   .stage { font-size:11px; }
   .stage.bad { color:var(--bad); } .stage.ok { color:var(--ok); } .stage.cur { color:var(--cur); } .stage.idle { color:var(--idle); }
+  /* D3: repo header HEAD-branch context + per-branch sub-lanes */
+  .head-branch { font:400 11px/1 ui-sans-serif,system-ui,sans-serif; color:var(--ink-3); margin-left:6px; }
+  .head-branch code { font:11px/1 ui-monospace,monospace; color:var(--ink-3); }
+  .head-branch .wt { color:var(--ink-3); }
+  .open-view { font:600 12px/1 ui-monospace,monospace; color:var(--cur); text-decoration:none; }
+  .open-view:hover { text-decoration:underline; }
+  .lane { border-top:1px solid var(--hair); padding:10px 0 4px; }
+  .lane:first-of-type { border-top:0; }
+  .lane-head { display:flex; align-items:baseline; gap:8px; margin:0 0 4px; }
+  .lane-branch { font:600 12px/1 ui-monospace,monospace; color:var(--ink); }
+  .lane-count { font-size:11px; color:var(--ink-3); }
+  .lane-strat { font-size:10px; border-radius:999px; padding:1px 7px; border:1px solid var(--hair); color:var(--ink-3); text-transform:uppercase; letter-spacing:.5px; }
+  .lane-strat.shared { color:var(--cur); border-color:var(--cur); }
+  .ix-branch { font:11px/1 ui-monospace,monospace; color:var(--ink-3); }
+  /* D2: soft branch-liveness badge on a slug link (never implies deletion) */
+  .lq { font-size:10px; border-radius:999px; padding:1px 7px; margin-left:6px; border:1px solid var(--hair); white-space:nowrap; }
+  .lq.merged { color:var(--ok); border-color:var(--ok); }
+  .lq.gone { color:var(--idle); border-color:var(--idle); }
 `;

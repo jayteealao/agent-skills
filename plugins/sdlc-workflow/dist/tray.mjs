@@ -7,14 +7,14 @@ import {
   readHubConfig,
   stopHub,
   writeHubConfig
-} from "./chunk-QSBHP7NI.mjs";
+} from "./chunk-PECQO2YH.mjs";
 import "./chunk-NHBZ6X5M.mjs";
 import "./chunk-EHRAXSYW.mjs";
 import {
   hubPidPath,
   sdlcHomeDir
-} from "./chunk-63DO25U3.mjs";
-import "./chunk-UFTZEN4P.mjs";
+} from "./chunk-5QUORPHZ.mjs";
+import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
@@ -291,7 +291,7 @@ function buildDetailRows(payload, { isHub, now }) {
 function buildRepoItems(entries, now) {
   return entries.map((e) => {
     const id = String(e.id ?? "?");
-    const branch = String(e.branch ?? "?");
+    const branch = String(e.headBranch ?? e.branch ?? "?");
     const slugs = Array.isArray(e.slugs) ? e.slugs.length : 0;
     const rendered = fmtRelTime(e.lastRenderedAt, now);
     return {

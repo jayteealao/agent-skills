@@ -5,7 +5,7 @@ import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
   readHubConfig
-} from "./chunk-QSBHP7NI.mjs";
+} from "./chunk-PECQO2YH.mjs";
 import {
   loadArtifact,
   loadHistory,
@@ -22,7 +22,7 @@ import {
 import {
   hubPidPath,
   upsertRegistryEntry
-} from "./chunk-63DO25U3.mjs";
+} from "./chunk-5QUORPHZ.mjs";
 import {
   breadcrumbFromView,
   renderShell,
@@ -38,7 +38,7 @@ import {
   latestTreeMtimeMs,
   scanWorkflowIndexes,
   viewMtimeForSlug
-} from "./chunk-UFTZEN4P.mjs";
+} from "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";

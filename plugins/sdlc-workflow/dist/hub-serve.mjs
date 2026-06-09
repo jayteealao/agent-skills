@@ -3,17 +3,19 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-KIYKVNBZ.mjs";
+} from "./chunk-GQMKMBMF.mjs";
 import "./chunk-3IBDFP3U.mjs";
 import "./chunk-C4BSYM7X.mjs";
 import {
+  REGISTRY_VERSION,
   pruneRegistry,
   readRegistry,
+  refreshEntriesLiveness,
   validateEntry,
   writeRegistry
-} from "./chunk-63DO25U3.mjs";
+} from "./chunk-5QUORPHZ.mjs";
 import "./chunk-ASUVWO6I.mjs";
-import "./chunk-UFTZEN4P.mjs";
+import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
@@ -124,6 +126,10 @@ function createHubServer({
     } catch {
       entries = [];
     }
+    try {
+      refreshEntriesLiveness(entries);
+    } catch {
+    }
     rewatchAll();
     invalidateLanding();
   }
@@ -192,7 +198,7 @@ function createHubServer({
       entries: entries.map((e) => ({
         id: e.id,
         repoRoot: e.repoRoot,
-        branch: e.branch,
+        headBranch: e.headBranch ?? e.branch ?? null,
         lastRenderedAt: e.lastRenderedAt,
         slugs: e.slugs
       })),
@@ -458,7 +464,7 @@ data: ${JSON.stringify({ ok: true })}
       return;
     }
     if (p === "/__sdlc/registry") {
-      sendJson(res, { version: 1, entries });
+      sendJson(res, { version: REGISTRY_VERSION, entries });
       return;
     }
     if (p === "/__sdlc/registry/refresh") {
