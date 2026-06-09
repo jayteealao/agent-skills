@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -89,7 +91,7 @@ For a one-character typo or a one-line patch, the full 10-stage pipeline is over
 <div class="summary">
 <table>
 <tr><th>Pre-conditions</th><td>The plugin is installed (<a href="installation.html">install tutorial</a>).</td></tr>
-<tr><th>You will produce</th><td>Three artifacts under <code>.ai/workflows/&lt;slug&gt;/</code>: <code>00-index.md</code>, <code>01-quick.md</code>, and either <code>05-implement.md</code> or a hotfix-prefixed file.</td></tr>
+<tr><th>You will produce</th><td>Under <code>.ai/workflows/&lt;slug&gt;/</code>: <code>00-index.md</code> + <code>01-fix.md</code> from <code>/wf-quick fix</code>, then <code>05-implement.md</code> once <code>/wf implement</code> runs.</td></tr>
 <tr><th>You will not produce</th><td>A shape, slice, plan, verify, or review artifact. The compressed flow trades that depth for speed.</td></tr>
 </table>
 </div>
@@ -112,8 +114,8 @@ throw new Error("Received invalid payload");</code></pre>
 <p>Claude asks two or three questions — what file, what's the fix, do you need a test added — and writes:</p>
 
 <ul>
-  <li><code>00-index.md</code> with <code>workflow-type: quick</code></li>
-  <li><code>01-quick.md</code> — the compressed shape+slice+plan, all in one file</li>
+  <li><code>00-index.md</code> with <code>workflow-type: fix</code></li>
+  <li><code>01-fix.md</code> — the compressed brief + shape + plan, all in one file (<code>type: fix-plan</code>)</li>
 </ul>
 
 <p>The compressed shape skips the deep interview that <code>/wf shape</code> runs. Acceptance criteria for a typo fix are obvious — Claude inlines them rather than re-derive them.</p>
@@ -122,7 +124,7 @@ throw new Error("Received invalid payload");</code></pre>
 
 <pre><code>/wf implement &lt;slug&gt;</code></pre>
 
-<p>Implement reads <code>01-quick.md</code> directly (in compressed mode, no separate plan file is needed). It makes the edit, runs the test command, and commits. The workflow-type field on <code>00-index.md</code> tells implement to write <code>05-implement.md</code> as a single file, not per-slice.</p>
+<p>Implement reads <code>01-fix.md</code> directly (in compressed mode, no separate plan file is needed). It makes the edit, runs the test command, and commits. The <code>workflow-type</code> field on <code>00-index.md</code> tells implement to write <code>05-implement.md</code> as a single file, not per-slice.</p>
 
 <h2>Step 3 — Handoff (or skip straight to commit)</h2>
 
@@ -150,12 +152,14 @@ throw new Error("Received invalid payload");</code></pre>
 <thead><tr><th>Command</th><th>For</th><th>Pipeline shape</th></tr></thead>
 <tbody>
 <tr><td><code>/wf-quick hotfix</code></td><td>Production incident — bypass review for speed</td><td>6-stage, scope-locked</td></tr>
-<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis of a bug or incident</td><td>Single artifact, then forwards to <code>/wf shape</code></td></tr>
+<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis of a bug or incident (static — reads code &amp; git)</td><td>Single artifact; recommends <code>/wf plan</code>, <code>/wf-quick fix</code>, or <code>hotfix</code></td></tr>
+<tr><td><code>/wf-quick probe</code></td><td>Runtime-truth verification — drives the running artifact (slug-mode only)</td><td>Compressed slice + evidence dir</td></tr>
 <tr><td><code>/wf-quick investigate</code></td><td>"What are 2–3 distinct engineering approaches to this problem?" — solution-options sketcher with tradeoffs; no winner picked</td><td>Single artifact, user picks an option then routes to <code>/wf intake</code> or <code>/wf-quick fix</code></td></tr>
 <tr><td><code>/wf-quick discover</code></td><td>"Is my theory about how this code works correct?" — hypothesis-test with FOR/AGAINST/counter-hypothesis evidence</td><td>Single artifact, verdict: holds / partial / fails / inconclusive</td></tr>
 <tr><td><code>/wf-quick update-deps</code></td><td>Audit + tiered dependency updates</td><td>4-stage under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
 <tr><td><code>/wf-quick refactor</code></td><td>Behaviour-preserving refactor with test baseline</td><td>Stage-locked: capture baseline, refactor, re-verify</td></tr>
 <tr><td><code>/wf-quick ideate</code></td><td>Brainstorm + rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
+<tr><td><code>/wf-quick simplify</code></td><td>3-agent review-and-route triage (never writes code)</td><td>Routing report under <code>simplify/</code></td></tr>
 </tbody>
 </table>
 

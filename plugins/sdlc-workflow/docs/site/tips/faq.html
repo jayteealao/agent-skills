@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -113,11 +115,14 @@
 <dt><strong>What's the difference between <code>amend</code>, <code>extend</code>, and <code>implement reviews</code>?</strong></dt>
 <dd><code>amend</code> corrects the spec. <code>extend</code> adds new slices. <code>implement reviews</code> fixes implementation bugs. <a href="../how-to/amend-or-extend.html">Full decision rule here</a>.</dd>
 
-<dt><strong>Why does shape ask 30 questions for something simple?</strong></dt>
-<dd>That's a signal the change probably wants <code>/wf-quick fix</code> instead. Shape is the deep interview stage — if it doesn't pay off, you're in the wrong flow.</dd>
+<dt><strong>Why does shape ask 20 questions for something simple?</strong></dt>
+<dd>That's a signal the change probably wants <code>/wf-quick fix</code> instead. Shape is the deep interview stage (20 questions across five rounds) — if it doesn't pay off, you're in the wrong flow.</dd>
 
 <dt><strong>Can I use the plugin with another AI assistant (not Claude Code)?</strong></dt>
-<dd>The artifact files are plain markdown + YAML — they're portable. The orchestration runs in Claude Code's skill router system, so the slash commands themselves are Claude Code-specific.</dd>
+<dd>The artifact files are plain markdown + YAML — they're portable. The orchestration runs in Claude Code's skill router system, so the skill routers themselves are Claude Code-specific.</dd>
+
+<dt><strong>Do I need to run <code>npm install</code> to use the plugin?</strong></dt>
+<dd>No. Since v9.45.0 the hooks, renderer, and serve daemon run from committed <code>dist/</code> bundles with dependencies inlined — a fresh install works with zero runtime install. <code>npm install</code> + <code>npm run build</code> are only for <em>maintainers</em> editing the plugin source; after editing <code>hooks/</code>, <code>lib/</code>, <code>renderers/</code>, or <code>components/</code> you rebuild <code>dist/</code> (a CI freshness gate enforces it). See <a href="../explanation/build-and-dist.html">Build &amp; dist model</a>.</dd>
 </dl>
 <div class="pager"><a class="prev" href="../tips/anti-patterns.html"><span>← Previous</span>Anti-patterns</a></div></main>
 </div>

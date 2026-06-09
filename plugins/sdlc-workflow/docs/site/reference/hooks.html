@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -82,7 +84,20 @@
 <span class="quadrant reference">reference</span>
 <h1>Hooks reference</h1>
 
-<p>The plugin ships six Node hooks under <code>plugins/sdlc-workflow/hooks/</code>, wired via <code>hooks.json</code>. (Earlier releases shipped shell-script equivalents under <code>hooks/scripts/</code>; those were retired in v9.34.3–v9.34.4 — validation and orientation are now entirely native Node.)</p>
+<p>The plugin wires <strong>five Node hooks</strong> across three events (one <code>SessionStart</code>, one <code>PreToolUse</code>, three <code>PostToolUse</code>) via <code>hooks/hooks.json</code>. Each runs from the committed <strong>esbuild bundle under <code>dist/</code></strong> — not the <code>hooks/*.mjs</code> source — so a fresh install runs dependency-free with no <code>npm install</code>. (Earlier releases shipped shell + Python equivalents under <code>hooks/scripts/</code>; those were retired in v9.34.3–v9.34.5, and the no-op PreCompact hook was removed in v9.41.0. Validation, verification, staging, rendering, and orientation are now entirely native Node.)</p>
+
+<table>
+<thead><tr><th>Event</th><th>Matcher</th><th>Runs</th><th>Timeout</th></tr></thead>
+<tbody>
+<tr><td><code>SessionStart</code></td><td>—</td><td><code>dist/session-start-orient.mjs</code></td><td>30s</td></tr>
+<tr><td><code>PreToolUse</code></td><td><code>Write</code></td><td><code>dist/pre-write-validate.mjs</code></td><td>5s</td></tr>
+<tr><td><code>PostToolUse</code></td><td><code>Write|Edit|MultiEdit|NotebookEdit</code></td><td><code>dist/post-write-auto-stage.mjs</code></td><td>5s</td></tr>
+<tr><td><code>PostToolUse</code></td><td><code>Write|Edit|MultiEdit|NotebookEdit</code></td><td><code>dist/post-write-verify.mjs</code></td><td>15s</td></tr>
+<tr><td><code>PostToolUse</code></td><td><code>Write|Edit|MultiEdit|NotebookEdit</code></td><td><code>dist/post-write-render.mjs</code></td><td>30s</td></tr>
+</tbody>
+</table>
+
+<p><code>hooks/render-on-artifact-write.mjs</code> exists in source as a helper module but is <strong>not</strong> a wired hook — the rendering hook is <code>post-write-render.mjs</code>.</p>
 
 <h2>pre-write-validate (PreToolUse: Write)</h2>
 
@@ -100,6 +115,10 @@
 
 <p>Fires after the write, reading the file from disk. Runs deep Ajv validation of the frontmatter <code>type</code> + required fields against <code>tests/frontmatter.schema.json</code> for artifacts under <code>.ai/workflows/</code>, <code>.ai/simplify/</code>, <code>.ai/profiles/</code>, and <code>.ai/docs/</code>. The <code>po-answers.md</code> prose log is exempt. Exits 2 with diagnostics on failure so the model can repair the frontmatter in place.</p>
 
+<h3>Sibling-fragment hard block <span class="badge">v9.47</span></h3>
+
+<p>For <strong>rich-tier</strong> artifact types, post-write-verify <strong>exits 2 (blocks the write)</strong> when the <code>.md</code> lands without its mandatory sibling <code>.yaml</code>. The 13 gated types are <code>review</code>, <code>plan</code>, <code>design</code>, <code>ship-run</code>, <code>rca</code>, <code>benchmark</code>, <code>experiment</code>, <code>instrument</code>, <code>profile</code>, <code>simplify-run</code>, <code>review-command</code>, <code>design-audit</code>, and <code>design-critique</code> (the last three added v9.48). Two escape hatches bypass it: set <code>fragment: none</code> (also accepts <code>skip</code> / <code>n/a</code>) in the artifact's frontmatter to exempt a single file, or set <code>hooks.remindMissingFragments: false</code> in <code>.ai/sdlc-config.json</code> to disable it project-wide. The automation-regenerable types <code>sync-report</code> and <code>docs-index</code> are intentionally excluded so a hard block can't wedge their regenerators.</p>
+
 <h2>post-write-auto-stage (PostToolUse)</h2>
 
 <p>Auto-stages changed code with <code>git add</code> when an active workflow is in the implement stage and the branch strategy is dedicated or shared. Honors <code>.ai/.no-auto-stage</code>.</p>
@@ -112,16 +131,41 @@
 
 <p>Fires once per session and re-fires after a context compaction (<code>source: compact</code>). Reads <code>.ai/workflows/*/00-index.md</code>, surfaces active workflows as session context, and kicks off detached bootstrap rendering of the view. Because it re-reads workflow state from disk after compaction, it is also what re-orients Claude once the conversation is compressed.</p>
 
+<h2>Configuration — the <code>hooks</code> block</h2>
+
+<p>Per-repo, in <code>.ai/sdlc-config.json</code>. All default to <code>true</code>:</p>
+
+<table>
+<thead><tr><th>Key</th><th>Default</th><th>Controls</th></tr></thead>
+<tbody>
+<tr><td><code>autoStage</code></td><td>true</td><td>post-write-auto-stage <code>git add</code> behaviour.</td></tr>
+<tr><td><code>validateOnWrite</code></td><td>true</td><td>pre-write-validate filename / frontmatter checks.</td></tr>
+<tr><td><code>verifyOnWrite</code></td><td>true</td><td>post-write-verify deep Ajv validation.</td></tr>
+<tr><td><code>remindMissingFragments</code></td><td>true</td><td>The sibling-fragment hard block + reminder. <code>false</code> disables both.</td></tr>
+</tbody>
+</table>
+
+<h2>Why <code>dist/</code> — the build model</h2>
+
+<p>Hooks run from <code>dist/*.mjs</code>: committed esbuild bundles with their third-party dependencies inlined. That is what lets a fresh install run with no runtime <code>npm install</code>. The source lives in <code>hooks/</code>; after editing any hook (or anything under <code>lib/</code>, <code>renderers/</code>, <code>components/</code>) you must run <code>npm run build</code> to refresh <code>dist/</code>, or a CI freshness gate fails and production runs stale code. See <a href="../explanation/build-and-dist.html">Build &amp; dist model</a>.</p>
+
 <h2>Where to find them</h2>
 
-<pre><code>plugins/sdlc-workflow/hooks/
-├── hooks.json
-├── pre-write-validate.mjs
-├── post-write-verify.mjs
-├── post-write-auto-stage.mjs
-├── post-write-render.mjs
-└── session-start-orient.mjs</code></pre>
-<div class="pager"><a class="prev" href="../reference/09-ship-run-schema.html"><span>← Previous</span>Ship-run schema</a><a class="next" href="../reference/glossary.html"><span>Next →</span>Glossary</a></div></main>
+<pre><code>plugins/sdlc-workflow/
+├── hooks/
+│   ├── hooks.json                  # wiring — points every entry at dist/
+│   ├── pre-write-validate.mjs      # source
+│   ├── post-write-verify.mjs       # source
+│   ├── post-write-auto-stage.mjs   # source
+│   ├── post-write-render.mjs       # source
+│   └── session-start-orient.mjs    # source
+└── dist/                           # committed bundles — what actually runs
+    ├── pre-write-validate.mjs
+    ├── post-write-verify.mjs
+    ├── post-write-auto-stage.mjs
+    ├── post-write-render.mjs
+    └── session-start-orient.mjs</code></pre>
+<div class="pager"><a class="prev" href="../reference/09-ship-run-schema.html"><span>← Previous</span>Ship-run schema</a><a class="next" href="../reference/serve.html"><span>Next →</span>Serve daemon &amp; hub</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

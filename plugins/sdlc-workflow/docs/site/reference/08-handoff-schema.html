@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -139,6 +141,18 @@ docs-generated: [&lt;paths&gt;]</code></pre>
 </ul>
 
 <p><code>blocked</code> when any of those hard-fail. <code>awaiting-input</code> for the soft fails (pending checks, deferred suggestions, required reviewers haven't responded).</p>
+
+<h2>CI-watch + review-settle block <span class="badge">v9.41</span></h2>
+
+<p>Written by T5.0 (and refreshed by the final T5.3 re-watch). Absent → the step was skipped (e.g., <code>branch-strategy: none</code> or no PR exists).</p>
+
+<pre><code>ci-watch-conclusion: green | red | timed-out | skipped   # terminal state of the final CI watch
+ci-watch-rounds: &lt;N&gt;                # total poll iterations across all watches this run
+ci-watch-fix-rounds: &lt;N&gt;            # apply-fix → push → re-watch loops run on CI red
+bot-reviews-landed: [&lt;login&gt;, ...]  # review-bots that posted within the settle window
+review-settle-elapsed-seconds: &lt;N&gt;  # seconds spent in the bot-review settle window</code></pre>
+
+<p>T5.0 gets CI to a terminal state and gives bot reviewers a bounded window to land before triage runs, so the verdict is computed on real signal rather than a stale snapshot. It never decides the final verdict — that is T5.3, after fixes and rebase.</p>
 <div class="pager"><a class="prev" href="../reference/ship-plan-schema.html"><span>← Previous</span>Ship-plan schema</a><a class="next" href="../reference/09-ship-run-schema.html"><span>Next →</span>Ship-run schema</a></div></main>
 </div>
 <script type="module">

@@ -14,10 +14,18 @@ first or delete it from this script entirely.
 """
 
 import os
+import re
+import json
 from pathlib import Path
 from textwrap import dedent
 
 SITE_ROOT = Path(__file__).resolve().parent
+
+# --- Single source of truth for the version stamp -------------------------
+# The sidebar brand shows the plugin version. Read it from the manifest so the
+# doc-site can never drift from the plugin (Phase 1 / L1 of DOC-SITE-DEVIATIONS).
+_PLUGIN_JSON = SITE_ROOT.parent.parent / ".claude-plugin" / "plugin.json"
+PLUGIN_VERSION = json.loads(_PLUGIN_JSON.read_text(encoding="utf-8"))["version"]
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +34,7 @@ SITE_ROOT = Path(__file__).resolve().parent
 # `{active}` is replaced with the active-link href so we can mark it with class="active".
 # ---------------------------------------------------------------------------
 SIDEBAR = r"""<aside id="sidebar">
-<a class="brand" href="{base}index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="{base}index.html">sdlc-workflow<small>plugin docs · v{version}</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -51,7 +59,7 @@ SIDEBAR = r"""<aside id="sidebar">
   <h4>Reference</h4>
   <ul>
     <li><a href="{base}reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="{base}reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="{base}reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -65,7 +73,8 @@ SIDEBAR = r"""<aside id="sidebar">
     <li><a href="{base}reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="{base}reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="{base}reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="{base}reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="{base}reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="{base}reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="{base}reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="{base}reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -80,6 +89,7 @@ SIDEBAR = r"""<aside id="sidebar">
     <li><a href="{base}explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="{base}explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="{base}explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="{base}explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -155,7 +165,7 @@ def render_page(path, title, quadrant, breadcrumb, body, prev=None, nxt=None):
     """Render a single page to docs/site/<path>."""
     rel = path.count("/")
     base = "../" * rel
-    sidebar = SIDEBAR.format(base=base)
+    sidebar = SIDEBAR.format(base=base, version=PLUGIN_VERSION)
     head = HEAD_TMPL.format(title=title, base=base)
     qclass = QUADRANT_CLASSES[quadrant]
 
@@ -184,7 +194,7 @@ def render_page(path, title, quadrant, breadcrumb, body, prev=None, nxt=None):
     )
     out = SITE_ROOT / path
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(page, encoding="utf-8")
+    out.write_text(page, encoding="utf-8", newline="\n")
     print(f"wrote {path}")
 
 
@@ -208,7 +218,7 @@ For a one-character typo or a one-line patch, the full 10-stage pipeline is over
 <div class="summary">
 <table>
 <tr><th>Pre-conditions</th><td>The plugin is installed (<a href="installation.html">install tutorial</a>).</td></tr>
-<tr><th>You will produce</th><td>Three artifacts under <code>.ai/workflows/&lt;slug&gt;/</code>: <code>00-index.md</code>, <code>01-quick.md</code>, and either <code>05-implement.md</code> or a hotfix-prefixed file.</td></tr>
+<tr><th>You will produce</th><td>Under <code>.ai/workflows/&lt;slug&gt;/</code>: <code>00-index.md</code> + <code>01-fix.md</code> from <code>/wf-quick fix</code>, then <code>05-implement.md</code> once <code>/wf implement</code> runs.</td></tr>
 <tr><th>You will not produce</th><td>A shape, slice, plan, verify, or review artifact. The compressed flow trades that depth for speed.</td></tr>
 </table>
 </div>
@@ -231,8 +241,8 @@ throw new Error("Received invalid payload");</code></pre>
 <p>Claude asks two or three questions — what file, what's the fix, do you need a test added — and writes:</p>
 
 <ul>
-  <li><code>00-index.md</code> with <code>workflow-type: quick</code></li>
-  <li><code>01-quick.md</code> — the compressed shape+slice+plan, all in one file</li>
+  <li><code>00-index.md</code> with <code>workflow-type: fix</code></li>
+  <li><code>01-fix.md</code> — the compressed brief + shape + plan, all in one file (<code>type: fix-plan</code>)</li>
 </ul>
 
 <p>The compressed shape skips the deep interview that <code>/wf shape</code> runs. Acceptance criteria for a typo fix are obvious — Claude inlines them rather than re-derive them.</p>
@@ -241,7 +251,7 @@ throw new Error("Received invalid payload");</code></pre>
 
 <pre><code>/wf implement &lt;slug&gt;</code></pre>
 
-<p>Implement reads <code>01-quick.md</code> directly (in compressed mode, no separate plan file is needed). It makes the edit, runs the test command, and commits. The workflow-type field on <code>00-index.md</code> tells implement to write <code>05-implement.md</code> as a single file, not per-slice.</p>
+<p>Implement reads <code>01-fix.md</code> directly (in compressed mode, no separate plan file is needed). It makes the edit, runs the test command, and commits. The <code>workflow-type</code> field on <code>00-index.md</code> tells implement to write <code>05-implement.md</code> as a single file, not per-slice.</p>
 
 <h2>Step 3 — Handoff (or skip straight to commit)</h2>
 
@@ -269,12 +279,14 @@ throw new Error("Received invalid payload");</code></pre>
 <thead><tr><th>Command</th><th>For</th><th>Pipeline shape</th></tr></thead>
 <tbody>
 <tr><td><code>/wf-quick hotfix</code></td><td>Production incident — bypass review for speed</td><td>6-stage, scope-locked</td></tr>
-<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis of a bug or incident</td><td>Single artifact, then forwards to <code>/wf shape</code></td></tr>
+<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis of a bug or incident (static — reads code &amp; git)</td><td>Single artifact; recommends <code>/wf plan</code>, <code>/wf-quick fix</code>, or <code>hotfix</code></td></tr>
+<tr><td><code>/wf-quick probe</code></td><td>Runtime-truth verification — drives the running artifact (slug-mode only)</td><td>Compressed slice + evidence dir</td></tr>
 <tr><td><code>/wf-quick investigate</code></td><td>"What are 2–3 distinct engineering approaches to this problem?" — solution-options sketcher with tradeoffs; no winner picked</td><td>Single artifact, user picks an option then routes to <code>/wf intake</code> or <code>/wf-quick fix</code></td></tr>
 <tr><td><code>/wf-quick discover</code></td><td>"Is my theory about how this code works correct?" — hypothesis-test with FOR/AGAINST/counter-hypothesis evidence</td><td>Single artifact, verdict: holds / partial / fails / inconclusive</td></tr>
 <tr><td><code>/wf-quick update-deps</code></td><td>Audit + tiered dependency updates</td><td>4-stage under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
 <tr><td><code>/wf-quick refactor</code></td><td>Behaviour-preserving refactor with test baseline</td><td>Stage-locked: capture baseline, refactor, re-verify</td></tr>
 <tr><td><code>/wf-quick ideate</code></td><td>Brainstorm + rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
+<tr><td><code>/wf-quick simplify</code></td><td>3-agent review-and-route triage (never writes code)</td><td>Routing report under <code>simplify/</code></td></tr>
 </tbody>
 </table>
 
@@ -355,10 +367,13 @@ flowchart TD
 <dd><code>/wf-quick refactor "&lt;area&gt;"</code>. Captures a test baseline first; refactors with incremental green steps; re-verifies parity.</dd>
 
 <dt><strong>"I have a theory about how this code works and want it adjudicated against the codebase."</strong></dt>
-<dd><code>/wf-quick discover "&lt;hypothesis&gt;"</code>. FOR / AGAINST / counter-hypothesis sub-agents adjudicate the claim. Verdict is one of <code>holds</code> / <code>partial</code> / <code>fails</code> / <code>inconclusive</code>, with cited evidence. Different from <code>/wf-docs how</code> — that explains how code works; <code>discover</code> tests whether your theory is correct.</dd>
+<dd><code>/wf-quick discover "&lt;hypothesis&gt;"</code>. FOR / AGAINST / counter-hypothesis sub-agents adjudicate the claim. Verdict is one of <code>holds</code> / <code>partial</code> / <code>fails</code> / <code>inconclusive</code>, with cited evidence. Different from <code>/wf-meta how</code> — that explains how code works; <code>discover</code> tests whether your theory is correct.</dd>
 
 <dt><strong>"I want to read about an unfamiliar subsystem."</strong></dt>
 <dd><code>/wf-meta how "&lt;question&gt;"</code> — five-mode question answering. Doesn't write a stage artifact unless you opt in.</dd>
+
+<dt><strong>"I want to clean up / triage a branch or plan before going further."</strong></dt>
+<dd><code>/wf-quick simplify [branch|commit|plan|codebase]</code> — three parallel sub-agents (reuse, quality, efficiency) classify findings and hand back a queue of copy-pasteable downstream commands. It routes; it never writes code.</dd>
 </dl>
 
 <h2>Choosing between <code>/wf</code> and <code>/wf-quick</code></h2>
@@ -383,7 +398,7 @@ flowchart TD
 <ul>
   <li><a href="../tutorials/first-workflow.html">First workflow tutorial</a> — what <code>/wf</code> actually does, end to end.</li>
   <li><a href="../tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a> — what <code>/wf-quick fix</code> looks like in practice.</li>
-  <li><a href="../reference/commands.html">Commands reference</a> — every command's arguments and exact behaviour.</li>
+  <li><a href="../reference/commands.html">Routers reference</a> — every command's arguments and exact behaviour.</li>
   <li><a href="../tips/escape-hatches.html">Escape hatches</a> — when even the compressed flow is too much.</li>
 </ul>
 </div>
@@ -447,15 +462,21 @@ PAGES.append((
 <tr><td>"Where did I leave off in X?"</td><td><code>/wf-meta resume X</code></td></tr>
 <tr><td>"What's the next command for X?"</td><td><code>/wf-meta next X</code></td></tr>
 <tr><td>"Index file looks weird — repair it."</td><td><code>/wf-meta sync X</code></td></tr>
-<tr><td>"Explain a stage's artifact in plain English."</td><td><code>/wf-meta how X &lt;stage&gt;</code></td></tr>
+<tr><td>"Explain a stage's artifact in plain English."</td><td><code>/wf-meta how X plan|shape|slice|review|findings</code></td></tr>
 <tr><td>"Generate a Diátaxis announcement from a shipped workflow."</td><td><code>/wf-meta announce X</code></td></tr>
+<tr><td>"Correct a wrong spec / slice / ship-plan block."</td><td><code>/wf-meta amend X &lt;scope&gt;</code></td></tr>
+<tr><td>"Add new slices to an existing workflow."</td><td><code>/wf-meta extend X</code></td></tr>
+<tr><td>"Mark a stage skipped with a stub."</td><td><code>/wf-meta skip &lt;stage&gt; X</code></td></tr>
+<tr><td>"Archive a finished / abandoned workflow."</td><td><code>/wf-meta close &lt;reason&gt; X</code></td></tr>
+<tr><td>"Author the project ship plan (once)."</td><td><code>/wf-meta init-ship-plan</code></td></tr>
+<tr><td>"Build the CI/CD + DX pipeline from the plan."</td><td><code>/wf-meta build-pipeline</code></td></tr>
 </tbody>
 </table>
 
 <div class="related">
 <h3>Related</h3>
 <ul>
-  <li><a href="../reference/commands.html">Commands reference</a> — every <code>/wf-meta</code> sub-command.</li>
+  <li><a href="../reference/commands.html">Routers reference</a> — every <code>/wf-meta</code> sub-command.</li>
   <li><a href="../reference/00-index-schema.html">00-index schema</a> — the control file fields.</li>
   <li><a href="resume-paused-work.html">Resume paused work</a> — what happens when a ship run is paused.</li>
 </ul>
@@ -489,7 +510,7 @@ PAGES.append((
 <pre><code>/wf-meta amend &lt;slug&gt; from-review    # seed from 07-review-&lt;slice&gt;.md findings
 /wf-meta amend &lt;slug&gt; from-retro     # seed from 10-retro.md
 /wf-meta amend &lt;slug&gt;                # describe the correction manually
-/wf-meta amend ship-plan             # edit one block (A-G) of .ai/ship-plan.md</code></pre>
+/wf-meta amend ship-plan             # edit one block (A-K) of .ai/ship-plan.md</code></pre>
 
 <p>After amend writes, you usually run <code>/wf plan &lt;slug&gt; &lt;slice&gt;</code> to update the plan, then <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code>.</p>
 
@@ -526,7 +547,7 @@ PAGES.append((
 <div class="related">
 <h3>Related</h3>
 <ul>
-  <li><a href="../reference/commands.html">Commands reference</a> — full <code>/wf-meta amend</code> argument matrix.</li>
+  <li><a href="../reference/commands.html">Routers reference</a> — full <code>/wf-meta amend</code> argument matrix.</li>
   <li><a href="triage-pr-comments.html">Triage PR comments</a> — the new T5.1 loop sometimes routes findings to amend.</li>
 </ul>
 </div>
@@ -557,20 +578,27 @@ PAGES.append((
 <table>
 <thead><tr><th>Command</th><th>Produces</th><th>When</th></tr></thead>
 <tbody>
-<tr><td><code>/wf instrument &lt;slug&gt; &lt;slice&gt;</code></td><td><code>04b-instrument-&lt;slice&gt;.md</code> — log/metric/trace design</td><td>Before implement, when the slice changes previously unobserved code paths.</td></tr>
-<tr><td><code>/wf experiment &lt;slug&gt; &lt;slice&gt;</code></td><td><code>04c-experiment-&lt;slice&gt;.md</code> — cohort split, feature flag, rollback strategy</td><td>Before implement, when shipping a behaviour change that needs measured rollout.</td></tr>
-<tr><td><code>/wf benchmark &lt;slug&gt; &lt;slice&gt;</code></td><td><code>05c-benchmark-&lt;slice&gt;.md</code> — perf baseline + compare-mode results</td><td>Before implement (baseline) and after implement (compare).</td></tr>
+<tr><td><code>/wf instrument &lt;slug&gt; &lt;slice&gt;</code></td><td><code>04b-instrument.md</code> — log/metric/trace design</td><td>Before implement, when the slice changes previously unobserved code paths.</td></tr>
+<tr><td><code>/wf experiment &lt;slug&gt; &lt;slice&gt;</code></td><td><code>04c-experiment.md</code> — cohort split, feature flag, rollback strategy</td><td>Before implement, when shipping a behaviour change that needs measured rollout.</td></tr>
+<tr><td><code>/wf benchmark &lt;slug&gt; &lt;slice&gt;</code></td><td><code>05c-benchmark.md</code> — perf baseline + compare-mode results</td><td>Before implement (baseline) and after implement (compare).</td></tr>
 <tr><td><code>/wf profile &lt;area&gt;</code></td><td>A profiling report</td><td>Anytime — typically during plan or implement when investigating a hot path.</td></tr>
 </tbody>
 </table>
 
 <h2>How registration works</h2>
 
-<p>Running an augmentation appends it to the <code>augmentations:</code> array on <code>00-index.md</code>:</p>
+<p>Running an augmentation appends it to the <code>augmentations:</code> array on <code>00-index.md</code>. Each entry is <code>type</code> + <code>artifact</code> + <code>status</code> + <code>created-at</code> (benchmark also records <code>mode</code>):</p>
 
 <pre><code>augmentations:
-  - { kind: instrument, slice: route, ref: 04b-instrument-route.md, registered-at: "2026-05-10T..." }
-  - { kind: benchmark,  slice: route, ref: 05c-benchmark-route.md,  registered-at: "..." }</code></pre>
+  - type: instrument
+    artifact: 04b-instrument.md
+    status: complete
+    created-at: "2026-05-10T14:32:00Z"
+  - type: benchmark
+    artifact: 05c-benchmark.md
+    mode: baseline
+    status: complete
+    created-at: "2026-05-10T15:10:00Z"</code></pre>
 
 <p>Downstream stages read this array. <code>handoff</code> translates each entry into a reviewer-visible mention (e.g., "Added observability — 3 signals for previously unobserved code paths"). <code>ship</code> translates each into a changelog line.</p>
 
@@ -594,7 +622,7 @@ PAGES.append((
 <h3>Related</h3>
 <ul>
   <li><a href="../explanation/augmentations-model.html">Augmentations model</a> — how registration propagates.</li>
-  <li><a href="../reference/commands.html">Commands reference</a> — full argument lists.</li>
+  <li><a href="../reference/commands.html">Routers reference</a> — full argument lists.</li>
   <li><a href="../reference/00-index-schema.html">00-index schema</a> — the <code>augmentations:</code> array shape.</li>
 </ul>
 </div>
@@ -611,6 +639,8 @@ PAGES.append((
     '<a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Triage PR comments',
     """
 <p>You opened a PR via <code>/wf handoff</code>. CodeRabbit, Greptile, Gemini, or a human reviewer left comments. v9.5.0 added <strong>T5.1 — a bounded triage loop</strong> as part of the handoff PR-readiness block. This page is the operator's guide.</p>
+
+<div class="callout note"><strong>T5.0 runs first.</strong> Since v9.41.0, handoff watches CI to a terminal state and gives bot reviews a bounded window to land (<strong>T5.0</strong>) <em>before</em> this triage loop starts — so the loop classifies comments that have actually posted, not a half-empty snapshot. If CI is red, T5.0 delegates fixes to a sub-agent and re-watches; it never blocks on humans (it routes the verdict to <code>awaiting-input</code> instead).</div>
 
 <div class="summary">
 <table>
@@ -1051,7 +1081,7 @@ PAGES.append((
 <h3>Related</h3>
 <ul>
   <li><a href="../tips/escape-hatches.html">Escape hatches</a> — when skipping or closing early is the right call.</li>
-  <li><a href="../reference/commands.html">Commands reference</a> — full <code>/wf-meta close</code> behaviour.</li>
+  <li><a href="../reference/commands.html">Routers reference</a> — full <code>/wf-meta close</code> behaviour.</li>
 </ul>
 </div>
 """,
@@ -1202,13 +1232,13 @@ flowchart LR
   i02b --> i03
   i02c --> i03
   i03 --> i04["04-plan-X.md"]
-  i02 -.opt.-> i04b["04b-instrument-X.md"]
-  i02 -.opt.-> i04c["04c-experiment-X.md"]
+  i02 -.opt.-> i04b["04b-instrument.md"]
+  i02 -.opt.-> i04c["04c-experiment.md"]
   i04 --> i05["05-implement-X.md"]
   i04b --> i05
   i04c --> i05
   i02c -.opt.-> i05
-  i05 --> i05c["05c-benchmark-X.md"]
+  i05 --> i05c["05c-benchmark.md"]
   i05 --> i06["06-verify-X.md"]
   i05 -.opt.-> i07a["07-design-audit.md"]
   i05 -.opt.-> i07b["07-design-critique.md"]
@@ -1323,11 +1353,11 @@ flowchart LR
 
 PAGES.append((
     "reference/commands.html",
-    "Commands reference",
+    "Routers reference",
     "reference",
-    '<a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Commands',
+    '<a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Routers',
     """
-<p>The hub. Every slash command at a glance, with links into the per-router detail pages for depth.</p>
+<p>The hub. Every skill-mode router at a glance, with links into the per-router detail pages for depth. (These routers live in <code>skills/</code> and are invoked as slash commands; <code>/wf</code>, <code>/wf-quick</code>, etc. are skills, not files in <code>commands/</code>.)</p>
 
 <div class="callout note">
 <strong>Looking for detail?</strong>
@@ -1344,7 +1374,7 @@ This page is the overview. For per-command depth — argument hints, what it rea
 
 <h2>/wf — the lifecycle router</h2>
 
-<p>Dispatches across 13 lifecycle stages + 4 augmentations. The stage commands all take <code>&lt;slug&gt;</code>; per-slice commands additionally take <code>&lt;slice-slug&gt;</code>.</p>
+<p>Dispatches across 10 lifecycle stages + 4 augmentations. The stage commands all take <code>&lt;slug&gt;</code>; per-slice commands additionally take <code>&lt;slice-slug&gt;</code>.</p>
 
 <table>
 <thead><tr><th>Command</th><th>Args</th><th>Stage</th><th>Notes</th></tr></thead>
@@ -1352,16 +1382,16 @@ This page is the overview. For per-command depth — argument hints, what it rea
 <tr><td><code>/wf intake</code></td><td><code>"description"</code></td><td>1</td><td>Entry point. Creates the workflow directory and slug.</td></tr>
 <tr><td><code>/wf shape</code></td><td><code>&lt;slug&gt;</code></td><td>2</td><td>Deep interview + parallel web research.</td></tr>
 <tr><td><code>/wf slice</code></td><td><code>&lt;slug&gt;</code></td><td>3</td><td>Decompose into vertical slices.</td></tr>
-<tr><td><code>/wf plan</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>4</td><td>Repo-aware plan with reuse scan.</td></tr>
+<tr><td><code>/wf plan</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>4</td><td>Repo-aware plan with reuse scan. Slice optional — defaults to the selected slice.</td></tr>
 <tr><td><code>/wf implement</code></td><td><code>&lt;slug&gt; &lt;slice&gt; [reviews]</code></td><td>5</td><td><code>reviews</code> mode applies review-finding fixes.</td></tr>
-<tr><td><code>/wf verify</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>6</td><td>Exercises acceptance criteria; captures evidence.</td></tr>
-<tr><td><code>/wf review</code></td><td><code>&lt;slug&gt; &lt;slice&gt; [triage]</code></td><td>7</td><td>Multi-domain parallel review.</td></tr>
+<tr><td><code>/wf verify</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>6</td><td>Exercises acceptance criteria; captures evidence. User-gated single-round fix loop; writes <code>convergence:</code>.</td></tr>
+<tr><td><code>/wf review</code></td><td><code>&lt;slug&gt; [slice|triage]</code></td><td>7</td><td>Multi-domain parallel review; owns a per-finding fix loop.</td></tr>
 <tr><td><code>/wf handoff</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>8</td><td>Aggregates complete slices; runs PR-readiness block.</td></tr>
 <tr><td><code>/wf ship</code></td><td><code>&lt;slug&gt; [environment]</code></td><td>9</td><td>Plan-driven, replayable.</td></tr>
 <tr><td><code>/wf retro</code></td><td><code>&lt;slug&gt;</code></td><td>10</td><td>Extract concrete improvement actions.</td></tr>
-<tr><td><code>/wf instrument</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>aug</td><td>Observability augmentation.</td></tr>
-<tr><td><code>/wf experiment</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>aug</td><td>Feature flag + cohort design.</td></tr>
-<tr><td><code>/wf benchmark</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>aug</td><td>Performance baseline + compare.</td></tr>
+<tr><td><code>/wf instrument</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>aug</td><td>Observability augmentation. Writes <code>04b-instrument.md</code>.</td></tr>
+<tr><td><code>/wf experiment</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>aug</td><td>Feature flag + cohort design. Writes <code>04c-experiment.md</code>.</td></tr>
+<tr><td><code>/wf benchmark</code></td><td><code>&lt;slug&gt; [baseline|compare]</code></td><td>aug</td><td>Performance baseline + compare. Writes <code>05c-benchmark.md</code>.</td></tr>
 <tr><td><code>/wf profile</code></td><td><code>&lt;area&gt;</code></td><td>aug</td><td>Profiling pass (freestanding).</td></tr>
 </tbody>
 </table>
@@ -1397,16 +1427,16 @@ This page is the overview. For per-command depth — argument hints, what it rea
 <tr><td><code>/wf-meta extend</code></td><td><code>&lt;scope&gt; &lt;target&gt;</code></td><td>Add new slices to an existing workflow.</td></tr>
 <tr><td><code>/wf-meta skip</code></td><td><code>&lt;stage&gt; [slug]</code></td><td>Mark a stage skipped with a stub artifact.</td></tr>
 <tr><td><code>/wf-meta close</code></td><td><code>&lt;reason&gt; [slug]</code></td><td>Archive a workflow (shipped/abandoned/superseded/archived/stuck).</td></tr>
-<tr><td><code>/wf-meta how</code></td><td><code>&lt;mode&gt; &lt;topic&gt;</code></td><td>Five-mode question answering.</td></tr>
+<tr><td><code>/wf-meta how</code></td><td><code>&lt;question&gt; · &lt;slug&gt; plan|shape|slice|review|findings</code></td><td>Five-mode Q&amp;A; <code>--research</code> / <code>--quick</code> force a mode.</td></tr>
 <tr><td><code>/wf-meta announce</code></td><td><code>[slug]</code></td><td>Diátaxis announcement for a completed workflow.</td></tr>
-<tr><td><code>/wf-meta init-ship-plan</code></td><td><code>[--from-template &lt;kind&gt;]</code></td><td>Author <code>.ai/ship-plan.md</code> (one-time per project) — the full pipeline contract: outbound release (Blocks A–G) + inbound developer experience (Blocks H–J: code-quality gates, commit/PR-title convention, local git hooks, branch protection, CODEOWNERS, dependency automation).</td></tr>
+<tr><td><code>/wf-meta init-ship-plan</code></td><td><code>[--from-template &lt;kind&gt;]</code></td><td>Author <code>.ai/ship-plan.md</code> (one-time per project) — the full pipeline contract: outbound release (Blocks A–G) + inbound developer experience (Blocks H–K: code-quality gates, local developer experience, repo governance, and security/supply-chain gates).</td></tr>
 <tr><td><code>/wf-meta build-pipeline</code></td><td><code>[--dry-run]</code></td><td>Audit the repo against <code>.ai/ship-plan.md</code> and build the entire CI/CD + DX pipeline: release + pre-merge workflows, code-quality + commit/PR-title CI, git hooks, dev-experience files, governance files, and (gated) branch protection via <code>gh api</code>. No file is overwritten.</td></tr>
 </tbody>
 </table>
 
 <h2>/wf-design — design pipeline</h2>
 
-<p>22 sub-commands across three modes (workflow stage 2b, workflow + sub-command, freestanding). The main ones: <code>shape</code>, <code>craft</code>, <code>audit</code>, <code>critique</code>, plus 15 transformations (e.g., <code>colorize</code>, <code>typeset</code>, <code>animate</code>, <code>harden</code>, <code>quieter</code>, <code>bolder</code>, <code>delight</code>, <code>distill</code>, <code>clarify</code>, <code>adapt</code>, <code>layout</code>, <code>optimize</code>, <code>polish</code>, <code>overdrive</code>, <code>impeccable</code>) and 3 setup/extract operators (<code>setup</code>, <code>teach</code>, <code>extract</code>).</p>
+<p>22 sub-commands across three modes (workflow stage 2b, workflow + sub-command, freestanding). The main ones: <code>shape</code>, <code>craft</code>, <code>audit</code>, <code>critique</code>, plus 15 transformations (e.g., <code>colorize</code>, <code>typeset</code>, <code>animate</code>, <code>harden</code>, <code>quieter</code>, <code>bolder</code>, <code>delight</code>, <code>distill</code>, <code>clarify</code>, <code>adapt</code>, <code>layout</code>, <code>optimize</code>, <code>polish</code>, <code>overdrive</code>, <code>onboard</code>) and 3 setup/extract operators (<code>setup</code>, <code>teach</code>, <code>extract</code>).</p>
 
 <h2>/wf-docs — documentation pipeline</h2>
 
@@ -1427,14 +1457,14 @@ PAGES.append((
     "reference",
     '<a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Skills',
     """
-<p>Six skill routers, each dispatching across sub-commands. Skills are how the model auto-invokes plugin behaviour without an explicit slash command — but every router can also be reached explicitly.</p>
+<p>The plugin ships <strong>eleven skills</strong>: six lifecycle/utility <strong>routers</strong> (each dispatching across sub-commands) plus five <strong>support skills</strong> the routers and the model draw on. Skills are how the model auto-invokes plugin behaviour without an explicit slash command — but every router can also be reached explicitly.</p>
 
 <table>
 <thead><tr><th>Skill</th><th>What it routes</th><th>How invoked</th></tr></thead>
 <tbody>
-<tr><td><code>wf</code></td><td>13 lifecycle stages + 4 augmentations</td><td>Mostly explicit via <code>/wf &lt;stage&gt;</code>.</td></tr>
-<tr><td><code>wf-quick</code></td><td>8 compressed flows</td><td>Explicit via <code>/wf-quick &lt;flow&gt;</code>.</td></tr>
-<tr><td><code>wf-meta</code></td><td>11 navigation/management sub-commands</td><td>Mostly explicit. <code>init-ship-plan</code> + <code>status</code> are common.</td></tr>
+<tr><td><code>wf</code></td><td>10 lifecycle stages + 4 augmentations</td><td>Mostly explicit via <code>/wf &lt;stage&gt;</code>.</td></tr>
+<tr><td><code>wf-quick</code></td><td>10 compressed flows</td><td>Explicit via <code>/wf-quick &lt;flow&gt;</code>.</td></tr>
+<tr><td><code>wf-meta</code></td><td>12 navigation/management sub-commands</td><td>Mostly explicit. <code>init-ship-plan</code> + <code>status</code> are common.</td></tr>
 <tr><td><code>wf-design</code></td><td>22 design sub-commands</td><td>Three modes: workflow stage 2b, workflow + sub-command, freestanding.</td></tr>
 <tr><td><code>wf-docs</code></td><td>Doc pipeline + 7 Diátaxis primitives</td><td>Explicit or auto when the model detects a doc gap.</td></tr>
 <tr><td><code>review</code></td><td>31 review dimensions, 7 sweeps</td><td>Auto-selected based on change context.</td></tr>
@@ -1453,9 +1483,24 @@ PAGES.append((
 
 <h2>Auto-invocation vs. explicit dispatch</h2>
 
-<p>Skills with <code>disable-model-invocation: true</code> in frontmatter (currently: <code>wf-meta</code>) never auto-invoke — the user must explicitly run <code>/wf-meta …</code>. The other skills can auto-invoke when the model detects a triggering condition described in the skill's <code>description</code>.</p>
+<p>Five of the six routers set <code>disable-model-invocation: true</code> in frontmatter (<code>wf</code>, <code>wf-quick</code>, <code>wf-meta</code>, <code>wf-docs</code>, <code>wf-design</code>) — they never auto-invoke, so you must run them explicitly (<code>/wf …</code>). <code>review</code> is the exception: it omits the flag, so the model <em>can</em> auto-invoke it when it detects a change worth reviewing. The support skills below also auto-invoke on the triggering conditions described in each skill's <code>description</code>.</p>
+
+<h2>Support skills</h2>
+
+<p>Five skills under <code>skills/</code> are not routers — they're focused capabilities the routers load and the model auto-invokes directly:</p>
+
+<table>
+<thead><tr><th>Skill</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>error-analysis</code></td><td>Root-cause analysis of errors, stack traces, and logs. Auto-invokes on debugging, incident-response, or "why is this failing" requests.</td></tr>
+<tr><td><code>test-patterns</code></td><td>Patterns for generating and organizing tests — unit, integration, data factories, coverage — across languages and frameworks.</td></tr>
+<tr><td><code>refactoring-patterns</code></td><td>Safe behaviour-preserving refactoring — extract, rename, move, simplify — with test-baseline and rollback guidance.</td></tr>
+<tr><td><code>wide-event-observability</code></td><td>Designing and implementing wide-event logging with tail sampling for context-rich, queryable observability.</td></tr>
+<tr><td><code>imagegen</code></td><td>Generates an image from a text prompt with automatic fallback. Internal to <code>/wf-design</code>; not user-invocable.</td></tr>
+</tbody>
+</table>
 """,
-    ("reference/commands.html", "Commands"),
+    ("reference/commands.html", "Routers"),
     ("reference/wf-design.html", "Design pipeline"),
 ))
 
@@ -1466,7 +1511,7 @@ PAGES.append((
     "reference",
     '<a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Design pipeline',
     """
-<p>The <code>/wf-design</code> router. Three invocation modes, six sub-command categories, 22 sub-commands, six artifact slots in the workflow tree, plus two repo-root project context files.</p>
+<p>The <code>/wf-design</code> router. Three invocation modes, six sub-command categories, 22 sub-commands, six artifact slots in the workflow tree, plus two repo-root project context files (<code>PRODUCT.md</code> / <code>DESIGN.md</code>). The <code>reference/</code> directory holds 24 files — the 22 sub-commands plus two <strong>register reference</strong> files (<code>brand.md</code>, <code>product.md</code>) loaded during preflight context-gathering; those two are not invocable sub-commands.</p>
 
 <h2>Invocation modes</h2>
 
@@ -1479,7 +1524,7 @@ PAGES.append((
 </tbody>
 </table>
 
-<p>The dispatcher infers the mode from arg 0: if it matches a known sub-command → Mode C; if it matches an existing slug → Mode A or B.</p>
+<p>The dispatcher infers the mode from the arguments. With a <strong>single arg</strong>: if it matches a known sub-command → Mode C (freestanding); if it matches an existing slug → Mode A. With <strong>two or more args</strong>, arg 0 is always the slug and <strong>arg 1 decides the operation</strong> — if arg 1 is a known sub-command it runs that (Mode B); otherwise the sub-command defaults to <code>shape</code> and the remaining args become the target description.</p>
 
 <h2>Sub-command catalog</h2>
 
@@ -1621,11 +1666,17 @@ flowchart TB
 
 <h2>Augmentation registration</h2>
 
-<p>Every transformation operator registers itself in <code>00-index.md</code>'s <code>augmentations:</code> array:</p>
+<p>Every transformation operator (plus <code>audit</code> and <code>critique</code>) registers itself in <code>00-index.md</code>'s <code>augmentations:</code> array. Each entry is <code>type</code> + <code>artifact</code> + <code>created-at</code>, with <code>files-modified</code> on transformations:</p>
 
 <pre><code>augmentations:
-  - { kind: design-harden,  slice: route, ref: design-notes/harden-20260510T1432Z.md, registered-at: "..." }
-  - { kind: design-animate, slice: route, ref: design-notes/animate-20260510T1530Z.md, registered-at: "..." }</code></pre>
+  - type: design-harden
+    artifact: design-notes/harden-20260510T1432Z.md
+    created-at: "2026-05-10T14:32:00Z"
+    files-modified: [src/components/Button.tsx, src/styles/focus.css]
+  - type: design-animate
+    artifact: design-notes/animate-20260510T1530Z.md
+    created-at: "2026-05-10T15:30:00Z"
+    files-modified: [src/components/Card.tsx]</code></pre>
 
 <p>Handoff translates each registered entry into a reviewer-visible mention (e.g., <em>"Accessibility improvements applied — N components updated, axe-core scan clean"</em>). Ship translates each into a changelog line per the External Output Boundary rules.</p>
 
@@ -1635,7 +1686,7 @@ flowchart TB
   <li><a href="../how-to/use-design.html">Use the design pipeline</a> — task-oriented recipes.</li>
   <li><a href="../explanation/augmentations-model.html">Augmentations model</a> — how transformations propagate.</li>
   <li><a href="artifacts.html">Artifacts reference</a> — full file tree including design slots.</li>
-  <li><a href="commands.html">Commands reference</a> — every command surface.</li>
+  <li><a href="commands.html">Routers reference</a> — every command surface.</li>
 </ul>
 </div>
 """,
@@ -1650,11 +1701,11 @@ flowchart TB
 
 PAGES.append((
     "reference/wf.html",
-    "/wf router — every lifecycle command in depth",
+    "/wf router — every lifecycle stage in depth",
     "reference",
     '<a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf router',
     """
-<p>The lifecycle router. Dispatches across <strong>10 stages</strong> (intake → retro) and <strong>4 augmentations</strong> (instrument, experiment, benchmark, profile). Every command on this page is invoked as <code>/wf &lt;sub&gt; [args]</code>.</p>
+<p>The lifecycle router. Dispatches across <strong>10 stages</strong> (intake → retro) and <strong>4 augmentations</strong> (instrument, experiment, benchmark, profile). Every entry on this page is invoked as <code>/wf &lt;sub&gt; [args]</code>.</p>
 
 <div class="toc">
 <h3>On this page</h3>
@@ -1792,7 +1843,7 @@ PAGES.append((
 
 <hr>
 
-<h2 id="wf-plan">/wf plan &lt;slug&gt; &lt;slice&gt;</h2>
+<h2 id="wf-plan">/wf plan &lt;slug&gt; [slice]</h2>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>4 — repo-aware implementation plan</td></tr>
@@ -1849,7 +1900,7 @@ PAGES.append((
 
 <h4>What it reads</h4>
 <ul>
-  <li><code>04-plan-&lt;slice&gt;.md</code>, <code>02-shape.md</code>, <code>02b-design.md</code>, <code>02c-craft.md</code>, <code>04b-instrument-&lt;slice&gt;.md</code>, <code>04c-experiment-&lt;slice&gt;.md</code> when present</li>
+  <li><code>04-plan-&lt;slice&gt;.md</code>, <code>02-shape.md</code>, <code>02b-design.md</code>, <code>02c-craft.md</code>, <code>04b-instrument.md</code>, <code>04c-experiment.md</code> when present</li>
   <li>Existing repo code touched by the slice</li>
 </ul>
 
@@ -1864,7 +1915,7 @@ PAGES.append((
 
 <hr>
 
-<h2 id="wf-verify">/wf verify &lt;slug&gt; &lt;slice&gt;</h2>
+<h2 id="wf-verify">/wf verify &lt;slug&gt; [slice]</h2>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>6 — exercise the acceptance criteria, capture evidence</td></tr>
@@ -1924,12 +1975,16 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <p>Verify writes <code>result: partial</code> (not <code>pass</code>) and appends an entry to <code>00-index.md.runtime-evidence-deferrals[]</code> with <code>{slice, reason, deferred-at, cleared-by: null}</code>. Verify, review, and handoff surface deferrals as <strong>soft warnings</strong> and proceed. <code>/wf ship</code> <strong>hard-blocks</strong> while any deferral has <code>cleared-by: null</code> (see <a href="#wf-ship">/wf ship</a> Step 6.5 below). Clearing requires either a <code>/wf-quick probe</code> run whose captured evidence satisfies the deferred AC (which sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or a re-run of verify in a capable environment.</p>
 
+<h4>Single-round user-gated fix loop <span class="badge">v9.15</span></h4>
+
+<p>After the checks and the AC gate finish, verify owns a <strong>single-round, user-gated fix loop</strong> — it no longer just bounces back to implement. Each failing check and unmet AC is triaged via AskUserQuestion (Fix / Skip / Escalate per issue); chosen fixes spawn sub-agents that apply the minimal patch, then only the affected checks re-run <em>once</em>. It is <strong>one round only</strong>: if anything still fails, verify writes <code>convergence: escalated</code> and routes you to re-invoke <code>/wf verify</code> or to <code>/wf implement</code> as a manual escape. The artifact's <code>convergence:</code> frontmatter records <code>not-needed | converged | escalated</code>.</p>
+
 <h4>If verify fails</h4>
 <p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, route to <code>/wf-meta amend</code>. New v9.14 route: if <code>result: blocked-runtime-evidence-missing</code>, route either to a capable environment for re-run, or annotate with a deferral and proceed (the deferral blocks ship but allows review/handoff).</p>
 
 <hr>
 
-<h2 id="wf-review">/wf review &lt;slug&gt; &lt;slice&gt; [triage]</h2>
+<h2 id="wf-review">/wf review &lt;slug&gt; [slice|triage]</h2>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>7 — multi-domain parallel review dispatch</td></tr>
@@ -1952,8 +2007,12 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
   <li>Master: <code>07-review-&lt;slice&gt;.md</code> with <code>verdict: ship | ship-with-caveats | dont-ship</code>, <code>commands-run</code>, all finding counts</li>
 </ul>
 
+<h4>Review-owned fix loop <span class="badge">v9.15</span></h4>
+
+<p>Review owns its own fix loop rather than only routing back to implement. For each finding you triage <em>Fix</em>, review spawns one sub-agent at a time (explicit <code>model: sonnet</code>) to apply the patch, records the outcome in the master artifact's <code>## Fix Status</code> section (<code>Patched</code> / <code>Could not fix</code>), and re-checks the result against <code>git diff HEAD</code>. Deferred or skipped findings are recorded with a reason, never silently dropped.</p>
+
 <h4>Triage mode</h4>
-<p><code>/wf review &lt;slug&gt; &lt;slice&gt; triage</code> re-opens prior findings and walks the user through deferred items.</p>
+<p><code>/wf review &lt;slug&gt; triage</code> re-opens prior findings and walks the user through deferred items.</p>
 
 <hr>
 
@@ -1966,7 +2025,11 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 <tr><th>Default next</th><td><code>/wf ship &lt;slug&gt;</code> if verdict <code>ready</code></td></tr>
 </table></div>
 
-<p>Aggregates ALL complete slices into one PR by default. Pass a slice slug as the second arg only when each slice ships as its own PR. The big v9.5.0 addition is the <strong>PR-readiness block</strong>: commitlint pass, public-surface drift check, doc-mirror regen, PR comment triage loop, rebase onto base, live PR readiness check. Outputs a single <code>readiness-verdict</code> that ship gates on.</p>
+<p>Aggregates ALL complete slices into one PR by default. Pass a slice slug as the second arg only when each slice ships as its own PR. Handoff <strong>refuses</strong> when any in-scope slice's review verdict is <code>dont-ship</code> or carries unresolved blocker findings.</p>
+
+<p>The <strong>PR-readiness block</strong> (v9.5.0, extended v9.41.0) runs: commitlint pass, public-surface drift check, doc-mirror regen, <strong>T5.0 — watch CI to a terminal state and give bot reviews a bounded window to settle</strong> (added v9.41.0 so readiness is judged on real signal, not a stale <code>gh pr view</code> snapshot), the PR comment triage loop (T5.1), rebase onto base (T5.2), and a final live readiness re-watch (T5.3). It outputs a single <code>readiness-verdict</code> that ship gates on.</p>
+
+<p>The review-file layout handoff checks depends on <code>review-scope</code> in <code>00-index.md</code>: <code>per-slice</code> requires a <code>07-review-&lt;slice&gt;.md</code> for every slice; <code>slug-wide</code> requires a single <code>07-review.md</code>.</p>
 
 <h4>What it reads</h4>
 <ul>
@@ -1995,28 +2058,28 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 <tr><th>Default next</th><td><code>/wf retro &lt;slug&gt;</code></td></tr>
 </table></div>
 
-<p>Walks the 13-step ship sequence. Each step is independently re-runnable (detects already-done state before acting). Resumes paused runs.</p>
+<p>Ship first runs a short pre-flight: resolve the slug, read the plan + <code>00-index.md</code> + the handoff verdict, run the runtime-evidence deferral gate (Step 6.5 below), detect paused runs, and mint a <code>run-id</code>. Then it walks the <strong>13-step run sequence</strong> — each step independently re-runnable (detects already-done state before acting), so a resumed run continues from where it stopped.</p>
 
-<h4>13 steps (plus Step 6.5)</h4>
+<h4>The 13-step run sequence</h4>
 <ol>
-  <li>Orient — read plan, handoff verdict, detect paused runs.</li>
-  <li>Pre-flight — version bump, secrets check, changelog regen.</li>
-  <li>Publish dry-run — mandatory if plan has one.</li>
-  <li>Rollout questions — strategy, window, stakeholders.</li>
-  <li>Freshness delta — research only what changed since last successful run.</li>
+  <li>Pre-flight — version bump, secrets check, changelog regen (idempotent).</li>
+  <li>Publish dry-run — mandatory if the plan sets one.</li>
+  <li>Rollout questions — strategy, window, stakeholders (per-run, never re-asked).</li>
+  <li>Freshness pass — research only what changed since the last successful run.</li>
   <li>Go/No-Go — AskUserQuestion gate.</li>
-  <li>Merge — gh pr merge (only if ship-meaning includes merging).</li>
-  <li>Tag + release — for <code>tag-on-main</code> trigger.</li>
-  <li>Release-workflow watch — gh run watch; recovery playbooks on failure.</li>
-  <li>Post-publish polling — per <code>plan.post-publish-checks</code>, bounded by propagation window.</li>
-  <li>Post-release version bump — for projects with snapshots / dev versions.</li>
+  <li>Merge — <code>gh pr merge</code> (only if ship-meaning includes merging).</li>
+  <li>Tag + release — for <code>release-trigger: tag-on-main</code>.</li>
+  <li>Release-workflow watch — <code>gh run watch</code>; recovery playbooks on failure.</li>
+  <li>Post-publish polling — per <code>plan.post-publish-checks</code>, bounded by the propagation window.</li>
+  <li>Post-release version bump — for projects with snapshot / dev versions.</li>
   <li>Update <code>09-ship-runs.md</code> index.</li>
-  <li>Write the run artifact.</li>
+  <li>Adaptive routing — recommend the next stage.</li>
+  <li>Write <code>09-ship-run-&lt;run-id&gt;.md</code> (+ sibling <code>.yaml</code> / <code>.html.fragment</code>).</li>
 </ol>
 
 <h4>Step 6.5 — Runtime-evidence deferral gate (HARD BLOCK) <span class="badge">v9.14</span></h4>
 
-<p>Inserted between Step 6 (Go/No-Go) and Step 7 (Merge). Parses <code>runtime-evidence-deferrals</code> from <code>00-index.md</code> (treated as empty if absent on older workflows). For every entry whose <code>cleared-by: null</code>, the slug has an open runtime-evidence deferral that must be cleared before ship.</p>
+<p>Runs in ship's pre-flight — orchestration step 6.5, after reading the handoff verdict and <em>before</em> the 13-step run sequence begins. Parses <code>runtime-evidence-deferrals</code> from <code>00-index.md</code> (treated as empty if absent on older workflows). For every entry whose <code>cleared-by: null</code>, the slug has an open runtime-evidence deferral that must be cleared before ship.</p>
 
 <p>If any entry has <code>cleared-by: null</code>, ship <strong>STOPS</strong> with a list of the open deferrals and the slices they're attached to. The user clears each by one of:</p>
 <ul>
@@ -2058,12 +2121,12 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <hr>
 
-<h2 id="wf-instrument">/wf instrument &lt;slug&gt; &lt;slice&gt;</h2>
+<h2 id="wf-instrument">/wf instrument &lt;slug&gt; [slice]</h2>
 
 <div class="summary"><table>
 <tr><th>Type</th><td>Augmentation — observability</td></tr>
 <tr><th>Requires</th><td><code>02-shape.md</code> + a defined slice</td></tr>
-<tr><th>Produces</th><td><code>04b-instrument-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Produces</th><td><code>04b-instrument.md</code></td></tr>
 <tr><th>Registers as</th><td>Entry in <code>00-index.md</code>'s <code>augmentations:</code> array</td></tr>
 </table></div>
 
@@ -2077,11 +2140,11 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <hr>
 
-<h2 id="wf-experiment">/wf experiment &lt;slug&gt; &lt;slice&gt;</h2>
+<h2 id="wf-experiment">/wf experiment &lt;slug&gt; [slice]</h2>
 
 <div class="summary"><table>
 <tr><th>Type</th><td>Augmentation — feature flag + cohort design</td></tr>
-<tr><th>Produces</th><td><code>04c-experiment-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Produces</th><td><code>04c-experiment.md</code></td></tr>
 </table></div>
 
 <p>For behaviour changes you want to gate behind a flag with a measured rollout. Writes the cohort split design, success metrics, rollback signal. Implement reads it and adds the gating code.</p>
@@ -2094,11 +2157,11 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <hr>
 
-<h2 id="wf-benchmark">/wf benchmark &lt;slug&gt; &lt;slice&gt;</h2>
+<h2 id="wf-benchmark">/wf benchmark &lt;slug&gt; [baseline|compare]</h2>
 
 <div class="summary"><table>
 <tr><th>Type</th><td>Augmentation — perf baseline + compare</td></tr>
-<tr><th>Produces</th><td><code>05c-benchmark-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Produces</th><td><code>05c-benchmark.md</code></td></tr>
 </table></div>
 
 <p>Two-phase: run before implement to capture baseline; run after implement (compare mode) to diff against baseline. Compare output flows into <code>06-verify-&lt;slice&gt;.md</code> evidence and into handoff as "Performance baseline taken; verify-stage comparison: &lt;within tripwires | regression&gt;".</p>
@@ -2179,12 +2242,14 @@ PAGES.append((
 <h2 id="fix">/wf-quick fix "&lt;description&gt;"</h2>
 
 <div class="summary"><table>
-<tr><th>workflow-type</th><td><code>quick</code></td></tr>
-<tr><th>Produces</th><td><code>00-index.md</code>, <code>01-quick.md</code>, <code>05-implement.md</code> (3 artifacts total)</td></tr>
-<tr><th>Stages skipped</th><td>shape, slice, plan, verify, review, retro</td></tr>
+<tr><th>workflow-type</th><td><code>fix</code> (legacy slugs use <code>quick</code>)</td></tr>
+<tr><th>Produces</th><td><code>00-index.md</code> + <code>01-fix.md</code> (compressed brief + shape + plan; <code>type: fix-plan</code>)</td></tr>
+<tr><th>Collapses</th><td>shape, design, slice, plan — merged into <code>01-fix.md</code>, then routes to <code>/wf implement</code> for the standard execute → verify → review → handoff → ship lifecycle.</td></tr>
 </table></div>
 
-<p>For one-character typos, one-line patches, single-file docs edits. The compressed shape skips shape's deep interview — acceptance criteria are inlined.</p>
+<p>For one-character typos, one-line patches, single-file docs edits. The compressed shape skips shape's deep interview — acceptance criteria are inlined. Renamed from <code>quick</code> in v9.18.0; passing <code>quick</code> as the token now prints a redirect to <code>fix</code>.</p>
+
+<div class="callout note"><strong>Slug-mode.</strong> If the first argument is an existing slug, <code>fix</code> switches to slug-mode: instead of a new workflow it writes a single compressed slice <code>03-slice-fix-&lt;descriptor&gt;.md</code> (<code>type: slice</code>, <code>slice-type: fix</code>, <code>compressed: true</code>) into that workflow and leaves its stage, branch, and progress untouched.</div>
 
 <h4>Interview pattern</h4>
 <p>2–3 questions: what file, what's the fix, do you want a test added.</p>
@@ -2244,10 +2309,10 @@ PAGES.append((
 
 <div class="summary"><table>
 <tr><th>Produces</th><td><code>01-rca.md</code></td></tr>
-<tr><th>Forwards to</th><td><code>/wf shape</code> (which reads <code>01-rca.md</code> as rich context)</td></tr>
+<tr><th>Recommends</th><td>One of <code>/wf plan &lt;slug&gt;</code> (default, non-trivial fixes), <code>/wf-quick fix</code> (small fixes), or <code>/wf-quick hotfix</code> (active production incident) — chosen from the diagnosis. Low root-cause confidence + high blast radius routes to human triage, not an auto-route.</td></tr>
 </table></div>
 
-<p>Root-cause analysis with parallel sub-agents. Reproduces the bug, captures the failing trace, identifies the cause without committing to a fix. Output is forwardable: subsequent <code>/wf shape</code> reads <code>01-rca.md</code> as context behind the synthesized spec.</p>
+<p>Root-cause analysis with parallel sub-agents. Reproduces the bug, captures the failing trace, identifies the cause without committing to a fix. The artifact recommends a downstream command based on the diagnosis — it does <em>not</em> forward to <code>/wf shape</code>.</p>
 
 <h4>Sub-agent dispatch</h4>
 <ul>
@@ -2275,7 +2340,7 @@ PAGES.append((
 <div class="summary"><table>
 <tr><th>Mode</th><td><strong>Slug-mode only.</strong> Refuses to run without an existing slug — runtime-truth verification only makes sense against work that has been implemented.</td></tr>
 <tr><th>Produces</th><td><code>.ai/workflows/&lt;slug&gt;/03-slice-probe-&lt;descriptor&gt;.md</code> (compressed slice; <code>slice-type: probe</code>, <code>compressed: true</code>, <code>origin: wf-quick/probe</code>). Plus an evidence dir <code>probe-evidence/&lt;descriptor&gt;/</code> with screenshots, stdout, response bodies, and log lines captured during the drive.</td></tr>
-<tr><th>Forwards to</th><td>Depends on findings: <code>findings-count: 0</code> → <code>/wf-meta status &lt;slug&gt;</code>; small fix → <code>/wf-quick quick &lt;slug&gt; probe-&lt;descriptor&gt;</code>; non-trivial → <code>/wf plan &lt;slug&gt; probe-&lt;descriptor&gt;</code>; <code>status: awaiting-environment</code> → re-run after applying remediation.</td></tr>
+<tr><th>Forwards to</th><td>Depends on findings: <code>findings-count: 0</code> → <code>/wf-meta status &lt;slug&gt;</code>; small fix → <code>/wf-quick fix &lt;slug&gt; probe-&lt;descriptor&gt;</code>; non-trivial → <code>/wf plan &lt;slug&gt; probe-&lt;descriptor&gt;</code>; <code>status: awaiting-environment</code> → re-run after applying remediation.</td></tr>
 <tr><th>Modifies</th><td><code>00-index.md.workflow-files</code>, <code>00-index.md.compressed-slices[]</code>, and (if captured evidence satisfies a deferred AC) <code>00-index.md.runtime-evidence-deferrals[i].cleared-by: probe-&lt;descriptor&gt;</code>. The slug's lifecycle stage, status, branch, and progress are <em>not</em> touched — probe is additive.</td></tr>
 </table></div>
 
@@ -2335,7 +2400,7 @@ PAGES.append((
 <ul>
   <li>You don't have a slug yet — probe is slug-mode only by design. Run <code>/wf intake</code> first if the work isn't started.</li>
   <li>The symptom is a code-correctness failure (test failing, type error, build broken) and you'd rather read code than run it → <code>/wf-quick rca &lt;symptom&gt;</code>.</li>
-  <li>You want to fix the defect inline. Probe never edits code — route findings through the recommended next command (<code>/wf-quick quick</code> or <code>/wf plan</code>).</li>
+  <li>You want to fix the defect inline. Probe never edits code — route findings through the recommended next command (<code>/wf-quick fix</code> or <code>/wf plan</code>).</li>
 </ul>
 
 <hr>
@@ -2365,7 +2430,7 @@ PAGES.append((
 <h4>When NOT to use</h4>
 <ul>
   <li>You have a symptom and want to find the root cause → <code>/wf-quick rca</code>.</li>
-  <li>You want to understand how the area works, not generate options → <code>/wf-docs how</code>.</li>
+  <li>You want to understand how the area works, not generate options → <code>/wf-meta how</code>.</li>
   <li>You already know which approach you want → skip straight to <code>/wf-quick fix</code> or <code>/wf intake</code>.</li>
 </ul>
 
@@ -2375,7 +2440,7 @@ PAGES.append((
 
 <div class="summary"><table>
 <tr><th>Produces</th><td><code>01-discover.md</code> with a verdict: <code>holds</code> / <code>partial</code> / <code>fails</code> / <code>inconclusive</code></td></tr>
-<tr><th>Forwards to</th><td>If <code>holds</code> → no required follow-up (proceed however you intended). If <code>fails</code> → <code>/wf-quick rca</code> (if hypothesis was an explanation for bad behavior) or <code>/wf-docs how</code> (if you need to actually learn the code). If <code>inconclusive</code> → run the runtime signal it names.</td></tr>
+<tr><th>Forwards to</th><td>If <code>holds</code> → no required follow-up (proceed however you intended). If <code>fails</code> → <code>/wf-quick rca</code> (if hypothesis was an explanation for bad behavior) or <code>/wf-meta how</code> (if you need to actually learn the code). If <code>inconclusive</code> → run the runtime signal it names.</td></tr>
 </table></div>
 
 <p><strong>Hypothesis-test workflow.</strong> Takes a code-level theory ("the rate-limiter is a token bucket in <code>middleware/</code>", "auth validates JWTs before checking session state", "module M handles concurrency via mutexes not channels") and adjudicates it against the codebase. Three parallel sub-agents:</p>
@@ -2395,7 +2460,7 @@ PAGES.append((
 
 <h4>When NOT to use</h4>
 <ul>
-  <li>You don't have a theory yet — you just want to understand the area → <code>/wf-docs how</code>.</li>
+  <li>You don't have a theory yet — you just want to understand the area → <code>/wf-meta how</code>.</li>
   <li>You have a symptom, not a theory, and want to find the cause → <code>/wf-quick rca</code>.</li>
   <li>You want to compare multiple approaches to a problem → <code>/wf-quick investigate</code>.</li>
 </ul>
@@ -2782,14 +2847,15 @@ PAGES.append((
 
 <hr>
 
-<h2 id="how">/wf-meta how &lt;mode&gt; &lt;topic&gt;</h2>
+<h2 id="how">/wf-meta how &lt;question&gt; | &lt;slug&gt; plan|shape|slice|review|findings</h2>
 
 <div class="summary"><table>
 <tr><th>Modes</th><td>5: quick · codebase · research · artifact-explain · findings-explain</td></tr>
+<tr><th>Forcing flags</th><td><code>--research &lt;question&gt;</code> (deep research) · <code>--quick &lt;question&gt;</code> (short answer)</td></tr>
 <tr><th>Writes</th><td>Optional <code>90-how-&lt;topic&gt;.md</code> or <code>.ai/research/&lt;topic&gt;-&lt;ts&gt;.md</code></td></tr>
 </table></div>
 
-<p>Question-answering router. Five modes for different question shapes:</p>
+<p>Question-answering router. A free-form <code>&lt;question&gt;</code> auto-routes by heuristics; <code>&lt;slug&gt; plan|shape|slice</code> explains an artifact and <code>&lt;slug&gt; review|findings</code> explains review output; <code>--research</code> / <code>--quick</code> force a mode. Five modes for different question shapes:</p>
 
 <table>
 <thead><tr><th>Mode</th><th>For</th></tr></thead>
@@ -2930,7 +2996,7 @@ PAGES.append((
 <tr><th>Stage</th><td>3 — prioritized action plan</td></tr>
 <tr><th>Writes</th><td><code>.ai/docs/&lt;run-id&gt;/plan.md</code></td></tr>
 </table></div>
-<p>Translates audit into actions: create / update / rewrite / delete per doc, prioritized P0–P3. P0 = factually wrong + actively used. P3 = quadrant fit issue with no urgency.</p>
+<p>Translates audit into actions: create / update / rewrite / delete per doc, prioritized P0–P4 — P0 (broken / inaccurate), P1 (missing), P2 (wrong quadrant), P3 (stale), P4 (enhancement).</p>
 
 <h3>/wf-docs generate</h3>
 <div class="summary"><table>
@@ -2942,9 +3008,9 @@ PAGES.append((
 <h3>/wf-docs review</h3>
 <div class="summary"><table>
 <tr><th>Stage</th><td>5 — independent review of the generated docs</td></tr>
-<tr><th>Writes</th><td>Updates to <code>generate.md</code></td></tr>
+<tr><th>Writes</th><td>Updates to <code>generate.md</code>; the docs-index artifact <code>08b-docs-index.md</code> (+ sibling <code>.yaml</code>); then commits.</td></tr>
 </table></div>
-<p>An independent sub-agent reviews each generated doc against its Diátaxis primitive's self-check. Flags mixed-quadrant content, missing pre-conditions, prose-pseudocode, etc.</p>
+<p>An independent sub-agent reviews each generated doc against its Diátaxis primitive's self-check (mixed-quadrant content, missing pre-conditions, prose-pseudocode, etc.). It then writes a compact <code>08b-docs-index.md</code> — workflow-scoped at <code>.ai/workflows/&lt;slug&gt;/</code>, or <code>.ai/docs/&lt;run-id&gt;/</code> in project/path mode — with a sibling <code>08b-docs-index.yaml</code> (a <code>docs:</code> array of <code>{path, type, action, status}</code> so the view layer can render the docs table), and commits all documentation changes (<code>docs: update documentation via wf-docs run &lt;run-id&gt;</code>).</p>
 
 <hr>
 
@@ -2977,7 +3043,7 @@ PAGES.append((
 <p>Composite — a single README mixes all four quadrants intentionally, but each section is one quadrant. Structure: brief intro (explanation), quick start (tutorial), common tasks (how-to), API summary (reference), and explicit pointers to deeper docs.</p>
 
 <h3>review</h3>
-<p>Quality-check primitive. Reads a doc + identifies its declared quadrant, then checks the body against that quadrant's rules. Outputs P0–P3 findings.</p>
+<p>Quality-check primitive. Reads a doc + identifies its declared quadrant, then checks the body against that quadrant's rules. Outputs P0–P4 findings.</p>
 
 <div class="related">
 <h3>Related</h3>
@@ -3043,12 +3109,12 @@ PAGES.append((
 <thead><tr><th>Sweep</th><th>Composition</th><th>When</th></tr></thead>
 <tbody>
 <tr><td><code>all</code></td><td>All 31 dimensions</td><td>Pre-major-release defensive review. Most expensive.</td></tr>
-<tr><td><code>pre-merge</code></td><td>correctness, security, testing, performance, observability, refactor-safety, docs, ci</td><td>Standard pre-merge gate.</td></tr>
-<tr><td><code>quick</code></td><td>correctness, testing, style-consistency</td><td>Smoke check before opening a PR.</td></tr>
-<tr><td><code>security</code></td><td>security, infra-security, supply-chain, privacy, data-integrity</td><td>Security-focused review.</td></tr>
-<tr><td><code>architecture</code></td><td>architecture, scalability, reliability, maintainability, overengineering, refactor-safety</td><td>Architecture review.</td></tr>
-<tr><td><code>infra</code></td><td>infra, infra-security, ci, release, observability, cost</td><td>Infrastructure/devops change review.</td></tr>
-<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, ux-copy, frontend-performance</td><td>UI feature review.</td></tr>
+<tr><td><code>pre-merge</code></td><td>correctness, testing, security, refactor-safety, maintainability</td><td>Standard pre-merge gate.</td></tr>
+<tr><td><code>quick</code></td><td>correctness, style-consistency, dx, ux-copy, overengineering</td><td>Smoke check before opening a PR.</td></tr>
+<tr><td><code>security</code></td><td>security, privacy, infra-security, data-integrity, supply-chain</td><td>Security-focused review.</td></tr>
+<tr><td><code>architecture</code></td><td>architecture, performance, scalability, api-contracts</td><td>Architecture review.</td></tr>
+<tr><td><code>infra</code></td><td>infra, ci, release, migrations, logging, observability</td><td>Infrastructure/devops change review.</td></tr>
+<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, frontend-performance, ux-copy</td><td>UI feature review.</td></tr>
 </tbody>
 </table>
 
@@ -3175,11 +3241,11 @@ PAGES.append((
 │   ├── 03-slice-&lt;slug&gt;-amend-N.md       # Per-slice amendment
 │   ├── 04-plan.md                       # Plan master index (multi-slice workflows)
 │   ├── 04-plan-&lt;slug&gt;.md                # Per-slice plan
-│   ├── 04b-instrument-&lt;slug&gt;.md         # Optional — observability augmentation
-│   ├── 04c-experiment-&lt;slug&gt;.md         # Optional — experiment augmentation
+│   ├── 04b-instrument.md                # Optional — observability augmentation (workflow-scoped)
+│   ├── 04c-experiment.md                # Optional — experiment augmentation (workflow-scoped)
 │   ├── 05-implement.md                  # Master index
 │   ├── 05-implement-&lt;slug&gt;.md           # Per-slice implement record
-│   ├── 05c-benchmark-&lt;slug&gt;.md          # Optional — perf augmentation
+│   ├── 05c-benchmark.md                 # Optional — perf augmentation (workflow-scoped)
 │   ├── 06-verify.md                     # Master index
 │   ├── 06-verify-&lt;slug&gt;.md              # Per-slice verification
 │   ├── 07-review-&lt;slug&gt;.md              # Per-slice master review
@@ -3215,7 +3281,7 @@ DESIGN.md                                # Design system context (tokens, compon
 
 <table>
 <tr><th><code>schema</code></th><td>Always <code>sdlc/v1</code>.</td></tr>
-<tr><th><code>type</code></th><td>One of: <code>index</code>, <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>ship-run</code>, <code>ship-runs-index</code>, <code>ship-plan</code>, <code>retro</code>, <code>design</code>, <code>design-brief</code>, <code>critique</code>, <code>audit</code>, <code>sync-report</code>, <code>resume</code>, <code>skip</code>, <code>amendment</code>.</td></tr>
+<tr><th><code>type</code></th><td>One of: <code>index</code>, <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>review-command</code>, <code>handoff</code>, <code>ship-run</code>, <code>ship-runs-index</code>, <code>ship-plan</code>, <code>retro</code>, <code>design</code>, <code>design-contract</code>, <code>design-critique</code>, <code>design-audit</code>, <code>augmentation</code>, <code>profile</code>, <code>rca</code>, <code>fix-plan</code>, <code>simplify-run</code>, <code>sync-report</code>, <code>resume</code>, <code>skip-record</code>, <code>shape-amendment</code>, <code>slice-amendment</code>, <code>docs-index</code>.</td></tr>
 <tr><th><code>slug</code></th><td>Must match the directory name (slug stability invariant; enforced by the validator).</td></tr>
 </table>
 
@@ -3247,7 +3313,7 @@ PAGES.append((
 <tr><td><code>current-stage</code></td><td>string</td><td>Most recently started stage name.</td></tr>
 <tr><td><code>stage-number</code></td><td>number</td><td>1–10.</td></tr>
 <tr><td><code>updated-at</code></td><td>ISO 8601</td><td>Real timestamp from <code>date -u</code>.</td></tr>
-<tr><td><code>selected-slice-or-focus</code></td><td>string</td><td>Currently active slice slug.</td></tr>
+<tr><td><code>selected-slice</code></td><td>string</td><td>Currently active slice slug. (Readers also accept the legacy <code>selected-slice-or-focus</code> as a fallback.)</td></tr>
 <tr><td><code>open-questions</code></td><td>array</td><td>Unanswered questions blocking progress.</td></tr>
 <tr><td><code>next-command</code></td><td>string</td><td>Command name (e.g., <code>wf-shape</code>).</td></tr>
 <tr><td><code>next-invocation</code></td><td>string</td><td>Full slash command, ready to copy.</td></tr>
@@ -3257,6 +3323,9 @@ PAGES.append((
 <tr><td><code>branch-strategy</code></td><td>enum</td><td><code>dedicated</code> / <code>shared</code> / <code>none</code></td></tr>
 <tr><td><code>branch</code></td><td>string</td><td>Feature branch name (default <code>feat/&lt;slug&gt;</code>).</td></tr>
 <tr><td><code>base-branch</code></td><td>string</td><td>Branch to merge back into.</td></tr>
+<tr><td><code>review-scope</code></td><td>enum</td><td><code>per-slice</code> / <code>slug-wide</code>. Chosen at intake; drives <code>/wf review</code> file layout and <code>/wf handoff</code> gating.</td></tr>
+<tr><td><code>tags</code></td><td>array</td><td>Classification tags for the workflow.</td></tr>
+<tr><td><code>stack</code></td><td>map</td><td>Stack fingerprint (platforms, languages, frameworks) detected at intake (Step 0.5) and confirmed by the user.</td></tr>
 </tbody>
 </table>
 
@@ -3265,9 +3334,9 @@ PAGES.append((
 <table>
 <tr><th><code>pr-url</code></th><td>Set by handoff.</td></tr>
 <tr><th><code>pr-number</code></th><td>Set by handoff.</td></tr>
-<tr><th><code>augmentations</code></th><td>Array of <code>{ kind, slice, ref, registered-at }</code> objects.</td></tr>
-<tr><th><code>workflow-type</code></th><td>For compressed flows: <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>discover</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
-<tr><th><code>compressed-slices</code></th><td>Array of <code>{ slug, slice-type, created-at }</code> objects. Appended by <code>/wf-quick</code> sub-commands when run in slug-mode. <code>slice-type</code> values: <code>quick</code>, <code>rca</code>, <code>probe</code> <span class="badge">v9.14</span>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
+<tr><th><code>augmentations</code></th><td>Array of <code>{ type, artifact, status, created-at }</code> objects (benchmark adds <code>mode</code>; design transforms add <code>files-modified</code>). Appended by <code>/wf instrument</code>, <code>experiment</code>, <code>benchmark</code>, and <code>/wf-design</code> operators.</td></tr>
+<tr><th><code>workflow-type</code></th><td>For compressed flows: <code>fix</code> (legacy <code>quick</code>), <code>rca</code>, <code>investigate</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>discover</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
+<tr><th><code>compressed-slices</code></th><td>Array of <code>{ slug, slice-type, created-at }</code> objects. Appended by <code>/wf-quick</code> sub-commands when run in slug-mode. <code>slice-type</code> values: <code>fix</code>, <code>rca</code>, <code>probe</code> <span class="badge">v9.14</span>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
 <tr><th><code>runtime-evidence-deferrals</code> <span class="badge">v9.14</span></th><td>Array of <code>{ slice, reason, deferred-at, cleared-by }</code> objects. Appended by <code>/wf verify</code> when a slice's user-observable AC is annotated with <code>interactive-verification: deferred</code>. <code>/wf ship</code> Step 6.5 hard-blocks while any entry has <code>cleared-by: null</code>. Cleared by a <code>/wf-quick probe</code> run whose captured evidence satisfies the deferred AC (sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or by a verify re-run in a capable environment.</td></tr>
 </table>
 
@@ -3380,7 +3449,7 @@ db-migrations-reversible: true | false | n/a</code></pre>
   channels: ["#releases", "release-notes@example.com"]
   template-path: ".ai/release-announcement-template.md"</code></pre>
 
-<p>Blocks A–G are the <strong>outbound</strong> half (read by <code>/wf ship</code>). Blocks H–J below are the <strong>inbound</strong> half — the developer experience built by <code>/wf-meta build-pipeline</code> (Audits K–O).</p>
+<p>Blocks A–G are the <strong>outbound</strong> half (read by <code>/wf ship</code>). Blocks H–K below are the <strong>inbound</strong> half — the developer experience built by <code>/wf-meta build-pipeline</code>.</p>
 
 <h2>Block H — Code-quality gates</h2>
 <pre><code>code-quality:
@@ -3541,6 +3610,18 @@ docs-generated: [&lt;paths&gt;]</code></pre>
 </ul>
 
 <p><code>blocked</code> when any of those hard-fail. <code>awaiting-input</code> for the soft fails (pending checks, deferred suggestions, required reviewers haven't responded).</p>
+
+<h2>CI-watch + review-settle block <span class="badge">v9.41</span></h2>
+
+<p>Written by T5.0 (and refreshed by the final T5.3 re-watch). Absent → the step was skipped (e.g., <code>branch-strategy: none</code> or no PR exists).</p>
+
+<pre><code>ci-watch-conclusion: green | red | timed-out | skipped   # terminal state of the final CI watch
+ci-watch-rounds: &lt;N&gt;                # total poll iterations across all watches this run
+ci-watch-fix-rounds: &lt;N&gt;            # apply-fix → push → re-watch loops run on CI red
+bot-reviews-landed: [&lt;login&gt;, ...]  # review-bots that posted within the settle window
+review-settle-elapsed-seconds: &lt;N&gt;  # seconds spent in the bot-review settle window</code></pre>
+
+<p>T5.0 gets CI to a terminal state and gives bot reviewers a bounded window to land before triage runs, so the verdict is computed on real signal rather than a stale snapshot. It never decides the final verdict — that is T5.3, after fixes and rebase.</p>
 """,
     ("reference/ship-plan-schema.html", "Ship-plan schema"),
     ("reference/09-ship-run-schema.html", "Ship-run schema"),
@@ -3623,7 +3704,20 @@ PAGES.append((
     "reference",
     '<a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Hooks',
     """
-<p>The plugin ships six Node hooks under <code>plugins/sdlc-workflow/hooks/</code>, wired via <code>hooks.json</code>. (Earlier releases shipped shell-script equivalents under <code>hooks/scripts/</code>; those were retired in v9.34.3–v9.34.4 — validation and orientation are now entirely native Node.)</p>
+<p>The plugin wires <strong>five Node hooks</strong> across three events (one <code>SessionStart</code>, one <code>PreToolUse</code>, three <code>PostToolUse</code>) via <code>hooks/hooks.json</code>. Each runs from the committed <strong>esbuild bundle under <code>dist/</code></strong> — not the <code>hooks/*.mjs</code> source — so a fresh install runs dependency-free with no <code>npm install</code>. (Earlier releases shipped shell + Python equivalents under <code>hooks/scripts/</code>; those were retired in v9.34.3–v9.34.5, and the no-op PreCompact hook was removed in v9.41.0. Validation, verification, staging, rendering, and orientation are now entirely native Node.)</p>
+
+<table>
+<thead><tr><th>Event</th><th>Matcher</th><th>Runs</th><th>Timeout</th></tr></thead>
+<tbody>
+<tr><td><code>SessionStart</code></td><td>—</td><td><code>dist/session-start-orient.mjs</code></td><td>30s</td></tr>
+<tr><td><code>PreToolUse</code></td><td><code>Write</code></td><td><code>dist/pre-write-validate.mjs</code></td><td>5s</td></tr>
+<tr><td><code>PostToolUse</code></td><td><code>Write|Edit|MultiEdit|NotebookEdit</code></td><td><code>dist/post-write-auto-stage.mjs</code></td><td>5s</td></tr>
+<tr><td><code>PostToolUse</code></td><td><code>Write|Edit|MultiEdit|NotebookEdit</code></td><td><code>dist/post-write-verify.mjs</code></td><td>15s</td></tr>
+<tr><td><code>PostToolUse</code></td><td><code>Write|Edit|MultiEdit|NotebookEdit</code></td><td><code>dist/post-write-render.mjs</code></td><td>30s</td></tr>
+</tbody>
+</table>
+
+<p><code>hooks/render-on-artifact-write.mjs</code> exists in source as a helper module but is <strong>not</strong> a wired hook — the rendering hook is <code>post-write-render.mjs</code>.</p>
 
 <h2>pre-write-validate (PreToolUse: Write)</h2>
 
@@ -3641,6 +3735,10 @@ PAGES.append((
 
 <p>Fires after the write, reading the file from disk. Runs deep Ajv validation of the frontmatter <code>type</code> + required fields against <code>tests/frontmatter.schema.json</code> for artifacts under <code>.ai/workflows/</code>, <code>.ai/simplify/</code>, <code>.ai/profiles/</code>, and <code>.ai/docs/</code>. The <code>po-answers.md</code> prose log is exempt. Exits 2 with diagnostics on failure so the model can repair the frontmatter in place.</p>
 
+<h3>Sibling-fragment hard block <span class="badge">v9.47</span></h3>
+
+<p>For <strong>rich-tier</strong> artifact types, post-write-verify <strong>exits 2 (blocks the write)</strong> when the <code>.md</code> lands without its mandatory sibling <code>.yaml</code>. The 13 gated types are <code>review</code>, <code>plan</code>, <code>design</code>, <code>ship-run</code>, <code>rca</code>, <code>benchmark</code>, <code>experiment</code>, <code>instrument</code>, <code>profile</code>, <code>simplify-run</code>, <code>review-command</code>, <code>design-audit</code>, and <code>design-critique</code> (the last three added v9.48). Two escape hatches bypass it: set <code>fragment: none</code> (also accepts <code>skip</code> / <code>n/a</code>) in the artifact's frontmatter to exempt a single file, or set <code>hooks.remindMissingFragments: false</code> in <code>.ai/sdlc-config.json</code> to disable it project-wide. The automation-regenerable types <code>sync-report</code> and <code>docs-index</code> are intentionally excluded so a hard block can't wedge their regenerators.</p>
+
 <h2>post-write-auto-stage (PostToolUse)</h2>
 
 <p>Auto-stages changed code with <code>git add</code> when an active workflow is in the implement stage and the branch strategy is dedicated or shared. Honors <code>.ai/.no-auto-stage</code>.</p>
@@ -3653,15 +3751,40 @@ PAGES.append((
 
 <p>Fires once per session and re-fires after a context compaction (<code>source: compact</code>). Reads <code>.ai/workflows/*/00-index.md</code>, surfaces active workflows as session context, and kicks off detached bootstrap rendering of the view. Because it re-reads workflow state from disk after compaction, it is also what re-orients Claude once the conversation is compressed.</p>
 
+<h2>Configuration — the <code>hooks</code> block</h2>
+
+<p>Per-repo, in <code>.ai/sdlc-config.json</code>. All default to <code>true</code>:</p>
+
+<table>
+<thead><tr><th>Key</th><th>Default</th><th>Controls</th></tr></thead>
+<tbody>
+<tr><td><code>autoStage</code></td><td>true</td><td>post-write-auto-stage <code>git add</code> behaviour.</td></tr>
+<tr><td><code>validateOnWrite</code></td><td>true</td><td>pre-write-validate filename / frontmatter checks.</td></tr>
+<tr><td><code>verifyOnWrite</code></td><td>true</td><td>post-write-verify deep Ajv validation.</td></tr>
+<tr><td><code>remindMissingFragments</code></td><td>true</td><td>The sibling-fragment hard block + reminder. <code>false</code> disables both.</td></tr>
+</tbody>
+</table>
+
+<h2>Why <code>dist/</code> — the build model</h2>
+
+<p>Hooks run from <code>dist/*.mjs</code>: committed esbuild bundles with their third-party dependencies inlined. That is what lets a fresh install run with no runtime <code>npm install</code>. The source lives in <code>hooks/</code>; after editing any hook (or anything under <code>lib/</code>, <code>renderers/</code>, <code>components/</code>) you must run <code>npm run build</code> to refresh <code>dist/</code>, or a CI freshness gate fails and production runs stale code. See <a href="../explanation/build-and-dist.html">Build &amp; dist model</a>.</p>
+
 <h2>Where to find them</h2>
 
-<pre><code>plugins/sdlc-workflow/hooks/
-├── hooks.json
-├── pre-write-validate.mjs
-├── post-write-verify.mjs
-├── post-write-auto-stage.mjs
-├── post-write-render.mjs
-└── session-start-orient.mjs</code></pre>
+<pre><code>plugins/sdlc-workflow/
+├── hooks/
+│   ├── hooks.json                  # wiring — points every entry at dist/
+│   ├── pre-write-validate.mjs      # source
+│   ├── post-write-verify.mjs       # source
+│   ├── post-write-auto-stage.mjs   # source
+│   ├── post-write-render.mjs       # source
+│   └── session-start-orient.mjs    # source
+└── dist/                           # committed bundles — what actually runs
+    ├── pre-write-validate.mjs
+    ├── post-write-verify.mjs
+    ├── post-write-auto-stage.mjs
+    ├── post-write-render.mjs
+    └── session-start-orient.mjs</code></pre>
 """,
     ("reference/09-ship-run-schema.html", "Ship-run schema"),
     ("reference/glossary.html", "Glossary"),
@@ -3675,7 +3798,7 @@ PAGES.append((
     '<a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Glossary',
     """
 <dl>
-<dt><strong>Augmentation</strong></dt><dd>Opt-in perf/observability slot (<code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, <code>profile</code>) that registers on <code>00-index.md</code> and propagates to downstream stages.</dd>
+<dt><strong>Augmentation</strong></dt><dd>Opt-in perf/observability slot. <code>instrument</code>, <code>experiment</code>, and <code>benchmark</code> share <code>type: augmentation</code> (distinguished by an <code>augmentation-type</code> field) and register on <code>00-index.md</code>'s <code>augmentations:</code> array. <code>profile</code> is the odd one out — a freestanding pass with its own <code>type: profile</code>, not tied to a workflow slice. All propagate to downstream stages where applicable.</dd>
 
 <dt><strong>Artifact</strong></dt><dd>A YAML-fronted markdown file written by a stage. Lives under <code>.ai/workflows/&lt;slug&gt;/</code> (or <code>.ai/ship-plan.md</code> at repo root). Commit-ed alongside code.</dd>
 
@@ -3683,7 +3806,7 @@ PAGES.append((
 
 <dt><strong>Branch strategy</strong></dt><dd>One of <code>dedicated</code> (workflow has its own branch + PR), <code>shared</code> (workflow contributes to an existing collaborative branch), <code>none</code> (no branch operations).</dd>
 
-<dt><strong>Compressed flow</strong></dt><dd>A <code>/wf-quick</code> entry that collapses the 10-stage pipeline into fewer artifacts. <code>fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>.</dd>
+<dt><strong>Compressed flow</strong></dt><dd>A <code>/wf-quick</code> entry that collapses the 10-stage pipeline into fewer artifacts. Ten in all: <code>fix</code>, <code>rca</code>, <code>probe</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>.</dd>
 
 <dt><strong>Conditional input</strong></dt><dd>An artifact that's optional to exist but mandatory to consume when it does exist. Listed in each stage's preamble.</dd>
 
@@ -3716,6 +3839,70 @@ PAGES.append((
 """,
     ("reference/hooks.html", "Hooks"),
     None,
+))
+
+
+PAGES.append((
+    "reference/tray.html",
+    "Tray app",
+    "reference",
+    '<a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Tray app',
+    """
+<p>A user-launched <strong>system-tray app</strong> <span class="badge">v9.46</span> puts a sunflower icon in your notification area that controls the multi-repo hub — no admin, no system service, fully self-contained. It ships with committed helper binaries and icons, so it needs <strong>no <code>npm install</code></strong>.</p>
+
+<h2>Launch it</h2>
+<pre><code># any of:
+npm run tray
+node dist/tray.mjs
+.\\scripts\\tray.ps1        # Windows launcher</code></pre>
+
+<p><em>You</em> launch it — not Claude. It resolves all paths from its own location and copies its helper binary to <code>~/.sdlc/bin/</code> before running (the plugin directory may be read-only).</p>
+
+<h2>Icon states</h2>
+<p>The icon reflects hub health at a glance, and the tooltip shows a one-line summary (e.g. <code>SDLC hub v9.49.0 · 3 repos · up 2h14m · 248 req</code>):</p>
+<table>
+<thead><tr><th>Icon</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>Full colour</td><td>Hub healthy.</td></tr>
+<tr><td>Grey</td><td>Hub is down.</td></tr>
+<tr><td>Amber</td><td>A stale-version hub is running — restart to upgrade.</td></tr>
+</tbody>
+</table>
+<p>It polls health every ~5s and re-renders only when something changes.</p>
+
+<h2>Menu</h2>
+<table>
+<thead><tr><th>Item</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><strong>● status</strong> (top)</td><td>Health summary — <code>healthy</code> / <code>hub down — start it?</code> / <code>stale → restart</code>.</td></tr>
+<tr><td>Open dashboard</td><td>Opens <code>http://127.0.0.1:4173/</code>.</td></tr>
+<tr><td>Refresh registry</td><td>Re-scans all repos (<code>POST /__sdlc/registry/refresh</code>).</td></tr>
+<tr><td>Health ▸</td><td>Version, pid, uptime, requests, SSE clients, RSS, config hash.</td></tr>
+<tr><td>↳ per-repo rows</td><td>One per registered repo → opens <code>/r/&lt;id&gt;/</code>.</td></tr>
+<tr><td>Restart / Stop hub</td><td>Hub lifecycle controls.</td></tr>
+<tr><td>Open hub config… / logs…</td><td>Opens <code>~/.sdlc/hub-config.json</code> / the bootstrap log.</td></tr>
+<tr><td>Per-repo serve ✓</td><td>Toggles <code>hub-config.perRepoServe</code> (takes effect next session).</td></tr>
+<tr><td>Start at login ✓</td><td>Opt-in logon autostart (see below).</td></tr>
+<tr><td>Quit</td><td>Exits the tray; the hub keeps running.</td></tr>
+</tbody>
+</table>
+
+<h2>Start at login (opt-in autostart)</h2>
+<p>Off by default. Toggling <strong>Start at login ✓</strong> writes a per-user launcher to your OS autostart location (Windows Startup folder, macOS LaunchAgents, Linux XDG autostart) — file presence <em>is</em> the on/off state, no admin needed. When the tray starts with autostart enabled it also ensures the hub is up, so the hub comes up at logon before any Claude session (safe because the lifecycle call is idempotent and simply adopts an already-running hub). The launcher embeds absolute paths captured at enable-time and self-heals if a plugin upgrade relocates the bundle. Turn it off from the same menu item before uninstalling the plugin.</p>
+
+<h2>How it's built</h2>
+<p>The tray speaks its own stdio protocol (<code>lib/tray-protocol.mjs</code>), not a third-party tray library, and ships as an ESM bundle at <code>dist/tray.mjs</code> produced by the shared <a href="../explanation/build-and-dist.html">build step</a>. Its native helper binaries and icons are committed so the app runs with no install. (<code>sharp</code>, <code>to-ico</code>, and the tray helper toolchain are ad-hoc maintainer dev tools, not committed dependencies.)</p>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="serve.html">Serve daemon &amp; hub</a> — what the tray controls.</li>
+  <li><a href="../explanation/build-and-dist.html">Build &amp; dist model</a> — why it needs no install.</li>
+</ul>
+</div>
+""",
+    ("reference/serve.html", "Serve daemon"),
+    ("reference/types.html", "Artifact types"),
 ))
 
 
@@ -3808,7 +3995,7 @@ PAGES.append((
 
 <h2>The cost</h2>
 
-<p>Honesty: artifacts cost effort. The interview at shape can run 30 questions. Each stage is one more file to write and one more dialog to engage. For trivial changes this is genuine waste — hence <code>/wf-quick</code>, which compresses the pipeline.</p>
+<p>Honesty: artifacts cost effort. The interview at shape runs 20 questions (five rounds of four). Each stage is one more file to write and one more dialog to engage. For trivial changes this is genuine waste — hence <code>/wf-quick</code>, which compresses the pipeline.</p>
 
 <p>For non-trivial changes the cost is paid in time-of-doing and refunded in time-of-maintaining. The plugin's design assumes maintenance dominates over time. That's not always true; the framework lets you choose.</p>
 
@@ -3832,7 +4019,7 @@ PAGES.append((
     "explanation",
     '<a href="../index.html">Home</a> &rsaquo; Explanation &rsaquo; Orchestrator discipline',
     """
-<p>Every command in the plugin operates under a deliberate constraint: it is an <strong>orchestrator</strong>, not a problem-solver. This page explains what that means and why it matters.</p>
+<p>Every router in the plugin operates under a deliberate constraint: it is an <strong>orchestrator</strong>, not a problem-solver. This page explains what that means and why it matters.</p>
 
 <h2>The rule</h2>
 
@@ -3911,7 +4098,7 @@ PAGES.append((
 <p>Three integration points:</p>
 
 <h3>1. Shape stage authors the docs plan</h3>
-<p><code>/wf shape</code> asks "what docs does this work need?" — and gives you the four quadrant types to pick from. The answer goes into <code>02-shape.md</code> frontmatter as <code>docs-needed</code> + <code>docs-types</code>.</p>
+<p><code>/wf shape</code> asks "what docs does this work need?" — and gives you the documentation primitives to pick from: the four Diátaxis quadrants (tutorial, how-to, reference, explanation) plus <code>plan</code>, <code>readme</code>, and <code>review</code>. The answer goes into <code>02-shape.md</code> frontmatter as <code>docs-needed</code> + <code>docs-types</code>.</p>
 
 <h3>2. Handoff generates the docs</h3>
 <p><code>/wf handoff</code> reads the docs plan and, for each requested type, loads the matching Diátaxis primitive from <code>skills/wf-docs/reference/&lt;type&gt;.md</code>. The primitive contains the full discipline for that quadrant — structure, rules, anti-patterns, self-check. Handoff follows it verbatim.</p>
@@ -3929,7 +4116,7 @@ PAGES.append((
 <h3>Related</h3>
 <ul>
   <li><a href="../reference/skills.html">Skills reference</a> — the <code>wf-docs</code> router.</li>
-  <li><a href="../reference/commands.html">Commands reference</a> — <code>/wf-docs</code> sub-commands.</li>
+  <li><a href="../reference/commands.html">Routers reference</a> — <code>/wf-docs</code> sub-commands.</li>
 </ul>
 </div>
 """,
@@ -3993,6 +4180,22 @@ flowchart TD
   <li>Handoff writes <code>08-handoff.md</code> as the deliverable but does not push, PR, triage, rebase, or check.</li>
   <li>The handoff artifact itself is the externalised result.</li>
 </ul>
+
+<h2>Branch liveness <span class="badge">v9.49</span></h2>
+
+<p>Separate from the strategy above, the branch-aware hub annotates each workflow with a soft <strong>liveness badge</strong> derived from git + PR state:</p>
+
+<table>
+<thead><tr><th>State</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>live</code></td><td>The branch ref exists and is not yet fully merged into its base.</td></tr>
+<tr><td><code>merged</code></td><td>The branch tip is an ancestor of the base branch, or its PR resolved <code>MERGED</code>.</td></tr>
+<tr><td><code>gone</code></td><td>The branch ref is no longer present locally (deleted, often post-merge).</td></tr>
+<tr><td><code>unknown</code></td><td>No branch declared (<code>branch-strategy: none</code>), git unavailable, or any error — fails open, no badge rendered.</td></tr>
+</tbody>
+</table>
+
+<p>Badges are advisory: they help the multi-repo hub group and de-clutter stale workflows, but never block a stage. See <a href="../reference/serve.html">Serve daemon &amp; hub</a>.</p>
 
 <div class="related">
 <h3>Related</h3>
@@ -4078,7 +4281,7 @@ PAGES.append((
 <pre class="mermaid">
 flowchart TD
   user["User runs /wf instrument my-slug route"]
-  user --> inst["04b-instrument-route.md written"]
+  user --> inst["04b-instrument.md written"]
   inst --> reg["00-index.md augmentations array appended"]
   reg --> impl["/wf implement reads 04b-*.md"]
   reg --> handoff["/wf handoff translates each to reviewer-visible mention"]
@@ -4100,13 +4303,13 @@ flowchart TD
 
 <dl>
 <dt><strong>instrument</strong> — observability design</dt>
-<dd>For code paths that have no logs/metrics/traces. Output: <code>04b-instrument-&lt;slice&gt;.md</code> with the signals to add. Implement reads it and adds the signals.</dd>
+<dd>For code paths that have no logs/metrics/traces. Output: <code>04b-instrument.md</code> with the signals to add. Implement reads it and adds the signals.</dd>
 
 <dt><strong>experiment</strong> — measured rollout</dt>
-<dd>For behaviour changes you want to gate behind a flag with a cohort split. Output: <code>04c-experiment-&lt;slice&gt;.md</code> with flag wiring, cohort design, success metrics, rollback signal.</dd>
+<dd>For behaviour changes you want to gate behind a flag with a cohort split. Output: <code>04c-experiment.md</code> with flag wiring, cohort design, success metrics, rollback signal.</dd>
 
 <dt><strong>benchmark</strong> — perf baseline + compare</dt>
-<dd>For changes that could affect performance. Output: <code>05c-benchmark-&lt;slice&gt;.md</code>. Run before implement to capture baseline; run after implement to compare. The compare-mode output goes into <code>06-verify-&lt;slice&gt;.md</code>'s evidence.</dd>
+<dd>For changes that could affect performance. Output: <code>05c-benchmark.md</code>. Run before implement to capture baseline; run after implement to compare. The compare-mode output goes into <code>06-verify-&lt;slice&gt;.md</code>'s evidence.</dd>
 
 <dt><strong>profile</strong> — hot-path investigation</dt>
 <dd>The only freestanding augmentation. Doesn't need a slice context. Output: an analysis of where time is spent in the named area.</dd>
@@ -4130,7 +4333,7 @@ flowchart TD
 <h3>Related</h3>
 <ul>
   <li><a href="../how-to/use-augmentations.html">Use augmentations</a> — when to add each.</li>
-  <li><a href="../reference/commands.html">Commands reference</a> — full augmentation command list.</li>
+  <li><a href="../reference/commands.html">Routers reference</a> — full augmentation command list.</li>
 </ul>
 </div>
 """,
@@ -4282,6 +4485,53 @@ flowchart TD
 ))
 
 
+PAGES.append((
+    "explanation/build-and-dist.html",
+    "Build & dist model",
+    "explanation",
+    '<a href="../index.html">Home</a> &rsaquo; Explanation &rsaquo; Build &amp; dist model',
+    """
+<p>Since <span class="badge">v9.45</span> the plugin runs from <strong>committed <code>dist/</code> bundles</strong> — esbuild output with third-party dependencies inlined — so a fresh install works with <strong>no runtime <code>npm install</code></strong>. This page explains the model and the one rule it imposes on maintainers.</p>
+
+<h2>The problem it solves</h2>
+<p>Claude Code plugins don't run <code>npm install</code> for you, and <code>node_modules</code> is gitignored. A hook or renderer that <code>import</code>s <code>markdown-it</code>, <code>js-yaml</code>, or <code>ajv</code> would crash on a fresh checkout with <code>Cannot find package …</code>. Bundling each entrypoint with its dependencies inlined removes the runtime dependency entirely.</p>
+
+<h2>What runs from <code>dist/</code></h2>
+<ul>
+  <li>All five hooks (<code>pre-write-validate</code>, <code>post-write-verify</code>, <code>post-write-auto-stage</code>, <code>post-write-render</code>, <code>session-start-orient</code>).</li>
+  <li>The renderer (<code>render-sunflower.mjs</code>) and the serve daemons (<code>render-sunflower-serve.mjs</code>, <code>hub-serve.mjs</code>).</li>
+  <li>The tray app (<code>tray.mjs</code>).</li>
+</ul>
+<p><code>lib/entrypoint.mjs</code>'s <code>resolveEntrypoint()</code> prefers <code>dist/&lt;name&gt;.mjs</code> when it exists and falls back to <code>scripts/&lt;name&gt;.mjs</code> only for maintainers working before their first build. "dist exists" is the proxy for "use the bundle".</p>
+
+<h2>The maintainer rule</h2>
+<p>The source lives in <code>scripts/</code>, <code>hooks/</code>, <code>lib/</code>, <code>renderers/</code>, and <code>components/</code>. After editing any of those you <strong>must</strong> rebuild:</p>
+<pre><code>npm install            # dev toolchain only — never needed at a user's runtime
+npm run build          # rebuild dist/ from scripts|hooks|lib|renderers|components
+npm test               # the suite runs against SOURCE, not dist/
+npm run hooks:install  # optional: auto-rebuild + stage dist/ on every commit</code></pre>
+
+<div class="callout warn">
+<strong>Tests run source, not dist.</strong> A green <code>npm test</code> does <em>not</em> prove <code>dist/</code> is fresh. A CI <strong>freshness gate</strong> rebuilds and compares content — stale committed bundles fail CI, and an un-rebuilt <code>dist/</code> means production runs old code.
+</div>
+
+<h2>Why not auto-install</h2>
+<p>No postinstall script, no runtime install, no network at first run — the engine stays dependency-free and predictable. The trade-off is the rebuild step above; <code>npm run hooks:install</code> wires it into a pre-commit hook so the bundles never drift.</p>
+
+<div class="related">
+<h3>Related</h3>
+<ul>
+  <li><a href="../reference/hooks.html">Hooks reference</a> — every hook runs from <code>dist/</code>.</li>
+  <li><a href="../reference/tray.html">Tray app</a> — also a committed bundle.</li>
+  <li><a href="../reference/serve.html">Serve daemon &amp; hub</a> — the renderer and hub run from <code>dist/</code> too.</li>
+</ul>
+</div>
+""",
+    ("explanation/the-readiness-gate.html", "The readiness gate"),
+    None,
+))
+
+
 # === TIPS ===
 PAGES.append((
     "tips/escape-hatches.html",
@@ -4334,6 +4584,9 @@ flowchart TD
 
 <dt><strong>"I want to ship without running the new PR-readiness block."</strong></dt>
 <dd>Set <code>branch-strategy: none</code> at intake. The PR-readiness block requires a PR to inspect, so it skips entirely. You're responsible for code review yourself.</dd>
+
+<dt><strong>"The sibling-fragment hard block is rejecting my artifact write."</strong></dt>
+<dd>Rich-tier artifacts (review, plan, design, ship-run, rca, the augmentations, …) must land with a sibling <code>.yaml</code> or <code>post-write-verify</code> exits 2. Exempt a single file with <code>fragment: none</code> in its frontmatter, or disable the block project-wide with <code>hooks.remindMissingFragments: false</code> in <code>.ai/sdlc-config.json</code>. Prefer authoring the fragment — the block exists so rich pages don't silently fall back to a plain render.</dd>
 </dl>
 
 <h2>What's NOT a valid escape hatch</h2>
@@ -4400,7 +4653,7 @@ PAGES.append((
 
 <h2>Use augmentations selectively per slice</h2>
 
-<p>Not every slice needs instrument or benchmark. Add them only to the slices where they matter. <code>04b-instrument-*.md</code> is per-slice for a reason.</p>
+<p>Not every workflow needs instrument or benchmark. Add them only where they matter — each writes a single workflow-scoped augmentation file (e.g. <code>04b-instrument.md</code>), registered in <code>00-index.md</code>'s <code>augmentations:</code> array.</p>
 
 <h2>Skip-to from intake for trivial changes</h2>
 
@@ -4532,11 +4785,14 @@ PAGES.append((
 <dt><strong>What's the difference between <code>amend</code>, <code>extend</code>, and <code>implement reviews</code>?</strong></dt>
 <dd><code>amend</code> corrects the spec. <code>extend</code> adds new slices. <code>implement reviews</code> fixes implementation bugs. <a href="../how-to/amend-or-extend.html">Full decision rule here</a>.</dd>
 
-<dt><strong>Why does shape ask 30 questions for something simple?</strong></dt>
-<dd>That's a signal the change probably wants <code>/wf-quick fix</code> instead. Shape is the deep interview stage — if it doesn't pay off, you're in the wrong flow.</dd>
+<dt><strong>Why does shape ask 20 questions for something simple?</strong></dt>
+<dd>That's a signal the change probably wants <code>/wf-quick fix</code> instead. Shape is the deep interview stage (20 questions across five rounds) — if it doesn't pay off, you're in the wrong flow.</dd>
 
 <dt><strong>Can I use the plugin with another AI assistant (not Claude Code)?</strong></dt>
-<dd>The artifact files are plain markdown + YAML — they're portable. The orchestration runs in Claude Code's skill router system, so the slash commands themselves are Claude Code-specific.</dd>
+<dd>The artifact files are plain markdown + YAML — they're portable. The orchestration runs in Claude Code's skill router system, so the skill routers themselves are Claude Code-specific.</dd>
+
+<dt><strong>Do I need to run <code>npm install</code> to use the plugin?</strong></dt>
+<dd>No. Since v9.45.0 the hooks, renderer, and serve daemon run from committed <code>dist/</code> bundles with dependencies inlined — a fresh install works with zero runtime install. <code>npm install</code> + <code>npm run build</code> are only for <em>maintainers</em> editing the plugin source; after editing <code>hooks/</code>, <code>lib/</code>, <code>renderers/</code>, or <code>components/</code> you rebuild <code>dist/</code> (a CI freshness gate enforces it). See <a href="../explanation/build-and-dist.html">Build &amp; dist model</a>.</dd>
 </dl>
 """,
     ("tips/anti-patterns.html", "Anti-patterns"),
@@ -4547,15 +4803,88 @@ PAGES.append((
 # ---------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------
+# SIDEBAR is the single source of truth for BOTH nav structure and reading
+# order. Parse it once: page order (for pagers) and clean labels (for pager
+# link text). Pages not generated here (index + the hand-authored tutorials and
+# serve/types reference pages) still appear in the order so adjacency is correct.
+def _nav_order():
+    return re.findall(r'data-href="([^"]+\.html)"', SIDEBAR)
+
+
+def _nav_labels():
+    labels = {}
+    for path, text in re.findall(r'data-href="([^"]+\.html)">([^<]+)</a>', SIDEBAR):
+        clean = re.sub(r"^[^\w/]+", "", text).strip()          # drop leading "↳ "
+        clean = re.sub(r"\s*\([^)]*\)\s*$", "", clean)          # drop "(overview)" / "(10 stages)"
+        labels[path] = clean
+    return labels
+
+
+def _render_nav_file():
+    """nav.html — the standalone canonical sidebar (base=""). GENERATED; do not hand-edit."""
+    note = (
+        "<!-- GENERATED by _build_pages.py from the SIDEBAR constant — do NOT hand-edit.\n"
+        "     Edit SIDEBAR in _build_pages.py and re-run `python3 _build_pages.py`.\n"
+        "     This is the canonical sidebar; every page inlines a copy of it. -->\n"
+    )
+    (SITE_ROOT / "nav.html").write_text(
+        note + SIDEBAR.format(base="", version=PLUGIN_VERSION) + "\n",
+        encoding="utf-8", newline="\n",
+    )
+    print("wrote nav.html")
+
+
+# Hand-authored pages: NOT generated from PAGES, but they still inline the
+# sidebar. Keep their bespoke <main> bodies; replace only the <aside> so the
+# whole site is single-sourced from SIDEBAR (version brand + nav structure).
+_EXTERNAL_PAGES = [
+    "index.html",
+    "tutorials/installation.html",
+    "tutorials/first-workflow.html",
+    "reference/serve.html",
+    "reference/types.html",
+]
+
+
+def _patch_external_sidebars():
+    """Replace the inlined <aside id="sidebar">…</aside> in every hand-authored page
+    with the canonical sidebar rendered at that page's depth."""
+    for rel in _EXTERNAL_PAGES:
+        f = SITE_ROOT / rel
+        html = f.read_text(encoding="utf-8")
+        base = "../" * rel.count("/")
+        rendered = SIDEBAR.format(base=base, version=PLUGIN_VERSION)
+        new, n = re.subn(r'<aside id="sidebar">.*?</aside>', lambda _m: rendered, html,
+                         count=1, flags=re.S)
+        if n != 1:
+            raise SystemExit(f"{rel}: sidebar patch matched {n} blocks (expected exactly 1)")
+        f.write_text(new, encoding="utf-8", newline="\n")
+        print(f"patched sidebar in {rel}")
+
+
 def main():
     print(f"Generating {len(PAGES)} pages under {SITE_ROOT}")
+    nav = _nav_order()
+    pos = {p: i for i, p in enumerate(nav)}
+    labels = _nav_labels()
+
+    def pager_for(path):
+        i = pos.get(path)
+        if i is None:                       # page not in nav → keep no pager
+            return None, None
+        prev = nav[i - 1] if i > 0 else None
+        nxt = nav[i + 1] if i < len(nav) - 1 else None
+        prev_t = (prev, labels.get(prev, prev)) if prev else None
+        nxt_t = (nxt, labels.get(nxt, nxt)) if nxt else None
+        return prev_t, nxt_t
+
     for entry in PAGES:
-        if len(entry) == 7:
-            path, title, quadrant, breadcrumb, body, prev, nxt = entry
-        else:
-            path, title, quadrant, breadcrumb, body = entry
-            prev, nxt = None, None
+        path, title, quadrant, breadcrumb, body = entry[0], entry[1], entry[2], entry[3], entry[4]
+        prev, nxt = pager_for(path)         # pagers derived from nav order, not stored tuples
         render_page(path, title, quadrant, breadcrumb, body, prev, nxt)
+
+    _render_nav_file()
+    _patch_external_sidebars()
     print("done.")
 
 

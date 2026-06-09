@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Navigate existing workflows · sdlc-workflow</title>
+<title>Build & dist model · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -80,78 +80,46 @@
   </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Navigate workflows</div>
-<span class="quadrant howto">how-to</span>
-<h1>Navigate existing workflows</h1>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Explanation &rsaquo; Build &amp; dist model</div>
+<span class="quadrant explanation">explanation</span>
+<h1>Build & dist model</h1>
 
-<p>You opened the repo and you can't remember what you were doing. Or you have three workflows in flight and you need to pick one up. This page is the answer.</p>
+<p>Since <span class="badge">v9.45</span> the plugin runs from <strong>committed <code>dist/</code> bundles</strong> — esbuild output with third-party dependencies inlined — so a fresh install works with <strong>no runtime <code>npm install</code></strong>. This page explains the model and the one rule it imposes on maintainers.</p>
 
-<div class="summary">
-<table>
-<tr><th>Pre-conditions</th><td>One or more <code>.ai/workflows/&lt;slug&gt;/</code> directories exist.</td></tr>
-<tr><th>Goal</th><td>Know which workflows are active, where you left off, and how to resume.</td></tr>
-</table>
+<h2>The problem it solves</h2>
+<p>Claude Code plugins don't run <code>npm install</code> for you, and <code>node_modules</code> is gitignored. A hook or renderer that <code>import</code>s <code>markdown-it</code>, <code>js-yaml</code>, or <code>ajv</code> would crash on a fresh checkout with <code>Cannot find package …</code>. Bundling each entrypoint with its dependencies inlined removes the runtime dependency entirely.</p>
+
+<h2>What runs from <code>dist/</code></h2>
+<ul>
+  <li>All five hooks (<code>pre-write-validate</code>, <code>post-write-verify</code>, <code>post-write-auto-stage</code>, <code>post-write-render</code>, <code>session-start-orient</code>).</li>
+  <li>The renderer (<code>render-sunflower.mjs</code>) and the serve daemons (<code>render-sunflower-serve.mjs</code>, <code>hub-serve.mjs</code>).</li>
+  <li>The tray app (<code>tray.mjs</code>).</li>
+</ul>
+<p><code>lib/entrypoint.mjs</code>'s <code>resolveEntrypoint()</code> prefers <code>dist/&lt;name&gt;.mjs</code> when it exists and falls back to <code>scripts/&lt;name&gt;.mjs</code> only for maintainers working before their first build. "dist exists" is the proxy for "use the bundle".</p>
+
+<h2>The maintainer rule</h2>
+<p>The source lives in <code>scripts/</code>, <code>hooks/</code>, <code>lib/</code>, <code>renderers/</code>, and <code>components/</code>. After editing any of those you <strong>must</strong> rebuild:</p>
+<pre><code>npm install            # dev toolchain only — never needed at a user's runtime
+npm run build          # rebuild dist/ from scripts|hooks|lib|renderers|components
+npm test               # the suite runs against SOURCE, not dist/
+npm run hooks:install  # optional: auto-rebuild + stage dist/ on every commit</code></pre>
+
+<div class="callout warn">
+<strong>Tests run source, not dist.</strong> A green <code>npm test</code> does <em>not</em> prove <code>dist/</code> is fresh. A CI <strong>freshness gate</strong> rebuilds and compares content — stale committed bundles fail CI, and an un-rebuilt <code>dist/</code> means production runs old code.
 </div>
 
-<h2>See everything at a glance</h2>
-
-<pre><code>/wf-meta status</code></pre>
-
-<p>Lists every active workflow, the current stage, the recommended next command, and any open questions. Use this as your daily entry point.</p>
-
-<h2>Get details on one workflow</h2>
-
-<pre><code>/wf-meta status &lt;slug&gt;</code></pre>
-
-<p>Shows the full progress map (10 stages × not-started/in-progress/complete/skipped/blocked), the slice statuses, and recent activity.</p>
-
-<h2>Pick up where you left off</h2>
-
-<pre><code>/wf-meta resume &lt;slug&gt;</code></pre>
-
-<p>Reads the workflow's full artifact trail, identifies the next unfinished step, and proposes a concrete invocation. Use this when you've context-switched away for hours, days, or weeks.</p>
-
-<h2>Ask what's next</h2>
-
-<pre><code>/wf-meta next &lt;slug&gt;</code></pre>
-
-<p>Like resume, but lighter — answers "what should I run next" without re-reading the full trail. Good when you know the workflow well and just need the next command.</p>
-
-<h2>Reconcile drift with disk</h2>
-
-<pre><code>/wf-meta sync &lt;slug&gt;</code></pre>
-
-<p>Re-reads every artifact on disk and repairs the <code>00-index.md</code> control file if it disagrees with reality. Use after manual edits, after pulling a branch that landed new artifacts, or when something feels off.</p>
-
-<h2>Cheat sheet</h2>
-
-<table>
-<thead><tr><th>What you want</th><th>Command</th></tr></thead>
-<tbody>
-<tr><td>"What am I working on?"</td><td><code>/wf-meta status</code></td></tr>
-<tr><td>"Where did I leave off in X?"</td><td><code>/wf-meta resume X</code></td></tr>
-<tr><td>"What's the next command for X?"</td><td><code>/wf-meta next X</code></td></tr>
-<tr><td>"Index file looks weird — repair it."</td><td><code>/wf-meta sync X</code></td></tr>
-<tr><td>"Explain a stage's artifact in plain English."</td><td><code>/wf-meta how X plan|shape|slice|review|findings</code></td></tr>
-<tr><td>"Generate a Diátaxis announcement from a shipped workflow."</td><td><code>/wf-meta announce X</code></td></tr>
-<tr><td>"Correct a wrong spec / slice / ship-plan block."</td><td><code>/wf-meta amend X &lt;scope&gt;</code></td></tr>
-<tr><td>"Add new slices to an existing workflow."</td><td><code>/wf-meta extend X</code></td></tr>
-<tr><td>"Mark a stage skipped with a stub."</td><td><code>/wf-meta skip &lt;stage&gt; X</code></td></tr>
-<tr><td>"Archive a finished / abandoned workflow."</td><td><code>/wf-meta close &lt;reason&gt; X</code></td></tr>
-<tr><td>"Author the project ship plan (once)."</td><td><code>/wf-meta init-ship-plan</code></td></tr>
-<tr><td>"Build the CI/CD + DX pipeline from the plan."</td><td><code>/wf-meta build-pipeline</code></td></tr>
-</tbody>
-</table>
+<h2>Why not auto-install</h2>
+<p>No postinstall script, no runtime install, no network at first run — the engine stays dependency-free and predictable. The trade-off is the rebuild step above; <code>npm run hooks:install</code> wires it into a pre-commit hook so the bundles never drift.</p>
 
 <div class="related">
 <h3>Related</h3>
 <ul>
-  <li><a href="../reference/commands.html">Routers reference</a> — every <code>/wf-meta</code> sub-command.</li>
-  <li><a href="../reference/00-index-schema.html">00-index schema</a> — the control file fields.</li>
-  <li><a href="resume-paused-work.html">Resume paused work</a> — what happens when a ship run is paused.</li>
+  <li><a href="../reference/hooks.html">Hooks reference</a> — every hook runs from <code>dist/</code>.</li>
+  <li><a href="../reference/tray.html">Tray app</a> — also a committed bundle.</li>
+  <li><a href="../reference/serve.html">Serve daemon &amp; hub</a> — the renderer and hub run from <code>dist/</code> too.</li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../how-to/start-workflow.html"><span>← Previous</span>Pick an entry point</a><a class="next" href="../how-to/amend-or-extend.html"><span>Next →</span>Amend or extend</a></div></main>
+<div class="pager"><a class="prev" href="../explanation/the-readiness-gate.html"><span>← Previous</span>The readiness gate</a><a class="next" href="../tips/escape-hatches.html"><span>Next →</span>Escape hatches</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

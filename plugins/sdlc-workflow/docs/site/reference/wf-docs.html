@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -115,7 +117,7 @@
 <tr><th>Stage</th><td>3 — prioritized action plan</td></tr>
 <tr><th>Writes</th><td><code>.ai/docs/&lt;run-id&gt;/plan.md</code></td></tr>
 </table></div>
-<p>Translates audit into actions: create / update / rewrite / delete per doc, prioritized P0–P3. P0 = factually wrong + actively used. P3 = quadrant fit issue with no urgency.</p>
+<p>Translates audit into actions: create / update / rewrite / delete per doc, prioritized P0–P4 — P0 (broken / inaccurate), P1 (missing), P2 (wrong quadrant), P3 (stale), P4 (enhancement).</p>
 
 <h3>/wf-docs generate</h3>
 <div class="summary"><table>
@@ -127,9 +129,9 @@
 <h3>/wf-docs review</h3>
 <div class="summary"><table>
 <tr><th>Stage</th><td>5 — independent review of the generated docs</td></tr>
-<tr><th>Writes</th><td>Updates to <code>generate.md</code></td></tr>
+<tr><th>Writes</th><td>Updates to <code>generate.md</code>; the docs-index artifact <code>08b-docs-index.md</code> (+ sibling <code>.yaml</code>); then commits.</td></tr>
 </table></div>
-<p>An independent sub-agent reviews each generated doc against its Diátaxis primitive's self-check. Flags mixed-quadrant content, missing pre-conditions, prose-pseudocode, etc.</p>
+<p>An independent sub-agent reviews each generated doc against its Diátaxis primitive's self-check (mixed-quadrant content, missing pre-conditions, prose-pseudocode, etc.). It then writes a compact <code>08b-docs-index.md</code> — workflow-scoped at <code>.ai/workflows/&lt;slug&gt;/</code>, or <code>.ai/docs/&lt;run-id&gt;/</code> in project/path mode — with a sibling <code>08b-docs-index.yaml</code> (a <code>docs:</code> array of <code>{path, type, action, status}</code> so the view layer can render the docs table), and commits all documentation changes (<code>docs: update documentation via wf-docs run &lt;run-id&gt;</code>).</p>
 
 <hr>
 
@@ -162,7 +164,7 @@
 <p>Composite — a single README mixes all four quadrants intentionally, but each section is one quadrant. Structure: brief intro (explanation), quick start (tutorial), common tasks (how-to), API summary (reference), and explicit pointers to deeper docs.</p>
 
 <h3>review</h3>
-<p>Quality-check primitive. Reads a doc + identifies its declared quadrant, then checks the body against that quadrant's rules. Outputs P0–P3 findings.</p>
+<p>Quality-check primitive. Reads a doc + identifies its declared quadrant, then checks the body against that quadrant's rules. Outputs P0–P4 findings.</p>
 
 <div class="related">
 <h3>Related</h3>
@@ -172,7 +174,7 @@
   <li><a href="../how-to/start-workflow.html">Pick an entry point</a> — when to run the doc pipeline standalone vs. via handoff.</li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../reference/wf-meta.html"><span>← Previous</span>/wf-meta router</a><a class="next" href="../reference/review.html"><span>Next →</span>/review router</a></div></main>
+<div class="pager"><a class="prev" href="../reference/wf-design.html"><span>← Previous</span>/wf-design router</a><a class="next" href="../reference/review.html"><span>Next →</span>/review router</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

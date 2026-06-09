@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -97,7 +99,7 @@
 <tr><td><code>current-stage</code></td><td>string</td><td>Most recently started stage name.</td></tr>
 <tr><td><code>stage-number</code></td><td>number</td><td>1–10.</td></tr>
 <tr><td><code>updated-at</code></td><td>ISO 8601</td><td>Real timestamp from <code>date -u</code>.</td></tr>
-<tr><td><code>selected-slice-or-focus</code></td><td>string</td><td>Currently active slice slug.</td></tr>
+<tr><td><code>selected-slice</code></td><td>string</td><td>Currently active slice slug. (Readers also accept the legacy <code>selected-slice-or-focus</code> as a fallback.)</td></tr>
 <tr><td><code>open-questions</code></td><td>array</td><td>Unanswered questions blocking progress.</td></tr>
 <tr><td><code>next-command</code></td><td>string</td><td>Command name (e.g., <code>wf-shape</code>).</td></tr>
 <tr><td><code>next-invocation</code></td><td>string</td><td>Full slash command, ready to copy.</td></tr>
@@ -107,6 +109,9 @@
 <tr><td><code>branch-strategy</code></td><td>enum</td><td><code>dedicated</code> / <code>shared</code> / <code>none</code></td></tr>
 <tr><td><code>branch</code></td><td>string</td><td>Feature branch name (default <code>feat/&lt;slug&gt;</code>).</td></tr>
 <tr><td><code>base-branch</code></td><td>string</td><td>Branch to merge back into.</td></tr>
+<tr><td><code>review-scope</code></td><td>enum</td><td><code>per-slice</code> / <code>slug-wide</code>. Chosen at intake; drives <code>/wf review</code> file layout and <code>/wf handoff</code> gating.</td></tr>
+<tr><td><code>tags</code></td><td>array</td><td>Classification tags for the workflow.</td></tr>
+<tr><td><code>stack</code></td><td>map</td><td>Stack fingerprint (platforms, languages, frameworks) detected at intake (Step 0.5) and confirmed by the user.</td></tr>
 </tbody>
 </table>
 
@@ -115,9 +120,9 @@
 <table>
 <tr><th><code>pr-url</code></th><td>Set by handoff.</td></tr>
 <tr><th><code>pr-number</code></th><td>Set by handoff.</td></tr>
-<tr><th><code>augmentations</code></th><td>Array of <code>{ kind, slice, ref, registered-at }</code> objects.</td></tr>
-<tr><th><code>workflow-type</code></th><td>For compressed flows: <code>quick</code>, <code>rca</code>, <code>investigate</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>discover</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
-<tr><th><code>compressed-slices</code></th><td>Array of <code>{ slug, slice-type, created-at }</code> objects. Appended by <code>/wf-quick</code> sub-commands when run in slug-mode. <code>slice-type</code> values: <code>quick</code>, <code>rca</code>, <code>probe</code> <span class="badge">v9.14</span>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
+<tr><th><code>augmentations</code></th><td>Array of <code>{ type, artifact, status, created-at }</code> objects (benchmark adds <code>mode</code>; design transforms add <code>files-modified</code>). Appended by <code>/wf instrument</code>, <code>experiment</code>, <code>benchmark</code>, and <code>/wf-design</code> operators.</td></tr>
+<tr><th><code>workflow-type</code></th><td>For compressed flows: <code>fix</code> (legacy <code>quick</code>), <code>rca</code>, <code>investigate</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>discover</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
+<tr><th><code>compressed-slices</code></th><td>Array of <code>{ slug, slice-type, created-at }</code> objects. Appended by <code>/wf-quick</code> sub-commands when run in slug-mode. <code>slice-type</code> values: <code>fix</code>, <code>rca</code>, <code>probe</code> <span class="badge">v9.14</span>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>.</td></tr>
 <tr><th><code>runtime-evidence-deferrals</code> <span class="badge">v9.14</span></th><td>Array of <code>{ slice, reason, deferred-at, cleared-by }</code> objects. Appended by <code>/wf verify</code> when a slice's user-observable AC is annotated with <code>interactive-verification: deferred</code>. <code>/wf ship</code> Step 6.5 hard-blocks while any entry has <code>cleared-by: null</code>. Cleared by a <code>/wf-quick probe</code> run whose captured evidence satisfies the deferred AC (sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or by a verify re-run in a capable environment.</td></tr>
 </table>
 

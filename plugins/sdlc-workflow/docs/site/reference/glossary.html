@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -83,7 +85,7 @@
 <h1>Glossary</h1>
 
 <dl>
-<dt><strong>Augmentation</strong></dt><dd>Opt-in perf/observability slot (<code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, <code>profile</code>) that registers on <code>00-index.md</code> and propagates to downstream stages.</dd>
+<dt><strong>Augmentation</strong></dt><dd>Opt-in perf/observability slot. <code>instrument</code>, <code>experiment</code>, and <code>benchmark</code> share <code>type: augmentation</code> (distinguished by an <code>augmentation-type</code> field) and register on <code>00-index.md</code>'s <code>augmentations:</code> array. <code>profile</code> is the odd one out — a freestanding pass with its own <code>type: profile</code>, not tied to a workflow slice. All propagate to downstream stages where applicable.</dd>
 
 <dt><strong>Artifact</strong></dt><dd>A YAML-fronted markdown file written by a stage. Lives under <code>.ai/workflows/&lt;slug&gt;/</code> (or <code>.ai/ship-plan.md</code> at repo root). Commit-ed alongside code.</dd>
 
@@ -91,7 +93,7 @@
 
 <dt><strong>Branch strategy</strong></dt><dd>One of <code>dedicated</code> (workflow has its own branch + PR), <code>shared</code> (workflow contributes to an existing collaborative branch), <code>none</code> (no branch operations).</dd>
 
-<dt><strong>Compressed flow</strong></dt><dd>A <code>/wf-quick</code> entry that collapses the 10-stage pipeline into fewer artifacts. <code>fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>.</dd>
+<dt><strong>Compressed flow</strong></dt><dd>A <code>/wf-quick</code> entry that collapses the 10-stage pipeline into fewer artifacts. Ten in all: <code>fix</code>, <code>rca</code>, <code>probe</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>.</dd>
 
 <dt><strong>Conditional input</strong></dt><dd>An artifact that's optional to exist but mandatory to consume when it does exist. Listed in each stage's preamble.</dd>
 
@@ -121,7 +123,7 @@
 
 <dt><strong>Triage loop</strong></dt><dd>The bounded T5.1 step in handoff that fetches unresolved PR review threads, classifies them, fixes blockers via <code>/wf implement reviews</code>, and resolves threads after fixes commit. Max 5 iterations.</dd>
 </dl>
-<div class="pager"><a class="prev" href="../reference/hooks.html"><span>← Previous</span>Hooks</a></div></main>
+<div class="pager"><a class="prev" href="../reference/types.html"><span>← Previous</span>Artifact types</a><a class="next" href="../explanation/why-this-exists.html"><span>Next →</span>Why this exists</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

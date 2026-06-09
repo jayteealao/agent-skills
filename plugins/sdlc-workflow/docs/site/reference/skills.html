@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -82,14 +84,14 @@
 <span class="quadrant reference">reference</span>
 <h1>Skills reference</h1>
 
-<p>Six skill routers, each dispatching across sub-commands. Skills are how the model auto-invokes plugin behaviour without an explicit slash command — but every router can also be reached explicitly.</p>
+<p>The plugin ships <strong>eleven skills</strong>: six lifecycle/utility <strong>routers</strong> (each dispatching across sub-commands) plus five <strong>support skills</strong> the routers and the model draw on. Skills are how the model auto-invokes plugin behaviour without an explicit slash command — but every router can also be reached explicitly.</p>
 
 <table>
 <thead><tr><th>Skill</th><th>What it routes</th><th>How invoked</th></tr></thead>
 <tbody>
-<tr><td><code>wf</code></td><td>13 lifecycle stages + 4 augmentations</td><td>Mostly explicit via <code>/wf &lt;stage&gt;</code>.</td></tr>
-<tr><td><code>wf-quick</code></td><td>8 compressed flows</td><td>Explicit via <code>/wf-quick &lt;flow&gt;</code>.</td></tr>
-<tr><td><code>wf-meta</code></td><td>11 navigation/management sub-commands</td><td>Mostly explicit. <code>init-ship-plan</code> + <code>status</code> are common.</td></tr>
+<tr><td><code>wf</code></td><td>10 lifecycle stages + 4 augmentations</td><td>Mostly explicit via <code>/wf &lt;stage&gt;</code>.</td></tr>
+<tr><td><code>wf-quick</code></td><td>10 compressed flows</td><td>Explicit via <code>/wf-quick &lt;flow&gt;</code>.</td></tr>
+<tr><td><code>wf-meta</code></td><td>12 navigation/management sub-commands</td><td>Mostly explicit. <code>init-ship-plan</code> + <code>status</code> are common.</td></tr>
 <tr><td><code>wf-design</code></td><td>22 design sub-commands</td><td>Three modes: workflow stage 2b, workflow + sub-command, freestanding.</td></tr>
 <tr><td><code>wf-docs</code></td><td>Doc pipeline + 7 Diátaxis primitives</td><td>Explicit or auto when the model detects a doc gap.</td></tr>
 <tr><td><code>review</code></td><td>31 review dimensions, 7 sweeps</td><td>Auto-selected based on change context.</td></tr>
@@ -108,8 +110,23 @@
 
 <h2>Auto-invocation vs. explicit dispatch</h2>
 
-<p>Skills with <code>disable-model-invocation: true</code> in frontmatter (currently: <code>wf-meta</code>) never auto-invoke — the user must explicitly run <code>/wf-meta …</code>. The other skills can auto-invoke when the model detects a triggering condition described in the skill's <code>description</code>.</p>
-<div class="pager"><a class="prev" href="../reference/commands.html"><span>← Previous</span>Commands</a><a class="next" href="../reference/wf-design.html"><span>Next →</span>Design pipeline</a></div></main>
+<p>Five of the six routers set <code>disable-model-invocation: true</code> in frontmatter (<code>wf</code>, <code>wf-quick</code>, <code>wf-meta</code>, <code>wf-docs</code>, <code>wf-design</code>) — they never auto-invoke, so you must run them explicitly (<code>/wf …</code>). <code>review</code> is the exception: it omits the flag, so the model <em>can</em> auto-invoke it when it detects a change worth reviewing. The support skills below also auto-invoke on the triggering conditions described in each skill's <code>description</code>.</p>
+
+<h2>Support skills</h2>
+
+<p>Five skills under <code>skills/</code> are not routers — they're focused capabilities the routers load and the model auto-invokes directly:</p>
+
+<table>
+<thead><tr><th>Skill</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>error-analysis</code></td><td>Root-cause analysis of errors, stack traces, and logs. Auto-invokes on debugging, incident-response, or "why is this failing" requests.</td></tr>
+<tr><td><code>test-patterns</code></td><td>Patterns for generating and organizing tests — unit, integration, data factories, coverage — across languages and frameworks.</td></tr>
+<tr><td><code>refactoring-patterns</code></td><td>Safe behaviour-preserving refactoring — extract, rename, move, simplify — with test-baseline and rollback guidance.</td></tr>
+<tr><td><code>wide-event-observability</code></td><td>Designing and implementing wide-event logging with tail sampling for context-rich, queryable observability.</td></tr>
+<tr><td><code>imagegen</code></td><td>Generates an image from a text prompt with automatic fallback. Internal to <code>/wf-design</code>; not user-invocable.</td></tr>
+</tbody>
+</table>
+<div class="pager"><a class="prev" href="../reference/review.html"><span>← Previous</span>/review router</a><a class="next" href="../reference/artifacts.html"><span>Next →</span>Artifacts</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -86,7 +88,7 @@
 
 <div class="summary">
 <table>
-<tr><th>Source of truth</th><td>The admitted types are the <code>oneOf</code> branches in <code>tests/frontmatter.schema.json</code>. The fragment column reflects <code>ALLOWED_FRAGMENT_NAMES</code> in <code>scripts/verify-fragment.mjs</code>.</td></tr>
+<tr><th>Source of truth</th><td>The admitted types are the <code>oneOf</code> branches in <code>tests/frontmatter.schema.json</code>. The fragment column marks which types carry a fragment-bearing renderer; the <strong>enforced</strong> rich-tier set — whose <code>.md</code> writes <em>hard-block</em> (exit 2) without a sibling <code>.yaml</code> — is <code>RICH_TIER_TYPES</code> in <code>hooks/post-write-verify.mjs</code>: review, plan, design, ship-run, rca, benchmark, experiment, instrument, profile, simplify-run, review-command, design-audit, design-critique (13).</td></tr>
 <tr><th>Dispatch</th><td>By frontmatter <code>type</code> → <code>renderers/&lt;type&gt;.mjs</code>. A type with no matching file falls through to the generic <code>fallbackRender</code>.</td></tr>
 <tr><th>Schema</th><td>All types use <code>schema: sdlc/v1</code>.</td></tr>
 </table>
@@ -94,7 +96,7 @@
 
 <h2>Pipeline types (per-workflow)</h2>
 
-<p>Stored under <code>.ai/workflows/&lt;slug&gt;/</code>. Per-slice files use a flat <code>NN-stage-&lt;slice&gt;.md</code> name or the nested <code>slices/&lt;slice&gt;/NN-stage.md</code> layout.</p>
+<p>Stored under <code>.ai/workflows/&lt;slug&gt;/</code>. Per-slice files use a flat <code>NN-stage-&lt;slice&gt;.md</code> name at the slug root — the old nested <code>slices/&lt;slice&gt;/</code> layout is no longer written.</p>
 
 <table>
 <thead><tr><th>type</th><th>producer</th><th>storage path</th><th>renderer</th><th>fragment?</th></tr></thead>
@@ -102,8 +104,8 @@
 <tr><td><code>index</code></td><td><code>/wf intake</code> (control file)</td><td><code>00-index.md</code></td><td>index.mjs</td><td>—</td></tr>
 <tr><td><code>intake</code></td><td><code>/wf intake</code></td><td><code>01-intake.md</code></td><td>intake.mjs</td><td>—</td></tr>
 <tr><td><code>shape</code></td><td><code>/wf shape</code></td><td><code>02-shape.md</code></td><td>shape.mjs</td><td>—</td></tr>
-<tr><td><code>slice-index</code></td><td><code>/wf slice</code></td><td><code>03-slice-index.md</code></td><td>slice-index.mjs</td><td>—</td></tr>
-<tr><td><code>slice</code></td><td><code>/wf slice</code></td><td><code>03-slices/&lt;slice&gt;.md</code></td><td>slice.mjs</td><td>—</td></tr>
+<tr><td><code>slice-index</code></td><td><code>/wf slice</code></td><td><code>03-slice.md</code></td><td>slice-index.mjs</td><td>—</td></tr>
+<tr><td><code>slice</code></td><td><code>/wf slice</code></td><td><code>03-slice-&lt;slice&gt;.md</code></td><td>slice.mjs</td><td>—</td></tr>
 <tr><td><code>plan-index</code></td><td><code>/wf plan</code></td><td><code>04-plan-index.md</code></td><td>plan-index.mjs</td><td>—</td></tr>
 <tr><td><code>plan</code></td><td><code>/wf plan</code></td><td><code>04-plan-&lt;slice&gt;.md</code></td><td>plan.mjs</td><td>yes</td></tr>
 <tr><td><code>implement-index</code></td><td><code>/wf implement</code></td><td><code>05-implement-index.md</code></td><td>implement-index.mjs</td><td>—</td></tr>
@@ -113,8 +115,8 @@
 <tr><td><code>review</code></td><td><code>/wf review</code></td><td><code>07-review.md</code></td><td>review.mjs</td><td>yes</td></tr>
 <tr><td><code>review-command</code></td><td><code>/review &lt;dimension&gt;</code></td><td><code>07-review-&lt;dim&gt;.md</code> or <code>07-review/&lt;dim&gt;.md</code></td><td>review-dimension.mjs <small>(review-command.mjs aliases it)</small></td><td>yes</td></tr>
 <tr><td><code>handoff</code></td><td><code>/wf handoff</code></td><td><code>08-handoff.md</code></td><td>handoff.mjs</td><td>—</td></tr>
-<tr><td><code>ship-run</code></td><td><code>/wf ship</code></td><td><code>ship/&lt;run-id&gt;/09-ship-run.md</code></td><td>ship-run.mjs</td><td>yes</td></tr>
-<tr><td><code>ship-runs-index</code></td><td><code>/wf ship</code></td><td><code>09-ship-runs-index.md</code></td><td>ship-runs-index.mjs</td><td>—</td></tr>
+<tr><td><code>ship-run</code></td><td><code>/wf ship</code></td><td><code>09-ship-run-&lt;run-id&gt;.md</code></td><td>ship-run.mjs</td><td>yes</td></tr>
+<tr><td><code>ship-runs-index</code></td><td><code>/wf ship</code></td><td><code>09-ship-runs.md</code></td><td>ship-runs-index.mjs</td><td>—</td></tr>
 <tr><td><code>retro</code></td><td><code>/wf retro</code></td><td><code>10-retro.md</code></td><td>retro.mjs</td><td>—</td></tr>
 <tr><td><code>announce</code></td><td><code>/wf-meta announce</code></td><td><code>announce.md</code></td><td>announce.mjs</td><td>—</td></tr>
 <tr><td><code>risk-register</code></td><td><code>/wf</code> (risk register)</td><td><code>risk-register.md</code></td><td>risk-register.mjs</td><td>—</td></tr>
@@ -145,9 +147,9 @@
 <thead><tr><th>type</th><th>producer</th><th>storage path</th><th>renderer</th><th>fragment?</th></tr></thead>
 <tbody>
 <tr><td><code>augmentation</code></td><td><code>/wf instrument|experiment|benchmark</code></td><td><code>augmentations/&lt;id&gt;.md</code></td><td>augmentation.mjs <small>(dispatches to subtype)</small></td><td>via subtype</td></tr>
-<tr><td><code>instrument</code> <small>(augmentation-type)</small></td><td><code>/wf instrument</code></td><td><code>04b-instrument-&lt;slice&gt;.md</code> + <code>.yaml</code></td><td>instrument.mjs</td><td>yes</td></tr>
-<tr><td><code>experiment</code> <small>(augmentation-type)</small></td><td><code>/wf experiment</code></td><td><code>04c-experiment-&lt;slice&gt;.md</code> + <code>.yaml</code></td><td>experiment.mjs</td><td>yes</td></tr>
-<tr><td><code>benchmark</code> <small>(augmentation-type)</small></td><td><code>/wf benchmark</code></td><td><code>05c-benchmark-&lt;slice&gt;.md</code> + <code>.yaml</code></td><td>benchmark.mjs</td><td>yes</td></tr>
+<tr><td><code>instrument</code> <small>(augmentation-type)</small></td><td><code>/wf instrument</code></td><td><code>04b-instrument.md</code> + <code>.yaml</code></td><td>instrument.mjs</td><td>yes</td></tr>
+<tr><td><code>experiment</code> <small>(augmentation-type)</small></td><td><code>/wf experiment</code></td><td><code>04c-experiment.md</code> + <code>.yaml</code></td><td>experiment.mjs</td><td>yes</td></tr>
+<tr><td><code>benchmark</code> <small>(augmentation-type)</small></td><td><code>/wf benchmark</code></td><td><code>05c-benchmark.md</code> + <code>.yaml</code></td><td>benchmark.mjs</td><td>yes</td></tr>
 <tr><td><code>profile</code></td><td><code>/wf profile</code></td><td><code>.ai/profiles/&lt;run-id&gt;/01-profile.md</code></td><td>profile.mjs</td><td>yes</td></tr>
 <tr><td><code>rca</code></td><td><code>/wf-quick rca</code></td><td><code>01-rca.md</code> (under the run slug)</td><td>rca.mjs</td><td>yes</td></tr>
 <tr><td><code>simplify-run</code></td><td><code>/wf-quick simplify</code> (standalone)</td><td><code>.ai/simplify/&lt;run-id&gt;.md</code></td><td>simplify-run.mjs</td><td>yes</td></tr>
@@ -238,7 +240,7 @@
   <li><a href="serve.html">Serve daemon</a> — how the rendered types are served.</li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../reference/serve.html"><span>← Previous</span>Serve daemon</a><a class="next" href="../reference/glossary.html"><span>Next →</span>Glossary</a></div></main>
+<div class="pager"><a class="prev" href="../reference/tray.html"><span>← Previous</span>Tray app</a><a class="next" href="../reference/glossary.html"><span>Next →</span>Glossary</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

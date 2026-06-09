@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>/wf router — every lifecycle command in depth · sdlc-workflow</title>
+<title>/wf router — every lifecycle stage in depth · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -80,9 +82,9 @@
 </aside><main>
 <div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf router</div>
 <span class="quadrant reference">reference</span>
-<h1>/wf router — every lifecycle command in depth</h1>
+<h1>/wf router — every lifecycle stage in depth</h1>
 
-<p>The lifecycle router. Dispatches across <strong>10 stages</strong> (intake → retro) and <strong>4 augmentations</strong> (instrument, experiment, benchmark, profile). Every command on this page is invoked as <code>/wf &lt;sub&gt; [args]</code>.</p>
+<p>The lifecycle router. Dispatches across <strong>10 stages</strong> (intake → retro) and <strong>4 augmentations</strong> (instrument, experiment, benchmark, profile). Every entry on this page is invoked as <code>/wf &lt;sub&gt; [args]</code>.</p>
 
 <div class="toc">
 <h3>On this page</h3>
@@ -220,7 +222,7 @@
 
 <hr>
 
-<h2 id="wf-plan">/wf plan &lt;slug&gt; &lt;slice&gt;</h2>
+<h2 id="wf-plan">/wf plan &lt;slug&gt; [slice]</h2>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>4 — repo-aware implementation plan</td></tr>
@@ -277,7 +279,7 @@
 
 <h4>What it reads</h4>
 <ul>
-  <li><code>04-plan-&lt;slice&gt;.md</code>, <code>02-shape.md</code>, <code>02b-design.md</code>, <code>02c-craft.md</code>, <code>04b-instrument-&lt;slice&gt;.md</code>, <code>04c-experiment-&lt;slice&gt;.md</code> when present</li>
+  <li><code>04-plan-&lt;slice&gt;.md</code>, <code>02-shape.md</code>, <code>02b-design.md</code>, <code>02c-craft.md</code>, <code>04b-instrument.md</code>, <code>04c-experiment.md</code> when present</li>
   <li>Existing repo code touched by the slice</li>
 </ul>
 
@@ -292,7 +294,7 @@
 
 <hr>
 
-<h2 id="wf-verify">/wf verify &lt;slug&gt; &lt;slice&gt;</h2>
+<h2 id="wf-verify">/wf verify &lt;slug&gt; [slice]</h2>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>6 — exercise the acceptance criteria, capture evidence</td></tr>
@@ -352,12 +354,16 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <p>Verify writes <code>result: partial</code> (not <code>pass</code>) and appends an entry to <code>00-index.md.runtime-evidence-deferrals[]</code> with <code>{slice, reason, deferred-at, cleared-by: null}</code>. Verify, review, and handoff surface deferrals as <strong>soft warnings</strong> and proceed. <code>/wf ship</code> <strong>hard-blocks</strong> while any deferral has <code>cleared-by: null</code> (see <a href="#wf-ship">/wf ship</a> Step 6.5 below). Clearing requires either a <code>/wf-quick probe</code> run whose captured evidence satisfies the deferred AC (which sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or a re-run of verify in a capable environment.</p>
 
+<h4>Single-round user-gated fix loop <span class="badge">v9.15</span></h4>
+
+<p>After the checks and the AC gate finish, verify owns a <strong>single-round, user-gated fix loop</strong> — it no longer just bounces back to implement. Each failing check and unmet AC is triaged via AskUserQuestion (Fix / Skip / Escalate per issue); chosen fixes spawn sub-agents that apply the minimal patch, then only the affected checks re-run <em>once</em>. It is <strong>one round only</strong>: if anything still fails, verify writes <code>convergence: escalated</code> and routes you to re-invoke <code>/wf verify</code> or to <code>/wf implement</code> as a manual escape. The artifact's <code>convergence:</code> frontmatter records <code>not-needed | converged | escalated</code>.</p>
+
 <h4>If verify fails</h4>
 <p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, route to <code>/wf-meta amend</code>. New v9.14 route: if <code>result: blocked-runtime-evidence-missing</code>, route either to a capable environment for re-run, or annotate with a deferral and proceed (the deferral blocks ship but allows review/handoff).</p>
 
 <hr>
 
-<h2 id="wf-review">/wf review &lt;slug&gt; &lt;slice&gt; [triage]</h2>
+<h2 id="wf-review">/wf review &lt;slug&gt; [slice|triage]</h2>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>7 — multi-domain parallel review dispatch</td></tr>
@@ -380,8 +386,12 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
   <li>Master: <code>07-review-&lt;slice&gt;.md</code> with <code>verdict: ship | ship-with-caveats | dont-ship</code>, <code>commands-run</code>, all finding counts</li>
 </ul>
 
+<h4>Review-owned fix loop <span class="badge">v9.15</span></h4>
+
+<p>Review owns its own fix loop rather than only routing back to implement. For each finding you triage <em>Fix</em>, review spawns one sub-agent at a time (explicit <code>model: sonnet</code>) to apply the patch, records the outcome in the master artifact's <code>## Fix Status</code> section (<code>Patched</code> / <code>Could not fix</code>), and re-checks the result against <code>git diff HEAD</code>. Deferred or skipped findings are recorded with a reason, never silently dropped.</p>
+
 <h4>Triage mode</h4>
-<p><code>/wf review &lt;slug&gt; &lt;slice&gt; triage</code> re-opens prior findings and walks the user through deferred items.</p>
+<p><code>/wf review &lt;slug&gt; triage</code> re-opens prior findings and walks the user through deferred items.</p>
 
 <hr>
 
@@ -394,7 +404,11 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 <tr><th>Default next</th><td><code>/wf ship &lt;slug&gt;</code> if verdict <code>ready</code></td></tr>
 </table></div>
 
-<p>Aggregates ALL complete slices into one PR by default. Pass a slice slug as the second arg only when each slice ships as its own PR. The big v9.5.0 addition is the <strong>PR-readiness block</strong>: commitlint pass, public-surface drift check, doc-mirror regen, PR comment triage loop, rebase onto base, live PR readiness check. Outputs a single <code>readiness-verdict</code> that ship gates on.</p>
+<p>Aggregates ALL complete slices into one PR by default. Pass a slice slug as the second arg only when each slice ships as its own PR. Handoff <strong>refuses</strong> when any in-scope slice's review verdict is <code>dont-ship</code> or carries unresolved blocker findings.</p>
+
+<p>The <strong>PR-readiness block</strong> (v9.5.0, extended v9.41.0) runs: commitlint pass, public-surface drift check, doc-mirror regen, <strong>T5.0 — watch CI to a terminal state and give bot reviews a bounded window to settle</strong> (added v9.41.0 so readiness is judged on real signal, not a stale <code>gh pr view</code> snapshot), the PR comment triage loop (T5.1), rebase onto base (T5.2), and a final live readiness re-watch (T5.3). It outputs a single <code>readiness-verdict</code> that ship gates on.</p>
+
+<p>The review-file layout handoff checks depends on <code>review-scope</code> in <code>00-index.md</code>: <code>per-slice</code> requires a <code>07-review-&lt;slice&gt;.md</code> for every slice; <code>slug-wide</code> requires a single <code>07-review.md</code>.</p>
 
 <h4>What it reads</h4>
 <ul>
@@ -423,28 +437,28 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 <tr><th>Default next</th><td><code>/wf retro &lt;slug&gt;</code></td></tr>
 </table></div>
 
-<p>Walks the 13-step ship sequence. Each step is independently re-runnable (detects already-done state before acting). Resumes paused runs.</p>
+<p>Ship first runs a short pre-flight: resolve the slug, read the plan + <code>00-index.md</code> + the handoff verdict, run the runtime-evidence deferral gate (Step 6.5 below), detect paused runs, and mint a <code>run-id</code>. Then it walks the <strong>13-step run sequence</strong> — each step independently re-runnable (detects already-done state before acting), so a resumed run continues from where it stopped.</p>
 
-<h4>13 steps (plus Step 6.5)</h4>
+<h4>The 13-step run sequence</h4>
 <ol>
-  <li>Orient — read plan, handoff verdict, detect paused runs.</li>
-  <li>Pre-flight — version bump, secrets check, changelog regen.</li>
-  <li>Publish dry-run — mandatory if plan has one.</li>
-  <li>Rollout questions — strategy, window, stakeholders.</li>
-  <li>Freshness delta — research only what changed since last successful run.</li>
+  <li>Pre-flight — version bump, secrets check, changelog regen (idempotent).</li>
+  <li>Publish dry-run — mandatory if the plan sets one.</li>
+  <li>Rollout questions — strategy, window, stakeholders (per-run, never re-asked).</li>
+  <li>Freshness pass — research only what changed since the last successful run.</li>
   <li>Go/No-Go — AskUserQuestion gate.</li>
-  <li>Merge — gh pr merge (only if ship-meaning includes merging).</li>
-  <li>Tag + release — for <code>tag-on-main</code> trigger.</li>
-  <li>Release-workflow watch — gh run watch; recovery playbooks on failure.</li>
-  <li>Post-publish polling — per <code>plan.post-publish-checks</code>, bounded by propagation window.</li>
-  <li>Post-release version bump — for projects with snapshots / dev versions.</li>
+  <li>Merge — <code>gh pr merge</code> (only if ship-meaning includes merging).</li>
+  <li>Tag + release — for <code>release-trigger: tag-on-main</code>.</li>
+  <li>Release-workflow watch — <code>gh run watch</code>; recovery playbooks on failure.</li>
+  <li>Post-publish polling — per <code>plan.post-publish-checks</code>, bounded by the propagation window.</li>
+  <li>Post-release version bump — for projects with snapshot / dev versions.</li>
   <li>Update <code>09-ship-runs.md</code> index.</li>
-  <li>Write the run artifact.</li>
+  <li>Adaptive routing — recommend the next stage.</li>
+  <li>Write <code>09-ship-run-&lt;run-id&gt;.md</code> (+ sibling <code>.yaml</code> / <code>.html.fragment</code>).</li>
 </ol>
 
 <h4>Step 6.5 — Runtime-evidence deferral gate (HARD BLOCK) <span class="badge">v9.14</span></h4>
 
-<p>Inserted between Step 6 (Go/No-Go) and Step 7 (Merge). Parses <code>runtime-evidence-deferrals</code> from <code>00-index.md</code> (treated as empty if absent on older workflows). For every entry whose <code>cleared-by: null</code>, the slug has an open runtime-evidence deferral that must be cleared before ship.</p>
+<p>Runs in ship's pre-flight — orchestration step 6.5, after reading the handoff verdict and <em>before</em> the 13-step run sequence begins. Parses <code>runtime-evidence-deferrals</code> from <code>00-index.md</code> (treated as empty if absent on older workflows). For every entry whose <code>cleared-by: null</code>, the slug has an open runtime-evidence deferral that must be cleared before ship.</p>
 
 <p>If any entry has <code>cleared-by: null</code>, ship <strong>STOPS</strong> with a list of the open deferrals and the slices they're attached to. The user clears each by one of:</p>
 <ul>
@@ -486,12 +500,12 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <hr>
 
-<h2 id="wf-instrument">/wf instrument &lt;slug&gt; &lt;slice&gt;</h2>
+<h2 id="wf-instrument">/wf instrument &lt;slug&gt; [slice]</h2>
 
 <div class="summary"><table>
 <tr><th>Type</th><td>Augmentation — observability</td></tr>
 <tr><th>Requires</th><td><code>02-shape.md</code> + a defined slice</td></tr>
-<tr><th>Produces</th><td><code>04b-instrument-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Produces</th><td><code>04b-instrument.md</code></td></tr>
 <tr><th>Registers as</th><td>Entry in <code>00-index.md</code>'s <code>augmentations:</code> array</td></tr>
 </table></div>
 
@@ -505,11 +519,11 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <hr>
 
-<h2 id="wf-experiment">/wf experiment &lt;slug&gt; &lt;slice&gt;</h2>
+<h2 id="wf-experiment">/wf experiment &lt;slug&gt; [slice]</h2>
 
 <div class="summary"><table>
 <tr><th>Type</th><td>Augmentation — feature flag + cohort design</td></tr>
-<tr><th>Produces</th><td><code>04c-experiment-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Produces</th><td><code>04c-experiment.md</code></td></tr>
 </table></div>
 
 <p>For behaviour changes you want to gate behind a flag with a measured rollout. Writes the cohort split design, success metrics, rollback signal. Implement reads it and adds the gating code.</p>
@@ -522,11 +536,11 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <hr>
 
-<h2 id="wf-benchmark">/wf benchmark &lt;slug&gt; &lt;slice&gt;</h2>
+<h2 id="wf-benchmark">/wf benchmark &lt;slug&gt; [baseline|compare]</h2>
 
 <div class="summary"><table>
 <tr><th>Type</th><td>Augmentation — perf baseline + compare</td></tr>
-<tr><th>Produces</th><td><code>05c-benchmark-&lt;slice&gt;.md</code></td></tr>
+<tr><th>Produces</th><td><code>05c-benchmark.md</code></td></tr>
 </table></div>
 
 <p>Two-phase: run before implement to capture baseline; run after implement (compare mode) to diff against baseline. Compare output flows into <code>06-verify-&lt;slice&gt;.md</code> evidence and into handoff as "Performance baseline taken; verify-stage comparison: &lt;within tripwires | regression&gt;".</p>
@@ -564,7 +578,7 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
   <li><a href="../tutorials/first-workflow.html">First workflow tutorial</a> — these commands in practice.</li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../reference/skills.html"><span>← Previous</span>Skills</a><a class="next" href="../reference/wf-quick.html"><span>Next →</span>/wf-quick router</a></div></main>
+<div class="pager"><a class="prev" href="../reference/commands.html"><span>← Previous</span>Routers</a><a class="next" href="../reference/wf-quick.html"><span>Next →</span>/wf-quick router</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

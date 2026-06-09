@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Commands reference · sdlc-workflow</title>
+<title>Routers reference · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -78,11 +80,11 @@
   </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Commands</div>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Routers</div>
 <span class="quadrant reference">reference</span>
-<h1>Commands reference</h1>
+<h1>Routers reference</h1>
 
-<p>The hub. Every slash command at a glance, with links into the per-router detail pages for depth.</p>
+<p>The hub. Every skill-mode router at a glance, with links into the per-router detail pages for depth. (These routers live in <code>skills/</code> and are invoked as slash commands; <code>/wf</code>, <code>/wf-quick</code>, etc. are skills, not files in <code>commands/</code>.)</p>
 
 <div class="callout note">
 <strong>Looking for detail?</strong>
@@ -99,7 +101,7 @@ This page is the overview. For per-command depth — argument hints, what it rea
 
 <h2>/wf — the lifecycle router</h2>
 
-<p>Dispatches across 13 lifecycle stages + 4 augmentations. The stage commands all take <code>&lt;slug&gt;</code>; per-slice commands additionally take <code>&lt;slice-slug&gt;</code>.</p>
+<p>Dispatches across 10 lifecycle stages + 4 augmentations. The stage commands all take <code>&lt;slug&gt;</code>; per-slice commands additionally take <code>&lt;slice-slug&gt;</code>.</p>
 
 <table>
 <thead><tr><th>Command</th><th>Args</th><th>Stage</th><th>Notes</th></tr></thead>
@@ -107,16 +109,16 @@ This page is the overview. For per-command depth — argument hints, what it rea
 <tr><td><code>/wf intake</code></td><td><code>"description"</code></td><td>1</td><td>Entry point. Creates the workflow directory and slug.</td></tr>
 <tr><td><code>/wf shape</code></td><td><code>&lt;slug&gt;</code></td><td>2</td><td>Deep interview + parallel web research.</td></tr>
 <tr><td><code>/wf slice</code></td><td><code>&lt;slug&gt;</code></td><td>3</td><td>Decompose into vertical slices.</td></tr>
-<tr><td><code>/wf plan</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>4</td><td>Repo-aware plan with reuse scan.</td></tr>
+<tr><td><code>/wf plan</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>4</td><td>Repo-aware plan with reuse scan. Slice optional — defaults to the selected slice.</td></tr>
 <tr><td><code>/wf implement</code></td><td><code>&lt;slug&gt; &lt;slice&gt; [reviews]</code></td><td>5</td><td><code>reviews</code> mode applies review-finding fixes.</td></tr>
-<tr><td><code>/wf verify</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>6</td><td>Exercises acceptance criteria; captures evidence.</td></tr>
-<tr><td><code>/wf review</code></td><td><code>&lt;slug&gt; &lt;slice&gt; [triage]</code></td><td>7</td><td>Multi-domain parallel review.</td></tr>
+<tr><td><code>/wf verify</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>6</td><td>Exercises acceptance criteria; captures evidence. User-gated single-round fix loop; writes <code>convergence:</code>.</td></tr>
+<tr><td><code>/wf review</code></td><td><code>&lt;slug&gt; [slice|triage]</code></td><td>7</td><td>Multi-domain parallel review; owns a per-finding fix loop.</td></tr>
 <tr><td><code>/wf handoff</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>8</td><td>Aggregates complete slices; runs PR-readiness block.</td></tr>
 <tr><td><code>/wf ship</code></td><td><code>&lt;slug&gt; [environment]</code></td><td>9</td><td>Plan-driven, replayable.</td></tr>
 <tr><td><code>/wf retro</code></td><td><code>&lt;slug&gt;</code></td><td>10</td><td>Extract concrete improvement actions.</td></tr>
-<tr><td><code>/wf instrument</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>aug</td><td>Observability augmentation.</td></tr>
-<tr><td><code>/wf experiment</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>aug</td><td>Feature flag + cohort design.</td></tr>
-<tr><td><code>/wf benchmark</code></td><td><code>&lt;slug&gt; &lt;slice&gt;</code></td><td>aug</td><td>Performance baseline + compare.</td></tr>
+<tr><td><code>/wf instrument</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>aug</td><td>Observability augmentation. Writes <code>04b-instrument.md</code>.</td></tr>
+<tr><td><code>/wf experiment</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>aug</td><td>Feature flag + cohort design. Writes <code>04c-experiment.md</code>.</td></tr>
+<tr><td><code>/wf benchmark</code></td><td><code>&lt;slug&gt; [baseline|compare]</code></td><td>aug</td><td>Performance baseline + compare. Writes <code>05c-benchmark.md</code>.</td></tr>
 <tr><td><code>/wf profile</code></td><td><code>&lt;area&gt;</code></td><td>aug</td><td>Profiling pass (freestanding).</td></tr>
 </tbody>
 </table>
@@ -152,16 +154,16 @@ This page is the overview. For per-command depth — argument hints, what it rea
 <tr><td><code>/wf-meta extend</code></td><td><code>&lt;scope&gt; &lt;target&gt;</code></td><td>Add new slices to an existing workflow.</td></tr>
 <tr><td><code>/wf-meta skip</code></td><td><code>&lt;stage&gt; [slug]</code></td><td>Mark a stage skipped with a stub artifact.</td></tr>
 <tr><td><code>/wf-meta close</code></td><td><code>&lt;reason&gt; [slug]</code></td><td>Archive a workflow (shipped/abandoned/superseded/archived/stuck).</td></tr>
-<tr><td><code>/wf-meta how</code></td><td><code>&lt;mode&gt; &lt;topic&gt;</code></td><td>Five-mode question answering.</td></tr>
+<tr><td><code>/wf-meta how</code></td><td><code>&lt;question&gt; · &lt;slug&gt; plan|shape|slice|review|findings</code></td><td>Five-mode Q&amp;A; <code>--research</code> / <code>--quick</code> force a mode.</td></tr>
 <tr><td><code>/wf-meta announce</code></td><td><code>[slug]</code></td><td>Diátaxis announcement for a completed workflow.</td></tr>
-<tr><td><code>/wf-meta init-ship-plan</code></td><td><code>[--from-template &lt;kind&gt;]</code></td><td>Author <code>.ai/ship-plan.md</code> (one-time per project) — the full pipeline contract: outbound release (Blocks A–G) + inbound developer experience (Blocks H–J: code-quality gates, commit/PR-title convention, local git hooks, branch protection, CODEOWNERS, dependency automation).</td></tr>
+<tr><td><code>/wf-meta init-ship-plan</code></td><td><code>[--from-template &lt;kind&gt;]</code></td><td>Author <code>.ai/ship-plan.md</code> (one-time per project) — the full pipeline contract: outbound release (Blocks A–G) + inbound developer experience (Blocks H–K: code-quality gates, local developer experience, repo governance, and security/supply-chain gates).</td></tr>
 <tr><td><code>/wf-meta build-pipeline</code></td><td><code>[--dry-run]</code></td><td>Audit the repo against <code>.ai/ship-plan.md</code> and build the entire CI/CD + DX pipeline: release + pre-merge workflows, code-quality + commit/PR-title CI, git hooks, dev-experience files, governance files, and (gated) branch protection via <code>gh api</code>. No file is overwritten.</td></tr>
 </tbody>
 </table>
 
 <h2>/wf-design — design pipeline</h2>
 
-<p>22 sub-commands across three modes (workflow stage 2b, workflow + sub-command, freestanding). The main ones: <code>shape</code>, <code>craft</code>, <code>audit</code>, <code>critique</code>, plus 15 transformations (e.g., <code>colorize</code>, <code>typeset</code>, <code>animate</code>, <code>harden</code>, <code>quieter</code>, <code>bolder</code>, <code>delight</code>, <code>distill</code>, <code>clarify</code>, <code>adapt</code>, <code>layout</code>, <code>optimize</code>, <code>polish</code>, <code>overdrive</code>, <code>impeccable</code>) and 3 setup/extract operators (<code>setup</code>, <code>teach</code>, <code>extract</code>).</p>
+<p>22 sub-commands across three modes (workflow stage 2b, workflow + sub-command, freestanding). The main ones: <code>shape</code>, <code>craft</code>, <code>audit</code>, <code>critique</code>, plus 15 transformations (e.g., <code>colorize</code>, <code>typeset</code>, <code>animate</code>, <code>harden</code>, <code>quieter</code>, <code>bolder</code>, <code>delight</code>, <code>distill</code>, <code>clarify</code>, <code>adapt</code>, <code>layout</code>, <code>optimize</code>, <code>polish</code>, <code>overdrive</code>, <code>onboard</code>) and 3 setup/extract operators (<code>setup</code>, <code>teach</code>, <code>extract</code>).</p>
 
 <h2>/wf-docs — documentation pipeline</h2>
 
@@ -170,7 +172,7 @@ This page is the overview. For per-command depth — argument hints, what it rea
 <h2>/review — code review</h2>
 
 <p>Per-dimension or named-sweep across 31 dimensions and 7 sweeps via parallel sub-agent dispatch. Driven entirely by an LLM-derived selection — pass the change context and the router picks which dimensions apply.</p>
-<div class="pager"><a class="prev" href="../reference/pipeline.html"><span>← Previous</span>Pipeline</a><a class="next" href="../reference/skills.html"><span>Next →</span>Skills</a></div></main>
+<div class="pager"><a class="prev" href="../reference/pipeline.html"><span>← Previous</span>Pipeline</a><a class="next" href="../reference/wf.html"><span>Next →</span>/wf router</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

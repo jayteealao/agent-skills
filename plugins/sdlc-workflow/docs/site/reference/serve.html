@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -103,6 +105,12 @@
 
 <p>The per-repo <code>.ai/sdlc-config.json</code> carries only <code>view.hub.enabled</code>. The two files share zero fields, so there are no precedence rules to reason about. Putting a serve setting (host, port, tailscale&hellip;) in the per-repo file is rejected — the per-repo schema is <code>additionalProperties: false</code>.</p>
 
+<h2>Branch-aware multi-repo hub <span class="badge">v9.49</span></h2>
+
+<p>The hub serves every registered repo from one process and groups the landing inbox <strong>repo → branch → slug</strong>. Registry identity is <strong>repo-scoped</strong> (<code>REGISTRY_VERSION = 2</code>): a repo's id is <code>hash(repoRoot)</code> alone — branch is no longer part of the digest, so switching branches no longer forks a repo into duplicate registry entries. Per-slug rows carry branch metadata (<code>branch</code>, <code>branchStrategy</code>, <code>baseBranch</code>, <code>prNumber</code>, <code>prUrl</code>) and a soft <strong>liveness badge</strong> — <code>live</code> / <code>merged</code> / <code>gone</code> / <code>unknown</code> — so stale branches are visually de-emphasised. Liveness is advisory and never blocks anything (see <a href="../explanation/branch-strategy.html">Branch strategy</a>).</p>
+
+<p>Prefer a GUI to manage the hub? The <a href="tray.html">tray app</a> (<code>npm run tray</code>) puts hub status and controls in your system tray.</p>
+
 <h2>Configuration reference</h2>
 
 <p>Every key in <code>~/.sdlc/hub-config.json</code> (defaults shown — the file is created with these on first run):</p>
@@ -124,6 +132,23 @@
 <tr><td><code>tailscale.acknowledgedPublic</code></td><td>boolean</td><td><code>false</code></td><td>One-time, per-machine acknowledgement that exposing the server publishes <em>every</em> registered repo at once. Required for any non-loopback bind.</td></tr>
 </tbody>
 </table>
+
+<h2>Per-repo render &amp; bootstrap keys</h2>
+
+<p>Separate from the machine-wide hub config, each repo's <code>.ai/sdlc-config.json</code> may tune how its own view is built under <code>view.render</code> and <code>view.bootstrap</code> (all optional):</p>
+
+<table>
+<thead><tr><th>Key</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>view.render.concurrency</code></td><td><code>4</code></td><td>Max concurrent render jobs during a bootstrap pass (1–32).</td></tr>
+<tr><td><code>view.render.debounceMs</code></td><td><code>2000</code></td><td>PostToolUse render debounce window (0–60000 ms).</td></tr>
+<tr><td><code>view.bootstrap.enabled</code></td><td><code>true</code></td><td>Run the SessionStart bootstrap render pass at all.</td></tr>
+<tr><td><code>view.bootstrap.renderMissing</code></td><td><code>true</code></td><td>Render views for active workflows that have none yet.</td></tr>
+<tr><td><code>view.bootstrap.renderStale</code></td><td><code>true</code></td><td>Re-render views whose storage mtime is newer than the view.</td></tr>
+</tbody>
+</table>
+
+<p><code>view.serve</code> is <strong>not</strong> a per-repo key — it was removed in v9.38.0 (a breaking change). Any <code>view.serve</code> block in a repo config is rejected by the schema; serve/host/port/Tailscale settings live only in <code>~/.sdlc/hub-config.json</code>. Upgraders with an old <code>view.serve</code> block should move those values there.</p>
 
 <h2>Security model</h2>
 
@@ -160,7 +185,7 @@
   <li>Reads <code>~/.sdlc/hub-config.json</code> (host, port, tailscale, liveReload, perRepoServe).</li>
   <li>If <code>perRepoServe: false</code> — reaps any running per-repo daemon and returns; the hub serves this repo at <code>/r/&lt;id&gt;/</code>.</li>
   <li>If a hub is alive (PID-file-gated probe of <code>~/.sdlc/hub.pid</code>) — defers to it, reaping any redundant per-repo daemon.</li>
-  <li>Otherwise spawns the standalone fallback daemon (<code>scripts/render-sunflower-serve.mjs</code>), writing a PID file at <code>.ai/_view/.serve.pid</code>.</li>
+  <li>Otherwise spawns the standalone fallback daemon — <code>dist/render-sunflower-serve.mjs</code> in installs, falling back to <code>scripts/render-sunflower-serve.mjs</code> for maintainers before their first build (<code>resolveEntrypoint</code> prefers the committed bundle) — writing a PID file at <code>.ai/_view/.serve.pid</code>.</li>
 </ol>
 
 <p>A running daemon that reports a different plugin <code>version</code> on its health endpoint is treated as stale and reaped, so a new install deterministically replaces the old daemon's code.</p>
@@ -169,7 +194,7 @@
 
 <p><code>GET /__sdlc/health</code> &rarr; <code>200</code> with a JSON body. The supervisor uses the reported <code>version</code> for stale-daemon reaping:</p>
 
-<pre><code>{ "status": "ok", "pid": 12345, "version": "9.38.0", ... }</code></pre>
+<pre><code>{ "status": "ok", "pid": 12345, "version": "&lt;plugin-version&gt;", ... }</code></pre>
 
 <h2>Troubleshooting</h2>
 
@@ -191,7 +216,7 @@
   <li><a href="types.html">Artifact types</a> — what the server projects.</li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../reference/hooks.html"><span>← Previous</span>Hooks</a><a class="next" href="../reference/types.html"><span>Next →</span>Artifact types</a></div></main>
+<div class="pager"><a class="prev" href="../reference/hooks.html"><span>← Previous</span>Hooks</a><a class="next" href="../reference/tray.html"><span>Next →</span>Tray app</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

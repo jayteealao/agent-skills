@@ -18,7 +18,7 @@ canonical pages and an optional local/Tailscale server.
 .ai/profiles/<run-id>/01-profile.md
 PRODUCT.md / DESIGN.md / .ai/ship-plan.md
        │
-       ▼  scripts/render-sunflower.mjs
+       ▼  dist/render-sunflower.mjs   (committed bundle; scripts/ for maintainers)
        ▼
 .ai/_view/<slug>/<phase>/.../INDEX.html
 ```
@@ -187,8 +187,9 @@ rejected by the schema):
 A repo participates in serving via `view.hub.enabled` in its
 `.ai/sdlc-config.json`; the machine-wide hub then serves it at `/r/<id>/`. When a
 repo opts out of the hub (`view.hub.enabled: false`) and `perRepoServe` is true,
-the standalone `scripts/render-sunflower-serve.mjs` daemon serves just that repo
-using these machine settings. The server serves only `.ai/_view`, blocks
+the standalone serve daemon (`dist/render-sunflower-serve.mjs`, falling back to
+`scripts/` for maintainers — `resolveEntrypoint` prefers the committed bundle)
+serves just that repo using these machine settings. The server serves only `.ai/_view`, blocks
 traversal, has no directory listings, exposes `/__sdlc/health` with
 `status: "ok"`, and streams `reload` SSE events from `/__sdlc/events`. Host
 `0.0.0.0` is refused unless Tailscale integration is explicitly enabled.
@@ -290,9 +291,9 @@ Edit `assets/sdlc.css`. The top of the file is a token block (`--paper`,
 shared class catalogue is documented in the
 [SUNFLOWER-VIEW-PLAN](../../SUNFLOWER-VIEW-PLAN.md) §"CSS design system".
 
-Re-render with `node scripts/render-sunflower.mjs --clean` to pick up CSS
+Re-render with `node dist/render-sunflower.mjs --clean` to pick up CSS
 changes everywhere; for incremental work, the version cache-bust query string
-(`?v=9.27.0`) is bumped by the plugin version.
+(`?v=<plugin-version>`) is bumped by the plugin version.
 
 ## Troubleshooting
 
@@ -301,7 +302,7 @@ changes everywhere; for incremental work, the version cache-bust query string
 | Page renders without styles | View tree served at a path other than `/sdlc` — pass `--path /your-path` to the serve wrapper, or override `--asset-base` on the renderer. |
 | `Cannot find package 'ajv'` (or `markdown-it`/`js-yaml`) | You're running a **source** script (`scripts/…`) without the dev toolchain. Run the committed bundle instead (`node dist/…` — deps inlined), or, if developing, `npm install` then `npm run build`. End users never hit this — the hooks run from `dist/`. |
 | Hook fires but view stays stale | Check `.ai/_view/.render-errors.log`. Or `.render-suppress` is set. |
-| Session start does not refresh the view | Check `.ai/_view/.bootstrap.log` and `.ai/_view/.bootstrap.pid`. Run `node scripts/render-sunflower.mjs --bootstrap --dry-run` for the planned jobs. |
-| Local server does not start | Check `.ai/_view/.serve.pid`, `view.serve.enabled`, and `/__sdlc/health`. Host `0.0.0.0` requires Tailscale config. |
+| Session start does not refresh the view | Check `.ai/_view/.bootstrap.log` and `.ai/_view/.bootstrap.pid`. Run `node dist/render-sunflower.mjs --bootstrap --dry-run` for the planned jobs. |
+| Local server does not start | Check `.ai/_view/.serve.pid`, `perRepoServe` in `~/.sdlc/hub-config.json`, and `/__sdlc/health`. Host `0.0.0.0` requires Tailscale config. |
 | `[render] no renderer for: <type>` warning | Add `renderers/<type>.mjs`. The fallback renderer still emits a usable page. |
 | Fragment shows raw HTML | Check 7 of `verify-router-migration.mjs` — the fragment likely violates the gallery contract. |

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -83,6 +85,8 @@
 <h1>Triage PR comments</h1>
 
 <p>You opened a PR via <code>/wf handoff</code>. CodeRabbit, Greptile, Gemini, or a human reviewer left comments. v9.5.0 added <strong>T5.1 — a bounded triage loop</strong> as part of the handoff PR-readiness block. This page is the operator's guide.</p>
+
+<div class="callout note"><strong>T5.0 runs first.</strong> Since v9.41.0, handoff watches CI to a terminal state and gives bot reviews a bounded window to land (<strong>T5.0</strong>) <em>before</em> this triage loop starts — so the loop classifies comments that have actually posted, not a half-empty snapshot. If CI is red, T5.0 delegates fixes to a sub-agent and re-watches; it never blocks on humans (it routes the verdict to <code>awaiting-input</code> instead).</div>
 
 <div class="summary">
 <table>
@@ -177,7 +181,7 @@ chatgpt-codex-connector[bot]</code></pre>
   <li><a href="amend-or-extend.html">Amend or extend</a> — when triage findings are actually spec issues.</li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../how-to/use-augmentations.html"><span>← Previous</span>Use augmentations</a><a class="next" href="../how-to/author-ship-plan.html"><span>Next →</span>Author a ship plan</a></div></main>
+<div class="pager"><a class="prev" href="../how-to/use-design.html"><span>← Previous</span>Use the design pipeline</a><a class="next" href="../how-to/author-ship-plan.html"><span>Next →</span>Author a ship plan</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

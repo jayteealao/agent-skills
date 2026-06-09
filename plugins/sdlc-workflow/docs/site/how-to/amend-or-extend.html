@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -99,7 +101,7 @@
 <pre><code>/wf-meta amend &lt;slug&gt; from-review    # seed from 07-review-&lt;slice&gt;.md findings
 /wf-meta amend &lt;slug&gt; from-retro     # seed from 10-retro.md
 /wf-meta amend &lt;slug&gt;                # describe the correction manually
-/wf-meta amend ship-plan             # edit one block (A-G) of .ai/ship-plan.md</code></pre>
+/wf-meta amend ship-plan             # edit one block (A-K) of .ai/ship-plan.md</code></pre>
 
 <p>After amend writes, you usually run <code>/wf plan &lt;slug&gt; &lt;slice&gt;</code> to update the plan, then <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code>.</p>
 
@@ -136,7 +138,7 @@
 <div class="related">
 <h3>Related</h3>
 <ul>
-  <li><a href="../reference/commands.html">Commands reference</a> — full <code>/wf-meta amend</code> argument matrix.</li>
+  <li><a href="../reference/commands.html">Routers reference</a> — full <code>/wf-meta amend</code> argument matrix.</li>
   <li><a href="triage-pr-comments.html">Triage PR comments</a> — the new T5.1 loop sometimes routes findings to amend.</li>
 </ul>
 </div>

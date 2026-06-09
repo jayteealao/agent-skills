@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -113,12 +115,14 @@
 <h2 id="fix">/wf-quick fix "&lt;description&gt;"</h2>
 
 <div class="summary"><table>
-<tr><th>workflow-type</th><td><code>quick</code></td></tr>
-<tr><th>Produces</th><td><code>00-index.md</code>, <code>01-quick.md</code>, <code>05-implement.md</code> (3 artifacts total)</td></tr>
-<tr><th>Stages skipped</th><td>shape, slice, plan, verify, review, retro</td></tr>
+<tr><th>workflow-type</th><td><code>fix</code> (legacy slugs use <code>quick</code>)</td></tr>
+<tr><th>Produces</th><td><code>00-index.md</code> + <code>01-fix.md</code> (compressed brief + shape + plan; <code>type: fix-plan</code>)</td></tr>
+<tr><th>Collapses</th><td>shape, design, slice, plan — merged into <code>01-fix.md</code>, then routes to <code>/wf implement</code> for the standard execute → verify → review → handoff → ship lifecycle.</td></tr>
 </table></div>
 
-<p>For one-character typos, one-line patches, single-file docs edits. The compressed shape skips shape's deep interview — acceptance criteria are inlined.</p>
+<p>For one-character typos, one-line patches, single-file docs edits. The compressed shape skips shape's deep interview — acceptance criteria are inlined. Renamed from <code>quick</code> in v9.18.0; passing <code>quick</code> as the token now prints a redirect to <code>fix</code>.</p>
+
+<div class="callout note"><strong>Slug-mode.</strong> If the first argument is an existing slug, <code>fix</code> switches to slug-mode: instead of a new workflow it writes a single compressed slice <code>03-slice-fix-&lt;descriptor&gt;.md</code> (<code>type: slice</code>, <code>slice-type: fix</code>, <code>compressed: true</code>) into that workflow and leaves its stage, branch, and progress untouched.</div>
 
 <h4>Interview pattern</h4>
 <p>2–3 questions: what file, what's the fix, do you want a test added.</p>
@@ -178,10 +182,10 @@
 
 <div class="summary"><table>
 <tr><th>Produces</th><td><code>01-rca.md</code></td></tr>
-<tr><th>Forwards to</th><td><code>/wf shape</code> (which reads <code>01-rca.md</code> as rich context)</td></tr>
+<tr><th>Recommends</th><td>One of <code>/wf plan &lt;slug&gt;</code> (default, non-trivial fixes), <code>/wf-quick fix</code> (small fixes), or <code>/wf-quick hotfix</code> (active production incident) — chosen from the diagnosis. Low root-cause confidence + high blast radius routes to human triage, not an auto-route.</td></tr>
 </table></div>
 
-<p>Root-cause analysis with parallel sub-agents. Reproduces the bug, captures the failing trace, identifies the cause without committing to a fix. Output is forwardable: subsequent <code>/wf shape</code> reads <code>01-rca.md</code> as context behind the synthesized spec.</p>
+<p>Root-cause analysis with parallel sub-agents. Reproduces the bug, captures the failing trace, identifies the cause without committing to a fix. The artifact recommends a downstream command based on the diagnosis — it does <em>not</em> forward to <code>/wf shape</code>.</p>
 
 <h4>Sub-agent dispatch</h4>
 <ul>
@@ -209,7 +213,7 @@
 <div class="summary"><table>
 <tr><th>Mode</th><td><strong>Slug-mode only.</strong> Refuses to run without an existing slug — runtime-truth verification only makes sense against work that has been implemented.</td></tr>
 <tr><th>Produces</th><td><code>.ai/workflows/&lt;slug&gt;/03-slice-probe-&lt;descriptor&gt;.md</code> (compressed slice; <code>slice-type: probe</code>, <code>compressed: true</code>, <code>origin: wf-quick/probe</code>). Plus an evidence dir <code>probe-evidence/&lt;descriptor&gt;/</code> with screenshots, stdout, response bodies, and log lines captured during the drive.</td></tr>
-<tr><th>Forwards to</th><td>Depends on findings: <code>findings-count: 0</code> → <code>/wf-meta status &lt;slug&gt;</code>; small fix → <code>/wf-quick quick &lt;slug&gt; probe-&lt;descriptor&gt;</code>; non-trivial → <code>/wf plan &lt;slug&gt; probe-&lt;descriptor&gt;</code>; <code>status: awaiting-environment</code> → re-run after applying remediation.</td></tr>
+<tr><th>Forwards to</th><td>Depends on findings: <code>findings-count: 0</code> → <code>/wf-meta status &lt;slug&gt;</code>; small fix → <code>/wf-quick fix &lt;slug&gt; probe-&lt;descriptor&gt;</code>; non-trivial → <code>/wf plan &lt;slug&gt; probe-&lt;descriptor&gt;</code>; <code>status: awaiting-environment</code> → re-run after applying remediation.</td></tr>
 <tr><th>Modifies</th><td><code>00-index.md.workflow-files</code>, <code>00-index.md.compressed-slices[]</code>, and (if captured evidence satisfies a deferred AC) <code>00-index.md.runtime-evidence-deferrals[i].cleared-by: probe-&lt;descriptor&gt;</code>. The slug's lifecycle stage, status, branch, and progress are <em>not</em> touched — probe is additive.</td></tr>
 </table></div>
 
@@ -269,7 +273,7 @@
 <ul>
   <li>You don't have a slug yet — probe is slug-mode only by design. Run <code>/wf intake</code> first if the work isn't started.</li>
   <li>The symptom is a code-correctness failure (test failing, type error, build broken) and you'd rather read code than run it → <code>/wf-quick rca &lt;symptom&gt;</code>.</li>
-  <li>You want to fix the defect inline. Probe never edits code — route findings through the recommended next command (<code>/wf-quick quick</code> or <code>/wf plan</code>).</li>
+  <li>You want to fix the defect inline. Probe never edits code — route findings through the recommended next command (<code>/wf-quick fix</code> or <code>/wf plan</code>).</li>
 </ul>
 
 <hr>
@@ -299,7 +303,7 @@
 <h4>When NOT to use</h4>
 <ul>
   <li>You have a symptom and want to find the root cause → <code>/wf-quick rca</code>.</li>
-  <li>You want to understand how the area works, not generate options → <code>/wf-docs how</code>.</li>
+  <li>You want to understand how the area works, not generate options → <code>/wf-meta how</code>.</li>
   <li>You already know which approach you want → skip straight to <code>/wf-quick fix</code> or <code>/wf intake</code>.</li>
 </ul>
 
@@ -309,7 +313,7 @@
 
 <div class="summary"><table>
 <tr><th>Produces</th><td><code>01-discover.md</code> with a verdict: <code>holds</code> / <code>partial</code> / <code>fails</code> / <code>inconclusive</code></td></tr>
-<tr><th>Forwards to</th><td>If <code>holds</code> → no required follow-up (proceed however you intended). If <code>fails</code> → <code>/wf-quick rca</code> (if hypothesis was an explanation for bad behavior) or <code>/wf-docs how</code> (if you need to actually learn the code). If <code>inconclusive</code> → run the runtime signal it names.</td></tr>
+<tr><th>Forwards to</th><td>If <code>holds</code> → no required follow-up (proceed however you intended). If <code>fails</code> → <code>/wf-quick rca</code> (if hypothesis was an explanation for bad behavior) or <code>/wf-meta how</code> (if you need to actually learn the code). If <code>inconclusive</code> → run the runtime signal it names.</td></tr>
 </table></div>
 
 <p><strong>Hypothesis-test workflow.</strong> Takes a code-level theory ("the rate-limiter is a token bucket in <code>middleware/</code>", "auth validates JWTs before checking session state", "module M handles concurrency via mutexes not channels") and adjudicates it against the codebase. Three parallel sub-agents:</p>
@@ -329,7 +333,7 @@
 
 <h4>When NOT to use</h4>
 <ul>
-  <li>You don't have a theory yet — you just want to understand the area → <code>/wf-docs how</code>.</li>
+  <li>You don't have a theory yet — you just want to understand the area → <code>/wf-meta how</code>.</li>
   <li>You have a symptom, not a theory, and want to find the cause → <code>/wf-quick rca</code>.</li>
   <li>You want to compare multiple approaches to a problem → <code>/wf-quick investigate</code>.</li>
 </ul>

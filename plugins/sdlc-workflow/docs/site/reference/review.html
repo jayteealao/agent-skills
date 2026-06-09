@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -126,12 +128,12 @@
 <thead><tr><th>Sweep</th><th>Composition</th><th>When</th></tr></thead>
 <tbody>
 <tr><td><code>all</code></td><td>All 31 dimensions</td><td>Pre-major-release defensive review. Most expensive.</td></tr>
-<tr><td><code>pre-merge</code></td><td>correctness, security, testing, performance, observability, refactor-safety, docs, ci</td><td>Standard pre-merge gate.</td></tr>
-<tr><td><code>quick</code></td><td>correctness, testing, style-consistency</td><td>Smoke check before opening a PR.</td></tr>
-<tr><td><code>security</code></td><td>security, infra-security, supply-chain, privacy, data-integrity</td><td>Security-focused review.</td></tr>
-<tr><td><code>architecture</code></td><td>architecture, scalability, reliability, maintainability, overengineering, refactor-safety</td><td>Architecture review.</td></tr>
-<tr><td><code>infra</code></td><td>infra, infra-security, ci, release, observability, cost</td><td>Infrastructure/devops change review.</td></tr>
-<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, ux-copy, frontend-performance</td><td>UI feature review.</td></tr>
+<tr><td><code>pre-merge</code></td><td>correctness, testing, security, refactor-safety, maintainability</td><td>Standard pre-merge gate.</td></tr>
+<tr><td><code>quick</code></td><td>correctness, style-consistency, dx, ux-copy, overengineering</td><td>Smoke check before opening a PR.</td></tr>
+<tr><td><code>security</code></td><td>security, privacy, infra-security, data-integrity, supply-chain</td><td>Security-focused review.</td></tr>
+<tr><td><code>architecture</code></td><td>architecture, performance, scalability, api-contracts</td><td>Architecture review.</td></tr>
+<tr><td><code>infra</code></td><td>infra, ci, release, migrations, logging, observability</td><td>Infrastructure/devops change review.</td></tr>
+<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, frontend-performance, ux-copy</td><td>UI feature review.</td></tr>
 </tbody>
 </table>
 
@@ -227,7 +229,7 @@
   <li><a href="../how-to/triage-pr-comments.html">Triage PR comments</a> — handoff's bot-comment loop, similar dispatch model.</li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../reference/wf-docs.html"><span>← Previous</span>/wf-docs router</a><a class="next" href="../reference/wf-design.html"><span>Next →</span>/wf-design router</a></div></main>
+<div class="pager"><a class="prev" href="../reference/wf-docs.html"><span>← Previous</span>/wf-docs router</a><a class="next" href="../reference/skills.html"><span>Next →</span>Skills</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

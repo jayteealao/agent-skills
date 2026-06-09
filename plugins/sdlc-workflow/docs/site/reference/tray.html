@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Navigate existing workflows · sdlc-workflow</title>
+<title>Tray app · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -80,78 +80,63 @@
   </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Navigate workflows</div>
-<span class="quadrant howto">how-to</span>
-<h1>Navigate existing workflows</h1>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Tray app</div>
+<span class="quadrant reference">reference</span>
+<h1>Tray app</h1>
 
-<p>You opened the repo and you can't remember what you were doing. Or you have three workflows in flight and you need to pick one up. This page is the answer.</p>
+<p>A user-launched <strong>system-tray app</strong> <span class="badge">v9.46</span> puts a sunflower icon in your notification area that controls the multi-repo hub — no admin, no system service, fully self-contained. It ships with committed helper binaries and icons, so it needs <strong>no <code>npm install</code></strong>.</p>
 
-<div class="summary">
+<h2>Launch it</h2>
+<pre><code># any of:
+npm run tray
+node dist/tray.mjs
+.\scripts\tray.ps1        # Windows launcher</code></pre>
+
+<p><em>You</em> launch it — not Claude. It resolves all paths from its own location and copies its helper binary to <code>~/.sdlc/bin/</code> before running (the plugin directory may be read-only).</p>
+
+<h2>Icon states</h2>
+<p>The icon reflects hub health at a glance, and the tooltip shows a one-line summary (e.g. <code>SDLC hub v9.49.0 · 3 repos · up 2h14m · 248 req</code>):</p>
 <table>
-<tr><th>Pre-conditions</th><td>One or more <code>.ai/workflows/&lt;slug&gt;/</code> directories exist.</td></tr>
-<tr><th>Goal</th><td>Know which workflows are active, where you left off, and how to resume.</td></tr>
-</table>
-</div>
-
-<h2>See everything at a glance</h2>
-
-<pre><code>/wf-meta status</code></pre>
-
-<p>Lists every active workflow, the current stage, the recommended next command, and any open questions. Use this as your daily entry point.</p>
-
-<h2>Get details on one workflow</h2>
-
-<pre><code>/wf-meta status &lt;slug&gt;</code></pre>
-
-<p>Shows the full progress map (10 stages × not-started/in-progress/complete/skipped/blocked), the slice statuses, and recent activity.</p>
-
-<h2>Pick up where you left off</h2>
-
-<pre><code>/wf-meta resume &lt;slug&gt;</code></pre>
-
-<p>Reads the workflow's full artifact trail, identifies the next unfinished step, and proposes a concrete invocation. Use this when you've context-switched away for hours, days, or weeks.</p>
-
-<h2>Ask what's next</h2>
-
-<pre><code>/wf-meta next &lt;slug&gt;</code></pre>
-
-<p>Like resume, but lighter — answers "what should I run next" without re-reading the full trail. Good when you know the workflow well and just need the next command.</p>
-
-<h2>Reconcile drift with disk</h2>
-
-<pre><code>/wf-meta sync &lt;slug&gt;</code></pre>
-
-<p>Re-reads every artifact on disk and repairs the <code>00-index.md</code> control file if it disagrees with reality. Use after manual edits, after pulling a branch that landed new artifacts, or when something feels off.</p>
-
-<h2>Cheat sheet</h2>
-
-<table>
-<thead><tr><th>What you want</th><th>Command</th></tr></thead>
+<thead><tr><th>Icon</th><th>Meaning</th></tr></thead>
 <tbody>
-<tr><td>"What am I working on?"</td><td><code>/wf-meta status</code></td></tr>
-<tr><td>"Where did I leave off in X?"</td><td><code>/wf-meta resume X</code></td></tr>
-<tr><td>"What's the next command for X?"</td><td><code>/wf-meta next X</code></td></tr>
-<tr><td>"Index file looks weird — repair it."</td><td><code>/wf-meta sync X</code></td></tr>
-<tr><td>"Explain a stage's artifact in plain English."</td><td><code>/wf-meta how X plan|shape|slice|review|findings</code></td></tr>
-<tr><td>"Generate a Diátaxis announcement from a shipped workflow."</td><td><code>/wf-meta announce X</code></td></tr>
-<tr><td>"Correct a wrong spec / slice / ship-plan block."</td><td><code>/wf-meta amend X &lt;scope&gt;</code></td></tr>
-<tr><td>"Add new slices to an existing workflow."</td><td><code>/wf-meta extend X</code></td></tr>
-<tr><td>"Mark a stage skipped with a stub."</td><td><code>/wf-meta skip &lt;stage&gt; X</code></td></tr>
-<tr><td>"Archive a finished / abandoned workflow."</td><td><code>/wf-meta close &lt;reason&gt; X</code></td></tr>
-<tr><td>"Author the project ship plan (once)."</td><td><code>/wf-meta init-ship-plan</code></td></tr>
-<tr><td>"Build the CI/CD + DX pipeline from the plan."</td><td><code>/wf-meta build-pipeline</code></td></tr>
+<tr><td>Full colour</td><td>Hub healthy.</td></tr>
+<tr><td>Grey</td><td>Hub is down.</td></tr>
+<tr><td>Amber</td><td>A stale-version hub is running — restart to upgrade.</td></tr>
 </tbody>
 </table>
+<p>It polls health every ~5s and re-renders only when something changes.</p>
+
+<h2>Menu</h2>
+<table>
+<thead><tr><th>Item</th><th>Does</th></tr></thead>
+<tbody>
+<tr><td><strong>● status</strong> (top)</td><td>Health summary — <code>healthy</code> / <code>hub down — start it?</code> / <code>stale → restart</code>.</td></tr>
+<tr><td>Open dashboard</td><td>Opens <code>http://127.0.0.1:4173/</code>.</td></tr>
+<tr><td>Refresh registry</td><td>Re-scans all repos (<code>POST /__sdlc/registry/refresh</code>).</td></tr>
+<tr><td>Health ▸</td><td>Version, pid, uptime, requests, SSE clients, RSS, config hash.</td></tr>
+<tr><td>↳ per-repo rows</td><td>One per registered repo → opens <code>/r/&lt;id&gt;/</code>.</td></tr>
+<tr><td>Restart / Stop hub</td><td>Hub lifecycle controls.</td></tr>
+<tr><td>Open hub config… / logs…</td><td>Opens <code>~/.sdlc/hub-config.json</code> / the bootstrap log.</td></tr>
+<tr><td>Per-repo serve ✓</td><td>Toggles <code>hub-config.perRepoServe</code> (takes effect next session).</td></tr>
+<tr><td>Start at login ✓</td><td>Opt-in logon autostart (see below).</td></tr>
+<tr><td>Quit</td><td>Exits the tray; the hub keeps running.</td></tr>
+</tbody>
+</table>
+
+<h2>Start at login (opt-in autostart)</h2>
+<p>Off by default. Toggling <strong>Start at login ✓</strong> writes a per-user launcher to your OS autostart location (Windows Startup folder, macOS LaunchAgents, Linux XDG autostart) — file presence <em>is</em> the on/off state, no admin needed. When the tray starts with autostart enabled it also ensures the hub is up, so the hub comes up at logon before any Claude session (safe because the lifecycle call is idempotent and simply adopts an already-running hub). The launcher embeds absolute paths captured at enable-time and self-heals if a plugin upgrade relocates the bundle. Turn it off from the same menu item before uninstalling the plugin.</p>
+
+<h2>How it's built</h2>
+<p>The tray speaks its own stdio protocol (<code>lib/tray-protocol.mjs</code>), not a third-party tray library, and ships as an ESM bundle at <code>dist/tray.mjs</code> produced by the shared <a href="../explanation/build-and-dist.html">build step</a>. Its native helper binaries and icons are committed so the app runs with no install. (<code>sharp</code>, <code>to-ico</code>, and the tray helper toolchain are ad-hoc maintainer dev tools, not committed dependencies.)</p>
 
 <div class="related">
 <h3>Related</h3>
 <ul>
-  <li><a href="../reference/commands.html">Routers reference</a> — every <code>/wf-meta</code> sub-command.</li>
-  <li><a href="../reference/00-index-schema.html">00-index schema</a> — the control file fields.</li>
-  <li><a href="resume-paused-work.html">Resume paused work</a> — what happens when a ship run is paused.</li>
+  <li><a href="serve.html">Serve daemon &amp; hub</a> — what the tray controls.</li>
+  <li><a href="../explanation/build-and-dist.html">Build &amp; dist model</a> — why it needs no install.</li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../how-to/start-workflow.html"><span>← Previous</span>Pick an entry point</a><a class="next" href="../how-to/amend-or-extend.html"><span>Next →</span>Amend or extend</a></div></main>
+<div class="pager"><a class="prev" href="../reference/serve.html"><span>← Previous</span>Serve daemon &amp; hub</a><a class="next" href="../reference/types.html"><span>Next →</span>Artifact types</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

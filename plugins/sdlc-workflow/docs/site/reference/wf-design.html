@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.14.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Start here</h4>
   <ul>
@@ -39,7 +39,7 @@
   <h4>Reference</h4>
   <ul>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands (overview)</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
@@ -53,7 +53,8 @@
     <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
     <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
     <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon</a></li>
+    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
+    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
     <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
@@ -68,6 +69,7 @@
     <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
     <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
     <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
+    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
   </ul>
   <h4>Tips</h4>
   <ul>
@@ -82,7 +84,7 @@
 <span class="quadrant reference">reference</span>
 <h1>Design pipeline (/wf-design)</h1>
 
-<p>The <code>/wf-design</code> router. Three invocation modes, six sub-command categories, 22 sub-commands, six artifact slots in the workflow tree, plus two repo-root project context files.</p>
+<p>The <code>/wf-design</code> router. Three invocation modes, six sub-command categories, 22 sub-commands, six artifact slots in the workflow tree, plus two repo-root project context files (<code>PRODUCT.md</code> / <code>DESIGN.md</code>). The <code>reference/</code> directory holds 24 files — the 22 sub-commands plus two <strong>register reference</strong> files (<code>brand.md</code>, <code>product.md</code>) loaded during preflight context-gathering; those two are not invocable sub-commands.</p>
 
 <h2>Invocation modes</h2>
 
@@ -95,7 +97,7 @@
 </tbody>
 </table>
 
-<p>The dispatcher infers the mode from arg 0: if it matches a known sub-command → Mode C; if it matches an existing slug → Mode A or B.</p>
+<p>The dispatcher infers the mode from the arguments. With a <strong>single arg</strong>: if it matches a known sub-command → Mode C (freestanding); if it matches an existing slug → Mode A. With <strong>two or more args</strong>, arg 0 is always the slug and <strong>arg 1 decides the operation</strong> — if arg 1 is a known sub-command it runs that (Mode B); otherwise the sub-command defaults to <code>shape</code> and the remaining args become the target description.</p>
 
 <h2>Sub-command catalog</h2>
 
@@ -237,11 +239,17 @@ flowchart TB
 
 <h2>Augmentation registration</h2>
 
-<p>Every transformation operator registers itself in <code>00-index.md</code>'s <code>augmentations:</code> array:</p>
+<p>Every transformation operator (plus <code>audit</code> and <code>critique</code>) registers itself in <code>00-index.md</code>'s <code>augmentations:</code> array. Each entry is <code>type</code> + <code>artifact</code> + <code>created-at</code>, with <code>files-modified</code> on transformations:</p>
 
 <pre><code>augmentations:
-  - { kind: design-harden,  slice: route, ref: design-notes/harden-20260510T1432Z.md, registered-at: "..." }
-  - { kind: design-animate, slice: route, ref: design-notes/animate-20260510T1530Z.md, registered-at: "..." }</code></pre>
+  - type: design-harden
+    artifact: design-notes/harden-20260510T1432Z.md
+    created-at: "2026-05-10T14:32:00Z"
+    files-modified: [src/components/Button.tsx, src/styles/focus.css]
+  - type: design-animate
+    artifact: design-notes/animate-20260510T1530Z.md
+    created-at: "2026-05-10T15:30:00Z"
+    files-modified: [src/components/Card.tsx]</code></pre>
 
 <p>Handoff translates each registered entry into a reviewer-visible mention (e.g., <em>"Accessibility improvements applied — N components updated, axe-core scan clean"</em>). Ship translates each into a changelog line per the External Output Boundary rules.</p>
 
@@ -251,10 +259,10 @@ flowchart TB
   <li><a href="../how-to/use-design.html">Use the design pipeline</a> — task-oriented recipes.</li>
   <li><a href="../explanation/augmentations-model.html">Augmentations model</a> — how transformations propagate.</li>
   <li><a href="artifacts.html">Artifacts reference</a> — full file tree including design slots.</li>
-  <li><a href="commands.html">Commands reference</a> — every command surface.</li>
+  <li><a href="commands.html">Routers reference</a> — every command surface.</li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../reference/skills.html"><span>← Previous</span>Skills</a><a class="next" href="../reference/artifacts.html"><span>Next →</span>Artifacts</a></div></main>
+<div class="pager"><a class="prev" href="../reference/wf-meta.html"><span>← Previous</span>/wf-meta router</a><a class="next" href="../reference/wf-docs.html"><span>Next →</span>/wf-docs router</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
