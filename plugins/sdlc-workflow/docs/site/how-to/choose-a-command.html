@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Branch strategy · sdlc-workflow</title>
+<title>Choose a command · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -91,101 +91,158 @@
   </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Explanation &rsaquo; Branch strategy</div>
-<span class="quadrant explanation">explanation</span>
-<h1>Branch strategy</h1>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Choose a command</div>
+<span class="quadrant howto">how-to</span>
+<h1>Choose a command</h1>
 
+<p class="lede">
+You know what you want to do. This page maps your situation to the exact command — and where it matters, the exact sub-command — you should type.
+</p>
 
-<p class="lede">You do not need this page to use the plugin. Read it if you want to understand how the plugin manages git branches and what each strategy option means in practice.</p>
+<h2>By situation</h2>
 
-<p>When you start a workflow, the plugin records a <strong>branch strategy</strong> — a setting that controls how much git work the plugin does on your behalf when handing off code. There are three options: <code>dedicated</code>, <code>shared</code>, and <code>none</code>. You pick once at intake and rarely change it.</p>
-
-<p>The setting lives in the <code>branch-strategy</code> field of <code>00-index.md</code>, the workflow's index file. If you have not read about intake yet, see <a href="../how-to/start-workflow.html">Start a workflow</a>.</p>
-
-<h2>dedicated (default)</h2>
-
-<p>Most feature work lands here. The plugin creates its own git branch (default name: <code>feat/&lt;slug&gt;</code>) and its own pull request. A <strong>slug</strong> is the short identifier the plugin uses to name the workflow and its files — for example, <code>auth-refresh</code>.</p>
-
-<p>What the plugin does at handoff with this strategy:</p>
-<ul>
-  <li>Pushes the branch to the remote.</li>
-  <li>Opens or updates a pull request automatically.</li>
-  <li>Triages any review comments through a bounded loop (stage T5.1).</li>
-  <li>Rebases onto the base branch with <code>--force-with-lease</code> if the branch falls behind (stage T5.2).</li>
-  <li>Captures live PR state into <code>08-handoff.md</code>, the handoff <strong>artifact</strong> — the workflow note written at the end of each stage (stage T5.3).</li>
-</ul>
-
-<p>Choose <code>dedicated</code> when your change will be reviewed as a standalone pull request.</p>
-
-<h2>shared</h2>
-
-<p>Some teams merge work onto a long-lived branch — a release train, a shared feature branch, or a main branch that receives small commits directly. Force-pushing onto such a branch would overwrite other contributors' commits.</p>
-
-<p>What the plugin does at handoff with this strategy:</p>
-<ul>
-  <li>Pushes the branch to the remote.</li>
-  <li>Does <em>not</em> open a pull request automatically. You manage PR creation yourself.</li>
-  <li>Skips the rebase-and-force-push step (T5.2) entirely.</li>
-  <li>Runs the triage (T5.1) and live-check (T5.3) steps only if you have manually recorded a <code>pr-number</code> in the workflow index.</li>
-</ul>
-
-<p>Choose <code>shared</code> when your branch is one contributor among many and a force-push would be destructive.</p>
-
-<h2>none</h2>
-
-<p>Sometimes a workflow does not ship code at all — a documentation update that lives only locally, a spike you want to explore and discard, or a prototype that should not touch the remote.</p>
-
-<p>What the plugin does at handoff with this strategy:</p>
-<ul>
-  <li>Writes <code>08-handoff.md</code> as the final deliverable.</li>
-  <li>Does <em>not</em> push, open a PR, triage comments, rebase, or run any live check.</li>
-</ul>
-
-<p>The handoff artifact itself is the externalised result. Choose <code>none</code> when the workflow is self-contained and git operations add no value.</p>
-
-<div class="diagram">
-<pre class="mermaid">
-flowchart TD
-  start{What's the change?}
-  start -- Feature; reviewer-friendly PR --> dedicated[branch-strategy: dedicated]
-  start -- Joining a long-lived branch others share --> shared[branch-strategy: shared]
-  start -- Docs-only / local-only / spike --> none[branch-strategy: none]
-
-  dedicated -.-> dedicated_eff[Push, open PR<br/>--force-with-lease on rebase<br/>T5.1 triage runs<br/>T5.2 rebase runs<br/>T5.3 live check runs]
-  shared -.-> shared_eff[Push branch<br/>NO auto-PR<br/>T5.2 SKIPPED<br/>T5.1/T5.3 only if PR exists]
-  none -.-> none_eff[No git operations<br/>Handoff artifact is the deliverable<br/>T5.1/T5.2/T5.3 all skipped]
-</pre>
-</div>
-<p class="caption">Each strategy enables a different subset of the handoff stages.</p>
-
-<h2>Branch liveness <span class="badge">v9.49</span></h2>
-
-<p>Separate from the strategy above, the <strong>dashboard</strong> — the multi-repo overview page served by the plugin — annotates each workflow with a soft liveness badge. This badge describes the current state of the branch in git, and helps you spot stale workflows at a glance. It never blocks a stage.</p>
-
-<details>
-<summary>Liveness badge values</summary>
 <table>
-<thead><tr><th>Badge</th><th>Meaning</th></tr></thead>
+<thead><tr><th>I want to…</th><th>Command</th><th>Notes</th></tr></thead>
 <tbody>
-<tr><td><code>live</code></td><td>The branch ref exists and has not yet been fully merged into its base.</td></tr>
-<tr><td><code>merged</code></td><td>The branch tip is an ancestor of the base branch, or the pull request resolved as <code>MERGED</code>.</td></tr>
-<tr><td><code>gone</code></td><td>The branch ref is no longer present locally — typically deleted after merging.</td></tr>
-<tr><td><code>unknown</code></td><td>No branch declared (<code>branch-strategy: none</code>), git is unavailable, or any error. Fails open; no badge is rendered.</td></tr>
+<tr>
+  <td>Start a new feature from scratch</td>
+  <td><code>/wf intake &lt;slug&gt;</code></td>
+  <td>Begins the full lifecycle. Claude interviews you on scope and writes a brief. Best for anything that will take more than one session.</td>
+</tr>
+<tr>
+  <td>Fix a typo or one-line bug</td>
+  <td><code>/wf-quick fix "description"</code></td>
+  <td>Compressed path: brief + implement + handoff. Leaves 2–3 artifact files. Faster than full <code>/wf</code>.</td>
+</tr>
+<tr>
+  <td>Fix a production incident right now</td>
+  <td><code>/wf-quick hotfix "description"</code></td>
+  <td>6-stage scope-locked flow. Bypasses non-critical review gates for speed. Creates an incident record.</td>
+</tr>
+<tr>
+  <td>Understand why a bug happened</td>
+  <td><code>/wf-quick rca "description"</code></td>
+  <td>Root-cause analysis. Reads code and git history; produces a diagnosis artifact with recommended next step (fix / hotfix / investigate).</td>
+</tr>
+<tr>
+  <td>Explore 2–3 possible approaches before picking one</td>
+  <td><code>/wf-quick investigate "question"</code></td>
+  <td>Produces a single artifact with 2–3 distinct approaches and their trade-offs. No winner is picked — you decide, then route to <code>/wf intake</code> or <code>/wf-quick fix</code>.</td>
+</tr>
+<tr>
+  <td>Verify a theory about how the code works</td>
+  <td><code>/wf-quick discover "hypothesis"</code></td>
+  <td>Tests a specific hypothesis with FOR/AGAINST evidence. Verdict: holds / partial / fails / inconclusive.</td>
+</tr>
+<tr>
+  <td>Update dependencies safely</td>
+  <td><code>/wf-quick update-deps</code></td>
+  <td>Audits dependencies, tiers them by risk, and updates in order. 4-stage flow under <code>.ai/dep-updates/</code>.</td>
+</tr>
+<tr>
+  <td>Refactor without changing behaviour</td>
+  <td><code>/wf-quick refactor "what to refactor"</code></td>
+  <td>Captures a test baseline first, refactors, re-verifies the baseline still holds.</td>
+</tr>
+<tr>
+  <td>Brainstorm and rank improvement candidates</td>
+  <td><code>/wf-quick ideate "area"</code></td>
+  <td>Produces a ranked list of improvement candidates under <code>.ai/ideation/</code>. Good for planning sessions.</td>
+</tr>
+<tr>
+  <td>Triage whether something is worth fixing at all</td>
+  <td><code>/wf-quick simplify</code></td>
+  <td>3-agent review (reuse / quality / efficiency) across your branch. Never writes code — produces a routing report pointing to the right downstream command for each finding.</td>
+</tr>
 </tbody>
 </table>
-<p>For more about the dashboard, see <a href="../reference/serve.html">Serve daemon &amp; hub</a>.</p>
-</details>
+
+<h2>Resuming or managing existing work</h2>
+
+<table>
+<thead><tr><th>I want to…</th><th>Command</th></tr></thead>
+<tbody>
+<tr><td>See all my in-progress workflows</td><td><code>/wf-meta status</code></td></tr>
+<tr><td>Pick up a workflow I walked away from</td><td><code>/wf-meta resume &lt;slug&gt;</code></td></tr>
+<tr><td>See what stage a workflow is at</td><td><code>/wf-meta next &lt;slug&gt;</code></td></tr>
+<tr><td>Add scope to an in-progress workflow</td><td><code>/wf-meta amend &lt;slug&gt;</code></td></tr>
+<tr><td>Mark a workflow done without shipping</td><td><code>/wf-meta close &lt;slug&gt;</code></td></tr>
+<tr><td>Sync the workflow registry after manual file changes</td><td><code>/wf-meta sync</code></td></tr>
+<tr><td>Set up how this repo releases (once per repo)</td><td><code>/wf-meta init-ship-plan</code></td></tr>
+<tr><td>Audit CI/CD against the ship plan</td><td><code>/wf-meta build-pipeline</code></td></tr>
+</tbody>
+</table>
+
+<h2>Design and docs work</h2>
+
+<table>
+<thead><tr><th>I want to…</th><th>Command</th><th>Notes</th></tr></thead>
+<tbody>
+<tr>
+  <td>Generate a design brief for a screen</td>
+  <td><code>/wf-design brief &lt;slug&gt;</code></td>
+  <td>Produces a structured brief for a UI change. Can run as stage 2b inside <code>/wf</code> or stand-alone.</td>
+</tr>
+<tr>
+  <td>Recolor a design to match a palette</td>
+  <td><code>/wf-design colorize &lt;slug&gt;</code></td>
+  <td></td>
+</tr>
+<tr>
+  <td>Polish and tighten an existing design</td>
+  <td><code>/wf-design polish &lt;slug&gt;</code></td>
+  <td></td>
+</tr>
+<tr>
+  <td>Audit a design against the design contract</td>
+  <td><code>/wf-design audit &lt;slug&gt;</code></td>
+  <td></td>
+</tr>
+<tr>
+  <td>Get a critique of a design</td>
+  <td><code>/wf-design critique &lt;slug&gt;</code></td>
+  <td></td>
+</tr>
+<tr>
+  <td>Generate or update documentation</td>
+  <td><code>/wf-docs &lt;sub-command&gt;</code></td>
+  <td>Generates site pages, API docs, or reference content. Run <code>/wf-docs</code> with no sub-command for the list.</td>
+</tr>
+</tbody>
+</table>
+
+<h2>Code review</h2>
+
+<table>
+<thead><tr><th>I want to…</th><th>Command</th><th>Notes</th></tr></thead>
+<tbody>
+<tr>
+  <td>Review a specific dimension of my code (e.g. security)</td>
+  <td><code>/review &lt;dimension&gt;</code></td>
+  <td>Runs one rubric inline. Available dimensions: correctness, security, performance, architecture, accessibility, supply-chain, and 25 more. See <a href="../reference/review.html">the review reference →</a></td>
+</tr>
+<tr>
+  <td>Run a full 31-dimension review and get a verdict</td>
+  <td><code>/review sweep</code></td>
+  <td>Fans out one agent per dimension in parallel. Slower but comprehensive.</td>
+</tr>
+<tr>
+  <td>Review a specific GitHub PR</td>
+  <td><code>/review &lt;dimension&gt; PR#&lt;number&gt;</code></td>
+  <td></td>
+</tr>
+</tbody>
+</table>
 
 <div class="related">
 <h3>Where next</h3>
 <ul>
-  <li><a href="../how-to/start-workflow.html">Pick your branch strategy at intake →</a></li>
-  <li><a href="the-readiness-gate.html">See which fields the readiness check computes for each strategy →</a></li>
-  <li><a href="../reference/serve.html">Learn how the dashboard uses liveness badges →</a></li>
+  <li><a href="start-workflow.html">See the full decision tree for picking a <code>/wf</code> entry point →</a></li>
+  <li><a href="../orientation/mental-model.html">See how all six commands fit together →</a></li>
+  <li><a href="../reference/commands.html">Complete reference for all commands and arguments →</a></li>
 </ul>
 </div>
-
-<div class="pager"><a class="prev" href="../explanation/diataxis-integration.html"><span>← Previous</span>Diátaxis integration</a><a class="next" href="../explanation/adaptive-routing.html"><span>Next →</span>Adaptive routing</a></div></main>
+<div class="pager"><a class="prev" href="../tutorials/quick-fix-workflow.html"><span>← Previous</span>Quick-fix walkthrough</a><a class="next" href="../how-to/start-workflow.html"><span>Next →</span>Pick an entry point</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

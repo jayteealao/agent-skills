@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>/wf-docs router — documentation pipeline + Diátaxis primitives · sdlc-workflow</title>
+<title>/wf-docs — documentation pipeline · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -16,20 +16,27 @@
 <aside id="sidebar">
 <a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
-  <h4>Start here</h4>
+  <h4>Orientation</h4>
   <ul>
     <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../orientation/is-this-for-me.html" data-href="orientation/is-this-for-me.html">Is this for me?</a></li>
+    <li><a href="../orientation/mental-model.html" data-href="orientation/mental-model.html">How it works</a></li>
+    <li><a href="../orientation/first-10-minutes.html" data-href="orientation/first-10-minutes.html">First 10 minutes</a></li>
+  </ul>
+  <h4>Tutorials</h4>
+  <ul>
     <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
-    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">Full feature walkthrough</a></li>
     <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
   </ul>
   <h4>How to&hellip;</h4>
   <ul>
+    <li><a href="../how-to/choose-a-command.html" data-href="how-to/choose-a-command.html">Choose a command</a></li>
     <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
     <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
     <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
-    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
-    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use add-ons</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use design</a></li>
     <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
     <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
     <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
@@ -38,14 +45,15 @@
   </ul>
   <h4>Reference</h4>
   <ul>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -56,7 +64,6 @@
     <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
     <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
-    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
   <h4>Explanation</h4>
   <ul>
@@ -78,13 +85,17 @@
     <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
     <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
   </ul>
+  <h4>Changelog</h4>
+  <ul>
+    <li><a href="../whats-new.html" data-href="whats-new.html">What&#8217;s new</a></li>
+  </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf-docs router</div>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf-docs command</div>
 <span class="quadrant reference">reference</span>
-<h1>/wf-docs router — documentation pipeline + Diátaxis primitives</h1>
+<h1>/wf-docs — documentation pipeline</h1>
 
-<p>The documentation router. Two surfaces: a <strong>5-stage pipeline</strong> for project-wide doc audits, and <strong>7 Diátaxis primitives</strong> for single-document generation. Handoff also loads these primitives directly when generating per-feature docs.</p>
+<p class="lede">You reach for <code>/wf-docs</code> when you want to generate or update documentation. It offers two surfaces: a five-stage pipeline for a project-wide doc audit, and seven single-document generators called <a href="../reference/glossary.html">primitives</a> — one for each Diátaxis quadrant plus plan, readme, and review.</p>
 
 <div class="toc">
 <h3>On this page</h3>
@@ -96,48 +107,61 @@
 
 <h2 id="pipeline">The 5-stage doc pipeline</h2>
 
-<p>For a full project-wide doc cycle. Each stage writes to <code>.ai/docs/&lt;run-id&gt;/</code>.</p>
+<p>When your project has grown a pile of docs that may be stale, misfiled, or missing entirely, run the pipeline. It walks every stage in order and writes progress notes to <code>.ai/docs/&lt;run-id&gt;/</code> so you can stop and resume at any stage.</p>
 
 <h3>/wf-docs discover</h3>
 <div class="summary"><table>
 <tr><th>Stage</th><td>1 — inventory</td></tr>
 <tr><th>Writes</th><td><code>.ai/docs/&lt;run-id&gt;/discover.md</code></td></tr>
 </table></div>
-<p>Walks the repo, inventories every existing doc file (README, docs/, in-code docstrings, comments in config files), records frontmatter, classifies by Diátaxis quadrant, captures last-modified date.</p>
+<p>Walks the repo and inventories every existing doc file — READMEs, <code>docs/</code> folders, in-code docstrings, comments in config files. Records frontmatter, classifies each file by Diátaxis quadrant, and captures last-modified date.</p>
 
 <h3>/wf-docs audit</h3>
 <div class="summary"><table>
-<tr><th>Stage</th><td>2 — accuracy + freshness + quadrant fit</td></tr>
+<tr><th>Stage</th><td>2 — accuracy, freshness, and quadrant fit</td></tr>
 <tr><th>Writes</th><td><code>.ai/docs/&lt;run-id&gt;/audit.md</code></td></tr>
 </table></div>
-<p>For each inventoried doc: checks accuracy against current code, flags freshness (last-modified vs. relevant code change), and judges quadrant fit (e.g., this "tutorial" is actually a reference page in disguise).</p>
+<p>For each inventoried doc: checks accuracy against current code, flags freshness (last-modified vs. relevant code change), and judges quadrant fit — for example, spotting a page labelled "tutorial" that is really a reference page in disguise.</p>
 
 <h3>/wf-docs plan</h3>
 <div class="summary"><table>
 <tr><th>Stage</th><td>3 — prioritized action plan</td></tr>
 <tr><th>Writes</th><td><code>.ai/docs/&lt;run-id&gt;/plan.md</code></td></tr>
 </table></div>
-<p>Translates audit into actions: create / update / rewrite / delete per doc, prioritized P0–P4 — P0 (broken / inaccurate), P1 (missing), P2 (wrong quadrant), P3 (stale), P4 (enhancement).</p>
+<p>Translates the audit into a list of actions — create, update, rewrite, or delete — one per doc, prioritized P0–P4.</p>
+<details>
+<summary>Priority levels</summary>
+<ul>
+  <li><strong>P0</strong> — broken or inaccurate</li>
+  <li><strong>P1</strong> — missing</li>
+  <li><strong>P2</strong> — wrong quadrant</li>
+  <li><strong>P3</strong> — stale</li>
+  <li><strong>P4</strong> — enhancement</li>
+</ul>
+</details>
 
 <h3>/wf-docs generate</h3>
 <div class="summary"><table>
 <tr><th>Stage</th><td>4 — write the docs</td></tr>
 <tr><th>Writes</th><td><code>.ai/docs/&lt;run-id&gt;/generate.md</code> + actual doc files in the repo</td></tr>
 </table></div>
-<p>Executes the plan. For each doc to write, loads the matching Diátaxis primitive and follows it verbatim. The primitive enforces the quadrant's rules (e.g., "tutorial steps are imperative with stated outcomes").</p>
+<p>Executes the plan. For each doc to write, loads the matching Diátaxis primitive (described below) and follows its rules verbatim. The primitive enforces quadrant-specific rules — for example, tutorial steps must be imperative with stated outcomes.</p>
 
 <h3>/wf-docs review</h3>
 <div class="summary"><table>
 <tr><th>Stage</th><td>5 — independent review of the generated docs</td></tr>
 <tr><th>Writes</th><td>Updates to <code>generate.md</code>; the docs-index artifact <code>08b-docs-index.md</code> (+ sibling <code>.yaml</code>); then commits.</td></tr>
 </table></div>
-<p>An independent sub-agent reviews each generated doc against its Diátaxis primitive's self-check (mixed-quadrant content, missing pre-conditions, prose-pseudocode, etc.). It then writes a compact <code>08b-docs-index.md</code> — workflow-scoped at <code>.ai/workflows/&lt;slug&gt;/</code>, or <code>.ai/docs/&lt;run-id&gt;/</code> in project/path mode — with a sibling <code>08b-docs-index.yaml</code> (a <code>docs:</code> array of <code>{path, type, action, status}</code> so the view layer can render the docs table), and commits all documentation changes (<code>docs: update documentation via wf-docs run &lt;run-id&gt;</code>).</p>
+<p>An independent sub-agent reviews each generated doc against its primitive's self-check rules — catching mixed-quadrant content, missing pre-conditions, prose-pseudocode, and similar problems.</p>
+<p>After review it writes a compact <code>08b-docs-index.md</code> — scoped to <code>.ai/workflows/&lt;slug&gt;/</code> when run inside a workflow, or to <code>.ai/docs/&lt;run-id&gt;/</code> in project or path mode — with a sibling <code>08b-docs-index.yaml</code> containing a <code>docs:</code> array of <code>{path, type, action, status}</code> entries so the dashboard can render the docs table. It then commits all documentation changes.</p>
 
 <hr>
 
 <h2 id="primitives">The 7 Diátaxis primitives</h2>
 
-<p>Single-document generation. Each primitive is a reference body at <code>skills/wf-docs/reference/&lt;type&gt;.md</code>. Loaded by:</p>
+<p>A primitive is a reference body that defines the rules for one document type. Each lives at <code>skills/wf-docs/reference/&lt;type&gt;.md</code>. You can invoke any primitive directly for a one-off document, or let the pipeline's generate stage call them automatically.</p>
+
+<p>Primitives are loaded by three callers:</p>
 <ul>
   <li>Handoff (Stage 8) when generating per-feature docs from a workflow's docs plan.</li>
   <li><code>/wf-docs &lt;primitive&gt;</code> for one-off generation.</li>
@@ -145,36 +169,40 @@
 </ul>
 
 <h3>plan</h3>
-<p>The docs-planning primitive. Takes a feature context + audience and outputs a Diátaxis plan: which quadrants are needed, what each should cover, where each lives.</p>
-<p>Loaded when shape's docs-plan needs detail beyond the shape file.</p>
+<p>The docs-planning primitive. Takes a feature context and an audience description, then outputs a Diátaxis plan: which quadrants are needed, what each should cover, and where each doc should live. Loaded when a shape file's docs plan needs more detail.</p>
 
 <h3>tutorial</h3>
-<p>Learning-oriented. Imperative voice. Pre-conditions stated up front. Every step has an expected observable outcome ("you should see…"). One worked example end-to-end. Anti-patterns: optional digressions, mixing in reference detail.</p>
+<p>Learning-oriented. Imperative voice. Pre-conditions stated up front. Every step has an expected observable outcome ("you should see…"). One worked example end-to-end.</p>
+<p>Anti-patterns: optional digressions, mixing in reference detail.</p>
 
 <h3>how-to</h3>
-<p>Task-oriented. Numbered steps. Pre-conditions + goal stated up front. Variations as separate steps, not branches inside a step. Anti-patterns: explaining concepts ("how does X work"), mixing in tutorial scaffolding.</p>
+<p>Task-oriented. Numbered steps. Pre-conditions and goal stated up front. Variations as separate steps, not branches inside a step.</p>
+<p>Anti-patterns: explaining concepts ("how does X work"), mixing in tutorial scaffolding.</p>
 
 <h3>reference</h3>
-<p>Information-oriented. Alphabetised within sections. Exhaustive. No opinions. Frontmatter-style summary tables. Anti-patterns: narrative ordering, "first do X then Y" prose.</p>
+<p>Information-oriented. Alphabetised within sections. Exhaustive. No opinions. Frontmatter-style summary tables.</p>
+<p>Anti-patterns: narrative ordering, "first do X then Y" prose.</p>
 
 <h3>explanation</h3>
-<p>Understanding-oriented. Discursive prose. Trade-offs, history, comparison with alternatives. May reference how-to and reference but doesn't substitute for them. Anti-patterns: imperative steps, exhaustive lookup tables.</p>
+<p>Understanding-oriented. Discursive prose. Trade-offs, history, comparison with alternatives. May reference how-to and reference docs but does not substitute for them.</p>
+<p>Anti-patterns: imperative steps, exhaustive lookup tables.</p>
 
 <h3>readme</h3>
-<p>Composite — a single README mixes all four quadrants intentionally, but each section is one quadrant. Structure: brief intro (explanation), quick start (tutorial), common tasks (how-to), API summary (reference), and explicit pointers to deeper docs.</p>
+<p>Composite — a single README mixes all four quadrants intentionally, but each section belongs to one quadrant. Structure: brief intro (explanation), quick start (tutorial), common tasks (how-to), API summary (reference), and explicit pointers to deeper docs.</p>
 
 <h3>review</h3>
-<p>Quality-check primitive. Reads a doc + identifies its declared quadrant, then checks the body against that quadrant's rules. Outputs P0–P4 findings.</p>
+<p>Quality-check primitive. Reads a doc, identifies its declared quadrant, then checks the body against that quadrant's rules. Outputs P0–P4 findings.</p>
 
 <div class="related">
-<h3>Related</h3>
+<h3>Where next</h3>
 <ul>
-  <li><a href="../explanation/diataxis-integration.html">Diátaxis integration</a> — how the plugin applies the framework.</li>
-  <li><a href="wf.html#wf-handoff">/wf handoff</a> — handoff loads these primitives during T3 doc generation.</li>
-  <li><a href="../how-to/start-workflow.html">Pick an entry point</a> — when to run the doc pipeline standalone vs. via handoff.</li>
+  <li><a href="../explanation/diataxis-integration.html">See how the plugin applies Diátaxis →</a></li>
+  <li><a href="wf.html#wf-handoff">See how handoff loads these primitives during T3 doc generation →</a></li>
+  <li><a href="../how-to/start-workflow.html">Decide whether to run the doc pipeline standalone or via handoff →</a></li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../reference/wf-design.html"><span>← Previous</span>/wf-design router</a><a class="next" href="../reference/review.html"><span>Next →</span>/review router</a></div></main>
+
+<div class="pager"><a class="prev" href="../reference/wf-design.html"><span>← Previous</span>/wf-design</a><a class="next" href="../reference/review.html"><span>Next →</span>/review</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

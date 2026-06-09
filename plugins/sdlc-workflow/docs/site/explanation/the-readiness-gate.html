@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The readiness gate · sdlc-workflow</title>
+<title>The readiness check · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -16,20 +16,27 @@
 <aside id="sidebar">
 <a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
-  <h4>Start here</h4>
+  <h4>Orientation</h4>
   <ul>
     <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../orientation/is-this-for-me.html" data-href="orientation/is-this-for-me.html">Is this for me?</a></li>
+    <li><a href="../orientation/mental-model.html" data-href="orientation/mental-model.html">How it works</a></li>
+    <li><a href="../orientation/first-10-minutes.html" data-href="orientation/first-10-minutes.html">First 10 minutes</a></li>
+  </ul>
+  <h4>Tutorials</h4>
+  <ul>
     <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
-    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">Full feature walkthrough</a></li>
     <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
   </ul>
   <h4>How to&hellip;</h4>
   <ul>
+    <li><a href="../how-to/choose-a-command.html" data-href="how-to/choose-a-command.html">Choose a command</a></li>
     <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
     <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
     <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
-    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
-    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use add-ons</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use design</a></li>
     <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
     <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
     <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
@@ -38,14 +45,15 @@
   </ul>
   <h4>Reference</h4>
   <ul>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -56,7 +64,6 @@
     <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
     <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
-    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
   <h4>Explanation</h4>
   <ul>
@@ -78,25 +85,40 @@
     <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
     <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
   </ul>
+  <h4>Changelog</h4>
+  <ul>
+    <li><a href="../whats-new.html" data-href="whats-new.html">What&#8217;s new</a></li>
+  </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Explanation &rsaquo; The readiness gate</div>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Explanation &rsaquo; The readiness check</div>
 <span class="quadrant explanation">explanation</span>
-<h1>The readiness gate</h1>
+<h1>The readiness check</h1>
 
-<p>The contract between handoff and ship. v9.5.0's <code>readiness-verdict</code> is the only state ship will accept.</p>
 
-<h2>What the gate is</h2>
+<p class="lede">You do not need this page to use the plugin. Read it if you want to understand what the readiness check is, which gates it runs, and how to respond when it blocks.</p>
 
-<p>A single field on <code>08-handoff.md</code> with three possible values:</p>
+<h2>What the readiness check is</h2>
+
+<p>When you run <code>/wf handoff</code>, the plugin examines several conditions about your branch and writes a single verdict to <code>08-handoff.md</code>. That verdict is called the <strong>readiness check</strong>. The <code>/wf ship</code> command reads it before opening or progressing a pull request. If the verdict is not <code>ready</code>, ship stops and tells you why.</p>
+
+<p>The verdict has three possible values:</p>
 
 <table>
-<tr><th><code>ready</code></th><td>Ship will proceed.</td></tr>
-<tr><th><code>awaiting-input</code></th><td>Soft fail. Ship refuses; the user can re-run handoff after resolving.</td></tr>
-<tr><th><code>blocked</code></th><td>Hard fail. Ship refuses; the user needs to fix something before handoff can re-verdict.</td></tr>
+<tr><th><code>ready</code></th><td>All gates passed. Ship will proceed.</td></tr>
+<tr><th><code>awaiting-input</code></th><td>Something needs time or a decision, not a code fix. Ship refuses until you resolve it and re-run handoff.</td></tr>
+<tr><th><code>blocked</code></th><td>Something requires a code action before the branch can ship. Ship refuses until you fix the underlying issue and re-run handoff.</td></tr>
 </table>
 
-<h2>How the verdict is computed</h2>
+<h2>Why it exists</h2>
+
+<p>Before this check was introduced, the ship command trusted whatever handoff had written and proceeded. Failing CI, reviewer-requested changes, API surface drift, and unresolved comments could all slip through silently.</p>
+
+<p>The readiness check makes those conditions explicit. Handoff is required to compute the verdict. Ship is required to read it. Neither step can skip the check.</p>
+
+<h2>Which gates run</h2>
+
+<p>The verdict is a deterministic function of the fields below. The plugin evaluates them in order and stops at the first failure.</p>
 
 <div class="diagram">
 <pre class="mermaid">
@@ -129,29 +151,41 @@ flowchart TD
 </div>
 <p class="caption">The verdict is a deterministic function of the contributing fields. No subjective judgement.</p>
 
-<h2>Why it exists</h2>
+<h2>How to respond when it blocks</h2>
 
-<p>Before v9.5.0, ship looked at handoff and trusted it. Many failures (failing CI, requested changes, drift in the API surface, unresolved review comments) would slip through because handoff didn't <em>check</em> for them.</p>
+<p>The distinction between <code>blocked</code> and <code>awaiting-input</code> tells you what kind of action to take next.</p>
 
-<p>The gate makes the check explicit. Handoff has to compute the verdict; ship has to read it. Neither can pretend the other handled the check.</p>
+<h3>When the verdict is <code>blocked</code></h3>
 
-<h2>Soft-fail vs. hard-fail</h2>
-
-<p>The distinction matters because it affects what the user does next:</p>
+<p>Something requires a code action. Here are the conditions that trigger it and what to do:</p>
 
 <ul>
-  <li><strong>Hard fail (blocked)</strong>: something requires <em>code</em> action. Failing CI needs a fix. Requested changes need addressing. Surface drift needs reconciling. The user goes back to <code>/wf implement</code> or fixes the upstream issue, then re-runs handoff.</li>
-  <li><strong>Soft fail (awaiting-input)</strong>: something needs <em>time</em> or <em>a decision</em>. Pending checks need to finish running. Deferred suggestions need a final apply/decline decision. The user waits or decides, then re-runs handoff.</li>
+  <li><strong>Commit lint failed</strong> — fix the offending commit message, then re-run handoff.</li>
+  <li><strong>Public surface drift</strong> — the public API changed but the generated types were not regenerated. Run the regen step inside <code>/wf implement</code>, then re-run handoff.</li>
+  <li><strong>Rebase conflicts or lease failure</strong> — the branch is out of date or has a conflict. Rebase or merge, resolve any conflicts, then re-run handoff.</li>
+  <li><strong>Reviewer requested changes</strong> — a reviewer left a "Changes requested" review on the open PR. Address the review, then re-run handoff.</li>
+  <li><strong>CI checks failing</strong> — one or more required checks are red. Fix the failing tests or build, then re-run handoff.</li>
+  <li><strong>Deferred comments include a red item</strong> — a PR comment marked as a blocker was deferred rather than resolved. Resolve or decline it explicitly, then re-run handoff.</li>
+</ul>
+
+<h3>When the verdict is <code>awaiting-input</code></h3>
+
+<p>Something needs time or a decision, not a code fix:</p>
+
+<ul>
+  <li><strong>CI checks still running</strong> — wait for them to finish, then re-run handoff.</li>
+  <li><strong>Deferred comments are all yellow</strong> — only non-blocking suggestions were deferred. Decide whether to apply or decline each one, then re-run handoff.</li>
 </ul>
 
 <div class="related">
-<h3>Related</h3>
+<h3>Where next</h3>
 <ul>
-  <li><a href="../how-to/triage-pr-comments.html">Triage PR comments</a> — the T5.1 step that feeds <code>has-deferred-comments</code>.</li>
-  <li><a href="../reference/08-handoff-schema.html">Handoff schema</a> — every field the verdict reads.</li>
-  <li><a href="../how-to/run-a-release.html">Run a release</a> — what happens once the gate opens.</li>
+  <li><a href="../how-to/triage-pr-comments.html">Triage PR comments and clear deferred items →</a></li>
+  <li><a href="../reference/08-handoff-schema.html">See every field the readiness check reads →</a></li>
+  <li><a href="../how-to/run-a-release.html">Run a release once the gate opens →</a></li>
 </ul>
 </div>
+
 <div class="pager"><a class="prev" href="../explanation/idempotency-in-ship.html"><span>← Previous</span>Idempotency in ship</a><a class="next" href="../explanation/build-and-dist.html"><span>Next →</span>Build &amp; dist model</a></div></main>
 </div>
 <script type="module">

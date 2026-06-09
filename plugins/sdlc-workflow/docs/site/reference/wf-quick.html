@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>/wf-quick router — compressed flows in depth · sdlc-workflow</title>
+<title>/wf-quick command — compressed flows in depth · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -16,20 +16,27 @@
 <aside id="sidebar">
 <a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
-  <h4>Start here</h4>
+  <h4>Orientation</h4>
   <ul>
     <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../orientation/is-this-for-me.html" data-href="orientation/is-this-for-me.html">Is this for me?</a></li>
+    <li><a href="../orientation/mental-model.html" data-href="orientation/mental-model.html">How it works</a></li>
+    <li><a href="../orientation/first-10-minutes.html" data-href="orientation/first-10-minutes.html">First 10 minutes</a></li>
+  </ul>
+  <h4>Tutorials</h4>
+  <ul>
     <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
-    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">Full feature walkthrough</a></li>
     <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
   </ul>
   <h4>How to&hellip;</h4>
   <ul>
+    <li><a href="../how-to/choose-a-command.html" data-href="how-to/choose-a-command.html">Choose a command</a></li>
     <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
     <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
     <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
-    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
-    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use add-ons</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use design</a></li>
     <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
     <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
     <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
@@ -38,14 +45,15 @@
   </ul>
   <h4>Reference</h4>
   <ul>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -56,7 +64,6 @@
     <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
     <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
-    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
   <h4>Explanation</h4>
   <ul>
@@ -78,21 +85,46 @@
     <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
     <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
   </ul>
+  <h4>Changelog</h4>
+  <ul>
+    <li><a href="../whats-new.html" data-href="whats-new.html">What&#8217;s new</a></li>
+  </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf-quick router</div>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf-quick command</div>
 <span class="quadrant reference">reference</span>
-<h1>/wf-quick router — compressed flows in depth</h1>
+<h1>/wf-quick command — quick commands in depth</h1>
 
-<p>The compressed-flow router. Ten entries trade artifact depth for speed (or — for <code>simplify</code> and <code>probe</code> — review or test the work that already exists). Each writes fewer files than the full <code>/wf</code> pipeline. Set <code>workflow-type</code> in the index so downstream stages know they're in compressed mode.</p>
+<p class="lede">You reach for <code>/wf-quick</code> when you have a small, well-defined change that does not need the full 10-stage lifecycle. Each sub-command (a named action you pass after <code>/wf-quick</code>) writes fewer <a href="../reference/glossary.html">artifacts</a> — the markdown notes the plugin creates — than the full <code>/wf</code> pipeline, trading documentation depth for speed.</p>
 
-<p><strong>Investigation axes (v9.14):</strong> the family now spans both static-vs-runtime and per-slice-vs-slug-wide:</p>
+<h2>Which sub-command to use</h2>
+
+<p>The table below maps your situation to the right starting point.</p>
+
+<table>
+<thead><tr><th>Your situation</th><th>Sub-command</th></tr></thead>
+<tbody>
+<tr><td>One file. One change. The fix is obvious.</td><td><code>/wf-quick fix "…"</code></td></tr>
+<tr><td>Production is broken right now; speed beats review.</td><td><code>/wf-quick hotfix "…"</code></td></tr>
+<tr><td>You have a bug report but don't know the cause yet (static: read code &amp; history).</td><td><code>/wf-quick rca "…"</code></td></tr>
+<tr><td>You have a bug that's only visible in the running app — you need to drive it.</td><td><code>/wf-quick probe &lt;slug&gt;</code></td></tr>
+<tr><td>You know there's a problem but want 2–3 distinct approaches before committing.</td><td><code>/wf-quick investigate "…"</code></td></tr>
+<tr><td>You have a theory about how the code works and want it verified or falsified.</td><td><code>/wf-quick discover "…"</code></td></tr>
+<tr><td>Dependency audit — security patches, major-version bumps, safe minor updates.</td><td><code>/wf-quick update-deps</code></td></tr>
+<tr><td>Behaviour-preserving restructure with a test-suite baseline captured first.</td><td><code>/wf-quick refactor "…"</code></td></tr>
+<tr><td>Brainstorm improvement candidates for a focus area before sprint planning.</td><td><code>/wf-quick ideate "…"</code></td></tr>
+<tr><td>Triage the diff (or a plan) for reuse/quality/efficiency issues and route each finding.</td><td><code>/wf-quick simplify</code></td></tr>
+</tbody>
+</table>
+
+<h3>Investigation axes</h3>
+<p>The diagnostic sub-commands span two axes — where the evidence lives, and whether you have an existing <a href="../reference/glossary.html">slug</a> (the short ID for a workflow) to work against:</p>
 
 <table>
 <thead><tr><th></th><th>Forward gate (per-slice)</th><th>Backward re-entry (slug-wide)</th></tr></thead>
 <tbody>
-<tr><th>Static</th><td>lint/types/tests in <code>/wf verify</code></td><td><code>/wf-quick rca</code> — reads code &amp; git history; diagnoses a reported symptom</td></tr>
-<tr><th>Runtime</th><td>interactive sub-agent in <code>/wf verify</code> (gated; refuses pass without runtime evidence)</td><td><code>/wf-quick probe</code> — drives the running artifact; detects reported <em>or</em> unreported defects</td></tr>
+<tr><th>Static (read code &amp; history)</th><td>lint/types/tests in <code>/wf verify</code></td><td><code>/wf-quick rca</code> — reads code &amp; git history; diagnoses a reported symptom</td></tr>
+<tr><th>Runtime (drive the running app)</th><td>interactive sub-agent in <code>/wf verify</code> (gated; refuses pass without runtime evidence)</td><td><code>/wf-quick probe</code> — drives the running artifact; detects reported <em>or</em> unreported defects</td></tr>
 </tbody>
 </table>
 
@@ -185,7 +217,7 @@
 <tr><th>Recommends</th><td>One of <code>/wf plan &lt;slug&gt;</code> (default, non-trivial fixes), <code>/wf-quick fix</code> (small fixes), or <code>/wf-quick hotfix</code> (active production incident) — chosen from the diagnosis. Low root-cause confidence + high blast radius routes to human triage, not an auto-route.</td></tr>
 </table></div>
 
-<p>Root-cause analysis with parallel sub-agents. Reproduces the bug, captures the failing trace, identifies the cause without committing to a fix. The artifact recommends a downstream command based on the diagnosis — it does <em>not</em> forward to <code>/wf shape</code>.</p>
+<p>Root-cause analysis with parallel sub-agents. Reproduces the bug, captures the failing trace, and identifies the cause without committing to a fix. The artifact recommends a downstream command based on the diagnosis — it does <em>not</em> forward automatically to <code>/wf shape</code>.</p>
 
 <h4>Sub-agent dispatch</h4>
 <ul>
@@ -203,7 +235,7 @@
 
 <h4>When NOT to use</h4>
 <ul>
-  <li>The bug is observable only at runtime (a button does nothing, a response is wrong, a screen renders incorrectly) and you'd rather drive the running artifact than read code → <code>/wf-quick probe &lt;slug&gt;</code> (the runtime sibling of rca).</li>
+  <li>The bug is observable only at runtime (a button does nothing, a response is wrong, a screen renders incorrectly) and you'd rather drive the running artifact than read code — use <code>/wf-quick probe &lt;slug&gt;</code>, the runtime sibling of rca.</li>
 </ul>
 
 <hr>
@@ -242,7 +274,7 @@
 </ol>
 
 <h4>Focus vs filter (<code>--strict</code>)</h4>
-<p>Default is <strong>focus mode</strong>: the main <code>## Findings</code> list reports findings tied to the target AND surfaces incidental defects observed during navigation. Opt in to <strong>filter mode</strong> with <code>--strict</code>: only target-tied findings appear in the main list; incidentals are recorded to <code>probe-evidence/&lt;descriptor&gt;/incidental.md</code> with <code>incidental-observed-count: N</code> in frontmatter. User opted out of being told about incidentals but the data is preserved for later review.</p>
+<p>Default is <strong>focus mode</strong>: the main <code>## Findings</code> list reports findings tied to the target AND surfaces incidental defects observed during navigation. Opt in to <strong>filter mode</strong> with <code>--strict</code>: only target-tied findings appear in the main list; incidentals are recorded to <code>probe-evidence/&lt;descriptor&gt;/incidental.md</code> with <code>incidental-observed-count: N</code> in frontmatter. The data is preserved for later review even when the user opts out of seeing incidentals inline.</p>
 
 <h4>Branch posture on mismatch (probe is the one wf-quick command that interrupts)</h4>
 <p>Probe runs cold more often than verify does — the user may have moved branches days ago and forgotten — and silently switching can clobber uncommitted work. When the working tree's branch differs from the slug's <code>branch</code>, probe calls <code>AskUserQuestion</code> with three options:</p>
@@ -272,7 +304,7 @@
 <h4>When NOT to use</h4>
 <ul>
   <li>You don't have a slug yet — probe is slug-mode only by design. Run <code>/wf intake</code> first if the work isn't started.</li>
-  <li>The symptom is a code-correctness failure (test failing, type error, build broken) and you'd rather read code than run it → <code>/wf-quick rca &lt;symptom&gt;</code>.</li>
+  <li>The symptom is a code-correctness failure (test failing, type error, build broken) and you'd rather read code than run it — use <code>/wf-quick rca &lt;symptom&gt;</code>.</li>
   <li>You want to fix the defect inline. Probe never edits code — route findings through the recommended next command (<code>/wf-quick fix</code> or <code>/wf plan</code>).</li>
 </ul>
 
@@ -285,7 +317,7 @@
 <tr><th>Forwards to</th><td>User picks an option, then <code>/wf-quick fix</code> (small) or <code>/wf intake</code> (medium+). No <code>02-shape.md</code> is synthesized — the downstream command does shape on the chosen option.</td></tr>
 </table></div>
 
-<p><strong>Solution-options sketcher.</strong> Takes a code-level problem ("checkout p99 latency is 2s", "auth flow is brittle under concurrent writes") and produces 2–3 genuinely distinct engineering approaches grounded in the existing architecture. Three parallel sub-agents:</p>
+<p><strong>Solution-options sketcher.</strong> Takes a code-level problem ("checkout p99 latency is 2s", "auth flow is brittle under concurrent writes") and produces 2–3 genuinely distinct engineering approaches grounded in the existing architecture. Three parallel sub-agents run:</p>
 <ul>
   <li><strong>Architecture cartographer</strong> — maps the relevant area (entry points, call graph, data touched, integration boundaries, architectural constraints, recent churn).</li>
   <li><strong>Option generator</strong> — proposes 2–3 approaches that differ in <em>mechanism</em>, not just surface choices. Also records what was considered and rejected.</li>
@@ -302,9 +334,9 @@
 
 <h4>When NOT to use</h4>
 <ul>
-  <li>You have a symptom and want to find the root cause → <code>/wf-quick rca</code>.</li>
-  <li>You want to understand how the area works, not generate options → <code>/wf-meta how</code>.</li>
-  <li>You already know which approach you want → skip straight to <code>/wf-quick fix</code> or <code>/wf intake</code>.</li>
+  <li>You have a symptom and want to find the root cause — use <code>/wf-quick rca</code>.</li>
+  <li>You want to understand how the area works, not generate options — use <code>/wf-meta how</code>.</li>
+  <li>You already know which approach you want — skip straight to <code>/wf-quick fix</code> or <code>/wf intake</code>.</li>
 </ul>
 
 <hr>
@@ -333,9 +365,9 @@
 
 <h4>When NOT to use</h4>
 <ul>
-  <li>You don't have a theory yet — you just want to understand the area → <code>/wf-meta how</code>.</li>
-  <li>You have a symptom, not a theory, and want to find the cause → <code>/wf-quick rca</code>.</li>
-  <li>You want to compare multiple approaches to a problem → <code>/wf-quick investigate</code>.</li>
+  <li>You don't have a theory yet — you just want to understand the area — use <code>/wf-meta how</code>.</li>
+  <li>You have a symptom, not a theory, and want to find the cause — use <code>/wf-quick rca</code>.</li>
+  <li>You want to compare multiple approaches to a problem — use <code>/wf-quick investigate</code>.</li>
 </ul>
 
 <hr>
@@ -346,7 +378,7 @@
 <tr><th>Produces</th><td><code>.ai/dep-updates/&lt;run-id&gt;/</code> tree: scan, research, plan, implement, verify</td></tr>
 </table></div>
 
-<p>Tiered dependency updates. Audits the dep tree, classifies findings into P0 (security) / P1 (major version) / P2 (safe minor/patch) / hold, applies them in priority order with verification between tiers.</p>
+<p>Tiered dependency updates. Audits the dep tree, classifies findings into P0 (security) / P1 (major version) / P2 (safe minor/patch) / hold, and applies them in priority order with verification between tiers.</p>
 
 <h4>Pipeline</h4>
 <ol>
@@ -366,7 +398,7 @@
 <tr><th>Files</th><td><code>rf-*.md</code> prefixed</td></tr>
 </table></div>
 
-<p>Behaviour-preserving refactor with test baseline. Captures the test suite output as a baseline BEFORE refactoring, refactors with incremental green steps, re-verifies parity.</p>
+<p>Behaviour-preserving refactor with test baseline. Captures the test suite output as a baseline BEFORE refactoring, refactors with incremental green steps, then re-verifies parity.</p>
 
 <h4>Pipeline shape</h4>
 <ol>
@@ -389,7 +421,7 @@
 <tr><th>Produces</th><td><code>.ai/ideation/&lt;focus&gt;-&lt;timestamp&gt;.md</code></td></tr>
 </table></div>
 
-<p>Brainstorm + rank improvement candidates for a focus area. Output: a ranked list with effort estimates and impact guesses. Useful before sprint planning or as input to <code>/wf intake</code> (medium+ candidates) or <code>/wf-quick fix</code> (small candidates).</p>
+<p>Brainstorm + rank improvement candidates for a focus area. Output is a ranked list with effort estimates and impact guesses. Useful before sprint planning or as input to <code>/wf intake</code> (medium+ candidates) or <code>/wf-quick fix</code> (small candidates).</p>
 
 <hr>
 
@@ -434,7 +466,7 @@ The plugin's orchestrator discipline: plan plans, implement implements, review r
 
 <h4>The routing matrix</h4>
 
-<p>For each accepted finding, simplify assigns a route. Bias toward the smallest scope that fully addresses the finding — never escalate a finding to bigger process than it deserves.</p>
+<p>For each accepted finding, simplify assigns a route. The bias is toward the smallest scope that fully addresses the finding — never escalate a finding to bigger process than it deserves.</p>
 
 <table class="no-mobile-scroll">
 <thead><tr><th>Route</th><th>Downstream command</th><th>Use when</th></tr></thead>
@@ -496,14 +528,15 @@ The plugin's orchestrator discipline: plan plans, implement implements, review r
 </ul>
 
 <div class="related">
-<h3>Related</h3>
+<h3>Where next</h3>
 <ul>
-  <li><a href="wf.html">/wf router</a> — the full alternative.</li>
-  <li><a href="../how-to/start-workflow.html">Pick an entry point</a> — decision tree.</li>
-  <li><a href="../tutorials/quick-fix-workflow.html">Quick-fix tutorial</a> — fix in practice.</li>
+  <li><a href="../tutorials/quick-fix-workflow.html">Run a quick fix end-to-end →</a></li>
+  <li><a href="wf.html">See the full 10-stage pipeline when your change needs more →</a></li>
+  <li><a href="../how-to/start-workflow.html">Not sure which command fits? Use the decision tree →</a></li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../reference/wf.html"><span>← Previous</span>/wf router</a><a class="next" href="../reference/wf-meta.html"><span>Next →</span>/wf-meta router</a></div></main>
+
+<div class="pager"><a class="prev" href="../reference/wf.html"><span>← Previous</span>/wf</a><a class="next" href="../reference/wf-meta.html"><span>Next →</span>/wf-meta</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

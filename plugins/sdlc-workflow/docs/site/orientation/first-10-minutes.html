@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Branch strategy · sdlc-workflow</title>
+<title>First 10 minutes · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -91,101 +91,85 @@
   </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Explanation &rsaquo; Branch strategy</div>
-<span class="quadrant explanation">explanation</span>
-<h1>Branch strategy</h1>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Orientation &rsaquo; First 10 minutes</div>
+<span class="quadrant tutorial">tutorial</span>
+<h1>First 10 minutes</h1>
 
+<p class="lede">
+You have 10 minutes and a real change to make. This walkthrough takes you from a blank slate to a committed PR using <code>/wf-quick fix</code> — the fastest path that still leaves a record. Real commands, real output, no placeholders.
+</p>
 
-<p class="lede">You do not need this page to use the plugin. Read it if you want to understand how the plugin manages git branches and what each strategy option means in practice.</p>
-
-<p>When you start a workflow, the plugin records a <strong>branch strategy</strong> — a setting that controls how much git work the plugin does on your behalf when handing off code. There are three options: <code>dedicated</code>, <code>shared</code>, and <code>none</code>. You pick once at intake and rarely change it.</p>
-
-<p>The setting lives in the <code>branch-strategy</code> field of <code>00-index.md</code>, the workflow's index file. If you have not read about intake yet, see <a href="../how-to/start-workflow.html">Start a workflow</a>.</p>
-
-<h2>dedicated (default)</h2>
-
-<p>Most feature work lands here. The plugin creates its own git branch (default name: <code>feat/&lt;slug&gt;</code>) and its own pull request. A <strong>slug</strong> is the short identifier the plugin uses to name the workflow and its files — for example, <code>auth-refresh</code>.</p>
-
-<p>What the plugin does at handoff with this strategy:</p>
-<ul>
-  <li>Pushes the branch to the remote.</li>
-  <li>Opens or updates a pull request automatically.</li>
-  <li>Triages any review comments through a bounded loop (stage T5.1).</li>
-  <li>Rebases onto the base branch with <code>--force-with-lease</code> if the branch falls behind (stage T5.2).</li>
-  <li>Captures live PR state into <code>08-handoff.md</code>, the handoff <strong>artifact</strong> — the workflow note written at the end of each stage (stage T5.3).</li>
-</ul>
-
-<p>Choose <code>dedicated</code> when your change will be reviewed as a standalone pull request.</p>
-
-<h2>shared</h2>
-
-<p>Some teams merge work onto a long-lived branch — a release train, a shared feature branch, or a main branch that receives small commits directly. Force-pushing onto such a branch would overwrite other contributors' commits.</p>
-
-<p>What the plugin does at handoff with this strategy:</p>
-<ul>
-  <li>Pushes the branch to the remote.</li>
-  <li>Does <em>not</em> open a pull request automatically. You manage PR creation yourself.</li>
-  <li>Skips the rebase-and-force-push step (T5.2) entirely.</li>
-  <li>Runs the triage (T5.1) and live-check (T5.3) steps only if you have manually recorded a <code>pr-number</code> in the workflow index.</li>
-</ul>
-
-<p>Choose <code>shared</code> when your branch is one contributor among many and a force-push would be destructive.</p>
-
-<h2>none</h2>
-
-<p>Sometimes a workflow does not ship code at all — a documentation update that lives only locally, a spike you want to explore and discard, or a prototype that should not touch the remote.</p>
-
-<p>What the plugin does at handoff with this strategy:</p>
-<ul>
-  <li>Writes <code>08-handoff.md</code> as the final deliverable.</li>
-  <li>Does <em>not</em> push, open a PR, triage comments, rebase, or run any live check.</li>
-</ul>
-
-<p>The handoff artifact itself is the externalised result. Choose <code>none</code> when the workflow is self-contained and git operations add no value.</p>
-
-<div class="diagram">
-<pre class="mermaid">
-flowchart TD
-  start{What's the change?}
-  start -- Feature; reviewer-friendly PR --> dedicated[branch-strategy: dedicated]
-  start -- Joining a long-lived branch others share --> shared[branch-strategy: shared]
-  start -- Docs-only / local-only / spike --> none[branch-strategy: none]
-
-  dedicated -.-> dedicated_eff[Push, open PR<br/>--force-with-lease on rebase<br/>T5.1 triage runs<br/>T5.2 rebase runs<br/>T5.3 live check runs]
-  shared -.-> shared_eff[Push branch<br/>NO auto-PR<br/>T5.2 SKIPPED<br/>T5.1/T5.3 only if PR exists]
-  none -.-> none_eff[No git operations<br/>Handoff artifact is the deliverable<br/>T5.1/T5.2/T5.3 all skipped]
-</pre>
-</div>
-<p class="caption">Each strategy enables a different subset of the handoff stages.</p>
-
-<h2>Branch liveness <span class="badge">v9.49</span></h2>
-
-<p>Separate from the strategy above, the <strong>dashboard</strong> — the multi-repo overview page served by the plugin — annotates each workflow with a soft liveness badge. This badge describes the current state of the branch in git, and helps you spot stale workflows at a glance. It never blocks a stage.</p>
-
-<details>
-<summary>Liveness badge values</summary>
+<div class="summary">
 <table>
-<thead><tr><th>Badge</th><th>Meaning</th></tr></thead>
-<tbody>
-<tr><td><code>live</code></td><td>The branch ref exists and has not yet been fully merged into its base.</td></tr>
-<tr><td><code>merged</code></td><td>The branch tip is an ancestor of the base branch, or the pull request resolved as <code>MERGED</code>.</td></tr>
-<tr><td><code>gone</code></td><td>The branch ref is no longer present locally — typically deleted after merging.</td></tr>
-<tr><td><code>unknown</code></td><td>No branch declared (<code>branch-strategy: none</code>), git is unavailable, or any error. Fails open; no badge is rendered.</td></tr>
-</tbody>
+<tr><th>Pre-conditions</th><td>Plugin installed. (<a href="../tutorials/installation.html">Not yet? Install first →</a>)</td></tr>
+<tr><th>What you'll do</th><td>Fix a real bug in your codebase using a compressed quick-fix workflow</td></tr>
+<tr><th>What you'll produce</th><td>Two artifact files and a commit. Takes about 10 minutes end-to-end.</td></tr>
+<tr><th>Not covered here</th><td>The full 10-stage lifecycle. <a href="../tutorials/first-workflow.html">See the full feature walkthrough →</a></td></tr>
 </table>
-<p>For more about the dashboard, see <a href="../reference/serve.html">Serve daemon &amp; hub</a>.</p>
-</details>
+</div>
+
+<h2>The scenario</h2>
+
+<p>Suppose you found a bug: a user-facing error message says "Recieved" instead of "Received". One file, one line. You want to fix it, write a test (or confirm one exists), and ship it — without spending 30 minutes on ceremony.</p>
+
+<h2>Step 1 — Start the workflow (30 seconds)</h2>
+
+<pre><code>/wf-quick fix "typo in invalid-payload error message"</code></pre>
+
+<p>Claude asks you two or three questions: which file, what's the exact fix, do you want a test touched. Answer them in plain language. Claude then writes two files under <code>.ai/workflows/</code>:</p>
+
+<pre><code>.ai/workflows/typo-invalid-payload-error-message/
+  00-index.md        ← registry entry (slug, type, branch, status)
+  01-fix.md          ← the compressed brief: what's broken, what the fix is, acceptance criteria</code></pre>
+
+<p>These are plain markdown files you can open and read. <code>01-fix.md</code> combines what the full pipeline would split into a shape document and a plan document — compressed because the scope is small enough that one file carries both.</p>
+
+<h2>Step 2 — Implement (5–7 minutes)</h2>
+
+<pre><code>/wf implement typo-invalid-payload-error-message</code></pre>
+
+<p>Claude reads <code>01-fix.md</code>, makes the change, runs your test command, and commits. If there's a test to add or update, it does that first. When it's done, you'll see:</p>
+
+<pre><code>.ai/workflows/typo-invalid-payload-error-message/
+  00-index.md
+  01-fix.md
+  05-implement.md    ← what Claude did, what tests passed, the commit hash</code></pre>
+
+<p>Review the diff before the commit lands if you want to catch anything. <code>/wf implement</code> will pause and show you what it's about to do.</p>
+
+<h2>Step 3 — Handoff to PR (2 minutes)</h2>
+
+<pre><code>/wf handoff typo-invalid-payload-error-message</code></pre>
+
+<p>Handoff runs a <strong>readiness check</strong> — the set of gates that must say "ready" before the plugin will open a PR. For a quick fix, these are lightweight: commitlint, a rebase onto main, a check that no public API surface drifted. If everything passes, Claude opens the PR. The readiness check result lands in:</p>
+
+<pre><code>.ai/workflows/typo-invalid-payload-error-message/
+  08-handoff.md      ← readiness verdict, PR URL, what was checked</code></pre>
+
+<p>If a gate fails (say, a test broke), <code>08-handoff.md</code> shows you exactly what failed and how to fix it. Re-run <code>/wf handoff</code> after fixing — it resumes from where it stopped.</p>
+
+<h2>What you just did</h2>
+
+<p>You ran a three-command workflow that took one session. The artifact trail means:</p>
+<ul>
+  <li>Next time you open Claude, you can run <code>/wf-meta status</code> and see this workflow in the list — closed, with the PR link and commit hash</li>
+  <li>A reviewer can read <code>01-fix.md</code> and understand the intent without reading the diff</li>
+  <li>If the same bug pattern appears elsewhere, you have a record of how you thought about it</li>
+</ul>
+
+<h2>When to use a fuller workflow instead</h2>
+
+<p>If your change involves more than one file, touches behavior that needs real acceptance criteria, or you think someone will ask "why did you do it this way?" — use <code>/wf intake</code> instead. The full workflow adds stages but the first two (<code>intake</code> → <code>shape</code>) take less than 10 minutes and give you a much richer document to build from.</p>
 
 <div class="related">
 <h3>Where next</h3>
 <ul>
-  <li><a href="../how-to/start-workflow.html">Pick your branch strategy at intake →</a></li>
-  <li><a href="the-readiness-gate.html">See which fields the readiness check computes for each strategy →</a></li>
-  <li><a href="../reference/serve.html">Learn how the dashboard uses liveness badges →</a></li>
+  <li><a href="../how-to/choose-a-command.html">Find the right command for a bigger or different kind of change →</a></li>
+  <li><a href="../tutorials/first-workflow.html">Walk through the full 10-stage lifecycle on a real feature →</a></li>
+  <li><a href="../how-to/start-workflow.html">Already have a change in mind? Pick your entry point →</a></li>
 </ul>
 </div>
-
-<div class="pager"><a class="prev" href="../explanation/diataxis-integration.html"><span>← Previous</span>Diátaxis integration</a><a class="next" href="../explanation/adaptive-routing.html"><span>Next →</span>Adaptive routing</a></div></main>
+<div class="pager"><a class="prev" href="../orientation/mental-model.html"><span>← Previous</span>How it works</a><a class="next" href="../tutorials/installation.html"><span>Next →</span>Install</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

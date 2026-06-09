@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>/wf router — every lifecycle stage in depth · sdlc-workflow</title>
+<title>/wf command — every lifecycle stage in depth · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -16,20 +16,27 @@
 <aside id="sidebar">
 <a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
 <nav aria-label="Site navigation">
-  <h4>Start here</h4>
+  <h4>Orientation</h4>
   <ul>
     <li><a href="../index.html" data-href="index.html">Home</a></li>
+    <li><a href="../orientation/is-this-for-me.html" data-href="orientation/is-this-for-me.html">Is this for me?</a></li>
+    <li><a href="../orientation/mental-model.html" data-href="orientation/mental-model.html">How it works</a></li>
+    <li><a href="../orientation/first-10-minutes.html" data-href="orientation/first-10-minutes.html">First 10 minutes</a></li>
+  </ul>
+  <h4>Tutorials</h4>
+  <ul>
     <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
-    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">First workflow</a></li>
+    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">Full feature walkthrough</a></li>
     <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
   </ul>
   <h4>How to&hellip;</h4>
   <ul>
+    <li><a href="../how-to/choose-a-command.html" data-href="how-to/choose-a-command.html">Choose a command</a></li>
     <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
     <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
     <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
-    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use augmentations</a></li>
-    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use the design pipeline</a></li>
+    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use add-ons</a></li>
+    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use design</a></li>
     <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
     <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
     <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
@@ -38,14 +45,15 @@
   </ul>
   <h4>Reference</h4>
   <ul>
+    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Routers (overview)</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs router</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review router</a></li>
+    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -56,7 +64,6 @@
     <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
     <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
     <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
-    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
   </ul>
   <h4>Explanation</h4>
   <ul>
@@ -78,13 +85,19 @@
     <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
     <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
   </ul>
+  <h4>Changelog</h4>
+  <ul>
+    <li><a href="../whats-new.html" data-href="whats-new.html">What&#8217;s new</a></li>
+  </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf router</div>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf command</div>
 <span class="quadrant reference">reference</span>
-<h1>/wf router — every lifecycle stage in depth</h1>
+<h1>/wf command — every lifecycle stage in depth</h1>
 
-<p>The lifecycle router. Dispatches across <strong>10 stages</strong> (intake → retro) and <strong>4 augmentations</strong> (instrument, experiment, benchmark, profile). Every entry on this page is invoked as <code>/wf &lt;sub&gt; [args]</code>.</p>
+<p class="lede">You reach for <code>/wf</code> when you have a real feature, fix, or refactor to ship — one where you want clear acceptance criteria, a written plan, proper review, and a documented trail from idea to production. It is the full-lifecycle command: 10 ordered <a href="../reference/glossary.html">stages</a> (intake through retro) plus 4 optional add-ons (instrument, experiment, benchmark, profile) for observability, flag-gated rollout, and performance work.</p>
+
+<p>Every entry on this page is invoked as <code>/wf &lt;sub-command&gt; [args]</code>. Each <a href="../reference/glossary.html">sub-command</a> maps to one stage of the pipeline and reads the <a href="../reference/glossary.html">artifacts</a> the previous stage wrote.</p>
 
 <div class="toc">
 <h3>On this page</h3>
@@ -105,6 +118,8 @@
 
 <h2 id="wf-intake">/wf intake "&lt;description&gt;"</h2>
 
+<p class="sub-intro">You reach for this sub-command when you have a new piece of work and you want the plugin to start tracking it — this is where every full-lifecycle workflow begins.</p>
+
 <div class="summary"><table>
 <tr><th>Stage</th><td>1 — the entry point</td></tr>
 <tr><th>Requires</th><td>Nothing. This is where workflows start.</td></tr>
@@ -112,7 +127,7 @@
 <tr><th>Default next</th><td><code>/wf shape &lt;slug&gt;</code></td></tr>
 </table></div>
 
-<p>Captures the raw ask, generates a stable slug (kebab-case, lowercase), establishes the branch strategy, and writes the control file. Slug is derived from the title and never changes — it's the directory name under <code>.ai/workflows/</code>.</p>
+<p>Captures the raw ask, generates a stable <a href="../reference/glossary.html">slug</a> (kebab-case, lowercase), establishes the branch strategy, and writes the control file. The slug is derived from the title and never changes — it's the directory name under <code>.ai/workflows/</code>.</p>
 
 <h4>What it reads</h4>
 <ul>
@@ -147,6 +162,8 @@
 <hr>
 
 <h2 id="wf-shape">/wf shape &lt;slug&gt;</h2>
+
+<p class="sub-intro">You reach for this sub-command when intake is done and you want a clear, agreed-on spec before any code is written — it runs the deepest interview of the lifecycle.</p>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>2 — deep interview + research</td></tr>
@@ -189,10 +206,12 @@
 
 <h2 id="wf-slice">/wf slice &lt;slug&gt;</h2>
 
+<p class="sub-intro">You reach for this sub-command after shape is complete — it breaks the spec into independently deliverable pieces so you can work on each one in parallel or sequence.</p>
+
 <div class="summary"><table>
 <tr><th>Stage</th><td>3 — decompose into vertical slices</td></tr>
 <tr><th>Requires</th><td><code>02-shape.md</code></td></tr>
-<tr><th>Produces</th><td><code>03-slice.md</code> (master index) + <code>03-slice-&lt;slice-slug&gt;.md</code> per slice</td></tr>
+<tr><th>Produces</th><td><code>03-slice.md</code> (master index) + <code>03-slice-&lt;slice-slug&gt;.md</code> per <a href="../reference/glossary.html">slice</a></td></tr>
 <tr><th>Default next</th><td><code>/wf plan &lt;slug&gt; &lt;slice&gt;</code></td></tr>
 </table></div>
 
@@ -217,12 +236,14 @@
 
 <h4>When NOT to use</h4>
 <ul>
-  <li>Use <code>/wf-meta skip slice</code> only for compressed flows that already decomposed at <code>/wf-quick</code> time.</li>
+  <li>Use <code>/wf-meta skip slice</code> only for quick commands that already decomposed at <code>/wf-quick</code> time.</li>
 </ul>
 
 <hr>
 
 <h2 id="wf-plan">/wf plan &lt;slug&gt; [slice]</h2>
+
+<p class="sub-intro">You reach for this sub-command before writing any code — it researches your repo and the current best practices, then produces the concrete file-by-file plan that implement will execute.</p>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>4 — repo-aware implementation plan</td></tr>
@@ -262,6 +283,8 @@
 
 <h2 id="wf-implement">/wf implement &lt;slug&gt; &lt;slice&gt; [reviews]</h2>
 
+<p class="sub-intro">You reach for this sub-command when the plan is written and approved — this is the only stage that actually writes code and commits it.</p>
+
 <div class="summary"><table>
 <tr><th>Stage</th><td>5 — execute the plan, commit atomically</td></tr>
 <tr><th>Requires</th><td><code>04-plan-&lt;slice&gt;.md</code></td></tr>
@@ -295,6 +318,8 @@
 <hr>
 
 <h2 id="wf-verify">/wf verify &lt;slug&gt; [slice]</h2>
+
+<p class="sub-intro">You reach for this sub-command after implement — it exercises each acceptance criterion and captures evidence, so review has facts rather than assumptions to work from.</p>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>6 — exercise the acceptance criteria, capture evidence</td></tr>
@@ -365,6 +390,8 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <h2 id="wf-review">/wf review &lt;slug&gt; [slice|triage]</h2>
 
+<p class="sub-intro">You reach for this sub-command once verify passes — it fans out across up to 31 review dimensions in parallel and aggregates the findings into a single ship verdict.</p>
+
 <div class="summary"><table>
 <tr><th>Stage</th><td>7 — multi-domain parallel review dispatch</td></tr>
 <tr><th>Requires</th><td><code>06-verify-&lt;slice&gt;.md</code></td></tr>
@@ -397,6 +424,8 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <h2 id="wf-handoff">/wf handoff &lt;slug&gt; [slice]</h2>
 
+<p class="sub-intro">You reach for this sub-command when review approves the work and you're ready to open a PR — it packages the artifacts, writes the docs, pushes the branch, and runs the full PR-readiness check.</p>
+
 <div class="summary"><table>
 <tr><th>Stage</th><td>8 — package for PR; run PR-readiness block</td></tr>
 <tr><th>Requires</th><td>Every in-scope slice's <code>05-*</code> + <code>07-*</code></td></tr>
@@ -406,7 +435,7 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <p>Aggregates ALL complete slices into one PR by default. Pass a slice slug as the second arg only when each slice ships as its own PR. Handoff <strong>refuses</strong> when any in-scope slice's review verdict is <code>dont-ship</code> or carries unresolved blocker findings.</p>
 
-<p>The <strong>PR-readiness block</strong> (v9.5.0, extended v9.41.0) runs: commitlint pass, public-surface drift check, doc-mirror regen, <strong>T5.0 — watch CI to a terminal state and give bot reviews a bounded window to settle</strong> (added v9.41.0 so readiness is judged on real signal, not a stale <code>gh pr view</code> snapshot), the PR comment triage loop (T5.1), rebase onto base (T5.2), and a final live readiness re-watch (T5.3). It outputs a single <code>readiness-verdict</code> that ship gates on.</p>
+<p>The <strong>PR-readiness block</strong> — the <a href="../reference/glossary.html">readiness check</a> that ship gates on — runs: commitlint pass, public-surface drift check, doc-mirror regen, <strong>T5.0 — watch CI to a terminal state and give bot reviews a bounded window to settle</strong> (added v9.41.0 so readiness is judged on real signal, not a stale <code>gh pr view</code> snapshot), the PR comment triage loop (T5.1), rebase onto base (T5.2), and a final live readiness re-watch (T5.3). It outputs a single <code>readiness-verdict</code> that ship gates on.</p>
 
 <p>The review-file layout handoff checks depends on <code>review-scope</code> in <code>00-index.md</code>: <code>per-slice</code> requires a <code>07-review-&lt;slice&gt;.md</code> for every slice; <code>slug-wide</code> requires a single <code>07-review.md</code>.</p>
 
@@ -424,11 +453,13 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
   <li>Pushed branch + new or updated PR</li>
 </ul>
 
-<p>See <a href="08-handoff-schema.html">Handoff schema</a> for every frontmatter field; <a href="../how-to/triage-pr-comments.html">Triage PR comments</a> for the T5.1 loop; <a href="../explanation/the-readiness-gate.html">The readiness gate</a> for how the verdict is computed.</p>
+<p>See <a href="08-handoff-schema.html">Handoff schema</a> for every frontmatter field; <a href="../how-to/triage-pr-comments.html">Triage PR comments</a> for the T5.1 loop; <a href="../explanation/the-readiness-gate.html">The readiness check</a> for how the verdict is computed.</p>
 
 <hr>
 
 <h2 id="wf-ship">/wf ship &lt;slug&gt; [environment]</h2>
+
+<p class="sub-intro">You reach for this sub-command once handoff signals ready — it merges, tags, publishes, watches CI, and polls post-release checks through a replayable 13-step sequence.</p>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>9 — plan-driven, replayable release</td></tr>
@@ -475,6 +506,8 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <h2 id="wf-retro">/wf retro &lt;slug&gt;</h2>
 
+<p class="sub-intro">You reach for this sub-command after ship — it reads the full artifact trail and proposes concrete improvements (CLAUDE.md additions, hooks, tests, CI checks) so the next workflow starts better than this one did.</p>
+
 <div class="summary"><table>
 <tr><th>Stage</th><td>10 — extract lessons; close out</td></tr>
 <tr><th>Requires</th><td>The full artifact trail through ship (or handoff if shipping is external)</td></tr>
@@ -496,20 +529,22 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 </ul>
 
 <h4>When to skip</h4>
-<p>Compressed flows (<code>/wf-quick</code>) skip retro by default. The full pipeline should not — small lessons compound. Anti-pattern: skipping retro on "small" work.</p>
+<p>Quick commands (<code>/wf-quick</code>) skip retro by default. The full pipeline should not — small lessons compound. Anti-pattern: skipping retro on "small" work.</p>
 
 <hr>
 
 <h2 id="wf-instrument">/wf instrument &lt;slug&gt; [slice]</h2>
 
+<p class="sub-intro">You reach for this add-on when the slice changes code paths that are currently invisible in production — no logs, metrics, or traces to tell you what happened.</p>
+
 <div class="summary"><table>
-<tr><th>Type</th><td>Augmentation — observability</td></tr>
+<tr><th>Type</th><td>Add-on — observability</td></tr>
 <tr><th>Requires</th><td><code>02-shape.md</code> + a defined slice</td></tr>
 <tr><th>Produces</th><td><code>04b-instrument.md</code></td></tr>
 <tr><th>Registers as</th><td>Entry in <code>00-index.md</code>'s <code>augmentations:</code> array</td></tr>
 </table></div>
 
-<p>Designs the observability for a slice: which logs, metrics, traces to add. Implement reads the augmentation file and adds the signals. Handoff translates to "Added observability — N signals for previously unobserved code paths".</p>
+<p>Designs the observability for a slice: which logs, metrics, traces to add. Implement reads the add-on file and adds the signals. Handoff translates to "Added observability — N signals for previously unobserved code paths".</p>
 
 <h4>When to use</h4>
 <ul>
@@ -521,8 +556,10 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <h2 id="wf-experiment">/wf experiment &lt;slug&gt; [slice]</h2>
 
+<p class="sub-intro">You reach for this add-on when you want to gate the behaviour change behind a feature flag and measure a controlled rollout rather than flipping the switch for everyone at once.</p>
+
 <div class="summary"><table>
-<tr><th>Type</th><td>Augmentation — feature flag + cohort design</td></tr>
+<tr><th>Type</th><td>Add-on — feature flag + cohort design</td></tr>
 <tr><th>Produces</th><td><code>04c-experiment.md</code></td></tr>
 </table></div>
 
@@ -538,8 +575,10 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <h2 id="wf-benchmark">/wf benchmark &lt;slug&gt; [baseline|compare]</h2>
 
+<p class="sub-intro">You reach for this add-on when you want regression insurance — run it before implement to capture a baseline, then again after to see exactly what changed.</p>
+
 <div class="summary"><table>
-<tr><th>Type</th><td>Augmentation — perf baseline + compare</td></tr>
+<tr><th>Type</th><td>Add-on — perf baseline + compare</td></tr>
 <tr><th>Produces</th><td><code>05c-benchmark.md</code></td></tr>
 </table></div>
 
@@ -555,13 +594,15 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <h2 id="wf-profile">/wf profile &lt;area&gt;</h2>
 
+<p class="sub-intro">You reach for this add-on when you suspect a hot path but haven't confirmed where it is — it runs a freestanding profiling pass without needing an active workflow slice.</p>
+
 <div class="summary"><table>
-<tr><th>Type</th><td>Augmentation — freestanding profiling pass</td></tr>
+<tr><th>Type</th><td>Add-on — freestanding profiling pass</td></tr>
 <tr><th>Slice-bound</th><td>No — doesn't need a workflow slice</td></tr>
 <tr><th>Produces</th><td>A profiling report</td></tr>
 </table></div>
 
-<p>The only freestanding augmentation. Investigate where time is spent in the named area. Language-detect, static-analysis rubric, dynamic-profiling commands per language, structured-output contract.</p>
+<p>The only freestanding add-on. Investigate where time is spent in the named area. Language-detect, static-analysis rubric, dynamic-profiling commands per language, structured-output contract.</p>
 
 <h4>When to use</h4>
 <ul>
@@ -570,15 +611,15 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 </ul>
 
 <div class="related">
-<h3>Related</h3>
+<h3>Where next</h3>
 <ul>
-  <li><a href="wf-quick.html">/wf-quick router</a> — the compressed alternatives to <code>/wf intake</code>.</li>
-  <li><a href="wf-meta.html">/wf-meta router</a> — navigation and management.</li>
-  <li><a href="pipeline.html">Pipeline reference</a> — the 10-stage flow these commands implement.</li>
-  <li><a href="../tutorials/first-workflow.html">First workflow tutorial</a> — these commands in practice.</li>
+  <li><a href="../tutorials/first-workflow.html">Run your first workflow end to end →</a></li>
+  <li><a href="wf-quick.html">See the compressed alternatives when /wf is too much →</a></li>
+  <li><a href="pipeline.html">Understand the full 10-stage pipeline these commands implement →</a></li>
 </ul>
 </div>
-<div class="pager"><a class="prev" href="../reference/commands.html"><span>← Previous</span>Routers</a><a class="next" href="../reference/wf-quick.html"><span>Next →</span>/wf-quick router</a></div></main>
+
+<div class="pager"><a class="prev" href="../reference/commands.html"><span>← Previous</span>Commands</a><a class="next" href="../reference/wf-quick.html"><span>Next →</span>/wf-quick</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

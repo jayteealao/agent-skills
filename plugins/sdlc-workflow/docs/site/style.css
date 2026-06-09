@@ -342,6 +342,22 @@ img, svg {
   color: var(--fg-faint);
 }
 
+/* Mandatory job-first opening paragraph — present on every rewritten page.
+   Reviewers and the legibility lint find it via .lede selector. */
+.lede {
+  font-size: 1.05rem;
+  color: var(--fg-muted);
+  max-width: 60ch;
+  margin-bottom: 1.5rem;
+  line-height: 1.7;
+}
+
+/* Callout variants per controlled-vocab decision (D5) */
+.callout-risk   { border-left-color: #b91c1c; }
+.callout-warn   { border-left-color: #d97706; }
+.callout-info   { border-left-color: var(--link); }
+.callout-ok     { border-left-color: #15803d; }
+
 /* Tile grid for landing/site map */
 .tile-grid {
   display: grid;
