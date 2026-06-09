@@ -58,6 +58,26 @@ const MIME = {
 
 const CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'";
 
+// The plugin's own documentation site (docs/site) is FIRST-PARTY content we
+// author — unlike a repo's `.html.fragment` output, which is semi-trusted and
+// gets the strict `script-src 'self'` CSP above. The docs pages use an inline
+// module script (the mobile-nav drawer) and import Mermaid from the jsDelivr
+// CDN, both of which the strict CSP would block. This relaxed policy — scoped to
+// the `/docs/` route ONLY — admits inline scripts and jsDelivr while still
+// pinning everything else to same-origin. Repo views and the landing page keep
+// CSP unchanged.
+const DOCS_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'";
+
+// Absolute path to the committed docs site. Resolved off this module's own URL
+// so it works identically from source (scripts/hub-serve.mjs) and the bundle
+// (dist/hub-serve.mjs) — both sit exactly one level under the plugin root (the
+// build's depth-1 invariant), so `../docs/site` lands on the real tree either
+// way. Resolved once; null only if the URL can't be converted (never in practice).
+const DOCS_ROOT = (() => {
+  try { return fileURLToPath(new URL('../docs/site', import.meta.url)); }
+  catch { return null; }
+})();
+
 const MAX_INJECT_BYTES = 1024 * 1024;   // skip meta-injection above 1 MB (§4.4 size guard)
 const MAX_UPSERT_BYTES = 512 * 1024;    // registry entries are a few KB; cap the body
 
@@ -266,20 +286,49 @@ export function createHubServer({
     serveFile({ req, res, filePath: resolved.path, stats, entryId: id });
   }
 
+  // Serve the plugin's own docs site (docs/site) under /docs/. Reuses the same
+  // containment kernel as the repo routes — rooted at DOCS_ROOT with the
+  // lowercase index basename — so a traversal can never escape the docs tree.
+  // No meta/brand/livereload injection (these are static authored pages, not
+  // rendered artifacts); the relaxed DOCS_CSP lets their inline nav script and
+  // Mermaid CDN import run.
+  function serveDocsFile({ req, res, rest }) {
+    if (!DOCS_ROOT || !existsSync(DOCS_ROOT)) { res.writeHead(404).end('docs not available'); return; }
+    const resolved = resolveRequestPath(DOCS_ROOT, rest, { indexFile: 'index.html' });
+    if (!resolved.ok) { res.writeHead(resolved.status).end(resolved.message); return; }
+    if (!existsSync(resolved.path)) { res.writeHead(404).end('not found'); return; }
+    let stats;
+    try { stats = statSync(resolved.path); } catch { res.writeHead(404).end('not found'); return; }
+    if (!stats.isFile()) { res.writeHead(404).end('not found'); return; }
+
+    const type = MIME[extname(resolved.path).toLowerCase()] ?? 'application/octet-stream';
+    res.writeHead(200, {
+      'content-type': type,
+      'content-length': stats.size,
+      'cache-control': 'no-cache',
+      'content-security-policy': DOCS_CSP,
+    });
+    if (req.method === 'HEAD') { res.end(); return; }
+    createReadStream(resolved.path).pipe(res);
+  }
+
   function serveFile({ req, res, filePath, stats, entryId }) {
     const type = MIME[extname(filePath).toLowerCase()] ?? 'application/octet-stream';
 
-    // INDEX.html responses get a per-repo id meta tag injected at serve time so
-    // one SSE stream can serve every repo without cross-repo spurious reloads
-    // (§4.4). Injection (and the Phase-5 brand/breadcrumb rewrite) happen here,
-    // at serve time — registration stays flag-free. Size-guarded; everything
-    // else streams untouched.
-    const isIndexHtml = filePath.toLowerCase().endsWith('index.html');
-    if (isIndexHtml && stats.size <= MAX_INJECT_BYTES) {
+    // ANY html response gets the serve-time transforms (id meta tag for per-repo
+    // SSE filtering §4.4, live-reload injection, and the brand→hub rewrite). This
+    // is keyed on the `.html` extension, NOT just INDEX.html, so project-context
+    // pages (project/PRODUCT.html, project/ship-plan.html) — which are real
+    // `.html` files, not INDEX.html — get the same hub brand + live reload as
+    // every slug/stage page, instead of being served untransformed with a brand
+    // still pointing at the repo root. Registration stays flag-free; size-guarded;
+    // non-html (css/svg/json/yaml) streams untouched.
+    const isHtml = extname(filePath).toLowerCase() === '.html';
+    if (isHtml && stats.size <= MAX_INJECT_BYTES) {
       let html;
       try { html = readFileSync(filePath, 'utf-8'); } catch { html = null; }
       if (html != null) {
-        const body = Buffer.from(transformIndexHtml(html, entryId), 'utf-8');
+        const body = Buffer.from(transformServedHtml(html, entryId), 'utf-8');
         res.writeHead(200, {
           'content-type': type,
           'content-length': body.length,
@@ -302,14 +351,14 @@ export function createHubServer({
     createReadStream(filePath).pipe(res);
   }
 
-  // Serve-time transforms for INDEX.html (registration stays flag-free):
+  // Serve-time transforms for any served html page (registration stays flag-free):
   //   1. inject <meta name=sdlc-repo-id> so one SSE stream can be filtered per
   //      repo (§4.4);
   //   2. inject the livereload client when the hub runs with live reload and the
   //      page wasn't rendered with its own (the common hub case — a repo
   //      rendered without view.serve.enabled);
-  //   3. (Phase 5) rewrite the brand href to the hub root.
-  function transformIndexHtml(html, entryId) {
+  //   3. (Phase 5) rewrite the brand href + label to the hub root.
+  function transformServedHtml(html, entryId) {
     let out = html;
     // 1. id meta tag — injected always (cheap; identifies the repo for any
     //    client JS), even when live reload is off.
@@ -334,12 +383,17 @@ export function createHubServer({
 
   function rewriteBrandToHubRoot(html, entryId) {
     if (!entryId) return html;
-    // The shell renders: <a class="brand" href="…/..">.ai/workflows</a> and a
-    // breadcrumb whose first crumb is <a href="…">sdlc</a>. Repoint the brand to
-    // the hub root. Conservative: only rewrites the explicit brand anchor.
+    // The shell renders the per-repo brand as
+    //   <a class="brand" href="…/..">.ai/workflows</a>
+    // pointing at the repo's own dashboard. Under the hub the brand is the
+    // top-of-server "home" affordance, so repoint it at the hub root AND relabel
+    // it — clicking ".ai/workflows" and landing on the multi-repo hub was a
+    // label/destination mismatch. The breadcrumb's first "sdlc" crumb stays the
+    // repo-local home (/r/<id>/), giving a clean two-tier trail: hub → repo →
+    // slug → stage. Conservative: only the explicit brand anchor is touched.
     return html.replace(
-      /(<a class="brand" href=")[^"]*(")/,
-      `$1/$2`,
+      /<a class="brand" href="[^"]*">[^<]*<\/a>/,
+      '<a class="brand" href="/">sdlc hub</a>',
     );
   }
 
@@ -434,6 +488,16 @@ export function createHubServer({
       if (req.method !== 'POST') { res.writeHead(405).end('method not allowed'); return; }
       if (!tokenOk(req)) { res.writeHead(403).end('forbidden'); return; }
       handleUpsert(req, res);
+      return;
+    }
+
+    // Plugin docs site (first-party static pages). `/docs` (no trailing slash)
+    // redirects to `/docs/` so the docs' relative links resolve against the docs
+    // root, not the hub root.
+    const dm = p.match(/^\/docs(\/.*)?$/);
+    if (dm) {
+      if (dm[1] === undefined) { res.writeHead(301, { location: '/docs/' }).end(); return; }
+      serveDocsFile({ req, res, rest: dm[1] });
       return;
     }
 

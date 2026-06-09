@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   inboxItems,
   renderHubLanding
-} from "../chunk-GQMKMBMF.mjs";
+} from "../chunk-R6WZVGPD.mjs";
 import "../chunk-3IBDFP3U.mjs";
 import "../chunk-C4BSYM7X.mjs";
 import "../chunk-ASUVWO6I.mjs";

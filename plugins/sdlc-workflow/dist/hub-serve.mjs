@@ -3,7 +3,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-GQMKMBMF.mjs";
+} from "./chunk-R6WZVGPD.mjs";
 import "./chunk-3IBDFP3U.mjs";
 import "./chunk-C4BSYM7X.mjs";
 import {
@@ -21,7 +21,7 @@ import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import {
   resolveRequestPath
-} from "./chunk-XPKJ3QJ3.mjs";
+} from "./chunk-G7FUF6WI.mjs";
 import {
   removePidFile,
   writePidFile
@@ -55,6 +55,14 @@ var MIME = {
   ".webp": "image/webp"
 };
 var CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'";
+var DOCS_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'";
+var DOCS_ROOT = (() => {
+  try {
+    return fileURLToPath(new URL("../docs/site", import.meta.url));
+  } catch {
+    return null;
+  }
+})();
 var MAX_INJECT_BYTES = 1024 * 1024;
 var MAX_UPSERT_BYTES = 512 * 1024;
 function parseHubArgs(argv) {
@@ -274,10 +282,48 @@ function createHubServer({
     metrics.perRepoLastServed[id] = (/* @__PURE__ */ new Date()).toISOString();
     serveFile({ req, res, filePath: resolved.path, stats, entryId: id });
   }
+  function serveDocsFile({ req, res, rest }) {
+    if (!DOCS_ROOT || !existsSync(DOCS_ROOT)) {
+      res.writeHead(404).end("docs not available");
+      return;
+    }
+    const resolved = resolveRequestPath(DOCS_ROOT, rest, { indexFile: "index.html" });
+    if (!resolved.ok) {
+      res.writeHead(resolved.status).end(resolved.message);
+      return;
+    }
+    if (!existsSync(resolved.path)) {
+      res.writeHead(404).end("not found");
+      return;
+    }
+    let stats;
+    try {
+      stats = statSync(resolved.path);
+    } catch {
+      res.writeHead(404).end("not found");
+      return;
+    }
+    if (!stats.isFile()) {
+      res.writeHead(404).end("not found");
+      return;
+    }
+    const type = MIME[extname(resolved.path).toLowerCase()] ?? "application/octet-stream";
+    res.writeHead(200, {
+      "content-type": type,
+      "content-length": stats.size,
+      "cache-control": "no-cache",
+      "content-security-policy": DOCS_CSP
+    });
+    if (req.method === "HEAD") {
+      res.end();
+      return;
+    }
+    createReadStream(resolved.path).pipe(res);
+  }
   function serveFile({ req, res, filePath, stats, entryId }) {
     const type = MIME[extname(filePath).toLowerCase()] ?? "application/octet-stream";
-    const isIndexHtml = filePath.toLowerCase().endsWith("index.html");
-    if (isIndexHtml && stats.size <= MAX_INJECT_BYTES) {
+    const isHtml = extname(filePath).toLowerCase() === ".html";
+    if (isHtml && stats.size <= MAX_INJECT_BYTES) {
       let html;
       try {
         html = readFileSync(filePath, "utf-8");
@@ -285,7 +331,7 @@ function createHubServer({
         html = null;
       }
       if (html != null) {
-        const body = Buffer.from(transformIndexHtml(html, entryId), "utf-8");
+        const body = Buffer.from(transformServedHtml(html, entryId), "utf-8");
         res.writeHead(200, {
           "content-type": type,
           "content-length": body.length,
@@ -312,7 +358,7 @@ function createHubServer({
     }
     createReadStream(filePath).pipe(res);
   }
-  function transformIndexHtml(html, entryId) {
+  function transformServedHtml(html, entryId) {
     let out = html;
     if (entryId && !/name=["']sdlc-repo-id["']/.test(out)) {
       const tag = `<meta name="sdlc-repo-id" content="${escapeAttr(entryId)}">`;
@@ -334,8 +380,8 @@ ${script}`;
   function rewriteBrandToHubRoot(html, entryId) {
     if (!entryId) return html;
     return html.replace(
-      /(<a class="brand" href=")[^"]*(")/,
-      `$1/$2`
+      /<a class="brand" href="[^"]*">[^<]*<\/a>/,
+      '<a class="brand" href="/">sdlc hub</a>'
     );
   }
   function serveLanding(req, res) {
@@ -486,6 +532,15 @@ data: ${JSON.stringify({ ok: true })}
         return;
       }
       handleUpsert(req, res);
+      return;
+    }
+    const dm = p.match(/^\/docs(\/.*)?$/);
+    if (dm) {
+      if (dm[1] === void 0) {
+        res.writeHead(301, { location: "/docs/" }).end();
+        return;
+      }
+      serveDocsFile({ req, res, rest: dm[1] });
       return;
     }
     const m = p.match(/^\/r\/([^/]+)(\/.*)?$/);

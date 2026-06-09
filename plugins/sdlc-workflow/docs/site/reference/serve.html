@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.49.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.50.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -98,7 +98,7 @@
 <p class="lede">The plugin can serve the rendered sunflower view (<code>.ai/_view/</code>) over HTTP so you can browse it in a real browser with live reload, instead of opening <code>file://</code> pages. There are two shapes:</p>
 
 <ul>
-  <li><strong>Hub</strong> — one machine-wide process that serves <em>every</em> registered repo at <code>/r/&lt;id&gt;/</code>, with a multi-repo inbox at <code>/</code>. Default-on since v9.34.0.</li>
+  <li><strong>Hub</strong> — one machine-wide process that serves <em>every</em> registered repo at <code>/r/&lt;id&gt;/</code>, with a multi-repo inbox at <code>/</code> and this documentation site at <code>/docs/</code> (linked from the inbox header). Default-on since v9.34.0.</li>
   <li><strong>Per-repo daemon</strong> — a standalone fallback that serves a single repo's view. Runs only when this repo opted out of the hub (no hub started) and the machine-wide kill switch allows it.</li>
 </ul>
 

@@ -4,7 +4,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 // lib/resolve-request-path.mjs
 import { existsSync, statSync, realpathSync } from "node:fs";
 import { extname, join, resolve, sep } from "node:path";
-function resolveRequestPath(root, rawUrl, { stripPrefix = null } = {}) {
+function resolveRequestPath(root, rawUrl, { stripPrefix = null, indexFile = "INDEX.html" } = {}) {
   let pathname;
   try {
     pathname = decodeURIComponent(new URL(rawUrl, "http://sdlc.local").pathname);
@@ -15,12 +15,12 @@ function resolveRequestPath(root, rawUrl, { stripPrefix = null } = {}) {
     if (pathname === stripPrefix) pathname = "/";
     else if (pathname.startsWith(`${stripPrefix}/`)) pathname = pathname.slice(stripPrefix.length) || "/";
   }
-  if (pathname === "/") pathname = "/INDEX.html";
+  if (pathname === "/") pathname = `/${indexFile}`;
   let candidate = resolve(root, `.${pathname}`);
   if (existsSync(candidate) && statSync(candidate).isDirectory()) {
-    candidate = join(candidate, "INDEX.html");
-  } else if (!extname(candidate) && existsSync(`${candidate}/INDEX.html`)) {
-    candidate = join(candidate, "INDEX.html");
+    candidate = join(candidate, indexFile);
+  } else if (!extname(candidate) && existsSync(`${candidate}/${indexFile}`)) {
+    candidate = join(candidate, indexFile);
   }
   const rootWithSep = root.endsWith(sep) ? root : `${root}${sep}`;
   if (candidate !== root && !candidate.startsWith(rootWithSep)) {

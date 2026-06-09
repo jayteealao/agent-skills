@@ -31,6 +31,7 @@ import {
 } from '../../../lib/registry.mjs';
 import { createHubServer, parseHubArgs } from '../../../scripts/hub-serve.mjs';
 import { renderHubLanding, inboxItems } from '../../../renderers/hub-dashboard.mjs';
+import { resolveRequestPath } from '../../../lib/resolve-request-path.mjs';
 import { computeBranchState, refreshEntriesLiveness } from '../../../lib/branch-liveness.mjs';
 import { readHubConfig, hubConfigPath, HUB_CONFIG_DEFAULTS } from '../../../lib/hub-config.mjs';
 import { ensureHubLifecycle } from '../../../lib/hub-lifecycle.mjs';
@@ -786,12 +787,116 @@ test('hub: rewrites the per-repo brand link to the hub root at serve time (no re
     const page = await httpReq(port, `/r/${id}/`);
     equal(page.status, 200);
     match(page.body, /<a class="brand" href="\/">/, 'brand repointed to the hub root');
+    // The label is rewritten too, so the home affordance is honest: it points at
+    // the hub and now says so (no more ".ai/workflows" → multi-repo-hub mismatch).
+    match(page.body, /<a class="brand" href="\/">sdlc hub<\/a>/, 'brand relabelled to the hub');
+    ok(!/>\.ai\/workflows<\/a>/.test(page.body), 'the misleading .ai/workflows brand label is gone under the hub');
     // The relative asset link is untouched (resolves under /r/<id>/), proving we
     // do not rewrite content hrefs wholesale.
     match(page.body, /href="_assets\/sdlc\.css"/, 'asset href left intact');
   } finally {
     await closeServer(server);
   }
+});
+
+test('hub: brand→hub rewrite + live reload apply to non-INDEX project pages too', async () => {
+  setHome();
+  const root = tmp('sdlc-hub-project-');
+  const repo = join(root, 'repo');
+  initRepo(repo);
+  const view = renderView(repo, { slug: 'demo' });
+  // A project-context page (project/PRODUCT.html) is a real `.html` file, NOT an
+  // INDEX.html — the previous INDEX-only gate served it untransformed.
+  mkdirSync(join(view, 'project'), { recursive: true });
+  writeFileSync(join(view, 'project', 'PRODUCT.html'),
+    '<!DOCTYPE html><html><head>\n  <link rel="stylesheet" href="../_assets/sdlc.css">\n</head>'
+    + '<body class="artifact"><div class="b-topbar"><a class="brand" href="../_assets/..">.ai/workflows</a></div>PRODUCT</body></html>');
+  await upsertRegistryEntry({ projectRoot: repo, viewDir: view });
+  const id = readRegistry().entries[0].id;
+
+  const server = createHubServer({ token: 'tok', liveReload: true });
+  const port = await listen(server);
+  try {
+    const page = await httpReq(port, `/r/${id}/project/PRODUCT.html`);
+    equal(page.status, 200);
+    match(page.body, /PRODUCT/);
+    match(page.body, /<a class="brand" href="\/">sdlc hub<\/a>/, 'project page brand repointed + relabelled to the hub');
+    match(page.body, /\.\.\/_assets\/livereload\.js/, 'live reload injected at the page\'s own asset depth');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+/* ───────────────────────── plugin docs site (/docs/) ───────────────────────── */
+
+test('hub: serves the plugin docs site under /docs/ with a docs-scoped CSP', async () => {
+  setHome();
+  const server = createHubServer({ token: 'tok', liveReload: false });
+  const port = await listen(server);
+  try {
+    // /docs (no trailing slash) → 301 /docs/ so the docs' relative links resolve
+    // against the docs root, not the hub root.
+    const redir = await httpReq(port, '/docs');
+    equal(redir.status, 301);
+    equal(redir.headers.location, '/docs/');
+
+    // /docs/ resolves the docs' lowercase index.html via the shared containment
+    // kernel (indexFile option) — proof the same audited resolver serves docs.
+    const index = await httpReq(port, '/docs/');
+    equal(index.status, 200);
+    match(index.body, /plugin docs/, 'docs index served at /docs/');
+    match(String(index.headers['content-type']), /text\/html/);
+    // The docs-scoped CSP admits the inline nav script + the Mermaid CDN that the
+    // strict repo CSP (script-src 'self') would block; repo views are unaffected.
+    match(String(index.headers['content-security-policy']), /cdn\.jsdelivr\.net/);
+    match(String(index.headers['content-security-policy']), /'unsafe-inline'/);
+
+    // A real sub-page resolves (explicit .html under a nested dir).
+    const sub = await httpReq(port, '/docs/reference/serve.html');
+    equal(sub.status, 200);
+
+    // A static asset streams with the right MIME.
+    const css = await httpReq(port, '/docs/style.css');
+    equal(css.status, 200);
+    match(String(css.headers['content-type']), /text\/css/);
+
+    // Traversal out of the docs tree is contained — never serves plugin sources.
+    const trav = await httpReq(port, '/docs/%2e%2e/%2e%2e/package.json');
+    ok(trav.status === 403 || trav.status === 404, `contained, not served (got ${trav.status})`);
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('hub landing: header links to the plugin docs site (populated + empty registry)', () => {
+  const now = Date.parse('2026-06-09T12:00:00.000Z');
+  const entries = [entryStub({ id: 'r', repo: 'web', lastRenderedAt: '2026-06-09T11:00:00.000Z', slugMeta: [
+    { slug: 's', currentStage: 'implement', status: 'active', blocked: false, classification: 'active' },
+  ] })];
+  match(renderHubLanding(entries, { now }), /class="docs-link" href="\/docs\/"/, 'docs link present when repos exist');
+  // Empty registry — the docs link is exactly what a brand-new user needs.
+  match(renderHubLanding([], { now }), /class="docs-link" href="\/docs\/"/, 'docs link present in the empty state too');
+});
+
+test('resolveRequestPath: indexFile option resolves a lowercase directory index', () => {
+  // The default INDEX.html behaviour is exercised by every /r/<id>/ serving test
+  // above; here we pin the new option. (We avoid asserting the default against a
+  // lowercase fixture because a case-insensitive FS would canonicalise it.)
+  const root = tmp('sdlc-indexfile-');
+  mkdirSync(join(root, 'sub'), { recursive: true });
+  writeFileSync(join(root, 'index.html'), 'ROOT');
+  writeFileSync(join(root, 'sub', 'index.html'), 'SUB');
+
+  // indexFile:index.html makes `/` and any directory resolve to index.html — on
+  // a case-sensitive FS (CI/Linux) this is the ONLY way the docs root resolves.
+  // (Dot-segment containment is delegated to URL normalisation + the realpath
+  // symlink check; it's exercised end-to-end by the /docs/ and /r/<id>/ tests.)
+  const r1 = resolveRequestPath(root, '/', { indexFile: 'index.html' });
+  ok(r1.ok && r1.path.toLowerCase().endsWith('index.html'), 'root → index.html');
+  const r2 = resolveRequestPath(root, '/sub/', { indexFile: 'index.html' });
+  ok(r2.ok && r2.path.toLowerCase().endsWith(join('sub', 'index.html').toLowerCase()), 'directory → index.html');
+  // The resolved path never escapes the root.
+  ok(r2.path.startsWith(root), 'resolved index stays inside the served root');
 });
 
 /* ───────────────────────── Tailscale + exposure gates (Phase 6, §4.6) ───────────────────────── */

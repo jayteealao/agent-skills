@@ -27,12 +27,18 @@ import { extname, join, resolve, sep } from 'node:path';
  * @param {string} root — the directory the request must stay inside (the
  *   per-repo daemon's view root, or the hub's per-entry `viewDir`).
  * @param {string} rawUrl — the request URL (may include a query string).
- * @param {{ stripPrefix?: string|null }} [opts] — when set, a leading path
- *   prefix (e.g. `/sdlc`) is stripped from the decoded pathname before
- *   resolution. Defaults to no strip.
+ * @param {{ stripPrefix?: string|null, indexFile?: string }} [opts] — when
+ *   `stripPrefix` is set, a leading path prefix (e.g. `/sdlc`) is stripped from
+ *   the decoded pathname before resolution (defaults to no strip). `indexFile`
+ *   is the directory-index basename appended when a request resolves to a
+ *   directory or `/` (defaults to `INDEX.html`, the convention the renderer
+ *   emits). The hub serves the plugin's own `docs/site` tree — authored with a
+ *   lowercase `index.html` — by passing `indexFile: 'index.html'`; the
+ *   containment math is otherwise identical, so docs reuse this same audited
+ *   kernel rather than a second path resolver.
  * @returns {{ ok: true, path: string } | { ok: false, status: number, message: string }}
  */
-export function resolveRequestPath(root, rawUrl, { stripPrefix = null } = {}) {
+export function resolveRequestPath(root, rawUrl, { stripPrefix = null, indexFile = 'INDEX.html' } = {}) {
   let pathname;
   try {
     pathname = decodeURIComponent(new URL(rawUrl, 'http://sdlc.local').pathname);
@@ -44,13 +50,13 @@ export function resolveRequestPath(root, rawUrl, { stripPrefix = null } = {}) {
     if (pathname === stripPrefix) pathname = '/';
     else if (pathname.startsWith(`${stripPrefix}/`)) pathname = pathname.slice(stripPrefix.length) || '/';
   }
-  if (pathname === '/') pathname = '/INDEX.html';
+  if (pathname === '/') pathname = `/${indexFile}`;
 
   let candidate = resolve(root, `.${pathname}`);
   if (existsSync(candidate) && statSync(candidate).isDirectory()) {
-    candidate = join(candidate, 'INDEX.html');
-  } else if (!extname(candidate) && existsSync(`${candidate}/INDEX.html`)) {
-    candidate = join(candidate, 'INDEX.html');
+    candidate = join(candidate, indexFile);
+  } else if (!extname(candidate) && existsSync(`${candidate}/${indexFile}`)) {
+    candidate = join(candidate, indexFile);
   }
 
   const rootWithSep = root.endsWith(sep) ? root : `${root}${sep}`;

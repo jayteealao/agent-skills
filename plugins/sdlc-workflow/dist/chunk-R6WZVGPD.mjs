@@ -110,7 +110,10 @@ function renderHubLanding(entries = [], { pluginVersion = "", uptimeMs = 0, now 
   const sortedRepoRoots = [...groups.keys()].sort((a, b) => basenameOf(a).localeCompare(basenameOf(b)));
   const summary = `
     <header class="hub-head">
-      <h1>SDLC Hub</h1>
+      <div class="hub-head-row">
+        <h1>SDLC Hub</h1>
+        <a class="docs-link" href="/docs/">Plugin docs &rarr;</a>
+      </div>
       <div class="summary">
         <span class="stat${inbox.length ? " alert" : ""}"><b>${inbox.length}</b> needing attention</span>
         <span class="stat"><b>${totalRepos}</b> repo${totalRepos === 1 ? "" : "s"}</span>
@@ -220,6 +223,9 @@ var STYLE = `
   body { margin:0; background:var(--paper); color:var(--ink); font:15px/1.5 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
   .wrap { max-width:1100px; margin:0 auto; padding:32px 24px 80px; }
   .hub-head h1 { font:600 30px/1.1 ui-serif,Georgia,serif; margin:0 0 8px; }
+  .hub-head-row { display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .docs-link { font:600 13px/1 ui-sans-serif,system-ui,sans-serif; color:var(--cur); text-decoration:none; border:1px solid var(--hair); border-radius:999px; padding:7px 14px; white-space:nowrap; }
+  .docs-link:hover { border-color:var(--cur); }
   .summary { display:flex; gap:18px; flex-wrap:wrap; color:var(--ink-3); font-size:13px; align-items:baseline; }
   .summary b { color:var(--ink); font-size:15px; }
   .summary .stat.alert b { color:var(--bad); }

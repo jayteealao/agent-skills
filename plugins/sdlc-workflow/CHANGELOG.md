@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — hub serves the plugin docs site + uniform hub-aware navigation (9.50.0)
+
+The multi-repo hub now serves the plugin's own documentation site and links it from the
+inbox, and the serve-time "you are under the hub" rewrite is applied uniformly across every
+page type instead of only `INDEX.html`. This closes the navigation story: from the inbox you
+can reach every repo → slug → stage *and* the docs, and from any served page the brand takes
+you back to the hub.
+
+- **Docs at `/docs/`.** The hub serves `docs/site` (the first-party plugin docs) under
+  `/docs/`, with a `/docs` → `/docs/` redirect so the docs' relative links resolve against the
+  docs root. The inbox header gains a **Plugin docs →** link, present in the empty-registry
+  state too (exactly what a brand-new user with no repos needs). Routing reuses the same
+  audited containment kernel as the `/r/<id>/` repo routes, so a traversal can never escape the
+  docs tree.
+- **First-party docs CSP.** `/docs/` responses carry a relaxed CSP that admits the docs'
+  inline nav script and the Mermaid CDN import; repo views keep the strict `script-src 'self'`
+  (their `.html.fragment` output is semi-trusted). The relaxation is scoped to `/docs/` alone.
+- **Uniform hub brand + live reload.** The serve-time transform (repo-id meta, live-reload
+  injection, brand→hub rewrite) now keys on the `.html` extension, not just `INDEX.html`, so
+  project-context pages (`project/PRODUCT.html`, `project/ship-plan.html`) get the same hub
+  brand and live reload as every slug/stage page instead of being served untransformed.
+- **Honest home affordance.** When the hub repoints the topbar brand at the hub root it now
+  relabels it **“sdlc hub”** — clicking “.ai/workflows” and landing on the multi-repo hub was
+  a label/destination mismatch. The breadcrumb's first “sdlc” crumb stays the repo-local home,
+  giving a clean two-tier trail (hub → repo → slug → stage).
+- **Shared-kernel `indexFile` option.** `resolveRequestPath` gained an `indexFile` option
+  (default `INDEX.html`) so the docs' lowercase `index.html` resolves through the one audited
+  path resolver rather than a second, divergent one.
+
 ### Added — slug-branch identity: repo-scoped registry ids + branch-aware hub (9.49.0)
 
 The multi-repo hub keyed each registry entry's id off `hash(repoRoot + HEAD-branch)`.
