@@ -13,7 +13,7 @@ import {
   readStdinJson,
   readTextIfExists,
   resolveProjectPath
-} from "./chunk-GWL2LVFZ.mjs";
+} from "./chunk-4OZLXOMA.mjs";
 import {
   loadConfig
 } from "./chunk-NHBZ6X5M.mjs";
@@ -25,6 +25,7 @@ import {
   require__,
   require_dist
 } from "./chunk-FZ2GR6GF.mjs";
+import "./chunk-UTP6CBAZ.mjs";
 import {
   __toESM
 } from "./chunk-SGA7NFMW.mjs";

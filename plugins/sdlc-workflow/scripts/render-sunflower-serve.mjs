@@ -14,6 +14,7 @@ import { extname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { writePidFile, removePidFile } from '../lib/pid-file.mjs';
 import { resolveRequestPath as resolveInView } from '../lib/resolve-request-path.mjs';
+import { resolveProjectRoot } from '../lib/project-root.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -52,7 +53,10 @@ export function parseServeArgs(argv) {
     host: '127.0.0.1',
     port: 4173,
     pidFile: null,
-    projectRoot: process.cwd(),
+    // null = no explicit --project-root; main() climbs from cwd to the project
+    // root so a daemon launched from a repo subfolder can't mint a stray
+    // `.ai/_view` there (createSdlcStaticServer mkdirs viewRoot).
+    projectRoot: null,
     configHash: '',
     liveReload: true,
     allowAllHosts: false,
@@ -242,7 +246,7 @@ async function main() {
     process.exit(2);
   }
 
-  const viewRoot = resolve(args.projectRoot, args.view);
+  const viewRoot = resolve(args.projectRoot ?? resolveProjectRoot(), args.view);
   const server = createSdlcStaticServer({
     viewRoot,
     liveReload: args.liveReload,

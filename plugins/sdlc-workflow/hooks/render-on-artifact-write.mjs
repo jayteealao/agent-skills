@@ -22,6 +22,7 @@ import { dirname, resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnDetachedNode } from '../lib/detach.mjs';
 import { resolveEntrypoint } from '../lib/entrypoint.mjs';
+import { resolveProjectRoot } from '../lib/project-root.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -85,7 +86,11 @@ async function main() {
   const input = readInput();
   if (!input) exitClean();
 
-  const cwd = input.cwd ?? process.cwd();
+  // input.cwd is the SESSION's working directory — it can sit in a repo
+  // subfolder (an agent cd'd into a data dir or even a workflow slug dir).
+  // Anchoring viewRoot there minted stray `<subfolder>/.ai/_view` trees, so
+  // climb to the real project root before resolving anything.
+  const cwd = resolveProjectRoot(input.cwd ?? process.cwd());
   const viewRoot = resolve(cwd, '.ai/_view');
   const suppressFile = join(viewRoot, '.render-suppress');
   if (existsSync(suppressFile)) exitClean();
@@ -133,7 +138,10 @@ async function debounceStage2() {
   const argv = process.argv;
   const originTs = Number(argv[3] ?? 0);
   const bucketCsv = String(argv[4] ?? '');
-  const viewRoot = resolve(process.cwd(), '.ai/_view');
+  // Stage 1 already spawns us with cwd = project root, so this is a no-op on
+  // that path — it only guards a manual/legacy invocation from a subfolder.
+  const projectRoot = resolveProjectRoot(process.cwd());
+  const viewRoot = resolve(projectRoot, '.ai/_view');
   const touchFile = join(viewRoot, '.render-pending');
 
   await new Promise((r) => setTimeout(r, DEBOUNCE_MS));
@@ -153,7 +161,7 @@ async function debounceStage2() {
   renderArgs.push('--plugin-root', PLUGIN_ROOT);
 
   const child = spawn(process.execPath, renderArgs, {
-    cwd: process.cwd(),
+    cwd: projectRoot,
     stdio: 'pipe',
     env: process.env,
     // stage-2 now runs with no console (windowsHide), so this console-app

@@ -2,6 +2,9 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  resolveProjectRoot
+} from "./chunk-UTP6CBAZ.mjs";
+import {
   resolveRequestPath
 } from "./chunk-G7FUF6WI.mjs";
 import {
@@ -52,7 +55,10 @@ function parseServeArgs(argv) {
     host: "127.0.0.1",
     port: 4173,
     pidFile: null,
-    projectRoot: process.cwd(),
+    // null = no explicit --project-root; main() climbs from cwd to the project
+    // root so a daemon launched from a repo subfolder can't mint a stray
+    // `.ai/_view` there (createSdlcStaticServer mkdirs viewRoot).
+    projectRoot: null,
     configHash: "",
     liveReload: true,
     allowAllHosts: false
@@ -217,7 +223,7 @@ async function main() {
     console.error("[serve] refusing 0.0.0.0 without --allow-all-hosts");
     process.exit(2);
   }
-  const viewRoot = resolve(args.projectRoot, args.view);
+  const viewRoot = resolve(args.projectRoot ?? resolveProjectRoot(), args.view);
   const server = createSdlcStaticServer({
     viewRoot,
     liveReload: args.liveReload,

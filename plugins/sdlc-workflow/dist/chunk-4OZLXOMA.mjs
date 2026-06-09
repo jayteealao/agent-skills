@@ -1,5 +1,8 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
+import {
+  resolveProjectRoot
+} from "./chunk-UTP6CBAZ.mjs";
 
 // lib/error-log.mjs
 import { mkdir, appendFile, stat, rename } from "node:fs/promises";
@@ -50,7 +53,7 @@ import { dirname as dirname2, join as join2, resolve } from "node:path";
 import { promisify } from "node:util";
 var execFileAsync = promisify(execFile);
 function projectRootFromInput(input = {}) {
-  return input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  return resolveProjectRoot(input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
 }
 function outputSystemMessage(message) {
   process.stdout.write(`${JSON.stringify({ systemMessage: message })}

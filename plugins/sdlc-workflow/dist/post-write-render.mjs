@@ -5,6 +5,9 @@ import {
   resolveEntrypoint,
   spawnDetachedNode
 } from "./chunk-EHRAXSYW.mjs";
+import {
+  resolveProjectRoot
+} from "./chunk-UTP6CBAZ.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/render-on-artifact-write.mjs
@@ -59,7 +62,7 @@ async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") exitClean();
   const input = readInput();
   if (!input) exitClean();
-  const cwd = input.cwd ?? process.cwd();
+  const cwd = resolveProjectRoot(input.cwd ?? process.cwd());
   const viewRoot = resolve(cwd, ".ai/_view");
   const suppressFile = join(viewRoot, ".render-suppress");
   if (existsSync(suppressFile)) exitClean();
@@ -91,7 +94,8 @@ async function debounceStage2() {
   const argv = process.argv;
   const originTs = Number(argv[3] ?? 0);
   const bucketCsv = String(argv[4] ?? "");
-  const viewRoot = resolve(process.cwd(), ".ai/_view");
+  const projectRoot = resolveProjectRoot(process.cwd());
+  const viewRoot = resolve(projectRoot, ".ai/_view");
   const touchFile = join(viewRoot, ".render-pending");
   await new Promise((r) => setTimeout(r, DEBOUNCE_MS));
   try {
@@ -106,7 +110,7 @@ async function debounceStage2() {
   }
   renderArgs.push("--plugin-root", PLUGIN_ROOT);
   const child = spawn(process.execPath, renderArgs, {
-    cwd: process.cwd(),
+    cwd: projectRoot,
     stdio: "pipe",
     env: process.env,
     // stage-2 now runs with no console (windowsHide), so this console-app

@@ -43,6 +43,9 @@ import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import {
+  resolveProjectRoot
+} from "./chunk-UTP6CBAZ.mjs";
+import {
   isPidAlive,
   pidFileStatus,
   readPidFile,
@@ -714,7 +717,7 @@ async function main() {
   await renderMain(args);
 }
 async function renderMain(args) {
-  const cwd = process.cwd();
+  const cwd = resolveProjectRoot();
   const storageRoot = resolve(cwd, args.storage);
   const viewRoot = resolve(cwd, args.view);
   const simplifyRoot = resolve(cwd, args.simplify);
@@ -978,7 +981,7 @@ ${toYaml(manifest)}`);
   }
 }
 async function bootstrapMain(args) {
-  const cwd = process.cwd();
+  const cwd = resolveProjectRoot();
   const storageRoot = resolve(cwd, args.storage);
   const viewRoot = resolve(cwd, args.view);
   const docsRoot = resolve(cwd, args.docs);

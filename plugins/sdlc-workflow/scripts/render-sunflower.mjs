@@ -45,6 +45,7 @@ import { pidFileStatus, removePidFile, writePidFile } from '../lib/pid-file.mjs'
 import { latestMtimeMs, latestTreeMtimeMs, classifyRenderState, viewMtimeForSlug } from '../lib/render-state.mjs';
 import { activeWorkflowIndexes, scanWorkflowIndexes } from '../lib/workflow-index.mjs';
 import { upsertRegistryEntry } from '../lib/registry.mjs';
+import { resolveProjectRoot } from '../lib/project-root.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT_DEFAULT = resolve(__dirname, '..');
@@ -410,7 +411,11 @@ async function main() {
 }
 
 async function renderMain(args) {
-  const cwd = process.cwd();
+  // Climb from the raw cwd to the project root (git toplevel / nearest
+  // `.ai/workflows` owner) so a render triggered from a repo subfolder can't
+  // emit a second `.ai/_view` tree there. Relative path flags resolve against
+  // the project root, not the invocation dir, by design.
+  const cwd = resolveProjectRoot();
   const storageRoot  = resolve(cwd, args.storage);
   const viewRoot     = resolve(cwd, args.view);
   const simplifyRoot = resolve(cwd, args.simplify);
@@ -766,7 +771,9 @@ async function renderMain(args) {
 /* ───────────────────────── Bootstrap render loop ───────────────────────── */
 
 async function bootstrapMain(args) {
-  const cwd = process.cwd();
+  // Same project-root anchoring as renderMain — the SessionStart spawn already
+  // passes a resolved root as cwd, so this guards direct CLI invocations.
+  const cwd = resolveProjectRoot();
   const storageRoot = resolve(cwd, args.storage);
   const viewRoot = resolve(cwd, args.view);
   const docsRoot = resolve(cwd, args.docs);

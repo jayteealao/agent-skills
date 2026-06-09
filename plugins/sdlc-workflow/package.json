@@ -1,6 +1,6 @@
 {
   "name": "@sdlc-workflow/sunflower-view",
-  "version": "9.50.0",
+  "version": "9.51.0",
   "private": true,
   "type": "module",
   "description": "Sunflower view layer for the sdlc-workflow plugin — HTML projection of .ai/workflows/ artifacts.",
@@ -17,7 +17,7 @@
     "verify:docs": "node scripts/verify-doc-site.mjs",
     "verify:legibility": "node scripts/verify-doc-legibility.mjs",
     "tray": "node dist/tray.mjs",
-    "test": "node --test tests/sunflower.test.mjs tests/unit/lib/foundation.test.mjs tests/unit/lib/multi-repo-hub.test.mjs tests/unit/lib/tray-format.test.mjs tests/unit/lib/tray-actions.test.mjs tests/unit/lib/tray-autostart.test.mjs tests/unit/hooks/hooks.test.mjs tests/unit/gap-closure/design-phase1.test.mjs tests/unit/gap-closure/renderers-phase2.test.mjs tests/unit/gap-closure/walker-phase3.test.mjs tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
+    "test": "node --test tests/sunflower.test.mjs tests/unit/lib/foundation.test.mjs tests/unit/lib/project-root.test.mjs tests/unit/lib/multi-repo-hub.test.mjs tests/unit/lib/tray-format.test.mjs tests/unit/lib/tray-actions.test.mjs tests/unit/lib/tray-autostart.test.mjs tests/unit/hooks/hooks.test.mjs tests/unit/gap-closure/design-phase1.test.mjs tests/unit/gap-closure/renderers-phase2.test.mjs tests/unit/gap-closure/walker-phase3.test.mjs tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
     "test:snapshots": "node --test tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
     "test:update": "node scripts/update-snapshots.mjs",
     "test:e2e": "node tests/e2e/acceptance.mjs",

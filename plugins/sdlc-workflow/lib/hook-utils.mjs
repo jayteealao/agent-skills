@@ -4,10 +4,16 @@ import { execFile } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 
+import { resolveProjectRoot } from './project-root.mjs';
+
 const execFileAsync = promisify(execFile);
 
+// Hook input `cwd` tracks the session's working directory, which can sit in a
+// repo subfolder. Resolving it through resolveProjectRoot keeps every consumer
+// (config loading, hookLogPath under .ai/_view, bootstrap spawn cwd) anchored
+// at the real project root instead of minting stray `.ai/` dirs at the cwd.
 export function projectRootFromInput(input = {}) {
-  return input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
+  return resolveProjectRoot(input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
 }
 
 export function outputSystemMessage(message) {
