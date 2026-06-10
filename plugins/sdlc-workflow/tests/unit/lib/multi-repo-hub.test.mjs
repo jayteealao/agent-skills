@@ -151,6 +151,20 @@ function sseCollect(port, ms) {
     setTimeout(() => { try { r.destroy(); } catch { /* ignore */ } resolve(events); }, ms);
   });
 }
+// Collect the RAW SSE byte stream (comments included) for a window, then close.
+// Needed for keep-alive assertions: a `: ping` comment frame carries no
+// event:/data: line, so sseCollect (which parses those) never surfaces it.
+function sseRaw(port, ms) {
+  return new Promise((resolve) => {
+    let buf = '';
+    const r = httpRequest({ hostname: '127.0.0.1', port, path: '/__sdlc/events', method: 'GET' }, (res) => {
+      res.on('data', (c) => { buf += c; });
+    });
+    r.on('error', () => {});
+    r.end();
+    setTimeout(() => { try { r.destroy(); } catch { /* ignore */ } resolve(buf); }, ms);
+  });
+}
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ───────────────────────── id computation (§3.3) ───────────────────────── */
@@ -729,6 +743,22 @@ test('hub: two rapid POSTs for one repo coalesce to a single reload (debounce)',
     const events = await collected;
     const reloads = events.filter((e) => e.event === 'reload');
     equal(reloads.length, 1, 'rapid re-POSTs collapse to one reload');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('hub: SSE stream sends keep-alive pings to survive idle proxies', async () => {
+  setHome();
+  // Tiny heartbeat so several pings land inside a short observation window. In
+  // production heartbeatMs defaults to 25s, so short-window reload tests above
+  // never see a ping (their event parsing would ignore it anyway).
+  const server = createHubServer({ token: 'tok', liveReload: true, heartbeatMs: 60 });
+  const port = await listen(server);
+  try {
+    const raw = await sseRaw(port, 400);
+    const pings = (raw.match(/\n: ping\n/g) ?? []).length;
+    ok(pings >= 2, `expected >= 2 keep-alive pings in 400ms, got ${pings}`);
   } finally {
     await closeServer(server);
   }

@@ -143,6 +143,7 @@ export function createHubServer({
   allowAllHosts = false,
   allowedHosts = [],
   codeBrowser = null,
+  heartbeatMs = 25000,
 } = {}) {
   const startedAt = Date.now();
   // Targeted Host-allowlist additions (e.g. the tailnet MagicDNS name), normalised
@@ -613,8 +614,24 @@ export function createHubServer({
   server.requestTimeout = 30000;
   server.headersTimeout = 15000;
 
+  // SSE keep-alive: an idle event-stream (especially through `tailscale serve` in
+  // the public-exposure mode) can be reaped by proxy/idle timeouts, silently
+  // killing live-reload. A periodic comment line (`: ping`) is ignored by
+  // EventSource but resets those timers and lets a half-dead socket surface as a
+  // write error (the client is then cleaned up on its own 'close'). unref so the
+  // timer never holds the process open.
+  const heartbeat = liveReload
+    ? setInterval(() => {
+        for (const res of clients) {
+          try { res.write(': ping\n\n'); } catch { /* broken client cleaned up on its own close */ }
+        }
+      }, heartbeatMs)
+    : null;
+  if (heartbeat && typeof heartbeat.unref === 'function') heartbeat.unref();
+
   const close = server.close.bind(server);
   server.close = (callback) => {
+    if (heartbeat) clearInterval(heartbeat);
     for (const [, w] of watchers) { try { w.close(); } catch { /* ignore */ } }
     watchers.clear();
     for (const c of clients) { try { c.end(); } catch { /* ignore */ } }

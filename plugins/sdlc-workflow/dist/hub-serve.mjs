@@ -3,8 +3,8 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-OPLCFKVA.mjs";
-import "./chunk-3Z66FCSW.mjs";
+} from "./chunk-H4ZMEGH6.mjs";
+import "./chunk-RKO6ISIR.mjs";
 import "./chunk-PDBKNARE.mjs";
 import {
   REGISTRY_VERSION,
@@ -14,7 +14,7 @@ import {
   validateEntry,
   writeRegistry
 } from "./chunk-NOGYVKL5.mjs";
-import "./chunk-UFJT6WFJ.mjs";
+import "./chunk-U7AGHKEY.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -110,7 +110,8 @@ function createHubServer({
   maxWatchedRepos = 50,
   allowAllHosts = false,
   allowedHosts = [],
-  codeBrowser = null
+  codeBrowser = null,
+  heartbeatMs = 25e3
 } = {}) {
   const startedAt = Date.now();
   const extraHosts = new Set((allowedHosts || []).map((h) => String(h).toLowerCase()).filter(Boolean));
@@ -630,8 +631,18 @@ data: ${JSON.stringify({ ok: true })}
   });
   server.requestTimeout = 3e4;
   server.headersTimeout = 15e3;
+  const heartbeat = liveReload ? setInterval(() => {
+    for (const res of clients) {
+      try {
+        res.write(": ping\n\n");
+      } catch {
+      }
+    }
+  }, heartbeatMs) : null;
+  if (heartbeat && typeof heartbeat.unref === "function") heartbeat.unref();
   const close = server.close.bind(server);
   server.close = (callback) => {
+    if (heartbeat) clearInterval(heartbeat);
     for (const [, w] of watchers) {
       try {
         w.close();
