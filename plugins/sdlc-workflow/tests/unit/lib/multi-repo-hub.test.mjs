@@ -679,6 +679,61 @@ test('hub: a re-render emits a repo-scoped reload event (only the rendered repo)
   }
 });
 
+test('hub: a registration POST drives the reload itself (decoupled from fs.watch)', async () => {
+  setHome();
+  const root = tmp('sdlc-hub-push-reload-');
+  const repo = join(root, 'repo');
+  initRepo(repo);
+  renderView(repo, { slug: 'pushed' });
+  const entry = await buildEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+
+  const server = createHubServer({ token: 'tok', liveReload: true });
+  const port = await listen(server);
+  try {
+    const collected = sseCollect(port, 1000);
+    await wait(150);   // let the SSE client connect
+    // The render's registration POST — NOT a filesystem change — must reload the
+    // browser. Proves live-reload no longer hinges on fs.watch firing, which the
+    // 50-repo watcher cap and Windows atomic-rename writes can silently defeat.
+    const res = await httpReq(port, '/__sdlc/registry/upsert',
+      { method: 'POST', token: 'tok', body: JSON.stringify(entry) });
+    equal(res.status, 200, 'upsert accepted');
+    const events = await collected;
+    const reloads = events.filter((e) => e.event === 'reload').map((e) => JSON.parse(e.data));
+    ok(reloads.length >= 1, 'the POST alone emitted a reload — no fs.watch event occurred');
+    ok(reloads.every((r) => r.id === entry.id), 'reload scoped to the posted repo');
+    ok(reloads.every((r) => typeof r.renderedAt === 'string'), 'reload payload carries renderedAt');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('hub: two rapid POSTs for one repo coalesce to a single reload (debounce)', async () => {
+  setHome();
+  const root = tmp('sdlc-hub-coalesce-');
+  const repo = join(root, 'repo');
+  initRepo(repo);
+  renderView(repo, { slug: 'fast' });
+  const entry = await buildEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+
+  const server = createHubServer({ token: 'tok', liveReload: true });
+  const port = await listen(server);
+  try {
+    const collected = sseCollect(port, 1000);
+    await wait(150);
+    // Both POSTs land well inside RELOAD_DEBOUNCE_MS (localhost round-trips are
+    // sub-millisecond), so the second reload is coalesced away — one render, one
+    // browser reload, even though the push and watch paths can both fire.
+    await httpReq(port, '/__sdlc/registry/upsert', { method: 'POST', token: 'tok', body: JSON.stringify(entry) });
+    await httpReq(port, '/__sdlc/registry/upsert', { method: 'POST', token: 'tok', body: JSON.stringify(entry) });
+    const events = await collected;
+    const reloads = events.filter((e) => e.event === 'reload');
+    equal(reloads.length, 1, 'rapid re-POSTs collapse to one reload');
+  } finally {
+    await closeServer(server);
+  }
+});
+
 /* ───────────────────────── landing page (§5) ───────────────────────── */
 
 test('hub: GET / renders the aggregate landing page with swimlanes + slug links', async () => {

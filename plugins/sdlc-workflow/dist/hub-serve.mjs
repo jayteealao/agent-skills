@@ -3,8 +3,8 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-HZDU7QTP.mjs";
-import "./chunk-HQ5U5RZF.mjs";
+} from "./chunk-OPLCFKVA.mjs";
+import "./chunk-3Z66FCSW.mjs";
 import "./chunk-PDBKNARE.mjs";
 import {
   REGISTRY_VERSION,
@@ -14,7 +14,7 @@ import {
   validateEntry,
   writeRegistry
 } from "./chunk-NOGYVKL5.mjs";
-import "./chunk-YVOPQ7Y3.mjs";
+import "./chunk-UFJT6WFJ.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -72,6 +72,7 @@ var DOCS_ROOT = (() => {
 })();
 var MAX_INJECT_BYTES = 1024 * 1024;
 var MAX_UPSERT_BYTES = 512 * 1024;
+var RELOAD_DEBOUNCE_MS = 500;
 function parseHubArgs(argv) {
   const args = {
     host: "127.0.0.1",
@@ -117,6 +118,7 @@ function createHubServer({
   const clients = /* @__PURE__ */ new Set();
   const metrics = { requests: 0, perRepoLastServed: {} };
   const watchers = /* @__PURE__ */ new Map();
+  const lastReloadAt = /* @__PURE__ */ new Map();
   let entries = [];
   let landingCache = { html: null, at: 0 };
   const invalidateLanding = () => {
@@ -169,7 +171,14 @@ function createHubServer({
           if (parsed.renderedAt) renderedAt = parsed.renderedAt;
         } catch {
         }
-        emit("reload", { id: entry.id, renderedAt });
+        emitReload(entry.id, renderedAt);
+      });
+      w.on("error", () => {
+        try {
+          w.close();
+        } catch {
+        }
+        watchers.delete(entry.id);
       });
       watchers.set(entry.id, w);
     } catch {
@@ -186,6 +195,13 @@ function createHubServer({
       } catch {
       }
     }
+  }
+  function emitReload(id, renderedAt) {
+    if (!liveReload || !id) return;
+    const now = Date.now();
+    if (now - (lastReloadAt.get(id) ?? 0) < RELOAD_DEBOUNCE_MS) return;
+    lastReloadAt.set(id, now);
+    emit("reload", { id, renderedAt });
   }
   function tokenOk(req) {
     return Boolean(token) && req.headers["x-sdlc-token"] === token;
@@ -226,6 +242,7 @@ function createHubServer({
       }
       watchers.delete(id);
     }
+    lastReloadAt.delete(id);
     try {
       writeRegistry(entries);
     } catch {
@@ -510,6 +527,7 @@ data: ${JSON.stringify({ ok: true })}
       }
       watchEntry(entry);
       invalidateLanding();
+      emitReload(entry.id, entry.lastRenderedAt);
       sendJson(res, { ok: true, id: entry.id });
     });
   }

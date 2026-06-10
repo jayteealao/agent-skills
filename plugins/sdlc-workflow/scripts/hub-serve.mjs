@@ -87,6 +87,12 @@ const DOCS_ROOT = (() => {
 const MAX_INJECT_BYTES = 1024 * 1024;   // skip meta-injection above 1 MB (§4.4 size guard)
 const MAX_UPSERT_BYTES = 512 * 1024;    // registry entries are a few KB; cap the body
 
+// Coalesce reloads per repo. A render both POSTs (handleUpsert) and trips the
+// fs.watch backstop, and atomic-rename writes can double-fire the watcher; the
+// first emit for an id inside this window wins, the rest collapse — so one
+// render reloads the browser exactly once.
+const RELOAD_DEBOUNCE_MS = 500;
+
 export function parseHubArgs(argv) {
   const args = {
     host: '127.0.0.1',
@@ -150,6 +156,7 @@ export function createHubServer({
   const clients = new Set();
   const metrics = { requests: 0, perRepoLastServed: {} };
   const watchers = new Map();   // id → fs watcher (Phase 3)
+  const lastReloadAt = new Map();   // id → ms of last emitted reload (coalesce)
   let entries = [];
   let landingCache = { html: null, at: 0 };   // 2-second micro-cache (§5)
   const invalidateLanding = () => { landingCache.html = null; };
@@ -174,7 +181,10 @@ export function createHubServer({
     for (const [id, w] of watchers) {
       if (!entries.find((e) => e.id === id)) { try { w.close(); } catch { /* ignore */ } watchers.delete(id); }
     }
-    // Beyond maxWatchedRepos, skip fs.watch (a future poll fallback covers it).
+    // Beyond maxWatchedRepos, skip the fs.watch backstop. Live-reload still
+    // reaches these repos: the render's registration POST drives reloads
+    // directly (handleUpsert → emitReload), uncapped — the watcher only backs
+    // up renders that didn't POST.
     let watched = watchers.size;
     for (const entry of entries) {
       if (watchers.has(entry.id)) continue;
@@ -198,7 +208,16 @@ export function createHubServer({
           const parsed = JSON.parse(readFileSync(`${entry.viewDir}/.last-render`, 'utf-8'));
           if (parsed.renderedAt) renderedAt = parsed.renderedAt;
         } catch { /* keep wall-clock */ }
-        emit('reload', { id: entry.id, renderedAt });
+        emitReload(entry.id, renderedAt);
+      });
+      // An FSWatcher is an EventEmitter: a runtime 'error' (e.g. EPERM on Windows
+      // when the watched .ai/_view is removed + recreated by `git clean`) with NO
+      // listener THROWS on the event loop and crashes the daemon. Tear the dead
+      // watcher down so rewatchAll() can re-establish it later; reloads keep
+      // flowing via the push path in the meantime.
+      w.on('error', () => {
+        try { w.close(); } catch { /* ignore */ }
+        watchers.delete(entry.id);
       });
       watchers.set(entry.id, w);
     } catch { /* unwatchable viewDir — skip, served pages still work */ }
@@ -211,6 +230,18 @@ export function createHubServer({
         res.write(`data: ${JSON.stringify(payload)}\n\n`);
       } catch { /* a broken client is cleaned up on its own close */ }
     }
+  }
+
+  // Coalesced per-repo reload. BOTH the push path (handleUpsert — the primary,
+  // uncapped trigger: every live-hub render POSTs) and the fs.watch backstop call
+  // this; the first to fire for an id within RELOAD_DEBOUNCE_MS wins so a render
+  // that POSTs *and* trips the watcher reloads the browser exactly once.
+  function emitReload(id, renderedAt) {
+    if (!liveReload || !id) return;
+    const now = Date.now();
+    if (now - (lastReloadAt.get(id) ?? 0) < RELOAD_DEBOUNCE_MS) return;
+    lastReloadAt.set(id, now);
+    emit('reload', { id, renderedAt });
   }
 
   /* ── helpers ── */
@@ -246,6 +277,7 @@ export function createHubServer({
     entries = entries.filter((e) => e.id !== id);
     const w = watchers.get(id);
     if (w) { try { w.close(); } catch { /* ignore */ } watchers.delete(id); }
+    lastReloadAt.delete(id);
     try { writeRegistry(entries); } catch { /* ignore */ }
     invalidateLanding();
     logHub(`dropped entry ${id}: ${reason}`);
@@ -494,6 +526,10 @@ export function createHubServer({
       try { writeRegistry(entries); } catch { /* ignore */ }
       watchEntry(entry);
       invalidateLanding();
+      // Drive the browser reload from the push itself — the primary, uncapped
+      // trigger. fs.watch is only a backstop now: it can miss events on Windows
+      // atomic-rename writes and is capped at maxWatchedRepos.
+      emitReload(entry.id, entry.lastRenderedAt);
       sendJson(res, { ok: true, id: entry.id });
     });
   }

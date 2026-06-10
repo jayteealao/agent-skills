@@ -731,7 +731,7 @@ async function renderMain(args) {
 
     // 9. manifest pass
     const manifest = {
-      version:     '9.53.0',
+      version:     '9.54.0',
       generatedAt: new Date().toISOString(),
       slugs: [...slugArtifacts.keys()]
         .filter((slug) => !slug.startsWith('__'))   // drop synthetic off-pipeline buckets
