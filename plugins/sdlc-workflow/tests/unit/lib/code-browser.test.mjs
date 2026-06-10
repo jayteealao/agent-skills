@@ -91,8 +91,9 @@ function sourceRepo({ commit = true } = {}) {
 
 // Minimal valid view so the repo can hold a registry entry (validateEntry
 // requires a realpath-able `.ai/_view` under repoRoot + `.last-render`).
-// INDEX.html carries a topbar actions cell so the serve-time code-link
-// injection has its anchor.
+// INDEX.html mirrors the real shell's TWO actions cells (desktop topbar +
+// mobile menu sheet) so the global serve-time code-link injection is
+// exercised against both anchors.
 function renderView(repoDir) {
   const view = join(repoDir, '.ai', '_view');
   mkdirSync(view, { recursive: true });
@@ -102,7 +103,8 @@ function renderView(repoDir) {
   writeFileSync(join(view, 'INDEX.html'),
     '<!DOCTYPE html><html><head>\n  <link rel="stylesheet" href="_assets/sdlc.css">\n</head>'
     + '<body class="artifact"><div class="b-topbar"><a class="brand" href="_assets/..">.ai/workflows</a>'
-    + '<div class="crumb"><b>sdlc</b></div><div class="actions"><span class="kbd">⌘K</span></div></div>ROOT</body></html>');
+    + '<div class="crumb"><b>sdlc</b></div><div class="actions"></div></div>ROOT'
+    + '<aside class="m-sheet"><div class="actions m-sheet-links"><a href="INDEX.html">&uarr; up</a></div></aside></body></html>');
   mkdirSync(join(view, '_assets'), { recursive: true });
   writeFileSync(join(view, '_assets', 'sdlc.css'), 'body{color:#000}');
   return view;
@@ -478,6 +480,10 @@ test('hub code browser: serve-time code link is injected into served pages and t
     const page = await httpReq(port, `/r/${id}/INDEX.html`);
     equal(page.status, 200);
     match(page.body, new RegExp(`class="code-link" href="/r/${id}/__code/"`), 'topbar link injected at serve time');
+    // Global injection: BOTH actions cells (desktop topbar + mobile menu
+    // sheet) carry the affordance — the topbar is display:none on phones.
+    equal((page.body.match(/class="code-link"/g) ?? []).length, 2,
+      'code link injected into both actions cells');
 
     const landing = await httpReq(port, '/');
     match(landing.body, new RegExp(`class="open-code" href="/r/${id}/__code/"`), 'landing card affordance');

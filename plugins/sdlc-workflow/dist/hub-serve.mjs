@@ -3,8 +3,8 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-ERLQN6CI.mjs";
-import "./chunk-O7RYACGY.mjs";
+} from "./chunk-HZDU7QTP.mjs";
+import "./chunk-HQ5U5RZF.mjs";
 import "./chunk-PDBKNARE.mjs";
 import {
   REGISTRY_VERSION,
@@ -14,7 +14,7 @@ import {
   validateEntry,
   writeRegistry
 } from "./chunk-NOGYVKL5.mjs";
-import "./chunk-VVSACXFW.mjs";
+import "./chunk-YVOPQ7Y3.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -406,7 +406,7 @@ ${script}`;
     out = rewriteBrandToHubRoot(out, entryId);
     if (cbCfg.enabled && entryId && !/class="code-link"/.test(out)) {
       out = out.replace(
-        /(<div class="actions">)/,
+        /(<div class="actions[^"]*">)/g,
         `$1<a class="code-link" href="/r/${encodeURIComponent(entryId)}/__code/">code \u2197</a><span aria-hidden="true"> \xB7 </span>`
       );
     }
@@ -415,7 +415,7 @@ ${script}`;
   function rewriteBrandToHubRoot(html, entryId) {
     if (!entryId) return html;
     return html.replace(
-      /<a class="brand" href="[^"]*">[^<]*<\/a>/,
+      /<a class="brand" href="[^"]*">[^<]*<\/a>/g,
       '<a class="brand" href="/">sdlc hub</a>'
     );
   }

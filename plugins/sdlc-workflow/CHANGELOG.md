@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — mobile nav chrome never rendered; navigation unified across all viewports (9.53.0)
+
+The M-S1 mobile appbar + tabbar have been **dead since they landed**: their reveal rules
+(`.m-appbar { display:block }` in the ≤720px responsive block) sat *earlier* in `sdlc.css`
+than the mobile component library's default-hidden rule (`.m-appbar, .m-tabbar { display:none }`)
+— same specificity, so the later hide always won. Since the desktop `.b-topbar` is also
+hidden at ≤720px, phones rendered **no chrome at all**. The reveals now live in the mobile
+library's own media block, after the hide rule, with NOTE comments in both places so they
+can't drift apart again.
+
+On top of the fix, the navigation surface is now one model — brand/home, breadcrumb trail,
+real page actions — rendered per viewport from the same shell inputs:
+
+- **Mobile menu sheet** (`<=720px`): the tabbar's redundant *Up* tab (it duplicated the
+  appbar's ← back) is replaced by **Menu**, a CSS-only bottom sheet (`#m-menu` checkbox +
+  label, the hub landing's CSP-safe no-JS pattern) listing **Places** (brand → home, every
+  breadcrumb level, current page marked `aria-current`) and **Links** (`md ↗` source,
+  `↑ up`, updated date). `sdlc.js` layers Escape-to-close, close-on-navigate, and a
+  bfcache `pageshow` reset on top.
+- **Serve-time hooks flow to phones.** The sheet carries the same `class="brand"` anchor
+  and `class="actions"` cell as the desktop topbar, and the hub's brand→hub-root rewrite +
+  `code ↗` injection are now **global** (the actions pattern widened to
+  `class="actions[^"]*"`) — so under the hub, mobile finally gets a path to the hub root
+  and the code browser. Fixtures in the hub + code-browser tests now mirror the two-anchor
+  shell and pin both rewrites.
+- **Honest desktop topbar.** The fake `⌘K to search · viewing as you` chrome is removed
+  (no handler ever existed; VIEW-FEATURE-IDEAS #1/#9 — a real palette remains future work);
+  the actions cell now holds the real `md ↗` source link plus the injected `code ↗`. In the
+  720–880px band the breadcrumb truncates with an ellipsis instead of disappearing.
+- **Hub landing gets its first responsive rules** (`<=720px`): tighter padding, wrapping
+  inbox rows, full-width reason pills, larger tab touch targets.
+- Stale version stamps fixed: the shell's `?v=` asset cache-buster (9.35.0 → current; was
+  flagged in CODEBASE-BROWSER-PLAN) and the `INDEX.yaml` manifest version. Returning
+  browsers actually fetch the new CSS/JS.
+
 ### Added — in-browser code browser for every served repo (9.52.0)
 
 Every served repo now has a read-only **source browser** — a lazy file tree plus a

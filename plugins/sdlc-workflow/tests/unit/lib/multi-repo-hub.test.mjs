@@ -75,9 +75,12 @@ function renderView(repoDir, {
   }));
   // Emit real view files so HTTP serving (incl. meta-injection + assets) can be
   // exercised: a root INDEX.html, a nested slug page, and a copied asset.
+  // Mirrors the real shell's TWO-anchor chrome (desktop topbar + mobile menu
+  // sheet) so the global brand→hub rewrite is exercised against both.
   writeFileSync(join(view, 'INDEX.html'),
     '<!DOCTYPE html><html><head>\n  <link rel="stylesheet" href="_assets/sdlc.css">\n</head>'
-    + '<body class="artifact"><div class="b-topbar"><a class="brand" href="_assets/..">.ai/workflows</a></div>ROOT</body></html>');
+    + '<body class="artifact"><div class="b-topbar"><a class="brand" href="_assets/..">.ai/workflows</a></div>ROOT'
+    + '<aside class="m-sheet"><a class="brand" href="_assets/..">.ai/workflows</a></aside></body></html>');
   mkdirSync(join(view, slug), { recursive: true });
   writeFileSync(join(view, slug, 'INDEX.html'),
     '<!DOCTYPE html><html><head></head><body>SLUG PAGE</body></html>');
@@ -791,6 +794,10 @@ test('hub: rewrites the per-repo brand link to the hub root at serve time (no re
     // the hub and now says so (no more ".ai/workflows" → multi-repo-hub mismatch).
     match(page.body, /<a class="brand" href="\/">sdlc hub<\/a>/, 'brand relabelled to the hub');
     ok(!/>\.ai\/workflows<\/a>/.test(page.body), 'the misleading .ai/workflows brand label is gone under the hub');
+    // The shell renders the brand anchor TWICE (desktop topbar + mobile menu
+    // sheet); the rewrite is global so phones get a hub link too.
+    equal((page.body.match(/<a class="brand" href="\/">sdlc hub<\/a>/g) ?? []).length, 2,
+      'BOTH brand anchors (topbar + mobile sheet) repointed');
     // The relative asset link is untouched (resolves under /r/<id>/), proving we
     // do not rewrite content hrefs wholesale.
     match(page.body, /href="_assets\/sdlc\.css"/, 'asset href left intact');

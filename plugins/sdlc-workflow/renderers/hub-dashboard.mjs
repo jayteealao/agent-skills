@@ -391,4 +391,15 @@ const STYLE = `
   .lq { font-size:10px; border-radius:999px; padding:1px 7px; margin-left:6px; border:1px solid var(--hair); white-space:nowrap; }
   .lq.merged { color:var(--ok); border-color:var(--ok); }
   .lq.gone { color:var(--idle); border-color:var(--idle); }
+  /* Narrow screens — the hub is the landing page on phones too; keep the
+     inbox rows readable (stack reasons under the slug) and reclaim padding. */
+  @media (max-width: 720px) {
+    .wrap { padding:20px 14px 64px; }
+    .hub-head h1 { font-size:24px; }
+    .inbox-item { flex-wrap:wrap; row-gap:4px; }
+    .ix-reasons { margin-left:0; width:100%; }
+    .entry { padding:12px; }
+    .entry-head { flex-wrap:wrap; gap:6px; }
+    .tabs label { padding:10px 14px; }
+  }
 `;

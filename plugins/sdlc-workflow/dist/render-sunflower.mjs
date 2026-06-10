@@ -11,7 +11,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-KUNG4DZZ.mjs";
+} from "./chunk-46VHMONS.mjs";
 import {
   configHash,
   loadConfigWithMeta
@@ -29,7 +29,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-VVSACXFW.mjs";
+} from "./chunk-YVOPQ7Y3.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -965,7 +965,7 @@ async function renderMain(args) {
       }
     }
     const manifest = {
-      version: "9.35.0",
+      version: "9.53.0",
       generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
       slugs: [...slugArtifacts.keys()].filter((slug) => !slug.startsWith("__")).map((slug) => ({
         slug,

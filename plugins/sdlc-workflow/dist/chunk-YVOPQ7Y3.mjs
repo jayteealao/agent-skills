@@ -249,7 +249,7 @@ function breadcrumbFromView(viewRel, slug) {
 }
 
 // renderers/_shell.mjs
-var PLUGIN_VERSION = "9.35.0";
+var PLUGIN_VERSION = "9.53.0";
 function renderShell(params) {
   const {
     title,
@@ -274,7 +274,7 @@ function renderShell(params) {
   const TAB_ICONS = {
     home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
     grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
-    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v6"/></svg>'
+    menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>'
   };
   const homeHref = breadcrumbs[0]?.href ?? pageHref(`${assetBase}/..`);
   const mCrumbTrail = breadcrumbs.length ? breadcrumbs.map((c, i) => i === breadcrumbs.length - 1 ? `<span class="m-here">${escapeHtml(c.label)}</span>` : `<a href="${escapeHtml(c.href)}">${escapeHtml(c.label)}</a>`).join('<span aria-hidden="true">/</span>') : '<span class="m-here">.ai/workflows</span>';
@@ -285,8 +285,21 @@ function renderShell(params) {
   </header>`;
   const mTabs = [{ href: homeHref, label: "Home", icon: TAB_ICONS.home, active: breadcrumbs.length <= 1 }];
   if (breadcrumbs.length >= 2) mTabs.push({ href: breadcrumbs[1].href, label: "Overview", icon: TAB_ICONS.grid, active: breadcrumbs.length === 2 });
-  mTabs.push({ href: upHref, label: "Up", icon: TAB_ICONS.up, active: false });
-  const mTabbar = `<nav class="m-tabbar" aria-label="Sections">${mTabs.map((t) => `<a class="m-tab${t.active ? " is-active" : ""}" href="${escapeHtml(t.href)}">${t.icon}<span>${escapeHtml(t.label)}</span></a>`).join("")}</nav>`;
+  const mTabbar = `<nav class="m-tabbar" aria-label="Sections">${mTabs.map((t) => `<a class="m-tab${t.active ? " is-active" : ""}" href="${escapeHtml(t.href)}">${t.icon}<span>${escapeHtml(t.label)}</span></a>`).join("")}<label class="m-tab m-tab-menu" for="m-menu">${TAB_ICONS.menu}<span>Menu</span></label></nav>`;
+  const mPlaces = [
+    `<a class="brand" href="${escapeHtml(pageHref(`${assetBase}/..`))}">.ai/workflows</a>`,
+    ...breadcrumbs.slice(1).map((c, i, arr) => i === arr.length - 1 ? `<span class="m-sheet-here" aria-current="page">${escapeHtml(c.label)}</span>` : `<a href="${escapeHtml(c.href)}">${escapeHtml(c.label)}</a>`)
+  ].join("");
+  const mMenu = `<input type="checkbox" id="m-menu" class="m-menu-toggle" aria-label="Navigation menu">
+  <label class="m-backdrop" for="m-menu" aria-hidden="true"></label>
+  <aside class="m-sheet" role="dialog" aria-label="Navigation">
+    <div class="m-sheet-grip" aria-hidden="true"></div>
+    <h2 class="m-sheet-head">Places</h2>
+    <nav class="m-sheet-places" aria-label="Places">${mPlaces}</nav>
+    <h2 class="m-sheet-head">Links</h2>
+    <div class="actions m-sheet-links"><a href="${escapeHtml(pageHref(upHref))}">&uarr; up</a>${storageHref ? `<a href="${escapeHtml(storageHref)}" class="src-link" title="storage source">md &#8599;</a>` : ""}</div>
+    ${updatedAt ? `<div class="m-sheet-meta">updated ${escapeHtml(updatedAt)}</div>` : ""}
+  </aside>`;
   const versionTag = `?v=${PLUGIN_VERSION}`;
   const liveReloadScript = liveReload ? `
   <script src="${escapeHtml(assetBase)}/livereload.js" defer></script>` : "";
@@ -305,7 +318,7 @@ function renderShell(params) {
   <div class="b-topbar">
     <a class="brand" href="${escapeHtml(pageHref(`${assetBase}/..`))}">.ai/workflows</a>
     <div class="crumb">${crumbHtml}</div>
-    <div class="actions"><span class="kbd">\u2318K</span> to search \xB7 viewing as <b>you</b></div>
+    <div class="actions">${storageHref ? `<a href="${escapeHtml(storageHref)}" class="src-link" title="storage source">md &#8599;</a>` : ""}</div>
   </div>
 
   <main class="content">
@@ -320,6 +333,7 @@ function renderShell(params) {
     <span class="updated">${updatedAt ? "updated " + escapeHtml(updatedAt) : ""}</span>
     ${storageHref ? `<a href="${escapeHtml(storageHref)}" class="src-link" title="storage source">md \u2197</a>` : ""}
   </footer>
+  ${mMenu}
   ${mTabbar}
   ${liveReloadScript}
 </body>

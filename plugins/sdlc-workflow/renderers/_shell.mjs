@@ -7,7 +7,7 @@
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
 
-const PLUGIN_VERSION = '9.35.0';
+const PLUGIN_VERSION = '9.53.0';
 
 /**
  * Wrap rendered content in the full HTML shell.
@@ -54,11 +54,12 @@ export function renderShell(params) {
   // and the page title; since the body .pg-title is display:none on mobile and
   // the appbar is display:none on desktop, exactly one <h1> is in the a11y tree
   // per breakpoint. The tabbar links only to reliably-derivable destinations
-  // (Home / Overview / Up) from the breadcrumb trail — no invented nav model.
+  // (Home / Overview) from the breadcrumb trail plus a Menu tab that opens the
+  // bottom-sheet nav — the same destination model the desktop topbar carries.
   const TAB_ICONS = {
     home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>',
     grid: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>',
-    up: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 5 5v6"/></svg>',
+    menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>',
   };
   const homeHref = breadcrumbs[0]?.href ?? pageHref(`${assetBase}/..`);
   const mCrumbTrail = breadcrumbs.length
@@ -73,9 +74,36 @@ export function renderShell(params) {
   </header>`;
   const mTabs = [{ href: homeHref, label: 'Home', icon: TAB_ICONS.home, active: breadcrumbs.length <= 1 }];
   if (breadcrumbs.length >= 2) mTabs.push({ href: breadcrumbs[1].href, label: 'Overview', icon: TAB_ICONS.grid, active: breadcrumbs.length === 2 });
-  mTabs.push({ href: upHref, label: 'Up', icon: TAB_ICONS.up, active: false });
   const mTabbar = `<nav class="m-tabbar" aria-label="Sections">${mTabs.map((t) =>
-    `<a class="m-tab${t.active ? ' is-active' : ''}" href="${escapeHtml(t.href)}">${t.icon}<span>${escapeHtml(t.label)}</span></a>`).join('')}</nav>`;
+    `<a class="m-tab${t.active ? ' is-active' : ''}" href="${escapeHtml(t.href)}">${t.icon}<span>${escapeHtml(t.label)}</span></a>`).join('')}<label class="m-tab m-tab-menu" for="m-menu">${TAB_ICONS.menu}<span>Menu</span></label></nav>`;
+
+  // ── Mobile menu sheet: the "proper" nav surface (<=720px). A CSS-only bottom
+  // sheet toggled by the #m-menu checkbox (same CSP-safe no-JS pattern as the
+  // hub landing's radio tabs; sdlc.js adds Escape/auto-close as enhancement).
+  // It carries the SAME destination model as the desktop topbar — and the same
+  // serve-time hooks: the `class="brand"` anchor is repointed to the hub root
+  // by hub-serve's brand rewrite, and the `class="actions"` cell receives the
+  // injected `code ↗` link. Places skips breadcrumbs[0]: at render time it is
+  // the brand's own destination (the repo dashboard), and under the hub —
+  // where the brand becomes the hub root — the repo home stays one tap away on
+  // the tabbar's Home tab.
+  const mPlaces = [
+    `<a class="brand" href="${escapeHtml(pageHref(`${assetBase}/..`))}">.ai/workflows</a>`,
+    ...breadcrumbs.slice(1).map((c, i, arr) => i === arr.length - 1
+      ? `<span class="m-sheet-here" aria-current="page">${escapeHtml(c.label)}</span>`
+      : `<a href="${escapeHtml(c.href)}">${escapeHtml(c.label)}</a>`),
+  ].join('');
+  const mMenu = `<input type="checkbox" id="m-menu" class="m-menu-toggle" aria-label="Navigation menu">
+  <label class="m-backdrop" for="m-menu" aria-hidden="true"></label>
+  <aside class="m-sheet" role="dialog" aria-label="Navigation">
+    <div class="m-sheet-grip" aria-hidden="true"></div>
+    <h2 class="m-sheet-head">Places</h2>
+    <nav class="m-sheet-places" aria-label="Places">${mPlaces}</nav>
+    <h2 class="m-sheet-head">Links</h2>
+    <div class="actions m-sheet-links"><a href="${escapeHtml(pageHref(upHref))}">&uarr; up</a>${storageHref
+      ? `<a href="${escapeHtml(storageHref)}" class="src-link" title="storage source">md &#8599;</a>` : ''}</div>
+    ${updatedAt ? `<div class="m-sheet-meta">updated ${escapeHtml(updatedAt)}</div>` : ''}
+  </aside>`;
 
   const versionTag = `?v=${PLUGIN_VERSION}`;
   // External (not inline) so served pages can run a strict `script-src 'self'`
@@ -99,7 +127,9 @@ export function renderShell(params) {
   <div class="b-topbar">
     <a class="brand" href="${escapeHtml(pageHref(`${assetBase}/..`))}">.ai/workflows</a>
     <div class="crumb">${crumbHtml}</div>
-    <div class="actions"><span class="kbd">⌘K</span> to search · viewing as <b>you</b></div>
+    <div class="actions">${storageHref
+      ? `<a href="${escapeHtml(storageHref)}" class="src-link" title="storage source">md &#8599;</a>`
+      : ''}</div>
   </div>
 
   <main class="content">
@@ -116,6 +146,7 @@ export function renderShell(params) {
       ? `<a href="${escapeHtml(storageHref)}" class="src-link" title="storage source">md ↗</a>`
       : ''}
   </footer>
+  ${mMenu}
   ${mTabbar}
   ${liveReloadScript}
 </body>

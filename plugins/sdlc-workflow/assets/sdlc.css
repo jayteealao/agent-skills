@@ -124,15 +124,10 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: var(--gap-lg) 0; }
   color: var(--ink-3);
   white-space: nowrap;
 }
-.b-topbar .actions b { color: var(--ink-2); font-weight: 600; }
-.b-topbar .actions .kbd {
-  font-family: var(--mono);
-  font-size: 11px;
-  padding: 1px 5px;
-  border: 1px solid var(--rule-2);
-  border-radius: 3px;
-  background: var(--paper);
-}
+/* Real page actions only — the rendered `md ↗` source link plus the
+   serve-time-injected `code ↗` (hub-serve targets this .actions cell). */
+.b-topbar .actions a { color: var(--ink-2); text-decoration: none; }
+.b-topbar .actions a:hover { color: var(--accent); }
 
 /* ── Main content ─────────────────────────────────────────────────────── */
 
@@ -1292,7 +1287,11 @@ details.history li, details.revisions li { padding: 4px 0; }
   .content { padding: 40px 28px; }
   .project-row { flex-wrap: wrap; row-gap: 6px; }
   .b-topbar { padding: 16px 24px; gap: 14px; }
-  .b-topbar .crumb { display: none; }
+  /* Truncate the trail rather than dropping it — hiding it left the 720–880px
+     band with no location cue at all (brand + actions only). */
+  .b-topbar .crumb { flex-wrap: nowrap; overflow: hidden; }
+  .b-topbar .crumb a, .b-topbar .crumb b { white-space: nowrap; }
+  .b-topbar .crumb b { overflow: hidden; text-overflow: ellipsis; }
 }
 @media (max-width: 720px) {
   .content { padding: 32px 20px; }
@@ -1312,10 +1311,12 @@ details.history li, details.revisions li { padding: 4px 0; }
   /* M-S1 · native mobile chrome (5b). Swap the desktop topbar for a sticky
      appbar (crumb + page title) and a fixed bottom tabbar; the body page-title
      and the desktop crumb fold into the appbar so they don't double up. The
-     `.frag-nav` ("on this page") sits below the appbar in normal flow. */
+     `.frag-nav` ("on this page") sits below the appbar in normal flow.
+     NOTE: the appbar/tabbar/sheet REVEALS live in the mobile component
+     library's own media block at the bottom of this file — they must come
+     AFTER the `.m-appbar, .m-tabbar, … { display:none }` default (same
+     specificity, so source order decides; reveals placed here were dead). */
   .b-topbar { display: none; }
-  .m-appbar { display: block; }
-  .m-tabbar { display: grid; }
   .pg-title { display: none; }
   .artifact-header .sdlc-crumb { display: none; }
   .content { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
@@ -1351,7 +1352,9 @@ details.history li, details.revisions li { padding: 4px 0; }
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Chrome + dual-DOM markup are present in every page but hidden on desktop. */
-.m-only, .m-appbar, .m-tabbar { display: none; }
+.m-only, .m-appbar, .m-tabbar, .m-sheet, .m-backdrop { display: none; }
+/* The sheet's checkbox toggle stays offscreen (but focusable) at every width. */
+.m-menu-toggle { position: absolute; left: -9999px; width: 1px; height: 1px; }
 
 /* Sticky appbar (revealed <=720px) — crumb + back affordance + page title. */
 .m-appbar { position: sticky; top: 0; z-index: 30; padding: max(8px, env(safe-area-inset-top)) 18px 12px; background: var(--paper); border-bottom: 1px solid var(--rule); }
@@ -1361,11 +1364,42 @@ details.history li, details.revisions li { padding: 4px 0; }
 .m-appbar .m-crumb .m-here { overflow: hidden; text-overflow: ellipsis; }
 .m-appbar .m-title { font-family: var(--serif); font-size: 21px; font-weight: 600; letter-spacing: -0.01em; margin: 4px 0 0; line-height: 1.2; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* Fixed bottom tabbar (revealed <=720px). */
-.m-tabbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 30; grid-auto-flow: column; grid-auto-columns: 1fr; height: calc(62px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: rgba(251, 250, 246, 0.92); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-top: 1px solid var(--rule); }
-.m-tabbar .m-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-family: var(--sans); font-size: 10px; letter-spacing: 0.02em; color: var(--ink-3); text-decoration: none; }
+/* Fixed bottom tabbar (revealed <=720px). Sits ABOVE the sheet backdrop
+   (z 50 vs 40) so the Menu tab stays tappable while the sheet is open. */
+.m-tabbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; grid-auto-flow: column; grid-auto-columns: 1fr; height: calc(62px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: rgba(251, 250, 246, 0.92); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-top: 1px solid var(--rule); }
+.m-tabbar .m-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-family: var(--sans); font-size: 10px; letter-spacing: 0.02em; color: var(--ink-3); text-decoration: none; cursor: pointer; }
 .m-tabbar .m-tab svg { width: 21px; height: 21px; }
 .m-tabbar .m-tab.is-active { color: var(--accent); }
+
+/* ── Mobile menu sheet (<=720px) — the page's full nav surface. CSS-only:
+   the #m-menu checkbox drives backdrop + sheet + tab tint via `:checked ~`
+   sibling selectors (CSP-safe, works under file:// and without JS; sdlc.js
+   layers Escape-to-close + close-on-navigate on top). It mirrors the desktop
+   topbar's destination model and carries the same serve-time hooks — the
+   `.brand` anchor (hub rewrite) and the `.actions` cell (code ↗ injection). */
+@media (max-width: 720px) {
+  /* Reveals for the whole mobile chrome — kept here, after the default-hidden
+     rule above, so source order works in their favour (see M-S1 note in the
+     responsive section). */
+  .m-appbar { display: block; }
+  .m-tabbar { display: grid; }
+  .m-backdrop { display: block; position: fixed; inset: 0; z-index: 40; background: rgba(31, 27, 22, 0.35); opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+  .m-sheet { display: block; position: fixed; left: 0; right: 0; bottom: calc(62px + env(safe-area-inset-bottom)); z-index: 45; visibility: hidden; transform: translateY(calc(100% + 80px)); transition: transform 0.25s ease, visibility 0.25s; background: var(--paper); border: 1px solid var(--rule); border-bottom: 0; border-radius: 16px 16px 0 0; padding: 8px 18px 18px; max-height: 70vh; overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 -12px 32px rgba(31, 27, 22, 0.12); }
+  .m-menu-toggle:checked ~ .m-backdrop { opacity: 1; pointer-events: auto; }
+  .m-menu-toggle:checked ~ .m-sheet { visibility: visible; transform: none; }
+  .m-menu-toggle:checked ~ .m-tabbar .m-tab-menu { color: var(--accent); }
+  .m-menu-toggle:focus-visible ~ .m-tabbar .m-tab-menu { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 8px; }
+}
+.m-sheet-grip { width: 36px; height: 4px; border-radius: 2px; background: var(--rule-2); margin: 4px auto 10px; }
+.m-sheet-head { font-family: var(--sans); font-size: 11px; font-weight: 600; letter-spacing: 0.10em; text-transform: uppercase; color: var(--ink-3); margin: 14px 0 2px; }
+.m-sheet a { display: flex; align-items: center; min-height: 44px; color: var(--ink); text-decoration: none; font-size: 15px; border-bottom: 1px solid var(--rule); }
+.m-sheet a:last-child { border-bottom: 0; }
+.m-sheet .brand { font-family: var(--serif); font-weight: 600; }
+.m-sheet-here { display: flex; align-items: center; min-height: 44px; font-size: 15px; font-weight: 600; color: var(--ink); }
+/* The injected `code ↗` arrives as `<a> + <span> · </span>` (topbar grammar);
+   the span separator is noise in a stacked list. */
+.m-sheet .actions > span { display: none; }
+.m-sheet-meta { margin-top: 10px; font-size: 12px; color: var(--ink-3); font-style: italic; }
 
 @media (max-width: 480px) {
   .m-only { display: block; }

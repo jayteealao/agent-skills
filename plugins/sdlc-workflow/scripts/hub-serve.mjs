@@ -409,8 +409,12 @@ export function createHubServer({
     //    the machine-wide enabled state. Prepended inside the topbar actions
     //    cell; idempotent via the class probe.
     if (cbCfg.enabled && entryId && !/class="code-link"/.test(out)) {
+      // Global, and tolerant of extra class tokens: the shell renders TWO
+      // actions cells — the desktop topbar's `class="actions"` and the mobile
+      // menu sheet's `class="actions m-sheet-links"` — and both carry the
+      // affordance (the topbar is display:none on phones).
       out = out.replace(
-        /(<div class="actions">)/,
+        /(<div class="actions[^"]*">)/g,
         `$1<a class="code-link" href="/r/${encodeURIComponent(entryId)}/__code/">code ↗</a><span aria-hidden="true"> · </span>`,
       );
     }
@@ -426,9 +430,11 @@ export function createHubServer({
     // it — clicking ".ai/workflows" and landing on the multi-repo hub was a
     // label/destination mismatch. The breadcrumb's first "sdlc" crumb stays the
     // repo-local home (/r/<id>/), giving a clean two-tier trail: hub → repo →
-    // slug → stage. Conservative: only the explicit brand anchor is touched.
+    // slug → stage. Global: the shell renders the brand anchor twice — desktop
+    // topbar + mobile menu sheet — and both must repoint, or phones (where the
+    // topbar is display:none) get no path to the hub at all.
     return html.replace(
-      /<a class="brand" href="[^"]*">[^<]*<\/a>/,
+      /<a class="brand" href="[^"]*">[^<]*<\/a>/g,
       '<a class="brand" href="/">sdlc hub</a>',
     );
   }

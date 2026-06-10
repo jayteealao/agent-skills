@@ -100,7 +100,30 @@
     wireCopyButtons();
     wireSmoothAnchors();
     wireTokenCopy();
+    wireMobileMenu();
   });
+
+  /* ── Mobile menu sheet enhancement ────────────────────────────────────
+     The sheet itself is CSS-only (the #m-menu checkbox); JS only adds the
+     affordances CSS can't express: Escape closes, and choosing a destination
+     closes the sheet so bfcache restores don't resurrect it. */
+
+  function wireMobileMenu() {
+    const toggle = document.getElementById('m-menu');
+    if (!toggle) return;
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && toggle.checked) toggle.checked = false;
+    });
+    const sheet = document.querySelector('.m-sheet');
+    if (sheet) {
+      sheet.addEventListener('click', (e) => {
+        if (e.target.closest && e.target.closest('a')) toggle.checked = false;
+      });
+    }
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted) toggle.checked = false;
+    });
+  }
 
   /* ── Copy-to-clipboard via .copy-btn[data-copy-target] ───────────── */
 
