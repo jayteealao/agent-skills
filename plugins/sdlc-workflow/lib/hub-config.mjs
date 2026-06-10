@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path';
 
 import { deepMerge, configHash } from './config.mjs';
 import { sdlcHomeDir } from './registry.mjs';
+import { CODE_BROWSER_DEFAULTS } from './code-browser.mjs';
 
 export const HUB_CONFIG_VERSION = 1;
 
@@ -48,6 +49,11 @@ export const HUB_CONFIG_DEFAULTS = Object.freeze({
     // committable per-repo flag (§6.1).
     acknowledgedPublic: false,
   },
+  // The in-browser source browser (CODEBASE-BROWSER-PLAN §5). Machine-wide
+  // like every other serve setting; reaches both daemons via env at spawn.
+  // ⚠ codeBrowser.serveSecrets:true drops the secret denylist (.env/keys
+  // become servable) — keep false whenever host ≠ 127.0.0.1.
+  codeBrowser: { ...CODE_BROWSER_DEFAULTS },
 });
 
 export function hubConfigPath() {

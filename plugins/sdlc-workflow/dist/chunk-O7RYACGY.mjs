@@ -3,12 +3,14 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   evenX,
   figureCanvas
-} from "./chunk-C4BSYM7X.mjs";
+} from "./chunk-PDBKNARE.mjs";
 import {
   artifactHeader,
-  escapeHtml,
   pageHref
-} from "./chunk-ASUVWO6I.mjs";
+} from "./chunk-VVSACXFW.mjs";
+import {
+  escapeHtml
+} from "./chunk-4WRIEOIP.mjs";
 
 // renderers/dashboard.mjs
 var STAGES = [

@@ -3,14 +3,16 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "./chunk-LNLILMTK.mjs";
+} from "./chunk-KUNG4DZZ.mjs";
 import {
   artifactHeader,
-  escapeHtml,
   metricRow,
   stageBadge,
   statusBadge
-} from "./chunk-ASUVWO6I.mjs";
+} from "./chunk-VVSACXFW.mjs";
+import {
+  escapeHtml
+} from "./chunk-4WRIEOIP.mjs";
 
 // renderers/_simple.mjs
 function frontmatterCard(fm, keys = null) {

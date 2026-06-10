@@ -5,12 +5,21 @@ import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
 import {
+  hostAllowed,
+  renderCodeBrowserPage,
   resolveRequestPath
-} from "./chunk-G7FUF6WI.mjs";
+} from "./chunk-IOYXLHW6.mjs";
 import {
+  codeBrowserConfigFromEnv,
+  normalizeCodeBrowserConfig,
   removePidFile,
+  repoHeadBranch,
+  serveCodeBrowser,
+  serveCodeBrowserAsset,
   writePidFile
-} from "./chunk-FIVVBFWT.mjs";
+} from "./chunk-WA2PDRBA.mjs";
+import "./chunk-4WRIEOIP.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/render-sunflower-serve.mjs
@@ -24,7 +33,7 @@ import {
 } from "node:fs";
 import { createReadStream } from "node:fs";
 import { createServer } from "node:http";
-import { extname, join, resolve } from "node:path";
+import { basename, extname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 var __filename = fileURLToPath(import.meta.url);
 var PLUGIN_VERSION = (() => {
@@ -61,7 +70,8 @@ function parseServeArgs(argv) {
     projectRoot: null,
     configHash: "",
     liveReload: true,
-    allowAllHosts: false
+    allowAllHosts: false,
+    allowedHosts: []
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -74,16 +84,24 @@ function parseServeArgs(argv) {
     else if (a === "--live-reload") args.liveReload = true;
     else if (a === "--no-live-reload") args.liveReload = false;
     else if (a === "--allow-all-hosts") args.allowAllHosts = true;
+    else if (a === "--allowed-hosts") args.allowedHosts = String(argv[++i] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   }
   return args;
 }
 function createSdlcStaticServer({
   viewRoot,
+  projectRoot = null,
   liveReload = true,
-  configHash = ""
+  configHash = "",
+  codeBrowser = null,
+  allowAllHosts = false,
+  allowedHosts = []
 } = {}) {
   const root = resolve(viewRoot ?? ".ai/_view");
   mkdirSync(root, { recursive: true });
+  const repoRoot = resolve(projectRoot ?? resolve(root, "..", ".."));
+  const cbCfg = normalizeCodeBrowserConfig(codeBrowser);
+  const extraHosts = new Set((allowedHosts || []).map((h) => String(h).toLowerCase()).filter(Boolean));
   const clients = /* @__PURE__ */ new Set();
   let watcher = null;
   if (liveReload) {
@@ -100,6 +118,38 @@ function createSdlcStaticServer({
     const url = new URL(req.url ?? "/", "http://sdlc.local");
     if (url.pathname === "/__sdlc/health") {
       sendJson(res, healthPayload(root, configHash));
+      return;
+    }
+    const p = url.pathname;
+    if (p === "/__sdlc/code-browser.js" || p === "/__sdlc/code-browser.css" || p === "/__code" || p.startsWith("/__code/")) {
+      if (!cbCfg.enabled) {
+        res.writeHead(404).end("not found");
+        return;
+      }
+      if (!hostAllowed(req, allowAllHosts, extraHosts)) {
+        res.writeHead(403).end("forbidden host");
+        return;
+      }
+      if (p.startsWith("/__sdlc/")) {
+        serveCodeBrowserAsset({ req, res, name: p.slice("/__sdlc/".length) });
+        return;
+      }
+      serveCodeBrowser({
+        req,
+        res,
+        url,
+        basePath: "/__code",
+        repoRoot,
+        repoId: null,
+        repoLabel: basename(repoRoot),
+        headBranch: () => repoHeadBranch(repoRoot),
+        config: cbCfg,
+        pluginVersion: PLUGIN_VERSION,
+        csp: CSP,
+        renderPage: renderCodeBrowserPage,
+        // Reachable beyond loopback → the adapter ignores serveSecrets:true.
+        publicExposure: allowAllHosts || extraHosts.size > 0
+      });
       return;
     }
     if (url.pathname === "/__sdlc/events") {
@@ -223,11 +273,18 @@ async function main() {
     console.error("[serve] refusing 0.0.0.0 without --allow-all-hosts");
     process.exit(2);
   }
-  const viewRoot = resolve(args.projectRoot ?? resolveProjectRoot(), args.view);
+  const projectRoot = args.projectRoot ?? resolveProjectRoot();
+  const viewRoot = resolve(projectRoot, args.view);
   const server = createSdlcStaticServer({
     viewRoot,
+    projectRoot,
     liveReload: args.liveReload,
-    configHash: args.configHash
+    configHash: args.configHash,
+    // codeBrowser config arrives via env (JSON can't ride argv through the
+    // Windows launch-hidden.vbs shim) — mirrors the hub.
+    codeBrowser: codeBrowserConfigFromEnv(),
+    allowAllHosts: args.allowAllHosts,
+    allowedHosts: args.allowedHosts
   });
   server.listen(args.port, args.host, async () => {
     const address = server.address();

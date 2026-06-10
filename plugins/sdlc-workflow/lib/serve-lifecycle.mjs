@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { spawnDetachedNode } from './detach.mjs';
 import { resolveEntrypoint } from './entrypoint.mjs';
 import { isPidAlive, pidFileStatus, readPidFile, removePidFile, writePidFile } from './pid-file.mjs';
-import { maybeConfigureTailscale } from './tailscale.mjs';
+import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
 import { hubPidPath } from './registry.mjs';
 import { readHubConfig } from './hub-config.mjs';
 
@@ -98,7 +98,7 @@ export async function ensureServeLifecycle({
   }
 
   const script = resolveEntrypoint(pluginRoot, 'render-sunflower-serve');
-  const child = spawnDetachedNode(script, [
+  const spawnArgs = [
     '--view', viewRoot,
     '--host', host,
     '--port', String(port),
@@ -107,9 +107,19 @@ export async function ensureServeLifecycle({
     '--config-hash', configHash,
     liveReload ? '--live-reload' : '--no-live-reload',
     host === '0.0.0.0' && tailscale.enabled === true ? '--allow-all-hosts' : '',
-  ].filter(Boolean), {
+  ].filter(Boolean);
+  // The code-browser routes are Host-gated (the view routes never were), so a
+  // tailnet-proxied request needs its MagicDNS Host allowlisted — mirror the
+  // hub supervisor's targeted relaxation rather than disabling the check.
+  if (host !== '0.0.0.0' && tailscale.enabled === true) {
+    const dns = tailscaleDnsName({ log });
+    if (dns) { spawnArgs.push('--allowed-hosts', dns); log(`[serve] allowlisting tailnet host ${dns}`); }
+  }
+  const child = spawnDetachedNode(script, spawnArgs, {
     cwd: projectRoot,
-    env: process.env,
+    // codeBrowser block via env: JSON can't ride argv through the Windows
+    // launch-hidden.vbs shim (same channel the hub uses for its token).
+    env: { ...process.env, SDLC_CODE_BROWSER: JSON.stringify(hubCfg.codeBrowser ?? {}) },
   });
 
   // Write the pid file immediately (the daemon also writes it once it binds,

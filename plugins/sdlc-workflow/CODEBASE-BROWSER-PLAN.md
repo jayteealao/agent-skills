@@ -1,6 +1,14 @@
 # CODEBASE-BROWSER-PLAN — Serve each repo's source in an in-browser file browser
 
-Status: **planning** · drafted 2026-06-01 · target plugin v9.4x · depends on [SELF-CONTAINED-BUILD-PLAN.md](SELF-CONTAINED-BUILD-PLAN.md)
+Status: **IMPLEMENTED end-to-end as v9.52.0 (2026-06-10)** — all 4 slices + the §6 security
+review (verdict: Ship; the review added the loopback-only `serveSecrets` enforcement). Suite
+298/298 + e2e + verify + verify:docs green; browser-verified (CSP clean, lazy tree, warm
+theme). Deviations from this plan: bundle is ~994 KiB minified (over the ~600 KB soft budget —
+react-dom + 9 grammars are irreducible; `typescript`/`jsx` alias onto the `tsx` grammar),
+`motion`/`react-icons`/radix/shadcn-primitives were stripped from the vendored kibo components,
+the topbar link is injected at SERVE time per §0.2-7, and the per-repo daemon gained the
+Host-allowlist gate per §0.2-4. · drafted 2026-06-01 · reconciled 2026-06-10 against v9.50.0
+(§0) · depends on [SELF-CONTAINED-BUILD-PLAN.md](SELF-CONTAINED-BUILD-PLAN.md) — landed v9.45.0
 
 Add a read-only **code browser** to every registered repo: a file tree + syntax-highlighted
 viewer, reachable from the repo's existing top bar at `/r/<id>/__code/`. Visual shell is the
@@ -8,9 +16,160 @@ kibo-ui [Codebase block](https://www.kibo-ui.com/blocks/codebase) (`@repo/code-b
 `@repo/tree`), reskinned to the warm-paper palette and bundled with esbuild into a **committed**
 artifact so end users never `npm install` and the runtime hub stays dep-free.
 
-This is the **first browser-target consumer** of the esbuild rail in SELF-CONTAINED-BUILD-PLAN —
-it proves the browser half of the build + the CI freshness gate on a low-stakes read-only feature
-before the tray bets on the same machinery.
+This is the **first browser-target consumer** of the esbuild rail in SELF-CONTAINED-BUILD-PLAN.
+(The original "proves the build before the tray bets on it" sequencing is moot: the build rail
+landed v9.45.0 and the tray shipped v9.46.0. The browser half — `platform:'browser'`, CSS output —
+was never specified in that plan; **this plan defines it.**)
+
+---
+
+## 0. Implementation-readiness reconciliation (2026-06-10, against v9.50.0)
+
+Full code audit of every file this plan touches. §§1–10 below are kept as drafted (decision
+provenance); **where §0 and a later section disagree, §0 wins.**
+
+### 0.1 Verified current — the plan's assumptions that still hold
+
+- **Hook points** (line refs as of v9.50.0): the `/r/<id>/` branch hands off to `serveRepoFile` at
+  `scripts/hub-serve.mjs:504–509` (plan said 435–440); `/__sdlc/hub-reload.js` route at `:468`;
+  the global `hostAllowed` DNS-rebinding gate at `:460` wraps all hub routes, so the new routes do
+  inherit it **on the hub**. The v9.50 `/docs` route (`:497–502` + `serveDocsFile`) is the exact
+  precedent to copy: route-family regex, asset root resolved once via
+  `new URL('../docs/site', import.meta.url)` (works identically from `scripts/` and `dist/` — the
+  depth-1 invariant), and a route-scoped CSP constant. Resolve the bundle the same way:
+  `new URL('../dist/code-browser.js', import.meta.url)`.
+- **CSP: zero changes needed.** The strict CSP (`hub-serve.mjs:59`) already admits everything the
+  page needs: `script-src 'self'` + `style-src 'self' 'unsafe-inline'` cover the same-origin
+  bundle/css, and `connect-src` falls back to `default-src 'self'` for the fetch calls.
+- **Registry entry shape** (v2, SLUG-BRANCH-IDENTITY): `{ id, repoRoot, headBranch, worktreeLabel,
+  viewDir, lastRenderedAt, slugs, slugMeta[], configHash, registeredAt, updatedAt }`; id =
+  `sha256(repoRoot)[0:12]`, branch-insensitive. `serveCodeBrowser` must mirror `serveRepoFile`'s
+  guard: look up the entry, run `validateEntry(entry)` (drop + 410 on failure), then root the
+  kernel at `entry.repoRoot`.
+- **Config**: `lib/hub-config.mjs` `HUB_CONFIG_DEFAULTS` + `deepMerge` migration → adding the
+  `codeBrowser` block (§5) is zero-migration, and `hubConfigHash` already covers it, so editing
+  the config auto-restarts the hub (drift detection). There is no JSON schema for hub-config
+  (plain defaults-merge) and the per-repo `.ai/sdlc-config.json` schema is untouched — codeBrowser
+  is machine-wide only.
+- **Config transport**: daemons are argv-configured by the supervisors (`hub-lifecycle.mjs`
+  childArgs / `serve-lifecycle.mjs` spawn). Pass the whole block as ONE flag —
+  `--code-browser '<json>'` — parsed in `parseHubArgs`/`parseServeArgs`; 7 granular flags would
+  be noise. (Token stays in env; this config is not secret.)
+- **Build rail**: `scripts/build.mjs` starts with `rmSync(DIST, …)` — the browser target MUST be
+  emitted by the same script, after the node build (a separate script's output would be wiped).
+  Non-`.mjs` files in dist/ are precedented (`launch-hidden.vbs` lib-asset copy).
+- **dist tracking**: `.gitignore` already has `!dist/` + `!dist/**` — `dist/code-browser.js|.css`
+  are tracked automatically. §4.3's "add a .gitignore allow-rule" step is **unnecessary**.
+- **Freshness gate**: CI (`.github/workflows/sdlc-build-freshness.yml`) runs
+  `npm ci && npm run build && git -c core.fileMode=false diff --exit-code -- dist`. Two required
+  edits: add `plugins/sdlc-workflow/view-src/**` to BOTH trigger-path lists, and extend the
+  pre-commit hook regex (`.githooks/pre-commit` `INPUT_RE`) with `view-src`. Add a bundle
+  smoke line to the no-runtime-deps CI step (`test -s dist/code-browser.js -a -s
+  dist/code-browser.css` — the IIFE can't be node-run).
+- **Because CI rebuilds dist from the lockfile, every browser-bundle dep must be a committed
+  devDependency** (+ package-lock). The tray's "ad-hoc tools not in devDeps" exemption does NOT
+  apply — that covers rare regeneration of committed binaries; this bundle is rebuilt on every PR.
+- **Tests**: `node:test`; follow `tests/unit/lib/multi-repo-hub.test.mjs` (hermetic `SDLC_HOME`
+  temp homes, `initRepo()` real-git fixtures, `createHubServer` on an ephemeral port).
+  ⚠ `package.json`'s `test` script **enumerates test files explicitly** — the new
+  `tests/unit/lib/code-browser.test.mjs` must be appended there or it never runs.
+  ⚠ No symlink fixtures exist anywhere in the suite yet; on Windows `symlinkSync` needs
+  Developer Mode/admin, so symlink-escape tests must try/catch and `t.skip()` on `EPERM`.
+- **Palette tokens** (for the Shiki theme + page CSS) confirmed in `assets/sdlc.css:11–21`:
+  `--paper #fbfaf6 · --paper-2 #f3f1ea · --paper-3 #ebe7dc · --ink #1f1b16 · --ink-2 #4a443c ·
+  --ink-3 #8a8377 · --accent #4a6c8c · --accent-soft #e9eef4` — §4.2's values are correct.
+- **Shiki is now v4** (4.2.0): the fine-grained no-WASM API this plan names is unchanged
+  (`shiki/core`, `shiki/engine/javascript`, `@shikijs/langs/<lang>`). Optional upgrade path:
+  precompiled grammars (`@shikijs/langs-precompiled`) if target-browser RegExp support allows.
+- **kibo-ui**: vendor via `npx kibo-ui add codebase` (the block pulls `tree` + `code-block`),
+  run in a scratch workspace at implementation time, sources copied into
+  `view-src/code-browser/components/`. Requires network at implementation time only.
+
+### 0.2 Corrections — where the plan no longer matches reality
+
+1. **`transformIndexHtml` → `transformServedHtml`** (`hub-serve.mjs:361`). Since v9.50 it
+   transforms EVERY served `.html` (not just INDEX.html) and already injects
+   `<meta name="sdlc-repo-id">` — §4.1's meta-tag assumption holds, under the new name.
+2. **Data contract `branch` → `headBranch`** (§3.6 sample): registry v2 renamed it; emit
+   `headBranch` in `tree` responses (legacy `branch` is read-tolerated but never emitted).
+3. **Per-repo daemon repoRoot derivation** (§3.5): no `dirname(dirname(viewDir))` guessing —
+   `serve-lifecycle` already passes `--project-root` and `parseServeArgs` parses it. Thread a
+   `projectRoot` option into `createSdlcStaticServer` (default: derive from viewRoot) and use it
+   as the kernel root.
+4. **NEW security gap the plan missed: `render-sunflower-serve.mjs` has NO Host-header
+   allowlist** — `hostAllowed` is hub-only. View-serving shipped without it, but source-serving
+   must not: add the same allowlist gate (port of `hostnameOf`/`hostAllowed`) applied to the new
+   `__code/*` + `/__sdlc/code-browser.*` routes at minimum, honoring `--allow-all-hosts` and a
+   new `--allowed-hosts` flag; `serve-lifecycle` mirrors `hub-lifecycle:97–100` (tailnet MagicDNS
+   allowlisting) when tailscale is enabled. Existing view routes keep current behaviour (no
+   regression risk); tightening them too is a separate decision.
+5. **Raw-route response hardening** (addition to §3.4/§6): the `raw` endpoint must force
+   `X-Content-Type-Options: nosniff` and NEVER serve repo bytes as `text/html` —
+   `kind:text` → `text/plain; charset=utf-8`, `kind:image` → image MIME by extension (inline),
+   everything else → `application/octet-stream` + `Content-Disposition: attachment`. A repo file
+   served as HTML would be same-origin stored XSS; CSP would soften it, but don't rely on CSP.
+   JSON endpoints also get `nosniff`.
+6. **`gitIgnoredSet` refinement** (§3.3): use `git ls-files -o -i --exclude-standard --directory
+   -z` — `--directory` collapses ignored dirs (a 200k-file `node_modules` becomes ONE entry
+   `node_modules/`), and badge propagation is prefix-matching. Spawn with the `lib/registry.mjs`
+   `git()` conventions (2s timeout, `windowsHide`, stdio pipe/ignore).
+7. **Topbar "Code" link belongs at SERVE time, not render time** (§4.5 revision). `_shell.mjs`
+   markup is baked into static files at render time, but `__code/` is a server-only route: a
+   render-time link dead-ends under `file://` browsing and can't track the machine-wide
+   `codeBrowser.enabled` state. Instead: the hub injects the link in `transformServedHtml`
+   (alongside the brand rewrite, `hub-serve.mjs:384–398`), gated on `enabled` — inject into
+   `.b-topbar .actions` with a stable class (e.g. `code-link`), href built from the entry id.
+   The per-repo daemon does no HTML transforms today; skip injection there (the route stays
+   reachable by URL) rather than adding transform machinery. `renderers/_shell.mjs` is NOT
+   modified. Hub landing: add `code →` beside `open view →` in `repoCard`
+   (`renderers/hub-dashboard.mjs:253`).
+8. **kibo tree reality check**: the tree component depends on **`motion`** (framer-motion) +
+   `lucide-react`, and its documented API has NO lazy-loading / onExpand contract — but
+   `lazyTree:true` is this plan's default. Vendored code is owned code (the shadcn model), so the
+   vendored tree gets two surgical edits: (a) strip `motion` (CSS transitions / conditional
+   render — also saves ~35–45 KB gz), (b) add an expand callback that fetches `…/tree?path=` and
+   merges children into state. If the adaptation balloons, the fallback is: keep kibo
+   `code-block`, hand-roll the tree (it's a styled `<ul>` with toggles). The §1 "real kibo block"
+   decision stands, with this contingency named.
+9. **Tailwind decision closed (was §10.4)**: Tailwind **v4** at build time — devDeps
+   `tailwindcss` + `@tailwindcss/cli`, CSS-first config (`@theme` in `styles.css`; no
+   `tailwind.config.js` needed — §4.1's file list updates accordingly), shadcn semantic vars
+   (`--background`, `--foreground`, …) mapped to the warm-paper tokens. The hand-written-CSS
+   fallback stays available if v4's preflight/utility output fights the reskin.
+10. **Slice 4 docs interactions**: `verify:docs` enforces (a) a version brand on every
+    `docs/site/**/*.html` equal to plugin.json's version and (b) Previous/Next pager adjacency
+    against `nav.html` — so doc edits ride the doc-site generator flow, and the release re-stamps
+    all 53 pages (v9.50 precedent). Version bump = the 4 usual spots (plugin.json, package.json,
+    marketplace.json entry + top-level).
+11. Drive-by (unrelated, do NOT fold in): `renderers/_shell.mjs:10` hardcodes
+    `PLUGIN_VERSION = '9.35.0'` — stale cache-buster for sdlc.css/js. Fix separately.
+
+### 0.3 devDependencies to add (browser bundle build + vendored-component imports)
+
+`react`, `react-dom`, `shiki@^4`, `@shikijs/langs` (direct subpath imports), `lucide-react`,
+`clsx`, `tailwind-merge`, `class-variance-authority`, `tailwindcss@^4`, `@tailwindcss/cli`.
+(`motion` intentionally NOT added — stripped from the vendored tree, §0.2-8. Exact final list is
+pinned when the kibo sources are vendored; anything the vendored code imports must land here or
+CI's `npm ci` rebuild fails.) No `typescript` needed — esbuild transpiles `.tsx` without
+type-checking.
+
+### 0.4 File inventory (complete touch list)
+
+| Action | Path | What |
+|---|---|---|
+| NEW | `lib/code-browser.mjs` | kernel + walk + ignored-badging + blob + denylist + `serveCodeBrowser` adapter + bundle-asset serving |
+| NEW | `renderers/code-browser-page.mjs` | server-rendered HTML shell (string; hub-landing pattern) |
+| NEW | `view-src/code-browser/` | `main.tsx`, vendored `components/{tree,code-block}/`, `highlighter.ts`, `theme-warm-paper.json`, `styles.css` (Tailwind v4 `@theme`) |
+| NEW | `tests/unit/lib/code-browser.test.mjs` | kernel + walk + blob unit tests AND hub/per-repo integration tests |
+| MOD | `scripts/hub-serve.mjs` | `__code` intercept in the `/r/<id>/` branch; `/__sdlc/code-browser.js\|.css` routes; Code-link injection in `transformServedHtml`; `--code-browser` arg |
+| MOD | `scripts/render-sunflower-serve.mjs` | `__code/*` + asset routes; `projectRoot` option; Host-allowlist gate; `--code-browser` / `--allowed-hosts` args |
+| MOD | `lib/hub-config.mjs` | `codeBrowser` block in `HUB_CONFIG_DEFAULTS` |
+| MOD | `lib/hub-lifecycle.mjs`, `lib/serve-lifecycle.mjs` | pass `--code-browser <json>` (+ serve-lifecycle tailnet `--allowed-hosts`) |
+| MOD | `renderers/hub-dashboard.mjs` | `code →` affordance in `repoCard` |
+| MOD | `scripts/build.mjs` | browser target (esbuild `platform:'browser'` iife + Tailwind CLI css step) |
+| MOD | `.github/workflows/sdlc-build-freshness.yml`, `.githooks/pre-commit` | `view-src` trigger paths; bundle smoke check |
+| MOD | `package.json` (+lock) | devDeps §0.3; append new test file to `test` script; version |
+| MOD | docs (`docs/site/reference/serve.html` et al), `CHANGELOG.md`, `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` | Slice 4 ship chores |
 
 ---
 
@@ -154,7 +313,7 @@ The global `hostAllowed` DNS-rebinding gate ([scripts/hub-serve.mjs:401](scripts
 // GET /r/<id>/__code/tree            (whole tree)
 // GET /r/<id>/__code/tree?path=src   (one folder, lazy mode)
 {
-  "id": "ab12cd34ef56", "branch": "main", "generatedAt": "<iso>",
+  "id": "ab12cd34ef56", "headBranch": "main", "generatedAt": "<iso>",
   "truncated": false,                       // hit maxTreeEntries
   "nodes": [
     { "name": "node_modules", "path": "node_modules", "type": "dir", "ignored": true,  "hasChildren": true },
@@ -200,7 +359,7 @@ view-src/code-browser/
 `main.tsx` replaces the demo's hardcoded `fileContents` with live data: on load `GET …/__code/tree`,
 feed `TreeProvider`/`TreeNode`; on select `GET …/__code/blob?path=`, feed `CodeBlock`'s `data` and
 `CodeBlockContent`. The repo `id` comes from a `<meta name="sdlc-repo-id">` (the hub already injects
-this in `transformIndexHtml`; the shell page emits it directly).
+this in `transformServedHtml` — §0.2-1; the shell page emits it directly).
 
 **Gitignored nodes are badged, not hidden:** a node with `ignored:true` renders its `TreeLabel`
 dimmed (`--ink-3`) with a small "ignored" tag, so a glance distinguishes tracked source from
@@ -393,7 +552,7 @@ ignored dirs, and the `serveSecrets` + non-loopback-host interaction.
 2. **Tree loading** — `lazyTree` per-folder (now **default-on**, since ignored `node_modules` makes
    eager walks huge) vs whole-tree up front (simpler, only viable for small repos).
 3. **Language allowlist** — which `@shikijs/langs/*` to bundle (drives size). Start with the 10 in §4.2.
-4. **Tailwind at build vs hand-written token CSS** — fidelity vs zero-Tailwind. Default Tailwind-at-build.
+4. **Tailwind at build vs hand-written token CSS** — fidelity vs zero-Tailwind. **CLOSED §0.2-9: Tailwind v4 at build** (hand-written CSS remains the named fallback).
 5. **`codeBrowser.enabled` default** — ON (safe-by-defenses, discoverable) vs OFF (opt-in, conservative).
 6. **`serveSecrets` default** — `false` (gitignored files shown, but `.env`/keys still denied — the
    safe reading of the requirement) vs `true` (literally *everything* gitignored, incl. secrets;

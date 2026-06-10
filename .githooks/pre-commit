@@ -15,7 +15,7 @@ set -euo pipefail
 PLUGIN="plugins/sdlc-workflow"
 # Build inputs: anything esbuild reads. NOT dist/ itself (a manual dist edit is
 # the CI gate's job to reject, not this hook's to silently overwrite).
-INPUT_RE="^${PLUGIN}/(scripts|hooks|lib|renderers|components)/|^${PLUGIN}/package(-lock)?\.json$"
+INPUT_RE="^${PLUGIN}/(scripts|hooks|lib|renderers|components|view-src)/|^${PLUGIN}/package(-lock)?\.json$"
 
 if git diff --cached --name-only | grep -qE "$INPUT_RE"; then
   echo "[pre-commit] sdlc-workflow build inputs changed -> rebuilding dist/"

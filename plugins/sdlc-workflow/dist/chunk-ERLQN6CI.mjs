@@ -2,10 +2,10 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   swimlanesSvg
-} from "./chunk-3IBDFP3U.mjs";
+} from "./chunk-O7RYACGY.mjs";
 import {
   escapeHtml
-} from "./chunk-ASUVWO6I.mjs";
+} from "./chunk-4WRIEOIP.mjs";
 
 // renderers/hub-dashboard.mjs
 var TERMINAL_COMPLETE = /* @__PURE__ */ new Set(["complete", "completed", "shipped", "done"]);
@@ -97,7 +97,7 @@ function renderInbox(items, totalRepos) {
   }).join("");
   return `<div class="inbox">${rows}</div>`;
 }
-function renderHubLanding(entries = [], { pluginVersion = "", uptimeMs = 0, now = Date.now() } = {}) {
+function renderHubLanding(entries = [], { pluginVersion = "", uptimeMs = 0, now = Date.now(), codeBrowserEnabled = true } = {}) {
   const totalRepos = entries.length;
   const totalActiveSlugs = entries.reduce((n, e) => n + (e.slugMeta ?? []).filter(isActiveSlug).length, 0);
   const uptimeMin = Math.max(0, Math.round(uptimeMs / 6e4));
@@ -126,7 +126,7 @@ function renderHubLanding(entries = [], { pluginVersion = "", uptimeMs = 0, now 
     return htmlDoc(`${summary}
     <p class="empty">No repos have rendered yet. Render any sdlc workflow with <code>view.hub.enabled: true</code> and it will appear here.</p>`);
   }
-  const repoGroups = sortedRepoRoots.map((repoRoot) => repoCard(repoRoot, groups.get(repoRoot), now)).join("\n");
+  const repoGroups = sortedRepoRoots.map((repoRoot) => repoCard(repoRoot, groups.get(repoRoot), now, codeBrowserEnabled)).join("\n");
   const tabs = `
     <input type="radio" name="hubtab" id="tab-inbox" class="tabin" checked>
     <input type="radio" name="hubtab" id="tab-repos" class="tabin">
@@ -156,7 +156,7 @@ function htmlDoc(inner) {
 </html>
 `;
 }
-function repoCard(repoRoot, groupEntries, now) {
+function repoCard(repoRoot, groupEntries, now, codeBrowserEnabled = true) {
   const label = basenameOf(repoRoot);
   const entry = groupEntries.slice().sort(
     (a, b) => String(b.updatedAt ?? "").localeCompare(String(a.updatedAt ?? ""))
@@ -179,7 +179,7 @@ function repoCard(repoRoot, groupEntries, now) {
     <h2 class="repo-name">${escapeHtml(label)} <span class="repo-path">${escapeHtml(repoRoot)}</span> ${headHtml}</h2>
     <article class="entry${stale ? " stale" : ""}">
       <div class="entry-head">
-        <a class="open-view" href="/r/${idEnc}/">open view \u2192</a>
+        <span class="entry-links"><a class="open-view" href="/r/${idEnc}/">open view \u2192</a>${codeBrowserEnabled ? ` <a class="open-code" href="/r/${idEnc}/__code/">code \u2192</a>` : ""}</span>
         <span class="ago">${escapeHtml(humanRelative(entry.lastRenderedAt, now))}</span>
       </div>
       ${laneHtml}
@@ -282,6 +282,9 @@ var STYLE = `
   .head-branch .wt { color:var(--ink-3); }
   .open-view { font:600 12px/1 ui-monospace,monospace; color:var(--cur); text-decoration:none; }
   .open-view:hover { text-decoration:underline; }
+  .entry-links { display:inline-flex; gap:14px; }
+  .open-code { font:600 12px/1 ui-monospace,monospace; color:var(--ink-3); text-decoration:none; }
+  .open-code:hover { color:var(--cur); text-decoration:underline; }
   .lane { border-top:1px solid var(--hair); padding:10px 0 4px; }
   .lane:first-of-type { border-top:0; }
   .lane-head { display:flex; align-items:baseline; gap:8px; margin:0 0 4px; }

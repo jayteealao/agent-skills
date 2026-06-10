@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.51.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.52.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -141,6 +141,13 @@
 <tr><td><code>tailscale.path</code></td><td>string</td><td><code>/</code></td><td>Path prefix to expose.</td></tr>
 <tr><td><code>tailscale.https</code></td><td>boolean</td><td><code>true</code></td><td>Terminate TLS via Tailscale.</td></tr>
 <tr><td><code>tailscale.acknowledgedPublic</code></td><td>boolean</td><td><code>false</code></td><td>One-time, per-machine acknowledgement that exposing the server publishes <em>every</em> registered repo at once. Required for any non-loopback bind.</td></tr>
+<tr><td><code>codeBrowser.enabled</code></td><td>boolean</td><td><code>true</code></td><td>Machine-wide kill switch for the source browser. <code>false</code> 404s every <code>__code</code> route and removes the topbar/landing links.</td></tr>
+<tr><td><code>codeBrowser.maxBlobBytes</code></td><td>integer</td><td><code>524288</code></td><td>Text cap per file view (512&nbsp;KB). Larger files return a truncated head plus a raw-download link.</td></tr>
+<tr><td><code>codeBrowser.maxTreeEntries</code></td><td>integer</td><td><code>5000</code></td><td>Per-listing truncation guard for huge directories.</td></tr>
+<tr><td><code>codeBrowser.lazyTree</code></td><td>boolean</td><td><code>true</code></td><td>List one folder per request (a folder loads when expanded). Keeps <code>node_modules</code>-sized ignored trees from ever being walked eagerly.</td></tr>
+<tr><td><code>codeBrowser.showIgnoredBadge</code></td><td>boolean</td><td><code>true</code></td><td>Badge gitignored files/folders in the tree (presentation only — they are shown either way).</td></tr>
+<tr><td><code>codeBrowser.serveSecrets</code></td><td>boolean</td><td><code>false</code></td><td>⚠ When <code>true</code>, drops the secret denylist so <code>.env</code>/key files become servable. Honored <strong>only on a strictly-loopback binding</strong> — under any non-loopback exposure the denylist stays active regardless.</td></tr>
+<tr><td><code>codeBrowser.denyGlobs</code></td><td>string[]</td><td><code>[]</code></td><td>Extra paths to hide, appended to the built-in denylist (<code>.git/**</code> + secrets). A bare name (<code>*.sqlite</code>) matches any path segment; a path (<code>private/**</code>) hides that subtree.</td></tr>
 </tbody>
 </table>
 
@@ -161,12 +168,21 @@
 
 <p><code>view.serve</code> is <strong>not</strong> a per-repo key — it was removed in v9.38.0 (a breaking change). Any <code>view.serve</code> block in a repo config is rejected by the schema; serve/host/port/Tailscale settings live only in <code>~/.sdlc/hub-config.json</code>. Upgraders with an old <code>view.serve</code> block should move those values there.</p>
 
+<h2>Code browser</h2>
+
+<p>Every served repo also gets a read-only <strong>source browser</strong> — a file tree with a syntax-highlighted viewer — at <code>/r/&lt;id&gt;/__code/</code> under the hub (linked as <em>code ↗</em> from the repo topbar and <em>code →</em> from each landing card) and at <code>/__code/</code> under the standalone daemon. It shows the <em>working tree</em>, including gitignored files (badged <em>ignored</em>), so generated and local-only files are browsable alongside tracked source.</p>
+
+<p>What it will never serve: <code>.git/</code> internals, and — by default — secret-shaped files (<code>.env*</code>, <code>*.pem</code>, <code>*.key</code>, <code>id_rsa*</code>, <code>*.p12</code>, <code>*.keystore</code>). Add your own exclusions with <code>codeBrowser.denyGlobs</code>. Every request path is validated against the repo root (lexically <em>and</em> after symlink resolution), large files are truncated with a raw-download fallback, and binary files are never inlined.</p>
+
+<p><strong>Tailnet exposure note.</strong> Enabling Tailscale exposes every registered repo's <em>entire working tree</em> — including gitignored files — to the tailnet, which is a strictly larger surface than the rendered views. The secret denylist therefore stays active under any non-loopback exposure even if <code>serveSecrets: true</code> is set; flipping that switch only ever affects a strictly-local (<code>127.0.0.1</code>) binding. Set <code>codeBrowser.enabled: false</code> if the source browser should not ride along with a shared hub.</p>
+
 <h2>Security model</h2>
 
 <ul>
   <li><strong>Loopback by default.</strong> The server binds <code>127.0.0.1</code> and changing that requires explicit machine-wide config.</li>
   <li><strong>No write endpoints.</strong> The server is read-only — it projects rendered HTML, it never mutates artifacts.</li>
-  <li><strong>Path validation.</strong> Requests are confined to the view root; directory-traversal attempts are rejected.</li>
+  <li><strong>Path validation.</strong> Requests are confined to the view root; directory-traversal attempts are rejected. Code-browser requests get their own kernel rooted at the repo: string-level rejects, prefix containment, post-symlink-resolution containment, and a deny gate — applied to every <code>tree</code>/<code>blob</code>/<code>raw</code> request.</li>
+  <li><strong>Repo bytes are never executable pages.</strong> The code browser's raw endpoint serves text as <code>text/plain</code> (never <code>text/html</code>), marks every response <code>nosniff</code>, and downloads binaries as attachments — a file in a repo cannot become a same-origin script or page.</li>
   <li><strong>Live-reload only into HTML.</strong> The reload script is injected only into <code>text/html</code> responses.</li>
   <li><strong>Non-loopback is gated twice.</strong> A <code>0.0.0.0</code> bind is refused unless <code>tailscale.enabled: true</code> <em>and</em> <code>tailscale.acknowledgedPublic: true</code>.</li>
   <li><strong>Exposure is all-or-nothing.</strong> Because the hub serves every registered repo, enabling Tailscale publishes them all. That is why <code>acknowledgedPublic</code> is a deliberate, machine-level gate rather than a committable per-repo flag.</li>

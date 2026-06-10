@@ -1,0 +1,236 @@
+/* view-src/code-browser/styles.css
+ *
+ * Tailwind v4 entry for the code-browser bundle (CODEBASE-BROWSER-PLAN §4.1,
+ * §0.2-9): CSS-first config — no tailwind.config.js. The vendored kibo
+ * components speak shadcn semantic tokens (bg-background, text-muted-foreground,
+ * border-border, …); @theme maps those to the warm-paper palette from
+ * assets/sdlc.css so the page reads as the same product. Page chrome (topbar,
+ * split layout, panes) is plain CSS below the utilities.
+ */
+
+@import "tailwindcss";
+
+/* Deterministic content scanning: only the bundle's own sources. */
+@source "./main.tsx";
+@source "./components";
+
+@theme {
+  /* warm-paper palette — values mirror assets/sdlc.css :root */
+  --color-background: #fbfaf6;
+  --color-foreground: #1f1b16;
+  --color-secondary: #f3f1ea;
+  --color-secondary-foreground: #4a443c;
+  --color-accent: #ebe7dc;
+  --color-accent-foreground: #1f1b16;
+  --color-muted: #f3f1ea;
+  --color-muted-foreground: #8a8377;
+  --color-border: #e0dbcd;
+  --color-primary: #4a6c8c;
+  --color-primary-foreground: #fbfaf6;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+}
+
+/* shadcn-style default: bare `border`/`border-b` utilities take the hairline
+ * token instead of currentColor (Tailwind v4 default). */
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: var(--color-border);
+  }
+}
+
+/* ── page chrome (the server-rendered shell, renderers/_code-browser-page.mjs) ── */
+
+:root {
+  --paper: #fbfaf6;
+  --paper-2: #f3f1ea;
+  --paper-3: #ebe7dc;
+  --ink: #1f1b16;
+  --ink-2: #4a443c;
+  --ink-3: #8a8377;
+  --hair: #e0dbcd;
+  --accent: #4a6c8c;
+  --bad: #b5305f;
+}
+
+html, body.cb-body {
+  height: 100%;
+}
+
+body.cb-body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 15px/1.5 var(--font-sans);
+  display: flex;
+  flex-direction: column;
+}
+
+.cb-topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--hair);
+  background: var(--paper);
+  flex: none;
+}
+.cb-topbar .brand {
+  font: 600 14px/1 var(--font-mono);
+  color: var(--ink);
+  text-decoration: none;
+}
+.cb-topbar .brand:hover { color: var(--accent); }
+.cb-topbar .crumb {
+  flex: 1;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.cb-topbar .crumb b { font-weight: 600; }
+.cb-branch {
+  margin-left: 8px;
+  font: 11px/1 var(--font-mono);
+  color: var(--ink-3);
+}
+.cb-topbar .actions { font-size: 12px; color: var(--ink-3); }
+
+/* ── split layout ── */
+
+#sdlc-code-root {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cb-split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.cb-sidebar {
+  width: 320px;
+  flex: none;
+  overflow: auto;
+  border-right: 1px solid var(--hair);
+  background: var(--paper);
+  padding: 6px 0;
+}
+
+.cb-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper-2);
+}
+
+/* ── viewer panes ── */
+
+.cb-placeholder {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--ink-3);
+  font-size: 14px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.cb-pane { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.cb-pane-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--hair);
+  background: var(--paper-2);
+  flex: none;
+}
+.cb-pane-name { font: 13px/1 var(--font-mono); color: var(--ink-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cb-pane-meta { font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+
+.cb-image-wrap {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.cb-image-wrap img {
+  max-width: 100%;
+  height: auto;
+  background:
+    repeating-conic-gradient(var(--paper-3) 0% 25%, var(--paper) 0% 50%) 0 0 / 16px 16px;
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+}
+
+.cb-codeblock {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin: 14px;
+  background: var(--paper);
+}
+
+.cb-truncated {
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: #f6ead9;
+  border-bottom: 1px solid var(--hair);
+}
+
+.cb-error {
+  margin: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--bad);
+  border: 1px solid var(--bad);
+  border-radius: 4px;
+  background: #fff;
+}
+
+.cb-raw-link { color: var(--accent); text-decoration: none; }
+.cb-raw-link:hover { text-decoration: underline; }
+
+.cb-tag {
+  margin-left: 6px;
+  font: 9.5px/1 var(--font-sans);
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  padding: 1px 6px;
+  vertical-align: 1px;
+}
+
+/* shiki output: the theme paints token colors; layout comes from the
+ * counter-based utilities on CodeBlockItem. */
+.cb-codeblock pre.shiki {
+  margin: 0;
+  font: 13px/1.6 var(--font-mono);
+}
+
+/* ── narrow screens: stack panes ── */
+@media (max-width: 720px) {
+  .cb-split { flex-direction: column; }
+  .cb-sidebar {
+    width: auto;
+    max-height: 45vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--hair);
+  }
+}

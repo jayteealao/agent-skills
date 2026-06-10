@@ -10,11 +10,17 @@ import {
 } from 'node:fs';
 import { createReadStream } from 'node:fs';
 import { createServer } from 'node:http';
-import { extname, join, resolve } from 'node:path';
+import { basename, extname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { writePidFile, removePidFile } from '../lib/pid-file.mjs';
 import { resolveRequestPath as resolveInView } from '../lib/resolve-request-path.mjs';
 import { resolveProjectRoot } from '../lib/project-root.mjs';
+import { hostAllowed } from '../lib/host-allowlist.mjs';
+import {
+  codeBrowserConfigFromEnv, normalizeCodeBrowserConfig, repoHeadBranch,
+  serveCodeBrowser, serveCodeBrowserAsset,
+} from '../lib/code-browser.mjs';
+import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 
@@ -60,6 +66,7 @@ export function parseServeArgs(argv) {
     configHash: '',
     liveReload: true,
     allowAllHosts: false,
+    allowedHosts: [],
   };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
@@ -72,17 +79,30 @@ export function parseServeArgs(argv) {
     else if (a === '--live-reload') args.liveReload = true;
     else if (a === '--no-live-reload') args.liveReload = false;
     else if (a === '--allow-all-hosts') args.allowAllHosts = true;
+    // Extra Host names admitted by the `__code` routes' allowlist (e.g. the
+    // tailnet MagicDNS name) — mirrors the hub flag of the same name.
+    else if (a === '--allowed-hosts') args.allowedHosts = String(argv[++i] ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   }
   return args;
 }
 
 export function createSdlcStaticServer({
   viewRoot,
+  projectRoot = null,
   liveReload = true,
   configHash = '',
+  codeBrowser = null,
+  allowAllHosts = false,
+  allowedHosts = [],
 } = {}) {
   const root = resolve(viewRoot ?? '.ai/_view');
   mkdirSync(root, { recursive: true });
+  // The repo root the code browser serves SOURCE from. Explicit when the
+  // supervisor passed --project-root; derived from the view root otherwise
+  // (<repo>/.ai/_view → <repo>) so a directly-constructed server still works.
+  const repoRoot = resolve(projectRoot ?? resolve(root, '..', '..'));
+  const cbCfg = normalizeCodeBrowserConfig(codeBrowser);
+  const extraHosts = new Set((allowedHosts || []).map((h) => String(h).toLowerCase()).filter(Boolean));
 
   const clients = new Set();
   let watcher = null;
@@ -101,6 +121,37 @@ export function createSdlcStaticServer({
     const url = new URL(req.url ?? '/', 'http://sdlc.local');
     if (url.pathname === '/__sdlc/health') {
       sendJson(res, healthPayload(root, configHash));
+      return;
+    }
+
+    // Code-browser routes (CODEBASE-BROWSER-PLAN §3.5): the standalone daemon
+    // serves the repo's SOURCE at /__code/* — a strictly larger perimeter than
+    // the view, so these routes (unlike the historical view routes) sit behind
+    // the same Host allowlist the hub applies globally (§0.2-4: DNS rebinding
+    // must not reach source). View-route behaviour is unchanged.
+    const p = url.pathname;
+    if (p === '/__sdlc/code-browser.js' || p === '/__sdlc/code-browser.css'
+      || p === '/__code' || p.startsWith('/__code/')) {
+      if (!cbCfg.enabled) { res.writeHead(404).end('not found'); return; }
+      if (!hostAllowed(req, allowAllHosts, extraHosts)) { res.writeHead(403).end('forbidden host'); return; }
+      if (p.startsWith('/__sdlc/')) {
+        serveCodeBrowserAsset({ req, res, name: p.slice('/__sdlc/'.length) });
+        return;
+      }
+      serveCodeBrowser({
+        req, res, url,
+        basePath: '/__code',
+        repoRoot,
+        repoId: null,
+        repoLabel: basename(repoRoot),
+        headBranch: () => repoHeadBranch(repoRoot),
+        config: cbCfg,
+        pluginVersion: PLUGIN_VERSION,
+        csp: CSP,
+        renderPage: renderCodeBrowserPage,
+        // Reachable beyond loopback → the adapter ignores serveSecrets:true.
+        publicExposure: allowAllHosts || extraHosts.size > 0,
+      });
       return;
     }
 
@@ -246,11 +297,18 @@ async function main() {
     process.exit(2);
   }
 
-  const viewRoot = resolve(args.projectRoot ?? resolveProjectRoot(), args.view);
+  const projectRoot = args.projectRoot ?? resolveProjectRoot();
+  const viewRoot = resolve(projectRoot, args.view);
   const server = createSdlcStaticServer({
     viewRoot,
+    projectRoot,
     liveReload: args.liveReload,
     configHash: args.configHash,
+    // codeBrowser config arrives via env (JSON can't ride argv through the
+    // Windows launch-hidden.vbs shim) — mirrors the hub.
+    codeBrowser: codeBrowserConfigFromEnv(),
+    allowAllHosts: args.allowAllHosts,
+    allowedHosts: args.allowedHosts,
   });
 
   server.listen(args.port, args.host, async () => {

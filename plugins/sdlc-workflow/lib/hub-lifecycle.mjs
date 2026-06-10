@@ -100,8 +100,15 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
   }
   const child = spawnDetachedNode(script, childArgs, {
     cwd: sdlcHomeDir(),
-    // Token via env (not argv) so it isn't visible in process listings.
-    env: { ...process.env, SDLC_HUB_TOKEN: token },
+    // Token via env (not argv) so it isn't visible in process listings; the
+    // codeBrowser block rides env too because JSON cannot survive the Windows
+    // launch-hidden.vbs argv rebuild. configHash covers it, so editing the
+    // block in hub-config.json still restarts the hub.
+    env: {
+      ...process.env,
+      SDLC_HUB_TOKEN: token,
+      SDLC_CODE_BROWSER: JSON.stringify(cfg.codeBrowser ?? {}),
+    },
   });
 
   // Pre-write hub.pid WITH the token to close the spawn→bind race: a render that

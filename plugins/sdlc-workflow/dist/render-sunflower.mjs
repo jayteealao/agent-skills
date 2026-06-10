@@ -4,13 +4,14 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubLifecycle,
   maybeConfigureTailscale,
-  readHubConfig
-} from "./chunk-PECQO2YH.mjs";
+  readHubConfig,
+  tailscaleDnsName
+} from "./chunk-3ZSV2FP2.mjs";
 import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-LNLILMTK.mjs";
+} from "./chunk-KUNG4DZZ.mjs";
 import {
   configHash,
   loadConfigWithMeta
@@ -22,15 +23,13 @@ import {
 import {
   hubPidPath,
   upsertRegistryEntry
-} from "./chunk-5QUORPHZ.mjs";
+} from "./chunk-NOGYVKL5.mjs";
 import {
   breadcrumbFromView,
   renderShell,
-  renderWarnBanner,
   resolveViewPath,
-  siblingPaths,
-  validateFrontmatter
-} from "./chunk-ASUVWO6I.mjs";
+  siblingPaths
+} from "./chunk-VVSACXFW.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -41,7 +40,6 @@ import {
 } from "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
@@ -51,7 +49,12 @@ import {
   readPidFile,
   removePidFile,
   writePidFile
-} from "./chunk-FIVVBFWT.mjs";
+} from "./chunk-WA2PDRBA.mjs";
+import {
+  renderWarnBanner,
+  validateFrontmatter
+} from "./chunk-4WRIEOIP.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/render-sunflower.mjs
@@ -303,7 +306,7 @@ async function ensureServeLifecycle({
     log(`[serve] removed stale pid file for pid ${status.record?.pid}`);
   }
   const script = resolveEntrypoint(pluginRoot, "render-sunflower-serve");
-  const child = spawnDetachedNode(script, [
+  const spawnArgs = [
     "--view",
     viewRoot,
     "--host",
@@ -318,9 +321,19 @@ async function ensureServeLifecycle({
     configHash2,
     liveReload ? "--live-reload" : "--no-live-reload",
     host === "0.0.0.0" && tailscale.enabled === true ? "--allow-all-hosts" : ""
-  ].filter(Boolean), {
+  ].filter(Boolean);
+  if (host !== "0.0.0.0" && tailscale.enabled === true) {
+    const dns = tailscaleDnsName({ log });
+    if (dns) {
+      spawnArgs.push("--allowed-hosts", dns);
+      log(`[serve] allowlisting tailnet host ${dns}`);
+    }
+  }
+  const child = spawnDetachedNode(script, spawnArgs, {
     cwd: projectRoot,
-    env: process.env
+    // codeBrowser block via env: JSON can't ride argv through the Windows
+    // launch-hidden.vbs shim (same channel the hub uses for its token).
+    env: { ...process.env, SDLC_CODE_BROWSER: JSON.stringify(hubCfg.codeBrowser ?? {}) }
   });
   if (child.pid) {
     await writePidFile(pidPath, { pid: child.pid, host, port, configHash: configHash2 });

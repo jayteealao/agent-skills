@@ -11,13 +11,14 @@ import {
 import {
   hubPidPath,
   sdlcHomeDir
-} from "./chunk-5QUORPHZ.mjs";
+} from "./chunk-NOGYVKL5.mjs";
 import {
+  CODE_BROWSER_DEFAULTS,
   isPidAlive,
   pidFileStatus,
   removePidFile,
   writePidFile
-} from "./chunk-FIVVBFWT.mjs";
+} from "./chunk-WA2PDRBA.mjs";
 
 // lib/hub-lifecycle.mjs
 import { randomBytes } from "node:crypto";
@@ -58,7 +59,12 @@ var HUB_CONFIG_DEFAULTS = Object.freeze({
     // so this acknowledgement is a one-time, per-machine gate — never a
     // committable per-repo flag (§6.1).
     acknowledgedPublic: false
-  }
+  },
+  // The in-browser source browser (CODEBASE-BROWSER-PLAN §5). Machine-wide
+  // like every other serve setting; reaches both daemons via env at spawn.
+  // ⚠ codeBrowser.serveSecrets:true drops the secret denylist (.env/keys
+  // become servable) — keep false whenever host ≠ 127.0.0.1.
+  codeBrowser: { ...CODE_BROWSER_DEFAULTS }
 });
 function hubConfigPath() {
   return join(sdlcHomeDir(), "hub-config.json");
@@ -224,8 +230,15 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
   }
   const child = spawnDetachedNode(script, childArgs, {
     cwd: sdlcHomeDir(),
-    // Token via env (not argv) so it isn't visible in process listings.
-    env: { ...process.env, SDLC_HUB_TOKEN: token }
+    // Token via env (not argv) so it isn't visible in process listings; the
+    // codeBrowser block rides env too because JSON cannot survive the Windows
+    // launch-hidden.vbs argv rebuild. configHash covers it, so editing the
+    // block in hub-config.json still restarts the hub.
+    env: {
+      ...process.env,
+      SDLC_HUB_TOKEN: token,
+      SDLC_CODE_BROWSER: JSON.stringify(cfg.codeBrowser ?? {})
+    }
   });
   if (child.pid) {
     await writePidFile(pidPath, { pid: child.pid, host, port, token, configHash: cfgHash });
@@ -349,6 +362,7 @@ function displayHost(host) {
 
 export {
   maybeConfigureTailscale,
+  tailscaleDnsName,
   hubConfigPath,
   readHubConfig,
   writeHubConfig,

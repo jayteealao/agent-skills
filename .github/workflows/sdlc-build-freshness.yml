@@ -11,6 +11,7 @@ on:
       - 'plugins/sdlc-workflow/lib/**'
       - 'plugins/sdlc-workflow/renderers/**'
       - 'plugins/sdlc-workflow/components/**'
+      - 'plugins/sdlc-workflow/view-src/**'
       - 'plugins/sdlc-workflow/dist/**'
       - 'plugins/sdlc-workflow/package.json'
       - 'plugins/sdlc-workflow/package-lock.json'
@@ -23,6 +24,7 @@ on:
       - 'plugins/sdlc-workflow/lib/**'
       - 'plugins/sdlc-workflow/renderers/**'
       - 'plugins/sdlc-workflow/components/**'
+      - 'plugins/sdlc-workflow/view-src/**'
       - 'plugins/sdlc-workflow/dist/**'
       - 'plugins/sdlc-workflow/package.json'
 
@@ -72,3 +74,5 @@ jobs:
           printf '{}' | node dist/session-start-orient.mjs
           echo "tray bundle (self-contained: no systray2 JS, helper binary + icon committed):"
           node dist/tray.mjs --selfcheck
+          echo "code-browser bundle (browser-target IIFE + css, served verbatim by the daemons):"
+          test -s dist/code-browser.js && test -s dist/code-browser.css && echo "  code-browser assets OK"

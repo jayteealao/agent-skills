@@ -3,19 +3,21 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-LNLILMTK.mjs";
+} from "../chunk-KUNG4DZZ.mjs";
 import {
   evenX,
   figureCanvas
-} from "../chunk-C4BSYM7X.mjs";
+} from "../chunk-PDBKNARE.mjs";
 import {
-  escapeHtml,
   metricRow,
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-ASUVWO6I.mjs";
+} from "../chunk-VVSACXFW.mjs";
 import "../chunk-LFGT2BKG.mjs";
+import {
+  escapeHtml
+} from "../chunk-4WRIEOIP.mjs";
 import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-SGA7NFMW.mjs";
 

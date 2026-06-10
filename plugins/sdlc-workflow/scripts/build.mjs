@@ -41,7 +41,9 @@
  * keeps markdown-it inlined ONCE in a shared chunk rather than 71 times.
  */
 import { build } from 'esbuild';
-import { copyFileSync, readdirSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -138,4 +140,49 @@ if (result.warnings.length) {
   // The unanalyzable dynamic import in render-sunflower (loadRenderer) warns
   // here by design — it stays a runtime import that loads dist/renderers/*.
   console.log(`[build] ${result.warnings.length} warning(s) (expected: render-sunflower dynamic renderer import)`);
+}
+
+/* ── browser target: the code-browser bundle (CODEBASE-BROWSER-PLAN §4.3) ──
+ *
+ * A SECOND build in this same script (it must run after the rmSync wipe above,
+ * or its output would be deleted): view-src/code-browser/main.tsx → a single
+ * minified IIFE at dist/code-browser.js, plus Tailwind v4 CSS at
+ * dist/code-browser.css. Both are COMMITTED and served verbatim by the
+ * daemons' /__sdlc/code-browser.* routes — end users never npm install.
+ * React resolves its production build via the NODE_ENV define.
+ */
+const VIEW_SRC = join(PLUGIN_ROOT, 'view-src', 'code-browser');
+if (existsSync(join(VIEW_SRC, 'main.tsx'))) {
+  await build({
+    entryPoints: [join(VIEW_SRC, 'main.tsx')],
+    bundle: true,
+    platform: 'browser',
+    format: 'iife',
+    target: 'es2020',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+    minify: true,
+    sourcemap: false,
+    legalComments: 'none',
+    outfile: join(DIST, 'code-browser.js'),
+    logLevel: 'info',
+  });
+
+  // Tailwind v4 CLI (build-time devDep): resolve the bin script through the
+  // package manifest and run it under THIS node — no .cmd shim, no shell —
+  // so the step behaves identically on Windows and CI.
+  const require = createRequire(import.meta.url);
+  const twPkgPath = require.resolve('@tailwindcss/cli/package.json');
+  const twPkg = JSON.parse(readFileSync(twPkgPath, 'utf-8'));
+  const twBinRel = typeof twPkg.bin === 'string' ? twPkg.bin : Object.values(twPkg.bin)[0];
+  execFileSync(process.execPath, [
+    join(dirname(twPkgPath), twBinRel),
+    '-i', join(VIEW_SRC, 'styles.css'),
+    '-o', join(DIST, 'code-browser.css'),
+    '--minify',
+  ], { stdio: ['ignore', 'inherit', 'inherit'], cwd: VIEW_SRC });
+
+  const jsKiB = (statSync(join(DIST, 'code-browser.js')).size / 1024).toFixed(0);
+  const cssKiB = (statSync(join(DIST, 'code-browser.css')).size / 1024).toFixed(0);
+  console.log(`[build] code-browser browser bundle → dist/code-browser.js (${jsKiB} KiB) + dist/code-browser.css (${cssKiB} KiB)`);
 }

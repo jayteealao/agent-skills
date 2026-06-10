@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — in-browser code browser for every served repo (9.52.0)
+
+Every served repo now has a read-only **source browser** — a lazy file tree plus a
+syntax-highlighted viewer — at `/r/<id>/__code/` under the hub and `/__code/` under the
+standalone daemon. The repo topbar gains a serve-time **code ↗** link and each hub landing
+card a **code →** affordance. It browses the *working tree*: gitignored files are shown and
+badged `ignored` (generated artifacts and local files are first-class), while `.git/`
+internals and secret-shaped files (`.env*`, keys, certs) are never served.
+
+- **Backend** (`lib/code-browser.mjs`): `tree`/`blob`/`raw` endpoints behind a dedicated
+  containment kernel — string-level rejects, lexical prefix containment, post-symlink-realpath
+  containment, and a deny gate applied to both the requested path and its resolved target (the
+  layer that also closes Windows trailing-dot/8.3-alias tricks). Ignored-badging via one
+  TTL-cached `git ls-files --others --ignored --directory` spawn; text blobs cap at
+  `maxBlobBytes` with a raw fallback; binaries are never inlined; `raw` serves text as
+  `text/plain` (never `text/html`), marks every response `nosniff`, and attaches the strict CSP.
+- **Frontend bundle** (`view-src/code-browser/` → committed `dist/code-browser.js|.css`):
+  vendored kibo-ui tree + code-block components (animation dependency stripped, lazy
+  per-folder loading added), React 19, and fine-grained no-WASM Shiki (`shiki/core` + the
+  JavaScript RegExp engine) under a custom warm-paper TextMate theme. Nine grammars ship;
+  `typescript`/`jsx` alias onto the `tsx` grammar so three overlapping JS-family grammars
+  don't ship (~990 KiB minified total — above the plan's ~600 KB soft budget; the remainder
+  is react-dom plus nine grammars with no redundancy left to trim). Tailwind v4 builds the
+  CSS at build time (CSS-first `@theme`, no config file). Both artifacts are committed and
+  served verbatim — end users still never `npm install`.
+- **Build** (`scripts/build.mjs`): a second, browser-platform esbuild target plus a Tailwind
+  CLI step in the same script; the CI freshness gate and the pre-commit rebuild now also
+  trigger on `view-src/**` and smoke-check the bundle artifacts.
+- **Config** (`~/.sdlc/hub-config.json` `codeBrowser.*`): `enabled` (machine-wide kill
+  switch, default on), `maxBlobBytes`, `maxTreeEntries`, `lazyTree` (default on),
+  `showIgnoredBadge`, `serveSecrets`, `denyGlobs`. Delivered to both daemons via env at
+  spawn; config edits restart the hub via the existing hash-drift detection.
+- **Security hardening shipped with the feature.** The standalone per-repo daemon gains the
+  hub's Host-header allowlist on the new `__code` routes (a DNS-rebinding defence it
+  previously lacked; view-route behaviour unchanged), with tailnet MagicDNS names admitted
+  via `--allowed-hosts` exactly like the hub. `serveSecrets: true` is honored **only on a
+  strictly-loopback binding** — under allow-all-hosts or an allowlisted tailnet Host the
+  secret denylist stays active regardless, so changing the binding can never retroactively
+  leak `.env` files.
+- **Docs**: `reference/serve.html` documents every `codeBrowser.*` key, the deny-glob
+  grammar, and the tailnet-exposure note (the source browser is a strictly larger surface
+  than the rendered views).
+- Tests: 25 new (kernel hostility incl. symlink escapes, deny grammar, walk badging/caps,
+  blob kinds, both daemons end-to-end over HTTP, Host-gate allow/deny, secrets-vs-exposure).
+
+### Fixed — render/hook project root anchored at the git toplevel (9.51.0)
+
+Sessions parked in a repo subfolder minted stray `<subfolder>/.ai/_view` trees with empty
+dashboards (three found in one live repo, one nested inside a workflow slug dir): the render
+hook trusted the session cwd verbatim and the renderer used raw `process.cwd()`, while
+registry identity already climbed to the git toplevel — the two layers disagreed about where
+the project was.
+
+- New `lib/project-root.mjs` `resolveProjectRoot()`: the nearest ancestor owning
+  `.ai/workflows` wins (monorepo-safe, capped at the git toplevel; a stray `_view`-only dir
+  never anchors), else the git toplevel, else the start dir unchanged (non-git fallback).
+- Wired into the hooks' project-root resolution (including hook-log writers and the
+  SessionStart bootstrap spawn), both stages of render-on-artifact-write, the renderer's
+  main/bootstrap entrypoints, and the serve daemon's cwd-derived default — an explicit
+  `--project-root` still wins.
+- Covered by `tests/unit/lib/project-root.test.mjs` (subfolder cwd, slug-dir cwd with a stray
+  `_view`, monorepo nearest-wins, non-git fallback).
+
 ### Added — hub serves the plugin docs site + uniform hub-aware navigation (9.50.0)
 
 The multi-repo hub now serves the plugin's own documentation site and links it from the

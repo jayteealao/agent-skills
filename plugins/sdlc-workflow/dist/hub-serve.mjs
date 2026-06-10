@@ -3,9 +3,9 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-R6WZVGPD.mjs";
-import "./chunk-3IBDFP3U.mjs";
-import "./chunk-C4BSYM7X.mjs";
+} from "./chunk-ERLQN6CI.mjs";
+import "./chunk-O7RYACGY.mjs";
+import "./chunk-PDBKNARE.mjs";
 import {
   REGISTRY_VERSION,
   pruneRegistry,
@@ -13,25 +13,32 @@ import {
   refreshEntriesLiveness,
   validateEntry,
   writeRegistry
-} from "./chunk-5QUORPHZ.mjs";
-import "./chunk-ASUVWO6I.mjs";
+} from "./chunk-NOGYVKL5.mjs";
+import "./chunk-VVSACXFW.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import {
+  hostAllowed,
+  renderCodeBrowserPage,
   resolveRequestPath
-} from "./chunk-G7FUF6WI.mjs";
+} from "./chunk-IOYXLHW6.mjs";
 import {
+  codeBrowserConfigFromEnv,
+  normalizeCodeBrowserConfig,
   removePidFile,
+  serveCodeBrowser,
+  serveCodeBrowserAsset,
   writePidFile
-} from "./chunk-FIVVBFWT.mjs";
+} from "./chunk-WA2PDRBA.mjs";
+import "./chunk-4WRIEOIP.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/hub-serve.mjs
 import { existsSync, statSync, createReadStream, readFileSync, rmSync, watch } from "node:fs";
 import { createServer } from "node:http";
-import { extname } from "node:path";
+import { basename, extname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 var PLUGIN_VERSION = (() => {
   try {
@@ -92,17 +99,6 @@ function parseHubArgs(argv) {
   }
   return args;
 }
-var ALLOWED_HOSTNAMES = /* @__PURE__ */ new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
-function hostnameOf(hostHeader) {
-  const h = String(hostHeader ?? "");
-  if (h.startsWith("[")) return h.slice(0, h.indexOf("]") + 1).toLowerCase();
-  return h.split(":")[0].toLowerCase();
-}
-function hostAllowed(req, allowAllHosts, extraHosts) {
-  if (allowAllHosts) return true;
-  const h = hostnameOf(req.headers.host);
-  return ALLOWED_HOSTNAMES.has(h) || extraHosts != null && extraHosts.has(h);
-}
 function createHubServer({
   host = "127.0.0.1",
   port = 4173,
@@ -112,10 +108,12 @@ function createHubServer({
   maxSseClients = 200,
   maxWatchedRepos = 50,
   allowAllHosts = false,
-  allowedHosts = []
+  allowedHosts = [],
+  codeBrowser = null
 } = {}) {
   const startedAt = Date.now();
   const extraHosts = new Set((allowedHosts || []).map((h) => String(h).toLowerCase()).filter(Boolean));
+  const cbCfg = normalizeCodeBrowserConfig(codeBrowser);
   const clients = /* @__PURE__ */ new Set();
   const metrics = { requests: 0, perRepoLastServed: {} };
   const watchers = /* @__PURE__ */ new Map();
@@ -282,6 +280,37 @@ function createHubServer({
     metrics.perRepoLastServed[id] = (/* @__PURE__ */ new Date()).toISOString();
     serveFile({ req, res, filePath: resolved.path, stats, entryId: id });
   }
+  function serveRepoCode({ req, res, url, idRaw }) {
+    const id = decodeURIComponent(idRaw);
+    const entry = entries.find((e) => e.id === id);
+    if (!entry) {
+      res.writeHead(404).end("unknown repo");
+      return;
+    }
+    const v = validateEntry(entry);
+    if (!v.ok) {
+      dropEntry(id, v.reason);
+      res.writeHead(410).end("repo entry no longer valid");
+      return;
+    }
+    metrics.perRepoLastServed[id] = (/* @__PURE__ */ new Date()).toISOString();
+    serveCodeBrowser({
+      req,
+      res,
+      url,
+      basePath: `/r/${idRaw}/__code`,
+      repoRoot: entry.repoRoot,
+      repoId: entry.id,
+      repoLabel: basename(entry.repoRoot),
+      headBranch: entry.headBranch ?? entry.branch ?? null,
+      config: cbCfg,
+      pluginVersion: PLUGIN_VERSION,
+      csp: CSP,
+      renderPage: renderCodeBrowserPage,
+      // Reachable beyond loopback → the adapter ignores serveSecrets:true.
+      publicExposure: allowAllHosts || extraHosts.size > 0
+    });
+  }
   function serveDocsFile({ req, res, rest }) {
     if (!DOCS_ROOT || !existsSync(DOCS_ROOT)) {
       res.writeHead(404).end("docs not available");
@@ -375,6 +404,12 @@ ${out}`;
 ${script}`;
     }
     out = rewriteBrandToHubRoot(out, entryId);
+    if (cbCfg.enabled && entryId && !/class="code-link"/.test(out)) {
+      out = out.replace(
+        /(<div class="actions">)/,
+        `$1<a class="code-link" href="/r/${encodeURIComponent(entryId)}/__code/">code \u2197</a><span aria-hidden="true"> \xB7 </span>`
+      );
+    }
     return out;
   }
   function rewriteBrandToHubRoot(html, entryId) {
@@ -388,7 +423,12 @@ ${script}`;
     const now = Date.now();
     if (!landingCache.html || now - landingCache.at > 2e3) {
       landingCache = {
-        html: renderHubLanding(entries, { pluginVersion: PLUGIN_VERSION, uptimeMs: now - startedAt, now }),
+        html: renderHubLanding(entries, {
+          pluginVersion: PLUGIN_VERSION,
+          uptimeMs: now - startedAt,
+          now,
+          codeBrowserEnabled: cbCfg.enabled
+        }),
         at: now
       };
     }
@@ -509,6 +549,14 @@ data: ${JSON.stringify({ ok: true })}
       handleEvents(req, res);
       return;
     }
+    if (p === "/__sdlc/code-browser.js" || p === "/__sdlc/code-browser.css") {
+      if (!cbCfg.enabled) {
+        res.writeHead(404).end("not found");
+        return;
+      }
+      serveCodeBrowserAsset({ req, res, name: p.slice("/__sdlc/".length) });
+      return;
+    }
     if (p === "/__sdlc/registry") {
       sendJson(res, { version: REGISTRY_VERSION, entries });
       return;
@@ -547,6 +595,10 @@ data: ${JSON.stringify({ ok: true })}
     if (m) {
       if (m[2] === void 0) {
         res.writeHead(301, { location: `/r/${m[1]}/` }).end();
+        return;
+      }
+      if (m[2] === "/__code" || m[2].startsWith("/__code/")) {
+        serveRepoCode({ req, res, url, idRaw: m[1] });
         return;
       }
       serveRepoFile({ req, res, id: decodeURIComponent(m[1]), rest: m[2] });
@@ -607,7 +659,7 @@ async function main() {
     process.exit(2);
   }
   const token = process.env.SDLC_HUB_TOKEN ?? "";
-  const server = createHubServer({ ...args, token });
+  const server = createHubServer({ ...args, token, codeBrowser: codeBrowserConfigFromEnv() });
   server.listen(args.port, args.host, async () => {
     const address = server.address();
     const boundPort = typeof address === "object" && address ? address.port : args.port;

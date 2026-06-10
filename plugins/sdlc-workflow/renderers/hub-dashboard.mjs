@@ -135,10 +135,13 @@ function renderInbox(items, totalRepos) {
 
 /**
  * @param {Array} entries — registry entries.
- * @param {{ pluginVersion?: string, uptimeMs?: number, now?: number }} [opts]
+ * @param {{ pluginVersion?: string, uptimeMs?: number, now?: number,
+ *   codeBrowserEnabled?: boolean }} [opts] — `codeBrowserEnabled` mirrors the
+ *   machine-wide codeBrowser.enabled switch: false omits the per-repo
+ *   `code →` affordances (the routes 404 anyway).
  * @returns {string} a complete HTML document.
  */
-export function renderHubLanding(entries = [], { pluginVersion = '', uptimeMs = 0, now = Date.now() } = {}) {
+export function renderHubLanding(entries = [], { pluginVersion = '', uptimeMs = 0, now = Date.now(), codeBrowserEnabled = true } = {}) {
   const totalRepos = entries.length;
   const totalActiveSlugs = entries.reduce((n, e) => n + (e.slugMeta ?? []).filter(isActiveSlug).length, 0);
   const uptimeMin = Math.max(0, Math.round(uptimeMs / 60000));
@@ -172,7 +175,7 @@ export function renderHubLanding(entries = [], { pluginVersion = '', uptimeMs = 
     <p class="empty">No repos have rendered yet. Render any sdlc workflow with <code>view.hub.enabled: true</code> and it will appear here.</p>`);
   }
 
-  const repoGroups = sortedRepoRoots.map((repoRoot) => repoCard(repoRoot, groups.get(repoRoot), now)).join('\n');
+  const repoGroups = sortedRepoRoots.map((repoRoot) => repoCard(repoRoot, groups.get(repoRoot), now, codeBrowserEnabled)).join('\n');
 
   // CSS-only radio tabs: Inbox is the default tab (§11.3), the swimlane grid is
   // secondary. The radios precede .tabs + the panels as siblings so the
@@ -214,7 +217,7 @@ function htmlDoc(inner) {
 // header shows the checkout's HEAD branch as informational context ("on main");
 // inside, the entry's slugMeta is grouped into per-branch sub-lanes (D3), each
 // reusing swimlanesSvg for its own slugs.
-function repoCard(repoRoot, groupEntries, now) {
+function repoCard(repoRoot, groupEntries, now, codeBrowserEnabled = true) {
   const label = basenameOf(repoRoot);
   // Defensive: if more than one entry ever shares a repoRoot, the most-recently
   // updated is primary — its slugMeta is the full scan of that checkout.
@@ -250,7 +253,9 @@ function repoCard(repoRoot, groupEntries, now) {
     <h2 class="repo-name">${escapeHtml(label)} <span class="repo-path">${escapeHtml(repoRoot)}</span> ${headHtml}</h2>
     <article class="entry${stale ? ' stale' : ''}">
       <div class="entry-head">
-        <a class="open-view" href="/r/${idEnc}/">open view →</a>
+        <span class="entry-links"><a class="open-view" href="/r/${idEnc}/">open view →</a>${
+          codeBrowserEnabled ? ` <a class="open-code" href="/r/${idEnc}/__code/">code →</a>` : ''
+        }</span>
         <span class="ago">${escapeHtml(humanRelative(entry.lastRenderedAt, now))}</span>
       </div>
       ${laneHtml}
@@ -371,6 +376,9 @@ const STYLE = `
   .head-branch .wt { color:var(--ink-3); }
   .open-view { font:600 12px/1 ui-monospace,monospace; color:var(--cur); text-decoration:none; }
   .open-view:hover { text-decoration:underline; }
+  .entry-links { display:inline-flex; gap:14px; }
+  .open-code { font:600 12px/1 ui-monospace,monospace; color:var(--ink-3); text-decoration:none; }
+  .open-code:hover { color:var(--cur); text-decoration:underline; }
   .lane { border-top:1px solid var(--hair); padding:10px 0 4px; }
   .lane:first-of-type { border-top:0; }
   .lane-head { display:flex; align-items:baseline; gap:8px; margin:0 0 4px; }

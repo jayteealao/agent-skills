@@ -19,16 +19,22 @@
 
 import { existsSync, statSync, createReadStream, readFileSync, rmSync, watch } from 'node:fs';
 import { createServer } from 'node:http';
-import { extname } from 'node:path';
+import { basename, extname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { writePidFile, removePidFile } from '../lib/pid-file.mjs';
 import { resolveRequestPath } from '../lib/resolve-request-path.mjs';
+import { hostAllowed } from '../lib/host-allowlist.mjs';
 import {
   readRegistry, writeRegistry, pruneRegistry, validateEntry, REGISTRY_VERSION,
 } from '../lib/registry.mjs';
 import { refreshEntriesLiveness } from '../lib/branch-liveness.mjs';
+import {
+  codeBrowserConfigFromEnv, normalizeCodeBrowserConfig,
+  serveCodeBrowser, serveCodeBrowserAsset,
+} from '../lib/code-browser.mjs';
 import { renderHubLanding } from '../renderers/hub-dashboard.mjs';
+import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 
 // Read once at module load (avoids drift vs a hardcoded constant).
 const PLUGIN_VERSION = (() => {
@@ -112,27 +118,11 @@ export function parseHubArgs(argv) {
 }
 
 /* ───────────────────────── Host allowlist (invariant #6) ───────────────────────── */
-
-const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
-
-function hostnameOf(hostHeader) {
-  const h = String(hostHeader ?? '');
-  if (h.startsWith('[')) return h.slice(0, h.indexOf(']') + 1).toLowerCase();   // [::1]:port
-  return h.split(':')[0].toLowerCase();
-}
-
-function hostAllowed(req, allowAllHosts, extraHosts) {
-  // When bound for public (Tailscale) access the user has explicitly
-  // acknowledged exposure (machine-wide acknowledgedPublic), and legitimate
-  // traffic arrives with a non-localhost Host — so the allowlist is relaxed and
-  // the write token remains the protection. In the default localhost mode the
-  // allowlist is the DNS-rebinding defence.
-  if (allowAllHosts) return true;
-  const h = hostnameOf(req.headers.host);
-  // extraHosts holds targeted additions (e.g. the tailnet MagicDNS name) so
-  // `tailscale serve` works without surrendering the allowlist for everything.
-  return ALLOWED_HOSTNAMES.has(h) || (extraHosts != null && extraHosts.has(h));
-}
+// Extracted to lib/host-allowlist.mjs so the per-repo daemon's `__code` routes
+// share the exact same audited gate. Semantics unchanged: relaxed only under
+// the explicit public (Tailscale-acknowledged) mode, where the write token
+// remains the protection; extraHosts holds targeted additions (the tailnet
+// MagicDNS name) so `tailscale serve` works without surrendering the allowlist.
 
 /* ───────────────────────── server ───────────────────────── */
 
@@ -146,11 +136,17 @@ export function createHubServer({
   maxWatchedRepos = 50,
   allowAllHosts = false,
   allowedHosts = [],
+  codeBrowser = null,
 } = {}) {
   const startedAt = Date.now();
   // Targeted Host-allowlist additions (e.g. the tailnet MagicDNS name), normalised
   // to lowercase. Consulted by hostAllowed ON TOP OF the localhost allowlist.
   const extraHosts = new Set((allowedHosts || []).map((h) => String(h).toLowerCase()).filter(Boolean));
+  // Code-browser config (CODEBASE-BROWSER-PLAN §5): machine-wide block from
+  // hub-config.json, delivered via env by the supervisor (JSON can't ride argv
+  // through the Windows launch-hidden.vbs shim). enabled:false 404s every
+  // `__code` route and drops the serve-time topbar link.
+  const cbCfg = normalizeCodeBrowserConfig(codeBrowser);
   const clients = new Set();
   const metrics = { requests: 0, perRepoLastServed: {} };
   const watchers = new Map();   // id → fs watcher (Phase 3)
@@ -286,6 +282,35 @@ export function createHubServer({
     serveFile({ req, res, filePath: resolved.path, stats, entryId: id });
   }
 
+  // The code browser (CODEBASE-BROWSER-PLAN): `/r/<id>/__code/*` serves the
+  // repo's SOURCE working tree (read-only), not its view. Same entry guard as
+  // serveRepoFile — the entry is validated, never trusted — then the shared
+  // adapter (lib/code-browser.mjs) owns containment/deny/caps. `idRaw` is the
+  // UNdecoded id segment so basePath matches url.pathname verbatim.
+  function serveRepoCode({ req, res, url, idRaw }) {
+    const id = decodeURIComponent(idRaw);
+    const entry = entries.find((e) => e.id === id);
+    if (!entry) { res.writeHead(404).end('unknown repo'); return; }
+    const v = validateEntry(entry);
+    if (!v.ok) { dropEntry(id, v.reason); res.writeHead(410).end('repo entry no longer valid'); return; }
+
+    metrics.perRepoLastServed[id] = new Date().toISOString();
+    serveCodeBrowser({
+      req, res, url,
+      basePath: `/r/${idRaw}/__code`,
+      repoRoot: entry.repoRoot,
+      repoId: entry.id,
+      repoLabel: basename(entry.repoRoot),
+      headBranch: entry.headBranch ?? entry.branch ?? null,
+      config: cbCfg,
+      pluginVersion: PLUGIN_VERSION,
+      csp: CSP,
+      renderPage: renderCodeBrowserPage,
+      // Reachable beyond loopback → the adapter ignores serveSecrets:true.
+      publicExposure: allowAllHosts || extraHosts.size > 0,
+    });
+  }
+
   // Serve the plugin's own docs site (docs/site) under /docs/. Reuses the same
   // containment kernel as the repo routes — rooted at DOCS_ROOT with the
   // lowercase index basename — so a traversal can never escape the docs tree.
@@ -378,6 +403,17 @@ export function createHubServer({
     // 3. rewrite the per-repo "brand" link (which points at the per-repo
     //    dashboard) to the hub root so the topnav brand resolves to `/`.
     out = rewriteBrandToHubRoot(out, entryId);
+    // 4. code-browser entry point (CODEBASE-BROWSER-PLAN §0.2-7): injected at
+    //    SERVE time, not render time — `__code/` is a server-only route, so a
+    //    baked-in link would dead-end under file:// browsing and couldn't track
+    //    the machine-wide enabled state. Prepended inside the topbar actions
+    //    cell; idempotent via the class probe.
+    if (cbCfg.enabled && entryId && !/class="code-link"/.test(out)) {
+      out = out.replace(
+        /(<div class="actions">)/,
+        `$1<a class="code-link" href="/r/${encodeURIComponent(entryId)}/__code/">code ↗</a><span aria-hidden="true"> · </span>`,
+      );
+    }
     return out;
   }
 
@@ -402,7 +438,10 @@ export function createHubServer({
     // 2-second micro-cache: rapid hits don't re-render; mutations invalidate it.
     if (!landingCache.html || now - landingCache.at > 2000) {
       landingCache = {
-        html: renderHubLanding(entries, { pluginVersion: PLUGIN_VERSION, uptimeMs: now - startedAt, now }),
+        html: renderHubLanding(entries, {
+          pluginVersion: PLUGIN_VERSION, uptimeMs: now - startedAt, now,
+          codeBrowserEnabled: cbCfg.enabled,
+        }),
         at: now,
       };
     }
@@ -477,6 +516,13 @@ export function createHubServer({
       return;
     }
     if (p === '/__sdlc/events') { handleEvents(req, res); return; }
+    // Committed browser-bundle assets (shared by every repo's code page).
+    // Gated on the kill switch so enabled:false really does 404 everything.
+    if (p === '/__sdlc/code-browser.js' || p === '/__sdlc/code-browser.css') {
+      if (!cbCfg.enabled) { res.writeHead(404).end('not found'); return; }
+      serveCodeBrowserAsset({ req, res, name: p.slice('/__sdlc/'.length) });
+      return;
+    }
     if (p === '/__sdlc/registry') { sendJson(res, { version: REGISTRY_VERSION, entries }); return; }
     if (p === '/__sdlc/registry/refresh') {
       if (!tokenOk(req)) { res.writeHead(403).end('forbidden'); return; }
@@ -504,6 +550,12 @@ export function createHubServer({
     const m = p.match(/^\/r\/([^/]+)(\/.*)?$/);
     if (m) {
       if (m[2] === undefined) { res.writeHead(301, { location: `/r/${m[1]}/` }).end(); return; }
+      // `__code` is a server route family, not a view file — intercept before
+      // the view resolver so it can never shadow (or be shadowed by) a slug.
+      if (m[2] === '/__code' || m[2].startsWith('/__code/')) {
+        serveRepoCode({ req, res, url, idRaw: m[1] });
+        return;
+      }
       serveRepoFile({ req, res, id: decodeURIComponent(m[1]), rest: m[2] });
       return;
     }
@@ -563,7 +615,9 @@ async function main() {
     process.exit(2);
   }
   const token = process.env.SDLC_HUB_TOKEN ?? '';
-  const server = createHubServer({ ...args, token });
+  // codeBrowser config arrives via env (JSON can't ride argv through the
+  // Windows launch-hidden.vbs shim) — same channel as the write token.
+  const server = createHubServer({ ...args, token, codeBrowser: codeBrowserConfigFromEnv() });
 
   server.listen(args.port, args.host, async () => {
     const address = server.address();
