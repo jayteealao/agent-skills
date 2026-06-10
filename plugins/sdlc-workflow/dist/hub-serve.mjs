@@ -3,8 +3,8 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-H4ZMEGH6.mjs";
-import "./chunk-RKO6ISIR.mjs";
+} from "./chunk-PK2RH7AE.mjs";
+import "./chunk-J76MJSK6.mjs";
 import "./chunk-PDBKNARE.mjs";
 import {
   REGISTRY_VERSION,
@@ -14,7 +14,7 @@ import {
   validateEntry,
   writeRegistry
 } from "./chunk-NOGYVKL5.mjs";
-import "./chunk-U7AGHKEY.mjs";
+import "./chunk-SFNXDR4Z.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -111,7 +111,8 @@ function createHubServer({
   allowAllHosts = false,
   allowedHosts = [],
   codeBrowser = null,
-  heartbeatMs = 25e3
+  heartbeatMs = 25e3,
+  reconcileMs = 1e4
 } = {}) {
   const startedAt = Date.now();
   const extraHosts = new Set((allowedHosts || []).map((h) => String(h).toLowerCase()).filter(Boolean));
@@ -120,6 +121,7 @@ function createHubServer({
   const metrics = { requests: 0, perRepoLastServed: {} };
   const watchers = /* @__PURE__ */ new Map();
   const lastReloadAt = /* @__PURE__ */ new Map();
+  const lastRenderMtime = /* @__PURE__ */ new Map();
   let entries = [];
   let landingCache = { html: null, at: 0 };
   const invalidateLanding = () => {
@@ -204,6 +206,60 @@ function createHubServer({
     lastReloadAt.set(id, now);
     emit("reload", { id, renderedAt });
   }
+  function reconcile() {
+    let changed = false;
+    const live = [];
+    for (const e of entries) {
+      const present = existsSync(e.repoRoot) && existsSync(e.viewDir) && existsSync(`${e.viewDir}/.last-render`);
+      if (present) {
+        live.push(e);
+        continue;
+      }
+      changed = true;
+      const w = watchers.get(e.id);
+      if (w) {
+        try {
+          w.close();
+        } catch {
+        }
+        watchers.delete(e.id);
+      }
+      lastReloadAt.delete(e.id);
+      lastRenderMtime.delete(e.id);
+      logHub(`reconcile: pruned ${e.id} (backing files gone)`);
+    }
+    if (changed) {
+      entries = live;
+      try {
+        writeRegistry(entries);
+      } catch {
+      }
+      rewatchAll();
+      invalidateLanding();
+    }
+    for (const e of entries) {
+      if (watchers.has(e.id)) continue;
+      const marker = `${e.viewDir}/.last-render`;
+      let mtime;
+      try {
+        mtime = statSync(marker).mtimeMs;
+      } catch {
+        lastRenderMtime.delete(e.id);
+        continue;
+      }
+      const prev = lastRenderMtime.get(e.id);
+      lastRenderMtime.set(e.id, mtime);
+      if (prev !== void 0 && mtime !== prev) {
+        let renderedAt = (/* @__PURE__ */ new Date()).toISOString();
+        try {
+          const parsed = JSON.parse(readFileSync(marker, "utf-8"));
+          if (parsed.renderedAt) renderedAt = parsed.renderedAt;
+        } catch {
+        }
+        emitReload(e.id, renderedAt);
+      }
+    }
+  }
   function tokenOk(req) {
     return Boolean(token) && req.headers["x-sdlc-token"] === token;
   }
@@ -244,6 +300,7 @@ function createHubServer({
       watchers.delete(id);
     }
     lastReloadAt.delete(id);
+    lastRenderMtime.delete(id);
     try {
       writeRegistry(entries);
     } catch {
@@ -640,9 +697,18 @@ data: ${JSON.stringify({ ok: true })}
     }
   }, heartbeatMs) : null;
   if (heartbeat && typeof heartbeat.unref === "function") heartbeat.unref();
+  const reconcileTimer = setInterval(() => {
+    try {
+      reconcile();
+    } catch (err) {
+      logHub(`reconcile error: ${err?.message ?? err}`);
+    }
+  }, reconcileMs);
+  if (typeof reconcileTimer.unref === "function") reconcileTimer.unref();
   const close = server.close.bind(server);
   server.close = (callback) => {
     if (heartbeat) clearInterval(heartbeat);
+    clearInterval(reconcileTimer);
     for (const [, w] of watchers) {
       try {
         w.close();

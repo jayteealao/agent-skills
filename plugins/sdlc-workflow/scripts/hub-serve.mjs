@@ -144,6 +144,7 @@ export function createHubServer({
   allowedHosts = [],
   codeBrowser = null,
   heartbeatMs = 25000,
+  reconcileMs = 10000,
 } = {}) {
   const startedAt = Date.now();
   // Targeted Host-allowlist additions (e.g. the tailnet MagicDNS name), normalised
@@ -158,6 +159,7 @@ export function createHubServer({
   const metrics = { requests: 0, perRepoLastServed: {} };
   const watchers = new Map();   // id → fs watcher (Phase 3)
   const lastReloadAt = new Map();   // id → ms of last emitted reload (coalesce)
+  const lastRenderMtime = new Map();   // id → last seen .last-render mtimeMs (reconcile backstop)
   let entries = [];
   let landingCache = { html: null, at: 0 };   // 2-second micro-cache (§5)
   const invalidateLanding = () => { landingCache.html = null; };
@@ -245,6 +247,59 @@ export function createHubServer({
     emit('reload', { id, renderedAt });
   }
 
+  // Level-triggered reconcile, run on a timer (reconcileMs) — the backstop the
+  // otherwise purely edge-triggered hub lacks. Two cheap jobs (deliberately NO
+  // git/liveness work, so it stays light on a short interval):
+  //   1. PRUNE — drop entries whose repoRoot/viewDir/.last-render vanished so a
+  //      deleted checkout falls off the landing page WITHOUT waiting for a serve-
+  //      time 410 or a hub restart. Persisted only when something changed (no 10s
+  //      registry.json rewrite-storm).
+  //   2. mtime BACKSTOP — for an entry with no live watcher (beyond the
+  //      maxWatchedRepos cap, or whose watcher errored out), compare .last-render's
+  //      mtime to the last seen value and emit a coalesced reload on change. This
+  //      is the live-reload path for repos fs.watch cannot cover.
+  function reconcile() {
+    // 1. prune vanished entries
+    let changed = false;
+    const live = [];
+    for (const e of entries) {
+      const present = existsSync(e.repoRoot)
+        && existsSync(e.viewDir)
+        && existsSync(`${e.viewDir}/.last-render`);
+      if (present) { live.push(e); continue; }
+      changed = true;
+      const w = watchers.get(e.id);
+      if (w) { try { w.close(); } catch { /* ignore */ } watchers.delete(e.id); }
+      lastReloadAt.delete(e.id);
+      lastRenderMtime.delete(e.id);
+      logHub(`reconcile: pruned ${e.id} (backing files gone)`);
+    }
+    if (changed) {
+      entries = live;
+      try { writeRegistry(entries); } catch { /* ignore */ }
+      rewatchAll();          // a freed slot may now admit a previously-capped repo
+      invalidateLanding();
+    }
+
+    // 2. mtime backstop for repos fs.watch does not cover
+    for (const e of entries) {
+      if (watchers.has(e.id)) continue;   // watched repos reload via fs.watch
+      const marker = `${e.viewDir}/.last-render`;
+      let mtime;
+      try { mtime = statSync(marker).mtimeMs; } catch { lastRenderMtime.delete(e.id); continue; }
+      const prev = lastRenderMtime.get(e.id);
+      lastRenderMtime.set(e.id, mtime);
+      if (prev !== undefined && mtime !== prev) {
+        let renderedAt = new Date().toISOString();
+        try {
+          const parsed = JSON.parse(readFileSync(marker, 'utf-8'));
+          if (parsed.renderedAt) renderedAt = parsed.renderedAt;
+        } catch { /* keep wall-clock */ }
+        emitReload(e.id, renderedAt);
+      }
+    }
+  }
+
   /* ── helpers ── */
   function tokenOk(req) {
     return Boolean(token) && req.headers['x-sdlc-token'] === token;
@@ -279,6 +334,7 @@ export function createHubServer({
     const w = watchers.get(id);
     if (w) { try { w.close(); } catch { /* ignore */ } watchers.delete(id); }
     lastReloadAt.delete(id);
+    lastRenderMtime.delete(id);
     try { writeRegistry(entries); } catch { /* ignore */ }
     invalidateLanding();
     logHub(`dropped entry ${id}: ${reason}`);
@@ -629,9 +685,20 @@ export function createHubServer({
     : null;
   if (heartbeat && typeof heartbeat.unref === 'function') heartbeat.unref();
 
+  // Level-triggered reconcile loop (prune vanished repos + mtime reload backstop
+  // for un-fs.watched repos). Runs regardless of liveReload — the prune keeps the
+  // landing page honest even with reloads off, and emitReload no-ops when
+  // liveReload is false. unref so it never holds the process open; wrapped so a
+  // transient error never escalates to an uncaughtException on the interval.
+  const reconcileTimer = setInterval(() => {
+    try { reconcile(); } catch (err) { logHub(`reconcile error: ${err?.message ?? err}`); }
+  }, reconcileMs);
+  if (typeof reconcileTimer.unref === 'function') reconcileTimer.unref();
+
   const close = server.close.bind(server);
   server.close = (callback) => {
     if (heartbeat) clearInterval(heartbeat);
+    clearInterval(reconcileTimer);
     for (const [, w] of watchers) { try { w.close(); } catch { /* ignore */ } }
     watchers.clear();
     for (const c of clients) { try { c.end(); } catch { /* ignore */ } }

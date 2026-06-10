@@ -764,6 +764,58 @@ test('hub: SSE stream sends keep-alive pings to survive idle proxies', async () 
   }
 });
 
+test('hub: reconcile tick prunes an entry whose viewDir vanished (no serve hit)', async () => {
+  setHome();
+  const root = tmp('sdlc-hub-reconcile-prune-');
+  const repo = join(root, 'repo');
+  initRepo(repo);
+  renderView(repo, { slug: 'doomed' });
+  await upsertRegistryEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+
+  // liveReload off + a fast reconcile: the ONLY thing that can drop the entry is
+  // the level-triggered reconcile (we never GET /r/<id>/, which would drop it at
+  // serve time and mask what we're testing).
+  const server = createHubServer({ token: 'tok', liveReload: false, reconcileMs: 60 });
+  const port = await listen(server);
+  try {
+    equal(JSON.parse((await httpReq(port, '/__sdlc/registry')).body).entries.length, 1, 'present at boot');
+    rmSync(join(repo, '.ai', '_view'), { recursive: true, force: true });
+    await wait(240);   // >= 3 reconcile ticks
+    const dump = JSON.parse((await httpReq(port, '/__sdlc/registry')).body);
+    equal(dump.entries.length, 0, 'reconcile dropped the vanished entry without a serve-time hit');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('hub: reconcile tick reloads an UNwatched repo via .last-render mtime (cap backstop)', async () => {
+  setHome();
+  const root = tmp('sdlc-hub-reconcile-mtime-');
+  const repo = join(root, 'repo');
+  initRepo(repo);
+  renderView(repo, { slug: 'capped' });
+  await upsertRegistryEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+  const id = readRegistry().entries[0].id;
+
+  // maxWatchedRepos:0 → the repo is NEVER fs.watched, so any reload can only come
+  // from the reconcile mtime backstop (not fs.watch).
+  const server = createHubServer({ token: 'tok', liveReload: true, maxWatchedRepos: 0, reconcileMs: 70 });
+  const port = await listen(server);
+  try {
+    const collected = sseCollect(port, 800);
+    await wait(200);   // >= 2 ticks seed the mtime baseline (no emit on the seed tick)
+    // Re-render: bump .last-render to a new mtime + renderedAt.
+    writeFileSync(join(repo, '.ai', '_view', '.last-render'),
+      JSON.stringify({ renderedAt: new Date().toISOString(), configHash: 'cfg2' }));
+    const events = await collected;
+    const reloads = events.filter((e) => e.event === 'reload').map((e) => JSON.parse(e.data));
+    ok(reloads.length >= 1, 'reconcile emitted a reload for the unwatched repo');
+    ok(reloads.every((r) => r.id === id), 'reload scoped to the repo');
+  } finally {
+    await closeServer(server);
+  }
+});
+
 /* ───────────────────────── landing page (§5) ───────────────────────── */
 
 test('hub: GET / renders the aggregate landing page with swimlanes + slug links', async () => {
