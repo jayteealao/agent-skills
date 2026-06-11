@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — slug dashboard stats are now all derived from artifacts, so they're always current (9.59.0)
+
+Follow-up to 9.58.0. The slug-overview callout band (and mobile tiles) read `LOC TOUCHED`,
+`TESTS`, and `BLOCKERS` from `00-index` frontmatter fields that nothing maintains, so they showed
+a permanent `—`/`0`. Every value now derives from the artifacts on disk via one shared
+`slugStats()` helper (used by the desktop band, the mobile tiles, and the verify caption, so they
+can't drift):
+
+- **LOC TOUCHED** — lines added + removed from the implement roll-up (`metric-total-lines-*`),
+  summed across implement leaves when no roll-up exists. (osce: `26.2k`.)
+- **REVIEWS** — the count of review *dimensions* (`review-command`), excluding the `review` index
+  roll-up (which was inflating it by one). (osce: `14`.)
+- **BLOCKERS** — blocked slices in the roster plus verify leaves flagged `has-blockers`, instead
+  of a never-written index field. (osce: `0`.)
+- **TESTS → CHECKS** — the cell is **relabelled CHECKS** and shows the verify-stage gate checks
+  passed (`metric-checks-passed`, passed/run when any failed) — the structured verification metric
+  this workflow actually records. The label is honest: the schema has no unit-test count (those
+  live only in prose). (osce: `175`.) Index fm overrides still win where a human sets one.
+
+Two `osce`-shaped regression assertions pin the derived band values. Renderers are bundled, so
+`dist/` is rebuilt in the same commit.
+
 ### Fixed — slug dashboard miscounted slices, progress, and LOC by reading leaf artifacts instead of roll-ups (9.58.0)
 
 The slug overview (`00-index`) and slice-index dashboards recomputed their headline numbers by

@@ -113,15 +113,13 @@ export function render(artifact, ctx) {
 // the portrait reconception of the desktop stage-stripe SVG.
 function mobileStripe({ current, allArtifacts, fm }) {
   const currentIdx = Math.max(0, STAGES.indexOf(current));
-  const sliceCount = (allArtifacts?.slice ?? []).length;
-  const reviewCount = (allArtifacts?.review ?? []).length + (allArtifacts?.['review-command'] ?? []).length;
-  const blockers = Number(fm.blockers ?? fm['blocker-count'] ?? 0) || 0;
-  const tests = fm['tests-passed'] ?? fm['metric-tests'] ?? '—';
+  // Same always-current stats as the desktop callout band (slugStats).
+  const s = slugStats(allArtifacts, fm);
   const tiles = `<div class="mtiles">
-    <div class="mtile"><div class="lbl">Slices</div><div class="val">${sliceCount || '—'}</div></div>
-    <div class="mtile"><div class="lbl">Reviews</div><div class="val">${reviewCount || '—'}</div></div>
-    <div class="mtile"><div class="lbl">Blockers</div><div class="val${blockers ? ' is-blocker' : ''}">${blockers}</div></div>
-    <div class="mtile"><div class="lbl">Tests</div><div class="val">${escapeHtml(String(tests))}</div></div>
+    <div class="mtile"><div class="lbl">Slices</div><div class="val">${s.slices || '—'}</div></div>
+    <div class="mtile"><div class="lbl">Reviews</div><div class="val">${s.reviews || '—'}</div></div>
+    <div class="mtile"><div class="lbl">Blockers</div><div class="val${s.blockers ? ' is-blocker' : ''}">${s.blockers}</div></div>
+    <div class="mtile"><div class="lbl">Checks</div><div class="val">${escapeHtml(String(s.checks ?? '—'))}</div></div>
   </div>`;
   const steps = STAGES.map((stage, i) => {
     const cfg = STAGE_NAV[stage] ?? { types: [stage], dir: stage };
@@ -213,8 +211,8 @@ function stationAnnotation(stage, count, allArtifacts = {}, fm = {}) {
       return `${Math.max(fromLeaves, fromRoster)}/${total} slices`;
     }
     case 'verify': {
-      const tests = fm['tests-passed'] ?? fm['metric-tests'] ?? fm['tests-total'];
-      return (tests != null && tests !== '') ? `${tests} ✓` : generic;
+      const t = deriveChecks(allArtifacts, fm);
+      return t != null ? `${t} ✓` : generic;
     }
     case 'plan': {
       const revs = (allArtifacts.plan ?? []).reduce((n, a) => n + (Number(a.frontmatter?.['revision-count']) || 0), 0);
@@ -272,20 +270,16 @@ function stageStripeSvg({ current, allArtifacts, fm = {} }) {
 }
 
 // Bottom metric-callout band (D4.8): a second hairline rule and five summary
-// groups. Values come from index frontmatter where available, else from
-// derived artifact counts, else an em-dash placeholder (filled by Slice 6 data).
+// groups. Every value is derived from the artifacts on disk (slugStats) so the
+// band is always current; an em-dash shows only when a metric has no source yet.
 function metricCalloutBand(W, y, fm, allArtifacts) {
-  const sliceCount  = sliceRoster(allArtifacts).total || (allArtifacts?.slice ?? []).length;
-  const reviewCount = (allArtifacts?.review ?? []).length + (allArtifacts?.['review-command'] ?? []).length;
-  // LOC touched lives on the implement roll-up (lines added + removed), not the
-  // index frontmatter — fall back to an explicit index field, then em-dash.
-  const impFm = (allArtifacts?.['implement-index'] ?? [])[0]?.frontmatter ?? {};
+  const s = slugStats(allArtifacts, fm);
   const groups = [
-    { lbl: 'LOC TOUCHED', val: fm['loc-touched'] ?? fm['metric-loc'] ?? deriveLoc(impFm) ?? '—' },
-    { lbl: 'SLICES',      val: sliceCount || '—' },
-    { lbl: 'REVIEWS',     val: reviewCount || '—' },
-    { lbl: 'BLOCKERS',    val: fm.blockers ?? fm['blocker-count'] ?? 0 },
-    { lbl: 'TESTS',       val: fm['tests-passed'] ?? fm['metric-tests'] ?? '—' },
+    { lbl: 'LOC TOUCHED', val: s.loc ?? '—' },
+    { lbl: 'SLICES',      val: s.slices || '—' },
+    { lbl: 'REVIEWS',     val: s.reviews || '—' },
+    { lbl: 'BLOCKERS',    val: s.blockers },
+    { lbl: 'CHECKS',      val: s.checks ?? '—' },
   ];
   const rule = `<line x1="20" y1="${y}" x2="${W - 20}" y2="${y}" stroke="#e0dbcd" stroke-width="1"/>`;
   const gx = evenX(W, 110, groups.length);
@@ -297,11 +291,62 @@ function metricCalloutBand(W, y, fm, allArtifacts) {
   return `${rule}${cells}`;
 }
 
-// LOC touched = lines added + removed from the implement roll-up, compacted to a
-// short label that fits the callout cell (e.g. 26195 → "26.2k").
-function deriveLoc(impFm) {
-  const add = Number(impFm['metric-total-lines-added']);
-  const rem = Number(impFm['metric-total-lines-removed']);
+// Canonical slug stats, derived from the artifacts on disk so they are ALWAYS
+// current — never from unmaintained index frontmatter fields (the source of the
+// stale "—" LOC/TESTS and the inflated slice/review counts). The index fm is
+// consulted only as an explicit human-set override.
+function slugStats(allArtifacts = {}, fm = {}) {
+  const roster = sliceRoster(allArtifacts);
+  const verify = allArtifacts.verify ?? [];
+  const blockedSlices = roster.list.filter((sl) => String(sl.status ?? '').toLowerCase() === 'blocked').length;
+  const verifyBlockers = verify.filter((a) => isTruthyFlag(a.frontmatter?.['has-blockers'])).length;
+  const explicitBlockers = Number(fm.blockers ?? fm['blocker-count']);
+  return {
+    slices:  roster.total,
+    // Review DIMENSIONS (review-command) — the `review` index is a roll-up, not
+    // a review, so it is excluded (fall back to it only if no dimensions exist).
+    reviews: (allArtifacts['review-command'] ?? []).length || (allArtifacts.review ?? []).length,
+    blockers: Number.isFinite(explicitBlockers) ? explicitBlockers : blockedSlices + verifyBlockers,
+    loc:     fm['loc-touched'] ?? fm['metric-loc']
+               ?? deriveLoc((allArtifacts['implement-index'] ?? [])[0]?.frontmatter ?? {}, allArtifacts.implement ?? []),
+    checks:  deriveChecks(allArtifacts, fm),
+  };
+}
+
+function isTruthyFlag(v) {
+  return v === true || ['true', 'yes', '1'].includes(String(v).toLowerCase());
+}
+
+function sumField(list, key) {
+  return (list ?? []).reduce((n, a) => n + (Number(a.frontmatter?.[key]) || 0), 0);
+}
+
+// Verification gate-checks, always current from the verify leaves: the total
+// checks passed (shown passed/run when any failed). Prefers an explicit count if
+// one is set; falls back to real adversarial tests when no checks were recorded.
+// (Labelled CHECKS, not TESTS — these are the verify-stage gates, not a unit-test
+// count, which the schema does not track.)
+function deriveChecks(allArtifacts = {}, fm = {}) {
+  const explicit = fm['checks-passed'] ?? fm['metric-checks'] ?? fm['tests-passed'] ?? fm['metric-tests'];
+  if (explicit != null && explicit !== '') return explicit;
+  const verify = allArtifacts.verify ?? [];
+  const passed = sumField(verify, 'metric-checks-passed');
+  const run = sumField(verify, 'metric-checks-run');
+  if (passed > 0 || run > 0) return run > passed ? `${passed}/${run}` : String(passed);
+  const adv = sumField(verify, 'adversarial-tests-run');
+  return adv > 0 ? String(adv) : null;
+}
+
+// LOC touched = lines added + removed — from the implement roll-up if present,
+// else summed across the implement leaves; compacted to fit the cell (26195 →
+// "26.2k").
+function deriveLoc(impFm = {}, impLeaves = []) {
+  let add = Number(impFm['metric-total-lines-added']);
+  let rem = Number(impFm['metric-total-lines-removed']);
+  if (!Number.isFinite(add) && !Number.isFinite(rem) && impLeaves.length) {
+    add = sumField(impLeaves, 'metric-lines-added');
+    rem = sumField(impLeaves, 'metric-lines-removed');
+  }
   if (!Number.isFinite(add) && !Number.isFinite(rem)) return null;
   return compactNum((Number.isFinite(add) ? add : 0) + (Number.isFinite(rem) ? rem : 0));
 }

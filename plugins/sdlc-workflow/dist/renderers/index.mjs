@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-K55BHEPL.mjs";
+} from "../chunk-FJRCBS33.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,7 +13,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-CUD2JRSE.mjs";
+} from "../chunk-NMNGTR6J.mjs";
 import "../chunk-LFGT2BKG.mjs";
 import {
   escapeHtml
@@ -110,15 +110,12 @@ function render(artifact, ctx) {
 }
 function mobileStripe({ current, allArtifacts, fm }) {
   const currentIdx = Math.max(0, STAGES.indexOf(current));
-  const sliceCount = (allArtifacts?.slice ?? []).length;
-  const reviewCount = (allArtifacts?.review ?? []).length + (allArtifacts?.["review-command"] ?? []).length;
-  const blockers = Number(fm.blockers ?? fm["blocker-count"] ?? 0) || 0;
-  const tests = fm["tests-passed"] ?? fm["metric-tests"] ?? "\u2014";
+  const s = slugStats(allArtifacts, fm);
   const tiles = `<div class="mtiles">
-    <div class="mtile"><div class="lbl">Slices</div><div class="val">${sliceCount || "\u2014"}</div></div>
-    <div class="mtile"><div class="lbl">Reviews</div><div class="val">${reviewCount || "\u2014"}</div></div>
-    <div class="mtile"><div class="lbl">Blockers</div><div class="val${blockers ? " is-blocker" : ""}">${blockers}</div></div>
-    <div class="mtile"><div class="lbl">Tests</div><div class="val">${escapeHtml(String(tests))}</div></div>
+    <div class="mtile"><div class="lbl">Slices</div><div class="val">${s.slices || "\u2014"}</div></div>
+    <div class="mtile"><div class="lbl">Reviews</div><div class="val">${s.reviews || "\u2014"}</div></div>
+    <div class="mtile"><div class="lbl">Blockers</div><div class="val${s.blockers ? " is-blocker" : ""}">${s.blockers}</div></div>
+    <div class="mtile"><div class="lbl">Checks</div><div class="val">${escapeHtml(String(s.checks ?? "\u2014"))}</div></div>
   </div>`;
   const steps = STAGES.map((stage, i) => {
     const cfg = STAGE_NAV[stage] ?? { types: [stage], dir: stage };
@@ -178,8 +175,8 @@ function stationAnnotation(stage, count, allArtifacts = {}, fm = {}) {
       return `${Math.max(fromLeaves, fromRoster)}/${total} slices`;
     }
     case "verify": {
-      const tests = fm["tests-passed"] ?? fm["metric-tests"] ?? fm["tests-total"];
-      return tests != null && tests !== "" ? `${tests} \u2713` : generic;
+      const t = deriveChecks(allArtifacts, fm);
+      return t != null ? `${t} \u2713` : generic;
     }
     case "plan": {
       const revs = (allArtifacts.plan ?? []).reduce((n, a) => n + (Number(a.frontmatter?.["revision-count"]) || 0), 0);
@@ -216,15 +213,13 @@ function stageStripeSvg({ current, allArtifacts, fm = {} }) {
   </svg>`;
 }
 function metricCalloutBand(W, y, fm, allArtifacts) {
-  const sliceCount = sliceRoster(allArtifacts).total || (allArtifacts?.slice ?? []).length;
-  const reviewCount = (allArtifacts?.review ?? []).length + (allArtifacts?.["review-command"] ?? []).length;
-  const impFm = (allArtifacts?.["implement-index"] ?? [])[0]?.frontmatter ?? {};
+  const s = slugStats(allArtifacts, fm);
   const groups = [
-    { lbl: "LOC TOUCHED", val: fm["loc-touched"] ?? fm["metric-loc"] ?? deriveLoc(impFm) ?? "\u2014" },
-    { lbl: "SLICES", val: sliceCount || "\u2014" },
-    { lbl: "REVIEWS", val: reviewCount || "\u2014" },
-    { lbl: "BLOCKERS", val: fm.blockers ?? fm["blocker-count"] ?? 0 },
-    { lbl: "TESTS", val: fm["tests-passed"] ?? fm["metric-tests"] ?? "\u2014" }
+    { lbl: "LOC TOUCHED", val: s.loc ?? "\u2014" },
+    { lbl: "SLICES", val: s.slices || "\u2014" },
+    { lbl: "REVIEWS", val: s.reviews || "\u2014" },
+    { lbl: "BLOCKERS", val: s.blockers },
+    { lbl: "CHECKS", val: s.checks ?? "\u2014" }
   ];
   const rule = `<line x1="20" y1="${y}" x2="${W - 20}" y2="${y}" stroke="#e0dbcd" stroke-width="1"/>`;
   const gx = evenX(W, 110, groups.length);
@@ -234,9 +229,45 @@ function metricCalloutBand(W, y, fm, allArtifacts) {
   }).join("");
   return `${rule}${cells}`;
 }
-function deriveLoc(impFm) {
-  const add = Number(impFm["metric-total-lines-added"]);
-  const rem = Number(impFm["metric-total-lines-removed"]);
+function slugStats(allArtifacts = {}, fm = {}) {
+  const roster = sliceRoster(allArtifacts);
+  const verify = allArtifacts.verify ?? [];
+  const blockedSlices = roster.list.filter((sl) => String(sl.status ?? "").toLowerCase() === "blocked").length;
+  const verifyBlockers = verify.filter((a) => isTruthyFlag(a.frontmatter?.["has-blockers"])).length;
+  const explicitBlockers = Number(fm.blockers ?? fm["blocker-count"]);
+  return {
+    slices: roster.total,
+    // Review DIMENSIONS (review-command) — the `review` index is a roll-up, not
+    // a review, so it is excluded (fall back to it only if no dimensions exist).
+    reviews: (allArtifacts["review-command"] ?? []).length || (allArtifacts.review ?? []).length,
+    blockers: Number.isFinite(explicitBlockers) ? explicitBlockers : blockedSlices + verifyBlockers,
+    loc: fm["loc-touched"] ?? fm["metric-loc"] ?? deriveLoc((allArtifacts["implement-index"] ?? [])[0]?.frontmatter ?? {}, allArtifacts.implement ?? []),
+    checks: deriveChecks(allArtifacts, fm)
+  };
+}
+function isTruthyFlag(v) {
+  return v === true || ["true", "yes", "1"].includes(String(v).toLowerCase());
+}
+function sumField(list, key) {
+  return (list ?? []).reduce((n, a) => n + (Number(a.frontmatter?.[key]) || 0), 0);
+}
+function deriveChecks(allArtifacts = {}, fm = {}) {
+  const explicit = fm["checks-passed"] ?? fm["metric-checks"] ?? fm["tests-passed"] ?? fm["metric-tests"];
+  if (explicit != null && explicit !== "") return explicit;
+  const verify = allArtifacts.verify ?? [];
+  const passed = sumField(verify, "metric-checks-passed");
+  const run = sumField(verify, "metric-checks-run");
+  if (passed > 0 || run > 0) return run > passed ? `${passed}/${run}` : String(passed);
+  const adv = sumField(verify, "adversarial-tests-run");
+  return adv > 0 ? String(adv) : null;
+}
+function deriveLoc(impFm = {}, impLeaves = []) {
+  let add = Number(impFm["metric-total-lines-added"]);
+  let rem = Number(impFm["metric-total-lines-removed"]);
+  if (!Number.isFinite(add) && !Number.isFinite(rem) && impLeaves.length) {
+    add = sumField(impLeaves, "metric-lines-added");
+    rem = sumField(impLeaves, "metric-lines-removed");
+  }
   if (!Number.isFinite(add) && !Number.isFinite(rem)) return null;
   return compactNum((Number.isFinite(add) ? add : 0) + (Number.isFinite(rem) ? rem : 0));
 }

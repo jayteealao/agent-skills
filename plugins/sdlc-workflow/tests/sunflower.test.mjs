@@ -238,7 +238,11 @@ function osceShapedArtifacts() {
     slice: slugs.map((slug, i) => ({ frontmatter: { type: 'slice', 'slice-slug': slug, status: i === 5 ? 'complete' : 'defined' } })),
     'implement-index': [{ frontmatter: { type: 'implement-index', 'slices-implemented': 16, 'slices-total': 16, 'metric-total-lines-added': 25848, 'metric-total-lines-removed': 347 } }],
     implement: slugs.map((slug) => ({ frontmatter: { type: 'implement', 'slice-slug': slug, status: 'complete' } })),
-    review: Array.from({ length: 14 }, (_, i) => ({ frontmatter: { type: 'review', dimension: `d${i}` } })),
+    // 7 review DIMENSIONS + the review INDEX roll-up: REVIEWS must count 7, not 8.
+    'review-command': Array.from({ length: 7 }, (_, i) => ({ frontmatter: { type: 'review-command', dimension: `d${i}` } })),
+    review: [{ frontmatter: { type: 'review', status: 'complete' } }],
+    // verify leaves carry the always-current verification metrics.
+    verify: slugs.map((slug) => ({ frontmatter: { type: 'verify', 'slice-slug': slug, status: 'complete', 'metric-checks-passed': 11, 'has-blockers': false, 'adversarial-tests-run': 0 } })),
   };
   const indexFm = {
     slug: 'osce', title: 'OSCE', 'current-stage': 'retro', status: 'complete',
@@ -257,6 +261,14 @@ test('slug overview: counts/progress/LOC come from index roll-ups, not slice lea
   match(html, /16\/16 slices/);      // implement reads implement-index slices-implemented/total
   match(html, /10\/10/);             // `progress` read as the stage→status map, not {done,total}
   match(html, /26\.2k/);             // LOC from implement metric-total-lines (added + removed)
+
+  // The callout band: every value derived from artifacts, never stale "—".
+  const bandVal = (s, label) => (s.match(new RegExp(`>${label}</text><text[^>]*>([^<]+)</text>`)) || [])[1];
+  strictEqual(bandVal(html, 'SLICES'), '16');
+  strictEqual(bandVal(html, 'REVIEWS'), '7');       // review-command dimensions, not incl. the review index
+  strictEqual(bandVal(html, 'BLOCKERS'), '0');      // no blocked slices / has-blockers flags
+  strictEqual(bandVal(html, 'CHECKS'), '176');      // Σ verify metric-checks-passed (16 × 11)
+  strictEqual(bandVal(html, 'LOC TOUCHED'), '26.2k');
 });
 
 test('slice index: per-slice status comes from the roster, not the leaf "defined" status', () => {
