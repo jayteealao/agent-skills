@@ -6,11 +6,11 @@ import {
   sliceCard,
   sliceGridFigure,
   sliceState
-} from "../chunk-KHAMNU2A.mjs";
+} from "../chunk-CXOJBGFL.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-CKNVJRRA.mjs";
+} from "../chunk-K55BHEPL.mjs";
 import {
   figureCanvas
 } from "../chunk-PDBKNARE.mjs";
@@ -18,7 +18,7 @@ import {
   artifactHeader,
   metricRow,
   statusBadge
-} from "../chunk-NVOREQYI.mjs";
+} from "../chunk-CUD2JRSE.mjs";
 import "../chunk-LFGT2BKG.mjs";
 import {
   escapeHtml
@@ -29,10 +29,14 @@ import "../chunk-SGA7NFMW.mjs";
 // renderers/slice-index.mjs
 function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
-  const slices = (ctx.allArtifacts?.slice ?? []).map((s) => ({
-    slug: s.frontmatter?.["slice-slug"] ?? s.frontmatter?.slug ?? s.storageRel,
-    fm: s.frontmatter ?? {}
-  }));
+  const rosterStatus = new Map(
+    (Array.isArray(fm.slices) ? fm.slices : []).filter((s) => s && s.slug).map((s) => [s.slug, s.status])
+  );
+  const slices = (ctx.allArtifacts?.slice ?? []).map((s) => {
+    const slug = s.frontmatter?.["slice-slug"] ?? s.frontmatter?.slug ?? s.storageRel;
+    const f = s.frontmatter ?? {};
+    return { slug, fm: rosterStatus.has(slug) ? { ...f, status: rosterStatus.get(slug) } : f };
+  });
   const headerHtml = artifactHeader({
     crumb: artifact.path,
     h1: escapeHtml(fm.title ?? "Slice index"),

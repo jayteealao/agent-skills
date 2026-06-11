@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-CKNVJRRA.mjs";
+} from "../chunk-K55BHEPL.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,7 +13,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-NVOREQYI.mjs";
+} from "../chunk-CUD2JRSE.mjs";
 import "../chunk-LFGT2BKG.mjs";
 import {
   escapeHtml
@@ -63,8 +63,9 @@ function render(artifact, ctx) {
       ${fm["updated-at"] ? `<span class="meta">updated ${escapeHtml(fm["updated-at"])}</span>` : ""}
     </aside>
   </header>`;
+  const progressValue = formatProgress(fm.progress);
   const metrics = [
-    fm.progress && { label: "progress", value: typeof fm.progress === "object" ? `${fm.progress.done ?? 0}/${fm.progress.total ?? 0}` : fm.progress },
+    progressValue && { label: "progress", value: progressValue },
     fm["selected-slice"] && { label: "slice", value: fm["selected-slice"] },
     fm["review-scope"] && { label: "review", value: fm["review-scope"] }
   ].filter(Boolean);
@@ -132,11 +133,28 @@ function mobileStripe({ current, allArtifacts, fm }) {
 var SVG_SERIF = "Iowan Old Style, Palatino, Georgia, serif";
 function stageArtifacts(stage, allArtifacts) {
   const cfg = STAGE_NAV[stage] ?? { types: [stage] };
-  const list = (cfg.types ?? [stage]).flatMap((t) => allArtifacts?.[t] ?? []);
+  const types = (cfg.types ?? [stage]).filter((t) => !t.endsWith("-index"));
+  const list = types.flatMap((t) => allArtifacts?.[t] ?? []);
   const dates = list.map((a) => a.frontmatter?.["updated-at"]).filter(Boolean).sort();
   return { count: list.length, latest: dates[dates.length - 1] ?? "" };
 }
+function sliceRoster(allArtifacts) {
+  const fm = (allArtifacts?.["slice-index"] ?? [])[0]?.frontmatter ?? {};
+  const list = Array.isArray(fm.slices) ? fm.slices : [];
+  const total = Number(fm["total-slices"]);
+  return { list, total: Number.isFinite(total) && total > 0 ? total : list.length };
+}
 var SLICE_DONE = /* @__PURE__ */ new Set(["complete", "completed", "done", "shipped"]);
+function formatProgress(progress) {
+  if (!progress) return null;
+  if (typeof progress === "string") return progress;
+  if (typeof progress !== "object") return String(progress);
+  if (Number(progress.total) > 0) return `${Number(progress.done) || 0}/${Number(progress.total)}`;
+  const states = Object.values(progress).filter((v) => typeof v === "string");
+  if (!states.length) return null;
+  const done = states.filter((v) => SLICE_DONE.has(v.toLowerCase())).length;
+  return `${done}/${states.length}`;
+}
 function stationAnnotation(stage, count, allArtifacts = {}, fm = {}) {
   const generic = `${count} artifact${count === 1 ? "" : "s"}`;
   switch (stage) {
@@ -147,10 +165,17 @@ function stationAnnotation(stage, count, allArtifacts = {}, fm = {}) {
     case "ship":
       return `${count} run${count === 1 ? "" : "s"}`;
     case "implement": {
-      const slices = allArtifacts.slice ?? [];
-      if (!slices.length) return generic;
-      const done = slices.filter((s) => SLICE_DONE.has(String(s.frontmatter?.status ?? "").toLowerCase())).length;
-      return `${done}/${slices.length} slices`;
+      const ii = (allArtifacts["implement-index"] ?? [])[0]?.frontmatter ?? {};
+      const rollDone = Number(ii["slices-implemented"]);
+      const rollTotal = Number(ii["slices-total"]);
+      if (Number.isFinite(rollDone) && Number.isFinite(rollTotal) && rollTotal > 0) {
+        return `${rollDone}/${rollTotal} slices`;
+      }
+      const { list, total } = sliceRoster(allArtifacts);
+      if (!total) return generic;
+      const fromLeaves = (allArtifacts.implement ?? []).filter((a) => SLICE_DONE.has(String(a.frontmatter?.status ?? "").toLowerCase())).length;
+      const fromRoster = list.filter((s) => SLICE_DONE.has(String(s.status ?? "").toLowerCase())).length;
+      return `${Math.max(fromLeaves, fromRoster)}/${total} slices`;
     }
     case "verify": {
       const tests = fm["tests-passed"] ?? fm["metric-tests"] ?? fm["tests-total"];
@@ -191,10 +216,11 @@ function stageStripeSvg({ current, allArtifacts, fm = {} }) {
   </svg>`;
 }
 function metricCalloutBand(W, y, fm, allArtifacts) {
-  const sliceCount = (allArtifacts?.slice ?? []).length;
+  const sliceCount = sliceRoster(allArtifacts).total || (allArtifacts?.slice ?? []).length;
   const reviewCount = (allArtifacts?.review ?? []).length + (allArtifacts?.["review-command"] ?? []).length;
+  const impFm = (allArtifacts?.["implement-index"] ?? [])[0]?.frontmatter ?? {};
   const groups = [
-    { lbl: "LOC TOUCHED", val: fm["loc-touched"] ?? fm["metric-loc"] ?? "\u2014" },
+    { lbl: "LOC TOUCHED", val: fm["loc-touched"] ?? fm["metric-loc"] ?? deriveLoc(impFm) ?? "\u2014" },
     { lbl: "SLICES", val: sliceCount || "\u2014" },
     { lbl: "REVIEWS", val: reviewCount || "\u2014" },
     { lbl: "BLOCKERS", val: fm.blockers ?? fm["blocker-count"] ?? 0 },
@@ -207,6 +233,15 @@ function metricCalloutBand(W, y, fm, allArtifacts) {
     return `<text x="${x}" y="${y + 18}" text-anchor="middle" font-size="9" letter-spacing="1" fill="#8a8377">${g.lbl}</text><text x="${x}" y="${y + 38}" text-anchor="middle" font-size="18" font-weight="600" fill="#1f1b16" font-family="${SVG_SERIF}">${escapeHtml(String(g.val))}</text>`;
   }).join("");
   return `${rule}${cells}`;
+}
+function deriveLoc(impFm) {
+  const add = Number(impFm["metric-total-lines-added"]);
+  const rem = Number(impFm["metric-total-lines-removed"]);
+  if (!Number.isFinite(add) && !Number.isFinite(rem)) return null;
+  return compactNum((Number.isFinite(add) ? add : 0) + (Number.isFinite(rem) ? rem : 0));
+}
+function compactNum(n) {
+  return n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n);
 }
 function jumpRail(current, allArtifacts) {
   const items = STAGES.map((stage) => {

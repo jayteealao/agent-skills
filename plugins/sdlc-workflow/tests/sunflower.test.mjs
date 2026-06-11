@@ -2,7 +2,7 @@
 // Run with: node --test plugins/sdlc-workflow/tests/sunflower.test.mjs
 
 import { test } from 'node:test';
-import { strictEqual, ok, deepStrictEqual, match } from 'node:assert/strict';
+import { strictEqual, ok, deepStrictEqual, match, doesNotMatch } from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -19,6 +19,7 @@ import { renderShell, statusBadge, stageBadge, metricRow } from '../renderers/_s
 import { validateFrontmatter } from '../renderers/_validator.mjs';
 import { buildPathMap, relativeBetween, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
 import { render as renderSlugIndex } from '../renderers/index.mjs';
+import { render as renderSliceIndexPage } from '../renderers/slice-index.mjs';
 import { isDirty, workSetFilter, maxMtime } from '../renderers/_mtime.mjs';
 import { severityChip, verdictBlock, findingListItem } from '../renderers/_icons.mjs';
 import { figureCanvas, evenX } from '../renderers/_figure.mjs';
@@ -218,6 +219,56 @@ test('slug overview: surfaces per-slice plans inline at parity with slices', () 
   match(bodyHtml, /slice plans · 2/);
   match(bodyHtml, /href="plan\/behaviors\/INDEX\.html"/);
   match(bodyHtml, /href="plan\/tokens\/INDEX\.html"/);
+});
+
+/* ── slug-overview + slice-index counts: read roll-ups, not slice leaves ──
+ * Regression for the osce-system-prompts drift: the slice-stage leaf files carry
+ * only their slicing status (`status: defined`) and the slice-INDEX is itself a
+ * `slice-index` artifact. Counting leaves+index gave +1 slices (14/17), counting
+ * leaf statuses gave 1/N implemented + 0 complete, and `progress` (a stage→status
+ * map) was read as a {done,total} counter → 0/0. All must come from the roll-ups. */
+function osceShapedArtifacts() {
+  const STAGES = ['intake', 'shape', 'slice', 'plan', 'implement', 'verify', 'review', 'handoff', 'ship', 'retro'];
+  const slugs = Array.from({ length: 16 }, (_, i) => `slice-${i}`);
+  const roster = slugs.map((slug) => ({ slug, status: 'complete' }));
+  const allArtifacts = {
+    'slice-index': [{ frontmatter: { type: 'slice-index', status: 'complete', 'total-slices': 16, slices: roster } }],
+    // Leaves carry the slicing status `defined` (one stray `complete`) — the exact
+    // shape that produced "1/16 slices" and "complete 0".
+    slice: slugs.map((slug, i) => ({ frontmatter: { type: 'slice', 'slice-slug': slug, status: i === 5 ? 'complete' : 'defined' } })),
+    'implement-index': [{ frontmatter: { type: 'implement-index', 'slices-implemented': 16, 'slices-total': 16, 'metric-total-lines-added': 25848, 'metric-total-lines-removed': 347 } }],
+    implement: slugs.map((slug) => ({ frontmatter: { type: 'implement', 'slice-slug': slug, status: 'complete' } })),
+    review: Array.from({ length: 14 }, (_, i) => ({ frontmatter: { type: 'review', dimension: `d${i}` } })),
+  };
+  const indexFm = {
+    slug: 'osce', title: 'OSCE', 'current-stage': 'retro', status: 'complete',
+    progress: Object.fromEntries(STAGES.map((s) => [s, 'complete'])),
+    'review-scope': 'slug-wide', 'selected-slice': slugs[15],
+  };
+  return { allArtifacts, indexFm, roster };
+}
+
+test('slug overview: counts/progress/LOC come from index roll-ups, not slice leaves', () => {
+  const { allArtifacts, indexFm } = osceShapedArtifacts();
+  const { headerHtml, bodyHtml } = renderSlugIndex({ frontmatter: indexFm, body: '' }, { slug: 'osce', allArtifacts });
+  const html = headerHtml + bodyHtml;
+  match(html, /16 slices/);          // slice station counts slices, not slices + the slice-index
+  doesNotMatch(html, /17 slices/);   // the +1 is gone
+  match(html, /16\/16 slices/);      // implement reads implement-index slices-implemented/total
+  match(html, /10\/10/);             // `progress` read as the stage→status map, not {done,total}
+  match(html, /26\.2k/);             // LOC from implement metric-total-lines (added + removed)
+});
+
+test('slice index: per-slice status comes from the roster, not the leaf "defined" status', () => {
+  const { allArtifacts, roster } = osceShapedArtifacts();
+  const { headerHtml } = renderSliceIndexPage(
+    { frontmatter: { type: 'slice-index', title: 'Slice index', status: 'complete', 'total-slices': 16, slices: roster }, path: '03-slice.md', body: '' },
+    { slug: 'osce', allArtifacts },
+  );
+  const flat = headerHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  match(flat, /complete 16/);    // 16 roster slices complete (leaves are all "defined")
+  match(flat, /in progress 0/);
+  match(flat, /blocked 0/);
 });
 
 /* ── _mtime ────────────────────────────────────────────────────────── */

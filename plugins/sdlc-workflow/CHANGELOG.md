@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — slug dashboard miscounted slices, progress, and LOC by reading leaf artifacts instead of roll-ups (9.58.0)
+
+The slug overview (`00-index`) and slice-index dashboards recomputed their headline numbers by
+scanning per-artifact leaf files, whose frontmatter tracks a *different* thing than the dashboard
+shows — so wherever the leaf and the index roll-up diverged, the UI showed the (younger, wronger)
+leaf. On a completed 16-slice workflow this surfaced as five contradictions:
+
+- **Slice count off by one** (`17 slices`, was `14`). `stageArtifacts` counted a stage's own
+  `*-index` roll-up as a work item — `03-slice.md` is itself type `slice-index`. It now counts
+  work-item types only, which also de-inflates the plan/implement/verify/ship counts.
+- **Implement progress wrong** (`1/16`, should be `16/16`). The caption counted slice-**stage**
+  file statuses (all `defined`, one stray `complete`) instead of the implement roll-up. It now
+  reads `05-implement.md`'s `slices-implemented`/`slices-total`, falling back to implement-leaf
+  completions over the slice roster.
+- **Slice-index card showed `complete 0`** while badged `complete`. The card counted the leaf
+  `defined` statuses; it now overlays the index's authoritative `slices[].status` roster onto
+  each leaf (keeping the leaf's richer per-slice metadata).
+- **`PROGRESS 0/0`** — a schema mismatch: `progress` is a stage→status map (`intake: complete`…),
+  not a `{done,total}` counter. It's now read as the map it is (`done = count(complete)`).
+- **`LOC TOUCHED —`** — read from the index frontmatter, where it's never written; it now derives
+  from the implement roll-up's `metric-total-lines-added/removed`.
+
+Every change keeps a graceful fallback to the prior leaf-derived behavior when a roll-up is
+absent, so sparse/early workflows don't regress. Two `osce`-shaped regression tests lock the
+counts in. (Two related presentation issues — non-monotonic per-stage dates and queued stations
+showing per-slice artifacts — are tracked separately.)
+
 ### Fixed — code browser was unusable on phones; mobile is now single-pane master-detail (9.57.0)
 
 The in-browser code browser (v9.52.0) only ever had a desktop layout. Its sole mobile rule

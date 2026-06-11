@@ -11,10 +11,21 @@ import { sliceCard, sliceState, sliceGridFigure, countPart, blockerPart } from '
 
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
-  const slices = (ctx.allArtifacts?.slice ?? []).map((s) => ({
-    slug: s.frontmatter?.['slice-slug'] ?? s.frontmatter?.slug ?? s.storageRel,
-    fm: s.frontmatter ?? {},
-  }));
+  // The index's own `slices[]` roster carries the authoritative per-slice status;
+  // the leaf slice-stage files only carry their slicing status (`defined`), which
+  // would report every slice as not-started. Overlay the roster status onto each
+  // leaf so counts, the grid, and cards reflect real progress while keeping the
+  // leaf's richer per-slice metadata (files-touched, reviews, blockers).
+  const rosterStatus = new Map(
+    (Array.isArray(fm.slices) ? fm.slices : [])
+      .filter((s) => s && s.slug)
+      .map((s) => [s.slug, s.status]),
+  );
+  const slices = (ctx.allArtifacts?.slice ?? []).map((s) => {
+    const slug = s.frontmatter?.['slice-slug'] ?? s.frontmatter?.slug ?? s.storageRel;
+    const f = s.frontmatter ?? {};
+    return { slug, fm: rosterStatus.has(slug) ? { ...f, status: rosterStatus.get(slug) } : f };
+  });
 
   const headerHtml = artifactHeader({
     crumb: artifact.path,

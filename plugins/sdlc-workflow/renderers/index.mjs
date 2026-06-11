@@ -52,8 +52,9 @@ export function render(artifact, ctx) {
     </aside>
   </header>`;
 
+  const progressValue = formatProgress(fm.progress);
   const metrics = [
-    fm.progress && { label: 'progress', value: typeof fm.progress === 'object' ? `${fm.progress.done ?? 0}/${fm.progress.total ?? 0}` : fm.progress },
+    progressValue && { label: 'progress', value: progressValue },
     fm['selected-slice'] && { label: 'slice', value: fm['selected-slice'] },
     fm['review-scope'] && { label: 'review', value: fm['review-scope'] },
   ].filter(Boolean);
@@ -142,12 +143,45 @@ const SVG_SERIF = 'Iowan Old Style, Palatino, Georgia, serif';
 // by stage name. Returns { count, latest } for date + annotation rendering.
 function stageArtifacts(stage, allArtifacts) {
   const cfg = STAGE_NAV[stage] ?? { types: [stage] };
-  const list = (cfg.types ?? [stage]).flatMap((t) => allArtifacts?.[t] ?? []);
+  // Count work-item artifacts only — a stage's own `*-index` roll-up is not a
+  // member of the work it summarises. Counting it inflated the slice station by
+  // +1 (03-slice.md is itself type `slice-index`), and likewise plan/implement/
+  // verify/ship. The roll-ups are still read directly where authoritative.
+  const types = (cfg.types ?? [stage]).filter((t) => !t.endsWith('-index'));
+  const list = types.flatMap((t) => allArtifacts?.[t] ?? []);
   const dates = list.map((a) => a.frontmatter?.['updated-at']).filter(Boolean).sort();
   return { count: list.length, latest: dates[dates.length - 1] ?? '' };
 }
 
+// The authoritative per-slice roster lives in the slice-index artifact's
+// frontmatter (`slices: [{slug,status}]` + `total-slices`), maintained by the
+// slice/implement stages. The individual slice-stage files carry only their own
+// slicing status (`defined`), so slice counts and per-slice status come from
+// this roster — never the leaves.
+function sliceRoster(allArtifacts) {
+  const fm = (allArtifacts?.['slice-index'] ?? [])[0]?.frontmatter ?? {};
+  const list = Array.isArray(fm.slices) ? fm.slices : [];
+  const total = Number(fm['total-slices']);
+  return { list, total: Number.isFinite(total) && total > 0 ? total : list.length };
+}
+
 const SLICE_DONE = new Set(['complete', 'completed', 'done', 'shipped']);
+
+// `progress` in the index frontmatter is a stage→status map
+// ({intake:'complete', shape:'complete', …}) — NOT the {done,total} counter the
+// metarow historically read (which always rendered 0/0). Accept all three
+// shapes: an explicit counter, a plain string, or the stage-status map
+// (collapsed to done/total over its completed stages).
+function formatProgress(progress) {
+  if (!progress) return null;
+  if (typeof progress === 'string') return progress;
+  if (typeof progress !== 'object') return String(progress);
+  if (Number(progress.total) > 0) return `${Number(progress.done) || 0}/${Number(progress.total)}`;
+  const states = Object.values(progress).filter((v) => typeof v === 'string');
+  if (!states.length) return null;
+  const done = states.filter((v) => SLICE_DONE.has(v.toLowerCase())).length;
+  return `${done}/${states.length}`;
+}
 
 // Semantic per-stage caption under each station (D4.6): plan → revisions,
 // implement → done/total slices, verify → tests passed; the rest keep a plain
@@ -160,10 +194,23 @@ function stationAnnotation(stage, count, allArtifacts = {}, fm = {}) {
     case 'review': return `${count} review${count === 1 ? '' : 's'}`;
     case 'ship':   return `${count} run${count === 1 ? '' : 's'}`;
     case 'implement': {
-      const slices = allArtifacts.slice ?? [];
-      if (!slices.length) return generic;
-      const done = slices.filter((s) => SLICE_DONE.has(String(s.frontmatter?.status ?? '').toLowerCase())).length;
-      return `${done}/${slices.length} slices`;
+      // Authoritative roll-up: the implement-index tracks done/total slices.
+      const ii = (allArtifacts['implement-index'] ?? [])[0]?.frontmatter ?? {};
+      const rollDone = Number(ii['slices-implemented']);
+      const rollTotal = Number(ii['slices-total']);
+      if (Number.isFinite(rollDone) && Number.isFinite(rollTotal) && rollTotal > 0) {
+        return `${rollDone}/${rollTotal} slices`;
+      }
+      // Fallback: implement-leaf completions (then the slice roster's own
+      // statuses) over the roster total. NEVER the slice-stage files — those
+      // carry only the slicing status (`defined`), not implement progress.
+      const { list, total } = sliceRoster(allArtifacts);
+      if (!total) return generic;
+      const fromLeaves = (allArtifacts.implement ?? [])
+        .filter((a) => SLICE_DONE.has(String(a.frontmatter?.status ?? '').toLowerCase())).length;
+      const fromRoster = list
+        .filter((s) => SLICE_DONE.has(String(s.status ?? '').toLowerCase())).length;
+      return `${Math.max(fromLeaves, fromRoster)}/${total} slices`;
     }
     case 'verify': {
       const tests = fm['tests-passed'] ?? fm['metric-tests'] ?? fm['tests-total'];
@@ -228,10 +275,13 @@ function stageStripeSvg({ current, allArtifacts, fm = {} }) {
 // groups. Values come from index frontmatter where available, else from
 // derived artifact counts, else an em-dash placeholder (filled by Slice 6 data).
 function metricCalloutBand(W, y, fm, allArtifacts) {
-  const sliceCount  = (allArtifacts?.slice ?? []).length;
+  const sliceCount  = sliceRoster(allArtifacts).total || (allArtifacts?.slice ?? []).length;
   const reviewCount = (allArtifacts?.review ?? []).length + (allArtifacts?.['review-command'] ?? []).length;
+  // LOC touched lives on the implement roll-up (lines added + removed), not the
+  // index frontmatter — fall back to an explicit index field, then em-dash.
+  const impFm = (allArtifacts?.['implement-index'] ?? [])[0]?.frontmatter ?? {};
   const groups = [
-    { lbl: 'LOC TOUCHED', val: fm['loc-touched'] ?? fm['metric-loc'] ?? '—' },
+    { lbl: 'LOC TOUCHED', val: fm['loc-touched'] ?? fm['metric-loc'] ?? deriveLoc(impFm) ?? '—' },
     { lbl: 'SLICES',      val: sliceCount || '—' },
     { lbl: 'REVIEWS',     val: reviewCount || '—' },
     { lbl: 'BLOCKERS',    val: fm.blockers ?? fm['blocker-count'] ?? 0 },
@@ -245,6 +295,19 @@ function metricCalloutBand(W, y, fm, allArtifacts) {
       `<text x="${x}" y="${y + 38}" text-anchor="middle" font-size="18" font-weight="600" fill="#1f1b16" font-family="${SVG_SERIF}">${escapeHtml(String(g.val))}</text>`;
   }).join('');
   return `${rule}${cells}`;
+}
+
+// LOC touched = lines added + removed from the implement roll-up, compacted to a
+// short label that fits the callout cell (e.g. 26195 → "26.2k").
+function deriveLoc(impFm) {
+  const add = Number(impFm['metric-total-lines-added']);
+  const rem = Number(impFm['metric-total-lines-removed']);
+  if (!Number.isFinite(add) && !Number.isFinite(rem)) return null;
+  return compactNum((Number.isFinite(add) ? add : 0) + (Number.isFinite(rem) ? rem : 0));
+}
+
+function compactNum(n) {
+  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
 // Jump rail (D4.10): one link per lifecycle stage with a per-stage artifact
