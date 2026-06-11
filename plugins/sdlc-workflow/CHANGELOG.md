@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — code browser was unusable on phones; mobile is now single-pane master-detail (9.57.0)
+
+The in-browser code browser (v9.52.0) only ever had a desktop layout. Its sole mobile rule
+stacked the two panes and capped the file tree at `45vh`, so tapping a file rendered it
+*below* a 365 px tree that never collapsed — on a 375×812 phone the viewer landed at y=439
+with ~44 % of the screen, and you had to scroll past the whole tree to read what you tapped.
+The 3-item topbar also crammed into 375 px and wrapped to a ragged 60 px.
+
+Mobile (`≤720px`) is now a proper **single-pane master-detail** flow:
+
+- The tree owns the full screen until a file is chosen; the empty "Select a file" viewer no
+  longer eats the lower half.
+- Selecting a file sets `.cb-detail` on the split, which swaps the tree out for a full-height
+  viewer (code starts at the top, not below the tree). A `‹ Files` bar returns to the tree
+  with the expansion state preserved.
+- The topbar collapses to one tidy row (`brand · code ⎇ branch`); the "read-only working
+  tree" hint is dropped and the crumb truncates instead of wrapping.
+
+Desktop is byte-for-byte unchanged — the swap rules are scoped inside the `≤720px` media
+query, so the `.cb-detail` class is inert above the breakpoint and both panes stay visible.
+Implemented in the code-browser bundle's own chrome (`view-src/code-browser/`), independent of
+the v9.53.0 served-page nav, and rebuilt into `dist/code-browser.{js,css}`.
+
 ### Fixed — mobile nav chrome never rendered; navigation unified across all viewports (9.53.0)
 
 The M-S1 mobile appbar + tabbar have been **dead since they landed**: their reveal rules

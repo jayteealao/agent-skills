@@ -205,6 +205,24 @@ body.cb-body {
 .cb-raw-link { color: var(--accent); text-decoration: none; }
 .cb-raw-link:hover { text-decoration: underline; }
 
+/* Back-to-tree affordance for the mobile single-pane flow — desktop keeps both
+ * panes, so it is hidden until the narrow-screen media query reveals it. */
+.cb-back {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  padding: 9px 14px;
+  font: 13px/1 var(--font-sans);
+  color: var(--accent);
+  background: var(--paper-2);
+  border: 0;
+  border-bottom: 1px solid var(--hair);
+  cursor: pointer;
+}
+.cb-back:hover { color: var(--ink); }
+.cb-back svg { width: 15px; height: 15px; }
+
 .cb-tag {
   margin-left: 6px;
   font: 9.5px/1 var(--font-sans);
@@ -224,13 +242,30 @@ body.cb-body {
   font: 13px/1.6 var(--font-mono);
 }
 
-/* ── narrow screens: stack panes ── */
+/* ── narrow screens: single-pane master-detail ──
+ * The desktop two-pane split does not survive a phone: stacking the panes
+ * leaves the viewer below a tall tree, so a tapped file lands off-screen. On
+ * mobile we show ONE pane at a time — the tree owns the screen until a file is
+ * chosen (`.cb-detail` on the split), then the viewer takes over and the
+ * `.cb-back` bar returns to the tree. */
 @media (max-width: 720px) {
   .cb-split { flex-direction: column; }
   .cb-sidebar {
     width: auto;
-    max-height: 45vh;
+    flex: 1;
+    min-height: 0;
+    max-height: none;
     border-right: 0;
-    border-bottom: 1px solid var(--hair);
+    border-bottom: 0;
   }
+  /* no file chosen → the empty viewer would just be dead space below the tree */
+  .cb-split:not(.cb-detail) .cb-content { display: none; }
+  /* file chosen → swap the tree out so the viewer is full-height */
+  .cb-split.cb-detail .cb-sidebar { display: none; }
+  .cb-back { display: inline-flex; }
+
+  /* one tidy topbar row: drop the read-only hint, keep brand + crumb */
+  .cb-topbar { gap: 10px; padding: 8px 14px; align-items: center; }
+  .cb-topbar .actions { display: none; }
+  .cb-topbar .crumb { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 }

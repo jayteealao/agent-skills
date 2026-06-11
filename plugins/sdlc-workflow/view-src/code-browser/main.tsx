@@ -10,7 +10,7 @@
 // mode gets the whole tree inline. Gitignored nodes arrive badged
 // (`ignored:true`) and render dimmed with a tag — shown, never hidden (§3.3).
 
-import { FileCode2, ImageIcon, FileWarning, Link2 } from 'lucide-react';
+import { ChevronLeft, FileCode2, ImageIcon, FileWarning, Link2 } from 'lucide-react';
 import { StrictMode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
@@ -73,6 +73,10 @@ function App({ base }: { base: string }) {
   const [childrenByPath, setChildrenByPath] = useState<Map<string, ApiNode[]>>(new Map());
   const [loadingDirs, setLoadingDirs] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<string[]>([]);
+  // The file whose viewer is open. Drives the mobile single-pane swap: null =
+  // show the tree, set = show the viewer (`.cb-detail`). On desktop both panes
+  // are always visible, so this only changes what the narrow-screen CSS reveals.
+  const [activeFile, setActiveFile] = useState<string | null>(null);
   const [blob, setBlob] = useState<BlobResponse | null>(null);
   const [blobLoading, setBlobLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -122,7 +126,8 @@ function App({ base }: { base: string }) {
   const onSelectionChange = useCallback((ids: string[]) => {
     setSelected(ids);
     const path = ids[0];
-    if (!path || dirIndex.current.has(path)) { setBlob(null); return; }
+    if (!path || dirIndex.current.has(path)) { setBlob(null); setActiveFile(null); return; }
+    setActiveFile(path);
     setBlobLoading(true);
     setError(null);
     fetchJson<BlobResponse>(`${base}/blob?path=${encodeURIComponent(path)}`).then(
@@ -130,6 +135,15 @@ function App({ base }: { base: string }) {
       (err: Error) => { setBlob(null); setError(`Could not load ${path}: ${err.message}`); },
     ).finally(() => setBlobLoading(false));
   }, [base]);
+
+  // Mobile: return from the file viewer to the tree (clears the selection so
+  // the same file can be re-opened). A no-op visual on desktop.
+  const goBackToTree = useCallback(() => {
+    setSelected([]);
+    setActiveFile(null);
+    setBlob(null);
+    setError(null);
+  }, []);
 
   const renderNode = (node: ApiNode, level: number, isLast: boolean, parentPath: boolean[]): JSX.Element => {
     const isDir = node.type === 'dir';
@@ -224,7 +238,7 @@ function App({ base }: { base: string }) {
   }, [blob, blobLoading]);
 
   return (
-    <div className="cb-split">
+    <div className={cn('cb-split', activeFile && 'cb-detail')}>
       <aside className="cb-sidebar">
         {error ? <div className="cb-error">{error}</div> : null}
         {truncatedRoot ? <div className="cb-truncated">Listing truncated (maxTreeEntries).</div> : null}
@@ -244,7 +258,12 @@ function App({ base }: { base: string }) {
           </TreeProvider>
         )}
       </aside>
-      <section className="cb-content">{viewer}</section>
+      <section className="cb-content">
+        <button type="button" className="cb-back" onClick={goBackToTree} aria-label="Back to file tree">
+          <ChevronLeft aria-hidden /> Files
+        </button>
+        {viewer}
+      </section>
     </div>
   );
 }
