@@ -7,7 +7,7 @@
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
 
-const PLUGIN_VERSION = '9.59.0';
+export const PLUGIN_VERSION = '9.60.0';
 
 /**
  * Wrap rendered content in the full HTML shell.
@@ -72,8 +72,12 @@ export function renderShell(params) {
     <div class="m-crumb"><a class="m-back" href="${escapeHtml(mBackHref)}" aria-label="Back">&larr;</a><span class="m-trail">${mCrumbTrail}</span></div>
     <h1 class="m-title">${escapeHtml(title)}</h1>
   </header>`;
+  // Active-tab rule: every page lights exactly one tab. Home owns the repo root
+  // (depth <=1); Overview owns the section root AND everything nested under it
+  // (depth >=2) — so a deep stage/artifact page still shows a "you are here"
+  // cue rather than leaving the whole tabbar inactive.
   const mTabs = [{ href: homeHref, label: 'Home', icon: TAB_ICONS.home, active: breadcrumbs.length <= 1 }];
-  if (breadcrumbs.length >= 2) mTabs.push({ href: breadcrumbs[1].href, label: 'Overview', icon: TAB_ICONS.grid, active: breadcrumbs.length === 2 });
+  if (breadcrumbs.length >= 2) mTabs.push({ href: breadcrumbs[1].href, label: 'Overview', icon: TAB_ICONS.grid, active: breadcrumbs.length >= 2 });
   const mTabbar = `<nav class="m-tabbar" aria-label="Sections">${mTabs.map((t) =>
     `<a class="m-tab${t.active ? ' is-active' : ''}" href="${escapeHtml(t.href)}">${t.icon}<span>${escapeHtml(t.label)}</span></a>`).join('')}<label class="m-tab m-tab-menu" for="m-menu">${TAB_ICONS.menu}<span>Menu</span></label></nav>`;
 
@@ -95,7 +99,7 @@ export function renderShell(params) {
   ].join('');
   const mMenu = `<input type="checkbox" id="m-menu" class="m-menu-toggle" aria-label="Navigation menu">
   <label class="m-backdrop" for="m-menu" aria-hidden="true"></label>
-  <aside class="m-sheet" role="dialog" aria-label="Navigation">
+  <aside class="m-sheet" aria-label="Navigation">
     <div class="m-sheet-grip" aria-hidden="true"></div>
     <h2 class="m-sheet-head">Places</h2>
     <nav class="m-sheet-places" aria-label="Places">${mPlaces}</nav>

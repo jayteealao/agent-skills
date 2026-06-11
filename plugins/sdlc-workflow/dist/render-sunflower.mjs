@@ -11,7 +11,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-FJRCBS33.mjs";
+} from "./chunk-7C3X3TLC.mjs";
 import {
   configHash,
   loadConfigWithMeta
@@ -25,11 +25,12 @@ import {
   upsertRegistryEntry
 } from "./chunk-NOGYVKL5.mjs";
 import {
+  PLUGIN_VERSION,
   breadcrumbFromView,
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-NMNGTR6J.mjs";
+} from "./chunk-P6EMQ23V.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -243,7 +244,7 @@ function expand(html, ctx) {
 import { readFileSync as readFileSync2 } from "node:fs";
 import { request } from "node:http";
 import { join as join2 } from "node:path";
-var PLUGIN_VERSION = (() => {
+var PLUGIN_VERSION2 = (() => {
   try {
     return JSON.parse(readFileSync2(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
   } catch {
@@ -293,14 +294,14 @@ async function ensureServeLifecycle({
   }
   if (status.alive) {
     const id = await probeServeIdentity({ host, port, timeoutMs: 600 });
-    if (id && id.version === PLUGIN_VERSION) {
+    if (id && id.version === PLUGIN_VERSION2) {
       log(`[serve] already running at http://${displayHost(host)}:${port}`);
       maybeConfigureTailscale({ tailscale, port, log });
       return { action: "already-running", pid: status.record.pid };
     }
     stopPid(status.record.pid, log);
     await removePidFile(pidPath);
-    log(id ? `[serve] reaped stale daemon v${id.version || "?"} \u2192 v${PLUGIN_VERSION} (pid ${status.record.pid})` : `[serve] stopped unhealthy daemon pid ${status.record.pid}`);
+    log(id ? `[serve] reaped stale daemon v${id.version || "?"} \u2192 v${PLUGIN_VERSION2} (pid ${status.record.pid})` : `[serve] stopped unhealthy daemon pid ${status.record.pid}`);
   } else if (status.stale) {
     await removePidFile(pidPath);
     log(`[serve] removed stale pid file for pid ${status.record?.pid}`);
@@ -742,6 +743,16 @@ async function renderMain(args) {
   const config = configMeta.config;
   const liveReload = config.view?.serve?.enabled === true && config.view?.serve?.liveReload !== false;
   mkdirSync(viewRoot, { recursive: true });
+  if (args.mode !== "clean") {
+    try {
+      const prior = JSON.parse(readFileSync3(join3(viewRoot, ".last-render"), "utf8"));
+      if (prior?.version && prior.version !== PLUGIN_VERSION) {
+        console.log(`[render] plugin ${prior.version} \u2192 ${PLUGIN_VERSION}: template/version changed, forcing clean re-render`);
+        args.mode = "clean";
+      }
+    } catch {
+    }
+  }
   if (args.mode === "clean") {
     for (const entry of readdirSync(viewRoot, { withFileTypes: true })) {
       if (entry.isDirectory() && entry.name !== "_assets") {
@@ -965,7 +976,7 @@ async function renderMain(args) {
       }
     }
     const manifest = {
-      version: "9.59.0",
+      version: PLUGIN_VERSION,
       generatedAt: (/* @__PURE__ */ new Date()).toISOString(),
       slugs: [...slugArtifacts.keys()].filter((slug) => !slug.startsWith("__")).map((slug) => ({
         slug,
@@ -975,6 +986,7 @@ async function renderMain(args) {
     writeFileAtomic(join3(viewRoot, "INDEX.yaml"), `# sdlc view manifest
 ${toYaml(manifest)}`);
     writeFileAtomic(join3(viewRoot, ".last-render"), `${JSON.stringify({
+      version: PLUGIN_VERSION,
       renderedAt: manifest.generatedAt,
       renderedCount,
       schemaWarnings,

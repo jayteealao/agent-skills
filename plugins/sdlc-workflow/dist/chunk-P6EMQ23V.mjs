@@ -249,7 +249,7 @@ function breadcrumbFromView(viewRel, slug) {
 }
 
 // renderers/_shell.mjs
-var PLUGIN_VERSION = "9.59.0";
+var PLUGIN_VERSION = "9.60.0";
 function renderShell(params) {
   const {
     title,
@@ -284,7 +284,7 @@ function renderShell(params) {
     <h1 class="m-title">${escapeHtml(title)}</h1>
   </header>`;
   const mTabs = [{ href: homeHref, label: "Home", icon: TAB_ICONS.home, active: breadcrumbs.length <= 1 }];
-  if (breadcrumbs.length >= 2) mTabs.push({ href: breadcrumbs[1].href, label: "Overview", icon: TAB_ICONS.grid, active: breadcrumbs.length === 2 });
+  if (breadcrumbs.length >= 2) mTabs.push({ href: breadcrumbs[1].href, label: "Overview", icon: TAB_ICONS.grid, active: breadcrumbs.length >= 2 });
   const mTabbar = `<nav class="m-tabbar" aria-label="Sections">${mTabs.map((t) => `<a class="m-tab${t.active ? " is-active" : ""}" href="${escapeHtml(t.href)}">${t.icon}<span>${escapeHtml(t.label)}</span></a>`).join("")}<label class="m-tab m-tab-menu" for="m-menu">${TAB_ICONS.menu}<span>Menu</span></label></nav>`;
   const mPlaces = [
     `<a class="brand" href="${escapeHtml(pageHref(`${assetBase}/..`))}">.ai/workflows</a>`,
@@ -292,7 +292,7 @@ function renderShell(params) {
   ].join("");
   const mMenu = `<input type="checkbox" id="m-menu" class="m-menu-toggle" aria-label="Navigation menu">
   <label class="m-backdrop" for="m-menu" aria-hidden="true"></label>
-  <aside class="m-sheet" role="dialog" aria-label="Navigation">
+  <aside class="m-sheet" aria-label="Navigation">
     <div class="m-sheet-grip" aria-hidden="true"></div>
     <h2 class="m-sheet-head">Places</h2>
     <nav class="m-sheet-places" aria-label="Places">${mPlaces}</nav>
@@ -388,6 +388,7 @@ export {
   siblingPaths,
   pageHref,
   breadcrumbFromView,
+  PLUGIN_VERSION,
   renderShell,
   artifactHeader,
   statusBadge,

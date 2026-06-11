@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — template/version changes now re-render every page; mobile nav surface polish (9.60.0)
+
+**Root cause — stale chrome after template changes.** The additive (incremental) render keys
+dirtiness on source-artifact mtime vs output-HTML mtime only (`renderers/_mtime.mjs#isDirty`), with
+no template/renderer/CSS/version component. So a shell or stylesheet change that bumps the plugin
+version *without touching any artifact* left every already-rendered page frozen at its old chrome —
+while the unconditionally-recopied assets raced ahead, producing split-brain pages (current CSS over
+stale markup). Observed in the wild: an `osce` dashboard stamped `data-sdlc-version="9.35.0"`
+serving the pre-9.53 tabbar (Home/Overview/Up, no bottom sheet) under v9.59 CSS — the entire 9.53
+nav unification had never reached it.
+
+- **Version gate.** `.last-render` now records `version`, and a render forces a clean pass when the
+  recorded version differs from the running `PLUGIN_VERSION`. A missing/unparseable record (first
+  render, or post-clean) stays additive — no clean loop. Verified end-to-end: an unchanged
+  re-render still skips every artifact page (no perf regression); a version-rewound re-render
+  rewrites all of them.
+- `PLUGIN_VERSION` is now **exported** from `renderers/_shell.mjs` and shared by the renderer and
+  the manifest, so the script no longer carries its own version literal (one fewer bump-spot).
+
+**Mobile nav surface (`<=720px`).**
+
+- **Active tab on deep pages.** The bottom tabbar lit no tab below depth 2 (Overview was active
+  only at depth exactly 2), so stage/artifact pages lost their "you are here" cue. Overview now
+  owns the section root *and everything nested under it* — exactly one tab is always active.
+- **Breadcrumb truncation fixed end.** The appbar crumb clipped the *current* segment off-screen on
+  deep trails (only the last item got ellipsis, with no shrink discipline). It now pins the current
+  segment to the right and fade-clips the ancestor chain on the left.
+- **Honest disclosure semantics.** The menu sheet dropped its misleading `role="dialog"` (it traps
+  no focus and inerts no background) and is now a plain labelled disclosure; `sdlc.js` moves focus
+  into the sheet on open and restores it to the menu control on close.
+- **Redundant footer hidden on mobile** (its up/updated/md links all live in the menu sheet), and
+  the tabbar's hardcoded translucent fill became a `--paper-glass` token so a future theme has one
+  override point.
+
+Five new shell regression tests pin the tabbar active-state and the disclosure semantics. Renderers
+are bundled, so `dist/` is rebuilt in the same commit.
+
 ### Changed — slug dashboard stats are now all derived from artifacts, so they're always current (9.59.0)
 
 Follow-up to 9.58.0. The slug-overview callout band (and mobile tiles) read `LOC TOUCHED`,

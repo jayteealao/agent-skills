@@ -11,6 +11,7 @@
   --paper:    #fbfaf6;
   --paper-2:  #f3f1ea;
   --paper-3:  #ebe7dc;
+  --paper-glass: rgba(251, 250, 246, 0.92);  /* --paper @ 92% — translucent chrome (mobile tabbar) */
   --ink:      #1f1b16;
   --ink-2:    #4a443c;
   --ink-3:    #8a8377;
@@ -1306,7 +1307,10 @@ details.history li, details.revisions li { padding: 4px 0; }
   .figure-canvas svg { min-width: var(--figure-min-w, 760px); }
   .metric-row { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
   .metric-value { font-size: 22px; }
-  .bottom { padding: 16px 20px; flex-direction: column; gap: 4px; }
+  /* The desktop footer (up / updated / md source) is fully redundant on mobile:
+     all three live in the menu sheet's Links + meta, and "up" is also the appbar
+     back-arrow. Hide it so the page ends cleanly above the tabbar. */
+  .bottom { display: none; }
 
   /* M-S1 · native mobile chrome (5b). Swap the desktop topbar for a sticky
      appbar (crumb + page title) and a fixed bottom tabbar; the body page-title
@@ -1360,13 +1364,20 @@ details.history li, details.revisions li { padding: 4px 0; }
 .m-appbar { position: sticky; top: 0; z-index: 30; padding: max(8px, env(safe-area-inset-top)) 18px 12px; background: var(--paper); border-bottom: 1px solid var(--rule); }
 .m-appbar .m-crumb { font-family: var(--mono); font-size: 11px; color: var(--ink-3); display: flex; align-items: center; gap: 8px; white-space: nowrap; overflow: hidden; }
 .m-appbar .m-crumb a, .m-appbar .m-back { color: var(--accent); text-decoration: none; }
-.m-appbar .m-back { font-size: 15px; }
-.m-appbar .m-crumb .m-here { overflow: hidden; text-overflow: ellipsis; }
+.m-appbar .m-back { flex: 0 0 auto; font-size: 15px; }
+/* Pin the current segment to the RIGHT and clip the ancestor chain on the left
+   (the mask fades it out) so a deep trail sheds its least-relevant leading
+   crumbs while the page you're on stays visible — rather than the tail (current
+   page) being pushed off-screen and clipped, which is what plain nowrap+overflow
+   did. The current segment still ellipsizes if it alone is too long. */
+.m-appbar .m-trail { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; justify-content: flex-end; overflow: hidden; -webkit-mask-image: linear-gradient(to right, transparent 0, #000 24px); mask-image: linear-gradient(to right, transparent 0, #000 24px); }
+.m-appbar .m-trail > * { flex: 0 0 auto; }
+.m-appbar .m-crumb .m-here { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .m-appbar .m-title { font-family: var(--serif); font-size: 21px; font-weight: 600; letter-spacing: -0.01em; margin: 4px 0 0; line-height: 1.2; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Fixed bottom tabbar (revealed <=720px). Sits ABOVE the sheet backdrop
    (z 50 vs 40) so the Menu tab stays tappable while the sheet is open. */
-.m-tabbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; grid-auto-flow: column; grid-auto-columns: 1fr; height: calc(62px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: rgba(251, 250, 246, 0.92); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-top: 1px solid var(--rule); }
+.m-tabbar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; grid-auto-flow: column; grid-auto-columns: 1fr; height: calc(62px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: var(--paper-glass); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-top: 1px solid var(--rule); }
 .m-tabbar .m-tab { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-family: var(--sans); font-size: 10px; letter-spacing: 0.02em; color: var(--ink-3); text-decoration: none; cursor: pointer; }
 .m-tabbar .m-tab svg { width: 21px; height: 21px; }
 .m-tabbar .m-tab.is-active { color: var(--accent); }

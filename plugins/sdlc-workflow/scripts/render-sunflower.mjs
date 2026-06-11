@@ -36,7 +36,7 @@ import { resolveViewPath, siblingPaths, breadcrumbFromView } from '../renderers/
 import { buildPathMap, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
 import { workSetFilter } from '../renderers/_mtime.mjs';
 import { loadHistory } from '../renderers/_history.mjs';
-import { renderShell } from '../renderers/_shell.mjs';
+import { renderShell, PLUGIN_VERSION } from '../renderers/_shell.mjs';
 import { expand as expandSnippets } from '../components/_components.mjs';
 import { loadConfigWithMeta, configHash as computeConfigHash } from '../lib/config.mjs';
 import { ensureServeLifecycle } from '../lib/serve-lifecycle.mjs';
@@ -429,6 +429,27 @@ async function renderMain(args) {
 
   // 1. ensure viewRoot exists; --clean wipes slug folders
   mkdirSync(viewRoot, { recursive: true });
+
+  // Template/version gate. The additive work-set keys ONLY on source-vs-output
+  // mtime (see renderers/_mtime.mjs#isDirty), so a renderer/shell/CSS change
+  // that bumps PLUGIN_VERSION without touching any artifact leaves every
+  // already-rendered page frozen at its old chrome — while the unconditionally
+  // recopied assets race ahead, producing split-brain pages (current CSS over
+  // stale markup). When the recorded render version differs from the running
+  // plugin version, force a clean pass so the new template reaches every page.
+  // A missing/unparseable record means a first render (already exhaustive) or a
+  // prior clean — either way additive is correct, so we never force a clean
+  // loop on absence.
+  if (args.mode !== 'clean') {
+    try {
+      const prior = JSON.parse(readFileSync(join(viewRoot, '.last-render'), 'utf8'));
+      if (prior?.version && prior.version !== PLUGIN_VERSION) {
+        console.log(`[render] plugin ${prior.version} → ${PLUGIN_VERSION}: template/version changed, forcing clean re-render`);
+        args.mode = 'clean';
+      }
+    } catch { /* no prior record — additive is correct */ }
+  }
+
   if (args.mode === 'clean') {
     for (const entry of readdirSync(viewRoot, { withFileTypes: true })) {
       if (entry.isDirectory() && entry.name !== '_assets') {
@@ -731,7 +752,7 @@ async function renderMain(args) {
 
     // 9. manifest pass
     const manifest = {
-      version:     '9.59.0',
+      version:     PLUGIN_VERSION,
       generatedAt: new Date().toISOString(),
       slugs: [...slugArtifacts.keys()]
         .filter((slug) => !slug.startsWith('__'))   // drop synthetic off-pipeline buckets
@@ -742,6 +763,7 @@ async function renderMain(args) {
     };
     writeFileAtomic(join(viewRoot, 'INDEX.yaml'), `# sdlc view manifest\n${toYaml(manifest)}`);
     writeFileAtomic(join(viewRoot, '.last-render'), `${JSON.stringify({
+      version: PLUGIN_VERSION,
       renderedAt: manifest.generatedAt,
       renderedCount,
       schemaWarnings,

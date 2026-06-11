@@ -15,7 +15,7 @@ const __filename = fileURLToPath(import.meta.url);
 import { resolveViewPath, siblingPaths, breadcrumbFromView } from '../renderers/_paths.mjs';
 import { splitFrontmatter, mergeFrontmatter } from '../renderers/_yaml.mjs';
 import { md2html, mdInline } from '../renderers/_markdown.mjs';
-import { renderShell, statusBadge, stageBadge, metricRow } from '../renderers/_shell.mjs';
+import { renderShell, PLUGIN_VERSION, statusBadge, stageBadge, metricRow } from '../renderers/_shell.mjs';
 import { validateFrontmatter } from '../renderers/_validator.mjs';
 import { buildPathMap, relativeBetween, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
 import { render as renderSlugIndex } from '../renderers/index.mjs';
@@ -160,6 +160,59 @@ test('renderShell: wraps content with breadcrumbs and asset links', () => {
   match(html, /<title>Test — sdlc/);
   match(html, /sdlc\.css\?v=9\.\d+\.\d+/);
   match(html, /data-artifact-type="index"/);
+});
+
+/* ── mobile nav surface (appbar / tabbar / disclosure sheet) ───────── */
+
+// Returns true|false if the named tab carries `is-active`, or null if absent.
+// The tempered `(?:(?!</a>).)*?` keeps the match inside ONE anchor so it can't
+// bridge from an earlier (inactive) tab to a later tab's label.
+function mTabActive(html, label) {
+  const re = new RegExp(`<a class="m-tab( is-active)?"(?:(?!</a>).)*?<span>${label}</span></a>`, 's');
+  const m = html.match(re);
+  return m ? Boolean(m[1]) : null;
+}
+function shellAt(breadcrumbs) {
+  return renderShell({
+    title: 'T', type: 'index', slug: 'demo', status: 'active',
+    breadcrumbs, assetBase: '/sdlc/_assets', headerHtml: '', bodyHtml: '',
+  });
+}
+
+test('mobile tabbar: repo root lights Home, has no Overview tab', () => {
+  const html = shellAt([{ label: 'sdlc', href: './' }]);
+  strictEqual(mTabActive(html, 'Home'), true);
+  strictEqual(mTabActive(html, 'Overview'), null);
+});
+
+test('mobile tabbar: section root lights Overview, not Home', () => {
+  const html = shellAt([{ label: 'sdlc', href: '../' }, { label: 'demo', href: './' }]);
+  strictEqual(mTabActive(html, 'Home'), false);
+  strictEqual(mTabActive(html, 'Overview'), true);
+});
+
+test('mobile tabbar: deep page still lights exactly one tab (Overview)', () => {
+  // depth 4 — the bug was that no tab was active below depth 2.
+  const html = shellAt([
+    { label: 'sdlc',    href: '../../../' },
+    { label: 'demo',    href: '../../' },
+    { label: 'handoff', href: '../' },
+    { label: '1',       href: './' },
+  ]);
+  strictEqual(mTabActive(html, 'Home'), false);
+  strictEqual(mTabActive(html, 'Overview'), true);
+});
+
+test('mobile sheet: honest disclosure, not a faux modal dialog', () => {
+  const html = shellAt([{ label: 'sdlc', href: '../' }, { label: 'demo', href: './' }]);
+  match(html, /<aside class="m-sheet" aria-label="Navigation">/);
+  doesNotMatch(html, /role="dialog"/);
+});
+
+test('PLUGIN_VERSION is exported and stamps the page', () => {
+  ok(/^\d+\.\d+\.\d+$/.test(PLUGIN_VERSION));
+  const stamp = new RegExp(`data-sdlc-version="${PLUGIN_VERSION.replace(/\./g, '\\.')}"`);
+  match(shellAt([{ label: 'sdlc', href: './' }]), stamp);
 });
 
 /* ── _validator ────────────────────────────────────────────────────── */

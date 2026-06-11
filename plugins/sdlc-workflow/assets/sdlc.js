@@ -111,13 +111,30 @@
   function wireMobileMenu() {
     const toggle = document.getElementById('m-menu');
     if (!toggle) return;
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && toggle.checked) toggle.checked = false;
-    });
     const sheet = document.querySelector('.m-sheet');
+
+    /* The sheet is a disclosure, not a modal — so instead of trapping focus we
+       do the two things a keyboard / AT user needs: move focus INTO the sheet
+       when it opens, and return it to the menu control when it closes.
+       Programmatic `checked = false` does not fire a 'change' event, so every
+       close routes through closeMenu() to keep focus handling in one place. */
+    function closeMenu() {
+      if (!toggle.checked) return;
+      toggle.checked = false;
+      try { toggle.focus({ preventScroll: true }); } catch (_) { toggle.focus(); }
+    }
+    toggle.addEventListener('change', () => {
+      if (toggle.checked && sheet) {
+        const first = sheet.querySelector('a[href], button, [tabindex]:not([tabindex="-1"])');
+        if (first) first.focus();
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMenu();
+    });
     if (sheet) {
       sheet.addEventListener('click', (e) => {
-        if (e.target.closest && e.target.closest('a')) toggle.checked = false;
+        if (e.target.closest && e.target.closest('a')) closeMenu();
       });
     }
     window.addEventListener('pageshow', (e) => {
