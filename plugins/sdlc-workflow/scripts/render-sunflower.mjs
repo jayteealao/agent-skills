@@ -375,9 +375,14 @@ function fallbackRender(artifact, ctx) {
     <h1 class="sdlc-h1">${escape(fm.title ?? fm.type ?? artifact.path)}</h1>
     <div class="sdlc-crumb">${escape(artifact.path)}</div>
   </header>`;
-  const bodyHtml = artifact.fragment
-    ? `<div class="fragment">${artifact.fragment}</div>`
-    : `<div class="prose">${md2html(artifact.body)}</div>`;
+  // Render BOTH the fragment and the markdown prose. A typed renderer that
+  // throws lands here; if we kept only the fragment (the old XOR), the author's
+  // prose would silently vanish. The fragment owns rich structure; the prose is
+  // the source of record — never drop it on a render failure.
+  const bodyHtml = [
+    artifact.fragment ? `<div class="fragment">${artifact.fragment}</div>` : '',
+    artifact.body ? `<div class="prose">${md2html(artifact.body)}</div>` : '',
+  ].join('');
   return { headerHtml, bodyHtml, links: [], children: [] };
 }
 

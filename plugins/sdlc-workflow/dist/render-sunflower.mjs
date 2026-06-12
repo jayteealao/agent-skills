@@ -11,7 +11,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-7C3X3TLC.mjs";
+} from "./chunk-WS4VN7DY.mjs";
 import {
   configHash,
   loadConfigWithMeta
@@ -30,7 +30,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-P6EMQ23V.mjs";
+} from "./chunk-MG6EU35E.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -704,7 +704,10 @@ function fallbackRender(artifact, ctx) {
     <h1 class="sdlc-h1">${escape(fm.title ?? fm.type ?? artifact.path)}</h1>
     <div class="sdlc-crumb">${escape(artifact.path)}</div>
   </header>`;
-  const bodyHtml = artifact.fragment ? `<div class="fragment">${artifact.fragment}</div>` : `<div class="prose">${md2html(artifact.body)}</div>`;
+  const bodyHtml = [
+    artifact.fragment ? `<div class="fragment">${artifact.fragment}</div>` : "",
+    artifact.body ? `<div class="prose">${md2html(artifact.body)}</div>` : ""
+  ].join("");
   return { headerHtml, bodyHtml, links: [], children: [] };
 }
 function escape(s) {

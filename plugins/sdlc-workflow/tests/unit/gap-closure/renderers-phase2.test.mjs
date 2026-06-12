@@ -11,6 +11,7 @@ import { render as renderReviewCommand } from '../../../renderers/review-command
 import { render as renderDesignContract } from '../../../renderers/design-contract.mjs';
 import { render as renderDesignCritique } from '../../../renderers/design-critique.mjs';
 import { render as renderDesignAudit } from '../../../renderers/design-audit.mjs';
+import { render as renderPlan } from '../../../renderers/plan.mjs';
 import {
   defaultFrontmatterSchemaPath,
   validateFrontmatter,
@@ -248,4 +249,55 @@ test('phase 2 renderer: design contract, critique, and audit render Phase 1 arti
   }));
   match(audit.bodyHtml, /design-audit-violations/);
   match(audit.bodyHtml, /focus-visible/);
+});
+
+// Regression: a plan whose sibling YAML uses the rich object-form `modules:`
+// (with files referencing them via `module:`) must still render its topology
+// figure AND keep the markdown prose alongside the fragment. Previously
+// fileTopologySvg assumed `modules` was a string[] and called
+// `b.mod.toUpperCase()` on an object → threw → the dispatch fell back to the
+// prose-dropping fallback renderer, so the body showed only the fragment.
+test('plan renderer: object-form modules render topology + keep prose with a fragment', () => {
+  const out = renderPlan(artifact({
+    path: '04-plan-signin-ui.md',
+    frontmatter: { type: 'plan', status: 'complete', 'slice-slug': 'signin-ui' },
+    body: '## Current State\nThe authored plan prose that must survive.',
+    siblingYaml: {
+      modules: [
+        { id: 'firebase-init', label: 'Firebase client init', role: 'infra' },
+        { id: 'auth-context', label: 'Auth context + hook', role: 'domain' },
+      ],
+      files: [
+        { path: 'frontend/src/lib/firebase.ts', role: 'new', module: 'firebase-init' },
+        { path: 'frontend/src/auth/context.tsx', role: 'modified', module: 'auth-context' },
+      ],
+    },
+    fragment: '<section class="fragment-plan">rich cards</section>',
+  }));
+
+  // Prose survives (the whole point of the fix).
+  match(out.bodyHtml, /class="prose"/);
+  match(out.bodyHtml, /authored plan prose that must survive/);
+  // Fragment still renders.
+  match(out.bodyHtml, /fragment-plan/);
+  // The topology figure rendered the module label, not a crash fallback.
+  match(out.bodyHtml, /File-change topology/);
+  match(out.bodyHtml, /FIREBASE CLIENT INIT/);
+});
+
+// Defense-in-depth: even if the figure data is malformed enough to throw,
+// the per-figure guard degrades to the placeholder topology and the prose
+// still renders — the render never collapses into the fallback.
+test('plan renderer: a malformed figure degrades but prose still renders', () => {
+  const out = renderPlan(artifact({
+    path: '04-plan-broken.md',
+    frontmatter: { type: 'plan', status: 'complete' },
+    body: '## Plan\nProse that must not disappear.',
+    // `files` present (so the figure path runs) but `edges` reference a shape
+    // that would historically throw deep in the SVG builder.
+    siblingYaml: { modules: [{ id: 'm1', label: 'Mod One' }], files: [{ path: 'a/b.ts', module: 'm1' }], edges: [{ from: null, to: null }] },
+  }));
+
+  match(out.bodyHtml, /class="prose"/);
+  match(out.bodyHtml, /must not disappear/);
 });

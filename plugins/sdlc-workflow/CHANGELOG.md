@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — rich object-form sibling YAML no longer crashes a renderer into prose-dropping fallback (9.61.0)
+
+**Root cause — a renderer crash silently dropped the markdown prose.** A plan slice whose sibling
+`.yaml` authored `modules:` in the rich object form (`- id / label / role`, with files referencing
+them via `module:`) crashed `renderers/plan.mjs`: `fileTopologySvg` assumed `modules` was an array
+of path-prefix *strings* and called `b.mod.toUpperCase()` on an object → `TypeError`. The render
+dispatch catches any typed-renderer throw and falls back to a generic renderer whose body logic was
+`fragment ? fragment : prose` (XOR) — so for a fragment-bearing artifact the **entire markdown prose
+vanished**, leaving only the fragment. The page was also frozen at an old `data-sdlc-version` because
+no re-render had run since, masking it as staleness; re-rendering on current code reproduced the
+throw deterministically.
+
+**Fixes.**
+- `fileTopologySvg` now normalises `modules` to `{ key, label }`, accepting both legacy path-prefix
+  strings and `{ id, label, role }` objects, and buckets files by their declared `module:` id (else
+  by path prefix). The module label is coerced to a string before display. Legacy string-form plans
+  render byte-identically (snapshots unchanged).
+- Guarded the remaining string-method-on-YAML-value sites of the same class: plan data-flow lane
+  labels (`renderers/plan.mjs`) and the RCA timeline/causal-chain `kind`/`title`/`body`
+  (`renderers/rca.mjs`).
+- `renderers/plan.mjs` wraps figure construction in a guard: a malformed sibling YAML degrades the
+  figure to the placeholder topology instead of taking down the whole render.
+- Structural safety net: the generic fallback renderer (`scripts/render-sunflower.mjs`) now emits
+  **both** the fragment and the markdown prose, so no future typed-renderer crash can silently drop
+  an author's prose.
+- Regression tests cover object-form modules (prose + fragment + topology survive) and figure
+  degradation.
+
 ### Fixed — template/version changes now re-render every page; mobile nav surface polish (9.60.0)
 
 **Root cause — stale chrome after template changes.** The additive (incremental) render keys

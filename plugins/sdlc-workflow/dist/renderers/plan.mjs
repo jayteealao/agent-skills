@@ -6,7 +6,7 @@ import {
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-7C3X3TLC.mjs";
+} from "../chunk-WS4VN7DY.mjs";
 import {
   figureCanvas
 } from "../chunk-PDBKNARE.mjs";
@@ -15,7 +15,7 @@ import {
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-P6EMQ23V.mjs";
+} from "../chunk-MG6EU35E.mjs";
 import "../chunk-LFGT2BKG.mjs";
 import {
   escapeHtml
@@ -52,10 +52,14 @@ function render(artifact, ctx) {
     { state: "external", label: "external" }
   ];
   let figureHtml = "";
-  if (sy?.files?.length) {
-    const dataFlow = hasDataFlowLanes(sy);
-    figureHtml = dataFlow ? figureCanvas({ figureNumber: 3, title: "Data-flow lanes", svgInner: dataFlowLaneSvg(sy), legend: PLAN_LEGEND }) + dataFlowLegendExtra() : figureCanvas({ figureNumber: 3, title: "File-change topology", svgInner: fileTopologySvg(sy), legend: PLAN_LEGEND });
-  } else {
+  try {
+    if (sy?.files?.length) {
+      const dataFlow = hasDataFlowLanes(sy);
+      figureHtml = dataFlow ? figureCanvas({ figureNumber: 3, title: "Data-flow lanes", svgInner: dataFlowLaneSvg(sy), legend: PLAN_LEGEND }) + dataFlowLegendExtra() : figureCanvas({ figureNumber: 3, title: "File-change topology", svgInner: fileTopologySvg(sy), legend: PLAN_LEGEND });
+    } else {
+      figureHtml = figureCanvas({ figureNumber: 3, title: "File-change topology", svgInner: placeholderTopologySvg(), legend: PLAN_LEGEND });
+    }
+  } catch {
     figureHtml = figureCanvas({ figureNumber: 3, title: "File-change topology", svgInner: placeholderTopologySvg(), legend: PLAN_LEGEND });
   }
   const structured = artifact.fragment ? "" : structuredSections(fm, sy);
@@ -69,19 +73,27 @@ function render(artifact, ctx) {
     children: []
   };
 }
+function normalizeModule(m) {
+  if (typeof m === "string") return { key: m, label: m };
+  if (m && typeof m === "object") {
+    const key = m.id ?? m.key ?? m.name ?? m.label ?? "";
+    return { key: String(key), label: String(m.label ?? m.name ?? key) };
+  }
+  return { key: String(m ?? ""), label: String(m ?? "") };
+}
 function fileTopologySvg(sy) {
-  const modules = sy.modules ?? [];
+  const modules = (sy.modules ?? []).map(normalizeModule);
   const files = sy.files ?? [];
   const edges = sy.edges ?? [];
   const W = 980;
   const moduleByFile = /* @__PURE__ */ new Map();
   const buckets = /* @__PURE__ */ new Map();
-  for (const m of modules) buckets.set(m, []);
+  for (const m of modules) buckets.set(m.key, { label: m.label, files: [] });
   for (const f of files) {
-    const mod = modules.find((m) => f.path?.startsWith(m)) ?? modules[0] ?? "";
-    moduleByFile.set(f.path, mod);
-    if (!buckets.has(mod)) buckets.set(mod, []);
-    buckets.get(mod).push(f);
+    const key = f.module != null && f.module !== "" ? String(f.module) : modules.find((m) => typeof f.path === "string" && f.path.startsWith(m.key))?.key ?? modules[0]?.key ?? "";
+    moduleByFile.set(f.path, key);
+    if (!buckets.has(key)) buckets.set(key, { label: key, files: [] });
+    buckets.get(key).files.push(f);
   }
   const moduleEntries = [...buckets.entries()];
   const cols = Math.min(3, Math.max(1, moduleEntries.length));
@@ -93,14 +105,15 @@ function fileTopologySvg(sy) {
   let H = padTop;
   const filePos = /* @__PURE__ */ new Map();
   const modBoxes = [];
-  moduleEntries.forEach(([mod, list], i) => {
+  moduleEntries.forEach(([key, bucket], i) => {
+    const list = bucket.files;
     const col = i % cols;
     const row = Math.floor(i / cols);
     const x = 20 + col * colW;
     const fileBlockH = list.length * (fileH + fileGap) + modPad;
     const boxH = fileBlockH + 28;
     const yStart = padTop + row * (boxH + 24);
-    modBoxes.push({ x, y: yStart, w: colW - 12, h: boxH, mod });
+    modBoxes.push({ x, y: yStart, w: colW - 12, h: boxH, label: bucket.label ?? key });
     list.forEach((f, j) => {
       filePos.set(f.path, {
         x: x + 12,
@@ -112,7 +125,7 @@ function fileTopologySvg(sy) {
   });
   const moduleSvg = modBoxes.map(
     (b) => `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="6" fill="none" stroke="#cbc4b1" stroke-dasharray="4 3" stroke-width="1"/>
-     <text x="${b.x + 10}" y="${b.y + 18}" font-size="10" font-weight="600" fill="#8a8377" letter-spacing="0.8">${escapeHtml(b.mod.toUpperCase())}</text>`
+     <text x="${b.x + 10}" y="${b.y + 18}" font-size="10" font-weight="600" fill="#8a8377" letter-spacing="0.8">${escapeHtml(String(b.label ?? "").toUpperCase())}</text>`
   ).join("");
   const fileSvg = files.map((f) => {
     const p = filePos.get(f.path);
@@ -325,7 +338,7 @@ function dataFlowLaneSvg(sy) {
   for (const f of sy.files ?? []) roleByPath.set(f.path, f.role ?? "modified");
   const laneSvg = laneBoxes.map(({ y, lane }) => {
     const banner = `<rect x="${padX}" y="${y}" width="${W - 2 * padX}" height="${laneH}" rx="6" fill="none" stroke="#cbc4b1" stroke-dasharray="4 3" stroke-width="1"/>`;
-    const label = `<text x="${lane._labelX + 6}" y="${y + 22}" font-size="10" font-weight="700" letter-spacing="0.8" fill="#8a8377">${escapeHtml((lane.label ?? lane.service).toUpperCase())}</text>`;
+    const label = `<text x="${lane._labelX + 6}" y="${y + 22}" font-size="10" font-weight="700" letter-spacing="0.8" fill="#8a8377">${escapeHtml(String(lane.label ?? lane.service ?? "").toUpperCase())}</text>`;
     const sub = `<text x="${lane._labelX + 6}" y="${y + 38}" font-size="9" fill="#8a8377">service</text>`;
     return banner + label + sub;
   }).join("");

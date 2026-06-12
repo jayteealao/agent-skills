@@ -5,11 +5,11 @@ import {
 } from "./chunk-EG7S7OJR.mjs";
 import {
   renderSimple
-} from "./chunk-K6PIKTF7.mjs";
+} from "./chunk-XMNCQI4W.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "./chunk-7C3X3TLC.mjs";
+} from "./chunk-WS4VN7DY.mjs";
 import {
   figureCanvas
 } from "./chunk-PDBKNARE.mjs";
@@ -18,7 +18,7 @@ import {
   metricRow,
   stageBadge,
   statusBadge
-} from "./chunk-P6EMQ23V.mjs";
+} from "./chunk-MG6EU35E.mjs";
 import {
   escapeHtml
 } from "./chunk-4WRIEOIP.mjs";
@@ -148,8 +148,8 @@ function timelineFigure(sy) {
     const color = kindColor[event.kind] ?? "#4a6c8c";
     return `<g><circle cx="${x}" cy="${cy}" r="9" fill="${color}"/>
       <text x="${x}" y="${cy - 18}" text-anchor="middle" font-size="10" fill="#4a443c">${escapeHtml(event.at ?? "")}</text>
-      <text x="${x}" y="${cy + 26}" text-anchor="middle" font-size="10" font-weight="600" fill="${color}">${escapeHtml((event.kind ?? "").toUpperCase())}</text>
-      <text x="${x}" y="${cy + 40}" text-anchor="middle" font-size="9" fill="#1f1b16">${escapeHtml((event.title ?? "").slice(0, 22))}</text></g>`;
+      <text x="${x}" y="${cy + 26}" text-anchor="middle" font-size="10" font-weight="600" fill="${color}">${escapeHtml(String(event.kind ?? "").toUpperCase())}</text>
+      <text x="${x}" y="${cy + 40}" text-anchor="middle" font-size="9" fill="#1f1b16">${escapeHtml(String(event.title ?? "").slice(0, 22))}</text></g>`;
   }).join("");
   return `<svg viewBox="0 0 ${width} ${height}" width="100%" preserveAspectRatio="xMinYMid meet" aria-label="Incident timeline">${rail}${dots}</svg>`;
 }
@@ -168,7 +168,7 @@ function causalChainFigure(sy) {
     return `<g>
       <rect x="${x}" y="20" width="${cellW}" height="70" rx="6" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>
       <text x="${x + 12}" y="40" font-size="10" font-weight="700" fill="${isRoot ? "#b5305f" : "#8a8377"}">${escapeHtml(step.step)}</text>
-      <text x="${x + 12}" y="62" font-size="11" fill="#1f1b16">${escapeHtml((step.body ?? "").slice(0, 50))}</text>
+      <text x="${x + 12}" y="62" font-size="11" fill="#1f1b16">${escapeHtml(String(step.body ?? "").slice(0, 50))}</text>
       ${arrow}
     </g>`;
   }).join("");
