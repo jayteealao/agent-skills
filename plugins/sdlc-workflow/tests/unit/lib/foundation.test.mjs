@@ -142,10 +142,12 @@ test('schema-validator: plan sibling YAML accepts the rich object-form conventio
   }, { schemaPath: SCHEMA_PATH });
   equal(legacy.valid, true);
 
-  // Genuinely malformed (module object missing its required id) is still rejected.
+  // modules accept id-form OR name-form OR plain strings (the real corpus uses
+  // all three), so a {label} object is no longer "malformed". Genuine
+  // malformation that's still rejected: a file with no `path`.
   const malformed = validateSiblingYaml({
-    artifact: 'plan', slice: 's', modules: [{ label: 'no id' }],
-    files: [{ path: 'a' }],
+    artifact: 'plan', slice: 's', modules: [{ name: 'svc', label: 'Service' }],
+    files: [{ role: 'new' }],
   }, { schemaPath: SCHEMA_PATH });
   equal(malformed.valid, false);
 });

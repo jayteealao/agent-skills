@@ -502,8 +502,8 @@ test('post-write-verify BLOCKS (exit 2) when a present plan sibling .yaml violat
   try {
     const dir = join(tmp, '.ai', 'workflows', 'demo');
     writeFile(join(dir, '04-plan-core.md'), md(validPlan()));
-    // modules object missing its required `id` — genuinely malformed structure.
-    writeFile(join(dir, '04-plan-core.yaml'), 'artifact: plan\nslice: core\nmodules: [{ label: no-id }]\nfiles: [{ path: src/a.ts }]\n');
+    // a file with no required `path` — genuinely malformed structure.
+    writeFile(join(dir, '04-plan-core.yaml'), 'artifact: plan\nslice: core\nmodules: [core]\nfiles: [{ role: new }]\n');
     writeFile(join(dir, '04-plan-core.html.fragment'), '<section class="fragment-plan"></section>\n');
 
     const result = runHook(HOOKS.postWriteVerify, {
@@ -526,7 +526,7 @@ test('post-write-verify honours the hooks.validateSiblingYaml:false opt-out', ()
       JSON.stringify({ hooks: { validateSiblingYaml: false } }));
     const dir = join(tmp, '.ai', 'workflows', 'demo');
     writeFile(join(dir, '04-plan-core.md'), md(validPlan()));
-    writeFile(join(dir, '04-plan-core.yaml'), 'artifact: plan\nslice: core\nmodules: [{ label: no-id }]\nfiles: [{ path: src/a.ts }]\n');
+    writeFile(join(dir, '04-plan-core.yaml'), 'artifact: plan\nslice: core\nmodules: [core]\nfiles: [{ role: new }]\n');
     writeFile(join(dir, '04-plan-core.html.fragment'), '<section class="fragment-plan"></section>\n');
 
     const result = runHook(HOOKS.postWriteVerify, {
