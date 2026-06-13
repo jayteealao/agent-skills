@@ -1,6 +1,6 @@
 // lib/tray-format.mjs
 //
-// PURE display layer for the system-tray app (TRAY-APP-PLAN.md → "Health
+// PURE display layer for the system-tray app (docs/internal/archived/TRAY-APP-PLAN.md → "Health
 // display"). Zero I/O: `formatHealth` takes the result of a health probe plus a
 // `now` and returns everything the menu builder maps onto systray2 items — the
 // icon state, tooltip, summary row, detail rows, and (hub only) per-repo rows.

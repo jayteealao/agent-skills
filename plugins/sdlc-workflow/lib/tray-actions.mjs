@@ -1,6 +1,6 @@
 // lib/tray-actions.mjs
 //
-// The tray's verbs (TRAY-APP-PLAN.md → components). Each maps a menu click onto
+// The tray's verbs (docs/internal/archived/TRAY-APP-PLAN.md → components). Each maps a menu click onto
 // existing hub capability — health probe, registry refresh, lifecycle restart/stop,
 // open-in-browser/editor, per-repo-serve toggle. The control surface needs NONE of
 // the plugin's third-party deps (markdown-it/js-yaml/ajv), so a bundled tray runs

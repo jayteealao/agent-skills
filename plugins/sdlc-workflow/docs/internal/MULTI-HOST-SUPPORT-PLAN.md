@@ -3,7 +3,7 @@
 **Status:** Drafted 2026-05-23, corrected 2026-05-25. Awaiting execution after v9.23.0 Phase 4 settles.
 **Authoring source:** Claude-native (canonical) — no migration to a host-neutral spec.
 **Output model:** Build-only emitters per target host (`.codex-generated/`, `.antigravity-generated/` not tracked). Exception: `AGENTS.md` at repo root IS tracked in git.
-**Predecessor docs:** [CODEX-PLUGIN-MIGRATION-PLAN.md](./CODEX-PLUGIN-MIGRATION-PLAN.md), [ROUTER-MIGRATION-PLAN.md](./ROUTER-MIGRATION-PLAN.md).
+**Predecessor docs:** [CODEX-PLUGIN-MIGRATION-PLAN.md](./archived/CODEX-PLUGIN-MIGRATION-PLAN.md), [ROUTER-MIGRATION-PLAN.md](./archived/ROUTER-MIGRATION-PLAN.md).
 
 ---
 
@@ -14,7 +14,7 @@ Extend `sdlc-workflow` to run with full feature parity on three hosts:
 | Host | Status | Format consumed |
 | --- | --- | --- |
 | **Claude Code** | Existing canonical source | `.claude-plugin/` (read directly) |
-| **OpenAI Codex CLI** | Existing via [generate-codex-plugin.mjs](../../scripts/generate-codex-plugin.mjs) | `.codex-generated/` + `.codex-plugin/plugin.json` + `.agents/plugins/marketplace.json` |
+| **OpenAI Codex CLI** | Existing via [generate-codex-plugin.mjs](../../../../scripts/generate-codex-plugin.mjs) | `.codex-generated/` + `.codex-plugin/plugin.json` + `.agents/plugins/marketplace.json` |
 | **Google Antigravity (Gemini 3)** | **NEW — this plan** | `.antigravity-generated/` → installed into `<workspace>/.agents/{skills,workflows}/` |
 
 "Full support" means: every Claude-side primitive (skills, slash commands, hooks, sub-agents, MCP) ships to each host or has a documented graceful degradation when the host lacks the primitive.
@@ -61,7 +61,7 @@ The original "port everything to a generic `.agents/`-as-universal-format" frami
 | Decision | Choice | Rationale |
 | --- | --- | --- |
 | **Authoring model** | Claude-native source → per-host emitters | Lowest risk; reuses working Codex pattern; no big-bang migration of existing skills. |
-| **Generated content shape** | Thin adapters pointing at canonical source — NOT transform-and-copy | Matches Codex emitter's proven pattern ([generate-codex-plugin.mjs:370-419](../../scripts/generate-codex-plugin.mjs:370)). Hosts read the same canonical SKILL.md Claude reads; single source of truth at runtime. |
+| **Generated content shape** | Thin adapters pointing at canonical source — NOT transform-and-copy | Matches Codex emitter's proven pattern ([generate-codex-plugin.mjs:370-419](../../../../scripts/generate-codex-plugin.mjs:370)). Hosts read the same canonical SKILL.md Claude reads; single source of truth at runtime. |
 | **Antigravity output location** | Build output only (`.antigravity-generated/`), not tracked | Matches `.codex-generated/` convention. Users install via plugin marketplace or copy into their `.agents/`. |
 | **Codex hooks** | Remain off (`includeHooks: false`) until separately decided | Current overrides deliberately disable them. Flipping requires verifying Codex 2026 hook contract maturity — out of scope for this plan. |
 | **Antigravity hooks** | Emit on Antigravity only, Phase 4 | Antigravity plugin system supports hooks first-class; safe to enable in Phase 4 without affecting Codex path. |
@@ -115,7 +115,7 @@ scripts/
     └── manifest-helpers.mjs              # frontmatter parse/serialize utils
 ```
 
-> **Note:** There is no `skill-transform.mjs` or `command-transform.mjs`. Generated skills are **thin adapters** that reference canonical source by relative path — the same pattern Codex uses (see [generate-codex-plugin.mjs:370-419](../../scripts/generate-codex-plugin.mjs:370)). Frontmatter normalisation (stripping Claude-only keys, resolving tiers) happens in `adapter-builder.mjs`, not via content transformation of the source body.
+> **Note:** There is no `skill-transform.mjs` or `command-transform.mjs`. Generated skills are **thin adapters** that reference canonical source by relative path — the same pattern Codex uses (see [generate-codex-plugin.mjs:370-419](../../../../scripts/generate-codex-plugin.mjs:370)). Frontmatter normalisation (stripping Claude-only keys, resolving tiers) happens in `adapter-builder.mjs`, not via content transformation of the source body.
 
 ### 4.3 Build outputs
 
@@ -174,7 +174,7 @@ plugins/sdlc-workflow/.antigravity-generated/
 **Implementation notes:**
 - Use `node:fs/promises` for file IO.
 - Use `node:child_process` (`execFile`, not `exec`) for `git`/external calls.
-- Replace `yq` with a small YAML parser (e.g. `js-yaml` already a dependency) or hand-rolled frontmatter splitter (existing pattern in [renderers/_markdown.mjs](./renderers/_markdown.mjs)).
+- Replace `yq` with a small YAML parser (e.g. `js-yaml` already a dependency) or hand-rolled frontmatter splitter (existing pattern in [renderers/_markdown.mjs](../../renderers/_markdown.mjs)).
 - Replace `jq` with native `JSON.parse` / `JSON.stringify`.
 - Read stdin hook payload via `process.stdin` reader (Claude passes JSON via stdin).
 
@@ -225,7 +225,7 @@ export function resolveModel(host, tier) {
 
 ### Phase 3 — `generate-antigravity-plugin.mjs` (task #3)
 
-**Goal:** New emitter mirroring [generate-codex-plugin.mjs](../../scripts/generate-codex-plugin.mjs).
+**Goal:** New emitter mirroring [generate-codex-plugin.mjs](../../../../scripts/generate-codex-plugin.mjs).
 
 **New files:**
 - `scripts/generate-antigravity-plugin.mjs`
@@ -272,7 +272,7 @@ export function resolveModel(host, tier) {
 7. Emit `.antigravity-generated/README.md` with install instructions (copy/symlink into `<workspace>/.agents/`).
 8. Support `--check` mode that diffs generated content against current filesystem state (CI parity check — mirror Codex `--check` logic).
 
-**Pattern to copy from Codex emitter:** the `filesToWrite` map + final write loop in [generate-codex-plugin.mjs:51-82](../../scripts/generate-codex-plugin.mjs:51).
+**Pattern to copy from Codex emitter:** the `filesToWrite` map + final write loop in [generate-codex-plugin.mjs:51-82](../../../../scripts/generate-codex-plugin.mjs:51).
 
 **Verification:** Inspect generated tree; run `node scripts/generate-antigravity-plugin.mjs --check` in CI.
 
@@ -492,9 +492,9 @@ Phase 6 (AGENTS.md) ────────────────────
 
 ## 10. References
 
-- [generate-codex-plugin.mjs](../../scripts/generate-codex-plugin.mjs) — reference implementation for emitter pattern.
-- [CODEX-PLUGIN-MIGRATION-PLAN.md](./CODEX-PLUGIN-MIGRATION-PLAN.md) — prior Codex migration history.
-- [.codex-plugin.overrides.json](./.codex-plugin.overrides.json) — overrides schema to mirror for Antigravity.
+- [generate-codex-plugin.mjs](../../../../scripts/generate-codex-plugin.mjs) — reference implementation for emitter pattern.
+- [CODEX-PLUGIN-MIGRATION-PLAN.md](./archived/CODEX-PLUGIN-MIGRATION-PLAN.md) — prior Codex migration history.
+- [.codex-plugin.overrides.json](../../.codex-plugin.overrides.json) — overrides schema to mirror for Antigravity.
 - [Antigravity: Build with Google Antigravity](https://developers.googleblog.com/build-with-google-antigravity-our-new-agentic-development-platform/)
 - [Antigravity Skills tutorial (Google Cloud Community)](https://medium.com/google-cloud/tutorial-getting-started-with-antigravity-skills-864041811e0d)
 - [Codex CLI Hooks reference](https://developers.openai.com/codex/hooks)

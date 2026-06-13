@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * scripts/tray.mjs — the user-launched system-tray control app (TRAY-APP-PLAN.md).
+ * scripts/tray.mjs — the user-launched system-tray control app (docs/internal/archived/TRAY-APP-PLAN.md).
  *
  * A sunflower icon in the notification area that drives the existing hub over the
  * endpoints/lifecycle functions that already exist: health summary, open dashboard,

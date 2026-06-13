@@ -24,14 +24,14 @@ syntax gate; the semantic hooks add the judgment the plugin currently enforces
 only through SKILL.md prose the model must remember to obey.
 
 The headline win: the **External Output Boundary**
-([skills/wf/SKILL.md:8-13](skills/wf/SKILL.md)) — today a MANDATORY *instruction* —
+([skills/wf/SKILL.md:8-13](../../skills/wf/SKILL.md)) — today a MANDATORY *instruction* —
 becomes an enforced wall. Plus 19 more gates across leak prevention, stage
 ordering, artifact content quality, review rigor, and cross-document
 consistency.
 
-Companion to [HOOKS-NODE-AND-SERVE-PLAN.md](HOOKS-NODE-AND-SERVE-PLAN.md)
+Companion to [HOOKS-NODE-AND-SERVE-PLAN.md](archived/HOOKS-NODE-AND-SERVE-PLAN.md)
 (which landed the Node hook toolchain this builds on) and
-[QUALITY-GATES-PLAN.md](QUALITY-GATES-PLAN.md).
+[QUALITY-GATES-PLAN.md](archived/QUALITY-GATES-PLAN.md).
 
 ---
 
@@ -56,25 +56,25 @@ to *read artifacts on disk or the diff*, it is an **agent** hook.
 
 ## Current state (baseline)
 
-Seven Node hooks are wired in [hooks/hooks.json](hooks/hooks.json). Every one
+Seven Node hooks are wired in [hooks/hooks.json](../../hooks/hooks.json). Every one
 is deterministic:
 
 | Hook | Event · matcher | What it enforces | What it is blind to |
 |---|---|---|---|
-| [session-start-orient.mjs](hooks/session-start-orient.mjs) | SessionStart | Lists active workflows; warns once on wrong branch (l.74-82) | Whether the index it reads still matches disk |
+| [session-start-orient.mjs](../../hooks/session-start-orient.mjs) | SessionStart | Lists active workflows; warns once on wrong branch (l.74-82) | Whether the index it reads still matches disk |
 | [pre-compact-preserve.mjs](hooks/pre-compact-preserve.mjs) | PreCompact | Emits state-preservation instructions | Whether that state is still accurate |
-| [pre-write-validate.mjs](hooks/pre-write-validate.mjs) | PreToolUse · Write | Filename convention + frontmatter shape (schema/type/slug) | Whether the body fulfills the stage contract |
-| [post-write-auto-stage.mjs](hooks/post-write-auto-stage.mjs) | PostToolUse · Write\|Edit\|… | `git add` the artifact | — |
-| [post-write-verify.mjs](hooks/post-write-verify.mjs) | PostToolUse · Write\|Edit\|… | Ajv deep-validate against `frontmatter.schema.json` | Anything below the YAML fence |
-| [post-write-render.mjs](hooks/post-write-render.mjs) | PostToolUse · Write\|Edit\|… | Render HTML view | — |
-| [render-on-artifact-write.mjs](hooks/render-on-artifact-write.mjs) | PostToolUse | Background render | — |
+| [pre-write-validate.mjs](../../hooks/pre-write-validate.mjs) | PreToolUse · Write | Filename convention + frontmatter shape (schema/type/slug) | Whether the body fulfills the stage contract |
+| [post-write-auto-stage.mjs](../../hooks/post-write-auto-stage.mjs) | PostToolUse · Write\|Edit\|… | `git add` the artifact | — |
+| [post-write-verify.mjs](../../hooks/post-write-verify.mjs) | PostToolUse · Write\|Edit\|… | Ajv deep-validate against `frontmatter.schema.json` | Anything below the YAML fence |
+| [post-write-render.mjs](../../hooks/post-write-render.mjs) | PostToolUse · Write\|Edit\|… | Render HTML view | — |
+| [render-on-artifact-write.mjs](../../hooks/render-on-artifact-write.mjs) | PostToolUse | Background render | — |
 
 **The gap in one sentence:** the plugin can prove an artifact is *well-formed*
 but never that it is *correct, in-order, honest, or leak-free*. Those are the
 five semantic dimensions the catalog below covers.
 
 These deterministic hooks already gate on `config.hooks.{autoStage,
-validateOnWrite, verifyOnWrite}` ([lib/config.mjs:43-47](lib/config.mjs)). The
+validateOnWrite, verifyOnWrite}` ([lib/config.mjs:43-47](../../lib/config.mjs)). The
 semantic hooks get a parallel gate (§ Config gate).
 
 ---
@@ -104,7 +104,7 @@ semantic hooks get a parallel gate (§ Config gate).
 6. **Advisory-first rollout.** New gates ship as `ask`/`systemMessage`
    (advisory) before any graduate to `deny`/`block`, mirroring the
    "Step 0.5 is purely advisory — it never auto-corrects" stance in
-   [skills/wf/SKILL.md:69](skills/wf/SKILL.md).
+   [skills/wf/SKILL.md:69](../../skills/wf/SKILL.md).
 
 ---
 
@@ -192,9 +192,9 @@ vertical" is irreducibly semantic.
 
 ## Config gate
 
-Extend [lib/config.mjs](lib/config.mjs) `DEFAULT_SDLC_CONFIG.hooks` with a
+Extend [lib/config.mjs](../../lib/config.mjs) `DEFAULT_SDLC_CONFIG.hooks` with a
 `semantic` block (default **off**, opt-in), and admit it in
-[schemas/sdlc-config.schema.json](schemas/sdlc-config.schema.json):
+[schemas/sdlc-config.schema.json](../../schemas/sdlc-config.schema.json):
 
 ```jsonc
 "hooks": {
@@ -279,7 +279,7 @@ The long tail. Mostly Stop/SubagentStop agent hooks (off the keystroke path) +
 #13 (commit-time branch gate) and #19 (hub inbox).
 
 - #17 (index↔disk consistency) is load-bearing — both
-  [session-start-orient.mjs](hooks/session-start-orient.mjs) and
+  [session-start-orient.mjs](../../hooks/session-start-orient.mjs) and
   [pre-compact-preserve.mjs](hooks/pre-compact-preserve.mjs) trust this
   frontmatter; landing #17 protects everything downstream of compaction.
 - #19 depends on the v9.33 hub/registry surface — confirm headless/cron runs
@@ -318,5 +318,5 @@ The long tail. Mostly Stop/SubagentStop agent hooks (off the keystroke path) +
    `mode: advisory` → `enforce`? Needs a measurement harness on this repo's
    own commit/artifact history.
 5. **Interaction with `disable-model-invocation`** — the `/wf` router sets it
-   ([skills/wf/SKILL.md:4](skills/wf/SKILL.md)); confirm semantic hooks fire
+   ([skills/wf/SKILL.md:4](../../skills/wf/SKILL.md)); confirm semantic hooks fire
    normally for skill-dispatched work.

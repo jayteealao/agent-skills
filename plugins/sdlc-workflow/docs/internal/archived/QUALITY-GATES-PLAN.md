@@ -42,7 +42,7 @@ assertion.
 
 ### Profile fragment gap
 
-[`skills/wf/reference/profile.md:256`](skills/wf/reference/profile.md:256):
+[`skills/wf/reference/profile.md:256`](../../../skills/wf/reference/profile.md:256):
 
 ```
 If you also write `01-profile.html.fragment`, first load
@@ -52,7 +52,7 @@ ${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md and follow
 "If you also write" is conditional. The plan's Phase 4 exit criterion required
 this to be a mandatory step closing the symmetric gap ("profile fragment
 whitelist gap closed on **both** ends"). The renderer end is closed —
-[`renderers/profile.mjs:78-79`](renderers/profile.mjs:78) renders the fragment
+[`renderers/profile.mjs:78-79`](../../../renderers/profile.mjs:78) renders the fragment
 block when present. The skill end is not: the agent will skip fragment authoring
 without any signal that it was expected.
 
@@ -78,7 +78,7 @@ would immediately start producing spurious validation errors.
 
 | Item | File | Current state | Target state |
 |---|---|---|---|
-| `review-command.mjs` alias | [`renderers/review-command.mjs`](renderers/review-command.mjs) | Delegates to `review-dimension.mjs`; no deprecation comment | Clearly marked deprecated with removal target, or deleted |
+| `review-command.mjs` alias | [`renderers/review-command.mjs`](../../../renderers/review-command.mjs) | Delegates to `review-dimension.mjs`; no deprecation comment | Clearly marked deprecated with removal target, or deleted |
 | Python verifier | [`tests/verify_frontmatter.py`](tests/verify_frontmatter.py) | CHANGELOG says "one release" but no date | Removal commit scheduled for v9.28 per CHANGELOG intent |
 | Open question #4 | — | Standalone `/wf-quick rca` walker path undefined | Explicit resolution documented |
 
@@ -255,7 +255,7 @@ review of the golden diff.
 
 ### Current state
 
-[`skills/wf/reference/profile.md:256`](skills/wf/reference/profile.md):
+[`skills/wf/reference/profile.md:256`](../../../skills/wf/reference/profile.md):
 
 ```
 If you also write `01-profile.html.fragment`, first load
@@ -434,7 +434,7 @@ All four share a `run-id` field that links them to the same docs run.
 ### Hook coverage note (deferred)
 
 The `isManagedArtifactMarkdownPath` function in
-[`lib/hook-utils.mjs`](lib/hook-utils.mjs) does not currently match
+[`lib/hook-utils.mjs`](../../../lib/hook-utils.mjs) does not currently match
 `.ai/docs/<run-id>/discover.md`, `audit.md`, `plan.md`, or `generate.md`.
 Expanding that regex is intentionally **deferred** to a future phase because:
 
@@ -448,7 +448,7 @@ is tracked as a future improvement, not part of this plan.
 
 ### `pre-write-validate` type list update
 
-[`hooks/pre-write-validate.mjs:106`](hooks/pre-write-validate.mjs) contains
+[`hooks/pre-write-validate.mjs:106`](../../../hooks/pre-write-validate.mjs) contains
 a human-readable list of expected type values in its error message. Add the
 four new types to that list so the error message stays accurate.
 
@@ -616,7 +616,7 @@ GET /__sdlc/health → JSON shape with status, slugs, renderedAt, tailscale.
 ```
 
 **Implementation:** follow the pattern of
-[`docs/site/reference/hooks.html`](docs/site/reference/hooks.html) — static
+[`docs/site/reference/hooks.html`](../../site/reference/hooks.html) — static
 HTML, same `style.css` link, same nav partial. No build step needed.
 
 ### `docs/site/reference/types.html`
@@ -679,7 +679,7 @@ Link to schemas/sdlc-config.schema.json for the config file.
 ### 6.1 `review-command.mjs` alias
 
 **Current state:**
-[`renderers/review-command.mjs`](renderers/review-command.mjs) is a
+[`renderers/review-command.mjs`](../../../renderers/review-command.mjs) is a
 compatibility alias that delegates all calls to `review-dimension.mjs`.
 
 **Options:**
@@ -731,7 +731,7 @@ documented anywhere.
 
 **Resolution steps:**
 
-1. Read [`skills/wf-quick/reference/rca.md`](skills/wf-quick/reference/rca.md)
+1. Read [`skills/wf-quick/reference/rca.md`](../../../skills/wf-quick/reference/rca.md)
    to find the actual output path spec.
 2. If standalone rca writes to `.ai/workflows/__rca__/<id>-rca.md` (the
    `__rca__` slug pattern):

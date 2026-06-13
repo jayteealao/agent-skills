@@ -17,9 +17,9 @@ work, commit 229591b — so this feature retargets to 9.49.0.)*
 ## 1. Problem
 
 The registry derives an entry's branch from the **checkout's current HEAD**
-(`gitIdentity()` → `git rev-parse --abbrev-ref HEAD`, [registry.mjs:93](lib/registry.mjs#L93))
+(`gitIdentity()` → `git rev-parse --abbrev-ref HEAD`, [registry.mjs:93](../../../lib/registry.mjs#L93))
 and folds it into the entry id (`computeEntryId(repoRoot, branch)`,
-[registry.mjs:127](lib/registry.mjs#L127)). Three defects fall out of that one choice:
+[registry.mjs:127](../../../lib/registry.mjs#L127)). Three defects fall out of that one choice:
 
 1. **Phantom duplicates.** Rendering on `main`, switching to `feat/x` in place, and
    re-rendering produces *two* entries (ids differ by branch) that both point at the same
@@ -28,7 +28,7 @@ and folds it into the entry id (`computeEntryId(repoRoot, branch)`,
 2. **Aliased routes.** `/r/<id_main>/` and `/r/<id_featx>/` both dereference the one `.ai/_view`
    folder, so they serve **byte-identical** last-render-wins content. A bookmark to "main's
    view" silently renders feat/x. Per-branch identity is a promise the filesystem can't keep.
-3. **No merge/delete awareness.** `pruneRegistry()` ([registry.mjs:366](lib/registry.mjs#L366))
+3. **No merge/delete awareness.** `pruneRegistry()` ([registry.mjs:366](../../../lib/registry.mjs#L366))
    is purely existence-based (`repoRoot`, `viewDir`, `.last-render` present) — it never asks git
    whether a branch still exists or was merged. A deleted in-place branch leaves a permanent
    ghost; a merged one keeps advertising as "active."
@@ -36,7 +36,7 @@ and folds it into the entry id (`computeEntryId(repoRoot, branch)`,
 **Root cause.** Branch is being treated as a property of the *checkout* (one volatile HEAD for
 the whole working dir) when it is actually a property of the *slug*. Every workflow's
 `00-index.md` frontmatter already declares its own branch — and the schema makes it
-**required** ([frontmatter.schema.json:78](tests/frontmatter.schema.json#L78)):
+**required** ([frontmatter.schema.json:78](../../../tests/frontmatter.schema.json#L78)):
 
 ```jsonc
 "branch-strategy": { "enum": ["dedicated", "shared", "none"] },
@@ -47,7 +47,7 @@ the whole working dir) when it is actually a property of the *slug*. Every workf
 ```
 
 The scanner already loads this block (`frontmatter: loaded.data`,
-[workflow-index.mjs:118](lib/workflow-index.mjs#L118)) — it just never surfaces it. The
+[workflow-index.mjs:118](../../../lib/workflow-index.mjs#L118)) — it just never surfaces it. The
 authoritative, stable, schema-validated branch is sitting unused while we key identity off the
 volatile one.
 
@@ -84,7 +84,7 @@ This dissolves all three defects at once:
 Surface the already-parsed fields and carry them into `slugMeta` so the hub still renders fully
 in-memory (no per-request disk reads — a MULTI-REPO §5 invariant).
 
-- **[workflow-index.mjs](lib/workflow-index.mjs) `loadWorkflowIndex`** ([:112](lib/workflow-index.mjs#L112))
+- **[workflow-index.mjs](../../../lib/workflow-index.mjs) `loadWorkflowIndex`** ([:112](../../../lib/workflow-index.mjs#L112))
   — add to the returned object:
   ```js
   branch:         loaded.data?.branch ?? null,
@@ -93,7 +93,7 @@ in-memory (no per-request disk reads — a MULTI-REPO §5 invariant).
   prNumber:       loaded.data?.['pr-number'] ?? null,
   prUrl:          loaded.data?.['pr-url'] ?? null,
   ```
-- **[registry.mjs](lib/registry.mjs) `collectSlugMeta`** ([:200](lib/registry.mjs#L200)) — add
+- **[registry.mjs](../../../lib/registry.mjs) `collectSlugMeta`** ([:200](../../../lib/registry.mjs#L200)) — add
   `branch`, `branchStrategy`, `baseBranch`, `prNumber`, `prUrl` to each slugMeta row. Tolerate
   missing values (legacy/hand-edited indexes) — default `null`, never throw.
 
@@ -102,24 +102,24 @@ flow, and is independently testable.
 
 ### 4.2 Repo-scoped identity (D1)
 
-- **`computeEntryId`** ([registry.mjs:127](lib/registry.mjs#L127)) → hash `repoRoot` **only**
+- **`computeEntryId`** ([registry.mjs:127](../../../lib/registry.mjs#L127)) → hash `repoRoot` **only**
   (still forward-slash-normalised for cross-platform stability). Drop `branch` from the digest.
-- **`resolveEntryId`** ([registry.mjs:137](lib/registry.mjs#L137)) → the clash check currently
+- **`resolveEntryId`** ([registry.mjs:137](../../../lib/registry.mjs#L137)) → the clash check currently
   splits on `e.branch !== branch`; make it **branch-insensitive** (only a genuinely different
   `repoRoot` colliding on the same 12-hex base appends a suffix). Otherwise switching branches
   would re-split the entry we just collapsed.
-- **`gitIdentity` / `buildEntry`** ([registry.mjs:85](lib/registry.mjs#L85),
-  [:222](lib/registry.mjs#L222)) — keep reading HEAD, but store it as informational
+- **`gitIdentity` / `buildEntry`** ([registry.mjs:85](../../../lib/registry.mjs#L85),
+  [:222](../../../lib/registry.mjs#L222)) — keep reading HEAD, but store it as informational
   `headBranch` (e.g. *"checkout currently on `main`"*), **not** as identity. `worktreeLabel`
   stays as-is (worktrees already have distinct `repoRoot`s, so repo-scoping keeps them separate
   for free).
 - **Registry migration** — bump `REGISTRY_VERSION` 1 → 2 and add a branch in
-  `migrateRegistry` ([registry.mjs:255](lib/registry.mjs#L255)) that **re-keys** v1 entries:
+  `migrateRegistry` ([registry.mjs:255](../../../lib/registry.mjs#L255)) that **re-keys** v1 entries:
   recompute each id from `repoRoot` alone, then **merge** entries that now collapse to the same
   id (union their `slugMeta` by slug, latest `updatedAt` wins; earliest `registeredAt` wins).
   This is a pure data transform run on read — no separate migration command.
 - **Security unchanged.** Routing still keys on `viewDir`; `validateEntry`
-  ([registry.mjs:154](lib/registry.mjs#L154)) is untouched (viewDir still resolves under
+  ([registry.mjs:154](../../../lib/registry.mjs#L154)) is untouched (viewDir still resolves under
   repoRoot, ending in `.ai/_view`). The id change cannot widen path containment.
 
 > **Accepted breakage:** existing `/r/<id>/` bookmarks change once (ids drop the branch).
@@ -141,7 +141,7 @@ metadata, in the repo it belongs to:
 **Where it runs:** computed at **upsert** (render time — `buildEntry` already has `repoRoot` and
 runs git) and stamped onto each `slugMeta` row as `branchState`. The hub stays git-free per
 request. Opportunistically refreshed inside the hub's `reload()`
-([hub-serve.mjs:142](scripts/hub-serve.mjs#L142)), which already runs at startup and on
+([hub-serve.mjs:142](../../../scripts/hub-serve.mjs#L142)), which already runs at startup and on
 `/__sdlc/registry/refresh` — so a branch deleted *after* the last render still flips to `gone`
 on the next hub refresh without requiring a re-render.
 
@@ -151,20 +151,20 @@ the slug or entry — the user closes the workflow (`/wf` close → terminal sta
 `callout-{warn|info}` / badge tone vocabulary.
 
 > All liveness work is **best-effort and never throws** — same contract as the registry write
-> ([registry.mjs:466](lib/registry.mjs#L466)). A liveness failure must never affect a render or
+> ([registry.mjs:466](../../../lib/registry.mjs#L466)). A liveness failure must never affect a render or
 > a served page.
 
 ### 4.4 Dashboard grouping — repo → branch → slugs (D3)
 
-- **[hub-dashboard.mjs](renderers/hub-dashboard.mjs) `renderHubLanding`** ([:117](renderers/hub-dashboard.mjs#L117))
+- **[hub-dashboard.mjs](../../../renderers/hub-dashboard.mjs) `renderHubLanding`** ([:117](../../../renderers/hub-dashboard.mjs#L117))
   — with one entry per repo (post-D1), group that entry's `slugMeta` by `branch` into sub-lanes
   inside the repo card. `branchStrategy` drives lane presentation:
   - `dedicated` → its own labelled swimlane.
   - `shared` → slugs sharing a branch cluster under one lane header.
   - `none` → render under `base-branch` / trunk.
-- Reuse `swimlanesSvg` ([dashboard.mjs](renderers/dashboard.mjs), imported at
-  [hub-dashboard.mjs:15](renderers/hub-dashboard.mjs#L15)) per branch-lane rather than per entry.
-- **Inbox** (`inboxItems`, [hub-dashboard.mjs:69](renderers/hub-dashboard.mjs#L69)) gains
+- Reuse `swimlanesSvg` ([dashboard.mjs](../../../renderers/dashboard.mjs), imported at
+  [hub-dashboard.mjs:15](../../../renderers/hub-dashboard.mjs#L15)) per branch-lane rather than per entry.
+- **Inbox** (`inboxItems`, [hub-dashboard.mjs:69](../../../renderers/hub-dashboard.mjs#L69)) gains
   `branchState` as a fourth attention reason (`merged`/`branch gone` alongside
   blocked/review/stale), and the row's `{repo}/{slug}` line shows the declared branch.
 - The repo header still shows `headBranch` as informational context (*"on `main`"*) so you can
@@ -257,12 +257,12 @@ separate PR with its own `/wf` slug.
 
 | File | Change |
 |---|---|
-| [lib/workflow-index.mjs](lib/workflow-index.mjs) | surface `branch`/`branchStrategy`/`baseBranch`/`prNumber`/`prUrl` (S1) |
-| [lib/registry.mjs](lib/registry.mjs) | `collectSlugMeta` fields (S1); `computeEntryId`/`resolveEntryId`/`buildEntry`/`migrateRegistry` repo-scoping + v2 (S2); `branchState` at upsert (S4) |
+| [lib/workflow-index.mjs](../../../lib/workflow-index.mjs) | surface `branch`/`branchStrategy`/`baseBranch`/`prNumber`/`prUrl` (S1) |
+| [lib/registry.mjs](../../../lib/registry.mjs) | `collectSlugMeta` fields (S1); `computeEntryId`/`resolveEntryId`/`buildEntry`/`migrateRegistry` repo-scoping + v2 (S2); `branchState` at upsert (S4) |
 | `lib/branch-liveness.mjs` | **new** — git+PR liveness classifier (S4) |
-| [renderers/hub-dashboard.mjs](renderers/hub-dashboard.mjs) | branch sub-lanes, inbox branch reason + line, badges (S3/S4) |
-| [scripts/hub-serve.mjs](scripts/hub-serve.mjs) | `reload()` opportunistic liveness refresh (S4) |
-| [tests/unit/lib/multi-repo-hub.test.mjs](tests/unit/lib/multi-repo-hub.test.mjs) | new cases per slice; reuse `SDLC_HOME` + `initRepo` harness |
+| [renderers/hub-dashboard.mjs](../../../renderers/hub-dashboard.mjs) | branch sub-lanes, inbox branch reason + line, badges (S3/S4) |
+| [scripts/hub-serve.mjs](../../../scripts/hub-serve.mjs) | `reload()` opportunistic liveness refresh (S4) |
+| [tests/unit/lib/multi-repo-hub.test.mjs](../../../tests/unit/lib/multi-repo-hub.test.mjs) | new cases per slice; reuse `SDLC_HOME` + `initRepo` harness |
 
 No frontmatter-schema change (the fields already exist). No new sdlc-config / hub-config key.
 

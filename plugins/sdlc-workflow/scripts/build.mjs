@@ -5,7 +5,7 @@
  * Emits committed, dependency-inlined ESM bundles under dist/ so a fresh
  * marketplace install runs with ZERO runtime `npm install`. The only npm
  * install left is a maintainer/dev concern (this build + the tests).
- * See SELF-CONTAINED-BUILD-PLAN.md.
+ * See docs/internal/archived/SELF-CONTAINED-BUILD-PLAN.md.
  *
  * Output layout — depth-1 invariant
  * ---------------------------------
@@ -62,7 +62,7 @@ const SCRIPT_ENTRIES = [
   'render-sunflower',        // spawned: bootstrap + incremental render jobs
   'hub-serve',               // spawned by lib/hub-lifecycle
   'render-sunflower-serve',  // spawned by lib/serve-lifecycle
-  'tray',                    // user-launched system-tray app (TRAY-APP-PLAN.md)
+  'tray',                    // user-launched system-tray app (docs/internal/archived/TRAY-APP-PLAN.md)
 ];
 
 // Public renderers are loaded at runtime by render-sunflower's loadRenderer()

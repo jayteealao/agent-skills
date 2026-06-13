@@ -1,6 +1,6 @@
 # Dynamic Workflows Integration Plan
 
-Companion to [QUALITY-GATES-PLAN.md](QUALITY-GATES-PLAN.md) and
+Companion to [QUALITY-GATES-PLAN.md](archived/QUALITY-GATES-PLAN.md) and
 [MULTI-HOST-SUPPORT-PLAN.md](MULTI-HOST-SUPPORT-PLAN.md). This plan adopts
 Claude Code's **Dynamic Workflows** (research preview, shipped with Opus 4.8 /
 Claude Code v2.1.154, 2026-05-28) as an **execution engine for the parallel
@@ -82,14 +82,14 @@ object. The **main skill, back in the session, writes the `.ai/` artifact** the
 same way it does today.
 
 Why: artifact writes must traverse the existing hooks —
-[`hooks/pre-write-validate.mjs`](hooks/pre-write-validate.mjs) (schema gate),
-[`hooks/post-write-render.mjs`](hooks/post-write-render.mjs) /
-[`hooks/render-on-artifact-write.mjs`](hooks/render-on-artifact-write.mjs)
+[`hooks/pre-write-validate.mjs`](../../hooks/pre-write-validate.mjs) (schema gate),
+[`hooks/post-write-render.mjs`](../../hooks/post-write-render.mjs) /
+[`hooks/render-on-artifact-write.mjs`](../../hooks/render-on-artifact-write.mjs)
 (sunflower render), and registry maintenance via
-[`lib/workflow-index.mjs`](lib/workflow-index.mjs). Whether the PostToolUse /
+[`lib/workflow-index.mjs`](../../lib/workflow-index.mjs). Whether the PostToolUse /
 PreToolUse hooks fire for a *workflow subagent's* Write is **undocumented**
 (Phase 0 probes it). Routing all artifact writes back through the skill makes
-the question moot and keeps [QUALITY-GATES-PLAN.md](QUALITY-GATES-PLAN.md)'s
+the question moot and keeps [QUALITY-GATES-PLAN.md](archived/QUALITY-GATES-PLAN.md)'s
 renderer snapshot suite valid unchanged.
 
 ### Decision B — Acceleration layer, never a hard dependency
@@ -126,21 +126,21 @@ authoring pattern (defined in Phase 0).
 
 | Site | File:line | Fan-out | Model (from metadata) | Returns |
 |---|---|---|---|---|
-| `/review sweep <agg>` | [SKILL.md:60](skills/review/SKILL.md) | ≤31 per aggregate, parallel | haiku; sonnet for `architecture`/`refactor-safety`/`security` | findings |
-| `/wf review <slug>` | [review.md:305](skills/wf/reference/review.md) | 3–15 selected dims, parallel | sonnet (hardcoded in prose) | findings |
-| `/wf-quick ideate` | [ideate.md:66](skills/wf-quick/reference/ideate.md) | ≤6 lenses, parallel | haiku | ideas |
-| `/wf-quick simplify` | [simplify.md:105](skills/wf-quick/reference/simplify.md) | 3, parallel | haiku | findings |
-| `/wf-quick discover` | [discover.md:69](skills/wf-quick/reference/discover.md) | 3 (FOR/AGAINST/counter), parallel | haiku | verdict+evidence |
-| `/wf-quick investigate` | [investigate.md:69](skills/wf-quick/reference/investigate.md) | 3 (cartographer/options/tradeoffs), parallel | sonnet | options |
-| `/wf-quick rca` | [rca.md:69](skills/wf-quick/reference/rca.md) | 2–3, parallel | sonnet | causal-chain |
-| `/wf-design` preflight | [SKILL.md:131](skills/wf-design/SKILL.md) | 4 inspectors, parallel | inherit | design-context |
+| `/review sweep <agg>` | [SKILL.md:60](../../skills/review/SKILL.md) | ≤31 per aggregate, parallel | haiku; sonnet for `architecture`/`refactor-safety`/`security` | findings |
+| `/wf review <slug>` | [review.md:305](../../skills/wf/reference/review.md) | 3–15 selected dims, parallel | sonnet (hardcoded in prose) | findings |
+| `/wf-quick ideate` | [ideate.md:66](../../skills/wf-quick/reference/ideate.md) | ≤6 lenses, parallel | haiku | ideas |
+| `/wf-quick simplify` | [simplify.md:105](../../skills/wf-quick/reference/simplify.md) | 3, parallel | haiku | findings |
+| `/wf-quick discover` | [discover.md:69](../../skills/wf-quick/reference/discover.md) | 3 (FOR/AGAINST/counter), parallel | haiku | verdict+evidence |
+| `/wf-quick investigate` | [investigate.md:69](../../skills/wf-quick/reference/investigate.md) | 3 (cartographer/options/tradeoffs), parallel | sonnet | options |
+| `/wf-quick rca` | [rca.md:69](../../skills/wf-quick/reference/rca.md) | 2–3, parallel | sonnet | causal-chain |
+| `/wf-design` preflight | [SKILL.md:131](../../skills/wf-design/SKILL.md) | 4 inspectors, parallel | inherit | design-context |
 
 **Family 2 — Fan-out → dedicated synthesis agent** (research):
 
 | Site | File:line | Fan-out | Model | Returns |
 |---|---|---|---|---|
-| `/wf-meta how` Mode B | [how.md:160](skills/wf-meta/reference/how.md) | 2–4 explorers → 1 synth | haiku explorers; inherit synth | explanation |
-| `/wf-meta how --research` Mode C | [how.md:279](skills/wf-meta/reference/how.md) | 6–8 source agents → 1 synth (200+ sources) | haiku agents; inherit synth | cited report |
+| `/wf-meta how` Mode B | [how.md:160](../../skills/wf-meta/reference/how.md) | 2–4 explorers → 1 synth | haiku explorers; inherit synth | explanation |
+| `/wf-meta how --research` Mode C | [how.md:279](../../skills/wf-meta/reference/how.md) | 6–8 source agents → 1 synth (200+ sources) | haiku agents; inherit synth | cited report |
 
 Mode C is functionally identical to the built-in **`/deep-research`** workflow;
 Phase 2 evaluates delegating to it vs. authoring a bespoke script.
@@ -149,38 +149,38 @@ Phase 2 evaluates delegating to it vs. authoring a bespoke script.
 
 | Site | File:line | Shape | Barrier reason |
 |---|---|---|---|
-| `/wf plan <slug> all` | [plan.md:216](skills/wf/reference/plan.md) | 1 plan agent/slice → cohesion check | cohesion needs *all* slice plans at once |
-| `/wf-docs` discover→audit | [SKILL.md:51,82](skills/wf-docs/SKILL.md) | 1 discover → N audit (per doc) | audit needs the discovery inventory |
+| `/wf plan <slug> all` | [plan.md:216](../../skills/wf/reference/plan.md) | 1 plan agent/slice → cohesion check | cohesion needs *all* slice plans at once |
+| `/wf-docs` discover→audit | [SKILL.md:51,82](../../skills/wf-docs/SKILL.md) | 1 discover → N audit (per doc) | audit needs the discovery inventory |
 | `/wf-quick update-deps` | wf-quick reference | research per package batch → tier | risk-tiering needs all package research |
 
 **Family 4 — Per-stage parallel research preludes** (low individual value,
 high aggregate context savings): `/wf shape` (2 explorers,
-[shape.md:44](skills/wf/reference/shape.md)), `/wf plan` single
-([plan.md:79](skills/wf/reference/plan.md)), `/wf implement`
-([implement.md:93](skills/wf/reference/implement.md)), `/wf verify`
-([verify.md:80](skills/wf/reference/verify.md)), `/wf instrument`
-([instrument.md:58](skills/wf/reference/instrument.md)). These run *before* an
+[shape.md:44](../../skills/wf/reference/shape.md)), `/wf plan` single
+([plan.md:79](../../skills/wf/reference/plan.md)), `/wf implement`
+([implement.md:93](../../skills/wf/reference/implement.md)), `/wf verify`
+([verify.md:80](../../skills/wf/reference/verify.md)), `/wf instrument`
+([instrument.md:58](../../skills/wf/reference/instrument.md)). These run *before* an
 interview; moving them off-context is the main benefit.
 
 **Family 5 — Parallel file-mutating execution** (the genuinely new capability,
 highest risk): `/wf plan all` *writing* per-slice plans, `/wf implement reviews`
-fix loop ([implement.md:198](skills/wf/reference/implement.md), today
+fix loop ([implement.md:198](../../skills/wf/reference/implement.md), today
 sequential), and a future **DAG slice-wave** executor. These require
 `isolation: 'worktree'` so concurrent agents don't clobber each other's edits —
 the one place a workflow does something Task fan-out cannot do cleanly.
 
 ### Sites explicitly excluded from migration
 
-- **Mid-fan-out interaction:** `/wf-docs` Step 3 ([SKILL.md:138](skills/wf-docs/SKILL.md)) — split at this gate.
-- **Sequential by design:** `/wf implement reviews` ([implement.md:198](skills/wf/reference/implement.md)) — verify-before-next; only Phase 4 (worktree) touches it.
-- **Single agent (no fan-out):** `/wf experiment` ([experiment.md:57](skills/wf/reference/experiment.md)), `/wf-docs` discover/review steps.
+- **Mid-fan-out interaction:** `/wf-docs` Step 3 ([SKILL.md:138](../../skills/wf-docs/SKILL.md)) — split at this gate.
+- **Sequential by design:** `/wf implement reviews` ([implement.md:198](../../skills/wf/reference/implement.md)) — verify-before-next; only Phase 4 (worktree) touches it.
+- **Single agent (no fan-out):** `/wf experiment` ([experiment.md:57](../../skills/wf/reference/experiment.md)), `/wf-docs` discover/review steps.
 
 ### Supporting infrastructure already present
 
 - Static verifier [`scripts/verify-router-migration.mjs`](scripts/verify-router-migration.mjs) — Check 4 already enforces "every dimension resolves to a valid model." Extend here.
 - Live routing verifier [`scripts/verify-routing-resolution.mjs`](scripts/verify-routing-resolution.mjs) — uses the Agent SDK `query()`.
-- Hooks: [`pre-write-validate.mjs`](hooks/pre-write-validate.mjs), [`post-write-render.mjs`](hooks/post-write-render.mjs), [`render-on-artifact-write.mjs`](hooks/render-on-artifact-write.mjs), [`session-start-orient.mjs`](hooks/session-start-orient.mjs), [`pre-compact-preserve.mjs`](hooks/pre-compact-preserve.mjs).
-- [`lib/config.mjs`](lib/config.mjs), [`lib/workflow-index.mjs`](lib/workflow-index.mjs), [`lib/hook-utils.mjs`](lib/hook-utils.mjs), [`lib/schema-validator.mjs`](lib/schema-validator.mjs).
+- Hooks: [`pre-write-validate.mjs`](../../hooks/pre-write-validate.mjs), [`post-write-render.mjs`](../../hooks/post-write-render.mjs), [`render-on-artifact-write.mjs`](../../hooks/render-on-artifact-write.mjs), [`session-start-orient.mjs`](../../hooks/session-start-orient.mjs), [`pre-compact-preserve.mjs`](hooks/pre-compact-preserve.mjs).
+- [`lib/config.mjs`](../../lib/config.mjs), [`lib/workflow-index.mjs`](../../lib/workflow-index.mjs), [`lib/hook-utils.mjs`](../../lib/hook-utils.mjs), [`lib/schema-validator.mjs`](../../lib/schema-validator.mjs).
 
 ---
 
@@ -418,14 +418,14 @@ file-editing agents in isolated git worktrees.** Highest risk; ships behind
 ### Sites
 
 - **`/wf plan all` (writing mode)** and a new **DAG slice-wave executor** —
-  slices carry `depends_on` (the [IDEAS-3](IDEAS-3.md) "DAG-based parallel
+  slices carry `depends_on` (the [IDEAS-3](../../IDEAS-3.md) "DAG-based parallel
   execution" + "agentic concurrent wave execution" items). The workflow groups
   ready slices into waves; slices that share files serialize, independent slices
   run concurrently with `isolation: 'worktree'`. The skill merges worktrees back
   and writes artifacts.
 - **`/wf implement reviews`** — optionally parallelize independent findings
   (non-overlapping files) with worktree isolation, keeping overlapping fixes
-  sequential. Today it is strictly sequential ([implement.md:198](skills/wf/reference/implement.md)).
+  sequential. Today it is strictly sequential ([implement.md:198](../../skills/wf/reference/implement.md)).
 
 ### Phase 4 exit criteria
 

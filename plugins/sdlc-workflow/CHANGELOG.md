@@ -843,7 +843,7 @@ the README / doc-site references.
 Every artifact the plugin writes now has a dedicated view-layer page. The only
 intentional exceptions are `routing` (`90-next.md`, a regenerable duplicate of the
 slug overview's next-command) and the schema-exempt `how-*` research notes. See
-[ALL-ARTIFACTS-PROJECTION-PLAN.md](ALL-ARTIFACTS-PROJECTION-PLAN.md).
+[ALL-ARTIFACTS-PROJECTION-PLAN.md](docs/internal/archived/ALL-ARTIFACTS-PROJECTION-PLAN.md).
 
 Previously ~28 admitted/written types were either never discovered, dropped by
 `resolveViewPath`, or rendered as a generic fallback card:
@@ -871,7 +871,7 @@ Previously ~28 admitted/written types were either never discovered, dropped by
 ### Added — quality gates: snapshot suite, e2e acceptance, mandatory fragments, doc pages (9.39.0)
 
 Closes the verification-and-hygiene gaps from the post-release review (see
-[QUALITY-GATES-PLAN.md](QUALITY-GATES-PLAN.md)). Six independent improvements:
+[QUALITY-GATES-PLAN.md](docs/internal/archived/QUALITY-GATES-PLAN.md)). Six independent improvements:
 
 - **Golden-file snapshot suite** ([tests/unit/snapshots/](tests/unit/snapshots/)):
   a dependency-free harness (`snapshot-harness.mjs`) plus shared fixtures

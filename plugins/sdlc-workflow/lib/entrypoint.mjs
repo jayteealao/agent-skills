@@ -2,7 +2,7 @@
  * lib/entrypoint.mjs — resolve a spawnable entrypoint to its built bundle or source.
  *
  * The plugin ships committed, dependency-inlined bundles under dist/ (see
- * SELF-CONTAINED-BUILD-PLAN.md). Cross-process spawns must launch the bundle in
+ * docs/internal/archived/SELF-CONTAINED-BUILD-PLAN.md). Cross-process spawns must launch the bundle in
  * a fresh marketplace install (where node_modules is absent) but may launch the
  * source during maintainer dev. `resolveEntrypoint` picks dist/<name>.mjs when
  * it exists and falls back to scripts/<name>.mjs otherwise:

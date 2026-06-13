@@ -9,8 +9,8 @@ sunflower view + hooks actually consume.
 
 ### `/wf-design` subcommand inventory (verified via filesystem sweep)
 
-24 reference files under [skills/wf-design/reference/](skills/wf-design/reference)
-+ the [SKILL.md](skills/wf-design/SKILL.md) router itself. Classified:
+24 reference files under [skills/wf-design/reference/](../../../skills/wf-design/reference)
++ the [SKILL.md](../../../skills/wf-design/SKILL.md) router itself. Classified:
 
 | Class             | Subcommands                                                                                                                              | Artifact target                                  |
 |-------------------|------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------|
@@ -26,7 +26,7 @@ added here.
 
 ### Fragment emission — current matrix
 
-Authoritative from [scripts/verify-fragment.mjs](scripts/verify-fragment.mjs).
+Authoritative from [scripts/verify-fragment.mjs](../../../scripts/verify-fragment.mjs).
 The validator's whitelisted fragment names are the gate; subcommands either
 honor it by emitting a sibling `.html.fragment`, or they don't.
 
@@ -46,7 +46,7 @@ honor it by emitting a sibling `.html.fragment`, or they don't.
 
 ### verify-fragment.mjs contract (the gate)
 
-[scripts/verify-fragment.mjs](scripts/verify-fragment.mjs) is the source of
+[scripts/verify-fragment.mjs](../../../scripts/verify-fragment.mjs) is the source of
 truth for what "counts" as a valid fragment. Seven hard checks:
 
 1. Exactly one top-level `<section class="fragment-<name>">`.
@@ -64,7 +64,7 @@ must produce byte-identical HTML.
 
 ### Existing renderers that ignore fragments (problem case)
 
-[renderers/profile.mjs](renderers/profile.mjs) does not read the
+[renderers/profile.mjs](../../../renderers/profile.mjs) does not read the
 `artifact.fragment` field. Whitelisted by verify-fragment.mjs but renderer
 won't display it even if a sub emits one. Symmetric gap with
 `/wf profile` not authoring fragments — fixing one without the other has
@@ -93,7 +93,7 @@ Five gaps to close, in dependency order:
 
 ### Add type values to enum
 
-[tests/frontmatter.schema.json](tests/frontmatter.schema.json) currently
+[tests/frontmatter.schema.json](../../../tests/frontmatter.schema.json) currently
 has 33 artifact types in the `oneOf` branch selector. Add:
 
 - `design-contract` — the **visual contract** authored by `/wf-design craft`
@@ -106,7 +106,7 @@ has 33 artifact types in the `oneOf` branch selector. Add:
 ### `design-contract` branch
 
 Required fields (mirror the existing `design` branch + tighten what
-[skills/wf-design/reference/craft.md](skills/wf-design/reference/craft.md)
+[skills/wf-design/reference/craft.md](../../../skills/wf-design/reference/craft.md)
 demands). Note `based-on` — the craft contract references the shape brief
 it derived from:
 
@@ -247,7 +247,7 @@ already has a sibling-YAML schema. The contract artifact itself
 
 ### Update verify-fragment.mjs whitelist
 
-[scripts/verify-fragment.mjs:33-37](scripts/verify-fragment.mjs:33) must add
+[scripts/verify-fragment.mjs:33-37](../../../scripts/verify-fragment.mjs:33) must add
 `design-critique` and `design-audit` to `ALLOWED_FRAGMENT_NAMES`. The
 `design` entry already exists and covers what `/wf-design craft` authors.
 
@@ -280,10 +280,10 @@ once the new required-field branches land.
 ## Phase 2 — Renderers for the five "fall-through" types
 
 Today these five types are accepted by the schema (or about to be) but
-fall through to [`fallbackRender`](scripts/render-sunflower.mjs:185).
+fall through to [`fallbackRender`](../../../scripts/render-sunflower.mjs:185).
 Add one renderer per type at `renderers/<type>.mjs`. Each follows the
-existing renderer contract used by [plan.mjs](renderers/plan.mjs),
-[review.mjs](renderers/review.mjs), [ship-run.mjs](renderers/ship-run.mjs).
+existing renderer contract used by [plan.mjs](../../../renderers/plan.mjs),
+[review.mjs](../../../renderers/review.mjs), [ship-run.mjs](../../../renderers/ship-run.mjs).
 
 ### `renderers/benchmark.mjs`
 
@@ -343,7 +343,7 @@ Renders:
 - Causal chain (left-to-right SVG or fragment).
 - Two-column callouts: contributing causes vs mitigations.
 
-**Note:** This involves splitting [augmentation.mjs](renderers/augmentation.mjs)
+**Note:** This involves splitting [augmentation.mjs](../../../renderers/augmentation.mjs)
 so the rca codepath becomes a peer, not a sub-render. Other augmentation
 types (`instrument`, `experiment`, `benchmark`) similarly get moved to
 their dedicated renderers above. `augmentation.mjs` becomes a thin
@@ -378,7 +378,7 @@ in full.
 - ✅ Each renderer has a snapshot test in `tests/snapshots/` over a
   canonical fixture artifact.
 - ✅ `[render] no renderer for: <type>` warning at the end of
-  [render-sunflower.mjs:431-433](scripts/render-sunflower.mjs:431) no
+  [render-sunflower.mjs:431-433](../../../scripts/render-sunflower.mjs:431) no
   longer lists any of the five.
 
 ---
@@ -387,7 +387,7 @@ in full.
 
 ### Current walker scope
 
-[`discoverArtifacts`](scripts/render-sunflower.mjs:103) walks three roots:
+[`discoverArtifacts`](../../../scripts/render-sunflower.mjs:103) walks three roots:
 `.ai/workflows/`, `.ai/simplify/`, `.ai/profiles/`. Everything outside is
 invisible to the renderer.
 
@@ -420,7 +420,7 @@ Three distinct surfaces:
 
 ### Implementation: discoverProjectArtifacts()
 
-New function in [render-sunflower.mjs](scripts/render-sunflower.mjs):
+New function in [render-sunflower.mjs](../../../scripts/render-sunflower.mjs):
 
 ```js
 function discoverProjectArtifacts({ projectRoot }) {
@@ -440,7 +440,7 @@ function discoverProjectArtifacts({ projectRoot }) {
 ```
 
 Plumb `kind: 'project'` through `resolveViewPath`
-([renderers/_paths.mjs:55-76](renderers/_paths.mjs)) so it maps to
+([renderers/_paths.mjs:55-76](../../../renderers/_paths.mjs)) so it maps to
 `.ai/_view/project/<filename>.html`.
 
 ### Schema admission for the new workflow-scoped types
@@ -457,7 +457,7 @@ Three new branches mirroring the pattern above:
 ### Walker config
 
 Add `--include-project-context` flag (default: on) to
-[render-sunflower.mjs](scripts/render-sunflower.mjs). The bootstrap pass
+[render-sunflower.mjs](../../../scripts/render-sunflower.mjs). The bootstrap pass
 (Phase 2 of the companion plan) passes the flag through.
 
 ### Hook coverage
@@ -537,12 +537,12 @@ data-artifact="<type>" data-rev="<n>">…</section>`. The fragment must:
 Suggested anatomy: [type-specific guidance + screenshot/wireframe].
 ```
 
-This template lives in [skills/wf/reference/_fragment-authoring.md](skills/wf/reference/_fragment-authoring.md)
+This template lives in [skills/wf/reference/_fragment-authoring.md](../../../skills/wf/reference/_fragment-authoring.md)
 (new shared file) and is referenced by every fragment-emitting skill body.
 
 ### Renderer-side plumbing fix (the symmetric gap)
 
-[renderers/profile.mjs](renderers/profile.mjs) needs the fragment block:
+[renderers/profile.mjs](../../../renderers/profile.mjs) needs the fragment block:
 
 ```js
 const fragmentHtml = artifact.fragment
@@ -552,7 +552,7 @@ const fragmentHtml = artifact.fragment
 ```
 
 Mirror this in any other renderer that's missing it. Audit all 31
-renderers in [renderers/](renderers/) and add the block to any that lacks
+renderers in [renderers/](../../../renderers) and add the block to any that lacks
 it. Acceptance: every renderer for a whitelisted type honors a present
 fragment.
 
@@ -721,8 +721,8 @@ plus walker changes are arguably a major bump.
    — no separate type needed.
 
 3. ~~**`02b-design.md` vs `02c-craft.md`**~~ **RESOLVED.** Verified by
-   reading [skills/wf-design/reference/shape.md:128](skills/wf-design/reference/shape.md:128)
-   and [skills/wf-design/reference/craft.md:96,202](skills/wf-design/reference/craft.md:96).
+   reading [skills/wf-design/reference/shape.md:128](../../../skills/wf-design/reference/shape.md:128)
+   and [skills/wf-design/reference/craft.md:96,202](../../../skills/wf-design/reference/craft.md:96).
    Both filenames exist with different roles:
    - shape writes `02b-design.md` (artifact, type: `design`).
    - craft writes `02c-craft.md` (artifact, type: `design-contract`) **AND**

@@ -1,6 +1,6 @@
 // lib/tray-autostart.mjs
 //
-// Opt-in, per-user logon autostart for the tray (TRAY-APP-PLAN.md → "Autostart
+// Opt-in, per-user logon autostart for the tray (docs/internal/archived/TRAY-APP-PLAN.md → "Autostart
 // (P5)"). No admin, no service/registry, no Task Scheduler: a generated launcher
 // file in the user's per-user autostart location whose PRESENCE is the on/off
 // truth. All three platforms share one shape — materialize / remove / detect a

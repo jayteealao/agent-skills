@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Doc-site legibility guard (Phase 7 of DOC-SITE-REWRITE-PLAN.md).
+// Doc-site legibility guard (Phase 7 of docs/internal/archived/DOC-SITE-REWRITE-PLAN.md).
 //
 // Warning-only during Phases 1-6; promotes to a hard CI gate in Phase 7.
 // Four invariants, all testable without external deps:

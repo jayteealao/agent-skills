@@ -28,10 +28,10 @@ Today the plugin ships six hook scripts. Four are wired:
 
 | Script                                                                                       | Event                            | Manifest                                     |
 |----------------------------------------------------------------------------------------------|----------------------------------|----------------------------------------------|
-| [validate-workflow-write.sh](hooks/scripts/validate-workflow-write.sh)                       | PreToolUse: Write                | [hooks.json](hooks/hooks.json)               |
-| [auto-stage.sh](hooks/scripts/auto-stage.sh)                                                 | PostToolUse: Write\|Edit         | [hooks.json](hooks/hooks.json)               |
-| [verify-workflow-postwrite.sh](hooks/scripts/verify-workflow-postwrite.sh)                   | PostToolUse: Write\|Edit         | [hooks.json](hooks/hooks.json)               |
-| [render-on-artifact-write.mjs](hooks/render-on-artifact-write.mjs)                           | PostToolUse: Write\|Edit\|...    | [render-sunflower.json](hooks/render-sunflower.json) |
+| [validate-workflow-write.sh](hooks/scripts/validate-workflow-write.sh)                       | PreToolUse: Write                | [hooks.json](../../../hooks/hooks.json)               |
+| [auto-stage.sh](hooks/scripts/auto-stage.sh)                                                 | PostToolUse: Write\|Edit         | [hooks.json](../../../hooks/hooks.json)               |
+| [verify-workflow-postwrite.sh](hooks/scripts/verify-workflow-postwrite.sh)                   | PostToolUse: Write\|Edit         | [hooks.json](../../../hooks/hooks.json)               |
+| [render-on-artifact-write.mjs](../../../hooks/render-on-artifact-write.mjs)                           | PostToolUse: Write\|Edit\|...    | [render-sunflower.json](hooks/render-sunflower.json) |
 
 Two are dormant (scripts exist, no manifest references them):
 
@@ -179,7 +179,7 @@ Every hook:
 
 ### Unified hooks.json manifest
 
-Replace both [hooks.json](hooks/hooks.json) and
+Replace both [hooks.json](../../../hooks/hooks.json) and
 [render-sunflower.json](hooks/render-sunflower.json) with one file:
 
 ```json
@@ -563,10 +563,10 @@ updating" or "the server won't start".
 
 ### Documentation updates
 
-- [README.md](README.md): rewrite Requirements (Node + git only).
+- [README.md](../../../README.md): rewrite Requirements (Node + git only).
   New section: "Serving the view locally".
   New section: "Tailscale integration".
-- New: [docs/site/reference/hooks.html](docs/site/reference/hooks.html) updated to
+- New: [docs/site/reference/hooks.html](../../site/reference/hooks.html) updated to
   document all six Node hooks.
 - New: `docs/site/reference/serve.html` — config reference + Tailscale
   one-liners + security model.

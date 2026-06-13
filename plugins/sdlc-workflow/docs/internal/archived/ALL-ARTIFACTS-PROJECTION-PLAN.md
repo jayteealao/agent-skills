@@ -7,8 +7,8 @@ filename doesn't resolve to a view path) or fall through to the generic
 
 Companion to [QUALITY-GATES-PLAN.md](QUALITY-GATES-PLAN.md) (which added the
 snapshot suite + e2e acceptance test that this plan must keep green) and the
-view-layer engine in [scripts/render-sunflower.mjs](scripts/render-sunflower.mjs)
-+ [renderers/_paths.mjs](renderers/_paths.mjs).
+view-layer engine in [scripts/render-sunflower.mjs](../../../scripts/render-sunflower.mjs)
++ [renderers/_paths.mjs](../../../renderers/_paths.mjs).
 
 ## Scope decisions (locked 2026-06-04)
 
@@ -232,7 +232,7 @@ every artifact renders — via `fallbackRender` for now — so nothing is invisi
 
 ### Phase 5 — Docs
 
-- Update [types.html](docs/site/reference/types.html): the `docs-*` rows lose
+- Update [types.html](../../site/reference/types.html): the `docs-*` rows lose
   their "fallback" note and gain renderers; add new sections for the dep-update,
   ideation, and how families. Cross-check the table against the schema + renderer
   set (the e2e already guards drift for schema-admitted types).

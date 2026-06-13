@@ -30,8 +30,8 @@ proliferation**. Three coupled capabilities:
 
 Today the plugin is strictly per-repo: each repo renders to its own `.ai/_view/` and
 optionally runs a per-repo static daemon on its own port
-([render-sunflower-serve.mjs](scripts/render-sunflower-serve.mjs),
-[serve-lifecycle.mjs](lib/serve-lifecycle.mjs)). This design adds a thin aggregation layer
+([render-sunflower-serve.mjs](../../../scripts/render-sunflower-serve.mjs),
+[serve-lifecycle.mjs](../../../lib/serve-lifecycle.mjs)). This design adds a thin aggregation layer
 **without changing how per-repo rendering works**.
 
 ---
@@ -143,7 +143,7 @@ contexts (exactly the stated requirement).
 > **Critique must-fix #8 (slugMeta).** The landing-page swimlanes need each slug's
 > `current-stage`/`status`, but a plain `slugs: string[]` can't supply them. The entry carries
 > a `slugMeta` array populated at upsert time from
-> [scanWorkflowIndexes()](lib/workflow-index.mjs) (which already returns exactly this), so the
+> [scanWorkflowIndexes()](../../../lib/workflow-index.mjs) (which already returns exactly this), so the
 > landing page renders fully in-memory with no per-request disk reads.
 
 ```jsonc
@@ -183,9 +183,9 @@ contexts (exactly the stated requirement).
 ### 3.4 Population & write strategy (convention over flags)
 
 **Trigger.** `upsertRegistryEntry({ projectRoot, pluginRoot })` is called from
-[render-sunflower.mjs](scripts/render-sunflower.mjs) `renderMain()` **immediately after the
+[render-sunflower.mjs](../../../scripts/render-sunflower.mjs) `renderMain()` **immediately after the
 `.last-render` flush** — verified at
-[render-sunflower.mjs:691](scripts/render-sunflower.mjs:691) (`writeFileAtomic(join(viewRoot,
+[render-sunflower.mjs:691](../../../scripts/render-sunflower.mjs:691) (`writeFileAtomic(join(viewRoot,
 '.last-render'), …)`), which runs in the `args.sharedOutput` branch. The call is wrapped in
 `.catch(() => {})` — **a registry write must never affect render success** (best-effort,
 idempotent; the next render re-registers). No new user gesture, no flag — pure convention.
@@ -213,7 +213,7 @@ idempotent; the next render re-registers). No new user gesture, no flag — pure
 
 > **Critique must-fix #5 (hub port discovery).** `upsertRegistryEntry` must read the hub's
 > **bound** port from `~/.sdlc/hub.pid` via `readPidFile()`
-> ([pid-file.mjs](lib/pid-file.mjs)) — *not* from config — so it works when the hub runs on a
+> ([pid-file.mjs](../../../lib/pid-file.mjs)) — *not* from config — so it works when the hub runs on a
 > non-default port. The PID file (`{pid,host,port,token,configHash,writtenAt}`) is the
 > authoritative address **and credential**: `upsertRegistryEntry` reads `token` from it and sends
 > it on the POST (invariant #6), so only a process that can read the local PID file may write to
@@ -290,18 +290,18 @@ write endpoint and serves directories it didn't create):**
 
 ### 4.3 `resolveRequestPath` reuse + the `/sdlc` strip caveat
 
-Extract `resolveRequestPath()` ([render-sunflower-serve.mjs:162](scripts/render-sunflower-serve.mjs:162))
+Extract `resolveRequestPath()` ([render-sunflower-serve.mjs:162](../../../scripts/render-sunflower-serve.mjs:162))
 into `lib/resolve-request-path.mjs`; both daemons import it.
 
 > **Critique gap (major — `/sdlc` strip).** That function unconditionally strips a leading
-> `/sdlc` prefix ([lines 170-171](scripts/render-sunflower-serve.mjs:170)). Under the hub, a
+> `/sdlc` prefix ([lines 170-171](../../../scripts/render-sunflower-serve.mjs:170)). Under the hub, a
 > repo with a **slug literally named `sdlc`** would have `/r/<id>/sdlc/...` silently rewritten
 > to the view root. **Fix:** extract the core **without** the `/sdlc` strip (it existed for a
 > path-prefix deployment of the per-repo daemon, not correctness); the per-repo daemon keeps it
 > via a thin wrapper. Belt-and-braces: reserve `sdlc` as a slug name in the schema.
 
 **href correctness (verified, no rewriting).** Rendered HTML uses depth-relative asset hrefs
-from `relativeAssetBase()` ([render-sunflower.mjs:104](scripts/render-sunflower.mjs:104)). A
+from `relativeAssetBase()` ([render-sunflower.mjs:104](../../../scripts/render-sunflower.mjs:104)). A
 page at `/r/<id>/slug/shape/INDEX.html` references `../../_assets/…`, which the browser
 resolves to `/r/<id>/_assets/…`, which the hub maps to `viewDir/_assets/…` (assets are copied
 into each `.ai/_view/_assets/` by the render pipeline). **No HTML content is rewritten.**
@@ -312,7 +312,7 @@ into each `.ai/_view/_assets/` by the render pipeline). **No HTML content is rew
 > path throws ENOENT on Windows when a registered repo hasn't rendered yet (a valid state).
 > **Fix:** watch the `viewDir` **directory** and filter on `filename === '.last-render'` —
 > exactly what the per-repo daemon already does
-> ([render-sunflower-serve.mjs:79](scripts/render-sunflower-serve.mjs:79)). Safe before the
+> ([render-sunflower-serve.mjs:79](../../../scripts/render-sunflower-serve.mjs:79)). Safe before the
 > file exists.
 
 On change the hub emits SSE `reload` with `{ id, renderedAt }`. The client filters:
@@ -388,13 +388,13 @@ thanks to `slugMeta`). Renderer: new `renderers/hub-dashboard.mjs` exporting
 **Content.**
 1. **Summary bar** — total repos, total active slugs, hub uptime/version.
 2. **Repo swimlane grid** — rows grouped by `repoRoot` (label `basename`), one sub-row per
-   branch/worktree, columns = the 10 `STAGES` from [dashboard.mjs](renderers/dashboard.mjs).
+   branch/worktree, columns = the 10 `STAGES` from [dashboard.mjs](../../../renderers/dashboard.mjs).
    Reuses `swimlanesSvg()` per entry, fed from `entry.slugMeta`.
    > **Critique must-fix #7.** `swimlanesSvg` is currently **module-private** in
-   > [dashboard.mjs:104](renderers/dashboard.mjs:104) — add `export` before Phase 4 or the
+   > [dashboard.mjs:104](../../../renderers/dashboard.mjs:104) — add `export` before Phase 4 or the
    > import fails at runtime. It's a pure helper; the hub builds its own page and does **not**
    > depend on the per-repo dashboard *pass* (which is gated behind `args.sharedOutput`,
-   > [render-sunflower.mjs:632](scripts/render-sunflower.mjs:632)).
+   > [render-sunflower.mjs:632](../../../scripts/render-sunflower.mjs:632)).
 3. **Slug list** — expandable, grouped by repo, each linking to `/r/<id>/<slug>/INDEX.html`.
 4. **Stale warnings** — entries with null/old `lastRenderedAt` shown dimmed.
 5. **Live reload** — the landing page connects to `/__sdlc/events` and refreshes on *any*
@@ -429,20 +429,20 @@ thanks to `slugMeta`). Renderer: new `renderers/hub-dashboard.mjs` exporting
 
 | File | Change |
 |---|---|
-| [scripts/render-sunflower-serve.mjs](scripts/render-sunflower-serve.mjs) | Import `resolveRequestPath` from the new module (thin wrapper re-adds the `/sdlc` strip). |
-| [scripts/render-sunflower.mjs](scripts/render-sunflower.mjs) | `renderMain()`: after the `.last-render` flush ([:691](scripts/render-sunflower.mjs:691)) call `upsertRegistryEntry(...).catch(()=>{})`. `bootstrapMain()`: after `ensureServeLifecycle()` call `ensureHubLifecycle()` when `view.hub.enabled`. |
-| [lib/serve-lifecycle.mjs](lib/serve-lifecycle.mjs) | Non-blocking hub check → `{action:'hub-active'}` (PID-gated). When force-enabled (`view.serve.enabled:true`) alongside a live hub on the same host:port, bind the per-repo daemon to `4174` (or explicit `view.serve.port`) to avoid `EADDRINUSE`, and log the chosen URL (§4.5). |
-| [renderers/dashboard.mjs](renderers/dashboard.mjs) | `export` `swimlanesSvg`. |
-| [renderers/_paths.mjs](renderers/_paths.mjs) | `breadcrumbFromView(viewRel, slug, opts)` — add `opts.hubRootHref` (see §10 tension). |
-| [renderers/_shell.mjs](renderers/_shell.mjs) | Brand link ([:67](renderers/_shell.mjs:67)) — accept `hubRootHref` so the topnav "sdlc" brand points to the hub root, not the per-repo dashboard. |
-| [assets/livereload.js](assets/livereload.js) | repoId filtering via `<meta name=sdlc-repo-id>`; unconditional reload when absent (backward compatible). |
-| [lib/config.mjs](lib/config.mjs) + [schemas/sdlc-config.schema.json](schemas/sdlc-config.schema.json) | Add per-repo `view.hub` block carrying **only** `enabled` (`additionalProperties:false` — singleton settings are rejected here and belong in `hub-config.json`). |
+| [scripts/render-sunflower-serve.mjs](../../../scripts/render-sunflower-serve.mjs) | Import `resolveRequestPath` from the new module (thin wrapper re-adds the `/sdlc` strip). |
+| [scripts/render-sunflower.mjs](../../../scripts/render-sunflower.mjs) | `renderMain()`: after the `.last-render` flush ([:691](../../../scripts/render-sunflower.mjs:691)) call `upsertRegistryEntry(...).catch(()=>{})`. `bootstrapMain()`: after `ensureServeLifecycle()` call `ensureHubLifecycle()` when `view.hub.enabled`. |
+| [lib/serve-lifecycle.mjs](../../../lib/serve-lifecycle.mjs) | Non-blocking hub check → `{action:'hub-active'}` (PID-gated). When force-enabled (`view.serve.enabled:true`) alongside a live hub on the same host:port, bind the per-repo daemon to `4174` (or explicit `view.serve.port`) to avoid `EADDRINUSE`, and log the chosen URL (§4.5). |
+| [renderers/dashboard.mjs](../../../renderers/dashboard.mjs) | `export` `swimlanesSvg`. |
+| [renderers/_paths.mjs](../../../renderers/_paths.mjs) | `breadcrumbFromView(viewRel, slug, opts)` — add `opts.hubRootHref` (see §10 tension). |
+| [renderers/_shell.mjs](../../../renderers/_shell.mjs) | Brand link ([:67](../../../renderers/_shell.mjs:67)) — accept `hubRootHref` so the topnav "sdlc" brand points to the hub root, not the per-repo dashboard. |
+| [assets/livereload.js](../../../assets/livereload.js) | repoId filtering via `<meta name=sdlc-repo-id>`; unconditional reload when absent (backward compatible). |
+| [lib/config.mjs](../../../lib/config.mjs) + [schemas/sdlc-config.schema.json](../../../schemas/sdlc-config.schema.json) | Add per-repo `view.hub` block carrying **only** `enabled` (`additionalProperties:false` — singleton settings are rejected here and belong in `hub-config.json`). |
 | `package.json` | `hub` / `hub:stop` scripts. |
 
 ### 6.1 Config additions — Option C (split by scope)
 
 The hub is a **single machine-wide process**, but the plugin's existing config is strictly
-per-repo ([config.mjs#configPathFor](lib/config.mjs) → `<repo>/.ai/sdlc-config.json`). Putting
+per-repo ([config.mjs#configPathFor](../../../lib/config.mjs) → `<repo>/.ai/sdlc-config.json`). Putting
 singleton settings (one `port`, one bind `host`, one Tailscale binding) into N per-repo files
 makes the config *lie*: only the first repo to bootstrap the hub wins, and the other repos'
 values are silently ignored. So config is **split by the scope of each setting** — each value
@@ -716,7 +716,7 @@ home for `sdlc hub list` (already referenced in §8).
 
 The hub is long-lived, so `/__sdlc/health` carries counters: `requests`, active `sseClients`,
 `perRepoLastServed`, `rssBytes`, `uptimeMs` (§4.1). Better still, since the plugin already ships
-the [wide-event-observability](skills/wide-event-observability) skill, emit **one canonical log
+the [wide-event-observability](../../../skills/wide-event-observability) skill, emit **one canonical log
 line per render-reload and per upsert** (repo id, route, bytes, duration, outcome). That canonical
 line is the only way you'll later debug "why did repo-B stop reloading" after the fact — exactly
 the failure mode an aggregating daemon is prone to.

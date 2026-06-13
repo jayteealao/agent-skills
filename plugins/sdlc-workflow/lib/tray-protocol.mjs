@@ -1,7 +1,7 @@
 // lib/tray-protocol.mjs
 //
 // A minimal stdio driver for the systray2 Go helper binary, replacing the
-// systray2 npm package's JS entirely (TRAY-APP-PLAN.md risk #1). The package's
+// systray2 npm package's JS entirely (docs/internal/archived/TRAY-APP-PLAN.md risk #1). The package's
 // own binary resolver is cwd/__dirname-bound and breaks once esbuild bundles it;
 // owning the ~120-line protocol here also drops its heavy request/fs-extra deps
 // from the shipped bundle. We speak the SAME line-delimited JSON the vendored

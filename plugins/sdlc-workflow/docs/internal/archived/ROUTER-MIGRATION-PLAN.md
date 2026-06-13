@@ -3,7 +3,7 @@
 Status: draft, pre-implementation
 Target plugin version after full landing: v8.36.0 (one minor bump per router PR + one for the Codex generator update)
 Author: planning conversation, 2026-05-04
-Pattern reference: [`.scratch/impeccable/plugin/skills/impeccable/SKILL.md`](../../.scratch/impeccable/plugin/skills/impeccable/SKILL.md), already proven in this repo by `wf-design` (shipped v8.27)
+Pattern reference: [`.scratch/impeccable/plugin/skills/impeccable/SKILL.md`](../../../../../.scratch/impeccable/plugin/skills/impeccable/SKILL.md), already proven in this repo by `wf-design` (shipped v8.27)
 
 ---
 

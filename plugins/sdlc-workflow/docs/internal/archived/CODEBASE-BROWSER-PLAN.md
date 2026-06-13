@@ -279,7 +279,7 @@ Every check, in order; any failure → `ContainmentError` (caller returns 403):
 
 ### 3.5 Routes (added to both servers via a shared adapter)
 
-In `hub-serve.mjs`, the `/r/<id>/` branch ([scripts/hub-serve.mjs:435-440](scripts/hub-serve.mjs)) currently
+In `hub-serve.mjs`, the `/r/<id>/` branch ([scripts/hub-serve.mjs:435-440](../../../scripts/hub-serve.mjs)) currently
 hands everything to `serveRepoFile`. Intercept `__code` first:
 
 ```js
@@ -296,7 +296,7 @@ if (m) {
 }
 ```
 
-Shared shasset route (alongside `/__sdlc/hub-reload.js` at [scripts/hub-serve.mjs:409](scripts/hub-serve.mjs)):
+Shared shasset route (alongside `/__sdlc/hub-reload.js` at [scripts/hub-serve.mjs:409](../../../scripts/hub-serve.mjs)):
 `GET /__sdlc/code-browser.js` and `/__sdlc/code-browser.css` → stream `dist/code-browser.*`
 (read once, cache in memory; long `cache-control` keyed by plugin version).
 
@@ -304,7 +304,7 @@ Shared shasset route (alongside `/__sdlc/hub-reload.js` at [scripts/hub-serve.mj
 the repo root (no `/r/<id>/` prefix), so it matches `/__code/*` directly and derives `repoRoot` from
 its view root (`repoRoot = dirname(dirname(viewDir))`, cross-checked against the registry shard).
 
-The global `hostAllowed` DNS-rebinding gate ([scripts/hub-serve.mjs:401](scripts/hub-serve.mjs)) and the
+The global `hostAllowed` DNS-rebinding gate ([scripts/hub-serve.mjs:401](../../../scripts/hub-serve.mjs)) and the
 `0.0.0.0` Tailscale gate already wrap **all** routes — the new routes inherit both for free.
 
 ### 3.6 Data contracts
