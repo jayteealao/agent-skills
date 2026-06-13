@@ -449,15 +449,46 @@ function loadFreeFragments(mdAbs, expandCtx) {
   }).filter(Boolean);
 }
 
+// Escape a label for use inside a CSS attribute-selector string literal. Labels
+// are filename-derived kebab/dotted (`[a-z0-9.-]`) so this is defensive only.
+function cssAttrValue(label) {
+  return String(label).replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+// CSS containment for a free fragment (v9.71.0): wrap each `<style>` block's
+// rules in a native `@scope (.nfrag[data-label="<label>"]) { … }` so a global
+// selector (`body`, `*`, `.x`) can only match inside THIS fragment's wrapper —
+// never the page chrome above it or a sibling fragment. `@scope` confines rules
+// to the root's subtree, so ancestor selectors like `body`/`html` are excluded
+// outright. `<style>`-less fragments, inline `style=""`, and class/token usage
+// are left untouched, preserving "narrative blend" (the fragment still inherits
+// the page's design tokens). Browsers without `@scope` (pre-2023) ignore the
+// whole block → the fragment renders unstyled rather than bleeding. Inline
+// `<script>` is out of scope here (already neutralised by the serve `script-src
+// 'self'` CSP); this closes the CSS vector that survives even on the serve path.
+function scopeFragmentCss(html, label) {
+  const root = `.nfrag[data-label="${cssAttrValue(label)}"]`;
+  return String(html).replace(
+    /<style\b([^>]*)>([\s\S]*?)<\/style>/gi,
+    (_m, attrs, css) => `<style${attrs}>@scope (${root}) {\n${css}\n}</style>`,
+  );
+}
+
 // Append the free narrative fragments to a rendered page body, raw-inline. The
-// per-fragment `<section class="nfrag">` is a positional/layout wrapper ONLY —
-// it imposes nothing on the author's HTML (no scoping, no required structure).
-// Gated by `view.narrativeFragments` (default on); set false to suppress them.
+// per-fragment `<section class="nfrag">` is a positional/layout wrapper; by
+// default each fragment's `<style>` rules are additionally @scope-contained to
+// that wrapper (see scopeFragmentCss). Gated by `view.narrativeFragments`
+// (default on) for injection and `view.scopeNarrativeCss` (default on) for the
+// CSS containment — set the latter false to inject `<style>` verbatim/unscoped.
 function appendNarrativeFragments(bodyHtml, fragments, config) {
   if (config?.view?.narrativeFragments === false) return bodyHtml;
   if (!fragments?.length) return bodyHtml;
+  const scopeCss = config?.view?.scopeNarrativeCss !== false;
   const blocks = fragments
-    .map((f) => `<section class="nfrag" data-label="${escape(f.label)}">\n${f.html}\n</section>`)
+    .map((f) => {
+      const inner = scopeCss ? scopeFragmentCss(f.html, f.label) : f.html;
+      return `<section class="nfrag" data-label="${escape(f.label)}">\n${inner}\n</section>`;
+    })
     .join('\n');
   return `${bodyHtml}\n<section class="narrative-fragments" aria-label="narrative fragments">\n${blocks}\n</section>`;
 }

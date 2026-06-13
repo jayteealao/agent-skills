@@ -8,7 +8,7 @@ artifact may ship either, both, or neither.
 | Filename | `<stem>.html.fragment` (exactly one) | `<stem>.<label>.html.fragment` (any number) |
 | Contract | Full — see [`fragment-author-contract.md`](fragment-author-contract.md) | **None.** Raw, unrestricted HTML |
 | Sibling `.yaml` | Required (gated, exit 2) | Not required, not read |
-| Scoping / wrapper | One `<section class="fragment-<name>">`, scoped CSS | Whatever you write |
+| Scoping / wrapper | One `<section class="fragment-<name>">`, scoped CSS | Whatever you write — but your `<style>` is auto-contained (see below) |
 | Determinism | Must project deterministically from the `.yaml` | No constraint |
 | Verifier | `verify-fragment.mjs` enforces the envelope | **Exempt** |
 | Who can author | The 5 rich types + the augmentation types | **Every artifact, every subcommand** |
@@ -59,12 +59,21 @@ renderer produced.
 
 > **You chose raw inline, not iframe isolation** (the v9.70.0 decision). That
 > means maximum narrative blend — your fragment inherits the page's design
-> tokens and flows as part of the document — but it also means there is **no
-> sandbox**: a global CSS selector (e.g. `body { … }`) or a thrown top-level
-> script in one fragment can affect the rest of the page and the other
-> fragments. Keep selectors specific and scripts defensive if you want the page
-> to stay intact. If a fragment breaks a page, render with
-> `view.narrativeFragments: false` (below) while you fix it.
+> tokens and flows as part of the document. It is **not a full sandbox**, but as
+> of **v9.71.0 your CSS is contained by default**: each fragment's `<style>`
+> rules are wrapped in `@scope (.nfrag[data-label="<label>"])`, so a global
+> selector (e.g. `body { … }`, `* { … }`, `.card { … }`) can only match inside
+> *this* fragment's wrapper — it cannot bleed to the page chrome above or to a
+> sibling fragment. Inline `style="…"`, class usage, and design-token
+> inheritance are unaffected (the blend is preserved). **Scripts are still not
+> sandboxed** — a thrown top-level inline script can affect the page — but on the
+> serve path the daemon's `script-src 'self'` CSP already prevents inline
+> `<script>` from running at all. Two residual notes: (1) `@scope` needs a
+> 2023-era browser; older engines ignore the scoped block, so the fragment
+> renders *unstyled* rather than bleeding (safe degradation); (2) if you
+> genuinely need page-wide CSS from a fragment, set `view.scopeNarrativeCss:
+> false` (below) to inject `<style>` verbatim. If a fragment still breaks a page,
+> render with `view.narrativeFragments: false` while you fix it.
 
 The views live under `.ai/_view/` and are **gitignored** — rebuilt on render,
 never pushed — so unrestricted HTML here is your own machine rendering your own
@@ -80,9 +89,14 @@ template/version gate applies to plugin upgrades.
 
 ## Disabling
 
-Set `view.narrativeFragments: false` in `.ai/sdlc-config.json` to suppress **all**
-narrative fragments repo-wide (the typed Tier-1 fragment is unaffected). Useful
-as an escape hatch when an unrestricted fragment is breaking a page.
+Two repo-wide switches in `.ai/sdlc-config.json`:
+
+- `view.narrativeFragments: false` — suppress **all** narrative fragments (the
+  typed Tier-1 fragment is unaffected). The escape hatch when a fragment is
+  breaking a page and you want to render without it while you fix it.
+- `view.scopeNarrativeCss: false` — keep injecting fragments but inject each
+  `<style>` **verbatim/unscoped** (the pre-v9.71.0 behaviour), for the rare case
+  a fragment genuinely needs to set page-wide CSS. Default is `true` (contain).
 
 ## Relationship to the typed tier
 

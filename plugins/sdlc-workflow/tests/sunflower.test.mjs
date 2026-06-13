@@ -1475,8 +1475,26 @@ test('narrative fragments: N free fragments inject raw-inline, in label order, o
     match(html, /data-test="FRAG-TWO"/);
     // Sorted by label: `01-first` precedes `02-second` regardless of write order.
     ok(html.indexOf('FRAG-ONE') < html.indexOf('FRAG-TWO'), 'fragments should inject in label order');
-    // Raw + unrestricted: the author's <style> survives verbatim (no scoping/sanitising).
+    // CSS containment (default-on, v9.70.1): the author's <style> is wrapped in
+    // @scope bound to THIS fragment's wrapper, so its global selector can't bleed.
+    match(html, /<style>@scope \(\.nfrag\[data-label="01-first"\]\) \{\s*\.global-bleed\{color:#f00\}\s*\}<\/style>/);
+    // The raw, un-@scoped form must NOT appear (it would mean the rule is global).
+    ok(!/<style>\.global-bleed\{color:#f00\}<\/style>/.test(html), 'fragment CSS must not be injected unscoped by default');
+  } finally {
+    rmSync(s.tmp, { recursive: true, force: true });
+  }
+});
+
+test('narrative fragments: view.scopeNarrativeCss=false injects <style> verbatim', () => {
+  const s = scaffoldNarrative();
+  try {
+    const html = s.render({ view: { scopeNarrativeCss: false } });
+    // Fragments still inject…
+    match(html, /<section class="narrative-fragments"/);
+    match(html, /data-test="FRAG-ONE"/);
+    // …but the opt-out restores verbatim, unscoped <style> (no @scope wrapper).
     match(html, /<style>\.global-bleed\{color:#f00\}<\/style>/);
+    ok(!/@scope/.test(html), '@scope wrapper must be absent when containment is opted out');
   } finally {
     rmSync(s.tmp, { recursive: true, force: true });
   }

@@ -64,6 +64,11 @@
           "type": "boolean",
           "default": true,
           "description": "Free narrative fragments (Tier 2, v9.70.0): when true, any artifact's `<stem>.<label>.html.fragment` siblings — UNRESTRICTED raw HTML the agent authors to tell the artifact's story — are injected raw-inline below the page body, in label (filename) order. Set false to suppress them repo-wide (e.g. while a fragment's global CSS/JS is breaking a page). The one typed `<stem>.html.fragment` is unaffected by this switch."
+        },
+        "scopeNarrativeCss": {
+          "type": "boolean",
+          "default": true,
+          "description": "CSS containment for free narrative fragments (v9.71.0): when true (default), each fragment's `<style>` rules are wrapped in a native `@scope (.nfrag[data-label=\"<label>\"])` so a global selector (`body`, `*`, `.x`) can only match inside that fragment's wrapper — never the page chrome above it or a sibling fragment. `<style>`-less fragments and inline `style=\"\"` are untouched. Set false to inject `<style>` verbatim/unscoped (pre-9.71.0 behaviour). Has no effect when `narrativeFragments` is false. Note: scripts are out of scope here — inline `<script>` is already blocked by the serve `script-src 'self'` CSP."
         }
       }
     },

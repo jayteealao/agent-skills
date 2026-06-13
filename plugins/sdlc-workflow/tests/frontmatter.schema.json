@@ -1817,6 +1817,39 @@
       }
     },
 
+    "design-contract": {
+      "type": "object",
+      "description": "Sibling YAML for design-contract (visual contract) fragments, authored by /wf-design craft next to 02c-craft.md. Carries the token/state/size/theme coverage axes plus the per-element implementation contract so design-contract.mjs can build the interactive coverage grid without scraping prose. NOTE: required[] is intentionally minimal — there is no real authored corpus yet (this is the first writer), so design-contract is NOT in SIBLING_YAML_VALIDATED_TYPES; it joins the write-time hard-validate allowlist only once a real sibling proves the shape.",
+      "required": ["artifact", "component", "tokens", "states", "sizes", "themes"],
+      "properties": {
+        "artifact": { "const": "design-contract" },
+        "component": { "type": "string" },
+        "based-on": { "type": "string" },
+        "summary": { "type": "string", "maxLength": 500 },
+        "run_at": { "$ref": "#/$defs/iso8601" },
+        "tokens": { "type": "array", "items": { "type": "string" } },
+        "states": { "type": "array", "items": { "type": "string" } },
+        "sizes":  { "type": "array", "items": { "type": "string" } },
+        "themes": { "type": "array", "items": { "type": "string" } },
+        "contract": {
+          "type": "array",
+          "description": "Per-element implementation-contract rows the fragment renders as expandable entries.",
+          "items": {
+            "type": "object",
+            "required": ["element", "requirement"],
+            "properties": {
+              "element":     { "type": "string" },
+              "tokens":      { "type": "array", "items": { "type": "string" } },
+              "states":      { "type": "array", "items": { "type": "string" } },
+              "requirement": { "type": "string" },
+              "refs":        { "$ref": "#/$defs/refs" }
+            }
+          }
+        },
+        "anti-patterns": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
     "design-critique": {
       "type": "object",
       "description": "Sibling YAML for design critique fragments. Carries row-level findings so renderers can build critique tables without scraping prose.",

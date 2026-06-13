@@ -56,7 +56,7 @@ const PLUGIN_ROOT = resolve(__dirname, '..');
 
 const ALLOWED_FRAGMENT_NAMES = new Set([
   'review', 'review-dimension', 'rca', 'plan', 'design', 'ship-run', 'shiprun',
-  'design-critique', 'design-audit',
+  'design-contract', 'design-critique', 'design-audit',
   // Phase 3 (v9.22.0)
   'simplify-run', 'profile', 'benchmark', 'experiment', 'instrument',
 ]);

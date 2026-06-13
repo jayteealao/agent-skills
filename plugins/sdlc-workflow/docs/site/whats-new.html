@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.70.0</small></a>
+<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.71.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -103,7 +103,7 @@ User-facing highlights since v9.11. Each entry links to the relevant reference p
 <p>The dashboard inbox now groups workflows <strong>repo → branch → slug</strong>. Each slug row shows a soft liveness badge: <code>live</code>, <code>merged</code>, <code>gone</code>, or <code>unknown</code>. Registry identifiers are now repo-scoped (hash of repo root only), so the same slug on two branches appears as two distinct rows. See <a href="reference/serve.html">Serve daemon &amp; hub →</a></p>
 
 <h2>v9.47–9.48 — Hard block on missing fragment files</h2>
-<p>If you write a rich-tier artifact (one of 13 types) without its companion <code>.yaml</code> fragment, the post-write hook now <strong>exits with an error and blocks the write</strong>. Previously it was a soft reminder. To opt out per-file, add <code>fragment: none</code> frontmatter. To disable project-wide, set <code>hooks.remindMissingFragments: false</code>. See <a href="reference/hooks.html">Hooks →</a></p>
+<p>If you write a rich-tier artifact (one of 14 types) without its companion <code>.yaml</code> fragment, the post-write hook now <strong>exits with an error and blocks the write</strong>. Previously it was a soft reminder. To opt out per-file, add <code>fragment: none</code> frontmatter. To disable project-wide, set <code>hooks.remindMissingFragments: false</code>. See <a href="reference/hooks.html">Hooks →</a></p>
 
 <h2>v9.46.0 — System-tray app</h2>
 <p>A tray app (<code>npm run tray</code>) puts dashboard status and controls in your notification area. Supports opt-in logon autostart. No <code>npm install</code> required — helper binaries are committed. See <a href="reference/tray.html">Tray app →</a></p>

@@ -44,7 +44,12 @@ var DEFAULT_SDLC_CONFIG = Object.freeze({
     // raw-inline below the page body. Default-on; set false to suppress them
     // repo-wide (e.g. if an unrestricted fragment's global CSS/JS breaks a page
     // and you want to render without it while fixing the fragment).
-    narrativeFragments: true
+    narrativeFragments: true,
+    // CSS containment for free narrative fragments (v9.71.0): default-on. Each
+    // fragment's `<style>` rules are wrapped in `@scope (.nfrag[data-label=…])`
+    // so a global selector can't bleed to the page or sibling fragments. Set
+    // false to inject `<style>` verbatim/unscoped (the pre-9.71.0 behaviour).
+    scopeNarrativeCss: true
   },
   hooks: {
     autoStage: true,

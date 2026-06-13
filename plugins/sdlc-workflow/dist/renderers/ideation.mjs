@@ -3,11 +3,11 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-MVFNADH4.mjs";
+} from "../chunk-HNKVSOGY.mjs";
 import {
   artifactHeader,
   metricRow
-} from "../chunk-DWQ5ETI7.mjs";
+} from "../chunk-Q66UAZR5.mjs";
 import "../chunk-LFGT2BKG.mjs";
 import {
   escapeHtml

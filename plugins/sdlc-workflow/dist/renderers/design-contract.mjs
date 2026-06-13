@@ -2,17 +2,17 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   frontmatterCard
-} from "../chunk-7HCDUW4D.mjs";
+} from "../chunk-46QOE4NE.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-MVFNADH4.mjs";
+} from "../chunk-HNKVSOGY.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-DWQ5ETI7.mjs";
+} from "../chunk-Q66UAZR5.mjs";
 import "../chunk-LFGT2BKG.mjs";
 import {
   escapeHtml
@@ -23,29 +23,33 @@ import "../chunk-SGA7NFMW.mjs";
 // renderers/design-contract.mjs
 function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
+  const sy = artifact.siblingYaml ?? null;
+  const data = sy ?? fm;
   const headerHtml = artifactHeader({
     crumb: artifact.path,
-    h1: escapeHtml(fm.title ?? `${fm.component ?? "Design"} visual contract`),
+    h1: escapeHtml(fm.title ?? `${fm.component ?? data.component ?? "Design"} visual contract`),
     badges: [
       statusBadge(fm.status),
       stageBadge("design-contract"),
-      fm.component && `<span class="meta">${escapeHtml(fm.component)}</span>`,
-      fm["based-on"] && `<span class="meta">based on ${escapeHtml(fm["based-on"])}</span>`
+      (fm.component ?? data.component) && `<span class="meta">${escapeHtml(fm.component ?? data.component)}</span>`,
+      (fm["based-on"] ?? data["based-on"]) && `<span class="meta">based on ${escapeHtml(fm["based-on"] ?? data["based-on"])}</span>`
     ]
   });
   const metricsHtml = metricRow([
-    { label: "tokens", value: (fm.tokens ?? []).length },
-    { label: "states", value: (fm.states ?? []).length },
-    { label: "sizes", value: (fm.sizes ?? []).length },
-    { label: "themes", value: (fm.themes ?? []).length }
+    { label: "tokens", value: (data.tokens ?? []).length },
+    { label: "states", value: (data.states ?? []).length },
+    { label: "sizes", value: (data.sizes ?? []).length },
+    { label: "themes", value: (data.themes ?? []).length }
   ]);
-  const matrixHtml = `<section class="design-contract-matrix">
-    <h2 class="sdlc-h2">contract coverage</h2>
-    ${listBlock("tokens", fm.tokens)}
-    ${listBlock("states", fm.states)}
-    ${listBlock("sizes", fm.sizes)}
-    ${listBlock("themes", fm.themes)}
-  </section>`;
+  const summaryHtml = sy?.summary ? `<p class="sdlc-lede">${escapeHtml(sy.summary)}</p>` : "";
+  const matrixHtml = !artifact.fragment ? `<section class="design-contract-matrix">
+        <h2 class="sdlc-h2">contract coverage</h2>
+        ${listBlock("tokens", data.tokens)}
+        ${listBlock("states", data.states)}
+        ${listBlock("sizes", data.sizes)}
+        ${listBlock("themes", data.themes)}
+      </section>` : "";
+  const fragmentBlock = artifact.fragment ? `<div class="fragment">${artifact.fragment}</div>` : "";
   const frontmatterBlock = frontmatterCard(fm, [
     "component",
     "based-on",
@@ -58,7 +62,7 @@ function render(artifact, ctx) {
   const proseBlock = artifact.body ? `<div class="prose">${md2html(artifact.body)}</div>` : "";
   return {
     headerHtml,
-    bodyHtml: `${metricsHtml}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
+    bodyHtml: `${metricsHtml}${summaryHtml}${fragmentBlock}${matrixHtml}${frontmatterBlock}${proseBlock}${renderHistoryBlock(artifact.history)}`,
     links: [],
     children: []
   };

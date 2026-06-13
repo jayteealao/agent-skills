@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `craft` authors its own rich `design-contract` fragment (9.71.0)
+
+`/wf-design craft` now authors a rich layer for its **own** output (`02c-craft.md`, `type: design-contract`),
+not just the design brief's `design` fragment. The visual contract becomes the **14th rich-tier type** — reversing
+the earlier Gap-D call that left contract pages prose-only "with no plausible near-term interactive layer."
+
+- **Schema.** New `siblingYamlSchemas.design-contract` branch (`artifact`/`component`/`tokens`/`states`/`sizes`/`themes`,
+  plus optional `contract[]` per-element rows and `anti-patterns[]`). `required[]` is intentionally minimal and the type
+  is **not** added to `SIBLING_YAML_VALIDATED_TYPES` — it joins the write-time hard-validate allowlist only once a real
+  authored sibling proves the shape (the established n≠1 policy).
+- **Enforce + validate.** `design-contract` added to `RICH_TIER_TYPES` (`post-write-verify` hard-blocks `02c-craft.md`
+  written without its sibling `.yaml`; a missing `.html.fragment` nudges) and to `verify-fragment.mjs`'s allowed set.
+- **Render.** `design-contract.mjs` now reads the sibling YAML (falling back to frontmatter), renders the interactive
+  fragment, and suppresses the static coverage matrix when a fragment is present — mirroring `design-critique.mjs`.
+- **Author contract.** `skills/wf-design/reference/craft.md` gains a mandatory step to write `02c-craft.yaml` +
+  `02c-craft.html.fragment` (`<section class="fragment-design-contract" data-artifact="design-contract">`).
+
+### Added — CSS containment for free narrative fragments (9.71.0)
+
+Free narrative fragments (Tier 2) are now **CSS-contained by default**, closing the one bleed vector that survived even
+on the serve path (the daemon CSP allows `style-src 'unsafe-inline'`). Each fragment's `<style>` rules are wrapped in a
+native `@scope (.nfrag[data-label="<label>"])`, so a global selector (`body`, `*`, `.card`) can only match inside that
+fragment's own wrapper — never the page chrome above it or a sibling fragment.
+
+- Inline `style="…"`, class usage, and design-token inheritance are untouched, preserving "narrative blend."
+- Scripts remain out of scope (already neutralised by the serve `script-src 'self'` CSP).
+- Browsers without `@scope` (pre-2023) ignore the scoped block → the fragment renders unstyled rather than bleeding
+  (safe degradation).
+- New `view.scopeNarrativeCss` config key (default `true`); set `false` to inject `<style>` verbatim/unscoped.
+
+
 ### Added — free narrative fragments: unrestricted, raw-inline HTML for any artifact (9.70.0)
 
 Fragments now come in **two tiers**. The existing typed fragment (`<stem>.html.fragment`, exactly one per artifact,

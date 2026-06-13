@@ -315,6 +315,24 @@ export const CASES = [
         path: '02c-craft.md',
         frontmatter: { schema: 'sdlc/v1', type: 'design-contract', slug: 'demo', status: 'ready', component: 'Checkout' },
       }),
+      fragment: artifact({
+        type: 'design-contract',
+        path: '02c-craft.md',
+        frontmatter: { schema: 'sdlc/v1', type: 'design-contract', slug: 'demo', status: 'ready', title: 'Checkout visual contract', component: 'Checkout' },
+        fragment: FRAG,
+        siblingYaml: {
+          artifact: 'design-contract', component: 'Checkout', 'based-on': '02b-design.md',
+          summary: 'Checkout button contract: action token, three states, two themes.',
+          tokens: ['color.action', 'space.md', 'radius.sm'],
+          states: ['default', 'focus', 'disabled'],
+          sizes: ['mobile', 'desktop'],
+          themes: ['light', 'dark'],
+          contract: [
+            { element: 'Primary button', tokens: ['color.action', 'radius.sm'], states: ['default', 'focus', 'disabled'], requirement: 'Action token fill; 2px focus ring; 40% opacity when disabled.' },
+          ],
+          'anti-patterns': ['No purple-blue gradient on the CTA.'],
+        },
+      }),
     },
   },
 
@@ -726,5 +744,5 @@ export const CASES = [
 // present — the determinism suite verifies these are byte-stable across runs.
 export const FRAGMENT_RENDERERS = new Set([
   'benchmark', 'experiment', 'instrument', 'rca',
-  'review-dimension', 'design-critique', 'design-audit', 'profile',
+  'review-dimension', 'design-contract', 'design-critique', 'design-audit', 'profile',
 ]);

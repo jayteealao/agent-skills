@@ -60,6 +60,11 @@ const RICH_TIER_TYPES = new Set([
   'review', 'plan', 'design', 'ship-run', 'rca',
   'benchmark', 'experiment', 'instrument', 'profile', 'simplify-run',
   'review-command', 'design-audit', 'design-critique',
+  // v9.71 — craft's visual contract gains its own rich layer (02c-craft.yaml +
+  // .html.fragment, type: design-contract). Reverses the Gap-D "no interactive
+  // layer" call now that craft authors a coverage-grid fragment. Reminder-gated
+  // only; NOT in SIBLING_YAML_VALIDATED_TYPES (no real corpus to hard-validate yet).
+  'design-contract',
 ]);
 
 // Types whose siblingYamlSchemas.<type> is reconciled to the live convention

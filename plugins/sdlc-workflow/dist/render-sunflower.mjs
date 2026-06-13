@@ -6,16 +6,16 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-RLU6ZEKU.mjs";
+} from "./chunk-KNFD7UYA.mjs";
 import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-MVFNADH4.mjs";
+} from "./chunk-HNKVSOGY.mjs";
 import {
   configHash,
   loadConfigWithMeta
-} from "./chunk-3FWV6TFQ.mjs";
+} from "./chunk-H5U2H73C.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-HQR34SES.mjs";
@@ -30,7 +30,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-DWQ5ETI7.mjs";
+} from "./chunk-Q66UAZR5.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -762,12 +762,28 @@ function loadFreeFragments(mdAbs, expandCtx) {
     return { label, html, abs };
   }).filter(Boolean);
 }
+function cssAttrValue(label) {
+  return String(label).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+function scopeFragmentCss(html, label) {
+  const root = `.nfrag[data-label="${cssAttrValue(label)}"]`;
+  return String(html).replace(
+    /<style\b([^>]*)>([\s\S]*?)<\/style>/gi,
+    (_m, attrs, css) => `<style${attrs}>@scope (${root}) {
+${css}
+}</style>`
+  );
+}
 function appendNarrativeFragments(bodyHtml, fragments, config) {
   if (config?.view?.narrativeFragments === false) return bodyHtml;
   if (!fragments?.length) return bodyHtml;
-  const blocks = fragments.map((f) => `<section class="nfrag" data-label="${escape(f.label)}">
-${f.html}
-</section>`).join("\n");
+  const scopeCss = config?.view?.scopeNarrativeCss !== false;
+  const blocks = fragments.map((f) => {
+    const inner = scopeCss ? scopeFragmentCss(f.html, f.label) : f.html;
+    return `<section class="nfrag" data-label="${escape(f.label)}">
+${inner}
+</section>`;
+  }).join("\n");
   return `${bodyHtml}
 <section class="narrative-fragments" aria-label="narrative fragments">
 ${blocks}

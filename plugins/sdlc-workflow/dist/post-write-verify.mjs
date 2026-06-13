@@ -16,7 +16,7 @@ import {
 } from "./chunk-4OZLXOMA.mjs";
 import {
   loadConfig
-} from "./chunk-3FWV6TFQ.mjs";
+} from "./chunk-H5U2H73C.mjs";
 import {
   safeLoadFrontmatterFile
 } from "./chunk-5U76735W.mjs";
@@ -219,7 +219,12 @@ var RICH_TIER_TYPES = /* @__PURE__ */ new Set([
   "simplify-run",
   "review-command",
   "design-audit",
-  "design-critique"
+  "design-critique",
+  // v9.71 — craft's visual contract gains its own rich layer (02c-craft.yaml +
+  // .html.fragment, type: design-contract). Reverses the Gap-D "no interactive
+  // layer" call now that craft authors a coverage-grid fragment. Reminder-gated
+  // only; NOT in SIBLING_YAML_VALIDATED_TYPES (no real corpus to hard-validate yet).
+  "design-contract"
 ]);
 var SIBLING_YAML_VALIDATED_TYPES = /* @__PURE__ */ new Set([
   "plan",

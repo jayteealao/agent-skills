@@ -280,6 +280,59 @@ the token table with copy controls, and the theme toggle):
 Snippet catalogue: `metric-row`, `callout`, `verdict`, `severity-chip`,
 `fragment-ready`, `files-touched-row`, `diff-block`.
 
+## Step — Write the contract's own rich `.yaml` + fragment (MANDATORY — do not skip)
+
+The visual contract page (`02c-craft.md`, `type: design-contract`) renders from a
+sibling `.yaml` + `.html.fragment` written next to it — **distinct** from the design
+brief's `design` fragment above. `design-contract.mjs` gates its interactive
+coverage grid on the sibling; **without the `.yaml` the page silently degrades to
+the static frontmatter matrix** and the `post-write-verify` hook hard-blocks the
+write (exit 2). Author both now, while the contract is in context. If this contract
+genuinely has no structured coverage to project, set `fragment: none` in the
+`02c-craft.md` frontmatter to opt out.
+
+For the `02c-craft.md` you just wrote:
+
+1. Write the sibling **`02c-craft.yaml`** — the authoritative structured data:
+   `artifact: design-contract`, `component:`, `based-on:`, `summary:`, the
+   coverage axes `tokens:` / `states:` / `sizes:` / `themes:` (string lists,
+   mirroring the frontmatter), an optional `contract:` array of per-element rows
+   (`element`, `tokens`, `states`, `requirement`), and optional `anti-patterns:`.
+   Schema: `siblingYamlSchemas.design-contract` in `tests/frontmatter.schema.json`.
+2. Write the sibling **`02c-craft.html.fragment`** — the body-only interactive
+   layer described next.
+
+Before authoring the fragment, load
+`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and apply the
+shared wrapper, snippet, and verifier rules.
+
+The fragment is one `<section class="fragment-design-contract"
+data-artifact="design-contract" data-component="<component-name>">` (body-only —
+`design-contract.mjs` owns the page heading and the tokens/states/sizes/themes
+metric-row; do **not** repeat them):
+
+- **Coverage grid** — a `tokens × states` (or `sizes × themes`) matrix showing
+  which combinations the contract commits to, with committed cells marked. This
+  is the interactive layer the static frontmatter matrix can't draw.
+- **Per-element contract rows** — one expandable row per `contract[]` entry
+  (element → required tokens/states → requirement text), so `wf-implement` can
+  scan the obligations.
+- **Anti-pattern callouts** — `anti-patterns[]` as `callout-warn` asides.
+
+Authoring rules (verifier enforces):
+
+- Exactly one top-level `<section class="fragment-design-contract">`; no remote
+  `<script src>`; inline `<style>`/`<script>` scoped under
+  `.fragment-design-contract` / `document.currentScript.closest('.fragment-design-contract')`.
+- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready',
+  { detail: { name: 'design-contract', artifact: 'design-contract',
+    counts: { tokens: <n>, states: <n>, sizes: <n>, themes: <n> } } }))`.
+- Inline SVG only. Data deterministic from `02c-craft.yaml`. Pass
+  `node scripts/verify-fragment.mjs <path>` with exit 0.
+
+Full contract:
+[`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
+
 ## Step — Write free narrative fragments
 
 Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a live component preview, an annotated mock, a token swatch board, or a before/after comparison. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).
