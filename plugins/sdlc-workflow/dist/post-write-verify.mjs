@@ -224,9 +224,9 @@ var RICH_TIER_TYPES = /* @__PURE__ */ new Set([
 var SIBLING_YAML_VALIDATED_TYPES = /* @__PURE__ */ new Set([
   "plan",
   "review",
-  "review-dimension",
   "design",
-  "simplify-run"
+  "simplify-run",
+  "ship-run"
 ]);
 function fragmentOwningType(text) {
   if (!text) return null;

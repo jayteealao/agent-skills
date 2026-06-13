@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — sibling-YAML validation lens + plan false-positive; allowlist now {plan, review, design, simplify-run, ship-run} (9.66.0)
+
+The post-write-verify hook keys the sibling-`.yaml` schema on the `.md`'s `type:` (`fragmentOwningType`), not the
+`.yaml`'s own `artifact:` field. Re-validating that way against the FULL artifact corpus across the registered repos
+exposed that v9.62.0 reconciled `plan` against a single artifact — so 12/12 real `plan` siblings would have been
+BLOCKED (exit 2) once installed. The schema fixes shipped runtime-read in the prior commit; this bundles the allowlist
+correction and bumps the version.
+
+- **plan** reconciled against all 12 real siblings: `modules` accept id-form, name-form, or plain strings; `rev` ≥ 0;
+  `files[].delta` = number | string | `{ add, rem }`; `risks` no longer require `title` and allow severity `resolved`;
+  `edges[].kind` is a free string.
+- **ship-run** reconciled (no required `artifact`; free-form stage `name`/`status`; free-string check `kind`) and ADDED
+  to the allowlist — it has 2 real siblings (they omit `artifact:`, which an earlier field-keyed scan missed).
+- **review** findings accept `{triage,status,message}` as well as `{confidence,action,msg}`; dimensions accept the live
+  per-severity `{key,status,blocker,high,med}` shape.
+- **review-dimension** REMOVED from the allowlist: per-dimension reviews are authored as `type: review-command`, so the
+  hook (keying on `.md` type) never reaches the `review-dimension` schema — the entry was dead. Its schema stays
+  reconciled for other consumers.
+- Every allowlisted type now passes its ENTIRE real corpus (plan 12/12, review 3/3, design 1/1, simplify-run 1/1,
+  ship-run 2/2); adversarial malformed shapes still rejected. The 9 unexercised / sibling-less types stay out.
+
 ### Added — reconcile + write-validate 4 more sibling-YAML types against the real corpus (9.65.0)
 
 Continues the `plan` reconciliation. Scanned all 71 sibling `.yaml` files across the 6 registered repos

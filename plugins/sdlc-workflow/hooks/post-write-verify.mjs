@@ -62,19 +62,27 @@ const RICH_TIER_TYPES = new Set([
   'review-command', 'design-audit', 'design-critique',
 ]);
 
-// Types whose siblingYamlSchemas.<type> has been reconciled to the live
-// authoring convention AND validated against the real artifact corpus, so a
-// present `.yaml` can be hard-validated at write time without false-positives.
-// Grow this set ONLY by validating real artifacts: a type joins once its
-// schema accepts every real `.yaml` of that type while still rejecting
-// malformed shapes. 15 types have a sibling schema; the 10 not listed here
-// (description, rca, design-critique, design-audit, profile, benchmark,
-// experiment, instrument, ship-run, sync-report) have NO real artifact in any
-// registered repo, so their schemas can't be validated empirically and stay
-// out — adding a guessed schema would arm a write-time BLOCK on the first
-// author of that type. Gated by config.hooks.validateSiblingYaml.
+// Types whose siblingYamlSchemas.<type> is reconciled to the live convention
+// AND validated against the real artifact corpus, so a present `.yaml` can be
+// hard-validated at write time without false-positives. CRITICAL: this hook
+// keys the schema by the `.md`'s `type:` (fragmentOwningType), NOT by the
+// `.yaml`'s own `artifact:` field — so a type belongs here only if some real
+// `.md` actually carries that `type:` AND its sibling `.yaml` validates against
+// that schema across the WHOLE corpus (never n=1). Per-dimension reviews are
+// `type: review-command` with an `artifact: review-dimension` sibling, so the
+// hook can never reach the review-dimension schema and it is intentionally
+// absent (its schema is still reconciled for other consumers, just not enforced
+// here).
+//
+// Validated against the real corpus across the registered repos (v9.66.0): plan
+// 12/12, review 3/3, design 1/1, simplify-run 1/1, ship-run 2/2. The other
+// types — description, rca, design-critique, design-audit, profile, benchmark,
+// experiment, instrument, sync-report — have no validatable sibling corpus (no
+// `.md`, or `.md` with zero siblings), so a guessed schema would arm a
+// write-time BLOCK on the first author. They join only when a real sibling
+// proves the schema. Gated by config.hooks.validateSiblingYaml.
 const SIBLING_YAML_VALIDATED_TYPES = new Set([
-  'plan', 'review', 'review-dimension', 'design', 'simplify-run',
+  'plan', 'review', 'design', 'simplify-run', 'ship-run',
 ]);
 
 /**

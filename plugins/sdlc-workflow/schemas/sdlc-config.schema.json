@@ -86,7 +86,7 @@
         "validateSiblingYaml": {
           "type": "boolean",
           "default": true,
-          "description": "When true (default), the post-write-verify hook validates a present sibling .yaml against siblingYamlSchemas.<type> and BLOCKS (exit 2) on a schema violation — but only for types whose schema has been reconciled to the live authoring convention (SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs; currently plan, review, review-dimension, design, simplify-run — the 10 types with no real artifact corpus stay unvalidated). Set false to disable while other type schemas are still being reconciled."
+          "description": "When true (default), the post-write-verify hook validates a present sibling .yaml against siblingYamlSchemas.<type> and BLOCKS (exit 2) on a schema violation — but only for types whose schema has been reconciled to the live authoring convention (SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs; currently plan, review, design, simplify-run, ship-run — keyed by the .md's type:, so review-dimension (authored as type: review-command) is not reachable here, and the types with no real sibling corpus stay unvalidated). Set false to disable while other type schemas are still being reconciled."
         }
       }
     }
