@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-08T08:03:29.019Z",
+  "generatedAt": "2026-06-13T04:38:44.137Z",
   "entries": [
     {
       "key": "benchmark",
@@ -59,8 +59,8 @@
       "key": "plan",
       "kind": "dimension",
       "referencePath": "skills/wf/reference/plan.md",
-      "bodyHash": "50342bdc73a457db19cbe2dc1a0e25063e0cf359bc2aef0604cd78ea248f10e1",
-      "bodyBytes": 43772,
+      "bodyHash": "eaf1ed0edf7ec860f72681151f9b81c86db7b498291ebf8f46242dfdc5caa136",
+      "bodyBytes": 45637,
       "description": "Create or review-and-fix implementation plans. First invocation creates plans. Re-invocation auto-reviews against current codebase and artifacts, fixes issues found. Supports single slice, all slices (parallel), or explicit feedback.",
       "argumentHint": "<slug> [slice-slug|all] [review/fix instructions]"
     },

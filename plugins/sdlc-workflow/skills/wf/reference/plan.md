@@ -533,10 +533,38 @@ For the per-slice `04-plan-<slice-slug>.md` you just wrote (files are **flat** i
 slug dir — `04-plan-<slice-slug>.{yaml,html.fragment}`, not a `slices/<slice>/`
 subtree):
 
-1. Write the sibling **`04-plan-<slice-slug>.yaml`** — the structured data:
-   `modules:`, `files:` (path, role, loc, delta{add,rem}, imports, planned_change),
-   `edges:` (import / replaces topology), `risks:`, `history:`. Schema:
-   `siblingYamlSchemas.plan` in `tests/frontmatter.schema.json`.
+1. Write the sibling **`04-plan-<slice-slug>.yaml`** — the structured data.
+   Schema: `siblingYamlSchemas.plan` in `tests/frontmatter.schema.json`
+   (required top-level: `artifact: plan`, `slice`, `modules`, `files`):
+   - **`modules:`** — the topology's groupings. Each entry is either a plain
+     **string** (legacy path-prefix — files bucket by prefix) **or** a rich
+     object **`{ id, label, role }`** that files reference by id via
+     `files[].module`. Both forms may coexist in one list.
+   - **`files:`** — one entry per touched file. `path` (required) plus:
+     - **`status:`** `new | modified | deleted | external` — the **change-type**,
+       and what the file-change topology colors by. **Put the change-type here,
+       not in `role`.** (Legacy plans stored it in `role`; the renderer still
+       falls back to `role` when `status` is absent, but author new plans with
+       `status`.)
+     - **`role:`** a free-string **category** (`config`, `infra`, `ui`,
+       `domain`, …) — descriptive only; no longer the change-type.
+     - **`module:`** id of the `modules[]` entry this file belongs to.
+     - `loc` (integer, string, or `~`/null), `delta: { add, rem }`,
+       `imports: [...]`, and `planned_change:` — an object `{ intent, diff }`
+       **or** a string block scalar.
+   - **`edges:`** — topology links: `from` + `to` (required), optional `kind:`
+     (`import | replaces | calls | extends | crosses-service`), `type`, `label`.
+   - **`risks:`** — `title` (required) plus optional `id`, `severity`/`level`
+     (`high | med | medium | low | blocker`), `body`/`detail`, `mitigation`.
+   - **`history:`** — prior-revision log; a string or an array.
+   - `lanes:` — only for multi-service plans (see Phase 2 below).
+
+   This file is validated **at write time**: `post-write-verify` **blocks
+   (exit 2)** a `plan` sibling `.yaml` that violates the schema — gated by
+   `hooks.validateSiblingYaml` (default on; `plan` is in the reconciled
+   allowlist). So author it to shape: a malformed `modules` entry (object
+   without `id`) or an unknown field is rejected at write, not silently dropped
+   at render.
 2. Write the sibling **`04-plan-<slice-slug>.html.fragment`** — the body-only
    interactive layer described next.
 

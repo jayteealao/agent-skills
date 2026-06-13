@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Docs — sync the `plan` reference to the reconciled sibling-YAML schema (9.64.0)
+
+v9.62.0 reconciled `siblingYamlSchemas.plan` and wired write-time validation, but documented the
+convention only in the schema's `description` fields — routing *around* the `verify-router-migration`
+content-integrity gate rather than through it. This brings the canonical reference into agreement and
+re-stamps the manifest the honest way.
+
+- **`skills/wf/reference/plan.md` → Step F** now describes the live sibling-`.yaml` convention authors
+  actually write: `modules` as `string | {id,label,role}`; `files[]` carrying the `status` change-type
+  (what the file-change topology colors by — *not* `role`, which is now a free-string category), the
+  `module` id-ref, string/`~` `loc`, and object-or-string `planned_change`; `edges` `kind`/`type`/`label`;
+  `risks` `severity`/`detail`/`mitigation`. Documents that `post-write-verify` **blocks (exit 2)** a
+  malformed `plan` sibling `.yaml` (gated by `hooks.validateSiblingYaml`).
+- **`skills/wf/migration-manifest.json`** re-stamped via `migrate-router --router wf` so the gate passes
+  on the edited body — only the `plan` entry's `bodyHash`/`bodyBytes` (and the regenerated timestamp)
+  moved; no other reference touched.
+- No code or schema change — reference doc + manifest only. Version bumped so the doc-site brand and the
+  bundled `PLUGIN_VERSION` stay single-sourced.
+
 ### Added — serving daemons heal version-stale views in the background (9.63.0)
 
 The render-time version gate (9.60.0) forces a clean re-render whenever a view's recorded
