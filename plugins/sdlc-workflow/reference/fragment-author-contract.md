@@ -6,6 +6,13 @@ references includes a "Step N — write the rich fragment" section that points
 here. Authoring guidance lives in one place; per-router references stay focused
 on their domain logic.
 
+> **This contract governs the TYPED fragment only** (`<stem>.html.fragment`,
+> contract-bound, YAML-projected). Since v9.70.0 any artifact may also ship free
+> **narrative fragments** — `<stem>.<label>.html.fragment`, unrestricted raw HTML
+> with none of the rules below, for every subcommand and artifact type. See
+> [`narrative-fragments.md`](narrative-fragments.md). The two tiers coexist;
+> nothing here constrains the free tier.
+
 ## Author the `.yaml` FIRST — it is mandatory, not a precondition
 
 The rich tier renders from the sibling **`.yaml`** (the structured data the page

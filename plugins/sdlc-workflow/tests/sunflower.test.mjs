@@ -12,7 +12,7 @@ import yaml from 'js-yaml';
 
 const __filename = fileURLToPath(import.meta.url);
 
-import { resolveViewPath, siblingPaths, breadcrumbFromView } from '../renderers/_paths.mjs';
+import { resolveViewPath, siblingPaths, classifyFragmentName, breadcrumbFromView } from '../renderers/_paths.mjs';
 import { splitFrontmatter, mergeFrontmatter } from '../renderers/_yaml.mjs';
 import { md2html, mdInline } from '../renderers/_markdown.mjs';
 import { renderShell, PLUGIN_VERSION, statusBadge, stageBadge, metricRow } from '../renderers/_shell.mjs';
@@ -86,6 +86,22 @@ test('siblingPaths: derives .yaml and .html.fragment names', () => {
     yaml:     '07-review.yaml',
     fragment: '07-review.html.fragment',
   });
+});
+
+test('classifyFragmentName: typed vs free vs non-match', () => {
+  const stem = '04-plan-auth';
+  // Typed — the one canonical fragment (exact bare name).
+  deepStrictEqual(classifyFragmentName('04-plan-auth.html.fragment', stem), { tier: 'typed', label: null });
+  // Free — any labelled variant, including an `NN-` order prefix.
+  deepStrictEqual(classifyFragmentName('04-plan-auth.state-machine.html.fragment', stem), { tier: 'free', label: 'state-machine' });
+  deepStrictEqual(classifyFragmentName('04-plan-auth.01-flow.html.fragment', stem), { tier: 'free', label: '01-flow' });
+  // Multi-dot labels are preserved verbatim.
+  deepStrictEqual(classifyFragmentName('04-plan-auth.a.b.html.fragment', stem), { tier: 'free', label: 'a.b' });
+  // Non-fragment files and cross-stem prefixes never match.
+  strictEqual(classifyFragmentName('04-plan-auth.md', stem), null);
+  strictEqual(classifyFragmentName('04-plan-auth.yaml', stem), null);
+  // A longer stem must not be captured by a shorter stem (`.` boundary required).
+  strictEqual(classifyFragmentName('04-plan-auth-extra.foo.html.fragment', stem), null);
 });
 
 test('breadcrumbFromView: builds correct chain depth', () => {
@@ -1413,6 +1429,89 @@ test('orchestrator renders fixture slug end-to-end', () => {
 
     const dashHtml = join(tmp, '.ai', '_view', 'INDEX.html');
     ok(existsSync(dashHtml), 'dashboard INDEX.html should exist');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+/* ── Free narrative fragments (Tier 2) — raw-inline injection ───────── */
+
+// Minimal scaffold: a single non-rich `01-intake.md` plus two free narrative
+// fragments. Returns { tmp, render(extraArgs?, configJson?) }.
+function scaffoldNarrative() {
+  const tmp = mkdtempSync(join(tmpdir(), 'sunflower-nfrag-'));
+  const slugDir = join(tmp, '.ai', 'workflows', 'feat-x');
+  mkdirSync(slugDir, { recursive: true });
+  writeFileSync(join(slugDir, '01-intake.md'),
+    '---\nschema: sdlc/v1\ntype: intake\ntitle: Intake\nstatus: active\n---\nbody prose\n', 'utf-8');
+  // Authored OUT of filename order on disk to prove label-sorted injection.
+  writeFileSync(join(slugDir, '01-intake.02-second.html.fragment'),
+    '<div data-test="FRAG-TWO">second beat</div>', 'utf-8');
+  writeFileSync(join(slugDir, '01-intake.01-first.html.fragment'),
+    '<style>.global-bleed{color:#f00}</style>\n<div data-test="FRAG-ONE">first beat</div>', 'utf-8');
+  const script = join(PLUGIN_ROOT, 'scripts', 'render-sunflower.mjs');
+  return {
+    tmp,
+    render(configJson) {
+      if (configJson) {
+        mkdirSync(join(tmp, '.ai'), { recursive: true });
+        writeFileSync(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify(configJson), 'utf-8');
+      }
+      const child = spawnSync(process.execPath, [script, '--plugin-root', PLUGIN_ROOT, '--clean'],
+        { cwd: tmp, encoding: 'utf-8' });
+      strictEqual(child.status, 0, `renderer exited with ${child.status}: ${child.stderr}`);
+      return readFileSync(join(tmp, '.ai', '_view', 'feat-x', 'intake', 'INDEX.html'), 'utf-8');
+    },
+  };
+}
+
+test('narrative fragments: N free fragments inject raw-inline, in label order, on any artifact', () => {
+  const s = scaffoldNarrative();
+  try {
+    const html = s.render();
+    // Both fragments present, wrapped in the positional container.
+    match(html, /<section class="narrative-fragments"/);
+    match(html, /data-test="FRAG-ONE"/);
+    match(html, /data-test="FRAG-TWO"/);
+    // Sorted by label: `01-first` precedes `02-second` regardless of write order.
+    ok(html.indexOf('FRAG-ONE') < html.indexOf('FRAG-TWO'), 'fragments should inject in label order');
+    // Raw + unrestricted: the author's <style> survives verbatim (no scoping/sanitising).
+    match(html, /<style>\.global-bleed\{color:#f00\}<\/style>/);
+  } finally {
+    rmSync(s.tmp, { recursive: true, force: true });
+  }
+});
+
+test('narrative fragments: view.narrativeFragments=false suppresses injection', () => {
+  const s = scaffoldNarrative();
+  try {
+    const html = s.render({ view: { narrativeFragments: false } });
+    ok(!/narrative-fragments/.test(html), 'container should be absent when disabled');
+    ok(!/FRAG-ONE/.test(html) && !/FRAG-TWO/.test(html), 'fragment content should not appear when disabled');
+  } finally {
+    rmSync(s.tmp, { recursive: true, force: true });
+  }
+});
+
+test('verify-fragment: exempts free fragments, still enforces typed', () => {
+  const tmp = mkdtempSync(join(tmpdir(), 'sunflower-vf-'));
+  const root = join(tmp, '.ai', 'workflows', 'feat-x');
+  mkdirSync(root, { recursive: true });
+  try {
+    const script = join(PLUGIN_ROOT, 'scripts', 'verify-fragment.mjs');
+    const run = () => spawnSync(process.execPath, [script, '--root', join(tmp, '.ai', 'workflows')],
+      { cwd: tmp, encoding: 'utf-8' });
+
+    // A free fragment with NO section wrapper and NO sibling .yaml — would fail
+    // the contract, but is exempt because its `.md` exists and the name is labelled.
+    writeFileSync(join(root, '01-intake.md'), '---\ntype: intake\n---\nx\n', 'utf-8');
+    writeFileSync(join(root, '01-intake.story.html.fragment'), '<div>anything goes</div>', 'utf-8');
+    strictEqual(run().status, 0, 'free fragment must pass (exempt from the envelope contract)');
+
+    // A TYPED fragment (bare name) with no section wrapper still fails.
+    writeFileSync(join(root, '02-shape.md'), '---\ntype: shape\n---\nx\n', 'utf-8');
+    writeFileSync(join(root, '02-shape.html.fragment'), '<div>missing section + dispatch</div>', 'utf-8');
+    strictEqual(run().status, 1, 'malformed typed fragment must still fail');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

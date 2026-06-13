@@ -59,6 +59,11 @@
               "default": true
             }
           }
+        },
+        "narrativeFragments": {
+          "type": "boolean",
+          "default": true,
+          "description": "Free narrative fragments (Tier 2, v9.70.0): when true, any artifact's `<stem>.<label>.html.fragment` siblings — UNRESTRICTED raw HTML the agent authors to tell the artifact's story — are injected raw-inline below the page body, in label (filename) order. Set false to suppress them repo-wide (e.g. while a fragment's global CSS/JS is breaking a page). The one typed `<stem>.html.fragment` is unaffected by this switch."
         }
       }
     },

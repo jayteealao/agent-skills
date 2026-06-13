@@ -141,6 +141,10 @@ This stage was skipped. See `skip-<stage>.md` for the reason and downstream impa
 Downstream commands that read this file should treat its absence of content as intentional. Do not error or block on missing sections — proceed with the context available from prior stage artifacts.
 ```
 
+## Step — Write free narrative fragments
+
+Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after comparison, a timeline, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).
+
 # Step 5 — Update `00-index.md`
 
 Read `00-index.md`, then update the following fields:

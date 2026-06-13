@@ -32,7 +32,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { loadArtifact } from '../renderers/_yaml.mjs';
 import { validateFrontmatter, renderWarnBanner } from '../renderers/_validator.mjs';
-import { resolveViewPath, siblingPaths, breadcrumbFromView } from '../renderers/_paths.mjs';
+import { resolveViewPath, siblingPaths, classifyFragmentName, breadcrumbFromView } from '../renderers/_paths.mjs';
 import { buildPathMap, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
 import { workSetFilter } from '../renderers/_mtime.mjs';
 import { loadHistory } from '../renderers/_history.mjs';
@@ -404,6 +404,64 @@ function escape(s) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
 }
 
+/* ─────────────────── Free narrative fragments (Tier 2) ───────────────────
+   Any artifact `.md` may ship N free-form `<stem>.<label>.html.fragment`
+   siblings — UNRESTRICTED raw HTML the agent authors to tell whatever story the
+   artifact needs. Unlike the one typed `<stem>.html.fragment` (contract-bound,
+   YAML-projected, verify-fragment-enforced), free fragments carry no envelope,
+   no scoping, no sibling `.yaml`, and no contract. They are discovered by
+   scanning the directory that holds the `.md`, then injected raw-inline below
+   the page body in label (filename) order — an `NN-` prefix on the label gives
+   the agent explicit ordering control. The user chose raw inline over iframe
+   isolation (v9.70.0): maximum narrative blend, at the cost of a global selector
+   or thrown script in one fragment being able to affect the rest of the page.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+// Discover the free narrative fragments co-located with an artifact `.md`.
+// Returns [{ label, abs }] sorted by filename (label) so order is deterministic
+// and author-controllable. Reads no file contents — just the directory listing.
+function discoverFreeFragments(mdAbs) {
+  const dir = dirname(mdAbs);
+  const stem = basename(mdAbs, '.md');
+  let names;
+  try { names = readdirSync(dir); }
+  catch { return []; }
+  const out = [];
+  for (const name of names) {
+    const c = classifyFragmentName(name, stem);
+    if (c?.tier === 'free') out.push({ label: c.label, abs: join(dir, name) });
+  }
+  return out.sort((a, b) => (a.label < b.label ? -1 : a.label > b.label ? 1 : 0));
+}
+
+// Read + expand each free fragment's raw HTML. @include expansion is purely
+// opt-in (fires only if the author writes a `<!-- @include … -->` token), so
+// running it never constrains the unrestricted content. A read/expand failure
+// degrades to the raw bytes (or is skipped) rather than aborting the render.
+function loadFreeFragments(mdAbs, expandCtx) {
+  return discoverFreeFragments(mdAbs).map(({ label, abs }) => {
+    let html = '';
+    try { html = readFileSync(abs, 'utf-8'); }
+    catch (err) { console.warn(`[nfrag] ${abs}: ${err.message}`); return null; }
+    try { html = expandSnippets(html, expandCtx); }
+    catch (err) { console.warn(`[nfrag:expand] ${abs}: ${err.message}`); }
+    return { label, html, abs };
+  }).filter(Boolean);
+}
+
+// Append the free narrative fragments to a rendered page body, raw-inline. The
+// per-fragment `<section class="nfrag">` is a positional/layout wrapper ONLY —
+// it imposes nothing on the author's HTML (no scoping, no required structure).
+// Gated by `view.narrativeFragments` (default on); set false to suppress them.
+function appendNarrativeFragments(bodyHtml, fragments, config) {
+  if (config?.view?.narrativeFragments === false) return bodyHtml;
+  if (!fragments?.length) return bodyHtml;
+  const blocks = fragments
+    .map((f) => `<section class="nfrag" data-label="${escape(f.label)}">\n${f.html}\n</section>`)
+    .join('\n');
+  return `${bodyHtml}\n<section class="narrative-fragments" aria-label="narrative fragments">\n${blocks}\n</section>`;
+}
+
 function synthesizeProjectFrontmatter(artifact, frontmatter) {
   const fm = frontmatter && typeof frontmatter === 'object' ? frontmatter : {};
   if (fm.schema && fm.type) return fm;
@@ -547,11 +605,20 @@ async function renderMain(args) {
         console.warn(`[expand] ${fragmentAbs}: ${err.message}`);
       }
     }
+    // Tier 2 — discover + load any free narrative fragments co-located with the
+    // `.md` (`<stem>.<label>.html.fragment`). Injected raw-inline post-render so
+    // EVERY artifact type can carry them, not just the rich tier.
+    const narrativeFragments = loadFreeFragments(a.mdAbs, {
+      componentsRoot: join(args.pluginRoot, 'components'),
+      maxDepth: 4,
+    });
     const history = loadHistory(a.mdAbs);
     parsed.push({
       ...a,
       ...loaded,
       fragment: fragmentHtml,
+      narrativeFragments,
+      narrativeFragmentPaths: narrativeFragments.map((f) => f.abs),
       history,
       siblingPaths: { yaml: yamlAbs, fragment: fragmentAbs },
     });
@@ -579,7 +646,9 @@ async function renderMain(args) {
       continue;
     }
     viewAbsSeen.set(viewAbs, `${a.slug}/${a.storageRel}`);
-    const storageInputs = [a.mdAbs, a.siblingPaths.yaml, a.siblingPaths.fragment].filter(Boolean);
+    // Free narrative fragment files join the dirty-check inputs so editing one
+    // (with no `.md`/`.yaml`/typed-fragment change) still re-renders the page.
+    const storageInputs = [a.mdAbs, a.siblingPaths.yaml, a.siblingPaths.fragment, ...(a.narrativeFragmentPaths ?? [])].filter(Boolean);
     // Namespace the work-set match path so `--only <bucket>/**` can target a
     // bucket. Off-pipeline kinds (simplify/profile/deps/ideation) previously
     // fell through to a bare storageRel with NO prefix, so a bootstrap
@@ -669,6 +738,13 @@ async function renderMain(args) {
       fromStorageRel: a.storageRel,
       fromViewRel: a.viewRel,
     });
+
+    // Tier 2 — append the artifact's free narrative fragments raw-inline below
+    // the renderer's body. Central seam: works for every typed renderer AND the
+    // fallback, so any artifact (any subcommand) can carry them. Their raw HTML
+    // is intentionally NOT link-rewritten — unrestricted content passes through
+    // verbatim.
+    result.bodyHtml = appendNarrativeFragments(result.bodyHtml, a.narrativeFragments, config);
 
     const breadcrumbs = breadcrumbFromView(a.viewRel, displaySlug);
     const html = renderShell({
@@ -996,6 +1072,8 @@ function artifactInputs(artifacts) {
     const siblings = siblingPaths(artifact.storageRel);
     inputs.push(join(artifact.siblingRoot, siblings.yaml));
     inputs.push(join(artifact.siblingRoot, siblings.fragment));
+    // Free narrative fragments — a new/edited one must mark the artifact stale.
+    for (const f of discoverFreeFragments(artifact.mdAbs)) inputs.push(f.abs);
   }
   return inputs;
 }
@@ -1010,6 +1088,7 @@ function offPipelineInputs(root, mdAbsList) {
     const siblings = siblingPaths(relative(root, mdAbs).replace(/\\/g, '/'));
     inputs.push(join(root, siblings.yaml));
     inputs.push(join(root, siblings.fragment));
+    for (const f of discoverFreeFragments(mdAbs)) inputs.push(f.abs);
   }
   return inputs;
 }

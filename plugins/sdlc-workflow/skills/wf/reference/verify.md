@@ -757,3 +757,9 @@ Web-only. Core Web Vitals captured via Chrome DevTools Protocol during the prima
 - **Option C:** `/wf implement <slug> <slice-slug>` — escape hatch; remaining issues need manual implement [reason, only if applicable]
 - **Option D:** `/wf handoff <slug> <slice-slug>` — skip review [reason, if applicable]
 - **Option E:** `/wf plan <slug> <slice-slug>` — plan needs rethinking [reason, if applicable]
+
+---
+
+## Step — Write free narrative fragments
+
+Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).

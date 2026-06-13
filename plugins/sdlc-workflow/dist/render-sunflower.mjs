@@ -6,16 +6,16 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-NHNLT74Y.mjs";
+} from "./chunk-RLU6ZEKU.mjs";
 import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-I4RNJFXK.mjs";
+} from "./chunk-MVFNADH4.mjs";
 import {
   configHash,
   loadConfigWithMeta
-} from "./chunk-JRIEIPIL.mjs";
+} from "./chunk-3FWV6TFQ.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-HQR34SES.mjs";
@@ -26,10 +26,11 @@ import {
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
+  classifyFragmentName,
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-UL7P67Q2.mjs";
+} from "./chunk-DWQ5ETI7.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -728,6 +729,50 @@ function fallbackRender(artifact, ctx) {
 function escape(s) {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
 }
+function discoverFreeFragments(mdAbs) {
+  const dir = dirname(mdAbs);
+  const stem = basename(mdAbs, ".md");
+  let names;
+  try {
+    names = readdirSync(dir);
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const name of names) {
+    const c = classifyFragmentName(name, stem);
+    if (c?.tier === "free") out.push({ label: c.label, abs: join3(dir, name) });
+  }
+  return out.sort((a, b) => a.label < b.label ? -1 : a.label > b.label ? 1 : 0);
+}
+function loadFreeFragments(mdAbs, expandCtx) {
+  return discoverFreeFragments(mdAbs).map(({ label, abs }) => {
+    let html = "";
+    try {
+      html = readFileSync3(abs, "utf-8");
+    } catch (err) {
+      console.warn(`[nfrag] ${abs}: ${err.message}`);
+      return null;
+    }
+    try {
+      html = expand(html, expandCtx);
+    } catch (err) {
+      console.warn(`[nfrag:expand] ${abs}: ${err.message}`);
+    }
+    return { label, html, abs };
+  }).filter(Boolean);
+}
+function appendNarrativeFragments(bodyHtml, fragments, config) {
+  if (config?.view?.narrativeFragments === false) return bodyHtml;
+  if (!fragments?.length) return bodyHtml;
+  const blocks = fragments.map((f) => `<section class="nfrag" data-label="${escape(f.label)}">
+${f.html}
+</section>`).join("\n");
+  return `${bodyHtml}
+<section class="narrative-fragments" aria-label="narrative fragments">
+${blocks}
+</section>`;
+}
 function synthesizeProjectFrontmatter(artifact, frontmatter) {
   const fm = frontmatter && typeof frontmatter === "object" ? frontmatter : {};
   if (fm.schema && fm.type) return fm;
@@ -823,11 +868,17 @@ async function renderMain(args) {
         console.warn(`[expand] ${fragmentAbs}: ${err.message}`);
       }
     }
+    const narrativeFragments = loadFreeFragments(a.mdAbs, {
+      componentsRoot: join3(args.pluginRoot, "components"),
+      maxDepth: 4
+    });
     const history = loadHistory(a.mdAbs);
     parsed.push({
       ...a,
       ...loaded,
       fragment: fragmentHtml,
+      narrativeFragments,
+      narrativeFragmentPaths: narrativeFragments.map((f) => f.abs),
       history,
       siblingPaths: { yaml: yamlAbs, fragment: fragmentAbs }
     });
@@ -846,7 +897,7 @@ async function renderMain(args) {
       continue;
     }
     viewAbsSeen.set(viewAbs, `${a.slug}/${a.storageRel}`);
-    const storageInputs = [a.mdAbs, a.siblingPaths.yaml, a.siblingPaths.fragment].filter(Boolean);
+    const storageInputs = [a.mdAbs, a.siblingPaths.yaml, a.siblingPaths.fragment, ...a.narrativeFragmentPaths ?? []].filter(Boolean);
     const filterStoragePath = a.kind === "workflow" ? `${a.slug}/${a.storageRel}` : a.kind === "project" ? `project/${a.storageRel}` : a.kind === "docs" ? `docs/${a.storageRel}` : OFF_PIPELINE_BUCKET[a.kind] ? `${OFF_PIPELINE_BUCKET[a.kind]}/${a.storageRel}` : a.storageRel;
     a.viewRel = viewRel;
     a.viewAbs = viewAbs;
@@ -909,6 +960,7 @@ async function renderMain(args) {
       fromStorageRel: a.storageRel,
       fromViewRel: a.viewRel
     });
+    result.bodyHtml = appendNarrativeFragments(result.bodyHtml, a.narrativeFragments, config);
     const breadcrumbs = breadcrumbFromView(a.viewRel, displaySlug);
     const html = renderShell({
       title: a.frontmatter?.title ?? `${a.slug} \xB7 ${type}`,
@@ -1171,6 +1223,7 @@ function artifactInputs(artifacts) {
     const siblings = siblingPaths(artifact.storageRel);
     inputs.push(join3(artifact.siblingRoot, siblings.yaml));
     inputs.push(join3(artifact.siblingRoot, siblings.fragment));
+    for (const f of discoverFreeFragments(artifact.mdAbs)) inputs.push(f.abs);
   }
   return inputs;
 }
@@ -1181,6 +1234,7 @@ function offPipelineInputs(root, mdAbsList) {
     const siblings = siblingPaths(relative(root, mdAbs).replace(/\\/g, "/"));
     inputs.push(join3(root, siblings.yaml));
     inputs.push(join3(root, siblings.fragment));
+    for (const f of discoverFreeFragments(mdAbs)) inputs.push(f.abs);
   }
   return inputs;
 }

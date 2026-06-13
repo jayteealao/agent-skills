@@ -30,6 +30,12 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     hub: {
       enabled: true,
     },
+    // Free narrative fragments (Tier 2, v9.70.0): any artifact may ship N
+    // `<stem>.<label>.html.fragment` siblings of UNRESTRICTED raw HTML, injected
+    // raw-inline below the page body. Default-on; set false to suppress them
+    // repo-wide (e.g. if an unrestricted fragment's global CSS/JS breaks a page
+    // and you want to render without it while fixing the fragment).
+    narrativeFragments: true,
   },
   hooks: {
     autoStage: true,

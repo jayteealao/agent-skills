@@ -17,6 +17,8 @@ You are the **code review skill** for the SDLC workflow plugin. Two modes of ope
 
 **Choosing between them:** single-dimension is one reviewer over a broad rubric; sweep is N reviewers each with their own rubric. Use single-dimension when you know which axis to investigate; use sweep when you want defensive breadth. Sweep is more thorough and more expensive — pick it deliberately.
 
+> **Narrative fragments — any artifact (v9.70.0).** Beyond the typed review `.html.fragment` projected from the sibling `.yaml`, any review artifact may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page (e.g. a custom call-graph or exploit walkthrough for a specific finding). Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+
 # Step 0 — Resolve the request
 
 Parse the user's invocation. Extract:
@@ -259,3 +261,7 @@ Authoring rules:
   the per-dimension page tells the reviewer to read this dimension first.
 - `rev` must match the master review's `rev` at the time of writing.
   Bump both together on revision.
+
+## Step — Write free narrative fragments
+
+Beyond the fixed review fragment above, a review artifact also ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the structured findings list can't on its own — a custom call-graph for a specific bug, an exploit walkthrough, a before/after of a risky diff, or an interactive repro. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../reference/narrative-fragments.md).

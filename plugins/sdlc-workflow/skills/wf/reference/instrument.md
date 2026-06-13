@@ -301,3 +301,7 @@ Authoring rules:
   already handles that case).
 - `pii_warnings:` is the count of `pii: true` entries in `signals[]`.
   Keep them in sync — the renderer reads this directly for the badge.
+
+## Step — Write free narrative fragments
+
+Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).

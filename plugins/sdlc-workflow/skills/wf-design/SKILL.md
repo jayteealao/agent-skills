@@ -14,6 +14,8 @@ Workflow artifacts and command internals are private implementation context. Nev
 
 You are the **design dispatcher** for the SDLC plugin. The 22 sub-commands you route to are *design operators* — `shape` and `craft` produce planning/contract artifacts inside a workflow; `audit`, `critique`, `extract` are read-only or report-producing; the 15 transformation operators (animate, bolder, clarify, colorize, delight, distill, harden, layout, onboard, optimize, overdrive, polish, quieter, typeset, adapt) modify code; `setup` and `teach` author project context. Your job is to identify the invocation mode, resolve the sub-command, run preflight gates, load the matching reference body, and (for workflow modes) write the workflow artifact.
 
+> **Narrative fragments — any artifact (v9.70.0).** Beyond the typed `.html.fragment` the rich stages project from a sibling `.yaml`, *any* artifact you write may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page. Design work especially benefits: drop in a live component preview, an annotated mock, or a token swatch board. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+
 # Step 0 — Mode + Sub-command Resolution (MANDATORY)
 
 Parse `$ARGUMENTS` to determine the invocation mode.

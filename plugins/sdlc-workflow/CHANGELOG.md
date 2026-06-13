@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — free narrative fragments: unrestricted, raw-inline HTML for any artifact (9.70.0)
+
+Fragments now come in **two tiers**. The existing typed fragment (`<stem>.html.fragment`, exactly one per artifact,
+contract-bound and projected from the sibling `.yaml`) is unchanged. On top of it, **any** artifact written by **any**
+subcommand may now ship any number of **free narrative fragments** named `<stem>.<label>.html.fragment` — completely
+unrestricted raw HTML the agent authors to tell whatever story the artifact needs (a bespoke architecture diagram, a
+before/after flow, a state machine, an interactive widget), with **no** envelope, scoping, `sdlc:fragment-ready` dispatch,
+sibling `.yaml`, or determinism rule.
+
+- **Discovery + injection.** The renderer scans the directory holding each `.md` for `<stem>.<label>.html.fragment`
+  siblings, sorts them by filename (an `NN-` label prefix gives explicit order), and injects their raw HTML **raw-inline**
+  below the page body inside a single positional `<section class="narrative-fragments">`. Injection happens at one central
+  seam after the renderer returns, so it works for all typed renderers AND the generic fallback — i.e. for every artifact
+  type, not just the rich tier.
+- **Raw inline, not sandboxed** (the deliberate choice): maximum narrative blend (fragments inherit the page's design
+  tokens and flow as part of the document), at the cost of no isolation — a global selector or thrown script in one fragment
+  can affect the rest of the page. Views are gitignored/local-only, so the concern is page-breakage, not exfiltration.
+- **Verifier.** `verify-fragment.mjs` now classifies each `.html.fragment` by filename (reusing the renderer's
+  `classifyFragmentName`) and **exempts** free fragments from the envelope contract; the typed fragment is still fully
+  enforced. (Also fixes a latent array-vs-object return on the no-section path.)
+- **Staleness.** Adding/editing/removing a free fragment marks its artifact stale on both the additive and bootstrap render
+  paths, so the page re-renders without a `--clean`.
+- **Escape hatch.** `view.narrativeFragments: false` in `.ai/sdlc-config.json` suppresses all free fragments repo-wide
+  (the typed fragment is unaffected). New reference: `reference/narrative-fragments.md`; the two shared fragment-contract
+  docs and all six artifact-producing routers now point to it.
+
 ### Fixed — rendered slice counts now follow the slice roster after `wf-meta extend` (9.69.0)
 
 `/wf-meta extend` adds net-new slices by bumping the slice roster (`03-slice.md`: `total-slices` + `slices[]`) and writing new

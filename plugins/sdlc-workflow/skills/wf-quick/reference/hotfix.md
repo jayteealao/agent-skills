@@ -195,6 +195,10 @@ created-at: <real timestamp>
 
 If FAIL: return to Step 4. Do NOT broaden the fix without returning to the plan.
 
+## Step — Write free narrative fragments
+
+Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).
+
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Never leave canonical results only in chat.
 - **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`.

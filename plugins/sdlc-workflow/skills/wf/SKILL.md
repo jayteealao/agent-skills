@@ -14,6 +14,8 @@ Workflow artifacts and command internals are private implementation context. Nev
 
 You are the **lifecycle-stage dispatcher** for the SDLC plugin. The 14 sub-commands you route to are *stage executors* — each runs one stage of the canonical lifecycle (or one perf/observability augmentation) and writes a stage artifact. Your only job is to identify which stage the user wants, load its reference body, and follow it verbatim.
 
+> **Narrative fragments — any artifact (v9.70.0).** Beyond the typed `.html.fragment` the rich stages project from a sibling `.yaml`, *any* artifact you write may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page. Author one whenever a bespoke diagram, flow, comparison, or widget tells the story better than prose. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+
 # Step 0 — Resolve the sub-command
 
 Parse `$ARGUMENTS`. The first token must be one of the 14 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying stage.

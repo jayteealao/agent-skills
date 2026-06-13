@@ -1897,3 +1897,12 @@ nav.so-rail a[aria-current="true"] .count { background: var(--paper); color: var
 }
 table.files-touched td.loc { font-family: var(--mono); font-size: 11px; color: var(--ink-3); text-align: right; }
 table.files-touched .ft-intent { font-size: 12px; color: var(--ink-2); margin-top: 6px; padding-left: 4px; }
+
+/* Free narrative fragments (Tier 2, v9.70.0). The page injects N author-written
+   `<stem>.<label>.html.fragment` blocks raw-inline here. These rules style ONLY
+   the positional wrappers — they set no typography/colour on fragment contents,
+   so an unrestricted fragment renders exactly as authored. `.nfrag` constrains
+   nothing; it just separates adjacent fragments with a hairline rule. */
+.narrative-fragments { margin-top: 28px; }
+.narrative-fragments > .nfrag { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--rule); }
+.narrative-fragments > .nfrag:first-child { margin-top: 0; padding-top: 0; border-top: 0; }

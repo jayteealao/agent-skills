@@ -287,6 +287,11 @@ export function resolveViewPath(storageRel, opts = {}) {
 /**
  * Resolve sibling YAML / html.fragment paths for a given storage MD path.
  * Returns absolute-like POSIX paths relative to the slug root.
+ *
+ * `fragment` is the TYPED (canonical) fragment — the contract-bound, YAML-projected
+ * `.html.fragment` validated by verify-fragment.mjs. An artifact may ALSO ship any
+ * number of FREE narrative fragments named `<stem>.<label>.html.fragment`; those are
+ * discovered by directory scan (see classifyFragmentName), not by this lexical helper.
  */
 export function siblingPaths(storageRel) {
   const rel = storageRel.replace(/\\/g, '/');
@@ -295,6 +300,37 @@ export function siblingPaths(storageRel) {
     yaml:     `${stem}.yaml`,
     fragment: `${stem}.html.fragment`,
   };
+}
+
+const FRAGMENT_SUFFIX = '.html.fragment';
+
+/**
+ * Classify a `*.html.fragment` filename against an artifact's basename stem
+ * (the `.md` basename minus the extension, e.g. `04-plan-auth`). Two tiers:
+ *
+ *   - `<stem>.html.fragment`          → { tier: 'typed', label: null }
+ *       The one canonical, contract-bound fragment the renderers project from
+ *       the sibling `.yaml`. Enforced by verify-fragment.mjs.
+ *   - `<stem>.<label>.html.fragment`  → { tier: 'free', label: '<label>' }
+ *       A free narrative fragment — UNRESTRICTED raw HTML the agent authors to
+ *       tell the story this artifact needs. Any number per artifact, injected
+ *       raw-inline below the page body in label (filename) order. An `NN-`
+ *       prefix on the label controls ordering (e.g. `01-state-machine`). No
+ *       envelope, no scoping, no sibling `.yaml`, no contract.
+ *
+ * Returns `null` when `name` is not a fragment sibling of `stem` at all. The
+ * typed check is exact, so a stem that is a prefix of a longer stem (e.g. stem
+ * `04-plan` vs file `04-plan-auth.foo.html.fragment`) never cross-matches: the
+ * free branch requires a literal `<stem>.` boundary.
+ */
+export function classifyFragmentName(name, stem) {
+  if (!name.endsWith(FRAGMENT_SUFFIX)) return null;
+  if (name === `${stem}${FRAGMENT_SUFFIX}`) return { tier: 'typed', label: null };
+  const prefix = `${stem}.`;
+  if (!name.startsWith(prefix)) return null;
+  const label = name.slice(prefix.length, name.length - FRAGMENT_SUFFIX.length);
+  if (!label) return null;
+  return { tier: 'free', label };
 }
 
 /**

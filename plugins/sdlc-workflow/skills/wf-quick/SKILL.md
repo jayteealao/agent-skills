@@ -14,6 +14,8 @@ Workflow artifacts and command internals are private implementation context. Nev
 
 You are the **standalone-workflow dispatcher** for the SDLC plugin. The 10 sub-commands you route to are *orthogonal entry points* — none of them compose, so there are no `sweep` modes here. Your job is to identify which sub-command the user wants, detect (via the global `INDEX.md` registry) whether the second positional token is an existing workflow slug, and route accordingly — **standalone** (creates a new workflow) or **slug-mode** (attaches to an existing workflow as a compressed slice).
 
+> **Narrative fragments — any artifact (v9.70.0).** Beyond the typed `.html.fragment` the rich stages project from a sibling `.yaml`, *any* artifact you write may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page. Author one whenever a bespoke diagram, flow, comparison, or widget tells the story better than prose. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+
 # Step 0 — Identify the sub-command and detect slug
 
 Parse `$ARGUMENTS` positionally. The `probe` sub-command accepts `--strict`, `--from <path>`, and `--adapter <key>` flags; all other sub-commands take no flags.

@@ -225,6 +225,16 @@ function siblingPaths(storageRel) {
     fragment: `${stem}.html.fragment`
   };
 }
+var FRAGMENT_SUFFIX = ".html.fragment";
+function classifyFragmentName(name, stem) {
+  if (!name.endsWith(FRAGMENT_SUFFIX)) return null;
+  if (name === `${stem}${FRAGMENT_SUFFIX}`) return { tier: "typed", label: null };
+  const prefix = `${stem}.`;
+  if (!name.startsWith(prefix)) return null;
+  const label = name.slice(prefix.length, name.length - FRAGMENT_SUFFIX.length);
+  if (!label) return null;
+  return { tier: "free", label };
+}
 function pageHref(dirHref) {
   const s = String(dirHref ?? "");
   if (s.endsWith(".html")) return s;
@@ -249,7 +259,7 @@ function breadcrumbFromView(viewRel, slug) {
 }
 
 // renderers/_shell.mjs
-var PLUGIN_VERSION = "9.69.0";
+var PLUGIN_VERSION = "9.70.0";
 function renderShell(params) {
   const {
     title,
@@ -386,6 +396,7 @@ function metricRow(metrics) {
 export {
   resolveViewPath,
   siblingPaths,
+  classifyFragmentName,
   pageHref,
   breadcrumbFromView,
   PLUGIN_VERSION,

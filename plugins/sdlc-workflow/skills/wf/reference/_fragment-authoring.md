@@ -3,7 +3,46 @@
 Use this whenever a command writes a sibling `.html.fragment` next to its `.md`
 and `.yaml` artifacts.
 
-## Required shape
+> **Two tiers (v9.70.0).** This contract governs the **typed** fragment —
+> `<stem>.html.fragment`, exactly one per artifact, contract-bound and projected
+> from the sibling `.yaml`. An artifact may ALSO ship any number of **free
+> narrative fragments** named `<stem>.<label>.html.fragment`: unrestricted raw
+> HTML with **none** of the rules below, available to every artifact and every
+> subcommand, injected raw-inline below the page body. The free tier is
+> documented separately in
+> [`reference/narrative-fragments.md`](../../../reference/narrative-fragments.md)
+> — the rules in THIS file do not apply to it.
+
+## Authoring steps (cite these from each subcommand)
+
+When a subcommand's reference reaches its "write the view fragments" step, it
+performs **one or both** of these, depending on the artifact:
+
+- **Step F1 — Fixed fragment** *(rich artifacts only: review, plan, design,
+  design-brief, ship-run, rca, simplify-run, profile, benchmark, experiment,
+  instrument, review-dimension)*. **Mandatory** for these types:
+  1. Write the sibling `<stem>.yaml` (the structured data; the renderer gates the
+     whole rich figure/table on it — a missing `.yaml` hard-blocks at write time).
+  2. Write the sibling `<stem>.html.fragment` — the one contract-bound interactive
+     layer, per **Required shape** below.
+  A rich artifact with genuinely no structured data may opt out with
+  `fragment: none` in its frontmatter.
+
+- **Step F2 — Free narrative fragments** *(available to ANY artifact, any
+  subcommand)*. **Author as many as the story needs.**
+  For each beat the structured page can't tell — a bespoke architecture diagram,
+  a before/after flow, a state machine, an annotated mock, an interactive widget —
+  write a sibling `<stem>.<label>.html.fragment` of **unrestricted raw HTML**
+  (no wrapper, no scoping, no sibling `.yaml`, no contract). Prefix the label with
+  `NN-` (`01-`, `02-`, …) to control order; they inject raw-inline below the page
+  body in label order. Full guidance:
+  [`reference/narrative-fragments.md`](../../../reference/narrative-fragments.md).
+
+A non-rich artifact (intake, slice, implement, verify, handoff, retro, sync,
+amendments, …) skips Step F1 entirely and uses **only** Step F2 when a custom
+visual would help.
+
+## Required shape (typed fragment only)
 
 - Write exactly one top-level `<section class="fragment-<name>">`.
 - Keep all selectors scoped to that fragment class or a fragment-specific prefix.

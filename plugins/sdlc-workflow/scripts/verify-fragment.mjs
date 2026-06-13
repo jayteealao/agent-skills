@@ -26,6 +26,30 @@ import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
+import { classifyFragmentName } from '../renderers/_paths.mjs';
+
+/**
+ * Classify a `*.html.fragment` against the `.md` artifacts beside it:
+ *   - 'typed'  — `<stem>.html.fragment` for an existing `<stem>.md`. The full
+ *                envelope contract below applies (scoped section, sibling YAML, …).
+ *   - 'free'   — `<stem>.<label>.html.fragment` for an existing `<stem>.md`. The
+ *                UNRESTRICTED narrative tier — EXEMPT from the contract.
+ *   - 'orphan' — no sibling `.md` makes it either; validated as typed (best
+ *                effort) so a stray fragment still gets contract feedback.
+ * Uses the single-source-of-truth classifier so the verifier and the renderer
+ * agree on the naming convention.
+ */
+function fragmentTier(absPath) {
+  const dir = dirname(absPath);
+  const base = basename(absPath);
+  let mds;
+  try { mds = readdirSync(dir).filter((n) => n.endsWith('.md')); }
+  catch { return 'orphan'; }
+  const stems = mds.map((n) => n.slice(0, -'.md'.length));
+  if (stems.some((stem) => classifyFragmentName(base, stem)?.tier === 'typed')) return 'typed';
+  if (stems.some((stem) => classifyFragmentName(base, stem)?.tier === 'free')) return 'free';
+  return 'orphan';
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..');
@@ -118,6 +142,14 @@ function normalizeYamlScalars(value) {
 function validateFragment(absPath, ajv, siblingSchemas) {
   const errs = [];
   const warns = [];
+
+  // Tier 2 — free narrative fragments (`<stem>.<label>.html.fragment`) are
+  // UNRESTRICTED raw HTML; the envelope contract below does not apply to them.
+  // Exempt before reading so an empty/exotic free fragment never trips a check.
+  if (fragmentTier(absPath) === 'free') {
+    return { errs, warns };
+  }
+
   const text = readFileSync(absPath, 'utf-8');
 
   // Check 9 — published-snippet detection (warnings, not errors)
@@ -127,7 +159,7 @@ function validateFragment(absPath, ajv, siblingSchemas) {
   const sectionMatch = text.match(/<section\s+class="fragment-([a-z-]+)"/);
   if (!sectionMatch) {
     errs.push('no top-level <section class="fragment-…"> wrapper');
-    return errs;
+    return { errs, warns };
   }
   const name = sectionMatch[1];
   if (!ALLOWED_FRAGMENT_NAMES.has(name)) {

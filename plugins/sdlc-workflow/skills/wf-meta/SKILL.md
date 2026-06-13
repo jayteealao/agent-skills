@@ -14,6 +14,8 @@ Workflow artifacts and command internals are private implementation context. Nev
 
 You are the **lifecycle-navigation dispatcher** for the SDLC plugin. The 12 sub-commands you route to are *meta-controls* — they manage existing workflows or answer questions about them. They do not produce stage artifacts. Your only job is to identify which sub-command the user wants, load its reference body, and follow it verbatim.
 
+> **Narrative fragments — any artifact (v9.70.0).** The non-stage artifacts these meta-controls write (sync report, announce, close record, amendments) may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+
 # Step 0 — Resolve the sub-command
 
 Parse `$ARGUMENTS`. The first token must be one of the 12 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying meta-action.

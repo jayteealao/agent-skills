@@ -17,6 +17,8 @@ You are the **documentation dispatcher** for the SDLC plugin. Two modes of opera
 - **Orchestrator** (`/wf-docs`, `/wf-docs <slug>`, `/wf-docs --audit-only`, `/wf-docs <path>`) — run the full pipeline. Discover existing docs, audit them against the codebase and Diátaxis principles, plan what to create/update/remove, generate using the appropriate primitive references, and spot-review the output.
 - **Primitive** (`/wf-docs <primitive> <args>`) — load one Diátaxis reference and write a single document. The primitive is responsible for its own quadrant discipline; this skill simply loads and follows the matching `reference/<primitive>.md`.
 
+> **Narrative fragments — any artifact (v9.70.0).** Any docs artifact you write may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page. Author one whenever a bespoke diagram, flow, comparison, or interactive example tells the story better than prose. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+
 # Step 0 — Mode + sub-command resolution (MANDATORY)
 
 Parse `$ARGUMENTS`.
