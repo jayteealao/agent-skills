@@ -61,7 +61,7 @@ Write `01-fix.md` in **one pass** covering all five collapsed sections. Use para
 ### Parallel research (use sub-agents)
 Launch sub-agents in parallel before writing the artifact. Do not spin up sub-agents if the change is a one-line fix in a file the user has explicitly named.
 
-**Model for every dispatched agent:** `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.default` — `fix` has no override). REQUIRED on every `Task` call. Both agents do targeted reads with structured-output extraction; this is exactly the bounded profile Haiku handles cleanly.
+**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call. Both agents do targeted reads with structured-output extraction; this is exactly the bounded profile Haiku handles cleanly.
 
 #### Explore sub-agent 1 — Codebase grounding
 

@@ -69,7 +69,7 @@ Do NOT write the artifact yet. Hold answers in working memory and proceed.
 # Step 2 — Parallel map-and-sketch
 Launch all three sub-agents simultaneously. Each is a separate `Explore` sub-agent dispatch. Do not proceed to synthesis until all three complete.
 
-**Model for every dispatched agent:** `sonnet` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.overrides["investigate"]`). REQUIRED on every `Task` call. Investigation is judgment-heavy — the Cartographer must surface non-obvious architectural constraints, the Option generator must trade off across the design space, the Tradeoff characterizer must reason about effort/risk/blast-radius. Haiku underserves the abstraction-critique work; Opus is overkill since each agent still runs against a bounded scope. Sonnet 4.6 is the right tier.
+**Model for every dispatched agent:** `sonnet`. REQUIRED on every `Task` call. Investigation is judgment-heavy — the Cartographer must surface non-obvious architectural constraints, the Option generator must trade off across the design space, the Tradeoff characterizer must reason about effort/risk/blast-radius. Haiku underserves the abstraction-critique work; Opus is overkill since each agent still runs against a bounded scope. Sonnet 4.6 is the right tier.
 
 ### Explore sub-agent 1 — Architecture cartographer
 

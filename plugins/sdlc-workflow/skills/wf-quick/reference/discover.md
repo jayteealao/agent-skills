@@ -69,7 +69,7 @@ Do NOT write the artifact yet. Hold answers in working memory and proceed.
 # Step 2 — Parallel adjudication
 Launch all three sub-agents simultaneously. Each is a separate `Explore` sub-agent dispatch. Do not proceed to synthesis until all three complete.
 
-**Model for every dispatched agent:** `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.default` — `discover` has no override). REQUIRED on every `Task` call. Each agent does targeted code reading + structured-output extraction (FOR / AGAINST / counter-hypotheses) — exactly the bounded-rubric profile Haiku handles cleanly.
+**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call. Each agent does targeted code reading + structured-output extraction (FOR / AGAINST / counter-hypotheses) — exactly the bounded-rubric profile Haiku handles cleanly.
 
 ### Explore sub-agent 1 — Evidence FOR
 

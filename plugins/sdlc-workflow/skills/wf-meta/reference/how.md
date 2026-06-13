@@ -116,7 +116,7 @@ ELSE
 
 Spawn **1 sub-agent**:
 - `subagent_type`: Explore
-- `model`: `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/router-metadata.json` `models.default`; REQUIRED on the `Task` call — do not omit, sub-agents must not silently inherit the parent's model)
+- `model`: `haiku` (REQUIRED on the `Task` call — do not omit, sub-agents must not silently inherit the parent's model)
 - `readonly`: true
 - Prompt:
 
@@ -173,7 +173,7 @@ Announce the decomposition in chat before spawning.
 
 Spawn all explorer agents in a **single message**:
 - `subagent_type`: Explore
-- `model`: `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/router-metadata.json` `models.default`; REQUIRED on the `Task` call — fan-out explorers must not silently inherit the parent's model)
+- `model`: `haiku` (REQUIRED on the `Task` call — fan-out explorers must not silently inherit the parent's model)
 - `readonly`: true
 - Each gets a different `{EXPLORATION_ANGLE}`
 
@@ -304,7 +304,7 @@ For broad architectural or process questions: use all 8.
 
 Spawn all agents in a **single message**:
 - `subagent_type`: general-purpose
-- `model`: `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/router-metadata.json` `models.default`; REQUIRED on every `Task` call — research fan-out must not silently inherit the parent's model. Haiku is the right choice here: each agent does targeted search + structured extraction, not cross-source reasoning. With 6-8 agents per question, this is the single largest unmodeled fan-out in the plugin.)
+- `model`: `haiku` (REQUIRED on every `Task` call — research fan-out must not silently inherit the parent's model. Haiku is the right choice here: each agent does targeted search + structured extraction, not cross-source reasoning. With 6-8 agents per question, this is the single largest unmodeled fan-out in the plugin.)
 - `readonly`: false (needs WebSearch)
 
 Prompt for each agent:

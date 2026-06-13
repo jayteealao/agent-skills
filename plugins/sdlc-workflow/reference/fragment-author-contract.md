@@ -256,9 +256,9 @@ the same YAML must produce byte-identical fragment output.
 
 ## Validation
 
-`scripts/verify-fragment.mjs` enforces the contract. It's invoked as
-Check 7 of `scripts/verify-router-migration.mjs` and runs error-level —
-a malformed fragment fails the verifier.
+`scripts/verify-fragment.mjs` enforces the contract. Run it standalone
+(`node scripts/verify-fragment.mjs`); it runs error-level — a malformed
+fragment fails the verifier.
 
 ## Where to look for reference implementations
 

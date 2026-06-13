@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderSimple
-} from "./chunk-4NXBU6PL.mjs";
+} from "./chunk-6I2SZJDF.mjs";
 
 // renderers/ship-legacy.mjs
 function render(artifact, ctx) {

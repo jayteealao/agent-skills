@@ -69,7 +69,7 @@ Do NOT write the artifact yet. Hold the answers in working memory and proceed to
 # Step 2 — Parallel root-cause investigation
 Launch parallel sub-agents to identify the root cause. Do not proceed to synthesis until all complete.
 
-**Model for every dispatched agent:** `sonnet` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.overrides["rca"]`). REQUIRED on every `Task` call. Root-cause analysis is the defining judgment-heavy task: Code path investigation must reason about incorrect assumptions and race conditions, Recent change correlation must causally link diffs to symptoms, Blast radius must reason about coupling. Haiku underserves causal reasoning under uncertainty. Sonnet 4.6 is the right tier.
+**Model for every dispatched agent:** `sonnet`. REQUIRED on every `Task` call. Root-cause analysis is the defining judgment-heavy task: Code path investigation must reason about incorrect assumptions and race conditions, Recent change correlation must causally link diffs to symptoms, Blast radius must reason about coupling. Haiku underserves causal reasoning under uncertainty. Sonnet 4.6 is the right tier.
 
 ### Explore sub-agent 1 — Code path investigation
 

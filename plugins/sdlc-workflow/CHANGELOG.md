@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed — router-migration verification apparatus + `router-metadata.json` (9.67.0)
+
+The router migration finished at v9.0.0-alpha; its verification scaffolding had become pure friction — every
+`skills/*/reference/*.md` edit required re-stamping a `migration-manifest.json` bodyHash. Stripped the whole apparatus.
+
+- **Deleted (19 files):** `scripts/verify-router-migration.mjs` (the 8-check verifier), `scripts/migrate-router.mjs`,
+  `scripts/verify-routing-resolution.mjs`, the three `scripts/relocate-wf*.mjs` one-shot relocators,
+  `scripts/rewrite-review-refs.mjs`, `tests/migration-fixtures.json`, the 4 `migration-manifest.json`, all 6
+  `router-metadata.json`, and `.github/workflows/verify-router-migration.yml`.
+- **`router-metadata.json` was runtime-read; its data is inlined, not lost.** `skills/review/SKILL.md` already
+  duplicated the 7 aggregate compositions and the model split in prose — that prose is now source-of-truth (model rule:
+  `haiku` default; `architecture`/`refactor-safety`/`security` → `sonnet`). Every `wf-quick`/`wf-meta` reference already
+  named its literal model; only the "resolved from `router-metadata.json`" provenance clause was removed.
+- **`npm run verify`** is now `verify-doc-site.mjs` only. The fragment-validity contract (the former Check 7) still runs
+  standalone via `node scripts/verify-fragment.mjs`; write-time sibling-presence enforcement via the hook is unchanged.
+- `.gitattributes` LF rule kept (now justified by the snapshot / fragment-determinism `sha256`, not the manifest).
+  341 tests pass; build-freshness unaffected (none of the deleted scripts are build entry points).
+
 ### Fixed — sibling-YAML validation lens + plan false-positive; allowlist now {plan, review, design, simplify-run, ship-run} (9.66.0)
 
 The post-write-verify hook keys the sibling-`.yaml` schema on the `.md`'s `type:` (`fragmentOwningType`), not the

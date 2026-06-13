@@ -34,7 +34,7 @@ Mode resolution rules:
 - If no key is found, render the menu (below) and ask the user which review they want.
 - Three names exist as both a dimension and an aggregate (`architecture`, `infra`, `security`). The dimension wins on a bare invocation; use `/review sweep <name>` to reach the aggregate.
 
-**Aggregate keys** — resolved at runtime via `${CLAUDE_PLUGIN_ROOT}/skills/review/router-metadata.json` `aggregates.<key>`:
+**Aggregate keys** — each dispatches one reviewer sub-agent per dimension in its composition:
 
 | Aggregate | What it dispatches (one sub-agent per dimension) |
 |---|---|
@@ -59,11 +59,11 @@ Mode resolution rules:
 
 # Step 1b — Sweep execution (parallel sub-agent dispatch)
 
-1. **Resolve the composition.** Read `${CLAUDE_PLUGIN_ROOT}/skills/review/router-metadata.json` and look up `aggregates.<aggregate-key>` to get the array of dimension keys to dispatch.
+1. **Resolve the composition.** Look up `<aggregate-key>` in the **Aggregate keys** table in Step 0 to get the array of dimension keys to dispatch.
 
 2. **Prepare one Task invocation per dimension.** For each dimension key D in the composition:
    - `subagent_type`: `general-purpose`
-   - `model`: resolve from `router-metadata.json` `models` block — `models.overrides[D]` if present, otherwise `models.default`. Pass the resolved value (`"haiku"` or `"sonnet"`) as the Task tool's `model` parameter. Do not omit this; reviewers must not silently inherit the parent's model.
+   - `model`: `haiku` for every dimension, except `architecture`, `refactor-safety`, and `security`, which use `sonnet`. Pass the resolved value (`"haiku"` or `"sonnet"`) as the Task tool's `model` parameter. Do not omit this; reviewers must not silently inherit the parent's model.
    - `description`: `"review-{D}"` (3-5 words, satisfies the Task tool's description constraint)
    - `prompt`: a self-contained prompt assembled as:
      1. The dimension reference body (read from `skills/review/reference/{D}.md`).

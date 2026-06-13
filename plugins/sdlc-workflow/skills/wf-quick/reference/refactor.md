@@ -88,7 +88,7 @@ Write `00-index.md` immediately after with `workflow-type: refactor`, `current-s
 
 Launch parallel sub-agents.
 
-**Model for every dispatched agent:** `haiku` (resolved from `${CLAUDE_PLUGIN_ROOT}/skills/wf-quick/router-metadata.json` `models.default` — `refactor` has no override). REQUIRED on every `Task` call. Both agents do inventorying with structured output (file states, test coverage) — straightforward bounded extraction. Haiku is the right tier.
+**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call. Both agents do inventorying with structured output (file states, test coverage) — straightforward bounded extraction. Haiku is the right tier.
 
 ### Explore sub-agent 1 — Code State Snapshot
 

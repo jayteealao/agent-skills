@@ -1,6 +1,6 @@
 {
   "name": "@sdlc-workflow/sunflower-view",
-  "version": "9.66.0",
+  "version": "9.67.0",
   "private": true,
   "type": "module",
   "description": "Sunflower view layer for the sdlc-workflow plugin — HTML projection of .ai/workflows/ artifacts.",
@@ -13,7 +13,7 @@
     "hooks:install": "git config core.hooksPath .githooks",
     "render": "node scripts/render-sunflower.mjs",
     "render:clean": "node scripts/render-sunflower.mjs --clean",
-    "verify": "node scripts/verify-router-migration.mjs && node scripts/verify-doc-site.mjs",
+    "verify": "node scripts/verify-doc-site.mjs",
     "verify:docs": "node scripts/verify-doc-site.mjs",
     "verify:legibility": "node scripts/verify-doc-legibility.mjs",
     "tray": "node dist/tray.mjs",

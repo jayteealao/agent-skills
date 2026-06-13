@@ -3,8 +3,8 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-YNXV6OZM.mjs";
-import "./chunk-Y7XRK7A2.mjs";
+} from "./chunk-BO6GCKPN.mjs";
+import "./chunk-5DWHFHMX.mjs";
 import "./chunk-PDBKNARE.mjs";
 import {
   REGISTRY_VERSION,
@@ -14,7 +14,7 @@ import {
   validateEntry,
   writeRegistry
 } from "./chunk-VAB2CNQR.mjs";
-import "./chunk-LZJF4RCQ.mjs";
+import "./chunk-EVE343OU.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";

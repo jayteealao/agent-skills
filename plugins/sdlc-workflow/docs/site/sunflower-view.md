@@ -134,8 +134,7 @@ shape it takes, and what gets surfaced visually — lives in the
 relevant `skills/wf*/reference/*.md` writer doc. Without the sibling
 YAML the page falls back to a plain frontmatter card + body render.
 
-Validation: `node scripts/verify-fragment.mjs` (also runs as Check 7 of
-`verify-router-migration.mjs`).
+Validation: `node scripts/verify-fragment.mjs`.
 
 Shared authoring rules live in `skills/wf/reference/_fragment-authoring.md`.
 
@@ -305,4 +304,4 @@ changes everywhere; for incremental work, the version cache-bust query string
 | Session start does not refresh the view | Check `.ai/_view/.bootstrap.log` and `.ai/_view/.bootstrap.pid`. Run `node dist/render-sunflower.mjs --bootstrap --dry-run` for the planned jobs. |
 | Local server does not start | Check `.ai/_view/.serve.pid`, `perRepoServe` in `~/.sdlc/hub-config.json`, and `/__sdlc/health`. Host `0.0.0.0` requires Tailscale config. |
 | `[render] no renderer for: <type>` warning | Add `renderers/<type>.mjs`. The fallback renderer still emits a usable page. |
-| Fragment shows raw HTML | Check 7 of `verify-router-migration.mjs` — the fragment likely violates the gallery contract. |
+| Fragment shows raw HTML | Run `node scripts/verify-fragment.mjs` — the fragment likely violates the gallery contract. |

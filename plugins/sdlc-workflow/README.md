@@ -891,7 +891,7 @@ Invoke a single domain as `/review <dimension>` (skill auto-trigger or explicit 
 | `style-consistency` | Mixed naming conventions within a file or module |
 | `dx` | Developer-facing tooling, scripts, README |
 
-**Multi-dimension sweeps:** `/review sweep <aggregate>` dispatches one parallel reviewer sub-agent per dimension in the aggregate's composition, then synthesizes a unified verdict. The `sweep` keyword disambiguates the three names (`architecture`, `infra`, `security`) that exist as both a dimension and an aggregate. Compositions live in [`skills/review/router-metadata.json`](./skills/review/router-metadata.json) and can be edited without code changes.
+**Multi-dimension sweeps:** `/review sweep <aggregate>` dispatches one parallel reviewer sub-agent per dimension in the aggregate's composition, then synthesizes a unified verdict. The `sweep` keyword disambiguates the three names (`architecture`, `infra`, `security`) that exist as both a dimension and an aggregate. Compositions are defined in the review skill ([`skills/review/SKILL.md`](./skills/review/SKILL.md)) and can be edited without code changes.
 
 | Sweep | Dimensions dispatched in parallel |
 |---|---|
