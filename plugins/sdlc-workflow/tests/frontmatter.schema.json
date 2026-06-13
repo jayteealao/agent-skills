@@ -1453,7 +1453,7 @@
         "run_at":    { "$ref": "#/$defs/iso8601" },
         "verdict":   { "enum": ["ship", "caveats", "no"] },
         "verdict_label": { "type": "string" },
-        "summary":   { "type": "string", "maxLength": 500 },
+        "summary":   { "type": "string", "maxLength": 2000 },
         "counts": {
           "type": "object",
           "required": ["blocker", "high", "med", "low", "nit"],
@@ -1475,7 +1475,7 @@
               "severity":   { "enum": ["blocker", "high", "med", "low", "nit"] },
               "dimension":  { "type": "string" },
               "file":       { "type": "string" },
-              "line":       { "type": "integer" },
+              "line":       { "type": ["integer", "string", "null"] },
               "confidence": { "enum": ["high", "med", "low"] },
               "action":     { "enum": ["accept", "defer", "reject"] },
               "msg":        { "type": "string" },
@@ -1489,7 +1489,7 @@
 
     "review": {
       "type": "object",
-      "required": ["artifact", "parent", "rev", "model", "run_at", "verdict", "summary", "counts", "dimensions", "findings"],
+      "required": ["artifact", "rev", "verdict", "summary", "counts", "dimensions", "findings"],
       "properties": {
         "artifact": { "const": "review" },
         "parent":   { "type": "string" },
@@ -1512,12 +1512,19 @@
         "dimensions": {
           "type": "array",
           "minItems": 1,
+          "description": "Per-dimension roll-up. Accepts the legacy {name,count} shape OR the live {key,status,blocker,high,med,low,nit} per-severity shape.",
           "items": {
             "type": "object",
-            "required": ["name", "count"],
             "properties": {
-              "name":  { "type": "string" },
-              "count": { "type": "integer", "minimum": 0 }
+              "name":    { "type": "string" },
+              "key":     { "type": "string" },
+              "status":  { "type": "string" },
+              "count":   { "type": "integer", "minimum": 0 },
+              "blocker": { "type": "integer", "minimum": 0 },
+              "high":    { "type": "integer", "minimum": 0 },
+              "med":     { "type": "integer", "minimum": 0 },
+              "low":     { "type": "integer", "minimum": 0 },
+              "nit":     { "type": "integer", "minimum": 0 }
             }
           }
         },
@@ -1525,16 +1532,19 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["id", "severity", "dimension", "msg"],
+            "required": ["id", "severity", "dimension"],
             "properties": {
               "id":         { "type": "string" },
               "severity":   { "enum": ["blocker", "high", "med", "low", "nit"] },
               "dimension":  { "type": "string" },
               "file":       { "type": "string" },
-              "line":       { "type": "integer" },
+              "line":       { "type": ["integer", "string", "null"] },
               "confidence": { "enum": ["high", "med", "low"] },
               "action":     { "enum": ["accept", "defer", "reject"] },
+              "triage":     { "type": "string" },
+              "status":     { "type": "string" },
               "msg":        { "type": "string" },
+              "message":    { "type": "string" },
               "evidence":   { "type": "object" },
               "fix":        { "type": "string" }
             }

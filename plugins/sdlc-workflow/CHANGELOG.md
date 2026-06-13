@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — reconcile + write-validate 4 more sibling-YAML types against the real corpus (9.65.0)
+
+Continues the `plan` reconciliation. Scanned all 71 sibling `.yaml` files across the 6 registered repos
+and found only 5 of 15 artifact types are exercised anywhere: `plan` (done), `review`, `review-dimension`,
+`design`, `simplify-run`. Reconciled the four against the live corpus and added them to the write-time
+validation allowlist; all four now pass their *entire* real corpus while malformed shapes are still rejected.
+
+- **`review-dimension`** — `summary` cap raised 500→2000 (real summaries run to ~571 chars); `findings[].line`
+  accepts `null`/string (real reviews emit null lines). 29/29 real artifacts pass.
+- **`review`** — dropped `parent`/`model`/`run_at` from `required` (real aggregates omit them); `dimensions[]`
+  accepts the live per-severity `{key,status,blocker,high,med}` shape alongside legacy `{name,count}`; findings
+  accept the `{triage,status,message}` convention as well as `{confidence,action,msg}` (`msg` no longer
+  required). 3/3 pass.
+- **`design`, `simplify-run`** — already accepted their real artifacts; added to the allowlist as-is (n=1 each).
+- **`SIBLING_YAML_VALIDATED_TYPES`** = {plan, review, review-dimension, design, simplify-run}. The other 10 types
+  (`description`, `rca`, `design-critique`, `design-audit`, `profile`, `benchmark`, `experiment`, `instrument`,
+  `ship-run`, `sync-report`) have **no real artifact in any registered repo**, so their schemas can't be
+  validated empirically and stay OUT of the allowlist — adding a guessed schema would arm a write-time block
+  (exit 2) on the first author of that type. They join only when a real artifact proves the schema.
+- New unit coverage mirrors the real review/review-dimension shapes + malformed rejection.
+
 ### Docs — sync the `plan` reference to the reconciled sibling-YAML schema (9.64.0)
 
 v9.62.0 reconciled `siblingYamlSchemas.plan` and wired write-time validation, but documented the

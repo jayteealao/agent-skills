@@ -63,11 +63,19 @@ const RICH_TIER_TYPES = new Set([
 ]);
 
 // Types whose siblingYamlSchemas.<type> has been reconciled to the live
-// authoring convention, so a present `.yaml` can be hard-validated at write
-// time without false-positives. Grow this set as each remaining type's schema
-// is reconciled — 15 types have a sibling schema, but only the reconciled ones
-// are safe to BLOCK on. Gated by config.hooks.validateSiblingYaml.
-const SIBLING_YAML_VALIDATED_TYPES = new Set(['plan']);
+// authoring convention AND validated against the real artifact corpus, so a
+// present `.yaml` can be hard-validated at write time without false-positives.
+// Grow this set ONLY by validating real artifacts: a type joins once its
+// schema accepts every real `.yaml` of that type while still rejecting
+// malformed shapes. 15 types have a sibling schema; the 10 not listed here
+// (description, rca, design-critique, design-audit, profile, benchmark,
+// experiment, instrument, ship-run, sync-report) have NO real artifact in any
+// registered repo, so their schemas can't be validated empirically and stay
+// out — adding a guessed schema would arm a write-time BLOCK on the first
+// author of that type. Gated by config.hooks.validateSiblingYaml.
+const SIBLING_YAML_VALIDATED_TYPES = new Set([
+  'plan', 'review', 'review-dimension', 'design', 'simplify-run',
+]);
 
 /**
  * Cheap frontmatter fragment-type read (avoids a full YAML parse for the

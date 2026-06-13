@@ -150,6 +150,41 @@ test('schema-validator: plan sibling YAML accepts the rich object-form conventio
   equal(malformed.valid, false);
 });
 
+test('schema-validator: review + review-dimension sibling YAML accept the live corpus shape', () => {
+  // Reconciled (v9.65.0) against the real artifact corpus across registered
+  // repos: review-dimension summaries run past the old 500-char cap and
+  // findings[].line is sometimes null; review omits parent/model/run_at, uses
+  // per-severity {key,status,blocker,high,med} dimensions, and findings carry
+  // either {confidence,action,msg} or {triage,status,message}.
+  const dim = validateSiblingYaml({
+    artifact: 'review-dimension', dimension: 'privacy', parent: '07-review.yaml', rev: 1,
+    verdict: 'caveats', summary: 'x'.repeat(560),
+    counts: { blocker: 0, high: 1, med: 2, low: 0, nit: 0 },
+    findings: [{ id: 'F1', severity: 'high', msg: 'leak', line: null }],
+  }, { schemaPath: SCHEMA_PATH });
+  equal(dim.valid, true);
+
+  const review = validateSiblingYaml({
+    artifact: 'review', slug: 's', rev: 1, verdict: 'ship', summary: 'ok',
+    counts: { blocker: 0, high: 0, med: 0, low: 0, nit: 0 },
+    dimensions: [{ key: 'security', status: 'clean', blocker: 0, high: 0, med: 0 }],
+    findings: [{ id: 'B1', severity: 'blocker', dimension: 'infra', triage: 'fix', status: 'patched', message: 'rule too broad' }],
+  }, { schemaPath: SCHEMA_PATH });
+  equal(review.valid, true);
+
+  // Malformed still rejected: summary past the (raised) bound, and a finding
+  // with no severity.
+  equal(validateSiblingYaml({
+    artifact: 'review-dimension', dimension: 'd', parent: 'p', rev: 1, verdict: 'ship',
+    summary: 'x'.repeat(2001), counts: { blocker: 0, high: 0, med: 0, low: 0, nit: 0 }, findings: [],
+  }, { schemaPath: SCHEMA_PATH }).valid, false);
+  equal(validateSiblingYaml({
+    artifact: 'review', rev: 1, verdict: 'ship', summary: 'ok',
+    counts: { blocker: 0, high: 0, med: 0, low: 0, nit: 0 },
+    dimensions: [{ key: 'c' }], findings: [{ id: '1', dimension: 'd' }],
+  }, { schemaPath: SCHEMA_PATH }).valid, false);
+});
+
 test('schema-validator: admits the four wf-docs intermediate artifact types', async () => {
   // The /wf-docs orchestrator writes discover/audit/plan/generate artifacts that
   // claim `schema: sdlc/v1`. Each must select its own branch (so the claim is

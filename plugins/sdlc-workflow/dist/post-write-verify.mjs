@@ -221,7 +221,13 @@ var RICH_TIER_TYPES = /* @__PURE__ */ new Set([
   "design-audit",
   "design-critique"
 ]);
-var SIBLING_YAML_VALIDATED_TYPES = /* @__PURE__ */ new Set(["plan"]);
+var SIBLING_YAML_VALIDATED_TYPES = /* @__PURE__ */ new Set([
+  "plan",
+  "review",
+  "review-dimension",
+  "design",
+  "simplify-run"
+]);
 function fragmentOwningType(text) {
   if (!text) return null;
   const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
