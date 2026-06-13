@@ -301,3 +301,21 @@ test('plan renderer: a malformed figure degrades but prose still renders', () =>
   match(out.bodyHtml, /class="prose"/);
   match(out.bodyHtml, /must not disappear/);
 });
+
+// Topology coloring must read the change-type from `status` (new convention),
+// not from `role` — which now carries a semantic category (ui/config/…). A
+// `status: new` file previously fell through to the default "modified" fill
+// because `role: ui` matched none of new/deleted/external.
+test('plan renderer: topology colors by `status`, not the category `role`', () => {
+  const out = renderPlan(artifact({
+    path: '04-plan-color.md',
+    frontmatter: { type: 'plan', status: 'complete' },
+    body: '## Plan\nprose',
+    siblingYaml: {
+      modules: [{ id: 'm1', label: 'Mod One' }],
+      files: [{ path: 'a/created.ts', role: 'ui', status: 'new', module: 'm1' }],
+    },
+  }));
+  // #ecf3e7 is the "new" fill; it only appears if status:new was honored.
+  match(out.bodyHtml, /#ecf3e7/);
+});

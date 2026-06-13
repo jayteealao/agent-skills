@@ -16,11 +16,13 @@ import {
 } from "./chunk-4OZLXOMA.mjs";
 import {
   loadConfig
-} from "./chunk-NHBZ6X5M.mjs";
+} from "./chunk-JRIEIPIL.mjs";
 import {
   safeLoadFrontmatterFile
 } from "./chunk-5U76735W.mjs";
-import "./chunk-LFGT2BKG.mjs";
+import {
+  jsYaml
+} from "./chunk-LFGT2BKG.mjs";
 import "./chunk-UTP6CBAZ.mjs";
 import {
   require__,
@@ -38,6 +40,7 @@ import { fileURLToPath as fileURLToPath2 } from "node:url";
 // lib/schema-validator.mjs
 var import__ = __toESM(require__(), 1);
 var import_ajv_formats = __toESM(require_dist(), 1);
+import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -142,6 +145,44 @@ function validateFrontmatter(data, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
     errors: valid ? [] : normalizeAjvErrors(validate.errors)
   };
 }
+function validateSiblingYaml(data, { artifact = data?.artifact, schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return {
+      valid: false,
+      artifact: artifact ?? null,
+      errors: [{ path: "/", message: "sibling YAML is not a mapping", keyword: "type" }]
+    };
+  }
+  const validate = compileValidator({ schemaPath, kind: "sibling-yaml", name: artifact });
+  if (!validate) {
+    return {
+      valid: false,
+      artifact: artifact ?? null,
+      errors: [{ path: "/artifact", message: `no sibling YAML schema for artifact: ${artifact ?? "<missing>"}`, keyword: "required" }]
+    };
+  }
+  const valid = validate(data);
+  return {
+    valid,
+    artifact,
+    errors: valid ? [] : normalizeAjvErrors(validate.errors)
+  };
+}
+async function validateSiblingYamlFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH, artifact } = {}) {
+  let data;
+  try {
+    data = jsYaml.load(await readFile(filePath, "utf-8"));
+  } catch (err) {
+    return {
+      path: filePath,
+      valid: false,
+      artifact: artifact ?? null,
+      errors: [{ path: "/", message: err.message ?? "YAML parse error", keyword: "parse" }]
+    };
+  }
+  const result = validateSiblingYaml(data, { artifact: artifact ?? data?.artifact, schemaPath });
+  return { path: filePath, ...result };
+}
 async function validateFrontmatterFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {
   const loaded = await safeLoadFrontmatterFile(filePath);
   if (loaded.parseError) {
@@ -180,6 +221,7 @@ var RICH_TIER_TYPES = /* @__PURE__ */ new Set([
   "design-audit",
   "design-critique"
 ]);
+var SIBLING_YAML_VALIDATED_TYPES = /* @__PURE__ */ new Set(["plan"]);
 function fragmentOwningType(text) {
   if (!text) return null;
   const fence = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
@@ -249,6 +291,36 @@ The page already renders rich from the .yaml; the .html.fragment only adds the i
     );
   }
 }
+async function validateSiblingYamls(paths, config, schemaPath) {
+  if (config.hooks?.validateSiblingYaml === false) return;
+  const failures = [];
+  for (const path of paths) {
+    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
+    const text = await readTextIfExists(path.absolute);
+    const type = fragmentOwningType(text);
+    if (!type || !SIBLING_YAML_VALIDATED_TYPES.has(type)) continue;
+    const yamlPath = `${path.absolute.replace(/\.md$/, "")}.yaml`;
+    if (!existsSync(yamlPath)) continue;
+    const result = await validateSiblingYamlFile(yamlPath, { schemaPath, artifact: type });
+    if (!result.valid) {
+      failures.push({ rel: `${path.original.replace(/\.md$/, "")}.yaml`, result });
+    }
+  }
+  if (!failures.length) return;
+  for (const f of failures) {
+    process.stderr.write(`wf-postwrite-verify: sibling YAML validation FAILED for ${f.rel}
+
+`);
+    process.stderr.write(`${formatValidationErrors(f.result.errors)}
+
+`);
+  }
+  process.stderr.write("The sibling .yaml does not conform to siblingYamlSchemas.<type>\n");
+  process.stderr.write("(see plugins/sdlc-workflow/tests/frontmatter.schema.json). The sunflower view\n");
+  process.stderr.write("reads this file to build the rich page; a malformed shape degrades the figure.\n");
+  process.stderr.write("Fix the issues above, then continue.\n");
+  process.exit(2);
+}
 var PLUGIN_ROOT = fileURLToPath2(new URL("..", import.meta.url));
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") return;
@@ -270,6 +342,7 @@ async function main() {
     if (!result.valid) failures.push({ path, result });
   }
   if (!failures.length) {
+    await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);
     return;
   }

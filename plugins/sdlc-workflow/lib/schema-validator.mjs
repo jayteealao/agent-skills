@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import Ajv2020 from 'ajv/dist/2020.js';
 import addFormats from 'ajv-formats';
 import { safeLoadFrontmatterFile } from './frontmatter.mjs';
+import yaml from 'js-yaml';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_SCHEMA_PATH = resolve(__dirname, '..', 'tests', 'frontmatter.schema.json');
@@ -158,6 +159,27 @@ export function validateSiblingYaml(data, { artifact = data?.artifact, schemaPat
     artifact,
     errors: valid ? [] : normalizeAjvErrors(validate.errors),
   };
+}
+
+/**
+ * Read a sibling `.yaml` file and validate it against siblingYamlSchemas[artifact].
+ * `artifact` defaults to the YAML's own `artifact:` field. A parse error or a
+ * schema violation surfaces as { valid:false, errors }.
+ */
+export async function validateSiblingYamlFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH, artifact } = {}) {
+  let data;
+  try {
+    data = yaml.load(await readFile(filePath, 'utf-8'));
+  } catch (err) {
+    return {
+      path: filePath,
+      valid: false,
+      artifact: artifact ?? null,
+      errors: [{ path: '/', message: err.message ?? 'YAML parse error', keyword: 'parse' }],
+    };
+  }
+  const result = validateSiblingYaml(data, { artifact: artifact ?? data?.artifact, schemaPath });
+  return { path: filePath, ...result };
 }
 
 export async function validateFrontmatterFile(filePath, { schemaPath = DEFAULT_SCHEMA_PATH } = {}) {

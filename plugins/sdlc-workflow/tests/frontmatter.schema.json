@@ -1650,23 +1650,44 @@
 
     "plan": {
       "type": "object",
-      "required": ["artifact", "slice", "parent", "rev", "modules", "files", "risks"],
+      "required": ["artifact", "slice", "modules", "files"],
       "properties": {
         "artifact": { "const": "plan" },
+        "schema":   { "type": "string" },
+        "slug":     { "type": "string" },
         "slice":    { "type": "string" },
         "parent":   { "type": "string" },
         "rev":      { "type": "integer", "minimum": 1 },
-        "modules":  { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "modules": {
+          "type": "array", "minItems": 1,
+          "description": "Module groupings for the file-change topology. Accepts legacy path-prefix strings (files bucket by prefix) OR rich { id, label, role } objects that files reference by id via files[].module.",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "required": ["id"],
+                "properties": {
+                  "id":    { "type": "string" },
+                  "label": { "type": "string" },
+                  "role":  { "type": "string" }
+                }
+              }
+            ]
+          }
+        },
         "files": {
           "type": "array",
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["path", "role"],
+            "required": ["path"],
             "properties": {
               "path":    { "type": "string" },
-              "role":    { "enum": ["new", "modified", "deleted", "external"] },
-              "loc":     { "type": ["integer", "null"] },
+              "role":    { "type": "string", "description": "File category (config/infra/ui/domain/…) or, in the legacy convention, the change-type. Topology coloring reads `status` first, then falls back to `role`." },
+              "status":  { "enum": ["new", "modified", "deleted", "external"], "description": "Change-type for topology coloring (new convention). Legacy plans put this in `role`." },
+              "module":  { "type": "string", "description": "id of the modules[] entry this file belongs to." },
+              "loc":     { "type": ["integer", "string", "null"] },
               "delta":   {
                 "type": "object",
                 "properties": {
@@ -1676,7 +1697,7 @@
               },
               "imports":       { "type": "array", "items": { "type": "string" } },
               "planned_change": {
-                "type": "object",
+                "type": ["object", "string"],
                 "properties": {
                   "intent": { "type": "string" },
                   "diff":   { "type": "string" }
@@ -1689,11 +1710,13 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["from", "to", "kind"],
+            "required": ["from", "to"],
             "properties": {
-              "from": { "type": "string" },
-              "to":   { "type": "string" },
-              "kind": { "enum": ["import", "replaces", "calls", "extends", "crosses-service"] }
+              "from":  { "type": "string" },
+              "to":    { "type": "string" },
+              "kind":  { "enum": ["import", "replaces", "calls", "extends", "crosses-service"] },
+              "type":  { "type": "string" },
+              "label": { "type": "string" }
             }
           }
         },
@@ -1715,15 +1738,19 @@
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["level", "title"],
+            "required": ["title"],
             "properties": {
-              "level": { "enum": ["high", "med", "low"] },
-              "title": { "type": "string" },
-              "body":  { "type": "string" }
+              "id":         { "type": "string" },
+              "level":      { "enum": ["high", "med", "medium", "low", "blocker"] },
+              "severity":   { "enum": ["high", "med", "medium", "low", "blocker"] },
+              "title":      { "type": "string" },
+              "body":       { "type": "string" },
+              "detail":     { "type": "string" },
+              "mitigation": { "type": "string" }
             }
           }
         },
-        "history": { "type": "string" }
+        "history": { "type": ["string", "array"] }
       }
     },
 

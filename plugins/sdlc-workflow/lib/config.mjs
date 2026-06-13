@@ -39,6 +39,12 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     // mandatory sibling .yaml (and nudges on a missing .html.fragment). Opt out
     // globally here, or per-artifact with `fragment: none` in its frontmatter.
     remindMissingFragments: true,
+    // When true, post-write-verify validates a present sibling .yaml against
+    // siblingYamlSchemas.<type> and BLOCKS on a schema violation — but only for
+    // types whose schema has been reconciled to the live authoring convention
+    // (see SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs). Set
+    // false to disable while other type schemas are still being reconciled.
+    validateSiblingYaml: true,
   },
 });
 

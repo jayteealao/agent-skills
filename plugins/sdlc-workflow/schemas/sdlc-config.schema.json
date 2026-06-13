@@ -82,6 +82,11 @@
           "type": "boolean",
           "default": true,
           "description": "When true (default), the post-write-verify hook BLOCKS (exit 2) a rich-tier artifact (.md of type plan/review/design/ship-run/rca/benchmark/experiment/instrument/profile/simplify-run) written without its mandatory sibling .yaml, and softly nudges when only the .html.fragment is missing. Set false to disable both — the sunflower view will then render those pages as plain prose. A single artifact can opt out instead via `fragment: none` in its frontmatter."
+        },
+        "validateSiblingYaml": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook validates a present sibling .yaml against siblingYamlSchemas.<type> and BLOCKS (exit 2) on a schema violation — but only for types whose schema has been reconciled to the live authoring convention (SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs; currently `plan`). Set false to disable while other type schemas are still being reconciled."
         }
       }
     }

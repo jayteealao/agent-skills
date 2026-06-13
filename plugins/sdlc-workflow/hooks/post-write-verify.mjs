@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
 import { logError } from '../lib/error-log.mjs';
-import { validateFrontmatterFile, formatValidationErrors } from '../lib/schema-validator.mjs';
+import { validateFrontmatterFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
 import {
   collectToolInputPaths,
@@ -61,6 +61,13 @@ const RICH_TIER_TYPES = new Set([
   'benchmark', 'experiment', 'instrument', 'profile', 'simplify-run',
   'review-command', 'design-audit', 'design-critique',
 ]);
+
+// Types whose siblingYamlSchemas.<type> has been reconciled to the live
+// authoring convention, so a present `.yaml` can be hard-validated at write
+// time without false-positives. Grow this set as each remaining type's schema
+// is reconciled — 15 types have a sibling schema, but only the reconciled ones
+// are safe to BLOCK on. Gated by config.hooks.validateSiblingYaml.
+const SIBLING_YAML_VALIDATED_TYPES = new Set(['plan']);
 
 /**
  * Cheap frontmatter fragment-type read (avoids a full YAML parse for the
@@ -159,6 +166,43 @@ async function enforceSiblingFragments(paths, config) {
   }
 }
 
+/**
+ * Write-time sibling-YAML shape validation. When a rich-tier artifact `.md`
+ * lands with a present sibling `.yaml` AND its type's schema is reconciled
+ * (SIBLING_YAML_VALIDATED_TYPES), validate the YAML against
+ * siblingYamlSchemas.<type> and BLOCK (exit 2) on a violation. This is the
+ * shift-left guard: the sunflower view reads this file to build the rich page,
+ * so a malformed shape degrades the figure (now gracefully, post-v9.61.0) and
+ * should be caught while the author is still in context. Opt out globally with
+ * `hooks.validateSiblingYaml: false`.
+ */
+async function validateSiblingYamls(paths, config, schemaPath) {
+  if (config.hooks?.validateSiblingYaml === false) return;
+  const failures = [];
+  for (const path of paths) {
+    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
+    const text = await readTextIfExists(path.absolute);
+    const type = fragmentOwningType(text);
+    if (!type || !SIBLING_YAML_VALIDATED_TYPES.has(type)) continue;
+    const yamlPath = `${path.absolute.replace(/\.md$/, '')}.yaml`;
+    if (!existsSync(yamlPath)) continue;   // absence is enforceSiblingFragments' job
+    const result = await validateSiblingYamlFile(yamlPath, { schemaPath, artifact: type });
+    if (!result.valid) {
+      failures.push({ rel: `${path.original.replace(/\.md$/, '')}.yaml`, result });
+    }
+  }
+  if (!failures.length) return;
+  for (const f of failures) {
+    process.stderr.write(`wf-postwrite-verify: sibling YAML validation FAILED for ${f.rel}\n\n`);
+    process.stderr.write(`${formatValidationErrors(f.result.errors)}\n\n`);
+  }
+  process.stderr.write('The sibling .yaml does not conform to siblingYamlSchemas.<type>\n');
+  process.stderr.write('(see plugins/sdlc-workflow/tests/frontmatter.schema.json). The sunflower view\n');
+  process.stderr.write('reads this file to build the rich page; a malformed shape degrades the figure.\n');
+  process.stderr.write('Fix the issues above, then continue.\n');
+  process.exit(2);
+}
+
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 async function main() {
@@ -191,8 +235,10 @@ async function main() {
   }
 
   if (!failures.length) {
-    // Schema is clean — enforce sibling fragments (blocks on a missing rich-tier
-    // .yaml, nudges on a missing .html.fragment). May exit(2).
+    // Frontmatter is clean. Validate present sibling YAML shape (reconciled
+    // types only; may exit 2), then enforce sibling presence (blocks on a
+    // missing rich-tier .yaml, nudges on a missing .html.fragment; may exit 2).
+    await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);
     return;
   }

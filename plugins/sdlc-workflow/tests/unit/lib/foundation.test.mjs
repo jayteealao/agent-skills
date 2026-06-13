@@ -118,6 +118,38 @@ test('schema-validator: validates frontmatter and sibling YAML schemas', () => {
   equal(sibling.valid, true);
 });
 
+test('schema-validator: plan sibling YAML accepts the rich object-form convention', () => {
+  // Reconciled (v9.62.0): modules as { id, label, role } objects, files
+  // referencing them via `module:` with change-type in `status` and a category
+  // in `role`, string `loc`, `severity` risks. This is what agents actually
+  // author; the legacy string-form must still validate too.
+  const rich = validateSiblingYaml({
+    artifact: 'plan',
+    slug: 'fastify-firebase-auth',
+    slice: 'signin-ui',
+    rev: 2,
+    modules: [{ id: 'firebase-init', label: 'Firebase client init', role: 'infra' }],
+    files: [{ path: 'frontend/src/lib/firebase.ts', role: 'infra', status: 'new', module: 'firebase-init', loc: '~120' }],
+    risks: [{ id: 'R1', severity: 'high', title: 'Token staleness' }],
+    history: [{ rev: 2, at: '2026-06-10T06:01:11Z' }],
+  }, { schemaPath: SCHEMA_PATH });
+  equal(rich.valid, true);
+
+  // Legacy string-form modules still validate.
+  const legacy = validateSiblingYaml({
+    artifact: 'plan', slice: 's', modules: ['frontend/src'],
+    files: [{ path: 'frontend/src/a.ts', role: 'new' }],
+  }, { schemaPath: SCHEMA_PATH });
+  equal(legacy.valid, true);
+
+  // Genuinely malformed (module object missing its required id) is still rejected.
+  const malformed = validateSiblingYaml({
+    artifact: 'plan', slice: 's', modules: [{ label: 'no id' }],
+    files: [{ path: 'a' }],
+  }, { schemaPath: SCHEMA_PATH });
+  equal(malformed.valid, false);
+});
+
 test('schema-validator: admits the four wf-docs intermediate artifact types', async () => {
   // The /wf-docs orchestrator writes discover/audit/plan/generate artifacts that
   // claim `schema: sdlc/v1`. Each must select its own branch (so the claim is

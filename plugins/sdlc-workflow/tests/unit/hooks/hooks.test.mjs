@@ -415,7 +415,7 @@ test('post-write-verify nudges (non-blocking) when the .yaml is present but the 
     // only the interactive layer, so this is a soft systemMessage, NOT a block.
     const dir = join(tmp, '.ai', 'workflows', 'demo');
     writeFile(join(dir, '04-plan-core.md'), md(validPlan()));
-    writeFile(join(dir, '04-plan-core.yaml'), 'files: []\n');
+    writeFile(join(dir, '04-plan-core.yaml'), 'artifact: plan\nslice: core\nmodules: [core]\nfiles: [{ path: src/a.ts, role: new }]\n');
 
     const result = runHook(HOOKS.postWriteVerify, {
       cwd: tmp,
@@ -481,7 +481,7 @@ test('post-write-verify stays silent when a rich-tier artifact has both sibling 
   try {
     const dir = join(tmp, '.ai', 'workflows', 'demo');
     writeFile(join(dir, '04-plan-core.md'), md(validPlan()));
-    writeFile(join(dir, '04-plan-core.yaml'), 'files: []\n');
+    writeFile(join(dir, '04-plan-core.yaml'), 'artifact: plan\nslice: core\nmodules: [core]\nfiles: [{ path: src/a.ts, role: new }]\n');
     writeFile(join(dir, '04-plan-core.html.fragment'), '<section class="fragment-plan"></section>\n');
 
     const result = runHook(HOOKS.postWriteVerify, {
@@ -492,6 +492,49 @@ test('post-write-verify stays silent when a rich-tier artifact has both sibling 
     equal(result.status, 0, result.stderr);
     equal(result.stdout, '');
     equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify BLOCKS (exit 2) when a present plan sibling .yaml violates its schema', () => {
+  const tmp = tempDir();
+  try {
+    const dir = join(tmp, '.ai', 'workflows', 'demo');
+    writeFile(join(dir, '04-plan-core.md'), md(validPlan()));
+    // modules object missing its required `id` — genuinely malformed structure.
+    writeFile(join(dir, '04-plan-core.yaml'), 'artifact: plan\nslice: core\nmodules: [{ label: no-id }]\nfiles: [{ path: src/a.ts }]\n');
+    writeFile(join(dir, '04-plan-core.html.fragment'), '<section class="fragment-plan"></section>\n');
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/04-plan-core.md' },
+    }, tmp);
+
+    equal(result.status, 2, result.stderr);
+    match(result.stderr, /sibling YAML validation FAILED/);
+    match(result.stderr, /04-plan-core\.yaml/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify honours the hooks.validateSiblingYaml:false opt-out', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'),
+      JSON.stringify({ hooks: { validateSiblingYaml: false } }));
+    const dir = join(tmp, '.ai', 'workflows', 'demo');
+    writeFile(join(dir, '04-plan-core.md'), md(validPlan()));
+    writeFile(join(dir, '04-plan-core.yaml'), 'artifact: plan\nslice: core\nmodules: [{ label: no-id }]\nfiles: [{ path: src/a.ts }]\n');
+    writeFile(join(dir, '04-plan-core.html.fragment'), '<section class="fragment-plan"></section>\n');
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/04-plan-core.md' },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);   // validation disabled → no block
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — reconciled the `plan` sibling-YAML schema to the live convention + wired write-time validation (9.62.0)
+
+Follow-up to 9.61.0. The crash was one symptom of a deeper drift: `siblingYamlSchemas.plan`
+described a dialect agents no longer author, and `validateSiblingYaml` (the validator that would
+have caught it) existed but was **never called outside tests**. Reconciled the contract so the
+schema, renderer, and a newly-wired hook all agree.
+
+- **Schema** (`tests/frontmatter.schema.json`) — `siblingYamlSchemas.plan` now matches what agents
+  write: `modules` accepts `string | {id,label,role}`; `files[]` gains `module` (id ref) and
+  `status` (change-type) and accepts a category `role`, string/`~`-prefixed `loc`, and string
+  `planned_change`; `edges` accepts `type`/`label`; `risks` accepts `severity`/`detail`/`id`/
+  `mitigation`; `history` accepts an array; `parent`/`rev`/`risks` are no longer required. Verified
+  the real authored corpus validates while genuinely-malformed YAML (e.g. a `modules` object with no
+  `id`) is still rejected.
+- **Renderer** (`renderers/plan.mjs`) — the file-change topology now colors by `status` (falling
+  back to a recognized `role`, else `modified`). Fixes a latent bug where the new convention's
+  category `role` (`config`/`ui`/…) matched none of `new`/`deleted`/`external`, silently painting
+  every file as "modified."
+- **Hook** (`hooks/post-write-verify.mjs`) — wired `validateSiblingYamlFile` into write-time
+  verification: a present sibling `.yaml` for a reconciled type is validated against its schema and
+  BLOCKS (exit 2) on a violation. Scoped to `SIBLING_YAML_VALIDATED_TYPES` (currently `plan`) so the
+  14 not-yet-reconciled type schemas can't false-positive; gated by the new
+  `hooks.validateSiblingYaml` config flag (default true, opt-out).
+- Tests for the reconciled schema (rich + legacy accepted, malformed rejected), the `status`-based
+  coloring, and the hook block + opt-out.
+
 ### Fixed — rich object-form sibling YAML no longer crashes a renderer into prose-dropping fallback (9.61.0)
 
 **Root cause — a renderer crash silently dropped the markdown prose.** A plan slice whose sibling

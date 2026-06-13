@@ -98,6 +98,18 @@ function normalizeModule(m) {
   return { key: String(m ?? ''), label: String(m ?? '') };
 }
 
+// Change-type for topology coloring. The rich convention carries the change-type
+// in `status` and uses `role` for a semantic category (config/ui/domain/…);
+// legacy plans put the change-type in `role`. Prefer status, fall back to a
+// recognized role, else 'modified' — never let an unrecognized category silently
+// paint every file as "modified".
+const CHANGE_TYPES = new Set(['new', 'modified', 'deleted', 'external']);
+function changeRole(f) {
+  if (CHANGE_TYPES.has(f?.status)) return f.status;
+  if (CHANGE_TYPES.has(f?.role)) return f.role;
+  return 'modified';
+}
+
 function fileTopologySvg(sy) {
   const modules = (sy.modules ?? []).map(normalizeModule);
   const files   = sy.files ?? [];
@@ -157,7 +169,7 @@ function fileTopologySvg(sy) {
   const fileSvg = files.map((f) => {
     const p = filePos.get(f.path);
     if (!p) return '';
-    const role = f.role ?? 'modified';
+    const role = changeRole(f);
     const fill = role === 'new' ? '#ecf3e7'
                : role === 'deleted' ? '#fbeaf0'
                : role === 'external' ? '#f0ece1'
@@ -424,7 +436,7 @@ function dataFlowLaneSvg(sy) {
 
   // File role lookup for fill colours
   const roleByPath = new Map();
-  for (const f of sy.files ?? []) roleByPath.set(f.path, f.role ?? 'modified');
+  for (const f of sy.files ?? []) roleByPath.set(f.path, changeRole(f));
 
   const laneSvg = laneBoxes.map(({ y, lane }) => {
     const banner = `<rect x="${padX}" y="${y}" width="${W - 2 * padX}" height="${laneH}" rx="6" fill="none" stroke="#cbc4b1" stroke-dasharray="4 3" stroke-width="1"/>`;

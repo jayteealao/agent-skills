@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   configHash,
   deepMerge
-} from "./chunk-NHBZ6X5M.mjs";
+} from "./chunk-JRIEIPIL.mjs";
 import {
   resolveEntrypoint,
   spawnDetachedNode
