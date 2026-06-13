@@ -5,8 +5,9 @@
 // real ~/.sdlc/ is never touched.
 
 import { execFileSync } from 'node:child_process';
+import { EventEmitter } from 'node:events';
 import {
-  existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync,
+  existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -38,6 +39,12 @@ import { ensureHubLifecycle } from '../../../lib/hub-lifecycle.mjs';
 import { ensureServeLifecycle, servePidPath } from '../../../lib/serve-lifecycle.mjs';
 import { maybeConfigureTailscale } from '../../../lib/tailscale.mjs';
 import { validateConfig } from '../../../lib/config.mjs';
+
+// The running plugin version, read the SAME way the daemons do (package.json) so
+// stale-render heal tests stamp the matching "fresh" version.
+const PLUGIN_VERSION = JSON.parse(
+  readFileSync(new URL('../../../package.json', import.meta.url), 'utf-8'),
+).version;
 
 /* ───────────────────────── helpers ───────────────────────── */
 
@@ -811,6 +818,94 @@ test('hub: reconcile tick reloads an UNwatched repo via .last-render mtime (cap 
     const reloads = events.filter((e) => e.event === 'reload').map((e) => JSON.parse(e.data));
     ok(reloads.length >= 1, 'reconcile emitted a reload for the unwatched repo');
     ok(reloads.every((r) => r.id === id), 'reload scoped to the repo');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+/* ───────────────────────── stale-render heal (STALE-RENDER-HEAL-PLAN) ───────────────────────── */
+
+test('hub: health surfaces renderedVersion + stale per entry (detection works with heal off)', async () => {
+  setHome();
+  const root = tmp('sdlc-hub-stale-flag-');
+  const repo = join(root, 'repo');
+  initRepo(repo);
+  renderView(repo, { slug: 'x' });
+  await upsertRegistryEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+  const rec = readRegistry().entries[0];
+  // Stamp the view as rendered by an OLD version → drift.
+  writeFileSync(join(rec.viewDir, '.last-render'),
+    JSON.stringify({ renderedAt: new Date().toISOString(), version: '0.0.0-old' }));
+
+  // heal omitted from createHubServer → detection only, no background renders.
+  const server = createHubServer({ token: 'tok', liveReload: false });
+  const port = await listen(server);
+  try {
+    const health = JSON.parse((await httpReq(port, '/__sdlc/health')).body);
+    const e = health.entries.find((x) => x.id === rec.id);
+    equal(e.renderedVersion, '0.0.0-old', 'health reports the rendered version live from .last-render');
+    equal(e.stale, true, 'drift flagged stale even with heal off');
+    equal(health.heal.heal, false, 'heal off when the constructor gets no staleRender config');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('hub: reconcile heals a version-stale view via a background re-render (§4)', async () => {
+  setHome();
+  const root = tmp('sdlc-hub-heal-');
+  const repo = join(root, 'repo');
+  initRepo(repo);
+  renderView(repo, { slug: 'stale' });
+  await upsertRegistryEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+  const rec = readRegistry().entries[0];
+
+  // Stamp the view as rendered by an OLD plugin version → drift vs PLUGIN_VERSION.
+  writeFileSync(join(rec.viewDir, '.last-render'),
+    JSON.stringify({ renderedAt: new Date().toISOString(), configHash: 'old', version: '0.0.0-old' }));
+
+  // Injected render-spawn stub: simulate render-sunflower by rewriting
+  // .last-render to the CURRENT version, then exiting 0. Forks nothing.
+  const calls = [];
+  const spawnRender = (script, args, opts) => {
+    calls.push({ script, args, opts });
+    const child = new EventEmitter();
+    setImmediate(() => {
+      const vi = args.indexOf('--view');
+      const vd = vi >= 0 ? args[vi + 1] : join(opts.cwd, '.ai', '_view');
+      try {
+        writeFileSync(join(vd, '.last-render'),
+          JSON.stringify({ renderedAt: new Date().toISOString(), configHash: 'healed', version: PLUGIN_VERSION }));
+      } catch { /* ignore */ }
+      child.emit('exit', 0);
+    });
+    return child;
+  };
+
+  const server = createHubServer({
+    token: 'tok', liveReload: true, reconcileMs: 50,
+    staleRender: { heal: true, cooldownMs: 0, maxConcurrent: 1, maxAttempts: 3 },
+    spawnRender,
+  });
+  const port = await listen(server);
+  try {
+    const collected = sseCollect(port, 800);
+    await wait(300);   // several reconcile ticks → heal spawns + the stub completes
+    const events = await collected;
+
+    ok(calls.length >= 1, 'a background render was spawned for the stale view');
+    ok(calls[0].args.includes('--clean'), 'heal forces a clean re-render');
+    equal(calls[0].opts.cwd, rec.repoRoot, 'render spawned with cwd=repoRoot (no --project-root flag exists)');
+
+    // After the stub render, the view is fresh and health reflects it.
+    const health = JSON.parse((await httpReq(port, '/__sdlc/health')).body);
+    const he = health.entries.find((e) => e.id === rec.id);
+    equal(he.renderedVersion, PLUGIN_VERSION, 'health reports the healed version');
+    equal(he.stale, false, 'no longer stale after the heal');
+
+    // Completion fired a reload (heal emitReload + the .last-render watch, coalesced).
+    const reloads = events.filter((e) => e.event === 'reload').map((e) => JSON.parse(e.data));
+    ok(reloads.some((r) => r.id === rec.id), 'a reload event fired for the healed repo');
   } finally {
     await closeServer(server);
   }

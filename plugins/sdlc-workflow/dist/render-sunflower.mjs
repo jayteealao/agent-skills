@@ -6,31 +6,30 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-6ZLCTJSL.mjs";
+} from "./chunk-NHNLT74Y.mjs";
 import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-VYZ64EKU.mjs";
+} from "./chunk-3GHD3DNQ.mjs";
 import {
   configHash,
   loadConfigWithMeta
 } from "./chunk-JRIEIPIL.mjs";
 import {
-  resolveEntrypoint,
   spawnDetachedNode
-} from "./chunk-EHRAXSYW.mjs";
+} from "./chunk-HQR34SES.mjs";
 import {
   hubPidPath,
   upsertRegistryEntry
-} from "./chunk-NOGYVKL5.mjs";
+} from "./chunk-VAB2CNQR.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-6TC2JV7H.mjs";
+} from "./chunk-32BBY5UE.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -50,12 +49,15 @@ import {
   readPidFile,
   removePidFile,
   writePidFile
-} from "./chunk-WA2PDRBA.mjs";
+} from "./chunk-RY6BGTTK.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
 } from "./chunk-4WRIEOIP.mjs";
 import "./chunk-FZ2GR6GF.mjs";
+import {
+  resolveEntrypoint
+} from "./chunk-KRRL2TSM.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/render-sunflower.mjs
@@ -332,9 +334,16 @@ async function ensureServeLifecycle({
   }
   const child = spawnDetachedNode(script, spawnArgs, {
     cwd: projectRoot,
-    // codeBrowser block via env: JSON can't ride argv through the Windows
-    // launch-hidden.vbs shim (same channel the hub uses for its token).
-    env: { ...process.env, SDLC_CODE_BROWSER: JSON.stringify(hubCfg.codeBrowser ?? {}) }
+    // codeBrowser + staleRender blocks via env: JSON can't ride argv through the
+    // Windows launch-hidden.vbs shim (same channel the hub uses for its token).
+    // staleRender carries the heal settings; the standalone fallback picks up a
+    // changed block on its next respawn (the hub, the primary, restarts on the
+    // hub-config hash). See STALE-RENDER-HEAL-PLAN §8.
+    env: {
+      ...process.env,
+      SDLC_CODE_BROWSER: JSON.stringify(hubCfg.codeBrowser ?? {}),
+      SDLC_STALE_RENDER: JSON.stringify(hubCfg.staleRender ?? {})
+    }
   });
   if (child.pid) {
     await writePidFile(pidPath, { pid: child.pid, host, port, configHash: configHash2 });

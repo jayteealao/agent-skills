@@ -117,9 +117,16 @@ export async function ensureServeLifecycle({
   }
   const child = spawnDetachedNode(script, spawnArgs, {
     cwd: projectRoot,
-    // codeBrowser block via env: JSON can't ride argv through the Windows
-    // launch-hidden.vbs shim (same channel the hub uses for its token).
-    env: { ...process.env, SDLC_CODE_BROWSER: JSON.stringify(hubCfg.codeBrowser ?? {}) },
+    // codeBrowser + staleRender blocks via env: JSON can't ride argv through the
+    // Windows launch-hidden.vbs shim (same channel the hub uses for its token).
+    // staleRender carries the heal settings; the standalone fallback picks up a
+    // changed block on its next respawn (the hub, the primary, restarts on the
+    // hub-config hash). See STALE-RENDER-HEAL-PLAN §8.
+    env: {
+      ...process.env,
+      SDLC_CODE_BROWSER: JSON.stringify(hubCfg.codeBrowser ?? {}),
+      SDLC_STALE_RENDER: JSON.stringify(hubCfg.staleRender ?? {}),
+    },
   });
 
   // Write the pid file immediately (the daemon also writes it once it binds,

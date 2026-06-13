@@ -108,6 +108,10 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
       ...process.env,
       SDLC_HUB_TOKEN: token,
       SDLC_CODE_BROWSER: JSON.stringify(cfg.codeBrowser ?? {}),
+      // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). Via env for the
+      // same reason as codeBrowser; configHash covers it so editing the block in
+      // hub-config.json restarts the hub. heal defaults ON.
+      SDLC_STALE_RENDER: JSON.stringify(cfg.staleRender ?? {}),
     },
   });
 

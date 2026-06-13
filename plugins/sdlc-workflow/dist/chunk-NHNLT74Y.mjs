@@ -5,20 +5,23 @@ import {
   deepMerge
 } from "./chunk-JRIEIPIL.mjs";
 import {
-  resolveEntrypoint,
   spawnDetachedNode
-} from "./chunk-EHRAXSYW.mjs";
+} from "./chunk-HQR34SES.mjs";
 import {
   hubPidPath,
   sdlcHomeDir
-} from "./chunk-NOGYVKL5.mjs";
+} from "./chunk-VAB2CNQR.mjs";
 import {
   CODE_BROWSER_DEFAULTS,
+  STALE_RENDER_DEFAULTS,
   isPidAlive,
   pidFileStatus,
   removePidFile,
   writePidFile
-} from "./chunk-WA2PDRBA.mjs";
+} from "./chunk-RY6BGTTK.mjs";
+import {
+  resolveEntrypoint
+} from "./chunk-KRRL2TSM.mjs";
 
 // lib/hub-lifecycle.mjs
 import { randomBytes } from "node:crypto";
@@ -64,7 +67,16 @@ var HUB_CONFIG_DEFAULTS = Object.freeze({
   // like every other serve setting; reaches both daemons via env at spawn.
   // ⚠ codeBrowser.serveSecrets:true drops the secret denylist (.env/keys
   // become servable) — keep false whenever host ≠ 127.0.0.1.
-  codeBrowser: { ...CODE_BROWSER_DEFAULTS }
+  codeBrowser: { ...CODE_BROWSER_DEFAULTS },
+  // Stale-render healing (STALE-RENDER-HEAL-PLAN, "Option B"). When a served
+  // view's rendered version drifts from the running plugin (the upgrade-left-
+  // content-behind split-brain), the serving daemon spawns a background clean
+  // re-render OFF the request path; live-reload then refreshes open tabs. heal
+  // defaults ON — it fires only on genuine drift (≈once per repo per upgrade)
+  // and is bounded by maxConcurrent + per-repo cooldownMs + maxAttempts. Set
+  // heal:false to detect-and-flag only (the hub still surfaces `stale` in health).
+  // Reaches both daemons via env at spawn (SDLC_STALE_RENDER), like codeBrowser.
+  staleRender: { ...STALE_RENDER_DEFAULTS }
 });
 function hubConfigPath() {
   return join(sdlcHomeDir(), "hub-config.json");
@@ -237,7 +249,11 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
     env: {
       ...process.env,
       SDLC_HUB_TOKEN: token,
-      SDLC_CODE_BROWSER: JSON.stringify(cfg.codeBrowser ?? {})
+      SDLC_CODE_BROWSER: JSON.stringify(cfg.codeBrowser ?? {}),
+      // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). Via env for the
+      // same reason as codeBrowser; configHash covers it so editing the block in
+      // hub-config.json restarts the hub. heal defaults ON.
+      SDLC_STALE_RENDER: JSON.stringify(cfg.staleRender ?? {})
     }
   });
   if (child.pid) {

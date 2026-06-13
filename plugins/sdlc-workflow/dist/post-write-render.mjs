@@ -2,12 +2,14 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  resolveEntrypoint,
   spawnDetachedNode
-} from "./chunk-EHRAXSYW.mjs";
+} from "./chunk-HQR34SES.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
+import {
+  resolveEntrypoint
+} from "./chunk-KRRL2TSM.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/render-on-artifact-write.mjs

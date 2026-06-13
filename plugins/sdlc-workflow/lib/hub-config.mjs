@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path';
 import { deepMerge, configHash } from './config.mjs';
 import { sdlcHomeDir } from './registry.mjs';
 import { CODE_BROWSER_DEFAULTS } from './code-browser.mjs';
+import { STALE_RENDER_DEFAULTS } from './heal-render.mjs';
 
 export const HUB_CONFIG_VERSION = 1;
 
@@ -54,6 +55,15 @@ export const HUB_CONFIG_DEFAULTS = Object.freeze({
   // ⚠ codeBrowser.serveSecrets:true drops the secret denylist (.env/keys
   // become servable) — keep false whenever host ≠ 127.0.0.1.
   codeBrowser: { ...CODE_BROWSER_DEFAULTS },
+  // Stale-render healing (STALE-RENDER-HEAL-PLAN, "Option B"). When a served
+  // view's rendered version drifts from the running plugin (the upgrade-left-
+  // content-behind split-brain), the serving daemon spawns a background clean
+  // re-render OFF the request path; live-reload then refreshes open tabs. heal
+  // defaults ON — it fires only on genuine drift (≈once per repo per upgrade)
+  // and is bounded by maxConcurrent + per-repo cooldownMs + maxAttempts. Set
+  // heal:false to detect-and-flag only (the hub still surfaces `stale` in health).
+  // Reaches both daemons via env at spawn (SDLC_STALE_RENDER), like codeBrowser.
+  staleRender: { ...STALE_RENDER_DEFAULTS },
 });
 
 export function hubConfigPath() {

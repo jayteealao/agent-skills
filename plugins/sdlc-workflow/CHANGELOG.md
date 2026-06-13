@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — serving daemons heal version-stale views in the background (9.63.0)
+
+The render-time version gate (9.60.0) forces a clean re-render whenever a view's recorded
+`.last-render` version differs from the running plugin — but only when a render is *invoked*. After an
+upgrade, a quiescent repo's already-rendered pages stayed frozen at the old version (old markup under
+freshly-recopied CSS = a split-brain page) until something happened to re-render it. The serving
+daemons now supply the missing caller, off the HTTP request path. See STALE-RENDER-HEAL-PLAN.
+
+- **Heal controller** (`lib/heal-render.mjs`) — a bounded, level-triggered healer. The hub's
+  reconcile tick (and a new timer on the standalone fallback daemon) asks it to `consider` each view
+  every tick; on version drift it spawns a background `render-sunflower --clean` for that repo
+  (`cwd=repoRoot` — the renderer has no `--project-root` flag), and the existing `.last-render` watch
+  fires live-reload so open tabs refresh. Triply bounded: a `maxConcurrent` cap, a per-repo
+  `cooldownMs`, and a `maxAttempts` ceiling that surfaces a visible `failed` state instead of
+  respawning a wedged render forever.
+- **Decoupled from requests** — heal is timer-driven, never request-driven, so a remote GET over a
+  public binding can never trigger a render. Drift heals in either direction (the installed daemon's
+  version is authoritative for the machine); an unversioned pre-9.60 view counts as stale.
+- **Config** (`staleRender` in the machine-wide `~/.sdlc/hub-config.json`) — `heal` defaults **on**;
+  `maxConcurrent:1`, `cooldownMs:60000`, `maxAttempts:3`. Reaches both daemons via env at spawn
+  (`SDLC_STALE_RENDER`, like `codeBrowser`). `heal:false` keeps detection-only — the hub still flags
+  `stale` in health.
+- **Observability** — `/__sdlc/health` now reports each entry's `renderedVersion` + `stale` (read
+  live from `.last-render`) and a top-level `heal` snapshot (`inFlight`/`queued`/`failed`); the
+  registry entry carries `renderedVersion` too.
+- Tests: a heal-controller unit suite (drift detection, the bounds, retry→failed, direction-agnostic
+  healing, spawn shape) and hub integration (reconcile heals a stale view via an injected spawn stub;
+  health flags `stale` with heal off).
+
 ### Changed — reconciled the `plan` sibling-YAML schema to the live convention + wired write-time validation (9.62.0)
 
 Follow-up to 9.61.0. The crash was one symptom of a deeper drift: `siblingYamlSchemas.plan`

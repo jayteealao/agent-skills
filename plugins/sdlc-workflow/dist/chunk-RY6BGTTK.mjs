@@ -1,5 +1,8 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
+import {
+  resolveEntrypoint
+} from "./chunk-KRRL2TSM.mjs";
 
 // lib/pid-file.mjs
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -700,6 +703,170 @@ function safeBranch(fn) {
   }
 }
 
+// lib/heal-render.mjs
+import { spawn } from "node:child_process";
+import { readFileSync as readFileSync2 } from "node:fs";
+import { join } from "node:path";
+var STALE_RENDER_DEFAULTS = Object.freeze({
+  heal: true,
+  maxConcurrent: 1,
+  // simultaneous heal renders across all repos
+  cooldownMs: 6e4,
+  // per-repo minimum interval between heal spawns (anti-thrash)
+  maxAttempts: 3
+  // give up + surface `failed` after this many spawns per drift episode
+});
+function normalizeStaleRenderConfig(cfg) {
+  const c = cfg && typeof cfg === "object" ? cfg : {};
+  const posInt = (v, d) => Number.isFinite(v) && v > 0 ? Math.floor(v) : d;
+  return {
+    heal: c.heal !== false,
+    maxConcurrent: posInt(c.maxConcurrent, STALE_RENDER_DEFAULTS.maxConcurrent),
+    cooldownMs: Number.isFinite(c.cooldownMs) && c.cooldownMs >= 0 ? Math.floor(c.cooldownMs) : STALE_RENDER_DEFAULTS.cooldownMs,
+    maxAttempts: posInt(c.maxAttempts, STALE_RENDER_DEFAULTS.maxAttempts)
+  };
+}
+function staleRenderConfigFromEnv(env = process.env) {
+  let raw = {};
+  try {
+    const text = env?.SDLC_STALE_RENDER;
+    if (text) raw = JSON.parse(text);
+  } catch {
+    raw = {};
+  }
+  return normalizeStaleRenderConfig(raw);
+}
+function readRenderedVersion(markerPath) {
+  try {
+    const parsed = JSON.parse(readFileSync2(markerPath, "utf-8"));
+    return typeof parsed.version === "string" && parsed.version ? parsed.version : null;
+  } catch {
+    return null;
+  }
+}
+function defaultSpawnRender(script, args, opts) {
+  return spawn(process.execPath, [script, ...args], {
+    stdio: "ignore",
+    windowsHide: true,
+    ...opts
+  });
+}
+function createHealController({
+  pluginRoot,
+  pluginVersion,
+  healCfg = {},
+  log = () => {
+  },
+  emitReload = () => {
+  },
+  spawnRender = defaultSpawnRender,
+  env = process.env,
+  now = () => Date.now()
+} = {}) {
+  const cfg = normalizeStaleRenderConfig(healCfg);
+  const queue = [];
+  const inFlight = /* @__PURE__ */ new Set();
+  const lastHealAt = /* @__PURE__ */ new Map();
+  const attempts = /* @__PURE__ */ new Map();
+  const failed = /* @__PURE__ */ new Map();
+  const markerOf = (entry) => join(entry.viewDir, ".last-render");
+  function consider(entry) {
+    try {
+      if (!cfg.heal) return { action: "disabled" };
+      if (!entry || !entry.id || !entry.viewDir || !entry.repoRoot) return { action: "invalid" };
+      const renderedVersion = readRenderedVersion(markerOf(entry));
+      if (renderedVersion === pluginVersion) {
+        attempts.delete(entry.id);
+        failed.delete(entry.id);
+        return { action: "fresh", renderedVersion };
+      }
+      return enqueue(entry, renderedVersion);
+    } catch (err) {
+      log(`heal: consider error for ${entry?.id ?? "?"}: ${err?.message ?? err}`);
+      return { action: "error" };
+    }
+  }
+  function enqueue(entry, renderedVersion) {
+    const id = entry.id;
+    if (inFlight.has(id) || queue.some((q) => q.entry.id === id)) {
+      return { action: "pending", renderedVersion };
+    }
+    if (now() - (lastHealAt.get(id) ?? -Infinity) < cfg.cooldownMs) {
+      return { action: "cooldown", renderedVersion };
+    }
+    if ((attempts.get(id) ?? 0) >= cfg.maxAttempts) {
+      if (!failed.has(id)) {
+        log(`heal: ${id} FAILED after ${cfg.maxAttempts} attempts \u2014 still ${renderedVersion ?? "unversioned"} (want ${pluginVersion})`);
+      }
+      failed.set(id, { attempts: cfg.maxAttempts, renderedVersion: renderedVersion ?? null });
+      return { action: "failed", renderedVersion };
+    }
+    queue.push({ entry, renderedVersion });
+    pump();
+    return { action: "enqueued", renderedVersion };
+  }
+  function pump() {
+    while (inFlight.size < cfg.maxConcurrent && queue.length) {
+      spawnOne(queue.shift());
+    }
+  }
+  function spawnOne({ entry, renderedVersion }) {
+    const id = entry.id;
+    inFlight.add(id);
+    lastHealAt.set(id, now());
+    attempts.set(id, (attempts.get(id) ?? 0) + 1);
+    const script = resolveEntrypoint(pluginRoot, "render-sunflower");
+    log(`heal: ${id} rendered ${renderedVersion ?? "unversioned"} \u2260 ${pluginVersion} \u2192 clean re-render (attempt ${attempts.get(id)}/${cfg.maxAttempts})`);
+    let child;
+    try {
+      child = spawnRender(script, ["--clean", "--view", entry.viewDir], {
+        cwd: entry.repoRoot,
+        env
+      });
+    } catch (err) {
+      inFlight.delete(id);
+      log(`heal: ${id} spawn failed: ${err?.message ?? err}`);
+      pump();
+      return;
+    }
+    let settled = false;
+    const finish = (code) => {
+      if (settled) return;
+      settled = true;
+      inFlight.delete(id);
+      if (code === 0) {
+        log(`heal: ${id} render complete`);
+        try {
+          emitReload(id);
+        } catch {
+        }
+      } else {
+        log(`heal: ${id} render exited ${code}`);
+      }
+      pump();
+    };
+    if (child && typeof child.on === "function") {
+      child.on("exit", (code) => finish(code ?? 0));
+      child.on("error", (err) => {
+        log(`heal: ${id} child error: ${err?.message ?? err}`);
+        finish(1);
+      });
+    } else {
+      finish(0);
+    }
+  }
+  function snapshot() {
+    return {
+      heal: cfg.heal,
+      maxConcurrent: cfg.maxConcurrent,
+      inFlight: [...inFlight],
+      queued: queue.map((q) => q.entry.id),
+      failed: [...failed.entries()].map(([id, v]) => ({ id, ...v }))
+    };
+  }
+  return { consider, snapshot, config: cfg };
+}
+
 export {
   isPidAlive,
   readPidFile,
@@ -711,5 +878,9 @@ export {
   codeBrowserConfigFromEnv,
   repoHeadBranch,
   serveCodeBrowserAsset,
-  serveCodeBrowser
+  serveCodeBrowser,
+  STALE_RENDER_DEFAULTS,
+  staleRenderConfigFromEnv,
+  readRenderedVersion,
+  createHealController
 };

@@ -33,6 +33,9 @@ import {
   codeBrowserConfigFromEnv, normalizeCodeBrowserConfig,
   serveCodeBrowser, serveCodeBrowserAsset,
 } from '../lib/code-browser.mjs';
+import {
+  createHealController, staleRenderConfigFromEnv, readRenderedVersion,
+} from '../lib/heal-render.mjs';
 import { renderHubLanding } from '../renderers/hub-dashboard.mjs';
 import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 
@@ -40,6 +43,15 @@ import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 const PLUGIN_VERSION = (() => {
   try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version ?? ''; }
   catch { return ''; }
+})();
+
+// Plugin root, resolved off this module's own URL so it works identically from
+// source (scripts/hub-serve.mjs) and the bundle (dist/hub-serve.mjs) — both sit
+// one level under the plugin root (the build's depth-1 invariant). Used to
+// resolve the render-sunflower entrypoint for stale-render heals.
+const PLUGIN_ROOT = (() => {
+  try { return fileURLToPath(new URL('..', import.meta.url)); }
+  catch { return null; }
 })();
 
 // Aggregate live-reload for the landing page (reloads on ANY repo's render — no
@@ -145,6 +157,15 @@ export function createHubServer({
   codeBrowser = null,
   heartbeatMs = 25000,
   reconcileMs = 10000,
+  pluginRoot = PLUGIN_ROOT,
+  // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). null → off; main()
+  // supplies the env-derived machine config (heal defaults ON there). Mirrors
+  // the `codeBrowser = null` → disabled constructor default, so existing callers
+  // (tests) are unaffected unless they opt in.
+  staleRender = null,
+  // Injectable render-spawn seam (tests pass a stub); default is the real
+  // tracked node spawn inside the heal controller.
+  spawnRender = undefined,
 } = {}) {
   const startedAt = Date.now();
   // Targeted Host-allowlist additions (e.g. the tailnet MagicDNS name), normalised
@@ -163,6 +184,22 @@ export function createHubServer({
   let entries = [];
   let landingCache = { html: null, at: 0 };   // 2-second micro-cache (§5)
   const invalidateLanding = () => { landingCache.html = null; };
+
+  // Stale-render heal controller (STALE-RENDER-HEAL-PLAN §4-§5). reconcile()
+  // calls heal.consider(entry) per entry each tick; on version drift it spawns a
+  // background `render-sunflower --clean` for that repo, off the request path.
+  // emitReload is belt-and-braces — the render's `.last-render` rewrite already
+  // trips the fs.watch — but it covers repos beyond the maxWatchedRepos cap whose
+  // watcher isn't installed. `staleRender ?? { heal: false }`: an omitted config
+  // means heal off (safe constructor default), matching codeBrowser.
+  const heal = createHealController({
+    pluginRoot,
+    pluginVersion: PLUGIN_VERSION,
+    healCfg: staleRender ?? { heal: false },
+    log: logHub,
+    emitReload: (id) => emitReload(id),
+    spawnRender,
+  });
 
   // Fold shards in + drop dead/poisoned entries at startup, then load the
   // validated set. The hub is the sole writer of registry.json from here on.
@@ -298,6 +335,14 @@ export function createHubServer({
         emitReload(e.id, renderedAt);
       }
     }
+
+    // 3. version-drift heal (STALE-RENDER-HEAL-PLAN §4). Level-triggered, like
+    // prune and the mtime backstop: ask the heal controller to consider every
+    // entry. It no-ops when heal is off or the rendered version matches; on drift
+    // it spawns a bounded background `render-sunflower --clean`. Runs for ALL
+    // entries (watched or not) — drift is independent of fs.watch coverage. The
+    // controller swallows its own errors, so this never escalates to reconcile.
+    for (const e of entries) heal.consider(e);
   }
 
   /* ── helpers ── */
@@ -316,10 +361,20 @@ export function createHubServer({
       version: PLUGIN_VERSION,
       uptimeMs: Date.now() - startedAt,
       configHash,
-      entries: entries.map((e) => ({
-        id: e.id, repoRoot: e.repoRoot, headBranch: e.headBranch ?? e.branch ?? null,
-        lastRenderedAt: e.lastRenderedAt, slugs: e.slugs,
-      })),
+      entries: entries.map((e) => {
+        // Read the rendered version LIVE from .last-render (source of truth) so
+        // `stale` reflects the current on-disk state, not the entry snapshot
+        // (STALE-RENDER-HEAL-PLAN §9). null = unversioned (pre-9.60) = stale.
+        const renderedVersion = readRenderedVersion(`${e.viewDir}/.last-render`);
+        return {
+          id: e.id, repoRoot: e.repoRoot, headBranch: e.headBranch ?? e.branch ?? null,
+          lastRenderedAt: e.lastRenderedAt, slugs: e.slugs,
+          renderedVersion,
+          stale: renderedVersion !== PLUGIN_VERSION,
+        };
+      }),
+      // Stale-render heal state: { heal, maxConcurrent, inFlight, queued, failed }.
+      heal: heal.snapshot(),
       metrics: {
         requests: metrics.requests,
         sseClients: clients.size,
@@ -741,9 +796,15 @@ async function main() {
     process.exit(2);
   }
   const token = process.env.SDLC_HUB_TOKEN ?? '';
-  // codeBrowser config arrives via env (JSON can't ride argv through the
-  // Windows launch-hidden.vbs shim) — same channel as the write token.
-  const server = createHubServer({ ...args, token, codeBrowser: codeBrowserConfigFromEnv() });
+  // codeBrowser + staleRender configs arrive via env (JSON can't ride argv
+  // through the Windows launch-hidden.vbs shim) — same channel as the write
+  // token. staleRender carries the heal settings (heal defaults ON machine-wide).
+  const server = createHubServer({
+    ...args,
+    token,
+    codeBrowser: codeBrowserConfigFromEnv(),
+    staleRender: staleRenderConfigFromEnv(),
+  });
 
   server.listen(args.port, args.host, async () => {
     const address = server.address();

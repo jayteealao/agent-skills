@@ -201,12 +201,18 @@ export function validateEntry(entry) {
 
 function readLastRender(viewDir) {
   const marker = join(viewDir, '.last-render');
-  if (!existsSync(marker)) return { renderedAt: null, configHash: null };
+  if (!existsSync(marker)) return { renderedAt: null, configHash: null, version: null };
   try {
     const parsed = JSON.parse(readFileSync(marker, 'utf-8'));
-    return { renderedAt: parsed.renderedAt ?? null, configHash: parsed.configHash ?? null };
+    return {
+      renderedAt: parsed.renderedAt ?? null,
+      configHash: parsed.configHash ?? null,
+      // The PLUGIN_VERSION the view was rendered under (STALE-RENDER-HEAL-PLAN §2).
+      // null for a pre-9.60 marker that predates the version stamp.
+      version: typeof parsed.version === 'string' && parsed.version ? parsed.version : null,
+    };
   } catch {
-    return { renderedAt: null, configHash: null };
+    return { renderedAt: null, configHash: null, version: null };
   }
 }
 
@@ -276,6 +282,10 @@ export async function buildEntry({ projectRoot, viewDir, configHash = null, exis
     worktreeLabel,
     viewDir: resolvedViewDir,
     lastRenderedAt: last.renderedAt ?? stamp,
+    // PLUGIN_VERSION the view was last rendered under — the stale-render heal's
+    // drift signal (STALE-RENDER-HEAL-PLAN §2). Daemons read it live from
+    // `.last-render`, but carrying it on the entry surfaces it in the hub inbox.
+    renderedVersion: last.version ?? null,
     slugs: slugMeta.map((s) => s.slug),
     slugMeta,
     configHash: configHash ?? last.configHash ?? null,

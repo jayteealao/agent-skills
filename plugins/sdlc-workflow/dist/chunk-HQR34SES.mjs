@@ -43,15 +43,6 @@ function spawnDetachedNode(scriptPath, args = [], opts = {}) {
   return spawnDetached(process.execPath, [scriptPath, ...args], opts);
 }
 
-// lib/entrypoint.mjs
-import { existsSync as existsSync2 } from "node:fs";
-import { join as join2 } from "node:path";
-function resolveEntrypoint(pluginRoot, name) {
-  const dist = join2(pluginRoot, "dist", `${name}.mjs`);
-  return existsSync2(dist) ? dist : join2(pluginRoot, "scripts", `${name}.mjs`);
-}
-
 export {
-  spawnDetachedNode,
-  resolveEntrypoint
+  spawnDetachedNode
 };

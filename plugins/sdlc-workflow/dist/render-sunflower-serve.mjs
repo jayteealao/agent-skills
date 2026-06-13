@@ -11,15 +11,19 @@ import {
 } from "./chunk-IOYXLHW6.mjs";
 import {
   codeBrowserConfigFromEnv,
+  createHealController,
   normalizeCodeBrowserConfig,
+  readRenderedVersion,
   removePidFile,
   repoHeadBranch,
   serveCodeBrowser,
   serveCodeBrowserAsset,
+  staleRenderConfigFromEnv,
   writePidFile
-} from "./chunk-WA2PDRBA.mjs";
+} from "./chunk-RY6BGTTK.mjs";
 import "./chunk-4WRIEOIP.mjs";
 import "./chunk-FZ2GR6GF.mjs";
+import "./chunk-KRRL2TSM.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/render-sunflower-serve.mjs
@@ -36,6 +40,13 @@ import { createServer } from "node:http";
 import { basename, extname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 var __filename = fileURLToPath(import.meta.url);
+var PLUGIN_ROOT = (() => {
+  try {
+    return fileURLToPath(new URL("..", import.meta.url));
+  } catch {
+    return null;
+  }
+})();
 var PLUGIN_VERSION = (() => {
   try {
     return JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
@@ -95,7 +106,14 @@ function createSdlcStaticServer({
   configHash = "",
   codeBrowser = null,
   allowAllHosts = false,
-  allowedHosts = []
+  allowedHosts = [],
+  // Stale-render heal config (STALE-RENDER-HEAL-PLAN §8). null → off (safe
+  // constructor default); main() supplies the env-derived machine config.
+  staleRender = null,
+  pluginRoot = PLUGIN_ROOT,
+  spawnRender = void 0,
+  // injectable render-spawn seam (tests)
+  reconcileMs = 1e4
 } = {}) {
   const root = resolve(viewRoot ?? ".ai/_view");
   mkdirSync(root, { recursive: true });
@@ -114,10 +132,29 @@ function createSdlcStaticServer({
       watcher = null;
     }
   }
+  const selfEntry = { id: "local", repoRoot, viewDir: root };
+  const heal = createHealController({
+    pluginRoot,
+    pluginVersion: PLUGIN_VERSION,
+    healCfg: staleRender ?? { heal: false },
+    log: (line) => console.log(`[serve] ${line}`),
+    emitReload: () => emitEvent(clients, "reload", healthPayload(root, configHash)),
+    spawnRender
+  });
+  let reconcileTimer = null;
+  if (heal.config.heal) {
+    reconcileTimer = setInterval(() => {
+      try {
+        heal.consider(selfEntry);
+      } catch {
+      }
+    }, reconcileMs);
+    if (typeof reconcileTimer.unref === "function") reconcileTimer.unref();
+  }
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://sdlc.local");
     if (url.pathname === "/__sdlc/health") {
-      sendJson(res, healthPayload(root, configHash));
+      sendJson(res, { ...healthPayload(root, configHash), heal: heal.snapshot() });
       return;
     }
     const p = url.pathname;
@@ -177,6 +214,7 @@ function createSdlcStaticServer({
   const close = server.close.bind(server);
   server.close = (callback) => {
     if (watcher) watcher.close();
+    if (reconcileTimer) clearInterval(reconcileTimer);
     for (const client of clients) client.end();
     clients.clear();
     return close(callback);
@@ -215,6 +253,7 @@ function resolveRequestPath2(root, rawUrl) {
   return resolveRequestPath(root, rawUrl, { stripPrefix: "/sdlc" });
 }
 function healthPayload(root, configHash) {
+  const renderedVersion = readRenderedVersion(join(root, ".last-render"));
   return {
     status: "ok",
     ok: true,
@@ -222,6 +261,8 @@ function healthPayload(root, configHash) {
     version: PLUGIN_VERSION,
     configHash,
     renderedAt: lastRenderAt(root),
+    renderedVersion,
+    stale: renderedVersion !== PLUGIN_VERSION,
     slugs: renderedSlugs(root)
   };
 }
@@ -280,9 +321,10 @@ async function main() {
     projectRoot,
     liveReload: args.liveReload,
     configHash: args.configHash,
-    // codeBrowser config arrives via env (JSON can't ride argv through the
-    // Windows launch-hidden.vbs shim) — mirrors the hub.
+    // codeBrowser + staleRender configs arrive via env (JSON can't ride argv
+    // through the Windows launch-hidden.vbs shim) — mirrors the hub.
     codeBrowser: codeBrowserConfigFromEnv(),
+    staleRender: staleRenderConfigFromEnv(),
     allowAllHosts: args.allowAllHosts,
     allowedHosts: args.allowedHosts
   });

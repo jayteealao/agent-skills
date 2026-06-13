@@ -20,9 +20,19 @@ import {
   codeBrowserConfigFromEnv, normalizeCodeBrowserConfig, repoHeadBranch,
   serveCodeBrowser, serveCodeBrowserAsset,
 } from '../lib/code-browser.mjs';
+import {
+  createHealController, staleRenderConfigFromEnv, readRenderedVersion,
+} from '../lib/heal-render.mjs';
 import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
+
+// Plugin root, resolved off this module's own URL (depth-1 from both scripts/
+// and dist/) so the heal controller can resolve the render-sunflower entrypoint.
+const PLUGIN_ROOT = (() => {
+  try { return fileURLToPath(new URL('..', import.meta.url)); }
+  catch { return null; }
+})();
 
 // Plugin version of THIS running daemon, surfaced in /__sdlc/health so the
 // supervisor (ensureServeLifecycle) can reap a stale daemon and let a new
@@ -94,6 +104,12 @@ export function createSdlcStaticServer({
   codeBrowser = null,
   allowAllHosts = false,
   allowedHosts = [],
+  // Stale-render heal config (STALE-RENDER-HEAL-PLAN §8). null → off (safe
+  // constructor default); main() supplies the env-derived machine config.
+  staleRender = null,
+  pluginRoot = PLUGIN_ROOT,
+  spawnRender = undefined,   // injectable render-spawn seam (tests)
+  reconcileMs = 10000,
 } = {}) {
   const root = resolve(viewRoot ?? '.ai/_view');
   mkdirSync(root, { recursive: true });
@@ -117,10 +133,34 @@ export function createSdlcStaticServer({
     }
   }
 
+  // Stale-render heal for this single repo (STALE-RENDER-HEAL-PLAN §8). The
+  // standalone fallback has no reconcile loop, so a light unref'd timer asks the
+  // controller to consider this view each tick; on version drift it spawns a
+  // background clean re-render off the request path, and the .last-render rewrite
+  // trips the watcher above → live-reload. emitReload broadcasts to all clients
+  // (single repo — no id filtering).
+  const selfEntry = { id: 'local', repoRoot, viewDir: root };
+  const heal = createHealController({
+    pluginRoot,
+    pluginVersion: PLUGIN_VERSION,
+    healCfg: staleRender ?? { heal: false },
+    log: (line) => console.log(`[serve] ${line}`),
+    emitReload: () => emitEvent(clients, 'reload', healthPayload(root, configHash)),
+    spawnRender,
+  });
+  let reconcileTimer = null;
+  if (heal.config.heal) {
+    reconcileTimer = setInterval(() => {
+      try { heal.consider(selfEntry); } catch { /* controller swallows its own errors */ }
+    }, reconcileMs);
+    if (typeof reconcileTimer.unref === 'function') reconcileTimer.unref();
+  }
+
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://sdlc.local');
     if (url.pathname === '/__sdlc/health') {
-      sendJson(res, healthPayload(root, configHash));
+      // heal snapshot rides only on the health response (not the SSE payloads).
+      sendJson(res, { ...healthPayload(root, configHash), heal: heal.snapshot() });
       return;
     }
 
@@ -182,6 +222,7 @@ export function createSdlcStaticServer({
   const close = server.close.bind(server);
   server.close = (callback) => {
     if (watcher) watcher.close();
+    if (reconcileTimer) clearInterval(reconcileTimer);
     for (const client of clients) client.end();
     clients.clear();
     return close(callback);
@@ -231,6 +272,10 @@ function resolveRequestPath(root, rawUrl) {
 }
 
 function healthPayload(root, configHash) {
+  // Rendered version read LIVE from .last-render (source of truth) so `stale`
+  // reflects current on-disk state (STALE-RENDER-HEAL-PLAN §9). null when
+  // unversioned (pre-9.60) — which counts as stale against any real version.
+  const renderedVersion = readRenderedVersion(join(root, '.last-render'));
   return {
     status: 'ok',
     ok: true,
@@ -238,6 +283,8 @@ function healthPayload(root, configHash) {
     version: PLUGIN_VERSION,
     configHash,
     renderedAt: lastRenderAt(root),
+    renderedVersion,
+    stale: renderedVersion !== PLUGIN_VERSION,
     slugs: renderedSlugs(root),
   };
 }
@@ -304,9 +351,10 @@ async function main() {
     projectRoot,
     liveReload: args.liveReload,
     configHash: args.configHash,
-    // codeBrowser config arrives via env (JSON can't ride argv through the
-    // Windows launch-hidden.vbs shim) — mirrors the hub.
+    // codeBrowser + staleRender configs arrive via env (JSON can't ride argv
+    // through the Windows launch-hidden.vbs shim) — mirrors the hub.
     codeBrowser: codeBrowserConfigFromEnv(),
+    staleRender: staleRenderConfigFromEnv(),
     allowAllHosts: args.allowAllHosts,
     allowedHosts: args.allowedHosts,
   });

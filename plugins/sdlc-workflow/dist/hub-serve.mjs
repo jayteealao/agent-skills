@@ -3,8 +3,8 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-H4N7CSJP.mjs";
-import "./chunk-74L5LIAO.mjs";
+} from "./chunk-42DXDTBX.mjs";
+import "./chunk-GRRJUEZK.mjs";
 import "./chunk-PDBKNARE.mjs";
 import {
   REGISTRY_VERSION,
@@ -13,8 +13,8 @@ import {
   refreshEntriesLiveness,
   validateEntry,
   writeRegistry
-} from "./chunk-NOGYVKL5.mjs";
-import "./chunk-6TC2JV7H.mjs";
+} from "./chunk-VAB2CNQR.mjs";
+import "./chunk-32BBY5UE.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -25,14 +25,18 @@ import {
 } from "./chunk-IOYXLHW6.mjs";
 import {
   codeBrowserConfigFromEnv,
+  createHealController,
   normalizeCodeBrowserConfig,
+  readRenderedVersion,
   removePidFile,
   serveCodeBrowser,
   serveCodeBrowserAsset,
+  staleRenderConfigFromEnv,
   writePidFile
-} from "./chunk-WA2PDRBA.mjs";
+} from "./chunk-RY6BGTTK.mjs";
 import "./chunk-4WRIEOIP.mjs";
 import "./chunk-FZ2GR6GF.mjs";
+import "./chunk-KRRL2TSM.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/hub-serve.mjs
@@ -45,6 +49,13 @@ var PLUGIN_VERSION = (() => {
     return JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
   } catch {
     return "";
+  }
+})();
+var PLUGIN_ROOT = (() => {
+  try {
+    return fileURLToPath(new URL("..", import.meta.url));
+  } catch {
+    return null;
   }
 })();
 var HUB_RELOAD_JS = "(()=>{if(!('EventSource' in window))return;const e=new EventSource('/__sdlc/events');e.addEventListener('reload',()=>window.location.reload());})();\n";
@@ -112,7 +123,16 @@ function createHubServer({
   allowedHosts = [],
   codeBrowser = null,
   heartbeatMs = 25e3,
-  reconcileMs = 1e4
+  reconcileMs = 1e4,
+  pluginRoot = PLUGIN_ROOT,
+  // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). null → off; main()
+  // supplies the env-derived machine config (heal defaults ON there). Mirrors
+  // the `codeBrowser = null` → disabled constructor default, so existing callers
+  // (tests) are unaffected unless they opt in.
+  staleRender = null,
+  // Injectable render-spawn seam (tests pass a stub); default is the real
+  // tracked node spawn inside the heal controller.
+  spawnRender = void 0
 } = {}) {
   const startedAt = Date.now();
   const extraHosts = new Set((allowedHosts || []).map((h) => String(h).toLowerCase()).filter(Boolean));
@@ -127,6 +147,14 @@ function createHubServer({
   const invalidateLanding = () => {
     landingCache.html = null;
   };
+  const heal = createHealController({
+    pluginRoot,
+    pluginVersion: PLUGIN_VERSION,
+    healCfg: staleRender ?? { heal: false },
+    log: logHub,
+    emitReload: (id) => emitReload(id),
+    spawnRender
+  });
   function reload() {
     try {
       pruneRegistry();
@@ -259,6 +287,7 @@ function createHubServer({
         emitReload(e.id, renderedAt);
       }
     }
+    for (const e of entries) heal.consider(e);
   }
   function tokenOk(req) {
     return Boolean(token) && req.headers["x-sdlc-token"] === token;
@@ -274,13 +303,20 @@ function createHubServer({
       version: PLUGIN_VERSION,
       uptimeMs: Date.now() - startedAt,
       configHash,
-      entries: entries.map((e) => ({
-        id: e.id,
-        repoRoot: e.repoRoot,
-        headBranch: e.headBranch ?? e.branch ?? null,
-        lastRenderedAt: e.lastRenderedAt,
-        slugs: e.slugs
-      })),
+      entries: entries.map((e) => {
+        const renderedVersion = readRenderedVersion(`${e.viewDir}/.last-render`);
+        return {
+          id: e.id,
+          repoRoot: e.repoRoot,
+          headBranch: e.headBranch ?? e.branch ?? null,
+          lastRenderedAt: e.lastRenderedAt,
+          slugs: e.slugs,
+          renderedVersion,
+          stale: renderedVersion !== PLUGIN_VERSION
+        };
+      }),
+      // Stale-render heal state: { heal, maxConcurrent, inFlight, queued, failed }.
+      heal: heal.snapshot(),
       metrics: {
         requests: metrics.requests,
         sseClients: clients.size,
@@ -754,7 +790,12 @@ async function main() {
     process.exit(2);
   }
   const token = process.env.SDLC_HUB_TOKEN ?? "";
-  const server = createHubServer({ ...args, token, codeBrowser: codeBrowserConfigFromEnv() });
+  const server = createHubServer({
+    ...args,
+    token,
+    codeBrowser: codeBrowserConfigFromEnv(),
+    staleRender: staleRenderConfigFromEnv()
+  });
   server.listen(args.port, args.host, async () => {
     const address = server.address();
     const boundPort = typeof address === "object" && address ? address.port : args.port;

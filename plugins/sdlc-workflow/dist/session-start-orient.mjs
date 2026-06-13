@@ -13,9 +13,8 @@ import {
   loadConfig
 } from "./chunk-JRIEIPIL.mjs";
 import {
-  resolveEntrypoint,
   spawnDetachedNode
-} from "./chunk-EHRAXSYW.mjs";
+} from "./chunk-HQR34SES.mjs";
 import {
   activeWorkflowIndexes,
   scanWorkflowIndexes
@@ -24,6 +23,9 @@ import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import "./chunk-UTP6CBAZ.mjs";
 import "./chunk-FZ2GR6GF.mjs";
+import {
+  resolveEntrypoint
+} from "./chunk-KRRL2TSM.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/session-start-orient.mjs
