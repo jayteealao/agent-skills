@@ -32,8 +32,25 @@ export function render(artifact, ctx) {
   const sumFiles = items.reduce((a, s) => a + (Number(s.fm['metric-files-changed'] ?? s.fm['files-changed']) || 0), 0);
   const sumFixes = items.reduce((a, s) => a + (Number(s.fm['metric-review-fixes-applied'] ?? s.fm['review-fixes-applied']) || 0), 0);
 
-  const lede = items.length
-    ? `${items.length} slice${items.length === 1 ? '' : 's'} implemented · ${done} complete`
+  // Total planned slices comes from the slice roster (03-slice.md) — the count
+  // `wf-meta extend` keeps current — NOT from `items`, which only exist for
+  // slices whose implementation has started. After an extend the roster grows
+  // but no new implement log is written, so `items.length` alone silently hides
+  // the newly-added, not-yet-implemented slices. Surface it as `implemented /
+  // total`. Fallback chain: slice-index `total-slices` → its `slices[]` length →
+  // live slice-leaf count → items.length (no roster at all).
+  const sliceFm = (ctx.allArtifacts?.['slice-index'] ?? [])[0]?.frontmatter ?? {};
+  const rosterTotal = Number(sliceFm['total-slices']);
+  const total = (Number.isFinite(rosterTotal) && rosterTotal > 0 ? rosterTotal : 0)
+    || (Array.isArray(sliceFm.slices) ? sliceFm.slices.length : 0)
+    || (ctx.allArtifacts?.slice ?? []).length
+    || items.length;
+  const showTotal = total > items.length;
+  const sliceCount = showTotal ? `${items.length}/${total}` : String(items.length);
+  const plural = (showTotal ? total : items.length) === 1 ? '' : 's';
+
+  const lede = (items.length || showTotal)
+    ? `${sliceCount} slice${plural} implemented · ${done} complete`
     : 'No implementation logs yet.';
 
   const headerHtml = artifactHeader({
@@ -42,10 +59,10 @@ export function render(artifact, ctx) {
     lede: escapeHtml(lede),
     badges: [
       statusBadge(fm.status),
-      `<span class="meta">${items.length} slice${items.length === 1 ? '' : 's'}</span>`,
+      `<span class="meta">${sliceCount} slice${plural}</span>`,
     ],
   }) + metricRow([
-    { label: 'slices',        value: items.length },
+    { label: 'slices',        value: sliceCount },
     { label: 'complete',      value: done, tone: 'ok' },
     { label: 'files changed', value: sumFiles },
     { label: 'fixes applied', value: sumFixes },

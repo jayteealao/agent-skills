@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — rendered slice counts now follow the slice roster after `wf-meta extend` (9.69.0)
+
+`/wf-meta extend` adds net-new slices by bumping the slice roster (`03-slice.md`: `total-slices` + `slices[]`) and writing new
+slice files — but it never re-bumps the implement-stage roll-up (`implement-index.slices-total`) or a stored `{done,total}`
+progress counter. Several rendered surfaces read those stranded fields and kept showing pre-extend counts.
+
+- **Implement station** (slug-overview stage stripe + the mobile stepper, which share one annotation function) now derives its
+  denominator from the slice roster and its numerator from the max of the roll-up's `slices-implemented`, live implement-leaf
+  completions, and roster completions. "3/5 slices" becomes "3/7" after extending to seven, instead of stranding at "3/5".
+- **Header progress metric** reconciles a `{done,total}` counter's denominator up to the live roster total (never shrinking it),
+  so progress is shown over the current slice count rather than the count at the time the counter was last written.
+- **Implementation index page** shows `implemented / total` (roster-backed) in its lede, badge, and `slices` metric instead of a
+  bare implemented-count that silently hid the newly-added, not-yet-implemented slices.
+- **`/wf-meta extend`** now also reconciles author-written counts in the slice-index body — any "N slices" summary sentence and
+  the `## Recommended Order` list — the one slice-number surface a renderer cannot recompute because it lives in free prose.
+
 ### Fixed — off-pipeline artifacts (`simplify`/`profiles`/`dep-updates`/`ideation`) now render on the bootstrap path (9.68.0)
 
 A `/simplify` run wrote a fully-authored rich artifact under `.ai/simplify/<run-id>.{md,yaml,html.fragment}`, but it never

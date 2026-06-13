@@ -20,6 +20,7 @@ import { validateFrontmatter } from '../renderers/_validator.mjs';
 import { buildPathMap, relativeBetween, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
 import { render as renderSlugIndex } from '../renderers/index.mjs';
 import { render as renderSliceIndexPage } from '../renderers/slice-index.mjs';
+import { render as renderImplementIndexPage } from '../renderers/implement-index.mjs';
 import { isDirty, workSetFilter, maxMtime } from '../renderers/_mtime.mjs';
 import { severityChip, verdictBlock, findingListItem } from '../renderers/_icons.mjs';
 import { figureCanvas, evenX } from '../renderers/_figure.mjs';
@@ -334,6 +335,56 @@ test('slice index: per-slice status comes from the roster, not the leaf "defined
   match(flat, /complete 16/);    // 16 roster slices complete (leaves are all "defined")
   match(flat, /in progress 0/);
   match(flat, /blocked 0/);
+});
+
+/* ── wf-meta extend: slice counts track the roster, not stale stage roll-ups ──
+ * After `extend` the slice roster (03-slice.md: total-slices / slices[]) grows
+ * and new slice leaves appear, but the implement-index roll-up (slices-total)
+ * and any {done,total} progress counter are NOT re-bumped. Every slice-number
+ * surface must therefore read the roster — never the stranded roll-up. */
+function extendedShapedArtifacts() {
+  // 16 original slices (complete, implemented) + 2 net-new from extend (defined,
+  // no implement log yet). Roster knows about all 18; the roll-ups still say 16.
+  const orig = Array.from({ length: 16 }, (_, i) => `slice-${i}`);
+  const added = ['extra-a', 'extra-b'];
+  const roster = [
+    ...orig.map((slug) => ({ slug, status: 'complete' })),
+    ...added.map((slug) => ({ slug, status: 'defined', source: 'extension', 'extension-round': 1 })),
+  ];
+  const allArtifacts = {
+    'slice-index': [{ frontmatter: { type: 'slice-index', status: 'in-progress', 'total-slices': 18, slices: roster } }],
+    slice: [...orig, ...added].map((slug) => ({ frontmatter: { type: 'slice', 'slice-slug': slug, status: 'defined' } })),
+    // STALE on purpose — extend never re-bumps the implement roll-up.
+    'implement-index': [{ frontmatter: { type: 'implement-index', title: 'Implementation', status: 'in-progress', 'slices-implemented': 16, 'slices-total': 16 } }],
+    implement: orig.map((slug) => ({ frontmatter: { type: 'implement', 'slice-slug': slug, status: 'complete' } })),
+  };
+  const indexFm = {
+    slug: 'osce', title: 'OSCE', 'current-stage': 'implement', status: 'in-progress',
+    progress: { done: 14, total: 14 }, // STALE {done,total} counter (distinct from 16 so it isolates Fix #4).
+  };
+  return { allArtifacts, indexFm, roster };
+}
+
+test('extend: slug-overview slice/implement/progress counts follow the roster, not the stale roll-up', () => {
+  const { allArtifacts, indexFm } = extendedShapedArtifacts();
+  const { headerHtml, bodyHtml } = renderSlugIndex({ frontmatter: indexFm, body: '' }, { slug: 'osce', allArtifacts });
+  const html = headerHtml + bodyHtml;
+  match(html, /18 slices/);            // slice station = live leaf count (16 + 2)
+  match(html, /16\/18 slices/);        // implement denominator = roster 18, not roll-up 16
+  doesNotMatch(html, /16\/16 slices/); // the stranded roll-up denominator is gone
+  match(html, /14\/18/);               // progress counter reconciled UP to the live roster (14/14 → 14/18)
+  doesNotMatch(html, /14\/14/);        // the stale counter denominator is gone
+  const bandVal = (s, label) => (s.match(new RegExp(`>${label}</text><text[^>]*>([^<]+)</text>`)) || [])[1];
+  strictEqual(bandVal(html, 'SLICES'), '18'); // callout band = roster total
+});
+
+test('extend: implement-index page shows implemented/total against the current roster', () => {
+  const { allArtifacts } = extendedShapedArtifacts();
+  const { headerHtml } = renderImplementIndexPage(allArtifacts['implement-index'][0], { slug: 'osce', allArtifacts });
+  const flat = headerHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  match(flat, /16\/18 slices implemented/); // 16 logs against the roster's 18
+  match(flat, /complete 16/);               // 16 implement leaves complete
+  doesNotMatch(flat, /16 slices implemented/); // no bare count that hides the 2 new slices
 });
 
 /* ── _mtime ────────────────────────────────────────────────────────── */

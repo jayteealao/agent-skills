@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-GHAL7GD5.mjs";
+} from "../chunk-I4RNJFXK.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,7 +13,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-KVPDAGUS.mjs";
+} from "../chunk-UL7P67Q2.mjs";
 import "../chunk-LFGT2BKG.mjs";
 import {
   escapeHtml
@@ -63,7 +63,7 @@ function render(artifact, ctx) {
       ${fm["updated-at"] ? `<span class="meta">updated ${escapeHtml(fm["updated-at"])}</span>` : ""}
     </aside>
   </header>`;
-  const progressValue = formatProgress(fm.progress);
+  const progressValue = formatProgress(fm.progress, ctx.allArtifacts);
   const metrics = [
     progressValue && { label: "progress", value: progressValue },
     fm["selected-slice"] && { label: "slice", value: fm["selected-slice"] },
@@ -142,11 +142,15 @@ function sliceRoster(allArtifacts) {
   return { list, total: Number.isFinite(total) && total > 0 ? total : list.length };
 }
 var SLICE_DONE = /* @__PURE__ */ new Set(["complete", "completed", "done", "shipped"]);
-function formatProgress(progress) {
+function formatProgress(progress, allArtifacts = {}) {
   if (!progress) return null;
   if (typeof progress === "string") return progress;
   if (typeof progress !== "object") return String(progress);
-  if (Number(progress.total) > 0) return `${Number(progress.done) || 0}/${Number(progress.total)}`;
+  if (Number(progress.total) > 0) {
+    const rosterTotal = sliceRoster(allArtifacts).total;
+    const total = Math.max(Number(progress.total), Number.isFinite(rosterTotal) ? rosterTotal : 0);
+    return `${Number(progress.done) || 0}/${total}`;
+  }
   const states = Object.values(progress).filter((v) => typeof v === "string");
   if (!states.length) return null;
   const done = states.filter((v) => SLICE_DONE.has(v.toLowerCase())).length;
@@ -162,17 +166,14 @@ function stationAnnotation(stage, count, allArtifacts = {}, fm = {}) {
     case "ship":
       return `${count} run${count === 1 ? "" : "s"}`;
     case "implement": {
-      const ii = (allArtifacts["implement-index"] ?? [])[0]?.frontmatter ?? {};
-      const rollDone = Number(ii["slices-implemented"]);
-      const rollTotal = Number(ii["slices-total"]);
-      if (Number.isFinite(rollDone) && Number.isFinite(rollTotal) && rollTotal > 0) {
-        return `${rollDone}/${rollTotal} slices`;
-      }
       const { list, total } = sliceRoster(allArtifacts);
       if (!total) return generic;
+      const ii = (allArtifacts["implement-index"] ?? [])[0]?.frontmatter ?? {};
+      const rollDone = Number(ii["slices-implemented"]);
       const fromLeaves = (allArtifacts.implement ?? []).filter((a) => SLICE_DONE.has(String(a.frontmatter?.status ?? "").toLowerCase())).length;
       const fromRoster = list.filter((s) => SLICE_DONE.has(String(s.status ?? "").toLowerCase())).length;
-      return `${Math.max(fromLeaves, fromRoster)}/${total} slices`;
+      const done = Math.max(Number.isFinite(rollDone) ? rollDone : 0, fromLeaves, fromRoster);
+      return `${done}/${total} slices`;
     }
     case "verify": {
       const t = deriveChecks(allArtifacts, fm);

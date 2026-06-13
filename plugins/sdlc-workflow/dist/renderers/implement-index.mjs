@@ -6,11 +6,11 @@ import {
   sliceCard,
   sliceGridFigure,
   sliceState
-} from "../chunk-XR2SDRNZ.mjs";
+} from "../chunk-MNPY25FO.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-GHAL7GD5.mjs";
+} from "../chunk-I4RNJFXK.mjs";
 import {
   figureCanvas
 } from "../chunk-PDBKNARE.mjs";
@@ -18,7 +18,7 @@ import {
   artifactHeader,
   metricRow,
   statusBadge
-} from "../chunk-KVPDAGUS.mjs";
+} from "../chunk-UL7P67Q2.mjs";
 import "../chunk-LFGT2BKG.mjs";
 import {
   escapeHtml
@@ -44,17 +44,23 @@ function render(artifact, ctx) {
   const done = items.filter((s) => sliceState(s.fm.status) === "complete").length;
   const sumFiles = items.reduce((a, s) => a + (Number(s.fm["metric-files-changed"] ?? s.fm["files-changed"]) || 0), 0);
   const sumFixes = items.reduce((a, s) => a + (Number(s.fm["metric-review-fixes-applied"] ?? s.fm["review-fixes-applied"]) || 0), 0);
-  const lede = items.length ? `${items.length} slice${items.length === 1 ? "" : "s"} implemented \xB7 ${done} complete` : "No implementation logs yet.";
+  const sliceFm = (ctx.allArtifacts?.["slice-index"] ?? [])[0]?.frontmatter ?? {};
+  const rosterTotal = Number(sliceFm["total-slices"]);
+  const total = (Number.isFinite(rosterTotal) && rosterTotal > 0 ? rosterTotal : 0) || (Array.isArray(sliceFm.slices) ? sliceFm.slices.length : 0) || (ctx.allArtifacts?.slice ?? []).length || items.length;
+  const showTotal = total > items.length;
+  const sliceCount = showTotal ? `${items.length}/${total}` : String(items.length);
+  const plural = (showTotal ? total : items.length) === 1 ? "" : "s";
+  const lede = items.length || showTotal ? `${sliceCount} slice${plural} implemented \xB7 ${done} complete` : "No implementation logs yet.";
   const headerHtml = artifactHeader({
     crumb: artifact.path,
     h1: escapeHtml(fm.title ?? "Implementation"),
     lede: escapeHtml(lede),
     badges: [
       statusBadge(fm.status),
-      `<span class="meta">${items.length} slice${items.length === 1 ? "" : "s"}</span>`
+      `<span class="meta">${sliceCount} slice${plural}</span>`
     ]
   }) + metricRow([
-    { label: "slices", value: items.length },
+    { label: "slices", value: sliceCount },
     { label: "complete", value: done, tone: "ok" },
     { label: "files changed", value: sumFiles },
     { label: "fixes applied", value: sumFixes }

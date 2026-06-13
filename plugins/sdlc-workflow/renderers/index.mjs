@@ -52,7 +52,7 @@ export function render(artifact, ctx) {
     </aside>
   </header>`;
 
-  const progressValue = formatProgress(fm.progress);
+  const progressValue = formatProgress(fm.progress, ctx.allArtifacts);
   const metrics = [
     progressValue && { label: 'progress', value: progressValue },
     fm['selected-slice'] && { label: 'slice', value: fm['selected-slice'] },
@@ -170,11 +170,21 @@ const SLICE_DONE = new Set(['complete', 'completed', 'done', 'shipped']);
 // metarow historically read (which always rendered 0/0). Accept all three
 // shapes: an explicit counter, a plain string, or the stage-status map
 // (collapsed to done/total over its completed stages).
-function formatProgress(progress) {
+function formatProgress(progress, allArtifacts = {}) {
   if (!progress) return null;
   if (typeof progress === 'string') return progress;
   if (typeof progress !== 'object') return String(progress);
-  if (Number(progress.total) > 0) return `${Number(progress.done) || 0}/${Number(progress.total)}`;
+  if (Number(progress.total) > 0) {
+    // A {done,total} counter is slice-based (the only counter shape the schema
+    // defines — `slices-implemented`/`slices-total`). `wf-meta extend` bumps the
+    // slice roster but never this stored counter, so its `total` strands at the
+    // pre-extend count. Reconcile the denominator UP to the live roster total so
+    // an extended workflow shows progress over its CURRENT scope; never shrink it
+    // (Math.max), guarding any larger non-slice counter that might appear.
+    const rosterTotal = sliceRoster(allArtifacts).total;
+    const total = Math.max(Number(progress.total), Number.isFinite(rosterTotal) ? rosterTotal : 0);
+    return `${Number(progress.done) || 0}/${total}`;
+  }
   const states = Object.values(progress).filter((v) => typeof v === 'string');
   if (!states.length) return null;
   const done = states.filter((v) => SLICE_DONE.has(v.toLowerCase())).length;
@@ -192,23 +202,24 @@ function stationAnnotation(stage, count, allArtifacts = {}, fm = {}) {
     case 'review': return `${count} review${count === 1 ? '' : 's'}`;
     case 'ship':   return `${count} run${count === 1 ? '' : 's'}`;
     case 'implement': {
-      // Authoritative roll-up: the implement-index tracks done/total slices.
-      const ii = (allArtifacts['implement-index'] ?? [])[0]?.frontmatter ?? {};
-      const rollDone = Number(ii['slices-implemented']);
-      const rollTotal = Number(ii['slices-total']);
-      if (Number.isFinite(rollDone) && Number.isFinite(rollTotal) && rollTotal > 0) {
-        return `${rollDone}/${rollTotal} slices`;
-      }
-      // Fallback: implement-leaf completions (then the slice roster's own
-      // statuses) over the roster total. NEVER the slice-stage files — those
-      // carry only the slicing status (`defined`), not implement progress.
+      // Denominator MUST come from the slice roster (`03-slice.md`: total-slices
+      // / slices[]) — it is the only slice count `wf-meta extend` maintains. The
+      // implement-index roll-up's `slices-total` is written once at implement
+      // time and never re-bumped, so trusting it as the denominator strands the
+      // total at the pre-extend count (e.g. "3/5" forever after extending to 7).
+      // The roll-up's `slices-implemented` is still trusted for the NUMERATOR —
+      // alongside live implement-leaf completions and the roster's own statuses —
+      // since extend never marks new slices done, so it can only undercount.
       const { list, total } = sliceRoster(allArtifacts);
       if (!total) return generic;
+      const ii = (allArtifacts['implement-index'] ?? [])[0]?.frontmatter ?? {};
+      const rollDone = Number(ii['slices-implemented']);
       const fromLeaves = (allArtifacts.implement ?? [])
         .filter((a) => SLICE_DONE.has(String(a.frontmatter?.status ?? '').toLowerCase())).length;
       const fromRoster = list
         .filter((s) => SLICE_DONE.has(String(s.status ?? '').toLowerCase())).length;
-      return `${Math.max(fromLeaves, fromRoster)}/${total} slices`;
+      const done = Math.max(Number.isFinite(rollDone) ? rollDone : 0, fromLeaves, fromRoster);
+      return `${done}/${total} slices`;
     }
     case 'verify': {
       const t = deriveChecks(allArtifacts, fm);

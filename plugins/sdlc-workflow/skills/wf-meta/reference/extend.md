@@ -211,7 +211,12 @@ Source: <from-review | from-retro | user request>
 <Why these slices were added — what the review/retro/user said that created this scope.>
 ```
 
-Do NOT modify any existing slice entries. Do NOT change `status: complete` on done slices.
+5. **Reconciling author-written counts in the existing body.** The markdown body the slice stage wrote carries author-facing slice numbers that the rendered view prints **verbatim** — they do NOT recompute from the roster, so they go stale the moment `total-slices` grows. Two spots:
+   - **Any summary sentence stating a slice total** (e.g. "These 5 slices cover…") — update the number to the new total so the prose agrees with the header, figure, and metric row (which are all roster-derived and already correct).
+   - **The `## Recommended Order` list** — append the new slices as *additional* numbered entries (continue the numbering; do NOT renumber, reorder, or remove existing lines), each with a one-line reason, so the order reflects the full set.
+   This is the only edit you make to existing body text, and it is purely clerical — correcting a stale count and extending a list. It is NOT a change to existing slice entries, slice files, or `status: complete` rows.
+
+Do NOT modify any existing slice entries in the `slices:` array. Do NOT change `status: complete` on done slices. (Item 5 above touches only author-written prose, never the roster.)
 
 ---
 
