@@ -11,7 +11,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-7KKZKJ3Z.mjs";
+} from "./chunk-GHAL7GD5.mjs";
 import {
   configHash,
   loadConfigWithMeta
@@ -29,7 +29,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-EVE343OU.mjs";
+} from "./chunk-KVPDAGUS.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -452,6 +452,12 @@ function displayHost(host) {
 var __dirname = dirname(fileURLToPath(import.meta.url));
 var PLUGIN_ROOT_DEFAULT = resolve(__dirname, "..");
 var RUNNING_FROM_DIST = basename(__dirname) === "dist";
+var OFF_PIPELINE_BUCKET = {
+  simplify: "simplify",
+  profile: "profiles",
+  deps: "dep-updates",
+  ideation: "ideation"
+};
 function parseArgs(argv) {
   const args = {
     storage: ".ai/workflows",
@@ -841,7 +847,7 @@ async function renderMain(args) {
     }
     viewAbsSeen.set(viewAbs, `${a.slug}/${a.storageRel}`);
     const storageInputs = [a.mdAbs, a.siblingPaths.yaml, a.siblingPaths.fragment].filter(Boolean);
-    const filterStoragePath = a.kind === "workflow" ? `${a.slug}/${a.storageRel}` : a.kind === "project" ? `project/${a.storageRel}` : a.kind === "docs" ? `docs/${a.storageRel}` : a.storageRel;
+    const filterStoragePath = a.kind === "workflow" ? `${a.slug}/${a.storageRel}` : a.kind === "project" ? `project/${a.storageRel}` : a.kind === "docs" ? `docs/${a.storageRel}` : OFF_PIPELINE_BUCKET[a.kind] ? `${OFF_PIPELINE_BUCKET[a.kind]}/${a.storageRel}` : a.storageRel;
     a.viewRel = viewRel;
     a.viewAbs = viewAbs;
     a.storageInputs = storageInputs;
@@ -1022,6 +1028,10 @@ async function bootstrapMain(args) {
   const storageRoot = resolve(cwd, args.storage);
   const viewRoot = resolve(cwd, args.view);
   const docsRoot = resolve(cwd, args.docs);
+  const simplifyRoot = resolve(cwd, args.simplify);
+  const profilesRoot = resolve(cwd, args.profiles);
+  const depUpdatesRoot = resolve(cwd, args.depUpdates);
+  const ideationRoot = resolve(cwd, args.ideation);
   const configMeta = await loadConfigWithMeta(cwd);
   const config = configMeta.config;
   const hash = configHash(config);
@@ -1098,6 +1108,24 @@ async function bootstrapMain(args) {
         jobs.push({ label: "docs", only: "docs/**", reason: docsState.reason });
       }
     }
+    for (const [kind, bucket] of Object.entries(OFF_PIPELINE_BUCKET)) {
+      const root = { simplify: simplifyRoot, profile: profilesRoot, deps: depUpdatesRoot, ideation: ideationRoot }[kind];
+      if (!root || !existsSync3(root)) continue;
+      const mdFiles = [...walkStorage(root)].filter((p) => p.endsWith(".md"));
+      if (!mdFiles.length) continue;
+      const latestArtifactMtime = await latestMtimeMs(offPipelineInputs(root, mdFiles));
+      const offViewMtime = await latestTreeMtimeMs(join3(viewRoot, bucket));
+      const offState = classifyRenderState({
+        latestArtifactMtime,
+        viewMtime: offViewMtime,
+        renderMissing: bootstrapConfig.renderMissing !== false,
+        renderStale: bootstrapConfig.renderStale !== false
+      });
+      log(`[bootstrap] ${offState.action} ${bucket} (${offState.reason})`);
+      if (offState.action === "render") {
+        jobs.push({ label: bucket, only: `${bucket}/**`, reason: offState.reason });
+      }
+    }
     if (args.dryRun) {
       log(`[bootstrap] dry-run complete: ${jobs.length} render job${jobs.length === 1 ? "" : "s"}`);
       return;
@@ -1146,6 +1174,16 @@ function artifactInputs(artifacts) {
   }
   return inputs;
 }
+function offPipelineInputs(root, mdAbsList) {
+  const inputs = [];
+  for (const mdAbs of mdAbsList) {
+    inputs.push(mdAbs);
+    const siblings = siblingPaths(relative(root, mdAbs).replace(/\\/g, "/"));
+    inputs.push(join3(root, siblings.yaml));
+    inputs.push(join3(root, siblings.fragment));
+  }
+  return inputs;
+}
 function normalizeConcurrency(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 1) return 1;
@@ -1180,6 +1218,10 @@ function runRenderJob(job, { args, cwd, log, sharedOutput = true }) {
       args.simplify,
       "--profiles",
       args.profiles,
+      "--dep-updates",
+      args.depUpdates,
+      "--ideation",
+      args.ideation,
       "--docs",
       args.docs,
       "--plugin-root",

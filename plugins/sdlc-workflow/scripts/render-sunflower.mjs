@@ -54,6 +54,19 @@ const PLUGIN_ROOT_DEFAULT = resolve(__dirname, '..');
 // source-spawned tests (e2e) and dev on source renderers. See loadRenderer.
 const RUNNING_FROM_DIST = basename(__dirname) === 'dist';
 
+// `.ai/_view/<bucket>/` subdir per off-pipeline artifact kind. Single source of
+// truth shared by the work-set match path (so `--only <bucket>/**` can target a
+// bucket) and the bootstrap freshness scan (which schedules `--only <bucket>/**`
+// jobs). The two MUST agree on the bucket string or the job matches nothing —
+// the original off-pipeline-never-renders bug. Mirrors renderers/_paths.mjs
+// resolveViewPath() (note: `profile` → `profiles`, `deps` → `dep-updates`).
+const OFF_PIPELINE_BUCKET = {
+  simplify: 'simplify',
+  profile:  'profiles',
+  deps:     'dep-updates',
+  ideation: 'ideation',
+};
+
 /* ───────────────────────── CLI parsing ───────────────────────── */
 
 function parseArgs(argv) {
@@ -567,13 +580,19 @@ async function renderMain(args) {
     }
     viewAbsSeen.set(viewAbs, `${a.slug}/${a.storageRel}`);
     const storageInputs = [a.mdAbs, a.siblingPaths.yaml, a.siblingPaths.fragment].filter(Boolean);
-    const filterStoragePath = a.kind === 'workflow'
-      ? `${a.slug}/${a.storageRel}`
-      : a.kind === 'project'
-        ? `project/${a.storageRel}`
-        : a.kind === 'docs'
-          ? `docs/${a.storageRel}`
-        : a.storageRel;
+    // Namespace the work-set match path so `--only <bucket>/**` can target a
+    // bucket. Off-pipeline kinds (simplify/profile/deps/ideation) previously
+    // fell through to a bare storageRel with NO prefix, so a bootstrap
+    // `--only simplify/**` job could never match them — the root cause of
+    // off-pipeline artifacts never rendering on the bootstrap path. The full
+    // additive pass (no --only) ignores this string, so the change is targeting-
+    // only and never alters which artifacts a no-filter render touches.
+    const filterStoragePath =
+      a.kind === 'workflow' ? `${a.slug}/${a.storageRel}` :
+      a.kind === 'project'  ? `project/${a.storageRel}` :
+      a.kind === 'docs'     ? `docs/${a.storageRel}` :
+      OFF_PIPELINE_BUCKET[a.kind] ? `${OFF_PIPELINE_BUCKET[a.kind]}/${a.storageRel}` :
+      a.storageRel;
     a.viewRel = viewRel;
     a.viewAbs = viewAbs;
     a.storageInputs = storageInputs;
@@ -804,6 +823,10 @@ async function bootstrapMain(args) {
   const storageRoot = resolve(cwd, args.storage);
   const viewRoot = resolve(cwd, args.view);
   const docsRoot = resolve(cwd, args.docs);
+  const simplifyRoot   = resolve(cwd, args.simplify);
+  const profilesRoot   = resolve(cwd, args.profiles);
+  const depUpdatesRoot = resolve(cwd, args.depUpdates);
+  const ideationRoot   = resolve(cwd, args.ideation);
   const configMeta = await loadConfigWithMeta(cwd);
   const config = configMeta.config;
   const hash = computeConfigHash(config);
@@ -889,6 +912,33 @@ async function bootstrapMain(args) {
       }
     }
 
+    // Off-pipeline artifact roots (simplify, profiles, dep-updates, ideation).
+    // The PostToolUse render hook (hooks/render-on-artifact-write.mjs) skips
+    // these writes ON PURPOSE and defers to "the next bootstrap render" — so if
+    // the bootstrap does not freshness-scan them here, they render NOWHERE and
+    // the hook's documented contract is unfulfilled (the simplify-never-renders
+    // bug). Each kind owns its `.ai/_view/<bucket>/` tree and a matching
+    // `--only <bucket>/**` job; the work-set match path is namespaced with the
+    // same bucket (see OFF_PIPELINE_BUCKET + filterStoragePath above).
+    for (const [kind, bucket] of Object.entries(OFF_PIPELINE_BUCKET)) {
+      const root = { simplify: simplifyRoot, profile: profilesRoot, deps: depUpdatesRoot, ideation: ideationRoot }[kind];
+      if (!root || !existsSync(root)) continue;
+      const mdFiles = [...walkStorage(root)].filter((p) => p.endsWith('.md'));
+      if (!mdFiles.length) continue;
+      const latestArtifactMtime = await latestMtimeMs(offPipelineInputs(root, mdFiles));
+      const offViewMtime = await latestTreeMtimeMs(join(viewRoot, bucket));
+      const offState = classifyRenderState({
+        latestArtifactMtime,
+        viewMtime: offViewMtime,
+        renderMissing: bootstrapConfig.renderMissing !== false,
+        renderStale: bootstrapConfig.renderStale !== false,
+      });
+      log(`[bootstrap] ${offState.action} ${bucket} (${offState.reason})`);
+      if (offState.action === 'render') {
+        jobs.push({ label: bucket, only: `${bucket}/**`, reason: offState.reason });
+      }
+    }
+
     if (args.dryRun) {
       log(`[bootstrap] dry-run complete: ${jobs.length} render job${jobs.length === 1 ? '' : 's'}`);
       return;
@@ -950,6 +1000,20 @@ function artifactInputs(artifacts) {
   return inputs;
 }
 
+// Freshness inputs for an off-pipeline root: each .md plus its sibling .yaml and
+// .html.fragment (a yaml-only edit must still mark the artifact stale). The
+// siblingRoot is the off-pipeline root itself, so paths resolve relative to it.
+function offPipelineInputs(root, mdAbsList) {
+  const inputs = [];
+  for (const mdAbs of mdAbsList) {
+    inputs.push(mdAbs);
+    const siblings = siblingPaths(relative(root, mdAbs).replace(/\\/g, '/'));
+    inputs.push(join(root, siblings.yaml));
+    inputs.push(join(root, siblings.fragment));
+  }
+  return inputs;
+}
+
 function normalizeConcurrency(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n < 1) return 1;
@@ -981,6 +1045,8 @@ function runRenderJob(job, { args, cwd, log, sharedOutput = true }) {
       '--view', args.view,
       '--simplify', args.simplify,
       '--profiles', args.profiles,
+      '--dep-updates', args.depUpdates,
+      '--ideation', args.ideation,
       '--docs', args.docs,
       '--plugin-root', args.pluginRoot,
       '--schema', args.schema,

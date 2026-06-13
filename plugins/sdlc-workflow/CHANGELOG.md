@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — off-pipeline artifacts (`simplify`/`profiles`/`dep-updates`/`ideation`) now render on the bootstrap path (9.68.0)
+
+A `/simplify` run wrote a fully-authored rich artifact under `.ai/simplify/<run-id>.{md,yaml,html.fragment}`, but it never
+appeared in `.ai/_view/`. Two components each deferred to the other: the PostToolUse render hook
+(`hooks/render-on-artifact-write.mjs`) skips off-pipeline writes "for the next bootstrap render", but the bootstrap planner
+(`bootstrapMain`) only freshness-scanned workflow slugs + `project` + `docs` — never the off-pipeline roots. So these artifacts
+rendered nowhere except a manual unscoped full render. A second, compounding defect: the work-set match path gave off-pipeline
+kinds a bare `storageRel` with no bucket prefix, so even a `--only simplify/**` job matched nothing.
+
+- **`OFF_PIPELINE_BUCKET`** — new single source of truth mapping each off-pipeline kind to its `.ai/_view/<bucket>/` subdir
+  (`profile`→`profiles`, `deps`→`dep-updates`), shared by the work-set match path and the bootstrap job glob so they cannot drift.
+- **`filterStoragePath`** now namespaces off-pipeline kinds with their bucket, so `--only <bucket>/**` can target them. The
+  no-`--only` additive pass ignores this string, so the change is targeting-only.
+- **`bootstrapMain`** resolves the four off-pipeline roots and adds a freshness loop (mirroring the `docs`/`project` blocks) that
+  schedules `--only <bucket>/**` jobs via `classifyRenderState`; new `offPipelineInputs()` folds sibling `.yaml`/`.fragment` mtimes
+  into the staleness check. `runRenderJob` now also forwards `--dep-updates`/`--ideation`.
+- **Tests:** `tests/unit/lib/bootstrap-offpipeline.test.mjs` (3 subprocess tests) — `--only simplify/**` renders; bootstrap
+  schedules `render simplify (missing)`; skips when fresh.
+
 ### Removed — router-migration verification apparatus + `router-metadata.json` (9.67.0)
 
 The router migration finished at v9.0.0-alpha; its verification scaffolding had become pure friction — every
