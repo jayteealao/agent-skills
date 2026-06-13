@@ -22,6 +22,7 @@ import {
   stringifyField,
 } from '../lib/hook-utils.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
+import { isAutostartEnabled, refreshAutostart } from '../lib/tray-autostart.mjs';
 import { scanWorkflowIndexes, activeWorkflowIndexes } from '../lib/workflow-index.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -34,6 +35,7 @@ async function main() {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
   startBootstrap(projectRoot, config);
+  healAutostartLauncher();
 
   const workflows = activeWorkflowIndexes(await scanWorkflowIndexes({ projectRoot }));
   if (!workflows.length) return;
@@ -43,6 +45,24 @@ async function main() {
   outputSystemMessage(summaries.length === 1
     ? summaries[0]
     : `Active workflows (${summaries.length}):\n\n${summaries.join('\n\n')}`);
+}
+
+// Re-point an ENABLED tray autostart launcher at THIS plugin's tray bundle (and a
+// durable node path) from this headless session-start context. The tray's own
+// refreshAutostart (scripts/tray.mjs) only runs once the tray is alive — but a
+// launcher left pointing at a prior version's bundle after an upgrade can't start
+// the tray, so it never self-heals (chicken-and-egg). Healing it here closes that
+// loop: every session start re-stamps the launcher to the current version, so the
+// next logon launches the right tray. No-op when autostart is disabled (never
+// creates a launcher uninvited) or already current. Fail-open — orientation must
+// never break on this.
+function healAutostartLauncher() {
+  try {
+    if (!isAutostartEnabled()) return;
+    refreshAutostart({ trayBundle: resolveEntrypoint(PLUGIN_ROOT, 'tray') });
+  } catch {
+    // best-effort; session orientation must remain fail-open.
+  }
 }
 
 function startBootstrap(projectRoot, config) {

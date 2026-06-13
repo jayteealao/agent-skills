@@ -2,6 +2,10 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  isAutostartEnabled,
+  refreshAutostart
+} from "./chunk-BUQPB4LT.mjs";
+import {
   currentGitBranch,
   logError,
   outputSystemMessage,
@@ -39,6 +43,7 @@ async function main() {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
   startBootstrap(projectRoot, config);
+  healAutostartLauncher();
   const workflows = activeWorkflowIndexes(await scanWorkflowIndexes({ projectRoot }));
   if (!workflows.length) return;
   const currentBranch = await currentGitBranch(projectRoot);
@@ -46,6 +51,13 @@ async function main() {
   outputSystemMessage(summaries.length === 1 ? summaries[0] : `Active workflows (${summaries.length}):
 
 ${summaries.join("\n\n")}`);
+}
+function healAutostartLauncher() {
+  try {
+    if (!isAutostartEnabled()) return;
+    refreshAutostart({ trayBundle: resolveEntrypoint(PLUGIN_ROOT, "tray") });
+  } catch {
+  }
 }
 function startBootstrap(projectRoot, config) {
   if (process.env.SDLC_DISABLE_BOOTSTRAP === "1") return;

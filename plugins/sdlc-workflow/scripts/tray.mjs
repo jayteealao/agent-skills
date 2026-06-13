@@ -138,7 +138,7 @@ function onToggleAutostart() {
       disableAutostart();
       log('autostart disabled');
     } else {
-      enableAutostart({ nodePath: process.execPath, trayBundle: TRAY_BUNDLE });
+      enableAutostart({ trayBundle: TRAY_BUNDLE });
       log('autostart enabled');
     }
   } catch (err) {
@@ -193,7 +193,7 @@ async function main() {
   // and (the supervisor behavior) ensure the hub is up from logon. ensureHub is
   // idempotent, so this composes safely with the SessionStart bootstrap.
   if (isAutostartEnabled()) {
-    try { refreshAutostart({ nodePath: process.execPath, trayBundle: TRAY_BUNDLE }); } catch { /* best-effort */ }
+    try { refreshAutostart({ trayBundle: TRAY_BUNDLE }); } catch { /* best-effort */ }
     ensureHubOnLaunch({ pluginRoot: PLUGIN_ROOT, log }).catch(() => {});
   }
 

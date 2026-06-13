@@ -13,6 +13,7 @@ import { equal, ok, match } from 'node:assert/strict';
 import {
   enableAutostart, disableAutostart, isAutostartEnabled, refreshAutostart,
   autostartLauncherDir, autostartLauncherName, buildLauncherContent, launcherTargetsCurrent,
+  resolveDurableNodePath,
 } from '../../../lib/tray-autostart.mjs';
 
 let dir;
@@ -68,6 +69,38 @@ test('platform dispatch: name + dir', () => {
   equal(lin, join('/cfg', 'autostart'));
   const mac = autostartLauncherDir({ platform: 'darwin', env: {}, home: '/Users/me' });
   equal(mac, join('/Users/me', 'Library', 'LaunchAgents'));
+});
+
+test('resolveDurableNodePath: a non-fnm execPath passes through untouched', () => {
+  const stable = process.platform === 'win32' ? 'C:\\Program Files\\nodejs\\node.exe' : '/usr/bin/node';
+  equal(resolveDurableNodePath({ execPath: stable, exists: () => true }), stable);
+});
+
+test('resolveDurableNodePath: an ephemeral fnm multishell execPath → fnm aliases/default node (win32)', () => {
+  const ephemeral = 'C:\\Users\\me\\AppData\\Local\\fnm_multishells\\42092_1781104955771\\node.exe';
+  const out = resolveDurableNodePath({
+    execPath: ephemeral, platform: 'win32',
+    env: { APPDATA: 'C:\\Users\\me\\AppData\\Roaming' }, home: 'C:\\Users\\me',
+    exists: () => true,
+  });
+  equal(out, join('C:\\Users\\me\\AppData\\Roaming', 'fnm', 'aliases', 'default', 'node.exe'));
+});
+
+test('resolveDurableNodePath: multishell but no durable candidate → falls back to execPath', () => {
+  const ephemeral = 'C:\\Users\\me\\AppData\\Local\\fnm_multishells\\42092_x\\node.exe';
+  equal(
+    resolveDurableNodePath({ execPath: ephemeral, platform: 'win32', env: {}, home: 'C:\\Users\\me', exists: () => false }),
+    ephemeral,
+  );
+});
+
+test('resolveDurableNodePath: $FNM_DIR override + posix candidate shape (aliases/default/bin/node)', () => {
+  const ephemeral = '/home/me/.local/share/fnm_multishells/991_x/bin/node';
+  const out = resolveDurableNodePath({
+    execPath: ephemeral, platform: 'linux',
+    env: { FNM_DIR: '/opt/fnm' }, home: '/home/me', exists: () => true,
+  });
+  equal(out, join('/opt/fnm', 'aliases', 'default', 'bin', 'node'));
 });
 
 test('content builders embed both paths + the hidden-launch shape', () => {

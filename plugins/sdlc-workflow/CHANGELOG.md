@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — tray autostart launcher self-heals to the current version + durable node path (9.72.0)
+
+After a plugin upgrade relocates the tray bundle (`…/<version>/dist/tray.mjs`), an **enabled** autostart
+launcher kept pointing at the *prior* version's bundle. The only code that rewrites the launcher
+(`refreshAutostart`) ran exclusively from inside a live tray (`scripts/tray.mjs`) — but a stale launcher
+can't start the tray, so it could never self-heal (chicken-and-egg). The next logon then launched the old
+version, or nothing.
+
+- **Headless self-heal.** `hooks/session-start-orient.mjs` now calls `refreshAutostart` on every session
+  start (no-op when autostart is disabled or already current), re-stamping an enabled launcher to **this**
+  install's tray bundle even while the tray is dead. Fail-open — orientation never breaks on it.
+- **Durable node path.** New `resolveDurableNodePath()` in `lib/tray-autostart.mjs`: an `fnm` per-shell
+  `fnm_multishells/<pid>_<ts>/node.exe` path (ephemeral — fnm deletes it on shell exit, so the launcher
+  silently dies at the next logon) is swapped for fnm's stable `aliases/default` node. Non-fnm paths
+  (system node, nvm, volta) pass through untouched; falls back to `execPath` when no durable candidate
+  exists, so it can never regress. Now the default `nodePath` for `enableAutostart`/`refreshAutostart`,
+  so the tray's own enable/refresh sites inherit it too.
+
 ### Added — `craft` authors its own rich `design-contract` fragment (9.71.0)
 
 `/wf-design craft` now authors a rich layer for its **own** output (`02c-craft.md`, `type: design-contract`),
