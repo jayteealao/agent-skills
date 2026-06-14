@@ -199,6 +199,9 @@ export function renderArgsForPlan(plan, { viewDir, pluginRoot } = {}) {
   const tail = ['--view', viewDir];
   if (pluginRoot) tail.push('--plugin-root', pluginRoot);
   if (!plan || plan.kind === 'bootstrap') return ['--bootstrap', ...tail];
+  // `incremental` and `offpipeline` both render with `--only <bucket>/**` — the
+  // kind is carried only as provenance (which subsystem queued the render); the
+  // sole arg-affecting distinction is bootstrap vs. a single bucket.
   return ['--only', `${plan.bucket}/**`, ...tail];
 }
 
@@ -260,14 +263,12 @@ export function fail(viewDir, claimed, {
     const attempts = (c.record?.attempts ?? 0) + 1;
     const rec = { ...(c.record ?? {}), attempts, lastError: String(error), lastFailedAt: new Date(now()).toISOString() };
     const text = `${JSON.stringify(rec, null, 2)}\n`;
-    if (attempts >= maxAttempts) {
-      try { mkdirSync(failedD, { recursive: true }); } catch { /* ignore */ }
-      try { writeFileAtomic(join(failedD, c.name), text); } catch { /* ignore */ }
-      try { rmSync(c.file, { force: true }); } catch { /* ignore */ }
-    } else {
-      try { writeFileAtomic(join(dir, c.name), text); } catch { /* ignore */ }
-      try { rmSync(c.file, { force: true }); } catch { /* ignore */ }
-    }
+    // Past the ceiling → .failed/ (surfaced in health); otherwise back to pending
+    // for the next tick. Same write-then-remove either way — only the dir differs.
+    const dest = attempts >= maxAttempts ? failedD : dir;
+    if (dest === failedD) { try { mkdirSync(failedD, { recursive: true }); } catch { /* ignore */ } }
+    try { writeFileAtomic(join(dest, c.name), text); } catch { /* ignore */ }
+    try { rmSync(c.file, { force: true }); } catch { /* ignore */ }
   }
   appendError(viewDir, error);
 }
@@ -352,8 +353,8 @@ export function createRenderQueueDrainer({
       if (isBusy(id)) return { action: 'busy' };       // leave the queue for the next tick
       const pending = readPending(viewDir);
       if (!pending.length) return { action: 'empty' };
+      // coalesce is non-null for any non-empty record set (guarded above).
       const plan = coalesce(pending.map((p) => p.record));
-      if (!plan) return { action: 'empty' };
       const claimed = claim(viewDir, pending.map((p) => p.name));
       if (!claimed.length) return { action: 'nothing-claimed' };
 

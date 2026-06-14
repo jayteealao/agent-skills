@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — render-dispatch post-review cleanup (9.74.0)
+
+Quality pass over the 9.73.0 render-dispatch code (no behaviour change):
+
+- **Write hook off the schema-compile path.** `render-on-artifact-write.mjs` reads the few `view.*` scalars it
+  needs with a lightweight raw JSON read instead of `loadConfig` (whose Ajv schema compile ran on every
+  cold-spawned hook invocation); schema validation stays in `post-write-verify`.
+- **Shared ensure-hub helper.** New `lib/ensure-hub.mjs` (`ensureHubEnabled` + `spawnHubEnsure`) replaces the
+  duplicated enable-guard + detached spawn in both the write hook and SessionStart — and gives SessionStart the
+  `.render-errors.log` failure reporting it was missing.
+- **One reconcile timer in the standalone daemon.** `render-sunflower-serve.mjs` folds the heal pass and the
+  queue drain into a single timer (mirroring the hub's `reconcile()`), removing the dual-timer / close-handler
+  asymmetry.
+- **Smaller render-queue surface.** `fail()` collapses its two identical write-then-remove branches; the child
+  -error log uses the correct `render-queue:` tag; an unreachable `coalesce` null-guard and a redundant bucket
+  composite-key + `Set` dedup are removed.
+
 ### Changed — rendering moves out of the hooks into the hub: a durable render queue (9.73.0)
 
 Implements RENDER-DISPATCH-PLAN — the prerequisite for the native Codex host. Instead of every

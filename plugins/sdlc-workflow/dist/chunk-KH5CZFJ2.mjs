@@ -174,6 +174,7 @@ function stableStringify(value) {
 }
 
 export {
+  configPathFor,
   deepMerge,
   loadConfigWithMeta,
   loadConfig,

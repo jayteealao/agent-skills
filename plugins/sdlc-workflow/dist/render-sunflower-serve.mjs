@@ -21,10 +21,10 @@ import {
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv,
   writePidFile
-} from "./chunk-2J6GCTGA.mjs";
+} from "./chunk-KNNAPWND.mjs";
 import {
   createRenderQueueDrainer
-} from "./chunk-ELXHT3DD.mjs";
+} from "./chunk-HLR2BZLC.mjs";
 import "./chunk-KGLQRRIU.mjs";
 
 // scripts/render-sunflower-serve.mjs
@@ -142,16 +142,6 @@ function createSdlcStaticServer({
     emitReload: () => emitEvent(clients, "reload", healthPayload(root, configHash)),
     spawnRender
   });
-  let reconcileTimer = null;
-  if (heal.config.heal) {
-    reconcileTimer = setInterval(() => {
-      try {
-        heal.consider(selfEntry);
-      } catch {
-      }
-    }, reconcileMs);
-    if (typeof reconcileTimer.unref === "function") reconcileTimer.unref();
-  }
   const renderQueue = createRenderQueueDrainer({
     submit: (entry, spec) => heal.submit(entry, spec),
     isBusy: (id) => heal.isBusy(id),
@@ -163,13 +153,17 @@ function createSdlcStaticServer({
     renderQueue.catchUp([selfEntry]);
   } catch {
   }
-  const queueTimer = setInterval(() => {
+  const reconcileTimer = setInterval(() => {
+    try {
+      if (heal.config.heal) heal.consider(selfEntry);
+    } catch {
+    }
     try {
       renderQueue.drainEntry(selfEntry);
     } catch {
     }
   }, reconcileMs);
-  if (typeof queueTimer.unref === "function") queueTimer.unref();
+  if (typeof reconcileTimer.unref === "function") reconcileTimer.unref();
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://sdlc.local");
     if (url.pathname === "/__sdlc/health") {
@@ -237,8 +231,7 @@ function createSdlcStaticServer({
   const close = server.close.bind(server);
   server.close = (callback) => {
     if (watcher) watcher.close();
-    if (reconcileTimer) clearInterval(reconcileTimer);
-    clearInterval(queueTimer);
+    clearInterval(reconcileTimer);
     for (const client of clients) client.end();
     clients.clear();
     return close(callback);

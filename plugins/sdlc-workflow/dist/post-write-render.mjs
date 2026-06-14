@@ -2,20 +2,23 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  ensureHubEnabled,
+  spawnHubEnsure
+} from "./chunk-DGPWQY7Z.mjs";
+import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-HQR34SES.mjs";
 import {
-  loadConfig
-} from "./chunk-NHBE6SKM.mjs";
+  configPathFor
+} from "./chunk-KH5CZFJ2.mjs";
 import {
-  appendError,
   enqueue,
   queueDir,
   resolveEntrypoint
-} from "./chunk-ELXHT3DD.mjs";
+} from "./chunk-HLR2BZLC.mjs";
 import "./chunk-KGLQRRIU.mjs";
 
 // hooks/render-on-artifact-write.mjs
@@ -83,21 +86,17 @@ function shouldSpawnEnsure(viewRoot) {
   }
   return true;
 }
-function ensureHubBestEffort(cwd, viewRoot, config) {
-  if (config.view?.ensureHubOnWrite === false) return;
-  if (process.env.SDLC_DISABLE_ENSURE_HUB === "1") return;
+function ensureHubBestEffort(cwd, viewRoot, viewConfig) {
+  if (!ensureHubEnabled(viewConfig)) return;
   if (!shouldSpawnEnsure(viewRoot)) return;
+  spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot: cwd, viewDir: viewRoot });
+}
+function readViewConfig(projectRoot) {
   try {
-    spawnDetachedNode(
-      resolveEntrypoint(PLUGIN_ROOT, "hub-ensure"),
-      ["--plugin-root", PLUGIN_ROOT, "--project-root", cwd, "--view", viewRoot],
-      { cwd, env: process.env }
-    );
-  } catch (err) {
-    try {
-      appendError(viewRoot, `ensure-hub spawn failed: ${err?.message ?? err}`);
-    } catch {
-    }
+    const raw = JSON.parse(readFileSync(configPathFor(projectRoot), "utf-8"));
+    return raw && typeof raw === "object" && raw.view && typeof raw.view === "object" ? raw.view : {};
+  } catch {
+    return {};
   }
 }
 function legacyInlineDispatch(cwd, viewRoot, buckets) {
@@ -129,17 +128,14 @@ async function main() {
   for (const p of relevant) {
     const d = detectRenderBucket(resolve(cwd, p));
     if (!d) continue;
-    const key = `${d.kind}:${d.bucket}`;
-    if (!byBucket.has(key)) byBucket.set(key, { kind: d.kind, bucket: d.bucket, paths: [] });
-    byBucket.get(key).paths.push(p);
+    if (!byBucket.has(d.bucket)) byBucket.set(d.bucket, { kind: d.kind, bucket: d.bucket, paths: [] });
+    byBucket.get(d.bucket).paths.push(p);
   }
   if (!byBucket.size) exitClean();
-  const config = await loadConfig(cwd);
-  const dispatch = config.view?.renderDispatch ?? "hub";
+  const view = readViewConfig(cwd);
+  const dispatch = view.renderDispatch ?? "hub";
   if (dispatch === "inline") {
-    const incremental = [...new Set(
-      [...byBucket.values()].filter((b) => b.kind === "incremental").map((b) => b.bucket)
-    )];
+    const incremental = [...byBucket.values()].filter((b) => b.kind === "incremental").map((b) => b.bucket);
     legacyInlineDispatch(cwd, viewRoot, incremental);
     return;
   }
@@ -151,9 +147,9 @@ async function main() {
       bucket,
       paths,
       enqueuedBy: { host: "claude", pid: process.pid }
-    }, { maxPending: config.view?.renderQueue?.maxPending });
+    }, { maxPending: view.renderQueue?.maxPending });
   }
-  ensureHubBestEffort(cwd, viewRoot, config);
+  ensureHubBestEffort(cwd, viewRoot, view);
   exitClean();
 }
 async function debounceStage2() {

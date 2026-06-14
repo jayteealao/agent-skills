@@ -13,13 +13,17 @@ import {
   readStdinJson,
   stringifyField
 } from "./chunk-4OZLXOMA.mjs";
+import {
+  ensureHubEnabled,
+  spawnHubEnsure
+} from "./chunk-DGPWQY7Z.mjs";
 import "./chunk-UTP6CBAZ.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-HQR34SES.mjs";
 import {
   loadConfig
-} from "./chunk-NHBE6SKM.mjs";
+} from "./chunk-KH5CZFJ2.mjs";
 import {
   activeWorkflowIndexes,
   scanWorkflowIndexes
@@ -31,7 +35,7 @@ import {
   enqueue,
   readStatus,
   resolveEntrypoint
-} from "./chunk-ELXHT3DD.mjs";
+} from "./chunk-HLR2BZLC.mjs";
 import "./chunk-KGLQRRIU.mjs";
 
 // hooks/session-start-orient.mjs
@@ -104,12 +108,8 @@ function startBootstrap(projectRoot, config) {
       bucket: "__bootstrap__",
       enqueuedBy: { host: "claude", pid: process.pid }
     }, { maxPending: config.view?.renderQueue?.maxPending });
-    if (config.view?.ensureHubOnWrite !== false && process.env.SDLC_DISABLE_ENSURE_HUB !== "1") {
-      spawnDetachedNode(
-        resolveEntrypoint(PLUGIN_ROOT, "hub-ensure"),
-        ["--plugin-root", PLUGIN_ROOT, "--project-root", projectRoot, "--view", viewRoot],
-        { cwd: projectRoot, env: process.env }
-      );
+    if (ensureHubEnabled(config.view)) {
+      spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot, viewDir: viewRoot });
     }
   } catch {
   }

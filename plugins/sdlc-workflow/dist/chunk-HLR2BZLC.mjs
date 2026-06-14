@@ -209,28 +209,20 @@ function fail(viewDir, claimed, {
     const rec = { ...c.record ?? {}, attempts, lastError: String(error), lastFailedAt: new Date(now()).toISOString() };
     const text = `${JSON.stringify(rec, null, 2)}
 `;
-    if (attempts >= maxAttempts) {
+    const dest = attempts >= maxAttempts ? failedD : dir;
+    if (dest === failedD) {
       try {
         mkdirSync(failedD, { recursive: true });
       } catch {
       }
-      try {
-        writeFileAtomic(join2(failedD, c.name), text);
-      } catch {
-      }
-      try {
-        rmSync(c.file, { force: true });
-      } catch {
-      }
-    } else {
-      try {
-        writeFileAtomic(join2(dir, c.name), text);
-      } catch {
-      }
-      try {
-        rmSync(c.file, { force: true });
-      } catch {
-      }
+    }
+    try {
+      writeFileAtomic(join2(dest, c.name), text);
+    } catch {
+    }
+    try {
+      rmSync(c.file, { force: true });
+    } catch {
     }
   }
   appendError(viewDir, error);
@@ -308,7 +300,6 @@ function createRenderQueueDrainer({
       const pending = readPending(viewDir);
       if (!pending.length) return { action: "empty" };
       const plan = coalesce(pending.map((p) => p.record));
-      if (!plan) return { action: "empty" };
       const claimed = claim(viewDir, pending.map((p) => p.name));
       if (!claimed.length) return { action: "nothing-claimed" };
       const args = renderArgsForPlan(plan, { viewDir, pluginRoot });

@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   resolveEntrypoint
-} from "./chunk-ELXHT3DD.mjs";
+} from "./chunk-HLR2BZLC.mjs";
 
 // lib/pid-file.mjs
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -883,7 +883,7 @@ function createHealController({
     if (child && typeof child.on === "function") {
       child.on("exit", (code) => finish(code ?? 0));
       child.on("error", (err) => {
-        log(`heal: ${id} child error: ${err?.message ?? err}`);
+        log(`${tag}: ${id} child error: ${err?.message ?? err}`);
         finish(1);
       });
     } else {

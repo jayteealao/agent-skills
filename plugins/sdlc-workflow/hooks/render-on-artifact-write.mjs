@@ -23,8 +23,9 @@ import { fileURLToPath } from 'node:url';
 import { spawnDetachedNode } from '../lib/detach.mjs';
 import { resolveEntrypoint } from '../lib/entrypoint.mjs';
 import { resolveProjectRoot } from '../lib/project-root.mjs';
-import { loadConfig } from '../lib/config.mjs';
-import { enqueue, queueDir, appendError } from '../lib/render-queue.mjs';
+import { configPathFor } from '../lib/config.mjs';
+import { enqueue, queueDir } from '../lib/render-queue.mjs';
+import { ensureHubEnabled, spawnHubEnsure } from '../lib/ensure-hub.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -111,19 +112,25 @@ function shouldSpawnEnsure(viewRoot) {
 
 // Best-effort, non-blocking: ask the detached hub-ensure helper to start/adopt
 // the hub + register this repo + record status, OFF the hook's critical path.
-// Honours the ensureHubOnWrite config + a test/operator env kill switch.
-function ensureHubBestEffort(cwd, viewRoot, config) {
-  if (config.view?.ensureHubOnWrite === false) return;
-  if (process.env.SDLC_DISABLE_ENSURE_HUB === '1') return;
+// The enable-guard + spawn are shared with SessionStart (lib/ensure-hub.mjs);
+// the per-burst debounce is local to this hot write path.
+function ensureHubBestEffort(cwd, viewRoot, viewConfig) {
+  if (!ensureHubEnabled(viewConfig)) return;
   if (!shouldSpawnEnsure(viewRoot)) return;
+  spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot: cwd, viewDir: viewRoot });
+}
+
+// Lightweight read of the `view` config sub-object for the hot write path. The
+// hook needs only a few view.* scalars (renderDispatch, ensureHubOnWrite,
+// renderQueue.maxPending), so it skips the full loadConfig — whose Ajv schema
+// compile runs on every cold-spawned hook invocation. Schema VALIDATION is
+// post-write-verify's job, not this per-write path's.
+function readViewConfig(projectRoot) {
   try {
-    spawnDetachedNode(
-      resolveEntrypoint(PLUGIN_ROOT, 'hub-ensure'),
-      ['--plugin-root', PLUGIN_ROOT, '--project-root', cwd, '--view', viewRoot],
-      { cwd, env: process.env },
-    );
-  } catch (err) {
-    try { appendError(viewRoot, `ensure-hub spawn failed: ${err?.message ?? err}`); } catch { /* best-effort */ }
+    const raw = JSON.parse(readFileSync(configPathFor(projectRoot), 'utf-8'));
+    return raw && typeof raw === 'object' && raw.view && typeof raw.view === 'object' ? raw.view : {};
+  } catch {
+    return {};
   }
 }
 
@@ -168,33 +175,32 @@ async function main() {
   const relevant = touchedPaths.filter((p) => !shouldSkipForPath(resolve(cwd, p), viewRoot));
   if (!relevant.length) exitClean();
 
-  // Classify each touched path into a render bucket (+ kind), grouped per bucket.
-  const byBucket = new Map();   // "kind:bucket" → { kind, bucket, paths[] }
+  // Classify each touched path into a render bucket (+ kind), grouped by bucket.
+  // detectRenderBucket assigns kind 1:1 with the bucket, so the bucket name is a
+  // sufficient key (the first touch fixes the kind).
+  const byBucket = new Map();   // bucket → { kind, bucket, paths[] }
   for (const p of relevant) {
     const d = detectRenderBucket(resolve(cwd, p));
     if (!d) continue;
-    const key = `${d.kind}:${d.bucket}`;
-    if (!byBucket.has(key)) byBucket.set(key, { kind: d.kind, bucket: d.bucket, paths: [] });
-    byBucket.get(key).paths.push(p);
+    if (!byBucket.has(d.bucket)) byBucket.set(d.bucket, { kind: d.kind, bucket: d.bucket, paths: [] });
+    byBucket.get(d.bucket).paths.push(p);
   }
   if (!byBucket.size) exitClean();
 
-  const config = await loadConfig(cwd);
-  const dispatch = config.view?.renderDispatch ?? 'hub';
+  const view = readViewConfig(cwd);
+  const dispatch = view.renderDispatch ?? 'hub';
 
   // 'inline' (rollback / A-B): the pre-RENDER-DISPATCH path. Incremental buckets
   // only; off-pipeline defers to bootstrap, exactly as before.
   if (dispatch === 'inline') {
-    const incremental = [...new Set(
-      [...byBucket.values()].filter((b) => b.kind === 'incremental').map((b) => b.bucket),
-    )];
-    legacyInlineDispatch(cwd, viewRoot, incremental);   // exits
+    const incremental = [...byBucket.values()].filter((b) => b.kind === 'incremental').map((b) => b.bucket);
+    legacyInlineDispatch(cwd, viewRoot, incremental);   // exits (already unique by bucket)
     return;
   }
 
   // 'hub' (default): REPORT each affected bucket to the durable per-repo queue;
   // the serving daemon drains + renders it through the shared bounded engine. One
-  // record per (kind, bucket) so the hub coalesces by bucket. The hook does NOT
+  // record per bucket so the hub coalesces by bucket. The hook does NOT
   // render and does NOT debounce — the hub's tick + coalescing batch the work.
   mkdirSync(viewRoot, { recursive: true });
   for (const { kind, bucket, paths } of byBucket.values()) {
@@ -204,12 +210,12 @@ async function main() {
       bucket,
       paths,
       enqueuedBy: { host: 'claude', pid: process.pid },
-    }, { maxPending: config.view?.renderQueue?.maxPending });
+    }, { maxPending: view.renderQueue?.maxPending });
   }
 
   // Off the critical path: ensure the hub is up + register this repo + record
   // status, so the queued change renders (now, or at the hub's startup catch-up).
-  ensureHubBestEffort(cwd, viewRoot, config);
+  ensureHubBestEffort(cwd, viewRoot, view);
 
   exitClean();
 }

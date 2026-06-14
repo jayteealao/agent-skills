@@ -17,6 +17,7 @@ import { spawnDetachedNode } from '../lib/detach.mjs';
 import { resolveEntrypoint } from '../lib/entrypoint.mjs';
 import { logError } from '../lib/error-log.mjs';
 import { enqueue, readStatus, countPending } from '../lib/render-queue.mjs';
+import { ensureHubEnabled, spawnHubEnsure } from '../lib/ensure-hub.mjs';
 import {
   currentGitBranch,
   outputSystemMessage,
@@ -126,12 +127,8 @@ function startBootstrap(projectRoot, config) {
       enqueuedBy: { host: 'claude', pid: process.pid },
     }, { maxPending: config.view?.renderQueue?.maxPending });
 
-    if (config.view?.ensureHubOnWrite !== false && process.env.SDLC_DISABLE_ENSURE_HUB !== '1') {
-      spawnDetachedNode(
-        resolveEntrypoint(PLUGIN_ROOT, 'hub-ensure'),
-        ['--plugin-root', PLUGIN_ROOT, '--project-root', projectRoot, '--view', viewRoot],
-        { cwd: projectRoot, env: process.env },
-      );
+    if (ensureHubEnabled(config.view)) {
+      spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot, viewDir: viewRoot });
     }
   } catch {
     // Session orientation must remain fail-open.

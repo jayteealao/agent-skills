@@ -6,11 +6,11 @@ import {
 import {
   configHash,
   deepMerge
-} from "./chunk-NHBE6SKM.mjs";
+} from "./chunk-KH5CZFJ2.mjs";
 import {
   hubPidPath,
   sdlcHomeDir
-} from "./chunk-GQ3CJSFD.mjs";
+} from "./chunk-TKMDPWDP.mjs";
 import {
   CODE_BROWSER_DEFAULTS,
   STALE_RENDER_DEFAULTS,
@@ -18,10 +18,10 @@ import {
   pidFileStatus,
   removePidFile,
   writePidFile
-} from "./chunk-2J6GCTGA.mjs";
+} from "./chunk-KNNAPWND.mjs";
 import {
   resolveEntrypoint
-} from "./chunk-ELXHT3DD.mjs";
+} from "./chunk-HLR2BZLC.mjs";
 
 // lib/hub-lifecycle.mjs
 import { randomBytes } from "node:crypto";

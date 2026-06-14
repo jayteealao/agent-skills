@@ -298,7 +298,7 @@ export function createHealController({
 
     if (child && typeof child.on === 'function') {
       child.on('exit', (code) => finish(code ?? 0));
-      child.on('error', (err) => { log(`heal: ${id} child error: ${err?.message ?? err}`); finish(1); });
+      child.on('error', (err) => { log(`${tag}: ${id} child error: ${err?.message ?? err}`); finish(1); });
     } else {
       // A stub with no event surface — treat as instantly done so we never wedge.
       finish(0);

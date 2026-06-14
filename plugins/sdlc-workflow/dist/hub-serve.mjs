@@ -3,15 +3,15 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-YHKSBD3E.mjs";
+} from "./chunk-NEUO4W7T.mjs";
 import {
   hostAllowed,
   renderCodeBrowserPage,
   resolveRequestPath
 } from "./chunk-WY3THHYQ.mjs";
-import "./chunk-NADBAFVF.mjs";
+import "./chunk-KSSSOM3F.mjs";
 import "./chunk-SBZWMVZN.mjs";
-import "./chunk-MSJ2NCHW.mjs";
+import "./chunk-OOUZYKHP.mjs";
 import "./chunk-BTT5W62B.mjs";
 import {
   REGISTRY_VERSION,
@@ -20,7 +20,7 @@ import {
   refreshEntriesLiveness,
   validateEntry,
   writeRegistry
-} from "./chunk-GQ3CJSFD.mjs";
+} from "./chunk-TKMDPWDP.mjs";
 import {
   codeBrowserConfigFromEnv,
   createHealController,
@@ -31,14 +31,14 @@ import {
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv,
   writePidFile
-} from "./chunk-2J6GCTGA.mjs";
+} from "./chunk-KNNAPWND.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import {
   countPending,
   createRenderQueueDrainer
-} from "./chunk-ELXHT3DD.mjs";
+} from "./chunk-HLR2BZLC.mjs";
 import "./chunk-KGLQRRIU.mjs";
 
 // scripts/hub-serve.mjs
