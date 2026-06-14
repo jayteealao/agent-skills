@@ -870,11 +870,19 @@ async function main() {
       await writePidFile(args.pidFile, {
         pid: process.pid, host: args.host, port: boundPort, token, configHash: args.configHash,
         // Shared-runtime identity on the PID record (NATIVE-INTEROP "PID Record")
-        // so a supervisor can adopt/diagnose without an HTTP probe.
+        // so a supervisor can adopt/diagnose without an HTTP probe. runtimeRoot is
+        // THIS hub's own plugin root — which, when started from the machine store,
+        // IS the store dir; the render seam + supervisor read it back from here.
+        // (The hub rewrites hub.pid on bind, so it must carry runtimeRoot too or it
+        // would clobber the supervisor's pre-write.)
         hubName: RUNTIME.hubName,
         hubProtocolVersion: RUNTIME.hubProtocolVersion,
         runtimeVersion: RUNTIME.runtimeVersion,
         buildId: RUNTIME.buildId,
+        // Strip the trailing separator so this matches the supervisor's canonical
+        // join()-form runtimeRoot byte-for-byte (PLUGIN_ROOT is derived from a
+        // `new URL('..', …)` that leaves a trailing slash).
+        runtimeRoot: PLUGIN_ROOT ? PLUGIN_ROOT.replace(/[\\/]+$/, '') : PLUGIN_ROOT,
         startedByHost: STARTED_BY_HOST,
       });
     }

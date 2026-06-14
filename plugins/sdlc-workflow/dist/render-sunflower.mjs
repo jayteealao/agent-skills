@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-PMTY73GW.mjs";
+} from "./chunk-M7PE3G72.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
@@ -16,7 +16,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-GZJHNQLO.mjs";
+} from "./chunk-DH7J226J.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
@@ -26,7 +26,7 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-ICQKSJQR.mjs";
+} from "./chunk-SDSVL6LH.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-HQR34SES.mjs";
@@ -36,9 +36,6 @@ import {
 } from "./chunk-KH5CZFJ2.mjs";
 import {
   hubPidPath,
-  upsertRegistryEntry
-} from "./chunk-4EJPK5TL.mjs";
-import {
   isPidAlive,
   pidFileStatus,
   readPidFile,
@@ -46,8 +43,9 @@ import {
   removePidFile,
   renderIdentityMatches,
   runtimeIdentity,
+  upsertRegistryEntry,
   writePidFile
-} from "./chunk-VPA7OVKL.mjs";
+} from "./chunk-EHI7OHIB.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,

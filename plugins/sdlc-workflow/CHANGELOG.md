@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — machine-wide runtime store + the hub starts under a cross-host lock (9.76.0)
+
+NATIVE-INTEROP-REWRITE-PLAN Workstream C / Phase 2 — the rest of the cross-host hub lifecycle, built on the
+9.75.0 runtime identity and the proven cross-host lock. The hub no longer depends on the plugin cache that
+started it, and simultaneous Claude+Codex activation yields exactly one hub.
+
+- **Machine-wide immutable runtime store (`lib/runtime-store.mjs`).** Each plugin MATERIALIZES its bundled
+  runtime into `~/.sdlc/runtime/<buildId>/` (atomic: copy to a temp dir then rename into place — never a
+  partial overwrite; idempotent: an already-verified build is reused) and the hub is started from THERE. So
+  uninstalling/upgrading the starter plugin can't pull files out from under a long-running hub. `active-runtime.json`
+  records the runtime backing the live hub. GC safeguards never reap the active runtime, the live-hub-PID
+  runtime, the caller's bundled build, or any same-`runtimeVersion` build.
+- **`ensureHubLifecycle` is adoption-first under the cross-host lock.** A healthy compatible hub is adopted on a
+  LOCK-FREE fast path; only start/reap/recover enters the `~/.sdlc/hub.lock` critical section, where a
+  double-checked re-probe means a hub a peer host started while we waited is adopted, not reaped. The adoption
+  decision is extracted to a pure, unit-tested `decideHubAction`. The hub spawns from the store; the PID record
+  carries `runtimeRoot`.
+- **The render seam resolves the active machine runtime.** `resolveRenderEntrypoint` now resolves the live hub
+  PID record's `runtimeRoot` → `active-runtime.json` → the caller's bundled root, so every render (including a
+  hook-spawned fallback) runs the active runtime and stamps the active `buildId`, whichever host started the hub.
+
+Live-smoke-verified end to end (materialize → start-from-store → adopt-on-second-call → clean stop); 27 new
+unit tests (runtime-store, decideHubAction, plus the 12 cross-host-lock spike tests); full suite green.
+
 ### Added — shared runtime identity: the hub becomes cross-host-shareable (9.75.0)
 
 NATIVE-INTEROP-REWRITE-PLAN Workstream B / Phase 1 — the prerequisite that lets the Claude plugin

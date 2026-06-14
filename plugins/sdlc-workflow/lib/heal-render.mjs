@@ -30,6 +30,7 @@ import { join } from 'node:path';
 
 import { resolveEntrypoint } from './entrypoint.mjs';
 import { readRenderedIdentity, renderIdentityMatches } from './runtime-manifest.mjs';
+import { resolveActiveRuntimeRootSync } from './runtime-store.mjs';
 
 // Machine-wide defaults. HUB_CONFIG_DEFAULTS.staleRender folds these in via
 // deepMerge (mirroring CODE_BROWSER_DEFAULTS), so a sparse or older hub-config
@@ -77,17 +78,19 @@ export function staleRenderConfigFromEnv(env = process.env) {
 }
 
 /**
- * The renderer-resolution seam (RENDER-DISPATCH-PLAN "Renderer resolution
- * seam"). Every render the daemon spawns — drift-driven heal OR queue-driven
- * dispatch — resolves its entrypoint HERE, and nowhere else. Today it is the
- * daemon's own bundled render-sunflower; the native-interop work later repoints
- * this single function at the active machine runtime (hub.pid.runtimeRoot →
- * active-runtime.json) WITHOUT touching the queue protocol, the hooks, or the
- * drain loop. Keeping it a named export makes that the only edit native interop
- * needs to make rendering host-neutral.
+ * The renderer-resolution seam (RENDER-DISPATCH-PLAN "Renderer resolution seam").
+ * Every render the daemon spawns — drift-driven heal OR queue-driven dispatch —
+ * resolves its entrypoint HERE, and nowhere else. NATIVE-INTEROP Workstream C
+ * repoints it (as the plan foretold) at the ACTIVE MACHINE RUNTIME so the hub is
+ * host-neutral: resolution order is the live hub PID record's runtimeRoot →
+ * active-runtime.json → the caller's own bundled pluginRoot. So whichever host
+ * started the hub, every render — including a hook-spawned fallback render — runs
+ * the active runtime and stamps the active buildId, with zero changes to the
+ * queue protocol, the hooks, or the drain loop.
  */
 export function resolveRenderEntrypoint(pluginRoot) {
-  return resolveEntrypoint(pluginRoot, 'render-sunflower');
+  const activeRoot = resolveActiveRuntimeRootSync();
+  return resolveEntrypoint(activeRoot ?? pluginRoot, 'render-sunflower');
 }
 
 /**

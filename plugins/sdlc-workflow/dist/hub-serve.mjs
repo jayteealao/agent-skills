@@ -3,37 +3,35 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-FIRUKTGI.mjs";
+} from "./chunk-47DCO7OZ.mjs";
 import {
   hostAllowed,
   renderCodeBrowserPage,
   resolveRequestPath
 } from "./chunk-WY3THHYQ.mjs";
-import "./chunk-ZL3AHZAQ.mjs";
+import "./chunk-QNOQ5OV3.mjs";
 import "./chunk-SBZWMVZN.mjs";
-import "./chunk-GZJHNQLO.mjs";
+import "./chunk-DH7J226J.mjs";
 import "./chunk-BTT5W62B.mjs";
 import {
   REGISTRY_VERSION,
-  pruneRegistry,
-  readRegistry,
-  refreshEntriesLiveness,
-  validateEntry,
-  writeRegistry
-} from "./chunk-4EJPK5TL.mjs";
-import {
   codeBrowserConfigFromEnv,
   createHealController,
   normalizeCodeBrowserConfig,
+  pruneRegistry,
+  readRegistry,
   readRenderedIdentity,
+  refreshEntriesLiveness,
   removePidFile,
   renderIdentityMatches,
   runtimeIdentity,
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv,
-  writePidFile
-} from "./chunk-VPA7OVKL.mjs";
+  validateEntry,
+  writePidFile,
+  writeRegistry
+} from "./chunk-EHI7OHIB.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -835,11 +833,19 @@ async function main() {
         token,
         configHash: args.configHash,
         // Shared-runtime identity on the PID record (NATIVE-INTEROP "PID Record")
-        // so a supervisor can adopt/diagnose without an HTTP probe.
+        // so a supervisor can adopt/diagnose without an HTTP probe. runtimeRoot is
+        // THIS hub's own plugin root — which, when started from the machine store,
+        // IS the store dir; the render seam + supervisor read it back from here.
+        // (The hub rewrites hub.pid on bind, so it must carry runtimeRoot too or it
+        // would clobber the supervisor's pre-write.)
         hubName: RUNTIME.hubName,
         hubProtocolVersion: RUNTIME.hubProtocolVersion,
         runtimeVersion: RUNTIME.runtimeVersion,
         buildId: RUNTIME.buildId,
+        // Strip the trailing separator so this matches the supervisor's canonical
+        // join()-form runtimeRoot byte-for-byte (PLUGIN_ROOT is derived from a
+        // `new URL('..', …)` that leaves a trailing slash).
+        runtimeRoot: PLUGIN_ROOT ? PLUGIN_ROOT.replace(/[\\/]+$/, "") : PLUGIN_ROOT,
         startedByHost: STARTED_BY_HOST
       });
     }
