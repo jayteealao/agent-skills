@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-WB3CNU66.mjs";
+} from "./chunk-PMTY73GW.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
@@ -16,7 +16,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-OOUZYKHP.mjs";
+} from "./chunk-GZJHNQLO.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
@@ -26,7 +26,7 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-23XFNK6A.mjs";
+} from "./chunk-ICQKSJQR.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-HQR34SES.mjs";
@@ -37,14 +37,17 @@ import {
 import {
   hubPidPath,
   upsertRegistryEntry
-} from "./chunk-TKMDPWDP.mjs";
+} from "./chunk-4EJPK5TL.mjs";
 import {
   isPidAlive,
   pidFileStatus,
   readPidFile,
+  readRenderedIdentity,
   removePidFile,
+  renderIdentityMatches,
+  runtimeIdentity,
   writePidFile
-} from "./chunk-KNNAPWND.mjs";
+} from "./chunk-VPA7OVKL.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -65,7 +68,7 @@ import {
   existsSync as existsSync3,
   mkdirSync,
   readdirSync,
-  readFileSync as readFileSync3,
+  readFileSync as readFileSync2,
   writeFileSync,
   statSync as statSync2,
   rmSync,
@@ -243,16 +246,9 @@ function expand(html, ctx) {
 }
 
 // lib/serve-lifecycle.mjs
-import { readFileSync as readFileSync2 } from "node:fs";
 import { request } from "node:http";
 import { join as join2 } from "node:path";
-var PLUGIN_VERSION2 = (() => {
-  try {
-    return JSON.parse(readFileSync2(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
-  } catch {
-    return "";
-  }
-})();
+var RUNTIME = runtimeIdentity();
 function servePidPath(projectRoot) {
   return join2(projectRoot, ".ai", "_view", ".serve.pid");
 }
@@ -296,14 +292,14 @@ async function ensureServeLifecycle({
   }
   if (status.alive) {
     const id = await probeServeIdentity({ host, port, timeoutMs: 600 });
-    if (id && id.version === PLUGIN_VERSION2) {
+    if (id && id.version === RUNTIME.runtimeVersion) {
       log(`[serve] already running at http://${displayHost(host)}:${port}`);
       maybeConfigureTailscale({ tailscale, port, log });
       return { action: "already-running", pid: status.record.pid };
     }
     stopPid(status.record.pid, log);
     await removePidFile(pidPath);
-    log(id ? `[serve] reaped stale daemon v${id.version || "?"} \u2192 v${PLUGIN_VERSION2} (pid ${status.record.pid})` : `[serve] stopped unhealthy daemon pid ${status.record.pid}`);
+    log(id ? `[serve] reaped stale daemon v${id.version || "?"} \u2192 v${RUNTIME.runtimeVersion} (pid ${status.record.pid})` : `[serve] stopped unhealthy daemon pid ${status.record.pid}`);
   } else if (status.stale) {
     await removePidFile(pidPath);
     log(`[serve] removed stale pid file for pid ${status.record?.pid}`);
@@ -677,7 +673,7 @@ function assetUpToDate(src, dst) {
   if (!existsSync3(dst)) return false;
   try {
     if (statSync2(src).size !== statSync2(dst).size) return false;
-    return readFileSync3(src).equals(readFileSync3(dst));
+    return readFileSync2(src).equals(readFileSync2(dst));
   } catch {
     return false;
   }
@@ -748,7 +744,7 @@ function loadFreeFragments(mdAbs, expandCtx) {
   return discoverFreeFragments(mdAbs).map(({ label, abs }) => {
     let html = "";
     try {
-      html = readFileSync3(abs, "utf-8");
+      html = readFileSync2(abs, "utf-8");
     } catch (err) {
       console.warn(`[nfrag] ${abs}: ${err.message}`);
       return null;
@@ -822,13 +818,13 @@ async function renderMain(args) {
   const liveReload = config.view?.serve?.enabled === true && config.view?.serve?.liveReload !== false;
   mkdirSync(viewRoot, { recursive: true });
   if (args.mode !== "clean") {
-    try {
-      const prior = JSON.parse(readFileSync3(join3(viewRoot, ".last-render"), "utf8"));
-      if (prior?.version && prior.version !== PLUGIN_VERSION) {
-        console.log(`[render] plugin ${prior.version} \u2192 ${PLUGIN_VERSION}: template/version changed, forcing clean re-render`);
-        args.mode = "clean";
-      }
-    } catch {
+    const active = runtimeIdentity();
+    const prior = readRenderedIdentity(join3(viewRoot, ".last-render"));
+    if ((prior.version || prior.buildId) && !renderIdentityMatches(prior, active)) {
+      const was = prior.buildId ? `build ${prior.buildId.slice(0, 12)}` : `v${prior.version}`;
+      const now = active.buildId ? `build ${active.buildId.slice(0, 12)}` : `v${active.runtimeVersion}`;
+      console.log(`[render] runtime ${was} \u2192 ${now}: template/runtime changed, forcing clean re-render`);
+      args.mode = "clean";
     }
   }
   if (args.mode === "clean") {
@@ -872,7 +868,7 @@ async function renderMain(args) {
     if (a.kind === "project") {
       loaded.frontmatter = synthesizeProjectFrontmatter(a, loaded.frontmatter);
     }
-    let fragmentHtml = fragmentAbs && existsSync3(fragmentAbs) ? readFileSync3(fragmentAbs, "utf-8") : null;
+    let fragmentHtml = fragmentAbs && existsSync3(fragmentAbs) ? readFileSync2(fragmentAbs, "utf-8") : null;
     if (fragmentHtml) {
       try {
         fragmentHtml = expand(fragmentHtml, {
@@ -1070,8 +1066,10 @@ async function renderMain(args) {
     };
     writeFileAtomic(join3(viewRoot, "INDEX.yaml"), `# sdlc view manifest
 ${toYaml(manifest)}`);
+    const rt = runtimeIdentity();
     writeFileAtomic(join3(viewRoot, ".last-render"), `${JSON.stringify({
-      version: PLUGIN_VERSION,
+      version: rt.runtimeVersion,
+      buildId: rt.buildId,
       renderedAt: manifest.generatedAt,
       renderedCount,
       schemaWarnings,

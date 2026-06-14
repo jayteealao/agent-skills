@@ -671,9 +671,19 @@ test('hub: /__sdlc/health reports entries + metrics', async () => {
     equal(health.entries.length, 1);
     ok(typeof health.metrics.rssBytes === 'number');
     ok(typeof health.uptimeMs === 'number');
-    // Version stamp + the hub-vs-per-repo marker the supervisor reaps on.
-    ok(typeof health.version === 'string', 'health carries a version string');
+    // Legacy version alias + the hub-vs-per-repo marker the supervisor reaps on.
+    ok(typeof health.version === 'string', 'health carries a legacy version alias');
     ok(Array.isArray(health.entries), 'entries[] present = the isHub marker');
+    // Structured shared-runtime identity (NATIVE-INTEROP Workstream B): adoption
+    // keys on hub.name + protocolVersion + runtimeVersion, NOT the package version.
+    equal(health.hub.name, 'sdlc-workflow-hub', 'hub.name is the host-neutral singleton name');
+    ok(Number.isInteger(health.hub.protocolVersion), 'hub.protocolVersion is an integer');
+    ok(typeof health.hub.runtimeVersion === 'string', 'hub.runtimeVersion is the shared runtime version');
+    equal(health.hub.runtimeVersion, health.version, 'legacy version === hub.runtimeVersion during migration');
+    ok('buildId' in health.hub, 'hub.buildId is present (null pre-build, sha256 after)');
+    ok(typeof health.startedBy.host === 'string', 'startedBy.host is diagnostic provenance');
+    // Per-entry render identity drives the stale flag via buildId-or-version.
+    ok('renderedBuildId' in health.entries[0], 'entries carry renderedBuildId for cross-host heal');
   } finally {
     await closeServer(server);
   }

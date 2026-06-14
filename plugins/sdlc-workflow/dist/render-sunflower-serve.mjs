@@ -14,14 +14,16 @@ import {
   codeBrowserConfigFromEnv,
   createHealController,
   normalizeCodeBrowserConfig,
-  readRenderedVersion,
+  readRenderedIdentity,
   removePidFile,
+  renderIdentityMatches,
   repoHeadBranch,
+  runtimeIdentity,
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv,
   writePidFile
-} from "./chunk-KNNAPWND.mjs";
+} from "./chunk-VPA7OVKL.mjs";
 import {
   createRenderQueueDrainer
 } from "./chunk-HLR2BZLC.mjs";
@@ -48,13 +50,8 @@ var PLUGIN_ROOT = (() => {
     return null;
   }
 })();
-var PLUGIN_VERSION = (() => {
-  try {
-    return JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
-  } catch {
-    return "";
-  }
-})();
+var RUNTIME = runtimeIdentity();
+var PLUGIN_VERSION = RUNTIME.runtimeVersion;
 var MIME = {
   ".html": "text/html; charset=utf-8",
   ".css": "text/css; charset=utf-8",
@@ -136,7 +133,8 @@ function createSdlcStaticServer({
   const selfEntry = { id: "local", repoRoot, viewDir: root };
   const heal = createHealController({
     pluginRoot,
-    pluginVersion: PLUGIN_VERSION,
+    pluginVersion: RUNTIME.runtimeVersion,
+    buildId: RUNTIME.buildId,
     healCfg: staleRender ?? { heal: false },
     log: (line) => console.log(`[serve] ${line}`),
     emitReload: () => emitEvent(clients, "reload", healthPayload(root, configHash)),
@@ -270,16 +268,25 @@ function resolveRequestPath2(root, rawUrl) {
   return resolveRequestPath(root, rawUrl, { stripPrefix: "/sdlc" });
 }
 function healthPayload(root, configHash) {
-  const renderedVersion = readRenderedVersion(join(root, ".last-render"));
+  const rendered = readRenderedIdentity(join(root, ".last-render"));
   return {
     status: "ok",
     ok: true,
     pid: process.pid,
+    // Structured shared-runtime identity (NATIVE-INTEROP Workstream B), mirroring
+    // the hub. `version` stays as a legacy alias for a pre-9.75 supervisor.
+    hub: {
+      name: RUNTIME.hubName,
+      protocolVersion: RUNTIME.hubProtocolVersion,
+      runtimeVersion: RUNTIME.runtimeVersion,
+      buildId: RUNTIME.buildId
+    },
     version: PLUGIN_VERSION,
     configHash,
     renderedAt: lastRenderAt(root),
-    renderedVersion,
-    stale: renderedVersion !== PLUGIN_VERSION,
+    renderedVersion: rendered.version,
+    renderedBuildId: rendered.buildId,
+    stale: !renderIdentityMatches(rendered, RUNTIME),
     slugs: renderedSlugs(root)
   };
 }

@@ -13,16 +13,17 @@ import {
   readHubConfig,
   stopHub,
   writeHubConfig
-} from "./chunk-23XFNK6A.mjs";
+} from "./chunk-ICQKSJQR.mjs";
 import "./chunk-HQR34SES.mjs";
 import "./chunk-KH5CZFJ2.mjs";
 import {
   hubPidPath,
   sdlcHomeDir
-} from "./chunk-TKMDPWDP.mjs";
+} from "./chunk-4EJPK5TL.mjs";
 import {
-  readPidFile
-} from "./chunk-KNNAPWND.mjs";
+  readPidFile,
+  runtimeIdentity
+} from "./chunk-VPA7OVKL.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -469,13 +470,7 @@ function httpRequestJson({ host, port, path, method, token, timeoutMs }) {
 var __dirname = dirname(fileURLToPath(import.meta.url));
 var PLUGIN_ROOT = resolve(__dirname, "..");
 var TRAY_BUNDLE = fileURLToPath(import.meta.url);
-var PLUGIN_VERSION = (() => {
-  try {
-    return JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
-  } catch {
-    return "";
-  }
-})();
+var PLUGIN_VERSION = runtimeIdentity().runtimeVersion;
 var TRAY_BIN_NAMES = {
   win32: "tray_windows_release.exe",
   darwin: "tray_darwin_release",

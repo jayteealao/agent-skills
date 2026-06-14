@@ -21,8 +21,11 @@ import {
   serveCodeBrowser, serveCodeBrowserAsset,
 } from '../lib/code-browser.mjs';
 import {
-  createHealController, staleRenderConfigFromEnv, readRenderedVersion,
+  createHealController, staleRenderConfigFromEnv,
 } from '../lib/heal-render.mjs';
+import {
+  runtimeIdentity, readRenderedIdentity, renderIdentityMatches,
+} from '../lib/runtime-manifest.mjs';
 import { createRenderQueueDrainer } from '../lib/render-queue.mjs';
 import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 
@@ -35,13 +38,12 @@ const PLUGIN_ROOT = (() => {
   catch { return null; }
 })();
 
-// Plugin version of THIS running daemon, surfaced in /__sdlc/health so the
-// supervisor (ensureServeLifecycle) can reap a stale daemon and let a new
-// install take over deterministically.
-const PLUGIN_VERSION = (() => {
-  try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version ?? ''; }
-  catch { return ''; }
-})();
+// Shared runtime identity (NATIVE-INTEROP Workstream B), surfaced in
+// /__sdlc/health so the supervisor (ensureServeLifecycle) reaps a daemon on a
+// stale runtimeVersion and lets a runtime upgrade take over deterministically.
+const RUNTIME = runtimeIdentity();
+// Legacy display alias — the shared runtimeVersion (was the package version).
+const PLUGIN_VERSION = RUNTIME.runtimeVersion;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -143,7 +145,8 @@ export function createSdlcStaticServer({
   const selfEntry = { id: 'local', repoRoot, viewDir: root };
   const heal = createHealController({
     pluginRoot,
-    pluginVersion: PLUGIN_VERSION,
+    pluginVersion: RUNTIME.runtimeVersion,
+    buildId: RUNTIME.buildId,
     healCfg: staleRender ?? { heal: false },
     log: (line) => console.log(`[serve] ${line}`),
     emitReload: () => emitEvent(clients, 'reload', healthPayload(root, configHash)),
@@ -293,19 +296,28 @@ function resolveRequestPath(root, rawUrl) {
 }
 
 function healthPayload(root, configHash) {
-  // Rendered version read LIVE from .last-render (source of truth) so `stale`
-  // reflects current on-disk state (STALE-RENDER-HEAL-PLAN §9). null when
-  // unversioned (pre-9.60) — which counts as stale against any real version.
-  const renderedVersion = readRenderedVersion(join(root, '.last-render'));
+  // Rendered identity read LIVE from .last-render (source of truth) so `stale`
+  // reflects current on-disk state (STALE-RENDER-HEAL-PLAN §9). Keys on buildId
+  // when present, else runtimeVersion; unversioned/unbuilt counts as stale.
+  const rendered = readRenderedIdentity(join(root, '.last-render'));
   return {
     status: 'ok',
     ok: true,
     pid: process.pid,
+    // Structured shared-runtime identity (NATIVE-INTEROP Workstream B), mirroring
+    // the hub. `version` stays as a legacy alias for a pre-9.75 supervisor.
+    hub: {
+      name: RUNTIME.hubName,
+      protocolVersion: RUNTIME.hubProtocolVersion,
+      runtimeVersion: RUNTIME.runtimeVersion,
+      buildId: RUNTIME.buildId,
+    },
     version: PLUGIN_VERSION,
     configHash,
     renderedAt: lastRenderAt(root),
-    renderedVersion,
-    stale: renderedVersion !== PLUGIN_VERSION,
+    renderedVersion: rendered.version,
+    renderedBuildId: rendered.buildId,
+    stale: !renderIdentityMatches(rendered, RUNTIME),
     slugs: renderedSlugs(root),
   };
 }

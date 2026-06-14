@@ -4,6 +4,89 @@ import {
   resolveEntrypoint
 } from "./chunk-HLR2BZLC.mjs";
 
+// lib/runtime-manifest.mjs
+import { readFileSync } from "node:fs";
+var HUB_NAME = "sdlc-workflow-hub";
+var HUB_PROTOCOL_VERSION = 1;
+var ARTIFACT_SCHEMA = "sdlc/v1";
+var REGISTRY_VERSION = 2;
+var HUB_CONFIG_VERSION = 1;
+var RUNTIME_FAMILY = "sdlc-workflow";
+var MANIFEST_URL = new URL("../runtime-manifest.json", import.meta.url);
+var PACKAGE_URL = new URL("../package.json", import.meta.url);
+var cached = null;
+function readRuntimeManifest() {
+  if (cached) return cached;
+  cached = loadManifest();
+  return cached;
+}
+function loadManifest() {
+  try {
+    const m = JSON.parse(readFileSync(MANIFEST_URL, "utf-8"));
+    return normalizeManifest(m);
+  } catch {
+    return fallbackManifest();
+  }
+}
+function normalizeManifest(m) {
+  const o = m && typeof m === "object" ? m : {};
+  return Object.freeze({
+    family: typeof o.family === "string" && o.family ? o.family : RUNTIME_FAMILY,
+    hubName: typeof o.hubName === "string" && o.hubName ? o.hubName : HUB_NAME,
+    runtimeVersion: typeof o.runtimeVersion === "string" && o.runtimeVersion ? o.runtimeVersion : readPackageVersion(),
+    hubProtocolVersion: Number.isInteger(o.hubProtocolVersion) ? o.hubProtocolVersion : HUB_PROTOCOL_VERSION,
+    artifactSchema: typeof o.artifactSchema === "string" && o.artifactSchema ? o.artifactSchema : ARTIFACT_SCHEMA,
+    registryVersion: Number.isInteger(o.registryVersion) ? o.registryVersion : REGISTRY_VERSION,
+    hubConfigVersion: Number.isInteger(o.hubConfigVersion) ? o.hubConfigVersion : HUB_CONFIG_VERSION,
+    buildId: typeof o.buildId === "string" && o.buildId ? o.buildId : null
+  });
+}
+function fallbackManifest() {
+  return Object.freeze({
+    family: RUNTIME_FAMILY,
+    hubName: HUB_NAME,
+    runtimeVersion: readPackageVersion(),
+    hubProtocolVersion: HUB_PROTOCOL_VERSION,
+    artifactSchema: ARTIFACT_SCHEMA,
+    registryVersion: REGISTRY_VERSION,
+    hubConfigVersion: HUB_CONFIG_VERSION,
+    buildId: null
+  });
+}
+function readPackageVersion() {
+  try {
+    return JSON.parse(readFileSync(PACKAGE_URL, "utf-8")).version ?? "";
+  } catch {
+    return "";
+  }
+}
+function runtimeIdentity() {
+  const m = readRuntimeManifest();
+  return {
+    runtimeVersion: m.runtimeVersion,
+    buildId: m.buildId,
+    hubName: m.hubName,
+    hubProtocolVersion: m.hubProtocolVersion
+  };
+}
+function readRenderedIdentity(markerPath) {
+  try {
+    const parsed = JSON.parse(readFileSync(markerPath, "utf-8"));
+    return {
+      version: typeof parsed.version === "string" && parsed.version ? parsed.version : null,
+      buildId: typeof parsed.buildId === "string" && parsed.buildId ? parsed.buildId : null
+    };
+  } catch {
+    return { version: null, buildId: null };
+  }
+}
+function renderIdentityMatches(recorded, active) {
+  const r = recorded ?? {};
+  const a = active ?? {};
+  if (r.buildId && a.buildId) return r.buildId === a.buildId;
+  return Boolean(r.version) && r.version === a.runtimeVersion;
+}
+
 // lib/pid-file.mjs
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -58,7 +141,7 @@ import {
   createReadStream,
   existsSync,
   openSync,
-  readFileSync,
+  readFileSync as readFileSync2,
   readSync,
   readdirSync,
   realpathSync,
@@ -455,7 +538,7 @@ function readBlob(repoRoot, relPath, { maxBlobBytes = CODE_BROWSER_DEFAULTS.maxB
   const head = readHead(real, Math.min(size, 8192));
   if (head.includes(0)) return { path: rel, name, size, kind: "binary" };
   const truncated = size > maxBlobBytes;
-  const content = truncated ? readHead(real, maxBlobBytes).toString("utf-8") : readFileSync(real, "utf-8");
+  const content = truncated ? readHead(real, maxBlobBytes).toString("utf-8") : readFileSync2(real, "utf-8");
   return { path: rel, name, size, kind: "text", language: languageFor(name), truncated, content };
 }
 function extOf(name) {
@@ -489,7 +572,7 @@ function serveCodeBrowserAsset({ req, res, name }) {
   if (!hit) {
     let body = null;
     try {
-      body = readFileSync(new URL(`../dist/${name}`, import.meta.url));
+      body = readFileSync2(new URL(`../dist/${name}`, import.meta.url));
     } catch {
       body = null;
     }
@@ -705,7 +788,6 @@ function safeBranch(fn) {
 
 // lib/heal-render.mjs
 import { spawn } from "node:child_process";
-import { readFileSync as readFileSync2 } from "node:fs";
 import { join } from "node:path";
 var STALE_RENDER_DEFAULTS = Object.freeze({
   heal: true,
@@ -739,14 +821,6 @@ function staleRenderConfigFromEnv(env = process.env) {
 function resolveRenderEntrypoint(pluginRoot) {
   return resolveEntrypoint(pluginRoot, "render-sunflower");
 }
-function readRenderedVersion(markerPath) {
-  try {
-    const parsed = JSON.parse(readFileSync2(markerPath, "utf-8"));
-    return typeof parsed.version === "string" && parsed.version ? parsed.version : null;
-  } catch {
-    return null;
-  }
-}
 function defaultSpawnRender(script, args, opts) {
   return spawn(process.execPath, [script, ...args], {
     stdio: "ignore",
@@ -757,6 +831,7 @@ function defaultSpawnRender(script, args, opts) {
 function createHealController({
   pluginRoot,
   pluginVersion,
+  buildId = null,
   healCfg = {},
   log = () => {
   },
@@ -777,8 +852,9 @@ function createHealController({
     try {
       if (!cfg.heal) return { action: "disabled" };
       if (!entry || !entry.id || !entry.viewDir || !entry.repoRoot) return { action: "invalid" };
-      const renderedVersion = readRenderedVersion(markerOf(entry));
-      if (renderedVersion === pluginVersion) {
+      const recorded = readRenderedIdentity(markerOf(entry));
+      const renderedVersion = recorded.version;
+      if (renderIdentityMatches(recorded, { runtimeVersion: pluginVersion, buildId })) {
         attempts.delete(entry.id);
         failed.delete(entry.id);
         return { action: "fresh", renderedVersion };
@@ -903,6 +979,9 @@ function createHealController({
 }
 
 export {
+  runtimeIdentity,
+  readRenderedIdentity,
+  renderIdentityMatches,
   isPidAlive,
   readPidFile,
   writePidFile,
@@ -916,6 +995,5 @@ export {
   serveCodeBrowser,
   STALE_RENDER_DEFAULTS,
   staleRenderConfigFromEnv,
-  readRenderedVersion,
   createHealController
 };

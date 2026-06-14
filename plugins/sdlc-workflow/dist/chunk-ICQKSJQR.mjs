@@ -10,22 +10,22 @@ import {
 import {
   hubPidPath,
   sdlcHomeDir
-} from "./chunk-TKMDPWDP.mjs";
+} from "./chunk-4EJPK5TL.mjs";
 import {
   CODE_BROWSER_DEFAULTS,
   STALE_RENDER_DEFAULTS,
   isPidAlive,
   pidFileStatus,
   removePidFile,
+  runtimeIdentity,
   writePidFile
-} from "./chunk-KNNAPWND.mjs";
+} from "./chunk-VPA7OVKL.mjs";
 import {
   resolveEntrypoint
 } from "./chunk-HLR2BZLC.mjs";
 
 // lib/hub-lifecycle.mjs
 import { randomBytes } from "node:crypto";
-import { readFileSync as readFileSync2 } from "node:fs";
 import { request } from "node:http";
 
 // lib/hub-config.mjs
@@ -180,13 +180,8 @@ function tailscaleDnsName({ log = () => {
 }
 
 // lib/hub-lifecycle.mjs
-var PLUGIN_VERSION = (() => {
-  try {
-    return JSON.parse(readFileSync2(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
-  } catch {
-    return "";
-  }
-})();
+var RUNTIME = runtimeIdentity();
+var STARTED_BY_HOST = process.env.SDLC_HOST || "claude";
 async function ensureHubLifecycle({ pluginRoot, log = () => {
 } } = {}) {
   const cfg = readHubConfig();
@@ -201,12 +196,23 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
   const id = await probeHubIdentity({ host, port, timeoutMs: status.alive ? 700 : 350 });
   if (id) {
     const tracked = status.alive && status.record?.pid === id.pid;
-    if (id.isHub && id.version === PLUGIN_VERSION && tracked) {
-      log(`[hub] already running at http://${displayHost(host)}:${port}`);
-      maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
-      return { action: "already-running", pid: id.pid };
+    let why;
+    if (id.isHub) {
+      const protocolOk = id.hubProtocolVersion === RUNTIME.hubProtocolVersion;
+      const sameRuntime = id.runtimeVersion === RUNTIME.runtimeVersion;
+      if (protocolOk && sameRuntime && tracked) {
+        log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ""}hub at http://${displayHost(host)}:${port} (runtime ${RUNTIME.runtimeVersion})`);
+        maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
+        return { action: "already-running", pid: id.pid, adopted: true };
+      }
+      if (!protocolOk) {
+        log(`[hub] protocol-incompatible hub running (proto ${id.hubProtocolVersion ?? "?"} vs ${RUNTIME.hubProtocolVersion}); leaving it \u2014 explicit upgrade required`);
+        return { action: "protocol-incompatible", pid: id.pid, hubProtocolVersion: id.hubProtocolVersion ?? null };
+      }
+      why = !sameRuntime ? `runtime v${id.runtimeVersion || "?"} \u2192 v${RUNTIME.runtimeVersion}` : "untracked hub (orphaned pid file)";
+    } else {
+      why = "non-hub process on hub port";
     }
-    const why = !id.isHub ? "non-hub process on hub port" : id.version !== PLUGIN_VERSION ? `stale hub v${id.version || "?"} \u2192 v${PLUGIN_VERSION}` : "untracked hub (orphaned pid file)";
     if (id.pid) stopPid(id.pid, log);
     await removePidFile(pidPath);
     await waitForGone({ host, port, timeoutMs: 2e3 });
@@ -249,6 +255,9 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
     env: {
       ...process.env,
       SDLC_HUB_TOKEN: token,
+      // Diagnostic provenance: the host that started this hub, surfaced in
+      // health.startedBy + the PID record. Never controls adoption.
+      SDLC_HUB_STARTED_BY: STARTED_BY_HOST,
       SDLC_CODE_BROWSER: JSON.stringify(cfg.codeBrowser ?? {}),
       // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). Via env for the
       // same reason as codeBrowser; configHash covers it so editing the block in
@@ -257,7 +266,18 @@ async function ensureHubLifecycle({ pluginRoot, log = () => {
     }
   });
   if (child.pid) {
-    await writePidFile(pidPath, { pid: child.pid, host, port, token, configHash: cfgHash });
+    await writePidFile(pidPath, {
+      pid: child.pid,
+      host,
+      port,
+      token,
+      configHash: cfgHash,
+      hubName: RUNTIME.hubName,
+      hubProtocolVersion: RUNTIME.hubProtocolVersion,
+      runtimeVersion: RUNTIME.runtimeVersion,
+      buildId: RUNTIME.buildId,
+      startedByHost: STARTED_BY_HOST
+    });
   }
   const healthy = await waitForHealth({ host, port, timeoutMs: 2500 });
   if (!healthy) {
@@ -341,10 +361,15 @@ function probeHubIdentity({ host, port, timeoutMs }) {
       res.on("end", () => {
         try {
           const body = JSON.parse(buf);
+          const hub = body.hub && typeof body.hub === "object" ? body.hub : null;
           resolve({
             pid: Number.isInteger(body.pid) ? body.pid : null,
-            version: typeof body.version === "string" ? body.version : "",
-            isHub: Array.isArray(body.entries)
+            isHub: Array.isArray(body.entries),
+            runtimeVersion: hub && typeof hub.runtimeVersion === "string" ? hub.runtimeVersion : typeof body.version === "string" ? body.version : "",
+            hubProtocolVersion: hub && Number.isInteger(hub.protocolVersion) ? hub.protocolVersion : 1,
+            buildId: hub && typeof hub.buildId === "string" ? hub.buildId : null,
+            hubName: hub && typeof hub.name === "string" ? hub.name : RUNTIME.hubName,
+            startedByHost: body.startedBy && typeof body.startedBy.host === "string" ? body.startedBy.host : null
           });
         } catch {
           resolve(null);

@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
 import { spawnDetachedNode } from './detach.mjs';
@@ -7,14 +6,14 @@ import { isPidAlive, pidFileStatus, readPidFile, removePidFile, writePidFile } f
 import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
 import { hubPidPath } from './registry.mjs';
 import { readHubConfig } from './hub-config.mjs';
+import { runtimeIdentity } from './runtime-manifest.mjs';
 
-// Version of the supervising code; a running per-repo daemon reporting a
-// different version in /__sdlc/health is stale, so we reap it and respawn — a
-// new install deterministically replaces the old daemon's code.
-const PLUGIN_VERSION = (() => {
-  try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version ?? ''; }
-  catch { return ''; }
-})();
+// Shared runtime identity (NATIVE-INTEROP Workstream B). The per-repo fallback
+// daemon reports its runtimeVersion in /__sdlc/health; a running daemon on a
+// different runtimeVersion is stale, so we reap + respawn — a runtime upgrade
+// deterministically replaces the old daemon's code. Keying on runtimeVersion (not
+// the plugin package version) keeps the identity model consistent with the hub.
+const RUNTIME = runtimeIdentity();
 
 export function servePidPath(projectRoot) {
   return join(projectRoot, '.ai', '_view', '.serve.pid');
@@ -81,16 +80,16 @@ export async function ensureServeLifecycle({
 
   if (status.alive) {
     const id = await probeServeIdentity({ host, port, timeoutMs: 600 });
-    if (id && id.version === PLUGIN_VERSION) {
+    if (id && id.version === RUNTIME.runtimeVersion) {
       log(`[serve] already running at http://${displayHost(host)}:${port}`);
       maybeConfigureTailscale({ tailscale, port, log });
       return { action: 'already-running', pid: status.record.pid };
     }
-    // Stale version (reap to pick up new install) or unhealthy (gone) → respawn.
+    // Stale runtime (reap to pick up a runtime upgrade) or unhealthy (gone) → respawn.
     stopPid(status.record.pid, log);
     await removePidFile(pidPath);
     log(id
-      ? `[serve] reaped stale daemon v${id.version || '?'} → v${PLUGIN_VERSION} (pid ${status.record.pid})`
+      ? `[serve] reaped stale daemon v${id.version || '?'} → v${RUNTIME.runtimeVersion} (pid ${status.record.pid})`
       : `[serve] stopped unhealthy daemon pid ${status.record.pid}`);
   } else if (status.stale) {
     await removePidFile(pidPath);

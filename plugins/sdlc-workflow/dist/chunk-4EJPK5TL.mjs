@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   isPidAlive
-} from "./chunk-KNNAPWND.mjs";
+} from "./chunk-VPA7OVKL.mjs";
 import {
   scanWorkflowIndexes
 } from "./chunk-NTSUEAI6.mjs";
@@ -205,18 +205,22 @@ function validateEntry(entry) {
 }
 function readLastRender(viewDir) {
   const marker = join(viewDir, ".last-render");
-  if (!existsSync(marker)) return { renderedAt: null, configHash: null, version: null };
+  if (!existsSync(marker)) return { renderedAt: null, configHash: null, version: null, buildId: null };
   try {
     const parsed = JSON.parse(readFileSync(marker, "utf-8"));
     return {
       renderedAt: parsed.renderedAt ?? null,
       configHash: parsed.configHash ?? null,
-      // The PLUGIN_VERSION the view was rendered under (STALE-RENDER-HEAL-PLAN §2).
-      // null for a pre-9.60 marker that predates the version stamp.
-      version: typeof parsed.version === "string" && parsed.version ? parsed.version : null
+      // The shared runtimeVersion the view was rendered under (STALE-RENDER-HEAL
+      // §2). null for a pre-9.60 marker that predates the stamp.
+      version: typeof parsed.version === "string" && parsed.version ? parsed.version : null,
+      // The shared-runtime buildId the view was rendered under (NATIVE-INTEROP
+      // Workstream B — the cross-host-safe drift signal). null for a pre-9.75
+      // marker that predates the buildId stamp.
+      buildId: typeof parsed.buildId === "string" && parsed.buildId ? parsed.buildId : null
     };
   } catch {
-    return { renderedAt: null, configHash: null, version: null };
+    return { renderedAt: null, configHash: null, version: null, buildId: null };
   }
 }
 async function collectSlugMeta({ projectRoot, workflowsRoot }) {
@@ -276,10 +280,12 @@ async function buildEntry({ projectRoot, viewDir, configHash = null, existing = 
     worktreeLabel,
     viewDir: resolvedViewDir,
     lastRenderedAt: last.renderedAt ?? stamp,
-    // PLUGIN_VERSION the view was last rendered under — the stale-render heal's
-    // drift signal (STALE-RENDER-HEAL-PLAN §2). Daemons read it live from
-    // `.last-render`, but carrying it on the entry surfaces it in the hub inbox.
+    // Shared runtimeVersion + buildId the view was last rendered under — the
+    // stale-render heal's drift signal (STALE-RENDER-HEAL §2, NATIVE-INTEROP
+    // Workstream B). Daemons read them live from `.last-render`, but carrying
+    // them on the entry surfaces them in the hub inbox.
     renderedVersion: last.version ?? null,
+    renderedBuildId: last.buildId ?? null,
     slugs: slugMeta.map((s) => s.slug),
     slugMeta,
     configHash: configHash ?? last.configHash ?? null,

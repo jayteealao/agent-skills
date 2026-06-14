@@ -7,7 +7,6 @@
 // #6). See MULTI-REPO-REGISTRY-PLAN §4.5.
 
 import { randomBytes } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
 
@@ -17,15 +16,21 @@ import { isPidAlive, pidFileStatus, removePidFile, writePidFile } from './pid-fi
 import { hubPidPath, sdlcHomeDir } from './registry.mjs';
 import { readHubConfig, hubConfigHash } from './hub-config.mjs';
 import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
+import { runtimeIdentity } from './runtime-manifest.mjs';
 
-// Version of the SUPERVISING code (this installed plugin). A running hub reports
-// its own version in /__sdlc/health; a mismatch means a stale hub from a prior
-// install is still up, so we reap it and start the current one — making a new
-// install deterministically pick up new server code.
-const PLUGIN_VERSION = (() => {
-  try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version ?? ''; }
-  catch { return ''; }
-})();
+// Shared runtime identity (NATIVE-INTEROP Workstream B): the host-NEUTRAL
+// { runtimeVersion, buildId, hubName, hubProtocolVersion } both plugins carry
+// identically. Adoption keys on runtimeVersion + protocol, NOT the plugin package
+// version — so two native packages of the same release adopt each other's hub
+// instead of reaping it (Settled Decision 24). A genuine runtimeVersion mismatch
+// still reaps + respawns, which preserves single-host upgrade pickup (today
+// runtimeVersion === the package version).
+const RUNTIME = runtimeIdentity();
+
+// Which host runs this supervisor — diagnostic provenance carried on the hub's
+// PID record + health. Host-neutral via env so the byte-identical shared lib
+// reports 'codex' when the Codex package spawns it. Defaults to 'claude'.
+const STARTED_BY_HOST = process.env.SDLC_HOST || 'claude';
 
 // Re-export so callers have one import for the hub's pid-file location (the plan
 // lists hubPidPath as part of this module's API; the path itself is defined in
@@ -48,23 +53,47 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
     return { action: 'refused-host' };
   }
 
-  // Probe whatever is actually answering on the hub port — version- and
-  // identity-aware — independent of the pid file. One check resolves four cases:
-  //   • current hub, tracked   → adopt (already-running)
-  //   • stale version          → reap + respawn  (deterministic new-install pickup)
-  //   • current hub, untracked → reap + respawn  (heal an orphaned pid file)
-  //   • non-hub squatter       → reap + respawn  (evict a per-repo daemon on 4173)
+  // Probe whatever is actually answering on the hub port — runtime-identity-aware
+  // — independent of the pid file. One check resolves five cases:
+  //   • compatible same-runtime hub, tracked → ADOPT (regardless of starter host)
+  //   • protocol-incompatible hub            → leave it; explicit upgrade required
+  //   • runtime mismatch                     → reap + respawn (runtime upgrade)
+  //   • same-runtime hub, untracked          → reap + respawn (heal orphaned pid)
+  //   • non-hub squatter                     → reap + respawn (evict per-repo daemon)
   const id = await probeHubIdentity({ host, port, timeoutMs: status.alive ? 700 : 350 });
   if (id) {
     const tracked = status.alive && status.record?.pid === id.pid;
-    if (id.isHub && id.version === PLUGIN_VERSION && tracked) {
-      log(`[hub] already running at http://${displayHost(host)}:${port}`);
-      maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
-      return { action: 'already-running', pid: id.pid };
+    let why;
+    if (id.isHub) {
+      const protocolOk = id.hubProtocolVersion === RUNTIME.hubProtocolVersion;
+      const sameRuntime = id.runtimeVersion === RUNTIME.runtimeVersion;
+      // Adoption-first (Settled Decision 24): a healthy, protocol-compatible,
+      // same-runtimeVersion hub is adopted no matter which host/package started
+      // it — NEVER reaped. A differing buildId under the same runtimeVersion is
+      // adopted too (drift is visible in health; replacing it is an explicit
+      // upgrade), because the reap keys on runtimeVersion, not buildId.
+      if (protocolOk && sameRuntime && tracked) {
+        log(`[hub] adopted ${id.startedByHost ? `${id.startedByHost}-started ` : ''}hub at http://${displayHost(host)}:${port} (runtime ${RUNTIME.runtimeVersion})`);
+        maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
+        return { action: 'already-running', pid: id.pid, adopted: true };
+      }
+      // A healthy hub on an INCOMPATIBLE protocol is never silently replaced at
+      // SessionStart (NATIVE-INTEROP "Hub Protocol Incompatible") — surface a
+      // diagnostic and leave it running. Replacement is an explicit upgrade.
+      if (!protocolOk) {
+        log(`[hub] protocol-incompatible hub running (proto ${id.hubProtocolVersion ?? '?'} vs ${RUNTIME.hubProtocolVersion}); leaving it — explicit upgrade required`);
+        return { action: 'protocol-incompatible', pid: id.pid, hubProtocolVersion: id.hubProtocolVersion ?? null };
+      }
+      // Reap + respawn. Either a genuine runtime upgrade/downgrade (single-host
+      // pickup of new server code — cross-host packages of one release share a
+      // runtimeVersion and never hit this), or a same-runtime hub whose PID record
+      // was lost/mismatched (recovery to restore the write token).
+      why = !sameRuntime
+        ? `runtime v${id.runtimeVersion || '?'} → v${RUNTIME.runtimeVersion}`
+        : 'untracked hub (orphaned pid file)';
+    } else {
+      why = 'non-hub process on hub port';
     }
-    const why = !id.isHub ? 'non-hub process on hub port'
-      : id.version !== PLUGIN_VERSION ? `stale hub v${id.version || '?'} → v${PLUGIN_VERSION}`
-      : 'untracked hub (orphaned pid file)';
     if (id.pid) stopPid(id.pid, log);
     await removePidFile(pidPath);
     // Wait for the port to actually free so the respawn doesn't hit EADDRINUSE.
@@ -107,6 +136,9 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
     env: {
       ...process.env,
       SDLC_HUB_TOKEN: token,
+      // Diagnostic provenance: the host that started this hub, surfaced in
+      // health.startedBy + the PID record. Never controls adoption.
+      SDLC_HUB_STARTED_BY: STARTED_BY_HOST,
       SDLC_CODE_BROWSER: JSON.stringify(cfg.codeBrowser ?? {}),
       // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). Via env for the
       // same reason as codeBrowser; configHash covers it so editing the block in
@@ -117,9 +149,17 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
 
   // Pre-write hub.pid WITH the token to close the spawn→bind race: a render that
   // fires in that window reads the token from here to authenticate its POST. The
-  // hub re-writes hub.pid (same token) once it binds.
+  // hub re-writes hub.pid (same token + identity) once it binds. Carry the shared
+  // runtime identity now so a concurrent adopter sees it before the hub rebinds.
   if (child.pid) {
-    await writePidFile(pidPath, { pid: child.pid, host, port, token, configHash: cfgHash });
+    await writePidFile(pidPath, {
+      pid: child.pid, host, port, token, configHash: cfgHash,
+      hubName: RUNTIME.hubName,
+      hubProtocolVersion: RUNTIME.hubProtocolVersion,
+      runtimeVersion: RUNTIME.runtimeVersion,
+      buildId: RUNTIME.buildId,
+      startedByHost: STARTED_BY_HOST,
+    });
   }
 
   const healthy = await waitForHealth({ host, port, timeoutMs: 2500 });
@@ -181,10 +221,13 @@ function probeHealth({ host, port, timeoutMs }) {
   });
 }
 
-// Like probeHealth but parses the body for identity: { pid, version, isHub }.
-// `isHub` (presence of the entries[] array) distinguishes the hub from a
-// per-repo daemon that grabbed the port. Returns null when nothing healthy
-// answers or the body can't be parsed.
+// Like probeHealth but parses the body for shared-runtime identity:
+// { pid, isHub, runtimeVersion, hubProtocolVersion, buildId, hubName,
+// startedByHost }. `isHub` (presence of the entries[] array) distinguishes the
+// hub from a per-repo daemon that grabbed the port. Reads the structured `hub`
+// block (9.75+) and falls back to the legacy top-level `version` field so a
+// pre-9.75 hub still parses (runtimeVersion = version, protocol = 1, buildId =
+// null). Returns null when nothing healthy answers or the body can't be parsed.
 function probeHubIdentity({ host, port, timeoutMs }) {
   const probeHost = host === '0.0.0.0' ? '127.0.0.1' : host;
   return new Promise((resolve) => {
@@ -202,10 +245,16 @@ function probeHubIdentity({ host, port, timeoutMs }) {
       res.on('end', () => {
         try {
           const body = JSON.parse(buf);
+          const hub = body.hub && typeof body.hub === 'object' ? body.hub : null;
           resolve({
             pid: Number.isInteger(body.pid) ? body.pid : null,
-            version: typeof body.version === 'string' ? body.version : '',
             isHub: Array.isArray(body.entries),
+            runtimeVersion: hub && typeof hub.runtimeVersion === 'string' ? hub.runtimeVersion
+              : (typeof body.version === 'string' ? body.version : ''),
+            hubProtocolVersion: hub && Number.isInteger(hub.protocolVersion) ? hub.protocolVersion : 1,
+            buildId: hub && typeof hub.buildId === 'string' ? hub.buildId : null,
+            hubName: hub && typeof hub.name === 'string' ? hub.name : RUNTIME.hubName,
+            startedByHost: body.startedBy && typeof body.startedBy.host === 'string' ? body.startedBy.host : null,
           });
         } catch { resolve(null); }
       });

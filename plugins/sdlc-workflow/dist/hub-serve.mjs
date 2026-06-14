@@ -3,15 +3,15 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-NEUO4W7T.mjs";
+} from "./chunk-FIRUKTGI.mjs";
 import {
   hostAllowed,
   renderCodeBrowserPage,
   resolveRequestPath
 } from "./chunk-WY3THHYQ.mjs";
-import "./chunk-KSSSOM3F.mjs";
+import "./chunk-ZL3AHZAQ.mjs";
 import "./chunk-SBZWMVZN.mjs";
-import "./chunk-OOUZYKHP.mjs";
+import "./chunk-GZJHNQLO.mjs";
 import "./chunk-BTT5W62B.mjs";
 import {
   REGISTRY_VERSION,
@@ -20,18 +20,20 @@ import {
   refreshEntriesLiveness,
   validateEntry,
   writeRegistry
-} from "./chunk-TKMDPWDP.mjs";
+} from "./chunk-4EJPK5TL.mjs";
 import {
   codeBrowserConfigFromEnv,
   createHealController,
   normalizeCodeBrowserConfig,
-  readRenderedVersion,
+  readRenderedIdentity,
   removePidFile,
+  renderIdentityMatches,
+  runtimeIdentity,
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv,
   writePidFile
-} from "./chunk-KNNAPWND.mjs";
+} from "./chunk-VPA7OVKL.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -46,13 +48,9 @@ import { existsSync, statSync, createReadStream, readFileSync, rmSync, watch } f
 import { createServer } from "node:http";
 import { basename, extname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-var PLUGIN_VERSION = (() => {
-  try {
-    return JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version ?? "";
-  } catch {
-    return "";
-  }
-})();
+var RUNTIME = runtimeIdentity();
+var PLUGIN_VERSION = RUNTIME.runtimeVersion;
+var STARTED_BY_HOST = process.env.SDLC_HUB_STARTED_BY || "claude";
 var PLUGIN_ROOT = (() => {
   try {
     return fileURLToPath(new URL("..", import.meta.url));
@@ -151,7 +149,8 @@ function createHubServer({
   };
   const heal = createHealController({
     pluginRoot,
-    pluginVersion: PLUGIN_VERSION,
+    pluginVersion: RUNTIME.runtimeVersion,
+    buildId: RUNTIME.buildId,
     healCfg: staleRender ?? { heal: false },
     log: logHub,
     emitReload: (id) => emitReload(id),
@@ -307,22 +306,34 @@ function createHubServer({
       ok: true,
       status: "ok",
       pid: process.pid,
-      // Plugin version of THIS running hub. The supervisor compares it to its own
-      // PLUGIN_VERSION and reaps a stale hub so a new install deterministically
-      // takes over (the `entries` array below is the hub-vs-per-repo marker).
+      // Structured shared-runtime identity (NATIVE-INTEROP Workstream B). The
+      // supervisor adopts a hub whose hubName + protocol are compatible and whose
+      // runtimeVersion matches — it never reaps merely because the caller's PLUGIN
+      // package version differs. `entries` (below) is still the hub-vs-per-repo
+      // marker. `startedBy` is diagnostic only and does not control adoption.
+      hub: {
+        name: RUNTIME.hubName,
+        protocolVersion: RUNTIME.hubProtocolVersion,
+        runtimeVersion: RUNTIME.runtimeVersion,
+        buildId: RUNTIME.buildId
+      },
+      startedBy: { host: STARTED_BY_HOST },
+      // Legacy compatibility alias — the shared runtimeVersion (was the plugin
+      // package version pre-9.75). A pre-9.75 supervisor still reads this.
       version: PLUGIN_VERSION,
       uptimeMs: Date.now() - startedAt,
       configHash,
       entries: entries.map((e) => {
-        const renderedVersion = readRenderedVersion(`${e.viewDir}/.last-render`);
+        const rendered = readRenderedIdentity(`${e.viewDir}/.last-render`);
         return {
           id: e.id,
           repoRoot: e.repoRoot,
           headBranch: e.headBranch ?? e.branch ?? null,
           lastRenderedAt: e.lastRenderedAt,
           slugs: e.slugs,
-          renderedVersion,
-          stale: renderedVersion !== PLUGIN_VERSION
+          renderedVersion: rendered.version,
+          renderedBuildId: rendered.buildId,
+          stale: !renderIdentityMatches(rendered, RUNTIME)
         };
       }),
       // Stale-render heal state: { heal, maxConcurrent, inFlight, queued, failed }.
@@ -822,7 +833,14 @@ async function main() {
         host: args.host,
         port: boundPort,
         token,
-        configHash: args.configHash
+        configHash: args.configHash,
+        // Shared-runtime identity on the PID record (NATIVE-INTEROP "PID Record")
+        // so a supervisor can adopt/diagnose without an HTTP probe.
+        hubName: RUNTIME.hubName,
+        hubProtocolVersion: RUNTIME.hubProtocolVersion,
+        runtimeVersion: RUNTIME.runtimeVersion,
+        buildId: RUNTIME.buildId,
+        startedByHost: STARTED_BY_HOST
       });
     }
     console.log(`[hub] listening on http://${args.host}:${boundPort}`);

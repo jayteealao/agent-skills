@@ -34,17 +34,27 @@ import {
   serveCodeBrowser, serveCodeBrowserAsset,
 } from '../lib/code-browser.mjs';
 import {
-  createHealController, staleRenderConfigFromEnv, readRenderedVersion,
+  createHealController, staleRenderConfigFromEnv,
 } from '../lib/heal-render.mjs';
+import {
+  runtimeIdentity, readRenderedIdentity, renderIdentityMatches,
+} from '../lib/runtime-manifest.mjs';
 import { createRenderQueueDrainer, countPending } from '../lib/render-queue.mjs';
 import { renderHubLanding } from '../renderers/hub-dashboard.mjs';
 import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 
-// Read once at module load (avoids drift vs a hardcoded constant).
-const PLUGIN_VERSION = (() => {
-  try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version ?? ''; }
-  catch { return ''; }
-})();
+// Shared runtime identity (NATIVE-INTEROP Workstream B): the host-neutral
+// { runtimeVersion, buildId, hubName, hubProtocolVersion } both plugins carry
+// identically. Hub adoption keys on runtimeVersion; render freshness on buildId.
+// Read once at module load.
+const RUNTIME = runtimeIdentity();
+// Legacy display alias — the shared runtimeVersion (was the plugin package
+// version pre-9.75). Kept for the landing page / code-browser footer / health
+// `version` field during migration.
+const PLUGIN_VERSION = RUNTIME.runtimeVersion;
+// Diagnostic only: which host started this hub. Supervisors pass it via env; it
+// never controls adoption or behaviour (NATIVE-INTEROP "startedBy is diagnostic").
+const STARTED_BY_HOST = process.env.SDLC_HUB_STARTED_BY || 'claude';
 
 // Plugin root, resolved off this module's own URL so it works identically from
 // source (scripts/hub-serve.mjs) and the bundle (dist/hub-serve.mjs) — both sit
@@ -195,7 +205,8 @@ export function createHubServer({
   // means heal off (safe constructor default), matching codeBrowser.
   const heal = createHealController({
     pluginRoot,
-    pluginVersion: PLUGIN_VERSION,
+    pluginVersion: RUNTIME.runtimeVersion,
+    buildId: RUNTIME.buildId,
     healCfg: staleRender ?? { heal: false },
     log: logHub,
     emitReload: (id) => emitReload(id),
@@ -378,22 +389,35 @@ export function createHubServer({
       ok: true,
       status: 'ok',
       pid: process.pid,
-      // Plugin version of THIS running hub. The supervisor compares it to its own
-      // PLUGIN_VERSION and reaps a stale hub so a new install deterministically
-      // takes over (the `entries` array below is the hub-vs-per-repo marker).
+      // Structured shared-runtime identity (NATIVE-INTEROP Workstream B). The
+      // supervisor adopts a hub whose hubName + protocol are compatible and whose
+      // runtimeVersion matches — it never reaps merely because the caller's PLUGIN
+      // package version differs. `entries` (below) is still the hub-vs-per-repo
+      // marker. `startedBy` is diagnostic only and does not control adoption.
+      hub: {
+        name: RUNTIME.hubName,
+        protocolVersion: RUNTIME.hubProtocolVersion,
+        runtimeVersion: RUNTIME.runtimeVersion,
+        buildId: RUNTIME.buildId,
+      },
+      startedBy: { host: STARTED_BY_HOST },
+      // Legacy compatibility alias — the shared runtimeVersion (was the plugin
+      // package version pre-9.75). A pre-9.75 supervisor still reads this.
       version: PLUGIN_VERSION,
       uptimeMs: Date.now() - startedAt,
       configHash,
       entries: entries.map((e) => {
-        // Read the rendered version LIVE from .last-render (source of truth) so
+        // Read the rendered identity LIVE from .last-render (source of truth) so
         // `stale` reflects the current on-disk state, not the entry snapshot
-        // (STALE-RENDER-HEAL-PLAN §9). null = unversioned (pre-9.60) = stale.
-        const renderedVersion = readRenderedVersion(`${e.viewDir}/.last-render`);
+        // (STALE-RENDER-HEAL-PLAN §9). Keys on buildId when present, else version;
+        // an unversioned/unbuilt marker = stale.
+        const rendered = readRenderedIdentity(`${e.viewDir}/.last-render`);
         return {
           id: e.id, repoRoot: e.repoRoot, headBranch: e.headBranch ?? e.branch ?? null,
           lastRenderedAt: e.lastRenderedAt, slugs: e.slugs,
-          renderedVersion,
-          stale: renderedVersion !== PLUGIN_VERSION,
+          renderedVersion: rendered.version,
+          renderedBuildId: rendered.buildId,
+          stale: !renderIdentityMatches(rendered, RUNTIME),
         };
       }),
       // Stale-render heal state: { heal, maxConcurrent, inFlight, queued, failed }.
@@ -845,6 +869,13 @@ async function main() {
     if (args.pidFile) {
       await writePidFile(args.pidFile, {
         pid: process.pid, host: args.host, port: boundPort, token, configHash: args.configHash,
+        // Shared-runtime identity on the PID record (NATIVE-INTEROP "PID Record")
+        // so a supervisor can adopt/diagnose without an HTTP probe.
+        hubName: RUNTIME.hubName,
+        hubProtocolVersion: RUNTIME.hubProtocolVersion,
+        runtimeVersion: RUNTIME.runtimeVersion,
+        buildId: RUNTIME.buildId,
+        startedByHost: STARTED_BY_HOST,
       });
     }
     console.log(`[hub] listening on http://${args.host}:${boundPort}`);

@@ -42,9 +42,10 @@
  */
 import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
-import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -186,4 +187,63 @@ if (existsSync(join(VIEW_SRC, 'main.tsx'))) {
   const jsKiB = (statSync(join(DIST, 'code-browser.js')).size / 1024).toFixed(0);
   const cssKiB = (statSync(join(DIST, 'code-browser.css')).size / 1024).toFixed(0);
   console.log(`[build] code-browser browser bundle → dist/code-browser.js (${jsKiB} KiB) + dist/code-browser.css (${cssKiB} KiB)`);
+}
+
+/* ── shared runtime manifest: runtimeVersion + buildId (NATIVE-INTEROP §"Shared
+ *    Runtime Identity" / Workstream B) ──
+ *
+ * Generated here, AFTER both bundles are final, so:
+ *   • runtimeVersion stays in lock-step with the package version (one less
+ *     hand-edited bump spot), and
+ *   • buildId is a sha256 over the freshly built shared runtime payload, proving
+ *     two packages carrying the same runtimeVersion contain the same bytes.
+ *
+ * The payload = the files a hub/renderer actually executes and serves: the
+ * bundled dist/, plus the committed render assets (assets/, components/) and
+ * schemas/. Hashed over a deterministic, sorted, POSIX-normalised relative-path
+ * list so the SAME payload yields the SAME buildId regardless of OS — the cross-
+ * host release invariant (`Claude runtime build ID == Codex runtime build ID`)
+ * holds because the payload is COPIED, not rebuilt, into both packages.
+ */
+const PKG_VERSION = JSON.parse(readFileSync(join(PLUGIN_ROOT, 'package.json'), 'utf-8')).version ?? '';
+const RUNTIME_PAYLOAD_DIRS = ['dist', 'assets', 'components', 'schemas'];
+const buildId = computeBuildId(PLUGIN_ROOT, RUNTIME_PAYLOAD_DIRS);
+const manifest = {
+  family: 'sdlc-workflow',
+  hubName: 'sdlc-workflow-hub',
+  runtimeVersion: PKG_VERSION,
+  hubProtocolVersion: 1,
+  artifactSchema: 'sdlc/v1',
+  registryVersion: 2,
+  hubConfigVersion: 1,
+  buildId,
+};
+writeFileSync(join(PLUGIN_ROOT, 'runtime-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
+console.log(`[build] runtime-manifest.json → runtimeVersion ${PKG_VERSION}, buildId ${buildId.slice(0, 12)}…`);
+
+/** sha256 over a deterministic, sorted list of (relpath, bytes) across roots. */
+function computeBuildId(root, dirs) {
+  const hash = createHash('sha256');
+  const files = [];
+  for (const d of dirs) {
+    const abs = join(root, d);
+    if (existsSync(abs)) collectFiles(abs, files);
+  }
+  // POSIX-normalise + sort so the digest is OS- and walk-order-independent.
+  files.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
+  for (const f of files) {
+    hash.update(f.rel, 'utf-8');
+    hash.update('\0');
+    hash.update(readFileSync(f.abs));
+    hash.update('\0');
+  }
+  return hash.digest('hex');
+}
+
+function collectFiles(dir, out, rootForRel = dir) {
+  for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
+    const abs = join(dir, entry.name);
+    if (entry.isDirectory()) collectFiles(abs, out, rootForRel);
+    else if (entry.isFile()) out.push({ abs, rel: relative(PLUGIN_ROOT, abs).split(sep).join('/') });
+  }
 }
