@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/runtime-parity.test.mjs",
+    "test": "node --test tests/runtime-parity.test.mjs tests/hooks.test.mjs",
     "verify:runtime": "node runtime/dist/verify-runtime.mjs"
   },
   "engines": {
