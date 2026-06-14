@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anthropic.com/plugins/sdlc-workflow/sdlc-config.schema.json",
+  "title": "SDLC Workflow Local Configuration",
+  "description": "Optional per-project configuration for sdlc-workflow view rendering, bootstrap, serve, and hook behavior. Store at .ai/sdlc-config.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "view": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "render": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "concurrency": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32,
+              "default": 4
+            },
+            "debounceMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 60000,
+              "default": 2000
+            }
+          }
+        },
+        "bootstrap": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "renderMissing": {
+              "type": "boolean",
+              "default": true
+            },
+            "renderStale": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "hub": {
+          "type": "object",
+          "description": "Per-repo participation toggle for the machine-wide multi-repo hub (default-on / opt-out since v9.34.0). This is the ONLY per-repo hub field: it decides whether this repo participates (registers + is willing to start/use the hub). Every singleton hub setting (host, port, limits, Tailscale) lives in the machine-wide ~/.sdlc/hub-config.json instead, so the two files share zero fields and there are no precedence rules. additionalProperties:false rejects any singleton setting placed here by mistake. See MULTI-REPO-REGISTRY-PLAN §6.1.",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "narrativeFragments": {
+          "type": "boolean",
+          "default": true,
+          "description": "Free narrative fragments (Tier 2, v9.70.0): when true, any artifact's `<stem>.<label>.html.fragment` siblings — UNRESTRICTED raw HTML the agent authors to tell the artifact's story — are injected raw-inline below the page body, in label (filename) order. Set false to suppress them repo-wide (e.g. while a fragment's global CSS/JS is breaking a page). The one typed `<stem>.html.fragment` is unaffected by this switch."
+        },
+        "scopeNarrativeCss": {
+          "type": "boolean",
+          "default": true,
+          "description": "CSS containment for free narrative fragments (v9.71.0): when true (default), each fragment's `<style>` rules are wrapped in a native `@scope (.nfrag[data-label=\"<label>\"])` so a global selector (`body`, `*`, `.x`) can only match inside that fragment's wrapper — never the page chrome above it or a sibling fragment. `<style>`-less fragments and inline `style=\"\"` are untouched. Set false to inject `<style>` verbatim/unscoped (pre-9.71.0 behaviour). Has no effect when `narrativeFragments` is false. Note: scripts are out of scope here — inline `<script>` is already blocked by the serve `script-src 'self'` CSP."
+        },
+        "renderDispatch": {
+          "type": "string",
+          "enum": ["hub", "inline"],
+          "default": "hub",
+          "description": "Where a managed-artifact write gets rendered (RENDER-DISPATCH-PLAN). 'hub' (default): the write hook ENQUEUES the change to a durable per-repo render queue (.ai/_view/.render-queue/) and the serving daemon (hub or standalone) drains + renders it through the shared bounded engine — no short-lived per-write renderer, one renderer keeps .last-render version identity consistent (the prerequisite for the native Codex host). 'inline': the legacy behaviour where the hook spawns render-sunflower itself after a 2s debounce — the rollback / A-B switch."
+        },
+        "ensureHubOnWrite": {
+          "type": "boolean",
+          "default": true,
+          "description": "When 'hub' renderDispatch is active and no daemon answers the health probe, the write hook makes a best-effort, non-blocking detached attempt to start the hub (the queued change then renders at the hub's startup catch-up). Set false to never auto-start a daemon from a write hook — queued changes wait until a daemon is started another way."
+        },
+        "renderQueue": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Render queue tuning (RENDER-DISPATCH-PLAN). Applies only under 'hub' renderDispatch.",
+          "properties": {
+            "maxPending": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 500,
+              "description": "Hard backstop on pending requests per repo. Coalescing by (kind, bucket) normally bounds the queue well below this; beyond the cap the oldest requests are evicted with a logged warning."
+            }
+          }
+        }
+      }
+    },
+    "hooks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "autoStage": {
+          "type": "boolean",
+          "default": true
+        },
+        "validateOnWrite": {
+          "type": "boolean",
+          "default": true
+        },
+        "verifyOnWrite": {
+          "type": "boolean",
+          "default": true
+        },
+        "remindMissingFragments": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook BLOCKS (exit 2) a rich-tier artifact (.md of type plan/review/design/ship-run/rca/benchmark/experiment/instrument/profile/simplify-run) written without its mandatory sibling .yaml, and softly nudges when only the .html.fragment is missing. Set false to disable both — the sunflower view will then render those pages as plain prose. A single artifact can opt out instead via `fragment: none` in its frontmatter."
+        },
+        "validateSiblingYaml": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook validates a present sibling .yaml against siblingYamlSchemas.<type> and BLOCKS (exit 2) on a schema violation — but only for types whose schema has been reconciled to the live authoring convention (SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs; currently plan, review, design, simplify-run, ship-run — keyed by the .md's type:, so review-dimension (authored as type: review-command) is not reachable here, and the types with no real sibling corpus stay unvalidated). Set false to disable while other type schemas are still being reconciled."
+        }
+      }
+    }
+  }
+}

@@ -31,8 +31,16 @@ import { sdlcHomeDir, hubPidPath } from './registry.mjs';
 // actually executes + serves: the bundled dist/ (entrypoints + chunks +
 // renderers + flat lib assets), the render assets (assets/, components/), the
 // served docs site, and the schemas/frontmatter the validators read via `../`.
-const PAYLOAD_DIRS = ['dist', 'assets', 'components', 'schemas', join('docs', 'site')];
-const PAYLOAD_FILES = ['runtime-manifest.json', join('tests', 'frontmatter.schema.json')];
+//
+// EXPORTED so the Codex runtime-payload sync (Workstream D —
+// scripts/sync-codex-runtime.mjs) copies the EXACT same set into the Codex
+// package's runtime/. One definition, two consumers (materialize-into-store and
+// copy-into-Codex) ⇒ the bytes the hub runs from and the bytes the Codex package
+// ships can never drift. The buildId inputs (dist/assets/components/schemas, see
+// scripts/build.mjs) are a subset of these, so copying this set verbatim also
+// reproduces the buildId — the cross-host parity invariant.
+export const PAYLOAD_DIRS = ['dist', 'assets', 'components', 'schemas', join('docs', 'site')];
+export const PAYLOAD_FILES = ['runtime-manifest.json', join('tests', 'frontmatter.schema.json')];
 // A store is "verified" only if these survived materialization (the hub can't run
 // without them) and its manifest buildId matches.
 const REQUIRED = ['runtime-manifest.json', 'dist', 'schemas'];
@@ -60,7 +68,7 @@ export async function materializeRuntime(pluginRoot, { manifest = readRuntimeMan
   await mkdir(runtimeStoreDir(), { recursive: true });
   const tmp = join(runtimeStoreDir(), `.${buildId}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`);
   await rm(tmp, { recursive: true, force: true });
-  await copyPayload(pluginRoot, tmp);
+  await copyRuntimePayload(pluginRoot, tmp);
 
   try {
     // Atomic publish: rename the fully-built temp dir into its final name. We only
@@ -81,7 +89,13 @@ export async function materializeRuntime(pluginRoot, { manifest = readRuntimeMan
   return { buildId, runtimeRoot: target, materialized: true };
 }
 
-async function copyPayload(src, dst) {
+/**
+ * Copy the shared runtime payload (PAYLOAD_DIRS + PAYLOAD_FILES) from a plugin
+ * root `src` into `dst`. Used both to materialize a build into the machine store
+ * and to sync the Codex package's runtime/ (Workstream D). Exported so there is
+ * exactly one copy definition. Skips a payload entry that is absent in `src`.
+ */
+export async function copyRuntimePayload(src, dst) {
   await mkdir(dst, { recursive: true });
   for (const d of PAYLOAD_DIRS) {
     const from = join(src, d);

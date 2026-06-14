@@ -42,11 +42,12 @@
  */
 import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
 import { copyFileSync, existsSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { RUNTIME_BUILD_DIRS, computeBuildId } from '../lib/runtime-buildid.mjs';
 
 const PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(PLUGIN_ROOT, 'dist');
@@ -65,6 +66,7 @@ const SCRIPT_ENTRIES = [
   'hub-ensure',              // spawned detached by the write/session hooks (RENDER-DISPATCH-PLAN)
   'render-sunflower-serve',  // spawned by lib/serve-lifecycle
   'tray',                    // user-launched system-tray app (docs/internal/archived/TRAY-APP-PLAN.md)
+  'verify-runtime',          // self-contained runtime integrity/parity check (NATIVE-INTEROP Workstream D)
 ];
 
 // Public renderers are loaded at runtime by render-sunflower's loadRenderer()
@@ -206,8 +208,7 @@ if (existsSync(join(VIEW_SRC, 'main.tsx'))) {
  * holds because the payload is COPIED, not rebuilt, into both packages.
  */
 const PKG_VERSION = JSON.parse(readFileSync(join(PLUGIN_ROOT, 'package.json'), 'utf-8')).version ?? '';
-const RUNTIME_PAYLOAD_DIRS = ['dist', 'assets', 'components', 'schemas'];
-const buildId = computeBuildId(PLUGIN_ROOT, RUNTIME_PAYLOAD_DIRS);
+const buildId = computeBuildId(PLUGIN_ROOT, RUNTIME_BUILD_DIRS);
 const manifest = {
   family: 'sdlc-workflow',
   hubName: 'sdlc-workflow-hub',
@@ -220,30 +221,3 @@ const manifest = {
 };
 writeFileSync(join(PLUGIN_ROOT, 'runtime-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
 console.log(`[build] runtime-manifest.json → runtimeVersion ${PKG_VERSION}, buildId ${buildId.slice(0, 12)}…`);
-
-/** sha256 over a deterministic, sorted list of (relpath, bytes) across roots. */
-function computeBuildId(root, dirs) {
-  const hash = createHash('sha256');
-  const files = [];
-  for (const d of dirs) {
-    const abs = join(root, d);
-    if (existsSync(abs)) collectFiles(abs, files);
-  }
-  // POSIX-normalise + sort so the digest is OS- and walk-order-independent.
-  files.sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0));
-  for (const f of files) {
-    hash.update(f.rel, 'utf-8');
-    hash.update('\0');
-    hash.update(readFileSync(f.abs));
-    hash.update('\0');
-  }
-  return hash.digest('hex');
-}
-
-function collectFiles(dir, out, rootForRel = dir) {
-  for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
-    const abs = join(dir, entry.name);
-    if (entry.isDirectory()) collectFiles(abs, out, rootForRel);
-    else if (entry.isFile()) out.push({ abs, rel: relative(PLUGIN_ROOT, abs).split(sep).join('/') });
-  }
-}

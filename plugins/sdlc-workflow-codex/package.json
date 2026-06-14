@@ -1,0 +1,13 @@
+{
+  "name": "@sdlc-workflow/codex-native",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/runtime-parity.test.mjs",
+    "verify:runtime": "node runtime/dist/verify-runtime.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

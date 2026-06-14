@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the native Codex package carries the shared runtime, byte-for-byte (9.77.0)
+
+NATIVE-INTEROP-REWRITE-PLAN Workstream D — the first deliverable that puts a real runtime inside
+`plugins/sdlc-workflow-codex`. The Codex plugin now ships the complete shared runtime payload and can start,
+render, serve, and heal the hub with no Claude plugin installed and no runtime `npm install`.
+
+- **One payload definition, two consumers.** `lib/runtime-store.mjs` now EXPORTS `PAYLOAD_DIRS`/`PAYLOAD_FILES`
+  and `copyRuntimePayload`, so the bytes the hub materializes into `~/.sdlc/runtime/<buildId>` and the bytes the
+  Codex package ships are copied from the SAME definition — they cannot drift.
+- **Shared buildId algorithm (`lib/runtime-buildid.mjs`).** Extracted from `scripts/build.mjs` so the build
+  generator and the new verifier compute the digest identically. The hash is taken over `(relpath-from-root,
+  bytes)`, so an identical payload at any root (Claude plugin, Codex `runtime/`, or the machine store) reproduces
+  the same `buildId` — that's what makes "Claude buildId == Codex buildId" mechanically true rather than asserted.
+- **Self-contained verifier (`scripts/verify-runtime.mjs`, bundled into `dist/`).** Ships INSIDE the runtime, so
+  either package proves locally that its payload reproduces its claimed `buildId`:
+  `node <runtimeRoot>/dist/verify-runtime.mjs`.
+- **Sync + parity gate (`scripts/sync-codex-runtime.mjs`).** `npm run sync:codex` mirrors the payload into the
+  Codex package and writes `runtime-baseline.json` (release provenance); `npm run verify:codex` is the
+  cross-package byte-for-byte parity gate (identical manifest + buildId + per-file hash over all 197 files).
+
+Proven: the Codex runtime boots the hub standalone (`startedBy.host: codex`, identical `buildId`); full Claude
+suite green (419, +5 buildId tests); new Codex `runtime-parity` suite green; build deterministic; cross-package
+parity OK.
+
 ### Added — machine-wide runtime store + the hub starts under a cross-host lock (9.76.0)
 
 NATIVE-INTEROP-REWRITE-PLAN Workstream C / Phase 2 — the rest of the cross-host hub lifecycle, built on the

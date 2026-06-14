@@ -1,6 +1,6 @@
 {
   "name": "@sdlc-workflow/sunflower-view",
-  "version": "9.76.0",
+  "version": "9.77.0",
   "private": true,
   "type": "module",
   "description": "Sunflower view layer for the sdlc-workflow plugin — HTML projection of .ai/workflows/ artifacts.",
@@ -10,6 +10,9 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "build:icon": "node scripts/build-icon.mjs",
+    "verify:runtime": "node scripts/verify-runtime.mjs",
+    "sync:codex": "node scripts/sync-codex-runtime.mjs",
+    "verify:codex": "node scripts/sync-codex-runtime.mjs --check",
     "hooks:install": "git config core.hooksPath .githooks",
     "render": "node scripts/render-sunflower.mjs",
     "render:clean": "node scripts/render-sunflower.mjs --clean",
@@ -17,7 +20,7 @@
     "verify:docs": "node scripts/verify-doc-site.mjs",
     "verify:legibility": "node scripts/verify-doc-legibility.mjs",
     "tray": "node dist/tray.mjs",
-    "test": "node --test tests/sunflower.test.mjs tests/unit/lib/foundation.test.mjs tests/unit/lib/project-root.test.mjs tests/unit/lib/runtime-manifest.test.mjs tests/unit/lib/cross-host-lock.test.mjs tests/unit/lib/runtime-store.test.mjs tests/unit/lib/hub-lifecycle.test.mjs tests/unit/lib/multi-repo-hub.test.mjs tests/unit/lib/heal-render.test.mjs tests/unit/lib/render-queue.test.mjs tests/unit/lib/code-browser.test.mjs tests/unit/lib/bootstrap-offpipeline.test.mjs tests/unit/lib/tray-format.test.mjs tests/unit/lib/tray-actions.test.mjs tests/unit/lib/tray-autostart.test.mjs tests/unit/hooks/hooks.test.mjs tests/unit/gap-closure/design-phase1.test.mjs tests/unit/gap-closure/renderers-phase2.test.mjs tests/unit/gap-closure/walker-phase3.test.mjs tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
+    "test": "node --test tests/sunflower.test.mjs tests/unit/lib/foundation.test.mjs tests/unit/lib/project-root.test.mjs tests/unit/lib/runtime-manifest.test.mjs tests/unit/lib/runtime-buildid.test.mjs tests/unit/lib/cross-host-lock.test.mjs tests/unit/lib/runtime-store.test.mjs tests/unit/lib/hub-lifecycle.test.mjs tests/unit/lib/multi-repo-hub.test.mjs tests/unit/lib/heal-render.test.mjs tests/unit/lib/render-queue.test.mjs tests/unit/lib/code-browser.test.mjs tests/unit/lib/bootstrap-offpipeline.test.mjs tests/unit/lib/tray-format.test.mjs tests/unit/lib/tray-actions.test.mjs tests/unit/lib/tray-autostart.test.mjs tests/unit/hooks/hooks.test.mjs tests/unit/gap-closure/design-phase1.test.mjs tests/unit/gap-closure/renderers-phase2.test.mjs tests/unit/gap-closure/walker-phase3.test.mjs tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
     "test:snapshots": "node --test tests/unit/snapshots/renderers.test.mjs tests/unit/snapshots/fragment-determinism.test.mjs",
     "test:update": "node scripts/update-snapshots.mjs",
     "test:e2e": "node tests/e2e/acceptance.mjs",

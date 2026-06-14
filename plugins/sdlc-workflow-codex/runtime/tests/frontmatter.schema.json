@@ -1,0 +1,2233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anthropic.com/plugins/sdlc-workflow/frontmatter.schema.json",
+  "title": "SDLC Workflow Artifact Frontmatter",
+  "description": "JSON Schema for the YAML frontmatter of every artifact produced by the sdlc-workflow plugin. Each artifact is a markdown file under .ai/workflows/<slug>/ (or .ai/simplify/, .ai/profiles/ for off-pipeline outputs). The frontmatter block (between the leading `---` markers) is parsed as YAML and validated against the matching branch of `oneOf` selected by the `type` field.",
+
+  "$defs": {
+    "iso8601": {
+      "type": "string",
+      "description": "ISO-8601 timestamp. Templates emit values like '2026-05-11T14:30:00Z'.",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:?\\d{2})?$"
+    },
+    "runId": {
+      "type": "string",
+      "description": "Compact timestamp run-id used for ship runs, simplify runs, and profile runs.",
+      "pattern": "^\\d{8}T\\d{4}Z$"
+    },
+    "slug": {
+      "type": "string",
+      "description": "kebab-case workflow slug. Must match the parent directory name.",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "base": {
+      "description": "Fields shared by every workflow artifact.",
+      "type": "object",
+      "properties": {
+        "schema": { "const": "sdlc/v1" },
+        "type":   { "type": "string" },
+        "slug":   { "$ref": "#/$defs/slug" },
+        "regenerable": {
+          "type": "boolean",
+          "description": "When true, the renderer treats this artifact as a view over other state. Sub-commands may overwrite freely; the calm-reader surfaces a `regenerable` badge. Added in v9.20.0 as part of the additive-write contract."
+        }
+      },
+      "required": ["schema", "type"]
+    },
+    "refs": {
+      "type": "object",
+      "description": "Cross-references between artifacts. Free-form: keys are role names, values are filenames or arrays of filenames.",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string" },
+          { "$ref": "#/$defs/stringArray" }
+        ]
+      }
+    },
+    "designCritiqueSeverityDistribution": {
+      "type": "object",
+      "required": ["blocker", "high", "medium", "low", "nit"],
+      "properties": {
+        "blocker": { "type": "integer", "minimum": 0 },
+        "high":    { "type": "integer", "minimum": 0 },
+        "medium":  { "type": "integer", "minimum": 0 },
+        "low":     { "type": "integer", "minimum": 0 },
+        "nit":     { "type": "integer", "minimum": 0 }
+      }
+    },
+    "designAuditSeverityDistribution": {
+      "type": "object",
+      "required": ["blocker", "high", "medium", "low"],
+      "properties": {
+        "blocker": { "type": "integer", "minimum": 0 },
+        "high":    { "type": "integer", "minimum": 0 },
+        "medium":  { "type": "integer", "minimum": 0 },
+        "low":     { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "indexFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "title", "status", "current-stage",
+        "stage-number", "created-at", "updated-at", "selected-slice",
+        "branch-strategy", "branch", "base-branch", "review-scope",
+        "pr-url", "pr-number", "open-questions", "tags", "next-command",
+        "next-invocation", "workflow-files", "progress"
+      ],
+      "properties": {
+        "schema": { "const": "sdlc/v1" },
+        "type":   { "const": "index" },
+        "slug":   { "$ref": "#/$defs/slug" },
+        "title":  { "type": "string" },
+        "status": { "enum": ["active", "complete", "closed"] },
+        "current-stage": {
+          "enum": [
+            "intake", "shape", "design", "slice", "plan", "implement",
+            "verify", "review", "handoff", "ship", "retro", "complete"
+          ]
+        },
+        "stage-number": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "selected-slice": { "type": "string" },
+        "branch-strategy": { "enum": ["dedicated", "shared", "none"] },
+        "branch": { "type": "string" },
+        "base-branch": { "type": "string" },
+        "review-scope": { "enum": ["per-slice", "slug-wide"] },
+        "pr-url": { "type": "string" },
+        "pr-number": { "type": ["integer", "null"] },
+        "open-questions": { "$ref": "#/$defs/stringArray" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "next-command": { "type": "string" },
+        "next-invocation": { "type": "string" },
+        "workflow-files": { "$ref": "#/$defs/stringArray" },
+        "progress": {
+          "type": "object",
+          "additionalProperties": {
+            "enum": ["not-started", "in-progress", "complete", "skipped"]
+          }
+        },
+        "workflow-type": {
+          "enum": [
+            "feature", "fix", "quick", "rca", "investigate",
+            "rf", "refactor", "hotfix", "dep-update", "update-deps",
+            "docs", "discover", "standard"
+          ]
+        },
+        "public-surface": {},
+        "docs-mirror": {},
+        "review-bots": {},
+        "slices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slug", "status"],
+            "properties": {
+              "slug": { "type": "string" },
+              "status": {
+                "enum": ["defined", "in-progress", "complete", "skipped"]
+              },
+              "complexity": { "enum": ["xs", "s", "m", "l", "xl"] },
+              "depends-on": { "$ref": "#/$defs/stringArray" }
+            }
+          }
+        },
+        "augmentations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "artifact"],
+            "properties": {
+              "type": { "type": "string" },
+              "artifact": { "type": "string" },
+              "status": { "type": "string" },
+              "created-at": { "$ref": "#/$defs/iso8601" }
+            }
+          }
+        },
+        "stage-status": {
+          "type": "string",
+          "description": "Human-readable progress label for the current stage (e.g. 'in-progress', 'blocked', 'awaiting-review'). Written by stage reference files; surfaced by session-start hook."
+        },
+        "selected-slice-or-focus": {
+          "type": "string",
+          "description": "Alias for selected-slice used by stage reference files and the session-start hook when a focus target (rather than a formal slice) is in play. Preferred over selected-slice by skill references; the hook falls back to selected-slice when this is absent."
+        },
+        "recommended-next-command": {
+          "type": "string",
+          "description": "Preferred-alias next-command written by some stage references and the hotfix/resume skills. The session-start hook reads this first with next-command as fallback."
+        },
+        "recommended-next-invocation": {
+          "type": "string",
+          "description": "Preferred-alias next-invocation written by some stage references and the hotfix/resume skills. The session-start hook reads this first with next-invocation as fallback."
+        },
+        "recommended-next-stage": {
+          "type": "string",
+          "description": "Optional stage recommendation written by stage reference files to guide the next /wf invocation."
+        }
+      }
+    },
+
+    "intakeFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "status", "stage-number",
+        "created-at", "updated-at", "tags", "refs",
+        "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "intake" },
+        "status": { "enum": ["complete", "awaiting-input"] },
+        "stage-number": { "const": 1 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" },
+        "next-command": { "type": "string" },
+        "next-invocation": { "type": "string" }
+      }
+    },
+
+    "shapeFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "status", "stage-number",
+        "created-at", "updated-at", "docs-needed", "docs-types",
+        "tags", "refs", "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "shape" },
+        "status": { "enum": ["complete", "awaiting-input"] },
+        "stage-number": { "const": 2 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "docs-needed": { "type": "boolean" },
+        "docs-types": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "reference", "how-to", "tutorial",
+              "explanation", "readme", "readme-update"
+            ]
+          }
+        },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "designFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "created-at",
+        "register", "recommended-references"
+      ],
+      "properties": {
+        "type": { "const": "design" },
+        "register": { "enum": ["brand", "product"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "recommended-references": { "$ref": "#/$defs/stringArray" },
+        "image-gate": {
+          "oneOf": [
+            { "const": "pass" },
+            { "type": "string", "pattern": "^skipped:" }
+          ]
+        },
+        "north-star-mock": { "type": ["string", "null"] },
+        "based-on": { "type": "string" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "designContractFrontmatter": {
+      "type": "object",
+      "description": "02c-craft.md — written by /wf-design craft as the implementation-facing visual contract.",
+      "required": [
+        "schema", "type", "slug", "title", "status", "created-at",
+        "updated-at", "component", "based-on", "tokens", "states",
+        "sizes", "themes", "refs"
+      ],
+      "properties": {
+        "type": { "const": "design-contract" },
+        "title": { "type": "string" },
+        "status": { "enum": ["draft", "ready", "frozen"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "component": { "type": "string" },
+        "based-on": { "type": "string" },
+        "tokens": { "$ref": "#/$defs/stringArray" },
+        "states": { "$ref": "#/$defs/stringArray" },
+        "sizes": { "$ref": "#/$defs/stringArray" },
+        "themes": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" },
+        "register": { "enum": ["brand", "product"] },
+        "image-gate": {
+          "oneOf": [
+            { "const": "pass" },
+            { "type": "string", "pattern": "^skipped:" }
+          ]
+        },
+        "north-star-mock": { "type": ["string", "null"] },
+        "references-loaded": { "$ref": "#/$defs/stringArray" },
+        "pen-doc": { "type": ["string", "null"] },
+        "regenerable": { "type": "boolean" }
+      }
+    },
+
+    "sliceIndexFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "status", "stage-number",
+        "created-at", "updated-at", "total-slices", "best-first-slice",
+        "tags", "slices", "refs", "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "slice-index" },
+        "status": { "enum": ["complete", "awaiting-input"] },
+        "stage-number": { "const": 3 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "total-slices": { "type": "integer", "minimum": 0 },
+        "best-first-slice": { "type": "string" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "slices": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slug", "status"],
+            "properties": {
+              "slug": { "type": "string" },
+              "status": {
+                "enum": ["defined", "in-progress", "complete", "skipped"]
+              },
+              "complexity": { "enum": ["xs", "s", "m", "l", "xl"] },
+              "depends-on": { "$ref": "#/$defs/stringArray" }
+            }
+          }
+        },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "sliceFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "slice-slug", "status", "stage-number",
+        "created-at", "updated-at", "complexity", "depends-on", "tags", "refs"
+      ],
+      "properties": {
+        "type": { "const": "slice" },
+        "slice-slug": { "type": "string" },
+        "status": { "enum": ["defined", "in-progress", "complete", "skipped"] },
+        "stage-number": { "const": 3 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "complexity": { "enum": ["xs", "s", "m", "l", "xl"] },
+        "depends-on": { "$ref": "#/$defs/stringArray" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "planIndexFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "status", "stage-number",
+        "created-at", "updated-at", "planning-mode", "slices-planned",
+        "slices-total", "implementation-order", "conflicts-found",
+        "tags", "refs", "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "plan-index" },
+        "status": { "enum": ["complete", "awaiting-input"] },
+        "stage-number": { "const": 4 },
+        "planning-mode": { "enum": ["single", "all"] },
+        "slices-planned": { "type": "integer", "minimum": 0 },
+        "slices-total": { "type": "integer", "minimum": 0 },
+        "conflicts-found": { "type": "integer", "minimum": 0 },
+        "implementation-order": { "$ref": "#/$defs/stringArray" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "planFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "slice-slug", "status", "stage-number",
+        "created-at", "updated-at", "metric-files-to-touch",
+        "metric-step-count", "has-blockers", "revision-count",
+        "tags", "refs", "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "plan" },
+        "slice-slug": { "type": "string" },
+        "status": { "enum": ["complete", "awaiting-input"] },
+        "stage-number": { "const": 4 },
+        "metric-files-to-touch": { "type": "integer", "minimum": 0 },
+        "metric-step-count":     { "type": "integer", "minimum": 0 },
+        "has-blockers":          { "type": "boolean" },
+        "revision-count":        { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "implementIndexFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "status", "stage-number",
+        "created-at", "updated-at", "slices-implemented", "slices-total",
+        "metric-total-files-changed", "metric-total-lines-added",
+        "metric-total-lines-removed", "tags", "refs",
+        "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "implement-index" },
+        "status": { "enum": ["in-progress", "complete"] },
+        "stage-number": { "const": 5 },
+        "slices-implemented":          { "type": "integer", "minimum": 0 },
+        "slices-total":                { "type": "integer", "minimum": 0 },
+        "metric-total-files-changed":  { "type": "integer", "minimum": 0 },
+        "metric-total-lines-added":    { "type": "integer", "minimum": 0 },
+        "metric-total-lines-removed":  { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "implementFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "slice-slug", "status", "stage-number",
+        "created-at", "updated-at", "metric-files-changed",
+        "metric-lines-added", "metric-lines-removed",
+        "metric-deviations-from-plan", "metric-review-fixes-applied",
+        "commit-sha", "tags", "refs", "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "implement" },
+        "slice-slug": { "type": "string" },
+        "status": { "enum": ["complete", "awaiting-input"] },
+        "stage-number": { "const": 5 },
+        "metric-files-changed":         { "type": "integer", "minimum": 0 },
+        "metric-lines-added":           { "type": "integer", "minimum": 0 },
+        "metric-lines-removed":         { "type": "integer", "minimum": 0 },
+        "metric-deviations-from-plan":  { "type": "integer", "minimum": 0 },
+        "metric-review-fixes-applied":  { "type": "integer", "minimum": 0 },
+        "commit-sha": { "type": "string" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "verifyIndexFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "status", "stage-number",
+        "created-at", "updated-at", "slices-verified", "slices-total",
+        "tags", "refs", "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "verify-index" },
+        "status": { "enum": ["in-progress", "complete"] },
+        "stage-number": { "const": 6 },
+        "slices-verified": { "type": "integer", "minimum": 0 },
+        "slices-total":    { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "verifyFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "slice-slug", "status", "stage-number",
+        "created-at", "updated-at", "result", "metric-checks-run",
+        "metric-checks-passed", "metric-acceptance-met",
+        "metric-acceptance-total", "metric-interactive-checks-run",
+        "metric-interactive-checks-passed", "metric-issues-found",
+        "evidence-dir", "tags", "refs", "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "verify" },
+        "slice-slug": { "type": "string" },
+        "status": { "enum": ["complete", "awaiting-input"] },
+        "stage-number": { "const": 6 },
+        "result": { "enum": ["pass", "fail", "partial"] },
+        "metric-checks-run":                { "type": "integer", "minimum": 0 },
+        "metric-checks-passed":             { "type": "integer", "minimum": 0 },
+        "metric-acceptance-met":            { "type": "integer", "minimum": 0 },
+        "metric-acceptance-total":          { "type": "integer", "minimum": 0 },
+        "metric-interactive-checks-run":    { "type": "integer", "minimum": 0 },
+        "metric-interactive-checks-passed": { "type": "integer", "minimum": 0 },
+        "metric-issues-found":              { "type": "integer", "minimum": 0 },
+        "evidence-dir": { "type": "string" },
+        "convergence": {
+          "enum": ["not-needed", "converged", "escalated"],
+          "description": "Whether verify results converged, escalated, or were not applicable. Written by /wf verify to 06-verify-<slice>.md."
+        },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "reviewFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "review-scope", "slice-slug",
+        "status", "stage-number", "created-at", "updated-at",
+        "verdict", "commands-run", "metric-commands-run",
+        "metric-findings-total", "metric-findings-raw",
+        "metric-findings-blocker", "metric-findings-high",
+        "metric-findings-med", "metric-findings-low",
+        "metric-findings-nit", "tags", "refs",
+        "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "review" },
+        "review-scope": { "enum": ["per-slice", "slug-wide"] },
+        "slice-slug": { "type": "string" },
+        "status": { "enum": ["complete", "awaiting-input"] },
+        "stage-number": { "const": 7 },
+        "verdict": { "enum": ["ship", "ship-with-caveats", "dont-ship"] },
+        "commands-run": { "$ref": "#/$defs/stringArray" },
+        "metric-commands-run":     { "type": "integer", "minimum": 0 },
+        "metric-findings-total":   { "type": "integer", "minimum": 0 },
+        "metric-findings-raw":     { "type": "integer", "minimum": 0 },
+        "metric-findings-blocker": { "type": "integer", "minimum": 0 },
+        "metric-findings-high":    { "type": "integer", "minimum": 0 },
+        "metric-findings-med":     { "type": "integer", "minimum": 0 },
+        "metric-findings-low":     { "type": "integer", "minimum": 0 },
+        "metric-findings-nit":     { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "reviewCommandFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "review-scope", "slice-slug",
+        "review-command", "status", "updated-at", "metric-findings-total",
+        "metric-findings-blocker", "metric-findings-high",
+        "result", "tags", "refs"
+      ],
+      "properties": {
+        "type": { "const": "review-command" },
+        "review-scope": { "enum": ["per-slice", "slug-wide"] },
+        "slice-slug": { "type": "string" },
+        "review-command": { "type": "string" },
+        "status": { "const": "complete" },
+        "result": { "enum": ["clean", "issues-found", "blockers-found"] },
+        "metric-findings-total":   { "type": "integer", "minimum": 0 },
+        "metric-findings-blocker": { "type": "integer", "minimum": 0 },
+        "metric-findings-high":    { "type": "integer", "minimum": 0 },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "handoffFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "slice-slugs", "handoff-mode",
+        "status", "stage-number", "created-at", "updated-at",
+        "pr-title", "pr-url", "pr-number", "branch", "base-branch",
+        "has-migration", "has-config-change", "has-docs-changes",
+        "docs-generated", "tags", "refs", "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "handoff" },
+        "slice-slugs": { "$ref": "#/$defs/stringArray" },
+        "handoff-mode": { "enum": ["aggregate", "single-slice"] },
+        "status": { "enum": ["complete", "awaiting-input"] },
+        "stage-number": { "const": 8 },
+        "pr-title": { "type": "string" },
+        "pr-url": { "type": "string" },
+        "pr-number": { "type": ["integer", "null"] },
+        "branch": { "type": "string" },
+        "base-branch": { "type": "string" },
+        "has-migration":      { "type": "boolean" },
+        "has-config-change":  { "type": "boolean" },
+        "has-docs-changes":   { "type": "boolean" },
+        "has-deferred-comments": { "type": "boolean" },
+        "docs-generated": { "$ref": "#/$defs/stringArray" },
+        "commitlint-status":  { "enum": ["pass", "warn", "fail", "skipped"] },
+        "public-surface-drift": {
+          "enum": ["none", "regenerated", "drift-without-regen", "skipped"]
+        },
+        "docs-mirror-status": { "enum": ["up-to-date", "regenerated", "skipped"] },
+        "rebase-status": {
+          "enum": ["fast-forward", "rebased-clean", "conflicts",
+                   "lease-failure", "skipped"]
+        },
+        "rebase-onto-sha": { "type": "string" },
+        "live-review-decision": {
+          "enum": ["APPROVED", "CHANGES_REQUESTED", "REVIEW_REQUIRED", null]
+        },
+        "live-checks-failing": { "$ref": "#/$defs/stringArray" },
+        "live-checks-pending": { "$ref": "#/$defs/stringArray" },
+        "ci-watch-conclusion": { "enum": ["green", "red", "timed-out", "skipped"] },
+        "ci-watch-rounds":     { "type": "integer", "minimum": 0 },
+        "ci-watch-fix-rounds": { "type": "integer", "minimum": 0 },
+        "bot-reviews-landed":  { "$ref": "#/$defs/stringArray" },
+        "review-settle-elapsed-seconds": { "type": "integer", "minimum": 0 },
+        "readiness-verdict": { "enum": ["ready", "blocked", "awaiting-input"] },
+        "triage-iterations":     { "type": "integer", "minimum": 0 },
+        "triage-fixes-applied":  { "type": "integer", "minimum": 0 },
+        "triage-fixes-skipped":  { "type": "integer", "minimum": 0 },
+        "triage-deferred-thread-ids": { "$ref": "#/$defs/stringArray" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "shipRunFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "run-id", "status", "plan-ref",
+        "plan-version-at-run", "created-at", "updated-at",
+        "environment", "version", "prior-version", "go-nogo",
+        "merge-strategy", "tags", "refs",
+        "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "ship-run" },
+        "run-id": { "$ref": "#/$defs/runId" },
+        "status": { "enum": ["complete", "awaiting-input", "failed", "rolled-back"] },
+        "plan-ref": { "type": "string" },
+        "plan-version-at-run": { "type": "integer", "minimum": 1 },
+        "environment": { "type": "string" },
+        "version": { "type": "string" },
+        "prior-version": { "type": "string" },
+        "go-nogo": { "enum": ["go", "conditional-go", "no-go"] },
+        "merge-strategy": { "enum": ["rebase", "squash", "merge", "none"] },
+        "pre-flight-status": { "enum": ["pass", "warn", "fail"] },
+        "publish-dry-run-passed": {
+          "oneOf": [
+            { "type": "boolean" },
+            { "const": "skipped" }
+          ]
+        },
+        "release-workflow-conclusion": {
+          "enum": ["success", "failure", "cancelled", ""]
+        },
+        "head-sha-at-start": { "type": "string" },
+        "merge-sha": { "type": "string" },
+        "release-tag": { "type": "string" },
+        "release-workflow-run-id": { "type": ["string", "integer"] },
+        "post-publish-checks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "status"],
+            "properties": {
+              "kind": { "type": "string" },
+              "status": { "enum": ["pass", "fail", "pending"] },
+              "observed-at": { "$ref": "#/$defs/iso8601" },
+              "evidence": { "type": "string" }
+            }
+          }
+        },
+        "post-release-bump-sha": { "type": "string" },
+        "recovery-actions-taken": { "$ref": "#/$defs/stringArray" },
+        "rolled-back": { "type": "boolean" },
+        "rollback-sha": { "type": "string" },
+        "rollback-reason": { "type": "string" },
+        "announcements-sent": { "$ref": "#/$defs/stringArray" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "shipRunsIndexFrontmatter": {
+      "type": "object",
+      "required": ["schema", "type", "slug", "updated-at", "runs"],
+      "properties": {
+        "type": { "const": "ship-runs-index" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "runs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["run-id", "status"],
+            "properties": {
+              "run-id": { "$ref": "#/$defs/runId" },
+              "version": { "type": "string" },
+              "environment": { "type": "string" },
+              "status": { "type": "string" },
+              "go-nogo": { "enum": ["go", "conditional-go", "no-go"] },
+              "notes": { "type": "string", "maxLength": 80 }
+            }
+          }
+        }
+      }
+    },
+
+    "retroFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "status", "stage-number",
+        "created-at", "updated-at", "workflow-outcome",
+        "metric-improvement-count", "metric-stages-completed",
+        "metric-stages-skipped", "tags", "refs",
+        "next-command", "next-invocation"
+      ],
+      "properties": {
+        "type": { "const": "retro" },
+        "status": { "const": "complete" },
+        "stage-number": { "const": 10 },
+        "workflow-outcome": { "enum": ["completed", "abandoned", "partial"] },
+        "metric-improvement-count": { "type": "integer", "minimum": 0 },
+        "metric-stages-completed":  { "type": "integer", "minimum": 0 },
+        "metric-stages-skipped":    { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "resumeFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "generated-at",
+        "current-stage", "stage-number", "status",
+        "selected-slice", "word-count", "refs"
+      ],
+      "properties": {
+        "type": { "const": "resume" },
+        "generated-at": { "$ref": "#/$defs/iso8601" },
+        "stage-number": { "type": "integer", "minimum": 0 },
+        "word-count":   { "type": "integer", "minimum": 0 },
+        "current-stage": { "type": "string" },
+        "status": { "type": "string" },
+        "selected-slice": { "type": "string" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "skipRecordFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "skipped-stage",
+        "skipped-stage-artifact", "reason", "skipped-at", "high-risk"
+      ],
+      "properties": {
+        "type": { "const": "skip-record" },
+        "skipped-stage": { "type": "string" },
+        "skipped-stage-artifact": { "type": "string" },
+        "reason": { "type": "string" },
+        "skipped-at": { "$ref": "#/$defs/iso8601" },
+        "high-risk": { "type": "boolean" }
+      }
+    },
+
+    "syncReportFrontmatter": {
+      "type": "object",
+      "required": ["schema", "type", "slug", "created-at", "health", "refs"],
+      "properties": {
+        "type": { "const": "sync-report" },
+        "health": {
+          "enum": ["in-sync", "minor-drift", "significant-drift", "stale"]
+        },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/stringArray" }
+      }
+    },
+
+    "shapeAmendmentFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "amendment-number", "created-at",
+        "amends", "source", "source-ref", "affected-slices", "tags", "refs"
+      ],
+      "properties": {
+        "type": { "const": "shape-amendment" },
+        "amendment-number": { "type": "integer", "minimum": 1 },
+        "amends": { "type": "string" },
+        "source": { "enum": ["from-review", "from-retro", "manual"] },
+        "source-ref": { "type": "string" },
+        "affected-slices": { "$ref": "#/$defs/stringArray" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "sliceAmendmentFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "slug", "slice-slug", "amendment-number",
+        "created-at", "amends", "source", "source-ref",
+        "original-status", "plan-needs-update", "tags", "refs"
+      ],
+      "properties": {
+        "type": { "const": "slice-amendment" },
+        "slice-slug": { "type": "string" },
+        "amendment-number": { "type": "integer", "minimum": 1 },
+        "amends": { "type": "string" },
+        "source": { "enum": ["from-review", "from-retro", "manual"] },
+        "source-ref": { "type": "string" },
+        "original-status": { "type": "string" },
+        "plan-needs-update": { "type": "boolean" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "simplifyRunFrontmatter": {
+      "type": "object",
+      "description": "Written to .ai/simplify/<run-id>.md — outside .ai/workflows/.",
+      "required": [
+        "schema", "type", "run-id", "scope", "target", "status",
+        "created-at", "updated-at",
+        "findings-total", "findings-reuse", "findings-quality",
+        "findings-efficiency", "findings-accepted", "findings-skipped",
+        "findings-deferred", "routing-summary",
+        "routing-assignments", "proposed-deltas"
+      ],
+      "properties": {
+        "type": { "const": "simplify-run" },
+        "run-id": { "$ref": "#/$defs/runId" },
+        "scope": { "enum": ["branch", "commit", "plan", "codebase"] },
+        "target": { "type": "string" },
+        "status": { "enum": ["complete", "awaiting-input"] },
+        "findings-total":      { "type": "integer", "minimum": 0 },
+        "findings-reuse":      { "type": "integer", "minimum": 0 },
+        "findings-quality":    { "type": "integer", "minimum": 0 },
+        "findings-efficiency": { "type": "integer", "minimum": 0 },
+        "findings-accepted":   { "type": "integer", "minimum": 0 },
+        "findings-skipped":    { "type": "integer", "minimum": 0 },
+        "findings-deferred":   { "type": "integer", "minimum": 0 },
+        "routing-summary":     { "type": "object" },
+        "routing-assignments": { "type": "array" },
+        "proposed-deltas":     { "type": "array" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "augmentationFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "augmentation-type",
+        "slug", "parent-workflow"
+      ],
+      "properties": {
+        "type": { "const": "augmentation" },
+        "augmentation-type": {
+          "enum": ["benchmark", "experiment", "instrument", "rca"]
+        },
+        "parent-workflow": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "augmentation-type": { "const": "benchmark" } } },
+          "then": {
+            "required": [
+              "mode", "language", "benchmark-framework",
+              "targets-measured", "targets-failed",
+              "baseline-branch", "baseline-commit", "measured-at"
+            ],
+            "properties": {
+              "mode": { "enum": ["baseline", "compare", "complete"] },
+              "targets-measured":    { "type": "integer", "minimum": 0 },
+              "targets-failed":      { "type": "integer", "minimum": 0 },
+              "regressions-found":   { "type": "integer", "minimum": 0 },
+              "improvements-found":  { "type": "integer", "minimum": 0 },
+              "measured-at": { "$ref": "#/$defs/iso8601" },
+              "compared-at": { "$ref": "#/$defs/iso8601" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "augmentation-type": { "const": "experiment" } } },
+          "then": {
+            "required": [
+              "experiment-type", "hypothesis", "split",
+              "flag-name", "flag-framework",
+              "requires-instrument", "status", "created-at"
+            ],
+            "properties": {
+              "experiment-type": {
+                "enum": ["feature-flag", "a-b-test", "canary", "shadow"]
+              },
+              "requires-instrument": { "type": "boolean" },
+              "status": { "const": "ready" },
+              "created-at": { "$ref": "#/$defs/iso8601" }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "augmentation-type": { "const": "instrument" } } },
+          "then": {
+            "required": [
+              "instrumentation-framework", "dark-paths-found",
+              "signals-designed", "pii-warnings", "status", "created-at"
+            ],
+            "properties": {
+              "dark-paths-found":  { "type": "integer", "minimum": 0 },
+              "signals-designed":  { "type": "integer", "minimum": 0 },
+              "pii-warnings": { "type": "boolean" },
+              "status": { "const": "ready" },
+              "created-at": { "$ref": "#/$defs/iso8601" }
+            }
+          }
+        }
+      ]
+    },
+
+    "rcaFrontmatter": {
+      "type": "object",
+      "description": "01-rca.md — root-cause analysis workflow produced by /wf-quick rca.",
+      "required": [
+        "schema", "type", "slug", "workflow-type", "symptom",
+        "impact", "root-cause-confidence", "blast-radius",
+        "recommended-next", "status", "created-at"
+      ],
+      "properties": {
+        "type": { "const": "rca" },
+        "workflow-type": { "const": "rca" },
+        "symptom": { "type": "string" },
+        "impact": { "enum": ["critical", "high", "medium", "low"] },
+        "root-cause-confidence": { "enum": ["high", "medium", "low"] },
+        "blast-radius": { "enum": ["low", "medium", "high", "skipped"] },
+        "recommended-next": { "type": "string" },
+        "status": { "enum": ["draft", "ready-for-fix-routing", "complete"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "profileFrontmatter": {
+      "type": "object",
+      "description": "Written to .ai/profiles/<run-id>/01-profile.md — standalone, no workflow slug.",
+      "required": [
+        "schema", "type", "run-id", "target", "language",
+        "profiling-method", "hotspots-found",
+        "optimization-candidates", "confidence", "created-at"
+      ],
+      "properties": {
+        "type": { "const": "profile" },
+        "run-id": { "type": "string" },
+        "profiling-method": {
+          "enum": [
+            "static", "dynamic-cpu", "dynamic-memory",
+            "hybrid", "fallback-timing"
+          ]
+        },
+        "confidence": { "enum": ["high", "medium", "low"] },
+        "hotspots-found":          { "type": "integer", "minimum": 0 },
+        "optimization-candidates": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "designAugmentationFrontmatter": {
+      "type": "object",
+      "required": [
+        "schema", "type", "sub-command", "slug",
+        "created-at", "register", "files-modified"
+      ],
+      "properties": {
+        "type": { "const": "design-augmentation" },
+        "sub-command": {
+          "enum": [
+            "animate", "bolder", "clarify", "colorize", "delight",
+            "distill", "harden", "layout", "onboard", "optimize",
+            "overdrive", "polish", "quieter", "typeset", "adapt", "extract"
+          ]
+        },
+        "register": { "enum": ["brand", "product"] },
+        "files-modified": { "$ref": "#/$defs/stringArray" },
+        "created-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "shipLegacyFrontmatter": {
+      "type": "object",
+      "description": "Deprecated 09-ship.md — no current writer emits this. Kept here so the validator does not reject historical files in old workflow dirs.",
+      "required": ["schema", "type", "slug"],
+      "properties": {
+        "type": { "const": "ship" }
+      }
+    },
+
+    "designCritiqueFrontmatter": {
+      "type": "object",
+      "description": "07-design-critique.md — prescriptive visual/design decision critique.",
+      "required": [
+        "schema", "type", "slug", "title", "status", "created-at",
+        "updated-at", "scope", "findings-count",
+        "severity-distribution", "refs"
+      ],
+      "properties": {
+        "type": { "const": "design-critique" },
+        "title": { "type": "string" },
+        "status": { "enum": ["draft", "ready"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "scope": { "enum": ["surface", "flow", "system", "narrative"] },
+        "findings-count": { "type": "integer", "minimum": 0 },
+        "severity-distribution": { "$ref": "#/$defs/designCritiqueSeverityDistribution" },
+        "refs": { "$ref": "#/$defs/refs" },
+        "dimensions-touched": { "$ref": "#/$defs/stringArray" },
+        "regenerable": { "type": "boolean" }
+      }
+    },
+
+    "designAuditFrontmatter": {
+      "type": "object",
+      "description": "07-design-audit.md — measurable technical quality audit for implemented design.",
+      "required": [
+        "schema", "type", "slug", "title", "status", "created-at",
+        "updated-at", "verdict", "audited-against", "violations-count",
+        "severity-distribution", "remediation-state", "refs"
+      ],
+      "properties": {
+        "type": { "const": "design-audit" },
+        "title": { "type": "string" },
+        "status": { "enum": ["draft", "ready"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "verdict": { "enum": ["pass", "fail", "conditional"] },
+        "audited-against": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/stringArray" }
+          ]
+        },
+        "violations-count": { "type": "integer", "minimum": 0 },
+        "severity-distribution": { "$ref": "#/$defs/designAuditSeverityDistribution" },
+        "remediation-state": { "enum": ["none", "in-progress", "complete", "deferred"] },
+        "refs": { "$ref": "#/$defs/refs" },
+        "regenerable": { "type": "boolean" }
+      }
+    },
+
+    "projectContextFrontmatter": {
+      "type": "object",
+      "description": "PRODUCT.md / DESIGN.md project-level context rendered under .ai/_view/project/.",
+      "required": ["schema", "type", "title", "status", "source"],
+      "properties": {
+        "type": { "const": "project-context" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "source": { "type": "string" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "shipPlanFrontmatter": {
+      "type": "object",
+      "description": ".ai/ship-plan.md project-level shipping contract read by /wf ship and built by /wf-meta build-pipeline. v9.35.0: required[] aligned to the actual init-ship-plan template (project-name/plan-version), dropping the stray title/status/source that were copied from project-context and never emitted. v9.42.0: documented the inbound-half blocks (code-quality / local-dx / governance) as optional objects — the branch stays open (no additionalProperties:false), so these are documentation, not enforcement; inner shapes live in the init-ship-plan reference. v9.43.0: added Block K (security) as a documented object; governance gained merge controls + branch-protection fidelity fields, ship-environments gained per-env protection, ci-pipeline gained ci-ergonomics, plus a repo-topology field — all nested in already-open keys.",
+      "required": ["schema", "type", "slug", "project-name", "plan-version"],
+      "properties": {
+        "type": { "const": "ship-plan" },
+        "slug": { "$ref": "#/$defs/slug" },
+        "project-name": { "type": "string" },
+        "plan-version": { "type": "integer", "minimum": 1 },
+        "template-hint": { "type": "string" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "source": { "type": "string" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "code-quality": {
+          "type": "object",
+          "description": "Block H — inbound code-quality gates: format-check / lint / type-check / test-coverage (each {tool,cmd}), commit-convention, pr-title-convention. Read by /wf-meta build-pipeline (Audits K-L)."
+        },
+        "local-dx": {
+          "type": "object",
+          "description": "Block I — local developer experience: git-hooks (framework + per-hook commands), editorconfig, runtime-version-files, task-runner, bootstrap-cmd, contributing-doc. Read by build-pipeline (Audits M-N)."
+        },
+        "governance": {
+          "type": "object",
+          "description": "Block J — repo governance: branch-protection (mechanism, code-owner/conversation/linear-history fidelity, apply-via: gh-api|manual), codeowners, pr-template, issue-templates, dependency-automation, and merge controls. Read by build-pipeline (Audits O, R)."
+        },
+        "security": {
+          "type": "object",
+          "description": "Block K — security & supply-chain gates: sast, dependency-audit, secret-scanning, sbom, license-check. Read by build-pipeline (Audit P). Aligns to skills/review/reference/supply-chain.md."
+        },
+        "repo-topology": {
+          "type": "object",
+          "description": "Discovery output (not a block): { monorepo, tool, workspaces[] }. Biases dependency-automation ecosystems, lint-staged scoping, and CI matrix."
+        },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "announceFrontmatter": {
+      "type": "object",
+      "description": "Release/change announcement. v9.35.0: required[] relaxed to schema/type/slug to match the wf-meta announce template (which emits created-at + audiences/channels lists); the richer fields below stay optional.",
+      "required": ["schema", "type", "slug"],
+      "properties": {
+        "type": { "const": "announce" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "scope": { "enum": ["internal", "external", "customer"] },
+        "audience": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/stringArray" }
+          ]
+        },
+        "channel": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/stringArray" }
+          ]
+        },
+        "scheduled-at": { "$ref": "#/$defs/iso8601" },
+        "audiences-count": { "type": "integer", "minimum": 0 },
+        "channels-count": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "riskRegisterFrontmatter": {
+      "type": "object",
+      "required": ["schema", "type", "slug", "title", "status", "risks"],
+      "properties": {
+        "type": { "const": "risk-register" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "description", "likelihood", "impact", "mitigation", "owner", "status"],
+            "properties": {
+              "id": { "type": "string" },
+              "description": { "type": "string" },
+              "likelihood": { "type": "string" },
+              "impact": { "type": "string" },
+              "mitigation": { "type": "string" },
+              "owner": { "type": "string" },
+              "status": { "type": "string" }
+            }
+          }
+        },
+        "risks-total": { "type": "integer", "minimum": 0 },
+        "risks-high": { "type": "integer", "minimum": 0 },
+        "risks-open": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "estimateFrontmatter": {
+      "type": "object",
+      "required": ["schema", "type", "slug", "title", "status", "methodology", "estimates", "total", "confidence-range"],
+      "properties": {
+        "type": { "const": "estimate" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "methodology": { "enum": ["story-points", "t-shirt", "hours"] },
+        "estimates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["slice-or-task", "value", "confidence"],
+            "properties": {
+              "slice-or-task": { "type": "string" },
+              "value": {
+                "oneOf": [
+                  { "type": "number" },
+                  { "type": "string" }
+                ]
+              },
+              "confidence": { "type": "string" }
+            }
+          }
+        },
+        "total": {
+          "oneOf": [
+            { "type": "number" },
+            { "type": "string" }
+          ]
+        },
+        "confidence-range": { "type": "string" },
+        "estimate-points": { "type": ["number", "integer"] },
+        "confidence": { "enum": ["high", "medium", "low", "unknown"] },
+        "uncertainty-count": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "docsIndexFrontmatter": {
+      "type": "object",
+      "required": ["schema", "type", "slug", "title", "status"],
+      "properties": {
+        "type": { "const": "docs-index" },
+        "title": { "type": "string" },
+        "status": { "type": "string" },
+        "run-id": { "type": "string" },
+        "docs": { "type": "array" },
+        "gaps-found": { "type": "integer", "minimum": 0 },
+        "actions-completed": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "docsDiscoverFrontmatter": {
+      "type": "object",
+      "description": "Step 1 artifact written by /wf-docs to .ai/docs/<run-id>/discover.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "docs-discover" },
+        "run-id": { "type": "string" },
+        "status": { "enum": ["complete", "in-progress"] },
+        "gaps-found": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "docsAuditFrontmatter": {
+      "type": "object",
+      "description": "Step 2 artifact written by /wf-docs to .ai/docs/<run-id>/audit.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "docs-audit" },
+        "run-id": { "type": "string" },
+        "status": { "enum": ["complete", "in-progress"] },
+        "issues-found": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "docsPlanFrontmatter": {
+      "type": "object",
+      "description": "Step 3 artifact written by /wf-docs to .ai/docs/<run-id>/plan.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "docs-plan" },
+        "run-id": { "type": "string" },
+        "status": { "enum": ["complete", "in-progress"] },
+        "actions-planned": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "docsGenerateFrontmatter": {
+      "type": "object",
+      "description": "Step 4 artifact written by /wf-docs to .ai/docs/<run-id>/generate.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "docs-generate" },
+        "run-id": { "type": "string" },
+        "status": { "enum": ["complete", "in-progress"] },
+        "docs-written": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "ideationFrontmatter": {
+      "type": "object",
+      "description": "Idea-backlog artifact written by /wf-quick ideate to .ai/ideation/<focus>-<ts>.md. Ranked candidate list; no slug/run-id/status.",
+      "required": ["schema", "type", "focus", "created-at"],
+      "properties": {
+        "type": { "const": "ideation" },
+        "focus": { "type": "string" },
+        "raw-candidates": { "type": "integer", "minimum": 0 },
+        "culled-count": { "type": "integer", "minimum": 0 },
+        "survivor-count": { "type": "integer", "minimum": 0 },
+        "shown-count": { "type": "integer", "minimum": 0 },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "depScanFrontmatter": {
+      "type": "object",
+      "description": "/wf-quick update-deps step 1 — .ai/dep-updates/<run-id>/scan.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "dep-scan" },
+        "run-id": { "type": "string" },
+        "total-deps": { "type": "integer", "minimum": 0 },
+        "outdated-count": { "type": "integer", "minimum": 0 },
+        "vulnerable-count": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["complete", "in-progress", "awaiting-input"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "depResearchFrontmatter": {
+      "type": "object",
+      "description": "/wf-quick update-deps step 2 — .ai/dep-updates/<run-id>/research.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "dep-research" },
+        "run-id": { "type": "string" },
+        "packages-researched": { "type": "integer", "minimum": 0 },
+        "packages-update-now": { "type": "integer", "minimum": 0 },
+        "packages-migration-needed": { "type": "integer", "minimum": 0 },
+        "packages-hold": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["complete", "in-progress", "awaiting-input"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "depPlanFrontmatter": {
+      "type": "object",
+      "description": "/wf-quick update-deps step 3 — .ai/dep-updates/<run-id>/plan.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "dep-plan" },
+        "run-id": { "type": "string" },
+        "p0-count": { "type": "integer", "minimum": 0 },
+        "p1-count": { "type": "integer", "minimum": 0 },
+        "p2-count": { "type": "integer", "minimum": 0 },
+        "hold-count": { "type": "integer", "minimum": 0 },
+        "status": { "enum": ["complete", "in-progress", "awaiting-input"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "depImplementFrontmatter": {
+      "type": "object",
+      "description": "/wf-quick update-deps step 4 — .ai/dep-updates/<run-id>/implement.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "dep-implement" },
+        "run-id": { "type": "string" },
+        "updated": { "$ref": "#/$defs/stringArray" },
+        "blocked": { "$ref": "#/$defs/stringArray" },
+        "status": { "enum": ["complete", "in-progress", "awaiting-input"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "depVerifyFrontmatter": {
+      "type": "object",
+      "description": "/wf-quick update-deps step 5 — .ai/dep-updates/<run-id>/verify.md.",
+      "required": ["schema", "type", "run-id", "status", "created-at"],
+      "properties": {
+        "type": { "const": "dep-verify" },
+        "run-id": { "type": "string" },
+        "result": { "enum": ["pass", "fail", "partial"] },
+        "status": { "enum": ["complete", "in-progress", "awaiting-input"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" }
+      }
+    },
+
+    "quickMetaArtifactFrontmatter": {
+      "type": "object",
+      "description": "Lightweight wf-quick / wf-meta lane artifacts written under .ai/workflows/<slug>/ (e.g. 00-index.md with type workflow-index, 01-fix.md, hf-brief.md, 99-close.md, 90-next.md). Validated for a known type + schema/type/slug presence; richer per-lane fields are renderer-defensive and most fall through to the generic renderer. Registered in v9.35.0 after an audit found these lanes were silently blocked by the pre/post-write hooks. Each type stays uniquely discriminating, so the oneOf remains unambiguous. Tighten into per-type branches if/when their field contracts stabilize.",
+      "required": ["schema", "type", "slug"],
+      "properties": {
+        "type": {
+          "enum": [
+            "workflow-index", "discover", "fix-plan", "investigate",
+            "hf-brief", "hf-plan", "hf-implement", "hf-verify",
+            "rf-brief", "rf-baseline", "rf-plan", "rf-implement", "rf-verify",
+            "close-record", "routing"
+          ]
+        }
+      }
+    }
+  },
+
+  "type": "object",
+  "allOf": [
+    { "$ref": "#/$defs/base" },
+    {
+      "oneOf": [
+        { "$ref": "#/$defs/indexFrontmatter" },
+        { "$ref": "#/$defs/intakeFrontmatter" },
+        { "$ref": "#/$defs/shapeFrontmatter" },
+        { "$ref": "#/$defs/designFrontmatter" },
+        { "$ref": "#/$defs/designContractFrontmatter" },
+        { "$ref": "#/$defs/sliceIndexFrontmatter" },
+        { "$ref": "#/$defs/sliceFrontmatter" },
+        { "$ref": "#/$defs/planIndexFrontmatter" },
+        { "$ref": "#/$defs/planFrontmatter" },
+        { "$ref": "#/$defs/implementIndexFrontmatter" },
+        { "$ref": "#/$defs/implementFrontmatter" },
+        { "$ref": "#/$defs/verifyIndexFrontmatter" },
+        { "$ref": "#/$defs/verifyFrontmatter" },
+        { "$ref": "#/$defs/reviewFrontmatter" },
+        { "$ref": "#/$defs/reviewCommandFrontmatter" },
+        { "$ref": "#/$defs/handoffFrontmatter" },
+        { "$ref": "#/$defs/shipRunFrontmatter" },
+        { "$ref": "#/$defs/shipRunsIndexFrontmatter" },
+        { "$ref": "#/$defs/retroFrontmatter" },
+        { "$ref": "#/$defs/resumeFrontmatter" },
+        { "$ref": "#/$defs/skipRecordFrontmatter" },
+        { "$ref": "#/$defs/syncReportFrontmatter" },
+        { "$ref": "#/$defs/shapeAmendmentFrontmatter" },
+        { "$ref": "#/$defs/sliceAmendmentFrontmatter" },
+        { "$ref": "#/$defs/simplifyRunFrontmatter" },
+        { "$ref": "#/$defs/augmentationFrontmatter" },
+        { "$ref": "#/$defs/rcaFrontmatter" },
+        { "$ref": "#/$defs/profileFrontmatter" },
+        { "$ref": "#/$defs/designAugmentationFrontmatter" },
+        { "$ref": "#/$defs/shipLegacyFrontmatter" },
+        { "$ref": "#/$defs/designCritiqueFrontmatter" },
+        { "$ref": "#/$defs/designAuditFrontmatter" },
+        { "$ref": "#/$defs/projectContextFrontmatter" },
+        { "$ref": "#/$defs/shipPlanFrontmatter" },
+        { "$ref": "#/$defs/announceFrontmatter" },
+        { "$ref": "#/$defs/riskRegisterFrontmatter" },
+        { "$ref": "#/$defs/estimateFrontmatter" },
+        { "$ref": "#/$defs/docsIndexFrontmatter" },
+        { "$ref": "#/$defs/docsDiscoverFrontmatter" },
+        { "$ref": "#/$defs/docsAuditFrontmatter" },
+        { "$ref": "#/$defs/docsPlanFrontmatter" },
+        { "$ref": "#/$defs/docsGenerateFrontmatter" },
+        { "$ref": "#/$defs/ideationFrontmatter" },
+        { "$ref": "#/$defs/depScanFrontmatter" },
+        { "$ref": "#/$defs/depResearchFrontmatter" },
+        { "$ref": "#/$defs/depPlanFrontmatter" },
+        { "$ref": "#/$defs/depImplementFrontmatter" },
+        { "$ref": "#/$defs/depVerifyFrontmatter" },
+        { "$ref": "#/$defs/quickMetaArtifactFrontmatter" }
+      ]
+    }
+  ],
+
+  "siblingYamlSchemas": {
+    "description": "Schemas for sibling .yaml files that ride alongside a .md artifact to carry structured display data the renderer's fragment + figure-canvas builders consume. Validated by scripts/verify-fragment.mjs Check 7. Added in v9.20.0. Phase 2 (v9.21.0) added review-dimension for per-dimension review pages. Phase 3 (v9.22.0) added simplify-run, profile, benchmark, experiment, and instrument for off-pipeline simplify, profile, and generic augmentation artifacts.",
+
+    "review-dimension": {
+      "type": "object",
+      "description": "Per-dimension review (07-review/<dimension>.yaml). One card per dimension; the combined 07-review.yaml still aggregates all dimensions, and the renderer cross-links the two. Added in v9.21.0.",
+      "required": ["artifact", "dimension", "parent", "rev", "verdict", "summary", "counts", "findings"],
+      "properties": {
+        "artifact":  { "const": "review-dimension" },
+        "dimension": { "type": "string" },
+        "parent":    { "type": "string" },
+        "rev":       { "type": "integer", "minimum": 1 },
+        "model":     { "type": "string" },
+        "run_at":    { "$ref": "#/$defs/iso8601" },
+        "verdict":   { "enum": ["ship", "caveats", "no"] },
+        "verdict_label": { "type": "string" },
+        "summary":   { "type": "string", "maxLength": 2000 },
+        "counts": {
+          "type": "object",
+          "required": ["blocker", "high", "med", "low", "nit"],
+          "properties": {
+            "blocker": { "type": "integer", "minimum": 0 },
+            "high":    { "type": "integer", "minimum": 0 },
+            "med":     { "type": "integer", "minimum": 0 },
+            "low":     { "type": "integer", "minimum": 0 },
+            "nit":     { "type": "integer", "minimum": 0 }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "msg"],
+            "properties": {
+              "id":         { "type": "string" },
+              "severity":   { "enum": ["blocker", "high", "med", "low", "nit"] },
+              "dimension":  { "type": "string" },
+              "file":       { "type": "string" },
+              "line":       { "type": ["integer", "string", "null"] },
+              "confidence": { "enum": ["high", "med", "low"] },
+              "action":     { "enum": ["accept", "defer", "reject"] },
+              "msg":        { "type": "string" },
+              "evidence":   { "type": "object" },
+              "fix":        { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "review": {
+      "type": "object",
+      "required": ["artifact", "rev", "verdict", "summary", "counts", "dimensions", "findings"],
+      "properties": {
+        "artifact": { "const": "review" },
+        "parent":   { "type": "string" },
+        "rev":      { "type": "integer", "minimum": 1 },
+        "model":    { "type": "string" },
+        "run_at":   { "$ref": "#/$defs/iso8601" },
+        "verdict":  { "enum": ["ship", "caveats", "no"] },
+        "summary":  { "type": "string", "maxLength": 500 },
+        "counts": {
+          "type": "object",
+          "required": ["blocker", "high", "med", "low", "nit"],
+          "properties": {
+            "blocker": { "type": "integer", "minimum": 0 },
+            "high":    { "type": "integer", "minimum": 0 },
+            "med":     { "type": "integer", "minimum": 0 },
+            "low":     { "type": "integer", "minimum": 0 },
+            "nit":     { "type": "integer", "minimum": 0 }
+          }
+        },
+        "dimensions": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Per-dimension roll-up. Accepts the legacy {name,count} shape OR the live {key,status,blocker,high,med,low,nit} per-severity shape.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name":    { "type": "string" },
+              "key":     { "type": "string" },
+              "status":  { "type": "string" },
+              "count":   { "type": "integer", "minimum": 0 },
+              "blocker": { "type": "integer", "minimum": 0 },
+              "high":    { "type": "integer", "minimum": 0 },
+              "med":     { "type": "integer", "minimum": 0 },
+              "low":     { "type": "integer", "minimum": 0 },
+              "nit":     { "type": "integer", "minimum": 0 }
+            }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "dimension"],
+            "properties": {
+              "id":         { "type": "string" },
+              "severity":   { "enum": ["blocker", "high", "med", "low", "nit"] },
+              "dimension":  { "type": "string" },
+              "file":       { "type": "string" },
+              "line":       { "type": ["integer", "string", "null"] },
+              "confidence": { "enum": ["high", "med", "low"] },
+              "action":     { "enum": ["accept", "defer", "reject"] },
+              "triage":     { "type": "string" },
+              "status":     { "type": "string" },
+              "msg":        { "type": "string" },
+              "message":    { "type": "string" },
+              "evidence":   { "type": "object" },
+              "fix":        { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "rca": {
+      "type": "object",
+      "required": ["artifact", "incident", "title", "started_at", "resolved_at", "metrics", "timeline", "chain", "heatmap"],
+      "properties": {
+        "artifact":    { "const": "rca" },
+        "incident":    { "type": "string" },
+        "title":       { "type": "string" },
+        "started_at":  { "$ref": "#/$defs/iso8601" },
+        "resolved_at": { "$ref": "#/$defs/iso8601" },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "duration":           { "type": "string" },
+            "time_to_detect":     { "type": "string" },
+            "time_to_mitigate":   { "type": "string" },
+            "user_failures":      { "type": "integer", "minimum": 0 },
+            "revenue_impact_usd": { "type": "number", "minimum": 0 }
+          }
+        },
+        "timeline": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["id", "at", "kind", "title"],
+            "properties": {
+              "id":    { "type": "string" },
+              "at":    { "type": "string" },
+              "kind":  { "enum": ["alert", "escalation", "deploy", "mitigation", "resolution"] },
+              "title": { "type": "string" },
+              "body":  { "type": "string" },
+              "who":   { "type": "string" }
+            }
+          }
+        },
+        "chain": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "required": ["step", "body"],
+            "properties": {
+              "step": { "enum": ["TRIGGER", "CHANGE", "CASCADE", "ROOT_CAUSE"] },
+              "body": { "type": "string" }
+            }
+          }
+        },
+        "heatmap": {
+          "type": "object",
+          "required": ["buckets", "systems"],
+          "properties": {
+            "buckets": { "type": "array", "items": { "type": "string" } },
+            "systems": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        },
+        "contributing_causes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "title", "body"],
+            "properties": {
+              "kind":  { "enum": ["process", "infra", "observability", "code", "people"] },
+              "title": { "type": "string" },
+              "body":  { "type": "string" }
+            }
+          }
+        },
+        "mitigations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["at", "kind", "title"],
+            "properties": {
+              "at":    { "type": "string" },
+              "kind":  { "enum": ["hotfix", "rollback", "scale", "feature-flag", "drain"] },
+              "title": { "type": "string" },
+              "body":  { "type": "string" }
+            }
+          }
+        },
+        "five_whys": {
+          "type": "array",
+          "description": "Optional collapsible drill chain rendered below the causal-chain figure. Each step ladders from the surface symptom toward the root cause. Phase 2 (v9.21.0).",
+          "minItems": 1,
+          "maxItems": 7,
+          "items": {
+            "type": "object",
+            "required": ["question", "answer"],
+            "properties": {
+              "question": { "type": "string" },
+              "answer":   { "type": "string" },
+              "root":     { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+
+    "plan": {
+      "type": "object",
+      "required": ["modules", "files"],
+      "properties": {
+        "artifact": { "const": "plan" },
+        "schema":   { "type": "string" },
+        "slug":     { "type": "string" },
+        "slice":    { "type": "string" },
+        "parent":   { "type": "string" },
+        "rev":      { "type": "integer", "minimum": 0 },
+        "modules": {
+          "type": "array", "minItems": 1,
+          "description": "Module groupings for the file-change topology. Accepts legacy path-prefix strings (files bucket by prefix) OR rich { id, label, role } objects that files reference by id via files[].module.",
+          "items": {
+            "oneOf": [
+              { "type": "string" },
+              {
+                "type": "object",
+                "description": "Rich module — identified by `id` (preferred) or `name`; files reference it via files[].module. Extra keys (files, kind, new, description) are tolerated.",
+                "properties": {
+                  "id":    { "type": "string" },
+                  "name":  { "type": "string" },
+                  "label": { "type": "string" },
+                  "role":  { "type": "string" }
+                }
+              }
+            ]
+          }
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "properties": {
+              "path":    { "type": "string" },
+              "role":    { "type": "string", "description": "File category (config/infra/ui/domain/…) or, in the legacy convention, the change-type. Topology coloring reads `status` first, then falls back to `role`." },
+              "status":  { "enum": ["new", "modified", "deleted", "external"], "description": "Change-type for topology coloring (new convention). Legacy plans put this in `role`." },
+              "module":  { "type": "string", "description": "id of the modules[] entry this file belongs to." },
+              "loc":     { "type": ["integer", "string", "null"] },
+              "delta":   {
+                "type": ["object", "number", "string", "null"],
+                "description": "A total LOC delta (number), a terse string (e.g. \"+5/-2\"), or a split { add, rem } object.",
+                "properties": {
+                  "add": { "type": "integer", "minimum": 0 },
+                  "rem": { "type": "integer", "minimum": 0 }
+                }
+              },
+              "imports":       { "type": "array", "items": { "type": "string" } },
+              "planned_change": {
+                "type": ["object", "string"],
+                "properties": {
+                  "intent": { "type": "string" },
+                  "diff":   { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "properties": {
+              "from":  { "type": "string" },
+              "to":    { "type": "string" },
+              "kind":  { "type": "string", "description": "Relationship label — import/replaces/crosses-service plus open-ended kinds authors use (config, api-contract, css-class, contract, …)." },
+              "type":  { "type": "string" },
+              "label": { "type": "string" }
+            }
+          }
+        },
+        "lanes": {
+          "type": "array",
+          "description": "Optional swim-lane projection for plans that span services. When present (or when an edge has kind=crosses-service), the renderer emits a data-flow lane figure instead of the per-module file topology. Added in v9.21.0.",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["service", "files"],
+            "properties": {
+              "service": { "type": "string" },
+              "label":   { "type": "string" },
+              "files":   { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id":          { "type": "string" },
+              "level":       { "enum": ["high", "med", "medium", "low", "blocker", "resolved"] },
+              "severity":    { "enum": ["high", "med", "medium", "low", "blocker", "resolved"] },
+              "title":       { "type": "string" },
+              "label":       { "type": "string" },
+              "description": { "type": "string" },
+              "body":        { "type": "string" },
+              "detail":      { "type": "string" },
+              "note":        { "type": "string" },
+              "mitigation":  { "type": "string" }
+            }
+          }
+        },
+        "history": { "type": ["string", "array"] }
+      }
+    },
+
+    "design": {
+      "type": "object",
+      "required": ["artifact", "component", "themes", "states", "sizes", "tokens", "specs"],
+      "properties": {
+        "artifact":  { "const": "design" },
+        "component": { "type": "string" },
+        "themes":    { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "states":    { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "sizes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "height"],
+            "properties": {
+              "id":     { "type": "string" },
+              "height": { "type": "number" },
+              "padx":   { "type": "number" },
+              "pady":   { "type": "number" },
+              "font":   { "type": "number" },
+              "radius": { "type": "number" }
+            }
+          }
+        },
+        "tokens": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "category", "value"],
+            "properties": {
+              "name":     { "type": "string" },
+              "category": { "enum": ["color", "radius", "spacing", "font", "easing", "shadow"] },
+              "value":    { "type": "string" },
+              "note":     { "type": "string" }
+            }
+          }
+        },
+        "specs": {
+          "type": "object",
+          "required": ["reference", "annotate"],
+          "properties": {
+            "reference": { "type": "string" },
+            "annotate":  { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "design-contract": {
+      "type": "object",
+      "description": "Sibling YAML for design-contract (visual contract) fragments, authored by /wf-design craft next to 02c-craft.md. Carries the token/state/size/theme coverage axes plus the per-element implementation contract so design-contract.mjs can build the interactive coverage grid without scraping prose. NOTE: required[] is intentionally minimal — there is no real authored corpus yet (this is the first writer), so design-contract is NOT in SIBLING_YAML_VALIDATED_TYPES; it joins the write-time hard-validate allowlist only once a real sibling proves the shape.",
+      "required": ["artifact", "component", "tokens", "states", "sizes", "themes"],
+      "properties": {
+        "artifact": { "const": "design-contract" },
+        "component": { "type": "string" },
+        "based-on": { "type": "string" },
+        "summary": { "type": "string", "maxLength": 500 },
+        "run_at": { "$ref": "#/$defs/iso8601" },
+        "tokens": { "type": "array", "items": { "type": "string" } },
+        "states": { "type": "array", "items": { "type": "string" } },
+        "sizes":  { "type": "array", "items": { "type": "string" } },
+        "themes": { "type": "array", "items": { "type": "string" } },
+        "contract": {
+          "type": "array",
+          "description": "Per-element implementation-contract rows the fragment renders as expandable entries.",
+          "items": {
+            "type": "object",
+            "required": ["element", "requirement"],
+            "properties": {
+              "element":     { "type": "string" },
+              "tokens":      { "type": "array", "items": { "type": "string" } },
+              "states":      { "type": "array", "items": { "type": "string" } },
+              "requirement": { "type": "string" },
+              "refs":        { "$ref": "#/$defs/refs" }
+            }
+          }
+        },
+        "anti-patterns": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "design-critique": {
+      "type": "object",
+      "description": "Sibling YAML for design critique fragments. Carries row-level findings so renderers can build critique tables without scraping prose.",
+      "required": ["artifact", "scope", "summary", "findings"],
+      "properties": {
+        "artifact": { "const": "design-critique" },
+        "scope": { "enum": ["surface", "flow", "system", "narrative"] },
+        "summary": { "type": "string", "maxLength": 500 },
+        "run_at": { "$ref": "#/$defs/iso8601" },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "observation", "recommendation"],
+            "properties": {
+              "id": { "type": "string" },
+              "severity": { "enum": ["blocker", "high", "medium", "low", "nit"] },
+              "dimension": { "type": "string" },
+              "where": { "type": "string" },
+              "observation": { "type": "string" },
+              "recommendation": { "type": "string" },
+              "refs": { "$ref": "#/$defs/refs" }
+            }
+          }
+        }
+      }
+    },
+
+    "design-audit": {
+      "type": "object",
+      "description": "Sibling YAML for design audit fragments. Carries severity-graded violations and remediation status for renderer tables.",
+      "required": ["artifact", "verdict", "audited-against", "remediation-state", "violations"],
+      "properties": {
+        "artifact": { "const": "design-audit" },
+        "verdict": { "enum": ["pass", "fail", "conditional"] },
+        "audited-against": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/stringArray" }
+          ]
+        },
+        "remediation-state": { "enum": ["none", "in-progress", "complete", "deferred"] },
+        "run_at": { "$ref": "#/$defs/iso8601" },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "severity", "token-or-rule", "observation", "remediation-status"],
+            "properties": {
+              "id": { "type": "string" },
+              "severity": { "enum": ["blocker", "high", "medium", "low"] },
+              "token-or-rule": { "type": "string" },
+              "where": { "type": "string" },
+              "observation": { "type": "string" },
+              "remediation-status": { "enum": ["open", "in-progress", "fixed", "deferred"] },
+              "recommendation": { "type": "string" },
+              "refs": { "$ref": "#/$defs/refs" }
+            }
+          }
+        }
+      }
+    },
+
+    "simplify-run": {
+      "type": "object",
+      "description": "Sibling YAML for off-pipeline simplify runs (.ai/simplify/<run-id>.md). Drives the finding-table fragment introduced in v9.22.0 (Phase 3). Styled like the review fragment but at smaller scale: no verdict block, categorical chips (reuse/quality/efficiency) instead of severity, optional deltas summary.",
+      "required": ["artifact", "run_id", "scope", "counts", "findings"],
+      "properties": {
+        "artifact": { "const": "simplify-run" },
+        "run_id":   { "type": "string" },
+        "scope":    { "enum": ["branch", "commit", "plan", "codebase"] },
+        "target":   { "type": "string" },
+        "rev":      { "type": "integer", "minimum": 1 },
+        "model":    { "type": "string" },
+        "run_at":   { "$ref": "#/$defs/iso8601" },
+        "summary":  { "type": "string", "maxLength": 500 },
+        "counts": {
+          "type": "object",
+          "required": ["reuse", "quality", "efficiency", "accepted", "skipped", "deferred"],
+          "properties": {
+            "reuse":      { "type": "integer", "minimum": 0 },
+            "quality":    { "type": "integer", "minimum": 0 },
+            "efficiency": { "type": "integer", "minimum": 0 },
+            "accepted":   { "type": "integer", "minimum": 0 },
+            "skipped":    { "type": "integer", "minimum": 0 },
+            "deferred":   { "type": "integer", "minimum": 0 }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "category", "msg"],
+            "properties": {
+              "id":       { "type": "string" },
+              "category": { "enum": ["reuse", "quality", "efficiency"] },
+              "action":   { "enum": ["accept", "skip", "defer"] },
+              "file":     { "type": "string" },
+              "line":     { "type": "integer" },
+              "msg":      { "type": "string" },
+              "fix":      { "type": "string" }
+            }
+          }
+        },
+        "deltas": {
+          "type": "array",
+          "description": "Optional summary of proposed code deltas (file-level add/rem counts).",
+          "items": {
+            "type": "object",
+            "required": ["file"],
+            "properties": {
+              "file":    { "type": "string" },
+              "add":     { "type": "integer", "minimum": 0 },
+              "rem":     { "type": "integer", "minimum": 0 },
+              "summary": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "profile": {
+      "type": "object",
+      "description": "Sibling YAML for off-pipeline profile/benchmark runs (.ai/profiles/<run-id>/01-profile.md). Drives the benchmark-comparison fragment introduced in v9.22.0 (Phase 3): hotspots table + before/after metric bars + optimization candidates list.",
+      "required": ["artifact", "run_id", "method", "hotspots"],
+      "properties": {
+        "artifact":         { "const": "profile" },
+        "run_id":           { "type": "string" },
+        "target":           { "type": "string" },
+        "language":         { "type": "string" },
+        "method":           { "enum": ["static", "dynamic-cpu", "dynamic-memory", "hybrid", "fallback-timing"] },
+        "confidence":       { "enum": ["high", "medium", "low"] },
+        "measured_at":      { "$ref": "#/$defs/iso8601" },
+        "baseline_commit":  { "type": "string" },
+        "hotspots": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "function", "cost_pct"],
+            "properties": {
+              "id":         { "type": "string" },
+              "function":   { "type": "string" },
+              "file":       { "type": "string" },
+              "line":       { "type": "integer" },
+              "cost_pct":   { "type": "number", "minimum": 0, "maximum": 100 },
+              "candidate":  { "type": "boolean" }
+            }
+          }
+        },
+        "optimization_candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "intent"],
+            "properties": {
+              "id":                { "type": "string" },
+              "hotspot":           { "type": "string" },
+              "intent":            { "type": "string" },
+              "estimated_gain_pct":{ "type": "number" },
+              "confidence":        { "enum": ["high", "medium", "low"] }
+            }
+          }
+        },
+        "comparisons": {
+          "type": "array",
+          "description": "Before/after metric pairs for the benchmark-comparison figure. When absent the figure is omitted.",
+          "items": {
+            "type": "object",
+            "required": ["metric", "before", "after"],
+            "properties": {
+              "metric":    { "type": "string" },
+              "before":    { "type": "number" },
+              "after":     { "type": "number" },
+              "unit":      { "type": "string" },
+              "direction": { "enum": ["lower-is-better", "higher-is-better"] }
+            }
+          }
+        }
+      }
+    },
+
+    "benchmark": {
+      "type": "object",
+      "description": "Sibling YAML for augmentation/benchmark artifacts. Drives the augmentation structured-result fragment (v9.22.0).",
+      "required": ["artifact", "target", "metrics"],
+      "properties": {
+        "artifact":        { "const": "benchmark" },
+        "target":          { "type": "string" },
+        "language":        { "type": "string" },
+        "framework":       { "type": "string" },
+        "mode":            { "enum": ["baseline", "compare", "complete"] },
+        "measured_at":     { "$ref": "#/$defs/iso8601" },
+        "baseline_commit": { "type": "string" },
+        "metrics": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "after"],
+            "properties": {
+              "name":      { "type": "string" },
+              "before":    { "type": "number" },
+              "after":     { "type": "number" },
+              "unit":      { "type": "string" },
+              "delta_pct": { "type": "number" },
+              "direction": { "enum": ["lower-is-better", "higher-is-better"] }
+            }
+          }
+        },
+        "regressions":  { "type": "array", "items": { "type": "string" } },
+        "improvements": { "type": "array", "items": { "type": "string" } },
+        "notes":        { "type": "string" }
+      }
+    },
+
+    "experiment": {
+      "type": "object",
+      "description": "Sibling YAML for augmentation/experiment artifacts. Drives the augmentation structured-result fragment (v9.22.0).",
+      "required": ["artifact", "experiment_type", "hypothesis", "arms"],
+      "properties": {
+        "artifact":        { "const": "experiment" },
+        "experiment_type": { "enum": ["feature-flag", "a-b-test", "canary", "shadow"] },
+        "flag":            { "type": "string" },
+        "framework":       { "type": "string" },
+        "hypothesis":      { "type": "string" },
+        "split":           { "type": "string" },
+        "status":          { "enum": ["ready", "running", "completed", "abandoned"] },
+        "arms": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["id", "allocated_pct"],
+            "properties": {
+              "id":            { "type": "string" },
+              "description":   { "type": "string" },
+              "allocated_pct": { "type": "number", "minimum": 0, "maximum": 100 }
+            }
+          }
+        },
+        "guardrails": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "threshold", "direction"],
+            "properties": {
+              "name":      { "type": "string" },
+              "threshold": { "type": "number" },
+              "direction": { "enum": ["lower-is-better", "higher-is-better"] },
+              "unit":      { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+
+    "instrument": {
+      "type": "object",
+      "description": "Sibling YAML for augmentation/instrument artifacts. Drives the augmentation structured-result fragment (v9.22.0).",
+      "required": ["artifact", "framework", "signals"],
+      "properties": {
+        "artifact":  { "const": "instrument" },
+        "framework": { "type": "string" },
+        "signals": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "kind"],
+            "properties": {
+              "name": { "type": "string" },
+              "kind": { "enum": ["counter", "gauge", "histogram", "log", "trace", "event"] },
+              "pii":  { "type": "boolean" },
+              "path": { "type": "string" },
+              "note": { "type": "string" }
+            }
+          }
+        },
+        "dark_paths": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "properties": {
+              "path":   { "type": "string" },
+              "reason": { "type": "string" }
+            }
+          }
+        },
+        "pii_warnings": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "ship-run": {
+      "type": "object",
+      "required": ["release", "run_at", "stages", "checks", "rollback"],
+      "properties": {
+        "artifact": { "const": "ship-run" },
+        "release":  { "type": "string" },
+        "run_at":   { "$ref": "#/$defs/iso8601" },
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "status"],
+            "properties": {
+              "name":       { "type": "string" },
+              "started_at": { "type": "string" },
+              "ended_at":   { "type": "string" },
+              "status":     { "type": "string" }
+            }
+          }
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["name", "kind", "results"],
+            "properties": {
+              "name":    { "type": "string" },
+              "kind":    { "type": "string" },
+              "results": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": ["status"],
+                  "properties": {
+                    "status":     { "enum": ["pass", "fail", "flake", "skip", "running", "pending"] },
+                    "duration_s": { "type": ["number", "null"] }
+                  }
+                }
+              },
+              "logs": { "type": "object", "additionalProperties": { "type": "string" } }
+            }
+          }
+        },
+        "rollback": {
+          "type": "object",
+          "required": ["window_minutes", "target_release"],
+          "properties": {
+            "window_minutes": { "type": "integer", "minimum": 0 },
+            "target_release": { "type": "string" },
+            "approvers":      { "type": "array", "items": { "type": "string" } }
+          }
+        }
+      }
+    },
+
+    "sync-report": {
+      "type": "object",
+      "description": "Branch-sync health report (00-sync.yaml beside 00-sync.md). A regenerable view over git/PR state: how far the feature branch has diverged from its base and whether a rebase is safe. `conflict_risk` drives the verdict tone; `diverged_files[]` drives both the desktop drift table and the mobile file rows; `recommendation` populates the callout. Added in v9.44.0.",
+      "required": ["artifact", "branch", "base_branch", "ahead_count", "behind_count", "conflict_risk"],
+      "properties": {
+        "artifact":      { "const": "sync" },
+        "branch":        { "type": "string" },
+        "base_branch":   { "type": "string" },
+        "ahead_count":   { "type": "integer", "minimum": 0 },
+        "behind_count":  { "type": "integer", "minimum": 0 },
+        "conflict_risk": { "enum": ["none", "low", "med", "high"] },
+        "rebase_status": { "enum": ["clean", "conflicts"] },
+        "stale_days":    { "type": "integer", "minimum": 0 },
+        "diverged_files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["path"],
+            "properties": {
+              "path":         { "type": "string" },
+              "base_delta":   { "type": ["string", "null"] },
+              "branch_delta": { "type": ["string", "null"] },
+              "conflict":     { "type": "boolean" }
+            }
+          }
+        },
+        "recommendation": { "type": "string" }
+      }
+    }
+  }
+}
