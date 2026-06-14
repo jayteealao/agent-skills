@@ -8,7 +8,8 @@ import {
   hostAllowed,
   renderCodeBrowserPage,
   resolveRequestPath
-} from "./chunk-IOYXLHW6.mjs";
+} from "./chunk-WY3THHYQ.mjs";
+import "./chunk-BTT5W62B.mjs";
 import {
   codeBrowserConfigFromEnv,
   createHealController,
@@ -20,11 +21,11 @@ import {
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv,
   writePidFile
-} from "./chunk-RY6BGTTK.mjs";
-import "./chunk-4WRIEOIP.mjs";
-import "./chunk-FZ2GR6GF.mjs";
-import "./chunk-KRRL2TSM.mjs";
-import "./chunk-SGA7NFMW.mjs";
+} from "./chunk-2J6GCTGA.mjs";
+import {
+  createRenderQueueDrainer
+} from "./chunk-ELXHT3DD.mjs";
+import "./chunk-KGLQRRIU.mjs";
 
 // scripts/render-sunflower-serve.mjs
 import {
@@ -151,10 +152,32 @@ function createSdlcStaticServer({
     }, reconcileMs);
     if (typeof reconcileTimer.unref === "function") reconcileTimer.unref();
   }
+  const renderQueue = createRenderQueueDrainer({
+    submit: (entry, spec) => heal.submit(entry, spec),
+    isBusy: (id) => heal.isBusy(id),
+    pluginRoot,
+    log: (line) => console.log(`[serve] ${line}`),
+    maxAttempts: heal.config.maxAttempts
+  });
+  try {
+    renderQueue.catchUp([selfEntry]);
+  } catch {
+  }
+  const queueTimer = setInterval(() => {
+    try {
+      renderQueue.drainEntry(selfEntry);
+    } catch {
+    }
+  }, reconcileMs);
+  if (typeof queueTimer.unref === "function") queueTimer.unref();
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? "/", "http://sdlc.local");
     if (url.pathname === "/__sdlc/health") {
-      sendJson(res, { ...healthPayload(root, configHash), heal: heal.snapshot() });
+      sendJson(res, {
+        ...healthPayload(root, configHash),
+        heal: heal.snapshot(),
+        renderQueue: renderQueue.snapshot([selfEntry])
+      });
       return;
     }
     const p = url.pathname;
@@ -215,6 +238,7 @@ function createSdlcStaticServer({
   server.close = (callback) => {
     if (watcher) watcher.close();
     if (reconcileTimer) clearInterval(reconcileTimer);
+    clearInterval(queueTimer);
     for (const client of clients) client.end();
     clients.clear();
     return close(callback);

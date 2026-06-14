@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — rendering moves out of the hooks into the hub: a durable render queue (9.73.0)
+
+Implements RENDER-DISPATCH-PLAN — the prerequisite for the native Codex host. Instead of every
+managed-artifact write spawning its own short-lived `render-sunflower`, the write hook now **reports** the
+change to a durable per-repo queue and the long-running serving daemon **renders** it through the shared
+bounded engine. One renderer (the daemon) keeps `.last-render` version identity consistent, which is what a
+second host plugin needs to stop the stale-render healer from thrashing.
+
+- **New `lib/render-queue.mjs`.** A maildir-style queue at `<repo>/.ai/_view/.render-queue/` (atomic
+  temp+rename records, `.processing/` claim dir, `.failed/` ceiling dir, `.status.json`). `enqueue` /
+  `readPending` / `coalesce` / `claim` / `ack` / `fail` / `reclaimOrphans` / `writeStatus`, plus
+  `createRenderQueueDrainer` (the per-tick + startup-catch-up drain controller). Host-neutral — the future
+  Codex hooks reuse `enqueue()` verbatim; `enqueuedBy.host` is provenance only.
+- **The heal controller is the one bounded engine.** `lib/heal-render.mjs` gains `submit()` / `isBusy()`,
+  funnelling queue-driven renders through the SAME `inFlight` (per-repo) / concurrency-cap / `pump` /
+  `spawnOne` machinery as the stale-render heal — so a queue render and a heal render for one repo can never
+  run concurrently and clobber the view. `resolveRenderEntrypoint()` is now the single renderer-resolution
+  seam (the one place native interop later repoints at the active machine runtime).
+- **Both daemons drain.** `hub-serve` drains every registered repo on its reconcile tick + an immediate
+  startup catch-up; the standalone `render-sunflower-serve` does the same for its one repo (on a timer that
+  runs regardless of the heal toggle). `/__sdlc/health` gains a `renderQueue` block.
+- **Coalescing keeps it bounded.** A burst of writes to one bucket renders once (`--only <bucket>/**`); a
+  `bootstrap` request or several touched buckets collapse to one whole-repo `--bootstrap` pass. Off-pipeline
+  buckets (`simplify`/`profiles`/`dep-updates`/`ideation`) now render incrementally via the queue instead of
+  only at the next bootstrap.
+- **Hub-down resilience.** When no daemon answers, the write hook still enqueues durably, makes a
+  best-effort detached `hub-ensure` start attempt (which also registers the repo), and records the failure in
+  `.status.json` / `.render-errors.log`; the queued change renders at the hub's startup catch-up. SessionStart
+  surfaces a one-line "N renders pending — hub unreachable" advisory. There is **no inline-render fallback** —
+  views lag rather than rendering inline.
+- **Config + rollback.** New `view.renderDispatch: "hub" | "inline"` (default `hub`; `inline` restores the
+  exact legacy per-write spawn — the rollback / A-B switch), `view.ensureHubOnWrite`, and
+  `view.renderQueue.maxPending`. New detached helper `scripts/hub-ensure.mjs`; new env kill switch
+  `SDLC_DISABLE_ENSURE_HUB=1`. +26 tests (`render-queue.test.mjs` + hook dispatch cases).
+
 ### Fixed — tray autostart launcher self-heals to the current version + durable node path (9.72.0)
 
 After a plugin upgrade relocates the tray bundle (`…/<version>/dist/tray.mjs`), an **enabled** autostart

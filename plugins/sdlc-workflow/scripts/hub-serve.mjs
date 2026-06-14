@@ -36,6 +36,7 @@ import {
 import {
   createHealController, staleRenderConfigFromEnv, readRenderedVersion,
 } from '../lib/heal-render.mjs';
+import { createRenderQueueDrainer, countPending } from '../lib/render-queue.mjs';
 import { renderHubLanding } from '../renderers/hub-dashboard.mjs';
 import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 
@@ -201,6 +202,20 @@ export function createHubServer({
     spawnRender,
   });
 
+  // Render-queue drainer (RENDER-DISPATCH-PLAN). Funnels queued, hook-reported
+  // writes through the SAME bounded engine as heal (heal.submit / heal.isBusy),
+  // so a queue render and a heal render for one repo never run concurrently.
+  // Runs regardless of the heal toggle — heal.submit is unconditional (only
+  // drift detection is gated by heal:false), so queue dispatch works even when a
+  // user has heal off. maxAttempts mirrors the heal cap (same "give up after N").
+  const renderQueue = createRenderQueueDrainer({
+    submit: (entry, spec) => heal.submit(entry, spec),
+    isBusy: (id) => heal.isBusy(id),
+    pluginRoot,
+    log: logHub,
+    maxAttempts: heal.config.maxAttempts,
+  });
+
   // Fold shards in + drop dead/poisoned entries at startup, then load the
   // validated set. The hub is the sole writer of registry.json from here on.
   function reload() {
@@ -300,9 +315,12 @@ export function createHubServer({
     let changed = false;
     const live = [];
     for (const e of entries) {
+      // Keep a repo with rendered output OR pending queue work — a freshly
+      // registered repo whose first render is still queued has no .last-render yet
+      // (RENDER-DISPATCH-PLAN), and must survive prune so step 4 can drain it.
       const present = existsSync(e.repoRoot)
         && existsSync(e.viewDir)
-        && existsSync(`${e.viewDir}/.last-render`);
+        && (existsSync(`${e.viewDir}/.last-render`) || countPending(e.viewDir) > 0);
       if (present) { live.push(e); continue; }
       changed = true;
       const w = watchers.get(e.id);
@@ -343,6 +361,11 @@ export function createHubServer({
     // entries (watched or not) — drift is independent of fs.watch coverage. The
     // controller swallows its own errors, so this never escalates to reconcile.
     for (const e of entries) heal.consider(e);
+
+    // 4. render-queue drain (RENDER-DISPATCH-PLAN). Same level-triggered shape:
+    // claim each repo's queued, hook-reported writes, coalesce them to one render
+    // and hand it to the bounded engine. The drainer swallows its own errors.
+    for (const e of entries) renderQueue.drainEntry(e);
   }
 
   /* ── helpers ── */
@@ -375,6 +398,8 @@ export function createHubServer({
       }),
       // Stale-render heal state: { heal, maxConcurrent, inFlight, queued, failed }.
       heal: heal.snapshot(),
+      // Render-queue state (RENDER-DISPATCH-PLAN): { pending:{id:n}, failed[], lastDrainAt }.
+      renderQueue: renderQueue.snapshot(entries),
       metrics: {
         requests: metrics.requests,
         sseClients: clients.size,
@@ -762,6 +787,14 @@ export function createHubServer({
   };
 
   reload();
+
+  // Startup catch-up (RENDER-DISPATCH-PLAN "Catch-up on start"): immediately
+  // reclaim any orphaned in-flight claims and drain everything queued while the
+  // hub was down, before the 10s reconcile cadence begins. reload() has already
+  // populated `entries` (folding in any registry.d/ shards a hook dropped while
+  // the hub was down). Best-effort — never block startup.
+  try { renderQueue.catchUp(entries); } catch (err) { logHub(`render-queue catch-up error: ${err?.message ?? err}`); }
+
   return server;
 }
 

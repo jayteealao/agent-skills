@@ -23,11 +23,15 @@ import { fileURLToPath } from 'node:url';
 import { spawnDetachedNode } from '../lib/detach.mjs';
 import { resolveEntrypoint } from '../lib/entrypoint.mjs';
 import { resolveProjectRoot } from '../lib/project-root.mjs';
+import { loadConfig } from '../lib/config.mjs';
+import { enqueue, queueDir, appendError } from '../lib/render-queue.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const PLUGIN_ROOT = resolve(__dirname, '..');
 const DEBOUNCE_MS = 2000;
+// Bound how often a burst of writes re-spawns the (idempotent) hub-ensure helper.
+const ENSURE_DEBOUNCE_MS = 3000;
 
 function readInput() {
   try {
@@ -44,9 +48,11 @@ function shouldSkipForPath(touchedAbs, viewRoot) {
   if (touchedAbs.includes(`${viewRoot}/`) || touchedAbs.includes(`${viewRoot}\\`)) return true;
   const norm = touchedAbs.replace(/\\/g, '/');
   return !(
-    norm.includes('/.ai/workflows/') ||
-    norm.includes('/.ai/simplify/')  ||
-    norm.includes('/.ai/profiles/')  ||
+    norm.includes('/.ai/workflows/')    ||
+    norm.includes('/.ai/simplify/')     ||
+    norm.includes('/.ai/profiles/')     ||
+    norm.includes('/.ai/dep-updates/')  ||
+    norm.includes('/.ai/ideation/')     ||
     /\/\.ai\/docs\/[^/]+\/08b-docs-index\.(md|yaml|html\.fragment)$/.test(norm) ||
     /\/(PRODUCT|DESIGN)\.md$/.test(norm) ||
     /\/\.ai\/ship-plan\.md$/.test(norm)
@@ -69,14 +75,74 @@ function pickArtifactPaths(input) {
   );
 }
 
-function detectRenderBucket(touchedAbs, cwd) {
+// Classify a touched artifact path into a render bucket + kind.
+//   { bucket, kind } | null
+//   kind 'incremental' → a slug / docs / project bucket (the inline path renders
+//                        these; the hub path enqueues them).
+//   kind 'offpipeline' → simplify / profiles / dep-updates / ideation. The view
+//                        bucket name matches the source dir, so `--only
+//                        <bucket>/**` targets it (the v9.68.0 OFF_PIPELINE_BUCKET
+//                        fix). The legacy inline path defers these to bootstrap;
+//                        the hub path enqueues them like any other bucket.
+function detectRenderBucket(touchedAbs) {
   const norm = touchedAbs.replace(/\\/g, '/');
-  // Match .ai/workflows/<slug>/...
   const m = norm.match(/\/\.ai\/workflows\/([^/]+)\//);
-  if (m) return m[1];
-  if (/\/\.ai\/docs\/[^/]+\/08b-docs-index\.(md|yaml|html\.fragment)$/.test(norm)) return 'docs';
-  if (/\/(PRODUCT|DESIGN)\.md$/.test(norm) || /\/\.ai\/ship-plan\.md$/.test(norm)) return 'project';
+  if (m) return { bucket: m[1], kind: 'incremental' };
+  if (/\/\.ai\/docs\/[^/]+\/08b-docs-index\.(md|yaml|html\.fragment)$/.test(norm)) return { bucket: 'docs', kind: 'incremental' };
+  if (/\/(PRODUCT|DESIGN)\.md$/.test(norm) || /\/\.ai\/ship-plan\.md$/.test(norm)) return { bucket: 'project', kind: 'incremental' };
+  if (norm.includes('/.ai/simplify/'))    return { bucket: 'simplify', kind: 'offpipeline' };
+  if (norm.includes('/.ai/profiles/'))    return { bucket: 'profiles', kind: 'offpipeline' };
+  if (norm.includes('/.ai/dep-updates/')) return { bucket: 'dep-updates', kind: 'offpipeline' };
+  if (norm.includes('/.ai/ideation/'))    return { bucket: 'ideation', kind: 'offpipeline' };
   return null;
+}
+
+// Bound burst spawns of the (idempotent) hub-ensure helper: only spawn if the
+// last spawn was more than ENSURE_DEBOUNCE_MS ago. Stamp file lives in the queue
+// dir (hook-skipped, git-ignored) and is not a `.json` record.
+function shouldSpawnEnsure(viewRoot) {
+  const stamp = join(queueDir(viewRoot), '.ensure-stamp');
+  try {
+    if (Date.now() - Number(readFileSync(stamp, 'utf-8')) < ENSURE_DEBOUNCE_MS) return false;
+  } catch { /* no stamp → spawn */ }
+  try { writeFileSync(stamp, String(Date.now()), 'utf-8'); } catch { /* best-effort */ }
+  return true;
+}
+
+// Best-effort, non-blocking: ask the detached hub-ensure helper to start/adopt
+// the hub + register this repo + record status, OFF the hook's critical path.
+// Honours the ensureHubOnWrite config + a test/operator env kill switch.
+function ensureHubBestEffort(cwd, viewRoot, config) {
+  if (config.view?.ensureHubOnWrite === false) return;
+  if (process.env.SDLC_DISABLE_ENSURE_HUB === '1') return;
+  if (!shouldSpawnEnsure(viewRoot)) return;
+  try {
+    spawnDetachedNode(
+      resolveEntrypoint(PLUGIN_ROOT, 'hub-ensure'),
+      ['--plugin-root', PLUGIN_ROOT, '--project-root', cwd, '--view', viewRoot],
+      { cwd, env: process.env },
+    );
+  } catch (err) {
+    try { appendError(viewRoot, `ensure-hub spawn failed: ${err?.message ?? err}`); } catch { /* best-effort */ }
+  }
+}
+
+// Legacy 'inline' dispatch — the pre-RENDER-DISPATCH behaviour, kept verbatim as
+// the rollback / A-B switch. Renders incremental buckets only (off-pipeline
+// defers to bootstrap, exactly as before): touch-file debounce, then a detached
+// render-sunflower. `buckets` are incremental-kind bucket names.
+function legacyInlineDispatch(cwd, viewRoot, buckets) {
+  if (!buckets.length) exitClean();
+  mkdirSync(viewRoot, { recursive: true });
+  const touchFile = join(viewRoot, '.render-pending');
+  const now = Date.now();
+  writeFileSync(touchFile, String(now), 'utf-8');
+  spawnDetachedNode(
+    __filename,
+    ['--debounce-stage2', String(now), buckets.join(',')],
+    { cwd, env: { ...process.env, SDLC_DEBOUNCE_ORIGIN_TS: String(now) } },
+  );
+  exitClean();
 }
 
 async function main() {
@@ -102,34 +168,48 @@ async function main() {
   const relevant = touchedPaths.filter((p) => !shouldSkipForPath(resolve(cwd, p), viewRoot));
   if (!relevant.length) exitClean();
 
-  // Build a slug-glob from the touched paths (union, deduped)
-  const buckets = new Set();
+  // Classify each touched path into a render bucket (+ kind), grouped per bucket.
+  const byBucket = new Map();   // "kind:bucket" → { kind, bucket, paths[] }
   for (const p of relevant) {
-    const bucket = detectRenderBucket(resolve(cwd, p), cwd);
-    if (bucket) buckets.add(bucket);
+    const d = detectRenderBucket(resolve(cwd, p));
+    if (!d) continue;
+    const key = `${d.kind}:${d.bucket}`;
+    if (!byBucket.has(key)) byBucket.set(key, { kind: d.kind, bucket: d.bucket, paths: [] });
+    byBucket.get(key).paths.push(p);
   }
-  // No recognized slug bucket (e.g. simplify/profiles writes) → skip the
-  // incremental pass rather than spawning a full-site re-render. These
-  // off-pipeline artifacts are picked up by the next bootstrap render.
-  if (!buckets.size) exitClean();
+  if (!byBucket.size) exitClean();
 
-  // Touch-file debounce
+  const config = await loadConfig(cwd);
+  const dispatch = config.view?.renderDispatch ?? 'hub';
+
+  // 'inline' (rollback / A-B): the pre-RENDER-DISPATCH path. Incremental buckets
+  // only; off-pipeline defers to bootstrap, exactly as before.
+  if (dispatch === 'inline') {
+    const incremental = [...new Set(
+      [...byBucket.values()].filter((b) => b.kind === 'incremental').map((b) => b.bucket),
+    )];
+    legacyInlineDispatch(cwd, viewRoot, incremental);   // exits
+    return;
+  }
+
+  // 'hub' (default): REPORT each affected bucket to the durable per-repo queue;
+  // the serving daemon drains + renders it through the shared bounded engine. One
+  // record per (kind, bucket) so the hub coalesces by bucket. The hook does NOT
+  // render and does NOT debounce — the hub's tick + coalescing batch the work.
   mkdirSync(viewRoot, { recursive: true });
-  const touchFile = join(viewRoot, '.render-pending');
-  const now = Date.now();
-  writeFileSync(touchFile, String(now), 'utf-8');
+  for (const { kind, bucket, paths } of byBucket.values()) {
+    enqueue(viewRoot, {
+      repoRoot: cwd,
+      kind,
+      bucket,
+      paths,
+      enqueuedBy: { host: 'claude', pid: process.pid },
+    }, { maxPending: config.view?.renderQueue?.maxPending });
+  }
 
-  // Detach a child that sleeps DEBOUNCE_MS, then re-checks. Routed through the
-  // shared helper so it inherits windowsHide:true — a bare detached `node`
-  // child gets its own console, which flashes a terminal window on Windows.
-  spawnDetachedNode(
-    __filename,
-    ['--debounce-stage2', String(now), [...buckets].join(',')],
-    {
-      cwd,
-      env: { ...process.env, SDLC_DEBOUNCE_ORIGIN_TS: String(now) },
-    },
-  );
+  // Off the critical path: ensure the hub is up + register this repo + record
+  // status, so the queued change renders (now, or at the hub's startup catch-up).
+  ensureHubBestEffort(cwd, viewRoot, config);
 
   exitClean();
 }

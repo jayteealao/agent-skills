@@ -13,22 +13,21 @@ import {
   readHubConfig,
   stopHub,
   writeHubConfig
-} from "./chunk-KNFD7UYA.mjs";
-import "./chunk-H5U2H73C.mjs";
+} from "./chunk-MUYXQH7Z.mjs";
 import "./chunk-HQR34SES.mjs";
+import "./chunk-NHBE6SKM.mjs";
 import {
   hubPidPath,
   sdlcHomeDir
-} from "./chunk-VAB2CNQR.mjs";
+} from "./chunk-GQ3CJSFD.mjs";
+import {
+  readPidFile
+} from "./chunk-2J6GCTGA.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
-import {
-  readPidFile
-} from "./chunk-RY6BGTTK.mjs";
-import "./chunk-FZ2GR6GF.mjs";
-import "./chunk-KRRL2TSM.mjs";
-import "./chunk-SGA7NFMW.mjs";
+import "./chunk-ELXHT3DD.mjs";
+import "./chunk-KGLQRRIU.mjs";
 
 // scripts/tray.mjs
 import { existsSync as existsSync2, readFileSync, mkdirSync, copyFileSync, statSync, chmodSync } from "node:fs";

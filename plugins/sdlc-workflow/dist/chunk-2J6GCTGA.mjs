@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   resolveEntrypoint
-} from "./chunk-KRRL2TSM.mjs";
+} from "./chunk-ELXHT3DD.mjs";
 
 // lib/pid-file.mjs
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
@@ -736,6 +736,9 @@ function staleRenderConfigFromEnv(env = process.env) {
   }
   return normalizeStaleRenderConfig(raw);
 }
+function resolveRenderEntrypoint(pluginRoot) {
+  return resolveEntrypoint(pluginRoot, "render-sunflower");
+}
 function readRenderedVersion(markerPath) {
   try {
     const parsed = JSON.parse(readFileSync2(markerPath, "utf-8"));
@@ -801,31 +804,59 @@ function createHealController({
       failed.set(id, { attempts: cfg.maxAttempts, renderedVersion: renderedVersion ?? null });
       return { action: "failed", renderedVersion };
     }
-    queue.push({ entry, renderedVersion });
+    queue.push({
+      entry,
+      renderedVersion,
+      isHeal: true,
+      args: ["--clean", "--view", entry.viewDir]
+    });
     pump();
     return { action: "enqueued", renderedVersion };
+  }
+  function submit(entry, { args, label, onSettled } = {}) {
+    try {
+      if (!entry || !entry.id || !entry.viewDir || !entry.repoRoot) return { action: "invalid" };
+      if (!Array.isArray(args)) return { action: "invalid" };
+      if (isBusy(entry.id)) return { action: "pending" };
+      queue.push({ entry, args, label, isHeal: false, onSettled });
+      pump();
+      return { action: "enqueued" };
+    } catch (err) {
+      log(`render-queue: submit error for ${entry?.id ?? "?"}: ${err?.message ?? err}`);
+      return { action: "error" };
+    }
+  }
+  function isBusy(id) {
+    return inFlight.has(id) || queue.some((q) => q.entry.id === id);
   }
   function pump() {
     while (inFlight.size < cfg.maxConcurrent && queue.length) {
       spawnOne(queue.shift());
     }
   }
-  function spawnOne({ entry, renderedVersion }) {
+  function spawnOne({ entry, renderedVersion, args, label, isHeal, onSettled }) {
     const id = entry.id;
+    const tag = isHeal ? "heal" : "render-queue";
     inFlight.add(id);
-    lastHealAt.set(id, now());
-    attempts.set(id, (attempts.get(id) ?? 0) + 1);
-    const script = resolveEntrypoint(pluginRoot, "render-sunflower");
-    log(`heal: ${id} rendered ${renderedVersion ?? "unversioned"} \u2260 ${pluginVersion} \u2192 clean re-render (attempt ${attempts.get(id)}/${cfg.maxAttempts})`);
+    if (isHeal) {
+      lastHealAt.set(id, now());
+      attempts.set(id, (attempts.get(id) ?? 0) + 1);
+    }
+    const script = resolveRenderEntrypoint(pluginRoot);
+    log(label ?? `heal: ${id} rendered ${renderedVersion ?? "unversioned"} \u2260 ${pluginVersion} \u2192 clean re-render (attempt ${attempts.get(id)}/${cfg.maxAttempts})`);
     let child;
     try {
-      child = spawnRender(script, ["--clean", "--view", entry.viewDir], {
+      child = spawnRender(script, args, {
         cwd: entry.repoRoot,
         env
       });
     } catch (err) {
       inFlight.delete(id);
-      log(`heal: ${id} spawn failed: ${err?.message ?? err}`);
+      log(`${tag}: ${id} spawn failed: ${err?.message ?? err}`);
+      try {
+        onSettled?.(1);
+      } catch {
+      }
       pump();
       return;
     }
@@ -835,13 +866,17 @@ function createHealController({
       settled = true;
       inFlight.delete(id);
       if (code === 0) {
-        log(`heal: ${id} render complete`);
+        log(`${tag}: ${id} render complete`);
         try {
           emitReload(id);
         } catch {
         }
       } else {
-        log(`heal: ${id} render exited ${code}`);
+        log(`${tag}: ${id} render exited ${code}`);
+      }
+      try {
+        onSettled?.(code);
+      } catch {
       }
       pump();
     };
@@ -864,7 +899,7 @@ function createHealController({
       failed: [...failed.entries()].map(([id, v]) => ({ id, ...v }))
     };
   }
-  return { consider, snapshot, config: cfg };
+  return { consider, submit, isBusy, snapshot, config: cfg };
 }
 
 export {

@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,8 +13,19 @@ const HOOKS = {
   preWriteValidate: join(PLUGIN_ROOT, 'hooks', 'pre-write-validate.mjs'),
   postWriteVerify: join(PLUGIN_ROOT, 'hooks', 'post-write-verify.mjs'),
   postWriteAutoStage: join(PLUGIN_ROOT, 'hooks', 'post-write-auto-stage.mjs'),
+  postWriteRender: join(PLUGIN_ROOT, 'hooks', 'post-write-render.mjs'),
   sessionStartOrient: join(PLUGIN_ROOT, 'hooks', 'session-start-orient.mjs'),
 };
+
+// Read the pending render-queue records under a repo's view dir (excludes the
+// .status.json sidecar + the .processing/.failed subdirs).
+function queueRecords(repoRoot) {
+  const qdir = join(repoRoot, '.ai', '_view', '.render-queue');
+  if (!existsSync(qdir)) return [];
+  return readdirSync(qdir)
+    .filter((n) => n.endsWith('.json') && n !== '.status.json')
+    .map((n) => JSON.parse(readFileSync(join(qdir, n), 'utf-8')));
+}
 
 function tempDir(prefix = 'sdlc-hooks-') {
   return mkdtempSync(join(tmpdir(), prefix));
@@ -747,6 +758,138 @@ test('session-start-orient emits compact JSON for active workflows only', () => 
     match(parsed.systemMessage, /Active workflow: demo - Demo workflow/);
     match(parsed.systemMessage, /Stage: implement/);
     ok(!parsed.systemMessage.includes('Done workflow'));
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+/* ───────────────────────── render dispatch (RENDER-DISPATCH-PLAN) ───────────────────────── */
+
+// SDLC_DISABLE_ENSURE_HUB keeps the hub-ensure helper from spawning a real
+// daemon in tests; SDLC_HOME isolates any registry side effects to the temp dir.
+function renderEnv(tmp) {
+  return { SDLC_DISABLE_ENSURE_HUB: '1', SDLC_HOME: join(tmp, '.sdlc-home') };
+}
+
+test('post-write-render (hub dispatch) ENQUEUES a render request instead of spawning', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/04-plan-core.md';
+    writeFile(join(tmp, rel), md(validPlan()));
+
+    const result = runHook(HOOKS.postWriteRender, { cwd: tmp, tool_input: { file_path: rel } }, tmp, renderEnv(tmp));
+    equal(result.status, 0, result.stderr);
+
+    const records = queueRecords(tmp);
+    equal(records.length, 1, 'one queue record written for the slug write');
+    equal(records[0].kind, 'incremental');
+    equal(records[0].bucket, 'demo');
+    equal(records[0].repoRoot, tmp);
+    ok(!existsSync(join(tmp, '.ai', '_view', '.render-pending')), 'no legacy inline debounce file under hub dispatch');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-render (hub) enqueues off-pipeline writes with kind=offpipeline', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/simplify/20260606T1200Z.md';
+    writeFile(join(tmp, rel), md(validSimplifyRun()));
+
+    const result = runHook(HOOKS.postWriteRender, { cwd: tmp, tool_input: { file_path: rel } }, tmp, renderEnv(tmp));
+    equal(result.status, 0, result.stderr);
+
+    const records = queueRecords(tmp);
+    equal(records.length, 1);
+    equal(records[0].kind, 'offpipeline');
+    equal(records[0].bucket, 'simplify', 'view bucket matches the off-pipeline source dir (--only simplify/**)');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-render coalesces multiple touched paths in one bucket into one record', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai/workflows/demo/04-plan-core.md'), md(validPlan()));
+    writeFile(join(tmp, '.ai/workflows/demo/04-plan-core.yaml'), 'artifact: plan\n');
+
+    const result = runHook(HOOKS.postWriteRender, {
+      cwd: tmp,
+      tool_input: { edits: [
+        { file_path: '.ai/workflows/demo/04-plan-core.md' },
+        { file_path: '.ai/workflows/demo/04-plan-core.yaml' },
+      ] },
+    }, tmp, renderEnv(tmp));
+    equal(result.status, 0, result.stderr);
+
+    const records = queueRecords(tmp);
+    equal(records.length, 1, 'two paths in one bucket → one record');
+    equal(records[0].bucket, 'demo');
+    equal(records[0].paths.length, 2, 'both paths recorded for provenance');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-render (inline dispatch) uses the legacy debounce path, NOT the queue', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ view: { renderDispatch: 'inline' } }));
+    const rel = '.ai/workflows/demo/04-plan-core.md';
+    writeFile(join(tmp, rel), md(validPlan()));
+
+    const result = runHook(HOOKS.postWriteRender, { cwd: tmp, tool_input: { file_path: rel } }, tmp, renderEnv(tmp));
+    equal(result.status, 0, result.stderr);
+
+    ok(existsSync(join(tmp, '.ai', '_view', '.render-pending')), 'inline path writes the debounce touch-file');
+    equal(queueRecords(tmp).length, 0, 'inline path does not enqueue');
+
+    // The inline path spawned a detached debounce child (cwd=tmp, which Windows
+    // locks). Bump .render-pending so it bails at +2s WITHOUT spawning
+    // render-sunflower, releasing the dir sooner.
+    writeFileSync(join(tmp, '.ai', '_view', '.render-pending'), String(Date.now() + 1e9), 'utf-8');
+  } finally {
+    // Best-effort: the detached child briefly locks the temp dir on Windows.
+    // Retry, then tolerate — the assertions already passed and %TEMP% is
+    // reclaimed by the OS. (This is the ONLY hook that spawns a detached child.)
+    try { rmSync(tmp, { recursive: true, force: true, maxRetries: 30, retryDelay: 200 }); }
+    catch { /* detached inline child still holds cwd — leave it for OS temp cleanup */ }
+  }
+});
+
+test('post-write-render skips writes inside the view tree (no self-trigger loop)', () => {
+  const tmp = tempDir();
+  try {
+    const result = runHook(HOOKS.postWriteRender, {
+      cwd: tmp, tool_input: { file_path: '.ai/_view/demo/notes.md' },
+    }, tmp, renderEnv(tmp));
+    equal(result.status, 0, result.stderr);
+    equal(queueRecords(tmp).length, 0, 'a view-internal write never enqueues');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('session-start-orient (hub dispatch) enqueues a bootstrap render request', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'workflows', 'demo', '00-index.md'), md(minimalIndex()));
+
+    // bootstrap ENABLED (no SDLC_DISABLE_BOOTSTRAP) but ensure-hub disabled, so
+    // it enqueues without spawning a real daemon.
+    const result = runHook(HOOKS.sessionStartOrient, { cwd: tmp }, tmp, renderEnv(tmp));
+    equal(result.status, 0, result.stderr);
+
+    const records = queueRecords(tmp);
+    equal(records.length, 1, 'a whole-repo bootstrap request is enqueued at session start');
+    equal(records[0].kind, 'bootstrap');
+    equal(records[0].bucket, '__bootstrap__');
+
+    // orientation still emits the active-workflow summary
+    const parsed = JSON.parse(result.stdout);
+    match(parsed.systemMessage, /Active workflow: demo/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

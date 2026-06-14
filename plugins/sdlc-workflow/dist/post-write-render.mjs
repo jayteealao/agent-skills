@@ -2,15 +2,21 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  spawnDetachedNode
-} from "./chunk-HQR34SES.mjs";
-import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
 import {
+  spawnDetachedNode
+} from "./chunk-HQR34SES.mjs";
+import {
+  loadConfig
+} from "./chunk-NHBE6SKM.mjs";
+import {
+  appendError,
+  enqueue,
+  queueDir,
   resolveEntrypoint
-} from "./chunk-KRRL2TSM.mjs";
-import "./chunk-SGA7NFMW.mjs";
+} from "./chunk-ELXHT3DD.mjs";
+import "./chunk-KGLQRRIU.mjs";
 
 // hooks/render-on-artifact-write.mjs
 import { readFileSync, existsSync, mkdirSync, writeFileSync, statSync, appendFileSync } from "node:fs";
@@ -21,6 +27,7 @@ var __filename = fileURLToPath(import.meta.url);
 var __dirname = dirname(__filename);
 var PLUGIN_ROOT = resolve(__dirname, "..");
 var DEBOUNCE_MS = 2e3;
+var ENSURE_DEBOUNCE_MS = 3e3;
 function readInput() {
   try {
     const text = readFileSync(0, "utf-8");
@@ -37,7 +44,7 @@ function shouldSkipForPath(touchedAbs, viewRoot) {
   if (!touchedAbs) return true;
   if (touchedAbs.includes(`${viewRoot}/`) || touchedAbs.includes(`${viewRoot}\\`)) return true;
   const norm = touchedAbs.replace(/\\/g, "/");
-  return !(norm.includes("/.ai/workflows/") || norm.includes("/.ai/simplify/") || norm.includes("/.ai/profiles/") || /\/\.ai\/docs\/[^/]+\/08b-docs-index\.(md|yaml|html\.fragment)$/.test(norm) || /\/(PRODUCT|DESIGN)\.md$/.test(norm) || /\/\.ai\/ship-plan\.md$/.test(norm));
+  return !(norm.includes("/.ai/workflows/") || norm.includes("/.ai/simplify/") || norm.includes("/.ai/profiles/") || norm.includes("/.ai/dep-updates/") || norm.includes("/.ai/ideation/") || /\/\.ai\/docs\/[^/]+\/08b-docs-index\.(md|yaml|html\.fragment)$/.test(norm) || /\/(PRODUCT|DESIGN)\.md$/.test(norm) || /\/\.ai\/ship-plan\.md$/.test(norm));
 }
 function pickArtifactPaths(input) {
   if (!input?.tool_input) return [];
@@ -52,13 +59,59 @@ function pickArtifactPaths(input) {
     (p) => typeof p === "string" && (p.endsWith(".md") || p.endsWith(".yaml") || p.endsWith(".html.fragment"))
   );
 }
-function detectRenderBucket(touchedAbs, cwd) {
+function detectRenderBucket(touchedAbs) {
   const norm = touchedAbs.replace(/\\/g, "/");
   const m = norm.match(/\/\.ai\/workflows\/([^/]+)\//);
-  if (m) return m[1];
-  if (/\/\.ai\/docs\/[^/]+\/08b-docs-index\.(md|yaml|html\.fragment)$/.test(norm)) return "docs";
-  if (/\/(PRODUCT|DESIGN)\.md$/.test(norm) || /\/\.ai\/ship-plan\.md$/.test(norm)) return "project";
+  if (m) return { bucket: m[1], kind: "incremental" };
+  if (/\/\.ai\/docs\/[^/]+\/08b-docs-index\.(md|yaml|html\.fragment)$/.test(norm)) return { bucket: "docs", kind: "incremental" };
+  if (/\/(PRODUCT|DESIGN)\.md$/.test(norm) || /\/\.ai\/ship-plan\.md$/.test(norm)) return { bucket: "project", kind: "incremental" };
+  if (norm.includes("/.ai/simplify/")) return { bucket: "simplify", kind: "offpipeline" };
+  if (norm.includes("/.ai/profiles/")) return { bucket: "profiles", kind: "offpipeline" };
+  if (norm.includes("/.ai/dep-updates/")) return { bucket: "dep-updates", kind: "offpipeline" };
+  if (norm.includes("/.ai/ideation/")) return { bucket: "ideation", kind: "offpipeline" };
   return null;
+}
+function shouldSpawnEnsure(viewRoot) {
+  const stamp = join(queueDir(viewRoot), ".ensure-stamp");
+  try {
+    if (Date.now() - Number(readFileSync(stamp, "utf-8")) < ENSURE_DEBOUNCE_MS) return false;
+  } catch {
+  }
+  try {
+    writeFileSync(stamp, String(Date.now()), "utf-8");
+  } catch {
+  }
+  return true;
+}
+function ensureHubBestEffort(cwd, viewRoot, config) {
+  if (config.view?.ensureHubOnWrite === false) return;
+  if (process.env.SDLC_DISABLE_ENSURE_HUB === "1") return;
+  if (!shouldSpawnEnsure(viewRoot)) return;
+  try {
+    spawnDetachedNode(
+      resolveEntrypoint(PLUGIN_ROOT, "hub-ensure"),
+      ["--plugin-root", PLUGIN_ROOT, "--project-root", cwd, "--view", viewRoot],
+      { cwd, env: process.env }
+    );
+  } catch (err) {
+    try {
+      appendError(viewRoot, `ensure-hub spawn failed: ${err?.message ?? err}`);
+    } catch {
+    }
+  }
+}
+function legacyInlineDispatch(cwd, viewRoot, buckets) {
+  if (!buckets.length) exitClean();
+  mkdirSync(viewRoot, { recursive: true });
+  const touchFile = join(viewRoot, ".render-pending");
+  const now = Date.now();
+  writeFileSync(touchFile, String(now), "utf-8");
+  spawnDetachedNode(
+    __filename,
+    ["--debounce-stage2", String(now), buckets.join(",")],
+    { cwd, env: { ...process.env, SDLC_DEBOUNCE_ORIGIN_TS: String(now) } }
+  );
+  exitClean();
 }
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") exitClean();
@@ -72,24 +125,35 @@ async function main() {
   if (!touchedPaths.length) exitClean();
   const relevant = touchedPaths.filter((p) => !shouldSkipForPath(resolve(cwd, p), viewRoot));
   if (!relevant.length) exitClean();
-  const buckets = /* @__PURE__ */ new Set();
+  const byBucket = /* @__PURE__ */ new Map();
   for (const p of relevant) {
-    const bucket = detectRenderBucket(resolve(cwd, p), cwd);
-    if (bucket) buckets.add(bucket);
+    const d = detectRenderBucket(resolve(cwd, p));
+    if (!d) continue;
+    const key = `${d.kind}:${d.bucket}`;
+    if (!byBucket.has(key)) byBucket.set(key, { kind: d.kind, bucket: d.bucket, paths: [] });
+    byBucket.get(key).paths.push(p);
   }
-  if (!buckets.size) exitClean();
+  if (!byBucket.size) exitClean();
+  const config = await loadConfig(cwd);
+  const dispatch = config.view?.renderDispatch ?? "hub";
+  if (dispatch === "inline") {
+    const incremental = [...new Set(
+      [...byBucket.values()].filter((b) => b.kind === "incremental").map((b) => b.bucket)
+    )];
+    legacyInlineDispatch(cwd, viewRoot, incremental);
+    return;
+  }
   mkdirSync(viewRoot, { recursive: true });
-  const touchFile = join(viewRoot, ".render-pending");
-  const now = Date.now();
-  writeFileSync(touchFile, String(now), "utf-8");
-  spawnDetachedNode(
-    __filename,
-    ["--debounce-stage2", String(now), [...buckets].join(",")],
-    {
-      cwd,
-      env: { ...process.env, SDLC_DEBOUNCE_ORIGIN_TS: String(now) }
-    }
-  );
+  for (const { kind, bucket, paths } of byBucket.values()) {
+    enqueue(viewRoot, {
+      repoRoot: cwd,
+      kind,
+      bucket,
+      paths,
+      enqueuedBy: { host: "claude", pid: process.pid }
+    }, { maxPending: config.view?.renderQueue?.maxPending });
+  }
+  ensureHubBestEffort(cwd, viewRoot, config);
   exitClean();
 }
 async function debounceStage2() {

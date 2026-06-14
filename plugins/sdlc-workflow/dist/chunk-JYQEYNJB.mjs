@@ -5,22 +5,22 @@ import {
 } from "./chunk-EG7S7OJR.mjs";
 import {
   renderSimple
-} from "./chunk-TJIQVNDY.mjs";
+} from "./chunk-WSLT3R6C.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "./chunk-QBYHB6G7.mjs";
+} from "./chunk-ULKKJGJ3.mjs";
 import {
   figureCanvas
-} from "./chunk-PDBKNARE.mjs";
+} from "./chunk-SBZWMVZN.mjs";
 import {
   artifactHeader,
   stageBadge,
   statusBadge
-} from "./chunk-RDFEVHOZ.mjs";
+} from "./chunk-MSJ2NCHW.mjs";
 import {
   escapeHtml
-} from "./chunk-4WRIEOIP.mjs";
+} from "./chunk-BTT5W62B.mjs";
 
 // renderers/experiment.mjs
 function render(artifact, ctx) {

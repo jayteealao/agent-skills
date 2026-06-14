@@ -36,6 +36,7 @@ import { basename, dirname, join, sep } from 'node:path';
 import { readPidFile, isPidAlive } from './pid-file.mjs';
 import { scanWorkflowIndexes } from './workflow-index.mjs';
 import { computeBranchState } from './branch-liveness.mjs';
+import { countPending } from './render-queue.mjs';
 
 export const REGISTRY_VERSION = 2;   // v2 (SLUG-BRANCH-IDENTITY §4.2): id = hash(repoRoot) only
 export const SHARD_SOFT_CAP = 100;   // §3.4 — writer-as-janitor merge trigger
@@ -440,9 +441,14 @@ export function mergeShardsIntoRegistry() {
 /* ───────────────────────── pruning (§3.5) ───────────────────────── */
 
 /**
- * Drop any entry whose repoRoot, viewDir, or viewDir/.last-render no longer
- * exists (or that fails validation). Rewrites registry.json and clears shards.
- * Logs pruned entries. Returns { kept, pruned }.
+ * Drop any entry whose repoRoot or viewDir no longer exists (or that fails
+ * validation), OR that has neither rendered output (.last-render) nor pending
+ * render-queue work. The pending-queue clause (RENDER-DISPATCH-PLAN) keeps a
+ * freshly-REGISTERED-but-not-yet-RENDERED repo alive — a hook now registers a
+ * brand-new repo BEFORE its first render so the hub will drain its queue, so the
+ * old "no .last-render → prune" would otherwise kill it before it ever renders.
+ * Rewrites registry.json and clears shards. Logs pruned entries.
+ * Returns { kept, pruned }.
  */
 export function pruneRegistry() {
   const { entries } = readRegistry({ validate: false, logInvalid: false });
@@ -453,12 +459,12 @@ export function pruneRegistry() {
     const present = valid
       && existsSync(e.repoRoot)
       && existsSync(e.viewDir)
-      && existsSync(join(e.viewDir, '.last-render'));
+      && (existsSync(join(e.viewDir, '.last-render')) || countPending(e.viewDir) > 0);
     if (present) {
       kept.push(e);
     } else {
       pruned++;
-      logPrune(`prune ${e.id ?? '?'} (${e.repoRoot ?? '?'} @ ${e.headBranch ?? e.branch ?? '?'}): ${valid ? 'missing repoRoot/viewDir/.last-render' : 'failed validation'}`);
+      logPrune(`prune ${e.id ?? '?'} (${e.repoRoot ?? '?'} @ ${e.headBranch ?? e.branch ?? '?'}): ${valid ? 'missing repoRoot/viewDir, no .last-render + no queued renders' : 'failed validation'}`);
     }
   }
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: kept });

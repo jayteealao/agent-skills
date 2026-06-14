@@ -8,17 +8,16 @@ import {
   projectRootFromInput,
   readStdinJson
 } from "./chunk-4OZLXOMA.mjs";
+import "./chunk-UTP6CBAZ.mjs";
 import {
   loadConfig
-} from "./chunk-H5U2H73C.mjs";
+} from "./chunk-NHBE6SKM.mjs";
 import {
   scanWorkflowIndexes
 } from "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
-import "./chunk-UTP6CBAZ.mjs";
-import "./chunk-FZ2GR6GF.mjs";
-import "./chunk-SGA7NFMW.mjs";
+import "./chunk-KGLQRRIU.mjs";
 
 // hooks/post-write-auto-stage.mjs
 import { existsSync } from "node:fs";

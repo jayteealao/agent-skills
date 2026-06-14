@@ -41,6 +41,24 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     // so a global selector can't bleed to the page or sibling fragments. Set
     // false to inject `<style>` verbatim/unscoped (the pre-9.71.0 behaviour).
     scopeNarrativeCss: true,
+    // Where a managed-artifact write gets rendered (RENDER-DISPATCH-PLAN):
+    //   'hub'    — the hook ENQUEUES the change to a durable per-repo render
+    //              queue (.ai/_view/.render-queue/) and the serving daemon
+    //              drains + renders it through the shared bounded engine. No
+    //              short-lived per-write renderer; one renderer (the daemon)
+    //              keeps .last-render identity consistent across hosts.
+    //   'inline' — the legacy path: the hook spawns `render-sunflower` itself
+    //              (2s debounce). The rollback / A-B switch.
+    renderDispatch: 'hub',
+    // When 'hub' dispatch is active and no daemon is answering, the write hook
+    // makes a best-effort detached attempt to start the hub (the queued change
+    // renders at the hub's startup catch-up). Set false to never auto-start.
+    ensureHubOnWrite: true,
+    // Render queue tuning (RENDER-DISPATCH-PLAN). maxPending is a hard backstop;
+    // coalescing by bucket normally bounds the queue well below it.
+    renderQueue: {
+      maxPending: 500,
+    },
   },
   hooks: {
     autoStage: true,

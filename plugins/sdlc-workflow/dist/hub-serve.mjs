@@ -3,9 +3,16 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-W5BD6MFM.mjs";
-import "./chunk-D7NVJCY4.mjs";
-import "./chunk-PDBKNARE.mjs";
+} from "./chunk-YHKSBD3E.mjs";
+import {
+  hostAllowed,
+  renderCodeBrowserPage,
+  resolveRequestPath
+} from "./chunk-WY3THHYQ.mjs";
+import "./chunk-NADBAFVF.mjs";
+import "./chunk-SBZWMVZN.mjs";
+import "./chunk-MSJ2NCHW.mjs";
+import "./chunk-BTT5W62B.mjs";
 import {
   REGISTRY_VERSION,
   pruneRegistry,
@@ -13,16 +20,7 @@ import {
   refreshEntriesLiveness,
   validateEntry,
   writeRegistry
-} from "./chunk-VAB2CNQR.mjs";
-import "./chunk-RDFEVHOZ.mjs";
-import "./chunk-NTSUEAI6.mjs";
-import "./chunk-5U76735W.mjs";
-import "./chunk-LFGT2BKG.mjs";
-import {
-  hostAllowed,
-  renderCodeBrowserPage,
-  resolveRequestPath
-} from "./chunk-IOYXLHW6.mjs";
+} from "./chunk-GQ3CJSFD.mjs";
 import {
   codeBrowserConfigFromEnv,
   createHealController,
@@ -33,11 +31,15 @@ import {
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv,
   writePidFile
-} from "./chunk-RY6BGTTK.mjs";
-import "./chunk-4WRIEOIP.mjs";
-import "./chunk-FZ2GR6GF.mjs";
-import "./chunk-KRRL2TSM.mjs";
-import "./chunk-SGA7NFMW.mjs";
+} from "./chunk-2J6GCTGA.mjs";
+import "./chunk-NTSUEAI6.mjs";
+import "./chunk-5U76735W.mjs";
+import "./chunk-LFGT2BKG.mjs";
+import {
+  countPending,
+  createRenderQueueDrainer
+} from "./chunk-ELXHT3DD.mjs";
+import "./chunk-KGLQRRIU.mjs";
 
 // scripts/hub-serve.mjs
 import { existsSync, statSync, createReadStream, readFileSync, rmSync, watch } from "node:fs";
@@ -155,6 +157,13 @@ function createHubServer({
     emitReload: (id) => emitReload(id),
     spawnRender
   });
+  const renderQueue = createRenderQueueDrainer({
+    submit: (entry, spec) => heal.submit(entry, spec),
+    isBusy: (id) => heal.isBusy(id),
+    pluginRoot,
+    log: logHub,
+    maxAttempts: heal.config.maxAttempts
+  });
   function reload() {
     try {
       pruneRegistry();
@@ -238,7 +247,7 @@ function createHubServer({
     let changed = false;
     const live = [];
     for (const e of entries) {
-      const present = existsSync(e.repoRoot) && existsSync(e.viewDir) && existsSync(`${e.viewDir}/.last-render`);
+      const present = existsSync(e.repoRoot) && existsSync(e.viewDir) && (existsSync(`${e.viewDir}/.last-render`) || countPending(e.viewDir) > 0);
       if (present) {
         live.push(e);
         continue;
@@ -288,6 +297,7 @@ function createHubServer({
       }
     }
     for (const e of entries) heal.consider(e);
+    for (const e of entries) renderQueue.drainEntry(e);
   }
   function tokenOk(req) {
     return Boolean(token) && req.headers["x-sdlc-token"] === token;
@@ -317,6 +327,8 @@ function createHubServer({
       }),
       // Stale-render heal state: { heal, maxConcurrent, inFlight, queued, failed }.
       heal: heal.snapshot(),
+      // Render-queue state (RENDER-DISPATCH-PLAN): { pending:{id:n}, failed[], lastDrainAt }.
+      renderQueue: renderQueue.snapshot(entries),
       metrics: {
         requests: metrics.requests,
         sseClients: clients.size,
@@ -762,6 +774,11 @@ data: ${JSON.stringify({ ok: true })}
     return close(callback);
   };
   reload();
+  try {
+    renderQueue.catchUp(entries);
+  } catch (err) {
+    logHub(`render-queue catch-up error: ${err?.message ?? err}`);
+  }
   return server;
 }
 function sendJson(res, payload) {
