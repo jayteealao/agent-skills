@@ -2,6 +2,10 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  isAutostartEnabled,
+  refreshAutostart
+} from "./chunk-BUQPB4LT.mjs";
+import {
   currentGitBranch,
   logError,
   outputSystemMessage,
@@ -10,25 +14,32 @@ import {
   stringifyField
 } from "./chunk-4OZLXOMA.mjs";
 import {
-  loadConfig
-} from "./chunk-H5U2H73C.mjs";
+  ensureHubEnabled,
+  spawnHubEnsure
+} from "./chunk-DGPWQY7Z.mjs";
+import "./chunk-UTP6CBAZ.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-HQR34SES.mjs";
+import {
+  loadConfig
+} from "./chunk-KH5CZFJ2.mjs";
 import {
   activeWorkflowIndexes,
   scanWorkflowIndexes
 } from "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
-import "./chunk-UTP6CBAZ.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import {
+  countPending,
+  enqueue,
+  readStatus,
   resolveEntrypoint
-} from "./chunk-KRRL2TSM.mjs";
-import "./chunk-SGA7NFMW.mjs";
+} from "./chunk-HLR2BZLC.mjs";
+import "./chunk-KGLQRRIU.mjs";
 
 // hooks/session-start-orient.mjs
+import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 var __dirname = dirname(fileURLToPath(import.meta.url));
@@ -39,23 +50,67 @@ async function main() {
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
   startBootstrap(projectRoot, config);
+  healAutostartLauncher();
   const workflows = activeWorkflowIndexes(await scanWorkflowIndexes({ projectRoot }));
   if (!workflows.length) return;
   const currentBranch = await currentGitBranch(projectRoot);
   const summaries = workflows.map((workflow) => formatWorkflowSummary(workflow, currentBranch));
-  outputSystemMessage(summaries.length === 1 ? summaries[0] : `Active workflows (${summaries.length}):
+  let message = summaries.length === 1 ? summaries[0] : `Active workflows (${summaries.length}):
 
-${summaries.join("\n\n")}`);
+${summaries.join("\n\n")}`;
+  const advisory = pendingRenderAdvisory(projectRoot, config);
+  if (advisory) message += `
+
+${advisory}`;
+  outputSystemMessage(message);
+}
+function pendingRenderAdvisory(projectRoot, config) {
+  try {
+    if ((config.view?.renderDispatch ?? "hub") !== "hub") return null;
+    const viewRoot = resolve(projectRoot, ".ai", "_view");
+    const status = readStatus(viewRoot);
+    if (!status?.lastError) return null;
+    const pending = countPending(viewRoot);
+    if (pending <= 0) return null;
+    return `\u26A0 ${pending} view render(s) pending \u2014 ${status.lastError}. The dashboard will refresh once the hub drains the queue; start it (or run \`render-sunflower\`) to refresh now.`;
+  } catch {
+    return null;
+  }
+}
+function healAutostartLauncher() {
+  try {
+    if (!isAutostartEnabled()) return;
+    refreshAutostart({ trayBundle: resolveEntrypoint(PLUGIN_ROOT, "tray") });
+  } catch {
+  }
 }
 function startBootstrap(projectRoot, config) {
   if (process.env.SDLC_DISABLE_BOOTSTRAP === "1") return;
   if (config.view?.bootstrap?.enabled === false) return;
+  const dispatch = config.view?.renderDispatch ?? "hub";
+  if (dispatch === "inline") {
+    try {
+      spawnDetachedNode(
+        resolveEntrypoint(PLUGIN_ROOT, "render-sunflower"),
+        ["--bootstrap", "--plugin-root", PLUGIN_ROOT],
+        { cwd: projectRoot, env: process.env }
+      );
+    } catch {
+    }
+    return;
+  }
   try {
-    spawnDetachedNode(
-      resolveEntrypoint(PLUGIN_ROOT, "render-sunflower"),
-      ["--bootstrap", "--plugin-root", PLUGIN_ROOT],
-      { cwd: projectRoot, env: process.env }
-    );
+    const viewRoot = resolve(projectRoot, ".ai", "_view");
+    mkdirSync(viewRoot, { recursive: true });
+    enqueue(viewRoot, {
+      repoRoot: projectRoot,
+      kind: "bootstrap",
+      bucket: "__bootstrap__",
+      enqueuedBy: { host: "claude", pid: process.pid }
+    }, { maxPending: config.view?.renderQueue?.maxPending });
+    if (ensureHubEnabled(config.view)) {
+      spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot, viewDir: viewRoot });
+    }
   } catch {
   }
 }

@@ -76,6 +76,20 @@ export function staleRenderConfigFromEnv(env = process.env) {
 }
 
 /**
+ * The renderer-resolution seam (RENDER-DISPATCH-PLAN "Renderer resolution
+ * seam"). Every render the daemon spawns — drift-driven heal OR queue-driven
+ * dispatch — resolves its entrypoint HERE, and nowhere else. Today it is the
+ * daemon's own bundled render-sunflower; the native-interop work later repoints
+ * this single function at the active machine runtime (hub.pid.runtimeRoot →
+ * active-runtime.json) WITHOUT touching the queue protocol, the hooks, or the
+ * drain loop. Keeping it a named export makes that the only edit native interop
+ * needs to make rendering host-neutral.
+ */
+export function resolveRenderEntrypoint(pluginRoot) {
+  return resolveEntrypoint(pluginRoot, 'render-sunflower');
+}
+
+/**
  * Read the `version` recorded in a view's `.last-render` marker. Returns null
  * when the marker is absent, torn, or pre-9.60 (no `version` field) — all of
  * which sort as "stale" against any real PLUGIN_VERSION, which is exactly right:
@@ -182,9 +196,53 @@ export function createHealController({
       failed.set(id, { attempts: cfg.maxAttempts, renderedVersion: renderedVersion ?? null });
       return { action: 'failed', renderedVersion };
     }
-    queue.push({ entry, renderedVersion });
+    // isHeal marks a drift-driven render: it owns the attempts/cooldown/failed
+    // accounting below. The args are computed here so spawnOne is render-source
+    // agnostic — the SAME spawnOne also runs queue-driven renders (submit).
+    // --clean forces a full re-render; --view is belt-and-braces against a
+    // symlink/realpath divergence (render-sunflower has no --project-root, so
+    // cwd=repoRoot in spawnOne is what actually anchors the project).
+    queue.push({
+      entry,
+      renderedVersion,
+      isHeal: true,
+      args: ['--clean', '--view', entry.viewDir],
+    });
     pump();
     return { action: 'enqueued', renderedVersion };
+  }
+
+  /**
+   * Queue-driven render submission (RENDER-DISPATCH-PLAN). The render-queue
+   * drainer calls this with an explicit argv and an onSettled callback (which
+   * acks/fails the on-disk queue files). It funnels through the SAME inFlight /
+   * pump / spawnOne machinery as heal, so a queue render and a heal render for
+   * one repo can never run concurrently and clobber the same view dir. Unlike
+   * heal it is NOT cooldown- or attempt-gated here — the queue owns its own
+   * retry accounting on disk; the only gate is "one render per repo at a time".
+   * Returns { action: 'enqueued' | 'pending' | 'invalid' | 'error' }.
+   */
+  function submit(entry, { args, label, onSettled } = {}) {
+    try {
+      if (!entry || !entry.id || !entry.viewDir || !entry.repoRoot) return { action: 'invalid' };
+      if (!Array.isArray(args)) return { action: 'invalid' };
+      if (isBusy(entry.id)) return { action: 'pending' };
+      queue.push({ entry, args, label, isHeal: false, onSettled });
+      pump();
+      return { action: 'enqueued' };
+    } catch (err) {
+      log(`render-queue: submit error for ${entry?.id ?? '?'}: ${err?.message ?? err}`);
+      return { action: 'error' };
+    }
+  }
+
+  /**
+   * True when a render for this repo is already in flight or queued (from EITHER
+   * source). The drainer checks this before claiming work so it doesn't churn
+   * the queue while a render is mid-flight.
+   */
+  function isBusy(id) {
+    return inFlight.has(id) || queue.some((q) => q.entry.id === id);
   }
 
   function pump() {
@@ -193,26 +251,32 @@ export function createHealController({
     }
   }
 
-  function spawnOne({ entry, renderedVersion }) {
+  function spawnOne({ entry, renderedVersion, args, label, isHeal, onSettled }) {
     const id = entry.id;
+    const tag = isHeal ? 'heal' : 'render-queue';
     inFlight.add(id);
-    lastHealAt.set(id, now());
-    attempts.set(id, (attempts.get(id) ?? 0) + 1);
-    const script = resolveEntrypoint(pluginRoot, 'render-sunflower');
-    log(`heal: ${id} rendered ${renderedVersion ?? 'unversioned'} ≠ ${pluginVersion} → clean re-render (attempt ${attempts.get(id)}/${cfg.maxAttempts})`);
+    // Only the drift path owns the cooldown clock + attempt counter; a
+    // queue-driven render manages its own retry accounting on disk.
+    if (isHeal) {
+      lastHealAt.set(id, now());
+      attempts.set(id, (attempts.get(id) ?? 0) + 1);
+    }
+    const script = resolveRenderEntrypoint(pluginRoot);
+    log(label ?? `heal: ${id} rendered ${renderedVersion ?? 'unversioned'} ≠ ${pluginVersion} → clean re-render (attempt ${attempts.get(id)}/${cfg.maxAttempts})`);
 
     let child;
     try {
       // cwd:repoRoot is load-bearing — render-sunflower has no --project-root
       // flag; it derives the checkout via resolveProjectRoot() climbing from cwd.
-      // --view is belt-and-braces against symlink/realpath divergence.
-      child = spawnRender(script, ['--clean', '--view', entry.viewDir], {
+      // args carry --clean/--only/--bootstrap + --view depending on the source.
+      child = spawnRender(script, args, {
         cwd: entry.repoRoot,
         env,
       });
     } catch (err) {
       inFlight.delete(id);
-      log(`heal: ${id} spawn failed: ${err?.message ?? err}`);
+      log(`${tag}: ${id} spawn failed: ${err?.message ?? err}`);
+      try { onSettled?.(1); } catch { /* settle errors are swallowed */ }
       pump();
       return;
     }
@@ -223,17 +287,18 @@ export function createHealController({
       settled = true;
       inFlight.delete(id);
       if (code === 0) {
-        log(`heal: ${id} render complete`);
+        log(`${tag}: ${id} render complete`);
         try { emitReload(id); } catch { /* the fs.watch backstop also fires reload */ }
       } else {
-        log(`heal: ${id} render exited ${code}`);
+        log(`${tag}: ${id} render exited ${code}`);
       }
+      try { onSettled?.(code); } catch { /* the drainer's ack/fail must not wedge the pump */ }
       pump();
     };
 
     if (child && typeof child.on === 'function') {
       child.on('exit', (code) => finish(code ?? 0));
-      child.on('error', (err) => { log(`heal: ${id} child error: ${err?.message ?? err}`); finish(1); });
+      child.on('error', (err) => { log(`${tag}: ${id} child error: ${err?.message ?? err}`); finish(1); });
     } else {
       // A stub with no event surface — treat as instantly done so we never wedge.
       finish(0);
@@ -251,5 +316,5 @@ export function createHealController({
     };
   }
 
-  return { consider, snapshot, config: cfg };
+  return { consider, submit, isBusy, snapshot, config: cfg };
 }

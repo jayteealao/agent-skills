@@ -6,25 +6,24 @@ import {
   sliceCard,
   sliceGridFigure,
   sliceState
-} from "../chunk-A4M5HA7Z.mjs";
+} from "../chunk-NWY2WATG.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-HNKVSOGY.mjs";
+} from "../chunk-WB3CNU66.mjs";
 import {
   figureCanvas
-} from "../chunk-PDBKNARE.mjs";
+} from "../chunk-SBZWMVZN.mjs";
 import {
   artifactHeader,
   metricRow,
   statusBadge
-} from "../chunk-Q66UAZR5.mjs";
-import "../chunk-LFGT2BKG.mjs";
+} from "../chunk-OOUZYKHP.mjs";
 import {
   escapeHtml
-} from "../chunk-4WRIEOIP.mjs";
-import "../chunk-FZ2GR6GF.mjs";
-import "../chunk-SGA7NFMW.mjs";
+} from "../chunk-BTT5W62B.mjs";
+import "../chunk-LFGT2BKG.mjs";
+import "../chunk-KGLQRRIU.mjs";
 
 // renderers/slice-index.mjs
 function render(artifact, ctx) {

@@ -61,6 +61,7 @@ const HOOK_ENTRIES = [
 const SCRIPT_ENTRIES = [
   'render-sunflower',        // spawned: bootstrap + incremental render jobs
   'hub-serve',               // spawned by lib/hub-lifecycle
+  'hub-ensure',              // spawned detached by the write/session hooks (RENDER-DISPATCH-PLAN)
   'render-sunflower-serve',  // spawned by lib/serve-lifecycle
   'tray',                    // user-launched system-tray app (docs/internal/archived/TRAY-APP-PLAN.md)
 ];

@@ -31,6 +31,7 @@ import {
   SHARD_SOFT_CAP,
 } from '../../../lib/registry.mjs';
 import { createHubServer, parseHubArgs } from '../../../scripts/hub-serve.mjs';
+import { enqueue as enqueueRender, countPending } from '../../../lib/render-queue.mjs';
 import { renderHubLanding, inboxItems } from '../../../renderers/hub-dashboard.mjs';
 import { resolveRequestPath } from '../../../lib/resolve-request-path.mjs';
 import { computeBranchState, refreshEntriesLiveness } from '../../../lib/branch-liveness.mjs';
@@ -450,6 +451,33 @@ test('registry: pruneRegistry drops entries whose viewDir disappeared', async ()
   const { entries } = readRegistry();
   equal(entries.length, 1);
   ok(entries[0].repoRoot.endsWith(`${sep}keep`));
+});
+
+test('registry: pruneRegistry keeps a registered-but-unrendered repo that has queued render work (RENDER-DISPATCH)', async () => {
+  setHome();
+  const root = tmp('sdlc-prune-queue-');
+  const repo = join(root, 'repo');
+  initRepo(repo);
+  // Registered BEFORE any render: viewDir exists, no .last-render yet, but a
+  // render is queued (the new hook order). The old "no .last-render → prune"
+  // would kill it before the hub could ever drain the queue.
+  const viewDir = join(repo, '.ai', '_view');
+  mkdirSync(viewDir, { recursive: true });
+  enqueueRender(viewDir, { repoRoot: repo, kind: 'incremental', bucket: 'demo' });
+  await upsertRegistryEntry({ projectRoot: repo, viewDir });
+  mergeShardsIntoRegistry();
+  ok(!existsSync(join(viewDir, '.last-render')), 'precondition: never rendered');
+  ok(countPending(viewDir) > 0, 'precondition: has queued work');
+
+  let res = pruneRegistry();
+  equal(res.pruned, 0, 'a repo with queued renders survives prune');
+  equal(res.kept, 1);
+
+  // Drain it away (render still never produced a .last-render) → now prunable.
+  rmSync(join(viewDir, '.render-queue'), { recursive: true, force: true });
+  res = pruneRegistry();
+  equal(res.pruned, 1, 'no .last-render and no queued work → pruned');
+  equal(res.kept, 0);
 });
 
 /* ───────────────────────── hub-config (§6.1) ───────────────────────── */

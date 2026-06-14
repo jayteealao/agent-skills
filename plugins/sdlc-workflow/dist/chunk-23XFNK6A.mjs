@@ -1,16 +1,16 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  configHash,
-  deepMerge
-} from "./chunk-H5U2H73C.mjs";
-import {
   spawnDetachedNode
 } from "./chunk-HQR34SES.mjs";
 import {
+  configHash,
+  deepMerge
+} from "./chunk-KH5CZFJ2.mjs";
+import {
   hubPidPath,
   sdlcHomeDir
-} from "./chunk-VAB2CNQR.mjs";
+} from "./chunk-TKMDPWDP.mjs";
 import {
   CODE_BROWSER_DEFAULTS,
   STALE_RENDER_DEFAULTS,
@@ -18,10 +18,10 @@ import {
   pidFileStatus,
   removePidFile,
   writePidFile
-} from "./chunk-RY6BGTTK.mjs";
+} from "./chunk-KNNAPWND.mjs";
 import {
   resolveEntrypoint
-} from "./chunk-KRRL2TSM.mjs";
+} from "./chunk-HLR2BZLC.mjs";
 
 // lib/hub-lifecycle.mjs
 import { randomBytes } from "node:crypto";

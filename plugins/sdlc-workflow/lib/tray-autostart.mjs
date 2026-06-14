@@ -116,6 +116,44 @@ export function launcherTargetsCurrent(content, { nodePath, trayBundle } = {}) {
   return Boolean(nodePath) && Boolean(trayBundle) && s.includes(nodePath) && s.includes(trayBundle);
 }
 
+/* ───────────────────────── durable node resolution ───────────────────────── */
+
+/** True when a node path lives in fnm's per-shell ephemeral multishell dir. */
+function isFnmMultishellPath(p) {
+  return /fnm_multishells/i.test(String(p ?? ''));
+}
+
+/** fnm's base dir (holds aliases/ + node-versions/). $FNM_DIR wins; else the OS default. */
+function fnmBaseDir({ platform = process.platform, env = process.env, home = homedir() } = {}) {
+  if (env.FNM_DIR) return env.FNM_DIR;
+  if (platform === 'win32') return join(env.APPDATA || join(home, 'AppData', 'Roaming'), 'fnm');
+  if (platform === 'darwin') return join(home, 'Library', 'Application Support', 'fnm');
+  return join(env.XDG_DATA_HOME || join(home, '.local', 'share'), 'fnm');
+}
+
+/**
+ * A STABLE node binary path to embed in the launcher. process.execPath is fragile
+ * under fnm: inside an `fnm use` shell it points into a per-shell `fnm_multishells/…`
+ * dir that fnm deletes on shell exit, so a launcher embedding it silently dies at the
+ * next logon (the very failure this heals). When execPath is such an ephemeral path,
+ * swap in fnm's durable `aliases/default` node (which fnm re-points across version
+ * switches); otherwise execPath is already a real install and is kept. Falls back to
+ * execPath when no durable candidate exists — never worse than before. Pure; every
+ * seam injectable.
+ */
+export function resolveDurableNodePath({
+  execPath = process.execPath, platform = process.platform,
+  env = process.env, home = homedir(), exists = existsSync,
+} = {}) {
+  if (!isFnmMultishellPath(execPath)) return execPath;
+  const base = fnmBaseDir({ platform, env, home });
+  if (!base) return execPath;
+  const candidate = platform === 'win32'
+    ? join(base, 'aliases', 'default', 'node.exe')
+    : join(base, 'aliases', 'default', 'bin', 'node');
+  return exists(candidate) ? candidate : execPath;
+}
+
 /* ───────────────────────── enable / disable / detect ───────────────────────── */
 
 /** Is the launcher present (file presence = state)? */
@@ -128,7 +166,7 @@ export function isAutostartEnabled({
 /** Write the launcher (turn autostart ON). Returns { path, content }. */
 export function enableAutostart({
   platform = process.platform, env = process.env, home = homedir(), startupDir,
-  nodePath = process.execPath, trayBundle,
+  nodePath = resolveDurableNodePath({ platform, env, home }), trayBundle,
   mkdir = mkdirSync, writeFile = writeFileSync,
 } = {}) {
   const dir = startupDir ?? autostartLauncherDir({ platform, env, home });
@@ -155,7 +193,7 @@ export function disableAutostart({
  */
 export function refreshAutostart({
   platform = process.platform, env = process.env, home = homedir(), startupDir,
-  nodePath = process.execPath, trayBundle,
+  nodePath = resolveDurableNodePath({ platform, env, home }), trayBundle,
   exists = existsSync, readFile = readFileSync, writeFile = writeFileSync, mkdir = mkdirSync,
 } = {}) {
   const dir = startupDir ?? autostartLauncherDir({ platform, env, home });

@@ -33,7 +33,6 @@ node scripts/generate-codex-plugin.mjs sdlc-workflow
 | Plugin | Category | Description |
 |--------|----------|-------------|
 | [daily-carry](./plugins/daily-carry) | deployment | OtterStack deployment orchestration, Portainer management, and Tech Research Enforcer |
-| [agent-behavior-patterns](./plugins/agent-behavior-patterns) | workflow | Sound notifications, TUI testing, design documents, and changelog audits |
 | [hermes-tweet](./plugins/hermes-tweet) | productivity | Hermes Agent X/Twitter workflows for read-first research, monitoring, audits, and explicit approval-gated account actions. |
 
 ## Contributing

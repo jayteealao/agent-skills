@@ -1,11 +1,14 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  isPidAlive
+} from "./chunk-KNNAPWND.mjs";
+import {
   scanWorkflowIndexes
 } from "./chunk-NTSUEAI6.mjs";
 import {
-  isPidAlive
-} from "./chunk-RY6BGTTK.mjs";
+  countPending
+} from "./chunk-HLR2BZLC.mjs";
 
 // lib/branch-liveness.mjs
 import { execFileSync } from "node:child_process";
@@ -405,12 +408,12 @@ function pruneRegistry() {
   let pruned = 0;
   for (const e of entries) {
     const valid = validateEntry(e).ok;
-    const present = valid && existsSync(e.repoRoot) && existsSync(e.viewDir) && existsSync(join(e.viewDir, ".last-render"));
+    const present = valid && existsSync(e.repoRoot) && existsSync(e.viewDir) && (existsSync(join(e.viewDir, ".last-render")) || countPending(e.viewDir) > 0);
     if (present) {
       kept.push(e);
     } else {
       pruned++;
-      logPrune(`prune ${e.id ?? "?"} (${e.repoRoot ?? "?"} @ ${e.headBranch ?? e.branch ?? "?"}): ${valid ? "missing repoRoot/viewDir/.last-render" : "failed validation"}`);
+      logPrune(`prune ${e.id ?? "?"} (${e.repoRoot ?? "?"} @ ${e.headBranch ?? e.branch ?? "?"}): ${valid ? "missing repoRoot/viewDir, no .last-render + no queued renders" : "failed validation"}`);
     }
   }
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: kept });

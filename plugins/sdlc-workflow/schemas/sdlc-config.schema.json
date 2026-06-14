@@ -69,6 +69,31 @@
           "type": "boolean",
           "default": true,
           "description": "CSS containment for free narrative fragments (v9.71.0): when true (default), each fragment's `<style>` rules are wrapped in a native `@scope (.nfrag[data-label=\"<label>\"])` so a global selector (`body`, `*`, `.x`) can only match inside that fragment's wrapper — never the page chrome above it or a sibling fragment. `<style>`-less fragments and inline `style=\"\"` are untouched. Set false to inject `<style>` verbatim/unscoped (pre-9.71.0 behaviour). Has no effect when `narrativeFragments` is false. Note: scripts are out of scope here — inline `<script>` is already blocked by the serve `script-src 'self'` CSP."
+        },
+        "renderDispatch": {
+          "type": "string",
+          "enum": ["hub", "inline"],
+          "default": "hub",
+          "description": "Where a managed-artifact write gets rendered (RENDER-DISPATCH-PLAN). 'hub' (default): the write hook ENQUEUES the change to a durable per-repo render queue (.ai/_view/.render-queue/) and the serving daemon (hub or standalone) drains + renders it through the shared bounded engine — no short-lived per-write renderer, one renderer keeps .last-render version identity consistent (the prerequisite for the native Codex host). 'inline': the legacy behaviour where the hook spawns render-sunflower itself after a 2s debounce — the rollback / A-B switch."
+        },
+        "ensureHubOnWrite": {
+          "type": "boolean",
+          "default": true,
+          "description": "When 'hub' renderDispatch is active and no daemon answers the health probe, the write hook makes a best-effort, non-blocking detached attempt to start the hub (the queued change then renders at the hub's startup catch-up). Set false to never auto-start a daemon from a write hook — queued changes wait until a daemon is started another way."
+        },
+        "renderQueue": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Render queue tuning (RENDER-DISPATCH-PLAN). Applies only under 'hub' renderDispatch.",
+          "properties": {
+            "maxPending": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000,
+              "default": 500,
+              "description": "Hard backstop on pending requests per repo. Coalescing by (kind, bucket) normally bounds the queue well below this; beyond the cap the oldest requests are evicted with a logged warning."
+            }
+          }
         }
       }
     },

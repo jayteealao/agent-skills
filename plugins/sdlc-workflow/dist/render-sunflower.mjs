@@ -2,27 +2,13 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  ensureHubLifecycle,
-  maybeConfigureTailscale,
-  readHubConfig,
-  tailscaleDnsName
-} from "./chunk-KNFD7UYA.mjs";
-import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-HNKVSOGY.mjs";
+} from "./chunk-WB3CNU66.mjs";
 import {
-  configHash,
-  loadConfigWithMeta
-} from "./chunk-H5U2H73C.mjs";
-import {
-  spawnDetachedNode
-} from "./chunk-HQR34SES.mjs";
-import {
-  hubPidPath,
-  upsertRegistryEntry
-} from "./chunk-VAB2CNQR.mjs";
+  resolveProjectRoot
+} from "./chunk-UTP6CBAZ.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
@@ -30,7 +16,35 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-Q66UAZR5.mjs";
+} from "./chunk-OOUZYKHP.mjs";
+import {
+  renderWarnBanner,
+  validateFrontmatter
+} from "./chunk-BTT5W62B.mjs";
+import {
+  ensureHubLifecycle,
+  maybeConfigureTailscale,
+  readHubConfig,
+  tailscaleDnsName
+} from "./chunk-23XFNK6A.mjs";
+import {
+  spawnDetachedNode
+} from "./chunk-HQR34SES.mjs";
+import {
+  configHash,
+  loadConfigWithMeta
+} from "./chunk-KH5CZFJ2.mjs";
+import {
+  hubPidPath,
+  upsertRegistryEntry
+} from "./chunk-TKMDPWDP.mjs";
+import {
+  isPidAlive,
+  pidFileStatus,
+  readPidFile,
+  removePidFile,
+  writePidFile
+} from "./chunk-KNNAPWND.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -42,24 +56,9 @@ import {
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
 import {
-  resolveProjectRoot
-} from "./chunk-UTP6CBAZ.mjs";
-import {
-  isPidAlive,
-  pidFileStatus,
-  readPidFile,
-  removePidFile,
-  writePidFile
-} from "./chunk-RY6BGTTK.mjs";
-import {
-  renderWarnBanner,
-  validateFrontmatter
-} from "./chunk-4WRIEOIP.mjs";
-import "./chunk-FZ2GR6GF.mjs";
-import {
   resolveEntrypoint
-} from "./chunk-KRRL2TSM.mjs";
-import "./chunk-SGA7NFMW.mjs";
+} from "./chunk-HLR2BZLC.mjs";
+import "./chunk-KGLQRRIU.mjs";
 
 // scripts/render-sunflower.mjs
 import {

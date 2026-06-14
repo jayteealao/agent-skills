@@ -23,6 +23,7 @@ import {
 import {
   createHealController, staleRenderConfigFromEnv, readRenderedVersion,
 } from '../lib/heal-render.mjs';
+import { createRenderQueueDrainer } from '../lib/render-queue.mjs';
 import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -148,19 +149,39 @@ export function createSdlcStaticServer({
     emitReload: () => emitEvent(clients, 'reload', healthPayload(root, configHash)),
     spawnRender,
   });
-  let reconcileTimer = null;
-  if (heal.config.heal) {
-    reconcileTimer = setInterval(() => {
-      try { heal.consider(selfEntry); } catch { /* controller swallows its own errors */ }
-    }, reconcileMs);
-    if (typeof reconcileTimer.unref === 'function') reconcileTimer.unref();
-  }
+  // Render-queue drainer (RENDER-DISPATCH-PLAN). Shares this repo's bounded
+  // engine (heal.submit / heal.isBusy), so a queue render and a heal render
+  // never run concurrently for this view.
+  const renderQueue = createRenderQueueDrainer({
+    submit: (entry, spec) => heal.submit(entry, spec),
+    isBusy: (id) => heal.isBusy(id),
+    pluginRoot,
+    log: (line) => console.log(`[serve] ${line}`),
+    maxAttempts: heal.config.maxAttempts,
+  });
+  // Startup catch-up drains anything queued while no daemon was running.
+  try { renderQueue.catchUp([selfEntry]); } catch { /* best-effort startup catch-up */ }
+
+  // ONE reconcile timer (mirrors the hub's reconcile loop): heal.consider
+  // (no-op when heal is disabled) then the queue drain. The queue drain runs
+  // regardless of the heal toggle — a user may disable heal but still want
+  // hook-reported writes rendered.
+  const reconcileTimer = setInterval(() => {
+    try { if (heal.config.heal) heal.consider(selfEntry); } catch { /* controller swallows its own errors */ }
+    try { renderQueue.drainEntry(selfEntry); } catch { /* drainer swallows its own errors */ }
+  }, reconcileMs);
+  if (typeof reconcileTimer.unref === 'function') reconcileTimer.unref();
 
   const server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://sdlc.local');
     if (url.pathname === '/__sdlc/health') {
-      // heal snapshot rides only on the health response (not the SSE payloads).
-      sendJson(res, { ...healthPayload(root, configHash), heal: heal.snapshot() });
+      // heal + render-queue snapshots ride only on the health response (not the
+      // SSE payloads).
+      sendJson(res, {
+        ...healthPayload(root, configHash),
+        heal: heal.snapshot(),
+        renderQueue: renderQueue.snapshot([selfEntry]),
+      });
       return;
     }
 
@@ -222,7 +243,7 @@ export function createSdlcStaticServer({
   const close = server.close.bind(server);
   server.close = (callback) => {
     if (watcher) watcher.close();
-    if (reconcileTimer) clearInterval(reconcileTimer);
+    clearInterval(reconcileTimer);
     for (const client of clients) client.end();
     clients.clear();
     return close(callback);
