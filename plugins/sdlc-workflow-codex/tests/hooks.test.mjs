@@ -105,6 +105,10 @@ test('synth stdin shapes match the bundled policy contract', () => {
 test('isManagedArtifactPath matches sdlc artifacts only', () => {
   assert.ok(isManagedArtifactPath('.ai/workflows/demo/01-intake.md'));
   assert.ok(isManagedArtifactPath('repo/PRODUCT.md'));
+  // ship-plan.md is a managed project-context artifact (the verifier checks it on
+  // write, so the Stop-time ledger must track it too — mirrors the shared helper).
+  assert.ok(isManagedArtifactPath('.ai/ship-plan.md'));
+  assert.ok(isManagedArtifactPath('repo/.ai/ship-plan.md'));
   assert.ok(!isManagedArtifactPath('src/app.ts'));
   assert.ok(!isManagedArtifactPath('.ai/workflows/demo/01-intake.yaml'));
 });
@@ -221,23 +225,39 @@ test('stop-verify clears the ledger when artifacts are valid (no managed touched
   }
 });
 
-test('session-start emits native Codex orientation + writes activation once', () => {
+const DEMO_INDEX = '---\nschema: sdlc/v1\ntype: index\nslug: demo\ntitle: Demo Feature\ncurrent-stage: plan\nstatus: active\nrecommended-next-invocation: /wf-meta plan demo\n---\n# demo\n';
+
+test('session-start emits orientation but records NO activation without a confirmed hub', () => {
   const { repo, pluginData, cleanup } = mkRepo();
   try {
-    writeFileSync(
-      join(repo, '.ai', 'workflows', 'demo', '00-index.md'),
-      '---\nschema: sdlc/v1\ntype: index\nslug: demo\ntitle: Demo Feature\ncurrent-stage: plan\nstatus: active\nrecommended-next-invocation: /wf-meta plan demo\n---\n# demo\n',
-    );
+    writeFileSync(join(repo, '.ai', 'workflows', 'demo', '00-index.md'), DEMO_INDEX);
+    // Hub ensure disabled → no hub confirmed → activation must NOT be recorded
+    // (the native-interop contract records activation only after a confirmed hub).
     const env = { SDLC_DISABLE_HUB_ENSURE: '1' };
     const res = runHook('session-start.mjs', { cwd: repo, hook_event_name: 'SessionStart', source: 'startup', session_id: 's1' }, { repo, pluginData, env });
     assert.equal(res.status, 0, `stderr=${res.stderr}`);
-    const out = JSON.parse(res.stdout);
-    const ctx = out.hookSpecificOutput.additionalContext;
+    const ctx = JSON.parse(res.stdout).hookSpecificOutput.additionalContext;
     assert.match(ctx, /demo/);
     assert.match(ctx, /\$wf-meta plan demo/, 'maps legacy /wf-meta to native $wf-meta');
+    assert.ok(!existsSync(join(pluginData, 'activation.json')), 'no activation record without a confirmed hub');
+  } finally {
+    cleanup();
+  }
+});
+
+test('session-start writes activation once after the hub is confirmed', () => {
+  const { repo, pluginData, cleanup } = mkRepo();
+  try {
+    writeFileSync(join(repo, '.ai', 'workflows', 'demo', '00-index.md'), DEMO_INDEX);
+    // Treat the hub as confirmed (no real hub spawned) so the activation-write
+    // path runs hermetically.
+    const env = { SDLC_ASSUME_HUB_READY: '1' };
+    const res = runHook('session-start.mjs', { cwd: repo, hook_event_name: 'SessionStart', source: 'startup', session_id: 's1' }, { repo, pluginData, env });
+    assert.equal(res.status, 0, `stderr=${res.stderr}`);
+    assert.match(JSON.parse(res.stdout).hookSpecificOutput.additionalContext, /\$wf-meta plan demo/, 'maps legacy /wf-meta to native $wf-meta');
 
     const actPath = join(pluginData, 'activation.json');
-    assert.ok(existsSync(actPath), 'activation recorded');
+    assert.ok(existsSync(actPath), 'activation recorded after a confirmed hub');
     const first = readFileSync(actPath, 'utf-8');
 
     // Second SessionStart with the same baseline must NOT rewrite the record.

@@ -333,7 +333,12 @@ export function findProjectRoot(cwd) {
   return gitRoot || resolve(cwd || process.cwd());
 }
 
-/** True for a managed sdlc artifact markdown path (mirrors isManagedArtifactMarkdownPath). */
+/**
+ * True for a managed sdlc artifact markdown path (mirrors the shared
+ * isManagedArtifactMarkdownPath, incl. the project-context paths PRODUCT.md /
+ * DESIGN.md / .ai/ship-plan.md). Must stay in sync so every managed artifact the
+ * verifier checks at write time is also tracked on the Stop-time ledger.
+ */
 export function isManagedArtifactPath(path) {
   const n = String(path ?? '').replace(/\\/g, '/');
   return (
@@ -341,6 +346,7 @@ export function isManagedArtifactPath(path) {
     /(?:^|\/)\.ai\/simplify\/.+\.md$/.test(n) ||
     /(?:^|\/)\.ai\/profiles\/.+\/.+\.md$/.test(n) ||
     /(?:^|\/)\.ai\/docs\/[^/]+\/.+\.md$/.test(n) ||
-    /(?:^|\/)(PRODUCT|DESIGN)\.md$/.test(n)
+    /(?:^|\/)(PRODUCT|DESIGN)\.md$/.test(n) ||
+    /(?:^|\/)\.ai\/ship-plan\.md$/.test(n)
   );
 }
