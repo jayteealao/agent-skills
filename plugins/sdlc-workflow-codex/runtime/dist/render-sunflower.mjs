@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-DF5GTBZ4.mjs";
+} from "./chunk-ZXXZROFY.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
@@ -16,7 +16,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-CU6ECTJ6.mjs";
+} from "./chunk-PJSJRLI2.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
@@ -26,7 +26,7 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-32YWK3IT.mjs";
+} from "./chunk-CG7H3BRZ.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-HQR34SES.mjs";
@@ -266,12 +266,12 @@ async function ensureServeLifecycle({
   const liveReload = hubCfg.liveReload !== false;
   const pidPath = servePidPath(projectRoot);
   const status = await pidFileStatus(pidPath);
-  if (hubCfg.perRepoServe === false) {
+  if (hubCfg.perRepoServe !== true) {
     if (status.alive) {
       stopPid(status.record.pid, log);
-      log(`[serve] per-repo daemons disabled machine-wide (hub-config.perRepoServe:false) \u2014 reaped pid ${status.record.pid}`);
+      log(`[serve] per-repo daemons off by default (hub-config.perRepoServe not true) \u2014 reaped pid ${status.record.pid}`);
     } else {
-      log("[serve] per-repo daemons disabled machine-wide (hub-config.perRepoServe:false) \u2014 the hub serves this repo at /r/<id>/");
+      log("[serve] per-repo daemons off by default (hub-config.perRepoServe not true) \u2014 the hub serves this repo at /r/<id>/");
     }
     if (status.record) await removePidFile(pidPath);
     return { action: "per-repo-disabled" };
