@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/runtime-parity.test.mjs tests/hooks.test.mjs",
-    "verify:runtime": "node runtime/dist/verify-runtime.mjs"
+    "verify:runtime": "node runtime/dist/verify-runtime.mjs",
+    "verify:no-legacy": "node scripts/verify-no-legacy-codex.mjs"
   },
   "engines": {
     "node": ">=20.0.0"
