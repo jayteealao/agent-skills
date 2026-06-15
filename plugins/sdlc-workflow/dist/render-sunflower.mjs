@@ -26,7 +26,7 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-CG7H3BRZ.mjs";
+} from "./chunk-77OL7PJT.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-HQR34SES.mjs";
@@ -34,6 +34,7 @@ import {
   configHash,
   loadConfigWithMeta
 } from "./chunk-ZMYLXAL2.mjs";
+import "./chunk-WSKFGLGB.mjs";
 import {
   hubPidPath,
   isPidAlive,
@@ -45,7 +46,10 @@ import {
   runtimeIdentity,
   upsertRegistryEntry,
   writePidFile
-} from "./chunk-62EUKJZS.mjs";
+} from "./chunk-W64MFL45.mjs";
+import {
+  resolveEntrypoint
+} from "./chunk-HLR2BZLC.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,
@@ -56,9 +60,6 @@ import {
 } from "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
-import {
-  resolveEntrypoint
-} from "./chunk-HLR2BZLC.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 

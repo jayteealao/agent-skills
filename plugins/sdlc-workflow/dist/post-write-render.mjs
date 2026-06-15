@@ -15,10 +15,16 @@ import {
   configPathFor
 } from "./chunk-ZMYLXAL2.mjs";
 import {
+  resolveActiveRuntimeRootSync
+} from "./chunk-W64MFL45.mjs";
+import {
   enqueue,
   queueDir,
   resolveEntrypoint
 } from "./chunk-HLR2BZLC.mjs";
+import "./chunk-NTSUEAI6.mjs";
+import "./chunk-5U76735W.mjs";
+import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
@@ -167,11 +173,12 @@ async function debounceStage2() {
   } catch {
   }
   const buckets = bucketCsv ? bucketCsv.split(",").filter(Boolean) : [];
-  const renderArgs = [resolveEntrypoint(PLUGIN_ROOT, "render-sunflower")];
+  const renderRoot = resolveActiveRuntimeRootSync() ?? PLUGIN_ROOT;
+  const renderArgs = [resolveEntrypoint(renderRoot, "render-sunflower")];
   if (buckets.length === 1) {
     renderArgs.push("--only", `${buckets[0]}/**`);
   }
-  renderArgs.push("--plugin-root", PLUGIN_ROOT);
+  renderArgs.push("--plugin-root", renderRoot);
   const child = spawn(process.execPath, renderArgs, {
     cwd: projectRoot,
     stdio: "pipe",

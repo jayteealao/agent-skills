@@ -9,8 +9,10 @@ import {
 } from "./chunk-ZMYLXAL2.mjs";
 import {
   CODE_BROWSER_DEFAULTS,
+  STALE_RENDER_DEFAULTS
+} from "./chunk-WSKFGLGB.mjs";
+import {
   LockTimeoutError,
-  STALE_RENDER_DEFAULTS,
   hubPidPath,
   isPidAlive,
   materializeRuntime,
@@ -21,7 +23,7 @@ import {
   withLock,
   writeActiveRuntime,
   writePidFile
-} from "./chunk-62EUKJZS.mjs";
+} from "./chunk-W64MFL45.mjs";
 import {
   resolveEntrypoint
 } from "./chunk-HLR2BZLC.mjs";

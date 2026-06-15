@@ -3,20 +3,21 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubLifecycle
-} from "./chunk-CG7H3BRZ.mjs";
+} from "./chunk-77OL7PJT.mjs";
 import "./chunk-HQR34SES.mjs";
 import "./chunk-ZMYLXAL2.mjs";
+import "./chunk-WSKFGLGB.mjs";
 import {
   upsertRegistryEntry
-} from "./chunk-62EUKJZS.mjs";
-import "./chunk-NTSUEAI6.mjs";
-import "./chunk-5U76735W.mjs";
-import "./chunk-LFGT2BKG.mjs";
+} from "./chunk-W64MFL45.mjs";
 import {
   appendError,
   countPending,
   writeStatus
 } from "./chunk-HLR2BZLC.mjs";
+import "./chunk-NTSUEAI6.mjs";
+import "./chunk-5U76735W.mjs";
+import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
@@ -30,6 +31,7 @@ function argValue(name, fallback) {
 function hasFlag(name) {
   return process.argv.includes(name);
 }
+var CONFIRM = hasFlag("--confirm");
 async function main() {
   const here = dirname(fileURLToPath(import.meta.url));
   const pluginRoot = argValue("--plugin-root", resolve(here, ".."));
@@ -37,11 +39,13 @@ async function main() {
   const viewDir = argValue("--view", resolve(projectRoot, ".ai", "_view"));
   const skipEnsure = hasFlag("--no-ensure");
   let hubUp = false;
+  let confirmed = false;
   if (!skipEnsure) {
     try {
       const r = await ensureHubLifecycle({ pluginRoot, log: () => {
       } });
       hubUp = r.action === "already-running" || r.action === "started" || r.action === "started-unconfirmed";
+      confirmed = r.action === "already-running" || r.action === "started";
     } catch (err) {
       try {
         appendError(viewDir, `ensure-hub failed: ${err?.message ?? err}`);
@@ -61,5 +65,6 @@ async function main() {
     });
   } catch {
   }
+  return confirmed;
 }
-main().then(() => process.exit(0)).catch(() => process.exit(0));
+main().then((confirmed) => process.exit(CONFIRM && !confirmed ? 1 : 0)).catch(() => process.exit(CONFIRM ? 1 : 0));
