@@ -104,7 +104,7 @@ Then STOP — do not continue to the full review workflow.
    | `experiment` | Read `04c-experiment.md`. Review the experiment infrastructure: is the cohort logic correct, are metrics appropriate, is the rollback path safe? |
    | `benchmark` | Read `05c-benchmark.md`. Cross-reference with `06-verify` compare-mode results. If verify flagged regressions, surface them as review findings. |
 
-   Also read `02b-design.md` and `02c-craft.md` if present for register, anti-goals, and visual contract — review must check anti-goals were honored.
+   Also read `02b-design.md` and `02c-craft.md` for register, anti-goals, and visual contract — **`02c-craft.md` is mandatory when present: if it exists you MUST read it** — review must check anti-goals were honored.
 
    Cross-reference `06-verify-<slice-slug>.md` (per-slice mode) or every `06-verify-*.md` file (slug-wide mode). Mandatory reads from each verify artifact:
    - `## Augmentation Verification` — failed augmentation re-checks become BLOCKER or HIGH findings automatically.

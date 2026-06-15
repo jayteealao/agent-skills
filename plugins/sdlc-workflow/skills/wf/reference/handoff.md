@@ -65,8 +65,8 @@ You are a **workflow orchestrator**, not a problem solver.
      - `## Friction Notes` and `## Free Exploration Notes` (if non-empty) → include under a "Soft Observations" subsection in `## Reviewer Focus Areas` so the human reviewer sees what the verifier noticed beyond the acceptance criteria.
    - If `review-scope: slug-wide`: read the single `07-review.md` (review verdict and all findings for the whole branch).
    - `po-answers.md`
-6. **Read augmentation context (optional — surfaces all augmentation work for the reviewer):**
-   Read `02b-design.md` and `02c-craft.md` if present for register, anti-goals, and visual contract. The mock fidelity inventory items are user-visible changes the PR description should highlight (translated to product language).
+6. **Read augmentation context (`02c-craft.md` is mandatory when present; the augmentations list is optional):**
+   Read `02b-design.md` and `02c-craft.md` for register, anti-goals, and visual contract — **if `02c-craft.md` exists you MUST read it.** The mock fidelity inventory items are user-visible changes the PR description should highlight (translated to product language).
 
    Read the `augmentations:` list in `00-index.md`. Every entry must appear in the handoff package's `## Design Changes` and/or `## Reviewer Focus Areas` section. Per-type translation:
 

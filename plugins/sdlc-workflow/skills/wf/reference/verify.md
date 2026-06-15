@@ -61,8 +61,8 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
      - `05-implement-<slice-slug>.md` — what was actually implemented
      - `02-shape.md` — overall spec context
    - All modes also read `po-answers.md` if it exists.
-7. **Read augmentation verification context (optional):**
-   `02c-craft.md` if present — extract `## Mock fidelity inventory`. Each item is an additional acceptance criterion that verify must check. Cross-reference `05-implement-<slice-slug>.md` → `## Visual Contract Honored` to confirm each item was honored in code.
+7. **Read augmentation verification context (`02c-craft.md` is mandatory when present):**
+   `02c-craft.md` — **if the file exists you MUST read it** — extract `## Mock fidelity inventory`. Each item is an additional acceptance criterion that verify must check. Cross-reference `05-implement-<slice-slug>.md` → `## Visual Contract Honored` to confirm each item was honored in code.
 
    Read the `augmentations:` list in `00-index.md`. For each entry, read the referenced artifact and apply the type-specific re-check:
 

@@ -44,9 +44,10 @@ You are a **workflow orchestrator**, not a problem solver.
      - If `stack.user-confirmed: true` → proceed. Sub-agent 3 and the plan's interactive verification template both consume this confirmed block as their source of truth.
    - If `current-stage` in the index is already past plan → WARN before overwriting.
 4. **Read** `02-shape.md`, `03-slice.md` (if exists), the relevant `03-slice-<slice-slug>.md` file(s), and `po-answers.md`.
-4b. **Read design context if present** (optional):
-   - `02b-design.md` — register, recommended references, anti-goals. Plan steps for UI work should reference the recommended design reference docs (e.g., "follow `skills/wf-design/reference/typeset.md` for type scale").
-   - `02c-craft.md` — visual contract. The `## Mock fidelity inventory` items must be reflected as concrete plan steps. The `## Implementation contract` lists token choices, component decisions, and motion specs the plan must follow. The plan should NOT contradict the visual contract; if it must, surface the conflict for resolution before implementation.
+4b. **Read design context — mandatory when present** (file existence is optional; consumption is required for any UI/visual-design work):
+   - `02b-design.md` — register, recommended references, anti-goals.
+   - `02c-craft.md` — **visual contract. If the file exists you MUST read it.** The `## Mock fidelity inventory` items must be reflected as concrete plan steps. The `## Implementation contract` lists token choices, component decisions, and motion specs the plan must follow. The plan should NOT contradict the visual contract; if it must, surface the conflict for resolution before implementation.
+   - **Design references — union of both files.** Build the reference set from BOTH `recommended-references:` in `02b-design.md`'s frontmatter AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each entry by stripping a trailing `.md` (the two fields differ in convention) before de-duplicating. Plan steps for UI work MUST cite each as a pointer (e.g., "follow `skills/wf-design/reference/typeset.md` for type scale") so the implementer loads them; each resolves to `skills/wf-design/reference/<name>.md`. References that craft introduced live only in `02c` — reading `02b` alone would silently drop them, so always union the two.
 5. **Determine planning mode** (order matters — check top to bottom):
 
    **a) `all` with existing plans → review-all mode:**

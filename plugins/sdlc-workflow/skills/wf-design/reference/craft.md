@@ -115,7 +115,7 @@ refs:
 register: <brand|product>
 image-gate: <pass|skipped:<reason>>
 north-star-mock: <path or "none">
-references-loaded: [list of reference files used]
+references-loaded: [union of the brief's recommended-references + any references craft loaded — authoritative; wf-plan and wf-implement re-read this]
 ---
 ```
 
@@ -153,6 +153,8 @@ Pulled from anti-goals in the brief plus the absolute bans list. Be specific to 
 
 ### 6. Implementation references
 Which reference docs `wf-implement` should consult (typeset.md, animate.md, harden.md, etc.).
+
+Record this list authoritatively in the `references-loaded:` frontmatter array above as the **union** of (a) the brief's `recommended-references:` (from `02b-design.md`) and (b) any references you loaded or added during craft. Names omit the `.md` extension and resolve to `skills/wf-design/reference/<name>.md`. This is the field `wf-plan` and `wf-implement` re-read — together with `02b`'s `recommended-references:` — to load design rationale. A reference that appears only in this prose section but **not** in `references-loaded:` will NOT be loaded by implementation, so keep the two in sync.
 
 ### 7. Routing
 
