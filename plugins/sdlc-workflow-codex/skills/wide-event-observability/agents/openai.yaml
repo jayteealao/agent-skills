@@ -1,0 +1,6 @@
+interface:
+  display_name: "Wide-Event Observability"
+  short_description: "Design and implement wide-event logging with tail sampling for context-rich, queryable observability"
+  default_prompt: "Help me replace our scattered logging with wide-event observability using tail sampling"
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,96 @@
+---
+description: Read the workflow index and tell the user the exact next skill to run, carrying forward the correct slug and slice.
+argument-hint: [slug]
+---
+
+# External Output Boundary (MANDATORY)
+Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
+- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.ai/dep-updates/...`), stage names or numbers, skill names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
+- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
+- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
+- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+
+You are running `wf-next`, the **routing helper** for the SDLC lifecycle.
+
+# Pipeline
+1·intake → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+
+This skill does NOT advance the workflow. It reads the current state and tells you what to run next.
+
+# CRITICAL — execution discipline
+You are a **routing helper**, not a problem solver.
+- Do NOT start running the next stage — only tell the user what it is.
+- Do NOT modify workflow files beyond `90-next.md`.
+- Your job is to **read the index, determine the next skill, and return it with options**.
+- Follow the numbered steps below **exactly in order**.
+- Your only output is the routing note and the compact chat summary defined below.
+- If you catch yourself about to start running the next stage, STOP and just return the skill invocation.
+
+# Step 0 — Orient (MANDATORY — do this before all other steps)
+1. **Resolve the slug**: If `$ARGUMENTS` provides a slug, use it. Otherwise:
+   - **If `.ai/workflows/INDEX.md` exists** (v9.11.0) → read it; filter rows where the status column is not `closed`. If exactly one non-closed row → use that slug. If multiple → see step 2.
+   - **If `INDEX.md` does NOT exist** → fall back to searching `.ai/workflows/*/00-index.md` for active workflows. Append a one-line tip to the final chat return: *"Tip: run `$wf-meta sync` once to bootstrap `.ai/workflows/INDEX.md` — enumeration becomes registry-driven."*
+2. **If multiple workflows exist** and no slug was given → list them. If INDEX.md was the source, the list is `slug — status — updated-at` (INDEX.md doesn't carry `current-stage`/`stage-status`; pass an explicit slug if you need that). If the glob fallback ran, list them with their `current-stage` and `stage-status` as before. Then ask the user which one to continue, presenting the options as a short numbered list in chat.
+3. **Read `00-index.md`** for the selected workflow. Parse the YAML frontmatter — especially `current-stage`, `status`, `selected-slice`, `open-questions`, `next-command`, `next-invocation`, `progress`, `slices` (if present), `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`.
+4. **Read the current stage file** referenced by `current-stage` to check its `Status` field and `## Recommended Next Stage` section.
+5. **Check branch status:** If `branch-strategy` is `dedicated`, check whether the user is currently on the workflow branch (`git branch --show-current`). If they are on the wrong branch, include a warning in the routing output: "You are on `<current>` but this workflow uses `<branch>`. Switch before running the next skill."
+
+# Purpose
+Read the workflow index and tell the user the exact next skill to run, carrying forward the correct slug and slice.
+
+# Workflow rules
+- Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file.
+- **All artifact files use YAML frontmatter** for machine-readable state. Parse frontmatter (between `---` markers) to read status, stage, slices, etc.
+- `00-index.md` frontmatter must have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `next-command`, `next-invocation`, `workflow-files`, `progress`.
+
+# Chat return contract
+After writing the routing note, return ONLY:
+- `slug: <slug>`
+- `wrote: <path>`
+- `options:` (ALL viable options from the current stage's recommendations)
+- ≤3 short blocker bullets if needed
+
+Do this in order:
+1. Read the current stage file's `## Recommended Next Stage` section. If it contains multiple options, **present ALL options to the user** — do not pick one silently.
+2. If the index already has `recommended-next-invocation` and the current stage is complete, include that as the default option.
+3. If the current stage shows `Status: Awaiting input`, tell the user to resolve the pending questions first. List the open questions.
+4. If the current stage is complete but `recommended-next-invocation` is missing, determine the next stage from the pipeline and construct the invocation.
+5. **Check for skip opportunities:** Based on the stage file contents and workflow context, evaluate whether any stages can be skipped. Present skips as additional options with clear reasoning.
+6. **Check for remaining slices:** If slices exist in `03-slice.md`, check which slices still need work. Include "next slice" as an option if applicable.
+7. If the workflow is marked complete, tell the user.
+8. Write `.ai/workflows/<slug>/90-next.md` with a brief routing note.
+
+Write `90-next.md` with this structure:
+
+```yaml
+---
+schema: sdlc/v1
+type: routing
+slug: <slug>
+updated-at: "<iso-8601>"
+current-stage: <stage-name>
+stage-number: <N>
+status: <status from index>
+selected-slice: <slice-slug or "">
+branch-strategy: <dedicated|shared|none>
+branch: "<branch or empty>"
+on-correct-branch: <true|false>
+is-blocked: <true|false>
+open-questions: [...]
+remaining-slices: [<slice-slugs>]
+next-command: <wf-X>
+next-invocation: "$wf-X <slug> <args>"
+refs:
+  index: 00-index.md
+---
+```
+
+# Next
+
+## All Options
+- **Option A (default):** `$wf-<next> <slug>` — [reason]
+- **Option B:** `$wf-<alt> <slug>` — [reason, if applicable]
+- **Option C:** [skip/revisit option, if applicable]
+
+## If Blocked
+- ...
