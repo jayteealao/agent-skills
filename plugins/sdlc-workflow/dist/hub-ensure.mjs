@@ -3,7 +3,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubLifecycle
-} from "./chunk-32YWK3IT.mjs";
+} from "./chunk-CG7H3BRZ.mjs";
 import "./chunk-HQR34SES.mjs";
 import "./chunk-ZMYLXAL2.mjs";
 import {

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — per-repo serving is now opt-in; the hub is the default sole server (9.78.0)
+
+`hub-config.perRepoServe` now defaults to **`false`** (was `true`). A standalone per-repo serve daemon spawns
+ONLY when the key is explicitly `true`; at the default — `false`, or absent — `ensureServeLifecycle` reaps any
+running per-repo daemon and declines to spawn, so the machine-wide hub is the sole server. This removes the
+last way a per-repo daemon can squat the hub port by default (the inbox-vanishes-behind-one-repo failure) and
+makes "the hub serves everything" the zero-config behavior.
+
+- **Opt-in semantics everywhere, not just the default constant.** Every reader now treats *only* `=== true` as
+  enabled: the server gate (`serve-lifecycle`, was `=== false` to disable → now `!== true`), the tray checkmark
+  (`perRepoServeEnabled`, which also reads OFF on a missing/torn config instead of defaulting ON), and the
+  toggle. A sparse or partially-read config resolves OFF — "false at all times" holds however the config is read.
+- **Trade-off:** a repo that opts out of the hub (`view.hub.enabled:false`) no longer gets a standalone fallback
+  daemon automatically — set `perRepoServe:true` to restore it.
+
+Full suite green (420, +1 default-off regression test); doc-site `serve`/`sunflower-view` updated.
+
 ### Added — the native Codex package carries the shared runtime, byte-for-byte (9.77.0)
 
 NATIVE-INTEROP-REWRITE-PLAN Workstream D — the first deliverable that puts a real runtime inside

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.77.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.78.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -132,7 +132,7 @@
 <tr><td><code>version</code></td><td>integer</td><td><code>1</code></td><td>Config schema version (for forward migration).</td></tr>
 <tr><td><code>host</code></td><td>string</td><td><code>127.0.0.1</code></td><td>Bind address. <code>0.0.0.0</code> is refused unless Tailscale is enabled <em>and</em> acknowledged (see Security model).</td></tr>
 <tr><td><code>port</code></td><td>integer</td><td><code>4173</code></td><td>Listen port — the canonical SDLC URL in both hub and per-repo modes.</td></tr>
-<tr><td><code>perRepoServe</code></td><td>boolean</td><td><code>true</code></td><td>Machine-wide kill switch. When <code>false</code>, no per-repo daemon ever spawns (any running one is reaped); the hub is the sole server.</td></tr>
+<tr><td><code>perRepoServe</code></td><td>boolean</td><td><code>false</code></td><td>Machine-wide opt-in for per-repo daemons. A standalone per-repo daemon spawns <em>only</em> when this is explicitly <code>true</code>; at the default (<code>false</code>, or absent) no per-repo daemon ever spawns (any running one is reaped) and the hub is the sole server.</td></tr>
 <tr><td><code>liveReload</code></td><td>boolean</td><td><code>true</code></td><td>Inject the live-reload script into the standalone per-repo fallback daemon. (The hub always live-reloads.)</td></tr>
 <tr><td><code>maxSseClients</code></td><td>integer</td><td><code>200</code></td><td>Aggregate Server-Sent-Events client cap across all repos (live-reload channel).</td></tr>
 <tr><td><code>maxWatchedRepos</code></td><td>integer</td><td><code>50</code></td><td>Beyond this many registered repos the hub polls instead of using <code>fs.watch</code>.</td></tr>
@@ -210,7 +210,7 @@
 
 <ol>
   <li>Reads <code>~/.sdlc/hub-config.json</code> (host, port, tailscale, liveReload, perRepoServe).</li>
-  <li>If <code>perRepoServe: false</code> — reaps any running per-repo daemon and returns; the hub serves this repo at <code>/r/&lt;id&gt;/</code>.</li>
+  <li>Unless <code>perRepoServe</code> is explicitly <code>true</code> (the default is <code>false</code>) — reaps any running per-repo daemon and returns; the hub serves this repo at <code>/r/&lt;id&gt;/</code>.</li>
   <li>If a hub is alive (PID-file-gated probe of <code>~/.sdlc/hub.pid</code>) — defers to it, reaping any redundant per-repo daemon.</li>
   <li>Otherwise spawns the standalone fallback daemon — <code>dist/render-sunflower-serve.mjs</code> in installs, falling back to <code>scripts/render-sunflower-serve.mjs</code> for maintainers before their first build (<code>resolveEntrypoint</code> prefers the committed bundle) — writing a PID file at <code>.ai/_view/.serve.pid</code>.</li>
 </ol>
@@ -229,7 +229,7 @@
 <thead><tr><th>Symptom</th><th>Check</th></tr></thead>
 <tbody>
 <tr><td>Server not starting</td><td><code>.ai/_view/.bootstrap.log</code> for the bootstrap render's output.</td></tr>
-<tr><td>Wrong repo shown at <code>/</code></td><td>A pre-hub per-repo daemon may be squatting port 4173. Set <code>perRepoServe: false</code> and restart the session, or reap the stale PID in <code>.ai/_view/.serve.pid</code>.</td></tr>
+<tr><td>Wrong repo shown at <code>/</code></td><td>A pre-hub per-repo daemon may be squatting port 4173. Per-repo serving is off by default; if you enabled it (<code>perRepoServe: true</code>), set it back to <code>false</code> and restart the session, or reap the stale PID in <code>.ai/_view/.serve.pid</code>.</td></tr>
 <tr><td>Port conflict</td><td>Change <code>port</code> in <code>~/.sdlc/hub-config.json</code>.</td></tr>
 <tr><td>Tailscale not routing</td><td><code>tailscale serve status</code> (or <code>tailscale funnel status</code>).</td></tr>
 <tr><td>Stale page after an edit</td><td>Confirm <code>liveReload</code> is not <code>false</code>; check the SSE client cap (<code>maxSseClients</code>).</td></tr>

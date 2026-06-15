@@ -179,7 +179,7 @@ rejected by the schema):
   "host": "127.0.0.1",
   "port": 4173,
   "liveReload": true,
-  "perRepoServe": true
+  "perRepoServe": false
 }
 ```
 

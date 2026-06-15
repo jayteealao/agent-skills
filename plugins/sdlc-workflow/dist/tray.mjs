@@ -13,7 +13,7 @@ import {
   readHubConfig,
   stopHub,
   writeHubConfig
-} from "./chunk-32YWK3IT.mjs";
+} from "./chunk-CG7H3BRZ.mjs";
 import "./chunk-HQR34SES.mjs";
 import "./chunk-ZMYLXAL2.mjs";
 import {
@@ -360,16 +360,16 @@ async function ensureHubOnLaunch({ pluginRoot, log: log2 = () => {
 }
 function togglePerRepoServe() {
   const cfg = readHubConfig({ create: true });
-  const next = !cfg.perRepoServe;
+  const next = cfg.perRepoServe !== true;
   cfg.perRepoServe = next;
   writeHubConfig(cfg);
   return next;
 }
 function perRepoServeEnabled() {
   try {
-    return readHubConfig({ create: false }).perRepoServe !== false;
+    return readHubConfig({ create: false }).perRepoServe === true;
   } catch {
-    return true;
+    return false;
   }
 }
 function openerCommand(platform, target) {

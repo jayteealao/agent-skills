@@ -1084,7 +1084,7 @@ Every file starts with YAML frontmatter (`schema: sdlc/v1`) containing all machi
 
 ### Local config and generated view files
 
-Optional local view and hook settings live in `.ai/sdlc-config.json`: render concurrency/debounce, bootstrap toggles, multi-repo **hub participation** (`view.hub.enabled`), and hook opt-outs — so most projects should not commit it. Serve settings (host, port, Tailscale exposure, the `perRepoServe` kill switch) are **machine-wide**, not per-repo: they live in `~/.sdlc/hub-config.json` and the per-repo schema rejects them. See the [serve reference](docs/site/reference/serve.html) for the full security model. The generated sunflower view under `.ai/_view/` is also derived output.
+Optional local view and hook settings live in `.ai/sdlc-config.json`: render concurrency/debounce, bootstrap toggles, multi-repo **hub participation** (`view.hub.enabled`), and hook opt-outs — so most projects should not commit it. Serve settings (host, port, Tailscale exposure, the opt-in `perRepoServe` per-repo-daemon toggle) are **machine-wide**, not per-repo: they live in `~/.sdlc/hub-config.json` and the per-repo schema rejects them. See the [serve reference](docs/site/reference/serve.html) for the full security model. The generated sunflower view under `.ai/_view/` is also derived output.
 
 Recommended `.gitignore` entries:
 
@@ -1105,7 +1105,7 @@ The view layer is an npm package rooted at `plugins/sdlc-workflow/`. From that d
 | `npm run test:e2e` | End-to-end acceptance — renders one schema-valid fixture per render-eligible type and fails if any admitted type loses its renderer or a fixture is schema-invalid. Prints `[render] no renderer for: (none)` on success. |
 | `npm run render:diag` | Render this project's real `.ai/` tree with `--clean --diag`, surfacing any types that fall through to the generic renderer. |
 
-`npm test && npm run test:e2e` is the joint CI gate. Third-party deps (Ajv, js-yaml, markdown-it) arrive via `npm install`; the engine and hooks themselves are dependency-free.
+`npm test && npm run test:e2e` is the joint CI gate. Third-party deps (Ajv, js-yaml, markdown-it) are esbuild-bundled into the committed `dist/` directory (since v9.45.0), so the plugin runs self-contained from a clean clone — end users never run `npm install`. Only maintainers run it, to get the build/test toolchain; the `sdlc-build-freshness` CI gate proves `dist/` works with `node_modules` deleted.
 
 ### Control file fields (`00-index.md`)
 

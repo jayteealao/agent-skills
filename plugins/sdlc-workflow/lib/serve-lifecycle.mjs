@@ -40,15 +40,16 @@ export async function ensureServeLifecycle({
   const pidPath = servePidPath(projectRoot);
   const status = await pidFileStatus(pidPath);
 
-  // Machine-wide kill switch: perRepoServe:false disables per-repo daemons for
-  // the whole machine — reap any running one and decline to spawn. The hub
+  // Per-repo serving is OPT-IN (machine-wide): a daemon runs ONLY when
+  // hub-config.perRepoServe is explicitly `true`. At the default (`false` or
+  // absent) reap any running per-repo daemon and decline to spawn — the hub
   // serves this repo at /r/<id>/.
-  if (hubCfg.perRepoServe === false) {
+  if (hubCfg.perRepoServe !== true) {
     if (status.alive) {
       stopPid(status.record.pid, log);
-      log(`[serve] per-repo daemons disabled machine-wide (hub-config.perRepoServe:false) — reaped pid ${status.record.pid}`);
+      log(`[serve] per-repo daemons off by default (hub-config.perRepoServe not true) — reaped pid ${status.record.pid}`);
     } else {
-      log('[serve] per-repo daemons disabled machine-wide (hub-config.perRepoServe:false) — the hub serves this repo at /r/<id>/');
+      log('[serve] per-repo daemons off by default (hub-config.perRepoServe not true) — the hub serves this repo at /r/<id>/');
     }
     if (status.record) await removePidFile(pidPath);
     return { action: 'per-repo-disabled' };
