@@ -7,6 +7,7 @@
 // #6). See MULTI-REPO-REGISTRY-PLAN §4.5.
 
 import { randomBytes } from 'node:crypto';
+import { rmSync } from 'node:fs';
 import { request } from 'node:http';
 import { join } from 'node:path';
 
@@ -17,8 +18,8 @@ import { hubPidPath, sdlcHomeDir } from './registry.mjs';
 import { readHubConfig, hubConfigHash } from './hub-config.mjs';
 import { maybeConfigureTailscale, tailscaleDnsName } from './tailscale.mjs';
 import { runtimeIdentity } from './runtime-manifest.mjs';
-import { withLock, LockTimeoutError } from './cross-host-lock.mjs';
-import { materializeRuntime, writeActiveRuntime } from './runtime-store.mjs';
+import { withLock, LockTimeoutError, atomicWriteJson } from './cross-host-lock.mjs';
+import { gcRuntimes, materializeRuntime, readRuntimeIdentityAt, verifyRuntimeStore, writeActiveRuntime } from './runtime-store.mjs';
 
 // Shared runtime identity (NATIVE-INTEROP Workstream B): the host-NEUTRAL
 // { runtimeVersion, buildId, hubName, hubProtocolVersion } both plugins carry
@@ -43,6 +44,15 @@ export { hubPidPath };
 // host adapters funnel hub materialize/start/reap through it so two distinct host
 // processes (Claude + Codex) racing SessionStart produce exactly one hub.
 export function hubLockPath() { return join(sdlcHomeDir(), 'hub.lock'); }
+
+// A SECOND lock, distinct from hub.lock, for the explicit controlled upgrade
+// (NATIVE-INTEROP "Controlled Runtime Upgrade"). It serializes upgrades against
+// each other and lets the slow materialize/verify phase run WITHOUT blocking
+// normal SessionStart adoption of the still-live old hub; only the brief swap
+// window takes hub.lock. The previous active runtime is recorded durably so a
+// crash mid-swap is recoverable by the next SessionStart.
+export function hubUpgradePath() { return join(sdlcHomeDir(), 'hub-upgrade.lock'); }
+function upgradeRecordPath() { return join(sdlcHomeDir(), 'hub-upgrade.previous.json'); }
 
 /**
  * Decide what to do about whatever is answering on the hub port. PURE +
@@ -179,19 +189,31 @@ export async function ensureHubLifecycle({ pluginRoot, log = () => {} } = {}) {
  */
 async function startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log }) {
   let runtimeRoot = pluginRoot;
-  let buildId = RUNTIME.buildId;
+  let identity = RUNTIME;
   try {
     const mat = await materializeRuntime(pluginRoot);
     runtimeRoot = mat.runtimeRoot;
-    buildId = mat.buildId;
-    if (mat.materialized) log(`[hub] materialized runtime ${buildId ? buildId.slice(0, 12) : '?'} into the machine store`);
-    await writeActiveRuntime({ buildId, runtimeRoot, runtimeVersion: RUNTIME.runtimeVersion });
+    if (mat.materialized) log(`[hub] materialized runtime ${mat.buildId ? mat.buildId.slice(0, 12) : '?'} into the machine store`);
+    await writeActiveRuntime({ buildId: mat.buildId, runtimeRoot, runtimeVersion: RUNTIME.runtimeVersion });
+    identity = { ...RUNTIME, buildId: mat.buildId ?? RUNTIME.buildId };
   } catch (err) {
     log(`[hub] runtime materialization failed (${err?.message ?? err}); starting from plugin cache`);
     runtimeRoot = pluginRoot;
-    buildId = RUNTIME.buildId;
+    identity = RUNTIME;
   }
 
+  return startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port, pidPath, log });
+}
+
+/**
+ * Spawn the hub from a SPECIFIC materialized runtime root with a SPECIFIC shared
+ * identity (so the controlled upgrade can start either the requested new runtime
+ * or the previous one on rollback — neither of which is necessarily this lib's
+ * bundled RUNTIME). Pre-writes hub.pid with the given identity, waits for health.
+ * Caller holds hub.lock. Returns { action: 'started' | 'started-unconfirmed', pid }.
+ */
+async function startHubFromRuntimeRoot({ runtimeRoot, identity, cfg, host, port, pidPath, log }) {
+  const buildId = identity.buildId;
   const token = randomBytes(24).toString('hex');
   const cfgHash = hubConfigHash(cfg);
   const script = resolveEntrypoint(runtimeRoot, 'hub-serve');
@@ -240,9 +262,9 @@ async function startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log }) 
   if (child.pid) {
     await writePidFile(pidPath, {
       pid: child.pid, host, port, token, configHash: cfgHash,
-      hubName: RUNTIME.hubName,
-      hubProtocolVersion: RUNTIME.hubProtocolVersion,
-      runtimeVersion: RUNTIME.runtimeVersion,
+      hubName: identity.hubName,
+      hubProtocolVersion: identity.hubProtocolVersion,
+      runtimeVersion: identity.runtimeVersion,
       buildId,
       runtimeRoot,
       startedByHost: STARTED_BY_HOST,
@@ -254,7 +276,7 @@ async function startHubFromStore({ cfg, host, port, pidPath, pluginRoot, log }) 
     log(`[hub] started pid ${child.pid}, health check not ready yet`);
     return { action: 'started-unconfirmed', pid: child.pid };
   }
-  log(`[hub] started pid ${child.pid} at http://${displayHost(host)}:${port} (runtime ${runtimeRoot === pluginRoot ? 'plugin-cache' : 'machine-store'})`);
+  log(`[hub] started pid ${child.pid} at http://${displayHost(host)}:${port} (runtime ${identity.runtimeVersion}${buildId ? ` ${buildId.slice(0, 12)}` : ''})`);
   maybeConfigureTailscale({ tailscale: cfg.tailscale, port, log });
   return { action: 'started', pid: child.pid };
 }
@@ -265,6 +287,174 @@ export async function stopHub({ log = () => {} } = {}) {
   if (status.alive) stopPid(status.record.pid, log);
   if (status.record) await removePidFile(pidPath);
   return { stopped: Boolean(status.alive) };
+}
+
+/* ─────────────────── controlled runtime upgrade (NATIVE-INTEROP §"Controlled
+ *                     Runtime Upgrade" / Workstream C) ─────────────────────────
+ *
+ * SessionStart stays adoption-first; runtime REPLACEMENT is explicit and atomic.
+ * This is the deliberate "swap the live hub to a different runtime build" path,
+ * distinct from the SessionStart reap that fires on a runtimeVersion change. It
+ * never downgrades implicitly, and it rolls the live hub back to its previous
+ * runtime if the new one fails to come up healthy — so the machine is never left
+ * without a working hub. */
+
+/**
+ * PURE decision: given the requested runtime, the currently-active one, and the
+ * downgrade flags, should we proceed? Unit-testable without a live hub.
+ * @returns {'already-current'|'downgrade-refused'|'proceed'}
+ */
+export function upgradeDecision({ requested, prev, aliveSameBuild, allowDowngrade, confirm }) {
+  if (aliveSameBuild) return 'already-current';
+  if (prev?.runtimeVersion && requested?.runtimeVersion &&
+      compareVersions(requested.runtimeVersion, prev.runtimeVersion) < 0 &&
+      !(allowDowngrade && confirm)) {
+    return 'downgrade-refused';
+  }
+  return 'proceed';
+}
+
+/**
+ * Controlled upgrade/restart with rollback. `pluginRoot` carries the runtime to
+ * upgrade TO (its runtime-manifest.json names the target build). Steps:
+ *   1. resolve requested + previous (live) runtime identities; guard downgrades
+ *   2. under hub-upgrade.lock, materialize + verify the requested runtime (old hub
+ *      still serving + adoptable during this slow phase)
+ *   3. under hub.lock (the brief swap window — blocks SessionStart from racing a
+ *      competing start): record previous → stop old → free port → start requested
+ *      → confirm health + registry + correct build
+ *   4. success → clear record, GC keeping the previous for the next rollback;
+ *      failure → roll back to the previous runtime and restart it
+ *
+ * @returns {{action:'upgraded'|'already-current'|'rolled-back'|'downgrade-refused'
+ *   |'upgrade-aborted'|'upgrade-failed-unrecovered', ...}}
+ */
+export async function controlledUpgrade({ pluginRoot, allowDowngrade = false, confirm = false, log = () => {} } = {}) {
+  const cfg = readHubConfig();
+  const host = cfg.host ?? '127.0.0.1';
+  const port = Number(cfg.port ?? 4173);
+  const pidPath = hubPidPath();
+
+  const requested = readRuntimeIdentityAt(pluginRoot) ?? RUNTIME;
+  if (!requested.buildId) {
+    return { action: 'upgrade-aborted', reason: 'requested runtime has no buildId (unbuilt source tree?)' };
+  }
+
+  // The currently-active runtime = the live hub's PID record (the rollback target).
+  const status = await pidFileStatus(pidPath);
+  const rec = status.record;
+  const prev = rec?.runtimeRoot ? {
+    runtimeVersion: rec.runtimeVersion ?? null,
+    buildId: rec.buildId ?? null,
+    hubName: rec.hubName ?? RUNTIME.hubName,
+    hubProtocolVersion: rec.hubProtocolVersion ?? RUNTIME.hubProtocolVersion,
+    runtimeRoot: rec.runtimeRoot,
+  } : null;
+
+  const decision = upgradeDecision({
+    requested, prev,
+    aliveSameBuild: Boolean(status.alive && prev && prev.buildId === requested.buildId),
+    allowDowngrade, confirm,
+  });
+  if (decision === 'already-current') return { action: 'already-current', buildId: requested.buildId };
+  if (decision === 'downgrade-refused') {
+    return {
+      action: 'downgrade-refused', from: prev?.runtimeVersion ?? null, to: requested.runtimeVersion,
+      reason: 'requested runtime is older than the active one; pass allowDowngrade + confirm to force',
+    };
+  }
+
+  try {
+    return await withLock(hubUpgradePath(), { ownerHost: STARTED_BY_HOST, ttlMs: 120000, timeoutMs: 20000, log }, async () => {
+      // Phase 1 — slow, old hub untouched: materialize + verify the requested build.
+      let newRoot;
+      try {
+        const mat = await materializeRuntime(pluginRoot, { manifest: { buildId: requested.buildId } });
+        newRoot = mat.runtimeRoot;
+      } catch (err) {
+        return { action: 'upgrade-aborted', reason: `materialization failed: ${err?.message ?? err}` };
+      }
+      if (!await verifyRuntimeStore(newRoot, requested.buildId)) {
+        return { action: 'upgrade-aborted', reason: 'requested runtime failed verification after materialization' };
+      }
+
+      // Phase 2 — the swap, under hub.lock so a concurrent SessionStart blocks then
+      // re-probes + adopts the new hub instead of starting a competitor.
+      return await withLock(hubLockPath(), { ownerHost: STARTED_BY_HOST, ttlMs: 30000, timeoutMs: 15000, log }, async () => {
+        // Durable rollback record FIRST (survives a crash mid-swap).
+        if (prev) await atomicWriteJson(upgradeRecordPath(), { ...prev, host, port, at: new Date().toISOString() });
+
+        if (status.alive && rec?.pid) stopPid(rec.pid, log);
+        await removePidFile(pidPath);
+        await waitForGone({ host, port, timeoutMs: 3000 });
+
+        await writeActiveRuntime({ buildId: requested.buildId, runtimeRoot: newRoot, runtimeVersion: requested.runtimeVersion });
+        const started = await startHubFromRuntimeRoot({ runtimeRoot: newRoot, identity: requested, cfg, host, port, pidPath, log });
+        const ok = started.action === 'started' && await confirmHub({ host, port, expectBuildId: requested.buildId });
+
+        if (!ok) {
+          log(`[hub] upgrade to ${requested.runtimeVersion} (${requested.buildId.slice(0, 12)}) failed confirmation — rolling back`);
+          const recovered = prev ? await rollback({ prev, cfg, host, port, pidPath, log }) : false;
+          clearUpgradeRecord();
+          if (recovered) return { action: 'rolled-back', from: requested.runtimeVersion, to: prev.runtimeVersion };
+          return {
+            action: prev ? 'upgrade-failed-unrecovered' : 'upgrade-aborted',
+            reason: prev ? 'new runtime failed AND rollback failed — run SessionStart recovery' : 'requested runtime failed to start; no prior hub to roll back to',
+            to: requested.runtimeVersion,
+          };
+        }
+
+        clearUpgradeRecord();
+        if (prev?.buildId && prev.buildId !== requested.buildId) {
+          // Keep the previous build for the next rollback window; GC reaps older ones.
+          try { gcRuntimes({ keepBuildIds: [prev.buildId, requested.buildId] }); } catch { /* best-effort */ }
+        }
+        log(`[hub] upgraded ${prev?.runtimeVersion ?? '(none)'} → ${requested.runtimeVersion} (${requested.buildId.slice(0, 12)}), pid ${started.pid}`);
+        return { action: 'upgraded', from: prev?.runtimeVersion ?? null, to: requested.runtimeVersion, buildId: requested.buildId, pid: started.pid };
+      });
+    });
+  } catch (err) {
+    if (err instanceof LockTimeoutError) return { action: 'upgrade-aborted', reason: err.message };
+    throw err;
+  }
+}
+
+/** Confirm a hub is up, serving its registry (isHub), and running the expected build. */
+async function confirmHub({ host, port, expectBuildId }) {
+  const id = await probeHubIdentity({ host, port, timeoutMs: 3000 });
+  return Boolean(id && id.isHub && (!expectBuildId || id.buildId === expectBuildId));
+}
+
+/** Roll the live hub back to the previous runtime. Returns true iff it comes up healthy. */
+async function rollback({ prev, cfg, host, port, pidPath, log }) {
+  if (!prev?.runtimeRoot) return false;
+  const st = await pidFileStatus(pidPath);
+  if (st.alive && st.record?.pid) stopPid(st.record.pid, log);
+  await removePidFile(pidPath);
+  await waitForGone({ host, port, timeoutMs: 3000 });
+  if (!await verifyRuntimeStore(prev.runtimeRoot, prev.buildId)) {
+    log('[hub] rollback target runtime is missing/corrupt in the store');
+    return false;
+  }
+  await writeActiveRuntime({ buildId: prev.buildId, runtimeRoot: prev.runtimeRoot, runtimeVersion: prev.runtimeVersion });
+  const started = await startHubFromRuntimeRoot({ runtimeRoot: prev.runtimeRoot, identity: prev, cfg, host, port, pidPath, log });
+  return started.action === 'started' && await confirmHub({ host, port, expectBuildId: prev.buildId });
+}
+
+function clearUpgradeRecord() {
+  try { rmSync(upgradeRecordPath(), { force: true }); } catch { /* best-effort */ }
+}
+
+/** Numeric major.minor.patch compare: <0 if a<b, >0 if a>b, 0 if equal. */
+export function compareVersions(a, b) {
+  const pa = String(a ?? '').split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b ?? '').split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0;
+    const y = pb[i] || 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
 }
 
 /* ───────────────────────── helpers (mirror serve-lifecycle) ───────────────────────── */

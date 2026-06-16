@@ -24,7 +24,7 @@ import { cp, mkdir, readFile, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import { atomicWriteJson } from './cross-host-lock.mjs';
-import { readRuntimeManifest } from './runtime-manifest.mjs';
+import { HUB_NAME, HUB_PROTOCOL_VERSION, readRuntimeManifest } from './runtime-manifest.mjs';
 import { sdlcHomeDir, hubPidPath } from './registry.mjs';
 
 // The shared runtime payload copied into the store. Mirrors what a hub/renderer
@@ -132,6 +132,27 @@ export async function writeActiveRuntime({ buildId, runtimeRoot, runtimeVersion 
 export async function readActiveRuntime() {
   try { return JSON.parse(await readFile(activeRuntimePath(), 'utf-8')); }
   catch { return null; }
+}
+
+/**
+ * Read the shared-runtime identity recorded in an arbitrary runtime root's
+ * manifest (a plugin cache, a materialized store dir, …). Used by the controlled
+ * upgrade to identify the runtime it is upgrading TO and the previous runtime it
+ * may roll back to — neither of which is the lib's own bundled manifest. Returns
+ * `{ runtimeVersion, buildId, hubName, hubProtocolVersion }` or null. Never throws.
+ */
+export function readRuntimeIdentityAt(runtimeRoot) {
+  try {
+    const m = JSON.parse(readFileSync(join(runtimeRoot, 'runtime-manifest.json'), 'utf-8'));
+    return {
+      runtimeVersion: typeof m.runtimeVersion === 'string' && m.runtimeVersion ? m.runtimeVersion : null,
+      buildId: typeof m.buildId === 'string' && m.buildId ? m.buildId : null,
+      hubName: typeof m.hubName === 'string' && m.hubName ? m.hubName : HUB_NAME,
+      hubProtocolVersion: Number.isInteger(m.hubProtocolVersion) ? m.hubProtocolVersion : HUB_PROTOCOL_VERSION,
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**

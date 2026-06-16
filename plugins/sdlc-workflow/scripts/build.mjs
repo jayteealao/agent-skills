@@ -67,6 +67,7 @@ const SCRIPT_ENTRIES = [
   'render-sunflower-serve',  // spawned by lib/serve-lifecycle
   'tray',                    // user-launched system-tray app (docs/internal/archived/TRAY-APP-PLAN.md)
   'verify-runtime',          // self-contained runtime integrity/parity check (NATIVE-INTEROP Workstream D)
+  'hub-upgrade',             // explicit controlled runtime upgrade + rollback (NATIVE-INTEROP Workstream C)
 ];
 
 // Public renderers are loaded at runtime by render-sunflower's loadRenderer()

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — explicit controlled runtime upgrade with rollback (9.80.0)
+
+NATIVE-INTEROP-REWRITE-PLAN "Controlled Runtime Upgrade" — the last open Workstream C deliverable. SessionStart
+stays adoption-first; this is the deliberate, atomic path to swap the live machine-wide hub to a *different*
+shared-runtime build, with automatic rollback if the new runtime fails to come up healthy — so the machine is
+never left without a working hub.
+
+- **`controlledUpgrade({ pluginRoot, allowDowngrade, confirm })`** (`lib/hub-lifecycle.mjs`). Resolves the
+  requested runtime (the target `pluginRoot`'s manifest) and the previous one (the live hub's PID record), then:
+  under `~/.sdlc/hub-upgrade.lock` materializes + verifies the new build while the old hub keeps serving; under
+  `hub.lock` (the brief swap window, which blocks a racing SessionStart from starting a competitor) writes a
+  durable rollback record → stops the old hub → frees the port → starts the new one → confirms health, registry
+  visibility, and the expected build. On any failure it rolls the hub back to the previous runtime and restarts
+  it. Success keeps the previous build in the store for the next rollback window.
+- **Never downgrades implicitly.** A requested runtime older than the active one is refused unless both
+  `allowDowngrade` and `confirm` are passed (pure, unit-tested `upgradeDecision` + `compareVersions`).
+- **`startHubFromRuntimeRoot`** extracted from `startHubFromStore` so the op can start an arbitrary runtime
+  (the new build, or the previous one on rollback) with an explicit identity, not just the bundled `RUNTIME`.
+- **CLI** `scripts/hub-upgrade.mjs` (`npm run hub:upgrade`, bundled to `dist/`): `node <runtimeRoot>/dist/hub-upgrade.mjs [--plugin-root <path>] [--allow-downgrade --yes]`.
+
+Proven with real detached hubs in an `SDLC_HOME` sandbox: an upgrade swaps the live hub to a new build and
+retains `~/.sdlc` state; a deliberately-unhealthy runtime rolls back to the previous build (plan test items 9 & 10).
+
 ### Changed — sub-command chat returns are now a narrative, not a receipt (9.79.0)
 
 Every artifact-producing sub-command (`/wf plan`, `shape`, `slice`, `implement`, `verify`, `review`, …) now ends its chat return with a short **narrative paragraph** that *tells the user what happened* — for `plan`, what the plan **is** (the approach) and how it gets built, with the file/step counts and the top risk woven in; for `implement`, what was built and how; for `verify`, what was checked and the result. The scannable anchors stay — the `complete:` header, `Artifacts:`, `Next:`, and (for `/review`) the `Verdict:`/`Findings:` line — but they now sit *beneath* the prose. Previously a bare receipt (`slug` / `wrote` / `options`) was all that landed in chat: you saw *that* `04-plan-<slice>.md` was written, never *what the plan said*.
