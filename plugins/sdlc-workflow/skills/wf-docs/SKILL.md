@@ -313,23 +313,27 @@ Invoked only when Step 0 resolved to a primitive (first token matched a known ke
 
 After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across both modes (orchestrator and primitive).
 
-**Format (max 8 lines) — orchestrator mode:**
+**Format (compact — a short narrative, then the anchors) — orchestrator mode:**
 
 ```
 wf-docs orchestrator complete: <slug-or-path>
+
+<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
+
 Artifacts: <comma-separated paths>
 Files: <created> created | <updated> updated | <deleted> deleted | <skipped> skipped
-<1–3 lines of key gaps found or changes made>
 Next: <recommended command, or "Done">
 ```
 
-**Format (max 8 lines) — primitive mode:**
+**Format (compact — a short narrative, then the anchors) — primitive mode:**
 
 ```
 wf-docs <primitive> complete: <path-or-slug>
+
+<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
+
 Artifacts: <comma-separated paths>
 Quadrant: <tutorial|how-to|reference|explanation|readme|n/a>
-<1–2 lines on the document's main content or key decisions>
 Next: <recommended command, or "Done">
 ```
 
@@ -340,6 +344,6 @@ Next: <recommended command, or "Done">
 - **Artifacts.** The docs files created or modified in this invocation. For orchestrator mode, include the audit and plan artifacts. For primitive mode, the single document written.
 - **Files counts** (orchestrator only) — the audit verdict in four numbers. Use `0` rather than omitting a row.
 - **Quadrant** (primitive only) — the Diátaxis quadrant the primitive emitted. `n/a` for `readme` and `review` primitives.
-- **Key facts (1–3 lines)** — top gaps found, decisions made, or impactful changes. Skip if there's nothing material.
+- **Narrative — the heart of the summary, REQUIRED for any sub-command that produces an artifact.** In place of the old terse key-facts line, write a short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the user what happened* — what this run produced or decided, how, the load-bearing counts and decisions, and the top risk or caveat. Write it like you're telling a colleague, not filling a form. Omit only for genuinely read-only sub-commands.
 - **Next.** For orchestrator: typically "Review generated docs" or "Run wf-docs again to verify". For primitive: usually `Done` unless a follow-up is warranted (e.g., `Done — consider /wf-docs review` after writing a long reference).
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.

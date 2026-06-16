@@ -82,12 +82,14 @@ After sub-command resolution, before dispatch: if the user passed a positional s
 
 After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across every sub-command this router dispatches; the reference may carry its own chat-return content, but this section governs the shape.
 
-**Format (max 8 lines):**
+**Format (compact — a short narrative, then the anchors):**
 
 ```
 wf <sub-command> complete: <slug-or-scope>
+
+<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
+
 Artifacts: <comma-separated paths, or "none">
-<1–3 lines of key facts — verdict, counts, decisions, tripwires>
 Next: <recommended command, or "Done">
 ```
 
@@ -96,7 +98,7 @@ Next: <recommended command, or "Done">
 - **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
 - **Verb-first first line.** Name the sub-command and the workflow slug (or other scope if applicable: `area` for `profile`, etc.).
 - **Artifacts** are the paths created or modified in this invocation (e.g., `.ai/workflows/<slug>/04-plan-<slice>.md`). Use `"none"` for read-only sub-commands.
-- **Key facts (1–3 lines)** surface the most load-bearing outcomes for whoever runs the Next command: verdict, counts, convergence state, tripwires. Skip if there's nothing material.
+- **Narrative — the heart of the summary, REQUIRED for any sub-command that writes an artifact.** In place of the old terse key-facts line, write a short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the user what happened*: for `plan`, what the plan **is** (the approach) and how it gets built; for `implement`, what was built and how; for `verify`, what was checked and the result, and whether it converged; for `shape`, the scope decided; for `slice`, how the work was split; for `intake`, what was understood; for `ship`/`retro`, what shipped and the key lessons. Weave the load-bearing counts, decisions, and the top risk into the prose. Write it like you're telling a colleague, not filling a form. Omit only for genuinely read-only sub-commands.
 - **Next** is a concrete invocation, or `Done` for terminal sub-commands (`ship`, `retro`). Never vague like "consider your next step".
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
-- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and trim to fit the 8-line cap. The rich detail belongs in the artifact, not in chat.
+- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and keep it compact. **A reference that says to "return ONLY" a receipt (slug / wrote / options) means only those *receipt fields* — it does NOT waive the substance summary above. Always surface what the artifact says — its key decisions, counts, verdict, top risk — not merely the paths it wrote.** Keep the *full* detail in the artifact; the chat summary carries the gist.

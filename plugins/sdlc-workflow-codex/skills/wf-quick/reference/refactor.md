@@ -290,7 +290,8 @@ Use when the refactor is small and you are confident no behavior changed.
 - Commit atomically per step. Do not accumulate uncommitted changes across steps.
 
 # Chat return contract
-After completing, return ONLY:
+After completing, return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `slug: <slug>`
 - `wrote: <paths>`
 - `baseline vs. post-refactor: <pass-count before> → <pass-count after>` (must match or improve)

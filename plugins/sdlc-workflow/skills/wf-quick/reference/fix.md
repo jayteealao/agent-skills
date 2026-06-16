@@ -197,7 +197,9 @@ Body: one-line description of the workflow + a short pointer to `01-fix.md`.
 
 # Step 4 — Hand off to user
 
-Emit a compact chat summary, no more than 8 lines:
+Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+
+Emit a compact chat summary:
 
 ```
 wf-quick complete: <slug>

@@ -44,7 +44,8 @@ Read the workflow index and tell the user the exact next skill to run, carrying 
 - `00-index.md` frontmatter must have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice`, `open-questions`, `next-command`, `next-invocation`, `workflow-files`, `progress`.
 
 # Chat return contract
-After writing the routing note, return ONLY:
+After writing the routing note, return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `slug: <slug>`
 - `wrote: <path>`
 - `options:` (ALL viable options from the current stage's recommendations)

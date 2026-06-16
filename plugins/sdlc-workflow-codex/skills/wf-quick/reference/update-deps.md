@@ -301,7 +301,8 @@ created-at: <real timestamp>
 - Web search for every package being updated — do not rely solely on `npm outdated` output.
 
 # Chat return contract
-After completing, return ONLY:
+After completing, return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `run-id: <run-id>`
 - `wrote: <paths>`
 - Summary table: packages updated | blocked | held | test result

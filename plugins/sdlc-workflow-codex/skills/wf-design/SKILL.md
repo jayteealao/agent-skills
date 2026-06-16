@@ -256,14 +256,16 @@ This artifact lets `$wf review` and `$wf handoff` see exactly what design augmen
 
 After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across every sub-command this router dispatches and across all three invocation modes (workflow stage 2b, workflow + sub-command, freestanding).
 
-**Format (max 8 lines):**
+**Format (compact — a short narrative, then the anchors):**
 
 ```
 wf-design <sub-command> complete: <slug-or-"freestanding">
-Artifacts: <comma-separated paths, or "none">
+
+<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
+
 Register: <brand|product>
 Image gate: <pass|skipped:<reason>>
-<optional 1 line of key facts — what changed, count, decision>
+Artifacts: <comma-separated paths, or "none">
 Next: <recommended command, or "Done">
 ```
 
@@ -274,10 +276,10 @@ Next: <recommended command, or "Done">
 - **Artifacts.** Workflow modes write to `.ai/workflows/<slug>/` (e.g., `02b-design.md`, `02c-craft.md`, `07-design-audit.md`, `07-design-critique.md`, `design-notes/<sub>-<timestamp>.md`). Freestanding mode writes `"none"` unless the sub-command produces a standalone output. Comma-separate multiple paths.
 - **Register** is `brand` or `product` — always emit; this is the load-bearing design-mode signal.
 - **Image gate** records whether the imagegen check passed for sub-commands that use it. For sub-commands that don't run the gate, write `n/a`.
-- **Key facts (1 optional line)** — only when there's a load-bearing outcome the user needs before the Next command (e.g., "Tripwire: contrast failed AA on heading" for audit; "3 candidate directions" for shape).
+- **Narrative — the heart of the summary, REQUIRED for any sub-command that produces an artifact.** In place of the old terse key-facts line, write a short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the user what happened* — what this run produced or decided, how, the load-bearing counts and decisions, and the top risk or caveat. Write it like you're telling a colleague, not filling a form. Omit only for genuinely read-only sub-commands.
 - **Next** is a concrete invocation, or `Done` for terminal runs. Workflow-mode runs typically route forward (`$wf slice <slug>` after shape, `$wf intake <slug>` for craft, `$wf review <slug>` after audit). Freestanding runs usually `Done`.
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
-- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and trim to fit the 8-line cap. The rich detail belongs in the artifact, not in chat.
+- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and keep it compact. **A reference that says to "return ONLY" a receipt (slug / wrote / options) means only those *receipt fields* — it does NOT waive the substance summary above. Always surface what the artifact says — its key decisions, counts, verdict, top risk — not merely the paths it wrote.** Keep the *full* detail in the artifact; the chat summary carries the gist.
 
 # Shared design laws
 

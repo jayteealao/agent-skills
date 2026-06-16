@@ -54,12 +54,14 @@ Parse `$ARGUMENTS`. The first token must be one of the 12 known keys below; the 
 
 After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across every sub-command this router dispatches; the reference may carry its own chat-return content, but this section governs the shape.
 
-**Format (max 8 lines):**
+**Format (compact — a short narrative, then the anchors):**
 
 ```
 wf-meta <sub-command> complete: <slug-or-scope>
+
+<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
+
 Artifacts: <comma-separated paths, or "none">
-<1–3 lines of key facts — state changes, counts, decisions>
 Next: <recommended command, or "Done">
 ```
 
@@ -68,7 +70,7 @@ Next: <recommended command, or "Done">
 - **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
 - **Verb-first first line.** Name the sub-command and the slug (or other scope: `INDEX.md` for `sync`, the topic for `how`, etc.).
 - **Artifacts** are the paths created or modified in this invocation. Most `wf-meta` sub-commands are read-only or registry-only — use `"none"` when no per-workflow files changed. For `sync`, the artifact is `.ai/workflows/INDEX.md`. For `amend`, the touched per-workflow stage file. For `announce`, the announcement output (chat-only unless `--write` is implied).
-- **Key facts (1–3 lines)** — pick what's load-bearing for the next step. For `status`: the workflow's current stage + status. For `sync`: A added / R removed / U updated counts. For `next`/`resume`: which workflow + stage was picked. For `amend`/`extend`: what changed. For `how`: the mode (A/B/C/D/E) + brief topic.
+- **Narrative — the heart of the summary, REQUIRED for any sub-command that produces an artifact.** In place of the old terse key-facts line, write a short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the user what happened* — what this run produced or decided, how, the load-bearing counts and decisions, and the top risk or caveat. Write it like you're telling a colleague, not filling a form. Omit only for genuinely read-only sub-commands.
 - **Next** is a concrete invocation when applicable, or `Done` when the meta-action is its own terminal step (e.g., `status` after enumerating workflows).
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
-- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and trim to fit the 8-line cap. The rich detail belongs in the artifact, not in chat.
+- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and keep it compact. **A reference that says to "return ONLY" a receipt (slug / wrote / options) means only those *receipt fields* — it does NOT waive the substance summary above. Always surface what the artifact says — its key decisions, counts, verdict, top risk — not merely the paths it wrote.** Keep the *full* detail in the artifact; the chat summary carries the gist.

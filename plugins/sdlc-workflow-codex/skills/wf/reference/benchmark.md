@@ -250,7 +250,7 @@ For each fired tripwire, write one line. Then add:
 
 # Step 5 — Hand off to user
 
-**Baseline mode summary** (8 lines max):
+**Baseline mode summary.** Lead with a short **narrative** paragraph (prose, no bullets) — what was measured and the headline numbers — then the structured anchors:
 ```
 $wf benchmark baseline complete: <slug>
 Language: <language>, framework: <framework>
@@ -261,7 +261,7 @@ Re-baseline: $wf benchmark <slug> baseline
 Artifact: .ai/workflows/<slug>/05c-benchmark.md
 ```
 
-**Compare mode summary** (10 lines max):
+**Compare mode summary.** Lead with a short **narrative** paragraph (prose, no bullets) — what changed versus baseline, the regressions or improvements, and the verdict — then the structured anchors:
 ```
 $wf benchmark compare complete: <slug>
 Targets compared: <N>

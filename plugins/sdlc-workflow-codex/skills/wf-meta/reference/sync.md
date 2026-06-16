@@ -266,7 +266,8 @@ Do NOT change `status`, `current-stage`, or any other field.
 Then rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` to the same timestamp. (Step -1 refreshed the file based on the pre-Step-7 state; this small touch keeps it consistent with the just-bumped `00-index.md.updated-at`.)
 
 # Chat return contract
-Return ONLY:
+Return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - **Health:** `<rating>` with emoji (✓/⚠/✗)
 - **Summary table** (the compact category table)
 - ≤5 bullets on the most important drift findings

@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — sub-command chat returns are now a narrative, not a receipt (9.79.0)
+
+Every artifact-producing sub-command (`/wf plan`, `shape`, `slice`, `implement`, `verify`, `review`, …) now ends its chat return with a short **narrative paragraph** that *tells the user what happened* — for `plan`, what the plan **is** (the approach) and how it gets built, with the file/step counts and the top risk woven in; for `implement`, what was built and how; for `verify`, what was checked and the result. The scannable anchors stay — the `complete:` header, `Artifacts:`, `Next:`, and (for `/review`) the `Verdict:`/`Findings:` line — but they now sit *beneath* the prose. Previously a bare receipt (`slug` / `wrote` / `options`) was all that landed in chat: you saw *that* `04-plan-<slice>.md` was written, never *what the plan said*.
+
+**Root cause.** The v9.19.0 Final Summary Contract lives in each router's `# Step N — Emit Final Summary` and was correct, but two instructions defeated it: (1) every stage reference's `# Chat return contract` told the model to **"return ONLY"** a slug/wrote/options receipt, and (2) the router's key-facts line was *optional* ("Skip if there's nothing material") and deferred to that reference as the content spec. The model resolved the conflict by emitting the receipt and skipping the substance. (v9.19.0 had deliberately made summaries terse and field-shaped for scannability; this release re-optimises that same surface for comprehension — narrative prose, anchors retained.)
+
+**The fix** (applied to both the Claude and native-Codex skill trees, ~72 skill files):
+
+- **Routers (all 6)** — the Final Summary format now leads with a mandatory **narrative** placeholder; the old "Key facts" rule became a "Narrative" rule **REQUIRED for any sub-command that produces an artifact**; the `Artifacts:`/`Next:` anchors move below the prose. `/review` keeps `Verdict` + `Findings` and `/wf-design` keeps `Register` + `Image gate` as scannable anchors after the narrative; the `8-line` cap was relaxed to "compact". Read-only displays (`status`, `resume`, `how`) stay exempt.
+- **Receipt references (38)** — the `wf/*` stages, `wf-quick/*`, and the artifact-producing `wf-meta` actions (`sync`/`amend`/`extend`/`next`) replace "return ONLY" with "lead with the substance first, then the receipt" and carry a `narrative:` directive as the first field, above the slug/wrote/options anchors.
+- **Hand-off references (22)** — the augmentations (`instrument`/`experiment`/`benchmark`/`profile`), the `wf-quick` investigative commands, and `wf-meta` `skip`/`close` now lead with a narrative paragraph, keeping their structured field block as anchors beneath it.
+
+### Decisions (recorded)
+
+1. **Narrative over terse fields, anchors retained.** Per product-owner direction, the chat return optimises for being *told what happened*, not for scanning a form — but the machine-scannable anchors (`Artifacts`/`Next`/`Verdict`/`Findings`) stay so routing and go/no-go remain at a glance.
+2. **Fix at both layers.** The router mandate is the enforcement; softening the references removes the contradiction at its source so the two no longer fight. Neither alone is robust — the reference's emphatic "ONLY" would keep pulling against a router-only fix.
+3. **Scope by symptom, not pattern.** Read-only displays (`status`, `resume`, `how`) keep their "return ONLY the dashboard/brief" — there the rendered view *is* the substance.
+4. **Brand-neutral inserts** keep the Claude and Codex skill twins byte-identical — verified by de-duplicating each inserted line across its file set (the reference narrative directive collapses to one unique line across 38 files; the hand-off directive to one across 20; the router rule to two, `wf`'s richer variant plus the shared generic).
+
+### Files
+
+- **Routers (12):** `skills/{wf,wf-quick,wf-meta,wf-docs,wf-design,review}/SKILL.md` in both `plugins/sdlc-workflow` and `plugins/sdlc-workflow-codex`.
+- **References (60):** the 15 `wf/*` + `wf-quick/*` receipt refs and 4 `wf-meta` receipt refs, plus 11 hand-off refs (incl. `benchmark`'s two mode blocks), in both trees.
+- **Version:** `.claude-plugin/plugin.json`, `package.json`, `renderers/_shell.mjs`, `.claude-plugin/marketplace.json` (sdlc 9.78.0 → 9.79.0; marketplace 1.104.0 → 1.105.0), and 53 doc-site brand stamps. Codex `runtime/**` re-synced (buildId parity). Skill `.md` edits need no rebuild — they are not part of the bundled runtime.
+
 ### Changed — per-repo serving is now opt-in; the hub is the default sole server (9.78.0)
 
 `hub-config.perRepoServe` now defaults to **`false`** (was `true`). A standalone per-repo serve daemon spawns

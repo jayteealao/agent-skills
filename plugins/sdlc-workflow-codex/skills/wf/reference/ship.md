@@ -93,7 +93,8 @@ You are a **workflow orchestrator**, not a problem solver.
 - **Backwards compatibility.** If a legacy `09-ship.md` exists from a prior workflow, do not write to it. Read for context only. New shape uses `09-ship-run-<run-id>.md` plus `09-ship-runs.md`.
 
 # Chat return contract
-After writing files, return ONLY:
+After writing files, return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `slug: <slug>`
 - `run-id: <run-id>`
 - `wrote: <path>`

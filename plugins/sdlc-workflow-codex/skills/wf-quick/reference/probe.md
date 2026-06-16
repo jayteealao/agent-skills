@@ -401,7 +401,9 @@ Do NOT modify `current-stage`, `selected-slice`, `status`, `branch`, or `progres
 
 # Step 9 — Hand off to user
 
-Emit a compact chat summary, ≤10 lines:
+Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+
+Emit a compact chat summary:
 
 ```
 wf-quick probe complete: <slug>

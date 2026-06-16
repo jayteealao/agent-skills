@@ -202,7 +202,8 @@ Beyond the structured page, this artifact ships one or more **free narrative fra
 - `00-index.md` must always have: slug, workflow-type, current-stage, branch, base-branch, updated-at, recommended-next-command, recommended-next-invocation.
 
 # Chat return contract
-After writing files, return ONLY:
+After writing files, return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `slug: <slug>`
 - `branch: hotfix/<slug>`
 - `wrote: <paths>`

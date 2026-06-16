@@ -164,7 +164,9 @@ Do NOT change `current-stage` — it should reflect the last stage the workflow 
 
 # Step 5 — Hand off to user
 
-Emit a compact chat summary, no more than 12 lines:
+Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+
+Emit a compact chat summary:
 
 ```
 wf-close complete: <slug>
