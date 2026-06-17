@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-JSXOG6GY.mjs";
+} from "../chunk-35VBJOMK.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,7 +13,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-HCXJSDRK.mjs";
+} from "../chunk-VNXGJD4X.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
@@ -41,7 +41,7 @@ var STAGE_NAV = {
   plan: { types: ["plan-index", "plan"], dir: "plan" },
   implement: { types: ["implement-index", "implement"], dir: "implement" },
   verify: { types: ["verify-index", "verify"], dir: "verify" },
-  review: { types: ["review", "review-command"], dir: "review" },
+  review: { types: ["review", "review-command", "design-audit", "design-critique"], dir: "review" },
   handoff: { types: ["handoff"], dir: "handoff" },
   ship: { types: ["ship-runs-index", "ship-run"], dir: "ship" },
   retro: { types: ["retro"], dir: "retro" }

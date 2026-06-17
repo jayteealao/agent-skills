@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — `wf-design` subsumed into `/wf design` (9.82.0)
+
+The standalone `/wf-design` router is retired. Design is now **one `wf` sub-command, `/wf design`,
+run as a compressed workflow** — the producer that authors the brief + visual contract and then
+drives the downstream lifecycle stages itself. The 22 design commands (`craft`, the 15 transforms,
+`audit`, `critique`, `extract`, `setup`, `teach`) are *arguments* to this one key, never their own
+keys. The 14-key `wf` table grows to 15.
+
+- **Producer / dispatcher.** The old `wf-design/SKILL.md` brain becomes `skills/wf/reference/design.md`.
+  `/wf design <slug> <cmd>` resolves the slug by exact existence check (never fuzzy), produces the
+  design spec, then drives `slice → plan → implement → verify` itself — **no hand-back** to `/wf slice`
+  (closing the latent `craft → implement` skip). `/wf design <cmd>` (no slug) runs the full
+  `intake → … → retro` lifecycle. A per-category flow span decides how far the flow travels.
+- **Shared library relocated.** `skills/wf-design/reference/*` (15 transforms + `brand` + `product` +
+  the 7 operator playbooks) moves to `skills/wf/reference/design/`. A new
+  `skills/wf/reference/design/_design-context.md` is the single source for the register, the design
+  laws, the absolute bans, the preflight gates + 4 inspection sub-agents, and the image gate —
+  loaded by both the producer and the consuming stages.
+- **The consumption gradient.** `slice` (structures around it), `plan` (cites it), `implement`
+  (applies it + registers `design-<sub>` augmentations), `verify` (measures the a11y/perf/responsive
+  floor once), and `review` (judges it via `design-audit` + `design-critique` fan-out dimensions)
+  each pull their slice of design knowledge, gated behind `stack.ui ≠ ∅`. a11y/perf are measured once
+  in `verify` and interpreted in `review`/`audit` (single source of truth). `intake`/`shape` route to
+  `/wf design` when `stack.ui ≠ ∅`.
+- **Renderer.** `STAGE_NAV` keeps `design`/`design-contract`/`design-brief` under `shape` and adds the
+  orphaned `design-audit`/`design-critique` under `review`. Artifact `type:` values are unchanged, so
+  the renderers and snapshots are otherwise untouched.
+- **Docs.** `reference/wf-design.html` + `how-to/use-design.html` rewritten to the `/wf design` model;
+  the `/wf-design` sidebar label updated across the site; both manifest descriptions drop `/wf-design`
+  (six → five routers). The Codex tree mirrors the skill edits (`$wf design`).
+
 ### Added — the tray now self-heals a RUNNING stale process after an upgrade (9.81.0)
 
 The autostart launcher self-heal (`refreshAutostart`, run from session-start-orient) re-stamps the Startup launcher

@@ -41,9 +41,9 @@ var PHASE_BY_BASENAME = {
   "06-verify": ["verify", null],
   "07-review": ["review", null],
   "07-design-critique": ["design-critique", null],
-  // /wf-design critique
+  // /wf design critique
   "07-design-audit": ["design-audit", null],
-  // /wf-design audit
+  // /wf design audit
   "00-sync": ["sync", null],
   // /wf sync health report
   "08-handoff": ["handoff", null],
@@ -259,7 +259,7 @@ function breadcrumbFromView(viewRel, slug) {
 }
 
 // renderers/_shell.mjs
-var PLUGIN_VERSION = "9.81.0";
+var PLUGIN_VERSION = "9.82.0";
 function renderShell(params) {
   const {
     title,

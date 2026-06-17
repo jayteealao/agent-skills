@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Design pipeline (/wf-design) · sdlc-workflow</title>
+<title>Design (/wf design) · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.81.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
@@ -91,107 +91,80 @@
   </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Design pipeline</div>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Design</div>
 <span class="quadrant reference">reference</span>
-<h1>Design pipeline (/wf-design)</h1>
+<h1>Design (/wf design)</h1>
 
-<p class="lede">You reach for <code>/wf-design</code> when you need design work on a screen, component, or visual artifact — whether that means planning a layout, running an accessibility pass, or applying a focused visual transformation to code that already exists.</p>
+<p class="lede">Design is <strong>one <code>/wf</code> sub-command</strong> — <code>/wf design</code> — that runs as a <em>compressed workflow</em>. It is the design <strong>producer</strong>: it authors the design brief and the visual contract, runs the 15 visual transformations, and (for build commands) drives the downstream lifecycle stages itself. The standalone <code>/wf-design</code> router has been retired; everything it did is now an argument to <code>/wf design</code>.</p>
 
-<p>This page is a complete reference: three invocation modes, six sub-command categories, 22 sub-commands (<a href="../reference/glossary.html#sub-command">sub-command</a>: a keyword passed after the slug that selects a specific design operation), six artifact (<a href="../reference/glossary.html#artifact">artifact</a>: a workflow note written to <code>.ai/workflows/&lt;slug&gt;/</code>) slots in the workflow tree, plus two repo-root project context files (<code>PRODUCT.md</code> / <code>DESIGN.md</code>).</p>
+<p>The 22 design commands (<a href="../reference/glossary.html#sub-command">sub-command</a>: a keyword that selects a specific design operation) are <strong>arguments</strong> to this one key — never their own keys. The lifecycle stages <code>slice</code> / <code>plan</code> / <code>implement</code> / <code>verify</code> / <code>review</code> are the design <strong>consumers</strong>: each pulls the slice of design knowledge it needs from one shared library, gated behind a UI stack (<code>stack.ui&nbsp;&ne;&nbsp;∅</code>).</p>
 
-<h2>Which sub-command when</h2>
+<h2>Two invocation shapes</h2>
 
-<p>Not sure which sub-command to reach for? Find your situation in the table below.</p>
-
-<table>
-<thead><tr><th>I want to&hellip;</th><th>Use</th><th>Notes</th></tr></thead>
-<tbody>
-<tr><td>Set up project brand and design-system context once</td><td><code>setup</code></td><td>Writes <code>PRODUCT.md</code> + <code>DESIGN.md</code> at repo root; most other sub-commands read these</td></tr>
-<tr><td>Update brand or design system after it changes</td><td><code>teach</code></td><td>Re-runs a focused interview; updates the same files in place</td></tr>
-<tr><td>Turn a shape doc into a design brief</td><td><code>shape</code></td><td>Requires <code>02-shape.md</code>; writes <code>02b-design.md</code></td></tr>
-<tr><td>Produce a visual contract before implementation starts</td><td><code>craft</code></td><td>Requires <code>02b-design.md</code>; writes <code>02c-craft.md</code></td></tr>
-<tr><td>Pull reusable tokens out of existing work</td><td><code>extract</code></td><td>Available at any stage; updates <code>DESIGN.md</code></td></tr>
-<tr><td>Check technical quality after implementation</td><td><code>audit</code></td><td>Produces severity-graded findings (P0–P3); requires implement stage or later</td></tr>
-<tr><td>Get a UX expert review after implementation</td><td><code>critique</code></td><td>Produces persona-based testing notes; requires implement stage or later</td></tr>
-<tr><td>Improve accessibility on existing code</td><td><code>harden</code></td><td>Keyboard nav, screen-reader, contrast, focus management</td></tr>
-<tr><td>Fix layout, spacing, or visual rhythm</td><td><code>layout</code></td><td>Composition, spacing, visual rhythm; fixes monotonous grids</td></tr>
-<tr><td>Polish alignment and micro-detail before shipping</td><td><code>polish</code></td><td>Final pre-ship pass</td></tr>
-<tr><td>Apply any other visual transformation to existing code</td><td>One of the 15 transformations</td><td>See the full transformation table below; all require implement stage or later</td></tr>
-</tbody>
-</table>
-
-<h2>Invocation modes</h2>
+<p>The first token after <code>design</code> is an <strong>optional slug</strong>, resolved by an <strong>exact existence check</strong> (never fuzzy): if <code>.ai/workflows/&lt;token&gt;/00-index.md</code> exists it is the slug; otherwise the token is the design command. The shape decides how far the flow travels.</p>
 
 <table class="no-mobile-scroll">
-<thead><tr><th>Mode</th><th>Form</th><th>Effect</th></tr></thead>
+<thead><tr><th>Shape</th><th>Form</th><th>Effect</th></tr></thead>
 <tbody>
-<tr><td>A — workflow stage 2b</td><td><code>/wf-design &lt;slug&gt;</code></td><td>Shorthand for Mode B with sub-command <code>shape</code>. Writes <code>02b-design.md</code>; routes to <code>craft</code> next.</td></tr>
-<tr><td>B — workflow + sub-command</td><td><code>/wf-design &lt;slug&gt; &lt;sub&gt; [target]</code></td><td>Runs the sub-command in workflow context. Subject to stage gates.</td></tr>
-<tr><td>C — freestanding</td><td><code>/wf-design &lt;sub&gt; [target]</code></td><td>No workflow. Ad-hoc design work outside the lifecycle. No stage gates.</td></tr>
+<tr><td>In-workflow (slug given)</td><td><code>/wf design &lt;slug&gt; &lt;cmd&gt; [instr]</code></td><td><strong>Compressed in-workflow flow.</strong> Produces the brief + contract, then drives <code>slice → plan → implement → verify</code> itself, compressed. Design <em>owns</em> the downstream flow — there is <strong>no hand-back</strong> to <code>/wf slice</code>.</td></tr>
+<tr><td>No slug</td><td><code>/wf design &lt;cmd&gt; [instr]</code></td><td><strong>Full lifecycle.</strong> Creates a new slug and runs the complete <code>intake → … → retro</code> flow, with the design intent seeding it.</td></tr>
 </tbody>
 </table>
 
-<p>The dispatcher infers the mode from the arguments. With a <strong>single arg</strong>: if it matches a known sub-command → Mode C (freestanding); if it matches an existing slug → Mode A. With <strong>two or more args</strong>, arg 0 is always the slug and <strong>arg 1 decides the operation</strong> — if arg 1 is a known sub-command it runs that (Mode B); otherwise the sub-command defaults to <code>shape</code> and the remaining args become the target description.</p>
+<p>Because the in-workflow shape continues straight into slice/plan/implement/verify rather than writing a brief and stopping, the design-consuming stages always fire — closing the old <code>craft → implement</code> skip.</p>
 
-<h2>Sub-command catalog</h2>
+<h2>Per-category flow span</h2>
 
-<h3>Context (any stage)</h3>
-<table>
-<thead><tr><th>Sub</th><th>Writes</th><th>What</th></tr></thead>
+<p>The <code>&lt;design-command&gt;</code> resolves to a category, and the category decides which stages run. <code>slice → plan → implement → verify</code> is the span for <em>build</em> commands only.</p>
+
+<table class="no-mobile-scroll">
+<thead><tr><th>Category</th><th>Commands</th><th>In-workflow span (slug given)</th><th>No slug</th></tr></thead>
 <tbody>
-<tr><td><code>setup</code></td><td><code>PRODUCT.md</code> + <code>DESIGN.md</code> at repo root</td><td>One-time project-level interview. Audience, voice, register, tokens, components, patterns. Loaded as context by most other sub-commands.</td></tr>
-<tr><td><code>teach</code></td><td>Updates <code>PRODUCT.md</code> or <code>DESIGN.md</code> in place</td><td>Re-runs a focused interview round. Use when brand or design system evolves.</td></tr>
+<tr><td>Producer</td><td><code>craft</code></td><td><code>02b-design</code> → <code>02c-craft</code> → slice → plan → implement → verify</td><td>create slug → full lifecycle</td></tr>
+<tr><td>Transformation</td><td>the 15 (<code>colorize</code>, <code>harden</code>, <code>typeset</code>, <code>adapt</code>, …)</td><td>focused <code>02c-craft</code> → slice → plan → implement → verify (the transform <em>is</em> the implement step)</td><td>create slug → full lifecycle</td></tr>
+<tr><td>Review / analysis</td><td><code>audit</code>, <code>critique</code></td><td>single review step → <code>07-design-audit.md</code> / <code>07-design-critique.md</code>; no slice/plan/implement</td><td>standalone one-shot report</td></tr>
+<tr><td>Inspection</td><td><code>extract</code></td><td>single read-only step → <code>design-notes/extract-&lt;ts&gt;.md</code> + <code>tokens-extracted.css</code></td><td>standalone extract report</td></tr>
+<tr><td>Context</td><td><code>setup</code>, <code>teach</code></td><td>write <code>PRODUCT.md</code> / <code>DESIGN.md</code> (repo root, slug-independent)</td><td>identical — repo-root files, no stages</td></tr>
 </tbody>
 </table>
 
-<h3>Planning</h3>
+<p>Only <strong>Producer</strong> and <strong>Transformation</strong> produce code, so they are the only categories that run the build span. The old <em>"you cannot transform code that doesn't exist yet"</em> gate <strong>inverts</strong>: the compressed flow now <em>builds</em> the code at its <code>implement</code> step, so a transform either creates the surface or modifies the slug's existing implementation.</p>
+
+<h2>Command catalog</h2>
+
+<h3>Context (slug-independent)</h3>
 <table>
-<thead><tr><th>Sub</th><th>Writes</th><th>Pre-condition</th></tr></thead>
+<thead><tr><th>Command</th><th>Writes</th><th>What</th></tr></thead>
 <tbody>
-<tr><td><code>shape</code></td><td><code>02b-design.md</code></td><td><code>02-shape.md</code> exists. WARN if <code>02b-design.md</code> already exists.</td></tr>
+<tr><td><code>setup</code></td><td><code>PRODUCT.md</code> + <code>DESIGN.md</code> at repo root</td><td>One-time project-level interview: audience, voice, register, tokens, components, patterns. Loaded as context by most other commands.</td></tr>
+<tr><td><code>teach</code></td><td>Updates <code>PRODUCT.md</code> / <code>DESIGN.md</code> in place</td><td>Re-runs a focused interview round. Use when brand or design system evolves.</td></tr>
 </tbody>
 </table>
 
-<p><code>02b-design.md</code> is the design <strong>brief</strong>: register, anti-goals, layout approach, key states, interaction model. Routes to <code>craft</code> next.</p>
-
-<h3>Contract</h3>
+<h3>Producer</h3>
 <table>
-<thead><tr><th>Sub</th><th>Writes</th><th>Pre-condition</th></tr></thead>
+<thead><tr><th>Command</th><th>Writes</th><th>What</th></tr></thead>
 <tbody>
-<tr><td><code>craft</code></td><td><code>02c-craft.md</code></td><td><code>02b-design.md</code> exists. WARN if <code>02c-craft.md</code> already exists.</td></tr>
+<tr><td><code>craft</code></td><td><code>02b-design.md</code> (brief) + <code>02c-craft.md</code> (visual contract)</td><td>The brief is register + anti-goals + layout approach + key states + recommended references. The contract is the north-star mock + mock-fidelity inventory + implementation contract (NOT code). Then drives the build span.</td></tr>
 </tbody>
 </table>
 
-<p><code>02c-craft.md</code> is the visual <strong>contract</strong> (NOT code). Includes a mock fidelity inventory: which surfaces match the design, which approximate, which are out-of-scope. <code>/wf implement</code> reads it; <code>/wf review</code> checks the implementation against it.</p>
-
-<h3>Read-only inspection</h3>
+<h3>Review &amp; inspection</h3>
 <table>
-<thead><tr><th>Sub</th><th>Writes</th><th>Pre-condition</th></tr></thead>
+<thead><tr><th>Command</th><th>Writes</th><th>What</th></tr></thead>
 <tbody>
-<tr><td><code>extract</code></td><td><code>design-notes/extract-&lt;timestamp&gt;.md</code> + updates <code>DESIGN.md</code></td><td>Any stage.</td></tr>
+<tr><td><code>audit</code></td><td><code>07-design-audit.md</code></td><td>Technical-quality judgment (theming, responsive, anti-patterns) + 0–4 scoring. <strong>Consumes</strong> the a11y/perf/web-vitals already measured by <code>verify</code> in <code>06-verify-*.md</code> rather than re-running axe-core. Also runs as a <code>/wf review</code> dimension.</td></tr>
+<tr><td><code>critique</code></td><td><code>07-design-critique.md</code></td><td>Register-forked expert critique (brand = distinctiveness, product = earned-familiarity). Also runs as a <code>/wf review</code> dimension.</td></tr>
+<tr><td><code>extract</code></td><td><code>design-notes/extract-&lt;ts&gt;.md</code> + <code>tokens-extracted.css</code></td><td>Reverse-engineers reusable tokens out of existing code. Needs no prior context.</td></tr>
 </tbody>
 </table>
 
-<p>Pulls reusable tokens and components out of the current work into the project's design system context.</p>
+<h3>Transformation (15 commands — applied at the <code>implement</code> step)</h3>
 
-<h3>Review</h3>
-<table>
-<thead><tr><th>Sub</th><th>Writes</th><th>Pre-condition</th></tr></thead>
-<tbody>
-<tr><td><code>audit</code></td><td><code>07-design-audit.md</code></td><td>Stage gate: <code>implement</code> → <code>ship</code>.</td></tr>
-<tr><td><code>critique</code></td><td><code>07-design-critique.md</code></td><td>Stage gate: <code>implement</code> → <code>ship</code>.</td></tr>
-</tbody>
-</table>
-
-<p><code>audit</code> = technical-quality check (accessibility, performance, theming, responsive design, anti-patterns). Produces severity-graded P0/P1/P2/P3 findings.</p>
-<p><code>critique</code> = expert UX review (visual hierarchy, information architecture, emotional resonance, cognitive load). Produces persona-based testing notes.</p>
-
-<h3>Transformation (15 sub-commands)</h3>
-
-<p>Each transformation modifies code, registers an add-on (<a href="../reference/glossary.html#add-on">add-on</a>: an augmentation entry that records what was changed and why) entry in <code>00-index.md</code>, and writes <code>design-notes/&lt;sub&gt;-&lt;timestamp&gt;.md</code> with rationale and a diff summary. All 15 require the implement stage or later — you cannot transform code that does not exist yet. Pre-implement, use <code>shape</code> and <code>craft</code> to plan instead.</p>
+<p>Each transformation modifies code, registers an add-on (<a href="../reference/glossary.html#add-on">add-on</a>: an augmentation entry recording what changed and why) in <code>00-index.md</code>, and writes <code>design-notes/&lt;sub&gt;-&lt;timestamp&gt;.md</code>.</p>
 
 <table>
-<thead><tr><th>Sub</th><th>For</th></tr></thead>
+<thead><tr><th>Command</th><th>For</th></tr></thead>
 <tbody>
 <tr><td><code>animate</code></td><td>Purposeful motion, micro-interactions, transitions, hover effects.</td></tr>
 <tr><td><code>bolder</code></td><td>Amplify a too-safe design — more visual character without breaking usability.</td></tr>
@@ -211,67 +184,39 @@
 </tbody>
 </table>
 
-<h2>Stage gate matrix</h2>
+<h2>The consumption gradient — how the stages read design</h2>
+
+<p><code>/wf design</code> <em>produces</em>; these stages <em>consume</em>, each pulling only its slice of the shared design library (gated behind <code>stack.ui&nbsp;&ne;&nbsp;∅</code>, so non-UI work is unaffected):</p>
 
 <table class="no-mobile-scroll">
-<thead><tr><th>Stage &rarr;</th><th>intake</th><th>shape</th><th>slice</th><th>plan</th><th>implement</th><th>verify</th><th>review</th><th>handoff</th><th>ship</th></tr></thead>
+<thead><tr><th>Stage</th><th>Relationship</th><th>What it pulls</th></tr></thead>
 <tbody>
-<tr><td><strong>setup / teach</strong></td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
-<tr><td><strong>shape (design)</strong></td><td>—</td><td>after 02-shape.md</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td><strong>craft</strong></td><td>—</td><td>—</td><td>after 02b</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
-<tr><td><strong>extract</strong></td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
-<tr><td><strong>audit / critique</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td></tr>
-<tr><td><strong>15 transformations</strong></td><td>—</td><td>—</td><td>—</td><td>—</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>&#10003;</td><td>—</td></tr>
+<tr><td><code>slice</code></td><td>structures around it</td><td>the brief's state inventory + the contract's mock-fidelity inventory → candidate slice boundaries; loads <code>onboard</code>/<code>polish</code> state-completeness knowledge.</td></tr>
+<tr><td><code>plan</code></td><td>cites it</td><td>turns each recommended reference into a concrete plan-step pointer; carries register + anti-goals forward.</td></tr>
+<tr><td><code>implement</code></td><td>applies it</td><td>reads the transform playbook for each cited reference, applies it during the build, and registers a <code>design-&lt;sub&gt;</code> add-on. The deepest consumer.</td></tr>
+<tr><td><code>verify</code></td><td>measures it</td><td>a11y / perf / responsive / web-vitals are the measurable design floor; per-augmentation re-checks confirm each transform hit its goal. Measured <em>once</em> here.</td></tr>
+<tr><td><code>review</code></td><td>judges it</td><td><code>design-audit</code> + <code>design-critique</code> run as two dimensions in the parallel fan-out; audit <em>interprets</em> verify's numbers (single source of truth).</td></tr>
 </tbody>
 </table>
 
 <h2>Artifact slots — where design files live</h2>
 
 <table class="no-mobile-scroll">
-<thead><tr><th>Artifact</th><th>Path</th><th>Sub-command</th></tr></thead>
+<thead><tr><th>Artifact</th><th>Path</th><th>Command</th></tr></thead>
 <tbody>
-<tr><td>Design brief</td><td><code>.ai/workflows/&lt;slug&gt;/02b-design.md</code></td><td><code>/wf-design &lt;slug&gt; shape</code></td></tr>
-<tr><td>Visual contract</td><td><code>.ai/workflows/&lt;slug&gt;/02c-craft.md</code></td><td><code>/wf-design &lt;slug&gt; craft</code></td></tr>
-<tr><td>Design audit</td><td><code>.ai/workflows/&lt;slug&gt;/07-design-audit.md</code></td><td><code>/wf-design &lt;slug&gt; audit</code></td></tr>
-<tr><td>Design critique</td><td><code>.ai/workflows/&lt;slug&gt;/07-design-critique.md</code></td><td><code>/wf-design &lt;slug&gt; critique</code></td></tr>
+<tr><td>Design brief</td><td><code>.ai/workflows/&lt;slug&gt;/02b-design.md</code></td><td><code>/wf design &lt;slug&gt; craft</code></td></tr>
+<tr><td>Visual contract</td><td><code>.ai/workflows/&lt;slug&gt;/02c-craft.md</code></td><td><code>/wf design &lt;slug&gt; craft</code></td></tr>
+<tr><td>Design audit</td><td><code>.ai/workflows/&lt;slug&gt;/07-design-audit.md</code></td><td><code>/wf design &lt;slug&gt; audit</code> or <code>/wf review</code></td></tr>
+<tr><td>Design critique</td><td><code>.ai/workflows/&lt;slug&gt;/07-design-critique.md</code></td><td><code>/wf design &lt;slug&gt; critique</code> or <code>/wf review</code></td></tr>
 <tr><td>Per-transformation log</td><td><code>.ai/workflows/&lt;slug&gt;/design-notes/&lt;sub&gt;-&lt;timestamp&gt;.md</code></td><td>Any of the 15 transformations or <code>extract</code></td></tr>
-<tr><td>Project product context</td><td><code>./PRODUCT.md</code> (repo root)</td><td><code>/wf-design setup</code> (and <code>teach</code>)</td></tr>
-<tr><td>Project design-system context</td><td><code>./DESIGN.md</code> (repo root)</td><td><code>/wf-design setup</code> (and <code>teach</code>)</td></tr>
+<tr><td>Project product context</td><td><code>./PRODUCT.md</code> (repo root)</td><td><code>/wf design setup</code> (and <code>teach</code>)</td></tr>
+<tr><td>Project design-system context</td><td><code>./DESIGN.md</code> (repo root)</td><td><code>/wf design setup</code> (and <code>teach</code>)</td></tr>
 </tbody>
 </table>
 
-<h2>Integration with lifecycle stages</h2>
-
-<div class="diagram">
-<pre class="mermaid">
-flowchart TB
-  subgraph Project context [authored once]
-    P["PRODUCT.md"]
-    D["DESIGN.md"]
-  end
-  subgraph Workflow stages
-    s2["02-shape.md"] --> s2b["02b-design.md (brief)"]
-    s2b --> s2c["02c-craft.md (visual contract)"]
-    s2c --> impl["05-implement-X.md"]
-    impl --> audit["07-design-audit.md (optional)"]
-    impl --> crit["07-design-critique.md (optional)"]
-    impl --> trans["design-notes/X-ts.md (transformation logs, optional)"]
-    audit --> handoff["08-handoff.md"]
-    crit --> handoff
-    trans --> handoff
-  end
-  P -.context.-> s2b
-  P -.context.-> s2c
-  D -.context.-> s2b
-  D -.context.-> s2c
-  D -.context.-> trans
-</pre>
-</div>
-<p class="caption">Solid arrows: workflow stage progression. Dotted arrows: project context loaded by design sub-commands.</p>
-
 <details>
 <summary>Technical details — augmentation registration</summary>
-<p>Every transformation sub-command (plus <code>audit</code> and <code>critique</code>) registers itself in <code>00-index.md</code>'s <code>augmentations:</code> array. Each entry is <code>type</code> + <code>artifact</code> + <code>created-at</code>, with <code>files-modified</code> on transformations:</p>
+<p>Every transformation command (plus <code>audit</code> and <code>critique</code>) registers itself in <code>00-index.md</code>'s <code>augmentations:</code> array. Each entry is <code>type</code> + <code>artifact</code> + <code>created-at</code>, with <code>files-modified</code> on transformations:</p>
 
 <pre><code>augmentations:
   - type: design-harden
@@ -283,13 +228,13 @@ flowchart TB
     created-at: "2026-05-10T15:30:00Z"
     files-modified: [src/components/Card.tsx]</code></pre>
 
-<p>Handoff translates each registered entry into a reviewer-visible mention (e.g., <em>"Accessibility improvements applied — N components updated, axe-core scan clean"</em>). Ship translates each into a changelog line per the External Output Boundary rules.</p>
+<p>Handoff translates each registered entry into a reviewer-visible mention; ship translates each into a changelog line per the External Output Boundary rules.</p>
 </details>
 
 <div class="related">
 <h3>Where next</h3>
 <ul>
-  <li><a href="../how-to/use-design.html">Run a design transformation on existing code &rarr;</a></li>
+  <li><a href="../how-to/use-design.html">Run a design pass with /wf design &rarr;</a></li>
   <li><a href="../explanation/augmentations-model.html">Understand how transformations are tracked and surfaced &rarr;</a></li>
   <li><a href="artifacts.html">See the full artifact file tree including design slots &rarr;</a></li>
 </ul>

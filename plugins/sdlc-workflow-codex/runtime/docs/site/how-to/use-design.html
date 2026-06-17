@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.81.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
@@ -95,88 +95,73 @@
 <span class="quadrant howto">how-to</span>
 <h1>Use the design pipeline</h1>
 
-<p class="lede">You are building a change that touches a visual or UX surface and you want design work to be part of it. The <code>/wf-design</code> command — the <a href="../reference/glossary.html">design pipeline</a> — gives you 22 sub-commands for that work. This page helps you pick the right one for your situation.</p>
+<p class="lede">You are building a change that touches a visual or UX surface and you want design work to be part of it. Design is <strong>one <code>/wf</code> sub-command</strong> — <code>/wf design</code> — that runs as a compressed workflow. It gives you 22 design commands (as <em>arguments</em>, not separate keys). This page helps you pick the right invocation for your situation.</p>
 
 <div class="summary">
 <table>
-<tr><th>Pre-conditions</th><td>For modes A and B: a workflow exists and its <code>02-shape.md</code> file is present. For mode C (freestanding): nothing required.</td></tr>
-<tr><th>Goal</th><td>Choose the invocation mode and sub-command that fits the design task you are doing right now.</td></tr>
-<tr><th>One-time setup</th><td>Run <code>/wf-design setup</code> once per project to create <code>PRODUCT.md</code> and <code>DESIGN.md</code>. Most sub-commands read these files for context.</td></tr>
+<tr><th>Pre-conditions</th><td>In-workflow shape (slug given): the workflow exists. No-slug shape: nothing required — it creates a new workflow.</td></tr>
+<tr><th>Goal</th><td>Choose the invocation shape and design command that fits the task you are doing right now.</td></tr>
+<tr><th>One-time setup</th><td>Run <code>/wf design setup</code> once per project to create <code>PRODUCT.md</code> and <code>DESIGN.md</code>. Most commands read these files for context.</td></tr>
 </table>
 </div>
 
-<h2>The three ways to invoke <code>/wf-design</code></h2>
+<h2>The two ways to invoke <code>/wf design</code></h2>
 
-<p>Before picking a sub-command, decide which mode fits your situation.</p>
+<p>The first token after <code>design</code> is an <strong>optional slug</strong>, resolved by an exact existence check. Its presence decides how far the flow travels.</p>
 
-<h3>Mode A — design as a stage inside a full workflow</h3>
+<h3>In-workflow — produce the design, then build it</h3>
 
-<p>You have already run <code>/wf shape &lt;slug&gt;</code> for a UI feature. You want to continue the workflow by authoring the design brief. Run:</p>
+<p>You have an existing workflow (you have run <code>/wf shape &lt;slug&gt;</code>) and want design to lead the build. Run:</p>
 
-<pre><code>/wf-design &lt;slug&gt;</code></pre>
+<pre><code>/wf design &lt;slug&gt; &lt;command&gt; [instructions]</code></pre>
 
-<p>This writes <code>02b-design.md</code> (the UX brief) and then automatically queues the next stage. Use this when you are following the full workflow pipeline from intake to ship.</p>
+<p>For a Producer or Transformation command this authors the brief and/or visual contract, then drives <code>slice → plan → implement → verify</code> itself, compressed — design <strong>owns</strong> the downstream flow, there is no hand-back to <code>/wf slice</code>. Example: <code>/wf design my-feature craft</code> designs and builds the surface; <code>/wf design my-feature harden</code> builds the accessibility-hardened surface and registers it as an add-on (a <a href="../reference/glossary.html">registered add-on</a> in <code>00-index.md</code>).</p>
 
-<h3>Mode B — design sub-command layered on an existing workflow</h3>
+<h3>No slug — a full lifecycle seeded by design</h3>
 
-<p>A workflow already exists. You want to run one specific design operation against it — for example, an accessibility audit or a typography pass — without advancing the pipeline manually. Run:</p>
+<p>You want to start fresh from a design intent. Run:</p>
 
-<pre><code>/wf-design &lt;slug&gt; &lt;sub-command&gt;</code></pre>
+<pre><code>/wf design &lt;command&gt; [instructions]</code></pre>
 
-<p>Example: <code>/wf-design my-feature harden</code> applies an accessibility transformation to the UI code in the <code>my-feature</code> workflow. The result is recorded as an add-on (a <a href="../reference/glossary.html">registered add-on</a> in <code>00-index.md</code>) so handoff and ship can surface it.</p>
+<p>This creates a new slug and runs the complete <code>intake → … → retro</code> lifecycle, with the design intent seeding it. Review, inspection, and context commands (<code>audit</code>, <code>critique</code>, <code>extract</code>, <code>setup</code>, <code>teach</code>) are single-step regardless of slug — they read your project's <code>PRODUCT.md</code> / <code>DESIGN.md</code> for context and write their one artifact.</p>
 
-<h3>Mode C — freestanding, no workflow attached</h3>
+<h2>Picking the right command</h2>
 
-<p>You want design help that is not tied to any workflow at all — for instance, refining copy across the product or running a one-off accessibility check on an existing screen. Run:</p>
+<p>The 22 commands fall into five categories.</p>
 
-<pre><code>/wf-design &lt;sub-command&gt;</code></pre>
-
-<p>The command reads your project's <code>PRODUCT.md</code> and <code>DESIGN.md</code> for context but does not touch any workflow notes.</p>
-
-<h2>Picking the right sub-command</h2>
-
-<p>The 22 sub-commands fall into four groups.</p>
-
-<h3>1. Project context (run once, any time)</h3>
+<h3>1. Context (run once, any time)</h3>
 
 <dl>
-<dt><code>/wf-design setup</code></dt>
-<dd>Interview-driven setup. Writes <code>PRODUCT.md</code> (audience, voice, register) and <code>DESIGN.md</code> (tokens, components, patterns). Run once per repo. Almost every other sub-command reads these files.</dd>
+<dt><code>/wf design setup</code></dt>
+<dd>Interview-driven setup. Writes <code>PRODUCT.md</code> (audience, voice, register) and <code>DESIGN.md</code> (tokens, components, patterns). Run once per repo. Almost every other command reads these files.</dd>
 
-<dt><code>/wf-design teach</code></dt>
+<dt><code>/wf design teach</code></dt>
 <dd>Re-runs the relevant interview round and updates <code>PRODUCT.md</code> or <code>DESIGN.md</code> in place. Use after the project's brand or design system has evolved.</dd>
 </dl>
 
-<h3>2. Planning sub-commands (before code exists)</h3>
-
-<p>These require <code>02-shape.md</code> to exist (i.e., shape has already run for the workflow).</p>
+<h3>2. Producer — design the spec, then build it</h3>
 
 <dl>
-<dt><code>/wf-design shape &lt;slug&gt;</code> (also the default for Mode A)</dt>
-<dd>Authors <code>02b-design.md</code>: the UX brief covering register, anti-goals, layout approach, key states, and interaction model.</dd>
-
-<dt><code>/wf-design &lt;slug&gt; craft</code></dt>
-<dd>Authors <code>02c-craft.md</code> — the visual contract reviewers will check the implementation against. Requires <code>02b-design.md</code> to exist first.</dd>
+<dt><code>/wf design &lt;slug&gt; craft</code></dt>
+<dd>Authors the design <strong>brief</strong> <code>02b-design.md</code> (register, anti-goals, layout approach, key states, recommended references) <em>and</em> the visual <strong>contract</strong> <code>02c-craft.md</code> (north-star mock, mock-fidelity inventory, implementation contract), then drives the compressed <code>slice → plan → implement → verify</code> build. The brief step folds in what the old standalone design <code>shape</code> did — there is no separate design-shape command.</dd>
 </dl>
 
-<h3>3. Review and extraction sub-commands (once code exists)</h3>
-
-<p>These require the workflow to be at stage <code>implement</code> or later. You cannot review code that does not exist yet.</p>
+<h3>3. Review &amp; inspection (single-step)</h3>
 
 <dl>
-<dt><code>/wf-design &lt;slug&gt; audit</code></dt>
-<dd>Writes <code>07-design-audit.md</code> with severity-graded findings across accessibility, performance, theming, and responsive layout.</dd>
+<dt><code>/wf design &lt;slug&gt; audit</code></dt>
+<dd>Writes <code>07-design-audit.md</code> with theming / responsive / anti-pattern judgment and 0–4 scoring. It <strong>consumes</strong> the a11y / perf / web-vitals already measured by <code>verify</code> rather than re-running them. Also runs as a <code>/wf review</code> dimension.</dd>
 
-<dt><code>/wf-design &lt;slug&gt; critique</code></dt>
-<dd>Writes <code>07-design-critique.md</code> — an expert UX critique covering visual hierarchy, information architecture, cognitive load, and persona-based testing.</dd>
+<dt><code>/wf design &lt;slug&gt; critique</code></dt>
+<dd>Writes <code>07-design-critique.md</code> — a register-forked expert critique (visual hierarchy, information architecture, cognitive load). Also runs as a <code>/wf review</code> dimension.</dd>
 
-<dt><code>/wf-design &lt;slug&gt; extract</code></dt>
-<dd>Reads the workflow's UI code and pulls reusable tokens and components into a design-notes file, then updates <code>DESIGN.md</code>. Available at any stage.</dd>
+<dt><code>/wf design &lt;slug&gt; extract</code></dt>
+<dd>Reads existing UI code and pulls reusable tokens and components into a design-notes file plus <code>tokens-extracted.css</code>. Needs no prior context.</dd>
 </dl>
 
-<h3>4. Transformation sub-commands (focused improvements)</h3>
+<h3>4. Transformation (15 commands — applied at the build's implement step)</h3>
 
-<p>Each transformation sub-command modifies existing UI code and records itself as an add-on in <code>00-index.md</code>. Handoff and ship then translate each add-on into reviewer mentions and changelog lines automatically. Available from <code>implement</code> through <code>handoff</code>.</p>
+<p>Each transformation modifies UI code and records itself as an add-on in <code>00-index.md</code>; handoff and ship then translate each add-on into reviewer mentions and changelog lines automatically. In the compressed flow the transform <em>is</em> the implement step, so it no longer needs pre-existing code — it either creates the surface or modifies the slug's existing implementation.</p>
 
 <table>
 <thead><tr><th>Sub-command</th><th>What it does</th></tr></thead>
@@ -201,27 +186,25 @@
 
 <h2>A worked example</h2>
 
-<p>You are building a new settings screen. The workflow slug is <code>settings-v2</code>.</p>
+<p>You are building a new settings screen. The workflow slug is <code>settings-v2</code> and shape has already run.</p>
 
 <ol>
-<li>Shape is already done: <code>.ai/wf/settings-v2/02-shape.md</code> exists.</li>
-<li>Author the design brief: <code>/wf-design settings-v2</code> — this is Mode A. It writes <code>02b-design.md</code>.</li>
-<li>Pin the visual contract: <code>/wf-design settings-v2 craft</code> — writes <code>02c-craft.md</code>.</li>
-<li>After implement, the screen renders but the contrast is low. Run: <code>/wf-design settings-v2 harden</code>. The accessibility fixes are applied to the code and registered as an add-on.</li>
+<li>Design and build the screen in one compressed pass: <code>/wf design settings-v2 craft</code>. It writes the brief <code>02b-design.md</code> and contract <code>02c-craft.md</code>, then drives <code>slice → plan → implement → verify</code> itself — no hand-back.</li>
+<li>You want a stronger accessibility pass. Run: <code>/wf design settings-v2 harden</code>. The transform builds the hardened surface at its implement step and registers a <code>design-harden</code> add-on.</li>
+<li>Review judges it: <code>/wf review settings-v2</code> runs <code>design-audit</code> as a dimension, interpreting the a11y/perf numbers <code>verify</code> already measured.</li>
 <li>At handoff, the plugin reads the add-on and adds <em>"Accessibility improvements applied — N components updated, axe-core scan clean"</em> to <code>08-handoff.md</code> automatically.</li>
 </ol>
 
 <details>
-<summary>Stage-gate quick reference</summary>
+<summary>Per-category flow span</summary>
 <table>
-<thead><tr><th>Sub-command group</th><th>Allowed when</th><th>Why</th></tr></thead>
+<thead><tr><th>Category</th><th>Flow span (slug given)</th><th>No slug</th></tr></thead>
 <tbody>
-<tr><td>Context (<code>setup</code>, <code>teach</code>)</td><td>Any time</td><td>Project-level files; not workflow-bound.</td></tr>
-<tr><td>Planning (<code>shape</code>)</td><td>After <code>02-shape.md</code> exists</td><td>Brief is downstream of shape.</td></tr>
-<tr><td>Contract (<code>craft</code>)</td><td>After <code>02b-design.md</code> exists</td><td>Visual contract is downstream of brief.</td></tr>
-<tr><td>Extraction (<code>extract</code>)</td><td>Any stage</td><td>Read-only relative to workflow.</td></tr>
-<tr><td>Review (<code>audit</code>, <code>critique</code>)</td><td>implement → ship</td><td>Cannot review code that does not exist yet.</td></tr>
-<tr><td>Transformation (15 sub-commands)</td><td>implement → handoff</td><td>Cannot transform code that does not exist; cannot transform after ship.</td></tr>
+<tr><td>Context (<code>setup</code>, <code>teach</code>)</td><td>Write repo-root files; no stages</td><td>Identical</td></tr>
+<tr><td>Producer (<code>craft</code>)</td><td>brief → contract → slice → plan → implement → verify</td><td>create slug → full lifecycle</td></tr>
+<tr><td>Transformation (15)</td><td>focused contract → slice → plan → implement → verify (transform is the implement step)</td><td>create slug → full lifecycle</td></tr>
+<tr><td>Inspection (<code>extract</code>)</td><td>Single read-only step</td><td>Standalone report</td></tr>
+<tr><td>Review (<code>audit</code>, <code>critique</code>)</td><td>Single review step (audit reads verify's metrics)</td><td>Standalone report</td></tr>
 </tbody>
 </table>
 </details>

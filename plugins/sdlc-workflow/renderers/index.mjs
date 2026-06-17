@@ -25,7 +25,7 @@ const STAGE_NAV = {
   plan:      { types: ['plan-index', 'plan'],                           dir: 'plan' },
   implement: { types: ['implement-index', 'implement'],                 dir: 'implement' },
   verify:    { types: ['verify-index', 'verify'],                       dir: 'verify' },
-  review:    { types: ['review', 'review-command'],                     dir: 'review' },
+  review:    { types: ['review', 'review-command', 'design-audit', 'design-critique'], dir: 'review' },
   handoff:   { types: ['handoff'],                                      dir: 'handoff' },
   ship:      { types: ['ship-runs-index', 'ship-run'],                  dir: 'ship' },
   retro:     { types: ['retro'],                                        dir: 'retro' },

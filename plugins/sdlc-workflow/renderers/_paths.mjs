@@ -44,8 +44,8 @@ const PHASE_BY_BASENAME = {
   '05-implement':          ['implement', null],
   '06-verify':             ['verify', null],
   '07-review':             ['review', null],
-  '07-design-critique':    ['design-critique', null],   // /wf-design critique
-  '07-design-audit':       ['design-audit', null],      // /wf-design audit
+  '07-design-critique':    ['design-critique', null],   // /wf design critique
+  '07-design-audit':       ['design-audit', null],      // /wf design audit
   '00-sync':               ['sync', null],               // /wf sync health report
   '08-handoff':            ['handoff', null],
   '09-ship-runs-index':    ['ship', null],
