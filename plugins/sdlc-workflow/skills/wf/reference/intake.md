@@ -215,6 +215,8 @@ Use when: The task is a well-understood, single-scope fix (e.g., "bump version X
 **Option C: Blocked — re-run intake** → `/wf intake <slug>`
 Use when: Required PO answers are still missing. Mark `Status: Awaiting input`.
 
+**UI-aware path note:** If the Step 0.5 `stack:` fingerprint shows a UI/frontend layer (`stack.ui ≠ ∅`) and the task has visual surface, note in `## Recommended Next Stage` that the path will likely include a `/wf design <slug> craft` step *after* shape — design authors the brief + visual contract, then drives the compressed build. Do NOT make `/wf design` the immediate next command: shape still comes first (it owns feature discovery, including the visual-surface questions, and makes the actual design recommendation). This is a path heads-up only, consistent with intake staying descriptive.
+
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
 Write `00-index.md` with this structure:
