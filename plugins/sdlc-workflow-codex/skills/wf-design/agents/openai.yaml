@@ -1,6 +1,0 @@
-interface:
-  display_name: "SDLC Design"
-  short_description: "UI/UX design router for workflow stage 2b or freestanding design operations"
-  default_prompt: "Run a freestanding design audit on the current UI components for accessibility and visual quality."
-policy:
-  allow_implicit_invocation: false

@@ -223,6 +223,9 @@ Use when: Shaping revealed that the intake brief is wrong, missing key constrain
 **Option D: Blocked — re-run shape** → `$wf shape <slug>`
 Use when: Required PO answers are still missing.
 
+**Option E: Design first** → `$wf design <slug> craft`
+Use when: the `00-index.md` `stack:` fingerprint shows a UI/frontend layer (`stack.ui ≠ ∅`) AND the work has meaningful visual surface — new screens, components, states, or a redesign. `$wf design` authors the design brief + visual contract and then drives the compressed build (slice→plan→implement→verify) itself. Recommend this **alongside** Option A (not instead of it) so the PO can choose whether design leads; `shape` itself does NOT author the brief/contract — it only routes to the producer. If `stack.ui` is empty, omit this option.
+
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 
 Write `02-shape.md` with this structure:

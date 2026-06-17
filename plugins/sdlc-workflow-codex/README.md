@@ -16,10 +16,9 @@ resumes cleanly in the other.
 
 | Skill | Purpose |
 |---|---|
-| `$wf` | Run one canonical SDLC stage (intake → … → retro) or a perf/observability augmentation. |
+| `$wf` | Run one canonical SDLC stage (intake → … → retro), a perf/observability augmentation, or the compressed design workflow (`$wf design` — UI/UX brief, visual contract, and build; 22 design commands as arguments). |
 | `$wf-quick` | Compressed / standalone flows: fix, hotfix, rca, refactor, simplify, investigate, probe, ideate, discover, update-deps. |
 | `$wf-meta` | Navigate existing workflows: status, next, resume, sync, amend, extend, skip, close, how, announce, init-ship-plan, build-pipeline. |
-| `$wf-design` | 24 design transformations (shape, craft, brand, polish, audit, …). |
 | `$wf-docs` | Diátaxis documentation: tutorial, how-to, reference, explanation, readme, plan, review. |
 | `$review` | Code review across 31 dimensions + 7 aggregates (`$review sweep <aggregate>`). |
 

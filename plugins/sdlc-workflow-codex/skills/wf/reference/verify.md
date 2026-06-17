@@ -235,6 +235,8 @@ After driving each user-observable criterion, run an a11y scan on the surface ju
 
 Launch ONLY if any of these exist: `02c-craft.md`, or any entry in `00-index.md` `augmentations:` list. This sub-agent enforces contracts that the standard test suites do not catch.
 
+> **`verify` is the design consumer that *measures it* (when `stack.ui ≠ ∅`).** The a11y / perf / responsive / web-vitals gates above are the **measurable design floor** for any UI slice, and the per-augmentation re-checks below confirm each *applied* transform actually hit its goal. These numbers are measured **once, here** — `$wf review`'s design-audit dimension (and ad-hoc `$wf design audit`) *interpret* them from `06-verify-*.md` rather than re-running axe-core, so the two stages can never disagree about the same measurement. Record them in the verify report so audit can read them.
+
 Prompt with:
 
 **Mock fidelity inventory check (when `02c-craft.md` is present):**

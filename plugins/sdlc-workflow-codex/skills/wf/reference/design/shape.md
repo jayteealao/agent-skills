@@ -4,7 +4,7 @@ Shape the UX and UI for a feature before any code is written. Produces a **desig
 
 **Scope**: Design planning only. This command does NOT write code. It produces the thinking that makes code good.
 
-**Output**: A design brief that feeds into `$wf-design craft` or `$wf-design <subcommand>` for implementation.
+**Output**: A design brief that feeds into `$wf design craft` or `$wf design <subcommand>` for implementation.
 
 ## Philosophy
 
@@ -61,7 +61,7 @@ What level of completeness is expected. States to cover.
 
 ### 6. Recommended references
 
-Which reference docs from `skills/wf-design/reference/` should be loaded for implementation:
+Which reference docs from `skills/wf/reference/design/` should be loaded for implementation:
 - `typeset.md` — always
 - `animate.md` — if transitions/motion needed
 - `colorize.md` — if significant color work
@@ -75,7 +75,7 @@ Which reference docs from `skills/wf-design/reference/` should be loaded for imp
 recommended-references: [typeset, animate, colorize, harden]
 ```
 
-Names omit the `.md` extension. `$wf implement` reads each as `skills/wf-design/reference/<name>.md` and treats the loaded files as read-only design rationale during implementation. The frontmatter array is authoritative; the human-readable bullet list above is for the design reviewer's eye and may include conditional notes that the array does not.
+Names omit the `.md` extension. `$wf implement` reads each as `skills/wf/reference/design/<name>.md` and treats the loaded files as read-only design rationale during implementation. The frontmatter array is authoritative; the human-readable bullet list above is for the design reviewer's eye and may include conditional notes that the array does not.
 
 ## Phase 3: Visual Direction Probes (capability-gated)
 
@@ -121,6 +121,6 @@ Wait for explicit confirmation. Do NOT proceed to implementation until the user 
 
 ## Output in SDLC context
 
-When invoked as `$wf-design <slug> shape` or `$wf-design <slug>`:
+When invoked as `$wf design <slug> shape` or `$wf design <slug>`:
 - Write the confirmed brief to `.ai/workflows/<slug>/02b-design.md`
-- Update `00-index.md`: `current-stage: design`, `next-command: $wf-design craft`
+- Update `00-index.md`: `current-stage: design`, `next-command: $wf design craft`

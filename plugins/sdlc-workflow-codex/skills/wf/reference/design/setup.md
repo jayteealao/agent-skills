@@ -1,6 +1,6 @@
-Gather and document the design context for a project. Creates or updates PRODUCT.md and DESIGN.md — the context anchors that every $wf-design sub-command reads before doing work.
+Gather and document the design context for a project. Creates or updates PRODUCT.md and DESIGN.md — the context anchors that every $wf design sub-command reads before doing work.
 
-**Run this once per project before any other $wf-design command.** Running other commands without context produces generic output that ignores the project.
+**Run this once per project before any other $wf design command.** Running other commands without context produces generic output that ignores the project.
 
 ## What gets created
 
@@ -91,7 +91,7 @@ If no design information is available yet, create DESIGN.md with placeholder sec
 Present both files to the user and ask directly in chat:
 > "I've created PRODUCT.md and DESIGN.md. Please review and confirm — or tell me what to update."
 
-Wait for confirmation. After confirmation, these files are the context anchors for all future $wf-design commands.
+Wait for confirmation. After confirmation, these files are the context anchors for all future $wf design commands.
 
 ## Notes
 

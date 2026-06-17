@@ -173,7 +173,7 @@ Extract:
 
 # Step 2: Select Review Commands
 
-Each command maps to `../../review/reference/<name>.md`.
+Each command maps to `../../review/reference/<name>.md` — **except** the two design dimensions `design-audit` and `design-critique`, which map to `design/audit.md` and `design/critique.md` respectively (the relocated design library; see the "design work" selection rule below).
 
 **Selection philosophy:** Use the shape, slice, and implementation artifacts — not just raw diff patterns — to reason about what this change *is* and what reviews matter. A feature that adds async data fetching needs `backend-concurrency` even if the diff doesn't contain the word "mutex". Lean toward inclusion: a missed relevant review is worse than a redundant one. The max exists to prevent sprawl, not to cap thorough coverage.
 
@@ -194,6 +194,13 @@ Each command maps to `../../review/reference/<name>.md`.
 - `frontend-accessibility`
 - `frontend-performance`
 - `ux-copy`
+
+### Include when the change involves design work — `review` is the design consumer that *judges it*
+(any `design-*` entry in `00-index.md` `augmentations:`, a `02c-craft.md` visual contract present, or substantive UI changes when `stack.ui ≠ ∅`)
+- `design-audit` — theming / responsive / anti-pattern judgment + 0–4 scoring. **Consumes the a11y / perf / web-vitals already measured in `06-verify-*.md` rather than re-running axe-core** (if no verify ran, it measures itself). Checks the `02c-craft.md` anti-goals were honored. Emits `07-design-audit.md`. Maps to `design/audit.md`.
+- `design-critique` — register-forked prescriptive critique (brand = distinctiveness, product = earned-familiarity); preserves the stance rules + font reflex-reject. Emits `07-design-critique.md`. Maps to `design/critique.md`.
+
+These two run as ordinary dimensions inside the parallel fan-out below — the same logic reachable ad-hoc via `$wf design audit|critique`. a11y/perf are measured once (in `verify`) and *interpreted* here; never re-measured.
 
 ### Include based on what the feature does (reason from shape + slice, not just diff patterns)
 
