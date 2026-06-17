@@ -79,15 +79,15 @@ Format as a structured report:
 
 ## Recommended fixes
 [Ordered by impact, with specific commands to address each:
- - `/wf-design harden` for accessibility issues
- - `/wf-design optimize` for performance issues
- - `/wf-design colorize` for theming issues
+ - `/wf design harden` for accessibility issues
+ - `/wf design optimize` for performance issues
+ - `/wf design colorize` for theming issues
  - etc.]
 ```
 
 ## Output in SDLC context
 
-When invoked as `/wf-design <slug> audit`:
+When invoked as `/wf design <slug> audit`:
 - Write report to `.ai/workflows/<slug>/07-design-audit.md`
 - Update `00-index.md` if at review stage
 - Use this frontmatter:

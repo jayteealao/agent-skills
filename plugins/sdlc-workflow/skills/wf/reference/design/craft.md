@@ -6,8 +6,8 @@ Land the visual direction for a feature so implementation has a concrete contrac
 
 | Mode | Trigger | Output |
 |---|---|---|
-| **Workflow context** | `/wf-design <slug> craft` | `02c-craft.md` artifact (visual contract). Routes to `/wf implement`. **Does NOT write code.** |
-| **Freestanding** | `/wf-design craft` | Full loop: brief → mock → code → critique pass. **Writes production code.** |
+| **Workflow context** | `/wf design <slug> craft` | `02c-craft.md` artifact (visual contract). Routes to `/wf implement`. **Does NOT write code.** |
+| **Freestanding** | `/wf design craft` | Full loop: brief → mock → code → critique pass. **Writes production code.** |
 
 The split exists because the SDLC workflow has a dedicated implement stage (`wf-implement`) with its own lifecycle (verify → review → handoff → ship). Craft in workflow context produces the visual contract that `wf-implement` consumes; it does not bypass the implement lifecycle.
 
@@ -93,7 +93,7 @@ These are the implementation contract. Code that loses them has regressed.
 
 ## Step 5 — WORKFLOW MODE: Write the visual contract
 
-When invoked as `/wf-design <slug> craft`, **DO NOT write code**. Instead, write the visual contract artifact at `.ai/workflows/<slug>/02c-craft.md`:
+When invoked as `/wf design <slug> craft`, **DO NOT write code**. Instead, write the visual contract artifact at `.ai/workflows/<slug>/02c-craft.md`:
 
 ```yaml
 ---
@@ -154,7 +154,7 @@ Pulled from anti-goals in the brief plus the absolute bans list. Be specific to 
 ### 6. Implementation references
 Which reference docs `wf-implement` should consult (typeset.md, animate.md, harden.md, etc.).
 
-Record this list authoritatively in the `references-loaded:` frontmatter array above as the **union** of (a) the brief's `recommended-references:` (from `02b-design.md`) and (b) any references you loaded or added during craft. Names omit the `.md` extension and resolve to `skills/wf-design/reference/<name>.md`. This is the field `wf-plan` and `wf-implement` re-read — together with `02b`'s `recommended-references:` — to load design rationale. A reference that appears only in this prose section but **not** in `references-loaded:` will NOT be loaded by implementation, so keep the two in sync.
+Record this list authoritatively in the `references-loaded:` frontmatter array above as the **union** of (a) the brief's `recommended-references:` (from `02b-design.md`) and (b) any references you loaded or added during craft. Names omit the `.md` extension and resolve to `skills/wf/reference/design/<name>.md`. This is the field `wf-plan` and `wf-implement` re-read — together with `02b`'s `recommended-references:` — to load design rationale. A reference that appears only in this prose section but **not** in `references-loaded:` will NOT be loaded by implementation, so keep the two in sync.
 
 ### 7. Routing
 
@@ -172,7 +172,7 @@ Hand off:
 
 ## Step 5 — FREESTANDING MODE: Build the implementation
 
-When invoked as `/wf-design craft` (no slug), build the actual code now.
+When invoked as `/wf design craft` (no slug), build the actual code now.
 
 Build with the project's real stack, following the conventions discovered in codebase context.
 

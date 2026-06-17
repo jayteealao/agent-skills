@@ -1,4 +1,4 @@
-Help the user write or improve PRODUCT.md and DESIGN.md — the context anchors that every wf-design command reads before doing work.
+Help the user write or improve PRODUCT.md and DESIGN.md — the context anchors that every /wf design command reads before doing work.
 
 **The difference from `setup`**: `setup` runs a discovery interview for a fresh project. `teach` is for projects where partial context exists — when PRODUCT.md is outdated, missing key sections, or uses `[TODO]` placeholders.
 
@@ -96,7 +96,7 @@ brand | product
 Present the updated files:
 > "Here's the updated context. Does this accurately represent the project? Anything to correct?"
 
-After confirmation, these files are the anchors for all future wf-design commands in this project.
+After confirmation, these files are the anchors for all future /wf design commands in this project.
 
 ## Notes
 

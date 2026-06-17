@@ -124,6 +124,6 @@ Document each with its implicit design decisions.
 
 ## Output in SDLC context
 
-When invoked as `/wf-design <slug> extract`:
+When invoked as `/wf design <slug> extract`:
 - Write extraction report to `.ai/workflows/<slug>/design-notes/extract.md`
 - Write suggested token file to `.ai/workflows/<slug>/design-notes/tokens-extracted.css`

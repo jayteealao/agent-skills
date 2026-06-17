@@ -1,7 +1,7 @@
 # Fragment author contract (phase 1 — v9.20.0)
 
 Shared template referenced by the five fragment-bearing skills (`review`,
-`wf/plan`, `wf-design/craft`, `wf/ship`, `wf-quick/rca`). Each of those
+`wf/plan`, `wf/design` (craft), `wf/ship`, `wf-quick/rca`). Each of those
 references includes a "Step N — write the rich fragment" section that points
 here. Authoring guidance lives in one place; per-router references stay focused
 on their domain logic.

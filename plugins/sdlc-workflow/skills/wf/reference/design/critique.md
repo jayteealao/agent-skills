@@ -88,7 +88,7 @@ Would someone say "AI made this"?
 
 ## Output in SDLC context
 
-When invoked as `/wf-design <slug> critique`:
+When invoked as `/wf design <slug> critique`:
 - Write to `.ai/workflows/<slug>/07-design-critique.md`
 - Use this frontmatter:
 
