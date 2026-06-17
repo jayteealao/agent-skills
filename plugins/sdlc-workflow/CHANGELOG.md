@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — the tray now self-heals a RUNNING stale process after an upgrade (9.81.0)
+
+The autostart launcher self-heal (`refreshAutostart`, run from session-start-orient) re-stamps the Startup launcher
+to the current bundle + a durable node, so the *next* logon launches the right tray. But a tray that is **already
+running** from a prior version's bundle — the common case right after a plugin upgrade — kept executing the stale
+code until the user next logged in or restarted it by hand (observed 2026-06-17: a tray still on the `9.74.0`
+bundle while the hub, plugin, and rendered views had all moved to `9.80.0`). The hub already reaps + respawns a
+daemon whose `runtimeVersion` drifts (`lib/hub-lifecycle.mjs` / `lib/serve-lifecycle.mjs`); the tray had no
+equivalent. This adds one.
+
+- **`lib/tray-lifecycle.mjs`** — `reconcileRunningTray()` discovers running trays (Windows-first, via a WMI/CIM
+  process scan), compares each one's launched **bundle path** to the current one (the same path-equality the
+  launcher's `launcherTargetsCurrent` already uses — the version dir is encoded in the path, and the tray has no
+  IPC surface to query), and on a mismatch kills the stale process and respawns the current bundle through the
+  existing detached hidden-launch machinery (`lib/detach.mjs` + `resolveDurableNodePath`). Decision table: no tray
+  → `none`; only current → `unchanged` (left alone); stale + a current one also up → `killed-stale` (reap the
+  duplicate, **no** second spawn); stale, none current → `respawned`. Every OS/exec/spawn seam is injectable.
+- **`scripts/tray-heal.mjs`** — a thin entrypoint the session-start hook spawns **detached** so orientation never
+  blocks on the process scan (the same pattern as the bootstrap render + hub-ensure).
+- **`hooks/session-start-orient.mjs`** — `healRunningTray()` runs the reconcile, gated on win32 + autostart-enabled,
+  and **debounced** via a `~/.sdlc/.tray-heal` marker (≤ once / 60 s) so we neither scan on every session start nor
+  let two near-simultaneous sessions both respawn (a brief duplicate-icon race). `SDLC_DISABLE_TRAY_HEAL=1` opts out.
+- 10 unit tests (`tests/unit/lib/tray-lifecycle.test.mjs`) cover the parser, the path-equality helpers, and the full
+  reconcile table — including the two required cases (a stale tray triggers a respawn; a current tray is left alone).
+
 ### Added — explicit controlled runtime upgrade with rollback (9.80.0)
 
 NATIVE-INTEROP-REWRITE-PLAN "Controlled Runtime Upgrade" — the last open Workstream C deliverable. SessionStart

@@ -4,23 +4,25 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   isAutostartEnabled,
   refreshAutostart
-} from "./chunk-BUQPB4LT.mjs";
+} from "./chunk-ERHYJB4B.mjs";
 import {
   currentGitBranch,
-  logError,
   outputSystemMessage,
   projectRootFromInput,
   readStdinJson,
   stringifyField
-} from "./chunk-4OZLXOMA.mjs";
+} from "./chunk-LC2YZRHK.mjs";
+import {
+  logError
+} from "./chunk-SCQPZLF2.mjs";
 import {
   ensureHubEnabled,
   spawnHubEnsure
-} from "./chunk-DGPWQY7Z.mjs";
+} from "./chunk-VXJZF3XU.mjs";
 import "./chunk-UTP6CBAZ.mjs";
 import {
   spawnDetachedNode
-} from "./chunk-HQR34SES.mjs";
+} from "./chunk-K6PBZI5W.mjs";
 import {
   loadConfig
 } from "./chunk-ZMYLXAL2.mjs";
@@ -28,8 +30,11 @@ import {
   countPending,
   enqueue,
   readStatus,
+  sdlcHomeDir
+} from "./chunk-LCWXHILT.mjs";
+import {
   resolveEntrypoint
-} from "./chunk-HLR2BZLC.mjs";
+} from "./chunk-4TSW2YJ2.mjs";
 import {
   activeWorkflowIndexes,
   scanWorkflowIndexes
@@ -40,8 +45,8 @@ import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/session-start-orient.mjs
-import { mkdirSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { mkdirSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 var __dirname = dirname(fileURLToPath(import.meta.url));
 var PLUGIN_ROOT = resolve(__dirname, "..");
@@ -52,6 +57,7 @@ async function main() {
   const config = await loadConfig(projectRoot);
   startBootstrap(projectRoot, config);
   healAutostartLauncher();
+  healRunningTray();
   const workflows = activeWorkflowIndexes(await scanWorkflowIndexes({ projectRoot }));
   if (!workflows.length) return;
   const currentBranch = await currentGitBranch(projectRoot);
@@ -83,6 +89,32 @@ function healAutostartLauncher() {
     if (!isAutostartEnabled()) return;
     refreshAutostart({ trayBundle: resolveEntrypoint(PLUGIN_ROOT, "tray") });
   } catch {
+  }
+}
+function healRunningTray() {
+  try {
+    if (process.env.SDLC_DISABLE_TRAY_HEAL === "1") return;
+    if (process.platform !== "win32") return;
+    if (!isAutostartEnabled()) return;
+    if (!trayHealDue()) return;
+    spawnDetachedNode(resolveEntrypoint(PLUGIN_ROOT, "tray-heal"), [], { cwd: PLUGIN_ROOT, env: process.env });
+  } catch {
+  }
+}
+var TRAY_HEAL_DEBOUNCE_MS = 6e4;
+function trayHealDue(now = Date.now()) {
+  try {
+    const marker = join(sdlcHomeDir(), ".tray-heal");
+    try {
+      const age = now - statSync(marker).mtimeMs;
+      if (age >= 0 && age < TRAY_HEAL_DEBOUNCE_MS) return false;
+    } catch {
+    }
+    writeFileSync(marker, `${now}
+`, "utf-8");
+    return true;
+  } catch {
+    return false;
   }
 }
 function startBootstrap(projectRoot, config) {

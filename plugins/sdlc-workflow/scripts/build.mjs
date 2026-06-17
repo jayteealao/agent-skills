@@ -66,6 +66,7 @@ const SCRIPT_ENTRIES = [
   'hub-ensure',              // spawned detached by the write/session hooks (RENDER-DISPATCH-PLAN)
   'render-sunflower-serve',  // spawned by lib/serve-lifecycle
   'tray',                    // user-launched system-tray app (docs/internal/archived/TRAY-APP-PLAN.md)
+  'tray-heal',               // detached: reconcile a running stale tray after upgrade (lib/tray-lifecycle)
   'verify-runtime',          // self-contained runtime integrity/parity check (NATIVE-INTEROP Workstream D)
   'hub-upgrade',             // explicit controlled runtime upgrade + rollback (NATIVE-INTEROP Workstream C)
 ];

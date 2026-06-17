@@ -7,13 +7,15 @@ import {
   isManagedArtifactMarkdownPath,
   isProjectContextMarkdownPath,
   isProseLogPath,
-  logError,
   outputSystemMessage,
   projectRootFromInput,
   readStdinJson,
   readTextIfExists,
   resolveProjectPath
-} from "./chunk-4OZLXOMA.mjs";
+} from "./chunk-LC2YZRHK.mjs";
+import {
+  logError
+} from "./chunk-SCQPZLF2.mjs";
 import "./chunk-UTP6CBAZ.mjs";
 import {
   loadConfig

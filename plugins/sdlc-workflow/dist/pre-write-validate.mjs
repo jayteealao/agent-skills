@@ -7,7 +7,6 @@ import {
   isProjectContextMarkdownPath,
   isProseLogPath,
   isWorkflowMarkdownPath,
-  logError,
   outputSystemMessage,
   projectContextPathInfo,
   projectRootFromInput,
@@ -15,7 +14,10 @@ import {
   readTextIfExists,
   resolveProjectPath,
   workflowPathInfo
-} from "./chunk-4OZLXOMA.mjs";
+} from "./chunk-LC2YZRHK.mjs";
+import {
+  logError
+} from "./chunk-SCQPZLF2.mjs";
 import "./chunk-UTP6CBAZ.mjs";
 import {
   loadConfig
