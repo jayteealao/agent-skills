@@ -95,9 +95,9 @@
 <span class="quadrant reference">reference</span>
 <h1>Routers reference</h1>
 
-<p class="lede">All six commands at a glance — what each does and when to reach for it. Pick the right one here, then follow the per-command link for full argument detail.</p>
+<p class="lede">Every command at a glance — what each does and when to reach for it. Five are top-level routers; design runs as the <code>/wf design</code> sub-command. Pick the right one here, then follow the per-command link for full argument detail.</p>
 
-<p>A <strong>command</strong> (sometimes called a "router" in older docs) is a slash command the plugin exposes — <code>/wf</code>, <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-design</code>, <code>/wf-docs</code>, and <code>/review</code>. Each command dispatches to a sub-command based on the first argument you pass it.</p>
+<p>A <strong>command</strong> (sometimes called a "router" in older docs) is a slash command the plugin exposes — <code>/wf</code>, <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, and <code>/review</code>. Each command dispatches to a sub-command based on the first argument you pass it. Design, once the standalone <code>/wf-design</code> router, is now the <code>/wf design</code> sub-command.</p>
 
 <h2>Commands</h2>
 
@@ -120,8 +120,8 @@
   <td>Any time you need to inspect or correct a workflow without running a stage.</td>
 </tr>
 <tr>
-  <td><a href="wf-design.html"><code>/wf-design</code></a></td>
-  <td>Design pipeline — 22 sub-commands across three invocation modes (workflow stage, workflow + sub-command, freestanding).</td>
+  <td><a href="wf-design.html"><code>/wf design</code></a></td>
+  <td>Design — 22 sub-commands, run as a compressed <code>/wf</code> sub-command. Two shapes: with a slug it builds in-workflow; with no slug it runs the full lifecycle.</td>
   <td>UI/UX work, design briefs, component specs, visual transformations.</td>
 </tr>
 <tr>
@@ -205,11 +205,11 @@
 </tbody>
 </table>
 
-<h2>/wf-design — design pipeline</h2>
+<h2>/wf design — design pipeline</h2>
 
-<p>22 sub-commands across three invocation modes: as a workflow stage (<code>/wf-design &lt;slug&gt;</code>), combined with a sub-command (<code>/wf-design &lt;slug&gt; &lt;sub&gt;</code>), or freestanding with no workflow context. The main planning and review sub-commands are <code>shape</code>, <code>craft</code>, <code>audit</code>, and <code>critique</code>. Fifteen transformation sub-commands handle targeted visual work: <code>colorize</code>, <code>typeset</code>, <code>animate</code>, <code>harden</code>, <code>quieter</code>, <code>bolder</code>, <code>delight</code>, <code>distill</code>, <code>clarify</code>, <code>adapt</code>, <code>layout</code>, <code>optimize</code>, <code>polish</code>, <code>overdrive</code>, <code>onboard</code>. Three setup and extract sub-commands complete the catalog: <code>setup</code>, <code>teach</code>, <code>extract</code>.</p>
+<p>22 sub-commands, run as a compressed <code>/wf</code> sub-command. Two invocation shapes: <strong>in-workflow</strong> (<code>/wf design &lt;slug&gt; &lt;sub&gt;</code>) produces the brief + visual contract and then drives <code>slice → plan → implement → verify</code> itself, compressed; <strong>no slug</strong> (<code>/wf design &lt;sub&gt;</code>) creates a new workflow and runs the full lifecycle, seeded by the design intent. The producer and review sub-commands are <code>craft</code>, <code>audit</code>, and <code>critique</code>. Fifteen transformation sub-commands handle targeted visual work: <code>colorize</code>, <code>typeset</code>, <code>animate</code>, <code>harden</code>, <code>quieter</code>, <code>bolder</code>, <code>delight</code>, <code>distill</code>, <code>clarify</code>, <code>adapt</code>, <code>layout</code>, <code>optimize</code>, <code>polish</code>, <code>overdrive</code>, <code>onboard</code>. Three setup and extract sub-commands complete the catalog: <code>setup</code>, <code>teach</code>, <code>extract</code>.</p>
 
-<p>See <a href="wf-design.html">/wf-design in depth</a> for the full sub-command catalog and argument matrix.</p>
+<p>See <a href="wf-design.html">/wf design in depth</a> for the full sub-command catalog and argument matrix.</p>
 
 <h2>/wf-docs — documentation pipeline</h2>
 

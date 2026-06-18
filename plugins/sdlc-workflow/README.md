@@ -456,19 +456,19 @@ The command reads every `07-review-<slice-slug>.md` in the workflow (extension c
 The design stage slots between shape (2) and slice (3):
 
 ```
-/wf-design dark-mode-toggle-settings
+/wf design dark-mode-toggle-settings craft
 ```
 
-Requires `.impeccable.md` in your project root (established by `wf-design:setup`). The command loads your design context (brand personality, aesthetic direction, design principles), scans the codebase for existing patterns, runs a UX discovery interview, and produces `02b-design.md` — a structured design brief with layout approach, key states, interaction model, and component inventory.
+Requires project design context — `PRODUCT.md` and `DESIGN.md` at your project root (established by `/wf design setup`). The command loads your design context (brand personality, aesthetic direction, design principles), scans the codebase for existing patterns, runs a UX discovery interview, and produces `02b-design.md` — a structured design brief with layout approach, key states, interaction model, and component inventory.
 
 **Four supporting design commands:**
 
 | Command | Purpose |
 |---|---|
-| `/wf-design:setup` | Establish project-wide design context in `.impeccable.md` (run once per project) |
-| `/wf-design:critique <slug>` | Independent expert critique of an existing design brief |
-| `/wf-design:audit <slug>` | Technical audit — accessibility, performance, theming, responsive design |
-| `/wf-design:extract <slug>` | Extract reusable design tokens and component specs from an existing implementation |
+| `/wf design setup` | Establish project-wide design context in `PRODUCT.md` + `DESIGN.md` (run once per project) |
+| `/wf design <slug> critique` | Independent expert critique of an existing design brief |
+| `/wf design <slug> audit` | Technical audit — accessibility, performance, theming, responsive design |
+| `/wf design <slug> extract` | Extract reusable design tokens and component specs from an existing implementation |
 
 ### … generate announcements after shipping
 
@@ -777,7 +777,7 @@ Coverage gaps found at baseline are surfaced before any code changes. If signifi
 
 ### Design context is project-wide
 
-`.impeccable.md` is set up once per project with `/wf-design:setup` and reused by every subsequent `wf-design` invocation. You don't re-establish brand personality or aesthetic direction for each feature — it flows through from the project-level file.
+`PRODUCT.md` and `DESIGN.md` are set up once per project with `/wf design setup` and reused by every subsequent `/wf design` invocation. You don't re-establish brand personality or aesthetic direction for each feature — it flows through from the project-level files.
 
 ### Extension rounds are tracked
 
@@ -793,7 +793,7 @@ Every `wf-extend` invocation records an `extension-round: N` on new slice entrie
 |---|---|---|---|
 | `/wf intake <description>` | 1 | Capture scope, criteria, branch strategy | `01-intake.md` |
 | `/wf shape <slug>` | 2 | 20-question feature interview, mini-spec, docs plan | `02-shape.md` |
-| `/wf-design <slug>` | 2b *(optional)* | UX brief — layout, states, interaction model | `02b-design.md` |
+| `/wf design <slug> craft` | 2b *(optional)* | UX brief + visual contract — layout, states, interaction model | `02b-design.md` + `02c-craft.md` |
 | `/wf slice <slug>` | 3 | Decompose into vertical slices | `03-slice.md` + per-slice |
 | `/wf plan <slug> [slice\|all] [feedback]` | 4 | Repo-aware implementation plan | `04-plan.md` + per-slice |
 | `/wf implement <slug> [slice\|reviews]` | 5 | Execute plan, atomic commits | `05-implement.md` + per-slice |
@@ -806,14 +806,14 @@ Every `wf-extend` invocation records an `extension-round: N` on new slice entrie
 
 ### Design quality commands
 
-All require `.impeccable.md` established by `/wf-design:setup`.
+All require project design context (`PRODUCT.md` + `DESIGN.md`) established by `/wf design setup`.
 
 | Command | Purpose |
 |---|---|
-| `/wf-design:setup` | Project-wide design context (run once) |
-| `/wf-design:critique <slug>` | Expert UX critique of a design brief |
-| `/wf-design:audit <slug>` | Accessibility, performance, theming, responsive check |
-| `/wf-design:extract <slug>` | Extract reusable design tokens and component specs |
+| `/wf design setup` | Project-wide design context (run once) |
+| `/wf design <slug> critique` | Expert UX critique of a design brief |
+| `/wf design <slug> audit` | Accessibility, performance, theming, responsive check |
+| `/wf design <slug> extract` | Extract reusable design tokens and component specs |
 
 ### Re-entry and correction commands
 
@@ -918,7 +918,7 @@ The `setup-wide-logging` command configures wide-event logging for Express/Koa/F
 
 ### Design quality skills
 
-Fourteen design quality skills — invoked directly by `/wf-design` commands and available standalone. All require `.impeccable.md` established by `/wf-design:setup`.
+Fourteen design quality skills — invoked directly by `/wf design` commands and available standalone. All require project design context (`PRODUCT.md` + `DESIGN.md`) established by `/wf design setup`.
 
 | Skill | Purpose |
 |---|---|

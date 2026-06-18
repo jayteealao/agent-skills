@@ -114,7 +114,7 @@ Plain-language definitions for every term the plugin uses. Each entry gives you 
 <dd>How this workflow relates to git branches. Three options: <code>dedicated</code> (its own feature branch and PR), <code>shared</code> (commits to an existing collaborative branch), <code>none</code> (no branch operations — just commits).</dd>
 
 <dt><strong>Command</strong> (router)</dt>
-<dd>One of the six things you type: <code>/wf</code>, <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-design</code>, <code>/wf-docs</code>, <code>/review</code>. Internally called a <em>router</em> — it dispatches to sub-commands — but "command" is the user-facing term. See <a href="commands.html">Commands reference →</a></dd>
+<dd>One of the five things you type: <code>/wf</code>, <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, <code>/review</code>. Internally called a <em>router</em> — it dispatches to sub-commands — but "command" is the user-facing term. (Design was once a sixth, <code>/wf-design</code>; it is now the <code>/wf design</code> sub-command.) See <a href="commands.html">Commands reference →</a></dd>
 
 <dt><strong>Conditional input</strong></dt>
 <dd>An artifact that a stage will consume <em>if it exists</em> but does not require. Each stage's preamble lists its conditional inputs.</dd>
@@ -156,7 +156,7 @@ Plain-language definitions for every term the plugin uses. Each entry gives you 
 <dd>One step of the full <code>/wf</code> lifecycle. The 10 stages in order: <em>intake</em>, <em>shape</em>, <em>slice</em>, <em>plan</em>, <em>implement</em>, <em>verify</em>, <em>review</em>, <em>handoff</em>, <em>ship</em>, <em>retro</em>. Each reads what previous stages wrote and writes its own artifact.</dd>
 
 <dt><strong>Sub-command</strong></dt>
-<dd>An option under a command. Example: <code>/wf-design colorize</code> — where <code>colorize</code> is the sub-command. <code>/wf-quick</code> has 10, <code>/wf-design</code> has 22, <code>/review</code> has 31 dimensions plus a <code>sweep</code> mode.</dd>
+<dd>An option under a command. Example: <code>/wf design colorize</code> — where <code>colorize</code> is the design sub-command. <code>/wf-quick</code> has 10, <code>/wf design</code> has 22, <code>/review</code> has 31 dimensions plus a <code>sweep</code> mode.</dd>
 
 <dt><strong>Triage loop</strong> (T5.1)</dt>
 <dd>The bounded step inside <code>/wf handoff</code> that processes PR review comments. Fetches unresolved threads, classifies them (blocker / non-blocker / question), fixes blockers via <code>/wf implement reviews</code>, and resolves threads after fixes commit. Runs up to 5 iterations.</dd>

@@ -246,7 +246,7 @@
 
     "designContractFrontmatter": {
       "type": "object",
-      "description": "02c-craft.md — written by /wf-design craft as the implementation-facing visual contract.",
+      "description": "02c-craft.md — written by /wf design craft as the implementation-facing visual contract.",
       "required": [
         "schema", "type", "slug", "title", "status", "created-at",
         "updated-at", "component", "based-on", "tokens", "states",
@@ -1819,7 +1819,7 @@
 
     "design-contract": {
       "type": "object",
-      "description": "Sibling YAML for design-contract (visual contract) fragments, authored by /wf-design craft next to 02c-craft.md. Carries the token/state/size/theme coverage axes plus the per-element implementation contract so design-contract.mjs can build the interactive coverage grid without scraping prose. NOTE: required[] is intentionally minimal — there is no real authored corpus yet (this is the first writer), so design-contract is NOT in SIBLING_YAML_VALIDATED_TYPES; it joins the write-time hard-validate allowlist only once a real sibling proves the shape.",
+      "description": "Sibling YAML for design-contract (visual contract) fragments, authored by /wf design craft next to 02c-craft.md. Carries the token/state/size/theme coverage axes plus the per-element implementation contract so design-contract.mjs can build the interactive coverage grid without scraping prose. NOTE: required[] is intentionally minimal — there is no real authored corpus yet (this is the first writer), so design-contract is NOT in SIBLING_YAML_VALIDATED_TYPES; it joins the write-time hard-validate allowlist only once a real sibling proves the shape.",
       "required": ["artifact", "component", "tokens", "states", "sizes", "themes"],
       "properties": {
         "artifact": { "const": "design-contract" },

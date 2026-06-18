@@ -97,11 +97,11 @@
 
 <p class="lede">This page is for when you need to understand how the plugin commands are implemented — for example to debug unexpected behavior or trace why a command ran differently than expected.</p>
 
-<p>The plugin ships eleven <strong>skills</strong> — self-contained instruction files the model reads and executes. Six of them are <strong>commands</strong> (also called routers): each accepts a sub-command and dispatches to the matching reference file. The other five are <strong>support skills</strong> the model draws on for focused tasks like debugging, testing, or refactoring.</p>
+<p>The plugin ships ten <strong>skills</strong> — self-contained instruction files the model reads and executes. Five of them are <strong>commands</strong> (also called routers): each accepts a sub-command and dispatches to the matching reference file. The other five are <strong>support skills</strong> the model draws on for focused tasks like debugging, testing, or refactoring. (Design is no longer its own command-skill — it now lives under <code>/wf</code> as the <code>/wf design</code> sub-command.)</p>
 
-<p>Every command can be run explicitly with a slash — <code>/wf</code>, <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-design</code>, <code>/wf-docs</code>, and <code>/review</code>. Skills are also how the model auto-invokes behavior without you typing a slash command; which skills can auto-invoke is covered in <a href="#auto-invoke">Auto-invocation</a> below.</p>
+<p>Every command can be run explicitly with a slash — <code>/wf</code>, <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, and <code>/review</code>. Skills are also how the model auto-invokes behavior without you typing a slash command; which skills can auto-invoke is covered in <a href="#auto-invoke">Auto-invocation</a> below.</p>
 
-<h2>The six commands</h2>
+<h2>The five commands</h2>
 
 <table>
 <thead><tr><th>Command</th><th>What it covers</th><th>Typical use</th></tr></thead>
@@ -109,7 +109,6 @@
 <tr><td><code>/wf</code></td><td>10 lifecycle stages plus 4 add-on types</td><td>Run explicitly: <code>/wf &lt;stage&gt; &lt;slug&gt;</code>.</td></tr>
 <tr><td><code>/wf-quick</code></td><td>10 quick commands — compressed, single-shot flows</td><td>Run explicitly: <code>/wf-quick &lt;flow&gt; &lt;slug&gt;</code>.</td></tr>
 <tr><td><code>/wf-meta</code></td><td>12 navigation and management sub-commands</td><td>Run explicitly. <code>init-ship-plan</code> and <code>status</code> are the most common.</td></tr>
-<tr><td><code>/wf-design</code></td><td>22 design sub-commands</td><td>Three invocation modes: as a lifecycle stage, paired with a sub-command, or freestanding.</td></tr>
 <tr><td><code>/wf-docs</code></td><td>Doc pipeline plus 7 Diátaxis primitives</td><td>Run explicitly, or auto-triggered when the model detects a documentation gap.</td></tr>
 <tr><td><code>/review</code></td><td>31 review dimensions across 7 named sweeps</td><td>Can auto-invoke; the model selects dimensions based on change context.</td></tr>
 </tbody>
@@ -143,14 +142,14 @@
 <tr><td><code>test-patterns</code></td><td>Patterns for generating and organizing tests — unit, integration, data factories, coverage — across languages and frameworks.</td></tr>
 <tr><td><code>refactoring-patterns</code></td><td>Safe behavior-preserving refactoring — extract, rename, move, simplify — with test-baseline and rollback guidance.</td></tr>
 <tr><td><code>wide-event-observability</code></td><td>Designing and implementing wide-event logging with tail sampling for context-rich, queryable observability.</td></tr>
-<tr><td><code>imagegen</code></td><td>Generates an image from a text prompt with automatic fallback. Used internally by <code>/wf-design</code>; not directly invocable.</td></tr>
+<tr><td><code>imagegen</code></td><td>Generates an image from a text prompt with automatic fallback. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
 </tbody>
 </table>
 
 <details>
 <summary><strong>Advanced toggles</strong></summary>
 
-<p>Five of the six commands set <code>disable-model-invocation: true</code> in their skill frontmatter: <code>wf</code>, <code>wf-quick</code>, <code>wf-meta</code>, <code>wf-docs</code>, and <code>wf-design</code>. This flag prevents the model from calling these commands without an explicit slash. The <code>review</code> command omits this flag, which is why it can auto-invoke.</p>
+<p>Four of the five commands set <code>disable-model-invocation: true</code> in their skill frontmatter: <code>wf</code>, <code>wf-quick</code>, <code>wf-meta</code>, and <code>wf-docs</code>. This flag prevents the model from calling these commands without an explicit slash. The <code>review</code> command omits this flag, which is why it can auto-invoke.</p>
 
 <p>If you are troubleshooting a command that ran when you did not expect it to, check its <code>SKILL.md</code> frontmatter for this key. If you are troubleshooting a command that did not run when you expected auto-invocation, the same key — or the triggering <code>description</code> field — is where to look.</p>
 </details>

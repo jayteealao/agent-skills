@@ -71,7 +71,7 @@ SIDEBAR = r"""<aside id="sidebar">
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
-    <li style="padding-left: 0.7em;"><a href="{base}reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf-design</a></li>
+    <li style="padding-left: 0.7em;"><a href="{base}reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/review.html" data-href="reference/review.html">↳ /review</a></li>
     <li><a href="{base}reference/skills.html" data-href="reference/skills.html">Skills</a></li>
@@ -324,9 +324,9 @@ Before you type your first command, this page gives you the map. One read and yo
   <td>Status, resume, next, sync, amend, close — everything for working <em>with</em> workflows that already exist. Sub-commands: <code>status</code>, <code>resume</code>, <code>next</code>, <code>sync</code>, <code>amend</code>, <code>close</code>, <code>init-ship-plan</code>, <code>build-pipeline</code></td>
 </tr>
 <tr>
-  <td><code>/wf-design</code></td>
+  <td><code>/wf design</code></td>
   <td>You want design work on a screen, component, or visual artifact</td>
-  <td>22 design sub-commands — brief, contract, colorize, polish, audit, critique, and more. Can run as stage 2b inside a full <code>/wf</code> workflow or stand-alone</td>
+  <td>22 design sub-commands — craft, colorize, polish, audit, critique, and more. A <code>/wf</code> sub-command: <code>/wf design &lt;slug&gt; &lt;cmd&gt;</code> builds in-workflow (compressed); <code>/wf design &lt;cmd&gt;</code> runs the full lifecycle</td>
 </tr>
 <tr>
   <td><code>/wf-docs</code></td>
@@ -593,27 +593,27 @@ You know what you want to do. This page maps your situation to the exact command
 <tbody>
 <tr>
   <td>Generate a design brief for a screen</td>
-  <td><code>/wf-design brief &lt;slug&gt;</code></td>
-  <td>Produces a structured brief for a UI change. Can run as stage 2b inside <code>/wf</code> or stand-alone.</td>
+  <td><code>/wf design &lt;slug&gt; craft</code></td>
+  <td>Produces the brief + visual contract, then drives the build. With a slug it runs compressed in-workflow; with no slug it spins up a full lifecycle.</td>
 </tr>
 <tr>
   <td>Recolor a design to match a palette</td>
-  <td><code>/wf-design colorize &lt;slug&gt;</code></td>
+  <td><code>/wf design &lt;slug&gt; colorize</code></td>
   <td></td>
 </tr>
 <tr>
   <td>Polish and tighten an existing design</td>
-  <td><code>/wf-design polish &lt;slug&gt;</code></td>
+  <td><code>/wf design &lt;slug&gt; polish</code></td>
   <td></td>
 </tr>
 <tr>
   <td>Audit a design against the design contract</td>
-  <td><code>/wf-design audit &lt;slug&gt;</code></td>
+  <td><code>/wf design &lt;slug&gt; audit</code></td>
   <td></td>
 </tr>
 <tr>
   <td>Get a critique of a design</td>
-  <td><code>/wf-design critique &lt;slug&gt;</code></td>
+  <td><code>/wf design &lt;slug&gt; critique</code></td>
   <td></td>
 </tr>
 <tr>
@@ -1372,7 +1372,7 @@ PAGES.append((
 
 <dl>
 <dt><strong>After shape</strong></dt>
-<dd>Default: run <code>/wf slice</code> to break the shaped idea into work units. Alternative: run <code>/wf-design shape</code> first if the feature is UI-heavy and the visual direction is still unclear. Alternative: skip slicing entirely and jump to plan for a single-slice feature.</dd>
+<dd>Default: run <code>/wf slice</code> to break the shaped idea into work units. Alternative: run <code>/wf design &lt;slug&gt; craft</code> first if the feature is UI-heavy and the visual direction is still unclear. Alternative: skip slicing entirely and jump to plan for a single-slice feature.</dd>
 
 <dt><strong>After review</strong></dt>
 <dd>Default: run <code>/wf handoff</code> to prepare the PR. Alternative: run <code>/wf implement &lt;slice&gt; reviews</code> if the review found issues that must be addressed first. Alternative: run <code>/wf-meta amend</code> if the review revealed the original spec was wrong.</dd>
