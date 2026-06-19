@@ -137,7 +137,7 @@ You know what you want to do. This page maps your situation to the exact command
 <tr>
   <td>Update dependencies safely</td>
   <td><code>/wf intake update-deps</code></td>
-  <td>Audits dependencies, tiers them by risk, and updates in order. 4-stage flow under <code>.ai/dep-updates/</code>.</td>
+  <td>Audits dependencies, tiers them by risk (P0/P1/P2), and updates in order. A compressed standard lifecycle in-slug under <code>.ai/workflows/&lt;slug&gt;/</code> that self-authors its tiered implement/verify, then routes to <code>/wf review</code>.</td>
 </tr>
 <tr>
   <td>Refactor without changing behaviour</td>
