@@ -1,12 +1,12 @@
 ---
-description: Dependency update workflow. Scans package manifests for outdated and vulnerable dependencies, researches each via web search, plans updates grouped by risk, implements, and verifies.
+description: Dependency update STANDARD lifecycle. Scans manifests, researches each dependency, prioritizes by risk into P0/P1/P2 tiers, then drives the full SDLC sequence in-slug (01-update-deps → 02-shape research → 03-slice → 04-plan → gate → self-authored 05-implement/06-verify tiered exec → review) on a full type:index overview. Unlike the other change-modes, update-deps SELF-AUTHORS 05/06 (its tier-ordered execution is specialized) then routes to /wf review.
 argument-hint: [package-name|--security-only|--audit-only]
 ---
 
 # Output boundary & shared context
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
-You are running `/wf intake update-deps`, a **dependency maintenance workflow**.
+You are running `/wf intake update-deps`, a **dependency maintenance standard lifecycle**.
 
 # Slug-mode (read before proceeding)
 
@@ -15,293 +15,287 @@ If the dispatcher selected **slug-mode** (the first token after `intake` matched
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline
-`1·scan` → `2·research` → `3·prioritize` → `4·plan` → `5·implement` → `6·verify`
+`01-update-deps`(intake, scan) → `02-shape` (research + prioritize) → `03-slice` → `04-plan` (tiered commands) → **[gate]** → **self-authored** `05-implement` + `06-verify` (tier-ordered) → `/wf review` → `/wf handoff` → `/wf ship`
 
 | | Detail |
 |---|---|
-| Requires | A project with a package manifest (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pom.xml`, `pubspec.yaml`, etc.) |
-| Produces | `.ai/dep-updates/<run-id>/` artifacts |
-| No argument | Scan and update all dependencies |
-| `<package-name>` | Focus on a single named package |
-| `--security-only` | Prioritize and update only CVE-affected packages |
-| `--audit-only` | Run scan and research only — write the plan but do not implement |
+| Requires | A project with a package manifest (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pom.xml`, `pubspec.yaml`, etc.). |
+| Produces (this command) | In-slug standard artifacts under `.ai/workflows/<slug>/`: `01-update-deps.md` (`type: intake`, scan), `02-shape.md` (research + priority tiers), `03-slice.md` (`type: slice-index`), `04-plan.md` (tiered commands), and — because update-deps self-authors execution — `05-implement.md` + `06-verify.md`, plus a conformant `00-index.md` (`type: index`). |
+| Slug | `update-deps-<YYYYMMDD>` (e.g. `update-deps-20260619`). Keep a `run-id` field on the lead for continuity with legacy `.ai/dep-updates/` runs. |
+| No argument | Scan and update all dependencies. |
+| `<package-name>` | Focus on a single named package. |
+| `--security-only` | Prioritize and update only CVE-affected packages. |
+| `--audit-only` | Run scan + research + plan only — STOP at the gate after `04-plan`, do not implement. |
+| Exception | update-deps is the one change-mode that **self-authors `05`/`06`** (tier-ordered exec is specialized). `/wf implement` and `/wf verify` redirect it back here; only `/wf review` accepts it. |
 
 # CRITICAL — execution discipline
 You are a **dependency update orchestrator**.
-- Do NOT make application code changes beyond what is required by a dependency update (e.g., API changes forced by a major version bump).
-- Do NOT update lock files manually — always use the package manager's own commands (`npm update`, `pip install --upgrade`, `go get`, `cargo update`, etc.).
-- Do NOT batch major version updates across multiple packages in a single commit. Major updates are implemented one at a time.
-- If an update causes test failures that are not trivially fixable → mark that package as `blocked` and continue to the next. Do not fix application code to make tests pass — surface the blocker.
-- Follow the numbered steps below exactly in order.
+- Do NOT make application code changes beyond what a dependency update forces (e.g., API changes from a major bump).
+- Do NOT edit lock files manually — always use the package manager's own commands (`npm update`, `pip install --upgrade`, `go get`, `cargo update`, …).
+- Do NOT batch major version updates across packages in one commit. Major updates go one at a time.
+- If an update causes non-trivial test failures → mark that package `blocked` and continue. Surface the blocker; do not fix application code to force tests green.
+- The lifecycle skips no *stage* — each is single-pass. Follow the steps exactly in order.
 
 # Step 0 — Orient (MANDATORY)
-1. **Parse arguments** from `$ARGUMENTS`:
-   - No argument → `mode: all`
-   - Argument is a package name → `mode: single`, `target-package: <name>`
-   - Argument is `--security-only` → `mode: security-only`
-   - Argument is `--audit-only` → `mode: audit-only` (stop after Step 4, do not implement)
-2. **Identify package manager(s):** Read the project root for manifest files. A project may have multiple (e.g., Node.js frontend + Python backend). List all.
-3. **Generate run ID:** `deps-<YYYYMMDD-HHMM>` (use `date +"%Y%m%d-%H%M"` via Bash).
-4. **Create run directory:** `.ai/dep-updates/<run-id>/`.
+1. **Parse arguments** from `$ARGUMENTS`: no arg → `mode: all`; package name → `mode: single`, `target-package`; `--security-only` → `mode: security-only`; `--audit-only` → `mode: audit-only` (stop at the gate after `04-plan`).
+2. **Resolve slug / resume:** new run → slug `update-deps-<YYYYMMDD>` (`date +"%Y%m%d"`). If `.ai/workflows/<slug>/00-index.md` exists with `workflow-type: update-deps` → resume from the first unwritten artifact. (Legacy `.ai/dep-updates/<run-id>/` runs still validate + render via fallback; new runs are in-slug.)
+3. **Identify package manager(s):** read the project root for manifests; a project may have several (Node frontend + Python backend). List all.
+4. **Branch:** default `branch-strategy: dedicated`, branch `deps/<slug>`. Create off the current base if absent.
+5. **Single slice.** The whole update is one slice (`slice-slug` = `<slug>`); the P0/P1/P2 tiers are organized *within* the slice/plan/implement bodies (so the un-suffixed single `05-implement.md`/`06-verify.md` capture the tiered execution).
 
-# Step 1 — Scan
-Read all package manifests and produce a complete dependency inventory.
-
-For each manifest found:
-- Read the manifest file (package.json, requirements.txt, go.mod, Cargo.toml, etc.)
-- Run the package manager's built-in outdated/audit command:
-  - Node.js: `npm outdated --json` and `npm audit --json`
-  - Python: `pip list --outdated` and `pip-audit` (if available) or `safety check`
-  - Go: `go list -u -m all` and `govulncheck ./...` (if available)
-  - Rust: `cargo outdated` and `cargo audit`
-  - Java: check for `mvn versions:display-dependency-updates` or `gradle dependencyUpdates`
-- For `mode: single`, filter to only the target package.
-- For `mode: security-only`, run the audit command and identify all packages with CVE findings.
-
-Write `scan.md` with the full dependency inventory.
-
-**`scan.md` frontmatter:**
+# Step 1 — Scan → `01-update-deps.md` (`type: intake`)
+Read all manifests and produce a complete inventory. For each: read the manifest, run the package manager's outdated/audit command (Node `npm outdated --json` + `npm audit --json`; Python `pip list --outdated` + `pip-audit`/`safety check`; Go `go list -u -m all` + `govulncheck ./...`; Rust `cargo outdated` + `cargo audit`; Java `mvn versions:display-dependency-updates` / `gradle dependencyUpdates`). For `mode: single`, filter to the target; for `security-only`, identify CVE packages.
 ```yaml
 ---
 schema: sdlc/v1
-type: dep-scan
-run-id: <run-id>
+type: intake
+slug: <slug>
+workflow-type: update-deps
+run-id: deps-<YYYYMMDD-HHMM>   # continuity with legacy .ai/dep-updates/ runs
 mode: <all|single|security-only|audit-only>
-target-package: <name or "all">
-package-managers: [<list>]
-total-deps: <count>
-outdated-count: <count>
-vulnerable-count: <count>
 status: complete
-created-at: <real timestamp via bash>
+stage-number: 1
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+tags: [deps]
+refs:
+  index: 00-index.md
+  next: 02-shape.md
+next-command: wf-shape
+next-invocation: "/wf shape <slug>"
 ---
 ```
+Body: `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
 
-**`scan.md` body — Required sections:**
-- `## Security Vulnerabilities` — list CVEs with severity, affected package, and fix version
-- `## Outdated Packages` — table: package | current | latest | update-type (major/minor/patch) | days-behind
-- `## Up to Date` — count only, no list needed
+# Step 2 — Research + prioritize → `02-shape.md`
+For each package that needs updating, launch parallel web-research sub-agents in batches of 3–5.
 
-# Step 2 — Research
-For each package that needs updating, launch parallel web research sub-agents. Group packages into batches of 3–5 to avoid over-parallelization.
+**Model for every dispatched batch agent:** `haiku`. REQUIRED — each does web search + structured extraction (versions, breaking changes, migration steps, CVEs, compatibility) per package; bounded extraction.
 
-**Model for every dispatched batch agent:** `haiku`. REQUIRED on every `Task` call. Each agent does web search + structured extraction (CVE list, breaking-change list, migration steps) per package — bounded extraction, not cross-package reasoning. Haiku is the right tier.
+Each batch agent returns per package: current/latest version, update-type, breaking changes, migration steps, CVEs, compatibility, recommendation (update-now / update-with-migration / hold).
 
-**For each package batch, launch one general-purpose sub-agent** prompted with:
-
-For each package in this batch:
-
-**Version & compatibility:**
-- Web search for the latest stable version and release date
-- Web search for the changelog or release notes between the current version and the latest
-- Identify all breaking changes — API removals, renamed exports, changed behavior, new required config
-- Check if there is a migration guide for the version jump
-
-**Security:**
-- Web search for CVEs, security advisories, or GitHub security alerts for this package at the current version
-- Note the CVSS score and whether a fixed version is available
-
-**Implementation best practices:**
-- Web search for current recommended patterns for this package at the latest version
-- Note any anti-patterns the project may currently use that the new version discourages
-- Check for known gotchas specific to upgrading this package (common test failures, subtle behavior changes, peer dependency conflicts)
-
-**Ecosystem compatibility:**
-- Check whether the latest version is compatible with the project's runtime/language version
-- Check whether it conflicts with other packages in the manifest (peer dependency requirements)
-
-Each batch agent returns: package name, current version, latest version, update-type, breaking changes (list), migration steps (list), CVEs, compatibility notes, recommendation (update-now / update-with-migration / hold).
-
-Write findings to `research.md`.
-
-**`research.md` frontmatter:**
+Then **prioritize** into tiers: **P0 Security** (active CVE with a fix → update immediately, one at a time), **P1 Major+migration** (breaking changes → one at a time), **P2 Minor/patch safe** (batch up to 10), **Hold** (incompatible / peer-blocked / recommended hold). Write `02-shape.md`:
 ```yaml
 ---
 schema: sdlc/v1
-type: dep-research
-run-id: <run-id>
-packages-researched: <count>
-packages-update-now: <count>
-packages-migration-needed: <count>
-packages-hold: <count>
+type: shape
+slug: <slug>
 status: complete
-created-at: <real timestamp>
+stage-number: 2
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+docs-needed: false
+docs-types: []
+tags: [deps]
+refs:
+  index: 00-index.md
+  intake: 01-update-deps.md
+  next: 03-slice.md
+next-command: wf-slice
+next-invocation: "/wf slice <slug>"
 ---
 ```
+Body: one `## <package>` section each (current/latest, CVEs, breaking changes, migration steps, recommendation, reason), then `## Priority Groups` (the four tiers with their packages), then `## In Scope` / `## Out of Scope` (the Hold tier).
 
-**`research.md` body — one section per package:**
-```
-## <package-name>
-- Current: <version> | Latest: <version> | Update type: major/minor/patch
-- CVEs: <list or "none">
-- Breaking changes: <list or "none">
-- Migration steps: <numbered list or "none required">
-- Recommendation: update-now | update-with-migration | hold
-- Reason: <one sentence>
-```
-
-# Step 3 — Prioritize
-Group packages into four priority tiers based on scan + research findings:
-
-| Tier | Condition | Action |
-|------|-----------|--------|
-| **P0 — Security** | Any active CVE at current version with a fix available | Update immediately, one at a time |
-| **P1 — Major with migration** | Major version bump with breaking changes | Update with migration, one at a time |
-| **P2 — Minor/patch, safe** | Minor or patch update, no breaking changes | Batch update (up to 10 at once) |
-| **Hold** | Incompatible with runtime, blocked by peer conflict, or recommended hold | Document reason, do not update |
-
-Append `## Priority Groups` to `research.md` with the four tiers listed.
-
-If `mode: audit-only` → **STOP HERE**. Write `plan.md` (see Step 4) and return. Do not implement.
-
-# Step 4 — Plan
-Write `plan.md` — the complete update execution plan.
-
-**`plan.md` frontmatter:**
+# Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
 ```yaml
 ---
 schema: sdlc/v1
-type: dep-plan
-run-id: <run-id>
-p0-count: <count>
-p1-count: <count>
-p2-count: <count>
-hold-count: <count>
-estimated-commits: <count>
+type: slice-index
+slug: <slug>
 status: complete
-created-at: <real timestamp>
+stage-number: 3
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+total-slices: 1
+best-first-slice: <slug>
+slices:
+  - slug: <slug>
+    status: defined
+    complexity: <s|m|l>
+tags: [deps]
+refs:
+  index: 00-index.md
+  shape: 02-shape.md
+  next: 04-plan.md
+next-command: wf-plan
+next-invocation: "/wf plan <slug>"
 ---
 ```
+Body: "Single-slice dependency update — executed in P0 → P1 → P2 tier order (see `04-plan.md`)."
 
-**`plan.md` body:**
+# Step 4 — Plan → `04-plan.md` (tiered commands)
+```yaml
+---
+schema: sdlc/v1
+type: plan
+slug: <slug>
+slice-slug: <slug>
+status: complete
+stage-number: 4
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+metric-files-to-touch: <int>
+metric-step-count: <int>
+has-blockers: false
+revision-count: 0
+tags: [deps]
+refs:
+  index: 00-index.md
+  slice: 03-slice.md
+  next: 05-implement.md
+next-command: wf-implement
+next-invocation: "/wf review <slug>"   # update-deps self-authors 05/06, then reviews
+---
 ```
-## P0 — Security Updates (implement first, one at a time)
-For each package:
-- Command to update: `<exact package manager command>`
-- Test command to run after: `<test command>`
-- What to verify: <specific behavior to check>
-- Rollback: `<exact rollback command>`
+Body: `## P0 — Security` / `## P1 — Major+migration` / `## P2 — Safe batch` / `## Hold` — each package with the exact update command, test command, what to verify, and rollback command (Hold: reason + revisit condition).
 
-## P1 — Major Updates with Migration (implement after P0, one at a time)
-For each package:
-- Migration steps: <numbered>
-- Command to update: `<exact command>`
-- Application code changes required: <list or "none">
-- Test command: `<command>`
-- Rollback: `<command>`
+## Step — Write free narrative fragments
+Author free narrative fragments for any artifact per the narrative-fragment tier of `_intake-context.md` (a per-tier update table or a CVE-burndown chart tells a deps story well).
 
-## P2 — Safe Batch Update
-- Command to update all P2 packages: `<exact command>`
-- Test command: `<command>`
-
-## Hold — Not Updating
-For each package:
-- Reason: <one sentence>
-- Revisit condition: <what would need to change>
+# Step 5 — Write `00-index.md` (conformant `type: index`)
+Write the full 22-field `type: index` overview using the template from [intake/default.md](default.md):
+```yaml
+---
+schema: sdlc/v1
+type: index
+slug: <slug>
+title: "Dependency update <YYYY-MM-DD>"
+workflow-type: update-deps
+status: active
+current-stage: plan
+stage-number: 4
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+selected-slice: <slug>
+branch-strategy: dedicated
+branch: "deps/<slug>"
+base-branch: "<main|master>"
+review-scope: slug-wide
+pr-url: ""
+pr-number: 0
+open-questions: []
+tags: [deps]
+next-command: wf-review
+next-invocation: "/wf review <slug>"
+workflow-files:
+  - 00-index.md
+  - 01-update-deps.md
+  - 02-shape.md
+  - 03-slice.md
+  - 04-plan.md
+slices:
+  - slug: <slug>
+    status: defined
+    complexity: <s|m|l>
+progress:
+  intake: complete
+  shape: complete
+  slice: complete
+  plan: complete
+  implement: not-started
+  verify: not-started
+  review: not-started
+  handoff: not-started
+  ship: not-started
+  retro: not-started
+---
 ```
+Then **register the slug in `.ai/workflows/INDEX.md`** per `intake/default.md` Step 10.
 
-**After writing:** Present a summary and ask the user to confirm before implementing:
+# Step 6 — Gate before implement (MANDATORY)
+Apply the **compressed-lifecycle gate** from `_intake-context.md` — for update-deps offer the tier-aware options:
 ```
 AskUserQuestion:
-  question: "Dependency update plan ready. P0: <N> security, P1: <N> major, P2: <N> safe, Hold: <N>. Proceed?"
+  question: "Dependency update plan ready. P0: <N> security · P1: <N> major · P2: <N> safe · Hold: <N>. Proceed?"
   options:
     - Proceed with full plan
     - Proceed with P0 security updates only
     - Audit-only — save plan, do not implement
     - Adjust plan (describe changes)
 ```
+**If `mode: audit-only`** (or the user picks Audit-only) → STOP here. The plan is saved; do not implement. Record the decision in `01-update-deps.md`.
 
-## Step — Write free narrative fragments
+# Step 7 — Self-author `05-implement.md` (tier-ordered execution)
+Execute the plan in tier order. **Never mix tiers in a single commit.**
+- **P0 (sequential):** per package — update, run any migration steps, run the test command; pass → commit `fix(deps): update <pkg> to <version> (CVE-<id>)`; fail → mark `blocked`, document, continue.
+- **P1 (sequential):** per package — migrate, apply only the API-forced app-code changes, test; pass → commit `fix(deps): update <pkg> to <version> (major, migration applied)`; fail → `blocked`.
+- **P2 (single batch):** batch-update, run full suite; pass → commit `fix(deps): batch update <N> safe dependencies`; fail → bisect/rollback the culprit, mark it `blocked`.
 
-Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
-
-# Step 5 — Implement
-Execute the plan in tier order. Never mix tiers in a single commit.
-
-**For each P0 package (sequential):**
-1. TaskCreate: `"Update <package> (P0 security fix)"`
-2. Run the update command
-3. Run migration steps if any (from plan)
-4. Run the test command — check for failures
-5. If tests pass → **commit**: `fix(deps): update <package> to <version> (CVE-<id>)`
-6. If tests fail → mark `blocked`, document failures, move to next package
-7. TaskUpdate to completed
-
-**For each P1 package (sequential):**
-1. TaskCreate: `"Update <package> to v<version> (major)"`
-2. Run migration steps
-3. Apply any required application code changes (ONLY those forced by API changes in this package)
-4. Run the test command
-5. If tests pass → **commit**: `fix(deps): update <package> to <version> (major, migration applied)`
-6. If tests fail → mark `blocked`, document failures, move to next package
-7. TaskUpdate to completed
-
-**For P2 packages (single batch):**
-1. TaskCreate: `"Batch update safe dependencies (P2)"`
-2. Run the batch update command
-3. Run the full test suite
-4. If tests pass → **commit**: `fix(deps): batch update <N> safe dependencies`
-5. If tests fail → identify the culprit package via bisect or rollback individual packages, mark the failing one `blocked`
-6. TaskUpdate to completed
-
-Write `implement.md` after all tiers complete.
-
-**`implement.md` frontmatter:**
+Write `05-implement.md` (un-suffixed) — satisfies the **implement** required set:
 ```yaml
 ---
 schema: sdlc/v1
-type: dep-implement
-run-id: <run-id>
-updated: [<package@version>, ...]
-blocked: [<package — reason>, ...]
-commits: [<sha>, ...]
+type: implement
+slug: <slug>
+slice-slug: <slug>
 status: complete
-created-at: <real timestamp>
+stage-number: 5
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+metric-files-changed: <int>          # manifests + lockfiles touched
+metric-lines-added: <int>
+metric-lines-removed: <int>
+metric-deviations-from-plan: <int>   # e.g. packages that became blocked
+metric-review-fixes-applied: 0
+commit-sha: "<last tier commit sha, or 'multiple'>"
+tags: [deps]
+refs:
+  index: 00-index.md
+  plan: 04-plan.md
+  next: 06-verify.md
+next-command: wf-verify
+next-invocation: "/wf review <slug>"
 ---
 ```
+Body: `## Updated` (package@version per tier with commit SHA), `## Blocked` (package — reason), `## Held`.
 
-# Step 6 — Verify
-Run the full test suite against the updated state.
-
-1. Run the complete test suite (not just the targeted tests from implementation): report pass/fail/skip counts
-2. Run the build: `npm run build`, `go build ./...`, `cargo build`, etc.
-3. If the project has integration tests or E2E tests, run them
-4. Confirm no blocked packages left a broken state in the manifest (check for inconsistent lockfile)
-
-Write `verify.md`.
-
-**`verify.md` frontmatter:**
+# Step 8 — Self-author `06-verify.md`
+Run the full suite against the updated state: complete test suite (not just targeted), the build (`npm run build` / `go build ./...` / `cargo build`), integration/E2E if present; confirm no blocked package left an inconsistent lockfile. Write `06-verify.md` (un-suffixed) — satisfies the **verify** required set:
 ```yaml
 ---
 schema: sdlc/v1
-type: dep-verify
-run-id: <run-id>
-test-pass: <count>
-test-fail: <count>
-test-skip: <count>
-build-pass: <true|false>
-result: <PASS|PARTIAL|FAIL>
-blocked-packages: [<list>]
+type: verify
+slug: <slug>
+slice-slug: <slug>
 status: complete
-created-at: <real timestamp>
+stage-number: 6
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+result: <pass|partial|fail>          # partial is valid: some updated, some blocked
+metric-checks-run: <int>
+metric-checks-passed: <int>
+metric-acceptance-met: <int>
+metric-acceptance-total: <int>
+metric-interactive-checks-run: 0
+metric-interactive-checks-passed: 0
+metric-issues-found: <int>           # blocked packages
+evidence-dir: ""
+tags: [deps]
+refs:
+  index: 00-index.md
+  implement: 05-implement.md
+  next: 07-review.md
+next-command: wf-review
+next-invocation: "/wf review <slug>"
 ---
 ```
+Body: `## Test Result` (pass/fail/skip), `## Build`, `## Blocked packages` (remaining at old version + why). `result: partial` is valid when some packages updated and some are blocked.
 
-**`result: PARTIAL`** is valid when some packages were updated successfully and some were blocked. Document which packages remain at their old version and why.
+# Step 9 — Route to review
+On a `pass`/`partial` verify, route to **`/wf review <slug>`** (review recognizes `workflow-type: update-deps` and reviews the un-suffixed `05`/`06` against `01-update-deps.md` + `03-slice.md`). Then `/wf handoff` → `/wf ship`.
+
+Lead with a short **narrative** paragraph (what was scanned, the tier counts, what updated vs blocked, the verify result), then:
+```
+wf intake update-deps complete: <slug>
+Branch: deps/<slug>
+Tiers: P0 <n> · P1 <n> · P2 <n> · Hold <n>
+Updated: <n> · Blocked: <n> · Verify: <pass|partial|fail>
+Next: /wf review <slug>  →  /wf handoff  →  /wf ship
+```
 
 # Workflow rules
-- Store all artifacts under `.ai/dep-updates/<run-id>/`. Do not use `.ai/workflows/` for dep update runs.
-- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`.
-- **Timestamps must be real:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash for every `created-at`.
-- Always use the package manager's own commands — never edit lockfiles directly.
-- Never mix security updates with major version migrations in a single commit.
-- Web search for every package being updated — do not rely solely on `npm outdated` output.
-
-# Chat return contract
-After completing, return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
-- `run-id: <run-id>`
-- `wrote: <paths>`
-- Summary table: packages updated | blocked | held | test result
-- ≤3 bullets on what needs attention (blocked packages, failed tests, hold packages to revisit)
-- `options:` — always include "Review blocked packages manually" and "Run full test suite" as options
+- Store artifacts **in-slug** under `.ai/workflows/<slug>/` (legacy `.ai/dep-updates/<run-id>/` runs still validate + render via fallback, but new runs are in-slug).
+- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+- Always use the package manager's own commands — never edit lockfiles directly. Never mix security updates with major migrations in one commit. Web-search every package being updated — don't rely solely on `npm outdated`.
+- Review is not skipped — update-deps self-verifies (`06-verify.md`) then routes to `/wf review`.
