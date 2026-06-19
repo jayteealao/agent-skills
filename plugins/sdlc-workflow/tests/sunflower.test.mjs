@@ -45,12 +45,21 @@ test('resolveViewPath: phase files', () => {
   strictEqual(resolveViewPath('10-retro.md').viewRel, 'retro/INDEX.html');
 });
 
-test('resolveViewPath: quick-workflow lead artifacts (rca/fix/probe/investigate)', () => {
+test('resolveViewPath: forwarded/investigative lead artifacts (rca/probe/investigate)', () => {
   // Previously unmapped → returned null → silently skipped (never rendered).
   strictEqual(resolveViewPath('01-rca.md').viewRel, 'rca/INDEX.html');
-  strictEqual(resolveViewPath('01-fix.md').viewRel, 'fix/INDEX.html');
   strictEqual(resolveViewPath('01-probe.md').viewRel, 'probe/INDEX.html');
   strictEqual(resolveViewPath('01-investigate.md').viewRel, 'investigate/INDEX.html');
+});
+
+test('resolveViewPath: compressed change-mode leads all land at intake/', () => {
+  // The type:index overview's intake card links to the fixed STAGE_NAV.intake.dir
+  // ('intake'); every change-mode lead must resolve there or the card 404s.
+  // 01-fix was historically ['fix', null] — remapped to ['intake', null].
+  strictEqual(resolveViewPath('01-fix.md').viewRel, 'intake/INDEX.html');
+  strictEqual(resolveViewPath('01-hotfix.md').viewRel, 'intake/INDEX.html');
+  strictEqual(resolveViewPath('01-refactor.md').viewRel, 'intake/INDEX.html');
+  strictEqual(resolveViewPath('01-update-deps.md').viewRel, 'intake/INDEX.html');
 });
 
 test('resolveViewPath: slice sub-paths', () => {
