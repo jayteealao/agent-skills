@@ -1,12 +1,12 @@
 ---
-description: Structured refactoring workflow. Captures behavior baseline before touching code, plans incremental green steps, implements with per-step verification, and confirms behavior is identical after.
+description: Behavior-preserving refactoring STANDARD lifecycle. Drives every SDLC stage single-pass (01-refactor → 02-shape baseline → 03-slice → 04-plan → gate → implement → verify → review[refactor-safety]) on a full type:index overview. Captures a behavior baseline as the shape before touching code, plans incremental green steps, and confirms identical behavior after. The mode authors the planning half; the standard /wf implement/verify/review chain authors execution.
 argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
-You are running `/wf intake refactor`, a **behavior-preserving refactoring workflow**.
+You are running `/wf intake refactor`, a **behavior-preserving refactoring standard lifecycle**.
 
 # Slug-mode (read before proceeding)
 
@@ -15,288 +15,223 @@ If the dispatcher selected **slug-mode** (the first token after `intake` matched
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline
-`1·brief` → `2·baseline` → `3·plan` → `4·implement` → `5·verify`
+`01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review refactor-safety` (→`07`) → `/wf handoff` → `/wf ship`
 
 | | Detail |
 |---|---|
-| Requires | Existing code to refactor (and ideally existing tests to baseline against) |
-| Produces | `rf-brief.md`, `rf-baseline.md`, `rf-plan.md`, `rf-implement.md`, `rf-verify.md` |
-| Next | `/wf review <slug> refactor-safety` is recommended after verify |
-| Resume | Pass an existing hotfix slug to resume from the last completed step |
+| Requires | Existing code to refactor (and ideally existing tests to baseline against). Pass a description or an existing slug to resume. |
+| Produces (this command) | `01-refactor.md` (`type: intake` — brief), `02-shape.md` (**the baseline**: API surface + coverage map + gaps + frozen APIs + scope), `03-slice.md` (`type: slice-index`, one slice), `04-plan.md` (incremental green steps), conformant `00-index.md` (`type: index`). |
+| Compression | Each stage single-pass — **no stage is skipped**. The refactor is one slice; its units are the plan's atomic green steps. A refactor large enough to need real multi-slicing should take the gate's *Escalate* to a full `/wf intake`. |
+| Gate | Stop-and-prompt before `05-implement` (Proceed / Adjust / Escalate). |
+| Next | `/wf implement <slug>` — standard execution; `07-review` defaults to **`refactor-safety`**. |
 
 # CRITICAL — behavior preservation is the only acceptance criterion
 You are a **refactoring orchestrator**. The singular goal is identical external behavior before and after.
-- **NEVER add new functionality** during a refactoring session. If new behavior is needed, finish the refactor first and start a separate `/wf intake` workflow.
-- **NEVER change public API surface** (exported function signatures, REST routes, event names, component props, config keys) unless API simplification is the explicit stated goal of this refactor.
-- **NEVER skip a failing test** with `skip`, `xtest`, `@Ignore`, or comments. If a test fails after your changes, the refactor introduced a regression — fix the refactor, not the test.
-- **NEVER rewrite in a single large commit.** Each plan step must leave the codebase in a working, green state. Incremental steps are not optional.
-- **NEVER assume tests are sufficient.** The baseline step verifies what tests actually cover. Gaps in coverage must be noted and treated as risk.
-- Follow the numbered steps exactly in order.
+- **NEVER add new functionality** during a refactor. Finish the refactor, then start a separate `/wf intake` for new behavior.
+- **NEVER change public API surface** (exported signatures, REST routes, event names, component props, config keys) unless API simplification is the explicit stated goal.
+- **NEVER skip a failing test** with `skip`/`xtest`/`@Ignore`/comments. A test failing after your changes = a regression — fix the refactor, not the test.
+- **NEVER rewrite in one large commit.** Each plan step must leave the codebase working and green.
+- **NEVER assume tests are sufficient.** The baseline (Step 2) records what tests actually cover; gaps are risk.
+- The lifecycle skips no *stage* — each is single-pass. Follow the steps exactly in order.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the argument matches an existing `.ai/workflows/<slug>/00-index.md` with `workflow-type: refactor` → **resume mode**. Read the index, determine the last completed step, skip to the next incomplete step.
+   - If the argument matches an existing `.ai/workflows/<slug>/00-index.md` with `workflow-type: refactor` → **resume mode**. Read the index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `rf-*.md` — re-author as the standard set if continuing.)
    - Otherwise → **new refactor**. Derive a slug: `refactor-<short-description>` (kebab-case, max 5 words, e.g., `refactor-auth-service-layer`).
 2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `refactor` → WARN and ask for a different description.
-3. **Branch check (MANDATORY):**
-   - Read `git branch --show-current`.
-   - Refactors SHOULD use a dedicated branch. Ask if the user wants one: `AskUserQuestion { options: ["Create dedicated branch", "Use current branch"] }`.
-   - If dedicated: `git checkout -b refactor/<slug>` from the current branch.
+3. **Branch check:** Refactors SHOULD use a dedicated branch — `AskUserQuestion { options: ["Create dedicated branch", "Use current branch"] }`. If dedicated: `git checkout -b refactor/<slug>` from the current branch.
+4. **Single slice.** The refactor is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). The refactor units are the plan's steps. Downstream stages write **un-suffixed** files.
 
-# Step 1 — Brief
-Ask 3–5 targeted questions about the refactoring goal. Do not ask the 5-round PO interview.
+# Step 1 — Brief → `01-refactor.md` (`type: intake`)
+Ask 3–5 targeted questions (not the 5-round PO interview):
+1. **What is being refactored?** — files/modules/classes/components, specifically.
+2. **Why?** — the structural problem (one class doing three things; copy-paste across N files; nested conditionals; wrong abstraction; perf bottleneck).
+3. **What must not change?** — behaviors/APIs/interfaces/outputs explicitly frozen.
+4. **Is there test coverage?** — covered areas + test files; if none, add tests first?
+5. **Target structure?** — what the code should look like after (extract service; strategy pattern; early returns).
 
-**Required questions:**
-1. **What is being refactored?** — Which files, modules, classes, or components? Be specific.
-2. **Why?** — What structural problem does this fix? (e.g., "single class is doing three things", "copy-paste across 8 files", "deeply nested conditionals", "wrong abstraction level", "performance bottleneck")
-3. **What must not change?** — Which behaviors, APIs, interfaces, or outputs are explicitly frozen?
-4. **Is there test coverage?** — Are the areas being refactored covered by tests? If yes, which test files? If no, does the user want to add tests before refactoring?
-5. **What is the target structure?** — What should the code look like after? (e.g., "extract into a service class", "use strategy pattern", "flatten nested conditions into early returns")
-
-Write `rf-brief.md` immediately after answers.
-
-**`rf-brief.md` frontmatter:**
+Write `01-refactor.md`:
 ```yaml
 ---
 schema: sdlc/v1
-type: rf-brief
+type: intake
 slug: <slug>
 workflow-type: refactor
-target: <what is being refactored — file paths or module names>
-goal: <one sentence: why this refactor>
-frozen-apis: [<list of things that must not change>]
-existing-coverage: <high|medium|low|none>
-status: complete
-created-at: <real timestamp via bash>
+status: complete            # or awaiting-input
+stage-number: 1
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+tags: [refactor]
+refs:
+  index: 00-index.md
+  next: 02-shape.md
+next-command: wf-shape
+next-invocation: "/wf shape <slug>"
 ---
 ```
+Body: `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
 
-Write `00-index.md` immediately after with `workflow-type: refactor`, `current-stage: baseline`.
+# Step 2 — Baseline → `02-shape.md` (the most important step)
+The baseline captures ground truth before any code change — it IS the shape. Launch parallel sub-agents.
 
-## Step — Write free narrative fragments
-
-Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
-
-# Step 2 — Baseline
-**This step is the most important step in the workflow.** It captures the ground truth before any code changes.
-
-Launch parallel sub-agents.
-
-**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call. Both agents do inventorying with structured output (file states, test coverage) — straightforward bounded extraction. Haiku is the right tier.
+**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call — both do bounded inventorying with structured output.
 
 ### Explore sub-agent 1 — Code State Snapshot
-
-Prompt with ALL of the following:
-- Read every file identified as the refactoring target. For each file: line count, exported names (functions, classes, types, constants), and any implicit contracts (event names emitted, global state modified, file paths written to)
-- Read every file that imports or calls the refactoring target — use grep for imports across the entire codebase. These are all the callers that must still work after the refactor
-- Document the current public API surface: exported function signatures with parameter types and return types; exported class methods and their signatures; REST route handlers if applicable; component props if UI
-- Note any code that is intentionally NOT being changed (frozen APIs, untouched callers)
+Prompt with ALL of: read every target file (line count, exported names, implicit contracts — events emitted, global state, files written); read every caller (grep imports across the repo); document the current **public API surface** (exported signatures with param/return types, class methods, REST routes, component props); note code intentionally NOT changing.
 
 ### Explore sub-agent 2 — Test Coverage Snapshot
+Prompt with ALL of: find all test files covering the target (grep target imports in test dirs); per test file, what behavior + key assertions + inputs/outputs; identify **coverage gaps** (exported functions/paths with NO coverage); run the existing tests for the area and capture pass/fail/skip counts + flakiness.
 
-Prompt with ALL of the following:
-- Find all test files that cover the refactoring target — grep for imports of the target modules in test directories
-- For each test file found: what behavior does it cover? What are the key assertions? What are the inputs and expected outputs?
-- Identify **coverage gaps**: which exported functions, code paths, or behaviors have NO test coverage?
-- Run the existing tests for the target area: `npm test -- --grep <pattern>`, `pytest -k <pattern>`, `go test ./... -run <pattern>`, etc. Capture pass/fail/skip counts and any flaky behavior
-- Report: test files, behaviors covered, behaviors NOT covered, pass/fail result before refactoring
-
-Wait for both sub-agents. Write `rf-baseline.md`.
-
-**`rf-baseline.md` frontmatter:**
+Wait for both. Write `02-shape.md` carrying the baseline:
 ```yaml
 ---
 schema: sdlc/v1
-type: rf-baseline
+type: shape
 slug: <slug>
-workflow-type: refactor
-target-files: [<paths>]
-caller-count: <count>
-exported-api: [<list of exported names>]
-test-files: [<paths>]
-tests-passing: <count>
-tests-failing: <count>
-tests-skipped: <count>
-coverage-gaps: [<list of uncovered behaviors>]
 status: complete
-created-at: <real timestamp>
+stage-number: 2
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+docs-needed: false
+docs-types: []
+tags: [refactor, baseline]
+refs:
+  index: 00-index.md
+  intake: 01-refactor.md
+  next: 03-slice.md
+next-command: wf-slice
+next-invocation: "/wf slice <slug>"
 ---
 ```
+Body (this is the baseline — preserve it richly): `## Public API Surface` (every exported name with signature, exactly as it currently exists — the verify acceptance contract), `## Test Coverage Map` (behavior → test file), `## Coverage Gaps` (uncovered behaviors = refactor risk), `## Baseline Test Result` (pass/fail/skip counts before any change), `## Callers` (count + key sites), `## In Scope` / `## Out of Scope` (the frozen surface).
 
-**`rf-baseline.md` body must include:**
-- `## Public API Surface` — every exported name with signature, documented exactly as it currently exists
-- `## Test Coverage Map` — what each test file covers (behavior → test file mapping)
-- `## Coverage Gaps` — behaviors that have no test coverage (these are refactoring risk areas)
-- `## Baseline Test Result` — pass/fail counts before any changes
+**If coverage gaps are significant:** `AskUserQuestion` — "Coverage gaps found in: <list>. Refactoring without tests covering these areas is risky. Add tests first?" Options: `Add tests first (recommended)` / `Proceed with gaps noted as risk` / `Abort`.
 
-**If coverage gaps are significant:** Use AskUserQuestion to ask if the user wants to add tests before refactoring:
-```
-AskUserQuestion:
-  question: "Coverage gaps found in: <list>. Refactoring without tests covering these areas is risky. Add tests first?"
-  options:
-    - Add tests first (recommended)
-    - Proceed with gaps noted as risk
-    - Abort — I need to understand coverage better first
-```
-
-# Step 3 — Plan
-Plan the refactoring as a sequence of **atomic, independently-green steps**. Each step must:
-- Leave the codebase in a passing state (tests green, build passing)
-- Be a single logical change (not "refactor everything", but "extract class X", "rename method Y", "inline variable Z")
-- Not change external behavior — only internal structure
-
-**Research before planning:**
-
-Launch one sub-agent to research the target refactoring pattern:
-- Web search for established patterns for this type of refactoring (e.g., "extract service from controller Node.js pattern", "strangler fig pattern", "replace conditional with polymorphism", "parallel change / expand-contract")
-- Search for common pitfalls and failure modes specific to this type of refactoring
-- Look for community guidance on safe incremental approaches
-
-Write `rf-plan.md`.
-
-**`rf-plan.md` frontmatter:**
+# Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
 ```yaml
 ---
 schema: sdlc/v1
-type: rf-plan
+type: slice-index
 slug: <slug>
-workflow-type: refactor
-step-count: <N>
-pattern-used: <name of the refactoring pattern>
-estimated-files-touched: <count>
-api-surface-changes: <none|yes — list>
 status: complete
-created-at: <real timestamp>
+stage-number: 3
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+total-slices: 1
+best-first-slice: <slug>
+slices:
+  - slug: <slug>
+    status: defined
+    complexity: <s|m|l>
+tags: [refactor]
+refs:
+  index: 00-index.md
+  shape: 02-shape.md
+  next: 04-plan.md
+next-command: wf-plan
+next-invocation: "/wf plan <slug>"
 ---
 ```
+Body (one line): "Single-slice refactor — the units are the plan's atomic green steps."
 
-**`rf-plan.md` body — Step-by-Step Plan:**
-```
-## Step-by-Step Plan
-
-Each step must be independently completable and leave the codebase green.
-
-### Step 1: <short description>
-- What changes: <specific files and what is done>
-- What does NOT change: <explicitly state what is preserved>
-- Verify green: <test command to run after this step>
-- Why this step before step 2: <dependency reason or "independent">
-
-### Step 2: <short description>
-...
-```
-
-**After writing:** Confirm the plan with the user:
-```
-AskUserQuestion:
-  question: "Refactoring plan ready: <N> steps. Proceed?"
-  options:
-    - Proceed step by step
-    - Adjust plan (describe changes)
-    - The plan is too large — help me scope it down
-```
-
-# Step 4 — Implement
-Execute each plan step. **One step at a time — never combine steps.**
-
-For each step:
-1. TaskCreate: `"Step N: <description>"`
-2. TaskUpdate to `in_progress`
-3. Make only the changes described in this step. Nothing else.
-4. Run the verify command for this step (from the plan). If it fails:
-   - **STOP.** Do NOT proceed to the next step.
-   - Diagnose: did the code change break a test, or was the test already failing? Check `rf-baseline.md` — was this test passing before?
-   - If the test was passing before: the refactoring introduced a regression. Fix the refactoring in THIS step (not by modifying tests).
-   - If the test was already failing: document as pre-existing, note it, and ask the user whether to proceed.
-5. If green: **commit the step**: `refactor(<slug>): step <N> — <short description>`
-6. TaskUpdate to `completed`
-
-Write `rf-implement.md` after all steps complete.
-
-**`rf-implement.md` frontmatter:**
+# Step 4 — Plan → `04-plan.md`
+Plan the refactor as a sequence of **atomic, independently-green steps** — each leaves the codebase passing (tests green, build passing), is a single logical change, and changes only internal structure (never external behavior). First launch one sub-agent to research the target pattern (web search: established patterns + common pitfalls + safe incremental approaches, e.g. strangler-fig, parallel-change/expand-contract, replace-conditional-with-polymorphism).
 ```yaml
 ---
 schema: sdlc/v1
-type: rf-implement
+type: plan
 slug: <slug>
-workflow-type: refactor
-steps-completed: <count>
-steps-failed: <count>
-commits: [<sha>, ...]
-api-surface-changed: <true|false>
-new-functionality-added: <true|false — must be false>
+slice-slug: <slug>
 status: complete
-created-at: <real timestamp>
+stage-number: 4
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+metric-files-to-touch: <int>
+metric-step-count: <int>
+has-blockers: false
+revision-count: 0
+tags: [refactor]
+refs:
+  index: 00-index.md
+  slice: 03-slice.md
+  next: 05-implement.md
+next-command: wf-implement
+next-invocation: "/wf implement <slug>"
 ---
 ```
+Body `## Steps` — each step: **What changes** (specific files), **What does NOT change** (preserved surface), **Verify green** (test command after this step), **Why before the next** (dependency or "independent"). Then `## Pattern` (the named refactoring pattern) and `## API Surface Delta` (must be `none` unless API simplification is the explicit goal).
 
-**`rf-implement.md` body must include:**
-- `## Steps Completed` — each step with commit SHA and what changed
-- `## Deviations from Plan` — any step that had to be modified and why
-- `## API Surface Delta` — explicit before/after comparison of exported names (must be identical unless API simplification was the explicit goal)
+## Step — Write free narrative fragments
+Author free narrative fragments for any artifact per the narrative-fragment tier of `_intake-context.md` (a before/after structure diagram or a call-graph tells a refactor story well).
 
-# Step 5 — Verify
-Run the full baseline comparison. This is the acceptance criterion for the entire refactor.
-
-1. **Run the complete test suite** — same command(s) used in Step 2 baseline. Report pass/fail/skip counts.
-2. **Compare against baseline:**
-   - Were any tests passing before that are now failing? → **regression, must fix**
-   - Were any tests skipped before that are now failing? → OK, note
-   - Are test counts consistent (same number of tests, or more if you added tests)? → check
-3. **API surface check:** Read every exported name from `rf-baseline.md → ## Public API Surface`. Verify each still exists with the same signature. Any change that wasn't explicitly planned is a bug.
-4. **Caller check:** Grep for imports of the refactored modules across the codebase. Verify all callers still compile/parse. For dynamic languages, spot-check key call sites.
-
-Write `rf-verify.md`.
-
-**`rf-verify.md` frontmatter:**
+# Step 5 — Write `00-index.md` (conformant `type: index`)
+Write the full 22-field `type: index` overview using the template from [intake/default.md](default.md):
 ```yaml
 ---
 schema: sdlc/v1
-type: rf-verify
+type: index
 slug: <slug>
+title: "Refactor: <target>"
 workflow-type: refactor
-baseline-tests-pass: <count from baseline>
-post-refactor-tests-pass: <count now>
-regressions: [<list of newly-failing tests, or "none">]
-api-surface-identical: <true|false>
-callers-verified: <true|false>
-result: <PASS|FAIL>
-status: complete
-created-at: <real timestamp>
+status: active
+current-stage: plan
+stage-number: 4
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+selected-slice: <slug>
+branch-strategy: <dedicated|none>
+branch: "refactor/<slug>"
+base-branch: "<main|master>"
+review-scope: slug-wide
+pr-url: ""
+pr-number: 0
+open-questions: []
+tags: [refactor]
+next-command: wf-implement
+next-invocation: "/wf implement <slug>"
+workflow-files:
+  - 00-index.md
+  - 01-refactor.md
+  - 02-shape.md
+  - 03-slice.md
+  - 04-plan.md
+slices:
+  - slug: <slug>
+    status: defined
+    complexity: <s|m|l>
+progress:
+  intake: complete
+  shape: complete
+  slice: complete
+  plan: complete
+  implement: not-started
+  verify: not-started
+  review: not-started
+  handoff: not-started
+  ship: not-started
+  retro: not-started
 ---
 ```
+Then **register the slug in `.ai/workflows/INDEX.md`** per `intake/default.md` Step 10.
 
-**`result: PASS`** requires ALL of:
-- No regressions (tests that were passing before are still passing)
-- API surface identical (or explicitly changed per plan)
-- All callers still work
+# Step 6 — Gate before implement (MANDATORY)
+Apply the **compressed-lifecycle gate** from `_intake-context.md` (Proceed / Adjust / Escalate). On **Escalate** (the refactor needs real multi-slicing), recommend `/wf intake <description>` and stop. Record the decision in `01-refactor.md`.
 
-If FAIL: return to Step 4 and identify which step introduced the regression.
+# Step 7 — Hand off to the standard chain
+On proceed, route to `/wf implement <slug>` (one atomic green step per plan step — never combine; commit per step `refactor(<slug>): step N — <desc>`; if a step's verify fails, STOP and fix the *refactor*, not the test) → `/wf verify <slug>` (full baseline comparison: re-run the Step-2 suite, compare pass counts, check every `## Public API Surface` name still exists with the same signature, verify all callers still work) → **`/wf review <slug> refactor-safety`** (checks unintended behavior changes, subtle semantic differences, coverage completeness) → `/wf ship`.
 
-# Adaptive routing
-After verify passes:
-
-**Option A (default): Review refactor safety** → `/wf review <slug> refactor-safety`
-The `refactor-safety` review domain specifically checks for unintended behavior changes, subtle semantic differences, and test coverage completeness.
-
-**Option B: Review correctness only** → `/wf review <slug> correctness`
-Use when the refactor is small and you are confident no behavior changed.
-
-**Option C: Ship directly** → no further review needed (use for trivial renames or code style changes with complete test coverage).
+Lead with a short **narrative** paragraph (target, why, baseline counts, the pattern, gate decision), then:
+```
+wf intake refactor complete: <slug>
+Branch: refactor/<slug>
+Baseline: <pass>/<fail>/<skip> tests · Coverage gaps: <count>
+Plan: <N> atomic green steps · Pattern: <name> · API delta: <none | planned changes>
+Gate: <proceeded | adjusted | escalated>
+Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug> refactor-safety
+```
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Never leave canonical results only in chat.
-- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`.
-- **Timestamps must be real:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash.
-- The baseline in `rf-baseline.md` is the ground truth. Any deviation from it at verify is a failure unless it was an explicitly planned API change.
-- Never modify test assertions to make a refactoring pass — that destroys the baseline.
-- Commit atomically per step. Do not accumulate uncommitted changes across steps.
-
-# Chat return contract
-After completing, return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
-- `slug: <slug>`
-- `wrote: <paths>`
-- `baseline vs. post-refactor: <pass-count before> → <pass-count after>` (must match or improve)
-- `api-surface: identical | <list of planned changes>`
-- `options:` — adaptive routing options as above
+- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+- The baseline in `02-shape.md` is the ground truth. Any deviation at verify is a failure unless it was an explicitly planned API change. Never modify test assertions to make a refactor pass — that destroys the baseline.
+- Review is not skipped — it defaults to the **refactor-safety** rubric. Write each artifact atomically (temp → rename).

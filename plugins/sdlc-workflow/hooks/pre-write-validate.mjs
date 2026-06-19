@@ -36,12 +36,12 @@ import {
 function validateFilename(filename) {
   if (/^\d{2}[a-z]?-.+\.md$/.test(filename)) return null;
   if (['risk-register.md', 'estimate.md', 'announce.md'].includes(filename)) return null;
-  // intake-mode refactor mini-pipeline + wf-meta skip records use stable prefix
-  // names rather than the NN convention (rf-plan.md, skip-shape.md). The hotfix
-  // mini-pipeline (hf-*) was retired by the compressed-lifecycle migration — new
-  // hotfix runs write NN-prefixed standard artifacts (01-hotfix.md, 02-shape.md…),
-  // so `hf` no longer needs an exemption.
-  if (/^(?:rf|skip)-.+\.md$/.test(filename)) return null;
+  // wf-meta skip records use stable prefix names rather than the NN convention
+  // (skip-shape.md). The hotfix (hf-*) and refactor (rf-*) mini-pipelines were
+  // retired by the compressed-lifecycle migration — new hotfix/refactor runs write
+  // NN-prefixed standard artifacts (01-hotfix.md / 01-refactor.md, 02-shape.md…),
+  // so `hf`/`rf` no longer need an exemption.
+  if (/^skip-.+\.md$/.test(filename)) return null;
   return `Filename '${filename}' does not follow the NN-stagename.md convention (e.g., 01-intake.md, 04-plan.md). Use two-digit prefix + hyphen + name.`;
 }
 

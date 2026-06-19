@@ -961,9 +961,8 @@ test('pre+post-write accept registered wf-quick/wf-meta artifact types and prefi
       { file: '00-index.md', type: 'workflow-index' },
       { file: '01-discover.md', type: 'discover' },
       { file: '01-investigate.md', type: 'investigate' },
-      // hf-* exemption retired by the compressed-lifecycle migration (Phase 3) —
-      // new hotfix runs write NN-prefixed standard artifacts. rf-* retired in Phase 4.
-      { file: 'rf-plan.md', type: 'rf-plan' },          // prefix filename, not NN
+      // hf-*/rf-* exemptions retired by the compressed-lifecycle migration — new
+      // hotfix/refactor runs write NN-prefixed standard artifacts. skip-* remains.
       { file: '99-close.md', type: 'close-record' },
       { file: '90-next.md', type: 'routing' },
     ];

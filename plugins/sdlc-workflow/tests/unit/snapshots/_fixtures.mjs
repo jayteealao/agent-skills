@@ -30,11 +30,6 @@ import { render as syncReport } from '../../../renderers/sync-report.mjs';
 import { render as discover } from '../../../renderers/discover.mjs';
 import { render as investigate } from '../../../renderers/investigate.mjs';
 import { render as closeRecord } from '../../../renderers/close-record.mjs';
-import { render as rfBrief } from '../../../renderers/rf-brief.mjs';
-import { render as rfBaseline } from '../../../renderers/rf-baseline.mjs';
-import { render as rfPlan } from '../../../renderers/rf-plan.mjs';
-import { render as rfImplement } from '../../../renderers/rf-implement.mjs';
-import { render as rfVerify } from '../../../renderers/rf-verify.mjs';
 import { render as docsDiscover } from '../../../renderers/docs-discover.mjs';
 import { render as docsAudit } from '../../../renderers/docs-audit.mjs';
 import { render as docsPlanR } from '../../../renderers/docs-plan.mjs';
@@ -625,28 +620,6 @@ export const CASES = [
   {
     name: 'close-record', render: closeRecord, ctx: CTX,
     variants: { full: artifact({ type: 'close-record', path: '99-close.md', frontmatter: { schema: 'sdlc/v1', type: 'close-record', slug: 'demo', 'workflow-type': 'fix', 'close-reason': 'superseded', 'superseded-by': 'PR #42', 'last-stage-reached': 'implement', 'unmerged-commits': 0, 'closed-at': '2026-06-04T00:00:00Z' } }) },
-  },
-
-  /* ── refactor family ───────────────────────────────────────────────── */
-  {
-    name: 'rf-brief', render: rfBrief, ctx: CTX,
-    variants: { full: artifact({ type: 'rf-brief', path: 'rf-brief.md', frontmatter: { schema: 'sdlc/v1', type: 'rf-brief', slug: 'demo', 'workflow-type': 'refactor', goal: 'Extract the auth service layer', 'existing-coverage': 'high', status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'rf-baseline', render: rfBaseline, ctx: CTX,
-    variants: { full: artifact({ type: 'rf-baseline', path: 'rf-baseline.md', frontmatter: { schema: 'sdlc/v1', type: 'rf-baseline', slug: 'demo', 'workflow-type': 'refactor', 'tests-passing': 80, 'tests-failing': 0, 'tests-skipped': 2, 'caller-count': 12, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'rf-plan', render: rfPlan, ctx: CTX,
-    variants: { full: artifact({ type: 'rf-plan', path: 'rf-plan.md', frontmatter: { schema: 'sdlc/v1', type: 'rf-plan', slug: 'demo', 'workflow-type': 'refactor', 'step-count': 4, 'pattern-used': 'extract-function', 'api-surface-changes': 'none', status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'rf-implement', render: rfImplement, ctx: CTX,
-    variants: { full: artifact({ type: 'rf-implement', path: 'rf-implement.md', frontmatter: { schema: 'sdlc/v1', type: 'rf-implement', slug: 'demo', 'workflow-type': 'refactor', 'steps-completed': 4, 'steps-failed': 0, 'api-surface-changed': false, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'rf-verify', render: rfVerify, ctx: CTX,
-    variants: { full: artifact({ type: 'rf-verify', path: 'rf-verify.md', frontmatter: { schema: 'sdlc/v1', type: 'rf-verify', slug: 'demo', 'workflow-type': 'refactor', result: 'PASS', 'baseline-tests-pass': 80, 'post-refactor-tests-pass': 80, 'api-surface-identical': true, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
   },
 
   /* ── wf-docs intermediates ─────────────────────────────────────────── */
