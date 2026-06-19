@@ -28,7 +28,6 @@ import { render as profile } from '../../../renderers/profile.mjs';
 import { render as syncReport } from '../../../renderers/sync-report.mjs';
 // All-artifacts projection — lane + run-family renderers.
 import { render as discover } from '../../../renderers/discover.mjs';
-import { render as fixPlan } from '../../../renderers/fix-plan.mjs';
 import { render as investigate } from '../../../renderers/investigate.mjs';
 import { render as closeRecord } from '../../../renderers/close-record.mjs';
 import { render as hfBrief } from '../../../renderers/hf-brief.mjs';
@@ -622,10 +621,6 @@ export const CASES = [
   {
     name: 'discover', render: discover, ctx: CTX,
     variants: { full: artifact({ type: 'discover', path: '01-discover.md', frontmatter: { schema: 'sdlc/v1', type: 'discover', slug: 'demo', 'workflow-type': 'discover', hypothesis: 'The cache is never invalidated', verdict: 'holds', confidence: 'high', 'recommended-next': '/wf plan', status: 'ready-for-routing', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'fix-plan', render: fixPlan, ctx: CTX,
-    variants: { full: artifact({ type: 'fix-plan', path: '01-fix.md', frontmatter: { schema: 'sdlc/v1', type: 'fix-plan', slug: 'demo', 'workflow-type': 'fix', intent: 'Fix typo in error message', 'estimated-steps': 2, status: 'ready-for-implement', 'created-at': '2026-06-04T00:00:00Z' } }) },
   },
   {
     name: 'investigate', render: investigate, ctx: CTX,

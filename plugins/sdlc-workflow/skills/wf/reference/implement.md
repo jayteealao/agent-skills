@@ -17,7 +17,7 @@ You are running `wf-implement`, **stage 5 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | One of: (a) standard mode — `02-shape.md` + `04-plan-<slice-slug>.md` (or `04-plan.md` for single-scope); (b) compressed mode (`workflow-type: quick`) — `01-quick.md`; (c) forwarded mode (`workflow-type: rca` / `investigate`) — `02-shape.md` (synthesized) + optional `04-plan.md`. Other workflow-types (`hotfix`, `rf`, `dep-update`, `docs`) use their own implement commands. |
+| Requires | One of: (a) standard mode — `02-shape.md` + `04-plan-<slice-slug>.md` (or `04-plan.md` for single-scope); (b) compressed mode (`workflow-type: quick`) — `01-quick.md`; (c) forwarded mode (`workflow-type: rca` / `investigate`) — `02-shape.md` (synthesized) + optional `04-plan.md`; (d) change-mode (`workflow-type: fix`) — the compressed-lifecycle's **un-suffixed single-slice** standard files (`04-plan.md`). `update-deps` self-authors its own `05`/`06` and redirects here; `docs` uses its own implement command. |
 | Conditional inputs (mandatory when present) | `02b-design.md` (design brief — register, color strategy, anti-goals MUST be honored), `02c-craft.md` (visual contract — mock fidelity inventory items MUST be honored as acceptance criteria), `04b-instrument.md` (instrumentation signals MUST be added to the code), `04c-experiment.md` (feature flag/cohort wiring MUST be added), `05c-benchmark.md` (baseline — implementation MUST NOT regress), `augmentations:` list in `00-index.md` (every entry MUST be consumed per type — see Step 0.7) |
 | Produces | `05-implement-<slice-slug>.md` + updates `05-implement.md` master |
 | Next | `/wf verify <slug> <slice-slug>` (default) |
@@ -40,12 +40,14 @@ You are a **workflow orchestrator** running the implementation stage.
 4. **Determine workflow source mode** from `workflow-type`:
    - `workflow-type: quick` → **compressed mode**. Source artifact is `01-quick.md` (contains brief, shape, design, slice, and plan in a single document). No `02-shape.md` / `03-slice-*.md` / `04-plan-*.md` files exist; do not require them.
    - `workflow-type: rca` or `workflow-type: investigate` → **forwarded mode**. The source artifacts (`01-rca.md` / `01-investigate.md`) hold the rich context. A synthesized `02-shape.md` exists; planning may have been added later via `/wf plan` (full mode) or this may be a quick-style continuation.
-   - `workflow-type: rf` (refactor) / `workflow-type: hotfix` / `workflow-type: dep-update` / `workflow-type: docs` → **alternate workflows**. These have their own implement stages and should NOT be using `/wf implement`. STOP and direct the user to the workflow's own implement command (e.g., `/wf intake refactor`, `/wf intake hotfix`).
+   - `workflow-type: fix` → **change-mode (compressed standard lifecycle).** The mode authored the planning half as STANDARD, single-slice, **un-suffixed** files: `01-fix.md` (`type: intake`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`. There is exactly **one** slice and `selected-slice` on the index is its slug. Implement exactly as **standard mode** with one substitution: every per-slice file is **un-suffixed** — read `04-plan.md` and write `05-implement.md` (NOT the `-<slice-slug>`-suffixed files of multi-slice standard mode, and NOT the single `01-quick.md` of compressed mode). Wherever a step below names a `-<slice-slug>`-suffixed file, use the un-suffixed name for change-mode.
+   - `workflow-type: update-deps` → **self-managed change-mode.** update-deps self-authors `05-implement.md` / `06-verify.md` (tier-ordered execution) inside its own flow, then routes to `/wf review`. It should NOT use `/wf implement`. STOP and direct the user back to `/wf intake update-deps <slug>`.
+   - `workflow-type: rf` (refactor) / `workflow-type: hotfix` / `workflow-type: docs` → **alternate workflows**. These have their own implement stages and should NOT be using `/wf implement`. STOP and direct the user to the workflow's own implement command (e.g., `/wf intake refactor`, `/wf intake hotfix`).
    - `workflow-type: feature` (default for `/wf intake`) or unset → **standard mode**. Use the canonical pipeline files.
 5. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. In compressed mode, slice-slug may be empty — `01-fix.md` (or legacy `01-quick.md` for pre-v9.18.0 slugs) covers a single intentional change.
 6. **Check prerequisites by mode:**
    - **Compressed mode**: `01-fix.md` must exist (or legacy `01-quick.md` for pre-v9.18.0 slugs — check both paths). If missing → STOP. "Run `/wf intake fix <slug>` first or use a different workflow type."
-   - **Standard / forwarded mode**: A plan must exist for this slice: either `04-plan-<slice-slug>.md` or `04-plan.md`. If missing → STOP. Tell the user: "Run `/wf plan <slug> <slice-slug>` first."
+   - **Standard / forwarded / change-mode**: A plan must exist for this slice: either `04-plan-<slice-slug>.md` or `04-plan.md` (change-mode always uses the un-suffixed `04-plan.md`). If missing → STOP. Tell the user: "Run `/wf plan <slug> <slice-slug>` first."
    - If the source plan/quick artifact shows `Status: Awaiting input` → STOP.
    - Check if `05-implement-<slice-slug>.md` (or `05-implement.md` in compressed mode) already exists → WARN: "This has already been implemented. Running again will overwrite. Proceed?"
 7. **Read the source context by mode:**
@@ -59,6 +61,10 @@ You are a **workflow orchestrator** running the implementation stage.
      - `03-slice-<slice-slug>.md` — slice definition with acceptance criteria
      - `04-plan-<slice-slug>.md` — implementation plan
      - `02-shape.md` — shaped spec for overall context
+   - **Change-mode** (`fix`): same as standard but **un-suffixed**, plus the lead:
+     - `01-fix.md` (`type: intake`) — the compressed brief + acceptance criteria
+     - `03-slice.md` (`type: slice-index`) — the one-slice roster
+     - `04-plan.md` — implementation plan · `02-shape.md` — shaped spec
    - All modes also read `po-answers.md` if it exists.
 8. **Read augmentation context (optional — workflow may have any combination):**
    Read the `augmentations:` list in `00-index.md` if present. For each entry, read the referenced artifact and apply the type-specific behavior:

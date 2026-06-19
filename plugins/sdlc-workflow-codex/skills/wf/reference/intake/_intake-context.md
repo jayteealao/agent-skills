@@ -41,3 +41,60 @@ positional token* is an exact existing-slug match, that is an *intentional* atta
 contains a row for its slug after `00-index.md` is finalized (create the file with the header line
 if absent; append-and-resort if the slug is missing; never mutate other rows). The full procedure
 and header text live in `intake/default.md` Step 10 — modes that create a workflow follow it.
+
+# Compressed-lifecycle change-modes (fix / hotfix / refactor / update-deps)
+
+The change-modes are **compressed *standard* lifecycles**, not bespoke pipelines. Each drives the
+full SDLC stage sequence — **no stage is skipped**, every stage is single-pass/lightweight but
+*present* — and emits **standard numbered artifacts with standard types**, surfaced on a full
+`type: index` overview. The four modes share the contract below; each mode reference fills in the
+per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
+
+**The model (D1–D3, D7):**
+- **Lead = `01-<mode>.md` with `type: intake`** (`01-fix.md`, `01-hotfix.md`, `01-refactor.md`,
+  `01-update-deps.md`). The filename carries the mode; the renderer dispatches on `type: intake`
+  (→ `intake.mjs`) and the view-path lands at `intake/` (filename-mapped in `_paths.mjs`). The lead
+  must satisfy the **intake** required set: `status` ∈ `{complete, awaiting-input}`, `stage-number: 1`,
+  `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`.
+- **The authoritative `workflow-type` discriminator lives on `00-index.md`** (mirror it onto the lead
+  for readability, but the index is canonical — the standard stage commands and resume read it there).
+- **`00-index.md` is a fully-conformant `type: index`** — the heavy 22-field `indexFrontmatter`
+  (`status: active` not `ready`; `progress` a stage→status **object** `{intake: …, shape: …, …}` with
+  enum values `not-started|in-progress|complete|skipped`, NOT a list). Use the template + 22-field set
+  from [intake/default.md](default.md). Add `workflow-type: <mode>`. A missing field or wrong `status`
+  → schema-invalid → a render-time warn-banner on every overview.
+- **Downstream planning stages use STANDARD types** authored **un-suffixed, single-slice**:
+  `02-shape.md` (`type: shape`), `03-slice.md` (`type: slice-index` — even with one slice: a one-entry
+  `slices[]` + `total-slices: 1` + `best-first-slice: <the-slice>`, so the overview's slice/implement
+  stations derive counts via the slice roster), `04-plan.md` (`type: plan`, carries `slice-slug`).
+- **`current-stage` uses the standard enum** (`intake`/`shape`/`slice`/`plan`/`implement`/`verify`/…)
+  — never bespoke names like `diagnose`/`baseline`/`scan`. Put descriptive labels in free-form body
+  prose, not in `current-stage`.
+
+**Authorship split (D7) — the mode authors planning; the standard commands author execution.**
+The mode skill writes **only** `01-<mode>`(intake) → `02-shape` → `03-slice` → `04-plan`, then
+**gates** (below). On *proceed* it routes into the standard execution chain, each its own command:
+`$wf implement <slug>` (→`05`) → `$wf verify <slug>` (→`06`) → `$wf review <slug>` (→`07`) →
+`$wf handoff` (→`08`) → `$wf ship` (→`09`) → `$wf retro` (→`10`). Those commands recognize the
+change-mode `workflow-type`s and read the un-suffixed single-slice files. This reuses the standard
+pipeline (rather than re-implementing it per mode) and is what makes the workflow resumable.
+**Exception — `update-deps`** self-authors `05-implement`/`06-verify` (its tier-ordered execution is
+specialized), then routes to `$wf review`; it never invokes `$wf implement` or `$wf verify`.
+
+**The gate (D4) — stop-and-prompt before `05-implement`.** After `04-plan` is written and before any
+execution, the mode pauses for the human via `AskUserQuestion`:
+
+```
+question: "Plan for `<slug>` is ready (<N> steps, <M> files). Proceed to implementation?"
+options:
+  - label: "Proceed"
+    description: "Run $wf implement <slug> and continue the standard lifecycle."
+  - label: "Adjust"
+    description: "Revise the plan/scope before implementing — say what to change."
+  - label: "Escalate"
+    description: "The change outgrew this mode — restart as a full $wf intake workflow."
+```
+
+A mode **MAY run end-to-end without pausing** at this prompt when it judges the change low-risk — its
+discretion, per the user. The gate skips only the human *pause*, **never an SDLC *stage***. Record the
+decision (proceeded / adjusted / escalated / auto-proceeded-low-risk) in the `01-<mode>.md` body.

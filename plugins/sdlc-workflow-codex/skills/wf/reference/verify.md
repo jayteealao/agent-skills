@@ -40,10 +40,13 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
 4. **Determine workflow source mode** from `00-index.md` `workflow-type`:
    - `workflow-type: quick` → **compressed mode**. Source: `01-quick.md` (acceptance criteria + plan in single doc) + `05-implement.md`. No per-slice files.
    - `workflow-type: rca` / `investigate` → **forwarded mode**. Source: `01-rca.md` / `01-investigate.md` (rich context) + synthesized `02-shape.md` + `05-implement-<slice-slug>.md` if planning ran.
+   - `workflow-type: fix` → **change-mode (compressed standard lifecycle).** Source: the **un-suffixed single-slice** standard files (`03-slice.md`, `04-plan.md`, `05-implement.md`) + the lead `01-fix.md`. Exactly **one** slice; `selected-slice` is its slug. Verify exactly as **standard mode** but use the un-suffixed filenames wherever a step names a `-<slice-slug>`-suffixed file.
+   - `workflow-type: update-deps` → **self-managed.** update-deps self-authors `06-verify.md` inside its own flow; it should NOT use `$wf verify`. STOP and direct the user back to `$wf intake update-deps <slug>`.
    - `workflow-type: feature` (default) or unset → **standard mode**.
 5. **Check prerequisites by mode:**
    - **Compressed mode**: `05-implement.md` (or `05-implement-<slice-slug>.md` if a slice was added) must exist. Acceptance criteria source is `01-quick.md`.
    - **Forwarded mode**: `05-implement-<slice-slug>.md` (or `05-implement.md`) must exist. Acceptance criteria source is the synthesized `02-shape.md` plus the rich `01-rca.md` / `01-investigate.md`.
+   - **Change-mode** (`fix`): the un-suffixed `05-implement.md` must exist. Acceptance criteria source is `03-slice.md` + `01-fix.md`.
    - **Standard mode**: `05-implement-<slice-slug>.md` must exist.
    - All modes: if implement record shows `Status: Awaiting input` → STOP.
    - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → WARN: "This has already been verified. Running again will overwrite. Proceed?"
@@ -55,6 +58,7 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
 6. **Read the source context by mode:**
    - **Compressed mode**: `01-quick.md` (acceptance criteria + plan) + `05-implement.md`.
    - **Forwarded mode**: `01-rca.md` or `01-investigate.md` + `02-shape.md` (synthesized) + `04-plan.md` (if exists) + `05-implement-<slice-slug>.md`.
+   - **Change-mode** (`fix`): `01-fix.md` + `03-slice.md` (acceptance criteria) + `04-plan.md` + `05-implement.md` (all un-suffixed).
    - **Standard mode**:
      - `03-slice-<slice-slug>.md` — acceptance criteria to verify against
      - `04-plan-<slice-slug>.md` — what was planned (to check deviations)

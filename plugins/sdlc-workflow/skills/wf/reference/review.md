@@ -60,9 +60,11 @@ Then STOP — do not continue to the full review workflow.
    - If `review-scope: slug-wide` → **skip slice resolution entirely**. There is no `<slice-slug>` for this run. All artifact paths drop the slice suffix (`07-review.md`, `07-review-<command>.md`). Re-running review under this mode overwrites the prior `07-review.md` — that is the intended behavior. The reviewed diff is the cumulative branch diff (`git diff <base-branch>...HEAD`), not a per-slice diff. Note: slug-wide reviews findings reflect *all code currently on the branch*, including any partially-implemented or in-progress slices; the verdict is "ship this branch" rather than "ship this slice".
 4. **Resolve the slice-slug** (per-slice mode only — skip this step if `review-scope: slug-wide`): If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. If still missing, ask the user.
 5. **Check prerequisites (workflow-type-aware AND review-scope-aware):**
-   Read `workflow-type` from `00-index.md`. Recognize three modes:
+   Read `workflow-type` from `00-index.md`. Recognize these modes:
    - **Compressed mode** (`workflow-type: quick`): the implement record is `05-implement.md` (no slice slug). Acceptance criteria source is `01-quick.md`. No per-slice plan/slice files exist.
    - **Forwarded mode** (`workflow-type: rca` / `investigate`): rich context lives in `01-rca.md` / `01-investigate.md`; `02-shape.md` is synthesized; `04-plan.md` exists if planning ran.
+   - **Change-mode** (`workflow-type: fix`): the compressed-lifecycle's **un-suffixed single-slice** standard files (`03-slice.md`, `04-plan.md`, `05-implement.md`, optional `06-verify.md`) + the lead `01-fix.md`. Exactly one slice; `selected-slice` is its slug. Review as standard mode with the un-suffixed names. (`review-scope: slug-wide` — one `07-review.md`.)
+   - **update-deps** (`workflow-type: update-deps`): update-deps self-authors `05-implement.md` / `06-verify.md` (tier-ordered) in its own flow and **routes here** for review. The implement/verify records are the un-suffixed `05-implement.md` / `06-verify.md`; the plan is `04-plan.md`. Review against `01-update-deps.md` (the scan/research brief) + `03-slice.md` (the P0/P1/P2 tiers). `review-scope: slug-wide`.
    - **Standard mode**: per-slice files (`03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`).
 
    In all modes, an implement record (slice or master) must exist. If missing → STOP. Tell the user: "Run `/wf implement <slug>` first."
