@@ -321,7 +321,7 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/wf design</code></td>
   <td>You want design work on a screen, component, or visual artifact</td>
-  <td>22 design sub-commands — craft, colorize, polish, audit, critique, and more. A <code>/wf</code> sub-command: <code>/wf design &lt;slug&gt; &lt;cmd&gt;</code> builds in-workflow (compressed); <code>/wf design &lt;cmd&gt;</code> runs the full lifecycle</td>
+  <td>21 design sub-commands — craft, colorize, polish, audit, critique, and more. A <code>/wf</code> sub-command: <code>/wf design &lt;slug&gt; &lt;cmd&gt;</code> builds in-workflow (compressed); <code>/wf design &lt;cmd&gt;</code> runs the full lifecycle</td>
 </tr>
 <tr>
   <td><code>/wf-docs</code></td>

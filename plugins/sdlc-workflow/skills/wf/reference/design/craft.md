@@ -1,35 +1,41 @@
 # Craft
 
-Land the visual direction for a feature so implementation has a concrete contract — confirmed brief + north-star mock + mock fidelity inventory.
+Land the visual direction for a feature so implementation has a concrete contract — confirmed brief + north-star mock + mock fidelity inventory — and then build it.
 
-**Two execution modes** based on invocation context:
+`craft` is the **Producer** command. It authors the design **brief** (`02b-design.md`) and the visual **contract** (`02c-craft.md`), then — because design owns the downstream flow — continues straight into the build. There is **no hand-back** to a separate `/wf implement` command, and craft does **not** stop after writing the contract.
 
-| Mode | Trigger | Output |
+| Invocation | What `craft` authors | What happens after |
 |---|---|---|
-| **Workflow context** | `/wf design <slug> craft` | `02c-craft.md` artifact (visual contract). Routes to `/wf implement`. **Does NOT write code.** |
-| **Freestanding** | `/wf design craft` | Full loop: brief → mock → code → critique pass. **Writes production code.** |
+| `/wf design <slug> craft` (in-workflow) | `02b-design.md` + `02c-craft.md` against the existing slug. | The dispatcher drives `slice → plan → implement → verify` itself, compressed (`reference/design.md` Step 4A). **Code is written** — at the implement step, not in the contract step. |
+| `/wf design craft` (no slug) | `02b-design.md` + `02c-craft.md` on a freshly created slug. | The dispatcher creates the slug and runs the full lifecycle (`intake → … → retro`); craft authors the design spec at the design step. |
 
-The split exists because the SDLC workflow has a dedicated implement stage (`wf-implement`) with its own lifecycle (verify → review → handoff → ship). Craft in workflow context produces the visual contract that `wf-implement` consumes; it does not bypass the implement lifecycle.
+Stopping after the contract is the `craft → implement` skip this model exists to close. The implement step (Step 6 below) applies the contract; it is reached by continuing the flow, never by handing back to `/wf implement`.
 
-## Build Gate (both modes)
+## Build Gate
 
-Cannot proceed until all of these are true:
+The visual contract requires a **confirmed design brief**. `craft` authors that brief itself as Step 0 below — there is no separate `shape` command to run first. Cannot proceed past the contract until all of these are true:
 
 1. PRODUCT context loaded (PRODUCT.md valid, ≥200 chars, no `[TODO]` markers).
-2. Shape design brief confirmed by the user, OR user supplied an already-confirmed brief.
+2. Design brief authored and **confirmed by the user** (Step 0), OR user supplied an already-confirmed brief.
 3. Probe selection recorded: generated and user chose a direction, OR skipped with a stated reason.
 4. North-star mock decision recorded (Step 3 below).
 
-**`shape=pass`** requires a separate user response approving the brief. PRODUCT.md and `teach` do not count. A self-authored brief does not count.
+**`shape=pass`** requires a separate user response approving the brief. PRODUCT.md and `teach` do not count. A self-authored brief without user confirmation does not pass the gate.
 
 Invalid image-skip reasons: "the implementation will be semantic HTML/CSS/SVG", "a raster mock won't be used directly", "the product is fictional." Probes and mocks are direction artifacts, not implementation assets.
 
-## Step 1: Load shape brief (both modes)
+## Step 0: Author the design brief (if not already confirmed)
+
+The design brief (`02b-design.md`) is part of `craft`, not a separate command. If a user-confirmed `02b-design.md` does not already exist for this slug, author it now by following the brief-authoring procedure in `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/design/shape.md` — the discovery interview, the design-brief sections, the visual-direction probes, and the explicit confirm gate. Write the confirmed brief to `.ai/workflows/<slug>/02b-design.md` (type `design`), including the `recommended-references:` frontmatter array. Do not proceed to the contract until the user confirms the brief (`shape=pass`).
+
+If a confirmed `02b-design.md` already exists (authored in a prior turn, or supplied by the user), load it and continue.
+
+## Step 1: Load the confirmed brief
 
 Read the confirmed design brief. Extract:
 - Feature summary and user context
 - Color strategy and scene sentence
-- Register (brand / product) — load `reference/brand.md` or `reference/product.md`
+- Register (brand / product) — load `brand.md` or `product.md` (this directory)
 - Visual direction and probe selection
 - Anti-goals
 - Recommended references
@@ -91,9 +97,9 @@ These are the implementation contract. Code that loses them has regressed.
 
 ---
 
-## Step 5 — WORKFLOW MODE: Write the visual contract
+## Step 5: Write the visual contract
 
-When invoked as `/wf design <slug> craft`, **DO NOT write code**. Instead, write the visual contract artifact at `.ai/workflows/<slug>/02c-craft.md`:
+Write the visual contract artifact at `.ai/workflows/<slug>/02c-craft.md`. This is the spec the implement step applies — writing it does not itself mutate product code, but it is **not** a stopping point: after it is written the flow continues into the build (Step 5.7 → Step 6).
 
 ```yaml
 ---
@@ -156,23 +162,18 @@ Which reference docs `wf-implement` should consult (typeset.md, animate.md, hard
 
 Record this list authoritatively in the `references-loaded:` frontmatter array above as the **union** of (a) the brief's `recommended-references:` (from `02b-design.md`) and (b) any references you loaded or added during craft. Names omit the `.md` extension and resolve to `skills/wf/reference/design/<name>.md`. This is the field `wf-plan` and `wf-implement` re-read — together with `02b`'s `recommended-references:` — to load design rationale. A reference that appears only in this prose section but **not** in `references-loaded:` will NOT be loaded by implementation, so keep the two in sync.
 
-### 7. Routing
+### 7. Continue the flow — do NOT hand back
 
 Update `00-index.md`:
-- `current-stage: design` → unchanged (craft is part of design stage)
-- `next-command: /wf implement`
-- `next-invocation: /wf implement <slug>`
+- `current-stage: design` → unchanged (craft is part of the design stage)
 
-Hand off:
-> Visual contract written to `.ai/workflows/<slug>/02c-craft.md`.
-> The implement stage will use this as the visual contract.
-> Run `/wf implement <slug>` to build the feature against this contract.
+Then **continue straight into the build** as the dispatcher directs (`reference/design.md` Step 4A): drive `slice → plan → implement → verify` yourself, compressed, writing each numbered artifact. The implement step applies this contract and the cited references (Step 6 below). Do **not** write `next-command: /wf implement` and stop — that hand-back is exactly the `craft → implement` skip this model removed.
 
 ---
 
-## Step 5 — FREESTANDING MODE: Build the implementation
+## Step 6: Build against the contract (the implement step)
 
-When invoked as `/wf design craft` (no slug), build the actual code now.
+When the flow reaches the implement step — the dispatcher drives it in the compressed in-workflow flow; it is the implement stage of the full lifecycle in the no-slug flow — build the actual code against the contract.
 
 Build with the project's real stack, following the conventions discovered in codebase context.
 
@@ -194,9 +195,9 @@ Build with the project's real stack, following the conventions discovered in cod
 - Bounce or elastic easing
 - Display fonts in UI labels, buttons, or data cells (product register)
 
-## Step 6 — FREESTANDING MODE: Inspect and improve
+## Step 7: Critique-and-fix pass
 
-After initial implementation, run at least one critique-and-fix pass:
+After the implementation, run at least one critique-and-fix pass:
 
 1. Check the implementation against the mock fidelity inventory — what was lost?
 2. Check against the anti-goals in the brief — what should not be there?

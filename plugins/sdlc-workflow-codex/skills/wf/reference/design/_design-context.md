@@ -87,7 +87,7 @@ Never converge on the same choices across projects. Vary.
 
 `image_gate` is the lock that prevents code mutation before visual direction is confirmed.
 It lives in the design artifact frontmatter and is resolved by the **producer** (`$wf design`)
-at its shape (brief) or craft (contract) step.
+at its brief or contract step (both part of the `craft` Producer).
 
 - `image_gate=pending` — **blocks all code mutation.** Visual direction is not yet confirmed.
 - `image_gate=pass` — required visual probes were generated via the `imagegen` skill; visual
@@ -109,8 +109,8 @@ Skipping these produces generic output that ignores the project.
 | Context | PRODUCT.md exists and is valid (≥200 chars, no `[TODO]` markers) | If the command is `setup` or `teach` → proceed (these create/update PRODUCT.md). Otherwise STOP: *"Design context is missing. Run `$wf design setup` to create PRODUCT.md first."* |
 | Register | `brand` or `product` is determined for this task | Read PRODUCT.md `## Register`; infer from task cue if missing. Suggest `$wf design teach` to add it explicitly. |
 | Codebase | Codebase inspection sub-agents have run | Run the 4 parallel inspection sub-agents (below). Skip if their output is already in this session, or reuse the `stack` fingerprint from `00-index.md` where possible. |
-| Shape | For `craft` only: design brief explicitly confirmed by user | Run the shape (brief) step first, confirm the brief, then proceed. |
-| Image gate | Required visual probes generated, or skipped with a recorded reason | Resolve in the shape or craft step before proceeding to code. |
+| Brief | For `craft` only: design brief authored and explicitly confirmed by the user | `craft` authors the brief inline as its first step (`craft.md` Step 0, following `shape.md`); confirm it before the contract. There is no separate `shape` command. |
+| Image gate | Required visual probes generated, or skipped with a recorded reason | Resolve in the brief or contract step before proceeding to code. |
 | Mutation | All gates above pass; mutation type matches the command | Do not edit project files until mutation is open. |
 
 **Codebase gate is relaxed for**: `audit`, `critique`, `extract`, `setup`, `teach` — these are read-only or context-authoring.

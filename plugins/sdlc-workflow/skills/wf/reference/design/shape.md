@@ -1,10 +1,8 @@
-# Shape
+# Brief (design-brief authoring procedure)
 
-Shape the UX and UI for a feature before any code is written. Produces a **design brief**: a structured artifact that guides implementation through discovery, not guesswork.
+Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the `craft` Producer runs as its first step (`design/craft.md` Step 0) before writing the visual contract. It produces `02b-design.md`.
 
-**Scope**: Design planning only. This command does NOT write code. It produces the thinking that makes code good.
-
-**Output**: A design brief that feeds into `/wf design craft` or `/wf design <subcommand>` for implementation.
+**Scope**: Design planning only. This procedure does NOT write code. It produces the thinking that makes code good.
 
 ## Philosophy
 
@@ -122,8 +120,9 @@ Wait for explicit confirmation. Do NOT proceed to implementation until the user 
 
 **`shape=pass`** is only valid after a separate user response approving the brief. A self-authored brief without user confirmation does not pass the gate.
 
-## Output in SDLC context
+## Output
 
-When invoked as `/wf design <slug> shape` or `/wf design <slug>`:
-- Write the confirmed brief to `.ai/workflows/<slug>/02b-design.md`
-- Update `00-index.md`: `current-stage: design`, `next-command: /wf design craft`
+When `craft` runs this procedure (`design/craft.md` Step 0):
+- Write the confirmed brief to `.ai/workflows/<slug>/02b-design.md` (type `design`).
+- Update `00-index.md`: `current-stage: design`.
+- Return control to `craft`, which writes the visual contract and then drives the build — there is no hand-back and no separate `shape` command.
