@@ -315,7 +315,7 @@ next-invocation: "$wf ship <slug>"
 
 # Project-level handoff config (read from `00-index.md` frontmatter)
 
-The PR-readiness block (T3.5/T3.6/T3.7/T5.1) is driven by optional config keys in the workflow's `00-index.md`. Each key's block is independent — handoff skips the corresponding step silently if the key is absent. Authored by `$wf-meta amend index` or `$wf-quick setup`; can be edited directly.
+The PR-readiness block (T3.5/T3.6/T3.7/T5.1) is driven by optional config keys in the workflow's `00-index.md`. Each key's block is independent — handoff skips the corresponding step silently if the key is absent. Authored by `$wf-meta amend index`; can be edited directly.
 
 ```yaml
 # Optional. Drives T3.6 — public-surface drift check.

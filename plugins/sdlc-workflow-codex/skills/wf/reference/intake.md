@@ -1,366 +1,177 @@
 ---
-description: Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.
-argument-hint: <task description>
+description: Entry-point dispatcher for the SDLC lifecycle. Plain `$wf intake <description>` runs the default product-owner intake (stage 1 of 10). A mode keyword routes a compressed/standalone entry flow — `fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate` — each a former `$wf-quick` sub-command, now an intake mode. Passing an existing slug before a mode attaches the run as a compressed slice. With no keyword, intake may propose a mode (suggest-and-confirm) before falling back to the default flow.
+argument-hint: "[slug] [fix|rca|investigate|discover|hotfix|refactor|update-deps|ideate] <description> | <description>"
 ---
 
-# External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.codex/...`, `.ai/dep-updates/...`), stage names or numbers, skill names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+You are the **entry dispatcher** for the SDLC plugin, invoked as `$wf intake`. Intake is the
+*front door* of the lifecycle, and it has **modes** — alternative ways a piece of work enters.
+The **default** mode is the full product-owner intake (the canonical stage 1). The eight mode
+keywords (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`)
+are *arguments* to this one key — each was a standalone `$wf-quick` sub-command and is now a
+compressed/standalone entry flow. Your job: parse the invocation, resolve the **mode** and the
+**shape** (standalone vs slug-mode), load the shared context, then load the mode's reference and
+run only the flow span the mode dictates.
 
-You are running `$wf intake`, **stage 1 of 10** in the SDLC lifecycle.
+> Runtime-truth verification (`$wf probe`) and read-only triage (`$wf simplify`) are NOT intake
+> modes — they are their own top-level `$wf` keys, because they act on already-built or existing
+> code rather than entering the lifecycle. Do not route to them from here.
 
-# Pipeline
-`1·intake` → 2·shape → 3·slice → 4·plan → 5·implement → 6·verify → 7·review → 8·handoff → 9·ship → 10·retro
+# Step 0 — Parse the invocation (mode + shape resolution)
 
-| | Detail |
+`$ARGUMENTS` reaches you with the leading `intake` key already stripped by `wf/SKILL.md`.
+Tokenize respecting shell quoting (`"two words"` is one token). The **mode keyword set** is:
+`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`.
+
+Resolve in this exact order (the order matters — slug-mode is checked FIRST):
+
+1. **Slug-mode (checked first).** If `token0` exactly matches an existing
+   `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is in the mode keyword set →
+   **slug-mode**. Consume `token0` as `<slug>` and `token1` as `<mode>`; the rest are the mode's
+   instructions. The run will attach as **one compressed slice** on that workflow (Step 4).
+   *(An exact on-disk slug match is an intentional attach — it does NOT trigger the resume/amend
+   collision prompt, which guards only against an accidentally re-derived slug. See
+   `reference/intake/_intake-context.md`.)*
+   - If `token0` matches a **closed** workflow → ask the user directly in chat: *"Workflow `<token0>` is closed. Append a
+     compressed slice anyway?"* On yes → slug-mode; on no → STOP.
+   - If `token0` matches an existing slug but `token1` is **not** a mode keyword (or absent) →
+     this is *not* slug-mode. Fall through to branch 3 (default), which will run its own Step 0
+     collision detection and prompt resume / amend / pick-different.
+
+2. **Explicit mode (no slug).** Else if `token0` is in the mode keyword set → **explicit mode,
+   standalone**. Load `reference/intake/<token0>.md`; the rest are its instructions. *(This matches
+   the old `$wf-quick <sub> …` behavior: a description that legitimately begins with a mode word —
+   e.g. "fix the typo" — routes to that mode, which is almost always what the user wants. For
+   the rare genuine collision, the user quotes the whole description as one token; see below.)*
+
+3. **Default + suggest-and-confirm.** Else the tokens are a **raw task description** → the
+   default intake flow (`reference/intake/default.md`). **Before loading it**, run the lightweight
+   auto-route classification (below). On a strong single match, propose that mode to the user
+   directly in chat; on accept, load that mode's reference instead (standalone); on decline, run
+   `reference/intake/default.md`. With no strong match, go straight to `reference/intake/default.md`.
+
+**Empty `$ARGUMENTS`** → load `reference/intake/default.md` (it owns the "ask for a task description" path)
+or render the mode menu and ask which entry the user wants.
+
+**Quote-escape.** A quoted multi-word first token (`$wf intake "rca dashboard refresh"`) never
+matches a slug or a bare keyword, so it routes to branch 3 (default) — the escape hatch for a
+description that legitimately begins with a slug or mode word.
+
+## Auto-route classification (branch 3 only)
+
+Propose a mode **only when ALL** of these hold — otherwise run `reference/intake/default.md` silently:
+- (a) no explicit mode keyword and no slug match (you are in branch 3); and
+- (b) the description contains **no lifecycle vocabulary** (`shape`, `slice`, `plan`, `implement`,
+  `verify`, `review`, `handoff`, `ship`, `retro` — those signal the user knows the stage they want);
+  and
+- (c) it strongly matches exactly **one** of these patterns:
+  - a **past-tense failure / regression report** ("X broke", "stopped working", "is blank/500/NaN
+    after …") → propose **`rca`**;
+  - a **yes/no truth question about the system** ("is it true that …", "does X actually …", "why
+    does …") → propose **`discover`**;
+  - an **active production emergency** ("outage", "prod down", "users can't …, urgent", "hotfix")
+    → propose **`hotfix`**;
+  - an **open design/approach question** ("how should I …", "what are the options for …",
+    "approaches to …") → propose **`investigate`**.
+
+Never auto-propose `fix`, `refactor`, `update-deps`, or `ideate` — those express an explicit
+intent the user states directly (use the keyword). Propose **at most one** mode, **once**. Ask
+the user directly in chat offering: the proposed mode (recommended) vs "Plain intake (default)". On
+accept, load that mode reference standalone; on decline, `reference/intake/default.md`.
+
+**Record** the resolved shape (slug-mode | explicit | default), slug (if any), mode, and
+instructions before proceeding.
+
+# Step 1 — Load shared context
+
+Load `reference/intake/_intake-context.md` in full and apply it:
+the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug
+semantics. Do not restate or fork its rules. If **slug-mode**, also load
+`reference/_compressed-slice.md` — it governs the slice output and
+overrides any standalone "create workflow / branch / top-level index" step in the mode reference.
+
+# Step 2 — Resolve mode → flow span
+
+The mode decides how far the flow travels. Run only the stages the mode needs. This is the single
+mode→span map (a future mode is one new row):
+
+| Mode | Standalone (no slug) | Slug-mode (`<slug> <mode>`) | Terminus / Next |
+|---|---|---|---|
+| `default` | `00-index.md` + `01-intake.md`; PO interview + stack fingerprint | n/a — default is never slug-attached | recommends `$wf shape <slug>` |
+| `fix` | `00-index.md` + `01-fix.md` (`type:fix-plan`); branch `fix/<slug>` | compressed slice (branch suppressed) | **flows** → `$wf implement <slug>` |
+| `rca` | `01-rca.md` (`type:rca`) **+ `02-shape.md`** (forwarding) + `00-index.md`; no branch | compressed slice, **no `02-shape.md`** | terminal → recommends `plan` / `fix` / `hotfix` / human-triage |
+| `investigate` | `01-investigate.md` + `00-index.md`; no branch | compressed slice | terminal → user picks → `fix` / `intake` |
+| `discover` | `01-discover.md` + `00-index.md`; no branch | compressed slice | terminal → verdict-dependent |
+| `hotfix` | `hf-brief/plan/implement/verify.md`; **branch `hotfix/<prod>`** | compressed slice, **branch suppressed** | → `$wf ship <slug>` |
+| `refactor` | `rf-brief/baseline/plan/implement/verify.md`; optional branch | compressed slice, **branch suppressed** | → `$wf review <slug>` |
+| `update-deps` | `.ai/dep-updates/<run-id>/{scan,research,plan,implement,verify}.md` | compressed slice **only** (companion dir suppressed) | terminal |
+| `ideate` | `.ai/ideation/<focus>-<ts>.md` — **creates NO workflow** | compressed slice | terminal → user picks → `$wf intake` |
+
+Notes:
+- **The dispatcher is a pure router.** It does not itself create the workflow folder — each mode
+  reference owns its artifact writes (which is why `ideate`, writing no workflow, is fine).
+- **Slug-mode is uniform:** the compressed slice is the sole output, branch creation is suppressed,
+  and off-pipeline companion dirs are not written — per `reference/_compressed-slice.md`.
+
+# Step 3 — Load the mode reference
+
+Load the resolved reference in full and follow it verbatim. Do not summarize, paraphrase, or skip.
+
+| Mode | Reference file |
 |---|---|
-| Requires | *(nothing — this is the first stage)* |
-| Produces | `01-intake.md` |
-| Next | `$wf shape <slug>` (default) |
-| Skip-to | `$wf plan <slug>` if the task is trivially scoped and needs no shaping or slicing |
+| `default` | `reference/intake/default.md` |
+| `fix` | `reference/intake/fix.md` |
+| `rca` | `reference/intake/rca.md` |
+| `investigate` | `reference/intake/investigate.md` |
+| `discover` | `reference/intake/discover.md` |
+| `hotfix` | `reference/intake/hotfix.md` |
+| `refactor` | `reference/intake/refactor.md` |
+| `update-deps` | `reference/intake/update-deps.md` |
+| `ideate` | `reference/intake/ideate.md` |
 
-# CRITICAL — execution discipline
-You are a **workflow orchestrator**, not a problem solver.
-- Do NOT attempt to diagnose, debug, fix, implement, design, or otherwise work on the user's task.
-- Do NOT jump ahead to later lifecycle stages (shaping, planning, implementation, etc.).
-- Treat `$ARGUMENTS` as **raw input to be captured and processed through this stage's workflow** — not as a request to act on.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
-- Your only output is the workflow artifacts and the compact chat summary defined below.
-- If you catch yourself about to start solving the problem, STOP and return to the next unfinished workflow step.
+The reference is the authoritative instruction for *what* the mode does; this dispatcher governs
+*how far the flow runs* around it and the standalone-vs-slug-mode shape.
 
-# Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it.
-2. **Registry collision check** (v9.11.0; opportunistic-bootstrap added in v9.25.0). Before touching disk, consult `.ai/workflows/INDEX.md` if it exists:
-   - **If `INDEX.md` does NOT exist** → no registry yet, so no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do NOT bail out — Step 10 (below) will bootstrap `.ai/workflows/INDEX.md` with a header line + this workflow's row at the end of intake, so the *next* intake gets full collision detection without requiring an explicit `$wf-meta sync`. (Sync remains authoritative for full refresh — removing stale rows, fixing status drift across all workflows. Intake only does additive "append self if absent.")
-   - **If `INDEX.md` exists**, search / list files in the repository for an exact slug match: `grep -P "^<derived-slug>\t" .ai/workflows/INDEX.md`. Three branches based on the result:
-     - **Row exists AND status column ≠ `closed`** → the slug is already in active use. STOP and ask the user directly in chat, presenting the options as a short numbered list:
-       ```
-       Slug `<slug>` is already an open workflow (status: <status>). What do you want to do?
-       1. Resume the existing workflow — switch to `$wf-meta resume <slug>` to continue the existing one.
-       2. Amend the existing workflow — switch to `$wf-meta amend <slug> <scope>` to modify a prior stage of the existing one.
-       3. Pick a different slug for this new workflow — pass a different slug as the first argument and re-run `$wf intake <new-slug> <description>`.
-       4. Cancel — don't start anything.
-       ```
-       Do NOT proceed past Step 0 regardless of the answer — every option redirects to a different command or aborts. Surface the chosen command verbatim and STOP.
-     - **Row exists AND status column = `closed`** → reusing a closed slug would orphan its committed history and break the slug-is-stable invariant. STOP and ask the user directly in chat, presenting the options as a short numbered list:
-       ```
-       Slug `<slug>` belongs to a closed workflow. Slugs are stable — a new workflow cannot reuse it. What do you want to do?
-       1. Pick a different slug for this new workflow — pass a different slug as the first argument and re-run `$wf intake <new-slug> <description>`.
-       2. Reopen the closed workflow — switch to `$wf-meta resume <slug>`. The closed workflow's artifacts stay intact; resume picks up from where it left off.
-       3. Cancel — don't start anything.
-       ```
-       Do NOT proceed past Step 0. STOP.
-     - **No row** → no collision; continue to sub-step 3.
-3. **Check if the workflow already exists** at `.ai/workflows/<slug>/00-index.md` (disk-level fallback; catches the case where INDEX.md is missing or stale).
-   - If it exists and `stage-status` is `Awaiting input` on this stage → this is a **resume**. Read the existing `01-intake.md` and `po-answers.md`. Pick up from where the previous run left off instead of starting fresh.
-   - If it exists and `current-stage` is past intake → WARN: "Intake has already been completed. Running it again will overwrite `01-intake.md`. Proceed?" Ask the user in chat. Only proceed if confirmed.
-   - If it does not exist → this is a fresh start. Proceed normally.
-4. **Carry forward** any `open-questions` from the index if resuming.
+# Step 4 — Execute
 
-# Step 0.5 — Repo stack fingerprint (MANDATORY — observation only, do NOT prescribe)
+1. Run the loaded mode reference. In **standalone** shape, honor every artifact write, branch step,
+   and routing rule it describes. In **slug-mode**, the `reference/_compressed-slice.md` contract
+   overrides any instruction that would create a new workflow, branch, top-level `00-index.md`,
+   standalone `01-<mode>.md` / `hf-*` / `rf-*` artifact, or off-pipeline companion — write only
+   the one compressed slice plus the additive index updates.
+2. The remaining `$ARGUMENTS` after the matched mode (and after the slug, if consumed) are the
+   mode's own arguments — pass them through verbatim.
 
-Goal: cheaply observe what the repo *already uses* and what *tooling is available in this session*, then write both into `00-index.md` as durable signal for shape/plan/implement. This is **not** a recommendation step — those happen in shape, with the user in the loop. Stay descriptive: record only what is actually detected.
+# Step 5 — Emit Final Summary (MANDATORY)
 
-1. **Repo signals (cheap globs/reads, no network).** Run these probes and record what hits. Do not infer beyond direct evidence; absence ≠ proof of absence, leave keys out rather than guess.
-   - **Manifests:** `package.json`, `pyproject.toml` / `requirements.txt` / `setup.py`, `Cargo.toml`, `go.mod`, `pom.xml` / `build.gradle*` / `settings.gradle*`, `Gemfile`, `composer.json`, `pubspec.yaml`, `mix.exs`, `*.csproj` / `*.sln`. Capture language(s) + package manager(s).
-   - **Platforms:** `AndroidManifest.xml` or `app/src/main/**` → `android`. `*.xcodeproj` / `*.xcworkspace` or `ios/Runner.xcodeproj` → `ios`. `next.config.*` / `vite.config.*` / `nuxt.config.*` / `astro.config.*` / `remix.config.*` / `svelte.config.*` → `web`. `src-tauri/` or `electron` dep → `desktop`. `Dockerfile` exposing HTTP or HTTP server framework imports → `service`. `*.ipynb` → `notebook`. `[[bin]]` in `Cargo.toml`, `bin` in `package.json`, `cmd/<name>/main.go` → `cli`.
-   - **UI / framework:** React/Vue/Svelte/Angular (from `package.json`), Jetpack Compose (`androidx.compose.*` in gradle), XML views (`res/layout/`), SwiftUI, UIKit, Flutter, React Native.
-   - **Build / package managers:** npm vs pnpm vs yarn vs bun (lockfile present), gradle/AGP version, cargo, go modules.
-   - **Testing & verification tooling:** Jest, Vitest, pytest, JUnit, Go testing, RSpec, XCTest, **Maestro** (`maestro/` dir or `*.maestro.yaml`), Detox, Playwright, Cypress, Appium, Selenium, Espresso. Visual: Percy, Chromatic.
-   - **Observability / logging:** `.lazylogcat*`, Perfetto trace configs, Sentry/OpenTelemetry SDKs, structured-log setup files.
-   - **Marker files for known integrations:** Hilt/Dagger (`hilt-` deps), Room (`androidx.room.*`), Engage SDK, Play Billing, R8/ProGuard rules.
+After the mode's logic completes, emit a chat summary as the LAST output before returning control.
 
-2. **Session catalog (what's available to *this* agent run).** Enumerate skills and MCP servers visible in the current session. Record names + a one-line description each — these become the matching surface in shape. Do not invent entries; only record what the session actually exposes.
+**Format (narrative first, then anchors):**
 
-3. **Write into `00-index.md` frontmatter** as a `stack:` block (sibling to `tags:`). Every key is optional; omit rather than guess. Example shape (Android case):
-   ```yaml
-   stack:
-     detected-at: "<iso-8601>"
-     platforms: [android]
-     languages: [kotlin]
-     ui: [compose]
-     build: [gradle]
-     package-managers: [gradle]
-     testing: [junit, maestro]
-     observability: [lazylogcat]
-     integrations: [hilt, room]
-     available-skills:
-       - {name: android-cli, hint: "Android project + SDK orchestration"}
-       - {name: lazylogcat, hint: "Non-interactive logcat capture/filter"}
-       - {name: adaptive, hint: "Multi-form-factor UI adaptation"}
-     available-mcp: []
-     user-confirmed: false
-   ```
-   `user-confirmed: false` means "auto-detected, awaiting Batch B confirmation." Batch B (below) flips it to `true` after the PO has had a chance to correct.
+```
+wf intake <mode> complete: <slug-or-scope>     (slug-mode: wf intake <mode> → compressed slice <slice-slug> on <slug>)
 
-4. **Do NOT recommend anything yet.** No "you should use X." That happens in shape, after the user has confirmed or corrected the fingerprint. This step's only output is observation written to disk.
+<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this
+run produced or decided, how far the flow traveled, the load-bearing counts/decisions, and the
+top risk or caveat.>
 
-# Purpose
-Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.
-
-# Workflow rules
-- Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
-- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
-- Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
-- `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, `pr-url`, `pr-number`, `open-questions`, `tags`, `stack`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`. The `stack` block is written by Step 0.5 (repo + session fingerprint) and confirmed/corrected in Batch B; it is observational, not prescriptive.
-- **Ask the user directly in chat** for multiple-choice PO questions (branch strategy, rollout preference, merge strategy, go/no-go, risk tolerance), presenting options as a short numbered list. Use freeform chat for open-ended questions (requirements, constraints, acceptance criteria). Append every answer to `po-answers.md` with timestamp and stage.
-- Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel subagents for multi-domain research. Do not spin up subagents for trivial work.
-- Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
-
-# Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
-- `slug: <slug>`
-- `wrote: <path>`
-- `options:` (list all viable next options — see Adaptive Routing below)
-- ≤3 short blocker bullets if needed
-
-**This is a mandatory-question stage.** Do not finalize until the required questions are asked.
-
-Inputs: `$ARGUMENTS` (full raw request), `$0` (first token if supplied).
-
-Do this in order:
-1. Parse the request and derive the workflow slug.
-2. Create `.ai/workflows/<slug>/` directory. Write `00-index.md` using the index template below. Create `po-answers.md` if missing.
-3. Ask focused product-owner questions in two batches:
-   **Batch A — Structured questions (ask in chat with numbered options):**
-   Ask these questions presenting options as a short numbered list (adjust based on what's already known from `$ARGUMENTS`):
-   ```
-   Question 1: "What branch strategy should this workflow use?"
-   Options:
-     1. Dedicated (Recommended) — New feature branch, PR at handoff, rebase+merge at ship. Best for tracked, reviewable work.
-     2. Shared — Commits on current branch, no PR created. Good for quick fixes on an existing branch.
-     3. None — No git management. Workflow artifacts only, you handle commits yourself.
-
-   Question 2: "What is the appetite for this work?"
-   Options:
-     1. Small — A few hours. Single file or minor change. No slicing needed.
-     2. Medium — A day or two. Multiple files, may benefit from slicing.
-     3. Large — Multiple days. Definitely needs slicing and incremental delivery.
-
-   Question 3: "How should the review stage be scoped?"
-   Options:
-     1. Per slice (Recommended) — Each slice gets its own 07-review-<slice>.md. Required when running review repeatedly across multiple slices — handoff aggregates per-slice verdicts.
-     2. Slug-wide — One 07-review.md for the whole workflow against the cumulative branch diff. Re-running review overwrites the file. Best for single-slice or holistic reviews.
-   ```
-   If the user chose "Dedicated" for branch strategy, follow up in chat for:
-   - Preferred branch name (default: `feat/<slug>`)
-   - Base branch (default: `main` or `master`, whichever exists)
-
-   **Batch B — Freeform questions (in chat):**
-   Ask 2-5 additional questions covering:
-   - desired outcome and who benefits
-   - concrete success criteria
-   - explicit non-goals
-   - timeline, compliance, operational, or platform constraints
-   - already-decided technical constraints or vendor choices
-   - **stack confirmation** (always include this) — summarize the Step 0.5 `stack:` block in one or two human-readable lines and ask: *"I detected this is a `<platforms>` repo using `<ui>` + `<build>`, with `<testing>` for tests and `<observability>` for logging. Available session tooling that looks relevant: `<top 3-5 skills/MCP by name>`. Anything missing, wrong, or off-limits for this task?"* Capture corrections verbatim in `po-answers.md`. After the answer arrives, update the `stack:` block in `00-index.md` (add/remove entries to match reality) and set `stack.user-confirmed: true`. This is the descriptive contract: detection proposes, the PO disposes. Do **not** use the detected stack to recommend an implementation approach at this stage — that conversation belongs in shape.
-4. Capture ALL answers (structured + freeform) in `po-answers.md`.
-5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
-6. Write the intake brief without designing the implementation.
-7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
-8. Update `00-index.md` with the recommended default option.
-9. Write `.ai/workflows/<slug>/01-intake.md`.
-10. **Register this workflow in `.ai/workflows/INDEX.md`** (additive bootstrap, v9.25.0). After `00-index.md` is finalized, ensure the registry contains a row for this slug. Re-read the just-written `00-index.md` frontmatter so the row reflects the *final* values (the branch/status/workflow-type fields can change between Step 0 and now based on PO answers in Batch A).
-    - **If `.ai/workflows/INDEX.md` does NOT exist** → create it with the header comment (verbatim from the sync spec) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
-      ```
-      # .ai/workflows/INDEX.md — global workflow registry. Maintained by $wf-meta sync (bootstrap+refresh, Step -1) and additively touched by $wf-quick slug-mode writes (updated-at only) and $wf intake (append self if absent, v9.25.0). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
-      ```
-      Surface in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with this workflow's row. `$wf-quick` positional slug detection is now enabled."*
-    - **If `.ai/workflows/INDEX.md` exists AND the slug is already present** → do nothing (the collision check in Step 0 should have already redirected us; reaching Step 10 with a matching row means this is a resume on a row written by an earlier intake run — leave the existing row in place so sync owns updates).
-    - **If `.ai/workflows/INDEX.md` exists AND the slug is missing** → append a single new row for this workflow, then **re-sort the file alphabetically by slug** (preserving the header line at the top). Surface in the chat return: *"Added `<slug>` to `.ai/workflows/INDEX.md`."*
-    - **Do NOT mutate other rows.** Status/branch/updated-at drift on other workflows is sync's responsibility, not intake's. Intake's contract here is strictly *append self if absent*.
-
-# Adaptive routing — evaluate what's actually next
-After completing this stage, do NOT blindly recommend `$wf shape`. Evaluate the intake and present the user with ALL viable options:
-
-**Option A (default): Shape** → `$wf shape <slug>`
-Use when: The task has ambiguity in behavior, acceptance criteria, or scope. Most tasks should go here.
-
-**Option B: Skip to Plan** → `$wf plan <slug>`
-Use when: The task is a well-understood, single-scope fix (e.g., "bump version X", "rename variable Y", "fix typo in Z"). No behavior ambiguity, no slicing needed. Criteria: ≤3 files likely touched, single acceptance criterion, no edge cases worth capturing.
-
-**Option C: Blocked — re-run intake** → `$wf intake <slug>`
-Use when: Required PO answers are still missing. Mark `Status: Awaiting input`.
-
-**UI-aware path note:** If the Step 0.5 `stack:` fingerprint shows a UI/frontend layer (`stack.ui ≠ ∅`) and the task has visual surface, note in `## Recommended Next Stage` that the path will likely include a `$wf design <slug> craft` step *after* shape — design authors the brief + visual contract, then drives the compressed build. Do NOT make `$wf design` the immediate next command: shape still comes first (it owns feature discovery, including the visual-surface questions, and makes the actual design recommendation). This is a path heads-up only, consistent with intake staying descriptive.
-
-Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
-
-Write `00-index.md` with this structure:
-
-```yaml
----
-schema: sdlc/v1
-type: index
-slug: <slug>
-title: "<human-readable title>"
-status: active
-current-stage: intake
-stage-number: 1
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-selected-slice: ""
-branch-strategy: <dedicated|shared|none>
-branch: "<feat/slug or empty>"
-base-branch: "<main|master|develop>"
-review-scope: <per-slice|slug-wide>   # default per-slice; chosen at intake. Drives $wf review file layout and $wf handoff gating.
-pr-url: ""
-pr-number: 0
-open-questions: []
-tags: []
-stack:                                  # Step 0.5 fingerprint. Observation only — user confirms in Batch B.
-  detected-at: "<iso-8601>"
-  platforms: []                         # e.g., [android], [web], [ios, web]
-  languages: []                         # e.g., [kotlin], [typescript]
-  ui: []                                # e.g., [compose], [react, tailwind]
-  build: []                             # e.g., [gradle], [vite]
-  package-managers: []                  # e.g., [gradle], [pnpm]
-  testing: []                           # e.g., [junit, maestro], [vitest, playwright]
-  observability: []                     # e.g., [lazylogcat], [sentry]
-  integrations: []                      # e.g., [hilt, room], [stripe, prisma]
-  available-skills: []                  # [{name, hint}] — session-visible skills
-  available-mcp: []                     # [{name, hint}] — session-visible MCP servers
-  user-confirmed: false                 # flipped to true after Batch B
-next-command: wf-shape
-next-invocation: "$wf shape <slug>"
-workflow-files:
-  - 00-index.md
-  - 01-intake.md
-  - po-answers.md
-progress:
-  intake: in-progress
-  shape: not-started
-  slice: not-started
-  plan: not-started
-  implement: not-started
-  verify: not-started
-  review: not-started
-  handoff: not-started
-  ship: not-started
-  retro: not-started
----
+Artifacts: <comma-separated paths, or "none">
+Next: <recommended command, or "Done">
 ```
 
-(No markdown body needed in the index — frontmatter IS the content.)
-
----
-
-Write `01-intake.md` with this structure:
-
-```yaml
----
-schema: sdlc/v1
-type: intake
-slug: <slug>
-status: complete
-stage-number: 1
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-tags: []
-refs:
-  index: 00-index.md
-  next: 02-shape.md
-next-command: wf-shape
-next-invocation: "$wf shape <slug>"
----
-```
-
-# Intake
-
-## Restated Request
-
-## Intended Outcome
-
-## Primary User / Actor
-
-## Known Constraints
-- ...
-
-## Assumptions
-- ...
-
-## Product Owner Questions Asked
-- ...
-
-## Product Owner Answers
-- ...
-
-## Unknowns / Open Questions
-- ...
-
-## Dependencies / External Factors
-- ...
-
-## Risks if Misunderstood
-- ...
-
-## Success Criteria
-- ...
-
-## Out of Scope for Now
-- ...
-
-## Freshness Research
-- Source:
-  Why it matters:
-  Takeaway:
-
-## Recommended Next Stage
-- **Option A (default):** `$wf shape <slug>` — [reason]
-- **Option B:** `$wf-<other> <slug>` — [reason, if applicable]
-- **Option C:** Blocked — [what's missing]
-
-If required answers are still missing, set frontmatter `status: awaiting-input` and set `next-invocation` to rerun `$wf intake <same-slug>` after answers arrive.
-
----
-
-## Step — Write free narrative fragments
-
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
-
----
-
-## Additive-write contract (v9.20.2+)
-
-`01-intake.md` is a revisable artifact. Re-invocation happens when the user
-returns with answers to open questions, when scope changes, or when a related
-intake informs the current one. **Do not overwrite the body** — preserve the
-narrative of how the problem statement evolved.
-
-1. **Snapshot the current file** to
-   `.ai/workflows/<slug>/history/01-intake-<rev>.md` where `<rev>` is the
-   current `revision-count` (before this run's increment). Verbatim byte-copy.
-2. **Bump `revision-count`** in frontmatter by 1. Refresh `updated-at`.
-3. **Append** a new section rather than rewriting prior content:
-   ```
-   ## Revision <new-revision-count> — <ISO timestamp>
-
-   What changed and why:
-   - User returned with answers to open questions (or: scope expanded …)
-   - …
-
-   <new intake content here — restated problem / acceptance criteria>
-   ```
-   The `## Initial` and any prior `## Revision N` sections stay intact.
-4. **Open-question resolution**: when a previously-open question is now
-   answered, do NOT silently delete the question from the body. Instead, add
-   the answer below the original question with a `→` marker, or call it out
-   in the new `## Revision <n>` section's "What changed" list.
-5. **`status: awaiting-input` transitions**: if this run resolves all open
-   questions, transition `status` to `complete` and clear `open-questions`
-   in frontmatter. Note the transition in the new revision section.
-
-**Exception**: if frontmatter declares `regenerable: true`, overwrite freely.
-The intake artifact does not normally carry this flag.
-
-The renderer surfaces prior revisions as a collapsible `<details class="history">`
-at the bottom of the page. History view paths are stable
-(`<slug>/intake/history/<rev>/INDEX.html`) — prior intakes remain linkable
-from later artifacts (shape, plan) that reference an intake-at-the-time.
+**Rules:**
+- **Always emit** unless the mode STOPped with an error — then the error replaces the summary.
+- **First line.** Name the mode and the slug (standalone: the workflow created — `ideate`/`investigate`/
+  `discover` may have none; slug-mode: the workflow the slice attached to).
+- **Narrative — the heart, REQUIRED for any mode that produces an artifact.** A short prose
+  paragraph (2–5 sentences, no bullets, no field labels): what was produced/decided, the
+  load-bearing counts and the top risk. Write it like telling a colleague, not filling a form.
+  Omit only for genuinely read-only runs with nothing to narrate.
+- **Artifacts** are the paths created or modified this run. `"none"` for read-only runs.
+- **Next** is a concrete invocation, or `Done`. In slug-mode, scope `Next` with `<slug>` as the
+  first positional (`$wf implement <slug>`).
+- **Internal audience.** `.ai/` paths ARE allowed here (chat return, not external copy). Outside
+  this block the External Output Boundary still applies.
+- If the mode reference defines its own "Chat return contract", treat it as the *content* spec —
+  pick the load-bearing fields and keep it compact. **A reference that says to "return ONLY" a
+  receipt means only those *receipt fields* — it does NOT waive the substance narrative above.**
+  Keep the full detail in the artifact; the chat summary carries the gist.

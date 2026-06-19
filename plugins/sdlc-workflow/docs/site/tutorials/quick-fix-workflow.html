@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.83.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -96,7 +96,7 @@
 <h1>Quick-fix walkthrough</h1>
 
 
-<p class="lede">You have a one-line fix — a typo, a wrong constant, a missing null check. You want it done in minutes, not hours, but you still want a record of what changed and why. <code>/wf-quick</code> is the fast path: it skips the deep planning stages of the full <a href="../reference/glossary.html#command">command</a> <code>/wf</code> and leaves three <a href="../reference/glossary.html#artifact">artifacts</a> (workflow notes) instead of twelve.</p>
+<p class="lede">You have a one-line fix — a typo, a wrong constant, a missing null check. You want it done in minutes, not hours, but you still want a record of what changed and why. <code>/wf intake fix</code> is the fast path: it skips the deep planning stages of the full <a href="../reference/glossary.html#command">command</a> <code>/wf</code> and leaves three <a href="../reference/glossary.html#artifact">artifacts</a> (workflow notes) instead of twelve.</p>
 
 <div class="summary">
 <table>
@@ -117,13 +117,13 @@ throw new Error("Recieved invalid payload");
 // after
 throw new Error("Received invalid payload");</code></pre>
 
-<p>This is textbook: low risk, one file, one line, easy to verify. It belongs on <code>/wf-quick fix</code>, not the full pipeline.</p>
+<p>This is textbook: low risk, one file, one line, easy to verify. It belongs on <code>/wf intake fix</code>, not the full pipeline.</p>
 
 <h2>Step 1 — Start the quick-fix workflow</h2>
 
 <p>Type this in your Claude Code session:</p>
 
-<pre><code>/wf-quick fix "typo in invalid-payload error message"</code></pre>
+<pre><code>/wf intake fix "typo in invalid-payload error message"</code></pre>
 
 <p>Claude asks two or three focused questions — which file, what the exact change is, whether a test needs updating. Answer them. Claude then creates two files under <code>.ai/workflows/typo-invalid-payload/</code>:</p>
 
@@ -206,7 +206,7 @@ fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pr
 
 <p>This opens a PR. The PR readiness check (commitlint, surface drift, doc-mirror, triage, rebase, live check) still runs. The fast path reduces the artifact count up front; it does not bypass quality gates on the way out.</p>
 
-<h2>When NOT to use <code>/wf-quick fix</code></h2>
+<h2>When NOT to use <code>/wf intake fix</code></h2>
 
 <ul>
   <li><strong>The change touches behaviour.</strong> A fix that changes what a function returns is not a one-liner. Use <code>/wf intake</code> to get a real shape.</li>
@@ -214,22 +214,22 @@ fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pr
   <li><strong>You want a retrospective.</strong> Quick-fix workflows do not get a retro by default. Use <code>/wf</code> if the lesson-learning matters.</li>
 </ul>
 
-<h2>Other quick commands</h2>
+<h2>The other intake modes and standalone flows</h2>
 
-<p><code>/wf-quick</code> has nine sub-commands beyond <code>fix</code>. Each one is a focused fast path — smaller artifact footprint than the full pipeline, but still leaving a record:</p>
+<p>Each is a focused fast path — smaller artifact footprint than the full pipeline, but still leaving a record:</p>
 
 <table>
 <thead><tr><th>Command</th><th>For</th><th>What it produces</th></tr></thead>
 <tbody>
-<tr><td><code>/wf-quick hotfix</code></td><td>Production incident — must ship in minutes</td><td>6-stage artifact trail, scope-locked, skips review</td></tr>
-<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis from code and git history (static — no running app needed)</td><td>Single artifact; recommends <code>/wf plan</code>, <code>/wf-quick fix</code>, or <code>hotfix</code> as next step</td></tr>
-<tr><td><code>/wf-quick probe</code></td><td>Runtime-truth check — drives the running artifact and compares output against acceptance criteria</td><td>Evidence directory + findings artifact (slug required)</td></tr>
-<tr><td><code>/wf-quick investigate</code></td><td>Sketch 2–3 distinct engineering approaches with tradeoffs before committing to one</td><td>Single artifact with options A/B/C; no winner picked — you choose, then route to <code>/wf-quick fix</code> or <code>/wf intake</code></td></tr>
-<tr><td><code>/wf-quick discover</code></td><td>Test a theory about how the codebase works against real evidence</td><td>Single artifact with verdict: holds / partial / fails / inconclusive</td></tr>
-<tr><td><code>/wf-quick update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>4-stage trail under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
-<tr><td><code>/wf-quick refactor</code></td><td>Behaviour-preserving refactor with test baseline capture and re-verification</td><td>Stage-locked: baseline → refactor → re-verify</td></tr>
-<tr><td><code>/wf-quick ideate</code></td><td>Brainstorm and rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
-<tr><td><code>/wf-quick simplify</code></td><td>Three-agent triage of a branch, commit, plan, or codebase — routes findings, never writes code</td><td>Routing report under <code>simplify/</code></td></tr>
+<tr><td><code>/wf intake hotfix</code></td><td>Production incident — must ship in minutes</td><td>6-stage artifact trail, scope-locked, skips review</td></tr>
+<tr><td><code>/wf intake rca</code></td><td>Root-cause analysis from code and git history (static — no running app needed)</td><td>Single artifact; recommends <code>/wf plan</code>, <code>/wf intake fix</code>, or <code>/wf intake hotfix</code> as next step</td></tr>
+<tr><td><code>/wf probe</code></td><td>Runtime-truth check — drives the running artifact and compares output against acceptance criteria</td><td>Evidence directory + findings artifact (slug required)</td></tr>
+<tr><td><code>/wf intake investigate</code></td><td>Sketch 2–3 distinct engineering approaches with tradeoffs before committing to one</td><td>Single artifact with options A/B/C; no winner picked — you choose, then route to <code>/wf intake fix</code> or <code>/wf intake</code></td></tr>
+<tr><td><code>/wf intake discover</code></td><td>Test a theory about how the codebase works against real evidence</td><td>Single artifact with verdict: holds / partial / fails / inconclusive</td></tr>
+<tr><td><code>/wf intake update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>4-stage trail under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
+<tr><td><code>/wf intake refactor</code></td><td>Behaviour-preserving refactor with test baseline capture and re-verification</td><td>Stage-locked: baseline → refactor → re-verify</td></tr>
+<tr><td><code>/wf intake ideate</code></td><td>Brainstorm and rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
+<tr><td><code>/wf simplify</code></td><td>Three-agent triage of a branch, commit, plan, or codebase — routes findings, never writes code</td><td>Routing report under <code>simplify/</code></td></tr>
 </tbody>
 </table>
 

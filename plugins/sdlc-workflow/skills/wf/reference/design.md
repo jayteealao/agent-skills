@@ -145,7 +145,7 @@ command does; this dispatcher governs *how far the flow runs* around it.
 
 ## 4A — Producer & Transformation (build commands)
 
-These produce code, so they run the build span. The compressed flow reuses `wf-quick`'s
+These produce code, so they run the build span. The compressed flow reuses the compressed intake modes'
 collapsed-stage machinery — thin single slice, minimal plan, no multi-round interviews — but
 **still emits each numbered artifact** so the rendered views and downstream gates see a normal
 workflow.

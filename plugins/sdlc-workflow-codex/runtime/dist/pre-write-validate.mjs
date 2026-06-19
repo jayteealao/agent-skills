@@ -43,13 +43,13 @@ async function registryWarnings({ projectRoot, filePath, workflowDir, filename }
   const registry = join(projectRoot, ".ai", "workflows", "INDEX.md");
   if (!existsSync(registry)) {
     return [
-      `Global workflow registry .ai/workflows/INDEX.md is missing. Run /wf-meta sync once to bootstrap it - this enables /wf-quick positional slug detection (the no-flag way to attach a compressed slice to '${workflowDir}').`
+      `Global workflow registry .ai/workflows/INDEX.md is missing. Run /wf-meta sync once to bootstrap it - this enables positional slug detection (the no-flag way to attach a compressed slice to '${workflowDir}' via /wf intake/probe/simplify).`
     ];
   }
   const registryText = await readTextIfExists(registry);
   if (registryText !== null && !new RegExp(`^${escapeRegex(workflowDir)}\\t`, "m").test(registryText)) {
     return [
-      `Slug '${workflowDir}' has no row in .ai/workflows/INDEX.md. Run /wf-meta sync to register it - until then, '/wf-quick <sub> ${workflowDir} ...' falls through to standalone mode instead of attaching as a compressed slice.`
+      `Slug '${workflowDir}' has no row in .ai/workflows/INDEX.md. Run /wf-meta sync to register it - until then, '/wf intake <mode> ${workflowDir} ...' (or /wf probe|simplify) falls through to standalone mode instead of attaching as a compressed slice.`
     ];
   }
   return [];

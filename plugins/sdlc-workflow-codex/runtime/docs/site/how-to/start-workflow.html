@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.83.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -100,7 +100,7 @@
 <div class="summary">
 <table>
 <tr><th>Pre-conditions</th><td>Plugin installed.</td></tr>
-<tr><th>Goal</th><td>Pick the <code>/wf</code> or <code>/wf-quick</code> command that fits your situation, then go type it.</td></tr>
+<tr><th>Goal</th><td>Pick the right <code>/wf</code> command that fits your situation, then go type it.</td></tr>
 </table>
 </div>
 
@@ -120,50 +120,50 @@
 
 <dt><strong>"There's a typo, a one-line patch, or a docs edit."</strong></dt>
 <dd>
-  <code>/wf-quick fix "&lt;description&gt;"</code><br>
+  <code>/wf intake fix "&lt;description&gt;"</code><br>
   Three <a href="../reference/glossary.html">artifacts</a> (workflow notes the plugin saves at each step), about 10 minutes.
   <a href="../tutorials/quick-fix-workflow.html">See the walkthrough →</a>
 </dd>
 
 <dt><strong>"Production is on fire."</strong></dt>
 <dd>
-  <code>/wf-quick hotfix "&lt;symptom&gt;"</code><br>
+  <code>/wf intake hotfix "&lt;symptom&gt;"</code><br>
   Scope-locked and fast. Skips the normal review stage, but still leaves an artifact trail so you can audit after the incident.
 </dd>
 
 <dt><strong>"The dependencies are out of date. Some have CVEs."</strong></dt>
 <dd>
-  <code>/wf-quick update-deps</code><br>
+  <code>/wf intake update-deps</code><br>
   Audits, tiers by priority (P0 security → P1 major → P2 safe → hold), and applies in order.
 </dd>
 
 <dt><strong>"I want to refactor this without changing behaviour."</strong></dt>
 <dd>
-  <code>/wf-quick refactor "&lt;area&gt;"</code><br>
+  <code>/wf intake refactor "&lt;area&gt;"</code><br>
   Captures a test baseline first. Refactors in incremental green steps. Re-verifies parity at the end.
 </dd>
 
 <dt><strong>"There's a bug. I don't know where it is yet."</strong></dt>
 <dd>
-  <code>/wf-quick rca "&lt;symptom + repro&gt;"</code><br>
+  <code>/wf intake rca "&lt;symptom + repro&gt;"</code><br>
   Root-cause analysis from code and git history — static diagnosis, no running code. If the symptom is only visible at runtime (a button does nothing, a screen renders wrong), use <code>probe</code> instead.
 </dd>
 
 <dt><strong>"The slice says 'verified' but the running app looks broken."</strong> <span class="badge">v9.14</span></dt>
 <dd>
-  <code>/wf-quick probe &lt;slug&gt; [target]</code><br>
+  <code>/wf probe &lt;slug&gt; [target]</code><br>
   A <a href="../reference/glossary.html">slug</a> (the short id that names a workflow in progress) is required. Drives the running artifact, captures observable output — screenshots, stdout, response bodies — and compares against acceptance criteria. Does not write a fix.
 </dd>
 
 <dt><strong>"I want 2–3 distinct engineering approaches sketched before I pick one."</strong></dt>
 <dd>
-  <code>/wf-quick investigate "&lt;problem&gt;"</code><br>
-  Produces an A/B/C option set with effort, blast radius, reversibility, and risk for each. No winner is picked — that decision stays with you. After you decide, route to <code>/wf-quick fix</code> (small) or <code>/wf intake</code> (medium+).
+  <code>/wf intake investigate "&lt;problem&gt;"</code><br>
+  Produces an A/B/C option set with effort, blast radius, reversibility, and risk for each. No winner is picked — that decision stays with you. After you decide, route to <code>/wf intake fix</code> (small) or <code>/wf intake</code> (medium+).
 </dd>
 
 <dt><strong>"I have a theory about how this code works and want it tested against the codebase."</strong></dt>
 <dd>
-  <code>/wf-quick discover "&lt;hypothesis&gt;"</code><br>
+  <code>/wf intake discover "&lt;hypothesis&gt;"</code><br>
   FOR / AGAINST / counter-hypothesis sub-commands adjudicate the claim. Verdict: <code>holds</code>, <code>partial</code>, <code>fails</code>, or <code>inconclusive</code>, with cited evidence. Different from <code>/wf-meta how</code> — that explains how code works; <code>discover</code> tests whether your theory is correct.
 </dd>
 
@@ -175,7 +175,7 @@
 
 <dt><strong>"I want to clean up or triage a branch before going further."</strong></dt>
 <dd>
-  <code>/wf-quick simplify [branch|commit|plan|codebase]</code><br>
+  <code>/wf simplify [branch|commit|plan|codebase]</code><br>
   Three parallel sub-commands (reuse, quality, efficiency) classify findings and hand back a queue of copy-pasteable downstream commands. Routes; never writes code.
 </dd>
 </dl>
@@ -186,14 +186,14 @@
 <pre class="mermaid">
 flowchart TD
   start{"What kind of change?"}
-  start -- "Production incident, must ship in minutes" --> hotfix["/wf-quick hotfix"]
-  start -- "Single-file typo, one-line patch" --> fix["/wf-quick fix"]
-  start -- "Dependency updates, security or major version" --> deps["/wf-quick update-deps"]
-  start -- "Behaviour-preserving refactor" --> refactor["/wf-quick refactor"]
-  start -- "Bug report, root cause unknown (static diagnosis from code/git)" --> rca["/wf-quick rca"]
-  start -- "Runtime-truth check on a running artifact — verified but actually broken?" --> probe["/wf-quick probe &lt;slug&gt;"]
-  start -- "Need 2–3 distinct engineering approaches sketched before committing" --> investigate["/wf-quick investigate"]
-  start -- "Have a theory about how this code works and want it adjudicated" --> discover["/wf-quick discover"]
+  start -- "Production incident, must ship in minutes" --> hotfix["/wf intake hotfix"]
+  start -- "Single-file typo, one-line patch" --> fix["/wf intake fix"]
+  start -- "Dependency updates, security or major version" --> deps["/wf intake update-deps"]
+  start -- "Behaviour-preserving refactor" --> refactor["/wf intake refactor"]
+  start -- "Bug report, root cause unknown (static diagnosis from code/git)" --> rca["/wf intake rca"]
+  start -- "Runtime-truth check on a running artifact — verified but actually broken?" --> probe["/wf probe &lt;slug&gt;"]
+  start -- "Need 2–3 distinct engineering approaches sketched before committing" --> investigate["/wf intake investigate"]
+  start -- "Have a theory about how this code works and want it adjudicated" --> discover["/wf intake discover"]
   start -- "A real feature or substantive change" --> wf["/wf intake"]
 
   classDef quick fill:#fef3c7,stroke:#b45309,color:#1f1f1d
@@ -202,20 +202,20 @@ flowchart TD
   class wf full
 </pre>
 </div>
-<p class="caption">Yellow = quick command (a focused, faster sub-command that trades artifact depth for speed). Blue = full <code>/wf</code> pipeline (10 stages, every artifact, adaptive routing).</p>
+<p class="caption">Yellow = quick intake mode (a focused, faster mode that trades artifact depth for speed). Blue = full <code>/wf</code> pipeline (10 stages, every artifact, adaptive routing).</p>
 
-<h2>Choosing between <code>/wf</code> and <code>/wf-quick</code></h2>
+<h2>Choosing between <code>/wf</code> full lifecycle and quick modes</h2>
 
 <p>If the scenario list above left you with two candidates, use this checklist to break the tie.</p>
 
 <table>
 <thead><tr><th>Question</th><th>If yes</th><th>If no</th></tr></thead>
 <tbody>
-<tr><td>Could someone reasonably ask for a code review on this?</td><td>/wf</td><td>/wf-quick</td></tr>
-<tr><td>Does it change observable behaviour that a user might notice?</td><td>/wf</td><td>/wf-quick fix</td></tr>
-<tr><td>Are the acceptance criteria obvious from the description alone?</td><td>/wf-quick</td><td>/wf (the intake stage will shape it)</td></tr>
+<tr><td>Could someone reasonably ask for a code review on this?</td><td>/wf</td><td>/wf intake &lt;mode&gt;</td></tr>
+<tr><td>Does it change observable behaviour that a user might notice?</td><td>/wf</td><td>/wf intake fix</td></tr>
+<tr><td>Are the acceptance criteria obvious from the description alone?</td><td>/wf intake &lt;mode&gt;</td><td>/wf (the intake stage will shape it)</td></tr>
 <tr><td>Will the change touch more than two files?</td><td>/wf</td><td>Either</td></tr>
-<tr><td>Do you want a retro artifact at the end?</td><td>/wf</td><td>/wf-quick</td></tr>
+<tr><td>Do you want a retro artifact at the end?</td><td>/wf</td><td>/wf intake &lt;mode&gt;</td></tr>
 </tbody>
 </table>
 

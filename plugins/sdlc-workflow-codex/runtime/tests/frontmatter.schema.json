@@ -907,7 +907,7 @@
 
     "rcaFrontmatter": {
       "type": "object",
-      "description": "01-rca.md — root-cause analysis workflow produced by /wf-quick rca.",
+      "description": "01-rca.md — root-cause analysis workflow produced by /wf intake rca.",
       "required": [
         "schema", "type", "slug", "workflow-type", "symptom",
         "impact", "root-cause-confidence", "blast-radius",
@@ -1269,7 +1269,7 @@
 
     "ideationFrontmatter": {
       "type": "object",
-      "description": "Idea-backlog artifact written by /wf-quick ideate to .ai/ideation/<focus>-<ts>.md. Ranked candidate list; no slug/run-id/status.",
+      "description": "Idea-backlog artifact written by /wf intake ideate to .ai/ideation/<focus>-<ts>.md. Ranked candidate list; no slug/run-id/status.",
       "required": ["schema", "type", "focus", "created-at"],
       "properties": {
         "type": { "const": "ideation" },
@@ -1285,7 +1285,7 @@
 
     "depScanFrontmatter": {
       "type": "object",
-      "description": "/wf-quick update-deps step 1 — .ai/dep-updates/<run-id>/scan.md.",
+      "description": "/wf intake update-deps step 1 — .ai/dep-updates/<run-id>/scan.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "dep-scan" },
@@ -1301,7 +1301,7 @@
 
     "depResearchFrontmatter": {
       "type": "object",
-      "description": "/wf-quick update-deps step 2 — .ai/dep-updates/<run-id>/research.md.",
+      "description": "/wf intake update-deps step 2 — .ai/dep-updates/<run-id>/research.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "dep-research" },
@@ -1318,7 +1318,7 @@
 
     "depPlanFrontmatter": {
       "type": "object",
-      "description": "/wf-quick update-deps step 3 — .ai/dep-updates/<run-id>/plan.md.",
+      "description": "/wf intake update-deps step 3 — .ai/dep-updates/<run-id>/plan.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "dep-plan" },
@@ -1335,7 +1335,7 @@
 
     "depImplementFrontmatter": {
       "type": "object",
-      "description": "/wf-quick update-deps step 4 — .ai/dep-updates/<run-id>/implement.md.",
+      "description": "/wf intake update-deps step 4 — .ai/dep-updates/<run-id>/implement.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "dep-implement" },
@@ -1350,7 +1350,7 @@
 
     "depVerifyFrontmatter": {
       "type": "object",
-      "description": "/wf-quick update-deps step 5 — .ai/dep-updates/<run-id>/verify.md.",
+      "description": "/wf intake update-deps step 5 — .ai/dep-updates/<run-id>/verify.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "dep-verify" },
@@ -1364,7 +1364,7 @@
 
     "quickMetaArtifactFrontmatter": {
       "type": "object",
-      "description": "Lightweight wf-quick / wf-meta lane artifacts written under .ai/workflows/<slug>/ (e.g. 00-index.md with type workflow-index, 01-fix.md, hf-brief.md, 99-close.md, 90-next.md). Validated for a known type + schema/type/slug presence; richer per-lane fields are renderer-defensive and most fall through to the generic renderer. Registered in v9.35.0 after an audit found these lanes were silently blocked by the pre/post-write hooks. Each type stays uniquely discriminating, so the oneOf remains unambiguous. Tighten into per-type branches if/when their field contracts stabilize.",
+      "description": "Lightweight intake-mode / wf-meta lane artifacts written under .ai/workflows/<slug>/ (e.g. 00-index.md with type workflow-index, 01-fix.md, hf-brief.md, 99-close.md, 90-next.md). Validated for a known type + schema/type/slug presence; richer per-lane fields are renderer-defensive and most fall through to the generic renderer. Registered in v9.35.0 after an audit found these lanes were silently blocked by the pre/post-write hooks. Each type stays uniquely discriminating, so the oneOf remains unambiguous. Tighten into per-type branches if/when their field contracts stabilize.",
       "required": ["schema", "type", "slug"],
       "properties": {
         "type": {

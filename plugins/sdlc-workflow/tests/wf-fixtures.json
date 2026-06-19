@@ -1,12 +1,78 @@
 {
   "router": "/wf",
-  "description": "Routing-resolution fixtures for the /wf skill (v9.1.0+). Each invocation should resolve to skills/wf/reference/<key>.md based on the first positional token.",
+  "description": "Routing-resolution fixtures for the /wf skill. The first positional token selects skills/wf/reference/<key>.md. `intake` is a two-level dispatcher (intake.md): a mode keyword (fix/rca/investigate/discover/hotfix/refactor/update-deps/ideate) resolves to intake/<mode>.md, a plain description to intake/default.md, and an existing slug before a mode attaches a compressed slice (still via intake/<mode>.md). `probe` and `simplify` are their own keys (formerly /wf-quick sub-commands). The standalone /wf-quick router was retired in this release.",
   "fixtures": [
     {
-      "id": "wf-intake-task",
-      "purpose": "Stage 1 of the full lifecycle, dispatched via /wf intake (relocated from /wf-quick intake in v9.1.0).",
+      "id": "wf-intake-default",
+      "purpose": "Plain intake, no mode keyword — the default product-owner intake (stage 1). intake.md dispatches to the default mode reference.",
       "invocation": "/wf intake support OAuth callback flow",
-      "expectedReferencePath": "skills/wf/reference/intake.md"
+      "expectedReferencePath": "skills/wf/reference/intake/default.md"
+    },
+    {
+      "id": "wf-intake-fix-mode",
+      "purpose": "intake 'fix' mode — compressed planning entry. intake.md resolves the mode keyword to intake/fix.md.",
+      "invocation": "/wf intake fix add-rate-limiting",
+      "expectedReferencePath": "skills/wf/reference/intake/fix.md"
+    },
+    {
+      "id": "wf-intake-rca-mode",
+      "purpose": "intake 'rca' mode — root-cause-first entry (two positional args: incident + date).",
+      "invocation": "/wf intake rca payment-timeout 2026-04-30",
+      "expectedReferencePath": "skills/wf/reference/intake/rca.md"
+    },
+    {
+      "id": "wf-intake-update-deps-mode",
+      "purpose": "intake 'update-deps' mode — hyphenated keyword parses correctly.",
+      "invocation": "/wf intake update-deps",
+      "expectedReferencePath": "skills/wf/reference/intake/update-deps.md"
+    },
+    {
+      "id": "wf-intake-ideate-mode",
+      "purpose": "intake 'ideate' mode — pre-pipeline ideation; the mode reference creates no workflow.",
+      "invocation": "/wf intake ideate",
+      "expectedReferencePath": "skills/wf/reference/intake/ideate.md"
+    },
+    {
+      "id": "wf-intake-investigate-mode",
+      "purpose": "intake 'investigate' mode — solution-options sketch.",
+      "invocation": "/wf intake investigate payments",
+      "expectedReferencePath": "skills/wf/reference/intake/investigate.md"
+    },
+    {
+      "id": "wf-intake-discover-mode",
+      "purpose": "intake 'discover' mode — hypothesis test; everything after the keyword is the statement.",
+      "invocation": "/wf intake discover users abandon checkout flow",
+      "expectedReferencePath": "skills/wf/reference/intake/discover.md"
+    },
+    {
+      "id": "wf-intake-hotfix-mode",
+      "purpose": "intake 'hotfix' mode — emergency entry.",
+      "invocation": "/wf intake hotfix payment-timeout breaking checkout",
+      "expectedReferencePath": "skills/wf/reference/intake/hotfix.md"
+    },
+    {
+      "id": "wf-intake-refactor-mode",
+      "purpose": "intake 'refactor' mode — behavior-preserving entry.",
+      "invocation": "/wf intake refactor src/auth/session.ts",
+      "expectedReferencePath": "skills/wf/reference/intake/refactor.md"
+    },
+    {
+      "id": "wf-intake-slug-mode-compressed-slice",
+      "purpose": "Slug-mode: an existing slug BEFORE a mode keyword attaches a compressed slice. intake.md checks slug existence first, then loads the mode reference, which writes via _compressed-slice.md.",
+      "invocation": "/wf intake add-onboarding rca login regression",
+      "expectedReferencePath": "skills/wf/reference/intake/rca.md"
+    },
+    {
+      "id": "wf-probe-slug",
+      "purpose": "probe is its own /wf key (runtime-truth verification, slug-only).",
+      "invocation": "/wf probe add-onboarding email-flow",
+      "expectedReferencePath": "skills/wf/reference/probe.md"
+    },
+    {
+      "id": "wf-simplify-branch",
+      "purpose": "simplify is its own /wf key (review-and-route triage); first positional is a scope keyword, not a slug.",
+      "invocation": "/wf simplify branch",
+      "expectedReferencePath": "skills/wf/reference/simplify.md"
     },
     {
       "id": "wf-shape-slug",

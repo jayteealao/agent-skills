@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.83.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -104,13 +104,13 @@
 
 <h2>Need some trail but not the full flow?</h2>
 
-<p>Use <code>/wf-quick</code>, the quick command that compresses the full workflow into a single call. It still writes artifacts (workflow notes that form the audit trail) but skips the deeper planning stages.</p>
+<p>Use the intake modes (<code>/wf intake &lt;mode&gt;</code>), which compress the full workflow into a focused single call. They still write artifacts (workflow notes that form the audit trail) but skip the deeper planning stages.</p>
 
-<pre><code>/wf-quick fix</code></pre>
+<pre><code>/wf intake fix</code></pre>
 
 <p>For a hotfix where production is down and review must be skipped:</p>
 
-<pre><code>/wf-quick hotfix</code></pre>
+<pre><code>/wf intake hotfix</code></pre>
 
 <p>This bypasses the review stage by design. A hotfix artifact is still written so you have something to reference in a post-incident review.</p>
 
@@ -155,7 +155,7 @@
 
 <h2>The plugin asks too many questions at intake</h2>
 
-<p>If intake feels like an interview you did not sign up for, that is a signal the change is small enough for <code>/wf-quick</code>. Decline the current intake and re-run with the quick command.</p>
+<p>If intake feels like an interview you did not sign up for, that is a signal the change is small enough for an intake mode. Decline the current intake and re-run with <code>/wf intake fix</code> or another mode.</p>
 
 <h2>What is not a valid escape hatch</h2>
 

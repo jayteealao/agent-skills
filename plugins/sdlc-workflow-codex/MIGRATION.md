@@ -17,7 +17,9 @@ take the same sub-command and arguments.
 | `/wf-meta <action> …` — amend, announce, build-pipeline, close, extend, how, init-ship-plan, next, resume, skip, status, sync | `$wf-meta <action> …` |
 | `/wf design …` | `$wf design …` |
 | `/wf-docs …` | `$wf-docs …` |
-| `/wf-quick …` | `$wf-quick …` |
+| `/wf-quick fix/rca/… …` | `$wf intake fix/rca/… …` (`$wf-quick` retired — modes are now `$wf intake <mode>`) |
+| `/wf-quick probe …` | `$wf probe …` |
+| `/wf-quick simplify …` | `$wf simplify …` |
 | `/review <dimension>` | `$review <dimension>` |
 
 `$wf` is the lifecycle-stage router (one canonical stage per sub-command);

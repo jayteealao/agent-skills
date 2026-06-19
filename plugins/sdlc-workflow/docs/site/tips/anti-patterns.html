@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.83.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -120,7 +120,7 @@
 
 <p><strong>Why it happens.</strong> Retro looks optional when a change is small. The compounding effect only becomes visible when you realise you have shipped 50 small changes and captured zero lessons from any of them.</p>
 
-<p><strong>Fix.</strong> Treat retro as mandatory for any workflow that includes a ship run. The <a href="../reference/glossary.html#quick-command">quick command</a> <code>/wf-quick</code> (a condensed single-stage flow for small, scoped changes) skips retro by design; the full pipeline should not. Retro is five minutes.</p>
+<p><strong>Fix.</strong> Treat retro as mandatory for any workflow that includes a ship run. The <a href="../reference/glossary.html#quick-command">quick mode (<code>/wf intake &lt;mode&gt;</code>, a condensed flow for small, scoped changes) skips retro by design; the full pipeline should not. Retro is five minutes.</p>
 
 <h2>Hand-editing the readiness check result</h2>
 
@@ -142,7 +142,7 @@
 
 <p><strong>Symptom.</strong> <code>01-quick.md</code> describes a feature touching five files, a migration, and a new API surface. The quick command was chosen because the deadline was close, not because the change was small.</p>
 
-<p><strong>Why it happens.</strong> <code>/wf-quick</code> is shorter. Under pressure, "shorter" looks like "faster." For a change that genuinely fits the quick shape — a single-file fix, a copy edit, a config tweak — it is faster. For a larger change, it skips exactly the stages that prevent later rework.</p>
+<p><strong>Why it happens.</strong> Intake modes are shorter. Under pressure, "shorter" looks like "faster." For a change that genuinely fits a quick mode — a single-file fix, a copy edit, a config tweak — it is faster. For a larger change, it skips exactly the stages that prevent later rework.</p>
 
 <p><strong>Fix.</strong> Close the quick workflow with status <code>superseded</code> and restart with <code>/wf intake</code>. The quick command is for changes that fit the compressed shape, not for changes you're hoping will fit it.</p>
 

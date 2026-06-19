@@ -12,12 +12,11 @@ resumes cleanly in the other.
 
 ## What it provides
 
-**Six router skills** (router-name parity with the Claude plugin — explicit invocation):
+**Four router skills** (router-name parity with the Claude plugin — explicit invocation):
 
 | Skill | Purpose |
 |---|---|
-| `$wf` | Run one canonical SDLC stage (intake → … → retro), a perf/observability augmentation, or the compressed design workflow (`$wf design` — UI/UX brief, visual contract, and build; 22 design commands as arguments). |
-| `$wf-quick` | Compressed / standalone flows: fix, hotfix, rca, refactor, simplify, investigate, probe, ideate, discover, update-deps. |
+| `$wf` | Run one canonical SDLC stage (intake → … → retro), a perf/observability augmentation, or the compressed design workflow (`$wf design`). `$wf intake` dispatches compressed entry modes (fix, rca, investigate, discover, hotfix, refactor, update-deps, ideate). `$wf probe` is runtime-truth verification; `$wf simplify` is read-only triage. 17 sub-commands total. |
 | `$wf-meta` | Navigate existing workflows: status, next, resume, sync, amend, extend, skip, close, how, announce, init-ship-plan, build-pipeline. |
 | `$wf-docs` | Diátaxis documentation: tutorial, how-to, reference, explanation, readme, plan, review. |
 | `$review` | Code review across 31 dimensions + 7 aggregates (`$review sweep <aggregate>`). |

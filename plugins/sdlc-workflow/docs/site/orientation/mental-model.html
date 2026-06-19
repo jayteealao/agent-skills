@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.83.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -99,9 +99,9 @@
 Before you type your first command, this page gives you the map. One read and you'll know what every command does, why the plugin writes files, and how all the pieces fit together.
 </p>
 
-<h2>The six things you type</h2>
+<h2>The five things you type</h2>
 
-<p>The entire plugin is six commands. Everything else is a sub-command under one of these six.</p>
+<p>The entire plugin is five commands (plus the <code>/wf design</code> sub-command). Everything else is a sub-command under one of these.</p>
 
 <table>
 <thead><tr><th>Command</th><th>What you reach for it when…</th><th>What it does</th></tr></thead>
@@ -112,9 +112,9 @@ Before you type your first command, this page gives you the map. One read and yo
   <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. Sub-commands: <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code></td>
 </tr>
 <tr>
-  <td><code>/wf-quick</code></td>
+  <td><code>/wf intake &lt;mode&gt;</code></td>
   <td>You want a faster path for small, well-defined changes</td>
-  <td>Quick commands for specific patterns — a typo fix, a hotfix, a refactor, a dependency update. Fewer stages, fewer files. Sub-commands: <code>fix</code>, <code>hotfix</code>, <code>refactor</code>, <code>rca</code>, <code>investigate</code>, and more</td>
+  <td>Eight compressed intake modes — <code>fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code> — plus <code>/wf probe</code> and <code>/wf simplify</code> as top-level keys. The former <code>/wf-quick</code> router is retired.</td>
 </tr>
 <tr>
   <td><code>/wf-meta</code></td>
@@ -190,7 +190,7 @@ flowchart LR
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
-  you["You type a command"] --> cmd["/wf, /wf-quick, /wf-meta, etc."]
+  you["You type a command"] --> cmd["/wf, /wf-meta, /wf-docs, /review, etc."]
   cmd --> stages["Claude runs one or more stages"]
   stages --> artifacts["Writes artifacts to .ai/workflows/&lt;slug&gt;/"]
   artifacts --> next["Next stage reads previous artifacts"]

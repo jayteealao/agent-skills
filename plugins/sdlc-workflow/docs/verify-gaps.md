@@ -8,7 +8,7 @@ Analysis of stage 6 (`wf-verify`) weaknesses: structural gaps in the pipeline de
 
 ### 1. No cross-slice regression check
 
-Verify runs per-slice in isolation. When slice B is verified, nothing checks that slice A still passes. The fix loop re-runs only the checks affected by slice B's issues — but a fix for slice B can silently break slice A's code with no guard. `/wf-quick probe` covers slug-wide sweeps, but verify never triggers it automatically. Cross-slice regressions are invisible until review or, worse, ship.
+Verify runs per-slice in isolation. When slice B is verified, nothing checks that slice A still passes. The fix loop re-runs only the checks affected by slice B's issues — but a fix for slice B can silently break slice A's code with no guard. `/wf probe` covers slug-wide sweeps, but verify never triggers it automatically. Cross-slice regressions are invisible until review or, worse, ship.
 
 ### 2. No security scanning sub-agent
 

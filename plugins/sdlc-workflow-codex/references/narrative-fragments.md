@@ -28,7 +28,7 @@ write HTML; the page renders it verbatim.
 
 Author **as many as the story needs** (including zero). They are not limited to
 the rich-tier artifacts — *any* markdown artifact produced by *any* subcommand
-(`$wf`, `$wf-quick`, `$wf-docs`, `$wf-meta`, `$review`, …) can
+(`$wf`, `$wf-docs`, `$wf-meta`, `$review`, …) can
 carry them, because they are injected by a central seam that runs for every
 renderer and the generic fallback alike.
 

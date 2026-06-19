@@ -1,8 +1,8 @@
 ---
 name: wf
-description: Run one canonical SDLC stage (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro), a perf/observability augmentation (instrument, experiment, benchmark, profile), or the compressed design workflow (design — UI/UX brief, visual contract, and build), and write its artifact to `.ai/workflows/<slug>/`. For navigating existing workflows, use `/wf-meta`; for compressed or standalone flows, use `/wf-quick`.
+description: Run one canonical SDLC stage (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro), a perf/observability augmentation (instrument, experiment, benchmark, profile), the compressed design workflow (design), runtime-truth verification (probe), or read-only review-and-route triage (simplify), and write its artifact to `.ai/workflows/<slug>/`. The intake stage also dispatches compressed entry modes (fix, rca, investigate, discover, hotfix, refactor, update-deps, ideate). For navigating existing workflows, use `/wf-meta`; for documentation, use `/wf-docs`.
 disable-model-invocation: true
-argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|instrument|experiment|benchmark|profile> [args...]"
+argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|probe|simplify|instrument|experiment|benchmark|profile> [args...]"
 ---
 
 # External Output Boundary (MANDATORY)
@@ -12,19 +12,19 @@ Workflow artifacts and command internals are private implementation context. Nev
 - When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
 - Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
 
-You are the **lifecycle-stage dispatcher** for the SDLC plugin. The 15 sub-commands you route to are mostly *stage executors* — each runs one stage of the canonical lifecycle (or one perf/observability augmentation) and writes a stage artifact — plus `design`, a **compressed design workflow** that produces UI/UX artifacts and then drives the downstream stages itself. Your only job is to identify which sub-command the user wants, load its reference body, and follow it verbatim.
+You are the **lifecycle-stage dispatcher** for the SDLC plugin. The 17 sub-commands you route to are mostly *stage executors* — each runs one stage of the canonical lifecycle (or one perf/observability augmentation) and writes a stage artifact — plus three compressed/standalone members: `design` (a compressed design workflow that produces UI/UX artifacts and then drives the downstream stages itself), `probe` (runtime-truth verification of already-built work), and `simplify` (read-only review-and-route triage). `intake` is itself a **mode dispatcher**: plain `/wf intake <description>` runs the canonical stage 1, while a mode keyword (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`) routes a compressed entry flow. Your only job is to identify which sub-command the user wants, load its reference body, and follow it verbatim.
 
 > **Narrative fragments — any artifact (v9.70.0).** Beyond the typed `.html.fragment` the rich stages project from a sibling `.yaml`, *any* artifact you write may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page. Author one whenever a bespoke diagram, flow, comparison, or widget tells the story better than prose. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
 
 # Step 0 — Resolve the sub-command
 
-Parse `$ARGUMENTS`. The first token must be one of the 15 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying stage.
+Parse `$ARGUMENTS`. The first token must be one of the 17 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying stage.
 
 **Known sub-command keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<key>.md`:
 
 | Key | Argument hint | What it does (one line) |
 |---|---|---|
-| `intake`     | `<task-description>`      | Stage 1 of 10 in the full SDLC lifecycle. Converts a rough request into a clear intake brief, creates the workflow folder, captures product-owner answers, establishes the canonical slug. |
+| `intake`     | `[slug] [mode] <description>` | **Entry dispatcher.** Plain `/wf intake <description>` runs stage 1 of 10 (intake brief, workflow folder, PO answers, canonical slug). A mode keyword (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`) routes a compressed entry flow; an existing slug before a mode attaches a compressed slice. With no keyword, intake may propose a mode (suggest-and-confirm). See `reference/intake.md`. |
 | `shape`      | `[slug] [hint]`           | Feature discovery via 20 product-owner questions; writes 02-shape.md (specification artifact). |
 | `slice`      | `<slug>`                  | Decompose the shape into 1–N shippable slices; writes 03-slice.md and per-slice 03-slice-<slug>.md files. |
 | `plan`       | `<slug> [slice]`          | Per-slice implementation plan with parallel reuse scan; writes 04-plan-<slice>.md. |
@@ -35,6 +35,8 @@ Parse `$ARGUMENTS`. The first token must be one of the 15 known keys below; the 
 | `ship`       | `<slug>`                  | Release notes + ship; writes 09-ship.md. Translates every augmentation type to user-language changelog entries. |
 | `retro`      | `<slug>`                  | Post-mortem across the workflow; writes 10-retro.md. |
 | `design`     | `[slug] <command> [instr]` | **Compressed design workflow.** `/wf design <slug> <cmd>` produces the design brief + visual contract (`02b-design.md`, `02c-craft.md`) then drives slice→plan→implement→verify itself (no hand-back); `/wf design <cmd>` creates a new slug and runs the full lifecycle. The 22 design commands (`craft`, the 15 transforms, `audit`, `critique`, `extract`, `setup`, `teach`) are *arguments*, never their own keys. First token is an optional slug (existence-checked, not fuzzy). See `reference/design.md`. |
+| `probe`      | `<slug> [target] [--strict] [--from <path>] [--adapter <key>]` | **Runtime-truth verification.** Drives the running artifact through AC or a free-form target, captures observable output (screenshots, stdout, responses), compares against AC, and writes findings as a compressed slice. Slug-only (verifies already-built work); never writes code. Routes findings to `/wf intake fix` or `/wf plan`. See `reference/probe.md`. |
+| `simplify`   | `[branch [<base>] \| commit <sha-or-range> \| plan <slug> <slice> \| codebase [<path>]]` | **Review-and-route triage.** Three parallel sub-agents (Code Reuse, Code Quality, Efficiency) review one of four scopes, classify each finding, and route it downstream. Never writes code. Standalone writes `.ai/simplify/<run-id>.md`; with a slug it writes a compressed slice. See `reference/simplify.md`. |
 | `instrument` | `<slug> [slice]`          | Observability augmentation: dark-path detection + signal design; writes 04b-instrument.md. |
 | `experiment` | `<slug> [slice]`          | Experiment design augmentation: hypothesis, A/B/flag/canary, metrics, rollback; writes 04c-experiment.md. |
 | `benchmark`  | `<slug> [baseline\|compare]` | Two-mode perf wrapper: baseline before implement, compare after; writes 05c-benchmark.md. Regression tripwires at >10% CPU / >25% memory. |
@@ -44,19 +46,19 @@ Parse `$ARGUMENTS`. The first token must be one of the 15 known keys below; the 
 
 **Resolution rules:**
 
-1. If the first positional token matches one of the 15 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`. For `design`, the remaining tokens carry an *optional* slug as their own first token, resolved by `reference/design.md` (Step 0) via exact existence check — not here.
+1. If the first positional token matches one of the 17 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`. For `design`, `intake`, and `probe`, the remaining tokens carry a slug as their own first token (optional for `design`/`intake`, required for `probe`), resolved inside the loaded reference (Step 0) via exact existence check — not here.
 2. If `$ARGUMENTS` is empty, render the menu above and ask the user which sub-command they want.
-3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf sub-command. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, instrument, experiment, benchmark, profile."*
+3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf sub-command. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, probe, simplify, instrument, experiment, benchmark, profile."* (If the token is `quick` or a former `/wf-quick` sub-command, redirect: *"`/wf-quick` was retired — `fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, and `ideate` are now `/wf intake <mode>`; `probe` and `simplify` are `/wf probe` and `/wf simplify`."*)
 
 # Step 0.5 — Fuzzy-suggest unknown slugs (v9.11.0)
 
 After sub-command resolution, before dispatch: if the user passed a positional slug arg and it doesn't match any row in `.ai/workflows/INDEX.md`, surface a typo suggestion instead of letting the reference fail later with an opaque "workflow not found" error.
 
-**Applies to** these 13 sub-commands (everything that *consumes* an existing slug):
+**Applies to** these 12 sub-commands (everything that *consumes* an existing slug):
 
-`shape`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`, `retro`, `instrument`, `experiment`, `benchmark`, `profile`
+`shape`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`, `retro`, `instrument`, `experiment`, `benchmark`
 
-**Does NOT apply** to `intake` (it *creates* the slug, doesn't consume it — collision detection lives in `intake.md` Step 0 sub-step 2 instead). `profile`'s first arg is `<area>`, not a slug — skip Step 0.5 for `profile` as well. **`design` is also excluded:** its first token is an *optional* slug resolved by exact existence check inside `reference/design.md` (Step 0) — a non-matching first token is a *design command*, not a typo'd slug, so it must never be fuzzy-suggested as one (a wrong guess sends the work down the wrong flow). *Keep this exclusion list in sync with the 15-key dispatch table — exclude any future sub-command that creates a new slug, takes a non-slug first arg, or resolves its slug by its own existence check rather than consuming an existing one.*
+**Does NOT apply** to `intake` — it now resolves its first token by **exact existence check** inside `reference/intake.md` (Step 0): a match is slug-mode (a compressed-slice attach), a non-match is a mode keyword or the start of a fresh description, never a typo'd slug. Collision detection on a slug *derived from a description* lives in `intake/default.md` Step 0 instead. `profile`'s first arg is `<area>`, not a slug — skip Step 0.5 for `profile`. **`design` is excluded:** its first token is an *optional* slug resolved by exact existence check inside `reference/design.md` (Step 0) — a non-matching first token is a *design command*, not a typo'd slug. **`probe` is excluded:** it is slug-only and enforces the requirement inside `reference/probe.md` — a non-matching first token triggers probe's own slug-required STOP, not a typo correction. **`simplify` is excluded:** its first positional is a scope keyword (`branch`/`commit`/`plan`/`codebase`), not a slug. *Keep this exclusion list in sync with the 17-key dispatch table — exclude any future sub-command that creates a new slug, takes a non-slug first arg, or resolves its slug by its own existence check rather than consuming an existing one.*
 
 **Procedure:**
 

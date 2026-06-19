@@ -1360,7 +1360,7 @@ test('workflow-index: surfaces routes, progress, and links every sibling artifac
     frontmatter: {
       type: 'workflow-index', slug: 'rca-signin', 'workflow-type': 'rca',
       title: 'Sign-in RCA', status: 'ready', 'current-stage': 'fix-routing',
-      'recommended-routes': { primary: 'human-triage', alternates: ['/wf-quick fix rca-signin'] },
+      'recommended-routes': { primary: 'human-triage', alternates: ['/wf intake fix rca-signin'] },
       progress: { rca: 'complete', 'shape-synthesized': 'complete' },
       tags: ['auth', 'firebase'],
     },
@@ -1378,7 +1378,7 @@ test('workflow-index: surfaces routes, progress, and links every sibling artifac
   // Recommended next route + alternate.
   match(out.bodyHtml, /recommended next/);
   match(out.bodyHtml, /human-triage/);
-  match(out.bodyHtml, /\/wf-quick fix rca-signin/);
+  match(out.bodyHtml, /\/wf intake fix rca-signin/);
   // Sibling artifacts are linked; the index page itself is not listed.
   match(out.bodyHtml, /href="rca\/INDEX\.html"/);
   match(out.bodyHtml, /href="shape\/INDEX\.html"/);

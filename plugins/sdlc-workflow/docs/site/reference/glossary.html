@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.83.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -114,7 +114,7 @@ Plain-language definitions for every term the plugin uses. Each entry gives you 
 <dd>How this workflow relates to git branches. Three options: <code>dedicated</code> (its own feature branch and PR), <code>shared</code> (commits to an existing collaborative branch), <code>none</code> (no branch operations — just commits).</dd>
 
 <dt><strong>Command</strong> (router)</dt>
-<dd>One of the five things you type: <code>/wf</code>, <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, <code>/review</code>. Internally called a <em>router</em> — it dispatches to sub-commands — but "command" is the user-facing term. (Design was once a sixth, <code>/wf-design</code>; it is now the <code>/wf design</code> sub-command.) See <a href="commands.html">Commands reference →</a></dd>
+<dd>One of the things you type: <code>/wf</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, <code>/review</code>. (The former <code>/wf-quick</code> router is retired — its flows are now intake modes or top-level <code>/wf</code> keys.) Internally called a <em>router</em> — it dispatches to sub-commands — but "command" is the user-facing term. (Design was once a sixth, <code>/wf-design</code>; it is now the <code>/wf design</code> sub-command.) See <a href="commands.html">Commands reference →</a></dd>
 
 <dt><strong>Conditional input</strong></dt>
 <dd>An artifact that a stage will consume <em>if it exists</em> but does not require. Each stage's preamble lists its conditional inputs.</dd>
@@ -138,7 +138,7 @@ Plain-language definitions for every term the plugin uses. Each entry gives you 
 <dd>An integer counter on <code>.ai/ship-plan.md</code> that increments on every amend. Each ship run stamps the counter value it ran against as <code>plan-version-at-run</code>.</dd>
 
 <dt><strong>Quick command</strong> (compressed flow)</dt>
-<dd>A shortcut under <code>/wf-quick</code> for small, well-defined changes that don't need the full 10-stage lifecycle. Ten in all: <code>fix</code>, <code>rca</code>, <code>probe</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, <code>simplify</code>. Produces 2–4 artifact files instead of up to 10.</dd>
+<dd>A compressed intake mode or standalone <code>/wf</code> key for small, well-defined changes that don't need the full 10-stage lifecycle. Eight intake modes (invoked as <code>/wf intake &lt;mode&gt;</code>): <code>fix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>. Plus two standalone keys: <code>/wf probe</code>, <code>/wf simplify</code>. The former <code>/wf-quick</code> router is retired. Produces 2–4 artifact files instead of up to 10.</dd>
 
 <dt><strong>Readiness check</strong> (readiness verdict)</dt>
 <dd>The set of gates that must all say "ready" before the plugin will open or progress a PR. Runs inside <code>/wf handoff</code>. The verdict — <code>ready</code>, <code>awaiting-input</code>, or <code>blocked</code> — is written to <code>08-handoff.md</code> and gates <code>/wf ship</code>. See <a href="../explanation/the-readiness-gate.html">The readiness gate →</a></dd>
@@ -156,7 +156,7 @@ Plain-language definitions for every term the plugin uses. Each entry gives you 
 <dd>One step of the full <code>/wf</code> lifecycle. The 10 stages in order: <em>intake</em>, <em>shape</em>, <em>slice</em>, <em>plan</em>, <em>implement</em>, <em>verify</em>, <em>review</em>, <em>handoff</em>, <em>ship</em>, <em>retro</em>. Each reads what previous stages wrote and writes its own artifact.</dd>
 
 <dt><strong>Sub-command</strong></dt>
-<dd>An option under a command. Example: <code>/wf design colorize</code> — where <code>colorize</code> is the design sub-command. <code>/wf-quick</code> has 10, <code>/wf design</code> has 22, <code>/review</code> has 31 dimensions plus a <code>sweep</code> mode.</dd>
+<dd>An option under a command. Example: <code>/wf design colorize</code> — where <code>colorize</code> is the design sub-command. <code>/wf</code> (including intake modes) has many, <code>/wf design</code> has 22, <code>/review</code> has 31 dimensions plus a <code>sweep</code> mode.</dd>
 
 <dt><strong>Triage loop</strong> (T5.1)</dt>
 <dd>The bounded step inside <code>/wf handoff</code> that processes PR review comments. Fetches unresolved threads, classifies them (blocker / non-blocker / question), fixes blockers via <code>/wf implement reviews</code>, and resolves threads after fixes commit. Runs up to 5 iterations.</dd>

@@ -1,7 +1,7 @@
 {
   "name": "sdlc-workflow-codex",
-  "version": "0.2.0",
-  "description": "Native Codex SDLC plugin: five handwritten router skills ($wf, $wf-quick, $wf-meta, $wf-docs, $review) plus independent engineering skills, over the same shared runtime, hub, and .ai/ artifacts as the Claude sdlc-workflow plugin. Design folds into $wf design. Requires Codex CLI 0.139.0+.",
+  "version": "0.3.0",
+  "description": "Native Codex SDLC plugin: four handwritten router skills ($wf, $wf-meta, $wf-docs, $review) plus independent engineering skills, over the same shared runtime, hub, and .ai/ artifacts as the Claude sdlc-workflow plugin. $wf now includes intake modes (fix, rca, investigate, discover, hotfix, refactor, update-deps, ideate), runtime-truth probe, and read-only simplify triage. Design folds into $wf design. Requires Codex CLI 0.139.0+.",
   "author": {
     "name": "jayte",
     "url": "https://github.com/jayteealao"

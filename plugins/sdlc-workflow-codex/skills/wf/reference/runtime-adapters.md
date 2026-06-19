@@ -1,6 +1,6 @@
 # Runtime Adapter Registry
 
-Per-platform driving recipes for runtime-truth verification. Both `wf-verify` (forward gate, per-slice interactive verification) and `wf-quick probe` (backward re-entry, slug-wide runtime sweep) read this file to decide how to bootstrap, drive, observe, and tear down the running artifact.
+Per-platform driving recipes for runtime-truth verification. Both `wf-verify` (forward gate, per-slice interactive verification) and `$wf probe` (backward re-entry, slug-wide runtime sweep) read this file to decide how to bootstrap, drive, observe, and tear down the running artifact.
 
 ## How to consume this file
 

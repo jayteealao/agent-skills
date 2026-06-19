@@ -69,7 +69,7 @@ SIDEBAR = r"""<aside id="sidebar">
     <li><a href="{base}reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="{base}reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="{base}reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="{base}reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -256,7 +256,7 @@ Instead of "Claude, build the health endpoint" (and then re-explaining all the c
 <p>The plugin adds ceremony. That ceremony pays off on non-trivial changes; it doesn't on tiny ones.</p>
 
 <ul>
-  <li><strong>One-line fixes, typos, documentation tweaks:</strong> just ask Claude directly. Or use <code>/wf-quick fix</code> for a one-line change that still needs a commit record — it's far lighter than the full pipeline.</li>
+  <li><strong>One-line fixes, typos, documentation tweaks:</strong> just ask Claude directly. Or use <code>/wf intake fix</code> for a one-line change that still needs a commit record — it's far lighter than the full pipeline.</li>
   <li><strong>One-off scripts you'll discard:</strong> no need to scope, plan, and verify a throw-away utility.</li>
   <li><strong>Exploratory spiking where you don't yet know the question:</strong> start with plain Claude conversation; switch to <code>/wf intake</code> once the problem is clear enough to scope.</li>
   <li><strong>Teams where no one will ever read the artifact files:</strong> the value is the trail. If the trail goes unread, the cost isn't justified.</li>
@@ -281,7 +281,7 @@ Instead of "Claude, build the health endpoint" (and then re-explaining all the c
 <div class="related">
 <h3>Where next</h3>
 <ul>
-  <li><a href="mental-model.html">Understand how the six commands fit together →</a></li>
+  <li><a href="mental-model.html">Understand how the five commands fit together →</a></li>
   <li><a href="first-10-minutes.html">Run a real change end-to-end in 10 minutes →</a></li>
   <li><a href="../explanation/why-this-exists.html">Read the deeper "why" — AI memory, artifacts, orchestrator discipline →</a></li>
 </ul>
@@ -301,22 +301,17 @@ PAGES.append((
 Before you type your first command, this page gives you the map. One read and you'll know what every command does, why the plugin writes files, and how all the pieces fit together.
 </p>
 
-<h2>The six things you type</h2>
+<h2>The five things you type</h2>
 
-<p>The entire plugin is six commands. Everything else is a sub-command under one of these six.</p>
+<p>The entire plugin is five commands. Everything else is a sub-command under one of these five.</p>
 
 <table>
 <thead><tr><th>Command</th><th>What you reach for it when…</th><th>What it does</th></tr></thead>
 <tbody>
 <tr>
   <td><code>/wf</code></td>
-  <td>You have a real feature, fix, or refactor to ship</td>
-  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. Sub-commands: <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code></td>
-</tr>
-<tr>
-  <td><code>/wf-quick</code></td>
-  <td>You want a faster path for small, well-defined changes</td>
-  <td>Quick commands for specific patterns — a typo fix, a hotfix, a refactor, a dependency update. Fewer stages, fewer files. Sub-commands: <code>fix</code>, <code>hotfix</code>, <code>refactor</code>, <code>rca</code>, <code>investigate</code>, and more</td>
+  <td>You have a real feature, fix, or refactor to ship — or a small change via intake modes</td>
+  <td>Runs the full 10-stage lifecycle, or compressed intake modes for small changes. Sub-commands: <code>intake</code> (with optional mode: <code>fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code>), <code>probe</code>, <code>simplify</code>, plus <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code></td>
 </tr>
 <tr>
   <td><code>/wf-meta</code></td>
@@ -392,7 +387,7 @@ flowchart LR
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
-  you["You type a command"] --> cmd["/wf, /wf-quick, /wf-meta, etc."]
+  you["You type a command"] --> cmd["/wf, /wf-meta, /wf-docs, etc."]
   cmd --> stages["Claude runs one or more stages"]
   stages --> artifacts["Writes artifacts to .ai/workflows/&lt;slug&gt;/"]
   artifacts --> next["Next stage reads previous artifacts"]
@@ -422,7 +417,7 @@ PAGES.append((
     '<a href="../index.html">Home</a> &rsaquo; Orientation &rsaquo; First 10 minutes',
     """
 <p class="lede">
-You have 10 minutes and a real change to make. This walkthrough takes you from a blank slate to a committed PR using <code>/wf-quick fix</code> — the fastest path that still leaves a record. Real commands, real output, no placeholders.
+You have 10 minutes and a real change to make. This walkthrough takes you from a blank slate to a committed PR using <code>/wf intake fix</code> — the fastest path that still leaves a record. Real commands, real output, no placeholders.
 </p>
 
 <div class="summary">
@@ -440,7 +435,7 @@ You have 10 minutes and a real change to make. This walkthrough takes you from a
 
 <h2>Step 1 — Start the workflow (30 seconds)</h2>
 
-<pre><code>/wf-quick fix "typo in invalid-payload error message"</code></pre>
+<pre><code>/wf intake fix "typo in invalid-payload error message"</code></pre>
 
 <p>Claude asks you two or three questions: which file, what's the exact fix, do you want a test touched. Answer them in plain language. Claude then writes two files under <code>.ai/workflows/</code>:</p>
 
@@ -524,47 +519,47 @@ You know what you want to do. This page maps your situation to the exact command
 </tr>
 <tr>
   <td>Fix a typo or one-line bug</td>
-  <td><code>/wf-quick fix "description"</code></td>
+  <td><code>/wf intake fix "description"</code></td>
   <td>Compressed path: brief + implement + handoff. Leaves 2–3 artifact files. Faster than full <code>/wf</code>.</td>
 </tr>
 <tr>
   <td>Fix a production incident right now</td>
-  <td><code>/wf-quick hotfix "description"</code></td>
+  <td><code>/wf intake hotfix "description"</code></td>
   <td>6-stage scope-locked flow. Bypasses non-critical review gates for speed. Creates an incident record.</td>
 </tr>
 <tr>
   <td>Understand why a bug happened</td>
-  <td><code>/wf-quick rca "description"</code></td>
+  <td><code>/wf intake rca "description"</code></td>
   <td>Root-cause analysis. Reads code and git history; produces a diagnosis artifact with recommended next step (fix / hotfix / investigate).</td>
 </tr>
 <tr>
   <td>Explore 2–3 possible approaches before picking one</td>
-  <td><code>/wf-quick investigate "question"</code></td>
-  <td>Produces a single artifact with 2–3 distinct approaches and their trade-offs. No winner is picked — you decide, then route to <code>/wf intake</code> or <code>/wf-quick fix</code>.</td>
+  <td><code>/wf intake investigate "question"</code></td>
+  <td>Produces a single artifact with 2–3 distinct approaches and their trade-offs. No winner is picked — you decide, then route to <code>/wf intake</code> or <code>/wf intake fix</code>.</td>
 </tr>
 <tr>
   <td>Verify a theory about how the code works</td>
-  <td><code>/wf-quick discover "hypothesis"</code></td>
+  <td><code>/wf intake discover "hypothesis"</code></td>
   <td>Tests a specific hypothesis with FOR/AGAINST evidence. Verdict: holds / partial / fails / inconclusive.</td>
 </tr>
 <tr>
   <td>Update dependencies safely</td>
-  <td><code>/wf-quick update-deps</code></td>
+  <td><code>/wf intake update-deps</code></td>
   <td>Audits dependencies, tiers them by risk, and updates in order. 4-stage flow under <code>.ai/dep-updates/</code>.</td>
 </tr>
 <tr>
   <td>Refactor without changing behaviour</td>
-  <td><code>/wf-quick refactor "what to refactor"</code></td>
+  <td><code>/wf intake refactor "what to refactor"</code></td>
   <td>Captures a test baseline first, refactors, re-verifies the baseline still holds.</td>
 </tr>
 <tr>
   <td>Brainstorm and rank improvement candidates</td>
-  <td><code>/wf-quick ideate "area"</code></td>
+  <td><code>/wf intake ideate "area"</code></td>
   <td>Produces a ranked list of improvement candidates under <code>.ai/ideation/</code>. Good for planning sessions.</td>
 </tr>
 <tr>
   <td>Triage whether something is worth fixing at all</td>
-  <td><code>/wf-quick simplify</code></td>
+  <td><code>/wf simplify</code></td>
   <td>3-agent review (reuse / quality / efficiency) across your branch. Never writes code — produces a routing report pointing to the right downstream command for each finding.</td>
 </tr>
 </tbody>
@@ -651,7 +646,7 @@ You know what you want to do. This page maps your situation to the exact command
 <h3>Where next</h3>
 <ul>
   <li><a href="start-workflow.html">See the full decision tree for picking a <code>/wf</code> entry point →</a></li>
-  <li><a href="../orientation/mental-model.html">See how all six commands fit together →</a></li>
+  <li><a href="../orientation/mental-model.html">See how all five commands fit together →</a></li>
   <li><a href="../reference/commands.html">Complete reference for all commands and arguments →</a></li>
 </ul>
 </div>
@@ -719,7 +714,7 @@ PAGES.append((
     '<a href="../index.html">Home</a> &rsaquo; Tutorials &rsaquo; Quick-fix',
     """
 
-<p class="lede">You have a one-line fix — a typo, a wrong constant, a missing null check. You want it done in minutes, not hours, but you still want a record of what changed and why. <code>/wf-quick</code> is the fast path: it skips the deep planning stages of the full <a href="../reference/glossary.html#command">command</a> <code>/wf</code> and leaves three <a href="../reference/glossary.html#artifact">artifacts</a> (workflow notes) instead of twelve.</p>
+<p class="lede">You have a one-line fix — a typo, a wrong constant, a missing null check. You want it done in minutes, not hours, but you still want a record of what changed and why. The <strong>intake modes</strong> are the fast path: <code>/wf intake fix</code> skips the deep planning stages of the full <a href="../reference/glossary.html#command">command</a> <code>/wf</code> and leaves three <a href="../reference/glossary.html#artifact">artifacts</a> (workflow notes) instead of twelve.</p>
 
 <div class="summary">
 <table>
@@ -740,13 +735,13 @@ throw new Error("Recieved invalid payload");
 // after
 throw new Error("Received invalid payload");</code></pre>
 
-<p>This is textbook: low risk, one file, one line, easy to verify. It belongs on <code>/wf-quick fix</code>, not the full pipeline.</p>
+<p>This is textbook: low risk, one file, one line, easy to verify. It belongs on <code>/wf intake fix</code>, not the full pipeline.</p>
 
 <h2>Step 1 — Start the quick-fix workflow</h2>
 
 <p>Type this in your Claude Code session:</p>
 
-<pre><code>/wf-quick fix "typo in invalid-payload error message"</code></pre>
+<pre><code>/wf intake fix "typo in invalid-payload error message"</code></pre>
 
 <p>Claude asks two or three focused questions — which file, what the exact change is, whether a test needs updating. Answer them. Claude then creates two files under <code>.ai/workflows/typo-invalid-payload/</code>:</p>
 
@@ -829,7 +824,7 @@ fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pr
 
 <p>This opens a PR. The PR readiness check (commitlint, surface drift, doc-mirror, triage, rebase, live check) still runs. The fast path reduces the artifact count up front; it does not bypass quality gates on the way out.</p>
 
-<h2>When NOT to use <code>/wf-quick fix</code></h2>
+<h2>When NOT to use <code>/wf intake fix</code></h2>
 
 <ul>
   <li><strong>The change touches behaviour.</strong> A fix that changes what a function returns is not a one-liner. Use <code>/wf intake</code> to get a real shape.</li>
@@ -837,22 +832,22 @@ fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pr
   <li><strong>You want a retrospective.</strong> Quick-fix workflows do not get a retro by default. Use <code>/wf</code> if the lesson-learning matters.</li>
 </ul>
 
-<h2>Other quick commands</h2>
+<h2>Other intake modes and standalone flows</h2>
 
-<p><code>/wf-quick</code> has nine sub-commands beyond <code>fix</code>. Each one is a focused fast path — smaller artifact footprint than the full pipeline, but still leaving a record:</p>
+<p>The other intake modes and standalone flows — each is a focused fast path with a smaller artifact footprint than the full pipeline, but still leaving a record:</p>
 
 <table>
 <thead><tr><th>Command</th><th>For</th><th>What it produces</th></tr></thead>
 <tbody>
-<tr><td><code>/wf-quick hotfix</code></td><td>Production incident — must ship in minutes</td><td>6-stage artifact trail, scope-locked, skips review</td></tr>
-<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis from code and git history (static — no running app needed)</td><td>Single artifact; recommends <code>/wf plan</code>, <code>/wf-quick fix</code>, or <code>hotfix</code> as next step</td></tr>
-<tr><td><code>/wf-quick probe</code></td><td>Runtime-truth check — drives the running artifact and compares output against acceptance criteria</td><td>Evidence directory + findings artifact (slug required)</td></tr>
-<tr><td><code>/wf-quick investigate</code></td><td>Sketch 2–3 distinct engineering approaches with tradeoffs before committing to one</td><td>Single artifact with options A/B/C; no winner picked — you choose, then route to <code>/wf-quick fix</code> or <code>/wf intake</code></td></tr>
-<tr><td><code>/wf-quick discover</code></td><td>Test a theory about how the codebase works against real evidence</td><td>Single artifact with verdict: holds / partial / fails / inconclusive</td></tr>
-<tr><td><code>/wf-quick update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>4-stage trail under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
-<tr><td><code>/wf-quick refactor</code></td><td>Behaviour-preserving refactor with test baseline capture and re-verification</td><td>Stage-locked: baseline → refactor → re-verify</td></tr>
-<tr><td><code>/wf-quick ideate</code></td><td>Brainstorm and rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
-<tr><td><code>/wf-quick simplify</code></td><td>Three-agent triage of a branch, commit, plan, or codebase — routes findings, never writes code</td><td>Routing report under <code>simplify/</code></td></tr>
+<tr><td><code>/wf intake hotfix</code></td><td>Production incident — must ship in minutes</td><td>6-stage artifact trail, scope-locked, skips review</td></tr>
+<tr><td><code>/wf intake rca</code></td><td>Root-cause analysis from code and git history (static — no running app needed)</td><td>Single artifact; recommends <code>/wf plan</code>, <code>/wf intake fix</code>, or <code>hotfix</code> as next step</td></tr>
+<tr><td><code>/wf probe</code></td><td>Runtime-truth check — drives the running artifact and compares output against acceptance criteria</td><td>Evidence directory + findings artifact (slug required)</td></tr>
+<tr><td><code>/wf intake investigate</code></td><td>Sketch 2–3 distinct engineering approaches with tradeoffs before committing to one</td><td>Single artifact with options A/B/C; no winner picked — you choose, then route to <code>/wf intake fix</code> or <code>/wf intake</code></td></tr>
+<tr><td><code>/wf intake discover</code></td><td>Test a theory about how the codebase works against real evidence</td><td>Single artifact with verdict: holds / partial / fails / inconclusive</td></tr>
+<tr><td><code>/wf intake update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>4-stage trail under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
+<tr><td><code>/wf intake refactor</code></td><td>Behaviour-preserving refactor with test baseline capture and re-verification</td><td>Stage-locked: baseline → refactor → re-verify</td></tr>
+<tr><td><code>/wf intake ideate</code></td><td>Brainstorm and rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
+<tr><td><code>/wf simplify</code></td><td>Three-agent triage of a branch, commit, plan, or codebase — routes findings, never writes code</td><td>Routing report under <code>simplify/</code></td></tr>
 </tbody>
 </table>
 
@@ -1051,7 +1046,7 @@ PAGES.append((
 
 <p>Writing artifacts takes effort. Each stage requires a conversation with the AI and produces a file. For a trivial one-line change this overhead is real and not worthwhile.</p>
 
-<p>That is why the plugin also provides <code>/wf-quick</code>, a quick command that compresses the full pipeline into a single shorter interaction for small changes.</p>
+<p>That is why the plugin also provides intake modes such as <code>/wf intake fix</code>, which compresses the full pipeline into a single shorter interaction for small changes.</p>
 
 <p>For larger changes, the artifact cost is paid once and recouped many times over. The spec is written before the code. The plan is written before implementation. The review findings are recorded before fixes are made. Each of those files is available to every future session, every collaborator, and every audit.</p>
 
@@ -1132,7 +1127,7 @@ PAGES.append((
 
 <h2>The cost</h2>
 
-<p>Each routing hop is a context switch. For very small changes this is real overhead. That is why <code>/wf-quick</code> exists — it compresses the full sequence into a single command when the change is small enough that the hops add no value.</p>
+<p>Each routing hop is a context switch. For very small changes this is real overhead. That is why intake modes such as <code>/wf intake fix</code> exist — they compress the full sequence into a single command when the change is small enough that the hops add no value.</p>
 
 <p>For larger changes the hops are themselves useful. Every hop is a point where a human can redirect, approve, or stop.</p>
 
@@ -1755,13 +1750,13 @@ PAGES.append((
 
 <h2>Need some trail but not the full flow?</h2>
 
-<p>Use <code>/wf-quick</code>, the quick command that compresses the full workflow into a single call. It still writes artifacts (workflow notes that form the audit trail) but skips the deeper planning stages.</p>
+<p>Use an intake mode — these compress the full workflow into a single call. They still write artifacts (workflow notes that form the audit trail) but skip the deeper planning stages.</p>
 
-<pre><code>/wf-quick fix</code></pre>
+<pre><code>/wf intake fix</code></pre>
 
 <p>For a hotfix where production is down and review must be skipped:</p>
 
-<pre><code>/wf-quick hotfix</code></pre>
+<pre><code>/wf intake hotfix</code></pre>
 
 <p>This bypasses the review stage by design. A hotfix artifact is still written so you have something to reference in a post-incident review.</p>
 
@@ -1806,7 +1801,7 @@ PAGES.append((
 
 <h2>The plugin asks too many questions at intake</h2>
 
-<p>If intake feels like an interview you did not sign up for, that is a signal the change is small enough for <code>/wf-quick</code>. Decline the current intake and re-run with the quick command.</p>
+<p>If intake feels like an interview you did not sign up for, that is a signal the change is small enough for an intake mode. Decline the current intake and re-run with <code>/wf intake fix</code> (or the appropriate mode).</p>
 
 <h2>What is not a valid escape hatch</h2>
 
@@ -1881,7 +1876,7 @@ PAGES.append((
 /wf-meta skip shape &lt;slug&gt;
 /wf-meta skip slice &lt;slug&gt;
 /wf plan &lt;slug&gt; default-slice</code></pre>
-<p>Or use <code>/wf-quick fix</code>, which handles the same skip path in one command. If you are unsure which fits, see the entry-point guide linked below.</p>
+<p>Or use <code>/wf intake fix</code>, which handles the same skip path in one command. If you are unsure which fits, see the entry-point guide linked below.</p>
 
 <div class="related">
 <h3>Where next</h3>
@@ -1929,7 +1924,7 @@ PAGES.append((
 
 <p><strong>Why it happens.</strong> Retro looks optional when a change is small. The compounding effect only becomes visible when you realise you have shipped 50 small changes and captured zero lessons from any of them.</p>
 
-<p><strong>Fix.</strong> Treat retro as mandatory for any workflow that includes a ship run. The <a href="../reference/glossary.html#quick-command">quick command</a> <code>/wf-quick</code> (a condensed single-stage flow for small, scoped changes) skips retro by design; the full pipeline should not. Retro is five minutes.</p>
+<p><strong>Fix.</strong> Treat retro as mandatory for any workflow that includes a ship run. The intake modes (condensed flows for small, scoped changes) skip retro by design; the full pipeline should not. Retro is five minutes.</p>
 
 <h2>Hand-editing the readiness verdict</h2>
 
@@ -1951,9 +1946,9 @@ PAGES.append((
 
 <p><strong>Symptom.</strong> <code>01-quick.md</code> describes a feature touching five files, a migration, and a new API surface. The quick command was chosen because the deadline was close, not because the change was small.</p>
 
-<p><strong>Why it happens.</strong> <code>/wf-quick</code> is shorter. Under pressure, "shorter" looks like "faster." For a change that genuinely fits the quick shape — a single-file fix, a copy edit, a config tweak — it is faster. For a larger change, it skips exactly the stages that prevent later rework.</p>
+<p><strong>Why it happens.</strong> <code>/wf intake fix</code> is shorter. Under pressure, "shorter" looks like "faster." For a change that genuinely fits the quick shape — a single-file fix, a copy edit, a config tweak — it is faster. For a larger change, it skips exactly the stages that prevent later rework.</p>
 
-<p><strong>Fix.</strong> Close the quick workflow with status <code>superseded</code> and restart with <code>/wf intake</code>. The quick command is for changes that fit the compressed shape, not for changes you're hoping will fit it.</p>
+<p><strong>Fix.</strong> Close the quick workflow with status <code>superseded</code> and restart with <code>/wf intake</code> (full mode). The intake modes are for changes that fit the compressed shape, not for changes you're hoping will fit it.</p>
 
 <div class="related">
 <h3>Where next</h3>
@@ -1992,7 +1987,7 @@ PAGES.append((
 
 <dt><strong>Do I really need all 10 stages for a one-line fix?</strong></dt>
 <dd>
-  <p>No. For small, self-contained changes use <code>/wf-quick fix</code> instead of <code>/wf</code>. The <a href="../reference/glossary.html">quick command</a> — a compressed flow that skips the full planning and review stages — is designed exactly for this. You get a lightweight artifact trail without the overhead of ten stages. Save the full flow for changes that genuinely need a written spec, coordinated review, or a staged rollout.</p>
+  <p>No. For small, self-contained changes use <code>/wf intake fix</code> instead of <code>/wf</code>. This intake mode — a compressed flow that skips the full planning and review stages — is designed exactly for this. You get a lightweight artifact trail without the overhead of ten stages. Save the full flow for changes that genuinely need a written spec, coordinated review, or a staged rollout.</p>
 </dd>
 
 <dt><strong>What happens if I lose the artifact files?</strong></dt>
@@ -2007,14 +2002,14 @@ PAGES.append((
 
 <dt><strong>Why does the plugin write so many files?</strong></dt>
 <dd>
-  <p>Each file is one <a href="../reference/glossary.html">stage</a> in the workflow — a named step with its own artifact. The files exist so that you (and Claude Code) can re-enter any stage without replaying everything from the beginning. They also form a plain-markdown audit trail you can read, diff, and commit like any other source file. If the volume feels like noise, consider <code>/wf-quick</code> for smaller work items — it produces far fewer files.</p>
+  <p>Each file is one <a href="../reference/glossary.html">stage</a> in the workflow — a named step with its own artifact. The files exist so that you (and Claude Code) can re-enter any stage without replaying everything from the beginning. They also form a plain-markdown audit trail you can read, diff, and commit like any other source file. If the volume feels like noise, consider <code>/wf intake fix</code> or another intake mode for smaller work items — they produce far fewer files.</p>
 </dd>
 
 <dt><strong>Why is my slug different from my title?</strong></dt>
 <dd>The <a href="../reference/glossary.html">slug</a> is a kebab-case, lowercase, stable identifier derived from the title at intake. Titles can have punctuation, capitals, and spaces; slugs cannot. Once set, the slug never changes — it is the directory name under <code>.ai/workflows/</code>. If you need a different slug, close the workflow and start a new one.</dd>
 
 <dt><strong>Why does the shape stage ask so many questions for something simple?</strong></dt>
-<dd>That is usually a signal to switch commands. Shape runs a deep interview — up to 20 questions across five rounds — designed for changes that need a written spec. If the questions feel out of proportion to the change, run <code>/wf-quick fix</code> instead. You can always run full shape later if the scope grows.</dd>
+<dd>That is usually a signal to switch commands. Shape runs a deep interview — up to 20 questions across five rounds — designed for changes that need a written spec. If the questions feel out of proportion to the change, run <code>/wf intake fix</code> instead. You can always run full shape later if the scope grows.</dd>
 
 <dt><strong>My PR has a bot comment I don't want to triage. Can I ignore it?</strong></dt>
 <dd>Depends on the comment type. Walkthrough summaries (informational) are classified as low-priority and never block the readiness check. Suggestion comments from bots may be classified as needing a response. If the triage loop cycles more than five times without resolving, the readiness verdict flips to <code>awaiting-input</code> and stops — at that point you need to either act on the bot's suggestions or dismiss them explicitly so the loop can complete.</dd>

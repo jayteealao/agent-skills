@@ -62,7 +62,7 @@ You are a **workflow orchestrator**, not a problem solver.
      - <slice-slug>: <reason>  (deferred-at: <iso>)
      - ...
    Clear each deferral by either:
-     (a) running `$wf-quick probe <slug> <target-matching-the-deferred-AC>` to capture evidence, then re-running verify, OR
+     (a) running `$wf probe <slug> <target-matching-the-deferred-AC>` to capture evidence, then re-running verify, OR
      (b) re-running `$wf verify <slug> <slice-slug>` in an environment that supports the interactive checks for that slice.
    ```
    Cleared deferrals (entries whose `cleared-by` is non-null — typically a probe descriptor) do not block ship; they are kept in the index for audit. The block bites only on `cleared-by: null` entries.

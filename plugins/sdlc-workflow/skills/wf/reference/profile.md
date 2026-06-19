@@ -28,13 +28,13 @@ This is a **standalone command**, not tied to any workflow. It writes to `.ai/pr
 | Requires | Nothing — works standalone. Pass a code area, function name, file path, or endpoint. |
 | Produces | `.ai/profiles/profile-<timestamp>-<slug>/01-profile.md` — the profiling analysis |
 | Does NOT | Start a workflow, write any workflow artifact, modify application code. |
-| Next | `/wf-quick investigate <domain>` — to rank this profiling finding among other investment opportunities |
+| Next | `/wf intake investigate <domain>` — to rank this profiling finding among other investment opportunities |
 | Alt next | `/wf intake <description>` — if the profiling surfaced a clear high-value optimization |
 
 # Core discipline
 - **Evidence first.** Every hotspot claim must cite a specific `file:line` or tool output. Do not say "this is probably slow" without a data point.
 - **Static analysis is fast; dynamic profiling is authoritative.** Always do static first. If runtime tools are available, run them too and let dynamic data override static guesses.
-- **Do not optimize.** This command produces an analysis. Optimization decisions belong to a follow-up workflow (`/wf-quick fix`, `/wf intake`, `/wf-quick investigate`).
+- **Do not optimize.** This command produces an analysis. Optimization decisions belong to a follow-up workflow (`/wf intake fix`, `/wf intake`, `/wf intake investigate`).
 - **One area at a time.** If asked to profile a large system, ask for a more specific entry point (a function, endpoint, or file path) before proceeding.
 - Do NOT modify application code. Do NOT run commands that mutate state (DB writes, API calls to production, git commits).
 - If profiling tools are available, run them in read-only or test-only mode.
@@ -200,9 +200,9 @@ Based on this profiling result, suggest one of:
 
 | Signal | Recommendation |
 |--------|----------------|
-| Clear high-ROI hotspot found, mechanism understood | `/wf-quick fix <description>` — small targeted optimization |
+| Clear high-ROI hotspot found, mechanism understood | `/wf intake fix <description>` — small targeted optimization |
 | High-ROI hotspot found but scope is medium+ | `/wf intake <description>` — full workflow for this investment |
-| Multiple hotspots found, need ranking | `/wf-quick investigate <domain>` — rank all opportunities before committing |
+| Multiple hotspots found, need ranking | `/wf intake investigate <domain>` — rank all opportunities before committing |
 | Hotspots found but no clear improvement path | Run dynamic profiling with `<tool>` to get runtime data before deciding |
 | No significant hotspots found | Domain appears healthy — consider profiling a different area or accepting current performance |
 

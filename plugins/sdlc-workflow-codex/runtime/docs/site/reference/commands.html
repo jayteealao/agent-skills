@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.83.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -95,9 +95,9 @@
 <span class="quadrant reference">reference</span>
 <h1>Routers reference</h1>
 
-<p class="lede">Every command at a glance — what each does and when to reach for it. Five are top-level routers; design runs as the <code>/wf design</code> sub-command. Pick the right one here, then follow the per-command link for full argument detail.</p>
+<p class="lede">Every command at a glance — what each does and when to reach for it. Four top-level routers plus design, which runs as the <code>/wf design</code> sub-command. Pick the right one here, then follow the per-command link for full argument detail.</p>
 
-<p>A <strong>command</strong> (sometimes called a "router" in older docs) is a slash command the plugin exposes — <code>/wf</code>, <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, and <code>/review</code>. Each command dispatches to a sub-command based on the first argument you pass it. Design, once the standalone <code>/wf-design</code> router, is now the <code>/wf design</code> sub-command.</p>
+<p>A <strong>command</strong> (sometimes called a "router" in older docs) is a slash command the plugin exposes — <code>/wf</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, and <code>/review</code>. Each command dispatches to a sub-command based on the first argument you pass it. Design, once the standalone <code>/wf-design</code> router, is now the <code>/wf design</code> sub-command. The former <code>/wf-quick</code> router has been retired; its flows are now intake modes (<code>/wf intake &lt;mode&gt;</code>) or top-level <code>/wf</code> keys (<code>/wf probe</code>, <code>/wf simplify</code>).</p>
 
 <h2>Commands</h2>
 
@@ -110,9 +110,9 @@
   <td>Normal feature or bug work that needs a tracked workflow.</td>
 </tr>
 <tr>
-  <td><a href="wf-quick.html"><code>/wf-quick</code></a></td>
-  <td>A <strong>quick command</strong> — a compressed, single-session flow for small changes (fix, hotfix, refactor, investigate, …).</td>
-  <td>Trivial changes or one-off analyses where a full tracked workflow would be overkill.</td>
+  <td><a href="wf-quick.html">Quick &amp; standalone</a></td>
+  <td>The former <code>/wf-quick</code> router is retired. Its flows now live under <code>/wf</code>: eight intake modes (<code>/wf intake fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code>) plus two top-level keys (<code>/wf probe</code>, <code>/wf simplify</code>).</td>
+  <td>Trivial changes or one-off analyses where a full tracked workflow would be overkill. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td>
 </tr>
 <tr>
   <td><a href="wf-meta.html"><code>/wf-meta</code></a></td>
@@ -162,26 +162,28 @@
 <tr><td><code>/wf experiment</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>add-on</td><td>Feature flag and cohort design. Writes <code>04c-experiment.md</code>.</td></tr>
 <tr><td><code>/wf benchmark</code></td><td><code>&lt;slug&gt; [baseline|compare]</code></td><td>add-on</td><td>Performance baseline and compare. Writes <code>05c-benchmark.md</code>.</td></tr>
 <tr><td><code>/wf profile</code></td><td><code>&lt;area&gt;</code></td><td>add-on</td><td>Profiling pass (freestanding).</td></tr>
+<tr><td><code>/wf probe</code></td><td><code>&lt;slug&gt; [target] [--from &lt;path&gt;] [--strict] [--adapter &lt;key&gt;]</code></td><td>add-on</td><td>Runtime-truth verification. Slug-mode only. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td></tr>
+<tr><td><code>/wf simplify</code></td><td><code>[branch|commit &lt;sha&gt;|plan &lt;slug&gt; &lt;slice&gt;|codebase [&lt;path&gt;]]</code></td><td>add-on</td><td>3-agent review and route triage. Never writes code. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td></tr>
 </tbody>
 </table>
 
-<h2>/wf-quick — quick commands</h2>
+<h2>Quick &amp; standalone flows (retired /wf-quick)</h2>
 
-<p>Each sub-command here is a <strong>quick command</strong> — a self-contained flow that runs in a single session without creating a tracked workflow directory. Use these when the overhead of a full workflow would slow you down.</p>
+<p>The standalone <code>/wf-quick</code> router has been retired. Its ten flows are now distributed across <code>/wf</code>. Eight become <strong>intake modes</strong> invoked as <code>/wf intake &lt;mode&gt;</code>; two become their own top-level <code>/wf</code> keys. See <a href="wf-quick.html">Quick &amp; standalone flows</a> for the full argument grammar.</p>
 
 <table>
-<thead><tr><th>Sub-command</th><th>For</th></tr></thead>
+<thead><tr><th>Old form</th><th>New form</th><th>For</th></tr></thead>
 <tbody>
-<tr><td><code>/wf-quick fix</code></td><td>Trivial, one-file change.</td></tr>
-<tr><td><code>/wf-quick hotfix</code></td><td>Production incident (skips review).</td></tr>
-<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis — static diagnosis of a reported symptom by reading code and git history.</td></tr>
-<tr><td><code>/wf-quick probe</code> <span class="badge">v9.14</span></td><td>Runtime-truth verification — drives the running artifact, captures observable output (screenshots, stdout, responses), compares against acceptance criteria, and writes findings. Slug-mode only.</td></tr>
-<tr><td><code>/wf-quick investigate</code></td><td>Solution-options sketcher — 2–3 distinct engineering approaches with tradeoffs (effort, blast radius, reversibility, risk). No winner chosen.</td></tr>
-<tr><td><code>/wf-quick discover</code></td><td>Hypothesis test — adjudicates a code-level theory with FOR/AGAINST/counter-hypothesis evidence. Verdict: holds / partial / fails / inconclusive.</td></tr>
-<tr><td><code>/wf-quick update-deps</code></td><td>Tiered dependency updates.</td></tr>
-<tr><td><code>/wf-quick refactor</code></td><td>Behaviour-preserving refactor.</td></tr>
-<tr><td><code>/wf-quick ideate</code></td><td>Rank improvement candidates.</td></tr>
-<tr><td><code>/wf-quick simplify</code></td><td>3-agent review and route triage. Classifies findings and recommends downstream commands. Never writes code. Scopes: branch (default) / commit / plan / codebase.</td></tr>
+<tr><td><code>/wf-quick fix</code></td><td><code>/wf intake fix</code></td><td>Trivial, one-file change.</td></tr>
+<tr><td><code>/wf-quick hotfix</code></td><td><code>/wf intake hotfix</code></td><td>Production incident (skips review).</td></tr>
+<tr><td><code>/wf-quick rca</code></td><td><code>/wf intake rca</code></td><td>Root-cause analysis — static diagnosis by reading code and git history.</td></tr>
+<tr><td><code>/wf-quick probe</code> <span class="badge">v9.14</span></td><td><code>/wf probe</code></td><td>Runtime-truth verification — drives the running artifact. Slug-mode only.</td></tr>
+<tr><td><code>/wf-quick investigate</code></td><td><code>/wf intake investigate</code></td><td>Solution-options sketcher — 2–3 distinct engineering approaches with tradeoffs.</td></tr>
+<tr><td><code>/wf-quick discover</code></td><td><code>/wf intake discover</code></td><td>Hypothesis test — adjudicates a code-level theory.</td></tr>
+<tr><td><code>/wf-quick update-deps</code></td><td><code>/wf intake update-deps</code></td><td>Tiered dependency updates.</td></tr>
+<tr><td><code>/wf-quick refactor</code></td><td><code>/wf intake refactor</code></td><td>Behaviour-preserving refactor.</td></tr>
+<tr><td><code>/wf-quick ideate</code></td><td><code>/wf intake ideate</code></td><td>Rank improvement candidates.</td></tr>
+<tr><td><code>/wf-quick simplify</code></td><td><code>/wf simplify</code></td><td>3-agent review and route triage. Never writes code.</td></tr>
 </tbody>
 </table>
 
@@ -219,7 +221,7 @@
 
 <h2>/review — code review</h2>
 
-<p>Per-dimension or named-sweep review across 31 dimensions and 7 sweeps via parallel sub-agent dispatch. Pass the change context and the command selects which dimensions apply. Unlike the other five commands, <code>/review</code> can also auto-invoke when the model detects a change worth reviewing.</p>
+<p>Per-dimension or named-sweep review across 31 dimensions and 7 sweeps via parallel sub-agent dispatch. Pass the change context and the command selects which dimensions apply. Unlike the other four commands, <code>/review</code> can also auto-invoke when the model detects a change worth reviewing.</p>
 
 <p>See <a href="review.html">/review in depth</a> for the full dimension list and sweep catalog.</p>
 
@@ -227,7 +229,7 @@
 <h3>Where next</h3>
 <ul>
   <li><a href="../tutorials/first-workflow.html">Run your first tracked workflow with <code>/wf</code> →</a></li>
-  <li><a href="../tutorials/quick-fix-workflow.html">See what a quick command looks like in practice →</a></li>
+  <li><a href="../tutorials/quick-fix-workflow.html">See what a quick intake mode looks like in practice →</a></li>
   <li><a href="glossary.html">Look up any term used on this page →</a></li>
 </ul>
 </div>

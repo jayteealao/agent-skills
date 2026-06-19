@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.83.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -126,7 +126,7 @@ Instead of "Claude, build the health endpoint" (and then re-explaining all the c
 <p>The plugin adds ceremony. That ceremony pays off on non-trivial changes; it doesn't on tiny ones.</p>
 
 <ul>
-  <li><strong>One-line fixes, typos, documentation tweaks:</strong> just ask Claude directly. Or use <code>/wf-quick fix</code> for a one-line change that still needs a commit record — it's far lighter than the full pipeline.</li>
+  <li><strong>One-line fixes, typos, documentation tweaks:</strong> just ask Claude directly. Or use <code>/wf intake fix</code> for a one-line change that still needs a commit record — it's far lighter than the full pipeline.</li>
   <li><strong>One-off scripts you'll discard:</strong> no need to scope, plan, and verify a throw-away utility.</li>
   <li><strong>Exploratory spiking where you don't yet know the question:</strong> start with plain Claude conversation; switch to <code>/wf intake</code> once the problem is clear enough to scope.</li>
   <li><strong>Teams where no one will ever read the artifact files:</strong> the value is the trail. If the trail goes unread, the cost isn't justified.</li>
