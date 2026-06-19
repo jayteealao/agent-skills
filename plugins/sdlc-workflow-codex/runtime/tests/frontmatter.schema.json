@@ -804,7 +804,7 @@
 
     "simplifyRunFrontmatter": {
       "type": "object",
-      "description": "Written to .ai/simplify/<run-id>.md — outside .ai/workflows/.",
+      "description": "Standalone simplify run. New runs root a type:workflow-index slug workflow and write the lead to .ai/workflows/<slug>/01-simplify.md (carrying a slug extra field; run-id kept for continuity). Legacy runs at .ai/simplify/<run-id>.md still validate + render via the retained off-pipeline discovery.",
       "required": [
         "schema", "type", "run-id", "scope", "target", "status",
         "created-at", "updated-at",
@@ -1269,7 +1269,7 @@
 
     "ideationFrontmatter": {
       "type": "object",
-      "description": "Idea-backlog artifact written by /wf intake ideate to .ai/ideation/<focus>-<ts>.md. Ranked candidate list; no slug/run-id/status.",
+      "description": "Idea-backlog artifact. New runs root a type:workflow-index slug workflow and write the lead to .ai/workflows/<slug>/01-ideate.md (carrying a slug extra field; focus stays the schema key). Legacy runs at .ai/ideation/<focus>-<ts>.md still validate + render via the retained off-pipeline discovery. Ranked candidate list.",
       "required": ["schema", "type", "focus", "created-at"],
       "properties": {
         "type": { "const": "ideation" },
