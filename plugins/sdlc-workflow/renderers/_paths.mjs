@@ -40,6 +40,14 @@ const PHASE_BY_BASENAME = {
   '01-rca':                ['rca', null],
   '01-probe':              ['probe', null],
   '01-investigate':        ['investigate', null],
+  // Terminal analysis modes (/wf intake ideate, /wf simplify, /wf probe) now root
+  // in a `type: workflow-index` slug workflow with an `01-<mode>.md` lead instead
+  // of writing off-pipeline (.ai/ideation/, .ai/simplify/). The lead keeps its
+  // analysis type (ideation / simplify-run) but lands in its own named view dir.
+  // (Legacy off-pipeline runs still render via the retained simplify/ideation
+  // discovery + kind branches above — see D5.)
+  '01-ideate':             ['ideate', null],
+  '01-simplify':           ['simplify', null],
   '02-shape':              ['shape', null],
   '02b-design':            ['design', null],
   '02c-craft':             ['design-brief', null],

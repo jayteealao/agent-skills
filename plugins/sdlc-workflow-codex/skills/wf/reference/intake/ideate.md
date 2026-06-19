@@ -1,5 +1,5 @@
 ---
-description: Proactive codebase ideation. Scans the codebase with parallel sub-agents across six lenses (quality, performance, security, DX, feature gaps, architecture), generates 30+ improvement candidates, applies adversarial filtering to cull weak or speculative ideas (with explanations), ranks survivors by impact/effort, and writes .ai/ideation/ artifacts ready to feed into wf-intake. Inverts the normal pattern — surfaces what you might not have thought to ask about.
+description: Proactive codebase ideation. Scans the codebase with parallel sub-agents across six lenses (quality, performance, security, DX, feature gaps, architecture), generates 30+ improvement candidates, applies adversarial filtering to cull weak or speculative ideas (with explanations), ranks survivors by impact/effort, and roots a type:workflow-index slug workflow with an 01-ideate lead ready to feed into wf-intake. Inverts the normal pattern — surfaces what you might not have thought to ask about.
 argument-hint: "[focus-area] [count]"
 ---
 
@@ -24,13 +24,13 @@ This skill does NOT start or advance any workflow. It discovers improvement oppo
 | | Detail |
 |---|---|
 | Requires | A git project (reads codebase, git log, existing workflow artifacts) |
-| Produces | `.ai/ideation/<focus>-<timestamp>.md` — ranked idea list with adversarial filter records |
+| Produces | A `type: workflow-index` slug workflow: `.ai/workflows/<slug>/01-ideate.md` (`type: ideation` — ranked ideas + adversarial filter log) + a lightweight `00-index.md` (`type: workflow-index`). (Legacy off-pipeline `.ai/ideation/<focus>-<timestamp>.md` runs still render via the retained ideation discovery.) |
 | Next | `$wf intake <idea-title>` — kick off a workflow for any chosen idea |
 
 # CRITICAL — execution discipline
 You are an **opportunity discoverer and adversarial filter**, not a problem solver.
 - Do NOT start implementing, planning, or designing anything.
-- Do NOT create workflow artifacts (no `00-index.md`, no stage files).
+- This is a **terminal analysis mode**, not a build lifecycle: it roots a lightweight `type: workflow-index` slug workflow whose **only** artifact is the `01-ideate.md` lead. Do NOT author build stage files (`02-shape.md`, `03-slice.md`, `04-plan.md`, `05-implement.md`, …) — ideation is not a build lifecycle.
 - Do NOT make code changes.
 - Your job is: **scan → generate candidates → challenge them → rank survivors → present → write artifact**.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
@@ -42,6 +42,7 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 
 1. **Resolve focus area** from `$ARGUMENTS` (first argument, optional). If provided (e.g., `security`, `performance`, `dx`, `architecture`, `testing`), narrow exploration lenses to that domain. If omitted, run all six lenses.
 2. **Resolve count** from `$ARGUMENTS` (second argument, optional). If provided (e.g., `5`, `20`), this is the maximum number of ranked survivors to return. Default: **10**.
+2b. **Derive the workflow slug:** `ideate-<focus-slug>-<YYYYMMDD>` (focus-slug = the focus area, or `all`; date via `date +"%Y%m%d"`). This roots the terminal analysis workflow. If that slug already exists, append `-2`/`-3`.
 3. **Discover existing workflows** — list `.ai/workflows/*/00-index.md`. Note which are active or recently completed. Ideas that duplicate in-flight or just-shipped work should be flagged as such during adversarial filtering.
 4. **Announce plan to chat:**
    ```
@@ -313,15 +314,36 @@ Ready to start:
 
 # Step 6 — Write Artifact
 
+The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** files under `.ai/workflows/<slug>/` (the slug derived in Step 0 sub-step 2b), then register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](default.md) Step 10.
+
 Generate a timestamp: `date -u +"%Y%m%dT%H%M%SZ"` via Bash.
-Generate a focus-slug from the focus area (or "all" if none).
 
-Write `.ai/ideation/<focus-slug>-<timestamp>.md`:
+**`00-index.md` — `type: workflow-index`** (lightweight; analysis modes do not get the heavy 22-field `type: index`):
+```yaml
+---
+schema: sdlc/v1
+type: workflow-index
+slug: <slug>
+workflow-type: ideate
+current-stage: ideate
+status: complete
+selected-slice: ""
+branch-strategy: none
+open-questions: []
+next-command: wf-intake
+next-invocation: "$wf intake <chosen-idea-slug>"
+progress:
+  - ideate: complete
+created-at: "<ISO 8601>"
+---
+```
 
+**`01-ideate.md` — `type: ideation`** (the lead carries a `slug` for the in-slug path; `focus` stays the schema key):
 ```yaml
 ---
 schema: sdlc/v1
 type: ideation
+slug: <slug>
 focus: <focus-area or "all">
 created-at: "<ISO 8601>"
 raw-candidates: <N>
@@ -393,7 +415,7 @@ Beyond the structured page, this artifact ships one or more **free narrative fra
 # Chat return contract
 Return — lead with the substance first, then the receipt:
 - **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
-- `wrote: .ai/ideation/<filename>`
+- `wrote: .ai/workflows/<slug>/01-ideate.md + 00-index.md`
 - `ideas: <N> survivors from <M> raw candidates`
 - The ranked list (Step 5 format)
 - `options:` — one `$wf intake` invocation per idea selected by the user, or "Run `$wf intake ideate` again with a focus area for deeper coverage"

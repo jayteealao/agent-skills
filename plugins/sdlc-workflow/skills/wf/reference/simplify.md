@@ -30,7 +30,7 @@ If slug-mode was not selected (first argument was not a known slug, or `INDEX.md
 | | Detail |
 |---|---|
 | Requires | Nothing for `branch` / `commit` / `codebase`. For `plan` scope: `.ai/workflows/<slug>/04-plan-<slice>.md` (or `04-plan.md` for compressed workflows) must exist. |
-| Produces | `.ai/simplify/<run-id>.md` — findings + per-finding routing assignments. |
+| Produces | A `type: workflow-index` slug workflow: `.ai/workflows/<slug>/01-simplify.md` (`type: simplify-run` — findings + per-finding routing assignments) + a lightweight `00-index.md`. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render via the retained simplify discovery.) |
 | Next | One or more downstream commands the user runs based on the routing assignments (see the routing matrix in Step 4). |
 | Does NOT | Write code, edit files outside its own artifact, commit, push, or open PRs. |
 | Idempotent | Re-running with the same scope+target on an already-cleaned input is safe — agents will report "no findings" and the run artifact records that. |
@@ -39,7 +39,7 @@ If slug-mode was not selected (first argument was not a known slug, or `INDEX.md
 You are a **router**, not a problem-solver. This rule is the load-bearing constraint of the plugin and simplify obeys it like every other stage.
 - Do NOT write code. Not one line. Not even a trivial typo fix.
 - Do NOT commit, stage, push, or open PRs.
-- Do NOT mutate any artifact file other than the one you're authoring (`.ai/simplify/<run-id>.md`).
+- Do NOT mutate any artifact file other than the ones you're authoring (`.ai/workflows/<slug>/01-simplify.md` + its `00-index.md`).
 - Do NOT edit the workflow plan (plan scope) — write proposed deltas to your run artifact only.
 - Do NOT touch files outside the scope's diff/path set when *reading* (branch scope = branch diff, commit scope = commit diff, plan scope = the named plan file only, codebase scope = the named path subtree only).
 - Your only output is the run artifact and a compact chat summary listing the recommended downstream commands the user can invoke.
@@ -290,12 +290,35 @@ proposed-deltas:
 
 # Step 5 — Write the run artifact + print routing suggestions
 
-Write `.ai/simplify/<run-id>.md`:
+Standalone simplify is a **terminal analysis mode** — it roots a `type: workflow-index` slug workflow whose only artifact is the `01-simplify.md` lead. Derive a slug `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), then write **two** files under `.ai/workflows/<slug>/` and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](default.md) Step 10. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render via the retained simplify discovery.)
+
+First write **`00-index.md` — `type: workflow-index`** (lightweight; analysis modes do not get the heavy 22-field `type: index`):
+```yaml
+---
+schema: sdlc/v1
+type: workflow-index
+slug: <slug>
+workflow-type: simplify
+current-stage: simplify
+status: complete
+selected-slice: ""
+branch-strategy: none
+open-questions: []
+next-command: wf-intake
+next-invocation: "/wf <routed-command> <slug>"
+progress:
+  - simplify: complete
+created-at: "<ISO 8601>"
+---
+```
+
+Then write **`01-simplify.md` — `type: simplify-run`** (the lead carries a `slug` for the in-slug path; `run-id` stays for continuity):
 
 ```yaml
 ---
 schema: sdlc/v1
 type: simplify-run
+slug: <slug>
 run-id: "<YYYYMMDDTHHMMZ>"
 scope: branch | commit | plan | codebase
 target: "<resolved target>"
@@ -410,7 +433,7 @@ After writing the run artifact, return — lead with the substance first, then t
 - `scope: <scope>`
 - `target: <target>`
 - `run-id: <run-id>`
-- `wrote: .ai/simplify/<run-id>.md`
+- `wrote: .ai/workflows/<slug>/01-simplify.md + 00-index.md`
 - `findings: <N total>; accepted: <N>; skipped: <N>; deferred: <N>`
 - `routes:` — one-line counts per route (`route-fix: N · route-refactor: N · route-intake: N · ...`)
 - `recommended-next:` — the queue of suggested invocations, ordered by route priority (intake first, fix last). Each is copy-pasteable.
@@ -428,7 +451,7 @@ This sub-command **adapts** the Claude Code bundled `simplify` skill (see `.scra
 | Agent rubrics | Reuse, Quality, Efficiency | Same — kept verbatim |
 | Dispatch shape | Three parallel sub-agents | Same |
 | Action after findings | **Applies fixes directly** | **Routes findings to downstream commands; never writes code** |
-| Output | Ephemeral chat summary | `.ai/simplify/<run-id>.md` artifact |
+| Output | Ephemeral chat summary | `.ai/workflows/<slug>/01-simplify.md` artifact (`type: simplify-run`) in a `type: workflow-index` slug workflow |
 
 The divergence on action is intentional: every command in this plugin operates as an **orchestrator, not a problem-solver**. Plan plans; implement implements; review reviews. Simplify routes. If a finding deserves code action, the user invokes the appropriate downstream command (`/wf intake fix`, `/wf intake refactor`, `/wf intake`, etc.) — each of which runs its own discipline. That separation keeps the artifact trail clean and prevents simplify from becoming a back-door "I'll just write code" path that bypasses review, verify, or planning.
 
@@ -436,45 +459,39 @@ The agent rubrics are stable across the two implementations — if the upstream 
 
 ---
 
-## Additive-write contract (v9.20.2+) — no rewrites; one file per run
+## Additive-write contract — no rewrites; one slug workflow per run
 
-`simplify-run` is off-pipeline and **each invocation produces a new artifact
-file** at `.ai/simplify/<run-id>.md` (compact-timestamp `run-id`, e.g.
-`20260520T1430Z`). There is no in-place rewrite scenario — the contract is
-the inverse of shape/slice/plan:
+Since the compressed-lifecycle migration (v9.86.0) a standalone `simplify-run`
+**roots its own `type: workflow-index` slug workflow** — each invocation creates
+a fresh `.ai/workflows/<slug>/` (`slug` = `simplify-<scope>-<YYYYMMDD>`) holding
+`01-simplify.md` + `00-index.md`. There is no in-place rewrite scenario:
 
-1. **Never overwrite an existing `<run-id>.md`.** If a collision is detected
-   (same compact timestamp resolution), increment by one second and retry.
-2. **Do not carry `revision-count`** in the simplify-run frontmatter. The
-   file is immutable at write time; subsequent runs author *new* files.
+1. **Never overwrite an existing slug.** If the derived slug collides, append
+   `-2`/`-3` and retry. Keep `run-id` in the lead frontmatter for continuity.
+2. **Do not carry `revision-count`** in the simplify-run frontmatter. The lead
+   is immutable at write time; subsequent runs author *new* slug workflows.
 3. **Set `regenerable: false`** explicitly. The renderer treats simplify-run
    artifacts as historical evidence, not view-over-state.
 4. **Cross-run linking is by `refs:`**, not by appending to prior files. If
    this run was triggered by a finding in an earlier run, the new run's
-   `refs.prior-run` points to the earlier file. The renderer's history block
-   surfaces this lineage as a backlink, not as a `## Revision <n>` chain.
+   `refs.prior-run` points to the earlier lead. The renderer surfaces this
+   lineage as a backlink, not as a `## Revision <n>` chain.
 
-The renderer emits each simplify-run at `.ai/_view/simplify/<run-id>/INDEX.html`
-— a stable URL forever. There is no slug-rooted history folder for off-pipeline
-runs; the `.ai/simplify/` directory itself is the history.
-
-**Why this differs from on-pipeline artifacts**: in-pipeline artifacts
-(shape, slice, plan, intake, …) belong to a slug and have a natural primary
-key (the artifact name within the slug). Off-pipeline runs (simplify,
-profile) are time-keyed and stateless across invocations — there's no
-"the current simplify-run for slug X" because there's no slug binding. Each
-run stands alone.
+The renderer emits each in-slug simplify-run at `.ai/_view/<slug>/simplify/INDEX.html`
+(via the `01-simplify` path row). **Legacy** off-pipeline runs at
+`.ai/simplify/<run-id>.md` still render at `.ai/_view/simplify/<run-id>/INDEX.html`
+via the retained simplify discovery — old URLs stay stable.
 
 ---
 
 ## Step — Sibling YAML `simplify-run` (v9.22.0+, Phase 3)
 
-When standalone-mode writes `.ai/simplify/<run-id>.md`, write a sibling
-`.ai/simplify/<run-id>.yaml` next to it with `artifact: simplify-run`.
-The view-layer renderer projects this YAML as a finding-table page at
-`/sdlc/simplify/<run-id>/` — categorical chips (reuse/quality/efficiency)
-instead of severity, optional code-deltas summary, no verdict block.
-Without this YAML the page falls back to a plain frontmatter card.
+When standalone-mode writes `.ai/workflows/<slug>/01-simplify.md`, write a sibling
+`.ai/workflows/<slug>/01-simplify.yaml` next to it with `artifact: simplify-run`.
+The view-layer renderer projects this YAML as a finding-table page — categorical
+chips (reuse/quality/efficiency) instead of severity, optional code-deltas summary,
+no verdict block. Without this YAML the page falls back to a plain frontmatter card.
+(Legacy off-pipeline runs wrote the sibling at `.ai/simplify/<run-id>.yaml`.)
 
 **Required whenever you write the `simplify-run` sibling YAML:** also write the
 sibling `.html.fragment` next to it. First load

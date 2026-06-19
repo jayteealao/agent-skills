@@ -62,6 +62,12 @@ test('resolveViewPath: compressed change-mode leads all land at intake/', () => 
   strictEqual(resolveViewPath('01-update-deps.md').viewRel, 'intake/INDEX.html');
 });
 
+test('resolveViewPath: terminal analysis-mode leads land in their own named dirs', () => {
+  // ideate/simplify root in a type:workflow-index slug workflow with a named lead.
+  strictEqual(resolveViewPath('01-ideate.md').viewRel, 'ideate/INDEX.html');
+  strictEqual(resolveViewPath('01-simplify.md').viewRel, 'simplify/INDEX.html');
+});
+
 test('resolveViewPath: slice sub-paths', () => {
   strictEqual(
     resolveViewPath('slices/auth-cache/04-plan.md').viewRel,
