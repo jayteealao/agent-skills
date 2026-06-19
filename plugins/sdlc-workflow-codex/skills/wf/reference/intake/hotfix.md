@@ -1,12 +1,12 @@
 ---
-description: Compressed incident-response workflow for production fixes. Skips intake interviews and slicing — goes directly from diagnosis to minimal fix to ship.
+description: Compressed incident-response STANDARD lifecycle for production fixes. Drives every SDLC stage single-pass (01-hotfix → 02-shape diagnosis → 03-slice → 04-plan → gate → implement → verify → review[security]) on a full type:index overview, with a hard scope lock and a production-branch base. The mode authors the planning half; the standard $wf implement/verify/review chain authors execution.
 argument-hint: <description-or-slug>
 ---
 
 # Output boundary & shared context
-Load `reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug rules. Do not restate them here.
+Load `reference/intake/_intake-context.md` in full and apply it — the External Output Boundary, the narrative-fragment tier, the workflow-registry / slug rules, **and the "Compressed-lifecycle change-modes" contract (the model, the authorship split, and the gate)**. Do not restate them here.
 
-You are running `$wf intake hotfix`, an **accelerated incident-response workflow**.
+You are running `$wf intake hotfix`, an **accelerated incident-response standard lifecycle**.
 
 # Slug-mode (read before proceeding)
 
@@ -15,186 +15,222 @@ If the dispatcher selected **slug-mode** (the first token after `intake` matched
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline
-`1·brief` → `2·diagnose` → `3·plan` → `4·implement` → `5·verify` → `6·ship`
+`01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]** → `$wf implement` (→`05`) → `$wf verify` (→`06`) → `$wf review security` (→`07`) → `$wf ship`
 
 | | Detail |
 |---|---|
 | Requires | Nothing — starts fresh. Pass a description or an existing slug to resume. |
-| Produces | `hf-brief.md`, `hf-plan.md`, `hf-implement.md`, `hf-verify.md` |
-| Next | `$wf ship <slug>` after verify passes |
-| Escalate | If fix requires >3 files or architectural changes → `$wf intake <description>` |
+| Produces (this command) | `01-hotfix.md` (`type: intake` — incident brief + diagnosis), `02-shape.md` (root cause + blast radius + scope), `03-slice.md` (`type: slice-index`, one slice), `04-plan.md` (minimal plan + rollback), conformant `00-index.md` (`type: index`). |
+| Compression | Each stage single-pass — **no stage is skipped**, but the lifecycle is expedited under incident pressure. One slice. |
+| Gate | Stop-and-prompt before `05-implement` (Proceed / Adjust / Escalate). |
+| Next | `$wf implement <slug>` — standard execution; `07-review` defaults to **`security`**. |
+| Escalate | If the fix needs >3 files / >~50 lines / architectural change → the gate's *Escalate* option restarts as `$wf intake <description>`. |
 
 # CRITICAL — scope lock
 You are a **hotfix orchestrator**. This is not a feature workflow.
 - The **only** acceptable output is the minimum change that stops the incident.
-- **ZERO tolerance for scope creep.** Do NOT refactor, clean up, or improve code that is not the direct cause of the incident. Do not touch anything outside the identified root cause location without explicit user approval.
-- Do NOT run the full 5-round PO interview. Ask at most 3 questions.
-- If the fix requires touching more than 3 files, more than ~50 lines, or any architectural changes → **STOP**. Tell the user: "This is too large for a hotfix. Use `$wf intake` to start a proper workflow."
-- Follow the steps below exactly in order. Do not skip, reorder, or combine steps.
+- **ZERO tolerance for scope creep.** Do NOT refactor, clean up, or improve code that is not the direct cause. Do not touch anything outside the identified root cause without explicit user approval.
+- Ask at most **3 questions**. No separate `po-answers.md` — answers go inline into `01-hotfix.md`.
+- The lifecycle skips no *stage* — but each is single-pass and incident-scoped. If the fix needs >3 files, >~50 lines, or any architectural change → use the gate's *Escalate*.
+- Follow the steps below exactly in order.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:
-   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: hotfix` → **resume mode**. Read that index, determine the last completed step, skip to the next incomplete step.
+   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: hotfix` → **resume mode**. Read that index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `hf-*.md` files — re-author them as the standard set if continuing.)
    - Otherwise → **new hotfix**. Derive a slug: `hotfix-<short-description>` (kebab-case, max 5 words, e.g., `hotfix-auth-token-expiry`).
 2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `hotfix` → WARN and ask the user to adjust the description.
 3. **Branch check (MANDATORY):**
    - Check current branch: `git branch --show-current`.
    - Identify the production/default branch: `git remote show origin | grep 'HEAD branch'`.
-   - A hotfix ALWAYS branches from the production/default branch. Create and switch to `hotfix/<slug>` if not already on it: `git checkout -b hotfix/<slug> <production-branch>`.
+   - A hotfix ALWAYS branches from the production/default branch: `git checkout -b hotfix/<slug> <production-branch>`.
+4. **Single slice.** The whole hotfix is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). Downstream stages write **un-suffixed** files.
 
-# Step 1 — Brief (replaces intake + shape)
-Ask at most **3 questions** — stop as soon as you have enough to proceed. Present as a numbered list in chat:
+# Step 1 — Brief → `01-hotfix.md` (`type: intake`)
+Ask at most **3 questions** — stop as soon as you have enough:
+1. **What is broken?** — symptom: what is failing, where (URL/endpoint/page/component/service), and for whom (all users / cohort / environment / account).
+2. **What is the impact?** — outage / degraded / data issue? how many users? data at risk?
+3. **What changed recently?** — deployments, migrations, config, dependency updates in the last 24–72h?
 
-1. **What is broken?** — Describe the symptom: what is failing, where (URL, endpoint, page, component, service), and for whom (all users, specific cohort, specific environment, specific account).
-2. **What is the impact?** — Complete outage, degraded experience, or data issue? How many users are affected? Is data at risk?
-3. **What changed recently?** — Any deployments, migrations, config changes, or dependency updates in the last 24–72 hours?
-
-Write `hf-brief.md` immediately after the answers. Do not wait.
-
-**`hf-brief.md` frontmatter:**
+Write `01-hotfix.md` immediately:
 ```yaml
 ---
 schema: sdlc/v1
-type: hf-brief
+type: intake
 slug: <slug>
 workflow-type: hotfix
-symptom: <one-line description of what is broken>
-impact: <critical|high|medium>
-affected-scope: <all-users|cohort|environment|specific-account>
-recent-changes: <description or "none known">
-status: in-progress
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+status: complete            # or awaiting-input if a blocking answer is missing
+stage-number: 1
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+tags: [incident]
+refs:
+  index: 00-index.md
+  next: 02-shape.md
+next-command: wf-shape
+next-invocation: "$wf shape <slug>"
 ---
 ```
+Body: `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Recent Changes` (or "none known"). The `## Diagnosis` section is appended after Step 2.
 
-Write `00-index.md` immediately after with `workflow-type: hotfix`, `current-stage: diagnose`, `branch: hotfix/<slug>`, `base-branch: <production-branch>`.
+# Step 2 — Diagnose → `02-shape.md`
+Launch parallel sub-agents to identify root cause. Do not proceed until both complete.
 
-# Step 2 — Diagnose
-Launch parallel sub-agents to identify root cause. Do not proceed to planning until both complete. Work sequentially unless the user explicitly requested parallel execution.
+**Model for every dispatched agent:** `sonnet`. REQUIRED on every `Task` call — both agents do causal reasoning under time pressure (root-cause tracing across recent changes; blast-radius reasoning). Haiku is insufficient; Opus too slow.
 
 ### Explore sub-agent 1 — Root Cause Investigation
-
-Prompt with ALL of the following:
-- Read the areas of the codebase most likely to contain the bug based on the symptom description
-- Run `git log --oneline -20` on the affected files — cross-reference with the "recent changes" from the brief
-- Run `git log --oneline --since="72 hours ago" -- <affected-path>` for the suspected area specifically
-- Search for error messages matching the symptom: search the codebase for exception names, error strings, or failure patterns from the symptom description
-- Check for TODOs, FIXMEs, or HACK comments near the suspected area
-- Look for failing unit/integration tests related to the symptom
-- Identify the **exact file(s) and line(s)** where the bug originates
-- Report: file:line, root cause hypothesis (2–4 sentences), confidence level (high/medium/low), supporting evidence
+Prompt with ALL of: read the areas most likely to contain the bug; `git log --oneline -20` on affected files cross-referenced with the brief's "recent changes"; `git log --oneline --since="72 hours ago" -- <affected-path>`; grep for the symptom's exception names / error strings / failure patterns; check TODO/FIXME/HACK near the area; look for failing related tests; identify the **exact file(s)+line(s)** of origin. Report `file:line`, root-cause hypothesis (2–4 sentences), confidence (high/medium/low), supporting evidence.
 
 ### Explore sub-agent 2 — Impact & Scope
+Prompt with ALL of: find every caller/consumer/dependent of the broken path (grep imports/references); check whether related components share the bug via shared code; identify any data that may have been corrupted during the active period; check whether the bug is on the production branch or only unreleased code. Report the complete affected file/path/service list, data risk (none/possible/confirmed), blast-radius summary.
 
-Prompt with ALL of the following:
-- Find every caller, consumer, or dependent of the broken code path — search for imports and references across the codebase
-- Check if related components or services exhibit the same bug via shared code
-- Identify what data, if any, may have been corrupted during the bug's active period
-- Check if the bug exists on the current production branch or only in unreleased code
-- Report: complete list of affected files/paths/services, data risk (none/possible/confirmed), blast radius summary
-
-Wait for both sub-agents. If root cause confidence is low, launch a focused third agent targeting the most likely hypothesis before continuing.
-
-After synthesis: write the `## Diagnosis` section to `hf-brief.md` with root cause, evidence (file:line), and scope. Update `00-index.md` with `current-stage: plan`.
-
-# Step 3 — Plan
-Write `hf-plan.md` — a **minimal execution-ready plan** with hard constraints:
-- **Maximum 5 implementation steps.** If more steps are needed → STOP and escalate to full workflow.
-- Every step must directly address the root cause. No cleanup, no refactoring, no improvements.
-- Include a rollback plan: what exactly to revert if the fix causes a regression.
-- If data was corrupted: include a data remediation step as a separate tracked item.
-
-**`hf-plan.md` frontmatter:**
+Wait for both. If root-cause confidence is low, launch a focused third agent on the most likely hypothesis. Then **append `## Diagnosis`** (root cause + `file:line` evidence + scope) to `01-hotfix.md`, and write `02-shape.md` carrying the diagnosis-as-scope:
 ```yaml
 ---
 schema: sdlc/v1
-type: hf-plan
+type: shape
 slug: <slug>
-workflow-type: hotfix
-root-cause-file: <file>
-root-cause-line: <line>
-step-count: <N>
-rollback: <exact git revert command or manual revert steps>
-data-remediation-needed: <true|false>
 status: complete
-created-at: <real timestamp>
+stage-number: 2
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+docs-needed: false
+docs-types: []
+tags: [incident]
+refs:
+  index: 00-index.md
+  intake: 01-hotfix.md
+  next: 03-slice.md
+next-command: wf-slice
+next-invocation: "$wf slice <slug>"
 ---
 ```
+Body: `## Root Cause` (`file:line` + hypothesis + confidence), `## Blast Radius` (affected paths/services, data risk), `## In Scope` (the minimum change), `## Out of Scope` (everything else — the scope lock).
 
-**After writing:** Confirm the plan with the user by asking directly in chat, presenting the options as a short numbered list:
-1. Proceed with this plan
-2. Adjust the plan (describe changes in chat)
-3. This is too large — escalate to `$wf intake`
-
-# Step 4 — Implement
-Execute the plan. For each step:
-1. Mark the step in-progress, implement it, mark completed.
-2. Make the **smallest possible change** that addresses the root cause.
-3. After all steps: run the build and the relevant portion of the test suite. Record results.
-
-Write `hf-implement.md` with:
-- What was changed (file:line and description of the change)
-- What was intentionally NOT changed (scope boundary)
-- Build and test results (pass/fail counts)
-
-**Atomic commit:** `fix(<slug>): <one-line summary of the fix>` — then record the SHA in `hf-implement.md` frontmatter.
-
+# Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
 ```yaml
 ---
 schema: sdlc/v1
-type: hf-implement
+type: slice-index
 slug: <slug>
-workflow-type: hotfix
-files-changed: [<file>, ...]
-lines-changed: <approximate count>
-commit-sha: <sha>
-test-result: <pass|partial|fail>
 status: complete
-created-at: <real timestamp>
+stage-number: 3
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+total-slices: 1
+best-first-slice: <slug>
+slices:
+  - slug: <slug>
+    status: defined
+    complexity: <xs|s>
+tags: [incident]
+refs:
+  index: 00-index.md
+  shape: 02-shape.md
+  next: 04-plan.md
+next-command: wf-plan
+next-invocation: "$wf plan <slug>"
 ---
 ```
+Body (one line): "Single-slice incident fix."
 
-# Step 5 — Verify
-Run targeted verification focused on the incident. Do not verify unrelated functionality.
-
-1. **Reproduce the original symptom** using the most direct available method (unit test, integration test, browser check, API call, log inspection). Confirm it no longer fails.
-2. **Run regression suite** — all pre-existing tests must pass. If tests were already failing before this fix, document which ones and why they are pre-existing failures unrelated to this fix.
-3. **Spot-check adjacent paths** — any code paths that call or share the fixed code should be spot-checked for unintended side effects.
-
-Write `hf-verify.md`:
+# Step 4 — Plan → `04-plan.md`
+A **minimal execution-ready plan** with hard constraints: **≤5 steps**; every step directly addresses the root cause (no cleanup/refactor/improvement); include a **rollback** (exact revert command/steps); if data was corrupted, include a separate data-remediation step.
 ```yaml
 ---
 schema: sdlc/v1
-type: hf-verify
+type: plan
 slug: <slug>
-workflow-type: hotfix
-symptom-confirmed-fixed: <true|false>
-tests-pass: <true|partial|false>
-pre-existing-failures: <list or "none">
-result: <PASS|FAIL>
+slice-slug: <slug>
 status: complete
-created-at: <real timestamp>
+stage-number: 4
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+metric-files-to-touch: <int, ≤ 3>
+metric-step-count: <int, ≤ 5>
+has-blockers: false
+revision-count: 0
+tags: [incident]
+refs:
+  index: 00-index.md
+  slice: 03-slice.md
+  next: 05-implement.md
+next-command: wf-implement
+next-invocation: "$wf implement <slug>"
 ---
 ```
-
-If FAIL: return to Step 4. Do NOT broaden the fix without returning to the plan.
+Body: `## Steps` (≤5, each names file(s)+change+verification), `## Rollback` (exact revert), `## Data remediation` (if needed), `## Verification` (reproduce the symptom; regression suite; adjacent-path spot-check).
 
 ## Step — Write free narrative fragments
+Author free narrative fragments for any artifact per the narrative-fragment tier of `_intake-context.md` (a root-cause flow or a before/after diagram tells an incident story well).
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+# Step 5 — Write `00-index.md` (conformant `type: index`)
+Write the full 22-field `type: index` overview using the template from [intake/default.md](default.md) with the hotfix specifics:
+```yaml
+---
+schema: sdlc/v1
+type: index
+slug: <slug>
+title: "Hotfix: <symptom>"
+workflow-type: hotfix
+status: active
+current-stage: plan
+stage-number: 4
+created-at: "<iso-8601>"
+updated-at: "<iso-8601>"
+selected-slice: <slug>
+branch-strategy: dedicated
+branch: "hotfix/<slug>"
+base-branch: "<production-branch>"
+review-scope: slug-wide
+pr-url: ""
+pr-number: 0
+open-questions: []
+tags: [incident]
+next-command: wf-implement
+next-invocation: "$wf implement <slug>"
+workflow-files:
+  - 00-index.md
+  - 01-hotfix.md
+  - 02-shape.md
+  - 03-slice.md
+  - 04-plan.md
+slices:
+  - slug: <slug>
+    status: defined
+    complexity: <xs|s>
+progress:
+  intake: complete
+  shape: complete
+  slice: complete
+  plan: complete
+  implement: not-started
+  verify: not-started
+  review: not-started
+  handoff: not-started
+  ship: not-started
+  retro: not-started
+---
+```
+Then **register the slug in `.ai/workflows/INDEX.md`** per `intake/default.md` Step 10.
+
+# Step 6 — Gate before implement (MANDATORY)
+Apply the **compressed-lifecycle gate** from `_intake-context.md` (Proceed / Adjust / Escalate). Given incident pressure you MAY auto-proceed when the fix is clearly minimal (≤3 files, root cause confidence high, no data risk) — record the decision in `01-hotfix.md`. On **Escalate**, recommend `$wf intake <description>` and stop.
+
+# Step 7 — Hand off to the standard chain
+On proceed, route to `$wf implement <slug>` → `$wf verify <slug>` → **`$wf review <slug> security`** (review defaults to the security rubric for hotfixes; always safe to run quickly) → `$wf ship <slug>`.
+
+Lead with a short **narrative** paragraph (the symptom, root cause, the minimal fix, the gate decision), then:
+```
+wf intake hotfix complete: <slug>
+Branch: hotfix/<slug> (off <production-branch>)
+Root cause: <file:line>
+Plan: <N> steps · Files: <M> (≤3) · Data remediation: <yes|no>
+Gate: <proceeded | adjusted | escalated | auto-proceeded (minimal)>
+Next: $wf implement <slug>  →  $wf verify  →  $wf review <slug> security  →  $wf ship
+```
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Never leave canonical results only in chat.
-- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`.
-- **Timestamps must be real:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"` for every `created-at` and `updated-at`. Never guess.
-- Skip `$wf-review` unless the user explicitly requests it or the fix touches security-sensitive code (auth, tokens, crypto, permissions). Hotfixes trade review thoroughness for speed — but `$wf-review security` is always safe to run quickly.
-- `00-index.md` must always have: slug, workflow-type, current-stage, branch, base-branch, updated-at, recommended-next-command, recommended-next-invocation.
-
-# Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
-- `slug: <slug>`
-- `branch: hotfix/<slug>`
-- `wrote: <paths>`
-- `options:` (always `$wf ship <slug>` as default; optionally `$wf review <slug> security` if security-sensitive)
-- ≤3 bullets: what was fixed, what to watch for post-deploy, whether data remediation is needed
+- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+- Review is not skipped — but for a hotfix it defaults to the **security** rubric (auth, tokens, crypto, permissions). `$wf review <slug> security` is always safe to run quickly; widen only if the change warrants it.
+- Write each artifact atomically (temp → rename) so a crash never leaves a half-written workflow.

@@ -30,10 +30,6 @@ import { render as syncReport } from '../../../renderers/sync-report.mjs';
 import { render as discover } from '../../../renderers/discover.mjs';
 import { render as investigate } from '../../../renderers/investigate.mjs';
 import { render as closeRecord } from '../../../renderers/close-record.mjs';
-import { render as hfBrief } from '../../../renderers/hf-brief.mjs';
-import { render as hfPlan } from '../../../renderers/hf-plan.mjs';
-import { render as hfImplement } from '../../../renderers/hf-implement.mjs';
-import { render as hfVerify } from '../../../renderers/hf-verify.mjs';
 import { render as rfBrief } from '../../../renderers/rf-brief.mjs';
 import { render as rfBaseline } from '../../../renderers/rf-baseline.mjs';
 import { render as rfPlan } from '../../../renderers/rf-plan.mjs';
@@ -629,24 +625,6 @@ export const CASES = [
   {
     name: 'close-record', render: closeRecord, ctx: CTX,
     variants: { full: artifact({ type: 'close-record', path: '99-close.md', frontmatter: { schema: 'sdlc/v1', type: 'close-record', slug: 'demo', 'workflow-type': 'fix', 'close-reason': 'superseded', 'superseded-by': 'PR #42', 'last-stage-reached': 'implement', 'unmerged-commits': 0, 'closed-at': '2026-06-04T00:00:00Z' } }) },
-  },
-
-  /* ── hotfix family ─────────────────────────────────────────────────── */
-  {
-    name: 'hf-brief', render: hfBrief, ctx: CTX,
-    variants: { full: artifact({ type: 'hf-brief', path: 'hf-brief.md', frontmatter: { schema: 'sdlc/v1', type: 'hf-brief', slug: 'demo', 'workflow-type': 'hotfix', symptom: 'Checkout 500s for EU users', impact: 'critical', 'affected-scope': 'all-users', status: 'in-progress', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'hf-plan', render: hfPlan, ctx: CTX,
-    variants: { full: artifact({ type: 'hf-plan', path: 'hf-plan.md', frontmatter: { schema: 'sdlc/v1', type: 'hf-plan', slug: 'demo', 'workflow-type': 'hotfix', 'step-count': 3, 'data-remediation-needed': false, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'hf-implement', render: hfImplement, ctx: CTX,
-    variants: { full: artifact({ type: 'hf-implement', path: 'hf-implement.md', frontmatter: { schema: 'sdlc/v1', type: 'hf-implement', slug: 'demo', 'workflow-type': 'hotfix', 'lines-changed': 12, 'test-result': 'pass', 'commit-sha': 'a3f7d12', status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'hf-verify', render: hfVerify, ctx: CTX,
-    variants: { full: artifact({ type: 'hf-verify', path: 'hf-verify.md', frontmatter: { schema: 'sdlc/v1', type: 'hf-verify', slug: 'demo', 'workflow-type': 'hotfix', result: 'PASS', 'symptom-confirmed-fixed': true, 'tests-pass': 'pass', status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
   },
 
   /* ── refactor family ───────────────────────────────────────────────── */
