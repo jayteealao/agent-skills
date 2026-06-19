@@ -63,20 +63,35 @@ Propose a mode **only when ALL** of these hold — otherwise run `intake/default
 - (b) the description contains **no lifecycle vocabulary** (`shape`, `slice`, `plan`, `implement`,
   `verify`, `review`, `handoff`, `ship`, `retro` — those signal the user knows the stage they want);
   and
-- (c) it strongly matches exactly **one** of these patterns:
-  - a **past-tense failure / regression report** ("X broke", "stopped working", "is blank/500/NaN
-    after …") → propose **`rca`**;
-  - a **yes/no truth question about the system** ("is it true that …", "does X actually …", "why
-    does …") → propose **`discover`**;
-  - an **active production emergency** ("outage", "prod down", "users can't …, urgent", "hotfix")
-    → propose **`hotfix`**;
-  - an **open design/approach question** ("how should I …", "what are the options for …",
-    "approaches to …") → propose **`investigate`**.
+- (c) it strongly matches exactly **one** of the patterns below.
 
-Never auto-propose `fix`, `refactor`, `update-deps`, or `ideate` — those express an explicit
-intent the user states directly (use the keyword). Propose **at most one** mode, **once**. The
-`AskUserQuestion` offers: the proposed mode (recommended) vs "Plain intake (default)". On accept,
-load that mode reference standalone; on decline, `intake/default.md`.
+**Any of the eight modes may be proposed.** Match on the description's *shape of intent*:
+
+| Signal in the description | Propose |
+|---|---|
+| Past-tense failure / regression with **unknown cause** ("X broke / stopped working / is blank/500/NaN after …") | `rca` |
+| A **named, localized defect with an obvious correction** ("the label says 'Lable'", "total is off by one", "wrong colour on the button") | `fix` |
+| **Active production emergency** ("outage", "prod down", "users can't … right now", "urgent") | `hotfix` |
+| **Behaviour-preserving cleanup / restructure** ("this is messy", "tech debt in X", "extract/split/deduplicate", "clean up the structure of") | `refactor` |
+| **Dependency maintenance** ("update/bump/upgrade the dependencies/packages", "deps are outdated", "security advisories in deps") | `update-deps` |
+| **Yes/no truth question about the system** ("is it true that …", "does X actually …", "why does …") | `discover` |
+| **Open design / approach question** ("how should I …", "what are the options for …", "approaches to …") | `investigate` |
+| **Open-ended improvement brainstorm with no specific defect** ("ideas for X", "brainstorm ways to …", "what could we improve in …") | `ideate` |
+
+**Discriminators (the near-collisions — when a description spans two patterns it is *not*
+exactly-one-strong-match, so fall to default):**
+- `fix` vs `rca` — both describe something wrong. Propose `fix` only when the correction is
+  self-evident and localized; propose `rca` when the cause is unknown and needs diagnosis.
+- `refactor` vs `investigate`/`ideate` — `refactor` is a decision to restructure known code;
+  `investigate`/`ideate` are still open questions. "Messy *and* I'm not sure how" spans two → default.
+- `ideate` vs `investigate` — `ideate` ranks improvement candidates with no target decision;
+  `investigate` sketches approaches to a *stated* problem.
+
+Propose **at most one** mode, **once**, via `AskUserQuestion` offering the proposed mode
+(recommended) vs "Plain intake (default)". On accept, load that mode reference standalone; on
+decline, `intake/default.md`. The confirm step is what makes proposing a **build-committing** mode
+(`fix`, `hotfix`, `refactor`, `update-deps`) safe — nothing routes into code-writing without the
+user's yes, and the user can always state the mode explicitly (`/wf intake fix …`) to skip the prompt.
 
 **Record** the resolved shape (slug-mode | explicit | default), slug (if any), mode, and
 instructions before proceeding.

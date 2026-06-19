@@ -101,6 +101,12 @@ the options / approaches to" → `investigate`. Propose **at most one** mode, **
 default. Never propose `fix`/`refactor`/`update-deps`/`ideate` from classification (those are
 explicit-intent commands).
 
+> **Superseded (post-ship revision):** the four-mode restriction above was lifted — *all eight*
+> modes are now auto-proposable, each with its own intent fingerprint (see the classification
+> table in `reference/intake.md`). D2 ("suggest-and-confirm, never silent") is unchanged; the
+> confirm gate is what makes proposing a build-committing mode safe, and the explicit keyword
+> (`/wf intake fix …`) remains the precise override.
+
 **Dispatcher is a pure router.** It does NOT create the workflow folder itself — each mode
 reference owns its artifact writes. `default.md` creates `00-index.md`/`01-intake.md`;
 `ideate.md` writes only `.ai/ideation/` and creates no workflow; etc. This dissolves the
