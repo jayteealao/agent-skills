@@ -1,8 +1,8 @@
 ---
 name: wf
-description: Run one canonical SDLC stage (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro) or a perf/observability augmentation (instrument, experiment, benchmark, profile), and write its artifact to `.ai/workflows/<slug>/`. For navigating existing workflows, use `/wf-meta`; for compressed or standalone flows, use `/wf-quick`.
+description: Run one canonical SDLC stage (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro), a perf/observability augmentation (instrument, experiment, benchmark, profile), or the compressed design workflow (design — UI/UX brief, visual contract, and build), and write its artifact to `.ai/workflows/<slug>/`. For navigating existing workflows, use `/wf-meta`; for compressed or standalone flows, use `/wf-quick`.
 disable-model-invocation: true
-argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|instrument|experiment|benchmark|profile> [args...]"
+argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|instrument|experiment|benchmark|profile> [args...]"
 ---
 
 # External Output Boundary (MANDATORY)
@@ -12,13 +12,13 @@ Workflow artifacts and command internals are private implementation context. Nev
 - When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
 - Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
 
-You are the **lifecycle-stage dispatcher** for the SDLC plugin. The 14 sub-commands you route to are *stage executors* — each runs one stage of the canonical lifecycle (or one perf/observability augmentation) and writes a stage artifact. Your only job is to identify which stage the user wants, load its reference body, and follow it verbatim.
+You are the **lifecycle-stage dispatcher** for the SDLC plugin. The 15 sub-commands you route to are mostly *stage executors* — each runs one stage of the canonical lifecycle (or one perf/observability augmentation) and writes a stage artifact — plus `design`, a **compressed design workflow** that produces UI/UX artifacts and then drives the downstream stages itself. Your only job is to identify which sub-command the user wants, load its reference body, and follow it verbatim.
 
 > **Narrative fragments — any artifact (v9.70.0).** Beyond the typed `.html.fragment` the rich stages project from a sibling `.yaml`, *any* artifact you write may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page. Author one whenever a bespoke diagram, flow, comparison, or widget tells the story better than prose. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
 
 # Step 0 — Resolve the sub-command
 
-Parse `$ARGUMENTS`. The first token must be one of the 14 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying stage.
+Parse `$ARGUMENTS`. The first token must be one of the 15 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying stage.
 
 **Known sub-command keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<key>.md`:
 
@@ -34,6 +34,7 @@ Parse `$ARGUMENTS`. The first token must be one of the 14 known keys below; the 
 | `handoff`    | `<slug>`                  | Aggregate completed slices into a PR description; writes 08-handoff.md. Refuses if any required review has unresolved blockers (per-slice mode checks every slice's review; slug-wide mode checks the single `07-review.md`). |
 | `ship`       | `<slug>`                  | Release notes + ship; writes 09-ship.md. Translates every augmentation type to user-language changelog entries. |
 | `retro`      | `<slug>`                  | Post-mortem across the workflow; writes 10-retro.md. |
+| `design`     | `[slug] <command> [instr]` | **Compressed design workflow.** `/wf design <slug> <cmd>` produces the design brief + visual contract (`02b-design.md`, `02c-craft.md`) then drives slice→plan→implement→verify itself (no hand-back); `/wf design <cmd>` creates a new slug and runs the full lifecycle. The 22 design commands (`craft`, the 15 transforms, `audit`, `critique`, `extract`, `setup`, `teach`) are *arguments*, never their own keys. First token is an optional slug (existence-checked, not fuzzy). See `reference/design.md`. |
 | `instrument` | `<slug> [slice]`          | Observability augmentation: dark-path detection + signal design; writes 04b-instrument.md. |
 | `experiment` | `<slug> [slice]`          | Experiment design augmentation: hypothesis, A/B/flag/canary, metrics, rollback; writes 04c-experiment.md. |
 | `benchmark`  | `<slug> [baseline\|compare]` | Two-mode perf wrapper: baseline before implement, compare after; writes 05c-benchmark.md. Regression tripwires at >10% CPU / >25% memory. |
@@ -43,9 +44,9 @@ Parse `$ARGUMENTS`. The first token must be one of the 14 known keys below; the 
 
 **Resolution rules:**
 
-1. If the first positional token matches one of the 14 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`.
+1. If the first positional token matches one of the 15 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`. For `design`, the remaining tokens carry an *optional* slug as their own first token, resolved by `reference/design.md` (Step 0) via exact existence check — not here.
 2. If `$ARGUMENTS` is empty, render the menu above and ask the user which sub-command they want.
-3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf sub-command. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, instrument, experiment, benchmark, profile."*
+3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf sub-command. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, instrument, experiment, benchmark, profile."*
 
 # Step 0.5 — Fuzzy-suggest unknown slugs (v9.11.0)
 
@@ -55,7 +56,7 @@ After sub-command resolution, before dispatch: if the user passed a positional s
 
 `shape`, `slice`, `plan`, `implement`, `verify`, `review`, `handoff`, `ship`, `retro`, `instrument`, `experiment`, `benchmark`, `profile`
 
-**Does NOT apply** to `intake` (it *creates* the slug, doesn't consume it — collision detection lives in `intake.md` Step 0 sub-step 2 instead). `profile`'s first arg is `<area>`, not a slug — skip Step 0.5 for `profile` as well. *Keep this exclusion list in sync with the 14-key dispatch table — exclude any future sub-command that creates a new slug rather than consuming an existing one.*
+**Does NOT apply** to `intake` (it *creates* the slug, doesn't consume it — collision detection lives in `intake.md` Step 0 sub-step 2 instead). `profile`'s first arg is `<area>`, not a slug — skip Step 0.5 for `profile` as well. **`design` is also excluded:** its first token is an *optional* slug resolved by exact existence check inside `reference/design.md` (Step 0) — a non-matching first token is a *design command*, not a typo'd slug, so it must never be fuzzy-suggested as one (a wrong guess sends the work down the wrong flow). *Keep this exclusion list in sync with the 15-key dispatch table — exclude any future sub-command that creates a new slug, takes a non-slug first arg, or resolves its slug by its own existence check rather than consuming an existing one.*
 
 **Procedure:**
 
@@ -81,12 +82,14 @@ After sub-command resolution, before dispatch: if the user passed a positional s
 
 After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across every sub-command this router dispatches; the reference may carry its own chat-return content, but this section governs the shape.
 
-**Format (max 8 lines):**
+**Format (compact — a short narrative, then the anchors):**
 
 ```
 wf <sub-command> complete: <slug-or-scope>
+
+<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
+
 Artifacts: <comma-separated paths, or "none">
-<1–3 lines of key facts — verdict, counts, decisions, tripwires>
 Next: <recommended command, or "Done">
 ```
 
@@ -95,7 +98,7 @@ Next: <recommended command, or "Done">
 - **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
 - **Verb-first first line.** Name the sub-command and the workflow slug (or other scope if applicable: `area` for `profile`, etc.).
 - **Artifacts** are the paths created or modified in this invocation (e.g., `.ai/workflows/<slug>/04-plan-<slice>.md`). Use `"none"` for read-only sub-commands.
-- **Key facts (1–3 lines)** surface the most load-bearing outcomes for whoever runs the Next command: verdict, counts, convergence state, tripwires. Skip if there's nothing material.
+- **Narrative — the heart of the summary, REQUIRED for any sub-command that writes an artifact.** In place of the old terse key-facts line, write a short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the user what happened*: for `plan`, what the plan **is** (the approach) and how it gets built; for `implement`, what was built and how; for `verify`, what was checked and the result, and whether it converged; for `shape`, the scope decided; for `slice`, how the work was split; for `intake`, what was understood; for `ship`/`retro`, what shipped and the key lessons. Weave the load-bearing counts, decisions, and the top risk into the prose. Write it like you're telling a colleague, not filling a form. Omit only for genuinely read-only sub-commands.
 - **Next** is a concrete invocation, or `Done` for terminal sub-commands (`ship`, `retro`). Never vague like "consider your next step".
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
-- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and trim to fit the 8-line cap. The rich detail belongs in the artifact, not in chat.
+- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and keep it compact. **A reference that says to "return ONLY" a receipt (slug / wrote / options) means only those *receipt fields* — it does NOT waive the substance summary above. Always surface what the artifact says — its key decisions, counts, verdict, top risk — not merely the paths it wrote.** Keep the *full* detail in the artifact; the chat summary carries the gist.

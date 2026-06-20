@@ -37,6 +37,7 @@ import { buildPathMap, rewriteBodyLinks } from '../renderers/_link-graph.mjs';
 import { workSetFilter } from '../renderers/_mtime.mjs';
 import { loadHistory } from '../renderers/_history.mjs';
 import { renderShell, PLUGIN_VERSION } from '../renderers/_shell.mjs';
+import { runtimeIdentity, readRenderedIdentity, renderIdentityMatches } from '../lib/runtime-manifest.mjs';
 import { expand as expandSnippets } from '../components/_components.mjs';
 import { loadConfigWithMeta, configHash as computeConfigHash } from '../lib/config.mjs';
 import { ensureServeLifecycle } from '../lib/serve-lifecycle.mjs';
@@ -537,24 +538,25 @@ async function renderMain(args) {
   // 1. ensure viewRoot exists; --clean wipes slug folders
   mkdirSync(viewRoot, { recursive: true });
 
-  // Template/version gate. The additive work-set keys ONLY on source-vs-output
-  // mtime (see renderers/_mtime.mjs#isDirty), so a renderer/shell/CSS change
-  // that bumps PLUGIN_VERSION without touching any artifact leaves every
-  // already-rendered page frozen at its old chrome — while the unconditionally
-  // recopied assets race ahead, producing split-brain pages (current CSS over
-  // stale markup). When the recorded render version differs from the running
-  // plugin version, force a clean pass so the new template reaches every page.
-  // A missing/unparseable record means a first render (already exhaustive) or a
-  // prior clean — either way additive is correct, so we never force a clean
-  // loop on absence.
+  // Template/runtime-identity gate. The additive work-set keys ONLY on
+  // source-vs-output mtime (see renderers/_mtime.mjs#isDirty), so a
+  // renderer/shell/CSS change to the shared runtime leaves every already-rendered
+  // page frozen at its old chrome — while the unconditionally recopied assets
+  // race ahead, producing split-brain pages (current CSS over stale markup).
+  // When the recorded render identity differs from the active shared runtime
+  // (buildId when both sides have one, else runtimeVersion), force a clean pass
+  // so the new template reaches every page. A missing/unparseable record means a
+  // first render (already exhaustive) or a prior clean — either way additive is
+  // correct, so we never force a clean loop on absence.
   if (args.mode !== 'clean') {
-    try {
-      const prior = JSON.parse(readFileSync(join(viewRoot, '.last-render'), 'utf8'));
-      if (prior?.version && prior.version !== PLUGIN_VERSION) {
-        console.log(`[render] plugin ${prior.version} → ${PLUGIN_VERSION}: template/version changed, forcing clean re-render`);
-        args.mode = 'clean';
-      }
-    } catch { /* no prior record — additive is correct */ }
+    const active = runtimeIdentity();
+    const prior = readRenderedIdentity(join(viewRoot, '.last-render'));
+    if ((prior.version || prior.buildId) && !renderIdentityMatches(prior, active)) {
+      const was = prior.buildId ? `build ${prior.buildId.slice(0, 12)}` : `v${prior.version}`;
+      const now = active.buildId ? `build ${active.buildId.slice(0, 12)}` : `v${active.runtimeVersion}`;
+      console.log(`[render] runtime ${was} → ${now}: template/runtime changed, forcing clean re-render`);
+      args.mode = 'clean';
+    }
   }
 
   if (args.mode === 'clean') {
@@ -893,8 +895,13 @@ async function renderMain(args) {
         })),
     };
     writeFileAtomic(join(viewRoot, 'INDEX.yaml'), `# sdlc view manifest\n${toYaml(manifest)}`);
+    // `.last-render` carries the shared-runtime identity the heal controller and
+    // the render gate compare against: buildId is the precise signal, version is
+    // the legacy/human alias. Both come from the runtime manifest (single source).
+    const rt = runtimeIdentity();
     writeFileAtomic(join(viewRoot, '.last-render'), `${JSON.stringify({
-      version: PLUGIN_VERSION,
+      version: rt.runtimeVersion,
+      buildId: rt.buildId,
       renderedAt: manifest.generatedAt,
       renderedCount,
       schemaWarnings,

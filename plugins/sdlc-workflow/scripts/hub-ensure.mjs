@@ -30,6 +30,13 @@ function argValue(name, fallback) {
 }
 function hasFlag(name) { return process.argv.includes(name); }
 
+// --confirm: SessionStart runs this SYNCHRONOUSLY and gates its once-only
+// activation record on a CONFIRMED hub, so the exit code must report readiness
+// (0 = adopted/started healthy, 1 = not confirmed). Fire-and-forget callers (the
+// write hook, Claude SessionStart) omit it and still always see exit 0 — a stale
+// view must never block a turn.
+const CONFIRM = hasFlag('--confirm');
+
 async function main() {
   const here = dirname(fileURLToPath(import.meta.url));
   const pluginRoot = argValue('--plugin-root', resolve(here, '..'));
@@ -38,10 +45,12 @@ async function main() {
   const skipEnsure = hasFlag('--no-ensure');
 
   let hubUp = false;
+  let confirmed = false;   // strictly adopted or started-healthy (excludes started-unconfirmed)
   if (!skipEnsure) {
     try {
       const r = await ensureHubLifecycle({ pluginRoot, log: () => {} });
       hubUp = r.action === 'already-running' || r.action === 'started' || r.action === 'started-unconfirmed';
+      confirmed = r.action === 'already-running' || r.action === 'started';
     } catch (err) {
       try { appendError(viewDir, `ensure-hub failed: ${err?.message ?? err}`); } catch { /* best-effort */ }
     }
@@ -59,6 +68,13 @@ async function main() {
       hubLastSeenAt: hubUp ? new Date().toISOString() : null,
     });
   } catch { /* best-effort */ }
+
+  return confirmed;
 }
 
-main().then(() => process.exit(0)).catch(() => process.exit(0));
+// Default callers ignore the code (always 0). With --confirm a confirmed hub
+// exits 0 and anything else (incl. started-unconfirmed) exits 1, so SessionStart
+// can gate its activation record on a genuinely healthy hub.
+main()
+  .then((confirmed) => process.exit(CONFIRM && !confirmed ? 1 : 0))
+  .catch(() => process.exit(CONFIRM ? 1 : 0));

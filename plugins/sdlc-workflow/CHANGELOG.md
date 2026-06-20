@@ -7,6 +7,198 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — `wf-design` subsumed into `/wf design` (9.82.0)
+
+The standalone `/wf-design` router is retired. Design is now **one `wf` sub-command, `/wf design`,
+run as a compressed workflow** — the producer that authors the brief + visual contract and then
+drives the downstream lifecycle stages itself. The 22 design commands (`craft`, the 15 transforms,
+`audit`, `critique`, `extract`, `setup`, `teach`) are *arguments* to this one key, never their own
+keys. The 14-key `wf` table grows to 15.
+
+- **Producer / dispatcher.** The old `wf-design/SKILL.md` brain becomes `skills/wf/reference/design.md`.
+  `/wf design <slug> <cmd>` resolves the slug by exact existence check (never fuzzy), produces the
+  design spec, then drives `slice → plan → implement → verify` itself — **no hand-back** to `/wf slice`
+  (closing the latent `craft → implement` skip). `/wf design <cmd>` (no slug) runs the full
+  `intake → … → retro` lifecycle. A per-category flow span decides how far the flow travels.
+- **Shared library relocated.** `skills/wf-design/reference/*` (15 transforms + `brand` + `product` +
+  the 7 operator playbooks) moves to `skills/wf/reference/design/`. A new
+  `skills/wf/reference/design/_design-context.md` is the single source for the register, the design
+  laws, the absolute bans, the preflight gates + 4 inspection sub-agents, and the image gate —
+  loaded by both the producer and the consuming stages.
+- **The consumption gradient.** `slice` (structures around it), `plan` (cites it), `implement`
+  (applies it + registers `design-<sub>` augmentations), `verify` (measures the a11y/perf/responsive
+  floor once), and `review` (judges it via `design-audit` + `design-critique` fan-out dimensions)
+  each pull their slice of design knowledge, gated behind `stack.ui ≠ ∅`. a11y/perf are measured once
+  in `verify` and interpreted in `review`/`audit` (single source of truth). `intake`/`shape` route to
+  `/wf design` when `stack.ui ≠ ∅`.
+- **Renderer.** `STAGE_NAV` keeps `design`/`design-contract`/`design-brief` under `shape` and adds the
+  orphaned `design-audit`/`design-critique` under `review`. Artifact `type:` values are unchanged, so
+  the renderers and snapshots are otherwise untouched.
+- **Docs.** `reference/wf-design.html` + `how-to/use-design.html` rewritten to the `/wf design` model;
+  the `/wf-design` sidebar label updated across the site; both manifest descriptions drop `/wf-design`
+  (six → five routers). The Codex tree mirrors the skill edits (`$wf design`).
+
+### Added — the tray now self-heals a RUNNING stale process after an upgrade (9.81.0)
+
+The autostart launcher self-heal (`refreshAutostart`, run from session-start-orient) re-stamps the Startup launcher
+to the current bundle + a durable node, so the *next* logon launches the right tray. But a tray that is **already
+running** from a prior version's bundle — the common case right after a plugin upgrade — kept executing the stale
+code until the user next logged in or restarted it by hand (observed 2026-06-17: a tray still on the `9.74.0`
+bundle while the hub, plugin, and rendered views had all moved to `9.80.0`). The hub already reaps + respawns a
+daemon whose `runtimeVersion` drifts (`lib/hub-lifecycle.mjs` / `lib/serve-lifecycle.mjs`); the tray had no
+equivalent. This adds one.
+
+- **`lib/tray-lifecycle.mjs`** — `reconcileRunningTray()` discovers running trays (Windows-first, via a WMI/CIM
+  process scan), compares each one's launched **bundle path** to the current one (the same path-equality the
+  launcher's `launcherTargetsCurrent` already uses — the version dir is encoded in the path, and the tray has no
+  IPC surface to query), and on a mismatch kills the stale process and respawns the current bundle through the
+  existing detached hidden-launch machinery (`lib/detach.mjs` + `resolveDurableNodePath`). Decision table: no tray
+  → `none`; only current → `unchanged` (left alone); stale + a current one also up → `killed-stale` (reap the
+  duplicate, **no** second spawn); stale, none current → `respawned`. Every OS/exec/spawn seam is injectable.
+- **`scripts/tray-heal.mjs`** — a thin entrypoint the session-start hook spawns **detached** so orientation never
+  blocks on the process scan (the same pattern as the bootstrap render + hub-ensure).
+- **`hooks/session-start-orient.mjs`** — `healRunningTray()` runs the reconcile, gated on win32 + autostart-enabled,
+  and **debounced** via a `~/.sdlc/.tray-heal` marker (≤ once / 60 s) so we neither scan on every session start nor
+  let two near-simultaneous sessions both respawn (a brief duplicate-icon race). `SDLC_DISABLE_TRAY_HEAL=1` opts out.
+- 10 unit tests (`tests/unit/lib/tray-lifecycle.test.mjs`) cover the parser, the path-equality helpers, and the full
+  reconcile table — including the two required cases (a stale tray triggers a respawn; a current tray is left alone).
+
+### Added — explicit controlled runtime upgrade with rollback (9.80.0)
+
+NATIVE-INTEROP-REWRITE-PLAN "Controlled Runtime Upgrade" — the last open Workstream C deliverable. SessionStart
+stays adoption-first; this is the deliberate, atomic path to swap the live machine-wide hub to a *different*
+shared-runtime build, with automatic rollback if the new runtime fails to come up healthy — so the machine is
+never left without a working hub.
+
+- **`controlledUpgrade({ pluginRoot, allowDowngrade, confirm })`** (`lib/hub-lifecycle.mjs`). Resolves the
+  requested runtime (the target `pluginRoot`'s manifest) and the previous one (the live hub's PID record), then:
+  under `~/.sdlc/hub-upgrade.lock` materializes + verifies the new build while the old hub keeps serving; under
+  `hub.lock` (the brief swap window, which blocks a racing SessionStart from starting a competitor) writes a
+  durable rollback record → stops the old hub → frees the port → starts the new one → confirms health, registry
+  visibility, and the expected build. On any failure it rolls the hub back to the previous runtime and restarts
+  it. Success keeps the previous build in the store for the next rollback window.
+- **Never downgrades implicitly.** A requested runtime older than the active one is refused unless both
+  `allowDowngrade` and `confirm` are passed (pure, unit-tested `upgradeDecision` + `compareVersions`).
+- **`startHubFromRuntimeRoot`** extracted from `startHubFromStore` so the op can start an arbitrary runtime
+  (the new build, or the previous one on rollback) with an explicit identity, not just the bundled `RUNTIME`.
+- **CLI** `scripts/hub-upgrade.mjs` (`npm run hub:upgrade`, bundled to `dist/`): `node <runtimeRoot>/dist/hub-upgrade.mjs [--plugin-root <path>] [--allow-downgrade --yes]`.
+
+Proven with real detached hubs in an `SDLC_HOME` sandbox: an upgrade swaps the live hub to a new build and
+retains `~/.sdlc` state; a deliberately-unhealthy runtime rolls back to the previous build (plan test items 9 & 10).
+
+### Changed — sub-command chat returns are now a narrative, not a receipt (9.79.0)
+
+Every artifact-producing sub-command (`/wf plan`, `shape`, `slice`, `implement`, `verify`, `review`, …) now ends its chat return with a short **narrative paragraph** that *tells the user what happened* — for `plan`, what the plan **is** (the approach) and how it gets built, with the file/step counts and the top risk woven in; for `implement`, what was built and how; for `verify`, what was checked and the result. The scannable anchors stay — the `complete:` header, `Artifacts:`, `Next:`, and (for `/review`) the `Verdict:`/`Findings:` line — but they now sit *beneath* the prose. Previously a bare receipt (`slug` / `wrote` / `options`) was all that landed in chat: you saw *that* `04-plan-<slice>.md` was written, never *what the plan said*.
+
+**Root cause.** The v9.19.0 Final Summary Contract lives in each router's `# Step N — Emit Final Summary` and was correct, but two instructions defeated it: (1) every stage reference's `# Chat return contract` told the model to **"return ONLY"** a slug/wrote/options receipt, and (2) the router's key-facts line was *optional* ("Skip if there's nothing material") and deferred to that reference as the content spec. The model resolved the conflict by emitting the receipt and skipping the substance. (v9.19.0 had deliberately made summaries terse and field-shaped for scannability; this release re-optimises that same surface for comprehension — narrative prose, anchors retained.)
+
+**The fix** (applied to both the Claude and native-Codex skill trees, ~72 skill files):
+
+- **Routers (all 6)** — the Final Summary format now leads with a mandatory **narrative** placeholder; the old "Key facts" rule became a "Narrative" rule **REQUIRED for any sub-command that produces an artifact**; the `Artifacts:`/`Next:` anchors move below the prose. `/review` keeps `Verdict` + `Findings` and `/wf-design` keeps `Register` + `Image gate` as scannable anchors after the narrative; the `8-line` cap was relaxed to "compact". Read-only displays (`status`, `resume`, `how`) stay exempt.
+- **Receipt references (38)** — the `wf/*` stages, `wf-quick/*`, and the artifact-producing `wf-meta` actions (`sync`/`amend`/`extend`/`next`) replace "return ONLY" with "lead with the substance first, then the receipt" and carry a `narrative:` directive as the first field, above the slug/wrote/options anchors.
+- **Hand-off references (22)** — the augmentations (`instrument`/`experiment`/`benchmark`/`profile`), the `wf-quick` investigative commands, and `wf-meta` `skip`/`close` now lead with a narrative paragraph, keeping their structured field block as anchors beneath it.
+
+### Decisions (recorded)
+
+1. **Narrative over terse fields, anchors retained.** Per product-owner direction, the chat return optimises for being *told what happened*, not for scanning a form — but the machine-scannable anchors (`Artifacts`/`Next`/`Verdict`/`Findings`) stay so routing and go/no-go remain at a glance.
+2. **Fix at both layers.** The router mandate is the enforcement; softening the references removes the contradiction at its source so the two no longer fight. Neither alone is robust — the reference's emphatic "ONLY" would keep pulling against a router-only fix.
+3. **Scope by symptom, not pattern.** Read-only displays (`status`, `resume`, `how`) keep their "return ONLY the dashboard/brief" — there the rendered view *is* the substance.
+4. **Brand-neutral inserts** keep the Claude and Codex skill twins byte-identical — verified by de-duplicating each inserted line across its file set (the reference narrative directive collapses to one unique line across 38 files; the hand-off directive to one across 20; the router rule to two, `wf`'s richer variant plus the shared generic).
+
+### Files
+
+- **Routers (12):** `skills/{wf,wf-quick,wf-meta,wf-docs,wf-design,review}/SKILL.md` in both `plugins/sdlc-workflow` and `plugins/sdlc-workflow-codex`.
+- **References (60):** the 15 `wf/*` + `wf-quick/*` receipt refs and 4 `wf-meta` receipt refs, plus 11 hand-off refs (incl. `benchmark`'s two mode blocks), in both trees.
+- **Version:** `.claude-plugin/plugin.json`, `package.json`, `renderers/_shell.mjs`, `.claude-plugin/marketplace.json` (sdlc 9.78.0 → 9.79.0; marketplace 1.104.0 → 1.105.0), and 53 doc-site brand stamps. Codex `runtime/**` re-synced (buildId parity). Skill `.md` edits need no rebuild — they are not part of the bundled runtime.
+
+### Changed — per-repo serving is now opt-in; the hub is the default sole server (9.78.0)
+
+`hub-config.perRepoServe` now defaults to **`false`** (was `true`). A standalone per-repo serve daemon spawns
+ONLY when the key is explicitly `true`; at the default — `false`, or absent — `ensureServeLifecycle` reaps any
+running per-repo daemon and declines to spawn, so the machine-wide hub is the sole server. This removes the
+last way a per-repo daemon can squat the hub port by default (the inbox-vanishes-behind-one-repo failure) and
+makes "the hub serves everything" the zero-config behavior.
+
+- **Opt-in semantics everywhere, not just the default constant.** Every reader now treats *only* `=== true` as
+  enabled: the server gate (`serve-lifecycle`, was `=== false` to disable → now `!== true`), the tray checkmark
+  (`perRepoServeEnabled`, which also reads OFF on a missing/torn config instead of defaulting ON), and the
+  toggle. A sparse or partially-read config resolves OFF — "false at all times" holds however the config is read.
+- **Trade-off:** a repo that opts out of the hub (`view.hub.enabled:false`) no longer gets a standalone fallback
+  daemon automatically — set `perRepoServe:true` to restore it.
+
+Full suite green (420, +1 default-off regression test); doc-site `serve`/`sunflower-view` updated.
+
+### Added — the native Codex package carries the shared runtime, byte-for-byte (9.77.0)
+
+NATIVE-INTEROP-REWRITE-PLAN Workstream D — the first deliverable that puts a real runtime inside
+`plugins/sdlc-workflow-codex`. The Codex plugin now ships the complete shared runtime payload and can start,
+render, serve, and heal the hub with no Claude plugin installed and no runtime `npm install`.
+
+- **One payload definition, two consumers.** `lib/runtime-store.mjs` now EXPORTS `PAYLOAD_DIRS`/`PAYLOAD_FILES`
+  and `copyRuntimePayload`, so the bytes the hub materializes into `~/.sdlc/runtime/<buildId>` and the bytes the
+  Codex package ships are copied from the SAME definition — they cannot drift.
+- **Shared buildId algorithm (`lib/runtime-buildid.mjs`).** Extracted from `scripts/build.mjs` so the build
+  generator and the new verifier compute the digest identically. The hash is taken over `(relpath-from-root,
+  bytes)`, so an identical payload at any root (Claude plugin, Codex `runtime/`, or the machine store) reproduces
+  the same `buildId` — that's what makes "Claude buildId == Codex buildId" mechanically true rather than asserted.
+- **Self-contained verifier (`scripts/verify-runtime.mjs`, bundled into `dist/`).** Ships INSIDE the runtime, so
+  either package proves locally that its payload reproduces its claimed `buildId`:
+  `node <runtimeRoot>/dist/verify-runtime.mjs`.
+- **Sync + parity gate (`scripts/sync-codex-runtime.mjs`).** `npm run sync:codex` mirrors the payload into the
+  Codex package and writes `runtime-baseline.json` (release provenance); `npm run verify:codex` is the
+  cross-package byte-for-byte parity gate (identical manifest + buildId + per-file hash over all 197 files).
+
+Proven: the Codex runtime boots the hub standalone (`startedBy.host: codex`, identical `buildId`); full Claude
+suite green (419, +5 buildId tests); new Codex `runtime-parity` suite green; build deterministic; cross-package
+parity OK.
+
+### Added — machine-wide runtime store + the hub starts under a cross-host lock (9.76.0)
+
+NATIVE-INTEROP-REWRITE-PLAN Workstream C / Phase 2 — the rest of the cross-host hub lifecycle, built on the
+9.75.0 runtime identity and the proven cross-host lock. The hub no longer depends on the plugin cache that
+started it, and simultaneous Claude+Codex activation yields exactly one hub.
+
+- **Machine-wide immutable runtime store (`lib/runtime-store.mjs`).** Each plugin MATERIALIZES its bundled
+  runtime into `~/.sdlc/runtime/<buildId>/` (atomic: copy to a temp dir then rename into place — never a
+  partial overwrite; idempotent: an already-verified build is reused) and the hub is started from THERE. So
+  uninstalling/upgrading the starter plugin can't pull files out from under a long-running hub. `active-runtime.json`
+  records the runtime backing the live hub. GC safeguards never reap the active runtime, the live-hub-PID
+  runtime, the caller's bundled build, or any same-`runtimeVersion` build.
+- **`ensureHubLifecycle` is adoption-first under the cross-host lock.** A healthy compatible hub is adopted on a
+  LOCK-FREE fast path; only start/reap/recover enters the `~/.sdlc/hub.lock` critical section, where a
+  double-checked re-probe means a hub a peer host started while we waited is adopted, not reaped. The adoption
+  decision is extracted to a pure, unit-tested `decideHubAction`. The hub spawns from the store; the PID record
+  carries `runtimeRoot`.
+- **The render seam resolves the active machine runtime.** `resolveRenderEntrypoint` now resolves the live hub
+  PID record's `runtimeRoot` → `active-runtime.json` → the caller's bundled root, so every render (including a
+  hook-spawned fallback) runs the active runtime and stamps the active `buildId`, whichever host started the hub.
+
+Live-smoke-verified end to end (materialize → start-from-store → adopt-on-second-call → clean stop); 27 new
+unit tests (runtime-store, decideHubAction, plus the 12 cross-host-lock spike tests); full suite green.
+
+### Added — shared runtime identity: the hub becomes cross-host-shareable (9.75.0)
+
+NATIVE-INTEROP-REWRITE-PLAN Workstream B / Phase 1 — the prerequisite that lets the Claude plugin
+(`sdlc-workflow`) and the native Codex plugin (`sdlc-workflow-codex`) share one machine-wide hub and one
+renderer runtime without thrashing. **No single-host behaviour change** (today `runtimeVersion` equals the
+package version, so adoption, reaping, and stale-render healing behave exactly as before).
+
+- **`runtime-manifest.json` + `lib/runtime-manifest.mjs`.** A host-neutral identity both packages carry
+  identically: `runtimeVersion` (the shared renderer/hub release line) and `buildId` (a deterministic sha256
+  over the shared runtime payload — `dist/` + `assets/` + `components/` + `schemas/`). Generated by the build
+  so `runtimeVersion` tracks the package version and `buildId` always matches the freshly built `dist/`.
+- **Hub adoption keys on `runtimeVersion`, not the package version.** `hub-lifecycle.mjs` now *adopts* a
+  healthy, protocol-compatible, same-`runtimeVersion` hub regardless of which host/package started it — and
+  never reaps it (Settled Decision 24). A genuine `runtimeVersion` mismatch still reaps + respawns (preserving
+  single-host upgrade pickup); a protocol-incompatible hub is left running with a diagnostic rather than
+  silently replaced. The hub's `/__sdlc/health` and `~/.sdlc/hub.pid` now carry structured identity
+  (`hub.{name,protocolVersion,runtimeVersion,buildId}` + `startedBy.host`), with the legacy top-level `version`
+  kept as a migration alias.
+- **Render freshness keys on `buildId`.** `.last-render` now stamps `buildId`; the stale-render healer and the
+  render version-gate compare it (falling back to `runtimeVersion` for legacy markers), so two hosts of the
+  same release never consider each other's output stale. The standalone per-repo daemon and the tray's
+  stale-detection move to the same shared identity.
+
 ### Changed — render-dispatch post-review cleanup (9.74.0)
 
 Quality pass over the 9.73.0 render-dispatch code (no behaviour change):

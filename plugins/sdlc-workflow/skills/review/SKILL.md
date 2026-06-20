@@ -118,10 +118,13 @@ BLOCKER: {n} | HIGH: {n} | MED: {n} | LOW: {n} | NIT: {n}
 
 After the Step 2 review report has been rendered, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across single-dimension and sweep modes. The rich markdown report above is for reading; this is the terse cap that says what to do next.
 
-**Format (max 8 lines):**
+**Format (compact — a short narrative, then the anchors):**
 
 ```
 review <mode> complete: <key> on <scope>/<target>
+
+<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
+
 Artifacts: <comma-separated paths, or "none">
 Verdict: <Ship | Ship with caveats | Don't ship>
 Findings: BLOCKER <n> | HIGH <n> | MED <n> | LOW <n> | NIT <n>
@@ -133,6 +136,7 @@ Next: <recommended command, or "Done">
 - **Always emit** unless the run STOPped with an error message — in that case the error replaces the summary.
 - **First line.** `mode` is `single-dimension` or `sweep`; `key` is the dimension or aggregate; scope/target names what was reviewed (PR number, worktree, diff range, file path, or `repo`).
 - **Artifacts.** When a workflow slice is active: the master `.ai/workflows/<slug>/07-review-<slice>.md` and per-dimension `07-review-<slice>-<dim>.md` files. When no workflow slice is active: `"none"` (findings returned inline only).
+- **Narrative — the heart of the summary, REQUIRED for any sub-command that produces an artifact.** In place of the old terse key-facts line, write a short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the user what happened* — what this run produced or decided, how, the load-bearing counts and decisions, and the top risk or caveat. Write it like you're telling a colleague, not filling a form. Omit only for genuinely read-only sub-commands.
 - **Verdict + Findings counts** are mandatory — they're what determines whether the user can ship.
 - **Next.** Concrete invocation tied to the verdict: `/wf handoff <slug>` when `Ship`, the fix-loop command or specific BLOCKER address when `Don't ship`, or `Done` if this was an ad-hoc review with no follow-up needed.
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.

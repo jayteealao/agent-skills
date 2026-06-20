@@ -1,0 +1,9 @@
+<div class="metric-row">
+{{#each metrics}}
+  <div class="metric{{#each this.tone}} is-{{this}}{{/each}}{{#each this.sev}} severity-{{this}}{{/each}}">
+    <span class="metric-label">{{this.label}}</span>
+    <span class="metric-value">{{this.value}}</span>
+    {{#each this.ann}}<span class="metric-ann">{{this}}</span>{{/each}}
+  </div>
+{{/each}}
+</div>

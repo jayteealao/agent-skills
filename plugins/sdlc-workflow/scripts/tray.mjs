@@ -30,15 +30,18 @@ import {
   isAutostartEnabled, enableAutostart, disableAutostart, refreshAutostart,
 } from '../lib/tray-autostart.mjs';
 import { sdlcHomeDir } from '../lib/registry.mjs';
+import { runtimeIdentity } from '../lib/runtime-manifest.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = resolve(__dirname, '..');
 const TRAY_BUNDLE = fileURLToPath(import.meta.url);   // this running file — what autostart re-invokes
 
-const PLUGIN_VERSION = (() => {
-  try { return JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')).version ?? ''; }
-  catch { return ''; }
-})();
+// Stale detection compares the SERVER's reported runtimeVersion to this tray's
+// own runtimeVersion (NATIVE-INTEROP Workstream B) — NOT the plugin package
+// version — so a hub started by the other host (same runtime, different package
+// version) is not falsely flagged stale. (The autostart launcher pinning, a
+// package concern, lives in lib/tray-autostart.mjs and is unaffected.)
+const PLUGIN_VERSION = runtimeIdentity().runtimeVersion;
 
 const TRAY_BIN_NAMES = {
   win32: 'tray_windows_release.exe',

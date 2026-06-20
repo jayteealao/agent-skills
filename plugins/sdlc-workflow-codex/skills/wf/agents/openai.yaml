@@ -1,0 +1,6 @@
+interface:
+  display_name: "SDLC Workflow Stage"
+  short_description: "Run one canonical SDLC lifecycle stage, augmentation, or the compressed design workflow ($wf design — UI/UX brief, visual contract, and build)"
+  default_prompt: "Run the intake stage to start a new workflow for adding a user authentication feature."
+policy:
+  allow_implicit_invocation: false

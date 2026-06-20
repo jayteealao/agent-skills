@@ -29,6 +29,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { resolveEntrypoint } from './entrypoint.mjs';
+import { readRenderedIdentity, renderIdentityMatches } from './runtime-manifest.mjs';
+import { resolveActiveRuntimeRootSync } from './runtime-store.mjs';
 
 // Machine-wide defaults. HUB_CONFIG_DEFAULTS.staleRender folds these in via
 // deepMerge (mirroring CODE_BROWSER_DEFAULTS), so a sparse or older hub-config
@@ -76,17 +78,19 @@ export function staleRenderConfigFromEnv(env = process.env) {
 }
 
 /**
- * The renderer-resolution seam (RENDER-DISPATCH-PLAN "Renderer resolution
- * seam"). Every render the daemon spawns — drift-driven heal OR queue-driven
- * dispatch — resolves its entrypoint HERE, and nowhere else. Today it is the
- * daemon's own bundled render-sunflower; the native-interop work later repoints
- * this single function at the active machine runtime (hub.pid.runtimeRoot →
- * active-runtime.json) WITHOUT touching the queue protocol, the hooks, or the
- * drain loop. Keeping it a named export makes that the only edit native interop
- * needs to make rendering host-neutral.
+ * The renderer-resolution seam (RENDER-DISPATCH-PLAN "Renderer resolution seam").
+ * Every render the daemon spawns — drift-driven heal OR queue-driven dispatch —
+ * resolves its entrypoint HERE, and nowhere else. NATIVE-INTEROP Workstream C
+ * repoints it (as the plan foretold) at the ACTIVE MACHINE RUNTIME so the hub is
+ * host-neutral: resolution order is the live hub PID record's runtimeRoot →
+ * active-runtime.json → the caller's own bundled pluginRoot. So whichever host
+ * started the hub, every render — including a hook-spawned fallback render — runs
+ * the active runtime and stamps the active buildId, with zero changes to the
+ * queue protocol, the hooks, or the drain loop.
  */
 export function resolveRenderEntrypoint(pluginRoot) {
-  return resolveEntrypoint(pluginRoot, 'render-sunflower');
+  const activeRoot = resolveActiveRuntimeRootSync();
+  return resolveEntrypoint(activeRoot ?? pluginRoot, 'render-sunflower');
 }
 
 /**
@@ -123,7 +127,11 @@ function defaultSpawnRender(script, args, opts) {
  *
  * @param {object}   o
  * @param {string}   o.pluginRoot     plugin root, for resolveEntrypoint('render-sunflower')
- * @param {string}   o.pluginVersion  the running daemon's version (the source of truth)
+ * @param {string}   o.pluginVersion  the running daemon's shared runtimeVersion (the source of truth)
+ * @param {string}   [o.buildId]      the running daemon's shared runtime buildId. When BOTH this
+ *                                    and the view's `.last-render` carry a buildId, freshness keys
+ *                                    on buildId (precise — catches a same-version rebuild); else it
+ *                                    falls back to runtimeVersion, so legacy markers still heal.
  * @param {object}   [o.healCfg]      staleRender config (normalised internally)
  * @param {Function} [o.log]          line logger (prefixed by the caller)
  * @param {Function} [o.emitReload]   emitReload(id) — belt-and-braces tab refresh on completion
@@ -134,6 +142,7 @@ function defaultSpawnRender(script, args, opts) {
 export function createHealController({
   pluginRoot,
   pluginVersion,
+  buildId = null,
   healCfg = {},
   log = () => {},
   emitReload = () => {},
@@ -160,16 +169,20 @@ export function createHealController({
     try {
       if (!cfg.heal) return { action: 'disabled' };
       if (!entry || !entry.id || !entry.viewDir || !entry.repoRoot) return { action: 'invalid' };
-      const renderedVersion = readRenderedVersion(markerOf(entry));
-      if (renderedVersion === pluginVersion) {
+      // Compare the FULL recorded identity (version + buildId) against the active
+      // runtime. renderIdentityMatches keys on buildId when both sides carry one,
+      // else on runtimeVersion — so a legacy `version`-only marker still heals.
+      const recorded = readRenderedIdentity(markerOf(entry));
+      const renderedVersion = recorded.version;   // display + `failed` snapshot (back-compat)
+      if (renderIdentityMatches(recorded, { runtimeVersion: pluginVersion, buildId })) {
         // Fresh — clear transient state so a FUTURE drift heals from a clean slate.
         attempts.delete(entry.id);
         failed.delete(entry.id);
         return { action: 'fresh', renderedVersion };
       }
-      // Drift in EITHER direction heals: the running daemon IS the installed
-      // plugin, so its version is authoritative — content should always match it,
-      // whether the install moved forward (upgrade) or back (downgrade).
+      // Drift in EITHER direction heals: the running daemon IS the active shared
+      // runtime, so its identity is authoritative — content should always match
+      // it, whether the runtime moved forward (upgrade) or back (downgrade).
       return enqueue(entry, renderedVersion);
     } catch (err) {
       log(`heal: consider error for ${entry?.id ?? '?'}: ${err?.message ?? err}`);

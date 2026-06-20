@@ -1,6 +1,6 @@
 ---
 name: imagegen
-description: Generate an image from a text prompt using the best available method, with automatic fallback (built-in image_gen → gpt-image-2 → nano-banana-pro → text-only scene sentence). Returns the image file path and the method used. Internal to `/wf-design`; not user-invocable.
+description: Generate an image from a text prompt using the best available method, with automatic fallback (built-in image_gen → gpt-image-2 → nano-banana-pro → text-only scene sentence). Returns the image file path and the method used. Internal to `/wf design`; not user-invocable.
 version: 1.0.0
 user-invocable: false
 argument-hint: "<prompt> [--output path] [--resolution 1K|2K|4K] [--count 1-4] [--skip-reason text]"
@@ -10,7 +10,7 @@ Generate an image from a natural language prompt using the best available method
 
 ## Usage
 
-Called internally by the `wf-design` command. Resolves the best available image generation
+Called internally by the `/wf design` flow. Resolves the best available image generation
 method at runtime and produces a visual artifact, or returns a structured text fallback.
 
 Arguments parsed from `$ARGUMENTS`:
@@ -99,7 +99,7 @@ IMAGEGEN_RESULT:
     GEMINI_API_KEY=<key> python3 .claude/skills/imagegen/scripts/gen-nano-banana-pro.py "<prompt>"
 ```
 
-The caller (`wf-design shape` or `wf-design craft`) records the result in the design artifact
+The caller (`/wf design` at its shape or craft step) records the result in the design artifact
 and sets `image_gate=pass` (for image success) or `image_gate=skipped:<reason>` (for text-only).
 
 ## Multiple images (`--count > 1`)

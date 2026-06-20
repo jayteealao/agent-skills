@@ -22,6 +22,7 @@ import { dirname, resolve, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnDetachedNode } from '../lib/detach.mjs';
 import { resolveEntrypoint } from '../lib/entrypoint.mjs';
+import { resolveActiveRuntimeRootSync } from '../lib/runtime-store.mjs';
 import { resolveProjectRoot } from '../lib/project-root.mjs';
 import { configPathFor } from '../lib/config.mjs';
 import { enqueue, queueDir } from '../lib/render-queue.mjs';
@@ -240,11 +241,18 @@ async function debounceStage2() {
 
   const buckets = bucketCsv ? bucketCsv.split(',').filter(Boolean) : [];
 
-  const renderArgs = [resolveEntrypoint(PLUGIN_ROOT, 'render-sunflower')];
+  // Resolve the renderer through the active machine runtime (PID runtimeRoot →
+  // active-runtime.json), falling back to the plugin cache only when none
+  // resolves — so even this legacy inline fallback stamps the ACTIVE buildId,
+  // never the plugin-cache build. Same active-runtime seam the hub's heal
+  // controller uses (resolveRenderEntrypoint); see NATIVE-INTEROP "Rendering Is
+  // Owned by the Hub" §4 — the fallback render must never resolve from plugin cache.
+  const renderRoot = resolveActiveRuntimeRootSync() ?? PLUGIN_ROOT;
+  const renderArgs = [resolveEntrypoint(renderRoot, 'render-sunflower')];
   if (buckets.length === 1) {
     renderArgs.push('--only', `${buckets[0]}/**`);
   }
-  renderArgs.push('--plugin-root', PLUGIN_ROOT);
+  renderArgs.push('--plugin-root', renderRoot);
 
   const child = spawn(process.execPath, renderArgs, {
     cwd: projectRoot,

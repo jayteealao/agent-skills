@@ -44,9 +44,10 @@ You are a **workflow orchestrator**, not a problem solver.
      - If `stack.user-confirmed: true` → proceed. Sub-agent 3 and the plan's interactive verification template both consume this confirmed block as their source of truth.
    - If `current-stage` in the index is already past plan → WARN before overwriting.
 4. **Read** `02-shape.md`, `03-slice.md` (if exists), the relevant `03-slice-<slice-slug>.md` file(s), and `po-answers.md`.
-4b. **Read design context if present** (optional):
-   - `02b-design.md` — register, recommended references, anti-goals. Plan steps for UI work should reference the recommended design reference docs (e.g., "follow `skills/wf-design/reference/typeset.md` for type scale").
-   - `02c-craft.md` — visual contract. The `## Mock fidelity inventory` items must be reflected as concrete plan steps. The `## Implementation contract` lists token choices, component decisions, and motion specs the plan must follow. The plan should NOT contradict the visual contract; if it must, surface the conflict for resolution before implementation.
+4b. **Read design context — mandatory when present** (file existence is optional; consumption is required for any UI/visual-design work). `plan` is the design consumer that *cites it*: the union-loader below turns each recommended reference into a concrete plan-step pointer, and the plan carries the register and anti-goals forward. Gate: if the `00-index.md` `stack:` block shows no UI layer (`stack.ui` empty) and no design artifacts exist, skip this step — non-UI work is unaffected.
+   - `02b-design.md` — register, recommended references, anti-goals.
+   - `02c-craft.md` — **visual contract. If the file exists you MUST read it.** The `## Mock fidelity inventory` items must be reflected as concrete plan steps. The `## Implementation contract` lists token choices, component decisions, and motion specs the plan must follow. The plan should NOT contradict the visual contract; if it must, surface the conflict for resolution before implementation.
+   - **Design references — union of both files.** Build the reference set from BOTH `recommended-references:` in `02b-design.md`'s frontmatter AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each entry by stripping a trailing `.md` (the two fields differ in convention) before de-duplicating. Plan steps for UI work MUST cite each as a pointer (e.g., "follow `skills/wf/reference/design/typeset.md` for type scale") so the implementer loads them; each resolves to `skills/wf/reference/design/<name>.md`. References that craft introduced live only in `02c` — reading `02b` alone would silently drop them, so always union the two.
 5. **Determine planning mode** (order matters — check top to bottom):
 
    **a) `all` with existing plans → review-all mode:**
@@ -246,7 +247,8 @@ After ALL slice sub-agents complete:
 - **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 
 # Chat return contract
-After writing files, return ONLY:
+After writing files, return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `slug: <slug>`
 - `wrote: <paths>` (list all plan files written)
 - `options:` (list all viable next options — see Adaptive Routing below)

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Refactoring Patterns"
+  short_description: "Safe behavior-preserving refactoring — extract, rename, move, simplify — with test-baseline and rollback guidance"
+  default_prompt: "Refactor this code to improve its structure while preserving behavior: [paste code here]"
+policy:
+  allow_implicit_invocation: true

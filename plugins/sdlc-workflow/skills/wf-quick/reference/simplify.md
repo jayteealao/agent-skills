@@ -405,7 +405,8 @@ If a `route-amend-plan` delta has not yet been applied, the simplify artifact re
 
 # Chat return contract
 
-After writing the run artifact, return ONLY:
+After writing the run artifact, return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `scope: <scope>`
 - `target: <target>`
 - `run-id: <run-id>`

@@ -98,16 +98,19 @@ export async function ensureHubOnLaunch({ pluginRoot, log = () => {} } = {}) {
  */
 export function togglePerRepoServe() {
   const cfg = readHubConfig({ create: true });
-  const next = !cfg.perRepoServe;
+  const next = cfg.perRepoServe !== true;
   cfg.perRepoServe = next;
   writeHubConfig(cfg);
   return next;
 }
 
-/** Current perRepoServe value (for the menu checkmark). */
+/** Current perRepoServe value (for the menu checkmark). Per-repo serving is
+ * opt-in: the tick is ON only when the config is explicitly `true`; the default,
+ * a missing key, or an unreadable/torn file all read as OFF — matching the
+ * server-side gate (serve-lifecycle reaps unless perRepoServe === true). */
 export function perRepoServeEnabled() {
-  try { return readHubConfig({ create: false }).perRepoServe !== false; }
-  catch { return true; }
+  try { return readHubConfig({ create: false }).perRepoServe === true; }
+  catch { return false; }
 }
 
 /* ───────────────────────── open-in-app ───────────────────────── */

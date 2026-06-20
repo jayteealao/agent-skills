@@ -61,8 +61,8 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
      - `05-implement-<slice-slug>.md` — what was actually implemented
      - `02-shape.md` — overall spec context
    - All modes also read `po-answers.md` if it exists.
-7. **Read augmentation verification context (optional):**
-   `02c-craft.md` if present — extract `## Mock fidelity inventory`. Each item is an additional acceptance criterion that verify must check. Cross-reference `05-implement-<slice-slug>.md` → `## Visual Contract Honored` to confirm each item was honored in code.
+7. **Read augmentation verification context (`02c-craft.md` is mandatory when present):**
+   `02c-craft.md` — **if the file exists you MUST read it** — extract `## Mock fidelity inventory`. Each item is an additional acceptance criterion that verify must check. Cross-reference `05-implement-<slice-slug>.md` → `## Visual Contract Honored` to confirm each item was honored in code.
 
    Read the `augmentations:` list in `00-index.md`. For each entry, read the referenced artifact and apply the type-specific re-check:
 
@@ -235,6 +235,8 @@ After driving each user-observable criterion, run an a11y scan on the surface ju
 
 Launch ONLY if any of these exist: `02c-craft.md`, or any entry in `00-index.md` `augmentations:` list. This sub-agent enforces contracts that the standard test suites do not catch.
 
+> **`verify` is the design consumer that *measures it* (when `stack.ui ≠ ∅`).** The a11y / perf / responsive / web-vitals gates above are the **measurable design floor** for any UI slice, and the per-augmentation re-checks below confirm each *applied* transform actually hit its goal. These numbers are measured **once, here** — `/wf review`'s design-audit dimension (and ad-hoc `/wf design audit`) *interpret* them from `06-verify-*.md` rather than re-running axe-core, so the two stages can never disagree about the same measurement. Record them in the verify report so audit can read them.
+
 Prompt with:
 
 **Mock fidelity inventory check (when `02c-craft.md` is present):**
@@ -296,7 +298,8 @@ Verify that the selected slice meets acceptance criteria and is ready for review
 - **Evidence versioning across re-invocations:** When `06-verify-<slice-slug>.md` already exists (i.e., this is a re-run), do NOT overwrite the previous evidence directory. Before writing new evidence, move the existing evidence to a timestamped snapshot: `mv .ai/workflows/<slug>/verify-evidence/<slice-slug>/ .ai/workflows/<slug>/verify-evidence/<slice-slug>-run-<N>/` where `N` is the re-run count (read from the existing artifact's `fix-rounds-run` field + 1). New evidence goes into the fresh `<slice-slug>/` directory. This preserves a diff-able record of what changed between rounds — reviewers can compare `<slice-slug>-run-1/` vs. `<slice-slug>/` to see whether fixes changed observable behavior.
 
 # Chat return contract
-After writing files, return ONLY:
+After writing files, return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `slug: <slug>`
 - `wrote: <path>`
 - `result: <pass | fail | partial | blocked-runtime-evidence-missing>`

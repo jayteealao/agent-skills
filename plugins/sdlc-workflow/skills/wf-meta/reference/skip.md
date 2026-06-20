@@ -172,7 +172,9 @@ If `retro` is skipped: set `status: complete` and `current-stage: complete` in `
 
 # Step 6 — Hand off to user
 
-Emit a compact chat summary, no more than 8 lines:
+Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+
+Emit a compact chat summary:
 
 ```
 wf-skip complete: <slug>

@@ -65,8 +65,8 @@ You are a **workflow orchestrator**, not a problem solver.
      - `## Friction Notes` and `## Free Exploration Notes` (if non-empty) → include under a "Soft Observations" subsection in `## Reviewer Focus Areas` so the human reviewer sees what the verifier noticed beyond the acceptance criteria.
    - If `review-scope: slug-wide`: read the single `07-review.md` (review verdict and all findings for the whole branch).
    - `po-answers.md`
-6. **Read augmentation context (optional — surfaces all augmentation work for the reviewer):**
-   Read `02b-design.md` and `02c-craft.md` if present for register, anti-goals, and visual contract. The mock fidelity inventory items are user-visible changes the PR description should highlight (translated to product language).
+6. **Read augmentation context (`02c-craft.md` is mandatory when present; the augmentations list is optional):**
+   Read `02b-design.md` and `02c-craft.md` for register, anti-goals, and visual contract — **if `02c-craft.md` exists you MUST read it.** The mock fidelity inventory items are user-visible changes the PR description should highlight (translated to product language).
 
    Read the `augmentations:` list in `00-index.md`. Every entry must appear in the handoff package's `## Design Changes` and/or `## Reviewer Focus Areas` section. Per-type translation:
 
@@ -100,7 +100,8 @@ Turn the completed and reviewed work into a PR-ready handoff package with review
 - **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 
 # Chat return contract
-After writing files, return ONLY:
+After writing files, return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `slug: <slug>`
 - `wrote: <path>`
 - `options:` (list all viable next options — see Adaptive Routing below)

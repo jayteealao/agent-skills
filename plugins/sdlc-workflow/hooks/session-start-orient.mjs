@@ -9,8 +9,8 @@
  * - Start detached bootstrap rendering after the fast orientation pass.
  */
 
-import { mkdirSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
 import { spawnDetachedNode } from '../lib/detach.mjs';
@@ -26,6 +26,7 @@ import {
 } from '../lib/hook-utils.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
 import { isAutostartEnabled, refreshAutostart } from '../lib/tray-autostart.mjs';
+import { sdlcHomeDir } from '../lib/registry.mjs';
 import { scanWorkflowIndexes, activeWorkflowIndexes } from '../lib/workflow-index.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -39,6 +40,7 @@ async function main() {
   const config = await loadConfig(projectRoot);
   startBootstrap(projectRoot, config);
   healAutostartLauncher();
+  healRunningTray();
 
   const workflows = activeWorkflowIndexes(await scanWorkflowIndexes({ projectRoot }));
   if (!workflows.length) return;
@@ -92,6 +94,46 @@ function healAutostartLauncher() {
     refreshAutostart({ trayBundle: resolveEntrypoint(PLUGIN_ROOT, 'tray') });
   } catch {
     // best-effort; session orientation must remain fail-open.
+  }
+}
+
+// Reconcile a tray that is ALREADY RUNNING on a prior version's bundle after an
+// upgrade (lib/tray-lifecycle.mjs). healAutostartLauncher above only re-points
+// the NEXT logon; a tray still running keeps executing the stale code. We spawn
+// the reconcile DETACHED (it does a WMI process scan) so orientation never
+// blocks, and debounce via a marker so we neither scan on every session nor let
+// two near-simultaneous sessions both respawn (a brief duplicate-icon race).
+// Gated on win32 (the tray is Windows-only in practice) + autostart-enabled (we
+// never relaunch a tray the user didn't opt into). Fail-open.
+function healRunningTray() {
+  try {
+    if (process.env.SDLC_DISABLE_TRAY_HEAL === '1') return;
+    if (process.platform !== 'win32') return;
+    if (!isAutostartEnabled()) return;
+    if (!trayHealDue()) return;
+    spawnDetachedNode(resolveEntrypoint(PLUGIN_ROOT, 'tray-heal'), [], { cwd: PLUGIN_ROOT, env: process.env });
+  } catch {
+    // best-effort; session orientation must remain fail-open.
+  }
+}
+
+const TRAY_HEAL_DEBOUNCE_MS = 60_000;
+
+// True at most once per debounce window, claiming the window by touching a
+// marker so a concurrent session start in the same window skips the respawn.
+// Returns false (skip) on any fs error — better to miss a heal than to risk a
+// duplicate spawn we can't gate.
+function trayHealDue(now = Date.now()) {
+  try {
+    const marker = join(sdlcHomeDir(), '.tray-heal');
+    try {
+      const age = now - statSync(marker).mtimeMs;
+      if (age >= 0 && age < TRAY_HEAL_DEBOUNCE_MS) return false;
+    } catch { /* no marker yet → due */ }
+    writeFileSync(marker, `${now}\n`, 'utf-8');
+    return true;
+  } catch {
+    return false;
   }
 }
 

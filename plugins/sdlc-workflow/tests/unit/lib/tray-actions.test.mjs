@@ -77,11 +77,11 @@ test('refreshRegistry sends the x-sdlc-token header', async () => {
 });
 
 test('togglePerRepoServe flips and persists the config bit', () => {
-  equal(perRepoServeEnabled(), true);          // HUB_CONFIG_DEFAULTS.perRepoServe
-  equal(togglePerRepoServe(), false);
-  equal(perRepoServeEnabled(), false);
+  equal(perRepoServeEnabled(), false);         // HUB_CONFIG_DEFAULTS.perRepoServe (opt-in: default OFF)
   equal(togglePerRepoServe(), true);
   equal(perRepoServeEnabled(), true);
+  equal(togglePerRepoServe(), false);
+  equal(perRepoServeEnabled(), false);
 });
 
 test('openerCommand is correct per platform', () => {

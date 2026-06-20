@@ -1,0 +1,6 @@
+interface:
+  display_name: "SDLC Quick Workflow"
+  short_description: "Compressed, standalone SDLC entry points for fixes, RCA, investigation, and more"
+  default_prompt: "Run a quick fix workflow to address the null pointer exception in the payment handler."
+policy:
+  allow_implicit_invocation: false

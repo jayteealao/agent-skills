@@ -39,7 +39,7 @@ If slug-mode was not selected (first argument was not a known slug, or `INDEX.md
 You are a **compressed-planning orchestrator**, not an incident responder and not a feature shaper.
 - This command exists to skip ceremony, not to skip thinking. The output must still be a real plan.
 - Ask at most **2 questions** in chat. No `AskUserQuestion`, no separate `po-answers.md` — answers go inline into the artifact.
-- Do NOT auto-include design. If the change visibly touches UI and `--design` was not passed, surface a one-line note in the artifact's "Skipped" section recommending `/wf-design <slug>` as a follow-up. Do not block.
+- Do NOT auto-include design. If the change visibly touches UI and `--design` was not passed, surface a one-line note in the artifact's "Skipped" section recommending `/wf design <slug> craft` as a follow-up. Do not block.
 - Follow the steps below exactly in order. Do not skip, reorder, or combine steps. The compression happens *within* a step, not by removing steps.
 
 # Step 0 — Orient (MANDATORY)
@@ -121,9 +121,9 @@ One paragraph: what the user wants and why. ≤3 acceptance criteria as a bullet
 
 If `--design` was passed, include 3-5 bullets of design notes (visual hierarchy, copy, interaction). Otherwise write exactly:
 
-> Design step skipped. If the change touches UI surface, run `/wf-design <slug>` after `/wf implement` completes — or restart with `/wf intake <description>` for a full design pass before implementation.
+> Design step skipped. If the change touches UI surface, run `/wf design <slug> craft` after `/wf implement` completes — or restart with `/wf intake <description>` for a full design pass before implementation.
 
-If you observe that the change *does* touch UI surface (HTML/CSS/JSX/SwiftUI/Compose components, copy strings, layout files) but `--design` was not passed → still skip design, but add a one-line "**UI touched — design skipped:** consider `/wf-design <slug>` follow-up" warning to the "Skipped" section. Do not block.
+If you observe that the change *does* touch UI surface (HTML/CSS/JSX/SwiftUI/Compose components, copy strings, layout files) but `--design` was not passed → still skip design, but add a one-line "**UI touched — design skipped:** consider `/wf design <slug> craft` follow-up" warning to the "Skipped" section. Do not block.
 
 ## 4. Slice (skipped by definition)
 
@@ -197,7 +197,9 @@ Body: one-line description of the workflow + a short pointer to `01-fix.md`.
 
 # Step 4 — Hand off to user
 
-Emit a compact chat summary, no more than 8 lines:
+Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+
+Emit a compact chat summary:
 
 ```
 wf-quick complete: <slug>

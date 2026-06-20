@@ -235,7 +235,8 @@ Do NOT change `current-stage`, `status`, `selected-slice-or-focus`, or any other
 ---
 
 # Chat return contract
-Return ONLY:
+Return — lead with the substance first, then the receipt:
+- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `slug: <slug>`
 - `wrote:` list of new slice files written, plus `03-slice.md` (updated)
 - `new-slices:` list of new slice slugs with one-line goals

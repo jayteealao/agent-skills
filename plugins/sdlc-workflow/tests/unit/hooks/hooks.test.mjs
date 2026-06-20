@@ -752,7 +752,7 @@ test('session-start-orient emits compact JSON for active workflows only', () => 
       title: 'Done workflow',
     })));
 
-    const result = runHook(HOOKS.sessionStartOrient, { cwd: tmp }, tmp, { SDLC_DISABLE_BOOTSTRAP: '1' });
+    const result = runHook(HOOKS.sessionStartOrient, { cwd: tmp }, tmp, { SDLC_DISABLE_BOOTSTRAP: '1', SDLC_DISABLE_TRAY_HEAL: '1' });
     equal(result.status, 0, result.stderr);
     const parsed = JSON.parse(result.stdout);
     match(parsed.systemMessage, /Active workflow: demo - Demo workflow/);
@@ -766,9 +766,10 @@ test('session-start-orient emits compact JSON for active workflows only', () => 
 /* ───────────────────────── render dispatch (RENDER-DISPATCH-PLAN) ───────────────────────── */
 
 // SDLC_DISABLE_ENSURE_HUB keeps the hub-ensure helper from spawning a real
-// daemon in tests; SDLC_HOME isolates any registry side effects to the temp dir.
+// daemon in tests; SDLC_DISABLE_TRAY_HEAL keeps the tray reconcile from reaping
+// a real tray; SDLC_HOME isolates any registry side effects to the temp dir.
 function renderEnv(tmp) {
-  return { SDLC_DISABLE_ENSURE_HUB: '1', SDLC_HOME: join(tmp, '.sdlc-home') };
+  return { SDLC_DISABLE_ENSURE_HUB: '1', SDLC_DISABLE_TRAY_HEAL: '1', SDLC_HOME: join(tmp, '.sdlc-home') };
 }
 
 test('post-write-render (hub dispatch) ENQUEUES a render request instead of spawning', () => {

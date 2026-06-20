@@ -1,0 +1,228 @@
+---
+description: Compressed planning workflow for small intentional changes. Collapses intake, shape, design, slice, and plan into a single artifact in one pass. Routes to $wf implement for the standard execute-verify-review-handoff-ship lifecycle. Use when the change is small enough that the full 5-stage planning ceremony is overkill but you still want a recorded plan, a branch, and the standard implement/review/ship pipeline.
+argument-hint: <description-or-slug>
+---
+
+# External Output Boundary (MANDATORY)
+Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
+- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.codex/...`, `.ai/dep-updates/...`), stage names or numbers, skill names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
+- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
+- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
+- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+
+You are running `wf-quick`, a **compressed planning workflow** for small intentional changes.
+
+# Slug-mode (read before proceeding)
+
+If `$wf-quick`'s dispatcher selected **slug-mode** in Step 0 (the first argument after the sub-command matched a non-closed slug in `.ai/workflows/INDEX.md`), the *Step 1 — Slug-mode contract* in the `$wf-quick` SKILL.md overrides the standalone instructions below. Substantively:
+
+- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-fix-<descriptor>.md` (collision suffix `-2`, `-3` if needed). Frontmatter: `type: slice`, `slice-slug: fix-<descriptor>`, `slice-type: fix`, `compressed: true`, `origin: wf-quick/fix`, `stage-number: 3`, `status: defined`.
+- **Same content, different home.** Body uses the same sections you would have written to `01-fix.md` standalone (Brief / Shape / Design-skip / Slice-skip / Plan / Skipped / Tripwire breaches), under a `# Compressed Slice: fix` heading with a one-line provenance preamble.
+- **No new workflow, no new branch, no `01-fix.md`, no new top-level `00-index.md`.** The slug already owns those.
+- **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: fix-<descriptor>, slice-type: fix, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: fix, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see SKILL.md Step 1 step 6).
+- **Chat return:** one line — `wf-quick fix → compressed slice fix-<descriptor> on <slug>` — plus the downstream recommendation you would normally make (`$wf implement <slug>` or `$wf-meta status <slug>`), now scoped to this slice rather than a fresh workflow.
+
+If slug-mode was not selected (first argument was not a known slug, or `INDEX.md` did not exist), ignore this section and proceed standalone per the instructions below.
+
+# Pipeline
+`1·fix-plan` → `$wf implement` → `$wf verify` → `$wf review` → `$wf handoff` → `$wf ship`
+
+| | Detail |
+|---|---|
+| Requires | Nothing — starts fresh. Pass a description or an existing slug to resume. |
+| Produces | `01-fix.md` (compressed brief + shape + plan) and `00-index.md` |
+| Skips | Stage 2 (shape standalone), stage 2b (design), stage 3 (slice), stage 4 (plan standalone) — all merged into `01-fix.md`. Design is **never auto-included**; user must opt in by passing `--design`. |
+| Next | `$wf implement <slug>` (full lifecycle takes over from stage 5 onward) |
+| Escalate | If during planning the work no longer fits the wf-quick envelope, **warn and continue** — record the breach in the artifact and recommend `$wf intake <description>` for next time. Do not refuse. |
+
+# CRITICAL — scope discipline
+You are a **compressed-planning orchestrator**, not an incident responder and not a feature shaper.
+- This skill exists to skip ceremony, not to skip thinking. The output must still be a real plan.
+- Ask at most **2 questions** directly in chat, presenting the options as a short numbered list. No separate `po-answers.md` — answers go inline into the artifact.
+- Do NOT auto-include design. If the change visibly touches UI and `--design` was not passed, surface a one-line note in the artifact's "Skipped" section recommending `$wf design <slug> craft` as a follow-up. Do not block.
+- Follow the steps below exactly in order. Do not skip, reorder, or combine steps. The compression happens *within* a step, not by removing steps.
+
+# Step 0 — Orient (MANDATORY)
+1. **Resolve slug and mode** from `$ARGUMENTS`:
+   - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: fix` (new) OR `workflow-type: quick` (legacy — slugs created before v9.18.0, when this sub-command was named `quick`) → **resume mode**. Read that index and the planning artifact (`01-fix.md` for new slugs, or the legacy `01-quick.md` for pre-v9.18.0 slugs — check both paths). If the artifact is complete, the user likely meant to run `$wf implement` — tell them and stop. If incomplete, pick up from the missing section.
+   - Otherwise → **new wf-quick fix workflow**. Derive a slug: `fix-<short-description>` (kebab-case, max 5 words, e.g., `fix-checkout-button-spacing`).
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is neither `fix` nor `quick` (legacy) → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf-meta resume <slug>` to continue the existing workflow." Stop.
+3. **Branch check:**
+   - Default `branch-strategy: dedicated` with branch name `fix/<slug>`. Create the branch off the current base if it does not exist: `git checkout -b fix/<slug>`.
+   - If the user explicitly passed `branch-strategy: none` or is mid-task on an existing branch they want to keep using → record `branch-strategy: none` in the index and do not switch branches.
+4. **Read project context (lightweight):**
+   - Read `.impeccable.md` if present (for design context — informs the warn-and-continue if UI is touched).
+   - Read `README.md` (top 100 lines) for project shape.
+   - Read `AGENTS.md` if present for project conventions.
+   - Do NOT read the full codebase here. The Step 1 sub-agent does targeted exploration.
+
+# Step 1 — Compressed planning (single pass, parallel research)
+Write `01-fix.md` in **one pass** covering all five collapsed sections. Use parallel Explore sub-agents to gather what is needed before writing — do not write from memory. Work sequentially unless the user explicitly requested parallel execution.
+
+### Parallel research (use sub-agents)
+Launch sub-agents in parallel before writing the artifact. Do not spin up sub-agents if the change is a one-line fix in a file the user has explicitly named.
+
+#### Explore sub-agent 1 — Codebase grounding
+
+Prompt with ALL of the following:
+- Identify the files most likely to be touched based on the user's description.
+- For each candidate file, note: current shape (~5 lines of summary), nearby patterns the change should match, callers that may need updating.
+- Run `git log --oneline -10` on the candidate files — flag if any have changed in the last 7 days (signal that the area is in flux and the change may need to coordinate with that work).
+- Search for existing utilities or helpers that solve the same problem; flag any reuse opportunities.
+
+Return as structured text:
+- `files_in_scope`: list of paths
+- `nearby_patterns`: 1-3 patterns to match
+- `reuse_candidates`: list of `path:symbol — what it does`
+- `recent_churn`: list of files touched in last 7 days (or empty)
+
+#### Explore sub-agent 2 — Web freshness (skip if pure internal change)
+
+Skip this sub-agent if the change is purely internal (no new external dependency, no API integration, no platform/browser API usage, no security surface). Otherwise:
+
+Prompt with ALL of the following:
+- Search for the relevant library/API documentation for the latest stable version syntax.
+- Look for known gotchas, deprecation notices, or breaking changes in the last 12 months for the affected API surface.
+- Return: 2-3 source URLs, 1-line takeaway each, and a **go/no-go** signal on whether the planned approach is current.
+
+# Step 2 — Write `01-fix.md`
+
+After both sub-agents return (or sub-agent 1 only, if 2 was skipped), merge findings and write the artifact in one pass.
+
+**`01-fix.md` frontmatter:**
+```yaml
+---
+schema: sdlc/v1
+type: fix-plan
+slug: <slug>
+workflow-type: fix
+intent: <one-line description>
+files-in-scope: [<list>]
+estimated-steps: <number, must be ≤ 5>
+status: ready-for-implement
+created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+---
+```
+
+**Body sections (in order, each tight):**
+
+## 1. Brief (replaces intake)
+
+One paragraph: what the user wants and why. ≤3 acceptance criteria as a bulleted list — each must be objectively verifiable. If you needed to ask the user up to 2 questions to nail this down, embed the answers here as italicized inline notes; do not write a separate `po-answers.md`.
+
+## 2. Shape (replaces shape)
+
+- **In scope:** 1-3 bullets of what this change includes.
+- **Out of scope:** 1-3 bullets of what this change explicitly does NOT include.
+- **Known unknowns:** 0-2 bullets — flag anything you are guessing about.
+
+## 3. Design (skipped by default)
+
+If `--design` was passed, include 3-5 bullets of design notes (visual hierarchy, copy, interaction). Otherwise write exactly:
+
+> Design step skipped. If the change touches UI surface, run `$wf design <slug> craft` after `$wf implement` completes — or restart with `$wf intake <description>` for a full design pass before implementation.
+
+If you observe that the change *does* touch UI surface (HTML/CSS/JSX/SwiftUI/Compose components, copy strings, layout files) but `--design` was not passed → still skip design, but add a one-line "**UI touched — design skipped:** consider `$wf design <slug> craft` follow-up" warning to the "Skipped" section. Do not block.
+
+## 4. Slice (skipped by definition)
+
+Write exactly:
+
+> Single-slice workflow. No slicing needed.
+
+## 5. Plan (replaces plan)
+
+A numbered list of **at most 5 implementation steps**, each step:
+- Names the file(s) it touches.
+- States the change in 1-2 lines.
+- Lists verification — how do we know this step is correct (lint? test? manual check? screenshot?).
+
+Then a **Verification section** at the bottom:
+- **Tests to run:** specific commands.
+- **Manual checks:** specific URLs, flows, or visual checks.
+
+## 6. Skipped (always present)
+
+A short list of what was deliberately not done in this compressed flow:
+- "Design step skipped" (always — design is never auto-included).
+- "Slicing skipped" (always — single slice).
+- "Separate `po-answers.md` skipped" (always — answers inlined above).
+- Plus any per-run notes (e.g., "UI touched — design follow-up recommended", "web freshness check skipped — pure internal change", or a tripwire breach note).
+
+## 7. Tripwire breaches (only if any fired)
+
+A "wf-quick envelope" section listing any tripwires that fired during planning. Tripwires are **warn-and-continue** — do NOT refuse to write the plan. Just record the breach so the user has the data to decide whether to keep going or restart with `$wf intake`. Tripwires:
+
+- **>3 files touched** in the planned changes.
+- **>5 implementation steps** required.
+- **New external dependency** introduced.
+- **Architectural change** — new module, schema migration, public API surface, or cross-cutting behavior change (auth, logging, error handling).
+- **>2 open questions** the user could not answer in chat.
+
+For each tripwire that fired, write one line: `[tripwire-name]: <what specifically tripped it>`. Then add a single closing line:
+
+> One or more wf-quick tripwires fired. The plan is still valid, but the work has grown beyond the wf-quick envelope. Consider restarting with `$wf intake <description>` for a full workflow next time. Run `$wf implement <slug>` to proceed with the current plan.
+
+## Step — Write free narrative fragments
+
+Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+
+# Step 3 — Write `00-index.md`
+
+Standard index file, with:
+
+```yaml
+---
+schema: sdlc/v1
+type: workflow-index
+slug: <slug>
+workflow-type: fix
+current-stage: implement
+status: ready
+selected-slice: <slug>
+branch-strategy: <dedicated|none>
+branch: <branch-name-or-empty>
+base-branch: <base-branch>
+next-command: $wf implement
+next-invocation: $wf implement <slug>
+open-questions: []
+progress:
+  - fix-plan: complete
+created-at: <timestamp>
+---
+```
+
+Body: one-line description of the workflow + a short pointer to `01-fix.md`.
+
+# Step 4 — Hand off to user
+
+Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+
+Emit a compact chat summary:
+
+```
+wf-quick complete: <slug>
+Branch: <branch-name or "current branch">
+Files in scope: <comma-separated list, max 3 — say "+N more" if longer>
+Steps: <N> implementation steps planned
+Tripwires: <none | comma-separated list of tripwire names>
+Skipped: design (always), slicing (always)<, web freshness if applicable>
+Next: $wf implement <slug>
+Restart bigger: $wf intake <description>
+```
+
+If any tripwire fired, prefix the summary with one extra line:
+
+> ⚠ Plan is valid but exceeds wf-quick envelope. Consider $wf intake for the next change like this.
+
+# Compact and crash-safe behavior
+
+- Write `01-fix.md` and `00-index.md` atomically (write to a temp path within the run, then rename) so a crash mid-write does not leave a half-written workflow.
+- If the run is interrupted before `01-fix.md` exists, resume mode (Step 0) treats this as a fresh start — there is nothing to resume from.
+- If the run is interrupted after `01-fix.md` exists but before `00-index.md`, resume mode reads `01-fix.md` and writes `00-index.md` as the only remaining work.
+
+# What this skill is NOT
+
+- **Not a hotfix** — `$wf-quick hotfix` exists for production incidents (forces production-branch base, requires diagnosis sub-agents, has tighter scope locks). Use `$wf-quick hotfix` if there is an active incident.
+- **Not a refactor workflow** — `$wf-quick refactor` exists for behavior-preserving refactoring with test baselines. Use `$wf-quick refactor` if the change is "make the code better without changing what it does."
+- **Not a way to skip review** — `$wf implement` still routes through `$wf verify` and `$wf review`. The compression is in *planning*, not in *quality gates*.

@@ -1,0 +1,39 @@
+{
+  "name": "sdlc-workflow-codex",
+  "version": "0.2.0",
+  "description": "Native Codex SDLC plugin: five handwritten router skills ($wf, $wf-quick, $wf-meta, $wf-docs, $review) plus independent engineering skills, over the same shared runtime, hub, and .ai/ artifacts as the Claude sdlc-workflow plugin. Design folds into $wf design. Requires Codex CLI 0.139.0+.",
+  "author": {
+    "name": "jayte",
+    "url": "https://github.com/jayteealao"
+  },
+  "homepage": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow-codex",
+  "repository": "https://github.com/jayteealao/agent-skills",
+  "license": "MIT",
+  "keywords": [
+    "sdlc",
+    "codex",
+    "delivery",
+    "review",
+    "debugging",
+    "release"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "SDLC Workflow for Codex",
+    "shortDescription": "Codex-native SDLC routers + shared hub",
+    "longDescription": "A handwritten Codex-native SDLC plugin with router-name parity to the Claude sdlc-workflow plugin (five routers + independent skills), driving a 10-stage lifecycle with per-slice artifacts, runtime-truth verification, and a shared machine-wide hub/runtime that both hosts adopt. Skills are handwritten for Codex; the runtime, hub, renderer, schemas, and .ai/ artifacts are shared. Review and trust the bundled hooks before activation.",
+    "developerName": "jayte",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow-codex",
+    "defaultPrompt": [
+      "Run the next SDLC stage for this workflow.",
+      "Review the current branch across the pre-merge dimensions.",
+      "Investigate and fix this failing test."
+    ],
+    "brandColor": "#0F766E"
+  }
+}

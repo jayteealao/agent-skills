@@ -238,7 +238,9 @@ Body: one-line description of the hypothesis + pointer to `01-discover.md` and t
 
 # Step 5 — Hand off to user
 
-Emit a compact chat summary, no more than 10 lines:
+Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+
+Emit a compact chat summary:
 
 ```
 wf-discover complete: <slug>
