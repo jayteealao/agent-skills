@@ -732,7 +732,7 @@ Scans all package manifests, then launches **parallel web research sub-agents** 
 
 Never mixes tiers in a single commit. If a P2 batch update breaks tests, it bisects to the culprit and marks it blocked without touching application code.
 
-Artifacts land in `.ai/dep-updates/<run-id>/` (separate from workflow directories).
+Artifacts land in the standard `.ai/workflows/<slug>/` tree as a compressed standard lifecycle (`01-update-deps` → `02-shape` → `03-slice` → `04-plan` → self-authored `05`/`06` → `/wf review`). Legacy runs under `.ai/dep-updates/<run-id>/` still render for back-compat.
 
 ### … audit and update documentation
 
@@ -850,8 +850,8 @@ Self-contained workflows with their own lifecycle that do not require an existin
 
 | Command | Purpose | Artifact location |
 |---|---|---|
-| `/wf intake hotfix <description>` | Compressed incident-response pipeline (6 stages, scope-locked, max 5 steps) | `.ai/workflows/hotfix-<slug>/` |
-| `/wf intake update-deps [package\|--security-only\|--audit-only]` | Scan all deps for staleness and CVEs, research each via web search, update by risk tier | `.ai/dep-updates/<run-id>/` |
+| `/wf intake hotfix <description>` | Compressed incident-response *standard* lifecycle (every stage single-pass, scope-locked, max 5 steps; review defaults to security) | `.ai/workflows/<slug>/` |
+| `/wf intake update-deps [package\|--security-only\|--audit-only]` | Scan all deps for staleness and CVEs, research each via web search, update by risk tier (self-authors execution, then `/wf review`) | `.ai/workflows/<slug>/` |
 | `/wf-docs [<primitive>\|slug\|--audit-only\|path]` | Documentation router: orchestrator pipeline (discover → audit → plan → generate → review) or single Diátaxis primitive (plan, tutorial, how-to, reference, explanation, readme, review) | `.ai/docs/<run-id>/` (orchestrator) or in-place (primitive) |
 | `/wf intake refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
 
@@ -1060,11 +1060,11 @@ All artifacts for a workflow live under a single directory:
 │   ├── 90-how-<topic>.md                # Written by wf-how (Modes A/D) — codebase/artifact explanations
 │   ├── 90-findings-explain.md           # Written by wf-how (Mode E) — findings explanation
 │   └── po-answers.md                    # Cumulative product-owner answers log
-├── ideation/
-│   └── <focus>-<timestamp>.md           # Written by wf-ideate — ranked improvement candidates
+├── ideation/                           # LEGACY — pre-v9.86 wf-ideate runs (new runs root an in-slug type:workflow-index)
+│   └── <focus>-<timestamp>.md           # Ranked improvement candidates (still rendered for back-compat)
 ├── research/
 │   └── <topic>-<timestamp>.md           # Written by wf-how (Modes B/C) — codebase and web research
-├── dep-updates/<run-id>/
+├── dep-updates/<run-id>/                # LEGACY — pre-v9.86 update-deps runs (new runs write in-slug standard artifacts)
 │   ├── scan.md                          # Dependency inventory and audit results
 │   ├── research.md                      # Per-package web research findings + priority groups
 │   ├── plan.md                          # Update plan by risk tier (P0 security → P1 major → P2 safe → hold)
@@ -1078,7 +1078,7 @@ All artifacts for a workflow live under a single directory:
     └── 08b-docs-index.md                # Compact docs run index rendered by the sunflower view
 ```
 
-Hotfix and refactor workflows use the standard `.ai/workflows/` tree with `workflow-type: hotfix` or `workflow-type: refactor` in `00-index.md` frontmatter, and `hf-`/`rf-` prefixed artifact names instead of numbered stage files.
+Hotfix and refactor workflows use the standard `.ai/workflows/` tree with `workflow-type: hotfix` or `workflow-type: refactor` in `00-index.md` frontmatter, and **standard numbered stage files** (`01-hotfix.md`/`01-refactor.md` → `02-shape.md` → `03-slice.md` → `04-plan.md` → …) as compressed standard lifecycles. (Legacy pre-v9.86 slugs may carry `hf-`/`rf-` prefixed artifacts; those still render for back-compat.)
 
 Every file starts with YAML frontmatter (`schema: sdlc/v1`) containing all machine-readable state. Commit these files alongside your code — they form a permanent, queryable record of how and why a change was made.
 

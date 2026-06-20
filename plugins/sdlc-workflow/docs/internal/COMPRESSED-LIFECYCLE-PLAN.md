@@ -1,10 +1,14 @@
 # Compressed standard lifecycles for the intake change-modes — Implementation Plan
 
-> Status: **PLAN ONLY — reviewed & revised (two fresh-eyes passes); NO implementation yet.** Follow-on
-> to wf-quick→/wf (the v9.83.0 subsume). Supersedes the earlier "relocate off-pipeline" draft. This doc
-> is saved at `plugins/sdlc-workflow/docs/internal/COMPRESSED-LIFECYCLE-PLAN.md`; when approved, run the
-> phases below. **Re-verify the live plugin version before bumping** — the tree is contested (see
-> Codex + release).
+> Status: **BUILT & SHIPPED (v9.86.0).** The build change-modes (`fix`/`hotfix`/`refactor`/`update-deps`)
+> are now compressed *standard* lifecycles and the 14 bespoke renderers were retired. Follow-on to
+> wf-quick→/wf (the v9.83.0 subsume). Supersedes the earlier "relocate off-pipeline" draft.
+> **⚠ Deviations from this plan as written (see D8 below):** `rca`/`investigate` stayed *forwarded*
+> mode (NOT rebuilt as standalone `type:index` lifecycles), and `simplify` shipped as a *terminal
+> router* (`type:workflow-index`, routing findings to downstream commands) rather than the multi-slice
+> build-capable mode D8 proposed. `ideate`/`simplify` root a `type:workflow-index` slug; `probe` got
+> no standalone mode (it is slug-only by design). Read the **D8 analysis-seeded** sections as the
+> *proposed* design, not what shipped.
 
 ## Context
 

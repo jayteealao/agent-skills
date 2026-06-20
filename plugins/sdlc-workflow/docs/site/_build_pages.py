@@ -545,7 +545,7 @@ You know what you want to do. This page maps your situation to the exact command
 <tr>
   <td>Update dependencies safely</td>
   <td><code>/wf intake update-deps</code></td>
-  <td>Audits dependencies, tiers them by risk, and updates in order. 4-stage flow under <code>.ai/dep-updates/</code>.</td>
+  <td>Audits dependencies, tiers them by risk, and updates in order. Compressed standard lifecycle in-slug under <code>.ai/workflows/&lt;slug&gt;/</code>.</td>
 </tr>
 <tr>
   <td>Refactor without changing behaviour</td>
@@ -784,7 +784,7 @@ thrown Error message. This surfaces directly to API consumers.
 2. Existing tests continue to pass.
 3. No behaviour change.</code></pre>
 
-<p>The fix-plan skips the deep requirements interview that <code>/wf shape</code> runs. For a spelling fix the acceptance criteria are obvious, so Claude inlines them rather than walking through the full shape interview.</p>
+<p>The compressed fix runs a lightweight shape rather than the deep requirements interview that the full <code>/wf shape</code> stage runs. For a spelling fix the acceptance criteria are obvious, so Claude captures them in a single pass (a real <code>02-shape.md</code>) instead of walking through the full shape interview — the stage is expedited, not skipped.</p>
 
 <h2>Step 2 — Implement</h2>
 
@@ -839,12 +839,12 @@ fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pr
 <table>
 <thead><tr><th>Command</th><th>For</th><th>What it produces</th></tr></thead>
 <tbody>
-<tr><td><code>/wf intake hotfix</code></td><td>Production incident — must ship in minutes</td><td>6-stage artifact trail, scope-locked, skips review</td></tr>
+<tr><td><code>/wf intake hotfix</code></td><td>Production incident — must ship in minutes</td><td>Full lifecycle single-pass, scope-locked; review defaults to security</td></tr>
 <tr><td><code>/wf intake rca</code></td><td>Root-cause analysis from code and git history (static — no running app needed)</td><td>Single artifact; recommends <code>/wf plan</code>, <code>/wf intake fix</code>, or <code>hotfix</code> as next step</td></tr>
 <tr><td><code>/wf probe</code></td><td>Runtime-truth check — drives the running artifact and compares output against acceptance criteria</td><td>Evidence directory + findings artifact (slug required)</td></tr>
 <tr><td><code>/wf intake investigate</code></td><td>Sketch 2–3 distinct engineering approaches with tradeoffs before committing to one</td><td>Single artifact with options A/B/C; no winner picked — you choose, then route to <code>/wf intake fix</code> or <code>/wf intake</code></td></tr>
 <tr><td><code>/wf intake discover</code></td><td>Test a theory about how the codebase works against real evidence</td><td>Single artifact with verdict: holds / partial / fails / inconclusive</td></tr>
-<tr><td><code>/wf intake update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>4-stage trail under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
+<tr><td><code>/wf intake update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>Standard lifecycle in-slug under <code>.ai/workflows/&lt;slug&gt;/</code></td></tr>
 <tr><td><code>/wf intake refactor</code></td><td>Behaviour-preserving refactor with test baseline capture and re-verification</td><td>Stage-locked: baseline → refactor → re-verify</td></tr>
 <tr><td><code>/wf intake ideate</code></td><td>Brainstorm and rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
 <tr><td><code>/wf simplify</code></td><td>Three-agent triage of a branch, commit, plan, or codebase — routes findings, never writes code</td><td>Routing report under <code>simplify/</code></td></tr>
@@ -1987,7 +1987,7 @@ PAGES.append((
 
 <dt><strong>Do I really need all 10 stages for a one-line fix?</strong></dt>
 <dd>
-  <p>No. For small, self-contained changes use <code>/wf intake fix</code> instead of <code>/wf</code>. This intake mode — a compressed flow that skips the full planning and review stages — is designed exactly for this. You get a lightweight artifact trail without the overhead of ten stages. Save the full flow for changes that genuinely need a written spec, coordinated review, or a staged rollout.</p>
+  <p>No. For small, self-contained changes use <code>/wf intake fix</code> instead of <code>/wf</code>. That intake mode is a compressed standard lifecycle — it runs every stage single-pass rather than skipping any, so review and the quality gates still run. You get a complete but lightweight artifact trail without the full ceremony of a feature workflow. Save the full flow for changes that genuinely need a written spec, coordinated review, or a staged rollout.</p>
 </dd>
 
 <dt><strong>What happens if I lose the artifact files?</strong></dt>

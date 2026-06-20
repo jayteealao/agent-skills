@@ -1,9 +1,12 @@
 # Subsume `wf-quick` into `wf` — Implementation Plan
 
-> Status: DRAFT for review. Mirrors the completed `wf-design`→`/wf design` subsume
+> Status: **SHIPPED (v9.83.0)** — `/wf-quick` was subsumed into `/wf intake <mode>` (+ `/wf probe`,
+> `/wf simplify`). Mirrors the completed `wf-design`→`/wf design` subsume
 > (`docs/internal/WF-DESIGN-SUBSUME-PLAN.md`).
-> **First execution step:** save this file as
-> `plugins/sdlc-workflow/docs/internal/WF-QUICK-SUBSUME-PLAN.md` (repo convention).
+> **⚠ Superseded per-mode artifact shapes:** the `hf-*` / `rf-*` / `.ai/dep-updates/` bespoke
+> pipelines this plan's flow-span table describes were later replaced by compressed *standard*
+> lifecycles in **v9.86.0** — see `docs/internal/COMPRESSED-LIFECYCLE-PLAN.md`. Read the per-mode
+> artifact rows below as the *historical* (pre-v9.86) shape, not current behavior.
 
 ## Context
 

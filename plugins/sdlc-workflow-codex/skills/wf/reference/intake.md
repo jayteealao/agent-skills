@@ -113,18 +113,22 @@ mode→span map (a future mode is one new row):
 | Mode | Standalone (no slug) | Slug-mode (`<slug> <mode>`) | Terminus / Next |
 |---|---|---|---|
 | `default` | `00-index.md` + `01-intake.md`; PO interview + stack fingerprint | n/a — default is never slug-attached | recommends `$wf shape <slug>` |
-| `fix` | `00-index.md` + `01-fix.md` (`type:fix-plan`); branch `fix/<slug>` | compressed slice (branch suppressed) | **flows** → `$wf implement <slug>` |
+| `fix` | compressed **standard** lifecycle — `01-fix`(`type:intake`) → `02-shape` → `03-slice`(`slice-index`) → `04-plan` → **[gate]**, on a `type:index` overview; branch `fix/<slug>` | compressed slice (branch suppressed) | → `$wf implement <slug>` (standard chain authors `05`→`10`) |
 | `rca` | `01-rca.md` (`type:rca`) **+ `02-shape.md`** (forwarding) + `00-index.md`; no branch | compressed slice, **no `02-shape.md`** | terminal → recommends `plan` / `fix` / `hotfix` / human-triage |
 | `investigate` | `01-investigate.md` + `00-index.md`; no branch | compressed slice | terminal → user picks → `fix` / `intake` |
 | `discover` | `01-discover.md` + `00-index.md`; no branch | compressed slice | terminal → verdict-dependent |
-| `hotfix` | `hf-brief/plan/implement/verify.md`; **branch `hotfix/<prod>`** | compressed slice, **branch suppressed** | → `$wf ship <slug>` |
-| `refactor` | `rf-brief/baseline/plan/implement/verify.md`; optional branch | compressed slice, **branch suppressed** | → `$wf review <slug>` |
-| `update-deps` | `.ai/dep-updates/<run-id>/{scan,research,plan,implement,verify}.md` | compressed slice **only** (companion dir suppressed) | terminal |
-| `ideate` | `.ai/ideation/<focus>-<ts>.md` — **creates NO workflow** | compressed slice | terminal → user picks → `$wf intake` |
+| `hotfix` | compressed **standard** lifecycle — `01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]**; branch `hotfix/<slug>` off the production branch | compressed slice, **branch suppressed** | → `$wf implement <slug>` (`07-review` defaults to `security`) |
+| `refactor` | compressed **standard** lifecycle — `01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]**; branch `refactor/<slug>` (opt-in) | compressed slice, **branch suppressed** | → `$wf implement <slug>` (`07-review` defaults to `refactor-safety`) |
+| `update-deps` | compressed **standard** lifecycle in-slug — `01-update-deps`(intake) → `02-shape` → `03-slice` → `04-plan` → **[gate]** → **self-authored** `05-implement`/`06-verify`; branch `deps/<slug>` | compressed slice **only** (companion dir suppressed) | → `$wf review <slug>` (self-authors `05`/`06`; skips `$wf implement`+`$wf verify`) |
+| `ideate` | **terminal analysis** — roots a `type:workflow-index` slug with the `01-ideate` lead only (no build stages) | compressed slice | terminal → user picks → `$wf intake <idea>` |
 
 Notes:
 - **The dispatcher is a pure router.** It does not itself create the workflow folder — each mode
-  reference owns its artifact writes (which is why `ideate`, writing no workflow, is fine).
+  reference owns its artifact writes. Build modes (`fix`/`hotfix`/`refactor`/`update-deps`) emit a
+  full `type:index` overview; the terminal analysis modes (`ideate`, standalone `discover`) root a
+  lightweight `type:workflow-index` lead.
+- **The mode reference is authoritative** for the exact artifacts and the terminus — this table is a
+  summary; the per-mode reference loaded in Step 3 governs what gets written and where the flow routes.
 - **Slug-mode is uniform:** the compressed slice is the sole output, branch creation is suppressed,
   and off-pipeline companion dirs are not written — per `reference/_compressed-slice.md`.
 

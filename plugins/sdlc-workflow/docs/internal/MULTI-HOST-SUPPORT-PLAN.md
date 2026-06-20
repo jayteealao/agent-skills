@@ -377,8 +377,8 @@ on Claude Code, OpenAI Codex CLI, and Google Antigravity.
 ## Entry points
 - `/wf intake` — start a new workflow slice
 - `/wf-meta status` — pipeline status
-- `/wf-design …` — design phase
-- `/wf-quick rca` — root cause analysis
+- `/wf design …` — design phase
+- `/wf intake rca` — root cause analysis
 - `/review <dimension>` — code review
 
 ## Conventions

@@ -130,10 +130,10 @@ authoring pattern (defined in Phase 0).
 | `/wf review <slug>` | [review.md:305](../../skills/wf/reference/review.md) | 3–15 selected dims, parallel | sonnet (hardcoded in prose) | findings |
 | `/wf-quick ideate` | [ideate.md:66](../../skills/wf-quick/reference/ideate.md) | ≤6 lenses, parallel | haiku | ideas |
 | `/wf-quick simplify` | [simplify.md:105](../../skills/wf-quick/reference/simplify.md) | 3, parallel | haiku | findings |
-| `/wf-quick discover` | [discover.md:69](../../skills/wf-quick/reference/discover.md) | 3 (FOR/AGAINST/counter), parallel | haiku | verdict+evidence |
-| `/wf-quick investigate` | [investigate.md:69](../../skills/wf-quick/reference/investigate.md) | 3 (cartographer/options/tradeoffs), parallel | sonnet | options |
-| `/wf-quick rca` | [rca.md:69](../../skills/wf-quick/reference/rca.md) | 2–3, parallel | sonnet | causal-chain |
-| `/wf-design` preflight | [SKILL.md:131](../../skills/wf-design/SKILL.md) | 4 inspectors, parallel | inherit | design-context |
+| `/wf intake discover` | [discover.md](../../skills/wf/reference/intake/discover.md) | 3 (FOR/AGAINST/counter), parallel | haiku | verdict+evidence |
+| `/wf intake investigate` | [investigate.md](../../skills/wf/reference/intake/investigate.md) | 3 (cartographer/options/tradeoffs), parallel | sonnet | options |
+| `/wf intake rca` | [rca.md](../../skills/wf/reference/intake/rca.md) | 2–3, parallel | sonnet | causal-chain |
+| `/wf design` preflight | [_design-context.md](../../skills/wf/reference/design/_design-context.md) | 4 inspectors, parallel | inherit | design-context |
 
 **Family 2 — Fan-out → dedicated synthesis agent** (research):
 

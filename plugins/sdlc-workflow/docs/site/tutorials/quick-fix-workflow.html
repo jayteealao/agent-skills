@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.86.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.87.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -224,12 +224,12 @@ fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pr
 <table>
 <thead><tr><th>Command</th><th>For</th><th>What it produces</th></tr></thead>
 <tbody>
-<tr><td><code>/wf intake hotfix</code></td><td>Production incident — must ship in minutes</td><td>6-stage artifact trail, scope-locked, skips review</td></tr>
+<tr><td><code>/wf intake hotfix</code></td><td>Production incident — must ship in minutes</td><td>Full lifecycle single-pass, scope-locked; review defaults to security</td></tr>
 <tr><td><code>/wf intake rca</code></td><td>Root-cause analysis from code and git history (static — no running app needed)</td><td>Single artifact; recommends <code>/wf plan</code>, <code>/wf intake fix</code>, or <code>/wf intake hotfix</code> as next step</td></tr>
 <tr><td><code>/wf probe</code></td><td>Runtime-truth check — drives the running artifact and compares output against acceptance criteria</td><td>Evidence directory + findings artifact (slug required)</td></tr>
 <tr><td><code>/wf intake investigate</code></td><td>Sketch 2–3 distinct engineering approaches with tradeoffs before committing to one</td><td>Single artifact with options A/B/C; no winner picked — you choose, then route to <code>/wf intake fix</code> or <code>/wf intake</code></td></tr>
 <tr><td><code>/wf intake discover</code></td><td>Test a theory about how the codebase works against real evidence</td><td>Single artifact with verdict: holds / partial / fails / inconclusive</td></tr>
-<tr><td><code>/wf intake update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>4-stage trail under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
+<tr><td><code>/wf intake update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>Standard lifecycle in-slug under <code>.ai/workflows/&lt;slug&gt;/</code></td></tr>
 <tr><td><code>/wf intake refactor</code></td><td>Behaviour-preserving refactor with test baseline capture and re-verification</td><td>Stage-locked: baseline → refactor → re-verify</td></tr>
 <tr><td><code>/wf intake ideate</code></td><td>Brainstorm and rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
 <tr><td><code>/wf simplify</code></td><td>Three-agent triage of a branch, commit, plan, or codebase — routes findings, never writes code</td><td>Routing report under <code>simplify/</code></td></tr>
