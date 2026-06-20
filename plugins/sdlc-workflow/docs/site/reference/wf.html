@@ -415,10 +415,14 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <h4>Review-owned fix loop <span class="badge">v9.15</span></h4>
 
-<p>Review owns its own fix loop rather than only routing back to implement. For each finding you triage <em>Fix</em>, review spawns one sub-agent at a time (explicit <code>model: sonnet</code>) to apply the patch, records the outcome in the master artifact's <code>## Fix Status</code> section (<code>Patched</code> / <code>Could not fix</code>), and re-checks the result against <code>git diff HEAD</code>. Deferred or skipped findings are recorded with a reason, never silently dropped.</p>
+<p>Review owns its own fix loop rather than only routing back to implement. For each finding you triage <em>Fix</em>, review spawns one sub-agent at a time (explicit <code>model: sonnet</code>) to apply the patch, then records the outcome <strong>on the finding</strong> (<code>status: fixed</code> / <code>could-not-fix</code> plus a <code>fixed-at</code> stamp) and in the master artifact's accumulating <code>## Fix Status</code> ledger. Deferred or skipped findings are recorded with a reason, never silently dropped. There is no round counter — re-running review is just another accumulating pass (see below).</p>
+
+<h4>Accumulating ledger</h4>
+
+<p>The review artifacts are an <strong>accumulating ledger</strong>, not an overwrite-on-each-run report. Re-running <code>/wf review</code> on the same slug reads the existing <code>07-review-&lt;slice&gt;.md</code> (and per-dimension files), <strong>de-duplicates</strong> this run's findings against the prior ones, and <strong>merges</strong> them in place — each finding carries a <code>surfaced-at</code> timestamp recording when it first appeared. A finding a re-run no longer surfaces (its dimension ran clean) is marked <code>status: resolved</code> and kept for history; nothing is overwritten or deleted. A compact <code>runs:</code> ledger in the frontmatter records each pass. The verdict and blocker counts are computed from the <strong>open</strong> findings only.</p>
 
 <h4>Triage mode</h4>
-<p><code>/wf review &lt;slug&gt; triage</code> re-opens prior findings and walks the user through deferred items.</p>
+<p><code>/wf review &lt;slug&gt; triage</code> walks you through the deferred and untriaged findings on the existing ledger without re-running the reviewers. Triage decisions persist across runs unless you change them here.</p>
 
 <hr>
 

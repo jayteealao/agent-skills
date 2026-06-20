@@ -246,12 +246,12 @@ Do this in order for reviews mode:
 6. **After all findings are processed:**
    a. Write/update `05-implement-<slice-slug>.md` with a `## Review Fixes Applied` section listing all findings and their resolution status.
    b. Update `05-implement.md` master index.
-   c. **Update `07-review-<slice-slug>.md`:** Add a `## Fix Status` section at the bottom:
+   c. **Update `07-review-<slice-slug>.md` (accumulating ledger — edit in place, do not overwrite):** Set each fixed finding's `status` (`fixed` / `could-not-fix`) + `fixed-at` on the finding in `## All Findings`, `## Findings (Detailed)`, and the sibling `.yaml`, and update its row in the accumulating `## Fix Status` ledger (one row per finding ever fixed, keyed by ID — update in place, never start a new round table):
       ```
       ## Fix Status
-      | ID | Severity | Status | Notes |
-      |----|----------|--------|-------|
-      | {ID} | {sev} | Fixed / Partially Fixed / Could Not Fix | {notes} |
+      | ID | Sev | Source | Status | Fixed-at | Commit | Notes |
+      |----|-----|--------|--------|----------|--------|-------|
+      | {ID} | {sev} | {command} | fixed / could-not-fix | {fixed-at} | {SHA or —} | {notes} |
       ```
    d. Update `00-index.md`.
    e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** Stage all changed files and commit with message: `fix(<slug>): review fixes for <slice-slug>`. Record commit SHA. Do NOT push. If `branch-strategy` is `none`, skip.

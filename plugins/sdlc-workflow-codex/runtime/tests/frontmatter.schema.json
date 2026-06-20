@@ -517,8 +517,24 @@
         "metric-findings-med":     { "type": "integer", "minimum": 0 },
         "metric-findings-low":     { "type": "integer", "minimum": 0 },
         "metric-findings-nit":     { "type": "integer", "minimum": 0 },
+        "metric-findings-resolved":   { "type": "integer", "minimum": 0 },
+        "metric-findings-total-ever": { "type": "integer", "minimum": 0 },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
+        "runs": {
+          "type": "array",
+          "description": "Compact per-invocation audit trail for the accumulating review ledger. One entry per `/wf review` run; rendered invisibly (frontmatter only). Lets retro/handoff/auto reconstruct how many passes a review took without a body-level round section.",
+          "items": {
+            "type": "object",
+            "required": ["at"],
+            "properties": {
+              "at":         { "$ref": "#/$defs/iso8601" },
+              "dimensions": { "$ref": "#/$defs/stringArray" },
+              "verdict":    { "enum": ["ship", "ship-with-caveats", "dont-ship"] },
+              "fix-commit": { "type": ["string", "null"] }
+            }
+          }
+        },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
       }
@@ -1478,6 +1494,11 @@
               "line":       { "type": ["integer", "string", "null"] },
               "confidence": { "enum": ["high", "med", "low"] },
               "action":     { "enum": ["accept", "defer", "reject"] },
+              "status":       { "type": "string", "description": "Accumulating-ledger lifecycle: open | deferred | dismissed | fixed | could-not-fix | resolved. Permissive string for back-compat; the merge protocol in review.md owns the vocabulary." },
+              "surfaced-at":  { "$ref": "#/$defs/iso8601" },
+              "last-seen-at": { "$ref": "#/$defs/iso8601" },
+              "resolved-at":  { "$ref": "#/$defs/iso8601" },
+              "fixed-at":     { "$ref": "#/$defs/iso8601" },
               "msg":        { "type": "string" },
               "evidence":   { "type": "object" },
               "fix":        { "type": "string" }
@@ -1542,7 +1563,11 @@
               "confidence": { "enum": ["high", "med", "low"] },
               "action":     { "enum": ["accept", "defer", "reject"] },
               "triage":     { "type": "string" },
-              "status":     { "type": "string" },
+              "status":     { "type": "string", "description": "Accumulating-ledger lifecycle: open | deferred | dismissed | fixed | could-not-fix | resolved. Permissive string for back-compat; review.md owns the vocabulary." },
+              "surfaced-at":  { "$ref": "#/$defs/iso8601" },
+              "last-seen-at": { "$ref": "#/$defs/iso8601" },
+              "resolved-at":  { "$ref": "#/$defs/iso8601" },
+              "fixed-at":     { "$ref": "#/$defs/iso8601" },
               "msg":        { "type": "string" },
               "message":    { "type": "string" },
               "evidence":   { "type": "object" },

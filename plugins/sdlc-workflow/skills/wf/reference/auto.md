@@ -121,19 +121,19 @@ After each stage, read the named keys from the just-written artifact (or `00-ind
 | `plan` | `04-plan[-<slice>].md` | `status: complete` | `status: awaiting-input` (a scope/decision fork the stage surfaced) |
 | `implement` | `05-implement[-<slice>].md` | `status: complete`, code committed | `status: awaiting-input` (plan drift, blocking ambiguity) |
 | `verify` | `06-verify[-<slice>].md` | `convergence ∈ {not-needed, converged}` AND `result: pass` | `convergence: escalated` OR `result: blocked-runtime-evidence-missing` OR `status: awaiting-input` |
-| `review` | `07-review[-<slice>].md` | `convergence ∈ {not-needed, converged}` AND `verdict ∈ {ship, ship-with-caveats}` AND `metric-findings-blocker == 0` (→ endpoint) | `verdict: dont-ship` OR `metric-findings-blocker > 0` OR `convergence: escalated` |
+| `review` | `07-review[-<slice>].md` | `verdict ∈ {ship, ship-with-caveats}` AND `metric-findings-blocker == 0` (open blockers; → endpoint) | `verdict: dont-ship` OR `metric-findings-blocker > 0` |
 
 Notes that bind the table:
 
 - **The stage already asked.** When a stage PAUSEs because it set `awaiting-input` / `escalated`, that state is the *result of the stage's own user interaction*, not something `auto` decides. `auto` reads the recorded verdict and stops — it does not re-prompt and never overrides the stage's own gate.
-- **One round per stage, then hand back.** `verify` and `review` enforce a single fix round per invocation by design. `auto` does **not** auto-re-invoke them for a second round — that is a deliberate user decision. On `escalated`, `auto` PAUSEs and recommends the re-invocation in the summary.
+- **One fix pass per stage, then hand back.** `verify` enforces a single fix round per invocation by design; `review` accumulates findings across runs and runs its fix loop once per invocation. `auto` does **not** auto-re-invoke either for another pass — that is a deliberate user decision. When a stage PAUSEs (verify `escalated`, or `review` leaving open blockers), `auto` PAUSEs and recommends the re-invocation in the summary.
 - **A clean `review` is the endpoint, not a PROCEED into handoff.** `auto` stops there and recommends `/wf handoff <slug>`.
 
 # Step 2 — Residual durability (on PAUSE or at the endpoint)
 
 Make unresolved findings durable so nothing dies silently inside an artifact.
 
-1. Read the latest `07-review[-<slice>].md` for any slice in the roster. Collect findings still unresolved — `metric-findings-blocker > 0` with no `fix-result: patched`, or HIGH findings recorded as deferred in `## Fix Status`.
+1. Read the latest `07-review[-<slice>].md` for any slice in the roster. Collect findings still OPEN — `metric-findings-blocker > 0` (open blockers), or HIGH findings whose `status` is `deferred` or `could-not-fix`.
 2. **If a PR already exists** (`pr-number` > 0 — e.g. the user ran `/wf handoff` on an earlier pass and came back for more slices): compose a `## Residual Review Findings` section (one bullet per finding: severity, file:line, short title, recommended action — **product language only, leak-checked per the External Output Boundary**). Read the current body with `gh pr view <pr-number> --json body`, append or replace that one section, write the merged body to a temp file, and run `gh pr edit <pr-number> --body-file <file>`.
 3. **If no PR exists** (the usual case — `auto` never opens one): name the unresolved findings explicitly in the Step 3 summary so the user sees them. Do not invent a tracker. The review artifact is already the durable record; the summary makes it visible.
 4. Never block the hand-back on a `gh` failure — report it and fall back to listing the findings inline.
