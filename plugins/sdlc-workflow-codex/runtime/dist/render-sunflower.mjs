@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-PZPUPYVP.mjs";
+} from "./chunk-MRKNBMTY.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
@@ -16,7 +16,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-QCCGPNTM.mjs";
+} from "./chunk-AMF57BSI.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
