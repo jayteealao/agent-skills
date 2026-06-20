@@ -14,6 +14,7 @@ take the same sub-command and arguments.
 | Claude slash command | Codex skill |
 |---|---|
 | `/wf <stage> …` — intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, instrument, experiment, benchmark, profile | `$wf <stage> …` |
+| `/wf auto <slug> [<slice>]` — end-to-end lifecycle driver (added v9.88.0) | `$wf auto <slug> [<slice>]` |
 | `/wf-meta <action> …` — amend, announce, build-pipeline, close, extend, how, init-ship-plan, next, resume, skip, status, sync | `$wf-meta <action> …` |
 | `/wf design …` | `$wf design …` |
 | `/wf-docs …` | `$wf-docs …` |
