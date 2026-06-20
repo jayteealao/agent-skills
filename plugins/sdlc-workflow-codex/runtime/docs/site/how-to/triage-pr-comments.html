@@ -149,7 +149,7 @@
 <ul>
   <li><strong>Apply</strong> — a sub-agent implements the suggestion and resolves the thread.</li>
   <li><strong>Defer</strong> — the thread ID is recorded in <code>triage-deferred-thread-ids</code> inside <code>08-handoff.md</code> and <code>has-deferred-comments: true</code> is set. The readiness check downgrades to <code>awaiting-input</code>, so <code>/wf ship</code> will warn you before proceeding.</li>
-  <li><strong>Decline</strong> — the loop posts a brief rationale as a new comment and resolves the thread. Nothing is recorded in frontmatter.</li>
+  <li><strong>Decline</strong> — the loop posts a brief rationale as a new comment via <code>gh pr comment</code>, but does NOT resolve the thread (it stays open). The declined item is counted in <code>triage-fixes-skipped</code> in the handoff frontmatter.</li>
 </ul>
 
 <h2>Override the default bot list</h2>
@@ -172,9 +172,9 @@ chatgpt-codex-connector[bot]</code></pre>
 
 <p><strong>T5.0 — wait for CI and bots.</strong> Runs first. Watches the CI run to a terminal state (<code>success</code>, <code>failure</code>, or <code>cancelled</code>) using <code>gh run watch</code>, then gives bot reviewers a bounded window to post. If CI is red, a sub-agent is delegated to diagnose and fix; handoff re-watches after. If the sub-agent cannot resolve CI, the stage sets <code>status: awaiting-input</code> and halts rather than blocking on humans.</p>
 
-<p><strong>T5.1 — fetch and classify threads.</strong> Queries <code>reviewThreads(first: 100)</code> via GitHub GraphQL, filtering for <code>isResolved=false</code>. Each thread yields <code>{ threadId, author, file, line, body }</code>. The loop builds a triage table: Source | Line | Severity | Summary | Action.</p>
+<p><strong>T5.1 — PR comment triage.</strong> Queries <code>reviewThreads(first: 100)</code> via GitHub GraphQL, filtering for <code>isResolved=false</code>. Each thread yields <code>{ threadId, author, file, line, body }</code>. The loop builds a triage table: Source | Line | Severity | Summary | Action. Blocking threads are sent to <code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code> one by one; each returns a commit SHA. Suggestion threads are presented via <code>AskUserQuestion</code> multi-select. Resolved threads are closed via <code>resolveReviewThread</code> mutation.</p>
 
-<p><strong>T5.2 — act.</strong> Blocking threads are sent to <code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code> one by one; each returns a commit SHA. Suggestion threads are presented via <code>AskUserQuestion</code> multi-select. Resolved threads are closed via <code>resolveReviewThread</code> mutation.</p>
+<p><strong>T5.2 — Rebase onto base.</strong> Fetches the base branch, checks fast-forward eligibility, runs <code>git rebase origin/&lt;base-branch&gt;</code>, and force-pushes with lease.</p>
 
 <p><strong>T5.3 — re-watch and finalize.</strong> After fixes land, CI is re-watched to a terminal state. If no blocking threads and no un-triaged suggestions remain, the loop exits and stamps the readiness check. Otherwise it repeats from T5.1, up to 5 total iterations.</p>
 

@@ -102,7 +102,7 @@ Plain-language definitions for every term the plugin uses. Each entry gives you 
 <dl>
 
 <dt><strong>Add-on</strong> (augmentation)</dt>
-<dd>An optional extra pass you bolt onto a slice — performance measurement, observability instrumentation, or A/B experiment setup — without interrupting the main workflow. The three main types are <code>instrument</code>, <code>experiment</code>, and <code>benchmark</code>, all sharing <code>type: augmentation</code> with an <code>augmentation-type</code> discriminator. <code>profile</code> is a freestanding variant with <code>type: profile</code>, not tied to a workflow slice. All are recorded on <code>00-index.md</code>'s <code>augmentations:</code> array.</dd>
+<dd>An optional extra pass you bolt onto a slice — performance measurement, observability instrumentation, A/B experiment setup, or root-cause analysis — without interrupting the main workflow. The four augmentation-types are <code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, and <code>rca</code>, all sharing <code>type: augmentation</code> with an <code>augmentation-type</code> discriminator. <code>profile</code> is a freestanding variant with <code>type: profile</code>, not tied to a workflow slice. All are recorded on <code>00-index.md</code>'s <code>augmentations:</code> array.</dd>
 
 <dt><strong>Artifact</strong> (workflow note)</dt>
 <dd>A small markdown file the plugin writes next to your code that records what it decided and why. Each stage of the lifecycle writes one. They live under <code>.ai/workflows/&lt;slug&gt;/</code> (or <code>.ai/ship-plan.md</code> at the repo root). Committed to git alongside your code — the decisions are in file history, not just conversation logs.</dd>
@@ -120,13 +120,13 @@ Plain-language definitions for every term the plugin uses. Each entry gives you 
 <dd>An artifact that a stage will consume <em>if it exists</em> but does not require. Each stage's preamble lists its conditional inputs.</dd>
 
 <dt><strong>Dashboard</strong> (Sunflower view)</dt>
-<dd>A local web page that shows all your workflows at a glance — status, branch, slug, and a card per workflow. Start with <code>npm run serve</code>; open <code>http://localhost:4173</code>. See <a href="serve.html">Serve daemon &amp; hub →</a></dd>
+<dd>A local web page that shows all your workflows at a glance — status, branch, slug, and a card per workflow. Start with <code>npm run hub</code>; open <code>http://localhost:4173</code>. See <a href="serve.html">Serve daemon &amp; hub →</a></dd>
 
 <dt><strong>External Output Boundary</strong></dt>
 <dd>The rule that internal workflow details — artifact file paths, stage names, slash-command invocations — must never appear in outputs a user or external system sees (commit messages, PR bodies, release notes, docs).</dd>
 
 <dt><strong>Fragment</strong></dt>
-<dd>A companion <code>.yaml</code> file that sits next to a rich-tier artifact <code>.md</code> and carries the structured data the dashboard needs. 13 artifact types require a sibling fragment. Opt out per-file with <code>fragment: none</code> frontmatter.</dd>
+<dd>An <code>.html.fragment</code> file that sits next to a rich-tier artifact <code>.md</code> and provides the interactive dashboard layer. It is driven by a sibling <code>.yaml</code> file that carries the structured data the renderer reads. 14 artifact types require a sibling fragment. Opt out per-file with <code>fragment: none</code> frontmatter.</dd>
 
 <dt><strong>Freshness pass</strong></dt>
 <dd>A web-research sub-agent step that gathers current external information — vendor advisories, platform status, recent CVEs — before a stage finalises its output.</dd>
@@ -156,7 +156,7 @@ Plain-language definitions for every term the plugin uses. Each entry gives you 
 <dd>One step of the full <code>/wf</code> lifecycle. The 10 stages in order: <em>intake</em>, <em>shape</em>, <em>slice</em>, <em>plan</em>, <em>implement</em>, <em>verify</em>, <em>review</em>, <em>handoff</em>, <em>ship</em>, <em>retro</em>. Each reads what previous stages wrote and writes its own artifact.</dd>
 
 <dt><strong>Sub-command</strong></dt>
-<dd>An option under a command. Example: <code>/wf design colorize</code> — where <code>colorize</code> is the design sub-command. <code>/wf</code> (including intake modes) has many, <code>/wf design</code> has 22, <code>/review</code> has 31 dimensions plus a <code>sweep</code> mode.</dd>
+<dd>An option under a command. Example: <code>/wf design colorize</code> — where <code>colorize</code> is the design sub-command. <code>/wf</code> (including intake modes) has many, <code>/wf design</code> has 21, <code>/review</code> has 31 dimensions plus a <code>sweep</code> mode.</dd>
 
 <dt><strong>Triage loop</strong> (T5.1)</dt>
 <dd>The bounded step inside <code>/wf handoff</code> that processes PR review comments. Fetches unresolved threads, classifies them (blocker / non-blocker / question), fixes blockers via <code>/wf implement reviews</code>, and resolves threads after fixes commit. Runs up to 5 iterations.</dd>

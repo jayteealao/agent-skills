@@ -182,7 +182,7 @@
 
 <div class="summary"><table>
 <tr><th>Reads</th><td>Every artifact in the workflow</td></tr>
-<tr><th>Writes</th><td>Optionally <code>90-resume.md</code> with the orientation summary</td></tr>
+<tr><th>Writes</th><td><code>90-resume.md</code> — orientation brief</td></tr>
 </table></div>
 
 <p>Heavyweight re-orientation. Reads the full artifact trail, identifies the first unfinished step, and proposes a concrete next invocation. Use this when <a href="#next">next</a> would not give you enough context to act confidently.</p>
@@ -272,12 +272,12 @@
 
 <hr>
 
-<h2 id="skip">/wf-meta skip &lt;stage&gt; [slug]</h2>
+<h2 id="skip">/wf-meta skip &lt;slug&gt; &lt;stage&gt; [reason]</h2>
 
 <p class="sub-command-trigger">Reach for this sub-command when you have a deliberate reason to bypass a stage and want that decision recorded, not hidden.</p>
 
 <div class="summary"><table>
-<tr><th>Writes</th><td>A stub artifact for the skipped stage (e.g., <code>06-verify-&lt;slice&gt;.md</code> with <code>status: skipped</code>)</td></tr>
+<tr><th>Writes</th><td><code>skip-&lt;stage&gt;.md</code> (skip record) + stub artifact for the skipped stage (e.g., <code>06-verify-&lt;slice&gt;.md</code> with <code>status: skipped</code>, for a verify skip)</td></tr>
 </table></div>
 
 <p>Marks a stage as skipped without running it. The stub artifact satisfies downstream prerequisite checks but records the skip reason. Use sparingly — every skip is accountability for what got bypassed.</p>
@@ -293,12 +293,12 @@
 
 <hr>
 
-<h2 id="close">/wf-meta close &lt;reason&gt; [slug]</h2>
+<h2 id="close">/wf-meta close &lt;slug&gt; [reason]</h2>
 
 <p class="sub-command-trigger">Reach for this sub-command when a workflow is done — or definitively not going forward — and you want to remove it from the active list while keeping the audit trail on disk.</p>
 
 <div class="summary"><table>
-<tr><th>Reasons</th><td><code>shipped</code> · <code>abandoned</code> · <code>superseded</code> · <code>archived</code> · <code>stuck</code></td></tr>
+<tr><th>Reasons</th><td><code>cancelled</code> · <code>superseded</code> · <code>deferred</code> · <code>completed-externally</code> · <code>merged-into</code></td></tr>
 <tr><th>Writes</th><td><code>99-close.md</code> with reason + rationale</td></tr>
 </table></div>
 
@@ -308,11 +308,11 @@
 <table>
 <thead><tr><th>Reason</th><th>Use when</th></tr></thead>
 <tbody>
-<tr><td><code>shipped</code></td><td>Most common. Work is shipped, retro done (or skipped intentionally).</td></tr>
-<tr><td><code>abandoned</code></td><td>Decided not to do this work.</td></tr>
-<tr><td><code>superseded</code></td><td>Rolled into another workflow that subsumed it.</td></tr>
-<tr><td><code>archived</code></td><td>Complete + retired (e.g., the code path it shipped was later removed).</td></tr>
-<tr><td><code>stuck</code></td><td>External blocker with no path forward (vendor outage, compliance hold).</td></tr>
+<tr><td><code>cancelled</code></td><td>Work is no longer wanted. Decision to not build / not fix.</td></tr>
+<tr><td><code>superseded</code></td><td>Another approach, PR, or workflow replaced this one.</td></tr>
+<tr><td><code>deferred</code></td><td>Work is valid but not now. May be reopened later.</td></tr>
+<tr><td><code>completed-externally</code></td><td>The change was made outside this workflow (hotfix, manual edit, another PR).</td></tr>
+<tr><td><code>merged-into</code></td><td>This workflow&#39;s scope was absorbed into a larger workflow or PR.</td></tr>
 </tbody>
 </table>
 

@@ -121,7 +121,7 @@
 </tr>
 <tr>
   <td><a href="wf-design.html"><code>/wf design</code></a></td>
-  <td>Design — 22 sub-commands, run as a compressed <code>/wf</code> sub-command. Two shapes: with a slug it builds in-workflow; with no slug it runs the full lifecycle.</td>
+  <td>Design — 21 sub-commands, run as a compressed <code>/wf</code> sub-command. Two shapes: with a slug it builds in-workflow; with no slug it runs the full lifecycle.</td>
   <td>UI/UX work, design briefs, component specs, visual transformations.</td>
 </tr>
 <tr>
@@ -152,7 +152,7 @@
 <tr><td><code>/wf shape</code></td><td><code>&lt;slug&gt;</code></td><td>2</td><td>Deep interview and parallel web research.</td></tr>
 <tr><td><code>/wf slice</code></td><td><code>&lt;slug&gt;</code></td><td>3</td><td>Decompose into vertical slices.</td></tr>
 <tr><td><code>/wf plan</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>4</td><td>Repo-aware plan with reuse scan. Slice is optional — defaults to the selected slice.</td></tr>
-<tr><td><code>/wf implement</code></td><td><code>&lt;slug&gt; &lt;slice&gt; [reviews]</code></td><td>5</td><td><code>reviews</code> mode applies review-finding fixes.</td></tr>
+<tr><td><code>/wf implement</code></td><td><code>&lt;slug&gt; [slice|reviews]</code></td><td>5</td><td><code>reviews</code> mode applies review-finding fixes. Slice defaults to the workflow&#39;s selected slice when omitted.</td></tr>
 <tr><td><code>/wf verify</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>6</td><td>Exercises acceptance criteria and captures evidence. User-gated single-round fix loop.</td></tr>
 <tr><td><code>/wf review</code></td><td><code>&lt;slug&gt; [slice|triage]</code></td><td>7</td><td>Multi-domain parallel review with a per-finding fix loop.</td></tr>
 <tr><td><code>/wf handoff</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>8</td><td>Aggregates complete slices and runs a PR-readiness block.</td></tr>
@@ -164,6 +164,7 @@
 <tr><td><code>/wf profile</code></td><td><code>&lt;area&gt;</code></td><td>add-on</td><td>Profiling pass (freestanding).</td></tr>
 <tr><td><code>/wf probe</code></td><td><code>&lt;slug&gt; [target]</code></td><td>add-on</td><td>Runtime-truth verification. Slug-mode only. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td></tr>
 <tr><td><code>/wf simplify</code></td><td><code>[branch|commit &lt;sha&gt;|plan &lt;slug&gt; &lt;slice&gt;|codebase [&lt;path&gt;]]</code></td><td>add-on</td><td>3-agent review and route triage. Never writes code. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td></tr>
+<tr><td><code>/wf auto</code></td><td><code>&lt;slug&gt; [&lt;slice&gt;]</code></td><td>driver</td><td>End-to-end lifecycle driver. Drives every slice &rarr; final review and stops before handoff; with a slice arg it drives that one slice then routes to the next. Writes no artifact of its own; never opens a PR.</td></tr>
 </tbody>
 </table>
 
@@ -209,7 +210,7 @@
 
 <h2>/wf design — design pipeline</h2>
 
-<p>22 sub-commands, run as a compressed <code>/wf</code> sub-command. Two invocation shapes: <strong>in-workflow</strong> (<code>/wf design &lt;slug&gt; &lt;sub&gt;</code>) produces the brief + visual contract and then drives <code>slice → plan → implement → verify</code> itself, compressed; <strong>no slug</strong> (<code>/wf design &lt;sub&gt;</code>) creates a new workflow and runs the full lifecycle, seeded by the design intent. The producer and review sub-commands are <code>craft</code>, <code>audit</code>, and <code>critique</code>. Fifteen transformation sub-commands handle targeted visual work: <code>colorize</code>, <code>typeset</code>, <code>animate</code>, <code>harden</code>, <code>quieter</code>, <code>bolder</code>, <code>delight</code>, <code>distill</code>, <code>clarify</code>, <code>adapt</code>, <code>layout</code>, <code>optimize</code>, <code>polish</code>, <code>overdrive</code>, <code>onboard</code>. Three setup and extract sub-commands complete the catalog: <code>setup</code>, <code>teach</code>, <code>extract</code>.</p>
+<p>21 sub-commands, run as a compressed <code>/wf</code> sub-command. Two invocation shapes: <strong>in-workflow</strong> (<code>/wf design &lt;slug&gt; &lt;sub&gt;</code>) produces the brief + visual contract and then drives <code>slice → plan → implement → verify</code> itself, compressed; <strong>no slug</strong> (<code>/wf design &lt;sub&gt;</code>) creates a new workflow and runs the full lifecycle, seeded by the design intent. The producer and review sub-commands are <code>craft</code>, <code>audit</code>, and <code>critique</code>. Fifteen transformation sub-commands handle targeted visual work: <code>colorize</code>, <code>typeset</code>, <code>animate</code>, <code>harden</code>, <code>quieter</code>, <code>bolder</code>, <code>delight</code>, <code>distill</code>, <code>clarify</code>, <code>adapt</code>, <code>layout</code>, <code>optimize</code>, <code>polish</code>, <code>overdrive</code>, <code>onboard</code>. Three setup and extract sub-commands complete the catalog: <code>setup</code>, <code>teach</code>, <code>extract</code>.</p>
 
 <p>See <a href="wf-design.html">/wf design in depth</a> for the full sub-command catalog and argument matrix.</p>
 

@@ -105,7 +105,7 @@
 <thead><tr><th>Shape</th><th>Form</th><th>Effect</th></tr></thead>
 <tbody>
 <tr><td>Standard intake</td><td><code>/wf intake "&lt;description&gt;"</code></td><td><strong>Full intake.</strong> Runs the standard 10-stage lifecycle starting at Stage 1.</td></tr>
-<tr><td>Mode intake</td><td><code>/wf intake &lt;mode&gt; "&lt;description&gt;"</code></td><td><strong>Compressed intake.</strong> Skips or collapses stages based on the mode. Writes fewer artifacts than the full pipeline.</td></tr>
+<tr><td>Mode intake</td><td><code>/wf intake &lt;mode&gt; "&lt;description&gt;"</code></td><td><strong>Compressed intake.</strong> Change-mode lifecycles (fix, hotfix, refactor, update-deps) run all stages in a single-pass, lightweight flow — no stage is skipped. Terminal-analysis modes (rca, investigate, discover, ideate) produce a single finding artifact without starting a build pipeline.</td></tr>
 <tr><td>Slug-mode intake</td><td><code>/wf intake &lt;slug&gt; &lt;mode&gt;</code></td><td><strong>Compressed in-workflow flow.</strong> Attaches a compressed slice to an existing slug rather than creating a new workflow.</td></tr>
 </tbody>
 </table>
@@ -118,12 +118,12 @@
 <thead><tr><th>Mode</th><th>Your situation</th><th>What it compresses</th></tr></thead>
 <tbody>
 <tr><td><code>fix</code></td><td>One file. One change. The fix is obvious.</td><td>Shape + plan merged into a single <code>01-fix.md</code>; routes to <code>/wf implement</code>.</td></tr>
-<tr><td><code>hotfix</code></td><td>Production is broken right now; speed beats review.</td><td>6-stage scope-locked flow. Bypasses review. Still leaves a postmortem trail.</td></tr>
+<tr><td><code>hotfix</code></td><td>Production is broken right now; speed beats review.</td><td>Full standard lifecycle expedited under incident pressure: scoped to minimum viable fix, production-branch base. Review defaults to security rubric (not bypassed). Writes <code>01-hotfix.md</code>, <code>02-shape.md</code>, <code>03-slice.md</code>, <code>04-plan.md</code> then routes to <code>/wf implement</code>.</td></tr>
 <tr><td><code>rca</code></td><td>You have a bug report but don't know the cause yet (static: read code &amp; history).</td><td>Single <code>01-rca.md</code> artifact with parallel diagnosis sub-agents. Recommends downstream command.</td></tr>
 <tr><td><code>investigate</code></td><td>You know there's a problem but want 2–3 distinct approaches before committing.</td><td>Single <code>01-investigate.md</code> with A/B/C options + tradeoff table. No winner picked.</td></tr>
 <tr><td><code>discover</code></td><td>You have a theory about how the code works and want it verified or falsified.</td><td>Single <code>01-discover.md</code> with FOR/AGAINST/counter-hypothesis evidence and verdict.</td></tr>
 <tr><td><code>update-deps</code></td><td>Dependency audit — security patches, major-version bumps, safe minor updates.</td><td>Tiered scan → research → plan → implement → verify under <code>.ai/dep-updates/</code>.</td></tr>
-<tr><td><code>refactor</code></td><td>Behaviour-preserving restructure with a test-suite baseline captured first.</td><td>baseline → plan → implement → parity under <code>rf-*.md</code> files.</td></tr>
+<tr><td><code>refactor</code></td><td>Behaviour-preserving restructure with a test-suite baseline captured first.</td><td>Full standard lifecycle with behavior-preserving discipline. Captures test baseline in <code>02-shape.md</code> before touching code, plans incremental green steps. Writes <code>01-refactor.md</code>, <code>02-shape.md</code>, <code>03-slice.md</code>, <code>04-plan.md</code>; routes to <code>/wf implement</code>. Review defaults to refactor-safety.</td></tr>
 <tr><td><code>ideate</code></td><td>Brainstorm improvement candidates for a focus area before sprint planning.</td><td>Single artifact under <code>.ai/ideation/</code> with ranked candidates and effort estimates.</td></tr>
 </tbody>
 </table>
@@ -148,9 +148,7 @@
 <thead><tr><th>Form</th><th>Effect</th></tr></thead>
 <tbody>
 <tr><td><code>/wf probe &lt;slug&gt;</code></td><td>Slug-wide sweep — probe every AC across every slice in the slug.</td></tr>
-<tr><td><code>/wf probe &lt;slug&gt; &lt;target&gt;</code></td><td>Focused probe on the target string.</td></tr>
-<tr><td><code>/wf probe &lt;slug&gt; --from &lt;path&gt;</code></td><td>Multi-target: each top-level bullet or line in the file is a separate target.</td></tr>
-<tr><td><code>/wf probe &lt;slug&gt; --strict &lt;target&gt;</code></td><td>Filter mode — only target-tied findings in the main list; incidentals archived separately.</td></tr>
+<tr><td><code>/wf probe &lt;slug&gt; &lt;target&gt;</code></td><td>Focused probe on the target string. There are no flags — probe takes a slug and an optional target string.</td></tr>
 </tbody>
 </table>
 

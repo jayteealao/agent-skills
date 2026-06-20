@@ -103,7 +103,7 @@ You have 10 minutes and a real change to make. This walkthrough takes you from a
 <table>
 <tr><th>Pre-conditions</th><td>Plugin installed. (<a href="../tutorials/installation.html">Not yet? Install first →</a>)</td></tr>
 <tr><th>What you'll do</th><td>Fix a real bug in your codebase using a compressed quick-fix workflow</td></tr>
-<tr><th>What you'll produce</th><td>Two artifact files and a commit. Takes about 10 minutes end-to-end.</td></tr>
+<tr><th>What you'll produce</th><td>Five planning artifact files and a commit. Takes about 10 minutes end-to-end.</td></tr>
 <tr><th>Not covered here</th><td>The full 10-stage lifecycle. <a href="../tutorials/first-workflow.html">See the full feature walkthrough →</a></td></tr>
 </table>
 </div>
@@ -120,9 +120,12 @@ You have 10 minutes and a real change to make. This walkthrough takes you from a
 
 <pre><code>.ai/workflows/typo-invalid-payload-error-message/
   00-index.md        ← registry entry (slug, type, branch, status)
-  01-fix.md          ← the compressed brief: what's broken, what the fix is, acceptance criteria</code></pre>
+  01-fix.md          ← intake brief: restated request, acceptance criteria, assumptions
+  02-shape.md        ← scope: in-scope / out-of-scope
+  03-slice.md        ← slice roster (one slice for a fix)
+  04-plan.md         ← implementation steps</code></pre>
 
-<p>These are plain markdown files you can open and read. <code>01-fix.md</code> combines what the full pipeline would split into a shape document and a plan document — compressed because the scope is small enough that one file carries both.</p>
+<p>These are plain markdown files you can open and read. The fix mode is a compressed but complete lifecycle — each planning stage is lightweight but present: <code>01-fix.md</code> carries the intake brief, <code>02-shape.md</code> the scope, <code>03-slice.md</code> the slice roster, and <code>04-plan.md</code> the implementation steps. No stage is skipped.</p>
 
 <h2>Step 2 — Implement (5–7 minutes)</h2>
 
@@ -133,9 +136,24 @@ You have 10 minutes and a real change to make. This walkthrough takes you from a
 <pre><code>.ai/workflows/typo-invalid-payload-error-message/
   00-index.md
   01-fix.md
+  02-shape.md
+  03-slice.md
+  04-plan.md
   05-implement.md    ← what Claude did, what tests passed, the commit hash</code></pre>
 
 <p>Review the diff before the commit lands if you want to catch anything. <code>/wf implement</code> will pause and show you what it's about to do.</p>
+
+<h2>Step 2b — Verify (1 minute)</h2>
+
+<pre><code>/wf verify typo-invalid-payload-error-message</code></pre>
+
+<p>Runs your test suite and lints, applies the acceptance-criteria gate, and writes <code>06-verify.md</code>. If a check fails, it presents a Fix/Skip/Escalate prompt before moving on.</p>
+
+<h2>Step 2c — Review (1 minute)</h2>
+
+<pre><code>/wf review typo-invalid-payload-error-message</code></pre>
+
+<p>Runs a structured code review and writes <code>07-review.md</code>. Handoff requires this artifact and will refuse if there are unresolved blockers — so don't skip it.</p>
 
 <h2>Step 3 — Handoff to PR (2 minutes)</h2>
 
@@ -150,10 +168,10 @@ You have 10 minutes and a real change to make. This walkthrough takes you from a
 
 <h2>What you just did</h2>
 
-<p>You ran a three-command workflow that took one session. The artifact trail means:</p>
+<p>You ran a five-command workflow that took one session. The artifact trail means:</p>
 <ul>
   <li>Next time you open Claude, you can run <code>/wf-meta status</code> and see this workflow in the list — closed, with the PR link and commit hash</li>
-  <li>A reviewer can read <code>01-fix.md</code> and understand the intent without reading the diff</li>
+  <li>A reviewer can read <code>01-fix.md</code> and understand the intent without reading the diff; <code>06-verify.md</code> and <code>07-review.md</code> show what was checked and what was found</li>
   <li>If the same bug pattern appears elsewhere, you have a record of how you thought about it</li>
 </ul>
 

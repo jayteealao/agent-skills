@@ -109,7 +109,7 @@
 
 <p>Without add-ons, a slice moves straight from plan to implement to review. That is fine for most changes. But sometimes you need more: you want to know a code path is observable before you ship, or you want to gate rollout behind a feature flag, or you want hard numbers before and after a change.</p>
 
-<p>Add-ons give you those extras as named stages that slot in alongside the main flow. They are opt-in — you add them only when you need them. Running an add-on appends a record to the <code>augmentations:</code> list in your slice's <code>00-index.md</code> file (the central registry for that slice). Downstream stages — <a href="../reference/glossary.html">handoff</a> and <a href="../reference/glossary.html">ship</a> — read that list and surface the results to reviewers and the changelog automatically.</p>
+<p>Add-ons give you those extras as named stages that slot in alongside the main flow. They are opt-in — you add them only when you need them. Running an add-on appends a record to the <code>augmentations:</code> list in your workflow's <code>00-index.md</code> file (the central registry for that workflow). Downstream stages — <a href="../reference/glossary.html">handoff</a> and <a href="../reference/glossary.html">ship</a> — read that list and surface the results to reviewers and the changelog automatically.</p>
 
 <h2>Instrument — add observability to a code path</h2>
 
@@ -137,9 +137,9 @@
 
 <p>Performance regressions are easy to miss without a before-and-after comparison. The benchmark add-on runs in two passes: once before implementation (baseline) and once after (compare). If you skip the baseline, you have nothing to compare against.</p>
 
-<pre><code>/wf benchmark auth-refactor login-slice</code></pre>
+<pre><code>/wf benchmark auth-refactor</code></pre>
 
-<p>Run the command before implementation to capture the baseline. Run it again after implementation to compare. The command produces <code>05c-benchmark.md</code> and records the <code>mode</code> (baseline or compare) in the slice index alongside the result file.</p>
+<p>Run the command before implementation to capture the baseline. Run it again after implementation to compare. Pass <code>baseline</code> or <code>compare</code> as a second argument to force the mode — e.g. <code>/wf benchmark auth-refactor baseline</code>. The command produces <code>05c-benchmark.md</code> and records the <code>mode</code> (baseline or compare) in the workflow index (<code>00-index.md</code>) alongside the result file.</p>
 
 <p><strong>Add benchmark when:</strong> the slice could affect performance — even if you do not expect it to. A baseline is cheap; a regression caught in CI is cheaper than one caught in production.</p>
 

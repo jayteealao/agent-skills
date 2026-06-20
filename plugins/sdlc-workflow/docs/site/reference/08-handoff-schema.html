@@ -105,21 +105,31 @@ type: handoff
 slug: &lt;slug&gt;
 slice-slugs: [&lt;slug-1&gt;, ...]
 handoff-mode: aggregate | single-slice
-status: complete
+status: complete | awaiting-input
 stage-number: 8
 created-at: &lt;ISO 8601&gt;
 updated-at: &lt;ISO 8601&gt;
 pr-title: "&lt;PR title&gt;"
 pr-url: "&lt;url or empty&gt;"
-pr-number: &lt;N or 0&gt;
+pr-number: &lt;N or null&gt;
 branch: "&lt;branch&gt;"
 base-branch: "&lt;target&gt;"
 has-migration: true | false
 has-config-change: true | false
 has-docs-changes: true | false
-docs-generated: [&lt;paths&gt;]</code></pre>
+docs-generated: [&lt;paths&gt;]
+tags: []
+refs:
+  index: 00-index.md
+  slice-index: 03-slice.md
+  implements: [05-implement-&lt;slug&gt;.md]
+  reviews: [07-review-&lt;slug&gt;.md]
+next-command: wf-ship
+next-invocation: "/wf ship &lt;slug&gt;"</code></pre>
 
 <p><code>handoff-mode: aggregate</code> means multiple <strong>slices</strong> (independent units of work under the same slug) were combined into one PR. <code>single-slice</code> means there is exactly one slice.</p>
+
+<p><code>status: awaiting-input</code> is written when the stage cannot finish — for example, CI timed out, a rebase conflict could not be resolved automatically, or the triage bound was exceeded. Re-running <code>/wf handoff</code> offers to resume from where it stopped.</p>
 
 <h2>PR-readiness block fields</h2>
 

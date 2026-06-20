@@ -95,7 +95,7 @@
 <span class="quadrant howto">how-to</span>
 <h1>Resume paused work</h1>
 
-<p class="lede">You stepped away from a piece of work — maybe days ago — and now need to pick it back up. Run <code>/wf-meta resume &lt;slug&gt;</code> and the plugin reads your notes, finds the first unfinished step, and tells you exactly what to do next.</p>
+<p class="lede">You stepped away from a piece of work — maybe days ago — and now need to pick it back up. Run <code>/wf-meta resume &lt;slug&gt;</code> and the plugin reads every stage artifact, synthesises a dense ~500-word context brief — goal, decisions, current state, open questions — and surfaces a recommended next command so you can orient quickly after a break. If you only need the next command without the full brief, <code>/wf-meta next &lt;slug&gt;</code> is the lighter-weight routing helper.</p>
 
 <div class="summary">
 <table>
@@ -115,8 +115,8 @@
 <p>Example output:</p>
 
 <pre><code>slug                   stage         open since
-auth-token-refresh     03-design     4 days
-perf-cache-layer       05-implement  2 hours</code></pre>
+auth-token-refresh     3·design      4 days
+perf-cache-layer       5·implement   2 hours</code></pre>
 
 <h2>Step 2 — resume the workflow</h2>
 
@@ -124,7 +124,7 @@ perf-cache-layer       05-implement  2 hours</code></pre>
 
 <pre><code>/wf-meta resume auth-token-refresh</code></pre>
 
-<p>The command reads every <strong>artifact</strong> (a workflow note — a markdown file the plugin writes as a stage completes) in that workflow's directory, works out which stage is unfinished, and proposes a concrete next command. You can accept the suggestion or type something different.</p>
+<p>The command reads every <strong>artifact</strong> (a workflow note — a markdown file the plugin writes as a stage completes) in that workflow's directory, distils them into a brief covering goal, decisions made, current state, and open questions, and surfaces a recommended next command inside a <code>## Next</code> section. You can accept the suggestion or type something different.</p>
 
 <h2>Step 3 — if a ship run stalled</h2>
 

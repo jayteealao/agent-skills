@@ -114,7 +114,7 @@
 <tr><td><code>shape</code></td><td>Defines the goal and acceptance criteria.</td><td>Writes code.</td></tr>
 <tr><td><code>plan</code></td><td>Produces a step-by-step implementation plan.</td><td>Implements the plan.</td></tr>
 <tr><td><code>implement</code></td><td>Builds against the written plan.</td><td>Redesigns the spec.</td></tr>
-<tr><td><code>review</code></td><td>Dispatches reviewers and aggregates their findings.</td><td>Fixes the findings it found.</td></tr>
+<tr><td><code>review</code></td><td>Dispatches reviewers, aggregates findings, triages with the user, and runs a single-round user-gated fix loop (Step 4c).</td><td>Silently fixes findings or auto-loops fixes without user approval.</td></tr>
 <tr><td><code>handoff</code></td><td>Packages work for human review.</td><td>Ships to production.</td></tr>
 <tr><td><code>ship</code></td><td>Walks the release sequence.</td><td>Writes new code or rewrites the spec.</td></tr>
 </tbody>
@@ -134,7 +134,7 @@
 
 <p>First, <strong>artifacts lose meaning</strong>. If <code>plan</code> also writes code, the plan file ends up documenting only what survived implementation. A plan written before the code represents intent. A plan written after represents rationalization. They look the same on disk but serve different purposes.</p>
 
-<p>Second, <strong>failures have nowhere to go</strong>. When <code>implement</code> finds the plan was wrong, it needs a defined path back to <code>/wf-meta amend</code>. When <code>review</code> finds a bug, it needs a defined path forward to <code>/wf implement … reviews</code>. The discipline creates a graph where every failure has a named next move. Without it, Claude improvises — and improvisation leaves no trace.</p>
+<p>Second, <strong>failures have nowhere to go</strong>. When <code>implement</code> finds the plan was wrong, it needs a defined path back to <code>/wf-meta amend</code>. When <code>review</code> finds a bug, it runs a user-gated fix loop in-process — every finding the user marks "Fix" dispatches a fix sub-agent inside the same invocation. If that loop cannot resolve the issue, there is a defined escape path: <code>/wf implement … reviews</code>. The discipline creates a graph where every failure has a named next move. Without it, Claude improvises — and improvisation leaves no trace.</p>
 
 <h2>What collapse looks like in practice</h2>
 

@@ -234,8 +234,8 @@
 <table>
 <thead><tr><th>Level</th><th>Meaning</th><th>What to do</th></tr></thead>
 <tbody>
-<tr><th>BLOCKER</th><td>Correctness, security, data loss, or crash risk.</td><td>Fix before merging. Inside a workflow, routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code>.</td></tr>
-<tr><th>HIGH</th><td>Should fix; might ship with an explicit caveat.</td><td>Fix or carry as a documented caveat. Same routing options as BLOCKER.</td></tr>
+<tr><th>BLOCKER</th><td>Correctness, security, data loss, or crash risk.</td><td>Fix before merging. Inside a workflow, the review stage runs its own fix loop — <code>/wf review</code> triages each BLOCKER via AskUserQuestion (Fix/Defer/Dismiss) and dispatches sub-agent patches inline. <code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code> exists as a manual escape only when the fix loop cannot resolve a finding.</td></tr>
+<tr><th>HIGH</th><td>Should fix; might ship with an explicit caveat.</td><td>Triage via Fix/Defer/Dismiss. Fixed findings go through the review-owned fix loop inline. Deferred HIGH findings produce a Ship-with-caveats verdict and do not block shipping. <code>/wf implement reviews</code> is only a manual escape.</td></tr>
 <tr><th>MED</th><td>Worth addressing but not blocking.</td><td>Address in a follow-up or inline before merge.</td></tr>
 <tr><th>LOW / NIT</th><td>Style, naming, minor clarity.</td><td>Ship. Address if convenient.</td></tr>
 </tbody>
@@ -262,7 +262,7 @@
 
 <h2 id="integration">Integration with /wf review</h2>
 
-<p>You can run <code>/review</code> standalone at any time. You can also reach it through the workflow lifecycle: <code>/wf review &lt;slug&gt; &lt;slice&gt;</code> uses this command under the hood.</p>
+<p>You can run <code>/review</code> standalone at any time. You can also reach it through the workflow lifecycle: <code>/wf review &lt;slug&gt; [&lt;slice&gt;|triage]</code> uses this command under the hood.</p>
 
 <p>When called via the workflow, the reviewer does more than check the diff. It reads the feature's shape, slice definition, plan, and implementation notes to understand <em>what the code is supposed to do</em> before picking which dimensions to apply. The steps:</p>
 
@@ -274,6 +274,10 @@
   <li>The orchestrator aggregates findings, deduplicates by file and root cause, and triages with you.</li>
   <li>Writes a master <code>07-review-&lt;slice&gt;.md</code> with the final verdict.</li>
 </ol>
+
+<p>Artifact names depend on <code>review-scope</code> (set at intake): per-slice mode (default) produces <code>07-review-&lt;slice&gt;.md</code> + <code>07-review-&lt;slice&gt;-&lt;dimension&gt;.md</code>; slug-wide mode produces <code>07-review.md</code> + <code>07-review-&lt;dimension&gt;.md</code> and reviews the entire branch diff.</p>
+
+<p>Re-run with <code>/wf review &lt;slug&gt; triage</code> to re-visit deferred findings without re-running the full review — useful after initially deferring HIGH findings and then deciding to address them.</p>
 
 <p>Use <code>/review</code> standalone when you want to spot-check a file outside a workflow, or run a sweep on a long-lived branch that isn't tracked as a slug.</p>
 

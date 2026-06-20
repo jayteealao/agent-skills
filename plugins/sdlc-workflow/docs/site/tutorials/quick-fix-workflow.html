@@ -134,10 +134,17 @@ throw new Error("Received invalid payload");</code></pre>
 <p><strong>What <code>00-index.md</code> looks like:</strong></p>
 
 <pre><code>---
+schema: sdlc/v1
+type: index
 slug: typo-invalid-payload
+title: "typo in invalid-payload error message"
 workflow-type: fix
-status: in-progress
-created: 2026-06-09
+status: active
+current-stage: plan
+stage-number: 4
+created-at: "2026-06-09T00:00:00Z"
+updated-at: "2026-06-09T00:00:00Z"
+# ... full 22-field index — see 00-index schema reference
 ---
 # typo-invalid-payload
 
@@ -146,10 +153,22 @@ One-line spelling fix in the invalid-payload error message in src/api/parser.js.
 <p><strong>What <code>01-fix.md</code> looks like:</strong></p>
 
 <pre><code>---
-type: fix-plan
+schema: sdlc/v1
+type: intake
 slug: typo-invalid-payload
+workflow-type: fix
+status: complete
+stage-number: 1
+created-at: "2026-06-09T00:00:00Z"
+updated-at: "2026-06-09T00:00:00Z"
+tags: []
+refs:
+  index: 00-index.md
+  next: 02-shape.md
+next-command: wf-shape
+next-invocation: "/wf shape typo-invalid-payload"
 ---
-# Fix plan — typo-invalid-payload
+# Fix brief — typo-invalid-payload
 
 ## Problem
 `src/api/parser.js` line 42 spells "Recieved" instead of "Received" in the
@@ -199,7 +218,17 @@ npm test — 47 passed, 0 failed
 ## Commit
 fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pre>
 
-<h2>Step 3 — Handoff or commit directly</h2>
+<h2>Step 3 — Verify and review</h2>
+
+<pre><code>/wf verify typo-invalid-payload</code></pre>
+
+<p>Verify exercises the acceptance criteria from <code>02-shape.md</code> — runs your test command, checks the spelling fix, and records evidence in <code>06-verify.md</code>. If any check fails, verify runs a single-round, user-gated fix loop before proceeding.</p>
+
+<pre><code>/wf review typo-invalid-payload</code></pre>
+
+<p>Review dispatches the relevant dimension sub-agents (correctness, testing) and triages findings with you inline. Fix decisions are handled within the review stage itself. The result is <code>07-review.md</code> with a <code>verdict: ship | ship-with-caveats | dont-ship</code>.</p>
+
+<h2>Step 4 — Handoff or commit directly</h2>
 
 <p>For a one-liner on a shared branch you may not need a separate PR. Set <code>branch-strategy: none</code> during step 1 and the workflow stops here — the commit is the deliverable.</p>
 
@@ -225,13 +254,13 @@ fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pr
 <thead><tr><th>Command</th><th>For</th><th>What it produces</th></tr></thead>
 <tbody>
 <tr><td><code>/wf intake hotfix</code></td><td>Production incident — must ship in minutes</td><td>Full lifecycle single-pass, scope-locked; review defaults to security</td></tr>
-<tr><td><code>/wf intake rca</code></td><td>Root-cause analysis from code and git history (static — no running app needed)</td><td>Single artifact; recommends <code>/wf plan</code>, <code>/wf intake fix</code>, or <code>/wf intake hotfix</code> as next step</td></tr>
+<tr><td><code>/wf intake rca</code></td><td>Root-cause analysis from code and git history (static — no running app needed)</td><td><code>01-rca.md</code>, <code>02-shape.md</code> (synthesized minimal shape for <code>/wf plan</code>), <code>00-index.md</code>; recommends <code>/wf plan</code>, <code>/wf intake fix</code>, or <code>/wf intake hotfix</code> as next step</td></tr>
 <tr><td><code>/wf probe</code></td><td>Runtime-truth check — drives the running artifact and compares output against acceptance criteria</td><td>Evidence directory + findings artifact (slug required)</td></tr>
 <tr><td><code>/wf intake investigate</code></td><td>Sketch 2–3 distinct engineering approaches with tradeoffs before committing to one</td><td>Single artifact with options A/B/C; no winner picked — you choose, then route to <code>/wf intake fix</code> or <code>/wf intake</code></td></tr>
 <tr><td><code>/wf intake discover</code></td><td>Test a theory about how the codebase works against real evidence</td><td>Single artifact with verdict: holds / partial / fails / inconclusive</td></tr>
 <tr><td><code>/wf intake update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>Standard lifecycle in-slug under <code>.ai/workflows/&lt;slug&gt;/</code></td></tr>
 <tr><td><code>/wf intake refactor</code></td><td>Behaviour-preserving refactor with test baseline capture and re-verification</td><td>Stage-locked: baseline → refactor → re-verify</td></tr>
-<tr><td><code>/wf intake ideate</code></td><td>Brainstorm and rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
+<tr><td><code>/wf intake ideate</code></td><td>Brainstorm and rank improvement candidates</td><td><code>01-ideate.md</code> (type: ideation, ranked candidates + adversarial filter log) + <code>00-index.md</code> (type: workflow-index) under <code>.ai/workflows/&lt;slug&gt;/</code></td></tr>
 <tr><td><code>/wf simplify</code></td><td>Three-agent triage of a branch, commit, plan, or codebase — routes findings, never writes code</td><td>Routing report under <code>simplify/</code></td></tr>
 </tbody>
 </table>

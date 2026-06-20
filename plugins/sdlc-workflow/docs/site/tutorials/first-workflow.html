@@ -270,7 +270,7 @@ Shape is where the AI commits to <em>understanding</em> rather than guessing. Th
   <li>Capture evidence (test output, response bodies) in <code>06-verify-route.md</code>.</li>
 </ul>
 
-<p>If verify <em>fails</em>, the workflow routes back to <code>/wf implement</code> with a directed fix — it does not loosen the acceptance criteria.</p>
+<p>If verify finds issues, it runs a single-round, user-gated fix loop — you triage each failing check (Fix/Skip/Escalate) and verify dispatches sub-agents for the Fix decisions, then re-runs affected checks once. Only if the loop cannot resolve everything (convergence: escalated) does it suggest returning to <code>/wf implement</code>.</p>
 
 <p><strong>Outcome:</strong> <code>06-verify-route.md</code> with <code>result: pass</code> and evidence sections.</p>
 
@@ -293,11 +293,7 @@ Shape is where the AI commits to <em>understanding</em> rather than guessing. Th
 </tbody>
 </table>
 
-<p>Suppose review finds one HIGH ("the endpoint returns <code>text/plain</code> when Accept doesn't include json — should be json regardless"). Fix it via:</p>
-
-<pre><code>/wf implement add-health-endpoint route reviews</code></pre>
-
-<p>This routes the fix back through implement with the review-finding context. Then re-run verify.</p>
+<p>Suppose review finds one HIGH ("the endpoint returns <code>text/plain</code> when Accept doesn't include json — should be json regardless"). Review triages findings with you inline — you pick Fix/Defer/Dismiss for each BLOCKER/HIGH finding. Fix decisions spawn sub-agents within the review stage itself (Step 4c). <code>/wf implement add-health-endpoint route reviews</code> remains available as a manual escape if the review-owned loop cannot resolve a finding (convergence: escalated).</p>
 
 <p><strong>Outcome:</strong> <code>07-review-route.md</code> (master verdict) plus per-dimension files. <code>verdict: ship | ship-with-caveats | dont-ship</code>.</p>
 
@@ -307,7 +303,7 @@ Shape is where the AI commits to <em>understanding</em> rather than guessing. Th
 
 <pre><code>/wf handoff add-health-endpoint</code></pre>
 
-<p>This is the biggest stage in v9.5.0. Handoff aggregates all complete slices into one PR package and runs the <strong>PR-readiness block</strong>:</p>
+<p>Handoff is the most complex stage in the pipeline. It aggregates all complete slices into one PR package and runs the <strong>PR-readiness block</strong>:</p>
 
 <ul>
   <li><strong>T1</strong> — read prior artifacts</li>
@@ -336,7 +332,7 @@ Shape is where the AI commits to <em>understanding</em> rather than guessing. Th
 
 <h2 id="stopping">Stopping here (Ship + Retro)</h2>
 
-<p>For this tutorial we stop at handoff. Why? Because <strong>ship is plan-driven</strong> in v9.5.0 — it requires <code>.ai/ship-plan.md</code> at the repo root, which you author once per project with <code>/wf-meta init-ship-plan</code>. The two pages that take you the rest of the way:</p>
+<p>For this tutorial we stop at handoff. Why? Because <strong>ship is plan-driven</strong> — it requires <code>.ai/ship-plan.md</code> at the repo root, which you author once per project with <code>/wf-meta init-ship-plan</code>. The two pages that take you the rest of the way:</p>
 
 <div class="tile-grid">
 <a class="tile" href="../how-to/author-ship-plan.html">

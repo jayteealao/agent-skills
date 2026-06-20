@@ -100,7 +100,7 @@
 
 <h2>What the readiness check is</h2>
 
-<p>When you run <code>/wf handoff</code>, the plugin examines several conditions about your branch and writes a single verdict to <code>08-handoff.md</code>. That verdict is called the <strong>readiness check</strong>. The <code>/wf ship</code> command reads it before opening or progressing a pull request. If the verdict is not <code>ready</code>, ship stops and tells you why.</p>
+<p>When you run <code>/wf handoff</code>, the plugin examines several conditions about your branch and writes a single verdict to <code>08-handoff.md</code>. That verdict is called the <strong>readiness check</strong>. The <code>/wf ship</code> command reads it before executing the release — merging the PR, tagging, and running the publish workflow. If the verdict is not <code>ready</code>, ship stops and tells you why.</p>
 
 <p>The verdict has three possible values:</p>
 

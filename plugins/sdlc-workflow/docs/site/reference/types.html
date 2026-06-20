@@ -99,7 +99,7 @@
 
 <div class="summary">
 <table>
-<tr><th>Source of truth</th><td>The admitted types are the <code>oneOf</code> branches in <code>tests/frontmatter.schema.json</code>. The fragment column marks which types carry a fragment-bearing renderer; the <strong>enforced</strong> rich-tier set — whose <code>.md</code> writes <em>hard-block</em> (exit 2) without a sibling <code>.yaml</code> — is <code>RICH_TIER_TYPES</code> in <code>hooks/post-write-verify.mjs</code>: review, plan, design, ship-run, rca, benchmark, experiment, instrument, profile, simplify-run, review-command, design-audit, design-critique (13).</td></tr>
+<tr><th>Source of truth</th><td>The admitted types are the <code>oneOf</code> branches in <code>tests/frontmatter.schema.json</code>. The fragment column marks which types carry a fragment-bearing renderer; the <strong>enforced</strong> rich-tier set — whose <code>.md</code> writes <em>hard-block</em> (exit 2) without a sibling <code>.yaml</code> — is <code>RICH_TIER_TYPES</code> in <code>hooks/post-write-verify.mjs</code>: review, plan, design, ship-run, rca, benchmark, experiment, instrument, profile, simplify-run, review-command, design-audit, design-critique, design-contract (14). Note: design-contract is reminder-gated only; it is NOT in SIBLING_YAML_VALIDATED_TYPES.</td></tr>
 <tr><th>Dispatch</th><td>By frontmatter <code>type</code> → <code>renderers/&lt;type&gt;.mjs</code>. A type with no matching file falls through to the generic <code>fallbackRender</code>.</td></tr>
 <tr><th>Schema</th><td>All types use <code>schema: sdlc/v1</code>.</td></tr>
 </table>
@@ -146,7 +146,7 @@
 <tr><td><code>design-contract</code></td><td><code>/wf design craft</code></td><td><code>02c-craft.md</code></td><td>design-contract.mjs</td><td>yes</td></tr>
 <tr><td><code>design-critique</code></td><td><code>/wf design critique</code></td><td><code>07-design-critique.md</code></td><td>design-critique.mjs</td><td>yes</td></tr>
 <tr><td><code>design-audit</code></td><td><code>/wf design audit</code></td><td><code>07-design-audit.md</code></td><td>design-audit.mjs</td><td>yes</td></tr>
-<tr><td><code>design-augmentation</code></td><td><code>/wf design</code> (sub-command)</td><td><code>augmentations/&lt;id&gt;.md</code></td><td>design-add-on.mjs</td><td>—</td></tr>
+<tr><td><code>design-augmentation</code></td><td><code>/wf design</code> (sub-command)</td><td><code>design-notes/&lt;sub-command&gt;-&lt;timestamp&gt;.md</code></td><td>design-augmentation.mjs</td><td>—</td></tr>
 </tbody>
 </table>
 
@@ -157,7 +157,7 @@
 <table>
 <thead><tr><th>type</th><th>producer</th><th>storage path</th><th>renderer</th><th>fragment?</th></tr></thead>
 <tbody>
-<tr><td><code>augmentation</code></td><td><code>/wf instrument|experiment|benchmark</code></td><td><code>augmentations/&lt;id&gt;.md</code></td><td>add-on.mjs <small>(dispatches to subtype)</small></td><td>via subtype</td></tr>
+<tr><td><code>augmentation</code></td><td><code>/wf instrument|experiment|benchmark</code></td><td><code>augmentations/&lt;id&gt;.md</code></td><td>augmentation.mjs <small>(dispatches to subtype)</small></td><td>via subtype</td></tr>
 <tr><td><code>instrument</code> <small>(add-on-type)</small></td><td><code>/wf instrument</code></td><td><code>04b-instrument.md</code> + <code>.yaml</code></td><td>instrument.mjs</td><td>yes</td></tr>
 <tr><td><code>experiment</code> <small>(add-on-type)</small></td><td><code>/wf experiment</code></td><td><code>04c-experiment.md</code> + <code>.yaml</code></td><td>experiment.mjs</td><td>yes</td></tr>
 <tr><td><code>benchmark</code> <small>(add-on-type)</small></td><td><code>/wf benchmark</code></td><td><code>05c-benchmark.md</code> + <code>.yaml</code></td><td>benchmark.mjs</td><td>yes</td></tr>

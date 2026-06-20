@@ -110,9 +110,10 @@
 <ul>
   <li>Pushes the branch to the remote.</li>
   <li>Opens or updates a pull request automatically.</li>
+  <li>Watches CI to a terminal state and gives bot reviewers a bounded settle window before triage begins (stage T5.0).</li>
   <li>Triages any review comments through a bounded loop (stage T5.1).</li>
   <li>Rebases onto the base branch with <code>--force-with-lease</code> if the branch falls behind (stage T5.2).</li>
-  <li>Captures live PR state into <code>08-handoff.md</code>, the handoff <strong>artifact</strong> — the workflow note written at the end of each stage (stage T5.3).</li>
+  <li>Re-watches CI (T5.1 fix commits and T5.2 rebase retrigger checks) and captures the final live review decision and readiness verdict into <code>08-handoff.md</code> (stage T5.3).</li>
 </ul>
 
 <p>Choose <code>dedicated</code> when your change will be reviewed as a standalone pull request.</p>
@@ -125,8 +126,8 @@
 <ul>
   <li>Pushes the branch to the remote.</li>
   <li>Does <em>not</em> open a pull request automatically. You manage PR creation yourself.</li>
-  <li>Skips the rebase-and-force-push step (T5.2) entirely.</li>
-  <li>Runs the triage (T5.1) and live-check (T5.3) steps only if you have manually recorded a <code>pr-number</code> in the workflow index.</li>
+  <li>Skips PR comment triage (T5.1) and rebase (T5.2) unconditionally — force-pushing a shared branch is destructive and triage is not automated for non-auto-created PRs.</li>
+  <li>Watches CI and captures final readiness (T5.0/T5.3) only if you have manually recorded a <code>pr-number</code> in the workflow index.</li>
 </ul>
 
 <p>Choose <code>shared</code> when your branch is one contributor among many and a force-push would be destructive.</p>
@@ -152,8 +153,8 @@ flowchart TD
   start -- Docs-only / local-only / spike --> none[branch-strategy: none]
 
   dedicated -.-> dedicated_eff[Push, open PR<br/>--force-with-lease on rebase<br/>T5.1 triage runs<br/>T5.2 rebase runs<br/>T5.3 live check runs]
-  shared -.-> shared_eff[Push branch<br/>NO auto-PR<br/>T5.2 SKIPPED<br/>T5.1/T5.3 only if PR exists]
-  none -.-> none_eff[No git operations<br/>Handoff artifact is the deliverable<br/>T5.1/T5.2/T5.3 all skipped]
+  shared -.-> shared_eff[Push branch<br/>NO auto-PR<br/>T5.1/T5.2 ALWAYS SKIPPED<br/>T5.0/T5.3 only if pr-number recorded]
+  none -.-> none_eff[No git operations<br/>Handoff artifact is the deliverable<br/>T5.0/T5.1/T5.2/T5.3 all skipped]
 </pre>
 </div>
 <p class="caption">Each strategy enables a different subset of the handoff stages.</p>
@@ -167,10 +168,9 @@ flowchart TD
 <table>
 <thead><tr><th>Badge</th><th>Meaning</th></tr></thead>
 <tbody>
-<tr><td><code>live</code></td><td>The branch ref exists and has not yet been fully merged into its base.</td></tr>
-<tr><td><code>merged</code></td><td>The branch tip is an ancestor of the base branch, or the pull request resolved as <code>MERGED</code>.</td></tr>
-<tr><td><code>gone</code></td><td>The branch ref is no longer present locally — typically deleted after merging.</td></tr>
-<tr><td><code>unknown</code></td><td>No branch declared (<code>branch-strategy: none</code>), git is unavailable, or any error. Fails open; no badge is rendered.</td></tr>
+<tr><td>(no badge)</td><td>The branch ref exists and has not yet been fully merged into its base (active). Also shown when no branch is declared (<code>branch-strategy: none</code>), git is unavailable, or any error — fails open.</td></tr>
+<tr><td><code>merged</code></td><td>The branch tip is an ancestor of the base branch, or the pull request resolved as <code>MERGED</code>. Rendered as a visible chip.</td></tr>
+<tr><td><code>branch gone</code></td><td>The branch ref is no longer present locally — typically deleted after merging. Rendered as a visible chip.</td></tr>
 </tbody>
 </table>
 <p>For more about the dashboard, see <a href="../reference/serve.html">Serve daemon &amp; hub</a>.</p>

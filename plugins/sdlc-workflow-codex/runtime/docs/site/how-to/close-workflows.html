@@ -99,7 +99,7 @@
 
 <div class="summary">
 <table>
-<tr><th>Pre-conditions</th><td>A workflow exists. You know its <strong>slug</strong> — the short identifier the plugin assigned when the workflow was created (for example, <code>add-dark-mode</code>). You can list all open slugs with <code>/wf-meta list</code>.</td></tr>
+<tr><th>Pre-conditions</th><td>A workflow exists. You know its <strong>slug</strong> — the short identifier the plugin assigned when the workflow was created (for example, <code>add-dark-mode</code>). You can list all open slugs with <code>/wf-meta status</code>.</td></tr>
 <tr><th>Goal</th><td>Mark the workflow closed with a recorded reason so the audit trail is complete.</td></tr>
 </table>
 </div>
@@ -108,46 +108,46 @@
 
 <h2>I shipped it already (close cleanly)</h2>
 
-<p>If you ran <code>/wf ship</code> the workflow was closed for you automatically. You do not need to close it again.</p>
+<p>If you ran <code>/wf ship</code> followed by <code>/wf retro</code>, the workflow index is marked <code>status: complete</code> — the normal finish state. <code>/wf-meta close</code> is a separate operation that marks <code>status: closed</code> and writes <code>99-close.md</code> for auditing an early or out-of-band termination.</p>
 
 <p>If you shipped by some other means — merged the PR manually, deployed directly — the workflow is still technically open. Tell the plugin it is done:</p>
 
-<pre><code>/wf-meta close shipped add-dark-mode</code></pre>
+<pre><code>/wf-meta close add-dark-mode completed-externally</code></pre>
 
-<p>The plugin writes <code>99-close.md</code> with <code>close-reason: shipped</code> and records that the workflow ended here. Nothing else changes. This is the most common close path.</p>
+<p>The plugin writes <code>99-close.md</code> with <code>close-reason: completed-externally</code> and records that the workflow ended here. Nothing else changes. This is the most common close path for out-of-band completions.</p>
 
 <h2>I am abandoning it</h2>
 
 <p>Sometimes the right call is to stop. The idea was deprioritised, the approach turned out to be wrong, or a different workflow made this one unnecessary.</p>
 
-<p>Two sub-commands cover this:</p>
+<p>Two reasons cover this:</p>
 
 <dl>
-<dt><code>/wf-meta close abandoned &lt;slug&gt;</code></dt>
+<dt><code>/wf-meta close add-dark-mode cancelled</code></dt>
 <dd>Use this when you decided not to do the work at all. The plugin will ask for a one-paragraph reason before writing <code>99-close.md</code>.</dd>
 
-<dt><code>/wf-meta close superseded &lt;slug&gt;</code></dt>
+<dt><code>/wf-meta close add-dark-mode superseded</code></dt>
 <dd>Use this when another workflow absorbed the intent of this one. The plugin will prompt you for the slug of the replacement workflow, which it stores as a pointer in <code>99-close.md</code>.</dd>
 </dl>
 
-<p>Example — abandoning a workflow whose approach was rejected in review:</p>
+<p>Example — cancelling a workflow whose approach was rejected in review:</p>
 
-<pre><code>/wf-meta close abandoned add-dark-mode</code></pre>
+<pre><code>/wf-meta close add-dark-mode cancelled</code></pre>
 
 <p>Output (truncated):</p>
-<pre><code>Closing add-dark-mode (abandoned).
+<pre><code>Closing add-dark-mode (cancelled).
 Brief reason? &gt; Design review decided to ship a theme toggle in Q3 instead.
-Wrote: .workflow/add-dark-mode/99-close.md
+Wrote: .ai/workflows/add-dark-mode/99-close.md
 Workflow is now closed.</code></pre>
 
 <h2>I am pausing it indefinitely</h2>
 
-<p>Closing a workflow is final. If you expect to return — even months from now — use <code>stuck</code> or put the workflow on hold rather than closing it.</p>
+<p>Closing a workflow is final. If you expect to return — even months from now — use <code>deferred</code> to record that the work is valid but not now.</p>
 
 <p><strong>On hold (external blocker):</strong></p>
-<pre><code>/wf-meta close stuck add-dark-mode</code></pre>
+<pre><code>/wf-meta close add-dark-mode deferred</code></pre>
 
-<p>Use <code>stuck</code> only when the blocker is genuinely outside your control: a vendor API is unavailable, compliance review has not come back, a dependency has not published a release. If the blocker is just low priority or unclear requirements, the workflow is better left open or abandoned. Most "stuck" situations are better handled as an extend or amend.</p>
+<p>Use <code>deferred</code> only when the blocker is genuinely outside your control: a vendor API is unavailable, compliance review has not come back, a dependency has not published a release. If the blocker is just low priority or unclear requirements, the workflow is better left open or cancelled. Most deferred situations are better handled as an extend or amend.</p>
 
 <p>When the blocker clears, use <code>/wf-meta resume &lt;slug&gt;</code> to reopen the workflow. See <a href="resume-paused-work.html">Resume paused work</a> for the full steps.</p>
 
@@ -155,13 +155,12 @@ Workflow is now closed.</code></pre>
 <summary>Technical details — what 99-close.md contains</summary>
 <p><code>99-close.md</code> is written with the following fields:</p>
 <ul>
-  <li><code>close-reason</code> — one of <code>shipped</code>, <code>abandoned</code>, <code>superseded</code>, <code>archived</code>, <code>stuck</code></li>
+  <li><code>close-reason</code> — one of <code>cancelled</code>, <code>superseded</code>, <code>deferred</code>, <code>completed-externally</code>, <code>merged-into</code></li>
   <li>One-paragraph rationale (from the prompt you provide)</li>
   <li>The last numbered stage artifact that was present when close ran</li>
   <li>Any deferred items noted during the workflow</li>
-  <li>For <code>superseded</code>: a pointer to the replacement workflow slug</li>
+  <li>For <code>superseded</code> or <code>merged-into</code>: a pointer to the replacement workflow slug</li>
 </ul>
-<p>A fifth sub-command, <code>archived</code>, is for workflows that completed and whose code path has since been fully removed. It is rarely needed outside long-lived feature branches.</p>
 </details>
 
 <h2>Close vs. skip — they are different things</h2>
@@ -173,12 +172,12 @@ Workflow is now closed.</code></pre>
 <tbody>
 <tr>
   <td>Skip one stage</td>
-  <td><code>/wf-meta skip &lt;stage&gt; &lt;slug&gt;</code></td>
+  <td><code>/wf-meta skip &lt;slug&gt; &lt;stage&gt;</code></td>
   <td>Writes a stub artifact so later stages' prerequisites are satisfied. The workflow continues.</td>
 </tr>
 <tr>
   <td>Close the workflow</td>
-  <td><code>/wf-meta close &lt;reason&gt; &lt;slug&gt;</code></td>
+  <td><code>/wf-meta close &lt;slug&gt; &lt;reason&gt;</code></td>
   <td>Writes <code>99-close.md</code>. The workflow stops. No further stages run.</td>
 </tr>
 </tbody>

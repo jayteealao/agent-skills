@@ -106,18 +106,18 @@ You know what you want to do. This page maps your situation to the exact command
 <tbody>
 <tr>
   <td>Start a new feature from scratch</td>
-  <td><code>/wf intake &lt;slug&gt;</code></td>
-  <td>Begins the full lifecycle. Claude interviews you on scope and writes a brief. Best for anything that will take more than one session.</td>
+  <td><code>/wf intake &lt;description&gt;</code></td>
+  <td>Begins the full lifecycle. Claude derives the slug from your description, interviews you on scope, and writes a brief. Best for anything that will take more than one session.</td>
 </tr>
 <tr>
   <td>Fix a typo or one-line bug</td>
   <td><code>/wf intake fix "description"</code></td>
-  <td>Compressed path: brief + implement + handoff. Leaves 2–3 artifact files. Faster than full <code>/wf</code>.</td>
+  <td>Planning-half-only: authors 01-fix → 04-plan + 00-index (5 files) then gates for your approval. Standard <code>/wf implement</code> → verify → review → handoff → ship chain runs afterward. No stage is skipped; the compression is in ceremony, not stages.</td>
 </tr>
 <tr>
   <td>Fix a production incident right now</td>
   <td><code>/wf intake hotfix "description"</code></td>
-  <td>6-stage scope-locked flow. Bypasses non-critical review gates for speed. Creates an incident record.</td>
+  <td>Full standard lifecycle (intake → ship), single-pass, scope-locked to the minimum change that stops the incident. Security review runs by default (07-review defaults to security dimension). No gates are bypassed.</td>
 </tr>
 <tr>
   <td>Understand why a bug happened</td>
@@ -147,7 +147,7 @@ You know what you want to do. This page maps your situation to the exact command
 <tr>
   <td>Brainstorm and rank improvement candidates</td>
   <td><code>/wf intake ideate "area"</code></td>
-  <td>Produces a ranked list of improvement candidates under <code>.ai/ideation/</code>. Good for planning sessions.</td>
+  <td>Produces a ranked list written to <code>.ai/workflows/&lt;slug&gt;/01-ideate.md</code>. Good for planning sessions.</td>
 </tr>
 <tr>
   <td>Triage whether something is worth fixing at all</td>

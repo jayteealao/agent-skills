@@ -148,6 +148,10 @@
 <tr><td><code>codeBrowser.showIgnoredBadge</code></td><td>boolean</td><td><code>true</code></td><td>Badge gitignored files/folders in the tree (presentation only — they are shown either way).</td></tr>
 <tr><td><code>codeBrowser.serveSecrets</code></td><td>boolean</td><td><code>false</code></td><td>⚠ When <code>true</code>, drops the secret denylist so <code>.env</code>/key files become servable. Honored <strong>only on a strictly-loopback binding</strong> — under any non-loopback exposure the denylist stays active regardless.</td></tr>
 <tr><td><code>codeBrowser.denyGlobs</code></td><td>string[]</td><td><code>[]</code></td><td>Extra paths to hide, appended to the built-in denylist (<code>.git/**</code> + secrets). A bare name (<code>*.sqlite</code>) matches any path segment; a path (<code>private/**</code>) hides that subtree.</td></tr>
+<tr><td><code>staleRender.heal</code></td><td>boolean</td><td><code>true</code></td><td>Automatically re-render stale views after a plugin upgrade. Set <code>false</code> to detect-and-flag only (the hub still surfaces <code>stale</code> in health).</td></tr>
+<tr><td><code>staleRender.maxConcurrent</code></td><td>integer</td><td><code>1</code></td><td>Maximum simultaneous heal renders across all repos.</td></tr>
+<tr><td><code>staleRender.cooldownMs</code></td><td>integer</td><td><code>60000</code></td><td>Per-repo minimum interval between heal spawns (anti-thrash).</td></tr>
+<tr><td><code>staleRender.maxAttempts</code></td><td>integer</td><td><code>3</code></td><td>Give up and surface <code>failed</code> after this many spawns per drift episode.</td></tr>
 </tbody>
 </table>
 
@@ -206,7 +210,7 @@
 
 <h2>Lifecycle</h2>
 
-<p>The <code>session-start-orient</code> hook kicks off detached bootstrap rendering, which calls <code>ensureServeLifecycle</code>. That function:</p>
+<p>The <code>session-start-orient</code> hook kicks off detached bootstrap rendering via its <code>startBootstrap</code> function. In the default hub dispatch path (<code>view.renderDispatch: "hub"</code>), it enqueues a bootstrap freshness pass and calls <code>hub-ensure</code>, which runs <code>ensureHubLifecycle</code> to adopt or start the machine-wide hub. In the inline rollback path (<code>view.renderDispatch: "inline"</code>), it instead calls <code>ensureServeLifecycle</code>. That function:</p>
 
 <ol>
   <li>Reads <code>~/.sdlc/hub-config.json</code> (host, port, tailscale, liveReload, perRepoServe).</li>
@@ -215,7 +219,7 @@
   <li>Otherwise spawns the standalone fallback daemon — <code>dist/render-sunflower-serve.mjs</code> in installs, falling back to <code>scripts/render-sunflower-serve.mjs</code> for maintainers before their first build (<code>resolveEntrypoint</code> prefers the committed bundle) — writing a PID file at <code>.ai/_view/.serve.pid</code>.</li>
 </ol>
 
-<p>A running daemon that reports a different plugin <code>version</code> on its health endpoint is treated as stale and reaped, so a new install deterministically replaces the old daemon's code.</p>
+<p>A running per-repo daemon that reports a different <code>runtimeVersion</code> on its health endpoint is treated as stale and reaped, so a new install deterministically replaces the old daemon's code. The hub supervisor similarly keys adoption on <code>hub.runtimeVersion</code> from the health payload; the top-level <code>version</code> field is a legacy alias kept for pre-v9.75 compatibility.</p>
 
 <h2>Health endpoint</h2>
 

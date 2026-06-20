@@ -101,7 +101,7 @@ Before you type your first command, this page gives you the map. One read and yo
 
 <h2>The five things you type</h2>
 
-<p>The entire plugin is five commands (plus the <code>/wf design</code> sub-command). Everything else is a sub-command under one of these.</p>
+<p>The plugin exposes a handful of top-level commands; everything else is a sub-command under one of these. <code>/wf design</code> is a sub-command key of <code>/wf</code>, not a standalone peer.</p>
 
 <table>
 <thead><tr><th>Command</th><th>What you reach for it when…</th><th>What it does</th></tr></thead>
@@ -109,7 +109,7 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/wf</code></td>
   <td>You have a real feature, fix, or refactor to ship</td>
-  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. Sub-commands: <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code></td>
+  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. Sub-commands: <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code>, <code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code> (end-to-end lifecycle driver — new in v9.88.0), <code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, <code>profile</code></td>
 </tr>
 <tr>
   <td><code>/wf intake &lt;mode&gt;</code></td>
@@ -119,7 +119,7 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/wf-meta</code></td>
   <td>You want to look up, navigate, or manage your workflows</td>
-  <td>Status, resume, next, sync, amend, close — everything for working <em>with</em> workflows that already exist. Sub-commands: <code>status</code>, <code>resume</code>, <code>next</code>, <code>sync</code>, <code>amend</code>, <code>close</code>, <code>init-ship-plan</code>, <code>build-pipeline</code></td>
+  <td>Status, resume, next, sync, amend, extend, skip, close, how, announce — everything for working <em>with</em> workflows that already exist. Sub-commands: <code>status</code>, <code>resume</code>, <code>next</code>, <code>sync</code>, <code>amend</code>, <code>extend</code>, <code>skip</code>, <code>close</code>, <code>how</code>, <code>announce</code>, <code>init-ship-plan</code>, <code>build-pipeline</code></td>
 </tr>
 <tr>
   <td><code>/wf design</code></td>
@@ -179,11 +179,11 @@ flowchart LR
 <noscript><pre class="diagram-fallback">intake → shape → (design?) → slice → plan → implement → verify → review → handoff → ship → retro</pre></noscript>
 </div>
 
-<p>Each stage writes one artifact file. By the time you reach <code>handoff</code>, there are up to 10 files capturing every decision you made along the way.</p>
+<p>Each stage writes one artifact file. By the time you reach <code>handoff</code>, there is at least one file per stage — and more for multi-slice work or augmentations — capturing every decision you made along the way.</p>
 
 <h2>The dashboard</h2>
 
-<p>The plugin includes a local web viewer — <strong>the dashboard</strong> — that shows all your workflows at a glance. Run <code>npm run serve</code> from the plugin root to start it, then open <code>http://localhost:4173</code>. The dashboard reads the artifact files from <code>.ai/workflows/</code> and renders them in a readable format. Multiple repos can share one hub.</p>
+<p>The plugin includes a local web viewer — <strong>the dashboard</strong> — that shows all your workflows at a glance. Run <code>npm run hub</code> from the plugin root to start it, then open <code>http://localhost:4173</code>. The dashboard reads the artifact files from <code>.ai/workflows/</code> and renders them in a readable format. Multiple repos can share one hub.</p>
 
 <h2>Putting it all together</h2>
 

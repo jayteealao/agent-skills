@@ -121,7 +121,7 @@
 <dt><strong>"There's a typo, a one-line patch, or a docs edit."</strong></dt>
 <dd>
   <code>/wf intake fix "&lt;description&gt;"</code><br>
-  Three <a href="../reference/glossary.html">artifacts</a> (workflow notes the plugin saves at each step), about 10 minutes.
+  Five <a href="../reference/glossary.html">artifacts</a> (01-fix.md, 02-shape.md, 03-slice.md, 04-plan.md, 00-index.md), about 10 minutes.
   <a href="../tutorials/quick-fix-workflow.html">See the walkthrough →</a>
 </dd>
 
@@ -176,7 +176,7 @@
 <dt><strong>"I want to clean up or triage a branch before going further."</strong></dt>
 <dd>
   <code>/wf simplify [branch|commit|plan|codebase]</code><br>
-  Three parallel sub-commands (reuse, quality, efficiency) classify findings and hand back a queue of copy-pasteable downstream commands. Routes; never writes code.
+  Three parallel sub-agents (Code Reuse, Code Quality, Efficiency) classify findings and hand back a queue of copy-pasteable downstream commands. Routes; never writes code.
 </dd>
 </dl>
 
@@ -202,7 +202,7 @@ flowchart TD
   class wf full
 </pre>
 </div>
-<p class="caption">Yellow = quick intake mode (a focused, faster mode that trades artifact depth for speed). Blue = full <code>/wf</code> pipeline (10 stages, every artifact, adaptive routing).</p>
+<p class="caption">Yellow = compressed entry point (same 10-stage pipeline, but planning ceremony is condensed for focused or fast-turnaround work; <code>/wf probe</code> is a runtime-truth check, not an intake mode). Blue = full <code>/wf</code> pipeline (10 stages, every artifact, adaptive routing).</p>
 
 <h2>Choosing between <code>/wf</code> full lifecycle and quick modes</h2>
 

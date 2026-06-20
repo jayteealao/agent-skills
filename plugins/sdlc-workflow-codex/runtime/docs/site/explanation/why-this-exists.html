@@ -133,7 +133,7 @@
 <ul>
   <li><strong>Not a project tracker.</strong> Artifacts record reasoning and state, not assignments, deadlines, or velocity. <code>00-index.md</code> answers "what stage is this workflow at" — not "who owns this and when is it due."</li>
   <li><strong>Not a substitute for code review.</strong> Review is itself a stage the plugin orchestrates. It does not replace the humans doing the review.</li>
-  <li><strong>Not an automation layer.</strong> Every stage asks you. The AI proposes; you choose. No stage auto-advances without your confirmation.</li>
+  <li><strong>Not an automation layer for most commands.</strong> Every stage asks you. The AI proposes; you choose. <code>/wf auto</code> is the deliberate exception: it sequences stages automatically, but it does not suppress any stage&#39;s own quality gates or open a PR on your behalf.</li>
 </ul>
 
 <div class="related">

@@ -113,31 +113,32 @@
 
 <pre><code>/wf ship auth-refresh staging</code></pre>
 
-<p>Before the run begins, you are asked three questions once:</p>
+<p>During step 3, once per run, you are asked three questions that are never re-asked on resume:</p>
 <ul>
   <li><strong>Rollout strategy</strong> — confirm the plan default or override it.</li>
   <li><strong>Release window</strong> — any blackout periods or on-call coverage to note.</li>
   <li><strong>Stakeholder overrides</strong> — anyone who needs explicit sign-off for this run.</li>
 </ul>
-<p>These questions are never re-asked if you resume.</p>
 
 <h2>The 13 steps — reassurance, not a wall</h2>
 
 <p>Most steps are fully automated. The list below shows what the command is doing on your behalf.</p>
 
+<p>Before the steps begin, a <strong>Step 0 — Orient</strong> reads the ship plan and confirms the <a href="../reference/glossary.html#readiness-check">readiness check</a> passed. Refuses to proceed if it did not.</p>
+
 <ol>
-  <li><strong>Orient</strong> — reads the ship plan and confirms a <a href="../reference/glossary.html#readiness-check">readiness check</a> passed. Refuses if it did not.</li>
   <li><strong>Pre-flight</strong> — updates version literals and commits them. Usually takes a few seconds.</li>
-  <li><strong>Dry run</strong> — runs your publish command without actually publishing. Takes 30 seconds to 5 minutes depending on build size.</li>
-  <li><strong>Rollout setup</strong> — configures the environment per the rollout strategy you confirmed.</li>
+  <li><strong>Publish dry-run</strong> — runs your publish command without actually publishing. Takes 30 seconds to 5 minutes depending on build size.</li>
+  <li><strong>Rollout questions</strong> — asks three questions once per run: rollout strategy, release window, and stakeholder overrides. Never re-asked on resume.</li>
   <li><strong>Freshness</strong> — checks that CI on the branch is green and no new commits arrived during dry-run.</li>
   <li><strong>Go / no-go</strong> — summarises findings and asks for your final decision. The run stops here on "no-go."</li>
   <li><strong>Merge</strong> — merges the branch to the target. Instant if CI is green.</li>
   <li><strong>Tag</strong> — creates the version tag and GitHub release. Instant.</li>
-  <li><strong>Release workflow watch</strong> — monitors the CI release workflow to completion. Can take 5–30 minutes while the actual publish runs.</li>
-  <li><strong>Recovery (conditional)</strong> — if the release workflow fails and the failure matches a playbook in your plan, Claude runs the playbook steps as confirmed actions. Each step is confirmed before it runs.</li>
+  <li><strong>Release workflow watch</strong> — monitors the CI release workflow to completion. Can take 5–30 minutes while the actual publish runs. If it fails and the failure matches a playbook in your plan, Claude runs the playbook steps as confirmed actions — each step is confirmed before it runs.</li>
   <li><strong>Post-publish poll</strong> — checks that the package or artifact is reachable at its published URL. Bounded by <code>plan.propagation-window-max-minutes</code>.</li>
-  <li><strong>Post-bump</strong> — bumps the version to the next development pre-release.</li>
+  <li><strong>Post-release bump</strong> — bumps the version to the next development pre-release.</li>
+  <li><strong>Update ship-runs index</strong> — refreshes <code>09-ship-runs.md</code> with this run's entry.</li>
+  <li><strong>Adaptive routing</strong> — evaluates what is next and writes all viable options into the artifact's recommended-next section.</li>
   <li><strong>Write artifact</strong> — writes <code>09-ship-run-&lt;run-id&gt;.md</code> with all captured evidence.</li>
 </ol>
 

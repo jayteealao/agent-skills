@@ -104,7 +104,7 @@
 
 <h2>Re-run handoff to pick up new review-bot comments</h2>
 <p><strong>When:</strong> a PR has been sitting for a day or two and bots have added more feedback since you last triaged.</p>
-<p>Just run <code>/wf handoff &lt;slug&gt;</code> again. Every step is idempotent — only the triage loop re-runs, picking up the new comments. You do not need to replay earlier stages.</p>
+<p>Just run <code>/wf handoff &lt;slug&gt;</code> again. The command is additive — it preserves the prior handoff revision, re-watches CI, runs a fresh triage pass on new comments, and appends a revision section to <code>08-handoff.md</code>. You do not need to replay earlier pipeline stages.</p>
 
 <h2>Explore unfamiliar code before planning</h2>
 <p><strong>When:</strong> you are about to plan a change in a part of the codebase you have not worked in before.</p>
@@ -136,8 +136,8 @@
 <p><strong>When:</strong> the change is a single-file edit that does not need the full scoping interview, but you still want a commit record.</p>
 <p>You can skip straight from intake to plan:</p>
 <pre><code>/wf intake "rename FooBar to FooBaz"
-/wf-meta skip shape &lt;slug&gt;
-/wf-meta skip slice &lt;slug&gt;
+/wf-meta skip &lt;slug&gt; shape
+/wf-meta skip &lt;slug&gt; slice
 /wf plan &lt;slug&gt; default-slice</code></pre>
 <p>Or use <code>/wf intake fix</code>, which handles the same skip path in one command. If you are unsure which fits, see the entry-point guide linked below.</p>
 

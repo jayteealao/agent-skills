@@ -95,9 +95,9 @@
 <span class="quadrant reference">reference</span>
 <h1>Pipeline reference (10 stages)</h1>
 
-<p class="lede">Read this if you want to understand the exact contract between each stage — what every stage reads, what it writes, and what it gates. You do not need this page to use the plugin; start with <a href="../tutorials/quick-start.html">Quick start</a> instead.</p>
+<p class="lede">Read this if you want to understand the exact contract between each stage — what every stage reads, what it writes, and what it gates. You do not need this page to use the plugin; start with <a href="../tutorials/first-workflow.html">Full feature walkthrough</a> instead.</p>
 
-<p>A <strong>stage</strong> (<a href="glossary.html#stage">glossary</a>) is one named step in the workflow lifecycle. Each stage reads a set of <strong>artifacts</strong> (<a href="glossary.html#artifact">glossary</a> — the Markdown workflow notes the plugin writes under <code>.ai/&lt;slug&gt;/</code>) and produces new ones that unlock the next stage. The tables below specify that contract exactly.</p>
+<p>A <strong>stage</strong> (<a href="glossary.html#stage">glossary</a>) is one named step in the workflow lifecycle. Each stage reads a set of <strong>artifacts</strong> (<a href="glossary.html#artifact">glossary</a> — the Markdown workflow notes the plugin writes under <code>.ai/workflows/&lt;slug&gt;/</code>) and produces new ones that unlock the next stage. The tables below specify that contract exactly.</p>
 
 <h2>I/O graph</h2>
 
@@ -151,7 +151,7 @@ flowchart LR
 <tr><th>Command</th><td><code>/wf shape &lt;slug&gt;</code></td></tr>
 <tr><th>Requires</th><td><code>01-intake.md</code></td></tr>
 <tr><th>Produces</th><td><code>02-shape.md</code> (deep spec + docs plan)</td></tr>
-<tr><th>Conditional inputs</th><td>Web-research sub-agents (best-practice, anti-patterns, gotchas) fire by default. Opt out via <code>--no-research</code>.</td></tr>
+<tr><th>Conditional inputs</th><td>Web-research sub-agents (best-practice, anti-patterns, gotchas) fire by default; they are skipped automatically when no new external dependencies, no security-sensitive area, and no new dependency API surface are introduced.</td></tr>
 <tr><th>Default next</th><td><code>/wf slice &lt;slug&gt;</code></td></tr>
 <tr><th>Skip-to</th><td><code>/wf design &lt;slug&gt; craft</code> for UI features → <code>02b-design.md</code> + <code>02c-craft.md</code></td></tr>
 </table>
@@ -161,7 +161,7 @@ flowchart LR
 <table>
 <tr><th>Command</th><td><code>/wf design &lt;slug&gt; craft</code></td></tr>
 <tr><th>Requires</th><td><code>02-shape.md</code></td></tr>
-<tr><th>Produces</th><td><code>02b-design.md</code> — UX brief, register, anti-goals, visual contract.</td></tr>
+<tr><th>Produces</th><td><code>02b-design.md</code> (UX brief, register, anti-goals) + <code>02c-craft.md</code> (visual contract — north-star mock, mock-fidelity inventory)</td></tr>
 <tr><th>When to use</th><td>UI features, dashboards, public-facing surfaces.</td></tr>
 </table>
 
@@ -241,18 +241,18 @@ flowchart LR
 <p>Each stage artifact is a Markdown file with YAML frontmatter. The <code>status</code> key drives the next-stage gate check. Key frontmatter fields by stage:</p>
 <ul>
 <li><strong>05-implement:</strong> <code>commit-sha</code>, <code>metric-files-changed</code>, <code>metric-deviations-from-plan</code></li>
-<li><strong>06-verify:</strong> <code>convergence</code> (pass / partial / fail)</li>
+<li><strong>06-verify:</strong> <code>result</code> (pass / fail / partial / blocked-runtime-evidence-missing), <code>convergence</code> (not-needed / converged / escalated)</li>
 <li><strong>07-review:</strong> <code>verdict</code> (ship / ship-with-caveats / dont-ship)</li>
 <li><strong>08-handoff:</strong> <code>readiness-verdict</code> (ready / not-ready)</li>
 <li><strong>09-ship-run:</strong> <code>status</code> (complete / awaiting-input / failed)</li>
 </ul>
-<p>Artifact files live under <code>.ai/&lt;slug&gt;/</code> in the repo root. The <code>00-index.md</code> in the same directory is the authoritative registry of all slices and their stage progress.</p>
+<p>Artifact files live under <code>.ai/workflows/&lt;slug&gt;/</code> in the repo root. The <code>00-index.md</code> in the same directory is the authoritative registry of all slices and their stage progress.</p>
 </details>
 
 <div class="related">
 <h3>Where next</h3>
 <ul>
-  <li><a href="../tutorials/quick-start.html">Run your first workflow from intake to ship →</a></li>
+  <li><a href="../tutorials/first-workflow.html">Run your first workflow from intake to ship →</a></li>
   <li><a href="commands.html">See all commands and their arguments at a glance →</a></li>
   <li><a href="glossary.html">Look up any term used on this page →</a></li>
 </ul>

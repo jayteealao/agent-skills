@@ -95,7 +95,7 @@
 <span class="quadrant reference">reference</span>
 <h1>/wf command — every lifecycle stage in depth</h1>
 
-<p class="lede">You reach for <code>/wf</code> when you have a real feature, fix, or refactor to ship — one where you want clear acceptance criteria, a written plan, proper review, and a documented trail from idea to production. It is the full-lifecycle command: 10 ordered <a href="../reference/glossary.html">stages</a> (intake through retro) plus 4 optional add-ons (instrument, experiment, benchmark, profile) for observability, flag-gated rollout, and performance work.</p>
+<p class="lede">You reach for <code>/wf</code> when you have a real feature, fix, or refactor to ship — one where you want clear acceptance criteria, a written plan, proper review, and a documented trail from idea to production. It is the full-lifecycle command: 10 ordered <a href="../reference/glossary.html">stages</a> (intake through retro) plus 4 optional add-ons (instrument, experiment, benchmark, profile) for observability, flag-gated rollout, and performance work, plus the compressed design workflow (<code>/wf design</code>), runtime-truth verification (<code>/wf probe</code>), a read-and-route triage tool (<code>/wf simplify</code>), and the end-to-end lifecycle driver (<code>/wf auto</code>). All 18 keys are invoked as <code>/wf &lt;key&gt; [args]</code>.</p>
 
 <p>Every entry on this page is invoked as <code>/wf &lt;sub-command&gt; [args]</code>. Each <a href="../reference/glossary.html">sub-command</a> maps to one stage of the pipeline and reads the <a href="../reference/glossary.html">artifacts</a> the previous stage wrote.</p>
 
@@ -113,6 +113,7 @@
   <li><a href="#wf-ship">/wf ship</a></li>
   <li><a href="#wf-retro">/wf retro</a></li>
   <li><a href="#wf-instrument">/wf instrument</a> · <a href="#wf-experiment">experiment</a> · <a href="#wf-benchmark">benchmark</a> · <a href="#wf-profile">profile</a></li>
+  <li><a href="#wf-auto">/wf auto</a> — end-to-end lifecycle driver</li>
 </ul>
 </div>
 
@@ -281,7 +282,7 @@
 
 <hr>
 
-<h2 id="wf-implement">/wf implement &lt;slug&gt; &lt;slice&gt; [reviews]</h2>
+<h2 id="wf-implement">/wf implement &lt;slug&gt; [slice] [reviews]</h2>
 
 <p class="sub-intro">You reach for this sub-command when the plan is written and approved — this is the only stage that actually writes code and commits it.</p>
 
@@ -296,8 +297,8 @@
 
 <h4>Modes</h4>
 <ul>
-  <li><strong>Default</strong>: <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> — implements per the plan.</li>
-  <li><strong>Reviews</strong>: <code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code> — applies review-finding fixes. Reads <code>07-review-&lt;slice&gt;.md</code> and re-implements the targeted fixes.</li>
+  <li><strong>Default</strong>: <code>/wf implement &lt;slug&gt; [slice]</code> — implements per the plan. The slice argument can be omitted when exactly one slice is in-progress (inferred automatically).</li>
+  <li><strong>Reviews</strong>: <code>/wf implement &lt;slug&gt; [slice] reviews</code> — applies review-finding fixes. Reads <code>07-review-&lt;slice&gt;.md</code> and re-implements the targeted fixes.</li>
 </ul>
 
 <h4>What it reads</h4>
@@ -603,7 +604,7 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 <div class="summary"><table>
 <tr><th>Type</th><td>Add-on — freestanding profiling pass</td></tr>
 <tr><th>Slice-bound</th><td>No — doesn't need a workflow slice</td></tr>
-<tr><th>Produces</th><td>A profiling report</td></tr>
+<tr><th>Produces</th><td><code>.ai/profiles/profile-&lt;timestamp&gt;-&lt;slug&gt;/01-profile.md</code></td></tr>
 </table></div>
 
 <p>The only freestanding add-on. Investigate where time is spent in the named area. Language-detect, static-analysis rubric, dynamic-profiling commands per language, structured-output contract.</p>
@@ -612,6 +613,44 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 <ul>
   <li>You suspect a hot path but don't know where.</li>
   <li>You need to plan a perf improvement before committing to it.</li>
+</ul>
+
+<hr>
+
+<h2 id="wf-auto">/wf auto &lt;slug&gt; [slice]</h2>
+
+<p class="sub-intro">You reach for this when you want to drive an already-started workflow forward without invoking each stage by hand — it sequences stages in-process, respects every quality gate, and stops before handoff.</p>
+
+<div class="summary"><table>
+<tr><th>Type</th><td>End-to-end lifecycle driver — not a stage</td></tr>
+<tr><th>Requires</th><td>An existing workflow slug with at least <code>01-intake.md</code> written</td></tr>
+<tr><th>Produces</th><td>No artifact of its own — each delegated stage writes its own artifact as usual</td></tr>
+<tr><th>Stops at</th><td>After the final review; never runs <code>handoff</code>, <code>ship</code>, or <code>retro</code></td></tr>
+</table></div>
+
+<p><code>/wf auto</code> is a <strong>driver, not a stage</strong>. It reads <code>00-index.md</code>, determines which stage runs next, executes that stage&#39;s reference in-process (exactly as the <code>/wf</code> dispatcher does), reads the artifact the stage wrote to decide the gate state, then either proceeds to the next stage or pauses and hands back to the user. It writes no artifact of its own — every file in <code>.ai/workflows/&lt;slug&gt;/</code> is written by the stage it delegates to.</p>
+
+<h4>Two modes</h4>
+<ul>
+  <li><strong>Slug mode — <code>/wf auto &lt;slug&gt;</code></strong>: drives every slice through to the final review, then stops before handoff. With <code>review-scope: per-slice</code>, each slice runs <code>plan → implement → verify → review</code>; with <code>review-scope: slug-wide</code>, all slices run <code>plan → implement → verify</code> then a single slug-wide review runs once. Endpoint: recommend <code>/wf handoff &lt;slug&gt;</code>.</li>
+  <li><strong>Slice mode — <code>/wf auto &lt;slug&gt; &lt;slice&gt;</code></strong>: drives just that one slice to its end (per <code>review-scope</code>), then routes to the next slice. With <code>review-scope: slug-wide</code>, slice mode stops before the slug-wide review — that runs later via slug mode.</li>
+</ul>
+
+<h4>Gate behaviour — intra-stage gates still fire</h4>
+<p><code>auto</code> removes <em>inter-stage</em> friction only. Every delegated stage keeps its own user gate: <code>verify</code> owns its Fix/Skip/Escalate loop; <code>review</code> owns its Fix/Defer/Dismiss triage. <code>auto</code> does not suppress or pre-answer any gate. When a stage pauses (e.g., <code>verify</code> returns <code>convergence: escalated</code>, or <code>review</code> leaves open blockers), the chain stops and <code>auto</code> recommends the appropriate re-invocation.</p>
+
+<h4>Stop-before-handoff — always</h4>
+<p><code>auto</code> always stops after the review. There is no flag to extend past review. It never opens a PR, runs <code>handoff</code>, <code>ship</code>, or <code>retro</code> — those are deliberate, separately-invoked steps. Run <code>/wf handoff &lt;slug&gt;</code> yourself when the review is clean.</p>
+
+<h4>Resume is free</h4>
+<p>Because every stage updates <code>00-index.md</code> and writes its own artifact, the artifact trail is the run log. If a run is interrupted, re-invoke <code>/wf auto &lt;slug&gt;</code> and it picks up from where the frontmatter shows the last completed stage. <code>auto</code> keeps no separate state file.</p>
+
+<h4>What it does not do</h4>
+<ul>
+  <li>Does not start a fresh workflow — always requires an existing slug. Use <code>/wf intake &lt;description&gt;</code> first.</li>
+  <li>Does not write its own artifact.</li>
+  <li>Does not open a PR or run CI fixes.</li>
+  <li>Does not suppress any stage&#39;s own quality gates.</li>
 </ul>
 
 <div class="related">

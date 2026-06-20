@@ -100,7 +100,7 @@
 <div class="summary">
 <p><strong>What this file is.</strong> <code>.ai/ship-plan.md</code> is the project-level release contract — one file per repo, sitting at the repo root (not under <code>.ai/workflows/</code>). It is authored through a guided conversation with <code>/wf-meta init-ship-plan</code> and is <em>not</em> generated per-release. Individual release records live instead in <a href="09-ship-run-schema.html">ship-run artifacts</a>.</p>
 
-<p><strong>Two halves.</strong> The schema splits into a <strong>required core</strong> (Blocks A–G — fixed field names that <code>/wf ship</code> reads for outbound release mechanics) and an <strong>inbound pipeline</strong> (Blocks H–K — developer-experience and governance gates authored by <code>/wf-meta build-pipeline</code>). A third section, <code>additional-contracts[]</code>, is a free-form extension list that <code>/wf ship</code> ignores unless a consumer opts in by <code>id</code>.</p>
+<p><strong>Two halves.</strong> The schema splits into a <strong>required core</strong> (Blocks A–G — fixed field names that <code>/wf ship</code> reads for outbound release mechanics) and an <strong>inbound pipeline</strong> (Blocks H–K — developer-experience and governance gates authored by <code>/wf-meta init-ship-plan</code>). A third section, <code>additional-contracts[]</code>, is a free-form extension list that <code>/wf ship</code> ignores unless a consumer opts in by <code>id</code>.</p>
 </div>
 
 <h2>Block A — Ship meaning + environments + cadence</h2>
@@ -172,7 +172,7 @@ db-migrations-reversible: true | false | n/a</code></pre>
   channels: ["#releases", "release-notes@example.com"]
   template-path: ".ai/release-announcement-template.md"</code></pre>
 
-<p>Blocks A–G are the <strong>outbound</strong> half — read by <code>/wf ship</code>. Blocks H–K below are the <strong>inbound</strong> half — the developer-experience and governance pipeline authored by <code>/wf-meta build-pipeline</code>.</p>
+<p>Blocks A–G are the <strong>outbound</strong> half — read by <code>/wf ship</code>. Blocks H–K below are the <strong>inbound</strong> half — the developer-experience and governance pipeline also authored by <code>/wf-meta init-ship-plan</code> and enforced by <code>/wf-meta build-pipeline</code>.</p>
 
 <h2>Block H — Code-quality gates</h2>
 <p>You would check this block when you need to know the exact command each quality gate runs, the minimum test-coverage threshold, or which commit-message spec is enforced locally and in CI.</p>
@@ -183,7 +183,7 @@ db-migrations-reversible: true | false | n/a</code></pre>
   test-coverage: { min-percent: 80, cmd: "npm test -- --coverage" }
   commit-convention:   { spec: conventional, config-path: "commitlint.config.js", enforce: [local, ci] }
   pr-title-convention: { spec: conventional, enforce: [ci] }</code></pre>
-<p>The canonical source for each gate's literal command. Enabled gates derive <code>ci-pipeline.pre-merge-checks[]</code>. <code>commit-convention</code> is also honored by the local commit-lint gate in <code>/wf handoff</code>.</p>
+<p>The canonical source for each gate's literal command. Enabled gates derive <code>ci-pipeline.pre-merge-checks[]</code>. <code>commit-convention</code> documents the convention that <code>/wf handoff</code>&#39;s T3.5 gate detects via config-file presence (<code>.commitlintrc</code>, <code>commitlint.config.js</code>, etc.); CI enforcement is added by <code>/wf-meta build-pipeline</code> (Audit L).</p>
 
 <h2>Block I — Local developer experience</h2>
 <p>You would check this block when you need to know which Git-hook framework the project uses, what the bootstrap command is, or whether an <code>.editorconfig</code> file should exist.</p>
