@@ -211,10 +211,7 @@ async function acquireLock(lockPath, {
     const takeable = held ? isLockStale(held, now()) : await nullLockTakeable(lockPath, nullGraceMs, now);
     if (takeable) {
       log(`[lock] taking over stale lock at ${lockPath} (held by pid ${held?.pid ?? "?"}/${held?.host ?? "?"})`);
-      try {
-        await rm(lockPath, { force: true });
-      } catch {
-      }
+      await takeOverStaleLock(lockPath, { nullGraceMs, retryMs, now });
       continue;
     }
     if (now() >= deadline) {
@@ -229,6 +226,47 @@ async function nullLockTakeable(lockPath, graceMs, now) {
     return now() - st.mtimeMs > graceMs;
   } catch {
     return false;
+  }
+}
+async function takeOverStaleLock(lockPath, { nullGraceMs, retryMs, now }) {
+  const markerPath = `${lockPath}.takeover`;
+  const markerGraceMs = Math.max(5e3, 20 * retryMs);
+  let fh;
+  try {
+    fh = await open(markerPath, "wx");
+  } catch (err) {
+    if (err?.code !== "EEXIST") throw err;
+    if (await nullLockTakeable(markerPath, markerGraceMs, now)) {
+      try {
+        await rm(markerPath, { force: true });
+      } catch {
+      }
+    }
+    await sleep(retryMs);
+    return;
+  }
+  try {
+    await fh.close();
+    fh = null;
+    const cur = await readLock(lockPath);
+    const stillStale = cur ? isLockStale(cur, now()) : await nullLockTakeable(lockPath, nullGraceMs, now);
+    if (stillStale) {
+      try {
+        await rm(lockPath, { force: true });
+      } catch {
+      }
+    }
+  } finally {
+    if (fh) {
+      try {
+        await fh.close();
+      } catch {
+      }
+    }
+    try {
+      await rm(markerPath, { force: true });
+    } catch {
+    }
   }
 }
 async function withLock(lockPath, opts, fn) {

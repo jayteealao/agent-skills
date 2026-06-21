@@ -162,9 +162,12 @@ export async function tryAcquireLock(lockPath, {
 /**
  * Blocking acquire with stale-takeover, bounded by timeoutMs. The lifecycle's
  * entry point into the critical section. Loops the `wx` primitive; on EEXIST it
- * either waits (live holder) or takes over (stale holder) by removing the lock
- * and racing `wx` again — the `wx` is still the serializer, so two contenders
- * that both decide to take over still produce exactly one winner.
+ * either waits (live holder) or takes over (stale holder). Takeover removes the
+ * abandoned lock and re-races `wx`; the removal is SERIALIZED through a sibling
+ * marker (see takeOverStaleLock) so the "still stale? then remove it" decision is
+ * atomic — a contender can never delete a fresh winner's lock and re-open the
+ * race. With the path then free, `wx` is the serializer and exactly one contender
+ * wins (the same guarantee proven for a free-lock race).
  *
  * @returns {Promise<object>} a handle (`ok:true`) or `{ ok:false, heldBy }` on timeout.
  */
@@ -192,11 +195,11 @@ export async function acquireLock(lockPath, {
       : await nullLockTakeable(lockPath, nullGraceMs, now);
 
     if (takeable) {
-      // Take over: remove the abandoned lock, then immediately re-race `wx`. We
-      // do NOT sleep here — the wx retry is the serializer, and racing it now
-      // (rather than after a backoff) keeps takeover latency low.
+      // Take over: remove the abandoned lock (serialized + re-validated), then
+      // immediately re-race `wx`. We do NOT sleep here on success — racing the wx
+      // now (rather than after a backoff) keeps takeover latency low.
       log(`[lock] taking over stale lock at ${lockPath} (held by pid ${held?.pid ?? '?'}/${held?.host ?? '?'})`);
-      try { await rm(lockPath, { force: true }); } catch { /* best-effort; wx still gates */ }
+      await takeOverStaleLock(lockPath, { nullGraceMs, retryMs, now });
       continue;
     }
 
@@ -217,6 +220,61 @@ async function nullLockTakeable(lockPath, graceMs, now) {
   } catch {
     // Vanished between the failed wx and here → the next wx will simply succeed.
     return false;
+  }
+}
+
+/**
+ * Serialize the DESTRUCTIVE half of takeover through a sibling marker so the
+ * "still stale? then remove it" check-and-remove is atomic across contenders.
+ *
+ * Why this exists: removing the lock is decided from a read of `heldBy`, but
+ * applied to whatever is at the path WHEN the rm runs. Between those, another
+ * contender can complete a full takeover and install a fresh, VALID lock — a
+ * blind rm would then delete it, re-opening the `wx` race and producing TWO
+ * winners. Holding the marker, exactly one contender at a time RE-READS the lock
+ * and removes it ONLY if it is still stale; a freshly installed valid lock is
+ * read as live and spared. Once the path is free, the `wx` create in the caller's
+ * next loop is the serializer, so exactly one contender wins.
+ *
+ * The marker holder does no blocking work, so it is released within sub-ms; a
+ * marker orphaned by a taker that died mid-section is reclaimed once it ages past
+ * a grace far larger than that section (so a live taker is never mistaken for a
+ * dead one). When the marker is contended we simply back off and let the outer
+ * loop re-race `wx`.
+ */
+async function takeOverStaleLock(lockPath, { nullGraceMs, retryMs, now }) {
+  const markerPath = `${lockPath}.takeover`;
+  const markerGraceMs = Math.max(5000, 20 * retryMs);
+
+  let fh;
+  try {
+    fh = await open(markerPath, 'wx');   // exactly one taker proceeds
+  } catch (err) {
+    if (err?.code !== 'EEXIST') throw err;
+    // Another contender is mid-takeover. Reclaim an orphaned marker (its holder
+    // died); otherwise back off and let the caller re-race the `wx` primitive.
+    if (await nullLockTakeable(markerPath, markerGraceMs, now)) {
+      try { await rm(markerPath, { force: true }); } catch { /* raced; fine */ }
+    }
+    await sleep(retryMs);
+    return;
+  }
+  try {
+    await fh.close();
+    fh = null;
+    // RE-READ under the marker: a prior taker may already have installed a fresh,
+    // valid lock. Remove the lock ONLY if it is still stale (or a genuinely
+    // abandoned null/corrupt file past its grace).
+    const cur = await readLock(lockPath);
+    const stillStale = cur
+      ? isLockStale(cur, now())
+      : await nullLockTakeable(lockPath, nullGraceMs, now);
+    if (stillStale) {
+      try { await rm(lockPath, { force: true }); } catch { /* best-effort; wx still gates */ }
+    }
+  } finally {
+    if (fh) { try { await fh.close(); } catch { /* ignore */ } }
+    try { await rm(markerPath, { force: true }); } catch { /* ignore */ }
   }
 }
 
