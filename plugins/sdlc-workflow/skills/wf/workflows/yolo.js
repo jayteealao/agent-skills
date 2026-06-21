@@ -36,11 +36,17 @@ export const meta = {
 //   slice         (optional) one slice → slice mode; absent → slug mode
 //   reviewFanout  (optional, default false) Phase-3 parallel-dimension review
 //   planFanout    (optional, default false) plan all slices concurrently first
-if (!args || typeof args !== 'object') {
-  return { ok: false, stopped: true, reason: 'yolo requires args { projectRoot, referenceRoot, slug, [slice] } with absolute paths.' }
+// args may arrive as a JSON object or — depending on how the caller encodes the
+// Workflow invocation — as a JSON string. Tolerate both so a stringified payload
+// doesn't silently fail the object check (the Workflow runtime can hand a
+// JSON-encoded args through verbatim as one string).
+let OPT = args
+if (typeof OPT === 'string') { try { OPT = JSON.parse(OPT) } catch { OPT = null } }
+if (!OPT || typeof OPT !== 'object') {
+  return { ok: false, stopped: true, reason: 'yolo requires args { projectRoot, referenceRoot, slug, [slice] } as a JSON object (or JSON string) with absolute paths.' }
 }
-const { projectRoot, referenceRoot, slug } = args
-const slice = args.slice && String(args.slice).trim() ? String(args.slice).trim() : null
+const { projectRoot, referenceRoot, slug } = OPT
+const slice = OPT.slice && String(OPT.slice).trim() ? String(OPT.slice).trim() : null
 for (const [k, v] of Object.entries({ projectRoot, referenceRoot, slug })) {
   if (!v || typeof v !== 'string' || !v.trim()) {
     // Phase-0 caveat 1: never let a path arg be undefined — it silently writes into cwd.
@@ -335,7 +341,7 @@ async function driveVerify(sliceArg, idx) {
 // for true parallelism + adversarial verify, then delegate the WRITE/triage/fix/
 // ledger back to a wrapped review.md subagent given the pre-verified findings.
 async function driveReview(sliceArg, idx) {
-  if (args.reviewFanout !== true) {
+  if (OPT.reviewFanout !== true) {
     return await runStage('review', sliceArg, idx)
   }
   phase('Review')
@@ -459,7 +465,7 @@ if (idx.mode === 'slice') {
   // principle: serialize anything that writes code). Optional read-only plan
   // fan-out is opt-in (args.planFanout) — it races the shared 00-index.md, so
   // it stays off until artifact-parity vs the sequential path is validated.
-  if (args.planFanout === true) {
+  if (OPT.planFanout === true) {
     log('plan fan-out (opt-in): planning all un-planned slices concurrently — note: races 00-index.md writes')
     await parallel(idx.slices.filter(s => (s.stages || {}).plan !== 'done').map(s => () => runStage('plan', s.slice, idx)))
     idx = await orient()                          // re-snapshot so driveChain sees the new plans as done
