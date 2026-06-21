@@ -14,10 +14,17 @@
 // launched bundle path differs from the current one, kill it, and respawn the
 // current bundle via the SAME detached hidden-launch machinery the launcher uses.
 //
-// Staleness keys on the BUNDLE PATH (…/<version>/dist/tray.mjs), not a reported
-// runtimeVersion: the tray has no IPC surface to query, but the version dir is
-// already encoded in the path the launcher embeds — so comparing paths mirrors
-// exactly what lib/tray-autostart.mjs's launcherTargetsCurrent already does.
+// Version staleness keys on the BUNDLE PATH (…/<version>/dist/tray.mjs), not a
+// reported runtimeVersion: the tray has no IPC surface to query, but the version
+// dir is already encoded in the path the launcher embeds — so comparing paths
+// mirrors exactly what lib/tray-autostart.mjs's launcherTargetsCurrent already does.
+//
+// Version is not the only way a tray goes bad. A tray on the CURRENT bundle can
+// still wedge — its 5s poll stalls across a sleep/resume, or its stdio link to the
+// helper dies silently — leaving a frozen, stale display that a pure bundle-path
+// check reads as "current → unchanged" and never recovers. So reconcile ALSO
+// reaps a current-bundle tray whose liveness heartbeat (lib/tray-heartbeat.mjs)
+// has gone cold; a current tray with a fresh stamp is left alone.
 //
 // Windows-first: the tray is in practice Windows-only and process discovery is
 // implemented via WMI/CIM. On other platforms listRunningTrays returns [] and
@@ -28,6 +35,7 @@ import { spawnSync } from 'node:child_process';
 import { isPidAlive } from './pid-file.mjs';
 import { spawnDetached } from './detach.mjs';
 import { resolveDurableNodePath } from './tray-autostart.mjs';
+import { readTrayHeartbeat, isTrayHeartbeatStale, TRAY_HEARTBEAT_STALE_MS } from './tray-heartbeat.mjs';
 
 /* ───────────────────────── pure helpers ───────────────────────── */
 
@@ -133,16 +141,19 @@ function defaultRespawn({ nodePath, trayBundle, env = process.env }) {
 
 /**
  * Reconcile running trays against the current bundle. PURE control flow over
- * injectable seams; the decision table:
+ * injectable seams. A tray is "reapable" when it runs a STALE bundle (version
+ * drift) OR runs the CURRENT bundle but its liveness heartbeat has gone cold (a
+ * wedged poll — lib/tray-heartbeat.mjs). The decision table:
  *
- *   non-win32                              → { action: 'unsupported' }   (no-op)
- *   no currentBundle given                 → { action: 'no-current-bundle' }
- *   no tray running                        → { action: 'none' }         (tolerated)
- *   only current-bundle trays running      → { action: 'unchanged' }    (left alone — no thrash)
- *   stale tray(s) + a current one also up  → { action: 'killed-stale' } (reap stale, keep current, NO dup spawn)
- *   stale tray(s), none current            → { action: 'respawned' }    (reap stale + launch current once)
+ *   non-win32                                → { action: 'unsupported' }   (no-op)
+ *   no currentBundle given                   → { action: 'no-current-bundle' }
+ *   no tray running                          → { action: 'none' }         (tolerated)
+ *   only live current-bundle trays running   → { action: 'unchanged' }    (left alone — no thrash)
+ *   reapable tray(s) + a live current also up→ { action: 'killed-stale' } (reap them, keep live, NO dup spawn)
+ *   reapable tray(s), no live current         → { action: 'respawned' }   (reap + launch current once)
  *
- * Converges: a respawned current tray is `unchanged` on the next pass.
+ * "Live current" = current bundle AND not heartbeat-stale. Converges: a respawned
+ * current tray stamps a fresh heartbeat and is `unchanged` on the next pass.
  *
  * @returns {Promise<{action:string, killed:number[], running:number}>}
  */
@@ -153,6 +164,9 @@ export async function reconcileRunningTray({
   list = listRunningTrays,
   kill = defaultKill,
   respawn = defaultRespawn,
+  readHeartbeat = readTrayHeartbeat,
+  now = Date.now(),
+  stalenessMs = TRAY_HEARTBEAT_STALE_MS,
   env = process.env,
   log = () => {},
 } = {}) {
@@ -162,24 +176,31 @@ export async function reconcileRunningTray({
   const trays = (await list({ platform })) ?? [];
   if (!trays.length) return { action: 'none', killed: [], running: 0 };
 
-  const stale = trays.filter((t) => !sameBundle(t.bundlePath, currentBundle, platform));
+  // One heartbeat read for the whole pass; the per-tray match is by pid.
+  const heartbeat = readHeartbeat();
+  const isCurrent = (t) => sameBundle(t.bundlePath, currentBundle, platform);
+  const isWedged = (t) => isCurrent(t) && isTrayHeartbeatStale(t, heartbeat, { now, stalenessMs });
+  const isReapable = (t) => !isCurrent(t) || isWedged(t);
+
+  const stale = trays.filter(isReapable);
   if (!stale.length) return { action: 'unchanged', killed: [], running: trays.length };
 
   const killed = [];
   for (const t of stale) {
     try { kill(t.pid); killed.push(t.pid); }
-    catch (err) { log(`[tray] could not stop stale pid ${t.pid}: ${err?.message ?? err}`); }
+    catch (err) { log(`[tray] could not stop ${isWedged(t) ? 'wedged' : 'stale'} pid ${t.pid}: ${err?.message ?? err}`); }
   }
 
-  // A current-bundle tray is already running — reaping the stale duplicates is
-  // enough; spawning another would leave two icons. Thrash guard.
-  const currentUp = trays.some((t) => sameBundle(t.bundlePath, currentBundle, platform));
-  if (currentUp) {
-    log(`[tray] reaped ${killed.length} stale tray(s); a current tray is already running`);
+  // A LIVE current-bundle tray is still running (current + fresh heartbeat, not
+  // reaped) — reaping the stale/wedged peers is enough; spawning another would
+  // leave two icons. Thrash guard.
+  const liveCurrentUp = trays.some((t) => isCurrent(t) && !isWedged(t));
+  if (liveCurrentUp) {
+    log(`[tray] reaped ${killed.length} stale/wedged tray(s); a live current tray is already running`);
     return { action: 'killed-stale', killed, running: trays.length };
   }
 
   respawn({ platform, nodePath, trayBundle: currentBundle, env });
-  log(`[tray] reaped ${killed.length} stale tray(s); respawned the current bundle`);
+  log(`[tray] reaped ${killed.length} stale/wedged tray(s); respawned the current bundle`);
   return { action: 'respawned', killed, running: trays.length };
 }

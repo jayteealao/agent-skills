@@ -29,6 +29,7 @@ import {
 import {
   isAutostartEnabled, enableAutostart, disableAutostart, refreshAutostart,
 } from '../lib/tray-autostart.mjs';
+import { writeTrayHeartbeat } from '../lib/tray-heartbeat.mjs';
 import { sdlcHomeDir } from '../lib/registry.mjs';
 import { runtimeIdentity } from '../lib/runtime-manifest.mjs';
 
@@ -164,6 +165,11 @@ async function currentHealth() {
 }
 
 async function refresh() {
+  // Stamp liveness BEFORE the dedup early-return so the heartbeat advances on
+  // every poll even when nothing visible changed — that stamp is what the
+  // live-process heal (lib/tray-lifecycle.mjs) reads to tell a healthy tray from
+  // a wedged one. Best-effort: writeTrayHeartbeat never throws.
+  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE });
   const h = await currentHealth();
   const sig = signatureOf(h);
   if (sig === lastSig && tray) return;   // nothing visible changed — skip the re-render
@@ -173,6 +179,18 @@ async function refresh() {
 
 function refreshSoon(delay = 700) {
   setTimeout(() => { refresh().catch(() => {}); }, delay);
+}
+
+// One poll tick. A wall-clock gap far larger than POLL_MS means the timer was
+// suspended (laptop sleep) and just fired its overdue callback on resume — the
+// in-memory menu the helper holds may be stale, so invalidate the dedup signature
+// to force a full re-push on this refresh rather than waiting for the next change.
+let lastTickAt = Date.now();
+function pollTick() {
+  const now = Date.now();
+  if (now - lastTickAt > POLL_MS * 3) lastSig = '';
+  lastTickAt = now;
+  refresh().catch(() => {});
 }
 
 /* ───────────────────────── entrypoint ───────────────────────── */
@@ -200,6 +218,10 @@ async function main() {
     ensureHubOnLaunch({ pluginRoot: PLUGIN_ROOT, log }).catch(() => {});
   }
 
+  // Stamp liveness immediately so a heal scanning right after launch sees a fresh
+  // heartbeat for this pid (not an absent one) the moment the tray is up.
+  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE });
+
   const h = await currentHealth();
   lastSig = signatureOf(h);
   tray = new Tray({ binPath, menu: buildMenu(h) });
@@ -208,7 +230,8 @@ async function main() {
   await tray.start();
   log(`ready — ${h.summary}`);
 
-  refreshTimer = setInterval(() => { refresh().catch(() => {}); }, POLL_MS);
+  lastTickAt = Date.now();
+  refreshTimer = setInterval(pollTick, POLL_MS);
   process.on('SIGINT', quit);
   process.on('SIGTERM', quit);
 }

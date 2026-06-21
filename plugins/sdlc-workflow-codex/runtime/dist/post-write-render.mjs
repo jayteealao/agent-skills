@@ -4,7 +4,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubEnabled,
   spawnHubEnsure
-} from "./chunk-VXJZF3XU.mjs";
+} from "./chunk-L6EQJGVG.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
@@ -16,18 +16,16 @@ import {
 } from "./chunk-ZMYLXAL2.mjs";
 import {
   resolveActiveRuntimeRootSync
-} from "./chunk-CLZO2GTF.mjs";
+} from "./chunk-7AA4VR5J.mjs";
 import {
   enqueue,
-  queueDir
-} from "./chunk-LCWXHILT.mjs";
-import {
+  queueDir,
   resolveEntrypoint
-} from "./chunk-4TSW2YJ2.mjs";
+} from "./chunk-DVISHXT5.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
+import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/render-on-artifact-write.mjs

@@ -2,6 +2,11 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  TRAY_HEARTBEAT_STALE_MS,
+  isTrayHeartbeatStale,
+  readTrayHeartbeat
+} from "./chunk-KV5OLBXR.mjs";
+import {
   resolveDurableNodePath
 } from "./chunk-ERHYJB4B.mjs";
 import {
@@ -13,7 +18,10 @@ import {
 import {
   isPidAlive,
   resolveEntrypoint
-} from "./chunk-4TSW2YJ2.mjs";
+} from "./chunk-DVISHXT5.mjs";
+import "./chunk-NTSUEAI6.mjs";
+import "./chunk-5U76735W.mjs";
+import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/tray-heal.mjs
@@ -100,6 +108,9 @@ async function reconcileRunningTray({
   list = listRunningTrays,
   kill = defaultKill,
   respawn = defaultRespawn,
+  readHeartbeat = readTrayHeartbeat,
+  now = Date.now(),
+  stalenessMs = TRAY_HEARTBEAT_STALE_MS,
   env = process.env,
   log = () => {
   }
@@ -108,7 +119,11 @@ async function reconcileRunningTray({
   if (!currentBundle) return { action: "no-current-bundle", killed: [], running: 0 };
   const trays = await list({ platform }) ?? [];
   if (!trays.length) return { action: "none", killed: [], running: 0 };
-  const stale = trays.filter((t) => !sameBundle(t.bundlePath, currentBundle, platform));
+  const heartbeat = readHeartbeat();
+  const isCurrent = (t) => sameBundle(t.bundlePath, currentBundle, platform);
+  const isWedged = (t) => isCurrent(t) && isTrayHeartbeatStale(t, heartbeat, { now, stalenessMs });
+  const isReapable = (t) => !isCurrent(t) || isWedged(t);
+  const stale = trays.filter(isReapable);
   if (!stale.length) return { action: "unchanged", killed: [], running: trays.length };
   const killed = [];
   for (const t of stale) {
@@ -116,16 +131,16 @@ async function reconcileRunningTray({
       kill(t.pid);
       killed.push(t.pid);
     } catch (err) {
-      log(`[tray] could not stop stale pid ${t.pid}: ${err?.message ?? err}`);
+      log(`[tray] could not stop ${isWedged(t) ? "wedged" : "stale"} pid ${t.pid}: ${err?.message ?? err}`);
     }
   }
-  const currentUp = trays.some((t) => sameBundle(t.bundlePath, currentBundle, platform));
-  if (currentUp) {
-    log(`[tray] reaped ${killed.length} stale tray(s); a current tray is already running`);
+  const liveCurrentUp = trays.some((t) => isCurrent(t) && !isWedged(t));
+  if (liveCurrentUp) {
+    log(`[tray] reaped ${killed.length} stale/wedged tray(s); a live current tray is already running`);
     return { action: "killed-stale", killed, running: trays.length };
   }
   respawn({ platform, nodePath, trayBundle: currentBundle, env });
-  log(`[tray] reaped ${killed.length} stale tray(s); respawned the current bundle`);
+  log(`[tray] reaped ${killed.length} stale/wedged tray(s); respawned the current bundle`);
   return { action: "respawned", killed, running: trays.length };
 }
 
