@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -104,21 +104,21 @@
 
 <h2>Need some trail but not the full flow?</h2>
 
-<p>Use <code>/wf-quick</code>, the quick command that compresses the full workflow into a single call. It still writes artifacts (workflow notes that form the audit trail) but skips the deeper planning stages.</p>
+<p>Use the intake modes (<code>/wf intake &lt;mode&gt;</code>), which compress the full workflow into a focused single call. They still write artifacts for every stage (intake brief, shape, slice, plan) but in a single compressed pass, then hand off to the standard <code>/wf implement</code> and <code>/wf verify</code> chain.</p>
 
-<pre><code>/wf-quick fix</code></pre>
+<pre><code>/wf intake fix</code></pre>
 
-<p>For a hotfix where production is down and review must be skipped:</p>
+<p>For a hotfix where production is down, review is scoped to the security rubric rather than a full review sweep:</p>
 
-<pre><code>/wf-quick hotfix</code></pre>
+<pre><code>/wf intake hotfix</code></pre>
 
-<p>This bypasses the review stage by design. A hotfix artifact is still written so you have something to reference in a post-incident review.</p>
+<p>The review stage still runs — it defaults to <code>/wf review &lt;slug&gt; security</code> (auth, tokens, crypto, permissions) — keeping the audit trail complete while staying fast.</p>
 
 <h2>Skip a single stage mid-workflow</h2>
 
 <p>You are part-way through a workflow and one stage is not worth running. Use the <code>skip</code> sub-command (a sub-command is one of the named actions you pass after the main command) of <code>/wf-meta</code>:</p>
 
-<pre><code>/wf-meta skip verify my-slug</code></pre>
+<pre><code>/wf-meta skip my-slug verify</code></pre>
 
 <p>This writes a stub artifact for that stage so the next stage does not reject the workflow. The skip is recorded in <code>00-index.md</code> — you stay accountable for it.</p>
 
@@ -132,7 +132,7 @@
 
 <p>You started a workflow and the approach turned out to be wrong. Do not delete the directory — that breaks the audit trail. Close it with a reason instead:</p>
 
-<pre><code>/wf-meta close abandoned my-slug</code></pre>
+<pre><code>/wf-meta close my-slug cancelled</code></pre>
 
 <p>The workflow stops appearing as active. The artifacts remain for reference.</p>
 
@@ -155,13 +155,13 @@
 
 <h2>The plugin asks too many questions at intake</h2>
 
-<p>If intake feels like an interview you did not sign up for, that is a signal the change is small enough for <code>/wf-quick</code>. Decline the current intake and re-run with the quick command.</p>
+<p>If intake feels like an interview you did not sign up for, that is a signal the change is small enough for an intake mode. Decline the current intake and re-run with <code>/wf intake fix</code> or another mode.</p>
 
 <h2>What is not a valid escape hatch</h2>
 
 <ul>
   <li><strong>Do not hand-edit artifact frontmatter to fix a stage status.</strong> Use <code>/wf-meta sync</code> — it reads disk state and rebuilds the index from reality.</li>
-  <li><strong>Do not delete the workflow directory to start over.</strong> Close it first (<code>/wf-meta close abandoned</code>), then start a fresh workflow. The closed record belongs in the trail.</li>
+  <li><strong>Do not delete the workflow directory to start over.</strong> Close it first (<code>/wf-meta close my-slug cancelled</code>), then start a fresh workflow. The closed record belongs in the trail.</li>
   <li><strong>Do not edit <code>readiness-verdict: blocked</code> to <code>ready</code> by hand.</strong> The verdict is computed from real signals. Overwriting it hides the problem, not the risk.</li>
 </ul>
 

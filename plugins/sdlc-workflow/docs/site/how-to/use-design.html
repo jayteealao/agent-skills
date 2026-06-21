@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -95,7 +95,7 @@
 <span class="quadrant howto">how-to</span>
 <h1>Use the design pipeline</h1>
 
-<p class="lede">You are building a change that touches a visual or UX surface and you want design work to be part of it. Design is <strong>one <code>/wf</code> sub-command</strong> — <code>/wf design</code> — that runs as a compressed workflow. It gives you 22 design commands (as <em>arguments</em>, not separate keys). This page helps you pick the right invocation for your situation.</p>
+<p class="lede">You are building a change that touches a visual or UX surface and you want design work to be part of it. Design is <strong>one <code>/wf</code> sub-command</strong> — <code>/wf design</code> — that runs as a compressed workflow. It gives you 21 design commands (as <em>arguments</em>, not separate keys). This page helps you pick the right invocation for your situation.</p>
 
 <div class="summary">
 <table>
@@ -127,7 +127,7 @@
 
 <h2>Picking the right command</h2>
 
-<p>The 22 commands fall into five categories.</p>
+<p>The 21 commands fall into five categories.</p>
 
 <h3>1. Context (run once, any time)</h3>
 
@@ -146,7 +146,7 @@
 <dd>Authors the design <strong>brief</strong> <code>02b-design.md</code> (register, anti-goals, layout approach, key states, recommended references) <em>and</em> the visual <strong>contract</strong> <code>02c-craft.md</code> (north-star mock, mock-fidelity inventory, implementation contract), then drives the compressed <code>slice → plan → implement → verify</code> build. The brief step folds in what the old standalone design <code>shape</code> did — there is no separate design-shape command.</dd>
 </dl>
 
-<h3>3. Review &amp; inspection (single-step)</h3>
+<h3>3. Review / analysis (single-step)</h3>
 
 <dl>
 <dt><code>/wf design &lt;slug&gt; audit</code></dt>
@@ -154,12 +154,16 @@
 
 <dt><code>/wf design &lt;slug&gt; critique</code></dt>
 <dd>Writes <code>07-design-critique.md</code> — a register-forked expert critique (visual hierarchy, information architecture, cognitive load). Also runs as a <code>/wf review</code> dimension.</dd>
+</dl>
 
+<h3>4. Inspection (single-step)</h3>
+
+<dl>
 <dt><code>/wf design &lt;slug&gt; extract</code></dt>
 <dd>Reads existing UI code and pulls reusable tokens and components into a design-notes file plus <code>tokens-extracted.css</code>. Needs no prior context.</dd>
 </dl>
 
-<h3>4. Transformation (15 commands — applied at the build's implement step)</h3>
+<h3>5. Transformation (15 commands — applied at the build's implement step)</h3>
 
 <p>Each transformation modifies UI code and records itself as an add-on in <code>00-index.md</code>; handoff and ship then translate each add-on into reviewer mentions and changelog lines automatically. In the compressed flow the transform <em>is</em> the implement step, so it no longer needs pre-existing code — it either creates the surface or modifies the slug's existing implementation.</p>
 

@@ -40,10 +40,13 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
 4. **Determine workflow source mode** from `00-index.md` `workflow-type`:
    - `workflow-type: quick` → **compressed mode**. Source: `01-quick.md` (acceptance criteria + plan in single doc) + `05-implement.md`. No per-slice files.
    - `workflow-type: rca` / `investigate` → **forwarded mode**. Source: `01-rca.md` / `01-investigate.md` (rich context) + synthesized `02-shape.md` + `05-implement-<slice-slug>.md` if planning ran.
+   - `workflow-type: fix` / `hotfix` / `refactor` → **change-mode (compressed standard lifecycle).** Source: the **un-suffixed single-slice** standard files (`03-slice.md`, `04-plan.md`, `05-implement.md`) + the lead `01-<mode>.md` (`01-fix.md` / `01-hotfix.md` / `01-refactor.md`). Exactly **one** slice; `selected-slice` is its slug. Verify exactly as **standard mode** but use the un-suffixed filenames wherever a step names a `-<slice-slug>`-suffixed file. (For hotfix, focus on reproducing the incident symptom + the regression suite. For **refactor**, run the full baseline comparison from `02-shape.md` — re-run the baseline suite, check every `## Public API Surface` name still exists with the same signature, verify all callers still work; any unplanned deviation is a FAIL.)
+   - `workflow-type: update-deps` → **self-managed.** update-deps self-authors `06-verify.md` inside its own flow; it should NOT use `/wf verify`. STOP and direct the user back to `/wf intake update-deps <slug>`.
    - `workflow-type: feature` (default) or unset → **standard mode**.
 5. **Check prerequisites by mode:**
    - **Compressed mode**: `05-implement.md` (or `05-implement-<slice-slug>.md` if a slice was added) must exist. Acceptance criteria source is `01-quick.md`.
    - **Forwarded mode**: `05-implement-<slice-slug>.md` (or `05-implement.md`) must exist. Acceptance criteria source is the synthesized `02-shape.md` plus the rich `01-rca.md` / `01-investigate.md`.
+   - **Change-mode** (`fix` / `hotfix` / `refactor`): the un-suffixed `05-implement.md` must exist. Acceptance criteria source is `03-slice.md` + `01-<mode>.md` (refactor: also the `02-shape.md` baseline).
    - **Standard mode**: `05-implement-<slice-slug>.md` must exist.
    - All modes: if implement record shows `Status: Awaiting input` → STOP.
    - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → WARN: "This has already been verified. Running again will overwrite. Proceed?"
@@ -55,6 +58,7 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
 6. **Read the source context by mode:**
    - **Compressed mode**: `01-quick.md` (acceptance criteria + plan) + `05-implement.md`.
    - **Forwarded mode**: `01-rca.md` or `01-investigate.md` + `02-shape.md` (synthesized) + `04-plan.md` (if exists) + `05-implement-<slice-slug>.md`.
+   - **Change-mode** (`fix` / `hotfix` / `refactor`): `01-<mode>.md` + `03-slice.md` (acceptance criteria) + `04-plan.md` + `05-implement.md` (all un-suffixed; refactor also reads the `02-shape.md` baseline).
    - **Standard mode**:
      - `03-slice-<slice-slug>.md` — acceptance criteria to verify against
      - `04-plan-<slice-slug>.md` — what was planned (to check deviations)
@@ -161,7 +165,7 @@ Prompt the agent with ALL of the following:
    - If `stack.user-confirmed: false` OR `stack-source: unconfirmed-auto-detect` → run all matched adapters but stamp each evidence record with `stack-confirmed: false`. The verify report's `## Caveats` section MUST state that adapter selection was not PO-confirmed.
    - If `stack.platforms` is empty after intersection → record `bootstrap-failure: { adapter: none, step: stack-intersection, remediation: "Confirmed stack lists no platforms matching repo detection. Re-run /wf intake to reconcile." }` and skip to teardown. Do NOT pick a default adapter to fill the gap.
    - Multi-match (e.g., web + service) is common and must be driven when both are in `stack.platforms`. Record the final adapter keys under `adapters-used:` in the verify report.
-2. **Bootstrap each matched adapter** per its `Bootstrap` section. If any bootstrap step fails after the adapter's documented resolution attempts, the sub-agent reports `bootstrap-failure: { adapter, step, exit-code, output-tail, remediation }` and does NOT proceed past bootstrap for that adapter. The user-observable AC gate (Step 6.5) will then refuse `result: pass` and require either an `interactive-verification: deferred` annotation with a reason, or a remediation pass via `/wf-quick probe` once the environment is repaired.
+2. **Bootstrap each matched adapter** per its `Bootstrap` section. If any bootstrap step fails after the adapter's documented resolution attempts, the sub-agent reports `bootstrap-failure: { adapter, step, exit-code, output-tail, remediation }` and does NOT proceed past bootstrap for that adapter. The user-observable AC gate (Step 6.5) will then refuse `result: pass` and require either an `interactive-verification: deferred` annotation with a reason, or a remediation pass via `/wf probe` once the environment is repaired.
 
 2b. **Capture longitudinal baseline before driving (MANDATORY — Gap 3 fix).** Before driving any criterion on the current branch, capture before-state screenshots for each surface named in the AC:
    - Check whether a prior evidence run exists at `.ai/workflows/<slug>/verify-evidence/<slice-slug>-run-*/`. If prior evidence exists, read those screenshots as the before-state — no git stash needed.
@@ -356,7 +360,7 @@ Use when: Verification revealed a fundamental flaw in the approach, not just a b
 **Option F: Re-verify in a capable environment, or apply a deferral** → `/wf verify <slug> <selected-slice>` (re-run) OR amend with `interactive-verification: deferred`
 Use when: `result: blocked-runtime-evidence-missing` and the fix loop could not produce the missing evidence (the environment could not support the interactive checks — no emulator, no API key, no device, etc.). Either move to an environment where the interactive checks can run, or annotate the slice with a deferral reason. Deferrals will not block review or handoff but will block ship.
 
-**Option G: Slug-wide runtime probe** → `/wf-quick probe <slug>`
+**Option G: Slug-wide runtime probe** → `/wf probe <slug>`
 Use when: Per-slice verify passed, but you want a slug-wide runtime sweep against the running artifact (e.g., to catch cross-slice integration breakage). Probe is the backward re-entry counterpart to the per-slice interactive gate — it observes the whole artifact, not one slice's surface.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
@@ -415,7 +419,7 @@ interactive-verification-defer-reason: "<one-line explanation>"
 When this annotation is present on a slice:
 - The gate writes `result: partial` (not `pass`) with a note that runtime evidence was deferred.
 - The deferral is appended to `00-index.md` under `runtime-evidence-deferrals` (see schema below).
-- `/wf review` and `/wf handoff` proceed with a soft warning; `/wf ship` HARD-BLOCKS until every deferral is cleared by a subsequent `/wf-quick probe` run that produces matching evidence, or by re-running verify in a capable environment.
+- `/wf review` and `/wf handoff` proceed with a soft warning; `/wf ship` HARD-BLOCKS until every deferral is cleared by a subsequent `/wf probe` run that produces matching evidence, or by re-running verify in a capable environment.
 
 **Decision (recorded in plan §2.4):** No silent skip. Every deferral is named, dated, and surfaces in the slug's progress view and dashboard. The block bites at ship, not earlier, so in-flight work that legitimately waits on an environment is not stalled mid-pipeline.
 

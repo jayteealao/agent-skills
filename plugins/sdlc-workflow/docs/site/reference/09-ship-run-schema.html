@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -137,7 +137,14 @@ recovery-actions-taken: [&lt;playbook-id&gt;, ...]
 rolled-back: true | false
 rollback-sha: "&lt;sha or empty&gt;"
 rollback-reason: ""
-announcements-sent: [&lt;channel&gt;, ...]</code></pre>
+announcements-sent: [&lt;channel&gt;, ...]
+
+# Agent bookkeeping (required; populated automatically)
+tags: []
+refs:
+  index: 00-index.md
+next-command: wf-retro
+next-invocation: "/wf retro &lt;slug&gt;"</code></pre>
 
 <h2>Field groups</h2>
 
@@ -195,6 +202,18 @@ announcements-sent: [&lt;channel&gt;, ...]</code></pre>
 <tr><td><code>rollback-sha</code></td><td>The commit or tag the repo was reset to during rollback. Empty if not rolled back.</td></tr>
 <tr><td><code>rollback-reason</code></td><td>Free text explaining why the rollback occurred.</td></tr>
 <tr><td><code>announcements-sent</code></td><td>List of channels or audiences notified after the release (or rollback).</td></tr>
+</tbody>
+</table>
+
+<h3>Agent bookkeeping</h3>
+<p>These four fields are required by the write-time validator and are populated automatically by the agent — you do not need to fill them in manually.</p>
+<table>
+<thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>tags</code></td><td>Classification tags for the run (array of strings). Written as <code>[]</code> if none apply.</td></tr>
+<tr><td><code>refs</code></td><td>Cross-references to related artifacts (e.g. <code>index: 00-index.md</code>).</td></tr>
+<tr><td><code>next-command</code></td><td>Command name the agent recommends running next (e.g. <code>wf-retro</code>).</td></tr>
+<tr><td><code>next-invocation</code></td><td>Full slash command, ready to copy (e.g. <code>/wf retro &lt;slug&gt;</code>).</td></tr>
 </tbody>
 </table>
 

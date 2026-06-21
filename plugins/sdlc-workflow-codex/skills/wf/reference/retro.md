@@ -69,7 +69,7 @@ Prompt the agent with ALL of the following:
 
 **Review findings analysis:**
 - Search / list files in the repository for every `07-review-*.md` file in the workflow directory — there is one master review per slice plus per-command sub-reviews (e.g., `07-review-<slice-slug>-<command>.md`). Aggregate findings across all slices.
-- Classify findings: how many were real bugs vs. style nits vs. false positives?
+- Classify findings: how many were real bugs vs. style nits vs. false positives? Findings carry a `status` (open/resolved/fixed/could-not-fix/dismissed) and a `surfaced-at` stamp — note how many were `resolved` across re-runs vs. still `open` at handoff, and how many passes the frontmatter `runs:` ledger shows the review took.
 - Were BLOCKER/HIGH findings things that should have been caught by tests, linting, or planning?
 - Did the review miss anything that was later found in ship or production?
 

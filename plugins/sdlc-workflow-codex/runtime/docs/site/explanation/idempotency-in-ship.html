@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -148,7 +148,7 @@ flowchart LR
 
 <details>
 <summary>Technical details: where evidence is stored</summary>
-<p>Each step that completes writes a field into the frontmatter of the run artifact (the <code>09-ship-run-&lt;slug&gt;.md</code> file). The detection logic at the start of each step reads these fields. If the field is present and shows success, the step is a no-op. See the <a href="../reference/09-ship-run-schema.html">ship-run schema</a> for the full list of evidence fields.</p>
+<p>Each step that completes writes a field into the frontmatter of the run artifact (the <code>09-ship-run-&lt;run-id&gt;.md</code> file, where <code>&lt;run-id&gt;</code> is a UTC compact timestamp such as <code>20260620T1430Z</code>). The detection logic at the start of each step reads these fields. If the field is present and shows success, the step is a no-op. See the <a href="../reference/09-ship-run-schema.html">ship-run schema</a> for the full list of evidence fields.</p>
 </details>
 
 <div class="related">

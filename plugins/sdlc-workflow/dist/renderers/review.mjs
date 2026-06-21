@@ -6,7 +6,7 @@ import {
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-35VBJOMK.mjs";
+} from "../chunk-MRKNBMTY.mjs";
 import {
   figureCanvas
 } from "../chunk-PDBKNARE.mjs";
@@ -14,7 +14,7 @@ import {
   artifactHeader,
   metricRow,
   statusBadge
-} from "../chunk-VNXGJD4X.mjs";
+} from "../chunk-AMF57BSI.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";

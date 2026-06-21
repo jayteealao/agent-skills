@@ -46,11 +46,11 @@ You are a **workflow orchestrator**, not a problem solver.
 
    **Per-slice review mode** (`review-scope: per-slice` or absent):
    - `07-review-<slice-slug>.md` must exist for every slice in scope. List any missing and STOP: "Run `/wf review <slug> <slice>` for each missing slice — every slice in the handoff scope must have its own review."
-   - For each `07-review-<slice-slug>.md`, parse the `verdict:` and `metric-findings-blocker:` fields in the YAML frontmatter. If ANY slice's verdict is `dont-ship`, or any slice has `metric-findings-blocker > 0` with no resolution recorded in `## Fix Status`, STOP. Print the offending slice slug(s) and tell the user to resolve via `/wf implement <slug> <slice> reviews` first.
+   - For each `07-review-<slice-slug>.md`, parse the `verdict:` and `metric-findings-blocker:` fields in the YAML frontmatter. `metric-findings-blocker` counts OPEN blockers only — the accumulating ledger already excludes findings whose `status` is `fixed`, `dismissed`, or `resolved`. If ANY slice's verdict is `dont-ship`, or any slice has `metric-findings-blocker > 0`, STOP. Print the offending slice slug(s) and tell the user to resolve via `/wf implement <slug> <slice> reviews` first, or to re-run `/wf review <slug> <slice>` to re-check after fixing.
 
    **Slug-wide review mode** (`review-scope: slug-wide`):
    - A single `07-review.md` must exist. If missing → STOP: "Run `/wf review <slug>` first."
-   - Parse the `verdict:` and `metric-findings-blocker:` fields in `07-review.md` frontmatter. If `verdict: dont-ship`, or `metric-findings-blocker > 0` with no resolution recorded in the file's `## Fix Status` section, STOP. Print the count and tell the user to resolve via `/wf implement <slug> <slice> reviews` first (slice argument is required even in slug-wide review mode because fixes still happen per slice).
+   - Parse the `verdict:` and `metric-findings-blocker:` fields in `07-review.md` frontmatter. `metric-findings-blocker` counts OPEN blockers only (the accumulating ledger excludes `fixed`/`dismissed`/`resolved` findings). If `verdict: dont-ship`, or `metric-findings-blocker > 0`, STOP. Print the count and tell the user to resolve via `/wf implement <slug> <slice> reviews` first (slice argument is required even in slug-wide review mode because fixes still happen per slice).
 
    In all modes: If `current-stage` in the index is already past handoff → WARN before overwriting.
 5. **Read full context:**
@@ -329,7 +329,7 @@ next-invocation: "/wf ship <slug>"
 
 # Project-level handoff config (read from `00-index.md` frontmatter)
 
-The PR-readiness block (T3.5/T3.6/T3.7/T5.1) is driven by optional config keys in the workflow's `00-index.md`. Each key's block is independent — handoff skips the corresponding step silently if the key is absent. Authored by `/wf-meta amend index` or `/wf-quick setup`; can be edited directly.
+The PR-readiness block (T3.5/T3.6/T3.7/T5.1) is driven by optional config keys in the workflow's `00-index.md`. Each key's block is independent — handoff skips the corresponding step silently if the key is absent. Authored by `/wf-meta amend index`; can be edited directly.
 
 ```yaml
 # Optional. Drives T3.6 — public-surface drift check.

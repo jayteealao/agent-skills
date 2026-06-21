@@ -45,12 +45,27 @@ test('resolveViewPath: phase files', () => {
   strictEqual(resolveViewPath('10-retro.md').viewRel, 'retro/INDEX.html');
 });
 
-test('resolveViewPath: quick-workflow lead artifacts (rca/fix/probe/investigate)', () => {
+test('resolveViewPath: forwarded/investigative lead artifacts (rca/probe/investigate)', () => {
   // Previously unmapped → returned null → silently skipped (never rendered).
   strictEqual(resolveViewPath('01-rca.md').viewRel, 'rca/INDEX.html');
-  strictEqual(resolveViewPath('01-fix.md').viewRel, 'fix/INDEX.html');
   strictEqual(resolveViewPath('01-probe.md').viewRel, 'probe/INDEX.html');
   strictEqual(resolveViewPath('01-investigate.md').viewRel, 'investigate/INDEX.html');
+});
+
+test('resolveViewPath: compressed change-mode leads all land at intake/', () => {
+  // The type:index overview's intake card links to the fixed STAGE_NAV.intake.dir
+  // ('intake'); every change-mode lead must resolve there or the card 404s.
+  // 01-fix was historically ['fix', null] — remapped to ['intake', null].
+  strictEqual(resolveViewPath('01-fix.md').viewRel, 'intake/INDEX.html');
+  strictEqual(resolveViewPath('01-hotfix.md').viewRel, 'intake/INDEX.html');
+  strictEqual(resolveViewPath('01-refactor.md').viewRel, 'intake/INDEX.html');
+  strictEqual(resolveViewPath('01-update-deps.md').viewRel, 'intake/INDEX.html');
+});
+
+test('resolveViewPath: terminal analysis-mode leads land in their own named dirs', () => {
+  // ideate/simplify root in a type:workflow-index slug workflow with a named lead.
+  strictEqual(resolveViewPath('01-ideate.md').viewRel, 'ideate/INDEX.html');
+  strictEqual(resolveViewPath('01-simplify.md').viewRel, 'simplify/INDEX.html');
 });
 
 test('resolveViewPath: slice sub-paths', () => {
@@ -1360,7 +1375,7 @@ test('workflow-index: surfaces routes, progress, and links every sibling artifac
     frontmatter: {
       type: 'workflow-index', slug: 'rca-signin', 'workflow-type': 'rca',
       title: 'Sign-in RCA', status: 'ready', 'current-stage': 'fix-routing',
-      'recommended-routes': { primary: 'human-triage', alternates: ['/wf-quick fix rca-signin'] },
+      'recommended-routes': { primary: 'human-triage', alternates: ['/wf intake fix rca-signin'] },
       progress: { rca: 'complete', 'shape-synthesized': 'complete' },
       tags: ['auth', 'firebase'],
     },
@@ -1378,7 +1393,7 @@ test('workflow-index: surfaces routes, progress, and links every sibling artifac
   // Recommended next route + alternate.
   match(out.bodyHtml, /recommended next/);
   match(out.bodyHtml, /human-triage/);
-  match(out.bodyHtml, /\/wf-quick fix rca-signin/);
+  match(out.bodyHtml, /\/wf intake fix rca-signin/);
   // Sibling artifacts are linked; the index page itself is not listed.
   match(out.bodyHtml, /href="rca\/INDEX\.html"/);
   match(out.bodyHtml, /href="shape\/INDEX\.html"/);

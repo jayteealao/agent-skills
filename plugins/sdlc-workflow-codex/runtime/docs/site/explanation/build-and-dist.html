@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -107,6 +107,7 @@
 <ul>
   <li>The five hooks: <code>pre-write-validate</code>, <code>post-write-verify</code>, <code>post-write-auto-stage</code>, <code>post-write-render</code>, and <code>session-start-orient</code>.</li>
   <li>The renderer and serve daemons: <code>render-sunflower.mjs</code>, <code>render-sunflower-serve.mjs</code>, and <code>hub-serve.mjs</code>.</li>
+  <li>Several maintenance and coordination helpers: <code>hub-ensure.mjs</code> (render-queue drain trigger), <code>hub-upgrade.mjs</code> (runtime upgrade), <code>tray-heal.mjs</code> (stale-tray reconcile), and <code>verify-runtime.mjs</code> (integrity check).</li>
   <li>The tray app: <code>tray.mjs</code>.</li>
 </ul>
 <p>The loader (<code>lib/entrypoint.mjs</code>) picks the bundle at <code>dist/&lt;name&gt;.mjs</code> when it exists. It falls back to the source file in <code>scripts/</code> only if no bundle is present — that is the state before the first build on a fresh maintainer checkout.</p>
@@ -124,7 +125,7 @@ npm run hooks:install  # optional: installs a pre-commit hook that rebuilds dist
 
 <details>
 <summary>Technical details — how the build works</summary>
-<p>The build script calls <code>esbuild</code> for each entry point, inlining all imported packages into a single <code>.mjs</code> file. No dynamic requires, no package resolution at runtime. <code>npm run hooks:install</code> writes a pre-commit Git hook that re-runs the build and stages the result, so <code>dist/</code> cannot drift behind committed source during normal development.</p>
+<p>The build script calls <code>esbuild</code> for each entry point with code-splitting enabled. Shared dependencies (<code>markdown-it</code>, <code>js-yaml</code>, <code>ajv</code>, and shared library helpers) are extracted into <code>dist/chunk-&lt;hash&gt;.mjs</code> shared chunks. Entry-point bundles import those chunks at runtime — no package resolution needed. No dynamic requires, no runtime <code>npm install</code>. <code>npm run hooks:install</code> writes a pre-commit Git hook that re-runs the build and stages the result, so <code>dist/</code> cannot drift behind committed source during normal development.</p>
 </details>
 
 <div class="related">

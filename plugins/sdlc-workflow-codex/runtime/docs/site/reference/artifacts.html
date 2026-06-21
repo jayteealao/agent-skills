@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -139,10 +139,10 @@
 │   │   ├── extract-&lt;ts&gt;.md              # read-only inspection / token + component extraction
 │   │   └── &lt;sub&gt;-&lt;ts&gt;.md                # 15 transformation operators total
 │   └── po-answers.md                    # Cumulative product-owner answers log
-├── ideation/&lt;focus&gt;-&lt;ts&gt;.md             # /wf-quick ideate output
+├── ideation/&lt;focus&gt;-&lt;ts&gt;.md             # (legacy — old /wf-quick ideate runs only; current runs write to workflows/&lt;slug&gt;/)
 ├── research/&lt;topic&gt;-&lt;ts&gt;.md             # /wf-meta how (research mode)
-├── simplify/&lt;run-id&gt;.md                 # /wf-quick simplify run (branch/commit/plan/codebase)
-├── dep-updates/&lt;run-id&gt;/                # /wf-quick update-deps tree
+├── simplify/&lt;run-id&gt;.md                 # (legacy — pre-v9.86.0 runs only; current runs write to workflows/&lt;slug&gt;/01-simplify.md)
+├── dep-updates/&lt;run-id&gt;/                # (legacy — old /wf-quick update-deps runs only; current runs write to workflows/&lt;slug&gt;/)
 └── docs/&lt;run-id&gt;/                       # /wf-docs pipeline tree
 
 # Project-level design context (authored by /wf design setup)
@@ -160,7 +160,7 @@ DESIGN.md                                # Design system context (tokens, compon
 
 <table>
 <tr><th><code>schema</code></th><td>Always <code>sdlc/v1</code>. Identifies the file as belonging to this plugin.</td></tr>
-<tr><th><code>type</code></th><td>One of: <code>index</code>, <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>review-command</code>, <code>handoff</code>, <code>ship-run</code>, <code>ship-runs-index</code>, <code>ship-plan</code>, <code>retro</code>, <code>design</code>, <code>design-contract</code>, <code>design-critique</code>, <code>design-audit</code>, <code>augmentation</code>, <code>profile</code>, <code>rca</code>, <code>fix-plan</code>, <code>simplify-run</code>, <code>sync-report</code>, <code>resume</code>, <code>skip-record</code>, <code>shape-amendment</code>, <code>slice-amendment</code>, <code>docs-index</code>.</td></tr>
+<tr><th><code>type</code></th><td>Active types include: <code>index</code>, <code>workflow-index</code>, <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>review-command</code>, <code>handoff</code>, <code>ship-run</code>, <code>ship-runs-index</code>, <code>ship-plan</code>, <code>retro</code>, <code>design</code>, <code>design-contract</code>, <code>design-critique</code>, <code>design-audit</code>, <code>design-augmentation</code>, <code>augmentation</code>, <code>profile</code>, <code>rca</code>, <code>ideation</code>, <code>simplify-run</code>, <code>sync-report</code>, <code>resume</code>, <code>skip-record</code>, <code>shape-amendment</code>, <code>slice-amendment</code>, <code>slice-index</code>, <code>plan-index</code>, <code>implement-index</code>, <code>verify-index</code>, <code>docs-index</code>, <code>project-context</code>, <code>announce</code>, <code>risk-register</code>, <code>estimate</code>. Legacy (back-compat only): <code>fix-plan</code>. See <a href="../reference/types.html">Artifact types</a> for the complete list.</td></tr>
 <tr><th><code>slug</code></th><td>Must match the directory name. The plugin enforces this (called the slug stability invariant) so artifacts can never drift from the workflow they belong to.</td></tr>
 </table>
 

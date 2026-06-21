@@ -22,15 +22,32 @@ const FLAT_REVIEW_RE = /^07-review-(.+)\.md$/;
 const PHASE_BY_BASENAME = {
   '00-index':              ['', null],            // slug overview at root
   '01-intake':             ['intake', null],
-  // Quick / investigative workflows (/wf-quick rca|fix|probe|investigate) name
-  // their lead artifact `01-<workflow-type>.md`. Without these entries
-  // resolveViewPath returns null and the orchestrator skips them entirely —
-  // the RCA/fix/probe writeup is then never rendered and the slug overview has
-  // nothing to link to.
+  // Compressed-lifecycle change-mode leads (/wf intake fix|hotfix|refactor|
+  // update-deps) name their lead artifact `01-<mode>.md` but carry `type: intake`
+  // and drive a full `type: index` overview. That overview's intake card /
+  // jump-rail / stripe all link to the FIXED STAGE_NAV.intake.dir = 'intake', so
+  // every change-mode lead MUST land at intake/ or the intake card 404s. (Renderer
+  // dispatch is by frontmatter `type` → intake.mjs; view-path placement is by
+  // filename → here. Separate axes — see the file header.)
+  '01-fix':                ['intake', null],
+  '01-hotfix':             ['intake', null],
+  '01-refactor':           ['intake', null],
+  '01-update-deps':        ['intake', null],
+  // Forwarded / investigative workflows (/wf intake rca|investigate, /wf probe)
+  // keep their own named lead dirs. Without these entries resolveViewPath returns
+  // null and the orchestrator skips them entirely — the RCA/probe writeup is then
+  // never rendered and the slug overview has nothing to link to.
   '01-rca':                ['rca', null],
-  '01-fix':                ['fix', null],
   '01-probe':              ['probe', null],
   '01-investigate':        ['investigate', null],
+  // Terminal analysis modes (/wf intake ideate, /wf simplify, /wf probe) now root
+  // in a `type: workflow-index` slug workflow with an `01-<mode>.md` lead instead
+  // of writing off-pipeline (.ai/ideation/, .ai/simplify/). The lead keeps its
+  // analysis type (ideation / simplify-run) but lands in its own named view dir.
+  // (Legacy off-pipeline runs still render via the retained simplify/ideation
+  // discovery + kind branches above — see D5.)
+  '01-ideate':             ['ideate', null],
+  '01-simplify':           ['simplify', null],
   '02-shape':              ['shape', null],
   '02b-design':            ['design', null],
   '02c-craft':             ['design-brief', null],

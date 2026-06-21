@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -99,7 +99,7 @@
 
 <div class="summary">
 <table>
-<tr><th>Pre-conditions</th><td>Plugin v9.12.0+. A repo open in Claude Code. No existing <code>.ai/ship-plan.md</code> — if one exists, run <code>/wf-meta amend ship-plan</code> instead.</td></tr>
+<tr><th>Pre-conditions</th><td>Plugin v9.42.0+ (for full A–K plan including inbound pipeline; v9.12.0+ for outbound Blocks A–G only). A repo open in Claude Code. No existing <code>.ai/ship-plan.md</code> — if one exists, run <code>/wf-meta amend ship-plan</code> instead.</td></tr>
 <tr><th>Goal</th><td>Write <code>.ai/ship-plan.md</code> covering the eleven release concerns (Blocks A–K) so that <code>/wf ship</code> has everything it needs.</td></tr>
 <tr><th>Time</th><td>15–30 minutes the first time. Future releases reuse the plan — no re-authoring needed.</td></tr>
 </table>
@@ -137,7 +137,7 @@ actually we publish to a private registry, not GHCR</code></pre>
 <dt><strong>A — Environment protection</strong></dt>
 <dd>What "ship" means in this repo. Which environments exist (staging, production, canary). How often releases happen. Per-environment GitHub protection rules.</dd>
 
-<dt><strong>B — Branch gates</strong></dt>
+<dt><strong>B — Versioning contract</strong></dt>
 <dd>Versioning scheme (semver / calver / sequential). Which files hold the version. The command that bumps it (git-cliff, changesets, release-please, manual). Prerelease suffixes if any.</dd>
 
 <dt><strong>C — CI/CD pipeline</strong></dt>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -97,7 +97,7 @@
 
 <p class="lede">Design is <strong>one <code>/wf</code> sub-command</strong> — <code>/wf design</code> — that runs as a <em>compressed workflow</em>. It is the design <strong>producer</strong>: it authors the design brief and the visual contract, runs the 15 visual transformations, and (for build commands) drives the downstream lifecycle stages itself. The standalone <code>/wf-design</code> router has been retired; everything it did is now an argument to <code>/wf design</code>.</p>
 
-<p>The 22 design commands (<a href="../reference/glossary.html#sub-command">sub-command</a>: a keyword that selects a specific design operation) are <strong>arguments</strong> to this one key — never their own keys. The lifecycle stages <code>slice</code> / <code>plan</code> / <code>implement</code> / <code>verify</code> / <code>review</code> are the design <strong>consumers</strong>: each pulls the slice of design knowledge it needs from one shared library, gated behind a UI stack (<code>stack.ui&nbsp;&ne;&nbsp;∅</code>).</p>
+<p>The 21 design commands (<a href="../reference/glossary.html#sub-command">sub-command</a>: a keyword that selects a specific design operation) are <strong>arguments</strong> to this one key — never their own keys. The lifecycle stages <code>slice</code> / <code>plan</code> / <code>implement</code> / <code>verify</code> / <code>review</code> are the design <strong>consumers</strong>: each pulls the slice of design knowledge it needs from one shared library, gated behind a UI stack (<code>stack.ui&nbsp;&ne;&nbsp;∅</code>).</p>
 
 <h2>Two invocation shapes</h2>
 
@@ -168,7 +168,7 @@
 <tbody>
 <tr><td><code>animate</code></td><td>Purposeful motion, micro-interactions, transitions, hover effects.</td></tr>
 <tr><td><code>bolder</code></td><td>Amplify a too-safe design — more visual character without breaking usability.</td></tr>
-<tr><td><code>clarify</code></td><td>Better UX copy, error messages, labels, instructions.</td></tr>
+<tr><td><code>clarify</code></td><td>Reduce cognitive load, improve scannability, and make user tasks easier — visual hierarchy, copy clarity, navigation, and state communication.</td></tr>
 <tr><td><code>colorize</code></td><td>Strategic color where the surface is too monochromatic.</td></tr>
 <tr><td><code>delight</code></td><td>Moments of joy, personality, unexpected touches.</td></tr>
 <tr><td><code>distill</code></td><td>Strip to essence; remove unnecessary complexity.</td></tr>
@@ -209,6 +209,7 @@
 <tr><td>Design audit</td><td><code>.ai/workflows/&lt;slug&gt;/07-design-audit.md</code></td><td><code>/wf design &lt;slug&gt; audit</code> or <code>/wf review</code></td></tr>
 <tr><td>Design critique</td><td><code>.ai/workflows/&lt;slug&gt;/07-design-critique.md</code></td><td><code>/wf design &lt;slug&gt; critique</code> or <code>/wf review</code></td></tr>
 <tr><td>Per-transformation log</td><td><code>.ai/workflows/&lt;slug&gt;/design-notes/&lt;sub&gt;-&lt;timestamp&gt;.md</code></td><td>Any of the 15 transformations or <code>extract</code></td></tr>
+<tr><td>Extracted token file</td><td><code>.ai/workflows/&lt;slug&gt;/design-notes/tokens-extracted.css</code></td><td><code>/wf design &lt;slug&gt; extract</code></td></tr>
 <tr><td>Project product context</td><td><code>./PRODUCT.md</code> (repo root)</td><td><code>/wf design setup</code> (and <code>teach</code>)</td></tr>
 <tr><td>Project design-system context</td><td><code>./DESIGN.md</code> (repo root)</td><td><code>/wf design setup</code> (and <code>teach</code>)</td></tr>
 </tbody>

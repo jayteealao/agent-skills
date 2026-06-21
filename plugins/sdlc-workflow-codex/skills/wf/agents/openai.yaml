@@ -1,6 +1,6 @@
 interface:
   display_name: "SDLC Workflow Stage"
-  short_description: "Run one canonical SDLC lifecycle stage, augmentation, or the compressed design workflow ($wf design — UI/UX brief, visual contract, and build)"
-  default_prompt: "Run the intake stage to start a new workflow for adding a user authentication feature."
+  short_description: "Run one canonical SDLC lifecycle stage, augmentation, compressed entry flow ($wf intake fix/rca/hotfix/…), runtime-truth probe ($wf probe), read-only triage ($wf simplify), or the compressed design workflow ($wf design)"
+  default_prompt: "Run the intake stage to start a new workflow for adding a user authentication feature. Or use `$wf intake fix <description>` for a compressed planning workflow, `$wf probe <slug>` for runtime-truth verification, or `$wf simplify` for read-only triage."
 policy:
   allow_implicit_invocation: false

@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>/wf-quick command — compressed flows in depth · sdlc-workflow</title>
+<title>Quick &amp; standalone flows · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -91,447 +91,88 @@
   </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf-quick command</div>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Quick &amp; standalone flows</div>
 <span class="quadrant reference">reference</span>
-<h1>/wf-quick command — quick commands in depth</h1>
+<h1>Quick &amp; standalone flows</h1>
 
-<p class="lede">You reach for <code>/wf-quick</code> when you have a small, well-defined change that does not need the full 10-stage lifecycle. Each sub-command (a named action you pass after <code>/wf-quick</code>) writes fewer <a href="../reference/glossary.html">artifacts</a> — the markdown notes the plugin creates — than the full <code>/wf</code> pipeline, trading documentation depth for speed.</p>
+<p class="lede">The standalone <code>/wf-quick</code> router has been retired. Its ten flows are now distributed across <code>/wf</code>: eight become <strong>intake modes</strong> — arguments to <code>/wf intake &lt;mode&gt;</code> — and two (<code>probe</code> and <code>simplify</code>) become their own top-level <code>/wf</code> keys. You reach for these when you have a small, well-defined change that does not need the full 10-stage lifecycle.</p>
 
-<h2>Which sub-command to use</h2>
+<h2>The new shape</h2>
 
-<p>The table below maps your situation to the right starting point.</p>
-
-<table>
-<thead><tr><th>Your situation</th><th>Sub-command</th></tr></thead>
-<tbody>
-<tr><td>One file. One change. The fix is obvious.</td><td><code>/wf-quick fix "…"</code></td></tr>
-<tr><td>Production is broken right now; speed beats review.</td><td><code>/wf-quick hotfix "…"</code></td></tr>
-<tr><td>You have a bug report but don't know the cause yet (static: read code &amp; history).</td><td><code>/wf-quick rca "…"</code></td></tr>
-<tr><td>You have a bug that's only visible in the running app — you need to drive it.</td><td><code>/wf-quick probe &lt;slug&gt;</code></td></tr>
-<tr><td>You know there's a problem but want 2–3 distinct approaches before committing.</td><td><code>/wf-quick investigate "…"</code></td></tr>
-<tr><td>You have a theory about how the code works and want it verified or falsified.</td><td><code>/wf-quick discover "…"</code></td></tr>
-<tr><td>Dependency audit — security patches, major-version bumps, safe minor updates.</td><td><code>/wf-quick update-deps</code></td></tr>
-<tr><td>Behaviour-preserving restructure with a test-suite baseline captured first.</td><td><code>/wf-quick refactor "…"</code></td></tr>
-<tr><td>Brainstorm improvement candidates for a focus area before sprint planning.</td><td><code>/wf-quick ideate "…"</code></td></tr>
-<tr><td>Triage the diff (or a plan) for reuse/quality/efficiency issues and route each finding.</td><td><code>/wf-quick simplify</code></td></tr>
-</tbody>
-</table>
-
-<h3>Investigation axes</h3>
-<p>The diagnostic sub-commands span two axes — where the evidence lives, and whether you have an existing <a href="../reference/glossary.html">slug</a> (the short ID for a workflow) to work against:</p>
-
-<table>
-<thead><tr><th></th><th>Forward gate (per-slice)</th><th>Backward re-entry (slug-wide)</th></tr></thead>
-<tbody>
-<tr><th>Static (read code &amp; history)</th><td>lint/types/tests in <code>/wf verify</code></td><td><code>/wf-quick rca</code> — reads code &amp; git history; diagnoses a reported symptom</td></tr>
-<tr><th>Runtime (drive the running app)</th><td>interactive sub-agent in <code>/wf verify</code> (gated; refuses pass without runtime evidence)</td><td><code>/wf-quick probe</code> — drives the running artifact; detects reported <em>or</em> unreported defects</td></tr>
-</tbody>
-</table>
-
-<div class="toc">
-<h3>On this page</h3>
-<ul>
-  <li><a href="#fix">/wf-quick fix</a></li>
-  <li><a href="#hotfix">/wf-quick hotfix</a></li>
-  <li><a href="#rca">/wf-quick rca</a></li>
-  <li><a href="#probe">/wf-quick probe</a> <span class="badge">v9.14</span></li>
-  <li><a href="#investigate">/wf-quick investigate</a></li>
-  <li><a href="#discover">/wf-quick discover</a></li>
-  <li><a href="#update-deps">/wf-quick update-deps</a></li>
-  <li><a href="#refactor">/wf-quick refactor</a></li>
-  <li><a href="#ideate">/wf-quick ideate</a></li>
-  <li><a href="#simplify">/wf-quick simplify</a></li>
-</ul>
-</div>
-
-<h2 id="fix">/wf-quick fix "&lt;description&gt;"</h2>
-
-<div class="summary"><table>
-<tr><th>workflow-type</th><td><code>fix</code> (legacy slugs use <code>quick</code>)</td></tr>
-<tr><th>Produces</th><td><code>00-index.md</code> + <code>01-fix.md</code> (compressed brief + shape + plan; <code>type: fix-plan</code>)</td></tr>
-<tr><th>Collapses</th><td>shape, design, slice, plan — merged into <code>01-fix.md</code>, then routes to <code>/wf implement</code> for the standard execute → verify → review → handoff → ship lifecycle.</td></tr>
-</table></div>
-
-<p>For one-character typos, one-line patches, single-file docs edits. The compressed shape skips shape's deep interview — acceptance criteria are inlined. Renamed from <code>quick</code> in v9.18.0; passing <code>quick</code> as the token now prints a redirect to <code>fix</code>.</p>
-
-<div class="callout note"><strong>Slug-mode.</strong> If the first argument is an existing slug, <code>fix</code> switches to slug-mode: instead of a new workflow it writes a single compressed slice <code>03-slice-fix-&lt;descriptor&gt;.md</code> (<code>type: slice</code>, <code>slice-type: fix</code>, <code>compressed: true</code>) into that workflow and leaves its stage, branch, and progress untouched.</div>
-
-<h4>Interview pattern</h4>
-<p>2–3 questions: what file, what's the fix, do you want a test added.</p>
-
-<h4>When to use</h4>
-<ul>
-  <li>One file. One change. Reviewers won't have questions.</li>
-  <li>You'd be embarrassed to run a full <code>/wf</code> pipeline for this.</li>
-</ul>
-
-<h4>When NOT to use</h4>
-<ul>
-  <li>The change touches more than 2 files — escalate to <code>/wf intake</code>.</li>
-  <li>The acceptance criteria need thinking — escalate to <code>/wf intake</code>.</li>
-</ul>
-
-<hr>
-
-<h2 id="hotfix">/wf-quick hotfix "&lt;symptom&gt;"</h2>
-
-<div class="summary"><table>
-<tr><th>workflow-type</th><td><code>hotfix</code></td></tr>
-<tr><th>Pipeline shape</th><td>6-stage, scope-locked. Files named <code>hf-*.md</code>.</td></tr>
-<tr><th>Bypasses</th><td>Review (by design)</td></tr>
-</table></div>
-
-<p>Production is on fire. Bypass review for speed; still leave an artifact trail for post-incident learning.</p>
-
-<h4>Pipeline shape</h4>
-<ol>
-  <li><code>hf-01-intake.md</code> — symptom, impact, who's affected, who paged.</li>
-  <li><code>hf-02-shape.md</code> — minimal acceptance criteria, scope lock (in/out is strict).</li>
-  <li><code>hf-03-plan.md</code> — narrow fix plan.</li>
-  <li><code>hf-04-implement.md</code> — the fix, with commit-sha.</li>
-  <li><code>hf-05-verify.md</code> — minimal verify, captures revert plan.</li>
-  <li><code>hf-06-postmortem.md</code> — incident timeline + retro action items.</li>
-</ol>
-
-<h4>Scope-lock discipline</h4>
-<p>Anything outside the symptom is rejected. If the user asks "while we're in there can we also…" — the answer is "no, file a separate workflow". The lock is what makes hotfix safe.</p>
-
-<h4>When to use</h4>
-<ul>
-  <li>Sev1/Sev2 production incident.</li>
-  <li>The fix is small and the cost of not shipping fast is high.</li>
-</ul>
-
-<h4>When NOT to use</h4>
-<ul>
-  <li>The scope is uncertain. Run <code>/wf-quick rca</code> first to find the cause.</li>
-  <li>The fix is risky — escalate to <code>/wf intake</code> for proper review.</li>
-</ul>
-
-<hr>
-
-<h2 id="rca">/wf-quick rca "&lt;symptom + repro&gt;"</h2>
-
-<div class="summary"><table>
-<tr><th>Produces</th><td><code>01-rca.md</code></td></tr>
-<tr><th>Recommends</th><td>One of <code>/wf plan &lt;slug&gt;</code> (default, non-trivial fixes), <code>/wf-quick fix</code> (small fixes), or <code>/wf-quick hotfix</code> (active production incident) — chosen from the diagnosis. Low root-cause confidence + high blast radius routes to human triage, not an auto-route.</td></tr>
-</table></div>
-
-<p>Root-cause analysis with parallel sub-agents. Reproduces the bug, captures the failing trace, and identifies the cause without committing to a fix. The artifact recommends a downstream command based on the diagnosis — it does <em>not</em> forward automatically to <code>/wf shape</code>.</p>
-
-<h4>Sub-agent dispatch</h4>
-<ul>
-  <li><strong>Repro agent</strong> — minimal reproduction.</li>
-  <li><strong>Code-path trace agent</strong> — flow from input to symptom.</li>
-  <li><strong>Recent-change agent</strong> — git log/blame for the affected files.</li>
-  <li><strong>Dependency agent</strong> — recent changes to deps or platform that could be the cause.</li>
-</ul>
-
-<h4>When to use</h4>
-<ul>
-  <li>You have a bug report but don't yet know what's wrong.</li>
-  <li>The fix isn't obvious — you need diagnosis first.</li>
-</ul>
-
-<h4>When NOT to use</h4>
-<ul>
-  <li>The bug is observable only at runtime (a button does nothing, a response is wrong, a screen renders incorrectly) and you'd rather drive the running artifact than read code — use <code>/wf-quick probe &lt;slug&gt;</code>, the runtime sibling of rca.</li>
-</ul>
-
-<hr>
-
-<h2 id="probe">/wf-quick probe &lt;slug&gt; [target | --from &lt;path&gt;] [--strict] [--adapter &lt;key&gt;] <span class="badge">v9.14</span></h2>
-
-<div class="summary"><table>
-<tr><th>Mode</th><td><strong>Slug-mode only.</strong> Refuses to run without an existing slug — runtime-truth verification only makes sense against work that has been implemented.</td></tr>
-<tr><th>Produces</th><td><code>.ai/workflows/&lt;slug&gt;/03-slice-probe-&lt;descriptor&gt;.md</code> (compressed slice; <code>slice-type: probe</code>, <code>compressed: true</code>, <code>origin: wf-quick/probe</code>). Plus an evidence dir <code>probe-evidence/&lt;descriptor&gt;/</code> with screenshots, stdout, response bodies, and log lines captured during the drive.</td></tr>
-<tr><th>Forwards to</th><td>Depends on findings: <code>findings-count: 0</code> → <code>/wf-meta status &lt;slug&gt;</code>; small fix → <code>/wf-quick fix &lt;slug&gt; probe-&lt;descriptor&gt;</code>; non-trivial → <code>/wf plan &lt;slug&gt; probe-&lt;descriptor&gt;</code>; <code>status: awaiting-environment</code> → re-run after applying remediation.</td></tr>
-<tr><th>Modifies</th><td><code>00-index.md.workflow-files</code>, <code>00-index.md.compressed-slices[]</code>, and (if captured evidence satisfies a deferred AC) <code>00-index.md.runtime-evidence-deferrals[i].cleared-by: probe-&lt;descriptor&gt;</code>. The slug's lifecycle stage, status, branch, and progress are <em>not</em> touched — probe is additive.</td></tr>
-</table></div>
-
-<p><strong>Runtime-truth verification on an already-progressed slug.</strong> Drives the running artifact, captures observable output (screenshots, stdout, response bodies, log lines), reads it, compares against AC text, and writes findings — without writing a fix. Sibling of <code>rca</code> on the runtime axis: where <code>rca</code> is a diagnostician reading code and git history, <code>probe</code> is an observer driving the artifact.</p>
-
-<h4>Argument grammar</h4>
-<table>
-<thead><tr><th>Form</th><th>Meaning</th></tr></thead>
-<tbody>
-<tr><td><code>probe &lt;slug&gt;</code></td><td>Slug-wide sweep — probe every AC across every slice in the slug.</td></tr>
-<tr><td><code>probe &lt;slug&gt; &lt;target&gt;</code></td><td>Focused probe on the target string (see Target resolution below).</td></tr>
-<tr><td><code>probe &lt;slug&gt; --from &lt;path&gt;</code></td><td>Multi-target: each top-level bullet or line in the file is a separate target.</td></tr>
-<tr><td><code>probe &lt;slug&gt; --strict &lt;target&gt;</code></td><td>Filter mode (strict-but-archive) — see Focus vs filter below. Default is focus mode.</td></tr>
-<tr><td><code>probe &lt;slug&gt; --adapter &lt;key&gt;</code></td><td>Narrow to a single matched adapter from the registry. Default is run-all-matched.</td></tr>
-</tbody>
-</table>
-<p>Flags compose: <code>--strict</code> + <code>&lt;target&gt;</code>, <code>--from &lt;path&gt;</code> + <code>--adapter &lt;key&gt;</code>, etc.</p>
-
-<h4>Four-layer target resolution (all run; no single interpretation)</h4>
-<p>When probe receives a target string, it does NOT pick one meaning — all four layers run and their results compose into the <code>target-resolution</code> frontmatter so the reader sees exactly how the target was interpreted:</p>
-<ol>
-  <li><strong>AC text match</strong> — fuzzy token-overlap against AC text across every slice in the slug (≥50% content words).</li>
-  <li><strong>Slice match</strong> — case-insensitive substring match against slice slugs and titles.</li>
-  <li><strong>Surface inference</strong> — extract routes, screens, commands, endpoints from the target string.</li>
-  <li><strong>Ad-hoc criterion</strong> — if layers 1–3 produced nothing, treat the target as a free-form check against general observable behavior.</li>
-</ol>
-
-<h4>Focus vs filter (<code>--strict</code>)</h4>
-<p>Default is <strong>focus mode</strong>: the main <code>## Findings</code> list reports findings tied to the target AND surfaces incidental defects observed during navigation. Opt in to <strong>filter mode</strong> with <code>--strict</code>: only target-tied findings appear in the main list; incidentals are recorded to <code>probe-evidence/&lt;descriptor&gt;/incidental.md</code> with <code>incidental-observed-count: N</code> in frontmatter. The data is preserved for later review even when the user opts out of seeing incidentals inline.</p>
-
-<h4>Branch posture on mismatch (probe is the one wf-quick command that interrupts)</h4>
-<p>Probe runs cold more often than verify does — the user may have moved branches days ago and forgotten — and silently switching can clobber uncommitted work. When the working tree's branch differs from the slug's <code>branch</code>, probe calls <code>AskUserQuestion</code> with three options:</p>
-<ul>
-  <li><strong>Switch to slug's branch</strong> — runs <code>git switch &lt;slug-branch&gt;</code>; refuses if uncommitted changes would be lost.</li>
-  <li><strong>Run on current branch and record</strong> (recommended when you know why you're here) — proceeds and writes <code>probed-on-branch: &lt;current-branch&gt;</code> in the slice frontmatter so a future reader knows the artifact under test wasn't the slug's.</li>
-  <li><strong>Abort</strong> — no artifact written; you decide whether to switch later.</li>
-</ul>
-
-<h4>Two-phase bootstrap with graceful fail</h4>
-<p><strong>Phase 1</strong> actively attempts the adapter's bootstrap steps (start dev server, boot emulator, build + install) with documented resolution attempts. <strong>Phase 2 (graceful fail):</strong> if any step fails after resolution, probe writes a compressed slice with <code>status: awaiting-environment</code> and a full <code>bootstrap-failure: { step, exit-code, output-tail, remediation }</code> block. The attempt is recorded; re-running probe after the user fixes the environment picks up where it left off. Multi-adapter partial failures are recorded under <code>partial-bootstrap-failures</code> and the run proceeds with the adapters that did boot.</p>
-
-<h4>Multi-adapter — run-all by default</h4>
-<p>Probe matches every adapter whose detection signal hits and runs them all in parallel. <code>adapters-used: [&lt;key&gt;, ...]</code> (plural) records what was driven. <code>--adapter &lt;key&gt;</code> narrows to a single matched adapter and sets <code>adapter-narrowed-by-user: true</code>. The adapter registry lives at <a href="../../../skills/wf/reference/runtime-adapters.md"><code>skills/wf/reference/runtime-adapters.md</code></a> — seven recipes (web, android, ios, cli, desktop, service, notebook), each declaring Detection / Bootstrap / Drive / Observe / Tear down / Evidence layout / Remediation hints. Adapters are markdown recipes the agent reads and executes, not code.</p>
-
-<h4>Deferral clearing</h4>
-<p>If <code>00-index.md.runtime-evidence-deferrals[]</code> contains entries whose <code>slice</code> appears in <code>target-resolution.matched-slices</code>, probe checks whether the captured evidence satisfies the deferred AC. If yes, <code>cleared-by: probe-&lt;descriptor&gt;</code> is written to the index. The deferral is now cleared and the <code>/wf ship</code> Step 6.5 hard block lifts for that entry.</p>
-
-<h4>When to use</h4>
-<ul>
-  <li>A slice shipped through <code>/wf verify</code> with <code>interactive-verification: deferred</code> (no environment for runtime checks at verify time) and you now have the environment to clear it.</li>
-  <li>You suspect the running artifact is broken despite all code-correctness checks passing — probe is the answer to "verified but actually broken".</li>
-  <li>A user reported a runtime defect on a slug and you want observable evidence (screenshots, response bodies) tied to a specific AC.</li>
-  <li>You want to sweep a slug for unreported defects — invoke without a target for slug-wide coverage.</li>
-</ul>
-
-<h4>When NOT to use</h4>
-<ul>
-  <li>You don't have a slug yet — probe is slug-mode only by design. Run <code>/wf intake</code> first if the work isn't started.</li>
-  <li>The symptom is a code-correctness failure (test failing, type error, build broken) and you'd rather read code than run it — use <code>/wf-quick rca &lt;symptom&gt;</code>.</li>
-  <li>You want to fix the defect inline. Probe never edits code — route findings through the recommended next command (<code>/wf-quick fix</code> or <code>/wf plan</code>).</li>
-</ul>
-
-<hr>
-
-<h2 id="investigate">/wf-quick investigate "&lt;problem&gt;"</h2>
-
-<div class="summary"><table>
-<tr><th>Produces</th><td><code>01-investigate.md</code> with 2–3 distinct engineering approaches and tradeoffs</td></tr>
-<tr><th>Forwards to</th><td>User picks an option, then <code>/wf-quick fix</code> (small) or <code>/wf intake</code> (medium+). No <code>02-shape.md</code> is synthesized — the downstream command does shape on the chosen option.</td></tr>
-</table></div>
-
-<p><strong>Solution-options sketcher.</strong> Takes a code-level problem ("checkout p99 latency is 2s", "auth flow is brittle under concurrent writes") and produces 2–3 genuinely distinct engineering approaches grounded in the existing architecture. Three parallel sub-agents run:</p>
-<ul>
-  <li><strong>Architecture cartographer</strong> — maps the relevant area (entry points, call graph, data touched, integration boundaries, architectural constraints, recent churn).</li>
-  <li><strong>Option generator</strong> — proposes 2–3 approaches that differ in <em>mechanism</em>, not just surface choices. Also records what was considered and rejected.</li>
-  <li><strong>Tradeoff characterizer</strong> — scores each option on effort, blast radius, reversibility, top risks (specific failure modes, not generic warnings), and operational fit.</li>
-</ul>
-<p>The artifact ends with a side-by-side comparison table. <strong>No winner is picked — you pick.</strong></p>
-
-<h4>When to use</h4>
-<ul>
-  <li>You have a concrete problem in the code and want a structured set of approaches to compare before committing.</li>
-  <li>You're tempted to grab the first solution that comes to mind — and want a forcing function to consider alternatives first.</li>
-  <li>You're between <code>/wf-quick fix</code> (too small, no design pass) and <code>/wf intake</code> → <code>/wf shape</code> (commits to one design with acceptance criteria).</li>
-</ul>
-
-<h4>When NOT to use</h4>
-<ul>
-  <li>You have a symptom and want to find the root cause — use <code>/wf-quick rca</code>.</li>
-  <li>You want to understand how the area works, not generate options — use <code>/wf-meta how</code>.</li>
-  <li>You already know which approach you want — skip straight to <code>/wf-quick fix</code> or <code>/wf intake</code>.</li>
-</ul>
-
-<hr>
-
-<h2 id="discover">/wf-quick discover "&lt;hypothesis&gt;"</h2>
-
-<div class="summary"><table>
-<tr><th>Produces</th><td><code>01-discover.md</code> with a verdict: <code>holds</code> / <code>partial</code> / <code>fails</code> / <code>inconclusive</code></td></tr>
-<tr><th>Forwards to</th><td>If <code>holds</code> → no required follow-up (proceed however you intended). If <code>fails</code> → <code>/wf-quick rca</code> (if hypothesis was an explanation for bad behavior) or <code>/wf-meta how</code> (if you need to actually learn the code). If <code>inconclusive</code> → run the runtime signal it names.</td></tr>
-</table></div>
-
-<p><strong>Hypothesis-test workflow.</strong> Takes a code-level theory ("the rate-limiter is a token bucket in <code>middleware/</code>", "auth validates JWTs before checking session state", "module M handles concurrency via mutexes not channels") and adjudicates it against the codebase. Three parallel sub-agents:</p>
-<ul>
-  <li><strong>Evidence FOR</strong> — searches for code that supports the hypothesis; cites <code>file:line</code> for every supporting snippet.</li>
-  <li><strong>Evidence AGAINST</strong> — actively tries to falsify the hypothesis; looks for contradicting code, drift signals from <code>git log</code>, configuration that changes behavior at runtime.</li>
-  <li><strong>Counter-hypotheses</strong> — proposes 1–3 alternative explanations that fit the same observable behavior, ranked by plausibility.</li>
-</ul>
-<p>Synthesis produces a convergent verdict — exactly one of <code>holds</code>, <code>partial</code>, <code>fails</code>, or <code>inconclusive</code> — with confidence and cited evidence on both sides. The verdict is justified, not asserted.</p>
-
-<h4>When to use</h4>
-<ul>
-  <li>You believe X about how the code works and want it adjudicated before you act on the belief.</li>
-  <li>You're about to make a change that depends on an assumption — confirm the assumption first.</li>
-  <li>You're disagreeing with a colleague about how something works and want a sourced verdict.</li>
-</ul>
-
-<h4>When NOT to use</h4>
-<ul>
-  <li>You don't have a theory yet — you just want to understand the area — use <code>/wf-meta how</code>.</li>
-  <li>You have a symptom, not a theory, and want to find the cause — use <code>/wf-quick rca</code>.</li>
-  <li>You want to compare multiple approaches to a problem — use <code>/wf-quick investigate</code>.</li>
-</ul>
-
-<hr>
-
-<h2 id="update-deps">/wf-quick update-deps</h2>
-
-<div class="summary"><table>
-<tr><th>Produces</th><td><code>.ai/dep-updates/&lt;run-id&gt;/</code> tree: scan, research, plan, implement, verify</td></tr>
-</table></div>
-
-<p>Tiered dependency updates. Audits the dep tree, classifies findings into P0 (security) / P1 (major version) / P2 (safe minor/patch) / hold, and applies them in priority order with verification between tiers.</p>
-
-<h4>Pipeline</h4>
-<ol>
-  <li><code>scan.md</code> — dep inventory + audit results (npm audit, pip-audit, etc.)</li>
-  <li><code>research.md</code> — per-package release notes, breaking changes</li>
-  <li><code>plan.md</code> — tiered update plan</li>
-  <li><code>implement.md</code> — what was updated, blocked, committed</li>
-  <li><code>verify.md</code> — post-update test results</li>
-</ol>
-
-<hr>
-
-<h2 id="refactor">/wf-quick refactor "&lt;area&gt;"</h2>
-
-<div class="summary"><table>
-<tr><th>workflow-type</th><td><code>refactor</code></td></tr>
-<tr><th>Files</th><td><code>rf-*.md</code> prefixed</td></tr>
-</table></div>
-
-<p>Behaviour-preserving refactor with test baseline. Captures the test suite output as a baseline BEFORE refactoring, refactors with incremental green steps, then re-verifies parity.</p>
-
-<h4>Pipeline shape</h4>
-<ol>
-  <li><code>rf-01-baseline.md</code> — capture current test output + behaviour</li>
-  <li><code>rf-02-plan.md</code> — refactor plan with checkpoint commits</li>
-  <li><code>rf-03-implement.md</code> — incremental changes with checkpoint verifies</li>
-  <li><code>rf-04-parity.md</code> — final parity check against baseline</li>
-</ol>
-
-<h4>When NOT to use</h4>
-<ul>
-  <li>The refactor changes behaviour. That's not a refactor — that's a feature. Use <code>/wf intake</code>.</li>
-</ul>
-
-<hr>
-
-<h2 id="ideate">/wf-quick ideate "&lt;focus area&gt;"</h2>
-
-<div class="summary"><table>
-<tr><th>Produces</th><td><code>.ai/ideation/&lt;focus&gt;-&lt;timestamp&gt;.md</code></td></tr>
-</table></div>
-
-<p>Brainstorm + rank improvement candidates for a focus area. Output is a ranked list with effort estimates and impact guesses. Useful before sprint planning or as input to <code>/wf intake</code> (medium+ candidates) or <code>/wf-quick fix</code> (small candidates).</p>
-
-<hr>
-
-<h2 id="simplify">/wf-quick simplify [scope] [target]</h2>
-
-<div class="summary"><table>
-<tr><th>Scopes</th><td><code>branch</code> (default) · <code>commit &lt;sha&gt;</code> · <code>plan &lt;slug&gt; &lt;slice&gt;</code> · <code>codebase [&lt;path&gt;]</code></td></tr>
-<tr><th>Produces</th><td><code>.ai/simplify/&lt;run-id&gt;.md</code> — findings + per-finding routing assignments</td></tr>
-<tr><th>Pattern</th><td>Three parallel sub-agents (Code Reuse, Code Quality, Efficiency). Adapted from Claude Code's bundled <code>simplify</code> skill, but realigned to sdlc-workflow's orchestrator discipline.</td></tr>
-<tr><th>Does NOT</th><td>Write code, commit, push, edit plans, or run downstream commands. <strong>Simplify routes; it never fixes.</strong></td></tr>
-</table></div>
-
-<p>Review-and-route triage utility. Aggregates findings across three rubrics, asks you which to accept, and then <strong>classifies each accepted finding</strong> by routing it to the appropriate downstream command (<code>/wf-quick fix</code>, <code>/wf-quick refactor</code>, <code>/wf intake</code>, <code>/wf-meta amend</code>, <code>/wf-docs</code>, etc.). The output is a queue of copy-pasteable next commands — you run them; simplify doesn't.</p>
-
-<div class="callout insight">
-<strong>Why no direct fixes?</strong>
-The plugin's orchestrator discipline: plan plans, implement implements, review reviews. Simplify routes. A trivial fix deserves <code>/wf-quick fix</code>'s artifact trail; a structural change deserves <code>/wf intake</code>'s shape+plan+review; a plan-level issue deserves <code>/wf-meta amend</code>'s versioned amendment. Letting simplify silently rewrite code would bypass all three.
-</div>
-
-<h4>The four scopes</h4>
+<p>The first token after <code>intake</code> is an optional <strong>mode</strong>, resolved by an exact keyword check: if the token matches one of the eight mode names it selects that compressed flow; otherwise the token is the description of the work. The mode decides how compressed the intake run is.</p>
 
 <table class="no-mobile-scroll">
-<thead><tr><th>Scope</th><th>Input the agents read</th><th>When to use</th></tr></thead>
+<thead><tr><th>Shape</th><th>Form</th><th>Effect</th></tr></thead>
 <tbody>
-<tr><td><code>branch</code> (default)</td><td><code>git diff &lt;base&gt;...HEAD</code> — only what's new on this branch</td><td>Before opening a PR; pre-handoff sanity pass.</td></tr>
-<tr><td><code>commit &lt;sha&gt;</code></td><td><code>git show &lt;sha&gt;</code> (single) or <code>git diff &lt;range&gt;</code></td><td>Triage a specific commit before pushing.</td></tr>
-<tr><td><code>plan &lt;slug&gt; &lt;slice&gt;</code></td><td>The plan file's prose + structure</td><td>Catch over-engineering / missed reuse before <code>/wf implement</code>.</td></tr>
-<tr><td><code>codebase [&lt;path&gt;]</code></td><td>Directory subtree (capped at ~500 files)</td><td>Periodic codebase audit; surface improvement candidates by route.</td></tr>
+<tr><td>Standard intake</td><td><code>/wf intake "&lt;description&gt;"</code></td><td><strong>Full intake.</strong> Runs the standard 10-stage lifecycle starting at Stage 1.</td></tr>
+<tr><td>Mode intake</td><td><code>/wf intake &lt;mode&gt; "&lt;description&gt;"</code></td><td><strong>Compressed intake.</strong> Change-mode lifecycles (fix, hotfix, refactor, update-deps) run all stages in a single-pass, lightweight flow — no stage is skipped. Terminal-analysis modes (rca, investigate, discover, ideate) produce a single finding artifact without starting a build pipeline.</td></tr>
+<tr><td>Slug-mode intake</td><td><code>/wf intake &lt;slug&gt; &lt;mode&gt;</code></td><td><strong>Compressed in-workflow flow.</strong> Attaches a compressed slice to an existing slug rather than creating a new workflow.</td></tr>
 </tbody>
 </table>
 
-<h4>The three sub-agents</h4>
+<h2>The eight intake modes</h2>
+
+<p>Each mode maps to a compressed flow that collapses or skips stages relative to the full pipeline.</p>
 
 <table>
-<thead><tr><th>Agent</th><th>What it looks for</th></tr></thead>
+<thead><tr><th>Mode</th><th>Your situation</th><th>What it compresses</th></tr></thead>
 <tbody>
-<tr><td><strong>Code Reuse</strong></td><td>Inline logic that should use an existing helper; new functions that duplicate existing ones; ad-hoc string/path/env handling.</td></tr>
-<tr><td><strong>Code Quality</strong></td><td>Redundant state; parameter sprawl; copy-paste with slight variation; leaky abstractions; stringly-typed code; unnecessary wrapper components; unnecessary comments narrating WHAT (vs non-obvious WHY).</td></tr>
-<tr><td><strong>Efficiency</strong></td><td>N+1 patterns; missed concurrency; hot-path bloat; no-op state updates; TOCTOU existence checks; memory leaks; overly broad reads.</td></tr>
+<tr><td><code>fix</code></td><td>One file. One change. The fix is obvious.</td><td>Shape + plan merged into a single <code>01-fix.md</code>; routes to <code>/wf implement</code>.</td></tr>
+<tr><td><code>hotfix</code></td><td>Production is broken right now; speed beats review.</td><td>Full standard lifecycle expedited under incident pressure: scoped to minimum viable fix, production-branch base. Review defaults to security rubric (not bypassed). Writes <code>01-hotfix.md</code>, <code>02-shape.md</code>, <code>03-slice.md</code>, <code>04-plan.md</code> then routes to <code>/wf implement</code>.</td></tr>
+<tr><td><code>rca</code></td><td>You have a bug report but don't know the cause yet (static: read code &amp; history).</td><td>Single <code>01-rca.md</code> artifact with parallel diagnosis sub-agents. Recommends downstream command.</td></tr>
+<tr><td><code>investigate</code></td><td>You know there's a problem but want 2–3 distinct approaches before committing.</td><td>Single <code>01-investigate.md</code> with A/B/C options + tradeoff table. No winner picked.</td></tr>
+<tr><td><code>discover</code></td><td>You have a theory about how the code works and want it verified or falsified.</td><td>Single <code>01-discover.md</code> with FOR/AGAINST/counter-hypothesis evidence and verdict.</td></tr>
+<tr><td><code>update-deps</code></td><td>Dependency audit — security patches, major-version bumps, safe minor updates.</td><td>Tiered scan → research → plan → implement → verify under <code>.ai/dep-updates/</code>.</td></tr>
+<tr><td><code>refactor</code></td><td>Behaviour-preserving restructure with a test-suite baseline captured first.</td><td>Full standard lifecycle with behavior-preserving discipline. Captures test baseline in <code>02-shape.md</code> before touching code, plans incremental green steps. Writes <code>01-refactor.md</code>, <code>02-shape.md</code>, <code>03-slice.md</code>, <code>04-plan.md</code>; routes to <code>/wf implement</code>. Review defaults to refactor-safety.</td></tr>
+<tr><td><code>ideate</code></td><td>Brainstorm improvement candidates for a focus area before sprint planning.</td><td>Single artifact under <code>.ai/ideation/</code> with ranked candidates and effort estimates.</td></tr>
 </tbody>
 </table>
 
-<h4>The routing matrix</h4>
+<h2>Slug-mode — compressed-slice attach</h2>
 
-<p>For each accepted finding, simplify assigns a route. The bias is toward the smallest scope that fully addresses the finding — never escalate a finding to bigger process than it deserves.</p>
+<p>When the first argument after <code>intake</code> is an existing slug (exact existence check: <code>.ai/workflows/&lt;token&gt;/00-index.md</code> exists), the mode runs against that slug instead of creating a new workflow. It writes a single compressed slice into the slug's directory and leaves the workflow's stage, branch, and progress untouched.</p>
 
-<table class="no-mobile-scroll">
-<thead><tr><th>Route</th><th>Downstream command</th><th>Use when</th></tr></thead>
-<tbody>
-<tr><td><code>route-fix</code></td><td><code>/wf-quick fix "..."</code></td><td>Trivial mechanical cleanup, ≤1 file, no behaviour change.</td></tr>
-<tr><td><code>route-refactor</code></td><td><code>/wf-quick refactor "..."</code></td><td>Behaviour-preserving restructure across multiple files.</td></tr>
-<tr><td><code>route-intake</code></td><td><code>/wf intake "..."</code></td><td>Substantive change with possible behaviour impact, or architectural issue.</td></tr>
-<tr><td><code>route-amend-plan</code></td><td><code>/wf-meta amend &lt;slug&gt; &lt;slice&gt;</code></td><td>Plan-scope only — accompanies a proposed-delta block.</td></tr>
-<tr><td><code>route-amend-shape</code></td><td><code>/wf-meta amend &lt;slug&gt;</code></td><td>Finding implicates the workflow's shaped spec.</td></tr>
-<tr><td><code>route-verify</code></td><td><code>/wf verify &lt;slug&gt; &lt;slice&gt;</code></td><td>Inadequate test coverage; verify can surface deeper gaps.</td></tr>
-<tr><td><code>route-add-test</code></td><td><code>/wf-quick fix "add test for X"</code></td><td>Specific missing test addable as a one-file fix.</td></tr>
-<tr><td><code>route-docs</code></td><td><code>/wf-docs &lt;primitive&gt;</code></td><td>Doc gap not picked up by handoff's Diátaxis generation.</td></tr>
-<tr><td><code>route-handoff-config</code></td><td>Edit <code>00-index.md</code> config keys</td><td>Drift in handoff's surface / mirror config inputs.</td></tr>
-<tr><td><code>route-noop</code></td><td>—</td><td>Informational; recorded but no action.</td></tr>
-</tbody>
-</table>
+<pre><code>/wf intake my-feature-abc1 fix</code></pre>
 
-<h4>Plan-scope adaptation</h4>
-<p>The agents read the plan as prose rather than a diff. Findings become "plan step duplicates earlier step", "plan over-specifies parameters", "plan does redundant work" — same rubrics, different surface. Every accepted plan-scope finding gets <code>route: route-amend-plan</code> with an accompanying <code>proposed-delta</code> block. Apply via <code>/wf-meta amend &lt;slug&gt; &lt;slice&gt;</code>.</p>
+<p>The slug-mode argument order is always <strong>slug first, mode second</strong>. The mode word after the slug is the compressed flow; anything ambiguous (a token that could be either a description or a mode name) is resolved by the existence check first.</p>
 
-<h4>Severity defaults</h4>
+<h2>Suggest-and-confirm auto-routing</h2>
+
+<p>When you run <code>/wf intake "&lt;description&gt;"</code> without a mode, <code>intake</code> reads the description and the context and may <strong>suggest</strong> a mode: "This looks like a fix — run as <code>/wf intake fix</code>?" You confirm or decline. Auto-routing never fires silently; it always asks.</p>
+
+<h2>/wf probe — runtime-truth verification <span class="badge">v9.14</span></h2>
+
+<p><code>/wf probe</code> is a top-level <code>/wf</code> key, not an intake mode. It is <strong>slug-mode only</strong> — it refuses to run without an existing slug. Drives the running artifact, captures observable output (screenshots, stdout, response bodies, log lines), and writes findings without writing a fix.</p>
+
 <table>
-<tr><th>high / med / low</th><td>Default triage: accept (include in routing assignments)</td></tr>
-<tr><th>nit</th><td>Default triage: skip</td></tr>
+<thead><tr><th>Form</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td><code>/wf probe &lt;slug&gt;</code></td><td>Slug-wide sweep — probe every AC across every slice in the slug.</td></tr>
+<tr><td><code>/wf probe &lt;slug&gt; &lt;target&gt;</code></td><td>Focused probe on the target string. There are no flags — probe takes a slug and an optional target string.</td></tr>
+</tbody>
 </table>
-<p>The user can override per-finding via AskUserQuestion (<code>accept / skip / defer</code>). False positives are skipped with a one-line reason and not argued.</p>
 
-<h4>Examples</h4>
+<p>See the <a href="wf.html">/wf reference</a> for the full probe argument grammar, four-layer target resolution, deferral-clearing behaviour, and multi-adapter details.</p>
 
-<pre><code># Pre-handoff triage of the current branch — produces a routing report
-/wf-quick simplify
+<h2>/wf simplify — review-and-route triage</h2>
 
-# Same, with explicit base branch
-/wf-quick simplify branch main
+<p><code>/wf simplify</code> is also a top-level <code>/wf</code> key. It aggregates findings across three rubrics (Code Reuse, Code Quality, Efficiency), asks you which to accept, and classifies each accepted finding by routing it to the appropriate downstream command. It never writes code.</p>
 
-# Last commit only
-/wf-quick simplify commit HEAD
-
-# Specific commit
-/wf-quick simplify commit 8a1f3c2
-
-# Range
-/wf-quick simplify commit HEAD~3..HEAD
-
-# Sanity-check a plan before implementing it
-/wf-quick simplify plan dark-mode-toggle-settings route
-
-# Periodic codebase audit, scoped to a directory
-/wf-quick simplify codebase src/auth/</code></pre>
-
-<h4>Output shape</h4>
-<p>The chat return is a queue of suggested invocations sorted by route priority (<code>route-intake</code> first — biggest process — through <code>route-fix</code> and <code>route-docs</code>). Each is copy-pasteable. The artifact at <code>.ai/simplify/&lt;run-id&gt;.md</code> persists the full routing trail.</p>
-
-<h4>When NOT to use</h4>
-<ul>
-  <li>You want simplify to fix things directly. <strong>It won't.</strong> The point of the routing is that each finding gets the right level of process. If you want one-shot cleanup, run simplify, take a single <code>route-fix</code> invocation, and run that — it'll be quick.</li>
-  <li>You want behaviour-preserving restructure with test baseline — go straight to <code>/wf-quick refactor</code>.</li>
-  <li>You're already in <code>/wf review</code>. The review stage runs the broader rubric across 31 dimensions; simplify is the focused 3-agent version for outside-of-workflow use.</li>
-</ul>
+<table>
+<thead><tr><th>Scope</th><th>Form</th><th>When to use</th></tr></thead>
+<tbody>
+<tr><td><code>branch</code> (default)</td><td><code>/wf simplify</code></td><td>Pre-PR sanity pass on everything new on this branch.</td></tr>
+<tr><td><code>commit</code></td><td><code>/wf simplify commit &lt;sha&gt;</code></td><td>Triage a specific commit before pushing.</td></tr>
+<tr><td><code>plan</code></td><td><code>/wf simplify plan &lt;slug&gt; &lt;slice&gt;</code></td><td>Catch over-engineering before <code>/wf implement</code>.</td></tr>
+<tr><td><code>codebase</code></td><td><code>/wf simplify codebase [&lt;path&gt;]</code></td><td>Periodic codebase audit.</td></tr>
+</tbody>
+</table>
 
 <div class="related">
 <h3>Where next</h3>
 <ul>
   <li><a href="../tutorials/quick-fix-workflow.html">Run a quick fix end-to-end →</a></li>
-  <li><a href="wf.html">See the full 10-stage pipeline when your change needs more →</a></li>
+  <li><a href="wf.html">See the full /wf command including probe and simplify →</a></li>
   <li><a href="../how-to/start-workflow.html">Not sure which command fits? Use the decision tree →</a></li>
 </ul>
 </div>

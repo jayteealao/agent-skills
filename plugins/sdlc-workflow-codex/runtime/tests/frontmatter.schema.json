@@ -517,8 +517,24 @@
         "metric-findings-med":     { "type": "integer", "minimum": 0 },
         "metric-findings-low":     { "type": "integer", "minimum": 0 },
         "metric-findings-nit":     { "type": "integer", "minimum": 0 },
+        "metric-findings-resolved":   { "type": "integer", "minimum": 0 },
+        "metric-findings-total-ever": { "type": "integer", "minimum": 0 },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
+        "runs": {
+          "type": "array",
+          "description": "Compact per-invocation audit trail for the accumulating review ledger. One entry per `/wf review` run; rendered invisibly (frontmatter only). Lets retro/handoff/auto reconstruct how many passes a review took without a body-level round section.",
+          "items": {
+            "type": "object",
+            "required": ["at"],
+            "properties": {
+              "at":         { "$ref": "#/$defs/iso8601" },
+              "dimensions": { "$ref": "#/$defs/stringArray" },
+              "verdict":    { "enum": ["ship", "ship-with-caveats", "dont-ship"] },
+              "fix-commit": { "type": ["string", "null"] }
+            }
+          }
+        },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
       }
@@ -804,7 +820,7 @@
 
     "simplifyRunFrontmatter": {
       "type": "object",
-      "description": "Written to .ai/simplify/<run-id>.md — outside .ai/workflows/.",
+      "description": "Standalone simplify run. New runs root a type:workflow-index slug workflow and write the lead to .ai/workflows/<slug>/01-simplify.md (carrying a slug extra field; run-id kept for continuity). Legacy runs at .ai/simplify/<run-id>.md still validate + render via the retained off-pipeline discovery.",
       "required": [
         "schema", "type", "run-id", "scope", "target", "status",
         "created-at", "updated-at",
@@ -907,7 +923,7 @@
 
     "rcaFrontmatter": {
       "type": "object",
-      "description": "01-rca.md — root-cause analysis workflow produced by /wf-quick rca.",
+      "description": "01-rca.md — root-cause analysis workflow produced by /wf intake rca.",
       "required": [
         "schema", "type", "slug", "workflow-type", "symptom",
         "impact", "root-cause-confidence", "blast-radius",
@@ -1269,7 +1285,7 @@
 
     "ideationFrontmatter": {
       "type": "object",
-      "description": "Idea-backlog artifact written by /wf-quick ideate to .ai/ideation/<focus>-<ts>.md. Ranked candidate list; no slug/run-id/status.",
+      "description": "Idea-backlog artifact. New runs root a type:workflow-index slug workflow and write the lead to .ai/workflows/<slug>/01-ideate.md (carrying a slug extra field; focus stays the schema key). Legacy runs at .ai/ideation/<focus>-<ts>.md still validate + render via the retained off-pipeline discovery. Ranked candidate list.",
       "required": ["schema", "type", "focus", "created-at"],
       "properties": {
         "type": { "const": "ideation" },
@@ -1285,7 +1301,7 @@
 
     "depScanFrontmatter": {
       "type": "object",
-      "description": "/wf-quick update-deps step 1 — .ai/dep-updates/<run-id>/scan.md.",
+      "description": "/wf intake update-deps step 1 — .ai/dep-updates/<run-id>/scan.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "dep-scan" },
@@ -1301,7 +1317,7 @@
 
     "depResearchFrontmatter": {
       "type": "object",
-      "description": "/wf-quick update-deps step 2 — .ai/dep-updates/<run-id>/research.md.",
+      "description": "/wf intake update-deps step 2 — .ai/dep-updates/<run-id>/research.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "dep-research" },
@@ -1318,7 +1334,7 @@
 
     "depPlanFrontmatter": {
       "type": "object",
-      "description": "/wf-quick update-deps step 3 — .ai/dep-updates/<run-id>/plan.md.",
+      "description": "/wf intake update-deps step 3 — .ai/dep-updates/<run-id>/plan.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "dep-plan" },
@@ -1335,7 +1351,7 @@
 
     "depImplementFrontmatter": {
       "type": "object",
-      "description": "/wf-quick update-deps step 4 — .ai/dep-updates/<run-id>/implement.md.",
+      "description": "/wf intake update-deps step 4 — .ai/dep-updates/<run-id>/implement.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "dep-implement" },
@@ -1350,7 +1366,7 @@
 
     "depVerifyFrontmatter": {
       "type": "object",
-      "description": "/wf-quick update-deps step 5 — .ai/dep-updates/<run-id>/verify.md.",
+      "description": "/wf intake update-deps step 5 — .ai/dep-updates/<run-id>/verify.md.",
       "required": ["schema", "type", "run-id", "status", "created-at"],
       "properties": {
         "type": { "const": "dep-verify" },
@@ -1364,7 +1380,7 @@
 
     "quickMetaArtifactFrontmatter": {
       "type": "object",
-      "description": "Lightweight wf-quick / wf-meta lane artifacts written under .ai/workflows/<slug>/ (e.g. 00-index.md with type workflow-index, 01-fix.md, hf-brief.md, 99-close.md, 90-next.md). Validated for a known type + schema/type/slug presence; richer per-lane fields are renderer-defensive and most fall through to the generic renderer. Registered in v9.35.0 after an audit found these lanes were silently blocked by the pre/post-write hooks. Each type stays uniquely discriminating, so the oneOf remains unambiguous. Tighten into per-type branches if/when their field contracts stabilize.",
+      "description": "Lightweight intake-mode / wf-meta lane artifacts written under .ai/workflows/<slug>/ (e.g. 00-index.md with type workflow-index, 01-fix.md, hf-brief.md, 99-close.md, 90-next.md). Validated for a known type + schema/type/slug presence; richer per-lane fields are renderer-defensive and most fall through to the generic renderer. Registered in v9.35.0 after an audit found these lanes were silently blocked by the pre/post-write hooks. Each type stays uniquely discriminating, so the oneOf remains unambiguous. Tighten into per-type branches if/when their field contracts stabilize.",
       "required": ["schema", "type", "slug"],
       "properties": {
         "type": {
@@ -1478,6 +1494,11 @@
               "line":       { "type": ["integer", "string", "null"] },
               "confidence": { "enum": ["high", "med", "low"] },
               "action":     { "enum": ["accept", "defer", "reject"] },
+              "status":       { "type": "string", "description": "Accumulating-ledger lifecycle: open | deferred | dismissed | fixed | could-not-fix | resolved. Permissive string for back-compat; the merge protocol in review.md owns the vocabulary." },
+              "surfaced-at":  { "$ref": "#/$defs/iso8601" },
+              "last-seen-at": { "$ref": "#/$defs/iso8601" },
+              "resolved-at":  { "$ref": "#/$defs/iso8601" },
+              "fixed-at":     { "$ref": "#/$defs/iso8601" },
               "msg":        { "type": "string" },
               "evidence":   { "type": "object" },
               "fix":        { "type": "string" }
@@ -1542,7 +1563,11 @@
               "confidence": { "enum": ["high", "med", "low"] },
               "action":     { "enum": ["accept", "defer", "reject"] },
               "triage":     { "type": "string" },
-              "status":     { "type": "string" },
+              "status":     { "type": "string", "description": "Accumulating-ledger lifecycle: open | deferred | dismissed | fixed | could-not-fix | resolved. Permissive string for back-compat; review.md owns the vocabulary." },
+              "surfaced-at":  { "$ref": "#/$defs/iso8601" },
+              "last-seen-at": { "$ref": "#/$defs/iso8601" },
+              "resolved-at":  { "$ref": "#/$defs/iso8601" },
+              "fixed-at":     { "$ref": "#/$defs/iso8601" },
               "msg":        { "type": "string" },
               "message":    { "type": "string" },
               "evidence":   { "type": "object" },

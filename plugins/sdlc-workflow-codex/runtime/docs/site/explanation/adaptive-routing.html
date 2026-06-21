@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -129,7 +129,7 @@
 <dd>Default: run <code>/wf slice</code> to break the shaped idea into work units. Alternative: run <code>/wf design &lt;slug&gt; craft</code> first if the feature is UI-heavy and the visual direction is still unclear. Alternative: skip slicing entirely and jump to plan for a single-slice feature.</dd>
 
 <dt><strong>After review</strong></dt>
-<dd>Default: run <code>/wf handoff</code> to prepare the PR. Alternative: run <code>/wf implement &lt;slice&gt; reviews</code> if the review found issues that must be addressed first. Alternative: run <code>/wf-meta amend</code> if the review revealed the original spec was wrong.</dd>
+<dd>Default: run <code>/wf handoff</code> to prepare the PR. Alternative: run <code>/wf implement &lt;slug&gt; reviews</code> if the review found issues that must be addressed first. Alternative: run <code>/wf-meta amend</code> if the review revealed the original spec was wrong.</dd>
 
 <dt><strong>After ship</strong></dt>
 <dd>Default: run <code>/wf retro</code> to close out the work. Alternative: resume a paused run. Alternative: roll back and amend the plan with a recovery playbook for the next attempt.</dd>
@@ -147,7 +147,7 @@
 
 <details>
 <summary>Technical detail: how options are generated</summary>
-<p>Each stage's reference file (in <code>.claude/skills/wf/reference/</code>) defines a structured <code>next-options</code> block. The plugin reads this block at the end of a stage run and renders the menu you see. Adding a new valid transition means editing that reference file — the routing logic itself does not change.</p>
+<p>Each stage's reference file (in <code>${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/</code>) contains an <code># Adaptive routing</code> section listing viable transitions as labelled options (Option A, B, C…). The model follows these options to write a <code>## Recommended Next Stage</code> section into the stage artifact. Editing the reference file changes what options are offered — no separate routing engine reads a structured block.</p>
 </details>
 
 <div class="related">

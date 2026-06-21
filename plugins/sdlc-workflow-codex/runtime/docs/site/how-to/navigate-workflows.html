@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -116,7 +116,7 @@
 
 <pre><code>/wf-meta status auth-refresh</code></pre>
 
-<p>The single-workflow view shows the full 10-stage progress map with a status for each stage (not started / in progress / complete / skipped / blocked), the slice statuses, and recent activity. A <dfn>slice</dfn> is one independently deliverable chunk of the workflow — a named unit of work inside the larger feature.</p>
+<p>The single-workflow view shows the full 10-stage progress map with a status for each stage (not started / in progress / complete / skipped), the slice statuses, and recent activity. Workflows with open questions appear in the Blocked dashboard group. A <dfn>slice</dfn> is one independently deliverable chunk of the workflow — a named unit of work inside the larger feature.</p>
 
 <h2>Resume: pick up where you left off</h2>
 
@@ -153,12 +153,12 @@
 <tr><td>"Where did I leave off in auth-refresh?"</td><td><code>/wf-meta resume auth-refresh</code></td></tr>
 <tr><td>"What's the next command for auth-refresh?"</td><td><code>/wf-meta next auth-refresh</code></td></tr>
 <tr><td>"Index file looks wrong — repair it."</td><td><code>/wf-meta sync auth-refresh</code></td></tr>
-<tr><td>"Explain a stage's artifact in plain English."</td><td><code>/wf-meta how auth-refresh plan</code></td></tr>
+<tr><td>"Ask a code question, explore the codebase, commission deep web research, or explain a workflow artifact or review findings."</td><td><code>/wf-meta how auth-refresh plan</code></td></tr>
 <tr><td>"Generate a Diátaxis announcement from a shipped workflow."</td><td><code>/wf-meta announce auth-refresh</code></td></tr>
 <tr><td>"Correct a wrong spec, slice, or ship-plan block."</td><td><code>/wf-meta amend auth-refresh &lt;scope&gt;</code></td></tr>
 <tr><td>"Add new slices to an existing workflow."</td><td><code>/wf-meta extend auth-refresh</code></td></tr>
-<tr><td>"Mark a stage skipped with a stub."</td><td><code>/wf-meta skip &lt;stage&gt; auth-refresh</code></td></tr>
-<tr><td>"Archive a finished or abandoned workflow."</td><td><code>/wf-meta close &lt;reason&gt; auth-refresh</code></td></tr>
+<tr><td>"Mark a stage skipped with a stub."</td><td><code>/wf-meta skip auth-refresh &lt;stage&gt;</code></td></tr>
+<tr><td>"Archive a finished or abandoned workflow."</td><td><code>/wf-meta close auth-refresh &lt;reason&gt;</code></td></tr>
 <tr><td>"Author the project ship plan (once)."</td><td><code>/wf-meta init-ship-plan</code></td></tr>
 <tr><td>"Build the CI/CD + DX pipeline from the plan."</td><td><code>/wf-meta build-pipeline</code></td></tr>
 </tbody>

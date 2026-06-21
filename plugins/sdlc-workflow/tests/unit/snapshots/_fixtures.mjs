@@ -28,27 +28,12 @@ import { render as profile } from '../../../renderers/profile.mjs';
 import { render as syncReport } from '../../../renderers/sync-report.mjs';
 // All-artifacts projection — lane + run-family renderers.
 import { render as discover } from '../../../renderers/discover.mjs';
-import { render as fixPlan } from '../../../renderers/fix-plan.mjs';
 import { render as investigate } from '../../../renderers/investigate.mjs';
 import { render as closeRecord } from '../../../renderers/close-record.mjs';
-import { render as hfBrief } from '../../../renderers/hf-brief.mjs';
-import { render as hfPlan } from '../../../renderers/hf-plan.mjs';
-import { render as hfImplement } from '../../../renderers/hf-implement.mjs';
-import { render as hfVerify } from '../../../renderers/hf-verify.mjs';
-import { render as rfBrief } from '../../../renderers/rf-brief.mjs';
-import { render as rfBaseline } from '../../../renderers/rf-baseline.mjs';
-import { render as rfPlan } from '../../../renderers/rf-plan.mjs';
-import { render as rfImplement } from '../../../renderers/rf-implement.mjs';
-import { render as rfVerify } from '../../../renderers/rf-verify.mjs';
 import { render as docsDiscover } from '../../../renderers/docs-discover.mjs';
 import { render as docsAudit } from '../../../renderers/docs-audit.mjs';
 import { render as docsPlanR } from '../../../renderers/docs-plan.mjs';
 import { render as docsGenerate } from '../../../renderers/docs-generate.mjs';
-import { render as depScan } from '../../../renderers/dep-scan.mjs';
-import { render as depResearch } from '../../../renderers/dep-research.mjs';
-import { render as depPlanR } from '../../../renderers/dep-plan.mjs';
-import { render as depImplement } from '../../../renderers/dep-implement.mjs';
-import { render as depVerify } from '../../../renderers/dep-verify.mjs';
 import { render as ideation } from '../../../renderers/ideation.mjs';
 
 // renderSimple-based renderers read ctx.slug directly (not ctx?.slug), so every
@@ -624,56 +609,12 @@ export const CASES = [
     variants: { full: artifact({ type: 'discover', path: '01-discover.md', frontmatter: { schema: 'sdlc/v1', type: 'discover', slug: 'demo', 'workflow-type': 'discover', hypothesis: 'The cache is never invalidated', verdict: 'holds', confidence: 'high', 'recommended-next': '/wf plan', status: 'ready-for-routing', 'created-at': '2026-06-04T00:00:00Z' } }) },
   },
   {
-    name: 'fix-plan', render: fixPlan, ctx: CTX,
-    variants: { full: artifact({ type: 'fix-plan', path: '01-fix.md', frontmatter: { schema: 'sdlc/v1', type: 'fix-plan', slug: 'demo', 'workflow-type': 'fix', intent: 'Fix typo in error message', 'estimated-steps': 2, status: 'ready-for-implement', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
     name: 'investigate', render: investigate, ctx: CTX,
     variants: { full: artifact({ type: 'investigate', path: '01-investigate.md', frontmatter: { schema: 'sdlc/v1', type: 'investigate', slug: 'demo', 'workflow-type': 'investigate', 'problem-statement': 'How to paginate the feed', 'option-count': 3, status: 'ready-for-routing', 'created-at': '2026-06-04T00:00:00Z' } }) },
   },
   {
     name: 'close-record', render: closeRecord, ctx: CTX,
     variants: { full: artifact({ type: 'close-record', path: '99-close.md', frontmatter: { schema: 'sdlc/v1', type: 'close-record', slug: 'demo', 'workflow-type': 'fix', 'close-reason': 'superseded', 'superseded-by': 'PR #42', 'last-stage-reached': 'implement', 'unmerged-commits': 0, 'closed-at': '2026-06-04T00:00:00Z' } }) },
-  },
-
-  /* ── hotfix family ─────────────────────────────────────────────────── */
-  {
-    name: 'hf-brief', render: hfBrief, ctx: CTX,
-    variants: { full: artifact({ type: 'hf-brief', path: 'hf-brief.md', frontmatter: { schema: 'sdlc/v1', type: 'hf-brief', slug: 'demo', 'workflow-type': 'hotfix', symptom: 'Checkout 500s for EU users', impact: 'critical', 'affected-scope': 'all-users', status: 'in-progress', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'hf-plan', render: hfPlan, ctx: CTX,
-    variants: { full: artifact({ type: 'hf-plan', path: 'hf-plan.md', frontmatter: { schema: 'sdlc/v1', type: 'hf-plan', slug: 'demo', 'workflow-type': 'hotfix', 'step-count': 3, 'data-remediation-needed': false, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'hf-implement', render: hfImplement, ctx: CTX,
-    variants: { full: artifact({ type: 'hf-implement', path: 'hf-implement.md', frontmatter: { schema: 'sdlc/v1', type: 'hf-implement', slug: 'demo', 'workflow-type': 'hotfix', 'lines-changed': 12, 'test-result': 'pass', 'commit-sha': 'a3f7d12', status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'hf-verify', render: hfVerify, ctx: CTX,
-    variants: { full: artifact({ type: 'hf-verify', path: 'hf-verify.md', frontmatter: { schema: 'sdlc/v1', type: 'hf-verify', slug: 'demo', 'workflow-type': 'hotfix', result: 'PASS', 'symptom-confirmed-fixed': true, 'tests-pass': 'pass', status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-
-  /* ── refactor family ───────────────────────────────────────────────── */
-  {
-    name: 'rf-brief', render: rfBrief, ctx: CTX,
-    variants: { full: artifact({ type: 'rf-brief', path: 'rf-brief.md', frontmatter: { schema: 'sdlc/v1', type: 'rf-brief', slug: 'demo', 'workflow-type': 'refactor', goal: 'Extract the auth service layer', 'existing-coverage': 'high', status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'rf-baseline', render: rfBaseline, ctx: CTX,
-    variants: { full: artifact({ type: 'rf-baseline', path: 'rf-baseline.md', frontmatter: { schema: 'sdlc/v1', type: 'rf-baseline', slug: 'demo', 'workflow-type': 'refactor', 'tests-passing': 80, 'tests-failing': 0, 'tests-skipped': 2, 'caller-count': 12, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'rf-plan', render: rfPlan, ctx: CTX,
-    variants: { full: artifact({ type: 'rf-plan', path: 'rf-plan.md', frontmatter: { schema: 'sdlc/v1', type: 'rf-plan', slug: 'demo', 'workflow-type': 'refactor', 'step-count': 4, 'pattern-used': 'extract-function', 'api-surface-changes': 'none', status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'rf-implement', render: rfImplement, ctx: CTX,
-    variants: { full: artifact({ type: 'rf-implement', path: 'rf-implement.md', frontmatter: { schema: 'sdlc/v1', type: 'rf-implement', slug: 'demo', 'workflow-type': 'refactor', 'steps-completed': 4, 'steps-failed': 0, 'api-surface-changed': false, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'rf-verify', render: rfVerify, ctx: CTX,
-    variants: { full: artifact({ type: 'rf-verify', path: 'rf-verify.md', frontmatter: { schema: 'sdlc/v1', type: 'rf-verify', slug: 'demo', 'workflow-type': 'refactor', result: 'PASS', 'baseline-tests-pass': 80, 'post-refactor-tests-pass': 80, 'api-surface-identical': true, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
   },
 
   /* ── wf-docs intermediates ─────────────────────────────────────────── */
@@ -692,28 +633,6 @@ export const CASES = [
   {
     name: 'docs-generate', render: docsGenerate, ctx: CTX,
     variants: { full: artifact({ type: 'docs-generate', path: 'generate.md', frontmatter: { schema: 'sdlc/v1', type: 'docs-generate', 'run-id': 'dr1', 'actions-completed': 6, 'actions-skipped': 0, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-
-  /* ── dep-update family ─────────────────────────────────────────────── */
-  {
-    name: 'dep-scan', render: depScan, ctx: CTX,
-    variants: { full: artifact({ type: 'dep-scan', path: 'scan.md', frontmatter: { schema: 'sdlc/v1', type: 'dep-scan', 'run-id': 'r1', 'total-deps': 40, 'outdated-count': 7, 'vulnerable-count': 2, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'dep-research', render: depResearch, ctx: CTX,
-    variants: { full: artifact({ type: 'dep-research', path: 'research.md', frontmatter: { schema: 'sdlc/v1', type: 'dep-research', 'run-id': 'r1', 'packages-researched': 7, 'packages-update-now': 4, 'packages-migration-needed': 2, 'packages-hold': 1, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'dep-plan', render: depPlanR, ctx: CTX,
-    variants: { full: artifact({ type: 'dep-plan', path: 'plan.md', frontmatter: { schema: 'sdlc/v1', type: 'dep-plan', 'run-id': 'r1', 'p0-count': 2, 'p1-count': 1, 'p2-count': 3, 'hold-count': 1, status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'dep-implement', render: depImplement, ctx: CTX,
-    variants: { full: artifact({ type: 'dep-implement', path: 'implement.md', frontmatter: { schema: 'sdlc/v1', type: 'dep-implement', 'run-id': 'r1', updated: ['left-pad@1.3.0', 'axios@1.7.0'], blocked: [], status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
-  },
-  {
-    name: 'dep-verify', render: depVerify, ctx: CTX,
-    variants: { full: artifact({ type: 'dep-verify', path: 'verify.md', frontmatter: { schema: 'sdlc/v1', type: 'dep-verify', 'run-id': 'r1', result: 'pass', status: 'complete', 'created-at': '2026-06-04T00:00:00Z' } }) },
   },
 
   /* ── ideation (rich) ───────────────────────────────────────────────── */

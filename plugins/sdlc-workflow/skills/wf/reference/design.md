@@ -1,5 +1,5 @@
 ---
-description: Design producer + dispatcher for UI/UX work, run as a compressed `wf` workflow. `/wf design <slug> <cmd>` produces the brief + visual contract then drives slice→plan→implement→verify itself; `/wf design <cmd>` runs the full lifecycle on a new slug. 22 design commands (craft, the 15 transforms, audit, critique, extract, setup, teach) are arguments, never their own keys.
+description: Design producer + dispatcher for UI/UX work, run as a compressed `wf` workflow. `/wf design <slug> <cmd>` produces the brief + visual contract then drives slice→plan→implement→verify itself; `/wf design <cmd>` runs the full lifecycle on a new slug. 21 design commands (craft, the 15 transforms, audit, critique, extract, setup, teach) are arguments, never their own keys.
 argument-hint: "[slug] <craft|audit|critique|extract|setup|teach|animate|bolder|clarify|colorize|delight|distill|harden|layout|onboard|optimize|overdrive|polish|quieter|typeset|adapt> [instructions]"
 ---
 
@@ -16,7 +16,7 @@ You author the design brief and visual contract, run the design transforms, and 
 commands) **drive the downstream lifecycle stages yourself**, compressed, so design knowledge
 is both *produced* here and *consumed* by `slice`/`plan`/`implement`/`verify`/`review`.
 
-The 22 design commands are *arguments* to this one key. `craft` and the 15 transforms produce
+The 21 design commands are *arguments* to this one key. `craft` and the 15 transforms produce
 or modify code; `audit`/`critique` produce review reports; `extract` reverse-engineers tokens;
 `setup`/`teach` author project context. Your job: parse the invocation, resolve the command,
 load the shared design context, run preflight, load the command's reference, then run the
@@ -145,7 +145,7 @@ command does; this dispatcher governs *how far the flow runs* around it.
 
 ## 4A — Producer & Transformation (build commands)
 
-These produce code, so they run the build span. The compressed flow reuses `wf-quick`'s
+These produce code, so they run the build span. The compressed flow reuses the compressed intake modes'
 collapsed-stage machinery — thin single slice, minimal plan, no multi-round interviews — but
 **still emits each numbered artifact** so the rendered views and downstream gates see a normal
 workflow.

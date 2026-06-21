@@ -1,11 +1,11 @@
 ---
-description: Design producer + dispatcher for UI/UX work, run as a compressed `wf` workflow. `$wf design <slug> <cmd>` produces the brief + visual contract then drives slice→plan→implement→verify itself; `$wf design <cmd>` runs the full lifecycle on a new slug. 22 design commands (craft, the 15 transforms, audit, critique, extract, setup, teach) are arguments, never their own keys.
+description: Design producer + dispatcher for UI/UX work, run as a compressed `wf` workflow. `$wf design <slug> <cmd>` produces the brief + visual contract then drives slice→plan→implement→verify itself; `$wf design <cmd>` runs the full lifecycle on a new slug. 21 design commands (craft, the 15 transforms, audit, critique, extract, setup, teach) are arguments, never their own keys.
 argument-hint: "[slug] <craft|audit|critique|extract|setup|teach|animate|bolder|clarify|colorize|delight|distill|harden|layout|onboard|optimize|overdrive|polish|quieter|typeset|adapt> [instructions]"
 ---
 
 # External Output Boundary (MANDATORY)
 Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
+- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.codex/...`, `.ai/dep-updates/...`), stage names or numbers, skill names, sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
 - External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
 - When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
 - Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
@@ -16,7 +16,7 @@ You author the design brief and visual contract, run the design transforms, and 
 commands) **drive the downstream lifecycle stages yourself**, compressed, so design knowledge
 is both *produced* here and *consumed* by `slice`/`plan`/`implement`/`verify`/`review`.
 
-The 22 design commands are *arguments* to this one key. `craft` and the 15 transforms produce
+The 21 design commands are *arguments* to this one key. `craft` and the 15 transforms produce
 or modify code; `audit`/`critique` produce review reports; `extract` reverse-engineers tokens;
 `setup`/`teach` author project context. Your job: parse the invocation, resolve the command,
 load the shared design context, run preflight, load the command's reference, then run the
@@ -145,7 +145,7 @@ command does; this dispatcher governs *how far the flow runs* around it.
 
 ## 4A — Producer & Transformation (build commands)
 
-These produce code, so they run the build span. The compressed flow reuses `wf-quick`'s
+These produce code, so they run the build span. The compressed flow reuses `$wf intake fix`'s
 collapsed-stage machinery — thin single slice, minimal plan, no multi-round interviews — but
 **still emits each numbered artifact** so the rendered views and downstream gates see a normal
 workflow.

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -96,11 +96,38 @@
 <h1>What's new</h1>
 
 <p class="lede">
-User-facing highlights since v9.11. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
+User-facing highlights since v9.11, up to v9.88. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
 </p>
 
+<h2>v9.88.0 — <code>/wf auto</code>: end-to-end lifecycle driver</h2>
+<p><code>/wf auto &lt;slug&gt;</code> drives every slice through the full pipeline then runs a final review, stopping before handoff. <code>/wf auto &lt;slug&gt; &lt;slice&gt;</code> drives a single slice and routes to the next. Runs each stage in-process; writes no own artifact. Any gate failure pauses and surfaces the blocking issue. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.87.0 — Retire bespoke compressed-lifecycle prose</h2>
+<p>Stale bespoke-artifact prose and the compressed-lifecycle planning documents were retired from the doc-site. Dispatcher and doc-site fixes from the compressed-lifecycle sweep. See <a href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough →</a></p>
+
+<h2>v9.86.0 — Compressed lifecycle: intake modes are standard lifecycles</h2>
+<p>The four intake modes (<code>fix</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>) are now full standard lifecycles — they write all four planning artifacts (<code>01-*.md</code>, <code>02-shape.md</code>, <code>03-slice.md</code>, <code>04-plan.md</code>) in a single compressed pass, then hand off to the standard <code>/wf implement</code> and <code>/wf verify</code> chain. No stages are skipped. 14 bespoke renderers deleted. See <a href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough →</a></p>
+
+<h2>v9.83.0 — <code>/wf intake</code> modes replace <code>/wf-quick</code></h2>
+<p>The standalone <code>/wf-quick</code> router is retired. Its 8 entry-point sub-commands (<code>fix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code>) are now modes of <code>/wf intake</code>. <code>probe</code> and <code>simplify</code> become standalone <code>/wf</code> keys. The <code>/wf</code> command table grows from 15 to 17 keys. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.82.0 — <code>/wf design</code> replaces <code>/wf-design</code></h2>
+<p>The standalone <code>/wf-design</code> router is retired. Design is now one <code>/wf design &lt;slug&gt; &lt;cmd&gt;</code> sub-command — it authors the brief and visual contract then drives the downstream lifecycle itself. The 21 design commands (<code>craft</code>, 15 transforms, <code>audit</code>, <code>critique</code>, <code>extract</code>, <code>setup</code>, <code>teach</code>) are arguments to this one key. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.81.0 — Tray self-heals a running stale process</h2>
+<p>After a plugin upgrade, a tray already running from a prior version's bundle is now detected (Windows WMI scan), killed, and respawned from the current bundle at session start. Debounced via a marker file to avoid duplicate respawns from near-simultaneous sessions. Opt out with <code>SDLC_DISABLE_TRAY_HEAL=1</code>. See <a href="reference/tray.html">Tray app →</a></p>
+
+<h2>v9.72.0 — Tray autostart launcher self-heals</h2>
+<p>After a plugin upgrade, an enabled autostart launcher kept pointing at the prior version's tray bundle. Session start now calls <code>refreshAutostart</code> headlessly on every logon, re-stamping the launcher to the current bundle even while the tray is not running. Also switches ephemeral <code>fnm</code> node paths to the durable <code>aliases/default</code> node so the launcher survives shell restarts. See <a href="reference/tray.html">Tray app →</a></p>
+
+<h2>v9.70.0 — Free narrative fragments</h2>
+<p>Any artifact can now ship any number of <strong>free narrative fragments</strong> named <code>&lt;stem&gt;.&lt;label&gt;.html.fragment</code> — raw inline HTML with no envelope, scoping, or sibling <code>.yaml</code> requirement. The renderer injects them below the page body in filename order. Use them for bespoke diagrams, before/after flows, or interactive widgets. The existing typed fragment contract is unchanged. See <a href="reference/hooks.html">Hooks →</a></p>
+
+<h2>v9.63.0 — Stale-render self-heal</h2>
+<p>After a plugin upgrade, quiescent repos whose views were rendered at an older version now self-heal. The hub's reconcile tick (and the standalone daemon's timer) detect version drift between <code>.last-render</code> and the running plugin and spawn a background <code>render-sunflower --clean</code>. Open tabs refresh via the existing live-reload watch. Bounded by a concurrency cap, per-repo cooldown, and max-attempts ceiling. On by default; set <code>staleRender.heal: false</code> to disable. See <a href="reference/serve.html">Serve daemon &amp; hub →</a></p>
+
 <h2>v9.49.0 — Branch-aware hub</h2>
-<p>The dashboard inbox now groups workflows <strong>repo → branch → slug</strong>. Each slug row shows a soft liveness badge: <code>live</code>, <code>merged</code>, <code>gone</code>, or <code>unknown</code>. Registry identifiers are now repo-scoped (hash of repo root only), so the same slug on two branches appears as two distinct rows. See <a href="reference/serve.html">Serve daemon &amp; hub →</a></p>
+<p>The dashboard inbox now groups workflows <strong>repo → branch → slug</strong>. Each slug row shows a liveness badge: <code>merged</code> or <code>branch gone</code> (rendered as visible chips); active and unknown slugs show no badge. Registry identifiers are now repo-scoped (hash of repo root only), so the same slug on two branches appears as two distinct rows. See <a href="reference/serve.html">Serve daemon &amp; hub →</a></p>
 
 <h2>v9.47–9.48 — Hard block on missing fragment files</h2>
 <p>If you write a rich-tier artifact (one of 14 types) without its companion <code>.yaml</code> fragment, the post-write hook now <strong>exits with an error and blocks the write</strong>. Previously it was a soft reminder. To opt out per-file, add <code>fragment: none</code> frontmatter. To disable project-wide, set <code>hooks.remindMissingFragments: false</code>. See <a href="reference/hooks.html">Hooks →</a></p>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -105,7 +105,7 @@
 
 <ul>
   <li><strong>pre-write-validate</strong> — runs <em>before</em> any artifact file is saved. If the filename or <a href="../reference/glossary.html#frontmatter">frontmatter</a> (the YAML block at the top of every artifact) would be invalid, it blocks the write and tells Claude what to fix. You never end up with a broken file on disk.</li>
-  <li><strong>post-write-verify</strong> — runs <em>after</em> a write. It performs a deeper schema check and, for the 13 <a href="../reference/glossary.html#fragment">rich-tier</a> artifact types, also checks that the required companion <code>.yaml</code> fragment file exists. If either check fails it exits with an error and prompts Claude to repair the file.</li>
+  <li><strong>post-write-verify</strong> — runs <em>after</em> a write. It performs a deeper schema check and, for the 14 <a href="../reference/glossary.html#fragment">rich-tier</a> artifact types, also checks that the required companion <code>.yaml</code> fragment file exists. If either check fails it exits with an error and prompts Claude to repair the file.</li>
 </ul>
 
 <p>The other three hooks handle automation:</p>
@@ -137,7 +137,7 @@
 
 <p>Fires before any write to a workflow artifact path (<code>*/.ai/workflows/&lt;slug&gt;/*.md</code>). Blocks writes that violate:</p>
 <ul>
-  <li><strong>Filename convention</strong> — files must match <code>NN-stagename.md</code> or <code>NNa-stagename.md</code> (for sub-stages like <code>02b-design.md</code>), plus the allowlisted names <code>risk-register.md</code>, <code>estimate.md</code>, <code>announce.md</code>, <code>po-answers.md</code>, and anything under <code>design-notes/</code>.</li>
+  <li><strong>Filename convention</strong> — files must match <code>NN-stagename.md</code> or <code>NNa-stagename.md</code> (for sub-stages like <code>02b-design.md</code>), plus the allowlisted names <code>risk-register.md</code>, <code>estimate.md</code>, <code>announce.md</code>, <code>skip-&lt;name&gt;.md</code> (wf-meta skip records), <code>po-answers.md</code>, and anything under <code>design-notes/</code>.</li>
   <li><strong>YAML frontmatter</strong> — must be present between <code>---</code> markers and contain <code>schema</code>, <code>type</code>, and <code>slug</code> fields. (The <code>po-answers.md</code> prose log is exempt.)</li>
   <li><strong>Schema version</strong> — <code>schema: sdlc/v1</code>.</li>
   <li><strong>Slug stability</strong> — the frontmatter <code>slug</code> must match the directory name.</li>
@@ -151,9 +151,9 @@
 
 <h4>Sibling-fragment hard block <span class="badge">v9.47</span></h4>
 
-<p>Rich-tier artifact types need a companion <code>.yaml</code> fragment file — a small structured file the dashboard reads to render workflow cards. If you write one of the 13 gated types without its companion, post-write-verify <strong>exits 2 and blocks the write</strong>.</p>
+<p>Rich-tier artifact types need a companion <code>.yaml</code> fragment file — a small structured file the dashboard reads to render workflow cards. If you write one of the 14 gated types without its companion, post-write-verify <strong>exits 2 and blocks the write</strong>.</p>
 
-<p>The 13 gated types are: <code>review</code>, <code>plan</code>, <code>design</code>, <code>ship-run</code>, <code>rca</code>, <code>benchmark</code>, <code>experiment</code>, <code>instrument</code>, <code>profile</code>, <code>simplify-run</code>, <code>review-command</code>, <code>design-audit</code>, and <code>design-critique</code>.</p>
+<p>The 14 gated types are: <code>review</code>, <code>plan</code>, <code>design</code>, <code>ship-run</code>, <code>rca</code>, <code>benchmark</code>, <code>experiment</code>, <code>instrument</code>, <code>profile</code>, <code>simplify-run</code>, <code>review-command</code>, <code>design-audit</code>, <code>design-critique</code>, and <code>design-contract</code>.</p>
 
 <p>Two escape hatches let you opt out:</p>
 <ul>
@@ -177,7 +177,7 @@
 
 <h2>Configuration</h2>
 
-<p>All four toggles live in the <code>hooks</code> block of <code>.ai/sdlc-config.json</code>. All default to <code>true</code>.</p>
+<p>All five toggles live in the <code>hooks</code> block of <code>.ai/sdlc-config.json</code>. All default to <code>true</code>.</p>
 
 <table>
 <thead><tr><th>Key</th><th>Default</th><th>Controls</th></tr></thead>
@@ -186,6 +186,7 @@
 <tr><td><code>validateOnWrite</code></td><td>true</td><td>Whether pre-write-validate runs filename and frontmatter checks.</td></tr>
 <tr><td><code>verifyOnWrite</code></td><td>true</td><td>Whether post-write-verify runs deep Ajv validation.</td></tr>
 <tr><td><code>remindMissingFragments</code></td><td>true</td><td>Whether post-write-verify enforces the sibling-fragment hard block. Set <code>false</code> to disable both the block and the reminder.</td></tr>
+<tr><td><code>validateSiblingYaml</code></td><td>true</td><td>Whether post-write-verify validates a present sibling <code>.yaml</code> against its schema and blocks on violations. Only applies to types with a reconciled schema (<code>plan</code>, <code>review</code>, <code>design</code>, <code>simplify-run</code>, <code>ship-run</code>).</td></tr>
 </tbody>
 </table>
 

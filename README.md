@@ -1,6 +1,6 @@
 # Agent Skills Marketplace
 
-A plugin marketplace with Claude Code source manifests and generated Codex artifacts for reusable developer workflows.
+A plugin marketplace with Claude Code plugins, generated Codex adapters, and handwritten Codex-native workflows.
 
 ## Installation
 
@@ -20,7 +20,10 @@ Then install available plugins:
 
 ### Codex
 
-Codex discovers plugins from the workspace marketplace at [`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json). Generated plugin bundles live beside the canonical Claude source in each plugin directory.
+Codex discovers plugins from the workspace marketplace at [`.agents/plugins/marketplace.json`](./.agents/plugins/marketplace.json).
+
+- [`sdlc-workflow`](./plugins/sdlc-workflow) exposes generated Codex adapters beside its canonical Claude source.
+- [`sdlc-workflow-codex`](./plugins/sdlc-workflow-codex) is a separate handwritten Codex-native rewrite with no generated adapter layer.
 
 To refresh the Codex artifacts for `sdlc-workflow`:
 
@@ -33,18 +36,21 @@ node scripts/generate-codex-plugin.mjs sdlc-workflow
 | Plugin | Category | Description |
 |--------|----------|-------------|
 | [daily-carry](./plugins/daily-carry) | deployment | OtterStack deployment orchestration, Portainer management, and Tech Research Enforcer |
+| [agent-behavior-patterns](./plugins/agent-behavior-patterns) | workflow | Sound notifications, TUI testing, design documents, and changelog audits |
 | [hermes-tweet](./plugins/hermes-tweet) | productivity | Hermes Agent X/Twitter workflows for read-first research, monitoring, audits, and explicit approval-gated account actions. |
+| [sdlc-workflow](./plugins/sdlc-workflow) | workflow | Canonical SDLC workflow with generated Codex adapters |
+| [sdlc-workflow-codex](./plugins/sdlc-workflow-codex) | workflow | Handwritten Codex-native software delivery workflows |
 
 ## Contributing
 
 To add a new plugin:
 
 1. Create a directory under `plugins/your-plugin-name/`
-2. Add `.claude-plugin/plugin.json` as the canonical manifest
-3. Add skills in `skills/`, commands in `commands/`, etc.
-4. Add a small `.codex-plugin.overrides.json` only if Codex-specific interface metadata is needed
-5. Update the root `.claude-plugin/marketplace.json` to include your plugin
-6. Run `node scripts/generate-codex-plugin.mjs <plugin-name>`
+2. Add the manifest for the intended host: `.claude-plugin/plugin.json`, `.codex-plugin/plugin.json`, or both
+3. Add focused skills and supporting files
+4. Update the relevant marketplace manifest
+5. Run the host-specific validators and tests
+6. For generated Codex adapters only, run `node scripts/generate-codex-plugin.mjs <plugin-name>`
 7. Submit a PR
 
 ## License

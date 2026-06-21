@@ -48,6 +48,18 @@ const RESOLVABLE_FILE = '01-intake.md';
 // for a NEW type is caught rather than silently excluded.
 const NOT_RENDERED = new Set([
   'routing',
+  // Compressed-lifecycle migration: the bespoke change-mode pipelines
+  // (hotfix hf-*, refactor rf-*, update-deps dep-*, fix fix-plan) are retired —
+  // new runs write STANDARD types (intake/shape/slice-index/plan/implement/
+  // verify) and these 15 types are kept in the schema ONLY for back-compat
+  // validation of legacy on-disk artifacts. Their renderers are deleted; their
+  // _paths.mjs rows / kind:'deps' branch are KEPT, so a legacy artifact resolves
+  // a view path but loads no renderer → degrades to fallbackRender (a plain page).
+  // Excluded here so the schema-driven test stops expecting a dedicated renderer.
+  'fix-plan',
+  'hf-brief', 'hf-plan', 'hf-implement', 'hf-verify',
+  'rf-brief', 'rf-baseline', 'rf-plan', 'rf-implement', 'rf-verify',
+  'dep-scan', 'dep-research', 'dep-plan', 'dep-implement', 'dep-verify',
 ]);
 
 /* ───────────────────────── schema-driven fixture generator ───────────────── */

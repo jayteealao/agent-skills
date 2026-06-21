@@ -187,6 +187,42 @@ test('schema-validator: review + review-dimension sibling YAML accept the live c
   }, { schemaPath: SCHEMA_PATH }).valid, false);
 });
 
+test('schema-validator: review sibling YAML accepts the accumulating-ledger finding fields', () => {
+  // Accumulating-ledger model: a review re-run merges into the same file. Findings
+  // carry a status lifecycle (open|deferred|dismissed|fixed|could-not-fix|resolved)
+  // plus surfaced-at / last-seen-at / resolved-at / fixed-at (iso8601). The sibling
+  // .yaml holds OPEN findings; resolved history lives in the .md body. rev increments
+  // each run.
+  const dim = validateSiblingYaml({
+    artifact: 'review-dimension', dimension: 'security', parent: '07-review.yaml', rev: 3,
+    verdict: 'ship', summary: 'merged across 3 runs',
+    counts: { blocker: 0, high: 1, med: 0, low: 0, nit: 0 },
+    findings: [
+      { id: 'SEC-1', severity: 'high', msg: 'still open', status: 'open',
+        'surfaced-at': '2026-06-18T10:00:00Z', 'last-seen-at': '2026-06-20T09:00:00Z' },
+      { id: 'SEC-2', severity: 'high', msg: 'cleared on re-run', status: 'resolved',
+        'surfaced-at': '2026-06-18T10:00:00Z', 'resolved-at': '2026-06-20T09:00:00Z' },
+    ],
+  }, { schemaPath: SCHEMA_PATH });
+  equal(dim.valid, true);
+
+  const review = validateSiblingYaml({
+    artifact: 'review', slug: 's', rev: 2, verdict: 'caveats', summary: 'ok',
+    counts: { blocker: 0, high: 1, med: 0, low: 0, nit: 0 },
+    dimensions: [{ key: 'security', status: 'issues', blocker: 0, high: 1, med: 0 }],
+    findings: [{ id: 'SEC-1', severity: 'high', dimension: 'security', status: 'open',
+      'surfaced-at': '2026-06-18T10:00:00Z', 'last-seen-at': '2026-06-20T09:00:00Z' }],
+  }, { schemaPath: SCHEMA_PATH });
+  equal(review.valid, true);
+
+  // A malformed surfaced-at (not ISO-8601) is rejected — the timestamp constraint is live.
+  equal(validateSiblingYaml({
+    artifact: 'review-dimension', dimension: 'd', parent: 'p', rev: 1, verdict: 'ship',
+    summary: 's', counts: { blocker: 0, high: 0, med: 0, low: 0, nit: 0 },
+    findings: [{ id: 'X', severity: 'low', msg: 'm', 'surfaced-at': 'yesterday' }],
+  }, { schemaPath: SCHEMA_PATH }).valid, false);
+});
+
 test('schema-validator: admits the four wf-docs intermediate artifact types', async () => {
   // The /wf-docs orchestrator writes discover/audit/plan/generate artifacts that
   // claim `schema: sdlc/v1`. Each must select its own branch (so the claim is

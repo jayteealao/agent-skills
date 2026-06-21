@@ -284,15 +284,15 @@ Reads the full artifact trail, extracts lessons, and produces concrete suggested
 ### … discover what to work on next
 
 ```
-/wf-quick ideate
+/wf intake ideate
 ```
 
 Scans the codebase with **6 parallel sub-agents** across quality, performance, security, developer experience, feature completeness, and architecture lenses. Generates 30+ raw candidate ideas, then runs an adversarial filter — culling speculative ideas, in-progress duplicates, unjustifiable effort, vague scope, and symptom-level findings. Ranks survivors by impact-to-effort ratio and presents them as a numbered list ready to feed into `/wf intake`.
 
 ```
-/wf-quick ideate security        # focus on the security lens only
-/wf-quick ideate dx 5            # DX lens, return top 5 ideas
-/wf-quick ideate performance 20  # performance lens, top 20
+/wf intake ideate security        # focus on the security lens only
+/wf intake ideate dx 5            # DX lens, return top 5 ideas
+/wf intake ideate performance 20  # performance lens, top 20
 ```
 
 Output goes to `.ai/ideation/<focus>-<timestamp>.md`. Use `AskUserQuestion` to select which ideas to act on; the command gives you the exact `/wf intake` command for each selected idea.
@@ -699,7 +699,7 @@ The citation index gives you 200+ sources to cite in `po-answers.md` when the re
 ### … handle a production incident
 
 ```
-/wf-quick hotfix auth tokens expiring after deploy
+/wf intake hotfix auth tokens expiring after deploy
 ```
 
 Starts a compressed incident-response workflow: derives the slug (`hotfix-auth-tokens-expiring-after-deploy`), asks **at most 3 questions** (what's broken, impact scope, recent changes), creates a dedicated `hotfix/<slug>` branch from production, then launches parallel Explore sub-agents for root-cause diagnosis and blast-radius mapping.
@@ -707,7 +707,7 @@ Starts a compressed incident-response workflow: derives the slug (`hotfix-auth-t
 The pipeline compresses 10 stages into 6 — **brief → diagnose → plan → implement → verify → ship** — with a hard scope lock: the plan is limited to 5 steps maximum, and any change beyond the identified root cause requires explicit approval. If the fix requires touching more than 3 files or any architectural changes, the command stops and recommends escalating to `/wf intake`.
 
 ```
-/wf-quick hotfix hotfix-auth-tokens-slug   # resume an in-progress hotfix
+/wf intake hotfix hotfix-auth-tokens-slug   # resume an in-progress hotfix
 ```
 
 Artifacts land in `.ai/workflows/hotfix-<slug>/` alongside normal workflows.
@@ -715,10 +715,10 @@ Artifacts land in `.ai/workflows/hotfix-<slug>/` alongside normal workflows.
 ### … update dependencies
 
 ```
-/wf-quick update-deps                 # scan and update all deps
-/wf-quick update-deps react           # update a single package
-/wf-quick update-deps --security-only # update only CVE-affected packages
-/wf-quick update-deps --audit-only    # scan and plan without implementing
+/wf intake update-deps                 # scan and update all deps
+/wf intake update-deps react           # update a single package
+/wf intake update-deps --security-only # update only CVE-affected packages
+/wf intake update-deps --audit-only    # scan and plan without implementing
 ```
 
 Scans all package manifests, then launches **parallel web research sub-agents** (one batch per 3–5 packages) that check latest versions, breaking changes, migration guides, CVEs, and upgrade gotchas. Updates are grouped by risk tier and implemented in order:
@@ -732,7 +732,7 @@ Scans all package manifests, then launches **parallel web research sub-agents** 
 
 Never mixes tiers in a single commit. If a P2 batch update breaks tests, it bisects to the culprit and marks it blocked without touching application code.
 
-Artifacts land in `.ai/dep-updates/<run-id>/` (separate from workflow directories).
+Artifacts land in the standard `.ai/workflows/<slug>/` tree as a compressed standard lifecycle (`01-update-deps` → `02-shape` → `03-slice` → `04-plan` → self-authored `05`/`06` → `/wf review`). Legacy runs under `.ai/dep-updates/<run-id>/` still render for back-compat.
 
 ### … audit and update documentation
 
@@ -761,8 +761,8 @@ For `slug` mode, the orchestrator reads the workflow's `02-shape.md → ## Docum
 ### … refactor safely
 
 ```
-/wf-quick refactor extract auth logic into service layer
-/wf-quick refactor simplify deeply nested payment validation
+/wf intake refactor extract auth logic into service layer
+/wf intake refactor simplify deeply nested payment validation
 ```
 
 Structures a refactoring session around a non-negotiable constraint: **external behavior must be identical before and after**. The pipeline is:
@@ -826,9 +826,9 @@ All require project design context (`PRODUCT.md` + `DESIGN.md`) established by `
 
 | Command | Purpose |
 |---|---|
-| `/wf-quick ideate [focus-area] [count]` | Scan codebase with 6 parallel lenses, generate 30+ candidates, adversarially filter, rank survivors — produces `.ai/ideation/` artifact ready for `/wf intake` |
-| `/wf-quick discover <hypothesis>` | Hypothesis-test — adjudicates a code-level theory ("the rate-limiter is a token bucket in `middleware/`") with FOR / AGAINST / counter-hypothesis sub-agents. Verdict: `holds` / `partial` / `fails` / `inconclusive`, with cited evidence. Different from `/wf-meta how` (which explains code) and from `/wf-quick rca` (which starts from a symptom, not a theory). |
-| `/wf-quick investigate <problem>` | Solution-options sketcher — takes a code-level problem ("checkout p99 is 2s", "auth flow brittle under concurrent writes") and produces 2–3 distinct engineering approaches with tradeoffs (effort, blast radius, reversibility, top risks). No winner picked — you pick, then route to `/wf-quick fix` (small) or `/wf intake` (medium+). Different from `/wf shape` which commits to one design. |
+| `/wf intake ideate [focus-area] [count]` | Scan codebase with 6 parallel lenses, generate 30+ candidates, adversarially filter, rank survivors — produces `.ai/ideation/` artifact ready for `/wf intake` |
+| `/wf intake discover <hypothesis>` | Hypothesis-test — adjudicates a code-level theory ("the rate-limiter is a token bucket in `middleware/`") with FOR / AGAINST / counter-hypothesis sub-agents. Verdict: `holds` / `partial` / `fails` / `inconclusive`, with cited evidence. Different from `/wf-meta how` (which explains code) and from `/wf intake rca` (which starts from a symptom, not a theory). |
+| `/wf intake investigate <problem>` | Solution-options sketcher — takes a code-level problem ("checkout p99 is 2s", "auth flow brittle under concurrent writes") and produces 2–3 distinct engineering approaches with tradeoffs (effort, blast radius, reversibility, top risks). No winner picked — you pick, then route to `/wf intake fix` (small) or `/wf intake` (medium+). Different from `/wf shape` which commits to one design. |
 | `/wf-meta how <question>` | Auto-route question across 5 modes: quick code answer (A), codebase exploration (B), deep web research (C), workflow artifact explanation (D), or findings explanation (E) |
 | `/wf-meta how <slug> plan\|shape\|slice\|review\|findings` | Shortcut to Mode D or E — explain a specific workflow artifact or findings set for the given slug |
 | `/wf-meta how --research <question>` | Force Mode C — commission 6–8 parallel web research agents targeting 200+ sources |
@@ -850,10 +850,10 @@ Self-contained workflows with their own lifecycle that do not require an existin
 
 | Command | Purpose | Artifact location |
 |---|---|---|
-| `/wf-quick hotfix <description>` | Compressed incident-response pipeline (6 stages, scope-locked, max 5 steps) | `.ai/workflows/hotfix-<slug>/` |
-| `/wf-quick update-deps [package\|--security-only\|--audit-only]` | Scan all deps for staleness and CVEs, research each via web search, update by risk tier | `.ai/dep-updates/<run-id>/` |
+| `/wf intake hotfix <description>` | Compressed incident-response *standard* lifecycle (every stage single-pass, scope-locked, max 5 steps; review defaults to security) | `.ai/workflows/<slug>/` |
+| `/wf intake update-deps [package\|--security-only\|--audit-only]` | Scan all deps for staleness and CVEs, research each via web search, update by risk tier (self-authors execution, then `/wf review`) | `.ai/workflows/<slug>/` |
 | `/wf-docs [<primitive>\|slug\|--audit-only\|path]` | Documentation router: orchestrator pipeline (discover → audit → plan → generate → review) or single Diátaxis primitive (plan, tutorial, how-to, reference, explanation, readme, review) | `.ai/docs/<run-id>/` (orchestrator) or in-place (primitive) |
-| `/wf-quick refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
+| `/wf intake refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
 
 ### Review domains (31 dimensions)
 
@@ -1060,11 +1060,11 @@ All artifacts for a workflow live under a single directory:
 │   ├── 90-how-<topic>.md                # Written by wf-how (Modes A/D) — codebase/artifact explanations
 │   ├── 90-findings-explain.md           # Written by wf-how (Mode E) — findings explanation
 │   └── po-answers.md                    # Cumulative product-owner answers log
-├── ideation/
-│   └── <focus>-<timestamp>.md           # Written by wf-ideate — ranked improvement candidates
+├── ideation/                           # LEGACY — pre-v9.86 wf-ideate runs (new runs root an in-slug type:workflow-index)
+│   └── <focus>-<timestamp>.md           # Ranked improvement candidates (still rendered for back-compat)
 ├── research/
 │   └── <topic>-<timestamp>.md           # Written by wf-how (Modes B/C) — codebase and web research
-├── dep-updates/<run-id>/
+├── dep-updates/<run-id>/                # LEGACY — pre-v9.86 update-deps runs (new runs write in-slug standard artifacts)
 │   ├── scan.md                          # Dependency inventory and audit results
 │   ├── research.md                      # Per-package web research findings + priority groups
 │   ├── plan.md                          # Update plan by risk tier (P0 security → P1 major → P2 safe → hold)
@@ -1078,7 +1078,7 @@ All artifacts for a workflow live under a single directory:
     └── 08b-docs-index.md                # Compact docs run index rendered by the sunflower view
 ```
 
-Hotfix and refactor workflows use the standard `.ai/workflows/` tree with `workflow-type: hotfix` or `workflow-type: refactor` in `00-index.md` frontmatter, and `hf-`/`rf-` prefixed artifact names instead of numbered stage files.
+Hotfix and refactor workflows use the standard `.ai/workflows/` tree with `workflow-type: hotfix` or `workflow-type: refactor` in `00-index.md` frontmatter, and **standard numbered stage files** (`01-hotfix.md`/`01-refactor.md` → `02-shape.md` → `03-slice.md` → `04-plan.md` → …) as compressed standard lifecycles. (Legacy pre-v9.86 slugs may carry `hf-`/`rf-` prefixed artifacts; those still render for back-compat.)
 
 Every file starts with YAML frontmatter (`schema: sdlc/v1`) containing all machine-readable state. Commit these files alongside your code — they form a permanent, queryable record of how and why a change was made.
 

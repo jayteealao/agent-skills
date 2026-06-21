@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -110,7 +110,7 @@
 
 <p>A <strong>slug</strong> (<a href="../reference/glossary.html">glossary</a>) is the short identifier for a workflow, like <code>auth-refresh</code> or <code>payment-retry</code>. Each workflow stores its definition in a set of <strong>artifacts</strong> (<a href="../reference/glossary.html">glossary</a>) — the markdown files in <code>.ai/</code> that record the shape, plan, and implementation notes for that slug.</p>
 
-<p>When a review or retro reveals that an acceptance criterion was incorrect, or that the approach relied on something that does not exist, use <code>/wf-meta amend</code>. It writes versioned amendment files alongside the originals — for example, <code>02-shape-amend-1.md</code> and <code>03-slice-auth-refresh-amend-1.md</code> — and never overwrites artifacts that were already completed.</p>
+<p>When a review or retro reveals that an acceptance criterion was incorrect, or that the approach relied on something that does not exist, use <code>/wf-meta amend</code>. It writes versioned amendment files alongside the originals — for example, <code>02-shape-amend-1.md</code> and <code>03-slice-&lt;slice-slug&gt;-amend-1.md</code> (where <code>&lt;slice-slug&gt;</code> is the individual slice identifier, not the workflow slug) — and never overwrites artifacts that were already completed.</p>
 
 <pre><code>/wf-meta amend auth-refresh from-review    # seeds the correction from 07-review findings
 /wf-meta amend auth-refresh from-retro     # seeds from 10-retro.md
@@ -154,7 +154,7 @@
 <div class="related">
 <h3>Where next</h3>
 <ul>
-  <li><a href="../reference/commands.html">See the full /wf-meta amend argument list →</a></li>
+  <li><a href="../reference/wf-meta.html#amend">See the full /wf-meta amend argument list →</a></li>
   <li><a href="triage-pr-comments.html">Handle PR comments that route to amend or extend →</a></li>
   <li><a href="../reference/glossary.html">Look up slug, artifact, slice, and other terms →</a></li>
 </ul>

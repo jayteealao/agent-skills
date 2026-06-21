@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -96,13 +96,13 @@
 <h1>Quick-fix walkthrough</h1>
 
 
-<p class="lede">You have a one-line fix — a typo, a wrong constant, a missing null check. You want it done in minutes, not hours, but you still want a record of what changed and why. <code>/wf-quick</code> is the fast path: it skips the deep planning stages of the full <a href="../reference/glossary.html#command">command</a> <code>/wf</code> and leaves three <a href="../reference/glossary.html#artifact">artifacts</a> (workflow notes) instead of twelve.</p>
+<p class="lede">You have a one-line fix — a typo, a wrong constant, a missing null check. You want it done in minutes, not hours, but you still want a record of what changed and why. <code>/wf intake fix</code> is the fast path: it is a <strong>compressed standard lifecycle</strong> — it runs <em>every</em> SDLC stage in a single lightweight pass (skipping none), recording a full intake → shape → slice → plan lifecycle, then hands off to the standard <code>/wf implement</code> → <code>/wf verify</code> → <code>/wf review</code> chain. You get the full quality trail of the long <a href="../reference/glossary.html#command">command</a> <code>/wf</code> without its multi-day ceremony.</p>
 
 <div class="summary">
 <table>
 <tr><th>Pre-conditions</th><td>The plugin is installed (<a href="installation.html">install tutorial</a>). You have identified a small, bounded change — one file, one problem.</td></tr>
-<tr><th>You will produce</th><td><code>.ai/workflows/typo-invalid-payload/00-index.md</code>, <code>01-fix.md</code>, and <code>05-implement.md</code>.</td></tr>
-<tr><th>You will not produce</th><td>A shape, slice, plan, verify, or review artifact. The fast path trades that depth for speed.</td></tr>
+<tr><th>You will produce</th><td>The planning set <code>.ai/workflows/typo-invalid-payload/00-index.md</code> (a full <code>type: index</code> overview), <code>01-fix.md</code> (<code>type: intake</code>), <code>02-shape.md</code>, <code>03-slice.md</code>, and <code>04-plan.md</code> — then <code>05-implement.md</code> (and review) as the standard chain runs.</td></tr>
+<tr><th>What's compressed</th><td>Each stage is single-pass and the whole fix is one un-suffixed slice — no stage is skipped, just expedited. A gate prompts you before implementation begins.</td></tr>
 <tr><th>Time</th><td>Roughly 5–10 minutes for a real one-line fix.</td></tr>
 </table>
 </div>
@@ -117,13 +117,13 @@ throw new Error("Recieved invalid payload");
 // after
 throw new Error("Received invalid payload");</code></pre>
 
-<p>This is textbook: low risk, one file, one line, easy to verify. It belongs on <code>/wf-quick fix</code>, not the full pipeline.</p>
+<p>This is textbook: low risk, one file, one line, easy to verify. It belongs on <code>/wf intake fix</code>, not the full pipeline.</p>
 
 <h2>Step 1 — Start the quick-fix workflow</h2>
 
 <p>Type this in your Claude Code session:</p>
 
-<pre><code>/wf-quick fix "typo in invalid-payload error message"</code></pre>
+<pre><code>/wf intake fix "typo in invalid-payload error message"</code></pre>
 
 <p>Claude asks two or three focused questions — which file, what the exact change is, whether a test needs updating. Answer them. Claude then creates two files under <code>.ai/workflows/typo-invalid-payload/</code>:</p>
 
@@ -134,10 +134,17 @@ throw new Error("Received invalid payload");</code></pre>
 <p><strong>What <code>00-index.md</code> looks like:</strong></p>
 
 <pre><code>---
+schema: sdlc/v1
+type: index
 slug: typo-invalid-payload
+title: "typo in invalid-payload error message"
 workflow-type: fix
-status: in-progress
-created: 2026-06-09
+status: active
+current-stage: plan
+stage-number: 4
+created-at: "2026-06-09T00:00:00Z"
+updated-at: "2026-06-09T00:00:00Z"
+# ... full 22-field index — see 00-index schema reference
 ---
 # typo-invalid-payload
 
@@ -146,10 +153,22 @@ One-line spelling fix in the invalid-payload error message in src/api/parser.js.
 <p><strong>What <code>01-fix.md</code> looks like:</strong></p>
 
 <pre><code>---
-type: fix-plan
+schema: sdlc/v1
+type: intake
 slug: typo-invalid-payload
+workflow-type: fix
+status: complete
+stage-number: 1
+created-at: "2026-06-09T00:00:00Z"
+updated-at: "2026-06-09T00:00:00Z"
+tags: []
+refs:
+  index: 00-index.md
+  next: 02-shape.md
+next-command: wf-shape
+next-invocation: "/wf shape typo-invalid-payload"
 ---
-# Fix plan — typo-invalid-payload
+# Fix brief — typo-invalid-payload
 
 ## Problem
 `src/api/parser.js` line 42 spells "Recieved" instead of "Received" in the
@@ -166,17 +185,20 @@ thrown Error message. This surfaces directly to API consumers.
 2. Existing tests continue to pass.
 3. No behaviour change.</code></pre>
 
-<p>The fix-plan skips the deep requirements interview that <code>/wf shape</code> runs. For a spelling fix the acceptance criteria are obvious, so Claude inlines them rather than walking through the full shape interview.</p>
+<p>The compressed fix runs a lightweight shape rather than the deep requirements interview that the full <code>/wf shape</code> stage runs. For a spelling fix the acceptance criteria are obvious, so Claude captures them in a single pass (a real <code>02-shape.md</code>) instead of walking through the full shape interview — the stage is expedited, not skipped.</p>
 
 <h2>Step 2 — Implement</h2>
 
 <pre><code>/wf implement typo-invalid-payload</code></pre>
 
-<p>The <code>implement</code> sub-command (a stage under the full <code>/wf</code> command) reads <code>01-fix.md</code> directly, makes the edit, runs your test command, and commits. It knows this is a quick-fix workflow because of the <code>workflow-type: fix</code> field in <code>00-index.md</code>, so it writes a single implement artifact rather than one per slice:</p>
+<p>The <code>implement</code> sub-command (a stage under the full <code>/wf</code> command) reads the un-suffixed <code>04-plan.md</code> (with <code>01-fix.md</code>, <code>02-shape.md</code>, and <code>03-slice.md</code> for context), makes the edit, runs your test command, and commits. It recognizes the compressed change-mode from the <code>workflow-type: fix</code> field in <code>00-index.md</code>, so it reads the single un-suffixed slice and writes one <code>05-implement.md</code> rather than per-slice files:</p>
 
 <pre><code>.ai/workflows/typo-invalid-payload/
   00-index.md
   01-fix.md
+  02-shape.md
+  03-slice.md
+  04-plan.md
   05-implement.md  ← added now</code></pre>
 
 <p><strong>What <code>05-implement.md</code> looks like:</strong></p>
@@ -196,7 +218,17 @@ npm test — 47 passed, 0 failed
 ## Commit
 fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pre>
 
-<h2>Step 3 — Handoff or commit directly</h2>
+<h2>Step 3 — Verify and review</h2>
+
+<pre><code>/wf verify typo-invalid-payload</code></pre>
+
+<p>Verify exercises the acceptance criteria from <code>02-shape.md</code> — runs your test command, checks the spelling fix, and records evidence in <code>06-verify.md</code>. If any check fails, verify runs a single-round, user-gated fix loop before proceeding.</p>
+
+<pre><code>/wf review typo-invalid-payload</code></pre>
+
+<p>Review dispatches the relevant dimension sub-agents (correctness, testing) and triages findings with you inline. Fix decisions are handled within the review stage itself. The result is <code>07-review.md</code> with a <code>verdict: ship | ship-with-caveats | dont-ship</code>.</p>
+
+<h2>Step 4 — Handoff or commit directly</h2>
 
 <p>For a one-liner on a shared branch you may not need a separate PR. Set <code>branch-strategy: none</code> during step 1 and the workflow stops here — the commit is the deliverable.</p>
 
@@ -206,7 +238,7 @@ fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pr
 
 <p>This opens a PR. The PR readiness check (commitlint, surface drift, doc-mirror, triage, rebase, live check) still runs. The fast path reduces the artifact count up front; it does not bypass quality gates on the way out.</p>
 
-<h2>When NOT to use <code>/wf-quick fix</code></h2>
+<h2>When NOT to use <code>/wf intake fix</code></h2>
 
 <ul>
   <li><strong>The change touches behaviour.</strong> A fix that changes what a function returns is not a one-liner. Use <code>/wf intake</code> to get a real shape.</li>
@@ -214,22 +246,22 @@ fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pr
   <li><strong>You want a retrospective.</strong> Quick-fix workflows do not get a retro by default. Use <code>/wf</code> if the lesson-learning matters.</li>
 </ul>
 
-<h2>Other quick commands</h2>
+<h2>The other intake modes and standalone flows</h2>
 
-<p><code>/wf-quick</code> has nine sub-commands beyond <code>fix</code>. Each one is a focused fast path — smaller artifact footprint than the full pipeline, but still leaving a record:</p>
+<p>Each is a focused fast path — smaller artifact footprint than the full pipeline, but still leaving a record:</p>
 
 <table>
 <thead><tr><th>Command</th><th>For</th><th>What it produces</th></tr></thead>
 <tbody>
-<tr><td><code>/wf-quick hotfix</code></td><td>Production incident — must ship in minutes</td><td>6-stage artifact trail, scope-locked, skips review</td></tr>
-<tr><td><code>/wf-quick rca</code></td><td>Root-cause analysis from code and git history (static — no running app needed)</td><td>Single artifact; recommends <code>/wf plan</code>, <code>/wf-quick fix</code>, or <code>hotfix</code> as next step</td></tr>
-<tr><td><code>/wf-quick probe</code></td><td>Runtime-truth check — drives the running artifact and compares output against acceptance criteria</td><td>Evidence directory + findings artifact (slug required)</td></tr>
-<tr><td><code>/wf-quick investigate</code></td><td>Sketch 2–3 distinct engineering approaches with tradeoffs before committing to one</td><td>Single artifact with options A/B/C; no winner picked — you choose, then route to <code>/wf-quick fix</code> or <code>/wf intake</code></td></tr>
-<tr><td><code>/wf-quick discover</code></td><td>Test a theory about how the codebase works against real evidence</td><td>Single artifact with verdict: holds / partial / fails / inconclusive</td></tr>
-<tr><td><code>/wf-quick update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>4-stage trail under <code>.ai/dep-updates/&lt;run-id&gt;/</code></td></tr>
-<tr><td><code>/wf-quick refactor</code></td><td>Behaviour-preserving refactor with test baseline capture and re-verification</td><td>Stage-locked: baseline → refactor → re-verify</td></tr>
-<tr><td><code>/wf-quick ideate</code></td><td>Brainstorm and rank improvement candidates</td><td>Single artifact under <code>ideation/</code></td></tr>
-<tr><td><code>/wf-quick simplify</code></td><td>Three-agent triage of a branch, commit, plan, or codebase — routes findings, never writes code</td><td>Routing report under <code>simplify/</code></td></tr>
+<tr><td><code>/wf intake hotfix</code></td><td>Production incident — must ship in minutes</td><td>Full lifecycle single-pass, scope-locked; review defaults to security</td></tr>
+<tr><td><code>/wf intake rca</code></td><td>Root-cause analysis from code and git history (static — no running app needed)</td><td><code>01-rca.md</code>, <code>02-shape.md</code> (synthesized minimal shape for <code>/wf plan</code>), <code>00-index.md</code>; recommends <code>/wf plan</code>, <code>/wf intake fix</code>, or <code>/wf intake hotfix</code> as next step</td></tr>
+<tr><td><code>/wf probe</code></td><td>Runtime-truth check — drives the running artifact and compares output against acceptance criteria</td><td>Evidence directory + findings artifact (slug required)</td></tr>
+<tr><td><code>/wf intake investigate</code></td><td>Sketch 2–3 distinct engineering approaches with tradeoffs before committing to one</td><td>Single artifact with options A/B/C; no winner picked — you choose, then route to <code>/wf intake fix</code> or <code>/wf intake</code></td></tr>
+<tr><td><code>/wf intake discover</code></td><td>Test a theory about how the codebase works against real evidence</td><td>Single artifact with verdict: holds / partial / fails / inconclusive</td></tr>
+<tr><td><code>/wf intake update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>Standard lifecycle in-slug under <code>.ai/workflows/&lt;slug&gt;/</code></td></tr>
+<tr><td><code>/wf intake refactor</code></td><td>Behaviour-preserving refactor with test baseline capture and re-verification</td><td>Stage-locked: baseline → refactor → re-verify</td></tr>
+<tr><td><code>/wf intake ideate</code></td><td>Brainstorm and rank improvement candidates</td><td><code>01-ideate.md</code> (type: ideation, ranked candidates + adversarial filter log) + <code>00-index.md</code> (type: workflow-index) under <code>.ai/workflows/&lt;slug&gt;/</code></td></tr>
+<tr><td><code>/wf simplify</code></td><td>Three-agent triage of a branch, commit, plan, or codebase — routes findings, never writes code</td><td>Routing report under <code>simplify/</code></td></tr>
 </tbody>
 </table>
 

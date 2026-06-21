@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -99,7 +99,7 @@
 
 <div class="summary">
 <table>
-<tr><th>Source of truth</th><td>The admitted types are the <code>oneOf</code> branches in <code>tests/frontmatter.schema.json</code>. The fragment column marks which types carry a fragment-bearing renderer; the <strong>enforced</strong> rich-tier set — whose <code>.md</code> writes <em>hard-block</em> (exit 2) without a sibling <code>.yaml</code> — is <code>RICH_TIER_TYPES</code> in <code>hooks/post-write-verify.mjs</code>: review, plan, design, ship-run, rca, benchmark, experiment, instrument, profile, simplify-run, review-command, design-audit, design-critique (13).</td></tr>
+<tr><th>Source of truth</th><td>The admitted types are the <code>oneOf</code> branches in <code>tests/frontmatter.schema.json</code>. The fragment column marks which types carry a fragment-bearing renderer; the <strong>enforced</strong> rich-tier set — whose <code>.md</code> writes <em>hard-block</em> (exit 2) without a sibling <code>.yaml</code> — is <code>RICH_TIER_TYPES</code> in <code>hooks/post-write-verify.mjs</code>: review, plan, design, ship-run, rca, benchmark, experiment, instrument, profile, simplify-run, review-command, design-audit, design-critique, design-contract (14). Note: design-contract is reminder-gated only; it is NOT in SIBLING_YAML_VALIDATED_TYPES.</td></tr>
 <tr><th>Dispatch</th><td>By frontmatter <code>type</code> → <code>renderers/&lt;type&gt;.mjs</code>. A type with no matching file falls through to the generic <code>fallbackRender</code>.</td></tr>
 <tr><th>Schema</th><td>All types use <code>schema: sdlc/v1</code>.</td></tr>
 </table>
@@ -146,7 +146,7 @@
 <tr><td><code>design-contract</code></td><td><code>/wf design craft</code></td><td><code>02c-craft.md</code></td><td>design-contract.mjs</td><td>yes</td></tr>
 <tr><td><code>design-critique</code></td><td><code>/wf design critique</code></td><td><code>07-design-critique.md</code></td><td>design-critique.mjs</td><td>yes</td></tr>
 <tr><td><code>design-audit</code></td><td><code>/wf design audit</code></td><td><code>07-design-audit.md</code></td><td>design-audit.mjs</td><td>yes</td></tr>
-<tr><td><code>design-augmentation</code></td><td><code>/wf design</code> (sub-command)</td><td><code>augmentations/&lt;id&gt;.md</code></td><td>design-add-on.mjs</td><td>—</td></tr>
+<tr><td><code>design-augmentation</code></td><td><code>/wf design</code> (sub-command)</td><td><code>design-notes/&lt;sub-command&gt;-&lt;timestamp&gt;.md</code></td><td>design-augmentation.mjs</td><td>—</td></tr>
 </tbody>
 </table>
 
@@ -157,13 +157,13 @@
 <table>
 <thead><tr><th>type</th><th>producer</th><th>storage path</th><th>renderer</th><th>fragment?</th></tr></thead>
 <tbody>
-<tr><td><code>augmentation</code></td><td><code>/wf instrument|experiment|benchmark</code></td><td><code>augmentations/&lt;id&gt;.md</code></td><td>add-on.mjs <small>(dispatches to subtype)</small></td><td>via subtype</td></tr>
+<tr><td><code>augmentation</code></td><td><code>/wf instrument|experiment|benchmark</code></td><td><code>augmentations/&lt;id&gt;.md</code></td><td>augmentation.mjs <small>(dispatches to subtype)</small></td><td>via subtype</td></tr>
 <tr><td><code>instrument</code> <small>(add-on-type)</small></td><td><code>/wf instrument</code></td><td><code>04b-instrument.md</code> + <code>.yaml</code></td><td>instrument.mjs</td><td>yes</td></tr>
 <tr><td><code>experiment</code> <small>(add-on-type)</small></td><td><code>/wf experiment</code></td><td><code>04c-experiment.md</code> + <code>.yaml</code></td><td>experiment.mjs</td><td>yes</td></tr>
 <tr><td><code>benchmark</code> <small>(add-on-type)</small></td><td><code>/wf benchmark</code></td><td><code>05c-benchmark.md</code> + <code>.yaml</code></td><td>benchmark.mjs</td><td>yes</td></tr>
 <tr><td><code>profile</code></td><td><code>/wf profile</code></td><td><code>.ai/profiles/&lt;run-id&gt;/01-profile.md</code></td><td>profile.mjs</td><td>yes</td></tr>
-<tr><td><code>rca</code></td><td><code>/wf-quick rca</code></td><td><code>01-rca.md</code> (under the run slug)</td><td>rca.mjs</td><td>yes</td></tr>
-<tr><td><code>simplify-run</code></td><td><code>/wf-quick simplify</code> (standalone)</td><td><code>.ai/simplify/&lt;run-id&gt;.md</code></td><td>simplify-run.mjs</td><td>yes</td></tr>
+<tr><td><code>rca</code></td><td><code>/wf intake rca</code></td><td><code>01-rca.md</code> (under the run slug)</td><td>rca.mjs</td><td>yes</td></tr>
+<tr><td><code>simplify-run</code></td><td><code>/wf simplify</code> (standalone)</td><td><code>.ai/workflows/&lt;slug&gt;/01-simplify.md</code> (new) · <code>.ai/simplify/&lt;run-id&gt;.md</code> (legacy)</td><td>simplify-run.mjs</td><td>yes</td></tr>
 <tr><td><code>docs-index</code></td><td><code>/wf-docs</code></td><td><code>.ai/docs/&lt;run-id&gt;/08b-docs-index.md</code></td><td>docs-index.mjs</td><td>yes</td></tr>
 <tr><td><code>docs-discover</code></td><td><code>/wf-docs</code> (step 1)</td><td><code>.ai/docs/&lt;run-id&gt;/discover.md</code></td><td>docs-discover.mjs</td><td>—</td></tr>
 <tr><td><code>docs-audit</code></td><td><code>/wf-docs</code> (step 2)</td><td><code>.ai/docs/&lt;run-id&gt;/audit.md</code></td><td>docs-audit.mjs</td><td>—</td></tr>
@@ -172,44 +172,36 @@
 </tbody>
 </table>
 
-<h2>Quick &amp; mini-pipeline lanes</h2>
+<h2>Change-mode lanes &amp; the <code>/wf-meta close</code> record</h2>
 
-<p>The compressed <code>/wf-quick</code> lanes and the <code>/wf-meta close</code> record, all under <code>.ai/workflows/&lt;slug&gt;/</code>. Hotfix and refactor are mini-pipelines, so their steps render under a grouped <code>hotfix/</code> or <code>refactor/</code> view subtree.</p>
+<p>As of v9.86.0 the <code>/wf intake</code> change-modes (<code>fix</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>) are <strong>compressed standard lifecycles</strong>: they run every stage single-pass and write the <em>standard</em> types (<code>intake</code>, <code>shape</code>, <code>slice-index</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>) under <code>.ai/workflows/&lt;slug&gt;/</code> — the lead is <code>01-&lt;mode&gt;.md</code> with <code>type: intake</code>. The <code>discover</code> / <code>investigate</code> lead artifacts and the <code>/wf-meta close</code> record remain as below.</p>
 
 <table>
 <thead><tr><th>type</th><th>producer</th><th>storage path</th><th>renderer</th><th>fragment?</th></tr></thead>
 <tbody>
-<tr><td><code>discover</code></td><td><code>/wf-quick discover</code></td><td><code>01-discover.md</code></td><td>discover.mjs</td><td>—</td></tr>
-<tr><td><code>fix-plan</code></td><td><code>/wf-quick fix</code></td><td><code>01-fix.md</code></td><td>fix-plan.mjs</td><td>—</td></tr>
-<tr><td><code>investigate</code></td><td><code>/wf-quick investigate</code></td><td><code>01-investigate.md</code></td><td>investigate.mjs</td><td>—</td></tr>
-<tr><td><code>hf-brief</code></td><td><code>/wf-quick hotfix</code></td><td><code>hf-brief.md</code></td><td>hf-brief.mjs</td><td>—</td></tr>
-<tr><td><code>hf-plan</code></td><td><code>/wf-quick hotfix</code></td><td><code>hf-plan.md</code></td><td>hf-plan.mjs</td><td>—</td></tr>
-<tr><td><code>hf-implement</code></td><td><code>/wf-quick hotfix</code></td><td><code>hf-implement.md</code></td><td>hf-implement.mjs</td><td>—</td></tr>
-<tr><td><code>hf-verify</code></td><td><code>/wf-quick hotfix</code></td><td><code>hf-verify.md</code></td><td>hf-verify.mjs</td><td>—</td></tr>
-<tr><td><code>rf-brief</code></td><td><code>/wf-quick refactor</code></td><td><code>rf-brief.md</code></td><td>rf-brief.mjs</td><td>—</td></tr>
-<tr><td><code>rf-baseline</code></td><td><code>/wf-quick refactor</code></td><td><code>rf-baseline.md</code></td><td>rf-baseline.mjs</td><td>—</td></tr>
-<tr><td><code>rf-plan</code></td><td><code>/wf-quick refactor</code></td><td><code>rf-plan.md</code></td><td>rf-plan.mjs</td><td>—</td></tr>
-<tr><td><code>rf-implement</code></td><td><code>/wf-quick refactor</code></td><td><code>rf-implement.md</code></td><td>rf-implement.mjs</td><td>—</td></tr>
-<tr><td><code>rf-verify</code></td><td><code>/wf-quick refactor</code></td><td><code>rf-verify.md</code></td><td>rf-verify.mjs</td><td>—</td></tr>
+<tr><td><code>discover</code></td><td><code>/wf intake discover</code></td><td><code>01-discover.md</code></td><td>discover.mjs</td><td>—</td></tr>
+<tr><td><code>investigate</code></td><td><code>/wf intake investigate</code></td><td><code>01-investigate.md</code></td><td>investigate.mjs</td><td>—</td></tr>
 <tr><td><code>close-record</code></td><td><code>/wf-meta close</code></td><td><code>99-close.md</code></td><td>close-record.mjs</td><td>—</td></tr>
 </tbody>
 </table>
 
-<h2>Off-pipeline run roots</h2>
+<h3>Retired bespoke types (legacy — back-compat only)</h3>
 
-<p>Discovered from their own roots (added to the walker alongside <code>.ai/simplify/</code> and <code>.ai/profiles/</code>). The five <code>dep-*</code> types are the per-step record of one <code>/wf-quick update-deps</code> run.</p>
+<p>The bespoke pipelines the change-modes used before v9.86.0 — <code>fix-plan</code> (fix), <code>hf-brief</code>/<code>hf-plan</code>/<code>hf-implement</code>/<code>hf-verify</code> (hotfix), <code>rf-brief</code>/<code>rf-baseline</code>/<code>rf-plan</code>/<code>rf-implement</code>/<code>rf-verify</code> (refactor), and the five <code>dep-*</code> types (update-deps) — are <strong>retired</strong>. Their types stay in the schema so existing on-disk artifacts still validate, and their <code>_paths.mjs</code> view-path rows are retained, but <strong>their dedicated renderers were deleted</strong>: a legacy artifact now resolves a view path with no renderer and degrades to <code>fallbackRender</code> (a plain readable page). New runs never write these types.</p>
+
+<h2>Terminal analysis-mode roots</h2>
+
+<p>As of v9.86.0 the terminal analysis modes <code>ideate</code> and <code>simplify</code> root a lightweight <code>type: workflow-index</code> slug workflow with an <code>01-&lt;mode&gt;.md</code> lead under <code>.ai/workflows/&lt;slug&gt;/</code> (the lead keeps its analysis type — <code>ideation</code> / <code>simplify-run</code> — and carries a <code>slug</code>). The legacy off-pipeline roots (<code>.ai/ideation/</code>, <code>.ai/simplify/</code>, <code>.ai/profiles/</code>) are still discovered by the walker, so older runs keep rendering at their original URLs.</p>
 
 <table>
-<thead><tr><th>type</th><th>producer</th><th>storage path</th><th>renderer</th><th>fragment?</th></tr></thead>
+<thead><tr><th>type</th><th>producer</th><th>storage path (new runs)</th><th>renderer</th><th>fragment?</th></tr></thead>
 <tbody>
-<tr><td><code>dep-scan</code></td><td><code>/wf-quick update-deps</code></td><td><code>.ai/dep-updates/&lt;run-id&gt;/scan.md</code></td><td>dep-scan.mjs</td><td>—</td></tr>
-<tr><td><code>dep-research</code></td><td><code>/wf-quick update-deps</code></td><td><code>.ai/dep-updates/&lt;run-id&gt;/research.md</code></td><td>dep-research.mjs</td><td>—</td></tr>
-<tr><td><code>dep-plan</code></td><td><code>/wf-quick update-deps</code></td><td><code>.ai/dep-updates/&lt;run-id&gt;/plan.md</code></td><td>dep-plan.mjs</td><td>—</td></tr>
-<tr><td><code>dep-implement</code></td><td><code>/wf-quick update-deps</code></td><td><code>.ai/dep-updates/&lt;run-id&gt;/implement.md</code></td><td>dep-implement.mjs</td><td>—</td></tr>
-<tr><td><code>dep-verify</code></td><td><code>/wf-quick update-deps</code></td><td><code>.ai/dep-updates/&lt;run-id&gt;/verify.md</code></td><td>dep-verify.mjs</td><td>—</td></tr>
-<tr><td><code>ideation</code></td><td><code>/wf-quick ideate</code></td><td><code>.ai/ideation/&lt;focus&gt;-&lt;ts&gt;.md</code></td><td>ideation.mjs</td><td>—</td></tr>
+<tr><td><code>ideation</code></td><td><code>/wf intake ideate</code></td><td><code>.ai/workflows/&lt;slug&gt;/01-ideate.md</code></td><td>ideation.mjs</td><td>—</td></tr>
+<tr><td><code>simplify-run</code></td><td><code>/wf simplify</code> (standalone)</td><td><code>.ai/workflows/&lt;slug&gt;/01-simplify.md</code></td><td>simplify-run.mjs</td><td>yes</td></tr>
 </tbody>
 </table>
+
+<p>(The five <code>dep-*</code> types that one <code>/wf intake update-deps</code> run used to write under <code>.ai/dep-updates/&lt;run-id&gt;/</code> are retired — see <em>Retired bespoke types</em> above. New update-deps runs write standard in-slug types.)</p>
 
 <h2>Project-level types</h2>
 
@@ -233,7 +225,7 @@
 <tr><td><code>skip-record</code></td><td>Stage skip</td><td><code>skips/&lt;stage&gt;.md</code></td><td>skip-record.mjs</td><td>—</td></tr>
 <tr><td><code>shape-amendment</code></td><td><code>/wf-meta amend</code></td><td><code>amendments/&lt;n&gt;-shape.md</code></td><td>shape-amendment.mjs</td><td>—</td></tr>
 <tr><td><code>slice-amendment</code></td><td><code>/wf-meta amend</code></td><td><code>amendments/&lt;n&gt;-slice.md</code></td><td>slice-amendment.mjs</td><td>—</td></tr>
-<tr><td><code>workflow-index</code></td><td><code>/wf-quick</code>, <code>/wf-meta</code> lanes</td><td><code>00-index.md</code></td><td>workflow-index.mjs</td><td>—</td></tr>
+<tr><td><code>workflow-index</code></td><td><code>/wf intake</code>, <code>/wf-meta</code> lanes</td><td><code>00-index.md</code></td><td>workflow-index.mjs</td><td>—</td></tr>
 </tbody>
 </table>
 

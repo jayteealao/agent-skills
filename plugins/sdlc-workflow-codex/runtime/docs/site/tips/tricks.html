@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -104,7 +104,7 @@
 
 <h2>Re-run handoff to pick up new review-bot comments</h2>
 <p><strong>When:</strong> a PR has been sitting for a day or two and bots have added more feedback since you last triaged.</p>
-<p>Just run <code>/wf handoff &lt;slug&gt;</code> again. Every step is idempotent — only the triage loop re-runs, picking up the new comments. You do not need to replay earlier stages.</p>
+<p>Just run <code>/wf handoff &lt;slug&gt;</code> again. The command is additive — it preserves the prior handoff revision, re-watches CI, runs a fresh triage pass on new comments, and appends a revision section to <code>08-handoff.md</code>. You do not need to replay earlier pipeline stages.</p>
 
 <h2>Explore unfamiliar code before planning</h2>
 <p><strong>When:</strong> you are about to plan a change in a part of the codebase you have not worked in before.</p>
@@ -136,10 +136,10 @@
 <p><strong>When:</strong> the change is a single-file edit that does not need the full scoping interview, but you still want a commit record.</p>
 <p>You can skip straight from intake to plan:</p>
 <pre><code>/wf intake "rename FooBar to FooBaz"
-/wf-meta skip shape &lt;slug&gt;
-/wf-meta skip slice &lt;slug&gt;
+/wf-meta skip &lt;slug&gt; shape
+/wf-meta skip &lt;slug&gt; slice
 /wf plan &lt;slug&gt; default-slice</code></pre>
-<p>Or use <code>/wf-quick fix</code>, which handles the same skip path in one command. If you are unsure which fits, see the entry-point guide linked below.</p>
+<p>Or use <code>/wf intake fix</code>, which handles the same skip path in one command. If you are unsure which fits, see the entry-point guide linked below.</p>
 
 <div class="related">
 <h3>Where next</h3>

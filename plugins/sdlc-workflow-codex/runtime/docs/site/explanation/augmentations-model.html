@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.82.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.88.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -49,7 +49,7 @@
     <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ /wf-quick</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
@@ -124,9 +124,11 @@
 <dt><strong>benchmark</strong> — performance baseline and comparison</dt>
 <dd>Use this when the change could affect performance and you want evidence. Run it before implement to capture a baseline. Run it again after implement to compare. The comparison output feeds into the verify stage's evidence file.</dd>
 
-<dt><strong>profile</strong> — hot-path investigation</dt>
-<dd>The only freestanding add-on. It does not need a slice context and does not register in an index. Use it when you want to understand where time is spent in a named area, independent of any active workflow.</dd>
+<dt><strong>rca</strong> — root-cause analysis</dt>
+<dd>Use this when the cause of a failure or regression is unknown and needs diagnosis before a fix can be planned. Running <code>/wf intake rca &lt;slug&gt;</code> in slug-mode attaches the analysis as an <code>augmentation-type: rca</code> artifact to an existing workflow, registering it in the slice index for downstream stages to pick up.</dd>
 </dl>
+
+<p><strong>Profile</strong> (<code>/wf profile</code>) is a freestanding performance-profiling command — not an augmentation type. It writes to <code>.ai/profiles/</code> rather than a workflow folder and is never registered in a workflow&#39;s <code>augmentations</code> array. Use it when you want to understand where time is spent in a named area, independent of any active workflow.</p>
 
 <h2>How registration works</h2>
 
@@ -166,7 +168,7 @@ flowchart TD
 
 <details>
 <summary>Technical detail: augmentation-type discriminator</summary>
-<p>In the index schema, instrument, experiment, and benchmark share <code>type: augmentation</code> as their top-level type. The specific kind is stored in a separate <code>augmentation-type</code> field. Code that processes augmentations must read <code>augmentation-type</code> to distinguish them — checking <code>type</code> alone is not enough.</p>
+<p>In the index schema, instrument, experiment, benchmark, and rca share <code>type: augmentation</code> as their top-level type. The specific kind is stored in a separate <code>augmentation-type</code> field. Code that processes augmentations must read <code>augmentation-type</code> to distinguish them — checking <code>type</code> alone is not enough.</p>
 </details>
 
 <div class="related">
@@ -174,7 +176,7 @@ flowchart TD
 <ul>
   <li><a href="../how-to/use-augmentations.html">Add an add-on to an active workflow →</a></li>
   <li><a href="../reference/commands.html">See the full add-on command list →</a></li>
-  <li><a href="../explanation/pipeline-overview.html">Understand the stage pipeline add-ons extend →</a></li>
+  <li><a href="../reference/pipeline.html">Understand the stage pipeline add-ons extend →</a></li>
 </ul>
 </div>
 

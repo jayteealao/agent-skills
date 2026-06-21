@@ -27,7 +27,8 @@ The `.ai/` directory tree is the **shared source of truth** for all SDLC workflo
       07-design-audit.md              # design audit augmentation
       08-handoff.md                   # Stage 8
       08b-docs-index.md               # docs run index (optional)
-      09-ship.md                      # Stage 9
+      09-ship-run-<run-id>.md         # Stage 9 (per release)
+      09-ship-runs.md                 # Stage 9 index
       10-retro.md                     # Stage 10
       99-close.md                     # close record (if closed)
       design-notes/                   # design augmentation notes
