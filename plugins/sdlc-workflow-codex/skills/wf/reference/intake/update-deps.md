@@ -65,7 +65,7 @@ next-command: wf-shape
 next-invocation: "$wf shape <slug>"
 ---
 ```
-Body: `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
+Body: open with `## The Dependency Update` — the story section (1–2 short paragraphs in the voice of `../_narrative-voice.md`: relevance first, tradeoffs plain, no "This dependency update implements…" opening) — then `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
 
 # Step 2 — Research + prioritize → `02-shape.md`
 For each package that needs updating, launch parallel web-research sub-agents in batches of 3–5.

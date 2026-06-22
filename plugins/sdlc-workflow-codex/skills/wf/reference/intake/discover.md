@@ -136,6 +136,9 @@ created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
 
 **Body sections (in order):**
 
+## The Discovery
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `../_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This discovery implements…" openings). 1–4 short paragraphs. -->
+
 ## 1. Hypothesis
 
 The hypothesis verbatim, as a falsifiable claim. Add 1–2 sentences of restatement that clarify what would have to be true for it to hold, and what would have to be true for it to fail.

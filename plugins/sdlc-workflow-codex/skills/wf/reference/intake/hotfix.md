@@ -70,7 +70,7 @@ next-command: wf-shape
 next-invocation: "$wf shape <slug>"
 ---
 ```
-Body: `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Recent Changes` (or "none known"). The `## Diagnosis` section is appended after Step 2.
+Body: open with `## The Hotfix` — the story section (1–2 short paragraphs in the voice of `../_narrative-voice.md`: relevance first, tradeoffs plain, no "This hotfix implements…" opening) — then `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Recent Changes` (or "none known"). The `## Diagnosis` section is appended after Step 2.
 
 # Step 2 — Diagnose → `02-shape.md`
 Launch parallel sub-agents to identify root cause. Do not proceed until both complete.

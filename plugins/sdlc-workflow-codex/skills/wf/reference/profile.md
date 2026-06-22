@@ -158,6 +158,9 @@ created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
 **Body — use this exact structure** (downstream commands depend on it):
 
 ```
+## The Profile
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This {NOUN} implements…" openings). 1–4 short paragraphs. -->
+
 ## Profile analysis: <area>
 
 ### Profiling method

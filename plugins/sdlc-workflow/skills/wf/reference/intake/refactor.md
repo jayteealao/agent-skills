@@ -69,7 +69,7 @@ next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 ---
 ```
-Body: `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
+Body: open with `## The Refactor` — the story section (1–2 short paragraphs in the voice of `../_narrative-voice.md`: relevance first, tradeoffs plain, no "This refactor implements…" opening) — then `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
 
 # Step 2 — Baseline → `02-shape.md` (the most important step)
 The baseline captures ground truth before any code change — it IS the shape. Launch parallel sub-agents.

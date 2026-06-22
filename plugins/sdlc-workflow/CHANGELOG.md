@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — narrative voice: a story section that opens every artifact (9.92.0)
+
+Addresses a long-standing complaint that the artifacts read like dead technical documents — accurate, but no story. Every `/wf` artifact now opens with a prose **story section** named after its stage (`## The Plan`, `## The Verification`, …): a self-sufficient lead a reader can read *alone* to understand what was produced, the load-bearing decisions and counts, and the top risk. The structured sections below it stay terse and technical, so the narrative and the reference data stop fighting in one register.
+
+- **One source of truth for the voice.** `skills/wf/reference/_narrative-voice.md` defines the section, names the register (Sebastian Raschka's technical essays, each signature anchored to a real line), lists the craft levers and the banned tells, carries the `## The <Stage>` mapping table, and ships a seven-stage before/after exemplar gallery. Every stage reference and the router's chat-summary rule now point here, so the voice cannot drift across releases.
+- **Story renders first.** A new `renderers/_story.mjs` lifts the leading `## The <Stage>` section out of the body so the doc-site renders it above the figure and the structured cards — and ahead of the narrative fragments at the page foot — with a quiet lead treatment in `assets/sdlc.css`. Artifacts with no story section render exactly as before.
+- **Swept across the lifecycle, both trees.** Every artifact-producing reference gained the story section and had its old "tell the story like a colleague" directive repointed at the voice spec: the ten core stages, `simplify`/`probe`/`ideate`, the four augmentations, the intake modes, and design `audit`/`critique`. The Claude and Codex trees are at content parity.
+
 ### Added — `sdlc-debt:` marker lifecycle: validate (verify) · reconcile (retro) · sweep (simplify) (9.91.0)
 
 Closes the loop the YAGNI ladder (9.90.0) opened. The `sdlc-debt:` markers `wf-implement` writes now have a full lifecycle, with each stage doing a **distinct verb at its own scope** rather than one stage "harvesting" everything:

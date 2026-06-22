@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-77DTUIMN.mjs";
+} from "./chunk-43DNF3XR.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
@@ -16,7 +16,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-FJHPBCUL.mjs";
+} from "./chunk-O3755V4W.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
@@ -442,6 +442,37 @@ function probeServeIdentity({ host, port, timeoutMs }) {
 }
 function displayHost(host) {
   return host === "0.0.0.0" ? "127.0.0.1" : host;
+}
+
+// renderers/_story.mjs
+var H2 = /^##\s+\S/;
+var STORY_H2 = /^##\s+The\s+.+$/;
+var H1_OR_H2 = /^#{1,2}\s+\S/;
+function splitStorySection(body) {
+  if (typeof body !== "string" || body === "") {
+    return { storyMarkdown: "", bodyRest: typeof body === "string" ? body : "" };
+  }
+  const lines = body.split(/\r?\n/);
+  let start = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (H2.test(lines[i])) {
+      start = i;
+      break;
+    }
+  }
+  if (start === -1 || !STORY_H2.test(lines[start])) {
+    return { storyMarkdown: "", bodyRest: body };
+  }
+  let end = lines.length;
+  for (let i = start + 1; i < lines.length; i++) {
+    if (H1_OR_H2.test(lines[i])) {
+      end = i;
+      break;
+    }
+  }
+  const storyMarkdown = lines.slice(start, end).join("\n").trim();
+  const bodyRest = [...lines.slice(0, start), ...lines.slice(end)].join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  return { storyMarkdown, bodyRest };
 }
 
 // scripts/render-sunflower.mjs
@@ -950,13 +981,14 @@ async function renderMain(args) {
       pathMap: pathMaps.get(a.slug),
       mode: args.mode
     };
+    const { storyMarkdown, bodyRest } = splitStorySection(a.body);
     let result;
     try {
       const fn = renderer?.render ?? fallbackRender;
       result = fn({
         type,
         frontmatter: a.frontmatter,
-        body: a.body,
+        body: bodyRest,
         siblingYaml: a.siblingYaml,
         history: a.history,
         fragment: a.fragment,
@@ -964,7 +996,10 @@ async function renderMain(args) {
       }, ctx);
     } catch (err) {
       console.warn(`[render] ${a.storageRel}: ${err.stack ?? err.message}`);
-      result = fallbackRender({ ...a, type, path: a.storageRel }, ctx);
+      result = fallbackRender({ ...a, body: bodyRest, type, path: a.storageRel }, ctx);
+    }
+    if (storyMarkdown) {
+      result.bodyHtml = `<section class="story">${md2html(storyMarkdown)}</section>${result.bodyHtml ?? ""}`;
     }
     result.bodyHtml = rewriteBodyLinks(result.bodyHtml ?? "", {
       pathMap: pathMaps.get(a.slug),

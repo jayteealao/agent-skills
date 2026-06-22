@@ -382,6 +382,7 @@ function* walkViewIndexes(dir) {
 /* ───────────────────────── Generic fallback renderer ───────────────────────── */
 
 import { md2html } from '../renderers/_markdown.mjs';
+import { splitStorySection } from '../renderers/_story.mjs';
 
 function fallbackRender(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
@@ -746,13 +747,20 @@ async function renderMain(args) {
       mode: args.mode,
     };
 
+    // Lift the leading "## The <Stage>" story section out of the body so it
+    // renders FIRST — above the figure and the structured sections — with the
+    // rest of the body following in its normal place. Backward-compatible:
+    // artifacts without a story section leave storyMarkdown === '' and bodyRest
+    // === body, so nothing about their render changes.
+    const { storyMarkdown, bodyRest } = splitStorySection(a.body);
+
     let result;
     try {
       const fn = renderer?.render ?? fallbackRender;
       result = fn({
         type,
         frontmatter: a.frontmatter,
-        body: a.body,
+        body: bodyRest,
         siblingYaml: a.siblingYaml,
         history: a.history,
         fragment: a.fragment,
@@ -760,7 +768,15 @@ async function renderMain(args) {
       }, ctx);
     } catch (err) {
       console.warn(`[render] ${a.storageRel}: ${err.stack ?? err.message}`);
-      result = fallbackRender({ ...a, type, path: a.storageRel }, ctx);
+      result = fallbackRender({ ...a, body: bodyRest, type, path: a.storageRel }, ctx);
+    }
+
+    // Prepend the hoisted story above everything the renderer produced. Done
+    // before rewriteBodyLinks so links inside the story are rewritten too; the
+    // free narrative fragments still append at the very bottom (below), which
+    // keeps them after the story per the artifact-narrative contract.
+    if (storyMarkdown) {
+      result.bodyHtml = `<section class="story">${md2html(storyMarkdown)}</section>${result.bodyHtml ?? ''}`;
     }
 
     // Rewrite inline body links that reference sibling source `.md` files to

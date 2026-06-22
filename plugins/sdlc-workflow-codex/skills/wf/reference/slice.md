@@ -68,7 +68,7 @@ Break a shaped work item into thin, independently verifiable vertical slices. Wr
 
 # Chat return contract
 After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+- **narrative:** the chat summary's lead paragraph, in the artifact's story voice — see [_narrative-voice.md](_narrative-voice.md). Same voice as the artifact's `## The Slices` section: relevance first, tradeoffs stated plainly, no `"This slice breakdown implements…"` openings. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `slug: <slug>`
 - `wrote: <paths>` (list all slice files written)
 - `options:` (list all viable next options — see Adaptive Routing below)
@@ -155,6 +155,9 @@ next-invocation: "$wf plan <slug> <best-first-slice>"
 
 # Slice Index
 
+## The Slices
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This slice breakdown implements…" openings). 1–4 short paragraphs. -->
+
 ## Slice Strategy
 
 ## Recommended Order
@@ -207,6 +210,9 @@ refs:
 ```
 
 # Slice: <slice-name>
+
+## The Slice
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This slice implements…" openings). 1–4 short paragraphs. -->
 
 ## Goal
 

@@ -311,7 +311,7 @@ Verify that the selected slice meets acceptance criteria and is ready for review
 
 # Chat return contract
 After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+- **narrative:** the chat summary's lead paragraph, in the artifact's story voice — see [_narrative-voice.md](_narrative-voice.md). Same voice as the artifact's `## The Verification` section: relevance first, tradeoffs stated plainly, no `"This verification implements…"` openings. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
 - `slug: <slug>`
 - `wrote: <path>`
 - `result: <pass | fail | partial | blocked-runtime-evidence-missing>`
@@ -653,6 +653,9 @@ next-invocation: "/wf review <slug> <slice-slug>"
 - `not-applicable` — slice has no user-observable AC; the gate did not apply.
 
 # Verify: <slice-name>
+
+## The Verification
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This verification implements…" openings). 1–4 short paragraphs. -->
 
 ## Verification Summary
 

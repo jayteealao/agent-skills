@@ -86,7 +86,7 @@ next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 ---
 ```
-Body (tight): `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
+Body (tight): open with `## The Fix` — the story section (1–2 short paragraphs in the voice of `../_narrative-voice.md`: relevance first, tradeoffs plain, no "This fix implements…" opening) — then `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
 
 **`02-shape.md` — `type: shape`:**
 ```yaml
