@@ -91,12 +91,32 @@ const POLICY = {
     `(Fix/Skip/Escalate) and runs exactly ONE fix round per invocation. DO NOT ask. AUTO-SELECT "Fix" for every ` +
     `fixable issue: apply the minimal patch and run that single fix round, recording outcomes in ` +
     `"## Verify-Owned Fixes". If the reference warns the slice was already verified and asks to overwrite, ` +
-    `proceed (re-running is intended). After the one round, set the terminal state HONESTLY: ` +
-    `convergence: not-needed (no issues found) | converged (issues fixed, none remain) | escalated (issues ` +
-    `remain). result: pass | fail | partial | blocked-runtime-evidence-missing. NEVER fabricate runtime ` +
-    `evidence — if a user-observable AC needs interactive proof the environment cannot produce, record ` +
-    `result: blocked-runtime-evidence-missing. Do not weaken the user-observable AC gate. Return status:'complete' ` +
-    `only when convergence ∈ {not-needed, converged} AND result: pass; otherwise return status:'hard-stop'.`,
+    `proceed (re-running is intended).\n\n` +
+    `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence: some user-observable AC need interactive runtime ` +
+    `proof. When — and ONLY when — this environment genuinely CANNOT produce that proof (no emulator/simulator/` +
+    `device, no display/GPU, a required external service / API key / credential is unreachable here, or the ` +
+    `runtime adapter's bootstrap fails and the one fix round cannot repair it), DO NOT cancel the run and NEVER ` +
+    `fabricate evidence. Instead apply verify.md's deferral escape hatch for that AC: set ` +
+    `'interactive-verification: deferred' + 'interactive-verification-defer-reason: "<why this environment cannot ` +
+    `verify it>"' in the per-slice verify frontmatter, register the deferral in 00-index.md ` +
+    `runtime-evidence-deferrals (slice, reason, deferred-at, cleared-by: null), and record it under the slice's ` +
+    `## Acceptance Criteria Status. A deferred AC writes result: partial (NOT blocked-runtime-evidence-missing) ` +
+    `and is NOT a substantive residual — the slice PROCEEDS. The deferral is the safety net, not a weakening of ` +
+    `the gate: it does not block review or handoff, but /wf ship HARD-BLOCKS until a later /wf probe or a ` +
+    `re-verify in a capable environment clears it.\n\n` +
+    `The boundary is STRICT: defer ONLY genuine environmental impossibility, never to dodge verification you ` +
+    `could actually run, and never a SUBSTANTIVE failure. If you DID drive the AC and the behavior is wrong, ` +
+    `that is result: fail (substantive) — never a deferral. A user-observable AC left with neither evidence NOR ` +
+    `a deferral is result: blocked-runtime-evidence-missing and is NOT acceptable to proceed on. Reserve ` +
+    `convergence: escalated for SUBSTANTIVE unresolved issues — a slice whose only residual is deferred-evidence ` +
+    `AC (all checks pass, all code-only AC met, all producible user-observable AC evidenced) is ` +
+    `convergence: converged (or not-needed if no fix was required), NOT escalated.\n\n` +
+    `Set the terminal state HONESTLY: convergence: not-needed | converged | escalated; result: pass | fail | ` +
+    `partial | blocked-runtime-evidence-missing. Report deferrals: [{ac, reason}, ...] for EVERY AC you deferred ` +
+    `(empty list if none), and substantiveResidual: true iff any AC still fails / is partially met for a CODE ` +
+    `reason after the fix round (false when the only residual is deferred-evidence AC). Return status:'complete' ` +
+    `when convergence ∈ {not-needed, converged} AND substantiveResidual is false AND result ∈ {pass, OR partial ` +
+    `with ≥1 recorded deferral}; otherwise return status:'hard-stop'.`,
   review:
     `AUTONOMOUS OVERRIDE — the review reference triages findings via AskUserQuestion (Fix/Defer/Dismiss). DO NOT ` +
     `ask. Decide by the FIX-AS-MUCH-AS-POSSIBLE policy: FIX every BLOCKER, HIGH, and MED finding (MED has NO ` +
@@ -175,6 +195,19 @@ const STAGE_RESULT = {
         result: { type: 'string' },         // verify → pass | fail | partial | blocked-runtime-evidence-missing
         verdict: { type: 'string' },        // review → ship | ship-with-caveats | dont-ship
         blockerCount: { type: 'number' },   // review → metric-findings-blocker (OPEN)
+        // verify → user-observable ACs DEFERRED because the environment genuinely
+        // could not produce runtime evidence (each written as verify.md's
+        // `interactive-verification: deferred` escape hatch + registered in
+        // 00-index.md runtime-evidence-deferrals; /wf ship later blocks on them).
+        deferrals: {
+          type: 'array',
+          items: { type: 'object', properties: { ac: { type: 'string' }, reason: { type: 'string' } } },
+        },
+        // verify → TRUE if any AC still fails / is partially met for a CODE reason
+        // (the behavior is wrong) after the fix round — as opposed to merely lacking
+        // un-producible runtime evidence. This is the load-bearing distinction: a
+        // substantive residual still HARD-STOPs; a pure-deferral residual does not.
+        substantiveResidual: { type: 'boolean' },
       },
     },
     decisions: { type: 'array', items: { type: 'object' } },   // recorded autonomous calls
@@ -307,15 +340,37 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `status:'hard-stop' with hardStopReason.\n\n` +
     `Return the terminal state: stage, slice, status ('complete' when the gate is clean, 'hard-stop' when the ` +
     `policy stopped you), the primary artifactPath, and terminal fields — plan/implement: statusField; verify: ` +
-    `convergence + result; review: verdict + blockerCount (= metric-findings-blocker, OPEN) — plus the decisions ` +
-    `you recorded and any residual (deferred / could-not-fix) findings.`,
+    `convergence + result + deferrals (ACs deferred for un-producible runtime evidence, [] if none) + ` +
+    `substantiveResidual (true iff an AC fails/partials for a CODE reason); review: verdict + blockerCount ` +
+    `(= metric-findings-blocker, OPEN) — plus the decisions you recorded and any residual ` +
+    `(deferred / could-not-fix) findings.`,
     { schema: STAGE_RESULT, label: `${stage}${sliceArg ? ':' + sliceArg : ''}`, phase: 'Drive' }
   )
 }
 
+// verifyClean() — the SINGLE source of truth for "verify cleared the gate so the
+// chain may proceed". Two ways to be clean:
+//   1. result: pass — every AC met (code-only via tests, user-observable via evidence).
+//   2. result: partial whose ONLY residual is user-observable AC the environment
+//      genuinely could not evidence and that were therefore DEFERRED (recorded in
+//      00-index runtime-evidence-deferrals; /wf ship will block on them later).
+// Both require a converged/not-needed loop and NO substantive residual. A bare
+// blocked-runtime-evidence-missing (un-evidenced AND un-deferred), a substantive
+// fail/partial, or an escalated loop is NOT clean. driveVerify and evaluateGate
+// share this so the in-loop decision and the defensive gate can never drift.
+function verifyClean(t) {
+  if (!t) return false
+  const converged = t.convergence === 'converged' || t.convergence === 'not-needed'
+  if (!converged || t.substantiveResidual === true) return false
+  if (t.result === 'pass') return true
+  // A deferral-only partial is continuable; a partial with no recorded deferral is not.
+  return t.result === 'partial' && Array.isArray(t.deferrals) && t.deferrals.length > 0
+}
+
 // driveVerify() — verify gets up to N=2 autonomous fix rounds (the reference
-// does one fix round per invocation; a second invocation is round 2). Still
-// escalated after round 2, or runtime evidence unproducible → HARD-STOP.
+// does one fix round per invocation; a second invocation is round 2). A slice
+// that is clean — including one whose only residual is environment-DEFERRED
+// evidence — proceeds. Still-substantively-escalated after round 2 → HARD-STOP.
 async function driveVerify(sliceArg, idx) {
   let last
   for (let round = 1; round <= 2; round++) {
@@ -325,14 +380,21 @@ async function driveVerify(sliceArg, idx) {
     if (!last) return { stage: 'verify', slice: sliceArg, status: 'hard-stop', artifactPath: '', terminal: {}, transient: true, hardStopReason: 'verify did not return (subagent skipped or hit a transient API error) — re-run to retry this slice; resume skips completed stages' }
     if (last.status === 'hard-stop') return last
     const t = last.terminal || {}
-    if (t.result === 'blocked-runtime-evidence-missing') {
-      return { ...last, status: 'hard-stop', hardStopReason: 'user-observable AC has no runtime evidence and the environment cannot produce it (never fabricated)' }
+    if (verifyClean(t)) {
+      const deferred = Array.isArray(t.deferrals) ? t.deferrals.length : 0
+      if (deferred > 0) log(`verify:${sliceArg} clean with ${deferred} runtime-evidence deferral(s) — recorded in 00-index runtime-evidence-deferrals; review/handoff proceed, /wf ship blocks until cleared`)
+      return last
     }
-    const clean = (t.convergence === 'converged' || t.convergence === 'not-needed') && t.result === 'pass'
-    if (clean) return last
-    log(`verify:${sliceArg} round ${round} → convergence=${t.convergence} result=${t.result}`)
+    // Bare blocked-runtime-evidence-missing means the subagent left a user-observable
+    // AC un-evidenced WITHOUT applying the deferral the policy now requires. Proceeding
+    // would silently drop that AC — HARD-STOP and make it re-runnable. (The fix is for
+    // verify to DEFER un-producible evidence, or for /wf probe to capture it.)
+    if (t.result === 'blocked-runtime-evidence-missing') {
+      return { ...last, status: 'hard-stop', hardStopReason: 'a user-observable AC has no runtime evidence and was not deferred — re-run /wf verify (it should defer un-producible evidence) or /wf probe in a capable environment; never fabricated' }
+    }
+    log(`verify:${sliceArg} round ${round} → convergence=${t.convergence} result=${t.result} substantiveResidual=${t.substantiveResidual === true}`)
     if (round === 2) {
-      return { ...last, status: 'hard-stop', hardStopReason: 'verify did not converge after 2 autonomous fix rounds' }
+      return { ...last, status: 'hard-stop', hardStopReason: 'verify did not converge after 2 autonomous fix rounds (substantive issues remain)' }
     }
   }
   return last
@@ -392,7 +454,7 @@ async function driveReview(sliceArg, idx) {
 function evaluateGate(stage, res) {
   const t = (res && res.terminal) || {}
   if (stage === 'verify') {
-    return (t.convergence === 'converged' || t.convergence === 'not-needed') && t.result === 'pass' ? 'proceed' : 'hard-stop'
+    return verifyClean(t) ? 'proceed' : 'hard-stop'   // same rule as driveVerify — deferral-only partial proceeds
   }
   if (stage === 'review') {
     return (t.verdict === 'ship' || t.verdict === 'ship-with-caveats') && (t.blockerCount || 0) === 0 ? 'proceed' : 'hard-stop'
@@ -423,6 +485,24 @@ async function driveChain(stages, sliceArg, idx) {
     }
   }
   return { stopped: false, slice: sliceArg, ran }
+}
+
+// collectDeferrals() — gather the runtime-evidence deferrals every verify stage
+// recorded, across whichever shape this outcome took (slice mode → outcome.ran;
+// slug mode → outcome.results[].ran). They are the run's ship-blocking residue:
+// the hand-back names them so the user knows what /wf ship will refuse until a
+// /wf probe (or a re-verify in a capable environment) clears each one.
+function collectDeferrals(o) {
+  const chains = Array.isArray(o.results) ? o.results : (o.ran ? [{ ran: o.ran }] : [])
+  const out = []
+  for (const c of chains) {
+    for (const r of (c && c.ran) || []) {
+      if (r && r.stage === 'verify' && r.terminal && Array.isArray(r.terminal.deferrals)) {
+        for (const d of r.terminal.deferrals) out.push({ slice: r.slice || (d && d.slice), ac: d && d.ac, reason: d && d.reason })
+      }
+    }
+  }
+  return out
 }
 
 // ===========================================================================
@@ -508,5 +588,10 @@ if (idx.mode === 'slice') {
   }
 }
 
+const deferrals = collectDeferrals(outcome)
+if (deferrals.length) {
+  outcome.runtimeEvidenceDeferrals = deferrals
+  log(`runtime-evidence deferrals on this run: ${deferrals.length} — review/handoff proceed; /wf ship blocks until each is cleared by /wf probe or a re-verify in a capable environment`)
+}
 log(outcome.stopped ? `yolo HARD-STOP at ${outcome.stoppedAt || 'orient'}: ${outcome.reason}` : `yolo reached the endpoint — next: ${outcome.route}`)
 return outcome

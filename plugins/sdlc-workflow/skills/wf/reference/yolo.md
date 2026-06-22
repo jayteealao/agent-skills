@@ -19,7 +19,7 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. It does what `/
 # What `/wf yolo` is (and is not)
 
 - **A driver, not a stage.** It writes **no artifact of its own.** Every artifact in `.ai/workflows/<slug>/` is written by a delegated stage subagent that reads the on-disk reference (`plan.md` / `implement.md` / `verify.md` / `review.md`) and follows it **verbatim**, with one override: where the reference asks the user, the subagent resolves it by policy. `yolo` is pure orchestration.
-- **It resolves gates; it does not remove them.** Each stage's quality gate still runs — `verify` still enforces the user-observable AC gate, `review` still computes its verdict from open findings. `yolo` does not weaken any of them; it supplies the **answer** the user would otherwise give, by the policy below, and **records every decision into the artifact** so the run is exactly as auditable as a human-gated one.
+- **It resolves gates; it does not remove them.** Each stage's quality gate still runs — `verify` still enforces the user-observable AC gate, `review` still computes its verdict from open findings. `yolo` does not weaken any of them; it supplies the **answer** the user would otherwise give, by the policy below, and **records every decision into the artifact** so the run is exactly as auditable as a human-gated one. Where it genuinely *cannot* produce the runtime proof a criterion needs, it **defers** that criterion through verify's own `interactive-verification: deferred` escape hatch — recorded, ship-blocking, and visible — rather than cancelling the run or pretending the check passed.
 - **It stops before handoff — always.** `yolo` ends at the **review**, identical to `auto`. It never opens a PR or runs `handoff`, `ship`, or `retro`. CI is never in its scope. The autonomy is bounded to *building and reviewing*, never *publishing*.
 - **Resume is free.** The durable record is the on-disk artifact trail (`00-index.md` + numbered files). A killed run resumes on re-invocation: orientation re-reads which stages are already terminal-clean and skips them. No separate state file.
 
@@ -43,12 +43,14 @@ Every gate `auto` defers to the user, `yolo` resolves by this rule. Two tiers: *
 | Gate | Auto-resolve | HARD-STOP |
 |---|---|---|
 | `plan` discovery interview / scope fork | Implementation-detail forks: pick the option best satisfying the slice AC at least cost; **record the assumption** in `## Assumptions`. | A fork that changes **user-observable scope or a contract** (public API, data shape, UX behavior, migration) — a product decision, not a best-interest call. |
-| `verify` failing check / unmet AC | Auto-fix: apply the minimal patch, run the stage's single fix round. Up to **2 rounds** (a second invocation). | Still `convergence: escalated` after 2 rounds, or `result: blocked-runtime-evidence-missing` (never fabricate runtime proof). |
+| `verify` failing check / unmet AC | Auto-fix: apply the minimal patch, run the stage's single fix round. Up to **2 rounds** (a second invocation). A user-observable AC the environment **genuinely cannot** evidence is **deferred** (verify's `interactive-verification: deferred` hatch), recorded in `00-index.md` `runtime-evidence-deferrals`, and the run continues at `result: partial`. | A **substantive** failure still unresolved after 2 rounds (`convergence: escalated`), or a bare `result: blocked-runtime-evidence-missing` — an un-producible AC that was *not* deferred. Never fabricate runtime proof. |
 | `review` triage | **Fix** every BLOCKER + HIGH + **MED (always)**. **Fix** LOW/NIT when in-scope ∧ localized ∧ safe; else **defer-and-record**. Never silently dismiss. | `verdict: dont-ship`, or an unfixable **security / data-loss** blocker after the fix loop. |
 | branch posture | If the switch is safe, `git switch` to the slug branch. | A switch would clobber uncommitted work (never stash/force). |
 | `intake` / `shape` (PO alignment) | **Never autonomous.** | Missing or `awaiting-input` → stop, route to `/wf intake` / `/wf shape`. |
 
 The fix posture, precisely: the default action on any finding is **fix**. MEDs lose the option to defer. LOW/NITs keep a defer escape only when fixing them would reach outside the slice's diff, be non-localized, or risk a convention conflict — and the defer is always recorded with its reason. An unfixable finding is recorded `could-not-fix`, and only escalates to a HARD-STOP if it is a security/data-loss BLOCKER or the verdict is `dont-ship`.
+
+Deferring un-verifiable acceptance criteria, precisely: a user-observable AC sometimes needs runtime proof the current environment simply cannot produce — no emulator or device, no display, an external service or API key that isn't reachable here, a runtime adapter whose bootstrap won't come up. Rather than cancel the whole run over a check it *cannot* perform, `yolo` defers **that one criterion**: it applies verify's sanctioned `interactive-verification: deferred` annotation with a reason, registers the deferral in `00-index.md` `runtime-evidence-deferrals` (with `cleared-by: null`), writes the slice `result: partial`, and drives on. This is **not** a weakening of the gate. The deferral is durable and visible; `/wf review` and `/wf handoff` proceed with only a soft warning, but `/wf ship` **HARD-BLOCKS** until every deferral is cleared by a `/wf probe` (or a re-verify) in a capable environment — and because `yolo` always stops before handoff, a deferred criterion can never reach production on its watch. The boundary is strict in two directions: deferral is **only** for *un-producible* evidence — if `yolo` actually drove the AC and the behavior was wrong, that is a substantive `fail` and still HARD-STOPs — and an AC left with **neither** evidence **nor** a deferral (`blocked-runtime-evidence-missing`) still HARD-STOPs. `yolo` never silently drops a criterion.
 
 # Step 0 — Resolve arguments (MANDATORY)
 
@@ -83,7 +85,7 @@ The workflow runs in the background and returns immediately with a task id; a co
 
 # Step 2 — Hand back to the user (MANDATORY)
 
-When the workflow completes, read its returned `outcome` and emit a chat summary. Lead with a short **narrative** paragraph (prose, no bullets) telling the story: which stages ran, the load-bearing decisions/counts each produced, **the autonomous calls the driver made** (assumptions recorded, findings fixed vs deferred), and why the run ended — reached the endpoint, or HARD-STOPped at which gate and why. Then the anchors:
+When the workflow completes, read its returned `outcome` and emit a chat summary. Lead with a short **narrative** paragraph (prose, no bullets) telling the story: which stages ran, the load-bearing decisions/counts each produced, **the autonomous calls the driver made** (assumptions recorded, findings fixed vs deferred, acceptance criteria deferred for un-producible runtime evidence), and why the run ended — reached the endpoint, or HARD-STOPped at which gate and why. Then the anchors:
 
 ```
 wf yolo complete: <slug> [<slice>]  (mode: <slug|slice> — <endpoint reached | HARD-STOP at <stage>: <reason>>)
@@ -94,6 +96,7 @@ wf yolo complete: <slug> [<slice>]  (mode: <slug|slice> — <endpoint reached | 
 Stages run: <the per-slice sequence actually executed>
 Autonomous decisions: <count + one-line gist, or "none recorded">
 Residual findings: <none | N deferred/could-not-fix recorded in <artifact>>
+Runtime-evidence deferrals: <none | from outcome.runtimeEvidenceDeferrals: N — slice/AC + reason, recorded in 00-index.md; /wf ship is BLOCKED until each is cleared by /wf probe or a re-verify in a capable environment>
 Next: <outcome.route — the routing command>
 ```
 
@@ -105,6 +108,7 @@ Next: <outcome.route — the routing command>
 Rules:
 - **Always emit**, even on a HARD-STOP or an orientation block. The narrative explains *why* it stopped — never end silently.
 - **Surface the autonomy.** A `yolo` run's value is in the decisions it made for the user. Name the assumptions it recorded and the findings it fixed vs deferred, so the user can audit them. Point at the artifacts that hold the full record.
+- **Flag ship-blocking deferrals.** If `outcome.runtimeEvidenceDeferrals` is non-empty, call them out explicitly: the slug passed verify only because runtime evidence for those acceptance criteria was deferred, and `/wf ship` will refuse until each is cleared by `/wf probe` (or a re-verify in a capable environment). This is the one residual with a downstream hard gate — do not bury it.
 - **Internal audience.** `.ai/` paths are allowed in this chat block; the External Output Boundary still governs anything written to a PR, commit, or other external surface.
 - **Honesty.** Report what actually ran. If `yolo` drove two slices then HARD-STOPped at verify on the third, say so — do not imply the workflow is further along than the artifacts show.
 
