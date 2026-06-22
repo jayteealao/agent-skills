@@ -17,9 +17,13 @@ const CUR = 'C:\\Users\\me\\.claude\\plugins\\cache\\m\\sdlc-workflow\\9.81.0\\d
 const OLD = 'C:\\Users\\me\\.claude\\plugins\\cache\\m\\sdlc-workflow\\9.74.0\\dist\\tray.mjs';
 const NODE = 'C:\\Users\\me\\AppData\\Roaming\\fnm\\aliases\\default\\node.exe';
 
+const NOW = 1_000_000;
+
 // A reconcile harness that records kill()/respawn() calls and feeds a fixed
-// process list, with platform pinned to win32 so the table runs cross-OS.
-function harness(trays) {
+// process list, with platform pinned to win32 so the table runs cross-OS. The
+// heartbeat is injected (default: none) and `now` pinned so heartbeat staleness
+// is deterministic and nothing reads the real ~/.sdlc/ file.
+function harness(trays, { heartbeat = null, now = NOW } = {}) {
   const calls = { killed: [], respawned: [] };
   return {
     calls,
@@ -30,6 +34,8 @@ function harness(trays) {
       list: () => trays,
       kill: (pid) => calls.killed.push(pid),
       respawn: (a) => calls.respawned.push(a),
+      readHeartbeat: () => heartbeat,
+      now,
     },
   };
 }
@@ -89,6 +95,48 @@ test('reconcile: a CURRENT-version tray is left alone (no kill, no respawn)', as
   const r = await reconcileRunningTray(h.opts);
   equal(r.action, 'unchanged');
   deepEqual(h.calls.killed, []);
+  equal(h.calls.respawned.length, 0);
+});
+
+test('reconcile: a CURRENT tray with a FRESH heartbeat is left alone', async () => {
+  const h = harness(
+    [{ pid: 42, bundlePath: CUR, commandLine: 'x' }],
+    { heartbeat: { pid: 42, lastPollAt: NOW - 3000 } },
+  );
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'unchanged');
+  deepEqual(h.calls.killed, []);
+  equal(h.calls.respawned.length, 0);
+});
+
+test('reconcile: a CURRENT tray with a STALE heartbeat (wedged poll) is reaped + respawned', async () => {
+  const h = harness(
+    [{ pid: 42, bundlePath: CUR, commandLine: 'x' }],
+    { heartbeat: { pid: 42, lastPollAt: NOW - 120_000 } },
+  );
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'respawned');
+  deepEqual(r.killed, [42]);
+  deepEqual(h.calls.killed, [42]);
+  equal(h.calls.respawned.length, 1);
+  equal(h.calls.respawned[0].trayBundle, CUR);   // respawns the CURRENT bundle…
+  equal(h.calls.respawned[0].nodePath, NODE);    // …via the durable node
+});
+
+test('reconcile: only the heartbeat-proven-wedged current tray is reaped; an unprovable peer is kept, NO dup spawn', async () => {
+  // The heartbeat names pid 44 with a stale stamp → 44 is proven wedged and
+  // reaped. pid 43 (current, no matching stamp) cannot be proven dead, so it is
+  // treated as live and kept — which also suppresses a respawn (thrash guard).
+  const h = harness(
+    [
+      { pid: 43, bundlePath: CUR, commandLine: 'x' },
+      { pid: 44, bundlePath: CUR, commandLine: 'x' },
+    ],
+    { heartbeat: { pid: 44, lastPollAt: NOW - 120_000 } },
+  );
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'killed-stale');
+  deepEqual(h.calls.killed, [44]);
   equal(h.calls.respawned.length, 0);
 });
 

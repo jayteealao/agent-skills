@@ -2,6 +2,9 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  writeTrayHeartbeat
+} from "./chunk-KV5OLBXR.mjs";
+import {
   disableAutostart,
   enableAutostart,
   isAutostartEnabled,
@@ -13,24 +16,22 @@ import {
   readHubConfig,
   stopHub,
   writeHubConfig
-} from "./chunk-UYG6QJJU.mjs";
+} from "./chunk-ZKEWZO5H.mjs";
 import "./chunk-K6PBZI5W.mjs";
 import "./chunk-ZMYLXAL2.mjs";
-import "./chunk-7XRCEYYW.mjs";
+import "./chunk-SBPANAAT.mjs";
 import {
   runtimeIdentity
-} from "./chunk-CLZO2GTF.mjs";
+} from "./chunk-IEXKPLNM.mjs";
 import {
   hubPidPath,
+  readPidFile,
   sdlcHomeDir
-} from "./chunk-LCWXHILT.mjs";
-import {
-  readPidFile
-} from "./chunk-4TSW2YJ2.mjs";
+} from "./chunk-DVISHXT5.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
+import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/tray.mjs
@@ -609,6 +610,7 @@ async function currentHealth() {
   return formatHealth({ reachable: probe.reachable, payload: probe.payload, pluginVersion: PLUGIN_VERSION }, Date.now());
 }
 async function refresh() {
+  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE });
   const h = await currentHealth();
   const sig = signatureOf(h);
   if (sig === lastSig && tray) return;
@@ -620,6 +622,14 @@ function refreshSoon(delay = 700) {
     refresh().catch(() => {
     });
   }, delay);
+}
+var lastTickAt = Date.now();
+function pollTick() {
+  const now = Date.now();
+  if (now - lastTickAt > POLL_MS * 3) lastSig = "";
+  lastTickAt = now;
+  refresh().catch(() => {
+  });
 }
 async function selfcheck() {
   const name = TRAY_BIN_NAMES[process.platform] ?? TRAY_BIN_NAMES.linux;
@@ -644,6 +654,7 @@ async function main() {
     ensureHubOnLaunch({ pluginRoot: PLUGIN_ROOT, log }).catch(() => {
     });
   }
+  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE });
   const h = await currentHealth();
   lastSig = signatureOf(h);
   tray = new Tray({ binPath, menu: buildMenu(h) });
@@ -651,10 +662,8 @@ async function main() {
   tray.onExit(() => process.exit(0));
   await tray.start();
   log(`ready \u2014 ${h.summary}`);
-  refreshTimer = setInterval(() => {
-    refresh().catch(() => {
-    });
-  }, POLL_MS);
+  lastTickAt = Date.now();
+  refreshTimer = setInterval(pollTick, POLL_MS);
   process.on("SIGINT", quit);
   process.on("SIGTERM", quit);
 }

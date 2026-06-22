@@ -18,7 +18,7 @@ import {
 import {
   ensureHubEnabled,
   spawnHubEnsure
-} from "./chunk-VXJZF3XU.mjs";
+} from "./chunk-L6EQJGVG.mjs";
 import "./chunk-UTP6CBAZ.mjs";
 import {
   spawnDetachedNode
@@ -30,18 +30,16 @@ import {
   countPending,
   enqueue,
   readStatus,
+  resolveEntrypoint,
   sdlcHomeDir
-} from "./chunk-LCWXHILT.mjs";
-import {
-  resolveEntrypoint
-} from "./chunk-4TSW2YJ2.mjs";
+} from "./chunk-DVISHXT5.mjs";
 import {
   activeWorkflowIndexes,
   scanWorkflowIndexes
 } from "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
+import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/session-start-orient.mjs

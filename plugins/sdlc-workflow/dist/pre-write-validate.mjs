@@ -25,8 +25,8 @@ import {
 import {
   safeParseFrontmatter
 } from "./chunk-5U76735W.mjs";
-import "./chunk-LFGT2BKG.mjs";
 import "./chunk-FZ2GR6GF.mjs";
+import "./chunk-LFGT2BKG.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/pre-write-validate.mjs
