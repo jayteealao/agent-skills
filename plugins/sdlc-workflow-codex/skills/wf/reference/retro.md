@@ -63,6 +63,11 @@ Prompt the agent with ALL of the following:
 - Check git log for the implementation commits. How many commits? Were there fix-up commits that suggest rework?
 - Were there cycles back to earlier stages (re-plan, re-implement)? What triggered them?
 
+**Deferred-debt harvest (this workflow only):**
+- Collect every intentional-simplification marker this workflow introduced: grep the workflow's commits for `sdlc-debt:` (`git log -p <base-branch>..HEAD | grep -nE 'sdlc-debt:'`) and read each slice's `05-implement-<slice>.md` → `## Anything Deferred` / `## Known Risks / Caveats`.
+- For each marker, record: file:line, the ceiling, the upgrade path, and where it was recorded. **Scope to THIS workflow's debt — do NOT grep the whole repo** (that is `$wf simplify codebase`'s sweep). Retro reconciles only what this workflow deliberately deferred, so already-tracked debt from prior workflows is not re-surfaced.
+- Classify each as **act-now** (worth its own follow-up workflow this sprint) or **accept** (a deliberate, acceptable ceiling that just needs to stay visible). The act-now items drive `## Deferred Debt` and Option B routing below.
+
 ### Analysis sub-agent 2 — Review & Handoff Quality
 
 Prompt the agent with ALL of the following:
@@ -103,7 +108,7 @@ Prompt the agent with ALL of the following:
 - Were there CI checks that would have caught issues earlier?
 - Are there test helpers or fixtures that should be created to make future testing easier?
 
-Merge all sub-agent findings and deduplicate. Write into `## What Went Well`, `## Friction / Failure Points`, `## Root Causes`, and `## Recommended Improvements`.
+Merge all sub-agent findings and deduplicate. Write into `## What Went Well`, `## Friction / Failure Points`, `## Root Causes`, `## Recommended Improvements`, and `## Deferred Debt`.
 
 # Purpose
 Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation.
@@ -143,7 +148,7 @@ After completing the retro, evaluate whether the workflow is truly done:
 Use when: All slices are shipped, no follow-up work is warranted.
 
 **Option B: Open follow-up workflow** → `$wf intake <new-task-description>`
-Use when: The retro identified follow-up work significant enough to warrant its own workflow (e.g., "we deferred X and it should be done next sprint").
+Use when: The retro identified follow-up work significant enough to warrant its own workflow (e.g., "we deferred X and it should be done next sprint"), OR the `## Deferred Debt` harvest surfaced any `act-now` items — route each to `$wf intake fix` (one-file ceiling) or `$wf intake refactor` (cross-file) so the deliberate shortcut becomes tracked work instead of a buried comment.
 
 **Option C: Next slice** → `$wf plan <slug> <next-slice>` or `$wf implement <slug> <next-slice>`
 Use when: The retro is running mid-workflow (e.g., after shipping one slice) and there are more slices.
@@ -208,6 +213,14 @@ Change:
 - ...
 Drop:
 - ...
+
+## Deferred Debt
+<!-- From the deferred-debt harvest (Analysis sub-agent 1). One row per `sdlc-debt:` marker THIS workflow introduced; scoped to this workflow, not the whole repo.
+| Marker (file:line) | Ceiling | Upgrade path | Recorded in | Disposition |
+|---|---|---|---|---|
+| `src/auth.ts:42` | global lock serializes all tenants | per-tenant lock keys | 05-implement-auth.md ## Known Risks | act-now → $wf intake refactor "per-tenant auth locks" |
+Disposition is `act-now` (routes to a follow-up workflow via Option B below) or `accept` (a deliberate ceiling that stays visible but needs no action now).
+If the workflow introduced no shortcuts: "No deferred debt — no `sdlc-debt:` markers introduced." -->
 
 ## Recommended Next Stage
 - **Option A (default):** Workflow complete

@@ -96,6 +96,26 @@ Capture the file list + sampled content. For codebase scope the agents read by-n
 
 ---
 
+# Step 1b — Harvest `sdlc-debt:` markers (the debt sweep)
+
+Independent of the three review agents, scan the resolved scope for intentional-simplification markers and fold them into the findings as **pre-classified** debt. These are shortcuts the author already flagged with a ceiling + upgrade path (written by `$wf implement`), so they need *routing*, not *discovery* — the agents below find new issues; this step collects the ones already declared.
+
+- **branch / commit:** grep `INPUT_DIFF` for `sdlc-debt:` — only markers added in the diff.
+- **codebase:** grep the path subtree (`grep -rnE 'sdlc-debt:' <path>`, excluding `.git/`, `node_modules/`, `dist/`, `build/`). This is the **repo-wide sweep** — the standalone analog of harvesting the whole debt backlog at once.
+- **plan:** skip — plans carry no code markers.
+
+For each marker, emit one finding in the **same `findings:` schema the agents use** (Step 2 output contract):
+- `id: debt-<n>`
+- `severity:` from the ceiling's blast radius — `high` (correctness/security ceiling), `med` (default), `low` (cosmetic or marker that names no ceiling/upgrade-path → also note it is malformed).
+- `location: <file:line>`
+- `issue:` the ceiling named in the marker.
+- `suggestion:` the upgrade path named in the marker.
+- `rationale:` "Author-flagged `sdlc-debt:` marker harvested for routing."
+
+These debt findings join the aggregate in **Step 3** and route through the **Step 4** matrix exactly like agent findings — typically `route-fix` (one-file ceiling), `route-refactor` (cross-file), or `route-intake` (architectural). In the sibling-YAML projection they carry **`category: quality`** (debt is maintainability quality — kept inside the existing reuse/quality/efficiency taxonomy so no new category/schema is introduced); the run body's findings table notes which `quality` findings originated from a marker, and the chat summary reports the harvested count (e.g., `debt-markers-swept: <N>`). If the scope has no markers, record "No `sdlc-debt:` markers in scope" and proceed with the agent findings only.
+
+---
+
 # Step 2 — Dispatch three sub-agents in parallel
 
 **MANDATORY**: issue a single message containing all three agent tool calls. Sequential dispatch defeats the purpose and is forbidden. Use parallel subagents only when working in parallel mode; otherwise cover all three rubrics in turn yourself.

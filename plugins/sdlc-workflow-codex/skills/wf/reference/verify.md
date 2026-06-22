@@ -115,6 +115,14 @@ Prompt the agent with ALL of the following:
 - **SAST (if tooling is present):** Run `semgrep --config=auto` on files this slice touched if semgrep is installed. Report new findings in slice-modified files at severity HIGH or above.
 - Report: `security-scan-result: pass | fail | skipped` (skipped only when no tooling is installed and no patterns matched). New findings introduced by the slice are BLOCKER issues regardless of convergence verdict.
 
+**`sdlc-debt:` marker hygiene (validation — runs on every slice):**
+- Grep the slice diff for intentional-simplification markers: `git diff <base-branch>...HEAD | grep -nE 'sdlc-debt:'` (or scan the slice's changed files).
+- For each marker found, validate two things:
+  - **Well-formed:** the comment names a *ceiling* (the known limitation — global lock, O(n²) scan, naive heuristic, hard-coded value) AND an *upgrade path*. A bare `sdlc-debt:` with neither is a LOW finding.
+  - **Recorded:** the shortcut appears in `05-implement-<slice-slug>.md` → `## Anything Deferred` or `## Known Risks / Caveats`. An unrecorded marker is invisible debt — a MED finding.
+- This is the debt analog of "non-trivial logic leaves its check behind": a deliberate shortcut without its recorded ceiling is *unfinished*, not lazy. **Scope is THIS slice's diff only — verify VALIDATES freshly-written markers, it does NOT aggregate the repo's debt backlog** (that is retro's per-workflow reconcile and `$wf simplify codebase`'s on-demand sweep).
+- Report: `debt-markers-found: <N>`, `debt-markers-malformed: <N>`, `debt-markers-unrecorded: <N>`. Malformed or unrecorded markers are findings that enter the Step 7.6 fix loop (Fix = make the marker well-formed and record it; the code shortcut itself is not undone here).
+
 ### Functional sub-agent 2 — Test Execution
 
 Prompt the agent with ALL of the following:

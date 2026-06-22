@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `sdlc-debt:` marker lifecycle: validate (verify) · reconcile (retro) · sweep (simplify) (9.91.0)
+
+Closes the loop the YAGNI ladder (9.90.0) opened. The `sdlc-debt:` markers `wf-implement` writes now have a full lifecycle, with each stage doing a **distinct verb at its own scope** rather than one stage "harvesting" everything:
+
+- **`verify` — validate (per-slice).** A marker-hygiene check in the static-analysis sub-agent greps the slice diff for `sdlc-debt:`, asserting each is well-formed (names a ceiling + upgrade path) and recorded in `05-implement`'s `## Anything Deferred` / `## Known Risks`. Malformed/unrecorded markers enter the existing fix loop. Slice-scoped — does not aggregate.
+- **`retro` — reconcile (per-workflow).** Analysis sub-agent 1 harvests this workflow's markers into a new `## Deferred Debt` section, classifying each `act-now` vs `accept`; act-now items route to the existing Option B follow-up (`/wf intake fix`/`refactor`). Scoped to the workflow's own debt, not the repo.
+- **`simplify` — sweep (on-demand).** New Step 1b greps the resolved scope (repo-wide for `codebase`) for markers and folds each into the aggregate as a pre-classified finding routed through the existing matrix. Mapped to `category: quality` so no sibling-YAML schema change.
+
+Reference-content only; both Claude and Codex trees at content parity. No new artifacts, schemas, or renderers — each verb reuses machinery the stage already had (verify's diff-grep + fix loop, retro's Option-B routing, simplify's finding matrix).
+
 ### Added — YAGNI build-avoidance ladder across shape, plan, and implement (9.90.0)
 
 A simplicity-first **build-avoidance ladder** now runs through the three generative stages, split by altitude so the "does this need to exist?" question is asked once, early, where trimming cascades through every downstream stage. Adapted from the [ponytail](https://github.com/DietrichGebert/ponytail) "lazy senior dev" skill — the ladder *plus* its non-negotiable safety carve-outs, not bare "do less" (which ponytail's own benchmark shows is both less effective and less safe).
