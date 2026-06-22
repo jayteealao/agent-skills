@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — YAGNI build-avoidance ladder across shape, plan, and implement (9.90.0)
+
+A simplicity-first **build-avoidance ladder** now runs through the three generative stages, split by altitude so the "does this need to exist?" question is asked once, early, where trimming cascades through every downstream stage. Adapted from the [ponytail](https://github.com/DietrichGebert/ponytail) "lazy senior dev" skill — the ladder *plus* its non-negotiable safety carve-outs, not bare "do less" (which ponytail's own benchmark shows is both less effective and less safe).
+
+- **`shape` — rung 1 (scope restraint).** Round 5 of the discovery interview now leads with a PO-facing restraint question ("do you actually need X, or does Y cover it?"), routing speculative gold-plating and premature generality to `## Out of Scope` with a logged rationale. Bounded: it never trims what the user explicitly asked for, nor a non-functional requirement (security, accessibility, data integrity).
+- **`plan` — rungs 2–4 (build-avoidance).** The reuse-scan sub-agent is generalized into a four-rung ladder (stdlib → native-platform → reuse → minimum new code); the web-research sub-agent checks stdlib/platform built-ins before endorsing a dependency; the `## Reuse Opportunities` plan section becomes `## Simplicity Ladder`; and the auto-review overengineering check references the ladder.
+- **`implement` — rungs 5–6 + carve-outs.** A new "Build discipline" section adds a code-level ladder (stdlib/native over helpers, direct calls over wrappers, no single-use abstractions), a **NON-NEGOTIABLE** "lazy ≠ negligent" guard (validation, error handling, security, accessibility, calibration, and explicit acceptance criteria never trimmed), and an `sdlc-debt:` marker convention for intentional shortcuts that feeds the existing `## Anything Deferred` / `## Known Risks` sections and is harvestable by `/wf simplify codebase`.
+
+Reference-content only (skills are source-read); both the Claude and Codex skill trees carry the change at content parity (sole divergence: the `$wf` command prefix in Codex).
+
 ### Changed — `wf-design` subsumed into `/wf design` (9.82.0)
 
 The standalone `/wf-design` router is retired. Design is now **one `wf` sub-command, `/wf design`,

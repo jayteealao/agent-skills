@@ -137,6 +137,16 @@ Merge findings. If the codebase has diverged significantly, note specific deviat
 # Purpose
 Implement one selected planned slice with the smallest coherent diff that fits the repo and current best practices. Write a per-slice implementation record with cross-links.
 
+# Build discipline — climb the ladder before writing each step
+Shape settled *what* to build (its Round 5 scope-restraint pass) and plan settled *which strategy* (its build-avoidance ladder, rungs 1–4). Your job is the **fewest lines that satisfy the plan and the acceptance criteria** — minimal because it is sufficient, not golfed. Before writing each plan step's code:
+
+- **Honor the plan's ladder decisions.** If the plan landed a capability on rung 1/2/3 (stdlib, native-platform, reuse), do not reintroduce a dependency or hand-roll it. If the plan says "native `<input type="date">`, no library," keep it that way.
+- **Climb once more at the code level.** Prefer a stdlib/native call over a hand-rolled helper, a direct call over a wrapper, a literal over a config knob, one line over a block, deletion over addition. Do **not** introduce an abstraction the plan did not ask for — an interface, factory, strategy, generic, or options-object with a single implementation or call site. This restraint is about *code structure only* — never trim an acceptance criterion; shape and plan own what exists.
+
+**Lazy ≠ negligent — NON-NEGOTIABLE, never trimmed for brevity:** trust-boundary input validation, error handling that prevents data loss, security, accessibility, the calibration real hardware needs, and anything an acceptance criterion explicitly requires. Minimal code missing its safety check is *unfinished*, not lazy — and the security / accessibility / correctness review dimensions and the verify gate will bounce it as a BLOCKER downstream, so the shortcut only defers rework. Non-trivial logic still leaves its verification behind; trivial one-liners do not.
+
+**Mark deliberate shortcuts.** When you take an intentional simplification with a known ceiling (a global lock, an O(n²) scan, a naive heuristic, a hard-coded value that should be configurable), leave a one-line `sdlc-debt:` comment at the site naming the ceiling **and** the upgrade path, and record it in `## Anything Deferred` (if it is a deferral) or `## Known Risks / Caveats` (if the ceiling is live in shipped code). The marker keeps the shortcut visible and harvestable — `$wf simplify codebase` can later collect `sdlc-debt:` markers and route them — instead of hidden.
+
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
@@ -359,9 +369,11 @@ For each item in `02c-craft.md` → `## Mock fidelity inventory`, confirm honore
 - ...
 
 ## Anything Deferred
+<!-- Includes capabilities deferred by shape's Round 5 restraint pass or the plan's ladder, plus any `sdlc-debt:` shortcut taken during this slice — each with its ceiling and upgrade path. -->
 - ...
 
 ## Known Risks / Caveats
+<!-- Includes any `sdlc-debt:` shortcut whose ceiling is live in the shipped code (global lock, O(n²) scan, naive heuristic, hard-coded value). -->
 - ...
 
 ## Freshness Research

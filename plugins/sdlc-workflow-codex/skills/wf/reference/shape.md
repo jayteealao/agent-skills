@@ -185,7 +185,7 @@ Round 3 — **What does the feature look like?** Clarify the surface area: where
 
 Round 4 — **What can go wrong?** Probe failure modes: worst-case impact of bugs, how invalid input is handled, what happens when dependencies fail, and who has access/permissions.
 
-Round 5 — **Where are the boundaries?** Define the edges: what's explicitly out of scope for v1, how to transition from old to new behavior, what existing code/data is touched, and what open questions remain.
+Round 5 — **Where are the boundaries?** Define the edges, leading with scope restraint: which parts of the brief does v1 *actually* need versus what is speculative gold-plating, premature generality, or "while we're here" scope that can be deferred — present these as trim options the PO chooses, never a unilateral cut (the question is "do you actually need X, or does Y cover it?", not a refusal to build). Then: what's explicitly out of scope, how to transition from old to new behavior, and what existing code/data is touched. This round is the lifecycle's rung 1 ("does this need to exist?") — a criterion trimmed here is a slice never created, a plan never written, and code never implemented, so it is the highest-leverage place to apply restraint. Restraint here is bounded: never trim what the user explicitly asked for, and never trade away a non-functional requirement (security, accessibility, data integrity) for a smaller scope.
 
 **How to construct each question:**
 - Present each as a question with concrete options specific to the feature.
@@ -286,6 +286,7 @@ next-invocation: "$wf slice <slug>"
 - ...
 
 ## Out of Scope
+<!-- Include capabilities deferred by the Round 5 scope-restraint pass: speculative generality, gold-plating, and "while we're here" additions the core ask does not require. Record each with a one-line rationale so the deferral is a logged decision the PO agreed to, not a silent drop. -->
 - ...
 
 ## Definition of Done

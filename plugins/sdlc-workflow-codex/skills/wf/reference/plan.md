@@ -101,7 +101,16 @@ Prompt the agent with ALL of the following. It must report findings for each sec
 - Check for linting rules, prettier config, or editorconfig that constrain code style
 - Look for README or CONTRIBUTING docs in the affected directory
 
-**Reuse opportunities:**
+**Build-avoidance ladder (climb before proposing any new code):**
+For each capability the slice needs, climb these rungs and record the highest that holds. Scope existence — "does this need to exist at all?" — is settled upstream in shape's Round 5 scope-restraint pass; do not re-litigate it here. This is the implementation-strategy ladder:
+1. **Stdlib / language built-in** — does the language or its standard library already do this? (e.g., `structuredClone`, `Intl`, `URL`, `crypto.randomUUID`, `Array.prototype` methods over a utility lib.)
+2. **Native platform feature** — does the runtime, browser, framework, or OS already provide it? (e.g., `<input type="date">` over a date-picker library, CSS `scroll-snap` over a carousel dependency, a DB unique constraint over a hand-rolled existence check.) The web-research sub-agent below checks official docs for these.
+3. **Already-installed dependency or in-repo utility** — the reuse scan below.
+4. **Minimum new code** — only when rungs 1–3 do not cover the capability; the plan records *why* the lower rungs did not hold.
+
+Pick the highest rung that meets the acceptance criteria; never trade an edge-case-correct built-in for a flimsier hand-rolled one just to stay "lazy." Record the outcome per capability in the plan's `## Simplicity Ladder` section.
+
+**Rung 3 — reuse opportunities:**
 - Read the slice definition's `## Goal` and `## Scope (In)` sections. For each new function, class, utility, or capability the slice needs to implement, search the wider codebase for existing code that partially or fully covers the same need:
   - Search / list files in the repository for keywords, type names, and domain terms from the slice definition across the full codebase (not just the affected directory)
   - Search for similar logic: data transformations, validation routines, formatting utilities, API call wrappers, error handling patterns, and business rule checks that appear to overlap with what the slice needs to build
@@ -201,6 +210,7 @@ Prompt the agent with ALL of the following:
 - Note any advisories that require specific mitigations in the plan
 
 **Implementation best practices:**
+- **Build-avoidance check (ladder rungs 1–2):** before endorsing any new dependency or hand-rolled implementation, search the language standard library and the platform/framework docs for a built-in that already covers the capability — a native input type, a stdlib function, a framework primitive, a platform API. Report the built-in when one exists so the plan can prefer it; only fall through to a dependency or new code when the built-in genuinely does not meet the acceptance criteria.
 - Web search for established patterns and community consensus on how to implement this slice's specific capability — look at official docs, framework guides, and opinionated style guides
 - Search for known anti-patterns and common mistakes for this kind of implementation — especially on official docs, Stack Overflow, engineering blogs, and community posts
 - Note any RFCs, platform specs, or framework conventions that prescribe the correct approach (e.g., framework-specific patterns, API design rules, mobile OS guidelines)
@@ -318,7 +328,7 @@ Steps:
    - Plan steps that don't align with acceptance criteria
    - Missing steps that the acceptance criteria require
    - Ordering issues (dependencies that should come earlier)
-   - Overengineering (steps that go beyond what the spec requires)
+   - Overengineering (steps that go beyond what the spec requires; new code where the build-avoidance ladder shows a stdlib, native-platform, or reuse option was available)
    - Missing test/verification coverage for acceptance criteria
 4. **Read sibling plans** (`04-plan-<other>.md`). Check for:
    - New conflicts (e.g., sibling plan now touches the same files)
@@ -464,10 +474,12 @@ next-invocation: "$wf implement <slug> <slice-slug>"
 
 ## Current State
 
-## Reuse Opportunities
-<!-- From Explore sub-agent 1 reuse scan. Format per candidate:
-- `path/to/file.ts` → `functionName()` — what it does, match quality, recommendation (reuse as-is / modify / extract / implement fresh)
-If none found: "No reuse candidates identified." -->
+## Simplicity Ladder
+<!-- From Explore sub-agent 1's build-avoidance ladder. One row per capability the slice needs, recording the highest rung that held:
+- <capability> → rung 1 stdlib | rung 2 native-platform | rung 3 reuse | rung 4 new-code — <which API / path / recommendation>
+Rung 3 (reuse) candidates carry the detail: `path/to/file.ts` → `functionName()` — match quality, recommendation (reuse as-is / modify / extract / implement fresh).
+Rung 4 (new code): state why rungs 1–3 did not cover it.
+If the slice writes no new capability code (pure config/wiring/refactor): "No new capabilities — ladder N/A." -->
 
 ## Likely Files / Areas to Touch
 - path/or/module: why
