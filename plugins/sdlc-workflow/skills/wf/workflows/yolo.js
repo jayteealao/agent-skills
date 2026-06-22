@@ -320,7 +320,9 @@ async function driveVerify(sliceArg, idx) {
   let last
   for (let round = 1; round <= 2; round++) {
     last = await runStage('verify', sliceArg, idx, { round })
-    if (!last) return { stage: 'verify', slice: sliceArg, status: 'hard-stop', artifactPath: '', terminal: {}, hardStopReason: 'verify subagent returned nothing' }
+    // A null return = the verify subagent was skipped or died on a terminal API
+    // error after retries (not a quality failure). Stop cleanly; resume retries it.
+    if (!last) return { stage: 'verify', slice: sliceArg, status: 'hard-stop', artifactPath: '', terminal: {}, transient: true, hardStopReason: 'verify did not return (subagent skipped or hit a transient API error) — re-run to retry this slice; resume skips completed stages' }
     if (last.status === 'hard-stop') return last
     const t = last.terminal || {}
     if (t.result === 'blocked-runtime-evidence-missing') {
@@ -429,8 +431,14 @@ async function driveChain(stages, sliceArg, idx) {
 phase('Orient')
 log(`yolo: orienting slug '${slug}'${slice ? ` slice '${slice}'` : ' (slug mode)'}`)
 let idx = await orient()
-if (!idx || !idx.ok) {
-  return { ok: false, stopped: true, mode: idx && idx.mode, reason: (idx && idx.blockReason) || 'orientation failed (could not read 00-index.md / roster)', route: idx && idx.route }
+if (!idx) {
+  // A null return means the orient subagent was skipped or died on a terminal
+  // API error after retries — NOT a workflow-readiness problem. Resume is free,
+  // so the route is simply to re-run.
+  return { ok: false, stopped: true, transient: true, reason: 'orient did not return (subagent skipped or hit a transient API error) — re-run to retry; resume skips completed stages', route: `/wf yolo ${slug}${slice ? ' ' + slice : ''}` }
+}
+if (!idx.ok) {
+  return { ok: false, stopped: true, mode: idx.mode, reason: idx.blockReason || 'workflow not ready (intake/shape/slice incomplete or update-deps mode)', route: idx.route }
 }
 if (!idx.branch.match) {
   const b = await ensureBranch(idx)
