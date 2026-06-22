@@ -236,8 +236,9 @@ async function orient() {
     `If any is missing or awaiting-input, set ok=false with blockReason and route='/wf intake <description>' (or ` +
     `'/wf shape ${slug}' / '/wf slice ${slug}' for the specific gap). Also: if workflow-type is 'update-deps', ` +
     `set ok=false, route='/wf intake update-deps ${slug}' (yolo does not drive that self-managed mode).\n` +
-    `6. For each IN-SCOPE slice (the target slice in slice mode; ALL roster slices in slug mode), check on disk ` +
-    `which of plan/implement/verify/review already exist AND are terminal-clean, marking each 'done' | 'todo':\n` +
+    `6. For ALL roster slices (in roster order — the COMPLETE list, both modes; the full roster is needed so ` +
+    `slice-mode can route to the next slice), check on disk which of plan/implement/verify/review already exist ` +
+    `AND are terminal-clean, marking each 'done' | 'todo':\n` +
     `   - plan: artifact present AND frontmatter status: complete\n` +
     `   - implement: artifact present AND status: complete\n` +
     `   - verify: artifact present AND convergence ∈ {not-needed, converged} AND result: pass\n` +
