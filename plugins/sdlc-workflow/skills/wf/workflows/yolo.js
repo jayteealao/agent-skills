@@ -2,7 +2,7 @@ export const meta = {
   name: 'wf-yolo',
   description: 'Autonomous SDLC lifecycle driver. Drives an already-intaked slug through plan→implement→verify→review with NO human gates — resolves each stage gate by a written Autonomous Decision Policy, records every decision into the artifact, and stops before handoff exactly like /wf auto. Claude-only (built on the Workflow tool, which the Codex runtime lacks).',
   phases: [
-    { title: 'Orient', detail: 'read 00-index + roster; resolve scope, file convention, branch, resume point' },
+    { title: 'Orient', detail: 'read 00-index + roster; resolve scope, file convention, branch posture (create/switch dedicated), resume point' },
     { title: 'Drive', detail: 'sequential plan→implement→verify[→review] per slice, autonomous gates' },
     { title: 'Review', detail: 'opt-in: parallel per-dimension review + adversarial verify before auto-fix' },
   ],
@@ -148,11 +148,19 @@ const ORIENT_RESULT = {
     fileConvention: { enum: ['suffixed', 'unsuffixed'] },
     branch: {
       type: 'object',
-      required: ['current', 'target', 'match'],
+      required: ['current', 'target', 'match', 'strategy'],
       properties: {
         current: { type: 'string' },
         target: { type: 'string' },
         base: { type: 'string' },
+        // 'dedicated' → yolo lands the tree on the slug branch up front, creating it
+        // from base-branch if it does not exist yet (mirrors implement.md Step 0.9).
+        // 'shared'/'none' → yolo NEVER switches; the drive runs on the checked-out
+        // tree. Default 'none' if the field is somehow absent (conservative: no switch).
+        strategy: { enum: ['dedicated', 'shared', 'none'] },
+        // does branch.target already resolve as a local OR already-fetched remote-tracking
+        // ref (no network fetch)? Informational — ensureBranch re-checks authoritatively.
+        exists: { type: 'boolean' },
         match: { type: 'boolean' },
       },
     },
@@ -256,7 +264,8 @@ async function orient() {
     `git as \`git -C ${projectRoot} …\`.\n\n` +
     `Slug: ${slug}${slice ? `\nTarget slice: ${slice}  (slice mode)` : `\n(no slice given → slug mode)`}\n\n` +
     `1. Read ${projectRoot}/.ai/workflows/${slug}/00-index.md. Parse: status, current-stage, review-scope ` +
-    `(default 'per-slice' if the field is absent), workflow-type, branch, base-branch.\n` +
+    `(default 'per-slice' if the field is absent), workflow-type, branch-strategy (default 'none' if absent), ` +
+    `branch, base-branch.\n` +
     `2. Read ${projectRoot}/.ai/workflows/${slug}/03-slice.md (the roster). Capture EVERY slice slug in roster order.\n` +
     `3. Resolve fileConvention: 'suffixed' for a multi-slice standard workflow that has per-slice ` +
     `03-slice-<slice>.md files (so stage files are 04-plan-<slice>.md, 06-verify-<slice>.md, 07-review-<slice>.md); ` +
@@ -277,27 +286,67 @@ async function orient() {
     `   - verify: artifact present AND convergence ∈ {not-needed, converged} AND result: pass\n` +
     `   - review: artifact present AND verdict ∈ {ship, ship-with-caveats} AND metric-findings-blocker == 0\n` +
     `   In slug-wide review scope, mark every per-slice 'review' as 'n-a' (review runs once at slug level, not per slice).\n` +
-    `7. Branch posture: run \`git -C ${projectRoot} branch --show-current\`. Report branch.current, branch.target ` +
-    `(= 00-index.md branch), branch.base (= base-branch), and branch.match (current === target, or target empty). ` +
-    `Do NOT switch — just report.\n\n` +
+    `7. Branch posture (READ-ONLY — report, never switch or create): run ` +
+    `\`git -C ${projectRoot} branch --show-current\`. Report branch.current, branch.target (= 00-index.md branch), ` +
+    `branch.base (= base-branch), branch.strategy (= branch-strategy: dedicated | shared | none), branch.match ` +
+    `(current === target, or target empty), and branch.exists — true iff branch.target resolves as a local ref ` +
+    `(\`git -C ${projectRoot} rev-parse --verify --quiet refs/heads/<target>\`) OR an already-fetched ` +
+    `remote-tracking ref (refs/remotes/origin/<target>); do NOT run \`git fetch\` or \`git ls-remote\` (no network). ` +
+    `For strategy shared/none, or an empty target, set exists=false — yolo will not switch in those modes.\n\n` +
     `Return the structured orientation. Set ok=true only when the readiness gate passes.`,
     { schema: ORIENT_RESULT, label: 'orient', phase: 'Orient' }
   )
 }
 
-// ensureBranch() — only when orient reports a mismatch. Policy: switch if it is
-// safe; HARD-STOP (never stash/force) if the switch would clobber uncommitted work.
+// ensureBranch() — DEDICATED strategy only (the control flow gates on it). Mirrors
+// implement.md Step 0.9 so yolo lands the run on the slug branch BEFORE any stage
+// runs, instead of leaving plan/implement to mint it mid-chain: if the slug branch
+// already exists (local or an already-fetched remote-tracking ref) → switch to it;
+// if it does NOT exist → CREATE it from base-branch (fall back to the current HEAD
+// when no base-branch is recorded). Never stash or force — a switch/create that git
+// refuses because it would clobber uncommitted work HARD-STOPs (ok:false), exactly
+// as the manual flow refuses. Read-only otherwise: no commits, no other writes.
 async function ensureBranch(idx) {
+  const target = idx.branch.target
+  const base = idx.branch.base || ''
+  const createCmd = base
+    ? `\`git -C ${projectRoot} switch -c ${target} ${base}\``
+    : `\`git -C ${projectRoot} switch -c ${target}\` (no base-branch recorded → branch from the current HEAD)`
+  const baseStep = base
+    ? `6. If the base branch '${base}' itself does not exist (the create fails for that reason) → return ` +
+      `{ ok: false, reason: 'base-branch ${base} does not exist; cannot create ${target}' }.\n`
+    : ''
   return await agent(
-    `Autonomous branch posture for SDLC slug '${slug}'. The working tree is on '${idx.branch.current}' but the ` +
-    `workflow targets '${idx.branch.target}'. Attempt exactly: \`git -C ${projectRoot} switch ${idx.branch.target}\`.\n` +
-    `- Success → return { ok: true, switched: true }.\n` +
-    `- git REFUSES because uncommitted changes would be overwritten → DO NOT stash or force. Return ` +
-    `{ ok: false, reason: 'switching to ${idx.branch.target} would clobber uncommitted work on ${idx.branch.current}' }.\n` +
-    `- Target branch does not exist → return { ok: false, reason: 'target branch ${idx.branch.target} does not exist' }.\n` +
-    `Make no commits and change nothing else.`,
+    `Autonomous branch posture for SDLC slug '${slug}' (branch-strategy: dedicated). The working tree is on ` +
+    `'${idx.branch.current}' but the workflow's dedicated branch is '${target}'. Land the tree on '${target}' NOW, ` +
+    `before any stage runs, by mirroring implement.md Step 0.9. Run git as \`git -C ${projectRoot} …\`; make NO ` +
+    `commits and change nothing else.\n\n` +
+    `1. If \`git -C ${projectRoot} branch --show-current\` is already '${target}', return ` +
+    `{ ok: true, switched: false, action: 'already-on-branch' }.\n` +
+    `2. Does '${target}' exist? Check WITHOUT network: \`git -C ${projectRoot} rev-parse --verify --quiet ` +
+    `refs/heads/${target}\` (local) and refs/remotes/origin/${target} (already-fetched remote). Do NOT run ` +
+    `\`git fetch\` / \`git ls-remote\`.\n` +
+    `3. If it EXISTS (local or remote-tracking) → \`git -C ${projectRoot} switch ${target}\` (auto-creates a local ` +
+    `tracking branch from origin when only the remote ref exists). On success return ` +
+    `{ ok: true, switched: true, action: 'switched' }.\n` +
+    `4. If it does NOT exist → CREATE it from the base branch: ${createCmd}. On success return ` +
+    `{ ok: true, switched: true, action: 'created', from: '${base || idx.branch.current}' }.\n` +
+    `5. If git REFUSES because uncommitted changes would be overwritten → DO NOT stash, force, or commit. Return ` +
+    `{ ok: false, reason: 'switching/creating ${target} would clobber uncommitted work on ${idx.branch.current}' }.\n` +
+    baseStep +
+    `Report the action you took.`,
     {
-      schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, switched: { type: 'boolean' }, reason: { type: 'string' } } },
+      schema: {
+        type: 'object',
+        required: ['ok'],
+        properties: {
+          ok: { type: 'boolean' },
+          switched: { type: 'boolean' },
+          action: { type: 'string' },   // already-on-branch | switched | created
+          from: { type: 'string' },      // base the branch was created from (created only)
+          reason: { type: 'string' },
+        },
+      },
       label: 'branch', phase: 'Orient',
     }
   )
@@ -520,10 +569,20 @@ if (!idx) {
 if (!idx.ok) {
   return { ok: false, stopped: true, mode: idx.mode, reason: idx.blockReason || 'workflow not ready (intake/shape/slice incomplete or update-deps mode)', route: idx.route }
 }
-if (!idx.branch.match) {
+// Branch posture — DEDICATED only. Land the tree on the slug branch (create it from
+// base-branch if it does not exist yet) BEFORE driving any stage, so the whole run —
+// plan included — happens on the dedicated branch rather than leaving implement to
+// mint it mid-chain. shared/none never switch: the drive runs on the checked-out tree.
+let branchAction = null
+if (idx.branch.strategy === 'dedicated' && !idx.branch.match) {
   const b = await ensureBranch(idx)
   if (!b || !b.ok) {
-    return { ok: false, stopped: true, reason: (b && b.reason) || 'branch posture could not be resolved', route: `resolve the branch on '${idx.branch.current}', then re-run /wf yolo ${slug}${slice ? ' ' + slice : ''}` }
+    return { ok: false, stopped: true, reason: (b && b.reason) || 'dedicated branch posture could not be resolved', route: `resolve the dedicated branch '${idx.branch.target}' (currently on '${idx.branch.current}'), then re-run /wf yolo ${slug}${slice ? ' ' + slice : ''}` }
+  }
+  if (b.switched) {
+    const from = b.from || idx.branch.base || idx.branch.current
+    branchAction = { action: b.action || 'switched', target: idx.branch.target, base: from }
+    log(`branch: ${b.action === 'created' ? `created '${idx.branch.target}' from '${from}'` : `switched to '${idx.branch.target}'`} before drive`)
   }
 }
 
@@ -593,5 +652,6 @@ if (deferrals.length) {
   outcome.runtimeEvidenceDeferrals = deferrals
   log(`runtime-evidence deferrals on this run: ${deferrals.length} — review/handoff proceed; /wf ship blocks until each is cleared by /wf probe or a re-verify in a capable environment`)
 }
+if (branchAction) outcome.branch = branchAction   // surface the up-front create/switch in the hand-back
 log(outcome.stopped ? `yolo HARD-STOP at ${outcome.stoppedAt || 'orient'}: ${outcome.reason}` : `yolo reached the endpoint — next: ${outcome.route}`)
 return outcome
