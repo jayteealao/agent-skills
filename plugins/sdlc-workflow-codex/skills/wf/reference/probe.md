@@ -52,6 +52,13 @@ The dispatcher has consumed the first positional argument (the slug). What remai
 
 There are no flags — probe takes a slug and an optional target string. It always surfaces incidental defects it observes (focus behavior) and drives every adapter the repo matches (intersected with the confirmed stack).
 
+> **Optional second opinion.** After observing (before synthesizing findings), you
+> may offer `$consult <give an independent read of this runtime evidence against
+> the AC>` (or `$consult <provider> …`) — a read-only multi-model panel that gives
+> the evidence a second eye before it routes to fix or plan. Opt-in, sends content
+> to external models, gated by `externalDispatch.enabled`; offer it, never run it
+> automatically.
+
 # Step 0 — Orient (MANDATORY)
 
 1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), and the **`stack:` block** (written by `$wf intake` Step 0.5 and confirmed in Batch B). The `stack:` block — when `user-confirmed: true` — narrows adapter selection in Step 3 and tooling choice during drive/observe.

@@ -75,15 +75,26 @@ Generate 1–3 high-fidelity comps:
 - For brand: push visual identity, composition, and mood aggressively
 - For product: push hierarchy, topology, and density while staying grounded in realistic product structure
 
+Generate the north-star comp at **2K** fidelity via the `imagery` skill (it infers
+the 2K tier from this north-star context and the output path, and reports the file
+back — no flags):
 ```
-imagegen "<resolved brief prompt>" --output .ai/design-probes/<slug>-craft-north-star.jpg --resolution 2K
+imagery "<resolved brief prompt>"
 ```
+(Bare `imagery` fans out; pin one — e.g. `imagery gemini "<resolved brief prompt>"` —
+for a single 2K comp.)
 
 Present the mock and ask the user directly in chat: "Does this match your visual direction? (yes to proceed / adjustments needed)"
 
 If image generation unavailable: state in one line that the step is skipped because the harness lacks native image generation. Then proceed.
 
 Record `image_gate=pass` after confirmation, or `image_gate=skipped:<reason>`.
+
+> **Optional live prototype (beside the static mock).** For an interactive HTML
+> prototype of the approved direction, you may run `$uiproto <component description>`
+> (or `uiproto stitch|llm …`). It writes a sandboxed `<iframe srcdoc>` fragment next
+> to the craft artifact. Opt-in, sends the prompt to external engines (Stitch / an
+> LLM), gated by `externalDispatch.enabled` — offer it, never run it automatically.
 
 ## Step 4: Mock fidelity inventory (both modes)
 

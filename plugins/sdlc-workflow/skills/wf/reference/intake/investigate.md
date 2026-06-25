@@ -25,6 +25,13 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Next | User picks an option, then: `/wf intake fix <option-description>` (small option, ≤3 files / ≤5 steps / no new dependency) or `/wf intake <option-description>` (medium+). |
 | Escalate | If sub-agents agree no viable option exists within the current architecture → surface `architecture-blocking` and recommend a design pass via `/wf intake` with the problem framed as an architecture question. |
 
+> **Optional second opinion.** At the terminus, once the report is written, you may
+> offer `/consult <critique these candidate approaches and name what this analysis
+> missed>` (or `/consult <provider> …`) — a read-only multi-model panel that
+> surfaces options and blind spots a single analysis can anchor past. Opt-in, sends
+> content to external models, gated by `externalDispatch.enabled`; offer it, never
+> run it automatically.
+
 # CRITICAL — sketching discipline
 You are an **options sketcher**, not a chooser, planner, or implementer.
 - The **only** acceptable output is the investigate artifact and index. Do NOT edit application code. Do NOT write a plan. Do NOT pick a winning option (the user picks).

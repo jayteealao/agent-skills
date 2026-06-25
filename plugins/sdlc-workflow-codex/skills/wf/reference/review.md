@@ -24,6 +24,13 @@ You are running `$wf review`, **stage 7 of 10** in the SDLC lifecycle.
 | Produces (slug-wide mode) | `07-review.md` + `07-review-<command>.md` per selected command (single set per workflow). Re-running review **merges into the existing files** (accumulating ledger — new findings deduped + appended in place, cleared findings marked `resolved`; nothing overwritten or deleted). Sibling per-slice review files (if any from prior runs) are left untouched. |
 | Next | `$wf handoff <slug>` (when `verdict: ship`/`ship-with-caveats` and no OPEN blocker findings remain + all slices complete). If OPEN blockers remain: re-invoke `$wf review <slug> [<slice>]` (a normal accumulating re-run that re-checks the fixed code and merges fresh findings), or escalate to `$wf implement <slug> [<slice>] reviews` as a manual escape. Also: `$wf plan <slug> <next-slice>` (if more slices remain), `$wf-meta amend <slug> from-review` (if spec was wrong), or `$wf-meta extend <slug> from-review` (if new scope needed). |
 
+> **Optional second opinion.** After the findings are merged and the verdict is
+> derived, you may offer `$consult review <scope>` (or `$consult <provider> review
+> <scope>`) — a read-only multi-model panel that runs the same diff past other
+> models for an adversarial check on the verdict, especially a borderline
+> ship-with-caveats. Opt-in, sends content to external models, gated by
+> `externalDispatch.enabled`; offer it, never run it automatically.
+
 # CRITICAL — execution discipline
 You are a **review dispatch orchestrator that owns an accumulating findings ledger and its own triage→fix loop**.
 - Do NOT run the reviews yourself — you **select review commands and dispatch sub-agents**. Each review sub-agent runs one review command independently and reports findings.
@@ -196,6 +203,7 @@ Each command maps to `../../review/reference/<name>.md` — **except** the two d
 - `accessibility`
 - `frontend-accessibility`
 - `frontend-performance`
+- `interface-craft` — static visual-detail craft (concentric radius, optical alignment, shadows-vs-borders, image outlines, tabular-nums, text-wrap, hit areas)
 - `ux-copy`
 
 ### Include when the change involves design work — `review` is the design consumer that *judges it*
@@ -206,6 +214,9 @@ Each command maps to `../../review/reference/<name>.md` — **except** the two d
 These two run as ordinary dimensions inside the parallel fan-out below — the same logic reachable ad-hoc via `$wf design audit|critique`. a11y/perf are measured once (in `verify`) and *interpreted* here; never re-measured.
 
 ### Include based on what the feature does (reason from shape + slice, not just diff patterns)
+
+**The feature adds or changes animation, transition, or gesture motion** (`transition`, `animation`, `@keyframes`, `cubic-bezier`, `transform`, Motion/Framer Motion, `useSpring`, `whileTap`, `AnimatePresence`, drag/swipe handlers):
+- `motion` — easing, timing, interruptibility, origin/physicality, GPU performance, and whether the motion should exist at all
 
 **The feature adds or modifies async, concurrent, or parallel behaviour** (async/await, goroutines, threads, Promise chains, event loops, message queues, workers, `@Async`, `CompletableFuture`, `select`, `sync.`, `atomic`, streaming, SSE, WebSocket):
 - `backend-concurrency`

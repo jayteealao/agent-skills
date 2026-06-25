@@ -121,6 +121,7 @@ function legacyInlineDispatch(cwd, viewRoot, buckets) {
 }
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") exitClean();
+  if (process.env.SDLC_DISPATCH_ACTIVE === "1") exitClean();
   const input = readInput();
   if (!input) exitClean();
   const cwd = resolveProjectRoot(input.cwd ?? process.cwd());

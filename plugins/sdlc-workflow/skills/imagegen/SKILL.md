@@ -1,10 +1,18 @@
 ---
 name: imagegen
-description: Generate an image from a text prompt using the best available method, with automatic fallback (built-in image_gen → gpt-image-2 → nano-banana-pro → text-only scene sentence). Returns the image file path and the method used. Internal to `/wf design`; not user-invocable.
+description: "DEPRECATED — superseded by the `imagery` skill (D14). Generate an image from a text prompt with automatic fallback. Kept one release as a thin alias; new callers use `imagery`. Internal to `/wf design`; not user-invocable."
 version: 1.0.0
+deprecated: true
 user-invocable: false
 argument-hint: "<prompt> [--output path] [--resolution 1K|2K|4K] [--count 1-4] [--skip-reason text]"
 ---
+
+> **DEPRECATED (v9.93.0, D14).** This skill is superseded by **`imagery`**
+> (`${CLAUDE_PLUGIN_ROOT}/skills/imagery/SKILL.md`) — direct API calls instead of
+> the `rollout.jsonl` scrape, plus fan-out. The `/wf design` callers now invoke
+> `imagery`. `imagegen` remains a thin alias for ONE release, then is removed.
+> Do not wire new callers to it. It keeps the same `IMAGEGEN_RESULT` output
+> contract, so existing behavior is unchanged in the meantime.
 
 Generate an image from a natural language prompt using the best available method.
 

@@ -855,7 +855,7 @@ Self-contained workflows with their own lifecycle that do not require an existin
 | `/wf-docs [<primitive>\|slug\|--audit-only\|path]` | Documentation router: orchestrator pipeline (discover → audit → plan → generate → review) or single Diátaxis primitive (plan, tutorial, how-to, reference, explanation, readme, review) | `.ai/docs/<run-id>/` (orchestrator) or in-place (primitive) |
 | `/wf intake refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
 
-### Review domains (31 dimensions)
+### Review domains (33 dimensions)
 
 Invoke a single domain as `/review <dimension>` (skill auto-trigger or explicit `/review` invocation). Dispatched automatically by `wf-review` based on artifact analysis. The `review` skill body lives at [`skills/review/SKILL.md`](./skills/review/SKILL.md); each dimension's rubric is at `skills/review/reference/<dimension>.md`.
 
@@ -863,12 +863,13 @@ Invoke a single domain as `/review <dimension>` (skill auto-trigger or explicit 
 
 **Always selected for backend source changes:** `testing`, `maintainability`, `reliability`
 
-**Always selected for frontend source changes:** `accessibility`, `frontend-accessibility`, `frontend-performance`, `ux-copy`
+**Always selected for frontend source changes:** `accessibility`, `frontend-accessibility`, `frontend-performance`, `interface-craft`, `ux-copy`
 
 **Selected by feature type (from shape/slice artifacts):**
 
 | Domain | Trigger |
 |---|---|
+| `motion` | Animation, transition, or gesture motion |
 | `backend-concurrency` | Async, concurrent, parallel behaviour |
 | `refactor-safety` | Refactor, restructure, rename, extraction |
 | `architecture` | New modules, services, architectural layers |
@@ -895,13 +896,13 @@ Invoke a single domain as `/review <dimension>` (skill auto-trigger or explicit 
 
 | Sweep | Dimensions dispatched in parallel |
 |---|---|
-| `/review sweep all` | All 31 dimensions (broadest, most expensive) |
+| `/review sweep all` | All 33 dimensions (broadest, most expensive) |
 | `/review sweep quick` | correctness, style-consistency, dx, ux-copy, overengineering |
 | `/review sweep pre-merge` | correctness, testing, security, refactor-safety, maintainability |
 | `/review sweep security` | security, privacy, infra-security, data-integrity, supply-chain |
 | `/review sweep architecture` | architecture, performance, scalability, api-contracts |
 | `/review sweep infra` | infra, ci, release, migrations, logging, observability |
-| `/review sweep ux` | accessibility, frontend-accessibility, frontend-performance, ux-copy |
+| `/review sweep ux` | accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy |
 
 ### Analysis skills
 

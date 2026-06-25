@@ -24,6 +24,13 @@ You are running `$wf handoff`, **stage 8 of 10** in the SDLC lifecycle.
 | Next | `$wf ship <slug>` (default) |
 | Skip-to | `$wf retro <slug>` if shipping is handled externally or not applicable |
 
+> **Optional second opinion.** Before writing the final readiness verdict, you may
+> offer `$consult <review this PR diff and open findings for design drift,
+> architectural smell, or security blind spots>` (or `$consult <provider> …`) — a
+> read-only multi-model panel that catches what CI cannot, right before the PR is
+> declared ready. Opt-in, sends content to external models, gated by
+> `externalDispatch.enabled`; offer it, never run it automatically.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT make code changes, fix issues, or modify the implementation **yourself**. When CI fails or a review thread needs a code change, you **delegate** it: dispatch a diagnosis/fix **subagent** (see `## Fix-subagent contract`) and, for CI-red, get user approval first. The orchestrator reads no source and writes no patch — the subagent does, and only its compact result returns to your context. This is both the orchestrator-discipline rule and the "keep the context clean" requirement, satisfied by the same mechanism.

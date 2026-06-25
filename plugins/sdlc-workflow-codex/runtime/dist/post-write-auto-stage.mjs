@@ -27,6 +27,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") return;
+  if (process.env.SDLC_DISPATCH_ACTIVE === "1") return;
   const input = await readStdinJson();
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);

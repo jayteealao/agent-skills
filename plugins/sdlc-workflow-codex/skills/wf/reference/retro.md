@@ -22,6 +22,13 @@ You are running `$wf retro`, **stage 10 of 10** in the SDLC lifecycle.
 | Produces | `10-retro.md` |
 | Next | Workflow complete. No further stages. |
 
+> **Optional second opinion.** At the synthesis step (after the analysis sub-agents
+> return), you may offer `$consult <what systemic patterns span this workflow's
+> friction?>` (or `$consult <provider> …`) — a read-only multi-model panel that
+> spots cross-stage patterns the per-domain sub-agents miss. Opt-in, sends content
+> to external models, gated by `externalDispatch.enabled`; offer it, never run it
+> automatically.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT apply the improvements you suggest — only document them.

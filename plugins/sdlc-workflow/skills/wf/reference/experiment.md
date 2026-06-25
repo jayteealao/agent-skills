@@ -32,6 +32,14 @@ existing-workflow/
 | When to run | After `/wf shape` and ideally after `/wf instrument` (observability is needed to measure outcomes). Before `/wf implement` so the flag scaffolding is planned before coding begins. |
 | Warning | If `04b-instrument.md` is NOT present, surface a warning — experiments are hard to evaluate without observable signals. Do NOT block. |
 
+> **Optional second opinion.** After the design sub-agent returns (before writing
+> `04c-experiment.md`), you may offer `/consult <critique this hypothesis and
+> metric choice — primary metric, guardrails, stopping rules>` (or `/consult
+> <provider> …`) — a read-only multi-model panel that checks the design before the
+> experiment goes live and misjudged metrics compound silently. Opt-in, sends
+> content to external models, gated by `externalDispatch.enabled`; offer it, never
+> run it automatically.
+
 # CRITICAL — scope discipline
 You are an **experiment designer**, not an implementer.
 - Do NOT write application code. Do NOT write feature flag code. Do NOT modify `02-shape.md`, `04-plan-*.md`, or any existing artifact.

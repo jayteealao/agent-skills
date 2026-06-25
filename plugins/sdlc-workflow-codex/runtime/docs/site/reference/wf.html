@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.92.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.93.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -391,7 +391,7 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <h2 id="wf-review">/wf review &lt;slug&gt; [slice|triage]</h2>
 
-<p class="sub-intro">You reach for this sub-command once verify passes — it fans out across up to 31 review dimensions in parallel and aggregates the findings into a single ship verdict.</p>
+<p class="sub-intro">You reach for this sub-command once verify passes — it fans out across up to 33 review dimensions in parallel and aggregates the findings into a single ship verdict.</p>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>7 — multi-domain parallel review dispatch</td></tr>
@@ -400,7 +400,7 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 <tr><th>Default next</th><td><code>/wf handoff &lt;slug&gt;</code> (if ship verdict) or <code>/wf implement &lt;slice&gt; reviews</code> (if blockers)</td></tr>
 </table></div>
 
-<p>Not a single reviewer. A dispatch orchestrator that reads shape and slice, decides which of the 31 review dimensions matter for this change, and runs each as a parallel sub-agent. Findings are aggregated, de-duplicated, and triaged with you.</p>
+<p>Not a single reviewer. A dispatch orchestrator that reads shape and slice, decides which of the 33 review dimensions matter for this change, and runs each as a parallel sub-agent. Findings are aggregated, de-duplicated, and triaged with you.</p>
 
 <h4>What it reads</h4>
 <ul>

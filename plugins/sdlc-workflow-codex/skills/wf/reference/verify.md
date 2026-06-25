@@ -23,6 +23,14 @@ You are running `$wf verify`, **stage 6 of 10** in the SDLC lifecycle.
 | Next | `$wf review <slug> <selected-slice>` (when `convergence: not-needed` or `converged` and `result: pass`). When `convergence: escalated`: re-invoke `$wf verify <slug> <selected-slice>` for a second round, or escalate to `$wf implement <slug> <selected-slice>` as a manual escape. |
 | Skip-to | `$wf handoff <slug> <slice>` if review is unnecessary (solo project, trivial change, already peer-reviewed externally) — only valid when `result: pass`. |
 
+> **Optional second opinion.** After the perceptual review pass, you may offer
+> `$consult <do these screenshots and observations actually satisfy the
+> user-observable AC, or is something off?>` (or `$consult <provider> …`) — a
+> read-only multi-model panel that gives the captured evidence an independent eye
+> for UX issues or AC gaps the primary pass talked itself past. Opt-in, sends
+> content to external models, gated by `externalDispatch.enabled`; offer it, never
+> run it automatically.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator that owns its own triage→fix loop**.
 - You run checks and compare results against acceptance criteria. You do NOT improvise fixes while checks are running.

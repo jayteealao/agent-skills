@@ -22,6 +22,12 @@ You are running `wf-ship`, **stage 9 of 10** in the SDLC lifecycle.
 | Produces | `09-ship-run-<run-id>.md` (per release) + refreshed `09-ship-runs.md` (per-workflow index). Legacy `09-ship.md` is read-only; never written by this version. |
 | Next | `/wf retro <slug>` (if go) or `/wf implement <slug> <slice>` (if blockers) |
 
+> **Optional second opinion.** At the Go/No-Go gate, you may offer `/consult
+> <risk-review this release: pre-flight, dry-run, freshness delta, and any deferred
+> findings>` (or `/consult <provider> …`) — a read-only multi-model panel that is a
+> second opinion before the irreversible merge. Opt-in, sends content to external
+> models, gated by `externalDispatch.enabled`; offer it, never run it automatically.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT fix code — if blockers require code changes, recommend returning to `/wf implement <slug> <slice>`.

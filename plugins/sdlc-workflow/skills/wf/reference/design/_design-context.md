@@ -90,15 +90,16 @@ It lives in the design artifact frontmatter and is resolved by the **producer** 
 at its brief or contract step (both part of the `craft` Producer).
 
 - `image_gate=pending` — **blocks all code mutation.** Visual direction is not yet confirmed.
-- `image_gate=pass` — required visual probes were generated via the `imagegen` skill; visual
+- `image_gate=pass` — required visual probes were generated via the `imagery` skill; visual
   direction is confirmed and code mutation may open.
-- `image_gate=skipped:<reason>` — direction confirmed without imagegen, with a recorded reason.
-  An empty or generic reason is **INVALID** — name *why* no probe was needed (e.g.
+- `image_gate=skipped:<reason>` — direction confirmed without an image probe, with a recorded
+  reason. An empty or generic reason is **INVALID** — name *why* no probe was needed (e.g.
   "text-only fallback: no image backend available", "token-only transform, no new surface").
 
-The `imagegen` skill (`${CLAUDE_PLUGIN_ROOT}/skills/imagegen/SKILL.md`) is invoked internally
-and resolves the best available image backend at runtime; the caller records the result and
-sets the gate.
+The `imagery` skill (`${CLAUDE_PLUGIN_ROOT}/skills/imagery/SKILL.md`) is invoked internally
+and fans out to the best available image backends at runtime (built-in `image_gen` always; the
+gpt-image-2 / nano-banana API backends when `externalDispatch.enabled`); the caller records the
+`IMAGEGEN_RESULT` and sets the gate. (Supersedes the former `imagegen` skill, D14.)
 
 ## Preflight gates (run before any design work that edits files)
 

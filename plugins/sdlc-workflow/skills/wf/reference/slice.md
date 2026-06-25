@@ -23,6 +23,13 @@ You are running `wf-slice`, **stage 3 of 10** in the SDLC lifecycle.
 | Next | `/wf plan <slug> <best-first-slice>` (default) |
 | Alt | `/wf plan <slug> all` to plan all slices in parallel |
 
+> **Optional second opinion.** Once `03-slice.md` is drafted (before adaptive
+> routing), you may offer `/consult <critique this slice decomposition —
+> independence, ordering, any risky slice buried mid-sequence>` (or `/consult
+> <provider> …`) — a read-only multi-model panel that pressure-tests the
+> decomposition before rework gets expensive. Opt-in, sends content to external
+> models, gated by `externalDispatch.enabled`; offer it, never run it automatically.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT start planning implementation details, writing code, or designing architecture.

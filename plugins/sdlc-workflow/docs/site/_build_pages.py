@@ -336,7 +336,7 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/review</code></td>
   <td>You want a structured code review on a PR or a diff</td>
-  <td>31-dimension code review. Sub-commands: a single dimension inline (<code>/review correctness</code>), or a full sweep (<code>/review sweep</code>) that fans out one agent per dimension</td>
+  <td>33-dimension code review. Sub-commands: a single dimension inline (<code>/review correctness</code>), or a full sweep (<code>/review sweep</code>) that fans out one agent per dimension</td>
 </tr>
 </tbody>
 </table>
@@ -650,10 +650,10 @@ You know what you want to do. This page maps your situation to the exact command
 <tr>
   <td>Review a specific dimension of my code (e.g. security)</td>
   <td><code>/review &lt;dimension&gt;</code></td>
-  <td>Runs one rubric inline. Available dimensions: correctness, security, performance, architecture, accessibility, supply-chain, and 25 more. See <a href="../reference/review.html">the review reference →</a></td>
+  <td>Runs one rubric inline. Available dimensions: correctness, security, performance, architecture, accessibility, supply-chain, and 27 more. See <a href="../reference/review.html">the review reference →</a></td>
 </tr>
 <tr>
-  <td>Run a full 31-dimension review and get a verdict</td>
+  <td>Run a full 33-dimension review and get a verdict</td>
   <td><code>/review sweep</code></td>
   <td>Fans out one agent per dimension in parallel. Slower but comprehensive.</td>
 </tr>

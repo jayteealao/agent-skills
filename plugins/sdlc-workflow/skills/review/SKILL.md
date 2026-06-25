@@ -1,6 +1,6 @@
 ---
 name: review
-description: Code review across 31 dimensions (correctness, security, performance, architecture, accessibility, supply-chain, and more — see `argument-hint`). `/review <dimension>` runs one rubric inline; `/review sweep <aggregate>` fans out one reviewer sub-agent per dimension in parallel and synthesizes a unified verdict. Auto-trigger on review or audit requests scoped to a PR, worktree, diff, file, or repo.
+description: Code review across 33 dimensions (correctness, security, performance, architecture, accessibility, motion, supply-chain, and more — see `argument-hint`). `/review <dimension>` runs one rubric inline; `/review sweep <aggregate>` fans out one reviewer sub-agent per dimension in parallel and synthesizes a unified verdict. Auto-trigger on review or audit requests scoped to a PR, worktree, diff, file, or repo.
 ---
 
 # External Output Boundary (MANDATORY)
@@ -16,6 +16,12 @@ You are the **code review skill** for the SDLC workflow plugin. Two modes of ope
 - **Sweep** — `/review sweep <aggregate>` (e.g. `/review sweep architecture worktree`): dispatch one reviewer sub-agent per dimension in the aggregate's composition, collect findings in parallel, synthesize a unified verdict.
 
 **Choosing between them:** single-dimension is one reviewer over a broad rubric; sweep is N reviewers each with their own rubric. Use single-dimension when you know which axis to investigate; use sweep when you want defensive breadth. Sweep is more thorough and more expensive — pick it deliberately.
+
+> **Cross-model second opinion (optional).** For a review pass from *other* models
+> (Codex, Gemini, OpenAI) alongside this in-house review, offer `/consult review
+> <scope>` — a read-only multi-model panel. It is opt-in, sends the diff/files to
+> external providers, and is gated by `externalDispatch.enabled`. It complements
+> this skill; it does not replace it.
 
 > **Narrative fragments — any artifact (v9.70.0).** Beyond the typed review `.html.fragment` projected from the sibling `.yaml`, any review artifact may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page (e.g. a custom call-graph or exploit walkthrough for a specific finding). Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
 
@@ -40,17 +46,17 @@ Mode resolution rules:
 
 | Aggregate | What it dispatches (one sub-agent per dimension) |
 |---|---|
-| `all` | Every dimension (~31 sub-agents — broadest sweep, most expensive) |
+| `all` | Every dimension (~33 sub-agents — broadest sweep, most expensive) |
 | `architecture` | architecture, performance, scalability, api-contracts |
 | `infra` | infra, ci, release, migrations, logging, observability |
 | `pre-merge` | correctness, testing, security, refactor-safety, maintainability |
 | `quick` | correctness, style-consistency, dx, ux-copy, overengineering |
 | `security` | security, privacy, infra-security, data-integrity, supply-chain |
-| `ux` | accessibility, frontend-accessibility, frontend-performance, ux-copy |
+| `ux` | accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy |
 
 **Dimension keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/review/reference/<key>.md`:
 
-`accessibility`, `api-contracts`, `architecture`, `backend-concurrency`, `ci`, `code-simplification`, `correctness`, `cost`, `data-integrity`, `docs`, `dx`, `frontend-accessibility`, `frontend-performance`, `infra`, `infra-security`, `logging`, `maintainability`, `migrations`, `observability`, `overengineering`, `performance`, `privacy`, `refactor-safety`, `release`, `reliability`, `scalability`, `security`, `style-consistency`, `supply-chain`, `testing`, `ux-copy`.
+`accessibility`, `api-contracts`, `architecture`, `backend-concurrency`, `ci`, `code-simplification`, `correctness`, `cost`, `data-integrity`, `docs`, `dx`, `frontend-accessibility`, `frontend-performance`, `infra`, `infra-security`, `interface-craft`, `logging`, `maintainability`, `migrations`, `motion`, `observability`, `overengineering`, `performance`, `privacy`, `refactor-safety`, `release`, `reliability`, `scalability`, `security`, `style-consistency`, `supply-chain`, `testing`, `ux-copy`.
 
 # Step 1a — Single-dimension execution
 

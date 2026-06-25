@@ -23,6 +23,12 @@ You are running `wf-plan`, **stage 4 of 10** in the SDLC lifecycle.
 | Next | `/wf implement <slug> <slice-slug>` (default) |
 | Skip-to | `/wf implement <slug> <slice-slug>` directly if plan is trivial |
 
+> **Optional second opinion.** After the plan is written you may run
+> `/consult <question about this plan>` (or `/consult <provider> …`) to fan out a
+> read-only multi-model critique panel and embed it next to the plan artifact. It
+> is opt-in, sends content to external models, and is gated by
+> `externalDispatch.enabled` — offer it, never run it automatically.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT start writing code, editing files, or implementing the plan you produce.

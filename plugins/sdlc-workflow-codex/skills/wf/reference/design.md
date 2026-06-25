@@ -283,7 +283,7 @@ Next: <recommended command, or "Done">
   load-bearing counts, decisions, and the top risk. Write it like you're telling a colleague, not
   filling a form. Omit only for genuinely read-only runs with nothing to narrate.
 - **Register** is `brand` or `product` — always emit; it is the load-bearing design-mode signal.
-- **Image gate** records whether the imagegen check passed for commands that use it; `n/a` for
+- **Image gate** records whether the imagery check passed for commands that use it; `n/a` for
   commands that don't run it.
 - **Artifacts.** Comma-separate the `.ai/workflows/<slug>/` paths written (build runs list the
   whole span). No-slug standalone reports may write `"none"` if nothing persisted.

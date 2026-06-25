@@ -45,6 +45,13 @@ existing-workflow/
 | Next (baseline) | `/wf implement <slug>` |
 | Next (compare) | `/wf verify <slug>` — comparison data is available as additional context |
 
+> **Optional second opinion.** In compare mode, when regressions are found, you may
+> offer `/consult <diagnose the likely cause of these regressions given the diff
+> and the plan>` (or `/consult <provider> …`) — a read-only multi-model panel that
+> grounds the "likely cause" in the actual change instead of a guess. Opt-in, sends
+> content to external models, gated by `externalDispatch.enabled`; offer it, never
+> run it automatically.
+
 # CRITICAL — measurement discipline
 You are a **performance analyst**, not an optimizer.
 - Do NOT modify application code. Do NOT rewrite benchmarks to make them faster.

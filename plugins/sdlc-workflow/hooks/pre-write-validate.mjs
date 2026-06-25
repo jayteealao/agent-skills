@@ -67,6 +67,9 @@ async function registryWarnings({ projectRoot, filePath, workflowDir, filename }
 
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;
+  // Defense-in-depth: a dispatched sub-agent (consult skill) must not have its
+  // writes validated as SDLC artifacts. See EXTERNAL-MODEL-DISPATCH-PLAN §3.1.
+  if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
 
   const input = await readStdinJson();
   const projectRoot = projectRootFromInput(input);

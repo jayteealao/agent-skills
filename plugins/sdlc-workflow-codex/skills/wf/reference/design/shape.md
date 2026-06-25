@@ -95,18 +95,22 @@ Construct 2–3 prompt variants from the confirmed scene sentence and brief:
 - **Variant B** — elevated/editorial interpretation of the same scene
 - **Variant C** — a contrast direction (different mood or palette)
 
-Invoke the `imagegen` skill for each variant:
+Invoke the `imagery` skill for each variant (it infers the output path under
+`.ai/design-probes/` and reports it back — no flags):
 ```
-imagegen "<variant A prompt>" --output .ai/design-probes/<slug>-shape-a.jpg
-imagegen "<variant B prompt>" --output .ai/design-probes/<slug>-shape-b.jpg
-imagegen "<variant C prompt>" --output .ai/design-probes/<slug>-shape-c.jpg
+imagery "<variant A prompt>"
+imagery "<variant B prompt>"
+imagery "<variant C prompt>"
 ```
+(Bare `imagery` fans out to every available backend — free built-in `image_gen`
+always, plus any opted-in API backends. Pin one for a single image per variant,
+e.g. `imagery gemini "<variant A prompt>"`.)
 
 Present results and ask the user directly in chat to choose a direction, or say 'skip' to proceed text-only.
 
 Record the user's choice in the design brief under `## Visual Direction` → `Probe selection`.
 
-If imagegen returns `method=text-only`: record the scene sentence + prompt template in the brief, set `image_gate=skipped:no-method-available`, and proceed.
+If imagery returns `method=text-only`: record the scene sentence + prompt template in the brief, set `image_gate=skipped:no-method-available`, and proceed.
 
 ## Phase 4: Confirm brief
 

@@ -156,6 +156,9 @@ function legacyInlineDispatch(cwd, viewRoot, buckets) {
 async function main() {
   // Bulk-install suppression
   if (process.env.CLAUDE_PLUGIN_INSTALL === '1') exitClean();
+  // Defense-in-depth: a dispatched sub-agent (consult skill) must not trigger
+  // view renders in this repo. See EXTERNAL-MODEL-DISPATCH-PLAN §3.1.
+  if (process.env.SDLC_DISPATCH_ACTIVE === '1') exitClean();
 
   const input = readInput();
   if (!input) exitClean();

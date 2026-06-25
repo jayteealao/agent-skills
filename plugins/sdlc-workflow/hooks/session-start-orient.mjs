@@ -34,6 +34,11 @@ const PLUGIN_ROOT = resolve(__dirname, '..');
 
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;
+  // A dispatched read-only sub-agent (consult skill) boots a session IN this
+  // repo; it must not re-trigger SDLC orientation/bootstrap. This early-exit IS
+  // the primary hook-isolation mechanism — the consult runner sets this sentinel
+  // on the child env (no --settings/--bare flag). See EXTERNAL-MODEL-DISPATCH-PLAN §3.1.
+  if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
 
   const input = await readStdinJson();
   const projectRoot = projectRootFromInput(input);

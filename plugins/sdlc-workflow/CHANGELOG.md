@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — external-model dispatch: `consult`, `imagery`, `uiproto` (9.93.0)
+
+The plugin can now send prompts to *external* models as part of the workflow and fold the results back into the in-house pipeline — always opt-in, gated behind a single `externalDispatch.enabled` config flag (default `false`). Dispatch lives in a shared `lib/` module fronted by a `SDLC_DISPATCH_ACTIVE` sentinel that short-circuits the write hooks while an external call is in flight, so a dispatched sub-agent never re-enters the plugin's own validation.
+
+- **`consult`** — external models as **read-only oracles**: plan critique, code/implementation review, design analysis, diagnosis, second opinion. Fans out to every available provider by default (codex, claude, gemini, openai; a provider keyword narrows to one) and returns a panel of opinions, never editing the repo. Offered — never auto-run — by `/review` and `/wf review` for a cross-model check on a verdict.
+- **`imagery`** — image generation from a prompt, fanning out across built-in `image_gen`, gpt-image-2, and nano-banana into a variant set (or one with a provider keyword). **Supersedes `imagegen`**, now deprecated and kept one release as a thin alias.
+- **`uiproto`** — prototypes a UI component/screen, fanning out to Google Stitch + an LLM side-by-side, writing a self-contained sandboxed HTML fragment. Internal to `/wf design`.
+- Claude and Codex trees at parity; the only runtime/dist change is the config flag plus the hook sentinel early-exit.
+
+### Added — `motion` and `interface-craft` review dimensions (9.93.0)
+
+`/review` and `/wf review` grow from 31 to 33 dimensions, adapting two MIT-licensed design-engineering skill packs into the plugin's review rubrics and design references.
+
+- **`motion`** reviews animation, transition, and gesture code against a craft bar — the frequency framework ("should it animate at all"), strong custom easing curves, sub-300 ms UI budgets, interruptibility, origin/physicality, GPU-only properties, and gesture physics. Adapted from Emil Kowalski's animations.dev philosophy.
+- **`interface-craft`** reviews the static visual detail that compounds into polish — concentric border radius, optical alignment, shadows-over-borders, pure-black/white image outlines, tabular numbers, text-wrapping, and minimum hit areas. Adapted from Jakub Krehel's "details that make interfaces feel better".
+- Both register in the `ux` sweep and in the `wf-review` selection logic (interface-craft always-on for frontend changes; motion conditional on animation diffs). The design `animate`/`polish`/`typeset` references gain the same specifics, scoped to the product register so brand motion license is untouched, so the guidance also flows into the build pipeline.
+
 ### Added — narrative voice: a story section that opens every artifact (9.92.0)
 
 Addresses a long-standing complaint that the artifacts read like dead technical documents — accurate, but no story. Every `/wf` artifact now opens with a prose **story section** named after its stage (`## The Plan`, `## The Verification`, …): a self-sufficient lead a reader can read *alone* to understand what was produced, the load-bearing decisions and counts, and the top risk. The structured sections below it stay terse and technical, so the narrative and the reference data stop fighting in one register.

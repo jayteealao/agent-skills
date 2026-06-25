@@ -66,6 +66,16 @@ export const HUB_CONFIG_DEFAULTS = Object.freeze({
   // heal:false to detect-and-flag only (the hub still surfaces `stale` in health).
   // Reaches both daemons via env at spawn (SDLC_STALE_RENDER), like codeBrowser.
   staleRender: { ...STALE_RENDER_DEFAULTS },
+  // External-model dispatch (EXTERNAL-MODEL-DISPATCH-PLAN, D7/§4). The single
+  // machine-wide consent gate for the `consult` / `imagery` / `uiproto` skills,
+  // which send artifact/repo content to third-party AI models (Codex, Claude,
+  // Gemini, OpenAI, the Vercel AI Gateway, Stitch). OFF by default: dispatch is
+  // a privacy/egress boundary, so it stays dark until a developer explicitly
+  // opts THIS machine in. The skill runners re-check this flag themselves (the
+  // script — not just the SKILL.md prose — is the trust boundary), so a direct
+  // `node dispatch.mjs …` cannot bypass consent. Egress consent is this one
+  // flag (no separate per-run `.ai/` marker); secrets stay in env, never here.
+  externalDispatch: { enabled: false },
 });
 
 export function hubConfigPath() {

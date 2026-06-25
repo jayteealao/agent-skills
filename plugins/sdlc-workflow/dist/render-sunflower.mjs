@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-43DNF3XR.mjs";
+} from "./chunk-QE5TEMRX.mjs";
 import {
   resolveProjectRoot
 } from "./chunk-UTP6CBAZ.mjs";
@@ -16,7 +16,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-O3755V4W.mjs";
+} from "./chunk-LYWZLVEZ.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
@@ -26,7 +26,7 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-ZKEWZO5H.mjs";
+} from "./chunk-UDJ5LSSN.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";

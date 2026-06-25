@@ -19,6 +19,13 @@ You are the **documentation dispatcher** for the SDLC plugin. Two modes of opera
 
 > **Narrative fragments — any artifact (v9.70.0).** Any docs artifact you write may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page. Author one whenever a bespoke diagram, flow, comparison, or interactive example tells the story better than prose. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
 
+> **Optional second opinion.** After the audit (and again after generate), you may
+> offer `/consult <completeness blind spots in this doc plan>` or `/consult
+> <accuracy pass on this reference doc>` (or `/consult <provider> …`) — a read-only
+> multi-model panel that runs a cross-model completeness and accuracy check on
+> developer-facing docs. Opt-in, sends content to external models, gated by
+> `externalDispatch.enabled`; offer it, never run it automatically.
+
 # Step 0 — Mode + sub-command resolution (MANDATORY)
 
 Parse `$ARGUMENTS`.

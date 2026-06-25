@@ -31,6 +31,13 @@ This is a **standalone command**, not tied to any workflow. It writes to `.ai/pr
 | Next | `/wf intake investigate <domain>` — to rank this profiling finding among other investment opportunities |
 | Alt next | `/wf intake <description>` — if the profiling surfaced a clear high-value optimization |
 
+> **Optional second opinion.** At the optimization-candidates synthesis, you may
+> offer `/consult <are these optimization candidates sound, and what architectural
+> patterns did local analysis miss?>` (or `/consult <provider> …`) — a read-only
+> multi-model panel that brings cross-codebase breadth to the analysis. Opt-in,
+> sends content to external models, gated by `externalDispatch.enabled`; offer it,
+> never run it automatically.
+
 # Core discipline
 - **Evidence first.** Every hotspot claim must cite a specific `file:line` or tool output. Do not say "this is probably slow" without a data point.
 - **Static analysis is fast; dynamic profiling is authoritative.** Always do static first. If runtime tools are available, run them too and let dynamic data override static guesses.

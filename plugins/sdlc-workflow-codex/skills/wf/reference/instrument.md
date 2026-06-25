@@ -32,6 +32,13 @@ existing-workflow/
 | When to run | After `$wf shape` and before or during `$wf implement`. Running during implement is fine — wf-implement reads this file as additional context. |
 | Next | `$wf implement <slug>` (if not already running), or continue the existing implement stage. |
 
+> **Optional second opinion.** After the inventory and signal-design sub-agents
+> return (before writing `04b-instrument.md`), you may offer `$consult <critique
+> this signal design — coverage blind spots, cardinality, PII exposure>` (or
+> `$consult <provider> …`) — a read-only multi-model panel that checks a judgment
+> call with real tradeoffs. Opt-in, sends content to external models, gated by
+> `externalDispatch.enabled`; offer it, never run it automatically.
+
 # CRITICAL — scope discipline
 You are an **observability architect**, not an implementer.
 - Do NOT write application code. Do NOT modify `02-shape.md`, `04-plan-*.md`, or any stage artifact.
