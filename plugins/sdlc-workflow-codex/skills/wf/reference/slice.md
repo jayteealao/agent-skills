@@ -129,6 +129,30 @@ Write ALL viable options (not just the default) into `## Recommended Next Stage`
 
 ---
 
+# AC verifiability discipline (author the verification path WITH the AC — MANDATORY)
+
+A user-observable acceptance criterion is not finished being authored until you can name *how* it will be observed. This is the highest-leverage place to prevent the "verified but actually broken" leak: an AC born without a verification path becomes a verify-time wall the model rationalizes past with a static-reasoning `pass` or a bare "no emulator" deferral. Decide verifiability **here**, where re-scoping an AC is cheap — not at verify, where the only exits are a false pass or an honest stall.
+
+For **every** acceptance criterion you write into a per-slice file:
+
+1. **Partition it — `observable:` is a justified feasibility decision, not a bare label.** Tag each criterion `<!-- observable: true -->` or `<!-- observable: false -->` immediately after its text. `verify` reads this tag and it MUST be set here at authoring time, never discovered at verify. `observable: true` = a user would see or experience the outcome (a rendered surface, a navigation, a command's output). `observable: false` = the outcome is fully provable by an automated assertion with no live runtime (e.g., "the util handles null input"). When you mark an AC `observable: true`, **name the tool that will observe it** in one line. When you mark it `observable: false`, you are claiming an existing or cheap automated test fully covers it — be honest, because `false` suppresses the runtime gate downstream.
+
+2. **Attach a verification-plan stub to every `observable: true` AC.** Inline, right under the criterion:
+   ```
+   - Given a phone viewport When the board loads Then the carousel is single-column with a tap action sheet at 375px
+     <!-- observable: true -->
+     verify: { method: playwright, env: 375x812 viewport (install-playwright if absent), fixture: seeded-board, rung: web-1 }
+   ```
+   `method` = the tool/technique that observes it; `env` = the target environment and whether anything must be installed or booted (this is what `plan` turns into an authorized bootstrap step, so a missing tool is surfaced now, not at verify); `fixture` = the seed data or deterministic state the AC needs to be observable; `rung` = the constraint-resolution-ladder rung you expect to land on (see [runtime-adapters.md](runtime-adapters.md) → *Constraint-resolution ladder*). The stub is a sketch, not the final plan — `plan`'s `## Verification Strategy` engineers it — but writing it now forces the feasibility question while the AC can still be re-scoped cheaply.
+
+3. **Ban un-plannable user-observable ACs.** If you cannot name any method/tool/env that would observe an `observable: true` AC in the target environment, do **one** of these — never author it and "decide later":
+   - **re-scope** the AC to an observable proxy that *can* be verified in the target environment, or
+   - **pre-register the deferral now** — state the constraint at birth (e.g., "operator session required: prod OAuth credentials"), so it is a logged decision the PO agreed to, not a verify-time surprise papered over with a `pass`.
+
+This discipline is what `plan` (`## Verification Strategy`) and `verify` (the user-observable AC gate) both build on. Getting it right here is cheaper than every downstream stage that inherits a bad AC.
+
+---
+
 Write `03-slice.md` (master index):
 
 ```yaml
@@ -230,7 +254,10 @@ refs:
 - what's out (handled by other slices)
 
 ## Acceptance Criteria
+<!-- Author each AC WITH its verification path — see "AC verifiability discipline" above. Tag every criterion `observable:` (a justified feasibility decision), and attach a `verify:` stub to every `observable: true` one. A user-observable AC with no nameable verification method is re-scoped or pre-registered as a deferral here — never authored to "decide later". -->
 - Given ... When ... Then ...
+  <!-- observable: true|false — one-line justification of the partition -->
+  verify: { method: <tool/technique>, env: <target env / what must be installed or booted>, fixture: <seed data / deterministic state>, rung: <constraint-ladder rung> }   ← only for observable: true
 
 ## Dependencies on Other Slices
 - `<other-slice-slug>`: what this slice needs from it

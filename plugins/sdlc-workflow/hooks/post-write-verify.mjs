@@ -17,6 +17,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
 import { logError } from '../lib/error-log.mjs';
+import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { validateFrontmatterFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
 import {
@@ -224,6 +225,90 @@ async function validateSiblingYamls(paths, config, schemaPath) {
   process.exit(2);
 }
 
+// Shadow-deferral vocabulary (AC-VERIFIABILITY R7 prose-deferral lint). When a
+// `verify` body carries one of these AND the frontmatter says `result: pass`,
+// the slice likely passed a user-observable AC on a prose-only deferral the
+// structured gate can't see. Heuristic → WARN, never block (a body can
+// legitimately quote the phrase while explaining it was AVOIDED).
+const SHADOW_DEFERRAL_RE = /(deferred to (?:the )?(?:user|manual|operator)\b|deferred to manual user|UNVERIFIED[ -]INTERACTIVE|will be verified (?:interactively )?(?:during|in|at)\b|decidable by static reasoning|deferred to user verification)/i;
+
+function blockVerifyResultGate(rel, message) {
+  process.stderr.write(
+    `wf-postwrite-verify: verify result gate BLOCKED ${rel}\n\n${message}\n\n` +
+    'This gate (AC-VERIFIABILITY recommendations R7) makes the "verified but actually\n' +
+    'broken" pass mechanically impossible. Re-Edit the frontmatter to reconcile result\n' +
+    'with the acceptance evidence, then continue. Opt out with hooks.verifyResultGate: false.\n',
+  );
+  process.exit(2);
+}
+
+/**
+ * Write-time `verify` result gate (AC-VERIFIABILITY R7). Closes the
+ * "verified but actually broken" leak at the artifact boundary.
+ *
+ * HARD BLOCK (exit 2), gated by config.hooks.verifyResultGate — frontmatter
+ * cross-field contradictions with no false-positive surface (a true pass meets
+ * every AC and defers none):
+ *   G1: result: pass while metric-acceptance-met < metric-acceptance-total.
+ *   G2: result: pass while interactive-verification: deferred.
+ *
+ * WARN (non-blocking systemMessage), gated by config.hooks.verifyDeferralLint —
+ * heuristic prose-deferral lint: shadow vocabulary in the body co-occurring
+ * with result: pass.
+ *
+ * Only `verify` per-slice artifacts are inspected; everything else is skipped.
+ */
+async function enforceVerifyResultGate(paths, config) {
+  const resultGate = config.hooks?.verifyResultGate !== false;
+  const proseLint = config.hooks?.verifyDeferralLint !== false;
+  if (!resultGate && !proseLint) return;
+
+  const warnings = [];
+  for (const path of paths) {
+    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
+    const text = await readTextIfExists(path.absolute);
+    if (fragmentOwningType(text) !== 'verify') continue;
+    const { data, content } = safeParseFrontmatter(text, { filePath: path.absolute });
+    if (!data || data.result !== 'pass') continue;
+
+    if (resultGate) {
+      const met = data['metric-acceptance-met'];
+      const total = data['metric-acceptance-total'];
+      if (typeof met === 'number' && typeof total === 'number' && total > 0 && met < total) {
+        blockVerifyResultGate(path.original,
+          `result: pass but metric-acceptance-met (${met}) < metric-acceptance-total (${total}). ` +
+          'A passing slice must meet EVERY acceptance criterion. Either evidence the unmet AC(s) and ' +
+          `raise metric-acceptance-met to ${total}, or set result to \`partial\` / \`fail\`. If an unmet ` +
+          'AC is user-observable and this environment cannot evidence it, set interactive-verification: ' +
+          'deferred (result becomes `partial`) and register a 00-index runtime-evidence-deferrals entry.');
+      }
+      if (data['interactive-verification'] === 'deferred') {
+        blockVerifyResultGate(path.original,
+          'result: pass but interactive-verification: deferred. A deferred user-observable AC has no ' +
+          'runtime evidence, so the slice cannot pass — set result: partial. (`/wf ship` then hard-blocks ' +
+          'until a probe/re-verify run clears the deferral.)');
+      }
+    }
+
+    if (proseLint) {
+      const hit = SHADOW_DEFERRAL_RE.exec(content || '');
+      if (hit) warnings.push({ rel: path.original, phrase: hit[0].trim() });
+    }
+  }
+
+  if (warnings.length) {
+    const lines = warnings.map((w) => `  - ${w.rel}: found "${w.phrase}" while result: pass`);
+    outputSystemMessage(
+      `wf: possible prose-only deferral in a passing verify artifact:\n${lines.join('\n')}\n` +
+      'A user-observable AC that was "deferred to user/manual", left "UNVERIFIED-INTERACTIVE", punted to a ' +
+      'later slice, or "decided by static reasoning" is NOT met by a runtime drive. If that is what ' +
+      'happened, set result: partial + interactive-verification: deferred (with the rungs tried in the ' +
+      'defer-reason) and register the deferral in 00-index runtime-evidence-deferrals — do not leave it as ' +
+      'a silent pass. Disable this lint with hooks.verifyDeferralLint: false.',
+    );
+  }
+}
+
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 async function main() {
@@ -259,9 +344,13 @@ async function main() {
   }
 
   if (!failures.length) {
-    // Frontmatter is clean. Validate present sibling YAML shape (reconciled
-    // types only; may exit 2), then enforce sibling presence (blocks on a
-    // missing rich-tier .yaml, nudges on a missing .html.fragment; may exit 2).
+    // Frontmatter is clean. First the verify result gate (R7) — hard-block a
+    // `verify` artifact whose `result: pass` contradicts its acceptance evidence
+    // (may exit 2; warns on prose-only deferrals). Then validate present sibling
+    // YAML shape (reconciled types only; may exit 2), then enforce sibling
+    // presence (blocks on a missing rich-tier .yaml, nudges on a missing
+    // .html.fragment; may exit 2).
+    await enforceVerifyResultGate(paths, config);
     await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);
     return;

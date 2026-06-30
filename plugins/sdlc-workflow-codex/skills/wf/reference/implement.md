@@ -155,6 +155,8 @@ Shape settled *what* to build (its Round 5 scope-restraint pass) and plan settle
 
 **Mark deliberate shortcuts.** When you take an intentional simplification with a known ceiling (a global lock, an O(n²) scan, a naive heuristic, a hard-coded value that should be configurable), leave a one-line `sdlc-debt:` comment at the site naming the ceiling **and** the upgrade path, and record it in `## Anything Deferred` (if it is a deferral) or `## Known Risks / Caveats` (if the ceiling is live in shipped code). The marker keeps the shortcut visible and harvestable — `$wf simplify codebase` can later collect `sdlc-debt:` markers and route them — instead of hidden.
 
+**Build for verifiability — the planned verification seams are part of *done*.** The plan's `## Verification Strategy` named what must be built to make each user-observable AC observable: a seeded fixture, a deterministic clock, a `data-testid` / accessibility id, an emulator or test config, an exported test hook. Build those seams as part of this slice — "the AC can now be observed by the planned tool" is an acceptance condition, not a verify-time nicety. A seam the plan named but implement skipped becomes a verify-time wall (no way to drive the AC) that then gets papered over with a deferral or a static-reasoning `pass`. Record each seam you built in `## Verification Seams Built` so `verify` can rely on it; if you could not build one the plan named, say so there and in `## Deviations from Plan` so verify knows the AC may be un-drivable.
+
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
@@ -370,6 +372,10 @@ next-invocation: "$wf verify <slug> <slice-slug>"
 
 ## Notes on Design Choices
 - ...
+
+## Verification Seams Built
+<!-- The seams the plan's `## Verification Strategy` named to make each user-observable AC observable: seeded fixtures, deterministic clocks, `data-testid` / a11y ids, emulator / test config, exported test hooks, an authorized tool install. `verify` relies on these to drive the AC, so list each. If the plan named none (no user-observable AC, or all observable without new seams): "None needed — [reason]." -->
+- <AC id / text> → <seam built> at <file:line> (enables <tool / method> to observe it)
 
 ## Visual Contract Honored (only if `02c-craft.md` was present)
 For each item in `02c-craft.md` → `## Mock fidelity inventory`, confirm honored or note deviation:

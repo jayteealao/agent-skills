@@ -21,7 +21,7 @@ import {
 import "./chunk-UTP6CBAZ.mjs";
 import {
   loadConfig
-} from "./chunk-ZMYLXAL2.mjs";
+} from "./chunk-IEGE3GWR.mjs";
 import {
   safeParseFrontmatter
 } from "./chunk-5U76735W.mjs";

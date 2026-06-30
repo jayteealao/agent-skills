@@ -6,7 +6,7 @@ import {
 import {
   configHash,
   deepMerge
-} from "./chunk-ZMYLXAL2.mjs";
+} from "./chunk-IEGE3GWR.mjs";
 import {
   CODE_BROWSER_DEFAULTS,
   STALE_RENDER_DEFAULTS

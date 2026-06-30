@@ -19,9 +19,10 @@ import {
 import "./chunk-UTP6CBAZ.mjs";
 import {
   loadConfig
-} from "./chunk-ZMYLXAL2.mjs";
+} from "./chunk-IEGE3GWR.mjs";
 import {
-  safeLoadFrontmatterFile
+  safeLoadFrontmatterFile,
+  safeParseFrontmatter
 } from "./chunk-5U76735W.mjs";
 import {
   require__,
@@ -334,6 +335,61 @@ async function validateSiblingYamls(paths, config, schemaPath) {
   process.stderr.write("Fix the issues above, then continue.\n");
   process.exit(2);
 }
+var SHADOW_DEFERRAL_RE = /(deferred to (?:the )?(?:user|manual|operator)\b|deferred to manual user|UNVERIFIED[ -]INTERACTIVE|will be verified (?:interactively )?(?:during|in|at)\b|decidable by static reasoning|deferred to user verification)/i;
+function blockVerifyResultGate(rel, message) {
+  process.stderr.write(
+    `wf-postwrite-verify: verify result gate BLOCKED ${rel}
+
+${message}
+
+This gate (AC-VERIFIABILITY recommendations R7) makes the "verified but actually
+broken" pass mechanically impossible. Re-Edit the frontmatter to reconcile result
+with the acceptance evidence, then continue. Opt out with hooks.verifyResultGate: false.
+`
+  );
+  process.exit(2);
+}
+async function enforceVerifyResultGate(paths, config) {
+  const resultGate = config.hooks?.verifyResultGate !== false;
+  const proseLint = config.hooks?.verifyDeferralLint !== false;
+  if (!resultGate && !proseLint) return;
+  const warnings = [];
+  for (const path of paths) {
+    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
+    const text = await readTextIfExists(path.absolute);
+    if (fragmentOwningType(text) !== "verify") continue;
+    const { data, content } = safeParseFrontmatter(text, { filePath: path.absolute });
+    if (!data || data.result !== "pass") continue;
+    if (resultGate) {
+      const met = data["metric-acceptance-met"];
+      const total = data["metric-acceptance-total"];
+      if (typeof met === "number" && typeof total === "number" && total > 0 && met < total) {
+        blockVerifyResultGate(
+          path.original,
+          `result: pass but metric-acceptance-met (${met}) < metric-acceptance-total (${total}). A passing slice must meet EVERY acceptance criterion. Either evidence the unmet AC(s) and raise metric-acceptance-met to ${total}, or set result to \`partial\` / \`fail\`. If an unmet AC is user-observable and this environment cannot evidence it, set interactive-verification: deferred (result becomes \`partial\`) and register a 00-index runtime-evidence-deferrals entry.`
+        );
+      }
+      if (data["interactive-verification"] === "deferred") {
+        blockVerifyResultGate(
+          path.original,
+          "result: pass but interactive-verification: deferred. A deferred user-observable AC has no runtime evidence, so the slice cannot pass \u2014 set result: partial. (`/wf ship` then hard-blocks until a probe/re-verify run clears the deferral.)"
+        );
+      }
+    }
+    if (proseLint) {
+      const hit = SHADOW_DEFERRAL_RE.exec(content || "");
+      if (hit) warnings.push({ rel: path.original, phrase: hit[0].trim() });
+    }
+  }
+  if (warnings.length) {
+    const lines = warnings.map((w) => `  - ${w.rel}: found "${w.phrase}" while result: pass`);
+    outputSystemMessage(
+      `wf: possible prose-only deferral in a passing verify artifact:
+${lines.join("\n")}
+A user-observable AC that was "deferred to user/manual", left "UNVERIFIED-INTERACTIVE", punted to a later slice, or "decided by static reasoning" is NOT met by a runtime drive. If that is what happened, set result: partial + interactive-verification: deferred (with the rungs tried in the defer-reason) and register the deferral in 00-index runtime-evidence-deferrals \u2014 do not leave it as a silent pass. Disable this lint with hooks.verifyDeferralLint: false.`
+    );
+  }
+}
 var PLUGIN_ROOT = fileURLToPath2(new URL("..", import.meta.url));
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") return;
@@ -356,6 +412,7 @@ async function main() {
     if (!result.valid) failures.push({ path, result });
   }
   if (!failures.length) {
+    await enforceVerifyResultGate(paths, config);
     await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);
     return;

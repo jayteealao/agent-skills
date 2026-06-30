@@ -183,7 +183,7 @@ Read the `stack:` block from `00-index.md` (written by intake Step 0.5 and confi
    - `platforms: [web]` + `stack.testing: [playwright]` → use the in-repo Playwright suite for E2E; for ad-hoc interactive runs, use whatever driver the PO selected in shape (e.g., dev-browser, Chrome MCP, Playwright inline).
    - `platforms: [android]` + `stack.testing: [maestro]` → use existing `.maestro.yaml` flows; companion skills from `stack.available-skills` (e.g., `lazylogcat`) for log evidence if listed.
    - `platforms: [ios]` + `stack.testing: [xcuitest]` → use existing XCUITest schemes; fall back to simctl only if criteria require flows the suite doesn't cover.
-3. **Surface what's missing.** If a slice's acceptance criterion needs a verification capability that `stack:` does not cover (e.g., visual regression with no Percy/Chromatic in `stack:`), surface it as a **plan blocker**, not as an "auto-recommend installing X." The PO decides whether to add tooling — that decision routes back through shape.
+3. **Surface what's missing — and resolve it in `## Verification Strategy`.** If a slice's acceptance criterion needs a verification capability that `stack:` does not cover (e.g., visual regression with no Percy/Chromatic in `stack:`), do NOT "auto-recommend installing X" unilaterally and do NOT leave it to verify to improvise. The PO owns the call; record the resolution per-AC in `## Verification Strategy` as one of: (a) **add it to the stack** → route back through shape; or (b) **authorize a verify-time bootstrap** → a PO-approved install step that verify will execute. The point is that tool-absence is settled *here*, with the PO, so verify never hits an unplanned wall.
 4. **Confirm the dev/preview entry point.** Record the exact command (`npm run dev`, `./gradlew installDebug`, `xcodebuild`, etc.) the plan's verification steps will invoke. Read it from `package.json` / `build.gradle*` / `Cargo.toml` / etc. — this is reading code, not making tooling choices.
 5. **Report which acceptance criteria from `02-shape.md` → `## Verification Strategy` need interactive verification and how the confirmed stack will cover each one.** If a criterion needs tooling outside `stack:`, list it as a blocker rather than silently filling the gap with a default.
 
@@ -498,6 +498,25 @@ If the slice writes no new capability code (pure config/wiring/refactor): "No ne
 ## Step-by-Step Plan
 1. ...
 
+## Verification Strategy
+<!-- The "perfect verification plan": one row per user-observable AC, engineered to fit the real constraints so `verify` executes a plan instead of improvising past a wall. Source the AC list + `verify:` stubs from `03-slice-<slice-slug>.md`. If the slice has no user-observable AC: "No user-observable AC — automated only." -->
+
+| AC | Tool / method + ladder rung | Environment need — satisfiable in target env? | What must be BUILT to make it verifiable | Fallback chain |
+|----|------------------------------|-----------------------------------------------|------------------------------------------|----------------|
+| `<id / text>` | `<tool>` (`<rung>`) | `<device/browser/creds/OS>` — `<yes / needs install / needs creds>` | `<fixture / data-testid / emulator config / test hook>` | `<next rung>` → … → pre-registered deferral |
+
+Per row:
+- **Tool + rung** — the constraint-resolution-ladder rung (see [runtime-adapters.md](runtime-adapters.md) → *Constraint-resolution ladder*) you intend to land on, with the concrete tool. A user-observable AC may NOT be satisfied by static reasoning or a mock/unit test alone — name a runtime (or device-free runtime-proxy) method.
+- **Environment need & satisfiability** — the device/browser/creds/OS the AC requires, and whether the target environment (`00-index.md` `stack:` + the shape Observation Model) provides it. Tool-absence is resolved **here**, not at verify (see *Tooling resolution* below).
+- **What must be built** — the seams this AC needs to be observable (a seeded fixture, a deterministic clock, a `data-testid`, an emulator config, an exported test hook). **Add each as a Step-by-Step Plan task** — building for verifiability is implementation work, not a verify-time surprise.
+- **Fallback chain** — the next rung(s) to try if the primary tool is unavailable, ending in an explicit pre-registered deferral for any residual no rung can reach.
+
+**Tooling resolution (honors the stack-routing guardrail).** When a slice `verify:` stub names a tool not in `stack:`, the PO owns the call — but it is made here so verify never improvises past a missing tool:
+- **Add it to the stack** → route back through shape (`/wf shape <slug>`), update the fingerprint, return; or
+- **Authorize a verify-time bootstrap** → record it here as a PO-approved install (e.g., "install `@playwright/test` at verify — approved") and add it as a verification-seam task. Verify then *executes* this authorized bootstrap rather than skipping the AC.
+
+If the PO declines both, the AC is re-scoped or its residual is pre-registered as a deferral — never left to a static-reasoning `pass`. If the plan cannot produce a verification path for a user-observable AC, that gap is caught here and routed back to slice/shape — cheaply, before any code is written.
+
 ## Test / Verification Plan
 
 ### Automated checks
@@ -506,7 +525,7 @@ If the slice writes no new capability code (pure config/wiring/refactor): "No ne
 - integration tests: ...
 
 ### Interactive verification (human-in-the-loop)
-For each acceptance criterion tagged `interactive` in the shape's verification strategy, use the confirmed `stack:` from `00-index.md` as the source of truth for tooling. Do NOT introduce drivers, screenshot tools, or skills not present in `stack:` — if a criterion needs something missing, list it as a blocker below instead of silently filling the gap.
+This subsection is the step-level execution detail for each `## Verification Strategy` row above — for each user-observable AC, spell out the exact drive. Use the confirmed `stack:` from `00-index.md` as the source of truth for tooling. Do NOT silently introduce drivers, screenshot tools, or skills not present in `stack:`; when a criterion needs something missing, it must already be resolved in `## Verification Strategy` (route-to-shape or PO-authorized bootstrap) — point to that resolution here rather than filling the gap on the fly.
 
 - **What to verify**: describe the user-visible behavior
 - **Platform & tool**: read from `stack.platforms` + the PO's shape selection. Do not enumerate generic options here; name the exact tool the PO chose (e.g., "Android — Maestro flow `flows/auth.maestro.yaml` + `lazylogcat` for log evidence" or "Web — in-repo Playwright suite, single ad-hoc run via dev-browser").

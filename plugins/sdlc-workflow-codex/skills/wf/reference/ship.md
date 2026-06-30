@@ -59,21 +59,22 @@ You are a **workflow orchestrator**, not a problem solver.
    Run: $wf handoff <slug>   # to refresh the readiness block
    ```
    Also parse `pr-url`, `pr-number`, `branch`, `base-branch`, `has-deferred-comments`. If `has-deferred-comments: true`, WARN before continuing.
-6.5. **Runtime-evidence deferral gate (HARD BLOCK — added per RUNTIME-PROBE-PLAN.md §2.4).** Parse `runtime-evidence-deferrals` from `00-index.md` (this field may be absent on older workflows — treat absent as empty). For every entry whose `cleared-by: null`, the slug has an open runtime-evidence deferral that must be cleared before ship.
+6.5. **Runtime-evidence deferral gate (HARD BLOCK — added per RUNTIME-PROBE-PLAN.md §2.4).** Parse `runtime-evidence-deferrals` from `00-index.md` (this field may be absent on older workflows — treat absent as empty). An entry is **open** when `cleared-by: null` AND it carries no `ship-override-authorization`. Every open entry must be cleared before ship.
 
-   If any entry has `cleared-by: null`, STOP with:
+   If any entry is still open, STOP with:
    ```
    Ship is blocked: <N> open runtime-evidence deferral(s).
    The following slices passed verify only because runtime evidence was deferred; ship requires evidence:
      - <slice-slug>: <reason>  (deferred-at: <iso>)
      - ...
-   Clear each deferral by either:
-     (a) running `$wf probe <slug> <target-matching-the-deferred-AC>` to capture evidence, then re-running verify, OR
-     (b) re-running `$wf verify <slug> <slice-slug>` in an environment that supports the interactive checks for that slice.
+   Clear each deferral by one of:
+     (a) running `$wf probe <slug> <target-matching-the-deferred-AC>` to capture evidence, then re-running verify (sets `cleared-by` to the probe/evidence descriptor), OR
+     (b) re-running `$wf verify <slug> <slice-slug>` in an environment that supports the interactive checks for that slice, OR
+     (c) recording an explicit PO risk-acceptance as `ship-override-authorization: {by, at, reason}` on the entry — for genuinely deploy-time-circular cases only (e.g. build-inlined config confirmable only post-deploy).
    ```
-   Cleared deferrals (entries whose `cleared-by` is non-null — typically a probe descriptor) do not block ship; they are kept in the index for audit. The block bites only on `cleared-by: null` entries.
+   **`cleared-by` is for EVIDENCE, never risk-acceptance.** It must hold a probe/evidence descriptor proving the AC was actually observed — not a prose "we'll accept the risk" string, which would silently unlock ship without evidence (the exact abuse this gate exists to stop). PO risk-acceptance goes in the distinct `ship-override-authorization` field, which the ship summary surfaces as an **explicit override** (recorded, not disguised as evidence). A multi-AC deferral may log partial progress in `cleared-acs: [...]` while `cleared-by` stays null.
 
-   This gate is the hard-block half of the deferral mechanism. Earlier stages (verify, review, handoff) surface deferrals as soft warnings; ship is where the block fires.
+   Block logic: an entry blocks ship when `cleared-by: null` **and** it carries no `ship-override-authorization`. Evidenced entries (non-null `cleared-by`, typically a probe descriptor) and PO-overridden entries do not block — but list every override distinctly in the ship summary for the record. This gate is the hard-block half of the deferral mechanism. Earlier stages (verify, review, handoff) surface deferrals as soft warnings; ship is where the block fires.
 7. **Read every `07-review-*.md` and `po-answers.md`** for changelog/release-notes context.
 8. **Resume detection.** Search for `.ai/workflows/<slug>/09-ship-run-*.md`. For any with `status: awaiting-input`:
    Ask the user directly in chat presenting a short numbered list:

@@ -169,6 +169,37 @@
         "recommended-next-stage": {
           "type": "string",
           "description": "Optional stage recommendation written by stage reference files to guide the next /wf invocation."
+        },
+        "runtime-evidence-deferrals": {
+          "type": "array",
+          "description": "Open/cleared runtime-evidence deferrals (RUNTIME-PROBE-PLAN §2.4). /wf ship HARD-BLOCKS while any entry has cleared-by: null. cleared-by must be an EVIDENCE descriptor (a probe/re-verify run that produced matching runtime evidence), never a prose risk-acceptance string — PO risk-acceptance uses ship-override-authorization instead.",
+          "items": {
+            "type": "object",
+            "required": ["slice"],
+            "properties": {
+              "slice": { "type": "string" },
+              "reason": { "type": "string" },
+              "deferred-at": { "$ref": "#/$defs/iso8601" },
+              "cleared-by": {
+                "type": ["string", "null"],
+                "description": "null until truly evidenced; set to a probe/evidence descriptor when a /wf probe (or re-verify) run produces matching runtime evidence. NOT a place for risk-acceptance prose."
+              },
+              "cleared-acs": {
+                "$ref": "#/$defs/stringArray",
+                "description": "For a multi-AC deferral, the subset of AC ids evidenced so far (partial progress) while cleared-by stays null."
+              },
+              "ship-override-authorization": {
+                "type": "object",
+                "required": ["by", "at", "reason"],
+                "description": "Explicit PO risk-acceptance that lets ship proceed past an un-evidenced deferral (e.g. deploy-time-circular config). Distinct from cleared-by: it is an OVERRIDE surfaced in the ship summary, not evidence.",
+                "properties": {
+                  "by": { "type": "string" },
+                  "at": { "$ref": "#/$defs/iso8601" },
+                  "reason": { "type": "string" }
+                }
+              }
+            }
+          }
         }
       }
     },
@@ -469,7 +500,7 @@
         "slice-slug": { "type": "string" },
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 6 },
-        "result": { "enum": ["pass", "fail", "partial"] },
+        "result": { "enum": ["pass", "fail", "partial", "blocked-runtime-evidence-missing"] },
         "metric-checks-run":                { "type": "integer", "minimum": 0 },
         "metric-checks-passed":             { "type": "integer", "minimum": 0 },
         "metric-acceptance-met":            { "type": "integer", "minimum": 0 },
@@ -482,10 +513,22 @@
           "enum": ["not-needed", "converged", "escalated"],
           "description": "Whether verify results converged, escalated, or were not applicable. Written by /wf verify to 06-verify-<slice>.md."
         },
+        "interactive-verification": {
+          "enum": ["required", "deferred", "not-applicable"],
+          "description": "Set by /wf verify. `deferred` means at least one user-observable AC could not be evidenced in this environment; the result MUST then be `partial` (never `pass`) and a matching 00-index runtime-evidence-deferrals entry is required. The post-write-verify result gate blocks `result: pass` while this is `deferred`."
+        },
+        "interactive-verification-defer-reason": {
+          "type": "string",
+          "description": "Required when interactive-verification == deferred. Must enumerate the constraint-resolution-ladder rungs tried and the residual that survives them — not a bare 'no device'."
+        },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
+      },
+      "not": {
+        "required": ["metric-acceptance-unverified-interactive"],
+        "$comment": "Forbids the invented `metric-acceptance-unverified-interactive` field. The only sanctioned way to record an unverified user-observable AC is `interactive-verification: deferred` + a 00-index runtime-evidence-deferrals entry (see post-write-verify result gate and the AC-VERIFIABILITY recommendations R7)."
       }
     },
 

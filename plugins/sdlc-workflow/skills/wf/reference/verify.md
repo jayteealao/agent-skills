@@ -167,6 +167,12 @@ Prompt the agent with ALL of the following:
 
 > Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md` and follow the recipe for every adapter whose detection signals match the repo (web / android / ios / cli / desktop / service / notebook / etc.). Adapter selection is documented at the top of that file.
 
+**Climb the constraint-resolution ladder before deferring anything (MANDATORY).** A user-observable AC asserts runtime behavior, so "no device / no browser / no creds" is not a defer-reason — it is the *start* of a ladder climb, not the end. For each user-observable AC whose obvious path is blocked, climb the ladder for its class (runtime-adapters.md → *Constraint-resolution ladder*), **executing any tool bootstrap the plan's `## Verification Strategy` already authorized**, and record the highest rung that produced evidence. Defer ONLY the residual that no rung can reach. Three hard rules this enforces:
+
+- **Static reasoning is never evidence for a user-observable AC.** A "decidable by reasoning over the truth table" note proves *code correctness* (what code-only AC are for), not user-visible behavior. Drive the criterion; do not reason past it to a `pass`.
+- **Verify the layer the AC is about.** If the AC asserts a live integration (a real query, a rules/permission check, an index-backed lookup), a mock-backed pass is insufficient — climb to the emulator/testcontainer rung before `pass` (the integration-blindspot guard in the `service` adapter). A mocked integration does not verify a user-observable AC about that integration.
+- **Punting to a future slice is a deferral, not a pass.** "Will be verified during `<other slice>`" must register a deferral that the later slice (or `/wf probe`) is obligated to clear — it is never grounds for `result: pass` on this slice.
+
 Prompt the agent with ALL of the following:
 
 0. **Read product context before driving (MANDATORY — Gap 11 fix).** Before matching adapters or driving any criterion, build a mental model of product conventions so that observations can be held against them:
@@ -316,6 +322,7 @@ Verify that the selected slice meets acceptance criteria and is ready for review
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
 - **Evidence versioning across re-invocations:** When `06-verify-<slice-slug>.md` already exists (i.e., this is a re-run), do NOT overwrite the previous evidence directory. Before writing new evidence, move the existing evidence to a timestamped snapshot: `mv .ai/workflows/<slug>/verify-evidence/<slice-slug>/ .ai/workflows/<slug>/verify-evidence/<slice-slug>-run-<N>/` where `N` is the re-run count (read from the existing artifact's `fix-rounds-run` field + 1). New evidence goes into the fresh `<slice-slug>/` directory. This preserves a diff-able record of what changed between rounds — reviewers can compare `<slice-slug>-run-1/` vs. `<slice-slug>/` to see whether fixes changed observable behavior.
+- **Re-verify writes back; the index never contradicts a slice.** When a re-invocation changes a per-slice outcome (e.g. `fail` → `pass` after a fix round, or a deferral clears), update that per-slice `06-verify-<slice-slug>.md`'s `result` and `updated-at` **in place**, then re-derive the master `06-verify.md` rollup from the per-slice files. The verify-index MUST NOT report `pass` (or "re-verified" / "all-slices-passing") for a slice whose own per-slice file still says `result: fail` — that stale-artifact contradiction hides a real failure behind a green rollup. Rule of order: change the slice file first, then the index; never the index alone.
 
 # Chat return contract
 After writing files, return — lead with the substance first, then the receipt:
@@ -423,13 +430,19 @@ After matching:
 
 The new `blocked-runtime-evidence-missing` variant is distinct from `fail` because the failure is procedural (evidence was not produced) rather than substantive (evidence shows the AC is not met). The downstream routing for the two differs — `fail` recommends `/wf implement` to fix the code; `blocked-runtime-evidence-missing` recommends either re-running verify in an environment that supports the interactive checks, or applying a deferral annotation if the environment cannot support them.
 
+**Write-time enforcement (post-write-verify gate — the R7 backstop).** These result rules are not honor-system. The `post-write-verify` hook **HARD-BLOCKS** the write of a `verify` artifact whose `result: pass` contradicts its evidence: `metric-acceptance-met < metric-acceptance-total`, or `interactive-verification: deferred`. It also **forbids** the invented `metric-acceptance-unverified-interactive` field (use the deferral hatch instead), and **warns** when shadow-deferral prose ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified during `<slice>`", "decidable by static reasoning") co-occurs with `result: pass`. So a false pass cannot be written: reconcile `result` with the evidence, or take the honest `partial` + deferral path. (Opt out per-repo with `hooks.verifyResultGate: false` / `hooks.verifyDeferralLint: false`, but the default is on.)
+
 ## Escape hatch — `interactive-verification: deferred`
 
-Some AC are user-observable but genuinely cannot be probed in the current environment (no emulator, no staging API key, no physical device, etc.). To proceed without a hard fail, the slice author may add to the per-slice verify file frontmatter:
+Some AC are user-observable but genuinely cannot be probed in the current environment — but a deferral is a **last resort that must be paid for**: it is honest only AFTER the constraint-resolution ladder (runtime-adapters.md) has been climbed and each rung's outcome recorded. Defer only the residual that no rung can reach.
+
+**The defer-reason MUST enumerate the rungs tried — a defer-reason that names no attempted rung is rejected.** Replace "no Android emulator/device" with "Robolectric covers the state machine (9/9); Roborazzi golden covers the visual; AVD boot attempted (failed: HAXM unavailable); residual = live multi-touch pointer routing." Bare phrases — "no emulator", "no creds", "deferred to user", "decidable by static reasoning" — are not acceptable defer-reasons; each must show the ladder was climbed first.
+
+To proceed without a hard fail once the residual is genuinely environment-bound, the slice author may add to the per-slice verify file frontmatter:
 
 ```yaml
 interactive-verification: deferred
-interactive-verification-defer-reason: "<one-line explanation>"
+interactive-verification-defer-reason: "<rungs tried + the residual that survives them — not a bare 'no device'>"
 ```
 
 When this annotation is present on a slice:

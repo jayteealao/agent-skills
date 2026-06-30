@@ -74,6 +74,19 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     // (see SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs). Set
     // false to disable while other type schemas are still being reconciled.
     validateSiblingYaml: true,
+    // When true, post-write-verify HARD-BLOCKS a `verify` artifact whose
+    // frontmatter contradicts a passing result: `result: pass` with
+    // metric-acceptance-met < metric-acceptance-total, or `result: pass` with
+    // interactive-verification: deferred. These are false-positive-free
+    // cross-field checks (a true pass meets every AC and defers none). Set false
+    // to disable the result gate (AC-VERIFIABILITY recommendations R7).
+    verifyResultGate: true,
+    // When true, post-write-verify WARNS (non-blocking) on shadow-deferral
+    // vocabulary in a `verify` body that co-occurs with `result: pass`
+    // ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified
+    // during <slice>", "decidable by static reasoning"). Heuristic, so it warns
+    // rather than blocks. Set false to silence the prose-deferral lint.
+    verifyDeferralLint: true,
   },
 });
 

@@ -304,7 +304,12 @@ next-invocation: "/wf slice <slug>"
 - ...
 
 ## Verification Strategy
-Classify how each acceptance criterion and edge case will be verified:
+
+**Target verification environment (record this first — it is the fact most often missed).** State the concrete environment verification will run in, because it determines what every acceptance criterion can actually be observed with: host OS, whether an Android device/emulator or iOS simulator is available, which browser/driver is present or installable (Playwright / Cypress / dev-browser / Chrome MCP), and whether live or staging credentials exist. Surfacing this **here**, before any AC is finalized, is what lets `slice` author each AC with a verification path that fits — instead of `verify` discovering the wall and rationalizing past it. Source it from Explore sub-agent 1's interactive-tooling findings and the PO's tooling answer.
+
+**Observation Model (per headline outcome).** For each desired behavior / acceptance criterion, state *how a human or tool would observe success* and *in what environment* — e.g., "carousel is single-column at 375px → observed by driving a 375px-viewport browser and reading the rendered layout," not merely "carousel is single-column." If you cannot name how an outcome would be observed in the target environment, the criterion is not done being authored: re-scope it to something observable, or flag the constraint now so `slice` and `plan` inherit it.
+
+Then classify how each acceptance criterion and edge case will be verified:
 
 **Automated checks** (CI/test suite can run these):
 - ...

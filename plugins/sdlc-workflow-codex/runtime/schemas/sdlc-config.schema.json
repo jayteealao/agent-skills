@@ -122,6 +122,16 @@
           "type": "boolean",
           "default": true,
           "description": "When true (default), the post-write-verify hook validates a present sibling .yaml against siblingYamlSchemas.<type> and BLOCKS (exit 2) on a schema violation — but only for types whose schema has been reconciled to the live authoring convention (SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs; currently plan, review, design, simplify-run, ship-run — keyed by the .md's type:, so review-dimension (authored as type: review-command) is not reachable here, and the types with no real sibling corpus stay unvalidated). Set false to disable while other type schemas are still being reconciled."
+        },
+        "verifyResultGate": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook HARD-BLOCKS (exit 2) a `verify` artifact whose frontmatter contradicts a passing result: `result: pass` with metric-acceptance-met < metric-acceptance-total, or `result: pass` with interactive-verification: deferred. False-positive-free cross-field checks (a true pass meets every AC and defers none). Set false to disable the result gate. See the AC-VERIFIABILITY recommendations R7."
+        },
+        "verifyDeferralLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook WARNS (non-blocking systemMessage) when shadow-deferral vocabulary in a `verify` body co-occurs with `result: pass` (e.g. 'deferred to user/manual', 'UNVERIFIED-INTERACTIVE', 'will be verified during <slice>', 'decidable by static reasoning'). Heuristic, so it warns rather than blocks. Set false to silence the prose-deferral lint."
         }
       }
     }

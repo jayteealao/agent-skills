@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — verifiability-first AC authoring + constraint-aware verification (9.95.0)
+
+Closes the "verified but actually broken" leak class: acceptance criteria authored without a verification path, then rationalized past at verify with a static-reasoning `pass` or a bare "no emulator" deferral. The fix moves verifiability **upstream** — decided where each criterion is born and planned — and adds a mechanical backstop so a false pass cannot be written.
+
+- **`shape`** records the target verification environment and a per-outcome Observation Model (how and where each success is observed) before any acceptance criterion text exists.
+- **`slice`** now authors every user-observable criterion *with* its verification path: a justified `observable:` partition and an inline `verify: { method, env, fixture, rung }` stub. A user-observable criterion with no nameable verification method is re-scoped or pre-registered as a deferral at authoring time — never left to "decide later".
+- **`plan`** gains a first-class `## Verification Strategy`: per criterion, the tool + constraint-ladder rung, whether the target environment satisfies it, what must be **built** to make it verifiable (those become plan steps), and a fallback chain. Tool-absence is resolved here with the product owner (route back through shape, or an authorized verify-time bootstrap), so verify never improvises an un-planned install.
+- **`implement`** treats the planned verification seams (fixtures, deterministic state, test ids, an authorized install) as part of *done* and records them in `## Verification Seams Built`.
+- **`verify`** mandates a constraint-resolution ladder before any deferral; defer-reasons must enumerate the rungs tried; static reasoning is never evidence for a user-observable criterion; a mock never satisfies an integration criterion; punting to a future slice is a deferral, not a pass; and a re-verify writes back to the per-slice file so the index can never claim `pass` over a slice that still reads `fail`.
+- **`runtime-adapters`** hosts the canonical constraint-resolution ladder (web / android / backend / deploy-time) that plan and verify point to, plus per-adapter recipes (viewport-controllable browsers for responsive criteria, device-free Robolectric/Roborazzi first on Android, the emulator rung for integration criteria).
+- **Enforcement backstop (write-time).** The post-write validator now HARD-BLOCKS a verification record whose `result: pass` contradicts its evidence (acceptance met < acceptance total, or an interactive verification marked deferred); the schema forbids the invented `metric-acceptance-unverified-interactive` field; and a non-blocking lint warns on shadow-deferral prose under a passing result. Both gates are opt-out via `hooks.verifyResultGate` / `hooks.verifyDeferralLint`. Clearance is now evidence-only; product-owner risk-acceptance moves to a distinct `ship-override-authorization: { by, at, reason }` so a prose string can no longer silently unlock ship. The result vocabulary also gains the contract's `blocked-runtime-evidence-missing` state.
+- Claude and Codex trees at parity.
+
 ### Added — consult offered across the full lifecycle + design-craft expansion (9.94.0)
 
 Building on the `consult` oracle skill, the read-only second-opinion panel is now **offered — never auto-run — at every judgment point in the lifecycle**, and the design references gain a deeper, single-sourced craft vocabulary.

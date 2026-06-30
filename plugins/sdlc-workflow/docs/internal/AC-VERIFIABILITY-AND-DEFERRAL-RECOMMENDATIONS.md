@@ -1,9 +1,10 @@
 # Verifiability-First AC Authoring & Constraint-Aware Verification — Recommendations
 
-**Status:** recommendations (not yet built)
+**Status:** **FULLY IMPLEMENTED 2026-06-30 (R1–R7) — v9.95.0.** R1–R6 (the upstream cure) are source-only contract changes in both trees; R7 (the enforcement backstop) is wired into the `post-write-verify` hook + frontmatter schema + config + `ship.md` with the full build / version-bump / `sync:codex` ceremony. All gates green (491 tests, doc-site, codex parity, runtime). See §8.
 **Date:** 2026-06-23
 **Source:** 64-agent audit of ~190 verify artifacts (156 per-slice + 34 master index) across 7 repos + ~2,100 session transcripts (workflow run `wf_44be39e7-ec6`).
 **Revised:** 2026-06-23 fresh-eyes pass — corrected the baseline counts, fixed the R7 gate logic (the earlier phrasing was false-positive-prone), softened the Aperture tooling framing, and added the ranked Top-20 appendix. See §2d.
+**Implemented:** 2026-06-30 — the *upstream cure* (R1–R6) landed as contract/prose edits across `skills/wf/reference/{shape,slice,plan,implement,verify,runtime-adapters}.md` in BOTH the primary and Codex trees. R6 hosts the canonical *Constraint-resolution ladder* that R3 and R5 point to. The web/plan/verify tool-install tension was reconciled by routing any install through **PO authorization upstream** (named in the plan's `## Verification Strategy`) so verify *executes* a pre-approved bootstrap rather than improvising one — the existing "don't introduce un-planned tools" guardrail is preserved. R5's re-verify write-back uses the existing `result`/`updated-at` fields (no new frontmatter key) to stay source-only. Verification: 481 tests green, `verify:codex` buildId unchanged, `verify:docs` green, skills parity confirmed by normalized-added-lines diff. **R7 (pre-write/post-write enforcement gates, schema fields, ship.md) remains pending** — it is the backstop, not the cure.
 **Owner concern (verbatim intent):** *"the model is creating ACs it can't verify and not thinking through the constraints it may have, then working within those constraints to create a perfect verification plan. It may not be using libraries/tools it has access to. When creating ACs and verifying them it should think through the issues it may face and come up with a plan to work within those constraints — fully verifying without lying."*
 
 ---
@@ -206,6 +207,8 @@ Before deferring **any** user-observable AC, climb the ladder for its class. Def
 5. **Backfill** the ~50 pre-hatch artifacts (§2d) once the above lands, so historical gaps are registered rather than silently grandfathered.
 
 Build top-down: R2/R3 stop the bleeding upstream; R5/R6 equip the model to verify within constraints; R7 guarantees no false pass survives even if discipline lapses.
+
+**Implementation status (2026-06-30):** Steps 1–3 of this sequence — **R1 through R7** — are **built and shipped at v9.95.0** (both trees; all gates green: 491 tests, doc-site, codex parity, runtime). R1–R6 are source-only contract changes; R7 wired the evidence-based pass gate + prose-deferral lint into the `post-write-verify` hook (bundled to `dist/`, buildId `6fa6ff9d710f`), banned the shadow field and typed the structured clearance (`cleared-acs`, `ship-override-authorization`) in the schema, and updated `ship.md` §6.5 (`cleared-by` is now evidence-only). The gate keys on the false-positive-free frontmatter contradictions (`result: pass` with met < total, or with `interactive-verification: deferred`) and HARD-blocks those; the prose-deferral signal is a WARN because it is heuristic. Both gates opt out via `hooks.verifyResultGate` / `hooks.verifyDeferralLint`. **Step 5 (backfill)** of the ~50 pre-hatch artifacts remains the one open item — data work, not code.
 
 ---
 

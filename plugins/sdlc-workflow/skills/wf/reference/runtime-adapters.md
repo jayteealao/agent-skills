@@ -32,6 +32,41 @@ Callers should re-use the `stack:` block written by `wf intake` Step 0.5 (and co
 4. **Narrowing — `--adapter <key>` flag (probe only).** Restricts the run to a single matched adapter. Record `adapters-used: [<key>]` and `adapter-narrowed-by-user: true`.
 5. The probe `target` string's *surface inference* layer (route names, screen names, command names, endpoint paths) refines which entry points to drive within each running adapter.
 
+## Constraint-resolution ladder (climb before deferring — MANDATORY)
+
+A user-observable AC asserts runtime behavior, so it requires runtime (or device-free runtime-proxy) evidence — static or truth-table reasoning never satisfies it. When the obvious path is blocked (no device, viewport pinned, no live creds, no display), do **not** jump to a deferral or rationalize a `pass`. Climb the ladder for the AC's class, record the highest rung that holds, and defer **only** the residual that no rung can reach — naming every rung tried in the defer-reason. "No emulator" is not a defer-reason; "no emulator → Robolectric covers the state machine (9/9), Roborazzi covers the visual, AVD boot failed (HAXM unavailable), residual = live multi-touch routing" is.
+
+**Tool absence is not a terminal state — but the fix is *pre-authorized upstream*, never an improvised verify-time install.** The verification tool is named at `slice` (the per-AC `verify:` stub) and engineered at `plan` (`## Verification Strategy`), so by the time verify runs, any install/bootstrap a criterion needs is a step the PO already approved. Verify **executes** that authorized bootstrap (the plan said "install Playwright for AC-8" → verify installs it and drives) — it does **not** silently introduce a *new* tool the plan never named, which still routes back through shape (the PO owns tooling choices). If an AC needs a tool that was never planned and none is installed, that is the upstream gap this whole chain exists to prevent: use a `stack:`-listed alternative if one genuinely covers the AC, otherwise register an honest deferral **and** flag the missing verification plan so it is fixed at the source. The cure is to *plan* the tool; the ladder is how you climb once it is planned.
+
+### Web UI (no dev-browser / viewport pinned / no display)
+0. **Bootstrap (only if the plan authorized it):** a jsdom + Testing-Library stack does no layout and stubs `matchMedia`, so responsive/visual ACs are genuinely unverifiable there. If the plan's `## Verification Strategy` named a real browser driver (Playwright/Cypress) for this AC, install it now per that authorization. If no driver was planned, do **not** improvise one — fall to a `stack:`-listed tool or defer, and record the planning gap.
+1. Playwright with explicit `viewport` + `deviceScaleFactor` — handles responsive / 375px directly.
+2. Device-metrics emulation (CDP `Emulation.setDeviceMetricsOverride`) *if the available browser tool exposes it* — forces viewport + `matchMedia`. Do not assume an in-session browser MCP can resize; verify the affordance or fall back to rung 1.
+3. Component / interaction test (Testing Library + jsdom) for DOM / role / focus assertions — never for layout or media-query behavior.
+4. Snapshot / visual-regression (Playwright screenshots, Percy-style diff).
+5. **Residual only:** genuinely perceptual judgments → operator session, pre-registered deferral.
+
+### Android (no device / emulator)
+1. Robolectric — unit + Compose interaction (gesture dispatch, callback wiring, state machines).
+2. Roborazzi — device-free screenshot goldens (visual fidelity, layout, theming).
+3. Boot an AVD (`emulator -avd …`) → instrumented + Maestro flows.
+4. Real device drive (live pointer routing, multi-touch, wall-clock timing).
+5. **Residual only:** hardware-specific (true pinch, hover, signed build) → pre-registered deferral.
+
+### Backend / service (no live creds)
+1. Local emulator suite (Firebase / Firestore emulator) — exercises the **real query path**, catching missing-index / rules defects that mocks hide.
+2. Testcontainers for other datastores.
+3. Contract tests against recorded fixtures for third-party APIs.
+4. **Residual only:** genuinely creds-gated live path (prod OAuth, real third-party session) → pre-registered deferral.
+5. **Rule:** a mocked integration test never satisfies a user-observable AC *about that integration* — climb to an emulator / testcontainer rung before `pass`.
+
+### Deploy-time-only (build-inlined config, one-time migrations)
+1. Pre-deploy proxy assertion (a static check that the build inlined the value, or the migration script is correct against a fixture DB).
+2. Register a **post-deploy probe** as a deferral with `cleared-by: null`.
+3. For PO-accepted residual risk, use a named ship-override authorization — never overload `cleared-by` with a prose risk-acceptance string.
+
+Both `wf-verify` (per-slice gate) and `/wf probe` (slug-wide sweep) climb this ladder. `plan`'s `## Verification Strategy` records, per AC, the rung it expects to reach and what must be built to get there; `verify` executes against that plan and records the rung actually reached.
+
 ## Evidence protocol (shared across all adapters)
 
 1. For each criterion or probe target, produce: a screenshot or output capture, a pass/fail determination, and a brief explanation of what was observed.
@@ -64,7 +99,11 @@ Callers should re-use the `stack:` block written by `wf intake` Step 0.5 (and co
 
 ## Drive — candidate tools
 
-The PO chose a driver during shape (from `02-shape.md` and the `stack:` block); use whatever they picked. The list below is a menu of candidates the shape question draws from, ordered roughly by *already-installed first*. Do not propose installing a new tool without going back through shape.
+The PO chose a driver during shape (from `02-shape.md` and the `stack:` block); use whatever they picked. The list below is a menu of candidates the shape question draws from, ordered roughly by *already-installed first*. Do not propose installing a *new, unplanned* tool without going back through shape.
+
+**Exception — pre-authorized bootstrap (rung 0).** When the plan's `## Verification Strategy` explicitly named a driver to install for a specific AC (e.g., "install Playwright for the 375px responsive AC"), that install is already PO-approved — execute it per rung 0 of the web ladder rather than skipping the AC. The constraint is on *introducing un-planned tools*, never on installing the one the plan already chose.
+
+**Responsive & media-query ACs — never skip on a pinned viewport.** A host-pinned `innerWidth` in an in-session browser MCP (the window will not resize, so `@media` never fires) is **not** a reason to pass-by-static-reasoning or quietly skip the criterion. Drive a viewport-controllable browser instead: Playwright with explicit `viewport` + `deviceScaleFactor`, or CDP `Emulation.setDeviceMetricsOverride` — rungs 1–2 of the web ladder above. If neither is reachable in this environment, the AC is *deferred with the rungs named*, not passed.
 
 ### 1. `dev-browser` (if installed or PO opted in)
 Check if installed: `command -v dev-browser`. If not installed AND the PO did not select it during shape, skip this option — do not auto-prompt for installation here.
@@ -167,6 +206,9 @@ Surface these only if they appear in `stack.available-skills` / `stack.available
 4. **Launch the app** — `adb shell am start -n <package>/<launcher-activity>` (read package + activity from `AndroidManifest.xml`).
 
 ## Drive
+
+**Climb the Android ladder — device-free rungs first.** Before booting an emulator or driving Maestro, cover what the device-free rungs can: **Robolectric** for unit + Compose-interaction ACs (gesture dispatch, callback wiring, state machines) and **Roborazzi** for device-free screenshot goldens (visual fidelity, layout, theming). Climb to an AVD + Maestro / instrumented run only for what those cannot reach (live pointer routing, multi-touch, wall-clock timing), and to a real device for hardware-specific behavior. "No emulator/device available" *caps* the climb — it is not a license to skip the device-free rungs that **do** run on this host.
+
 - **Preferred — Maestro flows.** If `maestro/` directory or any `*.maestro.yaml` files exist, run them: `maestro test <flow>.yaml`. Maestro provides built-in assertions: `assertVisible`, `assertNotVisible`, `assertText`.
 - **Fallback — adb input commands.** If no Maestro flows exist for the surface being driven, use:
   - `adb shell input tap <x> <y>` for taps
@@ -358,6 +400,9 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 4. **Resolution attempt before failing:** if start fails, check that required environment variables are set; surface them in the failure hint.
 
 ## Drive
+
+**Verify the layer the AC is about (integration-blindspot guard).** When a user-observable AC asserts live integration behavior — a real query, a rules / permission check, an index-backed lookup — a mock-backed unit test is necessary but **not sufficient**, and `convergence: converged` on green mocks is a false pass. Climb to the local emulator suite (Firebase / Firestore emulator) or testcontainers so the **real query path** runs; that is the rung that catches the missing composite index, the swallowed exception, and the rules regression mocks hide. Defer the live path only when it is genuinely creds-gated (prod OAuth, a real third-party session) — and name that residual.
+
 - **HTTP requests** — `curl` or `httpie` (`http POST localhost:<port>/<route>`). For complex flows, write a short script that chains requests.
 - **OpenAPI clients** — if a generated client exists, use it for type-safe drives.
 - **Existing integration test suites** — prefer running them when they cover the target surface (`pytest tests/integration/`, `npm run test:integration`).

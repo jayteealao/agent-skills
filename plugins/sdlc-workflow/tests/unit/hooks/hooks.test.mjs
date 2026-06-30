@@ -241,6 +241,35 @@ function validDesignCritique(overrides = {}) {
   };
 }
 
+function validVerify(overrides = {}) {
+  // A clean passing per-slice verify artifact: every AC met, no deferral.
+  // verify is NOT a rich-tier fragment type, so no sibling .yaml is required.
+  return {
+    schema: 'sdlc/v1',
+    type: 'verify',
+    slug: 'demo',
+    'slice-slug': 'core',
+    status: 'complete',
+    'stage-number': 6,
+    'created-at': '2026-06-30T12:00:00Z',
+    'updated-at': '2026-06-30T12:05:00Z',
+    result: 'pass',
+    'metric-checks-run': 3,
+    'metric-checks-passed': 3,
+    'metric-acceptance-met': 2,
+    'metric-acceptance-total': 2,
+    'metric-interactive-checks-run': 1,
+    'metric-interactive-checks-passed': 1,
+    'metric-issues-found': 0,
+    'evidence-dir': '.ai/workflows/demo/verify-evidence/core/',
+    tags: [],
+    refs: {},
+    'next-command': '/wf review demo core',
+    'next-invocation': 'review',
+    ...overrides,
+  };
+}
+
 test('pre-write-validate skips missing and non-workflow file paths', () => {
   const tmp = tempDir();
   try {
@@ -707,6 +736,140 @@ test('post-write-verify stays silent for a profile artifact that has its sibling
     equal(result.status, 0, result.stderr);
     equal(result.stdout, '');
     equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+/* ───────────────────────── R7: verify result gate (AC-VERIFIABILITY) ───────────────────────── */
+
+test('post-write-verify BLOCKS a false-pass verify: result pass with metric-acceptance-met < total (R7 G1)', () => {
+  const tmp = tempDir();
+  try {
+    // The kanban phone-responsive false pass: result: pass with met:0 / total:2.
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({ result: 'pass', 'metric-acceptance-met': 0, 'metric-acceptance-total': 2 })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 2, result.stderr);
+    match(result.stderr, /verify result gate BLOCKED/);
+    match(result.stderr, /metric-acceptance-met \(0\) < metric-acceptance-total \(2\)/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify BLOCKS result: pass with interactive-verification: deferred (R7 G2)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({
+      result: 'pass',
+      'interactive-verification': 'deferred',
+      'interactive-verification-defer-reason': 'no device',
+    })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 2, result.stderr);
+    match(result.stderr, /interactive-verification: deferred/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify allows a clean passing verify (met == total, no deferral) (R7)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify()));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify allows result: partial with a deferral (the honest path) (R7)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({
+      result: 'partial',
+      'metric-acceptance-met': 1,
+      'metric-acceptance-total': 2,
+      'interactive-verification': 'deferred',
+      'interactive-verification-defer-reason': 'Robolectric covers logic (9/9); AVD boot failed (HAXM); residual = live multi-touch',
+    })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 0, result.stderr);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify rejects the forbidden metric-acceptance-unverified-interactive shadow field (R7 schema)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({ 'metric-acceptance-unverified-interactive': 2 })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 2, result.stderr);
+    match(result.stderr, /frontmatter validation FAILED/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify accepts result: blocked-runtime-evidence-missing (R7 enum fix)', () => {
+  const tmp = tempDir();
+  try {
+    // The schema previously rejected this contract-valid result state.
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({
+      result: 'blocked-runtime-evidence-missing',
+      'metric-acceptance-met': 0,
+      'metric-acceptance-total': 2,
+    })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 0, result.stderr);   // valid state; not `pass`, so the result gate does not fire
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify WARNS (non-blocking) on a prose-only deferral with result: pass (R7 lint)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(
+      validVerify(),
+      '# Verify: core\n\nThe 375px responsive layout was deferred to user verification.\n',
+    ));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 0, result.stderr);   // heuristic → warn, never block
+    const parsed = JSON.parse(result.stdout);
+    match(parsed.systemMessage, /possible prose-only deferral/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify honours the hooks.verifyResultGate:false opt-out (R7)', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ hooks: { verifyResultGate: false } }));
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({ result: 'pass', 'metric-acceptance-met': 0, 'metric-acceptance-total': 2 })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 0, result.stderr);   // gate disabled → no block
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
