@@ -64,6 +64,16 @@ Would someone say "AI made this"?
 - Purple-blue gradients, glassmorphism, hero metric cards, Fraunces + IBM Plex combinations, generic card grids, gradient text — name them explicitly if present.
 - Brand register: does it have a POV? Can you name the aesthetic lane?
 
+### 8. Motion & interaction feel
+
+When the surface has motion in scope:
+- Does each animation earn its place? Frequently-seen and keyboard-triggered actions shouldn't animate; occasional and first-time moments can.
+- Does it *feel* responsive — `ease-out` or strong custom curves on entrances (never `ease-in`), under ~300ms for product UI, popovers scaling from their trigger not center, nothing appearing from `scale(0)`?
+- Is rapidly-triggered or gesture motion interruptible (transitions/springs, not keyframes that restart)?
+- Does the motion cohere with the component's personality, or does it feel borrowed?
+
+Motion bugs hide at full speed — review animations in slow motion or frame-by-frame, and with fresh eyes the next day, before judging them. The full rubric is `animate.md` (and the `motion` review dimension).
+
 ## Output Format
 
 ```

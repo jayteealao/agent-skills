@@ -24,6 +24,14 @@ You are running `wf-implement`, **stage 5 of 10** in the SDLC lifecycle.
 | Skip-to | `/wf review <slug> <slice-slug>` if verification is trivial |
 | Special | `/wf implement <slug> reviews` — fix review findings one by one |
 
+> **Optional second opinion.** Implementation is mostly heads-down, but at two
+> moments you may offer `/consult <question>` (or `/consult <provider> …`) — a
+> read-only multi-model panel: in **reviews mode**, to sanity-check a sub-agent's
+> proposed fix before you merge it, or when **plan drift is significant**, to
+> pressure-test the adapted approach before writing code. Skip it for routine
+> implementation. Opt-in, sends content to external models, gated by
+> `externalDispatch.enabled`; offer it, never run it automatically.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator** running the implementation stage.
 - Do NOT skip reading the prior workflow artifacts (index, shape, slice, plan). Read them FIRST.

@@ -1,6 +1,6 @@
 {
-  "claudeBaselineVersion": "9.93.0",
-  "claudeBaselineCommit": "f653b73c",
-  "sharedRuntimeBuildId": "0de9b410f4b78ad83d615e3d94e5c82a5090681255b7e1f15c17495c842e9f27",
-  "verifiedAt": "2026-06-25T12:25:17.731Z"
+  "claudeBaselineVersion": "9.94.0",
+  "claudeBaselineCommit": "8b694cb",
+  "sharedRuntimeBuildId": "0980a4dbc6194e33299c8aaea262540dc398aadd6e48977c1ad47e2e78ab4257",
+  "verifiedAt": "2026-06-30T20:24:39.308Z"
 }

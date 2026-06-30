@@ -22,7 +22,7 @@ Score: 0=Inaccessible (fails WCAG A), 1=Major gaps, 2=Partial (some effort, sign
 ### 2. Performance
 
 - **Layout thrashing**: Reading/writing layout properties in loops
-- **Expensive animations**: Layout-property animation, unbounded blur/filter/shadow, visible frame drops
+- **Expensive animations**: Layout-property animation (`width`/`height`/`top`/`left`/`margin`), `transition: all`, unbounded blur/filter/shadow, Framer Motion `x`/`y`/`scale` shorthands running on the main thread, visible frame drops
 - **Missing optimization**: Images without lazy loading, unoptimized assets, missing will-change
 - **Bundle size**: Unnecessary imports, unused dependencies
 - **Render performance**: Unnecessary re-renders, missing memoization

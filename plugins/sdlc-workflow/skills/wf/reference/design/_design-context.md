@@ -71,6 +71,11 @@ Never converge on the same choices across projects. Vary.
 - Focus rings visible, meeting 3:1 contrast ratio against adjacent background.
 - Color is never the only indicator for any state.
 
+### Motion & interface detail
+- Motion craft lives in `animate.md`: the frequency framework (match motion to how often it's seen; never animate keyboard / 100+-per-day actions), strong custom easing (never `ease-in` on an entrance), sub-300ms product UI, origin-aware popovers, never `scale(0)`, interruptible transitions/springs, GPU-only (`transform`/`opacity`), `bounce: 0` for product.
+- Interface-detail craft lives in `polish.md`: concentric radius (`outer = inner + padding`), optical alignment, shadows-over-borders for elevation, pure-black/white image outlines, ≥40–44px hit areas.
+- These two are the single source of truth for craft; the design transform references and the `craft` contract draw from them. Any stage that touches motion or component detail should load the relevant home before deciding.
+
 ## Absolute bans (both registers)
 
 - `border-left` or `border-right` > 1px as a decorative colored accent stripe — use full hairline border, background tint, or leading glyph instead.

@@ -90,6 +90,10 @@ Overdrive effects must maintain 60fps on the target device class. Budget per eff
 
 Test on actual target hardware, not just a fast developer machine. Provide a fallback.
 
+## Motion discipline still applies
+
+Overdrive relaxes the *taste* ceiling, not the *craft* floor. The signature effect can be theatrical, and — uniquely here — a real spring with `bounce` or an overshoot is on the table (the no-`bounce` rule is a *product* rule). But the motion must still be **interruptible** (a spring or transition that retargets, not a keyframe that restarts mid-gesture), animate **`transform`/`opacity`** off the main thread, and cohere with the surface's personality. An expensive effect that drops frames, or fires on a high-frequency action, isn't ambitious — it's broken. See `animate.md` for interruptibility, the GPU rules, and cohesion.
+
 ## The one extraordinary thing
 
 Identify the signature move before building effects:

@@ -179,3 +179,4 @@ Rules:
 - **Not a PR opener or releaser** — it always stops at the review; `handoff`, `ship`, and `retro` are run with their own commands.
 - **Not a CI auto-fixer** — CI is never in its scope; that stays handoff's diagnose-then-ask job, on a separate run.
 - **Not a gate remover** — every delegated stage's own user gate still fires; `auto` only removes the friction of typing each stage command by hand.
+- **Not a consult trigger** — the stage references carry an opt-in `/consult` second-opinion callout; `auto` does NOT surface it. It is an interactive-only advisory (not a gate), so offering it at every driven stage would defeat the low-friction sequencing `auto` exists for. A user who wants a second opinion runs the stage by hand.

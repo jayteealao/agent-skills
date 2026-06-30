@@ -23,6 +23,13 @@ This is a **utility command**, not a pipeline stage. It is designed to run after
 | Produces | `announce.md` in the workflow directory; updates `announcements-sent` in the latest ship-run artifact |
 | Next | `/wf retro <slug>` (if not yet done), or workflow is complete |
 
+> **Optional second opinion.** Before finalizing the announcement, you may offer
+> `/consult <critique this release announcement for clarity, accuracy, and tone>`
+> (or `/consult <provider> …`) — a read-only multi-model panel that reads the draft
+> as an outside audience would. (The announcement is product-facing copy, so it
+> carries no workflow internals.) Opt-in, sends content to external models, gated by
+> `externalDispatch.enabled`; offer it, never run it automatically.
+
 # CRITICAL — execution discipline
 You are a **communications writer**, not a developer.
 - Do NOT modify code, workflow stage files, or any artifact other than `announce.md`.

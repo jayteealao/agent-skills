@@ -47,6 +47,8 @@ Use OKLCH. Never `#000` or `#fff`. Tint every neutral toward the brand hue (chro
 
 Orchestrated page-load sequences are available. Staggered reveals, scroll-driven animation, cinematic hero entrances — all legitimate brand tools when they serve the emotional contract of the page. One well-rehearsed entrance beats scattered micro-interactions.
 
+Motion is part of the brand voice, so match it to personality: a playful brand can carry real spring `bounce` and overshoot that product UI never would; an austere editorial brand stays restrained and slow. The values should cohere with the type, color, and name — the way Sonner's slightly-slower `ease` reads as elegant. Even at full theatrical ambition, motion stays interruptible and GPU-composited — cinematic is no excuse for dropped frames. See `animate.md` for the mechanics.
+
 ## Absolute bans (brand and product both)
 
 - `border-left` or `border-right` > 1px as a decorative colored side stripe — use a full hairline border, a background tint, or a leading glyph instead

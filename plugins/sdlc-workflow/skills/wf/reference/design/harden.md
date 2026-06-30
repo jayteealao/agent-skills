@@ -54,6 +54,7 @@ Improve the accessibility and robustness of a UI — ensuring it works for users
 - Minimum 44×44 px (CSS pixels) for all interactive elements
 - Minimum 8px spacing between adjacent touch targets
 - On desktop: 32×32 px is acceptable where space is constrained
+- When the *visible* control is smaller than the target (a 20px checkbox, a small icon button), extend the hit area with a centered pseudo-element rather than padding the layout — and never let two interactive elements' hit areas overlap (shrink the pseudo-element to the largest size that doesn't collide)
 
 ### 8. Text and readability
 
@@ -65,9 +66,10 @@ Improve the accessibility and robustness of a UI — ensuring it works for users
 
 ### 9. Motion and animation
 
-- `@media (prefers-reduced-motion: reduce)` implemented for all animations
+- `@media (prefers-reduced-motion: reduce)` implemented for all animations — reduced means *gentler*, not *zero*: keep opacity/color transitions that aid comprehension, drop movement and position/parallax animation
 - No content that flashes more than 3 times per second (seizure risk)
 - Parallax effects must be disabled under reduced motion
+- Gate hover-triggered motion behind `@media (hover: hover) and (pointer: fine)` — touch devices fire a hover on tap, so ungated `:hover` animation triggers a false positive on every touch
 
 ### 10. Error states
 

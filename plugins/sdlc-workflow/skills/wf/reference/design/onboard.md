@@ -75,6 +75,10 @@ Empty states are the most overlooked UX opportunity. A "nothing here" screen is 
 - Mandatory profile setup before any useful action
 - Generic "welcome to [product]" messaging without product-specific value proposition
 
+## Motion in first-run
+
+A first-run or empty state is a *rare* moment — the frequency tier where a designed entrance is welcome — but it must never delay the first action. Split the reveal into semantic chunks (illustration → heading → description → CTA) and stagger them ~100ms apart with `opacity` + a small `translateY` + `blur`, rather than animating one container in. Keep the CTA reachable immediately; never gate interaction behind the animation. A brand first-run (a landing hero) can be cinematic; in product, keep it to a single quick staggered reveal. See `animate.md` for the enter/exit choreography and the reduced-motion handling.
+
 ## Validate
 
 - Can a new user complete their first meaningful action without help?

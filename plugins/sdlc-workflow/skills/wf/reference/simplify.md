@@ -35,6 +35,13 @@ If slug-mode was not selected (first argument was not a known slug, or `INDEX.md
 | Does NOT | Write code, edit files outside its own artifact, commit, push, or open PRs. |
 | Idempotent | Re-running with the same scope+target on an already-cleaned input is safe — agents will report "no findings" and the run artifact records that. |
 
+> **Optional second opinion.** After the routing matrix assigns each finding, you
+> may offer `/consult <are any of these findings systematically misrouted — e.g. a
+> route-fix that masks an architectural problem?>` (or `/consult <provider> …`) — a
+> read-only multi-model panel that lightly QCs the router's own output (routing is
+> otherwise deterministic from the matrix). Opt-in, sends content to external
+> models, gated by `externalDispatch.enabled`; offer it, never run it automatically.
+
 # CRITICAL — execution discipline (orchestrator-not-fixer)
 You are a **router**, not a problem-solver. This rule is the load-bearing constraint of the plugin and simplify obeys it like every other stage.
 - Do NOT write code. Not one line. Not even a trivial typo fix.

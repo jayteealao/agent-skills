@@ -276,7 +276,7 @@ function breadcrumbFromView(viewRel, slug) {
 }
 
 // renderers/_shell.mjs
-var PLUGIN_VERSION = "9.93.0";
+var PLUGIN_VERSION = "9.94.0";
 function renderShell(params) {
   const {
     title,

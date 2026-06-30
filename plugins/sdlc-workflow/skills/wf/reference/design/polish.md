@@ -49,6 +49,7 @@ Every interactive element needs all its states. Audit the following for each int
 - Transition property should be specific, not `all` (avoid accidental transitions)
 - `ease-out` for entering elements, `ease-in` for leaving elements
 - Duration: 150–250ms for micro-interactions, 200–350ms for component transitions
+- For the motion mechanics behind these — custom easing curves, interruptibility, icon/enter-exit choreography, gesture physics — see `animate.md` (this directory)
 
 Implement `@media (prefers-reduced-motion: reduce)` for all animations — but design for motion first.
 
@@ -78,9 +79,12 @@ For buttons, cards, and containers that use a border for *elevation*, prefer a l
 
 ```css
 --shadow-border: 0 0 0 1px rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.06), 0 2px 4px 0 rgba(0,0,0,0.04); /* light: ring + lift + ambient */
+--shadow-border-hover: 0 0 0 1px rgba(0,0,0,0.08), 0 1px 2px -1px rgba(0,0,0,0.08), 0 2px 4px 0 rgba(0,0,0,0.06); /* hover: deepen ring + lift */
 /* dark: a single white ring — layered depth isn't visible on dark backgrounds */
 --shadow-border: 0 0 0 1px rgba(255,255,255,0.08);
+--shadow-border-hover: 0 0 0 1px rgba(255,255,255,0.13);
 ```
+Transition `box-shadow` (≈150ms ease-out) between the resting and hover variants for a smooth lift on hover/focus.
 
 ### Image outlines
 Give images a subtle `1px` inset outline for consistent depth — but the color must be **pure** black (`rgba(0,0,0,0.1)`) in light mode or **pure** white (`rgba(255,255,255,0.1)`) in dark. Never a near-black/near-white from the palette or the brand accent: a tinted outline picks up the surface color and reads as dirt on the edge. Use `outline` with `outline-offset: -1px` so it doesn't affect layout.

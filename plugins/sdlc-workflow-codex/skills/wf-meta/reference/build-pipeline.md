@@ -29,6 +29,13 @@ You are running `wf-meta build-pipeline`. Your job: read the ship plan as the sp
 - It does not mutate any remote state beyond the three gated settings above, and never without an explicit confirm + a print-only fallback.
 - It does not author or edit `.ai/ship-plan.md` — that is `init-ship-plan` / `amend ship-plan`. This skill only *reads* the plan and closes the repo gap against it.
 
+> **Optional second opinion.** After the pipeline audit produces its findings, you
+> may offer `$consult <second opinion on these pipeline compliance findings and the
+> proposed remediation>` (or `$consult <provider> …`) — a read-only multi-model
+> panel that checks the audit before you act on it. Opt-in, sends content to
+> external models, gated by `externalDispatch.enabled`; offer it, never run it
+> automatically.
+
 ---
 
 # Step 0 — Orient

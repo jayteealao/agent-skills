@@ -37,6 +37,13 @@ A single file: **`.ai/ship-plan.md`** at the **repo root** (not under `.ai/workf
 - It does not run any of the commands it discovers (no `gradle publish --dry-run`, no `terraform plan`, etc.). Discovery is read-only.
 - It does not **apply** anything to the repo or remote. Authoring the contract is all this skill does; generating workflows/config and applying remote settings (branch protection, environment protection, merge settings) is `$wf-meta build-pipeline`'s job, behind its own confirm gates.
 
+> **Optional second opinion.** Before you lock the pipeline contract, you may offer
+> `$consult <critique this proposed ship / CI-CD pipeline shape — gaps, risky
+> ordering, missing gates>` (or `$consult <provider> …`) — a read-only multi-model
+> panel whose repo-aware oracles can check the hypothesis against the repo's actual
+> CI before you commit to it. Opt-in, sends content to external models, gated by
+> `externalDispatch.enabled`; offer it, never run it automatically.
+
 # CRITICAL — execution discipline
 
 You are a **plan author**, not a problem solver.

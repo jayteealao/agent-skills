@@ -58,6 +58,8 @@ Use OKLCH for all color. Apply color to borders and frames as:
 
 **Instead**: use a full hairline perimeter border + surface tint for "active". Use a leading glyph, icon, or numbered prefix for categorization. Use a full-bleed background color change for state.
 
+**Depth is not a color job.** For *elevation*, prefer a layered transparent `box-shadow` over a colored border — a shadow adapts to any background, a solid border doesn't (see `polish.md`). And give image edges a **pure** black (`rgba(0,0,0,0.1)`) or **pure** white (`rgba(255,255,255,0.1)`) outline — never a tinted near-black from the palette or the accent: a tinted outline picks up the surface color underneath and reads as dirt on the edge.
+
 ### Typography Color
 - Colored headings: brand colors for section headers (maintain contrast)
 - Highlight text: color for emphasis or categories

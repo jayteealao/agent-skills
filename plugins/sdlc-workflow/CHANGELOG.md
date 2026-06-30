@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — consult offered across the full lifecycle + design-craft expansion (9.94.0)
+
+Building on the `consult` oracle skill, the read-only second-opinion panel is now **offered — never auto-run — at every judgment point in the lifecycle**, and the design references gain a deeper, single-sourced craft vocabulary.
+
+- **Consult lifecycle touchpoints.** An opt-in `/consult` callout now rides every stage where an external second opinion pays off: `shape`, `slice`, `plan`, the `rca`/`investigate`/`ideate` intake modes, `implement`, `verify`, `/wf review`, `handoff`, `ship`, `retro`, `probe`, `simplify`, the four perf/observability augmentations, `wf-docs`, and the `wf-meta` utilities `announce`/`init-ship-plan`/`build-pipeline`. Each is gated by `externalDispatch.enabled` and surfaced as an offer, never fired automatically; the `implement`/`simplify` callouts carry an explicit "skip for routine runs" caveat.
+- **The autonomous drivers opt out.** `auto` and `yolo` execute stage references in-process, so each gains a "Not a consult trigger" rule — `auto` never surfaces the offer (it would defeat the low-friction sequencing it exists for) and `yolo` never fires it (opt-in/never-automatic, with no human to accept). The interactive `design` driver deliberately keeps the offers.
+- **Design-craft knowledge propagated.** The craft specifics in `animate`/`polish`/`typeset` now extend across all 15 design-touching references in both trees, single-sourced through `_design-context.md` so the slice/plan/implement/verify/review stages inherit the same vocabulary.
+- Claude and Codex trees at parity; every change is a source-read reference, so the only runtime/dist change is the version stamp.
+
 ### Added — external-model dispatch: `consult`, `imagery`, `uiproto` (9.93.0)
 
 The plugin can now send prompts to *external* models as part of the workflow and fold the results back into the in-house pipeline — always opt-in, gated behind a single `externalDispatch.enabled` config flag (default `false`). Dispatch lives in a shared `lib/` module fronted by a `SDLC_DISPATCH_ACTIVE` sentinel that short-circuits the write hooks while an external call is in flight, so a dispatched sub-agent never re-enters the plugin's own validation.

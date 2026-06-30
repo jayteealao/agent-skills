@@ -59,6 +59,12 @@ Spacing between related elements should be smaller than spacing between unrelate
 - Right-align for: numeric columns in tables, currency values, timestamps in narrow contexts
 - Never mix multiple alignment axes in adjacent components without intent
 
+## Nested radius & optical alignment
+
+Two spatial details that read as "off" when they're wrong:
+- **Concentric radius** — when one rounded surface nests inside another, the outer radius must equal the inner radius plus the padding between them (`outerRadius = innerRadius + padding`). Equal radius on a padded parent and child is the single most common thing that makes a layout feel off. (Past ~24px padding, treat them as separate surfaces and choose radii independently.)
+- **Optical over geometric alignment** — when centering *looks* off, trust the eye: an icon beside a label wants ~2px less padding on the icon side; a play triangle shifts ~2px right of its geometric center; fix lopsided glyphs (carets, stars) in the SVG itself. See `polish.md` for both in full.
+
 ## Responsive behavior
 
 **Product**: structural breakpoints at 640px (mobile), 1024px (tablet/narrow desktop).

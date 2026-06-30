@@ -99,7 +99,7 @@ Small CSS properties that prevent the most common typographic blemishes:
 - **Long text (10+ lines), code, `pre`** → neither; default wrapping is fine and avoids the layout cost.
 
 ### Tabular numbers
-Any number that updates dynamically — counters, prices, timers, table columns, scoreboards — needs `font-variant-numeric: tabular-nums` (Tailwind `tabular-nums`) so digits are equal-width and the layout doesn't shift as values change. Don't apply it to static numbers, phone numbers, zip codes, or version strings.
+Any number that updates dynamically — counters, prices, timers, table columns, scoreboards — needs `font-variant-numeric: tabular-nums` (Tailwind `tabular-nums`) so digits are equal-width and the layout doesn't shift as values change. Don't apply it to static numbers, phone numbers, zip codes, or version strings. (Caveat: some faces — Inter notably — redraw the numerals under this property, widening and centring the `1`; that's expected and usually desirable for alignment, but eyeball it in your actual font.)
 
 ### Font smoothing (macOS)
 Apply `-webkit-font-smoothing: antialiased` (Tailwind `antialiased`) once at the root layout — not per element (per-element smoothing is inconsistent, leaving headings lighter than body). It only affects macOS rendering; other platforms ignore it, so it's safe to apply universally.

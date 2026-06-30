@@ -163,7 +163,8 @@ Specific decisions for `wf-implement` to follow:
 - **Layout structure**: grid choice, breakpoint behavior
 - **Type scale**: which sizes/weights from the brief apply where
 - **Color application**: which elements carry which colors in the strategy
-- **Motion**: which interactions need transitions (with timing if specified)
+- **Motion**: which interactions need transitions — with timing, easing, and (for anything frequently-seen) whether it should animate at all; `animate.md` carries the frequency / easing / interruptibility rules
+- **Finish & detail**: the interface-craft decisions that read as "off" when missed — concentric radius on nested surfaces, optical alignment, shadows-vs-borders for elevation, hit-area minimums (`polish.md`)
 - **State coverage**: required states for each interactive element
 
 ### 5. Anti-patterns to avoid
