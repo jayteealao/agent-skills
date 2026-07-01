@@ -1,0 +1,39 @@
+{
+  "name": "hermes-tweet",
+  "version": "1.0.0-codex.1",
+  "description": "Hermes Agent X/Twitter workflows for read-first research, monitoring, audits, and explicit approval-gated account actions.",
+  "author": {
+    "name": "Xquik",
+    "url": "https://github.com/Xquik-dev"
+  },
+  "license": "MIT",
+  "keywords": [
+    "hermes-agent",
+    "twitter",
+    "x",
+    "social-media",
+    "research",
+    "monitoring"
+  ],
+  "skills": "./.codex-generated/skills/",
+  "homepage": "https://github.com/Xquik-dev/hermes-tweet",
+  "repository": "https://github.com/Xquik-dev/hermes-tweet",
+  "interface": {
+    "displayName": "Hermes Tweet",
+    "shortDescription": "Hermes Agent workflows for X/Twitter research and gated actions",
+    "longDescription": "Install and operate the Hermes Tweet plugin for source-aware X/Twitter research, monitoring, audits, support triage, and explicitly approved account actions. The workflow starts with read-only tools and keeps account actions behind a dedicated enablement gate.",
+    "developerName": "Xquik",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "websiteURL": "https://github.com/Xquik-dev/hermes-tweet",
+    "defaultPrompt": [
+      "Use Hermes Tweet for read-only X/Twitter research.",
+      "Prepare a Hermes Tweet monitor for this release keyword.",
+      "Check the Hermes Tweet action gate before any account action."
+    ],
+    "brandColor": "#111827"
+  }
+}

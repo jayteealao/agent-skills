@@ -1,0 +1,6 @@
+interface:
+  display_name: "Hermes Tweet"
+  short_description: "Source-aware Hermes Agent X/Twitter workflow guide. Use when a session needs to install or operate the native Hermes Tweet plugin for read-first research, monitoring, support triage, giveaway audits, or explicit approval-gated account actions."
+  default_prompt: "Use $hermes-tweet for this workflow."
+policy:
+  allow_implicit_invocation: false

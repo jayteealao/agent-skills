@@ -36,6 +36,13 @@
       "version": "1.0.0"
     },
     {
+      "name": "hermes-tweet",
+      "description": "Hermes Agent X/Twitter workflows for read-first research, monitoring, audits, and explicit approval-gated account actions.",
+      "source": "./plugins/hermes-tweet",
+      "category": "productivity",
+      "version": "1.0.0"
+    },
+    {
       "name": "sdlc-workflow",
       "description": "Four skill-mode routers (`/wf`, `/wf-meta`, `/wf-docs`, `/review`) driving a 10-stage SDLC lifecycle from intake through retro — with per-slice artifacts, runtime-truth verification, and PO-confirmed stack fingerprinting. Design folds into `/wf design`; quick/standalone flows are `/wf intake` modes plus the `/wf probe` and `/wf simplify` keys.",
       "source": "./plugins/sdlc-workflow",
