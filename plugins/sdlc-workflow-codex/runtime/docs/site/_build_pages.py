@@ -326,7 +326,7 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/wf design</code></td>
   <td>You want design work on a screen, component, or visual artifact</td>
-  <td>21 design sub-commands — craft, colorize, polish, audit, critique, and more. A <code>/wf</code> sub-command: <code>/wf design &lt;slug&gt; &lt;cmd&gt;</code> builds in-workflow (compressed); <code>/wf design &lt;cmd&gt;</code> runs the full lifecycle</td>
+  <td>20 design sub-commands — colorize, polish, audit, critique, the transforms, and more. The design brief (<code>02b-design.md</code>) and visual contract (<code>02c-craft.md</code>) are authored by the normal lifecycle (<code>shape</code> and <code>plan</code>); this key hosts the ad-hoc transforms + analysis operators. <code>/wf design &lt;slug&gt; &lt;transform&gt;</code> builds in-workflow (compressed); <code>/wf design &lt;cmd&gt;</code> runs the full lifecycle</td>
 </tr>
 <tr>
   <td><code>/wf-docs</code></td>
@@ -611,8 +611,8 @@ You know what you want to do. This page maps your situation to the exact command
 <tbody>
 <tr>
   <td>Generate a design brief for a screen</td>
-  <td><code>/wf design &lt;slug&gt; craft</code></td>
-  <td>Produces the brief + visual contract, then drives the build. With a slug it runs compressed in-workflow; with no slug it spins up a full lifecycle.</td>
+  <td><code>/wf shape &lt;slug&gt;</code></td>
+  <td>When the work has UI surface, shape authors the design brief (<code>02b-design.md</code>); <code>/wf plan</code> then authors the visual contract (<code>02c-craft.md</code>) and <code>/wf implement</code> builds against it. For a focused, single-move change use a transform: <code>/wf design &lt;slug&gt; &lt;transform&gt;</code>.</td>
 </tr>
 <tr>
   <td>Recolor a design to match a palette</td>
@@ -1449,7 +1449,7 @@ PAGES.append((
 
 <dl>
 <dt><strong>After shape</strong></dt>
-<dd>Default: run <code>/wf slice</code> to break the shaped idea into work units. Alternative: run <code>/wf design &lt;slug&gt; craft</code> first if the feature is UI-heavy and the visual direction is still unclear. Alternative: skip slicing entirely and jump to plan for a single-slice feature.</dd>
+<dd>Default: run <code>/wf slice</code> to break the shaped idea into work units. If the feature is UI-heavy, shape has already authored the design brief (<code>02b-design.md</code>) and <code>/wf plan</code> will author the visual contract — design rides the normal flow. Alternative: skip slicing entirely and jump to plan for a single-slice feature.</dd>
 
 <dt><strong>After review</strong></dt>
 <dd>Default: run <code>/wf handoff</code> to prepare the PR. Alternative: run <code>/wf implement &lt;slug&gt; reviews</code> if the review found issues that must be addressed first. Alternative: run <code>/wf-meta amend</code> if the review revealed the original spec was wrong.</dd>

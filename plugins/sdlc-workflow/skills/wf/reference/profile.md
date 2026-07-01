@@ -34,9 +34,7 @@ This is a **standalone command**, not tied to any workflow. It writes to `.ai/pr
 > **Optional second opinion.** At the optimization-candidates synthesis, you may
 > offer `/consult <are these optimization candidates sound, and what architectural
 > patterns did local analysis miss?>` (or `/consult <provider> …`) — a read-only
-> multi-model panel that brings cross-codebase breadth to the analysis. Opt-in,
-> sends content to external models, gated by `externalDispatch.enabled`; offer it,
-> never run it automatically.
+> multi-model panel that brings cross-codebase breadth to the analysis. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # Core discipline
 - **Evidence first.** Every hotspot claim must cite a specific `file:line` or tool output. Do not say "this is probably slow" without a data point.

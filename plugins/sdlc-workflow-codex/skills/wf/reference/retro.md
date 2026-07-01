@@ -25,9 +25,7 @@ You are running `$wf retro`, **stage 10 of 10** in the SDLC lifecycle.
 > **Optional second opinion.** At the synthesis step (after the analysis sub-agents
 > return), you may offer `$consult <what systemic patterns span this workflow's
 > friction?>` (or `$consult <provider> …`) — a read-only multi-model panel that
-> spots cross-stage patterns the per-domain sub-agents miss. Opt-in, sends content
-> to external models, gated by `externalDispatch.enabled`; offer it, never run it
-> automatically.
+> spots cross-stage patterns the per-domain sub-agents miss. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.

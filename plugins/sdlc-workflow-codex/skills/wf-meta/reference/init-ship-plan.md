@@ -41,8 +41,7 @@ A single file: **`.ai/ship-plan.md`** at the **repo root** (not under `.ai/workf
 > `$consult <critique this proposed ship / CI-CD pipeline shape — gaps, risky
 > ordering, missing gates>` (or `$consult <provider> …`) — a read-only multi-model
 > panel whose repo-aware oracles can check the hypothesis against the repo's actual
-> CI before you commit to it. Opt-in, sends content to external models, gated by
-> `externalDispatch.enabled`; offer it, never run it automatically.
+> CI before you commit to it. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — execution discipline
 

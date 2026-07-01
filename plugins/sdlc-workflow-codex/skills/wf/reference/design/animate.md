@@ -57,7 +57,7 @@ One well-orchestrated experience beats scattered animations everywhere. Identify
 
 ### Micro-interactions
 - Button hover: subtle scale (1.02–1.05), color shift, shadow increase
-- Button click: subtle scale down on press — `transform: scale(0.96–0.97)` on `:active`, release snaps back (~150ms ease-out). Stay at `0.96–0.97`; below `0.95` reads as exaggerated. Optional ripple.
+- Button click: subtle scale down on press — `transform: scale(0.96–0.97)` on `:active`, release snaps back (~150ms ease-out). Stay at `0.96–0.97`; below `0.95` reads as exaggerated. Optional ripple. Give the button component a `static` prop that turns the press-scale *off* where the motion would distract — a toolbar of rapidly-clicked controls, or a destructive action that should feel deliberate rather than springy. Not every button should bounce.
 - Toggle: smooth slide + color transition (200–300 ms)
 - Checkbox/radio: check mark animation, ripple effect
 - Like/favorite: scale + rotation, particle effect, color transition
@@ -139,6 +139,8 @@ Springs simulate physics and have no fixed duration — they settle on their par
 ```
 
 Keep `bounce: 0` for product UI — that is the spring equivalent of the no-`bounce`/`elastic`-easing rule. A subtle `0.1–0.3` is reserved for playful brand interactions and drag-to-dismiss, never dashboards or data UI.
+
+**Decorative mouse-tracking.** For an element that responds to the cursor — a card that tilts toward the pointer, a glow that trails it — don't bind the transform directly to mouse position; it feels artificial because it has no momentum. Interpolate the value through a spring (Motion's `useSpring`) so it lags and settles like a physical thing. Reserve this for genuinely *decorative* motion on an "alive" element; on a functional control or a data chart, no motion beats decorative motion.
 
 ## Icon & state micro-animations
 

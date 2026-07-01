@@ -24,12 +24,11 @@ You are running `$wf review`, **stage 7 of 10** in the SDLC lifecycle.
 | Produces (slug-wide mode) | `07-review.md` + `07-review-<command>.md` per selected command (single set per workflow). Re-running review **merges into the existing files** (accumulating ledger — new findings deduped + appended in place, cleared findings marked `resolved`; nothing overwritten or deleted). Sibling per-slice review files (if any from prior runs) are left untouched. |
 | Next | `$wf handoff <slug>` (when `verdict: ship`/`ship-with-caveats` and no OPEN blocker findings remain + all slices complete). If OPEN blockers remain: re-invoke `$wf review <slug> [<slice>]` (a normal accumulating re-run that re-checks the fixed code and merges fresh findings), or escalate to `$wf implement <slug> [<slice>] reviews` as a manual escape. Also: `$wf plan <slug> <next-slice>` (if more slices remain), `$wf-meta amend <slug> from-review` (if spec was wrong), or `$wf-meta extend <slug> from-review` (if new scope needed). |
 
-> **Optional second opinion.** After the findings are merged and the verdict is
-> derived, you may offer `$consult review <scope>` (or `$consult <provider> review
-> <scope>`) — a read-only multi-model panel that runs the same diff past other
-> models for an adversarial check on the verdict, especially a borderline
-> ship-with-caveats. Opt-in, sends content to external models, gated by
-> `externalDispatch.enabled`; offer it, never run it automatically.
+> **Auto second opinion.** After the findings are merged and the verdict is derived,
+> **auto-invoke** `$consult codex review <scope>` (pin `codex`/`claude`) whenever the
+> verdict is borderline — especially a ship-with-caveats — a read-only panel that runs
+> the same diff past other models for an adversarial check. Skip it for a clean pass or
+> an obvious block. The user may invoke it explicitly with any provider.
 
 # CRITICAL — execution discipline
 You are a **review dispatch orchestrator that owns an accumulating findings ledger and its own triage→fix loop**.
@@ -208,7 +207,7 @@ Each command maps to `../../review/reference/<name>.md` — **except** the two d
 
 ### Include when the change involves design work — `review` is the design consumer that *judges it*
 (any `design-*` entry in `00-index.md` `augmentations:`, a `02c-craft.md` visual contract present, or substantive UI changes when `stack.ui ≠ ∅`)
-- `design-audit` — theming / responsive / anti-pattern judgment + 0–4 scoring. **Consumes the a11y / perf / web-vitals already measured in `06-verify-*.md` rather than re-running axe-core** (if no verify ran, it measures itself). Checks the `02c-craft.md` anti-goals were honored. Emits `07-design-audit.md`. Maps to `design/audit.md`.
+- `design-audit` — theming / responsive / anti-pattern judgment + 0–4 scoring. **Consumes the a11y / perf / web-vitals already measured in `06-verify-*.md` rather than re-running axe-core** (if no verify ran, it measures itself). Checks the `02c-craft.md` anti-goals were honored. Emits `07-design-audit.md`. Maps to `design/audit.md`. Its absolute-ban checklist is single-sourced from `design/_design-context.md` (Absolute bans) — load it when `stack.ui ≠ ∅` even if no `02b`/`02c` exists, so audit judges against the same canon design authored to.
 - `design-critique` — register-forked prescriptive critique (brand = distinctiveness, product = earned-familiarity); preserves the stance rules + font reflex-reject. Emits `07-design-critique.md`. Maps to `design/critique.md`.
 
 These two run as ordinary dimensions inside the parallel fan-out below — the same logic reachable ad-hoc via `$wf design audit|critique`. a11y/perf are measured once (in `verify`) and *interpreted* here; never re-measured.

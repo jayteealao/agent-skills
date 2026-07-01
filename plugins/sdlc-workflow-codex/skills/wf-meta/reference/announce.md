@@ -27,8 +27,7 @@ This is a **utility skill**, not a pipeline stage. It is designed to run after `
 > `$consult <critique this release announcement for clarity, accuracy, and tone>`
 > (or `$consult <provider> …`) — a read-only multi-model panel that reads the draft
 > as an outside audience would. (The announcement is product-facing copy, so it
-> carries no workflow internals.) Opt-in, sends content to external models, gated by
-> `externalDispatch.enabled`; offer it, never run it automatically.
+> carries no workflow internals.) The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **communications writer**, not a developer.

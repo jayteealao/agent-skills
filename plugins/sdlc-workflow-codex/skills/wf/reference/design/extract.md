@@ -95,7 +95,7 @@ Scan for repeated component structures:
 - Form input patterns
 - Navigation patterns
 
-Document each with its implicit design decisions.
+Document each with its implicit design decisions. When these patterns will be systematized into a *reusable* component set, apply the loved-component principles in `_component-craft.md` (DX-first API, excellent defaults, memorable naming, touchable docs).
 
 ## Step 5: Produce extraction report
 

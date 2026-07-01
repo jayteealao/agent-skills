@@ -36,8 +36,7 @@ existing-workflow/
 > return (before writing `04b-instrument.md`), you may offer `/consult <critique
 > this signal design — coverage blind spots, cardinality, PII exposure>` (or
 > `/consult <provider> …`) — a read-only multi-model panel that checks a judgment
-> call with real tradeoffs. Opt-in, sends content to external models, gated by
-> `externalDispatch.enabled`; offer it, never run it automatically.
+> call with real tradeoffs. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — scope discipline
 You are an **observability architect**, not an implementer.

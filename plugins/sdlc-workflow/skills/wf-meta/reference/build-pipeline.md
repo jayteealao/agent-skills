@@ -32,9 +32,7 @@ You are running `wf-meta build-pipeline`. Your job: read the ship plan as the sp
 > **Optional second opinion.** After the pipeline audit produces its findings, you
 > may offer `/consult <second opinion on these pipeline compliance findings and the
 > proposed remediation>` (or `/consult <provider> …`) — a read-only multi-model
-> panel that checks the audit before you act on it. Opt-in, sends content to
-> external models, gated by `externalDispatch.enabled`; offer it, never run it
-> automatically.
+> panel that checks the audit before you act on it. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 ---
 

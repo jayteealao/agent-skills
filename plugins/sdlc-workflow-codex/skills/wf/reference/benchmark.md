@@ -48,9 +48,7 @@ existing-workflow/
 > **Optional second opinion.** In compare mode, when regressions are found, you may
 > offer `$consult <diagnose the likely cause of these regressions given the diff
 > and the plan>` (or `$consult <provider> …`) — a read-only multi-model panel that
-> grounds the "likely cause" in the actual change instead of a guess. Opt-in, sends
-> content to external models, gated by `externalDispatch.enabled`; offer it, never
-> run it automatically.
+> grounds the "likely cause" in the actual change instead of a guess. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — measurement discipline
 You are a **performance analyst**, not an optimizer.

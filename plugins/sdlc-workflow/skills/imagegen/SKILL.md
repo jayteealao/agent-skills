@@ -107,7 +107,7 @@ IMAGEGEN_RESULT:
     GEMINI_API_KEY=<key> python3 .claude/skills/imagegen/scripts/gen-nano-banana-pro.py "<prompt>"
 ```
 
-The caller (`/wf design` at its shape or craft step) records the result in the design artifact
+The caller (the contract step at `/wf plan`, or a design transform) records the result in the design artifact
 and sets `image_gate=pass` (for image success) or `image_gate=skipped:<reason>` (for text-only).
 
 ## Multiple images (`--count > 1`)

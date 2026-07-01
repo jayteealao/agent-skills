@@ -64,7 +64,7 @@ UIPROTO_RESULT:
 
 ## Caller + cost
 
-Invoked by a `/wf design` shape/craft step, beside the `imagery` mock. Bare fan-out
+Invoked at the visual-contract step (`plan`, following `design/contract.md`) or a design transform, beside the `imagery` mock. Bare fan-out
 calls **both** engines (per-token to your keys; Stitch needs its own provisioned
 project). Pin `uiproto llm <prompt>` or `uiproto stitch <prompt>` for one engine.
 Always opt-in; never hook- or serve-triggered.

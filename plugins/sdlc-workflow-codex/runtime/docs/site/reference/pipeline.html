@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.95.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.96.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -153,15 +153,15 @@ flowchart LR
 <tr><th>Produces</th><td><code>02-shape.md</code> (deep spec + docs plan)</td></tr>
 <tr><th>Conditional inputs</th><td>Web-research sub-agents (best-practice, anti-patterns, gotchas) fire by default; they are skipped automatically when no new external dependencies, no security-sensitive area, and no new dependency API surface are introduced.</td></tr>
 <tr><th>Default next</th><td><code>/wf slice &lt;slug&gt;</code></td></tr>
-<tr><th>Skip-to</th><td><code>/wf design &lt;slug&gt; craft</code> for UI features → <code>02b-design.md</code> + <code>02c-craft.md</code></td></tr>
+<tr><th>Design</th><td>For UI features, <code>/wf shape</code> also writes the design brief <code>02b-design.md</code>; the visual contract <code>02c-craft.md</code> follows at <code>/wf plan</code></td></tr>
 </table>
 
-<h3>Stage 2b — Design (optional): add a visual contract</h3>
-<p>When you are building a UI surface, 2b produces a UX brief and a visual contract that downstream stages use as a design reference. Skip this stage entirely for non-visual work.</p>
+<h3>Stage 2b — Design (woven into shape + plan): the UX brief and visual contract</h3>
+<p>When you are building a UI surface, the design brief and visual contract are authored by the normal lifecycle — there is no separate design command. Skip nothing; non-visual work simply produces neither file.</p>
 <table>
-<tr><th>Command</th><td><code>/wf design &lt;slug&gt; craft</code></td></tr>
+<tr><th>Command</th><td>Authored by <code>/wf shape</code> (brief) and <code>/wf plan</code> (contract) — no <code>craft</code> command</td></tr>
 <tr><th>Requires</th><td><code>02-shape.md</code></td></tr>
-<tr><th>Produces</th><td><code>02b-design.md</code> (UX brief, register, anti-goals) + <code>02c-craft.md</code> (visual contract — north-star mock, mock-fidelity inventory)</td></tr>
+<tr><th>Produces</th><td><code>02b-design.md</code> (UX brief, register, anti-goals — at <code>shape</code>) + <code>02c-craft.md</code> (visual contract — north-star mock, mock-fidelity inventory — at <code>plan</code>)</td></tr>
 <tr><th>When to use</th><td>UI features, dashboards, public-facing surfaces.</td></tr>
 </table>
 

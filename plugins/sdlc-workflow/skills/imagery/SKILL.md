@@ -26,7 +26,7 @@ output contract** so the `/wf design` image gate keeps working unchanged.
 4. **Resolution tier (no `--resolution` flag, D15).** Infer from the prompt prose
    **or the invoking context**: a **north-star / hi-res / high-res / 2K** cue → the
    **2K** tier; else **1K**. Pass the tier as the generator's positional `<1K|2K>`
-   argument (it never enters the image prompt). The craft north-star step says "2K"
+   argument (it never enters the image prompt). The contract north-star step says "2K"
    in its instruction — honor it; do not silently drop to 1K.
 5. **Consent for egress.** The egress providers (`openai`, `gemini`, `openai-sub`)
    send the prompt to a third party, so they require `externalDispatch.enabled` in
@@ -68,9 +68,10 @@ A fan-out set renders as a comparison strip (one figure per provider). The calle
 
 ## Output Format — MUST stay `IMAGEGEN_RESULT` (contract, A2)
 
-The `/wf design` shape/craft steps branch on `method=text-only` and consume
-`scene_sentence`, and the caller sets `image_gate` from this block. So keep the
-block name and fields exactly — `method` carries the provider id:
+The visual-contract step (`plan`, following `design/contract.md`) and standalone
+design transforms branch on `method=text-only` and consume `scene_sentence`, and the
+caller sets `image_gate` from this block. So keep the block name and fields exactly —
+`method` carries the provider id:
 
 **On image success (one block per image; a fan-out emits several):**
 

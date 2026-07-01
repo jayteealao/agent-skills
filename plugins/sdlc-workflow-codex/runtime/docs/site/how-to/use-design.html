@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.95.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.96.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -95,7 +95,7 @@
 <span class="quadrant howto">how-to</span>
 <h1>Use the design pipeline</h1>
 
-<p class="lede">You are building a change that touches a visual or UX surface and you want design work to be part of it. Design is <strong>one <code>/wf</code> sub-command</strong> — <code>/wf design</code> — that runs as a compressed workflow. It gives you 21 design commands (as <em>arguments</em>, not separate keys). This page helps you pick the right invocation for your situation.</p>
+<p class="lede">You are building a change that touches a visual or UX surface and you want design work to be part of it. Design is <strong>one <code>/wf</code> sub-command</strong> — <code>/wf design</code> — that runs as a compressed workflow. It gives you 20 design commands (as <em>arguments</em>, not separate keys). This page helps you pick the right invocation for your situation. The full design brief and visual contract are authored by the normal lifecycle — <code>/wf shape</code> and <code>/wf plan</code> — not by a command here.</p>
 
 <div class="summary">
 <table>
@@ -115,7 +115,7 @@
 
 <pre><code>/wf design &lt;slug&gt; &lt;command&gt; [instructions]</code></pre>
 
-<p>For a Producer or Transformation command this authors the brief and/or visual contract, then drives <code>slice → plan → implement → verify</code> itself, compressed — design <strong>owns</strong> the downstream flow, there is no hand-back to <code>/wf slice</code>. Example: <code>/wf design my-feature craft</code> designs and builds the surface; <code>/wf design my-feature harden</code> builds the accessibility-hardened surface and registers it as an add-on (a <a href="../reference/glossary.html">registered add-on</a> in <code>00-index.md</code>).</p>
+<p>For a Transformation command this authors a focused visual contract, then drives <code>slice → plan → implement → verify</code> itself, compressed — the transform <strong>owns</strong> its downstream flow, there is no hand-back to <code>/wf slice</code>. Example: <code>/wf design my-feature harden</code> builds the accessibility-hardened surface and registers it as an add-on (a <a href="../reference/glossary.html">registered add-on</a> in <code>00-index.md</code>). The full design <strong>brief</strong> + <strong>contract</strong> are not a command here — <code>/wf shape</code> authors the brief (<code>02b-design.md</code>) and <code>/wf plan</code> authors the visual contract (<code>02c-craft.md</code>).</p>
 
 <h3>No slug — a full lifecycle seeded by design</h3>
 
@@ -127,7 +127,7 @@
 
 <h2>Picking the right command</h2>
 
-<p>The 21 commands fall into five categories.</p>
+<p>The 20 commands fall into four categories. (The design brief and visual contract are authored by the normal lifecycle — <code>/wf shape</code> and <code>/wf plan</code> — not by a command here.)</p>
 
 <h3>1. Context (run once, any time)</h3>
 
@@ -139,12 +139,9 @@
 <dd>Re-runs the relevant interview round and updates <code>PRODUCT.md</code> or <code>DESIGN.md</code> in place. Use after the project's brand or design system has evolved.</dd>
 </dl>
 
-<h3>2. Producer — design the spec, then build it</h3>
+<h3>2. The brief + visual contract (authored by the lifecycle, not a design command)</h3>
 
-<dl>
-<dt><code>/wf design &lt;slug&gt; craft</code></dt>
-<dd>Authors the design <strong>brief</strong> <code>02b-design.md</code> (register, anti-goals, layout approach, key states, recommended references) <em>and</em> the visual <strong>contract</strong> <code>02c-craft.md</code> (north-star mock, mock-fidelity inventory, implementation contract), then drives the compressed <code>slice → plan → implement → verify</code> build. The brief step folds in what the old standalone design <code>shape</code> did — there is no separate design-shape command.</dd>
-</dl>
+<p>There is no <code>craft</code> command. When a feature has UI surface, <code>/wf shape &lt;slug&gt;</code> authors the design <strong>brief</strong> <code>02b-design.md</code> (register, anti-goals, layout approach, key states, recommended references) as part of shaping. <code>/wf plan &lt;slug&gt;</code> then resolves the visual-direction gates (image probes + confirm) and authors the visual <strong>contract</strong> <code>02c-craft.md</code> (north-star mock, mock-fidelity inventory, implementation contract). <code>/wf implement</code> builds against it and runs the critique-and-fix pass. Design rides the normal <code>shape → plan → implement → verify</code> flow — the transforms below are for focused, ad-hoc moves.</p>
 
 <h3>3. Review / analysis (single-step)</h3>
 
@@ -205,7 +202,6 @@
 <thead><tr><th>Category</th><th>Flow span (slug given)</th><th>No slug</th></tr></thead>
 <tbody>
 <tr><td>Context (<code>setup</code>, <code>teach</code>)</td><td>Write repo-root files; no stages</td><td>Identical</td></tr>
-<tr><td>Producer (<code>craft</code>)</td><td>brief → contract → slice → plan → implement → verify</td><td>create slug → full lifecycle</td></tr>
 <tr><td>Transformation (15)</td><td>focused contract → slice → plan → implement → verify (transform is the implement step)</td><td>create slug → full lifecycle</td></tr>
 <tr><td>Inspection (<code>extract</code>)</td><td>Single read-only step</td><td>Standalone report</td></tr>
 <tr><td>Review (<code>audit</code>, <code>critique</code>)</td><td>Single review step (audit reads verify's metrics)</td><td>Standalone report</td></tr>

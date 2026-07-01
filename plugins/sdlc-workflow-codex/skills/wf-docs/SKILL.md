@@ -24,8 +24,7 @@ You are the **documentation dispatcher** for the SDLC plugin. Two modes of opera
 > offer `$consult <completeness blind spots in this doc plan>` or `$consult
 > <accuracy pass on this reference doc>` (or `$consult <provider> …`) — a read-only
 > multi-model panel that runs a cross-model completeness and accuracy check on
-> developer-facing docs. Opt-in, sends content to external models, gated by
-> `externalDispatch.enabled`; offer it, never run it automatically.
+> developer-facing docs. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # Step 0 — Mode + sub-command resolution (MANDATORY)
 

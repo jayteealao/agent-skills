@@ -30,7 +30,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 You are a **compressed-planning orchestrator**, not an incident responder and not a feature shaper.
 - This command skips *ceremony*, not *stages* and not *thinking*. Every stage artifact must be real and schema-conformant.
 - Ask at most **2 questions** in chat for planning. No separate `po-answers.md` — answers go inline into `01-fix.md`.
-- Do NOT auto-include design. If the change visibly touches UI and `--design` was not passed, note in `02-shape.md` a one-line recommendation to run `$wf design <slug> craft` as a follow-up. Do not block.
+- Do NOT auto-include design. If the change visibly touches UI and `--design` was not passed, note in `02-shape.md` a one-line recommendation to author a design brief (`02b-design.md`) at shape and a visual contract at plan — or run a focused `$wf design <slug> <transform>` — as a follow-up. Do not block.
 - Follow the steps below exactly in order. The compression happens *within* a step, not by removing steps.
 
 # Step 0 — Orient (MANDATORY)
@@ -109,7 +109,7 @@ next-command: wf-slice
 next-invocation: "$wf slice <slug>"
 ---
 ```
-Body (tight): `## In Scope` (1-3 bullets), `## Out of Scope` (1-3), `## Known Unknowns` (0-2). If the change touches UI surface and `--design` was not passed, add one line: "**UI touched — design skipped:** consider `$wf design <slug> craft` follow-up." If `--design` was passed, add 3-5 design-note bullets here instead.
+Body (tight): `## In Scope` (1-3 bullets), `## Out of Scope` (1-3), `## Known Unknowns` (0-2). If the change touches UI surface and `--design` was not passed, add one line: "**UI touched — design skipped:** consider a design brief at shape + contract at plan, or a focused `$wf design <slug> <transform>`, as follow-up." If `--design` was passed, add 3-5 design-note bullets here instead.
 
 **`03-slice.md` — `type: slice-index` (one slice — the lifecycle never skips slicing):**
 ```yaml

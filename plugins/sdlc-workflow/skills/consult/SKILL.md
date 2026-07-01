@@ -1,8 +1,8 @@
 ---
 name: consult
-description: Consult external models as READ-ONLY oracles — plan critique, code/implementation review, design analysis, diagnosis, second opinion. Fans out to all available providers by default (codex, claude, gemini, openai; a provider keyword narrows to one). Returns a panel of opinions and never edits the repo. Always explicit/opt-in; gated by externalDispatch.enabled.
-version: 1.0.0
-disable-model-invocation: true
+description: Consult external models as READ-ONLY oracles — plan critique, code/implementation review, design analysis, diagnosis, second opinion. Fans out to all available providers by default (codex, claude, gemini, openai; a provider keyword narrows to one). Returns a panel of opinions and never edits the repo. The model may invoke it autonomously when a second opinion adds material value; model-initiated runs pin a free subscription CLI (codex/claude).
+version: 1.1.0
+disable-model-invocation: false
 argument-hint: "[codex|claude|gemini|openai|<provider>/<model>] <question>"
 ---
 
@@ -22,20 +22,20 @@ It generalizes the single-model `codex:rescue` pattern into a **multi-model
 panel**: by default it fans out to every available provider in parallel and
 returns a panel of opinions plus a one-line consensus/divergence read.
 
-This skill is **always explicit** — invoke it deliberately. It is never triggered
-by a hook, by serving, or automatically inside another stage. Dispatch sends repo
-and artifact content to a third party, so it is gated by a single machine-wide
-consent flag (see Step 0).
+The model may invoke this skill **autonomously** when a second opinion adds material
+value (the `/wf` stages call out where). It is still never triggered by a hook or by
+serving — only by a deliberate model or user decision. Dispatch sends repo and
+artifact content to a third party, so autonomous runs pin a free CLI and stay
+sparing (see Step 0).
 
 # Step 0 — Resolve the request
 
-1. **Consent gate.** Dispatch is OFF by default. The runner re-checks
-   `externalDispatch.enabled` in `~/.sdlc/hub-config.json` and exits `3` if it is
-   not `true`. If you already know it is off (or the runner exits 3), STOP with a
-   one-line notice:
-   > External-model dispatch is off. To consent, set
-   > `"externalDispatch": { "enabled": true }` in `~/.sdlc/hub-config.json`.
-   Do not work around the gate.
+1. **Cost safety (autonomous runs).** No consent flag gates `consult` — it runs on
+   demand. But when YOU (the model) self-initiate a consult rather than the user
+   typing `/consult` explicitly, **pin a free subscription CLI** — pass `codex` (or
+   `claude`) as the provider so the run costs nothing per call. Never bare-fan-out
+   (which hits the paid REST oracles per-token) on a self-initiated run; reserve the
+   paid fan-out for an explicit user request that names a paid provider.
 
 2. **Resolve providers (wf-style positional parse).** Look at the first token of
    `$ARGUMENTS`:
@@ -86,7 +86,7 @@ node "${CLAUDE_PLUGIN_ROOT}/skills/consult/scripts/dispatch.mjs" read-only <repo
 - Omit `[provider ...]` for the bare fan-out; pass the pinned provider(s) otherwise.
 - It prints one JSON object: `{ results: [{provider, ok, text, costUsd, evidenceScope, error}], skipped: [{provider, reason}], bare }`.
 - Exit `0` = well-formed (per-provider failures are inside `results`); `2` = usage
-  error; `3` = consent gate off (Step 0).
+  error.
 
 # Step 3 — Synthesize and embed
 
@@ -132,7 +132,10 @@ invocation**. To stay free, pin a subscription CLI: `consult codex <question>` o
 
 # Callers
 
-`consult` is user-invocable and is also offered as an optional second-opinion step
-by `/wf plan`, `/review`, and `/wf design`. It conceptually supersedes
-`codex:rescue` (one model → a multi-model panel) but does not edit that separate
-plugin. It is always opt-in — a caller offers it; it never runs on its own.
+`consult` is user-invocable, and the model also **auto-invokes** it when a second
+opinion adds material value — at the plan, design, review, and diagnosis (verify /
+root-cause) judgment points, including during the autonomous `/wf auto` and
+`/wf yolo` drivers. Model-initiated runs pin a free CLI (`codex`/`claude`) and are
+used sparingly — only when they materially de-risk a gate. It conceptually
+supersedes `codex:rescue` (one model → a multi-model panel) but does not edit that
+separate plugin.

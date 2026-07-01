@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.95.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.96.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -180,8 +180,8 @@ You know what you want to do. This page maps your situation to the exact command
 <tbody>
 <tr>
   <td>Generate a design brief for a screen</td>
-  <td><code>/wf design &lt;slug&gt; craft</code></td>
-  <td>Produces the brief + visual contract, then drives the build. With a slug it runs compressed in-workflow; with no slug it spins up a full lifecycle.</td>
+  <td><code>/wf shape &lt;slug&gt;</code></td>
+  <td>When the work has UI surface, shape authors the design brief (<code>02b-design.md</code>); <code>/wf plan</code> then authors the visual contract (<code>02c-craft.md</code>) and <code>/wf implement</code> builds against it. For a focused, single-move change use a transform: <code>/wf design &lt;slug&gt; &lt;transform&gt;</code>.</td>
 </tr>
 <tr>
   <td>Recolor a design to match a palette</td>

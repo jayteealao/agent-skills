@@ -35,9 +35,7 @@ You are an observability architect implementing **wide events / canonical log li
 > **Optional second opinion.** Once the wide-event schema is designed, you may offer
 > `/consult <is this event schema complete for this kind of application — missing
 > fields, cardinality risks, PII exposure?>` (or `/consult <provider> …`) — a
-> read-only multi-model panel that checks the schema before it's wired in. Opt-in,
-> sends content to external models, gated by `externalDispatch.enabled`; offer it,
-> never run it automatically.
+> read-only multi-model panel that checks the schema before it's wired in. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 ## Core Philosophy
 

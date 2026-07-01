@@ -4,6 +4,18 @@ Status: **BUILT — v9.93.0, 2026-06-23, on master (Phases 0–3 landed).** See 
 (Originally DRAFT planning; branch target master, jayte 2026-06-17.)
 Date: 2026-06-16 (decisions appended 2026-06-17). Author: planning pass with jayte.
 
+> **Addendum 2026-07-01 (v9.96.0) — `consult` made autonomous, consent gate dropped.**
+> Reversing D12's "always opt-in, never auto" posture *for `consult` only*: it is now
+> **model-invocable** (`disable-model-invocation: false`) and **auto-runs** at the
+> plan / design / review / diagnosis judgment points, including inside `/wf auto` and
+> `/wf yolo`. The `externalDispatch.enabled` re-check is **removed from
+> `consult/dispatch.mjs`** (§5 rule 1 no longer applies to consult); cost is instead
+> bounded by the rule that any model-initiated run **pins a free CLI (`codex`/`claude`)**
+> and never fans out to paid REST unattended. `imagery` and `uiproto` are unchanged —
+> they keep the consent flag and the script-level trust boundary. The read-only
+> sandbox / credential scrub / hook-isolation guarantees for consult are untouched;
+> only *consent* was removed, not *safety*.
+
 Add the ability, *as part of the SDLC workflow*, to send prompts to external AI
 models — coding sub-agents (Codex / Claude), image models (gpt-image-2,
 nano-banana family), and a UI-component prototyper (Google Stitch) — and embed

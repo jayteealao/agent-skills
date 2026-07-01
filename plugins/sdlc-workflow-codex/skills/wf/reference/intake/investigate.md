@@ -28,9 +28,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 > **Optional second opinion.** At the terminus, once the report is written, you may
 > offer `$consult <critique these candidate approaches and name what this analysis
 > missed>` (or `$consult <provider> …`) — a read-only multi-model panel that
-> surfaces options and blind spots a single analysis can anchor past. Opt-in, sends
-> content to external models, gated by `externalDispatch.enabled`; offer it, never
-> run it automatically.
+> surfaces options and blind spots a single analysis can anchor past. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — sketching discipline
 You are an **options sketcher**, not a chooser, planner, or implementer.

@@ -23,11 +23,13 @@
 //     [{provider, reason}], bare: bool }
 //
 // Exit: 0 when the call was well-formed (per-provider failures live in results);
-//       2 on a usage error; 3 when the externalDispatch consent gate is OFF.
+//       2 on a usage error.
 //
-// TRUST BOUNDARY (§4.1): this script re-checks the externalDispatch.enabled
-// consent flag ITSELF. A direct `node dispatch.mjs …` cannot bypass the SKILL.md
-// prose — the script, not just the model, is the consent boundary.
+// CONSENT (2026-07): `consult` is no longer gated — it is model-invocable and
+// auto-runs at the `/wf` judgment points. There is no externalDispatch flag check
+// here; cost is bounded by the SKILL.md rule that autonomous runs pin a free CLI
+// (codex/claude). The read-only sandbox + credential scrub + hook-isolation
+// sentinel below are INDEPENDENT of consent and remain the safety boundary.
 //
 // HOOK ISOLATION (§3.1, corrected 2026-06): the load-bearing suppression of the
 // repo's SDLC hooks is the SDLC_DISPATCH_ACTIVE=1 sentinel (isolate.mjs) which
@@ -38,8 +40,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, rmSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join, basename } from 'node:path';
+import { basename } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
@@ -60,20 +61,6 @@ const STDIN_SOFT_LIMIT = 9_000_000; // ~9 MB; claude stdin hard-caps at 10 MB
 
 export const CLI_PROVIDERS = ['codex', 'claude'];
 export const REST_PROVIDERS = ['gemini', 'openai'];
-
-// ── consent gate (the trust boundary) ───────────────────────────────────────
-
-/** Read ~/.sdlc/hub-config.json and return externalDispatch.enabled === true. */
-export function dispatchEnabled({ home = homedir() } = {}) {
-  try {
-    const cfgPath = join(home, '.sdlc', 'hub-config.json');
-    if (!existsSync(cfgPath)) return false;
-    const cfg = JSON.parse(readFileSync(cfgPath, 'utf-8'));
-    return cfg?.externalDispatch?.enabled === true;
-  } catch {
-    return false;
-  }
-}
 
 // ── routing / availability (pure, testable) ─────────────────────────────────
 
@@ -408,12 +395,6 @@ async function main() {
   if (mode !== 'read-only') {
     process.stderr.write(`unknown mode "${mode}" (expected read-only)\n`);
     process.exit(2);
-  }
-  if (!dispatchEnabled()) {
-    process.stderr.write(
-      'external-model dispatch is OFF. Set externalDispatch.enabled=true in ~/.sdlc/hub-config.json to consent.\n',
-    );
-    process.exit(3);
   }
   if (!existsSync(promptFile)) {
     process.stderr.write(`prompt file not found: ${promptFile}\n`);

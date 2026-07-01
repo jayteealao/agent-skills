@@ -33,8 +33,7 @@ If slug-mode was not selected, ignore this section and proceed standalone per th
 > may offer `$consult <are any of these findings systematically misrouted — e.g. a
 > route-fix that masks an architectural problem?>` (or `$consult <provider> …`) — a
 > read-only multi-model panel that lightly QCs the router's own output (routing is
-> otherwise deterministic from the matrix). Opt-in, sends content to external
-> models, gated by `externalDispatch.enabled`; offer it, never run it automatically.
+> otherwise deterministic from the matrix). The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — execution discipline (orchestrator-not-fixer)
 You are a **router**, not a problem-solver. This rule is the load-bearing constraint of the plugin and simplify obeys it like every other stage.

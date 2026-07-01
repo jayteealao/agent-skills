@@ -2,7 +2,7 @@ Run systematic **technical** quality checks and generate a comprehensive report.
 
 This is a code-level audit, not a design critique. Check what is measurable and verifiable in the implementation.
 
-**Accessibility lives here.** Not in the general design laws, not in shape or craft. Models over-cautious themselves into safe, underdesigned output when reminded about accessibility at design time. The audit command is the dedicated place for that check.
+**Accessibility lives here.** Not in the general design laws, not in the brief or the contract step. Models over-cautious themselves into safe, underdesigned output when reminded about accessibility at design time. The audit command is the dedicated place for that check.
 
 ## Diagnostic Scan
 

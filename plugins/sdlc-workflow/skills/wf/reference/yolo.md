@@ -122,5 +122,5 @@ Rules:
 - **Not a PR opener or releaser** — it always stops at the review; `handoff`, `ship`, and `retro` are separate commands.
 - **Not a CI auto-fixer** — CI is never in its scope.
 - **Not a gate remover** — every stage's quality gate still runs; `yolo` supplies the answer by policy and records it, rather than pausing for the user.
-- **Not a consult trigger** — the stage references carry an opt-in `/consult` second-opinion callout; `yolo` never fires it. It is opt-in and never-automatic, there is no human to accept it, and spending on an external panel falls outside the Autonomous Decision Policy.
+- **Consults at the designated gates (free only)** — `consult` is model-invocable and pins a free subscription CLI (`codex`/`claude`), so `yolo` may **auto-invoke** it at a genuinely borderline plan/review/diagnosis gate to de-risk an autonomous decision. It stays sparing and never spends on the paid REST oracles, so it fits the Autonomous Decision Policy (no unattended cost) rather than breaching it.
 - **Not in the Codex build** — Claude-only, by design.

@@ -12,8 +12,8 @@ The `.ai/` directory tree is the **shared source of truth** for all SDLC workflo
       00-index.md                     # workflow index (frontmatter: title, current-stage, status, branch, ...)
       01-intake.md                    # Stage 1
       02-shape.md                     # Stage 2
-      02b-design.md                   # Stage 2b (optional, $wf design craft → brief)
-      02c-craft.md                    # Stage 2c (optional, $wf design craft → contract)
+      02b-design.md                   # Stage 2b (optional, UI work — $wf shape → brief)
+      02c-craft.md                    # Stage 2c (optional, UI work — $wf plan → contract)
       03-slice.md                     # Stage 3 slice index
       03-slice-<slice-slug>.md        # per-slice definition
       04-plan-<slice>.md              # Stage 4 per-slice plan

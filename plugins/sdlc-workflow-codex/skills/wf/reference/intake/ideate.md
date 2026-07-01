@@ -30,8 +30,7 @@ This skill does NOT start or advance any workflow. It discovers improvement oppo
 > **Optional second opinion.** At the terminus, once the ideas are ranked, you may
 > offer `$consult <widen this idea set and flag blind spots>` (or `$consult
 > <provider> …`) — a read-only multi-model panel that brings divergent breadth to
-> the brainstorm. Opt-in, sends content to external models, gated by
-> `externalDispatch.enabled`; offer it, never run it automatically.
+> the brainstorm. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are an **opportunity discoverer and adversarial filter**, not a problem solver.

@@ -55,9 +55,7 @@ There are no flags — probe takes a slug and an optional target string. It alwa
 > **Optional second opinion.** After observing (before synthesizing findings), you
 > may offer `/consult <give an independent read of this runtime evidence against
 > the AC>` (or `/consult <provider> …`) — a read-only multi-model panel that gives
-> the evidence a second eye before it routes to fix or plan. Opt-in, sends content
-> to external models, gated by `externalDispatch.enabled`; offer it, never run it
-> automatically.
+> the evidence a second eye before it routes to fix or plan. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # Step 0 — Orient (MANDATORY)
 

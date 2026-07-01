@@ -20,11 +20,11 @@ You are the **code review skill** for the SDLC workflow plugin. Two modes of ope
 
 **Choosing between them:** single-dimension is one reviewer over a broad rubric; sweep is N reviewers each with their own rubric. Use single-dimension when you know which axis to investigate; use sweep when you want defensive breadth. Sweep is more thorough and more expensive — pick it deliberately.
 
-> **Cross-model second opinion (optional).** For a review pass from *other* models
-> (Codex, Gemini, OpenAI) alongside this in-house review, offer `$consult review
-> <scope>` — a read-only multi-model panel. It is opt-in, sends the diff/files to
-> external providers, and is gated by `externalDispatch.enabled`. It complements
-> this skill; it does not replace it.
+> **Cross-model second opinion.** For a review pass from *other* models (Codex,
+> Gemini, OpenAI) alongside this in-house review, the model may **auto-invoke**
+> `$consult codex review <scope>` (pin `codex`/`claude` to stay free) when the verdict
+> is borderline — a read-only panel that complements this skill; it does not replace
+> it. The user may invoke it explicitly with any provider.
 
 > **Narrative fragments — any artifact (v9.70.0).** Beyond the typed review `.html.fragment` projected from the sibling `.yaml`, any review artifact may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page (e.g. a custom call-graph or exploit walkthrough for a specific finding). Full guidance: `../../references/narrative-fragments.md`.
 

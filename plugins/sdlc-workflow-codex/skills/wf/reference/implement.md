@@ -29,8 +29,7 @@ You are running `$wf implement`, **stage 5 of 10** in the SDLC lifecycle.
 > read-only multi-model panel: in **reviews mode**, to sanity-check a sub-agent's
 > proposed fix before you merge it, or when **plan drift is significant**, to
 > pressure-test the adapted approach before writing code. Skip it for routine
-> implementation. Opt-in, sends content to external models, gated by
-> `externalDispatch.enabled`; offer it, never run it automatically.
+> implementation. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator** running the implementation stage.
@@ -88,6 +87,7 @@ You are a **workflow orchestrator** running the implementation stage.
 
    **Read design planning artifacts** (separate from augmentations):
    - `02b-design.md` — design brief if present. Carry forward register (brand/product), color strategy, and anti-goals.
+   - **Baseline design canon (even with no design artifact) — when `stack.ui ≠ ∅`.** If neither `02b`/`02c` exists (a UI feature built without `$wf design`), still read `design/_design-context.md` for the register, shared design laws, absolute bans, and the motion/interface-detail summary — the design floor for any UI code. `_design-context.md` carries the floor and a craft *summary*, not the full craft: when the code touches motion, interface detail, or typography, also load the specific home (`animate.md` / `polish.md` / `typeset.md`) for the actual rules. Use only those sections; its preflight/image/mutation sections govern the `$wf design` command, not implement.
    - **Recommended references** (whenever `02b-design.md` OR `02c-craft.md` is present): build the reference set as the **union** of `recommended-references:` in `02b-design.md`'s frontmatter (e.g., `[colorize, typeset, harden]`) AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each entry by stripping a trailing `.md` (the two fields differ in convention — `02b` omits the extension, `02c` may include it) before de-duplicating, then read `design/<name>.md` for each unique name. These files are the canonical design rationale behind the brief — `colorize.md` explains what the chosen color strategy means in code, `typeset.md` defines typographic hierarchy rules, `harden.md` defines required accessibility checks, etc. The union is load-bearing: references that craft introduced during the contract step live only in `02c`, so reading `02b` alone would silently drop them. Treat the loaded references as **read-only context for implementation judgment** — they help disambiguate the visual contract when a token choice or motion spec is open to interpretation. They do NOT expand scope: do not implement features described in the references that are not in the contract, and do not re-do design work. If an entry doesn't resolve to an existing file under `design/`, log a one-line warning to chat naming the missing reference and continue. If neither file declares any reference field, skip this step silently.
    - `02c-craft.md` — **visual contract. Mandatory when present: if the file exists you MUST read it.** The `## Mock fidelity inventory` items are **additional acceptance criteria** for this implementation — every inventory item must be honored in code. The `## Implementation contract` section names specific token choices, component decisions, and motion specs to follow.
    - **Applying design transforms (deepest design consumer — when `stack.ui ≠ ∅`).** The references above are *read-only judgment context* for a normal implement pass. But when this implement pass is the implement step of a `$wf design` transform (the dispatcher drives slice→plan→**implement**→verify), `implement` *applies* the design: read the transform's playbook from `design/<name>.md` and apply it during the build, then **register it as a `design-<sub>` augmentation** in `00-index.md` and write the `design-notes/<sub>-<timestamp>.md` artifact (contract in `design.md` Step 5). A transform no longer needs pre-existing code — it either creates the surface or modifies the slug's existing implementation, both here. Gate: if `stack.ui` is empty, there is no design transform to apply — skip.
@@ -156,6 +156,32 @@ Shape settled *what* to build (its Round 5 scope-restraint pass) and plan settle
 **Mark deliberate shortcuts.** When you take an intentional simplification with a known ceiling (a global lock, an O(n²) scan, a naive heuristic, a hard-coded value that should be configurable), leave a one-line `sdlc-debt:` comment at the site naming the ceiling **and** the upgrade path, and record it in `## Anything Deferred` (if it is a deferral) or `## Known Risks / Caveats` (if the ceiling is live in shipped code). The marker keeps the shortcut visible and harvestable — `$wf simplify codebase` can later collect `sdlc-debt:` markers and route them — instead of hidden.
 
 **Build for verifiability — the planned verification seams are part of *done*.** The plan's `## Verification Strategy` named what must be built to make each user-observable AC observable: a seeded fixture, a deterministic clock, a `data-testid` / accessibility id, an emulator or test config, an exported test hook. Build those seams as part of this slice — "the AC can now be observed by the planned tool" is an acceptance condition, not a verify-time nicety. A seam the plan named but implement skipped becomes a verify-time wall (no way to drive the AC) that then gets papered over with a deferral or a static-reasoning `pass`. Record each seam you built in `## Verification Seams Built` so `verify` can rely on it; if you could not build one the plan named, say so there and in `## Deviations from Plan` so verify knows the AC may be un-drivable.
+
+# Design build discipline (when `stack.ui ≠ ∅` and a contract or design canon applies)
+When this slice builds UI — whether against a `02c-craft.md` visual contract, a design transform playbook (Step 0.8), or just the baseline design canon — the build is held to the design floor in [design/_design-context.md](design/_design-context.md). Apply it; do not restate its rules.
+
+**Implementation principles:**
+- Use design tokens from the discovered codebase token system, not hard-coded values.
+- Follow the existing component vocabulary (don't introduce a new button style if one exists).
+- Every interactive component must have: default, hover, focus, active, disabled states.
+- Loading states: skeletons not spinners for content areas.
+- `@media (prefers-reduced-motion: reduce)` for all animations — but design for motion first.
+- OKLCH for any new color values; never `#000` or `#fff`.
+- If the deliverable is a **reusable component** (a design-system primitive or shared widget, not a one-off screen), apply [design/_component-craft.md](design/_component-craft.md) — DX-first API, excellent defaults, memorable naming, a touchable example.
+
+**Absolute bans** are the ones in `design/_design-context.md` → *Absolute bans* (border-stripe accents, purple-blue gradients, generic hero metric cards, nested card-in-card, bounce/elastic easing, pure `#000`/`#fff`, display fonts in UI labels). Introducing one is a defect the review/verify gates bounce.
+
+## Critique-and-fix pass (mandatory when `02c-craft.md` was present)
+After building against a visual contract, run at least one critique-and-fix pass before writing the implementation record:
+
+1. Check the implementation against the contract's `## Mock fidelity inventory` — what was lost?
+2. Check against the anti-goals in `02b-design.md` and the contract's `## Anti-patterns to avoid` — what should not be there?
+3. Check against the relevant register reference (`brand.md` or `product.md`) — any violations?
+4. Run the slop test: would someone say "AI made this"? Fix the generic moves.
+5. Check component states: all required states from the contract implemented?
+6. Check responsive behavior at the contract's breakpoints.
+
+Apply fixes. Repeat until no material defects remain. Record what the pass caught (and the mock-fidelity confirmation) in `## Visual Contract Honored`.
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.

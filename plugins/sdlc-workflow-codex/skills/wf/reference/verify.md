@@ -23,13 +23,12 @@ You are running `$wf verify`, **stage 6 of 10** in the SDLC lifecycle.
 | Next | `$wf review <slug> <selected-slice>` (when `convergence: not-needed` or `converged` and `result: pass`). When `convergence: escalated`: re-invoke `$wf verify <slug> <selected-slice>` for a second round, or escalate to `$wf implement <slug> <selected-slice>` as a manual escape. |
 | Skip-to | `$wf handoff <slug> <slice>` if review is unnecessary (solo project, trivial change, already peer-reviewed externally) — only valid when `result: pass`. |
 
-> **Optional second opinion.** After the perceptual review pass, you may offer
-> `$consult <do these screenshots and observations actually satisfy the
-> user-observable AC, or is something off?>` (or `$consult <provider> …`) — a
-> read-only multi-model panel that gives the captured evidence an independent eye
-> for UX issues or AC gaps the primary pass talked itself past. Opt-in, sends
-> content to external models, gated by `externalDispatch.enabled`; offer it, never
-> run it automatically.
+> **Auto second opinion (diagnosis).** After the perceptual review pass, **auto-invoke**
+> `$consult codex <do these screenshots and observations actually satisfy the
+> user-observable AC, or is something off?>` (pin `codex`/`claude`) whenever the
+> evidence is ambiguous or a gate is borderline — a read-only panel that gives the
+> captured evidence an independent eye for UX issues or AC gaps the primary pass
+> talked itself past. Skip it when the AC is plainly met.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator that owns its own triage→fix loop**.
@@ -261,7 +260,7 @@ After driving each user-observable criterion, run an a11y scan on the surface ju
 
 Launch ONLY if any of these exist: `02c-craft.md`, or any entry in `00-index.md` `augmentations:` list. This sub-agent enforces contracts that the standard test suites do not catch.
 
-> **`verify` is the design consumer that *measures it* (when `stack.ui ≠ ∅`).** The a11y / perf / responsive / web-vitals gates above are the **measurable design floor** for any UI slice, and the per-augmentation re-checks below confirm each *applied* transform actually hit its goal. These numbers are measured **once, here** — `$wf review`'s design-audit dimension (and ad-hoc `$wf design audit`) *interpret* them from `06-verify-*.md` rather than re-running axe-core, so the two stages can never disagree about the same measurement. Record them in the verify report so audit can read them.
+> **`verify` is the design consumer that *measures it* (when `stack.ui ≠ ∅`).** The a11y / perf / responsive / web-vitals gates above are the **measurable design floor** for any UI slice, and the per-augmentation re-checks below confirm each *applied* transform actually hit its goal. The canonical laws and absolute bans behind that floor are single-sourced in `design/_design-context.md` — load its Accessibility law + Absolute bans when `stack.ui ≠ ∅` (even if no `02b`/`02c` exists) so the measurable checks match the design canon. These numbers are measured **once, here** — `$wf review`'s design-audit dimension (and ad-hoc `$wf design audit`) *interpret* them from `06-verify-*.md` rather than re-running axe-core, so the two stages can never disagree about the same measurement. Record them in the verify report so audit can read them.
 
 Prompt with:
 

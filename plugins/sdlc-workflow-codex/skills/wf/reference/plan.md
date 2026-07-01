@@ -18,16 +18,16 @@ You are running `$wf plan`, **stage 4 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `02-shape.md`, `03-slice.md` + `03-slice-<slice-slug>.md` (if slices exist) |
-| Conditional inputs (mandatory when present) | `02b-design.md` (visual surface scope and recommended references MUST be reflected in plan steps), `02c-craft.md` (visual contract — plan MUST include explicit steps to honor every mock fidelity inventory item and the implementation contract) |
-| Produces | `04-plan.md` (master) + `04-plan-<slice-slug>.md` per planned slice |
+| Conditional inputs (mandatory when present) | `02b-design.md` (design brief — visual surface scope and recommended references MUST be reflected in plan steps; **if it exists and `02c-craft.md` does not, plan AUTHORS the visual contract** — see *Design-contract authoring* below), `02c-craft.md` (visual contract — plan MUST include explicit steps to honor every mock fidelity inventory item and the implementation contract) |
+| Produces | `04-plan.md` (master) + `04-plan-<slice-slug>.md` per planned slice + (when a design brief exists without a contract) `02c-craft.md` — the **visual contract** |
 | Next | `$wf implement <slug> <slice-slug>` (default) |
 | Skip-to | `$wf implement <slug> <slice-slug>` directly if plan is trivial |
 
-> **Optional second opinion.** After the plan is written you may run
-> `$consult <question about this plan>` (or `$consult <provider> …`) to fan out a
-> read-only multi-model critique panel and embed it next to the plan artifact. It
-> is opt-in, sends content to external models, and is gated by
-> `externalDispatch.enabled` — offer it, never run it automatically.
+> **Auto second opinion.** After the plan is written, **auto-invoke** `$consult codex
+> <question about this plan>` (pin `codex`/`claude` to stay free) whenever the plan
+> carries real risk or ambiguity — fan out a read-only critique panel and embed it
+> next to the plan artifact. Skip it for a trivial plan. The user may also invoke it
+> explicitly with any provider.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -50,10 +50,11 @@ You are a **workflow orchestrator**, not a problem solver.
      - If `stack.user-confirmed: true` → proceed. Sub-agent 3 and the plan's interactive verification template both consume this confirmed block as their source of truth.
    - If `current-stage` in the index is already past plan → WARN before overwriting.
 4. **Read** `02-shape.md`, `03-slice.md` (if exists), the relevant `03-slice-<slice-slug>.md` file(s), and `po-answers.md`.
-4b. **Read design context — mandatory when present** (file existence is optional; consumption is required for any UI/visual-design work). `plan` is the design consumer that *cites it*: the union-loader below turns each recommended reference into a concrete plan-step pointer, and the plan carries the register and anti-goals forward. Gate: if the `00-index.md` `stack:` block shows no UI layer (`stack.ui` empty) and no design artifacts exist, skip this step — non-UI work is unaffected.
+4b. **Read design context — mandatory when present** (file existence is optional; consumption is required for any UI/visual-design work). `plan` is the design consumer that *cites it*: the union-loader below turns each recommended reference into a concrete plan-step pointer, and the plan carries the register and anti-goals forward. **Baseline design canon (even with no design artifact):** when `stack.ui ≠ ∅`, also load `design/_design-context.md` for the register, shared design laws, absolute bans, and the motion/interface-detail summary — the design floor for any UI work, applied even when neither `02b`/`02c` exists (a UI feature built without `$wf design`). `_design-context.md` carries the floor and a craft *summary*, not the full craft: when the feature touches motion, interface detail, or typography, also load the specific home (`animate.md` / `polish.md` / `typeset.md`) for the actual rules. Use only those sections; its preflight/image/mutation sections govern the `$wf design` command, not plan. Gate: if the `00-index.md` `stack:` block shows no UI layer (`stack.ui` empty) and no design artifacts exist, skip this step — non-UI work is unaffected.
    - `02b-design.md` — register, recommended references, anti-goals.
    - `02c-craft.md` — **visual contract. If the file exists you MUST read it.** The `## Mock fidelity inventory` items must be reflected as concrete plan steps. The `## Implementation contract` lists token choices, component decisions, and motion specs the plan must follow. The plan should NOT contradict the visual contract; if it must, surface the conflict for resolution before implementation.
-   - **Design references — union of both files.** Build the reference set from BOTH `recommended-references:` in `02b-design.md`'s frontmatter AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each entry by stripping a trailing `.md` (the two fields differ in convention) before de-duplicating. Plan steps for UI work MUST cite each as a pointer (e.g., "follow `design/typeset.md` for type scale") so the implementer loads them; each resolves to `design/<name>.md`. References that craft introduced live only in `02c` — reading `02b` alone would silently drop them, so always union the two.
+   - **Design references — union of both files.** Build the reference set from BOTH `recommended-references:` in `02b-design.md`'s frontmatter AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each entry by stripping a trailing `.md` (the two fields differ in convention) before de-duplicating. Plan steps for UI work MUST cite each as a pointer (e.g., "follow `design/typeset.md` for type scale") so the implementer loads them; each resolves to `design/<name>.md`. References the contract step introduced live only in `02c` — reading `02b` alone would silently drop them, so always union the two.
+4c. **Author the visual contract — mandatory when a design brief exists without one.** If `02b-design.md` exists AND `02c-craft.md` does **not** yet exist for this slug, `plan` is the design **producer** for the contract: it resolves the two gates `shape` deferred (the image gate and the visual-direction confirm gate) and writes `02c-craft.md` following [design/contract.md](design/contract.md) — land the visual direction via the `imagery` skill (writing the resolved `image-gate` — `pass` or a reasoned `skipped:<reason>`), build the mock fidelity inventory, write `02c-craft.md` (type `design-contract`) **and** its sibling `.yaml` + `.html.fragment`. **Timing (important):** this is *not* done here in Step 0 — it runs inside the planning sequence below, **after** the parallel Explore sub-agents have gathered codebase context (which `design/contract.md` Step 2 consumes) and **before** you produce the plan steps, so the contract's mock-fidelity inventory and implementation-contract decisions become concrete plan steps (Step 4b consumption). If `02c-craft.md` already exists (a prior plan run, a transform, or a user-supplied contract), do not re-author it — just consume it per Step 4b. If `stack.ui` is empty or no `02b-design.md` exists, skip this step.
 5. **Determine planning mode** (order matters — check top to bottom):
 
    **a) `all` with existing plans → review-all mode:**
@@ -289,7 +290,7 @@ Do this in order:
 
    Append every answer to `po-answers.md` with timestamp and `stage: plan`.
 
-3. **Single plan mode (new):** Inspect the repository using parallel Explore sub-agents. Run freshness research. Run the discovery phase. Produce a minimal execution-ready plan. Write `04-plan-<slice-slug>.md`. Update master `04-plan.md`.
+3. **Single plan mode (new):** Inspect the repository using parallel Explore sub-agents. Run freshness research. Run the discovery phase. **Then, if a design brief exists without a contract (Step 4c), author the visual contract now** — codebase context is in hand, and the plan steps must reflect it. Produce a minimal execution-ready plan. Write `04-plan-<slice-slug>.md`. Update master `04-plan.md`.
 4. **Parallel plan mode (new, all):** Launch one sub-agent per slice. Wait for all to complete. Read their output files. Run the cohesion check. Run the discovery phase (once, covering cross-cutting decisions). Write/update master `04-plan.md`. Update cross-links.
 5. **Review-and-fix mode (any sub-mode):** See "Review-and-Fix Mode" section below.
 6. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.

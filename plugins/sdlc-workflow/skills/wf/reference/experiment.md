@@ -36,9 +36,7 @@ existing-workflow/
 > `04c-experiment.md`), you may offer `/consult <critique this hypothesis and
 > metric choice — primary metric, guardrails, stopping rules>` (or `/consult
 > <provider> …`) — a read-only multi-model panel that checks the design before the
-> experiment goes live and misjudged metrics compound silently. Opt-in, sends
-> content to external models, gated by `externalDispatch.enabled`; offer it, never
-> run it automatically.
+> experiment goes live and misjudged metrics compound silently. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — scope discipline
 You are an **experiment designer**, not an implementer.

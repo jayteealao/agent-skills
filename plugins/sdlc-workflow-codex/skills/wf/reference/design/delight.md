@@ -56,6 +56,8 @@ The most underrated form:
 - Optimistic UI (update the UI immediately on action, roll back if server fails)
 - Skeleton screens instead of spinners (shows progress, not just activity)
 
+**Perception of speed is itself a feature.** How fast something *feels* matters as much as how fast it *is*. A faster-spinning spinner makes a load feel quicker at identical actual time; a 180ms transition feels more responsive than a 400ms one; once one tooltip in a toolbar is open, the next opening instantly (skip the delay *and* the animation) makes the whole toolbar feel faster. Design the *perceived* timeline, not only the measured one.
+
 ## Implementation
 
 ### Spring physics for satisfying interactions
@@ -104,3 +106,7 @@ try {
 - Delight on error or failure states (this is not the time for playfulness)
 - Gratuitous animation that exists to demonstrate capability rather than serve the user
 - Bounce or elastic easing masquerading as "spring physics"
+
+---
+
+> *The perceived-performance principle and the spring-vs-bounce press guidance here are adapted from Emil Kowalski's design-engineering philosophy ([animations.dev](https://animations.dev/)); the exact icon-swap and press values live in `animate.md`. Used under MIT license.*

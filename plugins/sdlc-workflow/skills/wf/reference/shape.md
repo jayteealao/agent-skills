@@ -18,16 +18,21 @@ You are running `wf-shape`, **stage 2 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `01-intake.md` |
-| Produces | `02-shape.md` |
+| Produces | `02-shape.md` + (when `stack.ui ≠ ∅` and the work has visual surface) `02b-design.md` — the **design brief** |
 | Next | `/wf slice <slug>` (default) |
 | Skip-to | `/wf plan <slug>` if the shaped spec is a single coherent unit that does not benefit from slicing |
+
+> **Design brief ownership (moved here).** When the work has UI surface, the
+> **design brief** `02b-design.md` is authored *here*, as part of shape — not by a
+> separate design command. Shape does the discovery; `plan` later resolves the
+> visual-direction gates and authors the visual contract `02c-craft.md`; `implement`
+> builds against it. See Step 5b below.
 
 > **Optional second opinion.** Once the mini-spec is drafted (before you write
 > `02-shape.md`), you may offer `/consult <critique these acceptance criteria,
 > edge cases, and scope>` (or `/consult <provider> …`) — a read-only multi-model
 > panel that stress-tests the spec before a wrong one can propagate through every
-> downstream stage. Opt-in, sends content to external models, gated by
-> `externalDispatch.enabled`; offer it, never run it automatically.
+> downstream stage. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -204,6 +209,7 @@ After completing all 5 rounds, append every answer to `po-answers.md` with times
 3. **Run all 5 discovery rounds.** Do not skip rounds. Do not compress multiple rounds into one. Wait for each round's answers before proceeding to the next — use earlier answers to sharpen later questions.
 4. Run freshness research via Explore sub-agent 2 (see skip criteria above) for external dependencies, patterns, APIs, standards, and known issues that could change the spec.
 5. Synthesize discovery answers into a small behavior-focused mini-spec.
+5b. **Author the design brief (when `stack.ui ≠ ∅` and the work has visual surface).** Read the `stack:` fingerprint in `00-index.md`. If it shows a UI/frontend layer **and** this work introduces meaningful visual surface (new screens, components, states, or a redesign), author `02b-design.md` now by following the brief-authoring procedure in [design/shape.md](design/shape.md) — the discovery interview (fold it into the answers you already gathered; ask only the visual-direction questions the 20-question pass didn't cover), the design-brief sections, and the `recommended-references:` frontmatter array. Write it as **plain discovery**: capture register, color strategy, scene sentence, anti-goals, state inventory, and recommended references — but do **NOT** generate image probes and do **NOT** run a visual-direction confirm gate here. Those two gates are `plan`'s (it resolves the image gate and confirms direction when it authors the visual contract). Do **not** write a resolved `image-gate` to `02b-design.md` — leaving it unset marks the gate unresolved for `plan` (the schema field `image-gate` only accepts `pass`/`skipped:*`, so there is no `pending` value to write). If `stack.ui` is empty or the work has no visual surface, skip this step. See also `design/_design-context.md` for the register determination and shared design laws.
 6. **Documentation plan (Diátaxis):** Using the shaped spec, classify what documentation this feature needs. Apply the Diátaxis model:
    - Does this introduce new API surface or config? → needs **reference** docs
    - Does this add user-facing behavior? → needs a **how-to guide**
@@ -214,7 +220,7 @@ After completing all 5 rounds, append every answer to `po-answers.md` with times
    - If no user-facing docs are needed (pure internal refactor, test-only change), write "None required" with reasoning.
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 8. Update `00-index.md` with the recommended default option.
-9. Write `.ai/workflows/<slug>/02-shape.md`.
+9. Write `.ai/workflows/<slug>/02-shape.md` (and, if Step 5b applied, `.ai/workflows/<slug>/02b-design.md` — its structure, sibling `.yaml`, and fragment contract are defined in [design/shape.md](design/shape.md)).
 
 # Adaptive routing — evaluate what's actually next
 After completing this stage, do NOT blindly recommend `/wf slice`. Evaluate the shaped spec and present the user with ALL viable options:
@@ -231,8 +237,8 @@ Use when: Shaping revealed that the intake brief is wrong, missing key constrain
 **Option D: Blocked — re-run shape** → `/wf shape <slug>`
 Use when: Required PO answers are still missing.
 
-**Option E: Design first** → `/wf design <slug> craft`
-Use when: the `00-index.md` `stack:` fingerprint shows a UI/frontend layer (`stack.ui ≠ ∅`) AND the work has meaningful visual surface — new screens, components, states, or a redesign. `/wf design` authors the design brief + visual contract and then drives the compressed build (slice→plan→implement→verify) itself. Recommend this **alongside** Option A (not instead of it) so the PO can choose whether design leads; `shape` itself does NOT author the brief/contract — it only routes to the producer. If `stack.ui` is empty, omit this option.
+**Option E: (design is already in the pipeline)** — no separate design command.
+When `stack.ui ≠ ∅` and the work has visual surface, shape has **already authored** the design brief `02b-design.md` (Step 5b). The visual contract `02c-craft.md` and its direction gates are authored downstream at `plan`, and `implement` builds against them — design is woven through the normal `slice → plan → implement → verify` flow, so Option A (Slice) or Option B (Plan) carries the design work forward. There is no `/wf design <slug> craft` hand-off. (The standalone design transforms — `colorize`, `typeset`, `animate`, … — remain available ad-hoc via `/wf design <slug> <transform>` for a focused, single-move change; they are not part of the default flow.) If `stack.ui` is empty, ignore this note.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
 

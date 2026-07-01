@@ -25,8 +25,7 @@ You are running `$wf ship`, **stage 9 of 10** in the SDLC lifecycle.
 > **Optional second opinion.** At the Go/No-Go gate, you may offer `$consult
 > <risk-review this release: pre-flight, dry-run, freshness delta, and any deferred
 > findings>` (or `$consult <provider> …`) — a read-only multi-model panel that is a
-> second opinion before the irreversible merge. Opt-in, sends content to external
-> models, gated by `externalDispatch.enabled`; offer it, never run it automatically.
+> second opinion before the irreversible merge. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.

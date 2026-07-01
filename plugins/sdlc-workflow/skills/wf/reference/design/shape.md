@@ -1,8 +1,8 @@
 # Brief (design-brief authoring procedure)
 
-Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the `craft` Producer runs as its first step (`design/craft.md` Step 0) before writing the visual contract. It produces `02b-design.md`.
+Author the **design brief**: a structured artifact that guides UI implementation through discovery, not guesswork. This is **not a standalone command** — it is the brief-authoring procedure that the **`shape` lifecycle stage** runs (`../shape.md` Step 5b) when the work has UI surface (`stack.ui ≠ ∅`). It produces `02b-design.md`.
 
-**Scope**: Design planning only. This procedure does NOT write code. It produces the thinking that makes code good.
+**Scope**: Design planning only. This procedure does NOT write code, does NOT generate image probes, and does NOT confirm visual direction. It produces the thinking that makes code good. The visual-direction gates (image probes + confirm) and the visual contract `02c-craft.md` are authored downstream by **`plan`** (see [contract.md](contract.md)); this procedure leaves the image gate **unresolved** — it writes no resolved `image-gate` to `02b-design.md` — for `plan` to resolve.
 
 ## Philosophy
 
@@ -75,58 +75,81 @@ recommended-references: [typeset, animate, colorize, harden]
 
 Names omit the `.md` extension. `/wf implement` reads each as `skills/wf/reference/design/<name>.md` and treats the loaded files as read-only design rationale during implementation. The frontmatter array is authoritative; the human-readable bullet list above is for the design reviewer's eye and may include conditional notes that the array does not.
 
-## Phase 3: Visual Direction Probes (capability-gated)
+## Visual direction is captured, not confirmed, here
 
-After the scene sentence is confirmed, generate north-star image probes when image generation is available. These are direction artifacts, not implementation assets.
+The design brief records the **intended** visual direction — color strategy, scene
+sentence, named anchor references, anti-goals — from the discovery interview. It does
+**NOT** generate image probes and does **NOT** run a confirm gate. Those two moves belong
+to `plan`:
 
-### When to run probes
+- **Image probes + north-star mock** — `plan` invokes the `imagery` skill when it authors
+  the visual contract (see [contract.md](contract.md) → *Land the visual direction*). Do
+  not run `imagery` here.
+- **Confirm gate** — `plan` presents the resolved direction and gets the user's approval
+  (`shape=pass`) before writing `02c-craft.md`. The brief is revisable discovery output, not
+  a locked contract.
 
-Run probes when:
-- The work is net-new or visually open-ended
-- Brief scope is sketch, mid-fi, high-fi, or production-ready
-- Image generation is available in the current environment
-
-Do NOT skip probes because "the implementation will be semantic HTML" or "a raster mock won't be used directly." The probes establish visual direction; the code comes after.
-
-### How to run probes
-
-Construct 2–3 prompt variants from the confirmed scene sentence and brief:
-- **Variant A** — literal interpretation of the scene sentence
-- **Variant B** — elevated/editorial interpretation of the same scene
-- **Variant C** — a contrast direction (different mood or palette)
-
-Invoke the `imagery` skill for each variant (it infers the output path under
-`.ai/design-probes/` and reports it back — no flags):
-```
-imagery "<variant A prompt>"
-imagery "<variant B prompt>"
-imagery "<variant C prompt>"
-```
-(Bare `imagery` fans out to every available image backend — free built-in
-`image_gen` always, plus any opted-in API backends. Pin one to keep it to a
-single image per variant, e.g. `imagery gemini "<variant A prompt>"`.)
-
-Present results:
-> "Three visual direction probes based on your scene sentence:
-> [A] `<description>` [B] `<description>` [C] `<description>`
-> Which direction resonates, or should we blend? (You can also say 'skip' to proceed text-only)"
-
-Record the user's choice in the design brief under `## Visual Direction` → `Probe selection`.
-
-If imagery returns `method=text-only`: record the scene sentence + prompt template in the brief, set `image_gate=skipped:no-method-available`, and proceed.
-
-## Phase 4: Confirm brief
-
-Present the complete design brief to the user and ask:
-> "Does this brief accurately capture the intent? Any corrections before I hand this to implementation?"
-
-Wait for explicit confirmation. Do NOT proceed to implementation until the user confirms.
-
-**`shape=pass`** is only valid after a separate user response approving the brief. A self-authored brief without user confirmation does not pass the gate.
+Do **not** write a resolved `image-gate` to `02b-design.md` — its *absence* is the unresolved
+state. `plan` writes the resolved `image-gate` (`pass`, or a reasoned `skipped:<reason>`) to
+`02c-craft.md` when it lands the direction. (`image-gate` is a schema-validated frontmatter field
+whose only values are `pass` and `skipped:*` — there is no `pending` value to write; "pending" is
+just the conceptual state of an unwritten gate.)
 
 ## Output
 
-When `craft` runs this procedure (`design/craft.md` Step 0):
-- Write the confirmed brief to `.ai/workflows/<slug>/02b-design.md` (type `design`).
-- Update `00-index.md`: `current-stage: design`.
-- Return control to `craft`, which writes the visual contract and then drives the build — there is no hand-back and no separate `shape` command.
+When `shape` runs this procedure (`../shape.md` Step 5b):
+- Write the brief to `.ai/workflows/<slug>/02b-design.md` (type `design`), with
+  `recommended-references:` populated and **no** resolved `image-gate` (it stays unresolved for `plan`).
+- Write the sibling `02b-design.yaml` + `02b-design.html.fragment` (see below).
+- Leave `00-index.md` `current-stage: shape` (the brief is part of shape).
+- Continue the normal shape flow (documentation plan, routing). `plan` will read `02b-design.md`,
+  resolve the direction gates, and author the visual contract `02c-craft.md`.
+
+## Step — Write the rich `.yaml` + fragment for `02b-design.md` (MANDATORY — do not skip)
+
+The sunflower view renders the design page from a sibling `.yaml` + `.html.fragment`
+written next to `02b-design.md`. **Without the `.yaml` the page silently degrades to
+plain prose** — the swatch matrix, the token table, and the annotated specs never
+appear (`design.mjs` gates the rich body on the sibling YAML). The `post-write-verify`
+hook reminds you if you forget; author them here, now.
+
+For the `02b-design.md` you just wrote:
+
+1. Write the sibling **`02b-design.yaml`** — the structured data: `component:`,
+   `themes:`, `states:`, `sizes:` (id, height, padx, pady), `tokens:` (name, category,
+   value), `specs:` (reference, annotate). Schema: `siblingYamlSchemas.design` in
+   `tests/frontmatter.schema.json`.
+2. Write the sibling **`02b-design.html.fragment`** — the body-only interactive layer.
+
+Before authoring the fragment, load
+`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and apply
+the shared wrapper, snippet, and verifier rules in addition to the design-
+specific requirements below.
+
+The fragment is one `<section class="fragment-design" data-artifact="design"
+data-component="<component-name>">` that reproduces the gallery's design
+fragment 1:1:
+
+- **24-cell swatch matrix** (4 sizes × 3 states × 2 themes), each cell
+  renders a live `<button class="ck-btn is-{default|hover|pressed}">` so
+  the visual states show without JS.
+- **Token table** with per-row inline swatch / spacing bar / easing curve
+  preview / `<button class="btn copy-btn" data-token-copy="<value>">Copy</button>`.
+- **Annotated specs SVG** with dimension lines and labels (padding-y,
+  padding-x, gap, border-radius, height) referencing one cell from
+  `specs.reference` in the YAML.
+
+Authoring rules (verifier Check 7 enforces):
+
+- Inline `<style>` scoped under `.fragment-design` / `.dz-*` / `.ck-*`.
+- Inline `<script>` scoped via `document.currentScript.closest('.fragment-design')`
+  — token-copy uses `data-token-copy` attributes and applies `.is-copied` flash.
+- Dispatch `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready',
+  { detail: { name: 'design', artifact: 'design',
+    counts: { tokens: <n>, sizes: <n>, states: <n> } } }))`.
+- Inline SVG only. Data deterministic from `02b-design.yaml`.
+
+The fragment is **body-only**: the `design.mjs` renderer owns the page heading and the
+metric-row — do **not** repeat them. Full contract:
+[`reference/fragment-author-contract.md`](../../../reference/fragment-author-contract.md).
+Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../reference/fragments-gallery.html).

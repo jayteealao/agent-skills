@@ -28,8 +28,7 @@ You are running `$wf handoff`, **stage 8 of 10** in the SDLC lifecycle.
 > offer `$consult <review this PR diff and open findings for design drift,
 > architectural smell, or security blind spots>` (or `$consult <provider> …`) — a
 > read-only multi-model panel that catches what CI cannot, right before the PR is
-> declared ready. Opt-in, sends content to external models, gated by
-> `externalDispatch.enabled`; offer it, never run it automatically.
+> declared ready. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.

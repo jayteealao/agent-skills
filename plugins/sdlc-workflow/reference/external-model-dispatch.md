@@ -1,30 +1,35 @@
 # External-Model Dispatch — operator reference
 
-Three opt-in skills send prompts to external AI models and embed the results into
-your work. Full design: `docs/internal/EXTERNAL-MODEL-DISPATCH-PLAN.md`.
+Three skills send prompts to external AI models and embed the results into your
+work. `consult` is model-invocable and runs on demand (no consent flag); `imagery`
+and `uiproto` remain opt-in behind the machine-wide consent flag below. Full design:
+`docs/internal/EXTERNAL-MODEL-DISPATCH-PLAN.md`.
 
 | Skill | Invoke | Providers (bare = fan out to all available) | Role |
 |-------|--------|---------------------------------------------|------|
-| `consult` | `/consult [provider] <question>` | `codex`, `claude` (subscription CLIs, repo-aware), `gemini`, `openai`, `<provider>/<model>` (REST, prompt-only) | Read-only oracle panel — plan critique, code review, diagnosis, second opinion. Never edits. |
+| `consult` | `/consult [provider] <question>` (model-invocable, auto at `/wf` gates) | `codex`, `claude` (subscription CLIs, repo-aware), `gemini`, `openai`, `<provider>/<model>` (REST, prompt-only) | Read-only oracle panel — plan critique, code review, diagnosis, second opinion. Auto-runs at plan/design/review/diagnosis (pins a free CLI); never edits. |
 | `imagery` | internal to `/wf design` | `image_gen` (built-in, no egress), `openai` (gpt-image-2), `gemini` (nano-banana), `openai-sub` (gpt-image-2 via codex subscription, explicit-only) | Image generation → variant set. Supersedes `imagegen` (D14). |
 | `uiproto` | internal to `/wf design` | `stitch` (Google Stitch), `llm` (self-contained HTML) | UI component/screen prototype → sandboxed `<iframe srcdoc>`. |
 
-## Consent — one machine-wide flag (off by default)
+## Consent — one machine-wide flag (`imagery` / `uiproto`)
 
-Dispatch is a privacy/egress boundary. Nothing sends until you opt THIS machine in:
+Image/prototype dispatch is a privacy/egress boundary. `imagery` and `uiproto` send
+nothing until you opt THIS machine in (`consult` is exempt — see below):
 
 ```json
 // ~/.sdlc/hub-config.json
 { "externalDispatch": { "enabled": true } }
 ```
 
-The skill runners re-check this flag themselves (the script, not just the SKILL.md,
-is the trust boundary): consult's `dispatch.mjs`, imagery's `gen-openai`/`gen-gemini`,
-and uiproto's `gen-stitch`/`gen-llm` each exit early when it is off, so a direct
-`node …` invocation cannot bypass consent. The built-in `image_gen` path and the
-text fallback never egress and work with the flag off; the `openai-sub` (gpt-image-2
-via the codex subscription) path is explicit-keyword-only and SKILL.md-gated. Egress
-consent is this one flag — there is no per-run `.ai/` marker (D7).
+The imagery/uiproto runners re-check this flag themselves (the script, not just the
+SKILL.md, is the trust boundary): imagery's `gen-openai`/`gen-gemini` and uiproto's
+`gen-stitch`/`gen-llm` each exit early when it is off, so a direct `node …` invocation
+cannot bypass consent. **`consult` no longer checks the flag** — as of 2026-07 it is
+model-invocable and ungated; its cost is bounded instead by pinning a free CLI on any
+model-initiated run (see Cost model). The built-in `image_gen` path and the text
+fallback never egress and work with the flag off; the `openai-sub` (gpt-image-2 via
+the codex subscription) path is explicit-keyword-only and SKILL.md-gated. Egress
+consent for imagery/uiproto is this one flag — there is no per-run `.ai/` marker (D7).
 
 ## Secrets — env only (never config, never argv)
 
@@ -70,6 +75,8 @@ panel, an imagery variant set (one image per distinct model — `openai-sub` exc
 to avoid double-billing gpt-image-2), or both uiproto engines. Subscription CLIs are
 free per call; the REST/API backends bill per-token on **every** call. Pin a single
 provider to control spend: `/consult codex …`, `imagery gemini …`, `uiproto llm …`.
+When the model self-initiates a `consult` (auto-run at a `/wf` gate) it always pins a
+free CLI (`codex`/`claude`) — the paid REST oracles are never fanned out unattended.
 
 ## Build/parity notes
 

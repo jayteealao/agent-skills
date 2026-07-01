@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.95.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.96.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -95,9 +95,9 @@
 <span class="quadrant reference">reference</span>
 <h1>Design (/wf design)</h1>
 
-<p class="lede">Design is <strong>one <code>/wf</code> sub-command</strong> — <code>/wf design</code> — that runs as a <em>compressed workflow</em>. It is the design <strong>producer</strong>: it authors the design brief and the visual contract, runs the 15 visual transformations, and (for build commands) drives the downstream lifecycle stages itself. The standalone <code>/wf-design</code> router has been retired; everything it did is now an argument to <code>/wf design</code>.</p>
+<p class="lede">Design is <strong>one <code>/wf</code> sub-command</strong> — <code>/wf design</code> — that runs as a <em>compressed workflow</em>. It hosts the ad-hoc design operators: the 15 visual transformations plus <code>audit</code>/<code>critique</code>/<code>extract</code>/<code>setup</code>/<code>teach</code>. The design <strong>brief</strong> (<code>02b-design.md</code>) and visual <strong>contract</strong> (<code>02c-craft.md</code>) are authored by the normal lifecycle — <code>/wf shape</code> and <code>/wf plan</code> — not by a command here. The standalone <code>/wf-design</code> router has been retired; everything it did is now an argument to <code>/wf design</code>.</p>
 
-<p>The 21 design commands (<a href="../reference/glossary.html#sub-command">sub-command</a>: a keyword that selects a specific design operation) are <strong>arguments</strong> to this one key — never their own keys. The lifecycle stages <code>slice</code> / <code>plan</code> / <code>implement</code> / <code>verify</code> / <code>review</code> are the design <strong>consumers</strong>: each pulls the slice of design knowledge it needs from one shared library, gated behind a UI stack (<code>stack.ui&nbsp;&ne;&nbsp;∅</code>).</p>
+<p>The 20 design commands (<a href="../reference/glossary.html#sub-command">sub-command</a>: a keyword that selects a specific design operation) are <strong>arguments</strong> to this one key — never their own keys. The lifecycle stages <code>slice</code> / <code>plan</code> / <code>implement</code> / <code>verify</code> / <code>review</code> are the design <strong>consumers</strong>: each pulls the slice of design knowledge it needs from one shared library, gated behind a UI stack (<code>stack.ui&nbsp;&ne;&nbsp;∅</code>).</p>
 
 <h2>Two invocation shapes</h2>
 
@@ -111,7 +111,7 @@
 </tbody>
 </table>
 
-<p>Because the in-workflow shape continues straight into slice/plan/implement/verify rather than writing a brief and stopping, the design-consuming stages always fire — closing the old <code>craft → implement</code> skip.</p>
+<p>Because a transform's in-workflow shape continues straight into slice/plan/implement/verify rather than writing a contract and stopping, the design-consuming stages always fire — closing the old contract → implement skip.</p>
 
 <h2>Per-category flow span</h2>
 
@@ -120,7 +120,6 @@
 <table class="no-mobile-scroll">
 <thead><tr><th>Category</th><th>Commands</th><th>In-workflow span (slug given)</th><th>No slug</th></tr></thead>
 <tbody>
-<tr><td>Producer</td><td><code>craft</code></td><td><code>02b-design</code> → <code>02c-craft</code> → slice → plan → implement → verify</td><td>create slug → full lifecycle</td></tr>
 <tr><td>Transformation</td><td>the 15 (<code>colorize</code>, <code>harden</code>, <code>typeset</code>, <code>adapt</code>, …)</td><td>focused <code>02c-craft</code> → slice → plan → implement → verify (the transform <em>is</em> the implement step)</td><td>create slug → full lifecycle</td></tr>
 <tr><td>Review / analysis</td><td><code>audit</code>, <code>critique</code></td><td>single review step → <code>07-design-audit.md</code> / <code>07-design-critique.md</code>; no slice/plan/implement</td><td>standalone one-shot report</td></tr>
 <tr><td>Inspection</td><td><code>extract</code></td><td>single read-only step → <code>design-notes/extract-&lt;ts&gt;.md</code> + <code>tokens-extracted.css</code></td><td>standalone extract report</td></tr>
@@ -128,7 +127,7 @@
 </tbody>
 </table>
 
-<p>Only <strong>Producer</strong> and <strong>Transformation</strong> produce code, so they are the only categories that run the build span. The old <em>"you cannot transform code that doesn't exist yet"</em> gate <strong>inverts</strong>: the compressed flow now <em>builds</em> the code at its <code>implement</code> step, so a transform either creates the surface or modifies the slug's existing implementation.</p>
+<p>Only <strong>Transformation</strong> produces code, so it is the only category that runs the build span. The full design brief (<code>02b-design.md</code>) and visual contract (<code>02c-craft.md</code>) are authored by the normal lifecycle — <code>shape</code> and <code>plan</code> — not by a command here. The old <em>"you cannot transform code that doesn't exist yet"</em> gate <strong>inverts</strong>: the compressed flow now <em>builds</em> the code at its <code>implement</code> step, so a transform either creates the surface or modifies the slug's existing implementation.</p>
 
 <h2>Command catalog</h2>
 
@@ -141,13 +140,8 @@
 </tbody>
 </table>
 
-<h3>Producer</h3>
-<table>
-<thead><tr><th>Command</th><th>Writes</th><th>What</th></tr></thead>
-<tbody>
-<tr><td><code>craft</code></td><td><code>02b-design.md</code> (brief) + <code>02c-craft.md</code> (visual contract)</td><td>The brief is register + anti-goals + layout approach + key states + recommended references. The contract is the north-star mock + mock-fidelity inventory + implementation contract (NOT code). Then drives the build span.</td></tr>
-</tbody>
-</table>
+<h3>Brief + visual contract (authored by the lifecycle, not a design command)</h3>
+<p>There is no <code>craft</code> command. When a feature has UI surface, <code>/wf shape</code> authors the design <strong>brief</strong> <code>02b-design.md</code> (register + anti-goals + layout approach + key states + recommended references) as part of shaping, and <code>/wf plan</code> authors the visual <strong>contract</strong> <code>02c-craft.md</code> (north-star mock + mock-fidelity inventory + implementation contract — NOT code), resolving the image + confirm gates. <code>/wf implement</code> builds against it.</p>
 
 <h3>Review &amp; inspection</h3>
 <table>
@@ -204,8 +198,8 @@
 <table class="no-mobile-scroll">
 <thead><tr><th>Artifact</th><th>Path</th><th>Command</th></tr></thead>
 <tbody>
-<tr><td>Design brief</td><td><code>.ai/workflows/&lt;slug&gt;/02b-design.md</code></td><td><code>/wf design &lt;slug&gt; craft</code></td></tr>
-<tr><td>Visual contract</td><td><code>.ai/workflows/&lt;slug&gt;/02c-craft.md</code></td><td><code>/wf design &lt;slug&gt; craft</code></td></tr>
+<tr><td>Design brief</td><td><code>.ai/workflows/&lt;slug&gt;/02b-design.md</code></td><td><code>/wf shape &lt;slug&gt;</code> (UI work)</td></tr>
+<tr><td>Visual contract</td><td><code>.ai/workflows/&lt;slug&gt;/02c-craft.md</code></td><td><code>/wf plan &lt;slug&gt;</code></td></tr>
 <tr><td>Design audit</td><td><code>.ai/workflows/&lt;slug&gt;/07-design-audit.md</code></td><td><code>/wf design &lt;slug&gt; audit</code> or <code>/wf review</code></td></tr>
 <tr><td>Design critique</td><td><code>.ai/workflows/&lt;slug&gt;/07-design-critique.md</code></td><td><code>/wf design &lt;slug&gt; critique</code> or <code>/wf review</code></td></tr>
 <tr><td>Per-transformation log</td><td><code>.ai/workflows/&lt;slug&gt;/design-notes/&lt;sub&gt;-&lt;timestamp&gt;.md</code></td><td>Any of the 15 transformations or <code>extract</code></td></tr>

@@ -4,7 +4,7 @@
 // hook early-exit is checked by spawning the SOURCE hook with the sentinel set.
 
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,7 +26,6 @@ import {
   parseOpenAiChat,
   parseGemini,
   runFanout,
-  dispatchEnabled,
   buildCliSpawn,
 } from '../../../skills/consult/scripts/dispatch.mjs';
 import {
@@ -276,20 +275,6 @@ test('prepareCodexHome: copies auth.json when present, returns null otherwise', 
 test('userCodexHome: honors CODEX_HOME, else ~/.codex', () => {
   equal(userCodexHome({ CODEX_HOME: '/x' }), '/x');
   equal(userCodexHome({}), join(homedir(), '.codex'));
-});
-
-// ── the consent gate ──────────────────────────────────────────────────────────
-
-test('dispatchEnabled: true only when the hub-config flag is explicitly set', () => {
-  const home = tempDir('sdlc-home-');
-  equal(dispatchEnabled({ home }), false, 'absent config → off');
-
-  mkdirSync(join(home, '.sdlc'), { recursive: true });
-  writeFileSync(join(home, '.sdlc', 'hub-config.json'), JSON.stringify({ externalDispatch: { enabled: false } }), 'utf-8');
-  equal(dispatchEnabled({ home }), false, 'explicit false → off');
-
-  writeFileSync(join(home, '.sdlc', 'hub-config.json'), JSON.stringify({ externalDispatch: { enabled: true } }), 'utf-8');
-  equal(dispatchEnabled({ home }), true, 'explicit true → on');
 });
 
 // ── the hook sentinel early-exit (defense-in-depth made primary) ──────────────

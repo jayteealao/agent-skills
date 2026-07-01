@@ -1,6 +1,6 @@
 ---
 name: consult
-description: Consult external models as READ-ONLY oracles — plan critique, code/implementation review, design analysis, diagnosis, second opinion. Fans out to all available providers by default ($consult <question>); a provider keyword ($consult codex|claude|gemini|openai|<provider>/<model> <question>) narrows to one. Returns a panel of opinions and never edits the repo. Always explicit/opt-in; gated by externalDispatch.enabled.
+description: Consult external models as READ-ONLY oracles — plan critique, code/implementation review, design analysis, diagnosis, second opinion. Fans out to all available providers by default ($consult <question>); a provider keyword ($consult codex|claude|gemini|openai|<provider>/<model> <question>) narrows to one. Returns a panel of opinions and never edits the repo. The model may invoke it autonomously when a second opinion adds material value; model-initiated runs pin a free subscription CLI (codex/claude).
 argument-hint: "[codex|claude|gemini|openai|<provider>/<model>] <question>"
 ---
 
@@ -19,16 +19,18 @@ Bash**. It writes no code (write/delegate mode is deferred). It generalizes the
 single-model rescue pattern into a **multi-model panel** — by default it fans out
 to every available provider in parallel.
 
-Always explicit — never triggered by a hook or automatically inside a stage.
-Dispatch sends repo/artifact content to a third party, so it is gated by a single
-machine-wide consent flag.
+The model may invoke this **autonomously** when a second opinion adds material value
+(the `$wf` stages call out where). Never triggered by a hook — only by a deliberate
+model or user decision. Dispatch sends repo/artifact content to a third party, so
+autonomous runs pin a free CLI and stay sparing (see Step 0).
 
 # Step 0 — Resolve
 
-1. **Consent gate.** Dispatch is OFF by default. The runner re-checks
-   `externalDispatch.enabled` in `~/.sdlc/hub-config.json` and exits `3` when it is
-   not `true`. If off, STOP with: *External-model dispatch is off. Set
-   `"externalDispatch": { "enabled": true }` in `~/.sdlc/hub-config.json` to consent.*
+1. **Cost safety (autonomous runs).** No consent flag gates `$consult` — it runs on
+   demand. When YOU (the model) self-initiate rather than the user typing `$consult`
+   explicitly, **pin a free subscription CLI** — pass `codex` (or `claude`) so the
+   run costs nothing. Never bare-fan-out (which bills the paid REST oracles) on a
+   self-initiated run; reserve paid fan-out for an explicit user request.
 
 2. **Providers (positional parse).** If the first token is a provider keyword
    (`codex`, `claude`, `gemini`, `openai`) or a `"<provider>/<model>"` token
@@ -57,7 +59,7 @@ node "<skill-dir>/scripts/dispatch.mjs" read-only <repoRoot> <promptFile> [provi
 
 It spawns the CLI oracles isolated + read-only (Codex `--sandbox read-only`, Claude
 `--tools "Read,Glob,Grep"`), calls the REST APIs, caps parallelism, and prints one
-JSON object `{ results, skipped, bare }`. Exit `0` ok · `2` usage · `3` gate off.
+JSON object `{ results, skipped, bare }`. Exit `0` ok · `2` usage.
 
 # Step 3 — Synthesize + embed
 
@@ -83,7 +85,10 @@ CONSULT_RESULT:
 **Cost.** A bare fan-out hits every provider; the subscription CLIs (`codex`,
 `claude`) are free per call, the REST oracles (`gemini`, `openai`, gateway) bill
 per-token on every invocation. Pin a CLI (`$consult codex …`) to stay free, or name
-one paid model (`$consult openai …`).
+one paid model (`$consult openai …`). Model-initiated auto-runs always pin a free CLI —
+the paid REST oracles are never fanned out unattended.
 
-Callers: user-invocable, and offered as an optional second opinion by `$wf plan`,
-`$review`, and `$wf design`. Supersedes the rescue pattern conceptually; always opt-in.
+Callers: user-invocable, and the model **auto-invokes** it when a second opinion adds
+material value — at the plan, design, review, and diagnosis (verify / root-cause)
+gates, including during the autonomous `$wf auto` driver. Model-initiated runs pin a
+free CLI (`codex`/`claude`) and stay sparing. Supersedes the rescue pattern conceptually.

@@ -50,6 +50,6 @@ UIPROTO_RESULT:
   skipped: <provider (reason), … | none>
 ```
 
-Caller: a `$wf design` shape/craft step, beside the `imagery` mock. Bare fan-out
+Caller: the visual-contract step (`plan`, following `design/contract.md`) or a design transform, beside the `imagery` mock. Bare fan-out
 calls both engines (per-token to your keys; Stitch needs a provisioned project).
 Pin one for a single engine. Always opt-in.

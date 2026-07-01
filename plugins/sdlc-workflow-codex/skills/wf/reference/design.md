@@ -1,6 +1,6 @@
 ---
-description: Design producer + dispatcher for UI/UX work, run as a compressed `wf` workflow. `$wf design <slug> <cmd>` produces the brief + visual contract then drives slice→plan→implement→verify itself; `$wf design <cmd>` runs the full lifecycle on a new slug. 21 design commands (craft, the 15 transforms, audit, critique, extract, setup, teach) are arguments, never their own keys.
-argument-hint: "[slug] <craft|audit|critique|extract|setup|teach|animate|bolder|clarify|colorize|delight|distill|harden|layout|onboard|optimize|overdrive|polish|quieter|typeset|adapt> [instructions]"
+description: Design dispatcher for UI/UX transforms + analysis, run as a compressed `wf` workflow. The design brief (`02b-design.md`) is authored upstream at `shape` and the visual contract (`02c-craft.md`) at `plan`; this command hosts the ad-hoc design operators. `$wf design <slug> <cmd>` authors a focused contract then drives slice→plan→implement→verify itself; `$wf design <cmd>` runs the full lifecycle on a new slug. 20 design commands (the 15 transforms, audit, critique, extract, setup, teach) are arguments, never their own keys.
+argument-hint: "[slug] <audit|critique|extract|setup|teach|animate|bolder|clarify|colorize|delight|distill|harden|layout|onboard|optimize|overdrive|polish|quieter|typeset|adapt> [instructions]"
 ---
 
 # External Output Boundary (MANDATORY)
@@ -10,13 +10,15 @@ Workflow artifacts and command internals are private implementation context. Nev
 - When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
 - Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
 
-You are the **design producer + dispatcher** for the SDLC plugin, invoked as `$wf design`.
+You are the **design dispatcher** for the SDLC plugin, invoked as `$wf design`.
 Design is **one `wf` sub-command that runs as a compressed workflow** — not a parallel router.
-You author the design brief and visual contract, run the design transforms, and (for build
-commands) **drive the downstream lifecycle stages yourself**, compressed, so design knowledge
-is both *produced* here and *consumed* by `slice`/`plan`/`implement`/`verify`/`review`.
+The design **brief** (`02b-design.md`) is authored upstream at `shape` and the visual **contract**
+(`02c-craft.md`) at `plan` (following `design/shape.md` and `design/contract.md`); this command
+hosts the ad-hoc design operators — the transforms and the analysis/context commands. For build
+commands you **drive the downstream lifecycle stages yourself**, compressed, so design knowledge
+is both applied here and consumed by `slice`/`plan`/`implement`/`verify`/`review`.
 
-The 21 design commands are *arguments* to this one key. `craft` and the 15 transforms produce
+The 20 design commands are *arguments* to this one key. The 15 transforms produce
 or modify code; `audit`/`critique` produce review reports; `extract` reverse-engineers tokens;
 `setup`/`teach` author project context. Your job: parse the invocation, resolve the command,
 load the shared design context, run preflight, load the command's reference, then run the
@@ -46,7 +48,7 @@ fuzzy** (a wrong guess sends the work down the wrong flow):
 
 **Known design commands** (the `<design-command>` must be one of these — otherwise STOP and
 render usage):
-`craft`, `audit`, `critique`, `extract`, `setup`, `teach`, `animate`, `bolder`, `clarify`,
+`audit`, `critique`, `extract`, `setup`, `teach`, `animate`, `bolder`, `clarify`,
 `colorize`, `delight`, `distill`, `harden`, `layout`, `onboard`, `optimize`, `overdrive`,
 `polish`, `quieter`, `typeset`, `adapt`.
 
@@ -58,9 +60,12 @@ Usage:
   $wf design <command> [instructions]          No slug: create a new workflow and run the full
                                                 lifecycle (intake → … → retro), seeded by design.
 
-Commands: craft · audit · critique · extract · setup · teach · animate · bolder · clarify ·
+Commands: audit · critique · extract · setup · teach · animate · bolder · clarify ·
 colorize · delight · distill · harden · layout · onboard · optimize · overdrive · polish ·
 quieter · typeset · adapt
+
+(The design brief + visual contract are authored by the normal lifecycle — `shape` writes
+`02b-design.md`, `plan` writes `02c-craft.md` — not by a design command here.)
 ```
 
 **Record** the resolved shape (in-workflow | no-slug), slug (if any), command, and instructions
@@ -73,18 +78,26 @@ before proceeding.
    source of truth for the **register** (brand/product), the **shared design laws**, the
    **absolute bans**, the **preflight gates**, the **4 codebase-inspection sub-agents**, and the
    **image gate** (the mutation lock). Apply it; do not restate or fork its rules here.
+   - **Reusable-component targets** — if the command's target is a *reusable design-system
+     component* (a shared primitive or widget, not a one-off screen), also load
+     `design/_component-craft.md` for the DX-first API, excellent-defaults, memorable-naming, and
+     touchable-example canon. This mirrors what `$wf implement` loads for reusable components, so a
+     standalone `$wf design <transform>` on a component is held to the same bar as the lifecycle
+     path. Skip it for one-off screens and for `setup`/`teach`/`audit`/`critique`/`extract`.
 2. **In-workflow shape** — read `.ai/workflows/<slug>/00-index.md`. Parse `title`,
    `current-stage`, `status`, `branch`, `stack`, `open-questions`, `augmentations`. If
    `status: closed` → STOP (*"Workflow `<slug>` is closed. Use `$wf-meta resume <slug>` to
    reopen."*). Reuse the `stack` fingerprint for the inspection sub-agents where it answers the
    question.
 3. **Run the preflight gates** from `_design-context.md`. The **image gate** stays
-   `pending` (blocks code mutation) until the brief/contract step resolves it to `pass` or a
-   reasoned `skipped:<reason>`. `setup`/`teach`/`extract`/`audit`/`critique` relax the codebase
-   gate (read-only or context-authoring).
-4. **`craft` brief gate** — the visual contract requires a confirmed design brief. In the
-   compressed flow you author the brief first (Step 4), so this is satisfied inline; for an
-   ad-hoc `craft` with no prior brief, author and confirm the brief before the contract.
+   `pending` (blocks code mutation) until the contract step (`design/contract.md`, run for a
+   transform's focused contract) resolves it to `pass` or a reasoned `skipped:<reason>`.
+   `setup`/`teach`/`extract`/`audit`/`critique` relax the codebase gate (read-only or
+   context-authoring).
+4. **Transform contract gate** — a transform that produces code authors a **focused
+   `02c-craft.md`** for its surface (following `design/contract.md`) and resolves the image gate
+   before mutation. There is no separate brief step here — a full design brief (`02b-design.md`)
+   is authored at `shape` when the work runs through the normal lifecycle.
 
 # Step 2 — Resolve command → category → flow span
 
@@ -94,14 +107,19 @@ operator is one new row):
 
 | Category | Commands | In-workflow span (`<slug>` given) | No-slug span |
 |---|---|---|---|
-| **Producer** | `craft` | `02b-design` → `02c-craft` → `slice` → `plan` → `implement` → `verify` (design the spec, then build it) | create slug → **full lifecycle** `intake → … → retro` |
 | **Transformation** | the 15 (`colorize`, `harden`, `typeset`, `adapt`, `animate`, `bolder`, `clarify`, `delight`, `distill`, `layout`, `onboard`, `optimize`, `overdrive`, `polish`, `quieter`) | focused `02c-craft` → `slice` → `plan` → `implement` → `verify` (the transform **is** the implement step) | create slug → **full lifecycle** `intake → … → retro` |
 | **Review / analysis** | `audit`, `critique` | single review step → `07-design-audit.md` / `07-design-critique.md`; **no slice/plan/implement** (audit reads the slug's `06-verify` metrics) | standalone one-shot report against the target code (lightweight record) |
 | **Inspection** | `extract` | single read-only step → `design-notes/extract-<timestamp>.md` + `design-notes/tokens-extracted.css`; no build | standalone extract report |
 | **Context** | `setup`, `teach` | write `PRODUCT.md` / `DESIGN.md` (project-root, slug-independent) | identical — project-root files, no stages |
 
+> **Where the brief + full contract come from.** The design **brief** (`02b-design.md`) is
+> authored at `shape` and the full **visual contract** (`02c-craft.md`) at `plan` — the normal
+> lifecycle, not a command here. A **transform** authors only a *focused* `02c-craft.md` scoped
+> to its one move. There is no `craft` Producer command; UI work that needs a full brief +
+> contract flows `shape → plan → implement`.
+
 Notes:
-- Only **Producer + Transformation** produce code, so they are the only categories that run the
+- Only **Transformation** produces code, so it is the only category that runs the
   build span (and the no-slug full lifecycle). Review / inspection / context commands are
   single-step regardless of slug; the slug only decides whether the artifact attaches to an
   existing workflow or is a standalone record.
@@ -119,7 +137,6 @@ command does; this dispatcher governs *how far the flow runs* around it.
 
 | Command | Reference file | Purpose |
 |---|---|---|
-| `craft` | `design/craft.md` | Design brief + visual contract (then build) |
 | `audit` | `design/audit.md` | Technical quality scan (a11y, perf, theming, responsive, anti-patterns) + 0–4 scoring |
 | `critique` | `design/critique.md` | Prescriptive, register-forked design feedback |
 | `extract` | `design/extract.md` | Reverse-engineer design tokens from existing code |
@@ -143,7 +160,7 @@ command does; this dispatcher governs *how far the flow runs* around it.
 
 # Step 4 — Run the flow span
 
-## 4A — Producer & Transformation (build commands)
+## 4A — Transformation (build commands)
 
 These produce code, so they run the build span. The compressed flow reuses `$wf intake fix`'s
 collapsed-stage machinery — thin single slice, minimal plan, no multi-round interviews — but
@@ -152,16 +169,13 @@ workflow.
 
 **In-workflow shape (`<slug>` given) — compressed, NO hand-back:**
 
-1. **Author the design spec.**
-   - `craft` (Producer): author the **design brief** `02b-design.md` (type `design`) — register,
-     `recommended-references:`, anti-goals, state inventory — resolving the image gate via probes
-     (or a reasoned skip); then author the **visual contract** `02c-craft.md` (type
-     `design-contract`) — north-star mock, mock-fidelity inventory, implementation contract,
-     `references-loaded:`. Follow `design/craft.md` for both.
-   - A transform (Transformation): author a **focused `02c-craft.md`** scoped to the transform's
-     surface (the transform's reference defines the goal — e.g. `colorize`'s color strategy,
-     `typeset`'s type scale). The transform's playbook is what `implement` applies.
-   - Write the sibling `.yaml` + `.html.fragment` for each rich artifact (see `design/craft.md`).
+1. **Author the focused design contract.**
+   - A transform authors a **focused `02c-craft.md`** (type `design-contract`) scoped to the
+     transform's surface (the transform's reference defines the goal — e.g. `colorize`'s color
+     strategy, `typeset`'s type scale), following `design/contract.md` — resolve the image gate,
+     record the mock-fidelity inventory and `references-loaded:`. The transform's playbook is what
+     `implement` applies.
+   - Write the sibling `.yaml` + `.html.fragment` for the contract (see `design/contract.md`).
 2. **Drive the build, compressed, yourself.** For each stage in the span, load
    `./<stage>.md` and run it in compressed mode, writing
    its numbered artifact:
@@ -172,17 +186,16 @@ workflow.
      reference; **registers each as a `design-<sub>` augmentation** in `00-index.md`),
    - `verify` → `06-verify-<slice>.md` (the measurable design floor — a11y/perf/responsive +
      per-augmentation re-checks).
-   - **Do NOT write the brief/contract and stop.** Design *owns* the downstream flow — there is
+   - **Do NOT write the contract and stop.** A transform *owns* its downstream flow — there is
      no hand-back to `$wf slice`. Continuing straight through is what fires the slice/plan/
-     implement/verify design-consumers; stopping early is the latent `craft → implement` skip
-     this model exists to close.
+     implement/verify design-consumers; stopping early is the latent contract → implement skip.
 3. Update `00-index.md` `current-stage` as you advance; keep `augmentations:` current.
 
 **No-slug shape — full lifecycle:** create a new slug (run `intake`), then run the complete
 `intake → shape → slice → plan → implement → verify → review → handoff → ship → retro` flow with
-the design intent seeding it (the brief/contract are authored at the design step between shape
-and slice). Use the standard stage references; the compression is lighter than the in-workflow
-shape because the lifecycle is being established fresh.
+the design intent seeding it (the brief is authored at `shape`, the visual contract at `plan`).
+Use the standard stage references; the compression is lighter than the in-workflow shape because
+the lifecycle is being established fresh.
 
 ## 4B — Review / analysis (`audit`, `critique`)
 
@@ -195,7 +208,7 @@ Single step, no build. Follow the command reference and write the report:
 - These are *also* run as dimensions inside `$wf review`'s parallel fan-out (see `review.md`);
   the ad-hoc `$wf design audit|critique` path here is the same logic invoked standalone.
 - a11y/perf are **measured once in `verify`, interpreted in `review`/`audit`** — never re-measured
-  in the producer's brief/contract steps.
+  in the brief/contract authoring steps (`shape`/`plan`).
 
 ## 4C — Inspection (`extract`)
 
@@ -214,7 +227,6 @@ behavior with or without a slug.
 | Command | Artifact(s) | `00-index.md` updates |
 |---|---|---|
 | `setup`, `teach` | PRODUCT.md / DESIGN.md (project root) | none |
-| `craft` (Producer) | `02b-design.md`, `02c-craft.md`, then `03-slice*`/`04-plan-*`/`05-implement-*`/`06-verify-*` | advance `current-stage` through the span; register each applied transform under `augmentations:` |
 | Transformation (15) | focused `02c-craft.md`, then the build-span artifacts; `design-notes/<sub>-<timestamp>.md` documenting changes | append `design-<sub>` to `augmentations:` |
 | `audit` | `07-design-audit.md` | append `design-audit` to `augmentations:` |
 | `critique` | `07-design-critique.md` | append `design-critique` to `augmentations:` |

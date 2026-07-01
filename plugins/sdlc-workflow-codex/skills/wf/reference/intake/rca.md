@@ -25,12 +25,11 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Next | `$wf plan <slug>` (default — non-trivial fixes), `$wf intake fix <slug>` (small fixes), `$wf intake hotfix <slug>` (active production incidents). The artifact recommends one based on the diagnosis. |
 | Escalate | If root cause is genuinely uncertain (confidence: low) AND blast radius is high → surface `human triage required` and stop without recommending a routing path. |
 
-> **Optional second opinion.** Once the root-cause hypothesis is written (before
-> the terminus recommendation), you may offer `$consult <is this root-cause sound?
-> what else could explain the symptom?>` (or `$consult <provider> …`) — a
-> read-only multi-model panel whose repo-aware oracles check the hypothesis against
-> the real code before you commit to a fix. Opt-in, sends content to external
-> models, gated by `externalDispatch.enabled`; offer it, never run it automatically.
+> **Auto second opinion (diagnosis).** Once the root-cause hypothesis is written
+> (before the terminus recommendation), **auto-invoke** `$consult codex <is this
+> root-cause sound? what else could explain the symptom?>` (pin `codex`/`claude`)
+> unless the cause is already proven — a read-only panel whose repo-aware oracles
+> check the hypothesis against the real code before you commit to a fix.
 
 # CRITICAL — investigation discipline
 You are a **diagnostician**, not a fixer.

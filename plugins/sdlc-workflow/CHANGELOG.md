@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — design brief + contract fold into the lifecycle; `craft` retired (9.96.0)
+
+The design **Producer** (`craft`) is dissolved: its work is split across the stages that already own each concern, so UI work rides the normal `shape → plan → implement → verify` flow instead of a separate design command that owned the downstream build.
+
+- **`shape`** now authors the design **brief** `02b-design.md` inline when the work has UI surface (`stack.ui ≠ ∅`), as plain discovery — register, color strategy, scene sentence, anti-goals, state inventory, and `recommended-references:`. It leaves the image gate unresolved (no `image-gate` written to `02b` — the field's only schema values are `pass`/`skipped:*`); it does not run image probes or a confirm gate.
+- **`plan`** owns both design gates. When a brief exists without a contract, plan resolves the image gate (north-star probes via `imagery`) and the visual-direction confirm gate, then authors the visual **contract** `02c-craft.md` (following the new `design/contract.md` procedure) — before finalizing the plan steps so the mock-fidelity inventory and implementation contract become concrete steps.
+- **`implement`** absorbs the build discipline and the critique-and-fix pass: it applies the contract and cited references, holds UI to the `_design-context.md` floor, applies `_component-craft.md` for reusable components, and runs a mandatory critique pass when a contract was present.
+- **`/wf design`** is now a transforms-and-analysis dispatcher: the 15 transforms + `audit`/`critique`/`extract`/`setup`/`teach` (20 commands, down from 21). The `craft` command and the Producer category are removed; `design/craft.md` is deleted and replaced by `design/contract.md` (contract authoring) and the reframed `design/shape.md` (brief authoring). There is no `/wf design <slug> craft`.
+- The dispatcher preflight (`design.md` Step 1) now conditionally loads `_component-craft.md` when a transform's target is a reusable design-system component, so a standalone `/wf design <transform>` on a component is held to the same DX-first-API / defaults / naming bar as the `implement` lifecycle path — closing a gap where only `extract` referenced that reference.
+- Design-craft reference hygiene: the secondary homes carrying ported motion guidance now cite their MIT source (`optimize.md`, `delight.md`), the WAAPI / CSS-variable performance rules are de-duplicated to a single home in `animate.md`, `_design-context.md` documents its per-stage consumer contract, and `plan`/`implement` now load the specific craft home (`animate.md` / `polish.md` / `typeset.md`) for off-`/wf design` UI work instead of stopping at the floor summary.
+- The `design`/`design-contract` artifact **types**, renderers, schemas, and fragments are unchanged — only authorship moved — so the runtime buildId is unaffected. Doc-site, `_design-context.md` gates, and every cross-reference (slice/verify/review/handoff/retro/intake, imagery/uiproto callers) updated.
+- Claude and Codex trees at parity.
+
+### Changed — `consult` is now model-invocable and auto-runs across the lifecycle (9.96.0)
+
+Reverses the "always opt-in, never auto" posture for `consult` only. The read-only second-opinion oracle now runs when the model judges it worthwhile, instead of never (an audit found it had never once fired since shipping).
+
+- **Model-invocable.** `consult/SKILL.md` sets `disable-model-invocation: false`; the model can now call it. It **auto-invokes** at the plan, design, review, and diagnosis (verify / root-cause) judgment points, including inside the autonomous `/wf auto` and `/wf yolo` drivers (their "Not a consult trigger" exclusions are removed).
+- **Consent gate removed — for consult only.** The `externalDispatch.enabled` re-check and exit-3 are deleted from `consult/scripts/dispatch.mjs`; `imagery` and `uiproto` keep the flag and the script-level trust boundary untouched. `lib/hub-config.mjs` is unchanged, so the runtime buildId is unaffected.
+- **Cost bounded by pinning, not by a flag.** Any model-initiated run pins a free subscription CLI (`codex`/`claude`); the paid REST oracles are never fanned out unattended. Read-only sandbox, credential scrub, and hook-isolation guarantees are preserved — only *consent* was removed, not *safety*.
+- The ~18 lifecycle offer callouts are reconciled: the 4 auto-sites carry active "auto-invoke when it adds value" language; the rest drop the now-false gate clause and permit self-run when it clearly helps.
+- Claude and Codex trees at parity.
+
 ### Added — verifiability-first AC authoring + constraint-aware verification (9.95.0)
 
 Closes the "verified but actually broken" leak class: acceptance criteria authored without a verification path, then rationalized past at verify with a static-reasoning `pass` or a bare "no emulator" deferral. The fix moves verifiability **upstream** — decided where each criterion is born and planned — and adds a mechanical backstop so a false pass cannot be written.
