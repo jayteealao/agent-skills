@@ -61,7 +61,7 @@ is deterministic:
 
 | Hook | Event · matcher | What it enforces | What it is blind to |
 |---|---|---|---|
-| [session-start-orient.mjs](../../hooks/session-start-orient.mjs) | SessionStart | Lists active workflows; warns once on wrong branch (l.74-82) | Whether the index it reads still matches disk |
+| [session-start-orient.mjs](../../hooks/session-start-orient.mjs) | SessionStart | Enqueues a dashboard render + self-heals the tray; emits no session context | — |
 | [pre-compact-preserve.mjs](hooks/pre-compact-preserve.mjs) | PreCompact | Emits state-preservation instructions | Whether that state is still accurate |
 | [pre-write-validate.mjs](../../hooks/pre-write-validate.mjs) | PreToolUse · Write | Filename convention + frontmatter shape (schema/type/slug) | Whether the body fulfills the stage contract |
 | [post-write-auto-stage.mjs](../../hooks/post-write-auto-stage.mjs) | PostToolUse · Write\|Edit\|… | `git add` the artifact | — |

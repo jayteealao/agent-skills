@@ -120,25 +120,6 @@ export function formatList(items) {
   return items.map((item, index) => `  ${index + 1}. ${item}`).join('\n');
 }
 
-export function stringifyField(value) {
-  if (value === null || value === undefined) return '';
-  if (Array.isArray(value)) return value.join('; ');
-  if (typeof value === 'object') return Object.entries(value).map(([key, val]) => `${key}: ${val}`).join(', ');
-  return String(value);
-}
-
-export async function currentGitBranch(projectRoot) {
-  try {
-    const { stdout } = await execFileAsync('git', ['-C', projectRoot, 'branch', '--show-current'], {
-      windowsHide: true,
-      timeout: 2000,
-    });
-    return stdout.trim();
-  } catch {
-    return '';
-  }
-}
-
 export async function gitAdd(projectRoot, filePath) {
   try {
     await execFileAsync('git', ['-C', projectRoot, 'add', filePath], {

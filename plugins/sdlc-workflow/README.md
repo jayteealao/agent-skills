@@ -963,15 +963,13 @@ The generated Codex plugin currently does **not** enable hooks. The workflow and
 
 **Requires:** Node.js 20 or newer. `git` is optional but needed for the auto-stage hook. The hooks no longer require Git Bash, `bash`, `yq`, `jq`, or Python.
 
-### SessionStart — workflow discovery
+### SessionStart — background maintenance
 
 **Script:** `hooks/session-start-orient.mjs`
 
-Fires at the start of every Claude Code session — and re-fires after a context compaction (`source: compact`) and after `/clear`. Scans `.ai/workflows/*/00-index.md` for active (non-complete, non-abandoned) workflows and injects a compact summary into Claude's system context for the session. This means Claude always knows what workflow you were working on, what stage it's at, what slice is active, and what the next command is — without you having to explain it.
+Fires at the start of every Claude Code session — and re-fires after a context compaction (`source: compact`) and after `/clear`. It enqueues a whole-repo render of the dashboard view (drained by the hub) and self-heals the tray: it re-points an enabled autostart launcher at the current plugin version and reconciles a stale running tray. It runs entirely in the background and injects no session context of its own.
 
-Because it re-fires after compaction, this is also the mechanism that re-orients Claude once the conversation is compressed: it re-reads workflow state from the artifact files on disk, so nothing depends on that state surviving inside the compaction summary.
-
-If multiple active workflows exist, all summaries are injected. If the current git branch doesn't match the workflow's expected branch, the summary includes a `WRONG BRANCH` warning.
+It surfaces no workflow summary. Resume — including after a compaction — is driven by the `/wf` commands themselves: every command re-reads its workflow's `00-index.md` on invocation (and the `auto`/`yolo` drivers additionally run their own branch-posture check), so orientation is pulled just-in-time by the command that acts, rather than pushed into context at session start.
 
 ### PreToolUse (Write) — workflow file validation
 

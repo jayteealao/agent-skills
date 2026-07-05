@@ -905,22 +905,16 @@ test('project context hooks allow plain markdown and validate typed frontmatter 
   }
 });
 
-test('session-start-orient emits compact JSON for active workflows only', () => {
+test('session-start-orient emits no orientation message (stripped)', () => {
   const tmp = tempDir();
   try {
+    // Even with an active workflow present, the hook no longer surfaces an
+    // orientation systemMessage — the /wf commands re-read 00-index.md themselves.
     writeFile(join(tmp, '.ai', 'workflows', 'demo', '00-index.md'), md(minimalIndex()));
-    writeFile(join(tmp, '.ai', 'workflows', 'done', '00-index.md'), md(minimalIndex({
-      slug: 'done',
-      status: 'complete',
-      title: 'Done workflow',
-    })));
 
     const result = runHook(HOOKS.sessionStartOrient, { cwd: tmp }, tmp, { SDLC_DISABLE_BOOTSTRAP: '1', SDLC_DISABLE_TRAY_HEAL: '1' });
     equal(result.status, 0, result.stderr);
-    const parsed = JSON.parse(result.stdout);
-    match(parsed.systemMessage, /Active workflow: demo - Demo workflow/);
-    match(parsed.systemMessage, /Stage: implement/);
-    ok(!parsed.systemMessage.includes('Done workflow'));
+    equal(result.stdout.trim(), '', 'session-start-orient emits nothing to stdout');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -1051,9 +1045,8 @@ test('session-start-orient (hub dispatch) enqueues a bootstrap render request', 
     equal(records[0].kind, 'bootstrap');
     equal(records[0].bucket, '__bootstrap__');
 
-    // orientation still emits the active-workflow summary
-    const parsed = JSON.parse(result.stdout);
-    match(parsed.systemMessage, /Active workflow: demo/);
+    // orientation message is stripped — the hook emits nothing to stdout
+    equal(result.stdout.trim(), '', 'session-start-orient emits nothing to stdout');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

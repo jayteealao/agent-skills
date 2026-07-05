@@ -12,7 +12,7 @@ import {
   readStdinJson,
   readTextIfExists,
   resolveProjectPath
-} from "./chunk-LC2YZRHK.mjs";
+} from "./chunk-UBR42YUU.mjs";
 import {
   logError
 } from "./chunk-SCQPZLF2.mjs";

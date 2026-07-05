@@ -6,7 +6,7 @@ import {
   isInsideWorkflowArtifacts,
   projectRootFromInput,
   readStdinJson
-} from "./chunk-LC2YZRHK.mjs";
+} from "./chunk-UBR42YUU.mjs";
 import {
   logError
 } from "./chunk-SCQPZLF2.mjs";

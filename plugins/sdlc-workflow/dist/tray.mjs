@@ -3,7 +3,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   writeTrayHeartbeat
-} from "./chunk-KV5OLBXR.mjs";
+} from "./chunk-4UDDKSMJ.mjs";
 import {
   disableAutostart,
   enableAutostart,
@@ -16,18 +16,18 @@ import {
   readHubConfig,
   stopHub,
   writeHubConfig
-} from "./chunk-RH7HXH6P.mjs";
+} from "./chunk-4EG7GHJZ.mjs";
 import "./chunk-K6PBZI5W.mjs";
 import "./chunk-IEGE3GWR.mjs";
-import "./chunk-SBPANAAT.mjs";
+import "./chunk-DJMV6FQQ.mjs";
 import {
   runtimeIdentity
-} from "./chunk-IEXKPLNM.mjs";
+} from "./chunk-4TBLJ5B7.mjs";
 import {
   hubPidPath,
   readPidFile,
   sdlcHomeDir
-} from "./chunk-DVISHXT5.mjs";
+} from "./chunk-JH5USZ6A.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-FZ2GR6GF.mjs";

@@ -6,19 +6,16 @@ import {
   refreshAutostart
 } from "./chunk-ERHYJB4B.mjs";
 import {
-  currentGitBranch,
-  outputSystemMessage,
   projectRootFromInput,
-  readStdinJson,
-  stringifyField
-} from "./chunk-LC2YZRHK.mjs";
+  readStdinJson
+} from "./chunk-UBR42YUU.mjs";
 import {
   logError
 } from "./chunk-SCQPZLF2.mjs";
 import {
   ensureHubEnabled,
   spawnHubEnsure
-} from "./chunk-L6EQJGVG.mjs";
+} from "./chunk-DBOSGXVI.mjs";
 import "./chunk-UTP6CBAZ.mjs";
 import {
   spawnDetachedNode
@@ -27,16 +24,11 @@ import {
   loadConfig
 } from "./chunk-IEGE3GWR.mjs";
 import {
-  countPending,
   enqueue,
-  readStatus,
   resolveEntrypoint,
   sdlcHomeDir
-} from "./chunk-DVISHXT5.mjs";
-import {
-  activeWorkflowIndexes,
-  scanWorkflowIndexes
-} from "./chunk-NTSUEAI6.mjs";
+} from "./chunk-JH5USZ6A.mjs";
+import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -57,31 +49,6 @@ async function main() {
   startBootstrap(projectRoot, config);
   healAutostartLauncher();
   healRunningTray();
-  const workflows = activeWorkflowIndexes(await scanWorkflowIndexes({ projectRoot }));
-  if (!workflows.length) return;
-  const currentBranch = await currentGitBranch(projectRoot);
-  const summaries = workflows.map((workflow) => formatWorkflowSummary(workflow, currentBranch));
-  let message = summaries.length === 1 ? summaries[0] : `Active workflows (${summaries.length}):
-
-${summaries.join("\n\n")}`;
-  const advisory = pendingRenderAdvisory(projectRoot, config);
-  if (advisory) message += `
-
-${advisory}`;
-  outputSystemMessage(message);
-}
-function pendingRenderAdvisory(projectRoot, config) {
-  try {
-    if ((config.view?.renderDispatch ?? "hub") !== "hub") return null;
-    const viewRoot = resolve(projectRoot, ".ai", "_view");
-    const status = readStatus(viewRoot);
-    if (!status?.lastError) return null;
-    const pending = countPending(viewRoot);
-    if (pending <= 0) return null;
-    return `\u26A0 ${pending} view render(s) pending \u2014 ${status.lastError}. The dashboard will refresh once the hub drains the queue; start it (or run \`render-sunflower\`) to refresh now.`;
-  } catch {
-    return null;
-  }
 }
 function healAutostartLauncher() {
   try {
@@ -145,45 +112,6 @@ function startBootstrap(projectRoot, config) {
     }
   } catch {
   }
-}
-function formatWorkflowSummary(workflow, currentBranch) {
-  const fm = workflow.frontmatter ?? {};
-  let summary = `Active workflow: ${workflow.slug}`;
-  if (fm.title) summary += ` - ${fm.title}`;
-  if (fm["current-stage"]) summary += `
-  Stage: ${fm["current-stage"]}`;
-  if (fm["stage-status"]) summary += ` (${fm["stage-status"]})`;
-  const selectedSlice = fm["selected-slice-or-focus"] ?? fm["selected-slice"];
-  if (selectedSlice) summary += `
-  Slice: ${selectedSlice}`;
-  const strategy = fm["branch-strategy"];
-  if (strategy && strategy !== "none") {
-    const branch = fm.branch;
-    let branchLine = `  Branch: ${branch || "unknown"}`;
-    if (currentBranch && branch) {
-      branchLine += currentBranch === branch ? " (on correct branch)" : ` (current: ${currentBranch} - WRONG BRANCH)`;
-    }
-    if (fm["base-branch"]) branchLine += `, base: ${fm["base-branch"]}`;
-    summary += `
-${branchLine}`;
-  }
-  if (fm["pr-url"]) summary += `
-  PR: ${fm["pr-url"]}`;
-  const nextInvocation = fm["recommended-next-invocation"] ?? fm["next-invocation"];
-  const nextCommand = fm["recommended-next-command"] ?? fm["next-command"];
-  if (nextInvocation) {
-    summary += `
-  Next: ${nextInvocation}`;
-  } else if (nextCommand) {
-    summary += `
-  Next: /${nextCommand} ${workflow.slug}`;
-  }
-  const openQuestions = stringifyField(fm["open-questions"]);
-  if (openQuestions && openQuestions !== "[]" && openQuestions !== "none") {
-    summary += `
-  Open questions: ${openQuestions}`;
-  }
-  return summary;
 }
 main().catch(async (err) => {
   try {

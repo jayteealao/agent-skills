@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed — session-start orientation message stripped (9.97.0)
+
+The `session-start-orient` hook no longer emits a workflow-orientation `systemMessage` into context. It is now a pure background-maintenance hook: it enqueues the whole-repo dashboard render and self-heals the tray, and injects nothing into the session.
+
+- **Why.** The orientation summary was redundant with the `/wf` commands, which each re-read their workflow's `00-index.md` on invocation (and the `auto`/`yolo` drivers additionally run their own branch-posture check). The injected message also carried a cost: an authoritative, occasionally-stale nudge — including an imperative "Next:" line — that could skew an unrelated session toward workflow work. Resume after a compaction is unaffected: it was already driven by the commands re-reading disk, not by this message.
+- **Both trees.** The Claude hook (`hooks/session-start-orient.mjs`) drops the workflow scan, the summary builder, and the render-lag advisory; the native Codex hook (`hooks/session-start.mjs`) drops its own `orient()`/`formatSummary`/`toCodexInvocation`/`readFrontmatter`. The bootstrap-render and tray-heal paths are untouched.
+- **Dead code removed.** The now-unused `currentGitBranch` and `stringifyField` exports are deleted from `lib/hook-utils.mjs` (session-start-orient was their sole caller). No artifact **types**, renderers, schemas, or fragments changed.
+- Docs (`reference/hooks.html`, README, `HOOKS-SEMANTIC-PLAN.md`) reconciled to the new behavior. Claude and Codex trees at parity.
+
 ### Changed — design brief + contract fold into the lifecycle; `craft` retired (9.96.0)
 
 The design **Producer** (`craft`) is dissolved: its work is split across the stages that already own each concern, so UI work rides the normal `shape → plan → implement → verify` flow instead of a separate design command that owned the downstream build.

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.96.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.97.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -113,7 +113,7 @@
 <ul>
   <li><strong>post-write-auto-stage</strong> — automatically runs <code>git add</code> on changed code files during the implement <a href="../reference/glossary.html#stage">stage</a> (one step of the full workflow lifecycle), so you do not have to stage files manually.</li>
   <li><strong>post-write-render</strong> — refreshes the local <a href="../reference/glossary.html#dashboard">dashboard</a> (the Sunflower HTML view) after any artifact changes. It never blocks a write; it is best-effort.</li>
-  <li><strong>session-start-orient</strong> — runs once when a session opens (and again after context compaction). It reads the <code>00-index.md</code> registry files for every active workflow and surfaces their state as context, so Claude always knows where each piece of work stands.</li>
+  <li><strong>session-start-orient</strong> — runs once when a session opens (and again after context compaction). It starts background rendering of the dashboard view and self-heals the tray. It surfaces no session context of its own — the <code>/wf</code> commands re-read each workflow&#39;s <code>00-index.md</code> when they run.</li>
 </ul>
 
 <h2>All five hooks at a glance</h2>
@@ -173,7 +173,7 @@
 
 <h3>session-start-orient <span class="badge">SessionStart</span></h3>
 
-<p>Fires once per session and re-fires after a context compaction (<code>source: compact</code>). Reads <code>.ai/workflows/*/00-index.md</code>, surfaces active workflows as session context, and kicks off background rendering of the dashboard view. Re-reading workflow state from disk after compaction is what re-orients Claude once the conversation is compressed — this hook is the mechanism behind that.</p>
+<p>Fires once per session and re-fires after a context compaction (<code>source: compact</code>). It enqueues a whole-repo render of the dashboard view (drained by the hub) and self-heals the tray — re-pointing an enabled autostart launcher at the current version and reconciling a stale running tray. It runs entirely in the background and surfaces <strong>no</strong> session context of its own. Resume after a compaction is driven by the <code>/wf</code> commands instead: each re-reads its workflow&#39;s <code>00-index.md</code> on invocation (and the <code>auto</code>/<code>yolo</code> drivers run their own branch-posture check), so orientation is pulled just-in-time rather than pushed into context here.</p>
 
 <h2>Configuration</h2>
 
