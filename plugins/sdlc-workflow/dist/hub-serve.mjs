@@ -3,16 +3,14 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-KQ2CB46L.mjs";
-import "./chunk-VC23OZAS.mjs";
+} from "./chunk-XY5MR2BA.mjs";
+import "./chunk-JHRFLZ5I.mjs";
+import "./chunk-PDBKNARE.mjs";
 import {
   hostAllowed,
   renderCodeBrowserPage,
   resolveRequestPath
 } from "./chunk-IOYXLHW6.mjs";
-import "./chunk-PDBKNARE.mjs";
-import "./chunk-RC3RWYSS.mjs";
-import "./chunk-4WRIEOIP.mjs";
 import {
   codeBrowserConfigFromEnv,
   createHealController,
@@ -21,6 +19,8 @@ import {
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
 } from "./chunk-DJMV6FQQ.mjs";
+import "./chunk-A7URF4DO.mjs";
+import "./chunk-4WRIEOIP.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -40,8 +40,8 @@ import {
 } from "./chunk-JH5USZ6A.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/hub-serve.mjs

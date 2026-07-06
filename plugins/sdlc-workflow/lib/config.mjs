@@ -88,6 +88,17 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     // rather than blocks. Set false to silence the prose-deferral lint.
     verifyDeferralLint: true,
   },
+  // Semantic leak guards (HOOKS-SEMANTIC Phase 1): scan outward-facing text —
+  // git commit/tag messages, gh pr/release titles+bodies, public-doc writes —
+  // for internal workflow vocabulary, using the lexicon derived from
+  // skills/wf/reference/_output-boundary.md. Default OFF and advisory-first:
+  // 'advisory' emits a systemMessage, 'enforce' denies the tool call. Promote
+  // to enforce only after the advisory false-positive rate proves ~0 across
+  // real workflows (the graduation gate).
+  semantic: {
+    enabled: false,
+    mode: 'advisory',
+  },
 });
 
 const configValidators = new Map();   // schemaPath → compiled validator

@@ -2,13 +2,17 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  ensureHubLifecycle,
+  maybeConfigureTailscale,
+  readHubConfig,
+  tailscaleDnsName
+} from "./chunk-QGTQMZIW.mjs";
+import "./chunk-DJMV6FQQ.mjs";
+import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-MXN772RE.mjs";
-import {
-  resolveProjectRoot
-} from "./chunk-UTP6CBAZ.mjs";
+} from "./chunk-I2V5XQAR.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
@@ -16,30 +20,19 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-RC3RWYSS.mjs";
+} from "./chunk-A7URF4DO.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
 } from "./chunk-4WRIEOIP.mjs";
 import {
-  ensureHubLifecycle,
-  maybeConfigureTailscale,
-  readHubConfig,
-  tailscaleDnsName
-} from "./chunk-4EG7GHJZ.mjs";
-import {
-  spawnDetachedNode
-} from "./chunk-K6PBZI5W.mjs";
-import {
-  configHash,
-  loadConfigWithMeta
-} from "./chunk-IEGE3GWR.mjs";
-import "./chunk-DJMV6FQQ.mjs";
-import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
 } from "./chunk-4TBLJ5B7.mjs";
+import {
+  spawnDetachedNode
+} from "./chunk-K6PBZI5W.mjs";
 import {
   hubPidPath,
   isPidAlive,
@@ -59,8 +52,15 @@ import {
   viewMtimeForSlug
 } from "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
+import {
+  resolveProjectRoot
+} from "./chunk-UTP6CBAZ.mjs";
+import {
+  configHash,
+  loadConfigWithMeta
+} from "./chunk-IJYGUPYT.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/render-sunflower.mjs

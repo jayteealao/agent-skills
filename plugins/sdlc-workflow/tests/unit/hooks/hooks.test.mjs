@@ -1248,3 +1248,121 @@ test('post-write-verify skips .ai/solutions/INDEX.md and never demands sibling f
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// --- W3.2 leak guards (v9.101.0): advisory-first EOB enforcement -------------
+
+const LEAK_HOOKS = {
+  bash: join(PLUGIN_ROOT, 'hooks', 'leak-guard-bash.mjs'),
+  write: join(PLUGIN_ROOT, 'hooks', 'leak-guard-write.mjs'),
+};
+const semanticConfig = (mode) =>
+  JSON.stringify({ semantic: { enabled: true, mode } });
+
+test('leak-guard-bash is silent by default (semantic.enabled: false)', () => {
+  const tmp = tempDir();
+  try {
+    const result = runHook(LEAK_HOOKS.bash, {
+      cwd: tmp,
+      tool_input: { command: 'git commit -m "fix: update .ai/workflows/demo/06-verify-core.md"' },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('leak-guard-bash advises on internal vocabulary in commit messages when enabled', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), semanticConfig('advisory'));
+    const result = runHook(LEAK_HOOKS.bash, {
+      cwd: tmp,
+      tool_input: { command: 'git commit -m "fix: verified via /wf verify demo, see .ai/workflows/demo/06-verify-core.md"' },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    const parsed = JSON.parse(result.stdout);
+    match(parsed.systemMessage, /External Output Boundary/);
+    match(parsed.systemMessage, /wf-command|internal-path/);
+
+    // Clean product-language message → no output at all.
+    const clean = runHook(LEAK_HOOKS.bash, {
+      cwd: tmp,
+      tool_input: { command: 'git commit -m "fix: restore preview rendering for long links"' },
+    }, tmp);
+    equal(clean.status, 0, clean.stderr);
+    equal(clean.stdout, '');
+
+    // Non-publishing commands are never scanned, even with internal paths.
+    const nonPublish = runHook(LEAK_HOOKS.bash, {
+      cwd: tmp,
+      tool_input: { command: 'cat .ai/workflows/demo/06-verify-core.md' },
+    }, tmp);
+    equal(nonPublish.status, 0, nonPublish.stderr);
+    equal(nonPublish.stdout, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('leak-guard-bash denies (exit 2) in enforce mode and respects the dispatch sentinel', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), semanticConfig('enforce'));
+    const input = {
+      cwd: tmp,
+      tool_input: { command: 'gh release create v1.2.3 --notes "shipped via /wf ship demo"' },
+    };
+    const denied = runHook(LEAK_HOOKS.bash, input, tmp);
+    equal(denied.status, 2);
+    match(denied.stderr, /External Output Boundary/);
+
+    // Inside external-model dispatch the guard must never fire.
+    const dispatched = runHook(LEAK_HOOKS.bash, input, tmp, { SDLC_DISPATCH_ACTIVE: '1' });
+    equal(dispatched.status, 0, dispatched.stderr);
+    equal(dispatched.stdout, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('leak-guard-write advises on public-doc writes and skips internal paths', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), semanticConfig('advisory'));
+    const leakyReadme = runHook(LEAK_HOOKS.write, {
+      cwd: tmp,
+      tool_input: {
+        file_path: 'README.md',
+        content: '## Changes\nVerified with /wf verify demo (see .ai/workflows/demo/).\n',
+      },
+    }, tmp);
+    equal(leakyReadme.status, 0, leakyReadme.stderr);
+    match(JSON.parse(leakyReadme.stdout).systemMessage, /External Output Boundary/);
+
+    // Internal-root writes are never scanned — workflow vocabulary belongs there.
+    const internal = runHook(LEAK_HOOKS.write, {
+      cwd: tmp,
+      tool_input: {
+        file_path: '.ai/workflows/demo/06-verify-core.md',
+        content: 'run /wf verify demo per 04-plan-core.md',
+      },
+    }, tmp);
+    equal(internal.status, 0, internal.stderr);
+    equal(internal.stdout, '');
+
+    // Clean public docs pass silently.
+    const clean = runHook(LEAK_HOOKS.write, {
+      cwd: tmp,
+      tool_input: {
+        file_path: 'docs/how-to/setup.md',
+        content: 'Run the installer and review the settings page.\n',
+      },
+    }, tmp);
+    equal(clean.status, 0, clean.stderr);
+    equal(clean.stdout, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});

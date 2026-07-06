@@ -134,6 +134,23 @@
           "description": "When true (default), the post-write-verify hook WARNS (non-blocking systemMessage) when shadow-deferral vocabulary in a `verify` body co-occurs with `result: pass` (e.g. 'deferred to user/manual', 'UNVERIFIED-INTERACTIVE', 'will be verified during <slice>', 'decidable by static reasoning'). Heuristic, so it warns rather than blocks. Set false to silence the prose-deferral lint."
         }
       }
+    },
+    "semantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Semantic leak guards (HOOKS-SEMANTIC Phase 1): the leak-guard-bash and leak-guard-write hooks scan outward-facing text (git commit/tag messages, gh pr/release titles+bodies, README/CHANGELOG/docs writes) for internal workflow vocabulary, using the lexicon derived from skills/wf/reference/_output-boundary.md. Default OFF and advisory-first; promote mode to 'enforce' only after the advisory false-positive rate proves ~0 across real workflows.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Master switch for both leak guards. Default false (the hooks exit silently)."
+        },
+        "mode": {
+          "enum": ["advisory", "enforce"],
+          "default": "advisory",
+          "description": "'advisory' emits a non-blocking systemMessage naming the matched vocabulary; 'enforce' denies the tool call (exit 2) with the same message."
+        }
+      }
     }
   }
 }

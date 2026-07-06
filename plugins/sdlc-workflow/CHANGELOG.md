@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — feedback-loops R3: semantic leak guards, advisory-first (9.101.0)
+
+Third and final feedback-loop release — the only runtime-code slice. The External Output Boundary graduates from an *instruction* to an optional *wall*.
+
+- **`lib/leak-lexicon.mjs`.** The internal-vocabulary lexicon is derived **from `_output-boundary.md`'s predicate**: the internal roots (`.ai/**`, `.claude/**` — `.codex/**` in that tree's copy) are parsed out of the canonical file, so the prose rule and the hooks can never disagree; the vocabulary patterns are the concrete low-false-positive tokens (`/wf <key>` command strings, `wf-<stage>` skill tokens, `NN-stage` artifact stems, the `sdlc/v1` schema tag). Bare English stage-name words ("plan", "review", "ship") are deliberately NOT matched.
+- **Two new PreToolUse guards** (three hooks' scope in two entry points): `leak-guard-bash` scans the message-bearing arguments of publishing commands — `git commit`/`git tag` messages, `gh pr create` titles/bodies, `gh release create|edit` notes (never the whole command, so reading internal files is never flagged); `leak-guard-write` scans writes to public documentation paths (README*, CHANGELOG*, CONTRIBUTING*, `docs/` outside the internal roots).
+- **Default OFF, advisory-first.** New `semantic` config block in `.ai/sdlc-config.json`: `{ "enabled": false, "mode": "advisory" }`. Advisory emits a systemMessage naming the matched vocabulary; `"enforce"` denies the call with the same message. The graduation gate: run advisory across real workflows and promote to enforce only at a ~0 observed false-positive rate.
+- **Isolation:** both guards respect the external-model dispatch sentinel and never fire inside dispatch child processes; guard errors never break the tool call (advisory infrastructure fails open).
+- Known Phase-1 limit: `--body-file`/`-F` contents are not read (the file *path* is still scanned); later hook phases stay in the semantic-hooks plan.
+
 ### Added — feedback-loops R2: knowledge compounding, repeat-deferral tripwire, ship rollback (9.100.0)
 
 Second feedback-loop release: the corpus that makes workflows learn from each other, the tripwire that stops the same environment wall being paid twice, and a runbook-driven reversal phase under `ship`.

@@ -3,11 +3,10 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubLifecycle
-} from "./chunk-4EG7GHJZ.mjs";
-import "./chunk-K6PBZI5W.mjs";
-import "./chunk-IEGE3GWR.mjs";
+} from "./chunk-QGTQMZIW.mjs";
 import "./chunk-DJMV6FQQ.mjs";
 import "./chunk-4TBLJ5B7.mjs";
+import "./chunk-K6PBZI5W.mjs";
 import {
   appendError,
   countPending,
@@ -16,8 +15,9 @@ import {
 } from "./chunk-JH5USZ6A.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
+import "./chunk-IJYGUPYT.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/hub-ensure.mjs

@@ -4,26 +4,26 @@ import {
   callout
 } from "../chunk-EG7S7OJR.mjs";
 import {
+  figureCanvas
+} from "../chunk-PDBKNARE.mjs";
+import {
   renderSimple
-} from "../chunk-V3FV5PYM.mjs";
+} from "../chunk-E6PUIM7I.mjs";
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-MXN772RE.mjs";
-import {
-  figureCanvas
-} from "../chunk-PDBKNARE.mjs";
+} from "../chunk-I2V5XQAR.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-RC3RWYSS.mjs";
+} from "../chunk-A7URF4DO.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
-import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-LFGT2BKG.mjs";
+import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-SGA7NFMW.mjs";
 
 // renderers/profile.mjs

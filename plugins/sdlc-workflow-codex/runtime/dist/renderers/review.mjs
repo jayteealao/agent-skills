@@ -4,22 +4,22 @@ import {
   verdictBlock
 } from "../chunk-EG7S7OJR.mjs";
 import {
-  md2html,
-  renderHistoryBlock
-} from "../chunk-MXN772RE.mjs";
-import {
   figureCanvas
 } from "../chunk-PDBKNARE.mjs";
+import {
+  md2html,
+  renderHistoryBlock
+} from "../chunk-I2V5XQAR.mjs";
 import {
   artifactHeader,
   metricRow,
   statusBadge
-} from "../chunk-RC3RWYSS.mjs";
+} from "../chunk-A7URF4DO.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
-import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-LFGT2BKG.mjs";
+import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-SGA7NFMW.mjs";
 
 // renderers/review.mjs
