@@ -371,21 +371,25 @@
 
 <p>The <code>blocked-runtime-evidence-missing</code> variant is distinct from <code>fail</code>: it's a <em>procedural</em> failure (evidence not produced) rather than a <em>substantive</em> one (evidence shows the AC is not met). The downstream routing differs — <code>fail</code> recommends <code>/wf implement</code> to fix the code; <code>blocked-runtime-evidence-missing</code> recommends either re-running verify in a capable environment, or applying a deferral.</p>
 
-<h4>Escape hatch — <code>interactive-verification: deferred</code> <span class="badge">v9.14</span></h4>
+<h4>Escape hatch — <code>interactive-verification: deferred</code> <span class="badge">v9.14 · tightened v9.95–v9.99</span></h4>
 
-<p>Some AC are user-observable but genuinely cannot be probed in the current environment (no emulator, no API key, no device). To proceed without a hard fail, the slice author annotates the verify file:</p>
+<p>Some AC are user-observable but genuinely cannot be probed in the current environment. A deferral is a <strong>last resort that must be paid for</strong>: the defer-reason must enumerate the constraint-ladder rungs actually tried, and a claimed incapability (&quot;no credentials&quot;, &quot;no device&quot;) is valid only after <em>executing</em> a capability probe and recording its literal command and output — e.g. <code>firebase projects:list</code> for deploy credentials, <code>adb devices</code> for devices. Bare phrases like &quot;no emulator&quot; or &quot;will verify later&quot; are rejected:</p>
 
 <pre><code>interactive-verification: deferred
-interactive-verification-defer-reason: "no iOS device available for the camera AC; will probe before ship"</code></pre>
+interactive-verification-defer-reason: "Robolectric covers the state machine (9/9); Roborazzi golden covers
+  the visual; AVD boot attempted (failed: HAXM unavailable — output recorded); residual = live multi-touch
+  routing on hardware"</code></pre>
 
-<p>Verify writes <code>result: partial</code> (not <code>pass</code>) and appends an entry to <code>00-index.md.runtime-evidence-deferrals[]</code> with <code>{slice, reason, deferred-at, cleared-by: null}</code>. Verify, review, and handoff surface deferrals as <strong>soft warnings</strong> and proceed. <code>/wf ship</code> <strong>hard-blocks</strong> while any deferral has <code>cleared-by: null</code> (see <a href="#wf-ship">/wf ship</a> Step 6.5 below). Clearing requires either a <code>/wf probe</code> run whose captured evidence satisfies the deferred AC (which sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or a re-run of verify in a capable environment.</p>
+<p>Two related tightenings: a suite whose specs <em>all</em> exit via a credential/environment guard (0 executed) is <code>blocked-runtime-evidence-missing</code> with the unmet precondition named — never a silent deferral. And the hatch is <strong>unavailable</strong> for a criterion whose plan-named environment dependency carries no <code>constraint-resolution:</code> entry — verify refuses to inherit an unengineered wall and routes back to <code>/wf plan</code> to author the resolution (prerequisite harness, proxy + named clearing event, or recorded risk-acceptance).</p>
+
+<p>Verify writes <code>result: partial</code> (not <code>pass</code>) and appends an entry to <code>00-index.md.runtime-evidence-deferrals[]</code> with <code>{slice, reason, deferred-at, cleared-by: null}</code> — plus <code>repeat-of: &lt;slice&gt;</code> when the same environment wall was already deferred earlier in the slug, which obliges the next plan to either scope the harness that retires the wall or record <code>harness-declined</code>. Verify, review, and handoff surface deferrals as <strong>soft warnings</strong> and proceed. <code>/wf ship</code> <strong>hard-blocks</strong> while any deferral has <code>cleared-by: null</code> (see <a href="#wf-ship">/wf ship</a> Step 6.5 below). Clearing requires either a <code>/wf probe</code> run whose captured evidence satisfies the deferred AC (which sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or a re-run of verify in a capable environment.</p>
 
 <h4>Single-round user-gated fix loop <span class="badge">v9.15</span></h4>
 
 <p>After the checks and the AC gate finish, verify owns a <strong>single-round, user-gated fix loop</strong> — it no longer just bounces back to implement. Each failing check and unmet AC is triaged via AskUserQuestion (Fix / Skip / Escalate per issue); chosen fixes spawn sub-agents that apply the minimal patch, then only the affected checks re-run <em>once</em>. It is <strong>one round only</strong>: if anything still fails, verify writes <code>convergence: escalated</code> and routes you to re-invoke <code>/wf verify</code> or to <code>/wf implement</code> as a manual escape. The artifact's <code>convergence:</code> frontmatter records <code>not-needed | converged | escalated</code>.</p>
 
 <h4>If verify fails</h4>
-<p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, route to <code>/wf-meta amend</code>. New v9.14 route: if <code>result: blocked-runtime-evidence-missing</code>, route either to a capable environment for re-run, or annotate with a deferral and proceed (the deferral blocks ship but allows review/handoff).</p>
+<p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, corrections are a new slice (<code>/wf intake &lt;slug&gt; &lt;scope&gt;</code>) or a directed re-plan. New v9.14 route: if <code>result: blocked-runtime-evidence-missing</code>, route either to a capable environment for re-run, or annotate with a deferral and proceed (the deferral blocks ship but allows review/handoff).</p>
 
 <hr>
 

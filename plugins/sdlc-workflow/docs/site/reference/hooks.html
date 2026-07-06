@@ -116,20 +116,29 @@
   <li><strong>session-start-orient</strong> — runs once when a session opens (and again after context compaction). It starts background rendering of the dashboard view and self-heals the tray. It surfaces no session context of its own — the <code>/wf</code> commands re-read each workflow&#39;s <code>00-index.md</code> when they run.</li>
 </ul>
 
-<h2>All five hooks at a glance</h2>
+<p>Two optional <strong>leak guards</strong> ship <em>off by default</em> (enable them via the <code>semantic</code> config block below):</p>
+
+<ul>
+  <li><strong>leak-guard-bash</strong> — before a publishing command runs (<code>git commit</code>/<code>git tag</code> messages, <code>gh pr create</code> titles and bodies, <code>gh release</code> notes), it scans the outward-facing text for internal workflow vocabulary — artifact paths, command strings, stage-file names — and advises you to translate to product language before publishing.</li>
+  <li><strong>leak-guard-write</strong> — the same scan for writes to public documentation paths (<code>README</code>, <code>CHANGELOG</code>, <code>CONTRIBUTING</code>, <code>docs/</code> outside the internal roots). Internal paths are never scanned — workflow vocabulary belongs there.</li>
+</ul>
+
+<h2>All seven hooks at a glance</h2>
 
 <table>
 <thead><tr><th>Hook</th><th>Fires</th><th>Timeout</th><th>Blocks?</th></tr></thead>
 <tbody>
 <tr><td><code>session-start-orient</code></td><td>Session opens / after compaction</td><td>30 s</td><td>No</td></tr>
 <tr><td><code>pre-write-validate</code></td><td>Before a <code>Write</code></td><td>5 s</td><td>Yes — exits 2 on invalid filename or frontmatter</td></tr>
+<tr><td><code>leak-guard-write</code></td><td>Before Write / Edit / MultiEdit</td><td>5 s</td><td>Off by default; advisory when enabled — exits 2 only in <code>enforce</code> mode</td></tr>
+<tr><td><code>leak-guard-bash</code></td><td>Before a <code>Bash</code> command</td><td>5 s</td><td>Off by default; advisory when enabled — exits 2 only in <code>enforce</code> mode</td></tr>
 <tr><td><code>post-write-auto-stage</code></td><td>After Write / Edit / MultiEdit / NotebookEdit</td><td>5 s</td><td>No</td></tr>
 <tr><td><code>post-write-verify</code></td><td>After Write / Edit / MultiEdit / NotebookEdit</td><td>15 s</td><td>Yes — exits 2 on schema failure or missing fragment</td></tr>
 <tr><td><code>post-write-render</code></td><td>After Write / Edit / MultiEdit / NotebookEdit</td><td>30 s</td><td>No</td></tr>
 </tbody>
 </table>
 
-<p>All five are wired via <code>hooks/hooks.json</code> and run from committed <strong>esbuild bundles under <code>dist/</code></strong>, not the <code>hooks/*.mjs</code> source files. This means they run with no <code>npm install</code> on a fresh install — all dependencies are inlined.</p>
+<p>All seven are wired via <code>hooks/hooks.json</code> and run from committed <strong>esbuild bundles under <code>dist/</code></strong>, not the <code>hooks/*.mjs</code> source files. This means they run with no <code>npm install</code> on a fresh install — all dependencies are inlined.</p>
 
 <h2>What each hook validates</h2>
 
@@ -147,7 +156,7 @@
 
 <h3>post-write-verify <span class="badge">PostToolUse: Write / Edit / MultiEdit / NotebookEdit</span></h3>
 
-<p>Fires after the write and reads the file from disk. Runs deep Ajv validation of the frontmatter <code>type</code> and required fields against <code>tests/frontmatter.schema.json</code> for artifacts under <code>.ai/workflows/</code>, <code>.ai/simplify/</code>, <code>.ai/profiles/</code>, and <code>.ai/docs/</code>. The <code>po-answers.md</code> prose log is exempt. Exits 2 with diagnostics on failure so Claude can repair the frontmatter in place.</p>
+<p>Fires after the write and reads the file from disk. Runs deep Ajv validation of the frontmatter <code>type</code> and required fields against <code>tests/frontmatter.schema.json</code> for artifacts under <code>.ai/workflows/</code>, <code>.ai/simplify/</code>, <code>.ai/profiles/</code>, <code>.ai/docs/</code>, and the solutions corpus (<code>.ai/solutions/&lt;category&gt;/*.md</code>, frontmatter <code>type: solution</code> — the corpus <code>INDEX.md</code> is a frontmatter-less registry and is exempt, as is the <code>po-answers.md</code> prose log). Exits 2 with diagnostics on failure so Claude can repair the frontmatter in place.</p>
 
 <h4>Sibling-fragment hard block <span class="badge">v9.47</span></h4>
 
@@ -175,9 +184,17 @@
 
 <p>Fires once per session and re-fires after a context compaction (<code>source: compact</code>). It enqueues a whole-repo render of the dashboard view (drained by the hub) and self-heals the tray — re-pointing an enabled autostart launcher at the current version and reconciling a stale running tray. It runs entirely in the background and surfaces <strong>no</strong> session context of its own. Resume after a compaction is driven by the <code>/wf</code> commands instead: each re-reads its workflow&#39;s <code>00-index.md</code> on invocation (and the <code>auto</code>/<code>yolo</code> drivers run their own branch-posture check), so orientation is pulled just-in-time rather than pushed into context here.</p>
 
+<h3>leak-guard-bash <span class="badge">PreToolUse: Bash · off by default</span></h3>
+
+<p>Fires before a Bash command, but only acts on <strong>publishing commands</strong> — <code>git commit</code>, <code>git tag</code>, <code>gh pr create</code>, <code>gh release create|edit</code> — and scans only their message-bearing arguments (never the whole command, so reading an internal file with <code>cat</code> is never flagged). The scan uses a lexicon derived from the plugin&#39;s single-source output-boundary rule: internal paths (<code>.ai/…</code>, <code>.claude/…</code>), workflow command strings, stage-artifact filenames, and the artifact schema tag. Plain English words that happen to be stage names (&quot;plan&quot;, &quot;review&quot;, &quot;ship&quot;) are deliberately not matched. In <code>advisory</code> mode it emits a note naming the matches; in <code>enforce</code> mode it blocks the command with the same message.</p>
+
+<h3>leak-guard-write <span class="badge">PreToolUse: Write / Edit / MultiEdit · off by default</span></h3>
+
+<p>The same lexicon scan for writes whose target is a <strong>public documentation path</strong>: <code>README*</code>, <code>CHANGELOG*</code>, <code>CONTRIBUTING*</code>, or anything under a <code>docs/</code> directory outside the internal roots. Writes under <code>.ai/</code> or <code>.claude/</code> are never scanned — workflow vocabulary belongs there. Both guards sit out entirely during external-model dispatch and fail open on internal errors: advisory infrastructure never breaks a tool call.</p>
+
 <h2>Configuration</h2>
 
-<p>All five toggles live in the <code>hooks</code> block of <code>.ai/sdlc-config.json</code>. All default to <code>true</code>.</p>
+<p>The five <code>hooks</code>-block toggles live in <code>.ai/sdlc-config.json</code> and default to <code>true</code>; the two leak guards are controlled by the separate <code>semantic</code> block, which defaults to <em>off</em>.</p>
 
 <table>
 <thead><tr><th>Key</th><th>Default</th><th>Controls</th></tr></thead>
@@ -187,6 +204,8 @@
 <tr><td><code>verifyOnWrite</code></td><td>true</td><td>Whether post-write-verify runs deep Ajv validation.</td></tr>
 <tr><td><code>remindMissingFragments</code></td><td>true</td><td>Whether post-write-verify enforces the sibling-fragment hard block. Set <code>false</code> to disable both the block and the reminder.</td></tr>
 <tr><td><code>validateSiblingYaml</code></td><td>true</td><td>Whether post-write-verify validates a present sibling <code>.yaml</code> against its schema and blocks on violations. Only applies to types with a reconciled schema (<code>plan</code>, <code>review</code>, <code>design</code>, <code>simplify-run</code>, <code>ship-run</code>).</td></tr>
+<tr><td><code>semantic.enabled</code></td><td><strong>false</strong></td><td>Master switch for both leak guards. Off by default — the guards exit silently.</td></tr>
+<tr><td><code>semantic.mode</code></td><td><code>advisory</code></td><td><code>advisory</code> emits a non-blocking note naming the matched vocabulary; <code>enforce</code> blocks the tool call with the same message. Promote to enforce only after the advisory false-positive rate proves ~0 on real work.</td></tr>
 </tbody>
 </table>
 
