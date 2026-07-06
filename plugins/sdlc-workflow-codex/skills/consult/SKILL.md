@@ -5,7 +5,8 @@ argument-hint: "[codex|claude|gemini|openai|<provider>/<model>] <question>"
 ---
 
 # External Output Boundary (MANDATORY)
-Consultation prompts and opinions are working context. When the question touches an SDLC workflow, keep artifact paths, stage names, and command internals out of any external-facing output. The panel and the optional fragment are for the developer, not for publishing.
+Apply the boundary rule in [_output-boundary.md](../wf/reference/_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
 
 Before executing, read `../../references/native-operating-model.md` and `../../references/artifact-interop.md` (the latter only if you will embed an opinion into an `.ai/` artifact).
 

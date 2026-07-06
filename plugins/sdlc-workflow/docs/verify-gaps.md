@@ -14,9 +14,14 @@ Verify runs per-slice in isolation. When slice B is verified, nothing checks tha
 
 Sub-agents 1–4 cover static analysis, tests, interactive verification, and augmentation re-checks. None include SAST, dependency CVE scanning (`npm audit`, `cargo audit`, `pip-audit`), or secret detection. These land in `/wf review` at stage 7, meaning a slice with a hardcoded credential or a known-vulnerable dependency transitive import passes verify cleanly.
 
-### 3. Fix loop commits before re-check confirms success
+### 3. Fix loop commits before re-check confirms success — **RESOLVED**
 
-The commit condition (in the "Commit" section of the fix loop) is: *"at least one Fix sub-agent successfully modified files."* The re-check section appears earlier in the document, but the commit condition does not require re-check to pass — only that a file was changed. A fix sub-agent that modifies the wrong code path produces a commit, and the re-check failure is recorded after the commit is already written to git history.
+> **Status: CURED** (re-checked 2026-07-06). The current fix-loop contract in `verify.md` requires
+> the re-check to pass before any commit: *"Do NOT commit if any Fix-triaged re-check still
+> fails"*, with `verify-owned-fix-commit: null` recorded when the round does not converge. Do not
+> re-fix; the historical description below is retained for context only.
+
+The commit condition (in the "Commit" section of the fix loop) was: *"at least one Fix sub-agent successfully modified files."* The re-check section appears earlier in the document, but the commit condition did not require re-check to pass — only that a file was changed. A fix sub-agent that modifies the wrong code path produced a commit, and the re-check failure was recorded after the commit was already written to git history.
 
 ### 4. Accessibility is not a first-class gate
 
@@ -34,9 +39,14 @@ Unless the `benchmark` augmentation was explicitly added during planning (produc
 
 Fix sub-agents are spawned with `model: sonnet` but modify files directly in the working tree with no rollback mechanism. The `Agent` tool supports `isolation: worktree` but the fix loop does not use it. If a fix sub-agent makes the situation worse, the damage is live in the branch with no automated recovery path.
 
-### 8. `unconfirmed-auto-detect` stack is a soft warning, not a hard gate
+### 8. `unconfirmed-auto-detect` stack is a soft warning, not a hard gate — **RESOLVED**
 
-When `stack.user-confirmed: false`, verify stamps the artifact with `stack-source: unconfirmed-auto-detect` and emits a warning, but still proceeds. Sub-agent 3 runs adapters against tooling the product owner never confirmed, and the verify artifact can reach `result: pass` with this provenance. Review and handoff *may* refuse on `unconfirmed-auto-detect`, but verify itself does not block.
+> **Status: CURED** (re-checked 2026-07-06). `verify.md` Step 0 now HARD-GATES on
+> `stack.user-confirmed: false` — an `AskUserQuestion` confirmation is required before any
+> sub-agent runs, the provenance is stamped in the artifact, and downstream stages retain refusal
+> rights. Do not re-fix; the historical description below is retained for context only.
+
+When `stack.user-confirmed: false`, verify stamped the artifact with `stack-source: unconfirmed-auto-detect` and emitted a warning, but still proceeded. Sub-agent 3 ran adapters against tooling the product owner never confirmed, and the verify artifact could reach `result: pass` with this provenance.
 
 ### 9. Freshness sub-agent (sub-agent 5) scope is too narrow
 

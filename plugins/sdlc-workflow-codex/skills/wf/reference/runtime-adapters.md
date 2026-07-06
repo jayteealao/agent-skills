@@ -36,6 +36,17 @@ Callers should re-use the `stack:` block written by `$wf intake` Step 0.5 (and c
 
 A user-observable AC asserts runtime behavior, so it requires runtime (or device-free runtime-proxy) evidence — static or truth-table reasoning never satisfies it. When the obvious path is blocked (no device, viewport pinned, no live creds, no display), do **not** jump to a deferral or rationalize a `pass`. Climb the ladder for the AC's class, record the highest rung that holds, and defer **only** the residual that no rung can reach — naming every rung tried in the defer-reason. "No emulator" is not a defer-reason; "no emulator → Robolectric covers the state machine (9/9), Roborazzi covers the visual, AVD boot failed (HAXM unavailable), residual = live multi-touch routing" is.
 
+**Declare incapability only over a probe (attempt-before-declare).** Before writing that the
+environment lacks a capability — credentials, a device, a keyed service — *execute* a cheap
+capability probe and record its literal command + output tail: `firebase projects:list` /
+`gcloud auth application-default print-access-token` for deploy creds, `adb devices` for devices,
+an env-var presence check for keyed services, one spec run past the guard for credential-gated
+suites. A claimed incapability with no recorded probe is invalid. Read-only introspection is
+always allowed unprompted; probes that consume quota or send traffic follow the pre-authorization
+rule below. And when an interactive suite runs but every spec exits via a credential/environment
+guard (0 executed), that is `blocked-runtime-evidence-missing` with the unmet precondition
+named — never a deferral.
+
 **Tool absence is not a terminal state — but the fix is *pre-authorized upstream*, never an improvised verify-time install.** The verification tool is named at `slice` (the per-AC `verify:` stub) and engineered at `plan` (`## Verification Strategy`), so by the time verify runs, any install/bootstrap a criterion needs is a step the PO already approved. Verify **executes** that authorized bootstrap (the plan said "install Playwright for AC-8" → verify installs it and drives) — it does **not** silently introduce a *new* tool the plan never named, which still routes back through shape (the PO owns tooling choices). If an AC needs a tool that was never planned and none is installed, that is the upstream gap this whole chain exists to prevent: use a `stack:`-listed alternative if one genuinely covers the AC, otherwise register an honest deferral **and** flag the missing verification plan so it is fixed at the source. The cure is to *plan* the tool; the ladder is how you climb once it is planned.
 
 ### Web UI (no dev-browser / viewport pinned / no display)
@@ -64,6 +75,43 @@ A user-observable AC asserts runtime behavior, so it requires runtime (or device
 1. Pre-deploy proxy assertion (a static check that the build inlined the value, or the migration script is correct against a fixture DB).
 2. Register a **post-deploy probe** as a deferral with `cleared-by: null`.
 3. For PO-accepted residual risk, use a named ship-override authorization — never overload `cleared-by` with a prose risk-acceptance string.
+
+### Auth-gated runtime (login wall / admin gate / OAuth-linked account)
+1. **Test-credential seeding** — an E2E user in the auth emulator or `.env.test`, plus a seeded
+   data snapshot the flows can rely on. Provisioning the seed is a plan-authorized deliverable,
+   not a verify-time improvisation.
+2. **Emulator wiring as a debug build variant** — `connectFirestoreEmulator` / `useEmulator` in a
+   debug source set: a *planned* deliverable (the plan's force-scope rule scopes it), never
+   improvised at verify.
+3. **Injected-session harness** — a test rule that injects auth state and scripts the gated
+   trigger (e.g., a WorkManager test rule with injected auth driving a sync against the emulator
+   snapshot).
+4. **Residual only:** genuinely live-account behavior (real OAuth consent, third-party rate
+   limits) → pre-registered deferral.
+
+### Inbound-callback (an external service must reach a routable endpoint)
+1. **Dev tunnel** — `ngrok` / `cloudflared` exposing the local server to the live external
+   service. The plan naming the tunnel in `## Verification Strategy` is the consent gate (same
+   trust model as pre-authorized tool installs); record the tunnel URL + lifetime in the verify
+   artifact and tear the tunnel down before the stage ends.
+2. **Protocol-mode swap** where the platform offers one — e.g., a webhook→polling switch for the
+   drive, restoring the real mode afterward.
+3. **Recorded-callback replay** — capture one real callback, then replay the signed payload
+   against the local endpoint.
+4. **Residual only:** delivery-side observation only the live platform can show → pre-registered
+   deferral.
+
+### Infra-prerequisite (evidence needs a service that does not exist yet)
+1. **Provision the dependency as a verify step** when the plan authorized it — a free-tier TURN
+   relay via coturn/Metered, a staging deploy via the ship-plan's pipeline. Rung-0-style
+   pre-authorized bootstrap, extended from tools to *services*.
+2. **Containerized stand-in** — a local coturn (or equivalent) in docker-compose.
+3. **Residual only:** a deferral naming the provisioning slice the force-scope rule pushed into
+   scope — never a bare "infra missing".
+
+**Staging deploy is a legitimate verify rung, not a ship act.** When `.ai/ship-plan.md` defines a
+non-prod environment, verify may deploy there to produce evidence — the External Output Boundary
+applies, and the deploy target is recorded in the verify artifact.
 
 Both `wf-verify` (per-slice gate) and `$wf probe` (slug-wide sweep) climb this ladder. `plan`'s `## Verification Strategy` records, per AC, the rung it expects to reach and what must be built to get there; `verify` executes against that plan and records the rung actually reached.
 

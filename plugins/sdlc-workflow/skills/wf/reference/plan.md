@@ -4,11 +4,8 @@ argument-hint: <slug> [slice-slug|all] [review/fix instructions]
 ---
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
 
 You are running `wf-plan`, **stage 4 of 10** in the SDLC lifecycle.
 
@@ -523,6 +520,36 @@ Per row:
 - **Environment need & satisfiability** — the device/browser/creds/OS the AC requires, and whether the target environment (`00-index.md` `stack:` + the shape Observation Model) provides it. Tool-absence is resolved **here**, not at verify (see *Tooling resolution* below).
 - **What must be built** — the seams this AC needs to be observable (a seeded fixture, a deterministic clock, a `data-testid`, an emulator config, an exported test hook). **Add each as a Step-by-Step Plan task** — building for verifiability is implementation work, not a verify-time surprise.
 - **Fallback chain** — the next rung(s) to try if the primary tool is unavailable, ending in an explicit pre-registered deferral for any residual no rung can reach.
+
+**Force-scope rule (MANDATORY — a named wall must be an engineered wall).** Any environment
+dependency sitting on a user-observable AC's critical path — credentials, a device, an external
+service, an inbound callback, a deploy target, infrastructure that does not exist yet — MUST
+resolve, before this plan completes, to exactly one `constraint-resolution:` line written under
+the AC's row:
+
+1. `constraint-resolution: prerequisite-slice: <slug>` — a prerequisite slice or harness scoped
+   into the slug (TURN provisioning, an emulator debug build variant, a seeded-fixture harness).
+   The harness is implementation work: add its tasks to the Step-by-Step Plan, or route back to
+   `slice` to add the prerequisite slice.
+2. `constraint-resolution: proxy+deferral: <named clearing event>` — a lower-rung proxy AC that
+   verify CAN evidence now, plus a deferral authored *in advance* with a named clearing event
+   ("cleared by the `-rc.N` prerelease CI run"). The clearing event becomes the deferral's
+   `cleared-by` target.
+3. `constraint-resolution: po-accepted: <reason>` — explicit PO risk-acceptance, recorded here
+   and appended to `po-answers.md`.
+
+"Known limitation — document at handoff" is ILLEGAL wording when an AC depends on the limitation —
+the phrase is the tell that a constraint is being deferred to documentation instead of scope.
+**Hard gate:** if any user-observable AC's named dependency has none of the three, the plan is NOT
+complete — raise it via `AskUserQuestion` (options: scope the harness / author the proxy+deferral /
+PO-accept the risk) before writing the artifact. Verify's Step 0 refuses to inherit an unresolved
+wall (`blocked-runtime-evidence-missing` routing, deferral hatch unavailable), so skipping this
+gate only moves the stop later and makes it more expensive.
+
+**Outcome-metric ACs need a pre-deploy proxy.** An AC stated as a live outcome metric
+("rich-preview rate ≥ 75% over the live corpus") additionally requires a pre-deploy proxy AC — a
+fixture-corpus assertion verify can hold now ("extraction returns `has_preview: true` for ≥ X% of
+the top-N recorded failure pages") — with the live metric as the deferral's clearing event.
 
 **Tooling resolution (honors the stack-routing guardrail).** When a slice `verify:` stub names a tool not in `stack:`, the PO owns the call — but it is made here so verify never improvises past a missing tool:
 - **Add it to the stack** → route back through shape (`/wf shape <slug>`), update the fingerprint, return; or

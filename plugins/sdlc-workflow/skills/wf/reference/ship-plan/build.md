@@ -4,10 +4,8 @@ argument-hint: "[--dry-run]"
 ---
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`, `.ai/ship-plan.md`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language. Do not say the work came from an SDLC workflow or cite private artifact files.
+Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
 
 You are running `wf ship-plan build`. Your job: read the ship plan as the specification, measure the gap between what exists and what is required, confirm with the user, then implement only what is missing.
 

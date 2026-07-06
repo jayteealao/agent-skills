@@ -4,11 +4,8 @@ argument-hint: <slug> [slice]
 ---
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
 
 You are running `wf-verify`, **stage 6 of 10** in the SDLC lifecycle.
 
@@ -62,6 +59,7 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
      - If `stack.user-confirmed: false` → **HARD GATE — do not proceed silently.** Call `AskUserQuestion` with header `"Stack unconfirmed"` and question `"stack: was auto-detected but the PO never confirmed it. Sub-agent 3 will run against unconfirmed tooling — adapter selection may be wrong. Options: (1) Stop and re-run intake Batch B to confirm the stack first. (2) Proceed with unconfirmed stack — verify will stamp result as weak-provenance and review/ship may refuse it."` Options: `Stop (recommended)` / `Proceed with unconfirmed stack`. If the user chooses Stop → STOP. If the user explicitly chooses Proceed → set `stack-source: unconfirmed-auto-detect` in the verify slice frontmatter AND surface it under `## Caveats`. Never auto-proceed.
      - If `04-plan-<slice-slug>.md` carries `stack-source: unconfirmed-auto-detect` → propagate the same warning and frontmatter stamp. Verification inherits the plan's stack provenance — if the plan was built on weak truth, the verify report says so.
      - If `stack.user-confirmed: true` and plan agrees → proceed. Sub-agent 3 MUST intersect matched adapters with `stack.platforms`; companion skills used for evidence MUST come from `stack.available-skills`.
+   - **Constraint-resolution gate (refuse inherited unresolved environment walls):** Read `## Verification Strategy` in the plan file. Every **user-observable** AC whose strategy names an environment dependency (credentials, device, external service, inbound callback, deploy target, missing infrastructure) must carry a `constraint-resolution:` line authored at plan time (`prerequisite-slice: <slug>` | `proxy+deferral: <named clearing event>` | `po-accepted: <reason>`). If an AC's named dependency has **none of the three**, record the criterion under `constraint-resolution-missing:` in the verify frontmatter and treat it as `blocked-runtime-evidence-missing` material at Step 7.5 — the deferral escape hatch is **not available** for it (a deferral without a plan-authored clearing event is exactly the silent accumulation this gate exists to stop). Routing for this case is Option E (`/wf plan` — author the resolution), not Option F.
 6. **Read the source context by mode:**
    - **Compressed mode**: `01-quick.md` (acceptance criteria + plan) + `05-implement.md`.
    - **Forwarded mode**: `01-rca.md` or `01-investigate.md` + `02-shape.md` (synthesized) + `04-plan.md` (if exists) + `05-implement-<slice-slug>.md`.
@@ -380,7 +378,7 @@ Use when: This is a solo project with no reviewer, OR the change was already ext
 Use when: Verification revealed a fundamental flaw in the approach, not just a bug — the plan itself needs rethinking. This dominates Option C when the issue is "wrong approach" rather than "wrong code".
 
 **Option F: Re-verify in a capable environment, or apply a deferral** → `/wf verify <slug> <selected-slice>` (re-run) OR amend with `interactive-verification: deferred`
-Use when: `result: blocked-runtime-evidence-missing` and the fix loop could not produce the missing evidence (the environment could not support the interactive checks — no emulator, no API key, no device, etc.). Either move to an environment where the interactive checks can run, or annotate the slice with a deferral reason. Deferrals will not block review or handoff but will block ship.
+Use when: `result: blocked-runtime-evidence-missing` and the fix loop could not produce the missing evidence (the environment could not support the interactive checks — no emulator, no API key, no device, etc.). Either move to an environment where the interactive checks can run, or annotate the slice with a deferral reason. Deferrals will not block review or handoff but will block ship. A deferral is only lawful over a *probed* incapability (see the escape hatch's attempt-before-declare rule) and is unavailable for criteria listed in `constraint-resolution-missing:` — those route to Option E.
 
 **Option G: Slug-wide runtime probe** → `/wf probe <slug>`
 Use when: Per-slice verify passed, but you want a slug-wide runtime sweep against the running artifact (e.g., to catch cross-slice integration breakage). Probe is the backward re-entry counterpart to the per-slice interactive gate — it observes the whole artifact, not one slice's surface.
@@ -436,6 +434,10 @@ The new `blocked-runtime-evidence-missing` variant is distinct from `fail` becau
 Some AC are user-observable but genuinely cannot be probed in the current environment — but a deferral is a **last resort that must be paid for**: it is honest only AFTER the constraint-resolution ladder (runtime-adapters.md) has been climbed and each rung's outcome recorded. Defer only the residual that no rung can reach.
 
 **The defer-reason MUST enumerate the rungs tried — a defer-reason that names no attempted rung is rejected.** Replace "no Android emulator/device" with "Robolectric covers the state machine (9/9); Roborazzi golden covers the visual; AVD boot attempted (failed: HAXM unavailable); residual = live multi-touch pointer routing." Bare phrases — "no emulator", "no creds", "deferred to user", "decidable by static reasoning" — are not acceptable defer-reasons; each must show the ladder was climbed first.
+
+**Attempt before declare (positive-evidence capability probes).** "The environment cannot produce X" may be written ONLY after *executing* a capability probe and recording its literal command + output tail in the artifact — `firebase projects:list` / `gcloud auth application-default print-access-token` for deploy credentials, `adb devices` for devices, an env-var presence check for keyed services, one spec run past the guard for credential-gated suites. A defer-reason asserting incapability with no recorded probe is invalid, same discipline as naming every rung tried. Read-only introspection probes are always allowed unprompted; anything that consumes quota or sends traffic follows the ladder's pre-authorization rule. (Both failure modes this cures are real: credentials declared absent that were configured all along — two wasted verify rounds — and locally-verifiable specs recorded as deferrals.)
+
+**A skipped-guard sweep is an error, not a deferral.** When an interactive suite runs and every spec exits via a credential/environment guard (0 specs executed), the criterion is `blocked-runtime-evidence-missing` with the guard's unmet precondition named ("set `E2E_ADMIN_USER_EMAIL`/`_PASSWORD` and re-run") — NEVER `interactive-verification: deferred`. Deferral is reserved for evidence no reachable rung can produce, not for un-provisioned test configuration.
 
 To proceed without a hard fail once the residual is genuinely environment-bound, the slice author may add to the per-slice verify file frontmatter:
 
@@ -511,10 +513,19 @@ For each issue triaged `Fix`, sequentially (one at a time):
    Read the file(s) at the specified location. Understand the issue.
    Apply the minimal fix that resolves the issue without introducing
    new problems. Do NOT change anything beyond what is needed for this
-   specific issue. Do NOT refactor. Do NOT touch tests unless the
-   issue is a test failure that requires a test edit.
+   specific issue. Do NOT refactor.
 
-   Return a brief summary of what you changed.
+   Regression test (REQUIRED for code bugs): if this issue is a code
+   bug — not a lint/format, config, tooling, or docs finding — add a
+   MINIMAL regression test that fails before your patch and passes
+   after it. Write the test first when the check that caught the issue
+   is re-runnable. If a regression test is genuinely not possible,
+   state why in one line; the orchestrator records it as an exemption.
+   Never weaken, delete, or skip an existing test to make a check
+   pass — that is the one forbidden test edit.
+
+   Return a brief summary of what you changed, including the regression
+   test path (or the one-line exemption reason).
    ```
 3. When the sub-agent returns: read the changed file(s) from the worktree path; sanity-check the patch addresses the issue and does not obviously break sibling code. If the patch looks correct, merge the worktree changes into the main working tree (e.g., `git checkout <worktree-branch> -- <changed-files>`). If the patch is wrong, discard the worktree without merging and record `COULD NOT FIX`.
 4. `TaskUpdate(taskId, status: "completed")`. If the sub-agent could not fix, record `description: "COULD NOT FIX: <reason>"` then mark completed and treat this issue as `convergence: escalated` material in the next step.
@@ -561,12 +572,18 @@ The verify artifact gains a `## Verify-Owned Fixes` section when `fix-rounds-run
 ```
 ## Verify-Owned Fixes
 
-| ID | Type | Triage | Sub-agent outcome | Re-check result |
-|----|------|--------|-------------------|-----------------|
-| {ID} | {issue-type} | Fix / Skip / Escalate | Patched / Could not fix / N/A | Pass / Still failing / Not re-run |
+| ID | Type | Triage | Sub-agent outcome | Regression test | Re-check result |
+|----|------|--------|-------------------|-----------------|-----------------|
+| {ID} | {issue-type} | Fix / Skip / Escalate | Patched / Could not fix / N/A | <path> / exempt: <reason> / n-a | Pass / Still failing / Not re-run |
 
 Commit: <SHA or "(no commit — branch-strategy: none)" or "(no files changed)">
+Regression tests added: <N>
 ```
+
+Record `regression-tests-added: <N>` in the frontmatter. A **code-bug** fix whose row shows neither a
+regression-test path nor a recorded exemption reason is itself a finding — append it to
+`## Issues Found` as MED (`fix landed without its regression test`). Lint/format, config, tooling,
+and docs fixes are exempt by type (`n-a`).
 
 # Verify artifact schemas
 
@@ -625,6 +642,8 @@ metric-issues-found-final: <N>                  # snapshot AFTER the fix loop (=
 fix-rounds-run: <0 | 1>                          # 0 if no issues OR no Fix triage decisions; 1 if the loop ran
 convergence: <not-needed | converged | escalated>
 verify-owned-fix-commit: "<SHA | null>"         # null if no fixes landed, re-check still failed, or branch-strategy: none
+regression-tests-added: <N>                     # regression tests added by Fix sub-agents; a code-bug fix with neither a test nor an exemption is a MED finding
+constraint-resolution-missing: []               # user-observable AC whose plan-named env dependency has no constraint-resolution: line; deferral hatch unavailable — route to /wf plan
 interactive-verification: <required | deferred | not-applicable>
 interactive-verification-defer-reason: "<string>"  # required when interactive-verification == deferred
 adapters-used: [<key>, ...]                     # which runtime adapters were driven

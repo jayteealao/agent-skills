@@ -4,11 +4,8 @@ argument-hint: <slug> [focus area]
 ---
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
 
 You are running `wf-shape`, **stage 2 of 10** in the SDLC lifecycle.
 
@@ -322,6 +319,24 @@ next-invocation: "/wf slice <slug>"
 **Target verification environment (record this first — it is the fact most often missed).** State the concrete environment verification will run in, because it determines what every acceptance criterion can actually be observed with: host OS, whether an Android device/emulator or iOS simulator is available, which browser/driver is present or installable (Playwright / Cypress / dev-browser / Chrome MCP), and whether live or staging credentials exist. Surfacing this **here**, before any AC is finalized, is what lets `slice` author each AC with a verification path that fits — instead of `verify` discovering the wall and rationalizing past it. Source it from Explore sub-agent 1's interactive-tooling findings and the PO's tooling answer.
 
 **Observation Model (per headline outcome).** For each desired behavior / acceptance criterion, state *how a human or tool would observe success* and *in what environment* — e.g., "carousel is single-column at 375px → observed by driving a 375px-viewport browser and reading the rendered layout," not merely "carousel is single-column." If you cannot name how an outcome would be observed in the target environment, the criterion is not done being authored: re-scope it to something observable, or flag the constraint now so `slice` and `plan` inherit it.
+
+**Force-scope rule (constraints get engineered, not documented).** When the Observation Model or
+the target-environment statement names an environment dependency on a headline outcome's critical
+path — credentials, a device, an external service, an inbound callback, infrastructure that does
+not exist yet (a TURN relay, a staging deploy) — the shape MUST route it into scope, not into
+prose. Exactly one of: flag it as a **candidate prerequisite slice or harness** for `slice` to
+scope; state the **proxy observation** the plan will hold pre-deploy plus the **named event that
+clears the residual** ("cleared by the first `-rc.N` prerelease CI run"); or record **explicit PO
+risk-acceptance** in `po-answers.md`. Writing "known limitation — document at handoff" while an
+acceptance criterion depends on that limitation is ILLEGAL wording — the phrase is the tell that a
+constraint is being deferred to documentation instead of scope. `plan` enforces this per-AC (its
+`constraint-resolution:` gate); naming the wall honestly here is what keeps that gate cheap.
+
+**Outcome-metric criteria need a pre-deploy proxy.** A criterion stated as a live outcome metric
+("rich-preview rate ≥ 75% over the live corpus") must be paired here with a pre-deploy proxy
+observation (e.g., a fixture-corpus assertion over the top-N recorded failure pages) so
+verification holds *something* before ship; the live metric becomes the clearing event for the
+residual deferral.
 
 Then classify how each acceptance criterion and edge case will be verified:
 
