@@ -104,6 +104,10 @@ export function isManagedArtifactMarkdownPath(filePath) {
     /(?:^|\/)\.ai\/simplify\/.+\.md$/.test(normalized) ||
     /(?:^|\/)\.ai\/profiles\/.+\/.+\.md$/.test(normalized) ||
     /(?:^|\/)\.ai\/docs\/[^/]+\/.+\.md$/.test(normalized) ||
+    // Solutions corpus: category files only (type: solution). The category
+    // subdir requirement keeps the frontmatter-less .ai/solutions/INDEX.md
+    // exempt, same as the workflows registry INDEX.md.
+    /(?:^|\/)\.ai\/solutions\/[^/]+\/.+\.md$/.test(normalized) ||
     isProjectContextMarkdownPath(normalized)
   );
 }

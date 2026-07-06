@@ -309,7 +309,13 @@ Hypothesis from `inferred.infra`. Confirm:
 - `rollout-stages[]` — only when `staged` / `canary`.
 - `rollback-mechanism` (git-revert, gh-release-yank, feature-flag-off, blue-green-switch, redeploy-prior, or freeform).
 - `rollback-time-estimate-min` — freeform.
+- `rollback-cmd` — the concrete command that redeploys the prior artifact (empty when the mechanism is pure git-revert).
+- `rollback-verify-cmd` — the health check that confirms the prior state is live after a rollback (falls back to Block D's post-publish checks when empty).
+- `prior-artifact-retention` — how many prior releases stay deployable (registry retention, image-tag policy); the rollback phase checks the target version is still within it.
+- `irreversible-steps[]` — actions a rollback cannot undo, declared up front (e.g., "DB migrations are forward-only", "published packages cannot be unpublished"). Rollback runbooks pre-seed their mitigations list from this.
 - `db-migrations-reversible` — `true | false | n/a`. If discovery surfaced a migration tool (Liquibase, Flyway, Alembic, Prisma, knex), default to `false` and surface a follow-up for Block-F playbooks.
+
+These rollback fields are read by the `/wf ship <slug> rollback` phase (`reference/ship/rollback.md`); when they are absent, that phase degrades to a git-level runbook (revert-merge + tag supersede) and says so.
 
 ## Block F — Recovery playbooks
 

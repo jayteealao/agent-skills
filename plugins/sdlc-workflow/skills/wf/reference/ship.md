@@ -1,6 +1,6 @@
 ---
 description: Run a release using the project's `.ai/ship-plan.md`. Reads the plan, generates a run-id, and walks the 13-step idempotent ship sequence (pre-flight → publish dry-run → rollout → freshness delta → go/no-go → merge → tag → workflow watch → post-publish poll → post-release bump → index update → write run artifact). Replayable: re-running after a partial failure resumes at the failed step. Refuses to start when `08-handoff.md` `readiness-verdict ≠ ready`.
-argument-hint: <slug> [environment] [--init-plan]
+argument-hint: <slug> [environment|announce|rollback] [<run-id>] [--init-plan]
 ---
 
 # External Output Boundary (MANDATORY)
@@ -40,6 +40,13 @@ You are a **workflow orchestrator**, not a problem solver.
    `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/ship/announce.md` and run **only** the announce phase for
    `<slug>`, then STOP. Do NOT run the 13-step sequence below. (`announce` is not a valid environment,
    so this never collides with the environment positional in sub-step 3.)
+1.6. **Rollback shortcut.** If the second positional token is exactly `rollback`, this is a
+   runbook-driven reversal of a prior completed run: load
+   `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/ship/rollback.md` and run **only** that phase for
+   `<slug>`, then STOP. Do NOT run the 13-step sequence below. Optional third positional =
+   `<run-id>`; default = the most recent run in `09-ship-runs.md` with `status: complete`. A
+   paused (`awaiting-input`) run has shipped nothing and is refused — resume or fail it instead.
+   (`rollback` is not a valid environment either, so no positional collision.)
 2. **Detect `--init-plan` flag.** If present in `$ARGUMENTS`, this invocation is a redirect — print:
    ```
    The plan-author flow is `/wf ship-plan init`, not `/wf ship --init-plan`.
@@ -361,6 +368,7 @@ recovery-actions-taken: [<playbook-id>, ...]
 rolled-back: <true | false>
 rollback-sha: "<sha or empty>"
 rollback-reason: ""
+rollback-artifact: "<09-rollback-<run-id>.md or empty>"   # stamped by the rollback phase
 announcements-sent: [<channel>, ...]
 
 tags: []
@@ -483,8 +491,14 @@ Use when: ship found verification evidence was stale (freshness research delta s
 **Option D: Resume paused run** → `/wf ship <slug>`
 Use when: `status: awaiting-input` — required answers missing, post-publish poll bound exceeded, or a recovery playbook was started but not completed.
 
-**Option E: Roll back** → manual + `/wf ship-plan edit` (if the rollback-mechanism needs codifying)
-Use when: post-publish checks failed and the plan's `rollback-mechanism` was triggered. Set `rolled-back: true`, `rollback-sha`, `rollback-reason` in the run artifact.
+**Option E: Roll back** → `/wf ship <slug> rollback [<run-id>]`
+Use when: post-publish checks failed, or a shipped release must be reversed after the fact. The
+rollback phase (`reference/ship/rollback.md`) loads the run's recorded steps, authors a reversal
+runbook with each step marked reversible or irreversible (irreversible steps surface as
+mitigations), gates on an explicit Go/No-Go, executes, verifies the prior state is live via the
+plan's `rollback-verify-cmd`, and writes `09-rollback-<run-id>.md` — stamping this run
+`rolled-back: true` + `rollback-artifact`. For an in-flight emergency during post-publish polling,
+the Block F recovery playbooks still apply first; the rollback phase is the deliberate reversal.
 
 Write ALL viable options into `## Recommended Next Stage` so the user can choose.
 

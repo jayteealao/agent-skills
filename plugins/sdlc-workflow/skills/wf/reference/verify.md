@@ -463,7 +463,17 @@ runtime-evidence-deferrals:
     reason: "<verbatim defer-reason>"
     deferred-at: "<iso-8601>"
     cleared-by: null    # set to <probe-descriptor> when a probe run clears the deferral
+    repeat-of: <slice-slug>   # ONLY when this deferral's constraint matches an earlier entry — see below
 ```
+
+**Repeat-deferral marker.** Before appending, scan the existing `runtime-evidence-deferrals` for
+an entry whose reason names the *same environment dependency* (fuzzy match on the wall — the same
+credential gate, device class, missing service — not exact text). On a match, append
+`repeat-of: <slice-slug of the first occurrence>` to the new entry: the accumulation becomes
+visible in the artifact, `/wf status`, and the dashboard instead of discoverable only by reading
+every slice record. A wall being paid a second time is plan's tripwire signal — the next plan for
+this slug MUST either scope the harness that retires it or record `harness-declined: <reason>`
+(see plan.md's repeat-deferral tripwire).
 
 `/wf status` and `/wf ship` read this list. `/wf ship` refuses to start while any entry has `cleared-by: null`.
 

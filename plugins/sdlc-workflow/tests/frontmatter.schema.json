@@ -772,6 +772,47 @@
       }
     },
 
+    "shipRollbackFrontmatter": {
+      "type": "object",
+      "description": "Runbook-driven reversal record (09-rollback-<run-id>.md) written by the rollback phase of /wf ship (reference/ship/rollback.md). run-id names the ship run being REVERSED; the original run gains rolled-back: true + rollback-artifact. Added in v9.100.0 (feedback-loops W4).",
+      "required": ["schema", "type", "slug", "run-id", "status", "go-nogo", "created-at", "updated-at", "refs"],
+      "properties": {
+        "type": { "const": "ship-rollback" },
+        "run-id": { "type": "string" },
+        "status": { "enum": ["complete", "awaiting-input", "failed", "aborted"] },
+        "go-nogo": { "enum": ["go", "no-go"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "reason": { "type": "string" },
+        "steps-executed": { "type": "integer", "minimum": 0 },
+        "steps-irreversible": { "type": "integer", "minimum": 0 },
+        "rollback-verify-result": { "enum": ["pass", "fail", "skipped"] },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "solutionFrontmatter": {
+      "type": "object",
+      "description": "Durable cross-workflow learning under .ai/solutions/<category>/<slug>.md, distilled by /wf retro (producer) and read by /wf plan's learnings scan (consumer). Added in v9.100.0 (feedback-loops W1). Body is Problem / Learning / How to apply, <= ~30 lines.",
+      "required": ["schema", "type", "category", "source-workflow", "created-at", "tags", "status"],
+      "properties": {
+        "type": { "const": "solution" },
+        "category": { "enum": ["architecture", "testing", "build-tooling", "process", "domain", "gotcha", "misc"] },
+        "source-workflow": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/stringArray" }
+          ],
+          "description": "Originating workflow slug; becomes a list when later workflows refresh the learning (dedupe-on-write)."
+        },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "status": { "enum": ["active", "superseded"] }
+      }
+    },
+
     "recapFrontmatter": {
       "type": "object",
       "description": "Plain-language catch-up / explain artifact written by /wf recap (formerly resume). scope: workflow (whole run), slice (one slice), or explain (a focus artifact). focus is the explained artifact when scope=explain.",
@@ -1442,6 +1483,8 @@
         { "$ref": "#/$defs/shipRunFrontmatter" },
         { "$ref": "#/$defs/shipRunsIndexFrontmatter" },
         { "$ref": "#/$defs/retroFrontmatter" },
+        { "$ref": "#/$defs/shipRollbackFrontmatter" },
+        { "$ref": "#/$defs/solutionFrontmatter" },
         { "$ref": "#/$defs/recapFrontmatter" },
         { "$ref": "#/$defs/resumeFrontmatter" },
         { "$ref": "#/$defs/skipRecordFrontmatter" },

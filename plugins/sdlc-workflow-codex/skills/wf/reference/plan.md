@@ -132,6 +132,26 @@ Pick the highest rung that meets the acceptance criteria; never trade an edge-ca
   - Recommendation: **reuse as-is** / **reuse with modification** / **extract into shared utility then use** / **implement fresh** (with reason)
 - If nothing relevant exists: state that explicitly — "No reuse candidates found for [capability]." Do not skip this section.
 
+**Learnings scan (solutions corpus — runs alongside the reuse scan):**
+- Read `.ai/solutions/INDEX.md` if it exists (retro distills durable cross-workflow learnings
+  there). Match the slice's `## Goal` / `## Scope (In)` keywords against the index hooks; load the
+  matching files (typically 0–3) and use their `tags:` for a second-pass match.
+- For each matched learning report: its path, the Learning in one line, and **what this plan does
+  differently because of it** — a learning that changes nothing is a non-match.
+- If the index does not exist or nothing matches, report "No applicable learnings found." — the
+  same no-silent-skip discipline as the reuse scan. Results land in the plan's
+  `## Applied Learnings` section.
+
+**Repeat-deferral tripwire (scan the slug's runtime-evidence-deferrals):**
+- Read `00-index.md` → `runtime-evidence-deferrals`. If an existing entry's defer-reason matches
+  an environment dependency this slice's `## Verification Strategy` will also name — fuzzy match
+  on the *dependency* (the same credential wall, device class, missing service), not exact text —
+  the slug is about to pay the same wall twice.
+- The plan MUST then either **scope the harness that retires the wall** (the force-scope rule's
+  prerequisite-slice/harness option) or record an explicit PO decision not to
+  (`harness-declined: <reason>` under the AC's row). Silence is non-compliant — repeated walls
+  are amortized into infrastructure or declined on the record, never re-paid by default.
+
 **Integration surfaces:**
 - What events, hooks, callbacks, or pub/sub channels does the affected area participate in?
 - What middleware, interceptors, decorators, or higher-order wrappers exist on the affected code path?
@@ -492,6 +512,15 @@ next-invocation: "$wf implement <slug> <slice-slug>"
 Rung 3 (reuse) candidates carry the detail: `path/to/file.ts` → `functionName()` — match quality, recommendation (reuse as-is / modify / extract / implement fresh).
 Rung 4 (new code): state why rungs 1–3 did not cover it.
 If the slice writes no new capability code (pure config/wiring/refactor): "No new capabilities — ladder N/A." -->
+
+## Applied Learnings
+<!-- From Explore sub-agent 1's learnings scan over .ai/solutions/INDEX.md. One entry per matched
+learning: its path, the Learning in one line, and what this plan does differently because of it.
+A matched learning that changes nothing about the plan is a non-match — do not pad.
+If the corpus is absent or nothing matched: "No applicable learnings found." (explicit — never
+silently omit this section). Repeat-deferral tripwire outcomes also land here: name the repeated
+wall and either the harness now scoped into the Step-by-Step Plan or the recorded
+`harness-declined: <reason>`. -->
 
 ## Likely Files / Areas to Touch
 - path/or/module: why

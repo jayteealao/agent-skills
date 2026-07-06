@@ -1164,3 +1164,87 @@ test('skip-record prefix filename clears pre-write, and ship-plan needs only pro
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// --- W1 solutions corpus (v9.100.0): .ai/solutions/ validation scope ---------
+
+test('post-write-verify validates .ai/solutions/ category files against the solution schema', () => {
+  const tmp = tempDir();
+  try {
+    const goodRel = '.ai/solutions/testing/emulator-seed-harness.md';
+    writeFile(join(tmp, goodRel), md({
+      schema: 'sdlc/v1',
+      type: 'solution',
+      category: 'testing',
+      'source-workflow': 'demo',
+      'created-at': '2026-07-06T00:00:00Z',
+      tags: ['emulator', 'auth'],
+      status: 'active',
+    }, '# Emulator seed harness\n\n**Problem:** auth wall.\n\n**Learning:** seed the emulator.\n\n**How to apply:** run the seed script.\n'));
+
+    let result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: goodRel },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    equal(result.stderr, '');
+
+    // A category outside the closed set must fail schema validation — the
+    // closed category set is the corpus contract (misc is the overflow).
+    const badRel = '.ai/solutions/randomcat/misfiled.md';
+    writeFile(join(tmp, badRel), md({
+      schema: 'sdlc/v1',
+      type: 'solution',
+      category: 'randomcat',
+      'source-workflow': 'demo',
+      'created-at': '2026-07-06T00:00:00Z',
+      tags: [],
+      status: 'active',
+    }));
+    result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: badRel },
+    }, tmp);
+    equal(result.status, 2);
+    match(result.stderr, /frontmatter validation FAILED/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify skips .ai/solutions/INDEX.md and never demands sibling fragments for solutions', () => {
+  const tmp = tempDir();
+  try {
+    // INDEX.md is a frontmatter-less registry line-index (same convention as
+    // .ai/workflows/INDEX.md) — the category-subdir path predicate keeps it
+    // out of schema validation entirely.
+    writeFile(join(tmp, '.ai/solutions/INDEX.md'), '# Solutions\n\n- [Emulator seed harness](testing/emulator-seed-harness.md) — auth-wall harness\n');
+    let result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/solutions/INDEX.md' },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    equal(result.stderr, '');
+
+    // solution is NOT a rich-tier type: a valid solution file with no sibling
+    // .yaml / .html.fragment must produce neither a block nor a nudge.
+    const rel = '.ai/solutions/gotcha/build-cache-poisoning.md';
+    writeFile(join(tmp, rel), md({
+      schema: 'sdlc/v1',
+      type: 'solution',
+      category: 'gotcha',
+      'source-workflow': 'demo',
+      'created-at': '2026-07-06T00:00:00Z',
+      tags: ['build'],
+      status: 'active',
+    }, '**Problem:** stale cache.\n\n**Learning:** key the cache on buildId.\n\n**How to apply:** include buildId in the cache key.\n'));
+    result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: rel },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});

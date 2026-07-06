@@ -346,6 +346,9 @@ export function isManagedArtifactPath(path) {
     /(?:^|\/)\.ai\/simplify\/.+\.md$/.test(n) ||
     /(?:^|\/)\.ai\/profiles\/.+\/.+\.md$/.test(n) ||
     /(?:^|\/)\.ai\/docs\/[^/]+\/.+\.md$/.test(n) ||
+    // Solutions corpus category files (type: solution); the category-subdir
+    // requirement keeps the frontmatter-less .ai/solutions/INDEX.md exempt.
+    /(?:^|\/)\.ai\/solutions\/[^/]+\/.+\.md$/.test(n) ||
     /(?:^|\/)(PRODUCT|DESIGN)\.md$/.test(n) ||
     /(?:^|\/)\.ai\/ship-plan\.md$/.test(n)
   );

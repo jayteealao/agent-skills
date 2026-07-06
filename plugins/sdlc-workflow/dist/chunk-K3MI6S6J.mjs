@@ -75,7 +75,10 @@ function projectContextPathInfo(filePath) {
 }
 function isManagedArtifactMarkdownPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
-  return /(?:^|\/)\.ai\/workflows\/[^/]+\/.+\.md$/.test(normalized) || /(?:^|\/)\.ai\/simplify\/.+\.md$/.test(normalized) || /(?:^|\/)\.ai\/profiles\/.+\/.+\.md$/.test(normalized) || /(?:^|\/)\.ai\/docs\/[^/]+\/.+\.md$/.test(normalized) || isProjectContextMarkdownPath(normalized);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/.+\.md$/.test(normalized) || /(?:^|\/)\.ai\/simplify\/.+\.md$/.test(normalized) || /(?:^|\/)\.ai\/profiles\/.+\/.+\.md$/.test(normalized) || /(?:^|\/)\.ai\/docs\/[^/]+\/.+\.md$/.test(normalized) || // Solutions corpus: category files only (type: solution). The category
+  // subdir requirement keeps the frontmatter-less .ai/solutions/INDEX.md
+  // exempt, same as the workflows registry INDEX.md.
+  /(?:^|\/)\.ai\/solutions\/[^/]+\/.+\.md$/.test(normalized) || isProjectContextMarkdownPath(normalized);
 }
 function isInsideWorkflowArtifacts(filePath) {
   return /(?:^|\/)\.ai\/workflows\//.test(normalizePathForMatch(filePath));

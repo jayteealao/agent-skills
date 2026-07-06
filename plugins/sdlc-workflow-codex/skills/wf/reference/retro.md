@@ -112,6 +112,47 @@ Prompt the agent with ALL of the following:
 
 Merge all sub-agent findings and deduplicate. Write into `## What Went Well`, `## Friction / Failure Points`, `## Root Causes`, `## Recommended Improvements`, and `## Deferred Debt`.
 
+**Distill durable learnings (0–3) into the solutions corpus.** After the merge, distill
+pattern-level learnings from the merged findings. Each must pass ALL THREE durability criteria:
+
+1. **Recurs** — would plausibly bite a *future* workflow, not just this one.
+2. **Non-obvious** — not derivable from the repo, AGENTS.md, or the stage references.
+3. **Actionable** — a future plan/implement run could change a decision because of it.
+
+Zero learnings is a legitimate outcome; do not pad. A **repeated runtime-evidence deferral** is a
+prime candidate ("<wall> blocks all interactive ACs; the one-time harness that retires it = …",
+category `testing` or `gotcha`) — plan's learnings scan is what stops the next slug from re-paying
+that wall.
+
+**Dedupe before write:** read `.ai/solutions/INDEX.md` (if it exists) and check for overlapping
+tags/titles. On overlap, UPDATE the existing file — refresh the evidence, extend
+`source-workflow` to a list — rather than writing a near-duplicate (the review ledger's
+dedupe-on-merge discipline). Otherwise write each learning to
+`.ai/solutions/<category>/<learning-slug>.md`. Categories are a small closed set —
+`architecture`, `testing`, `build-tooling`, `process`, `domain`, `gotcha`, plus `misc` (recurring
+`misc` overflow is the signal to revisit the set). Frontmatter (schema type `solution`):
+
+```yaml
+---
+schema: sdlc/v1
+type: solution
+category: <one of the closed set>
+source-workflow: <slug>            # or [<slug>, ...] once later workflows refresh it
+created-at: "<iso-8601>"
+tags: [<free keywords for the consumer grep>]
+status: active
+---
+```
+
+Body: **Problem / Learning / How to apply** — three short sections, ≤ ~30 lines (a learning that
+needs more is probably a workflow, not a note). Append one line per new learning to
+`.ai/solutions/INDEX.md` (`- [title](<category>/<file>.md) — <hook>`; create the index with a
+`# Solutions` heading if missing — producers append, consumers read the index first and load only
+matching files). Stamp `learnings-written: [<paths>]` in the retro frontmatter (empty list
+allowed). Writing these files IS part of retro's output contract — it is not "applying
+improvements" (Option D's scope stays repo instruction/hook/CI edits, which retro still never
+applies).
+
 # Purpose
 Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation.
 
@@ -139,9 +180,10 @@ Do this in order:
 1. Identify what worked, what caused friction, and what should be codified.
 2. Suggest concrete updates for `AGENTS.md`, `CLAUDE.md`, hooks, test coverage, CI checks, and skill prompts.
 3. Prioritize by impact and effort.
-4. **Evaluate adaptive routing** (see below) and write options into `## Recommended Next Stage`.
-5. Mark the workflow as complete in `00-index.md` unless follow-up work is being opened.
-6. Write `.ai/workflows/<slug>/10-retro.md`.
+4. Distill 0–3 durable learnings into `.ai/solutions/` + its INDEX.md (see the distillation step in *Parallel analysis*) and stamp `learnings-written:`.
+5. **Evaluate adaptive routing** (see below) and write options into `## Recommended Next Stage`.
+6. Mark the workflow as complete in `00-index.md` unless follow-up work is being opened.
+7. Write `.ai/workflows/<slug>/10-retro.md`.
 
 # Adaptive routing — evaluate what's actually next
 After completing the retro, evaluate whether the workflow is truly done:
@@ -156,7 +198,7 @@ Use when: The retro identified follow-up work significant enough to warrant its 
 Use when: The retro is running mid-workflow (e.g., after shipping one slice) and there are more slices.
 
 **Option D: Apply retro improvements** → suggest specific file edits
-Use when: The retro identified quick-win improvements to repo instructions, hooks, or CI that the user might want to apply now. List them as actionable suggestions but do NOT apply them.
+Use when: The retro identified quick-win improvements to repo instructions, hooks, or CI that the user might want to apply now. List them as actionable suggestions but do NOT apply them. Durable learnings are already written to `.ai/solutions/` by the distillation step — Option D's remaining scope is repo instruction/hook/CI edits only.
 
 Write ALL viable options into `## Recommended Next Stage` so the user can choose.
 
@@ -172,6 +214,7 @@ stage-number: 10
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 workflow-outcome: <completed|abandoned|partial>
+learnings-written: []              # paths of .ai/solutions/ files this retro wrote/updated (empty list allowed)
 metric-improvement-count: <N>
 metric-stages-completed: <N>
 metric-stages-skipped: <N>
@@ -226,6 +269,10 @@ Drop:
 | `src/auth.ts:42` | global lock serializes all tenants | per-tenant lock keys | 05-implement-auth.md ## Known Risks | act-now → $wf intake refactor "per-tenant auth locks" |
 Disposition is `act-now` (routes to a follow-up workflow via Option B below) or `accept` (a deliberate ceiling that stays visible but needs no action now).
 If the workflow introduced no shortcuts: "No deferred debt — no `sdlc-debt:` markers introduced." -->
+
+## Learnings Written
+<!-- One line per learning distilled into .ai/solutions/ (path + its index hook), or:
+"None — no finding passed the durability filter." Match the frontmatter learnings-written list. -->
 
 ## Recommended Next Stage
 - **Option A (default):** Workflow complete
