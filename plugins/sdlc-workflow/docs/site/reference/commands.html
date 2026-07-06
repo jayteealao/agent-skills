@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.101.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.102.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,9 +50,7 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
@@ -95,9 +93,9 @@
 <span class="quadrant reference">reference</span>
 <h1>Routers reference</h1>
 
-<p class="lede">Every command at a glance — what each does and when to reach for it. Four top-level routers plus design, which runs as the <code>/wf design</code> sub-command. Pick the right one here, then follow the per-command link for full argument detail.</p>
+<p class="lede">Every command at a glance — what each does and when to reach for it. Two top-level commands, <code>/wf</code> and <code>/review</code>, plus design, which runs as the <code>/wf design</code> sub-command. Pick the right one here, then follow the per-command link for full argument detail.</p>
 
-<p>A <strong>command</strong> (sometimes called a "router" in older docs) is a slash command the plugin exposes — <code>/wf</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, and <code>/review</code>. Each command dispatches to a sub-command based on the first argument you pass it. Design, once the standalone <code>/wf-design</code> router, is now the <code>/wf design</code> sub-command. The former <code>/wf-quick</code> router has been retired; its flows are now intake modes (<code>/wf intake &lt;mode&gt;</code>) or top-level <code>/wf</code> keys (<code>/wf probe</code>, <code>/wf simplify</code>).</p>
+<p>A <strong>command</strong> (sometimes called a "router" in older docs) is a slash command the plugin exposes — <code>/wf</code> and <code>/review</code>. Each command dispatches to a sub-command based on the first argument you pass it. Design, once the standalone <code>/wf-design</code> router, is now the <code>/wf design</code> sub-command. The former <code>/wf-quick</code>, <code>/wf-meta</code>, and <code>/wf-docs</code> routers have all been retired: quick flows are now intake modes (<code>/wf intake &lt;mode&gt;</code>) or top-level keys (<code>/wf probe</code>, <code>/wf simplify</code>), navigation/lifecycle are <code>/wf</code> keys (<code>/wf status</code>, <code>/wf recap</code>, <code>/wf close</code>, <code>/wf ship-plan</code>), and documentation is the <code>/wf docs</code> key.</p>
 
 <h2>Commands</h2>
 
@@ -115,8 +113,8 @@
   <td>Trivial changes or one-off analyses where a full tracked workflow would be overkill. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td>
 </tr>
 <tr>
-  <td><a href="wf-meta.html"><code>/wf-meta</code></a></td>
-  <td>Navigate and manage existing workflows — check status, resume, amend artifacts, skip stages, close a workflow.</td>
+  <td><a href="wf.html">Navigation &amp; lifecycle</a></td>
+  <td>The former <code>/wf-meta</code> router is retired. Its members are now <code>/wf</code> keys: <code>/wf status</code> (status, next, sync), <code>/wf recap</code> (resume/explain), <code>/wf close</code>, <code>/wf ship-plan</code>, and <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code> (extend).</td>
   <td>Any time you need to inspect or correct a workflow without running a stage.</td>
 </tr>
 <tr>
@@ -125,8 +123,8 @@
   <td>UI/UX work, design briefs, component specs, visual transformations.</td>
 </tr>
 <tr>
-  <td><a href="wf-docs.html"><code>/wf-docs</code></a></td>
-  <td>Documentation pipeline — discover gaps, audit, plan, generate, and review docs using the Diátaxis structure.</td>
+  <td><a href="wf.html">Documentation</a></td>
+  <td>The former <code>/wf-docs</code> router is retired. It is now the <code>/wf docs</code> key — same pipeline (discover, audit, plan, generate, review) using the Diátaxis structure.</td>
   <td>Writing or auditing tutorials, how-tos, reference pages, or explanations.</td>
 </tr>
 <tr>
@@ -218,7 +216,7 @@
 
 <p>Runs the full pipeline (<code>discover</code> → <code>audit</code> → <code>plan</code> → <code>generate</code> → <code>review</code>) or invokes a single Diátaxis primitive directly (<code>plan</code>, <code>tutorial</code>, <code>how-to</code>, <code>reference</code>, <code>explanation</code>, <code>readme</code>, <code>review</code>).</p>
 
-<p>See <a href="wf-docs.html">/wf-docs in depth</a> for the full sub-command list and pipeline flow.</p>
+<p>See <a href="wf.html">/wf docs in depth</a> for the full sub-command list and pipeline flow.</p>
 
 <h2>/review — code review</h2>
 

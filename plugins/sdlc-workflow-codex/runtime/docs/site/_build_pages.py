@@ -70,9 +70,7 @@ SIDEBAR = r"""<aside id="sidebar">
     <li><a href="{base}reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="{base}reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="{base}reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/review.html" data-href="reference/review.html">↳ /review</a></li>
     <li><a href="{base}reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="{base}reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>

@@ -1,6 +1,0 @@
-interface:
-  display_name: "SDLC Workflow Navigation"
-  short_description: "Navigate, inspect, and meta-control existing SDLC workflows"
-  default_prompt: "Show the status of all active workflows and tell me what to run next."
-policy:
-  allow_implicit_invocation: false

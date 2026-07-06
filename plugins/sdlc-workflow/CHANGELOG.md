@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed — retired `wf-meta` + `wf-docs` skills deleted completely (9.102.0)
+
+The `wf-meta` and `wf-docs` skills — dissolved into `/wf` keys back in 9.98.0 and kept only as redirect stubs since — are now deleted outright in both trees. The grace period is over: typing the old `/wf-meta …` / `/wf-docs …` names no longer resolves to a tombstone; `/wf`'s own unknown-key handler still prints the mapping to the successor keys (`/wf status`, `/wf recap`, `/wf docs`, etc.), so callers are not left stranded.
+
+- **Skills deleted:** `skills/wf-meta/` and `skills/wf-docs/` in both `plugins/sdlc-workflow` and `plugins/sdlc-workflow-codex` (SKILL.md + the Codex `agents/openai.yaml`). The still-live artifact-type/renderer/schema plumbing named `wf-meta`/`wf-docs` (the `00-index.md` / `01-fix.md` intake lanes and the docs pipeline artifacts, now produced by `/wf` keys) is untouched.
+- **Manifest de-advertised.** `plugin.json` and the marketplace catalog no longer describe "four skill-mode routers (`/wf`, `/wf-meta`, `/wf-docs`, `/review`)" — the surface is `/wf` (the single entry point) plus `/review`.
+- **Doc-site.** The dedicated `reference/wf-meta.html` and `reference/wf-docs.html` pages are removed, their sidebar-nav entries dropped from the generator, and the adjacent pagers re-stitched. Broader stale `/wf-meta …` prose scattered across tutorials/how-tos remains owned by the separate deferred doc-site content-dissolve workstream.
+
 ### Added — feedback-loops R3: semantic leak guards, advisory-first (9.101.0)
 
 Third and final feedback-loop release — the only runtime-code slice. The External Output Boundary graduates from an *instruction* to an optional *wall*.

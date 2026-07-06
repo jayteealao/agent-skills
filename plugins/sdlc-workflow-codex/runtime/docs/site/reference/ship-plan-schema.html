@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.101.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.102.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,9 +50,7 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
@@ -95,10 +93,10 @@
 <span class="quadrant reference">reference</span>
 <h1>Ship-plan schema (.ai/ship-plan.md)</h1>
 
-<p class="lede">You would look this up when you want to know exactly which field to set in <code>.ai/ship-plan.md</code> — the per-repo release configuration you author once via <a href="wf-meta.html"><code>/wf-meta</code></a> <code>init-ship-plan</code> and update with <code>/wf-meta amend ship-plan</code>. Every field accepted by <code>/wf ship</code> and <code>/wf-meta build-pipeline</code> is listed here.</p>
+<p class="lede">You would look this up when you want to know exactly which field to set in <code>.ai/ship-plan.md</code> — the per-repo release configuration you author once via <a href="wf.html"><code>/wf ship-plan init</code></a> and update with <code>/wf ship-plan edit</code>. Every field accepted by <code>/wf ship</code> and <code>/wf ship-plan build</code> is listed here.</p>
 
 <div class="summary">
-<p><strong>What this file is.</strong> <code>.ai/ship-plan.md</code> is the project-level release contract — one file per repo, sitting at the repo root (not under <code>.ai/workflows/</code>). It is authored through a guided conversation with <code>/wf-meta init-ship-plan</code> and is <em>not</em> generated per-release. Individual release records live instead in <a href="09-ship-run-schema.html">ship-run artifacts</a>.</p>
+<p><strong>What this file is.</strong> <code>.ai/ship-plan.md</code> is the project-level release contract — one file per repo, sitting at the repo root (not under <code>.ai/workflows/</code>). It is authored through a guided conversation with <code>/wf ship-plan init</code> and is <em>not</em> generated per-release. Individual release records live instead in <a href="09-ship-run-schema.html">ship-run artifacts</a>.</p>
 
 <p><strong>Two halves.</strong> The schema splits into a <strong>required core</strong> (Blocks A–G — fixed field names that <code>/wf ship</code> reads for outbound release mechanics) and an <strong>inbound pipeline</strong> (Blocks H–K — developer-experience and governance gates authored by <code>/wf-meta init-ship-plan</code>). A third section, <code>additional-contracts[]</code>, is a free-form extension list that <code>/wf ship</code> ignores unless a consumer opts in by <code>id</code>.</p>
 </div>
@@ -274,7 +272,7 @@ ci-pipeline:
 <div class="related">
 <h3>Where next</h3>
 <ul>
-  <li><a href="wf-meta.html">See all /wf-meta sub-commands →</a></li>
+  <li><a href="wf.html">See all /wf ship-plan sub-commands →</a></li>
   <li><a href="09-ship-run-schema.html">Read the ship-run schema — what each release writes →</a></li>
   <li><a href="../how-to/run-a-release.html">Run your first release with /wf ship →</a></li>
 </ul>
