@@ -209,6 +209,12 @@ After completing all 5 rounds, append every answer to `po-answers.md` with times
 4. Run freshness research via Explore sub-agent 2 (see skip criteria above) for external dependencies, patterns, APIs, standards, and known issues that could change the spec.
 5. Synthesize discovery answers into a small behavior-focused mini-spec.
 5b. **Author the design brief (when `stack.ui ≠ ∅` and the work has visual surface).** Read the `stack:` fingerprint in `00-index.md`. If it shows a UI/frontend layer **and** this work introduces meaningful visual surface (new screens, components, states, or a redesign), author `02b-design.md` now by following the brief-authoring procedure in [design/shape.md](design/shape.md) — the discovery interview (fold it into the answers you already gathered; ask only the visual-direction questions the 20-question pass didn't cover), the design-brief sections, and the `recommended-references:` frontmatter array. Write it as **plain discovery**: capture register, color strategy, scene sentence, anti-goals, state inventory, and recommended references — but do **NOT** generate image probes and do **NOT** run a visual-direction confirm gate here. Those two gates are `plan`'s (it resolves the image gate and confirms direction when it authors the visual contract). Do **not** write a resolved `image-gate` to `02b-design.md` — leaving it unset marks the gate unresolved for `plan` (the schema field `image-gate` only accepts `pass`/`skipped:*`, so there is no `pending` value to write). If `stack.ui` is empty or the work has no visual surface, skip this step. See also `design/_design-context.md` for the register determination and shared design laws.
+6b. **Augmentation plan (perf / observability / rollout).** Fold augmentation questions into the discovery rounds above (Rounds 2–4 naturally surface observability gaps, performance sensitivity, and rollout risk). After the 20 questions, synthesize the answers into an `## Augmentation Plan` section in `02-shape.md` and set `augmentations-needed:` frontmatter accordingly. For each type, ask (or infer from answers):
+   - **`instrument`**: Are there dark code paths this change will touch that currently have no observable signal? Will anyone be able to tell in production whether this worked?
+   - **`experiment`**: Is there business uncertainty about whether this change is actually better? Would a controlled rollout (feature flag, A/B, canary) reduce risk?
+   - **`benchmark`**: Is there a performance target in the acceptance criteria, or a risk of regression in a latency-sensitive area?
+   - **`profile`**: Has profiling been explicitly requested, or did discovery reveal a hotspot that needs locating before work begins?
+   Write the `## Augmentation Plan` section with one sub-bullet per decided type: what it covers, why it was chosen. If none are needed, write "None — [reason]". Then set `augmentations-needed:` in frontmatter to the list of decided types (or `[]` if none).
 6. **Documentation plan (Diátaxis):** Using the shaped spec, classify what documentation this feature needs. Apply the Diátaxis model:
    - Does this introduce new API surface or config? → needs **reference** docs
    - Does this add user-facing behavior? → needs a **how-to guide**
@@ -254,6 +260,7 @@ created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 docs-needed: <true|false>
 docs-types: [<reference|how-to|tutorial|explanation|readme>]
+augmentations-needed: [<instrument|experiment|benchmark|profile>]
 tags: []
 refs:
   index: 00-index.md
@@ -329,6 +336,13 @@ Then classify how each acceptance criterion and edge case will be verified:
 - ...
 
 If purely backend/library with no UI: "Automated only — no interactive verification needed. [reason]"
+
+## Augmentation Plan
+<!-- Augmentations decided at shape and applied by plan. For each type, one sub-bullet: what it covers and why it was chosen. If none: "None — [reason]". -->
+- **instrument** (if decided): <what dark paths / signals are needed>
+- **experiment** (if decided): <what business uncertainty warrants a controlled rollout>
+- **benchmark** (if decided): <what performance target / regression risk>
+- **profile** (if decided): <what hotspot needs locating>
 
 ## Documentation Plan
 Classify using Diátaxis. For each doc needed, specify:

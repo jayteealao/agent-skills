@@ -67,6 +67,8 @@ const PHASE_BY_BASENAME = {
   '08-handoff':            ['handoff', null],
   '09-ship-runs-index':    ['ship', null],
   '10-retro':              ['retro', null],
+  '90-recap':              ['recap', null],              // /wf recap catch-up/explain (successor to resume)
+  '90-resume':             ['resume', null],             // legacy alias — one release
   'RESUME':                ['resume', null],
   'announce':              ['announce', null],
   'risk-register':         ['risk-register', null],

@@ -1,5 +1,5 @@
 ---
-description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream command (/wf intake fix, /wf intake refactor, /wf intake, /wf-meta amend, /wf-docs, etc.). NEVER writes code directly. Adapted from the Claude Code bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
+description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream command (/wf intake fix, /wf intake refactor, /wf intake, /wf plan directed-fix, /wf docs, etc.). NEVER writes code directly. Adapted from the Claude Code bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
 argument-hint: "[branch [<base>] | commit <sha-or-range> | plan <slug> <slice> | codebase [<path>]]"
 ---
 
@@ -20,7 +20,7 @@ If the `/wf` dispatcher selected **slug-mode** (the first argument after the sub
 - **Same content, different home.** Body carries the same sections the standalone simplify would have written to `.ai/simplify/<run-id>.md` (three-agent findings, per-finding classification, routing summary, routing assignments, proposed deltas), under a `# Compressed Slice: simplify` heading with a one-line provenance preamble. The `simplify-run` frontmatter fields (`findings-total`, `findings-reuse`, etc.) do NOT carry over — they belong to the standalone `simplify-run` artifact type. The compressed slice is a `slice` artifact; report the same numbers in the body instead.
 - **No new workflow, no new branch, no `01-simplify.md`, no `.ai/simplify/<run-id>.md`, no new top-level `00-index.md`.** The slug already owns the workflow context; simplify's findings live as a slice on it.
 - **Index updates:** append the slice file to `00-index.md.workflow-files`, append `{slug: simplify-<descriptor>, slice-type: simplify, created-at: <iso>}` to `00-index.md.compressed-slices` (create the array if missing). If `.ai/workflows/<slug>/03-slice.md` exists, also append `{slug, status: defined, slice-type: simplify, compressed: true}` to its `slices`, bump `total-slices`, update `updated-at`. Do not modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress`. Also rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md` (see SKILL.md Step 1 step 6).
-- **Chat return:** one line — `wf simplify → compressed slice simplify-<descriptor> on <slug>` — plus the routing summary (counts per downstream command) and the top routing assignments, each scoped with `<slug>` as the first positional argument (e.g., `/wf intake refactor <slug> <target>`, `/wf-meta amend <slug>`). Use the positional-slug form — there is no `--slug` flag in v9.10.0+.
+- **Chat return:** one line — `wf simplify → compressed slice simplify-<descriptor> on <slug>` — plus the routing summary (counts per downstream command) and the top routing assignments, each scoped with `<slug>` as the first positional argument (e.g., `/wf intake refactor <slug> <target>`, `/wf plan <slug> <slice>`). Use the positional-slug form — there is no `--slug` flag in v9.10.0+.
 
 If slug-mode was not selected (first argument was not a known slug, or `INDEX.md` did not exist), ignore this section and proceed standalone per the instructions below.
 
@@ -244,11 +244,11 @@ For each `accept` finding, assign a `route` based on what shape of follow-up wor
 | `route-fix` | `/wf intake fix "<short description>"` | Trivial mechanical cleanup, ≤1 file, no behaviour change. Typos, dead code, unnecessary comments, missing reuse of a tiny helper. |
 | `route-refactor` | `/wf intake refactor "<area>"` | Behaviour-preserving restructure across multiple files. Copy-paste consolidation, abstraction extraction, leaky boundary fixup. |
 | `route-intake` | `/wf intake "<feature description>"` | Substantive change with possible behaviour impact, or an architectural problem. New abstraction, API simplification, performance work that crosses tripwires. |
-| `route-amend-plan` | `/wf-meta amend <slug> <slice>` | Plan-scope only. Finding flags an issue in the plan prose; apply the proposed delta via amend. |
-| `route-amend-shape` | `/wf-meta amend <slug>` | Finding implicates the workflow's shaped spec (acceptance criteria, scope). Rare from simplify; arises when a plan-scope finding cascades up. |
+| `route-amend-plan` | `/wf plan <slug> <slice> <correction>` | Plan-scope only. Finding flags an issue in the plan prose; apply the proposed delta as a directed plan fix (there is no in-place amend). |
+| `route-amend-shape` | `/wf intake <slug> <scope>` | Finding implicates the workflow's shaped spec (acceptance criteria, scope). Rare from simplify; corrections land as a new slice (no in-place amend). |
 | `route-verify` | `/wf verify <slug> <slice>` | Missing or inadequate test coverage for the change. Verify re-runs acceptance criteria and may surface deeper gaps. |
 | `route-add-test` | `/wf intake fix "add test for <X>"` | Specific missing test you can add as a one-file fix. |
-| `route-docs` | `/wf-docs <primitive>` or noted for handoff | Doc gap. Handoff's Diátaxis docs-plan handling usually picks this up; explicit route is for standalone doc gaps. |
+| `route-docs` | `/wf docs <primitive>` or noted for handoff | Doc gap. Handoff's Diátaxis docs-plan handling usually picks this up; explicit route is for standalone doc gaps. |
 | `route-handoff-config` | Edit `00-index.md` `public-surface:` / `docs-mirror:` / `review-bots:` keys | Finding flags drift in surfaces handoff's T3.6/T3.7/T5.1 cares about. The fix is project-level config, not code. |
 | `route-noop` | — | Informational; recorded but no action. Some findings are useful to know but not worth acting on. |
 
@@ -316,7 +316,7 @@ proposed-deltas:
 
 # Step 5 — Write the run artifact + print routing suggestions
 
-Standalone simplify is a **terminal analysis mode** — it roots a `type: workflow-index` slug workflow whose only artifact is the `01-simplify.md` lead. Derive a slug `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), then write **two** files under `.ai/workflows/<slug>/` and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](default.md) Step 10. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render via the retained simplify discovery.)
+Standalone simplify is a **terminal analysis mode** — it roots a `type: workflow-index` slug workflow whose only artifact is the `01-simplify.md` lead. Derive a slug `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), then write **two** files under `.ai/workflows/<slug>/` and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](intake/default.md) Step 10. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render via the retained simplify discovery.)
 
 First write **`00-index.md` — `type: workflow-index`** (lightweight; analysis modes do not get the heavy 22-field `type: index`):
 ```yaml
@@ -419,7 +419,7 @@ refs:
 ### route-intake (`/wf intake`)
 ...
 
-### route-amend-plan (`/wf-meta amend ...`)
+### route-amend-plan (`/wf plan ...` directed fix)
 ...
 
 ### Other routes

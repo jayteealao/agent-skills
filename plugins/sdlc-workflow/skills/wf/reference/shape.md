@@ -218,6 +218,13 @@ After completing all 5 rounds, append every answer to `po-answers.md` with times
    - Does this significantly change the project's capabilities? → needs a **README update**
    - Write the classification into `## Documentation Plan` in the shape file. For each identified doc, note: type, target audience, what it must cover, what it must NOT cover (boundary discipline).
    - If no user-facing docs are needed (pure internal refactor, test-only change), write "None required" with reasoning.
+6b. **Augmentation plan (perf / observability / rollout).** Augmentation is no longer a separate command the user must remember to invoke — **shape decides it, and downstream stages apply it**. Exactly like the documentation plan above, classify whether this work needs any of the four augmentations, and record the decision so `plan`/`implement`/`verify` honor it:
+   - **instrument** (observability) — does this add a code path whose behavior in production is worth *seeing* (a new flow that could fail silently, a feature whose adoption/latency matters)? → needs instrumentation (dark-path detection + signal design; artifact `04b-instrument.md`).
+   - **experiment** (rollout scaffolding) — is the rollout risky enough to want an A/B, feature flag, or canary with metrics + a rollback? → needs experiment design (artifact `04c-experiment.md`).
+   - **benchmark** (perf baseline+compare) — is this performance-sensitive (a hot path, a data-structure change, a rendering loop) such that a before/after measurement is warranted? → needs a benchmark (baseline before implement, compare after; artifact `05c-benchmark.md`; regression tripwires >10% CPU / >25% memory).
+   - **profile** (ad-hoc hotspot diagnosis) — is there a specific known hotspot worth profiling? → note it (profiling is usually ad-hoc; flag the area here so `plan` can schedule it, or reach for it later via `/wf probe`).
+   - To surface these, fold **1–2 questions** into the discovery interview (Step 2): *"Is any part of this perf-sensitive or worth measuring? Is the rollout risky enough to want a flag/canary? Is there a behavior change worth instrumenting in production?"* Ask only what the 20-question pass didn't already answer.
+   - Write the result into `## Augmentation Plan` and set the `augmentations-needed:` frontmatter array. **This section is REQUIRED even when the answer is "none"** (write `augmentations-needed: []` and a one-line reason) — a required section is how augmentation stays discoverable now that it is shape-gated rather than user-invoked.
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 8. Update `00-index.md` with the recommended default option.
 9. Write `.ai/workflows/<slug>/02-shape.md` (and, if Step 5b applied, `.ai/workflows/<slug>/02b-design.md` — its structure, sibling `.yaml`, and fragment contract are defined in [design/shape.md](design/shape.md)).
@@ -255,6 +262,7 @@ created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 docs-needed: <true|false>
 docs-types: [<reference|how-to|tutorial|explanation|readme>]
+augmentations-needed: [<instrument|experiment|benchmark|profile>]   # shape-decided; [] when none. plan/implement/verify honor this.
 tags: []
 refs:
   index: 00-index.md
@@ -340,6 +348,19 @@ Classify using Diátaxis. For each doc needed, specify:
 - **Target location**: where in the repo this doc should live
 
 If no docs needed: "None required — [reason]"
+
+## Augmentation Plan
+Which augmentations this work needs — decided here, applied by `plan`/`implement`/`verify`. **Required
+section** (write it even when the answer is none). For each augmentation flagged in `augmentations-needed`:
+- **instrument** → what signals/events matter, which dark paths need visibility. `plan` folds signal
+  design in; `implement` wires it; artifact `04b-instrument.md`.
+- **experiment** → the hypothesis, the mechanism (A/B / flag / canary), the metrics + the rollback.
+  `plan` designs it; `implement` wires the flag; artifact `04c-experiment.md`.
+- **benchmark** → what to measure and the perf budget. `plan` adds a baseline step; `implement` captures
+  the baseline; `verify` runs the compare against tripwires (>10% CPU / >25% memory); artifact `05c-benchmark.md`.
+- **profile** → the specific hotspot/area to profile (usually ad-hoc; may be run later via `/wf probe`).
+
+If none: "None required — [reason]" and `augmentations-needed: []`.
 
 ## Freshness Research
 - Source:

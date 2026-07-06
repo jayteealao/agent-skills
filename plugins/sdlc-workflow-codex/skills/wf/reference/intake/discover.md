@@ -1,5 +1,5 @@
 ---
-description: Hypothesis-test workflow. Takes a code-level hypothesis ("X is the case", "feature A is implemented via Y", "module M handles concurrency by Z") and adjudicates it against the codebase using parallel sub-agents that argue FOR, AGAINST, and propose counter-hypotheses. Produces a verdict (`holds` / `partial` / `fails` / `inconclusive`) with confidence and cited evidence. Does NOT write application code, does NOT diagnose bugs, does NOT explain code (use `$wf-docs how` for that). Read-only.
+description: Hypothesis-test workflow. Takes a code-level hypothesis ("X is the case", "feature A is implemented via Y", "module M handles concurrency by Z") and adjudicates it against the codebase using parallel sub-agents that argue FOR, AGAINST, and propose counter-hypotheses. Produces a verdict (`holds` / `partial` / `fails` / `inconclusive`) with confidence and cited evidence. Does NOT write application code, does NOT diagnose bugs, does NOT explain code (use `$wf recap <slug> <focus>` for that). Read-only.
 argument-hint: <hypothesis-or-slug>
 ---
 
@@ -21,13 +21,13 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 |---|---|
 | Requires | Nothing — starts fresh. Pass a hypothesis string or an existing slug to resume. |
 | Produces | `01-discover.md` (verdict + evidence + counter-hypotheses), `00-index.md` |
-| Skips | No fix, no plan, no implementation, no explanation of how code works (that is `$wf-docs how`). |
-| Next | If `holds` → no required follow-up; act on the confirmed understanding however you originally intended. If `fails` or `inconclusive` → `$wf intake rca <symptom>` (if the falsified hypothesis was about why something behaves badly) or `$wf-docs how <topic>` (if you need to actually learn how the code works rather than test a theory). |
+| Skips | No fix, no plan, no implementation, no explanation of how code works (that is `$wf recap <slug> <focus>` or `$deep-research`). |
+| Next | If `holds` → no required follow-up; act on the confirmed understanding however you originally intended. If `fails` or `inconclusive` → `$wf intake rca <symptom>` (if the falsified hypothesis was about why something behaves badly) or `$wf recap <slug> <focus>` / `$deep-research` (if you need to actually learn how the code works rather than test a theory). |
 | Escalate | If FOR and AGAINST evidence are roughly equal AND a definitive answer requires runtime data (not static code reading) → surface `needs-runtime-evidence` and list exactly what would resolve it (a test run, a profile, a log line). |
 
 # CRITICAL — adjudication discipline
 You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
-- The **only** acceptable output is the discover artifact and index. Do NOT edit application code. Do NOT write a plan. Do NOT propose a fix. Do NOT produce a tutorial-style explanation of how the area works (that is `$wf-docs how`).
+- The **only** acceptable output is the discover artifact and index. Do NOT edit application code. Do NOT write a plan. Do NOT propose a fix. Do NOT produce a tutorial-style explanation of how the area works (that is `$wf recap <slug> <focus>` or `$deep-research`).
 - Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, static code inspection.
 - The verdict must be **convergent**: exactly one of `holds`, `partial`, `fails`, or `inconclusive`. Do not hedge across all four; pick one and justify it with cited evidence.
 - The artifact must include both supporting AND contradicting evidence. A "holds" verdict with no AGAINST section is suspect — search until you find counter-evidence or explicitly record that none exists.
@@ -38,7 +38,7 @@ You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: discover` → **resume mode**. Read that index. If `01-discover.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new discover**. Derive a slug: `discover-<short-hypothesis>` (kebab-case, max 5 words, e.g., `discover-auth-uses-jwt`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `discover` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf-meta resume <slug>` to continue it." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `discover` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf recap <slug>` to review it." Stop.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only — do not create or switch branches.
    - Record the current branch in the index.
@@ -49,7 +49,7 @@ You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
 # Step 1 — Hypothesis clarification
 Ask at most **3 questions** — stop as soon as the hypothesis is testable. Present each question as a numbered list of options in chat:
 
-1. **What is the hypothesis?** — State as a falsifiable claim, not a question. Good: "the rate-limiter is implemented as a token bucket in `middleware/`". Bad: "how is the rate-limiter implemented?" (that is `$wf-docs how`). Required if not clear from `$ARGUMENTS`.
+1. **What is the hypothesis?** — State as a falsifiable claim, not a question. Good: "the rate-limiter is implemented as a token bucket in `middleware/`". Bad: "how is the rate-limiter implemented?" (that is `$wf recap <slug> <focus>` or `$deep-research`). Required if not clear from `$ARGUMENTS`.
 2. **Where to look?** — A starting file, directory, function, or area. Even "I'm not sure, somewhere in `src/auth`" is useful. If the user has no idea, the adjudication will be wider and confidence will likely be lower — note this.
 3. **What would change if it holds vs. fails?** — Used only to size the adjudication effort. If the user is sanity-checking before a 1-line edit, a quick pass is enough. If a major refactor depends on the answer, dig harder and accept lower confidence as a tripwire.
 
@@ -173,8 +173,8 @@ For `inconclusive` verdicts, list exactly what runtime data or external informat
 |---|---|
 | `holds` (any confidence) | None required. Your understanding is confirmed; proceed with whatever you intended to do. If acting on it requires code changes, the right next skill depends on the size of the work (`$wf intake fix` for small, `$wf intake` for medium+). |
 | `partial` | Refine the hypothesis using the "which part holds / which part fails" finding, then re-run `$wf intake discover <refined-hypothesis>` if precision matters. Otherwise, treat the partial verdict as the answer and proceed. |
-| `fails` | If the original hypothesis was an explanation for an observed bad behavior → `$wf intake rca <symptom>` to find the actual cause. If it was a guess about how some feature works → `$wf-docs how <topic>` to actually learn the code rather than guess again. |
-| `inconclusive` | List the runtime signal needed. If it requires a profile → `$wf profile <area>`. If it requires a benchmark → `$wf benchmark <slug>`. If it requires more code reading at wider scope → re-run `$wf intake discover` with a broader starting area. |
+| `fails` | If the original hypothesis was an explanation for an observed bad behavior → `$wf intake rca <symptom>` to find the actual cause. If it was a guess about how some feature works → `$wf recap <slug> <focus>` or `$deep-research` to actually learn the code rather than guess again. |
+| `inconclusive` | List the runtime signal needed. If it requires runtime profiling or a perf measurement → `$wf probe <area>` (ad-hoc runtime-truth). If a repeatable perf baseline is warranted, flag it so `shape` records a benchmark augmentation. If it requires more code reading at wider scope → re-run `$wf intake discover` with a broader starting area. |
 
 ## 7. Confidence & limits
 
@@ -257,7 +257,7 @@ If `inconclusive`, prefix with:
 
 # What this skill is NOT
 
-- **Not an explainer** — if the user wants to know *how* something works, that is `$wf-docs how <topic>`. `discover` answers "is my theory correct?", not "what is happening here?"
+- **Not an explainer** — if the user wants to know *how* something works, that is `$wf recap <slug> <focus>` or `$deep-research`. `discover` answers "is my theory correct?", not "what is happening here?"
 - **Not a diagnostician** — if there is an observed bug or symptom and the user wants to find the root cause, that is `$wf intake rca <symptom>`. `discover` starts from a theory; `rca` starts from a symptom.
 - **Not a planner** — even when the verdict is `holds`, this skill does not write a plan or propose changes. Acting on the confirmed understanding is the user's call (and usually `$wf intake fix` or `$wf intake`).
 - **Not a substitute for running the code** — `inconclusive` is a valid verdict. When static reading cannot tell, say so rather than guessing.

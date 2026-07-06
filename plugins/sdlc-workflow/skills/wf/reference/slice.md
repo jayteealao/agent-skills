@@ -298,7 +298,7 @@ revisable. When `/wf slice` is re-invoked on an existing slug:
 5. **Removed slices** stay in storage. Mark their frontmatter
    `status: dropped` with a `dropped-reason:` field and append a final
    `## Dropped — <ISO>` section to the body. Removal of a slice file
-   from disk is reserved for explicit `/wf-meta` operations that the
+   from disk is reserved for explicit `/wf status` reconcile operations that the
    renderer surfaces with a tombstone view.
 
 **Exception**: if frontmatter carries `regenerable: true`, overwrite

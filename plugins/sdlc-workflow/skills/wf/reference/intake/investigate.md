@@ -43,7 +43,7 @@ You are an **options sketcher**, not a chooser, planner, or implementer.
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: investigate` → **resume mode**. Read that index. If `01-investigate.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new investigate**. Derive a slug: `investigate-<short-problem>` (kebab-case, max 5 words, e.g., `investigate-checkout-latency`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf-meta resume <slug>` to continue it." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `/wf recap <slug>` to continue it." Stop.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only — do not create or switch branches.
    - Record the current branch in the index.
@@ -202,7 +202,7 @@ This command does not pick a winner. Pick the option you want and route accordin
 |---|---|
 | An option with `effort: small`, mechanism is clear, scope is ≤3 files | `/wf intake fix <option-label> — <one-line option description>` |
 | An option with `effort: medium` or `large`, OR `requires_schema_change: yes`, OR `requires_new_dependency: yes` with non-trivial integration | `/wf intake <option-label> — <one-line option description>` |
-| You're not sure which option to pick | Stop and think. If the tradeoff matrix in section 4 doesn't disambiguate, ask a human or run `/wf-docs how <area>` to deepen understanding of the area before choosing. |
+| You're not sure which option to pick | Stop and think. If the tradeoff matrix in section 4 doesn't disambiguate, ask a human or run `/wf docs how <area>` to deepen understanding of the area before choosing. |
 
 ## 6. Tripwire warnings (only if any fired)
 
@@ -282,5 +282,5 @@ If `architecture-blocking` tripped, prefix with:
 - **Not a chooser** — this command sketches options; the user picks. If you want a single recommended approach with acceptance criteria, that is `/wf shape <slug>` after `/wf intake`.
 - **Not a problem validator** — this command assumes the problem is real and worth solving. If you're not sure whether the problem is genuine, that requires runtime data, telemetry, or user signal that this command doesn't gather. Run a measurement step first.
 - **Not a diagnostician** — if there is a specific symptom (error, crash, slow request) and you want to know *why*, that is `/wf intake rca <symptom>`. Investigate proposes *how to solve*; rca finds *why it's broken*.
-- **Not an explainer** — if you want to understand how the area works before forming options yourself, that is `/wf-docs how <area>`. Investigate already does a light architecture map, but it is in service of options, not as a standalone explanation.
+- **Not an explainer** — if you want to understand how the area works before forming options yourself, that is `/wf docs how <area>`. Investigate already does a light architecture map, but it is in service of options, not as a standalone explanation.
 - **Not a substitute for `/wf shape`** — `/wf shape` produces a chosen design with acceptance criteria, attached to a workflow. `investigate` produces an option set with no chosen winner, attached to nothing yet. After you pick, `/wf intake` → `/wf shape` deepens the chosen option into an implementable spec.

@@ -137,11 +137,11 @@ Do this in order:
 
       | `docs-types` value | Primitive reference to load |
       |---|---|
-      | `reference` | `${CLAUDE_PLUGIN_ROOT}/skills/wf-docs/reference/reference.md` |
-      | `how-to` | `${CLAUDE_PLUGIN_ROOT}/skills/wf-docs/reference/how-to.md` |
-      | `tutorial` | `${CLAUDE_PLUGIN_ROOT}/skills/wf-docs/reference/tutorial.md` |
-      | `explanation` | `${CLAUDE_PLUGIN_ROOT}/skills/wf-docs/reference/explanation.md` |
-      | `readme` or `readme-update` | `${CLAUDE_PLUGIN_ROOT}/skills/wf-docs/reference/readme.md` |
+      | `reference` | `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/docs/reference.md` |
+      | `how-to` | `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/docs/how-to.md` |
+      | `tutorial` | `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/docs/tutorial.md` |
+      | `explanation` | `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/docs/explanation.md` |
+      | `readme` or `readme-update` | `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/docs/readme.md` |
 
       Treat the loaded primitive as authoritative for that doc type. Pass the feature context (from the handoff summary, shape, and verification artifacts) to the primitive as the writing target.
    c. For each doc, respect Diátaxis boundaries — do NOT mix types. If a doc would need to cover both "how to" and "reference", split into two files.
@@ -335,7 +335,7 @@ next-invocation: "/wf ship <slug>"
 
 # Project-level handoff config (read from `00-index.md` frontmatter)
 
-The PR-readiness block (T3.5/T3.6/T3.7/T5.1) is driven by optional config keys in the workflow's `00-index.md`. Each key's block is independent — handoff skips the corresponding step silently if the key is absent. Authored by `/wf-meta amend index`; can be edited directly.
+The PR-readiness block (T3.5/T3.6/T3.7/T5.1) is driven by optional config keys in the workflow's `00-index.md`. Each key's block is independent — handoff skips the corresponding step silently if the key is absent. Edited directly in `00-index.md` (there is no `amend` command — these are plain config keys).
 
 ```yaml
 # Optional. Drives T3.6 — public-surface drift check.

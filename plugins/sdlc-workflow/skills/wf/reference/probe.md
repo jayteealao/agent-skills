@@ -135,7 +135,7 @@ If Layers 1–3 produced no usable results (no matched AC, no matched slice, no 
 - Set `target-resolution.ad-hoc: true`.
 - The criterion text used for comparison during observation is `T` verbatim.
 
-Ad-hoc targets are not failures — they are data. The slice records them and the user can decide later whether to promote an ad-hoc target to a formal AC on the original slice (via `/wf-meta amend`).
+Ad-hoc targets are not failures — they are data. The slice records them and the user can decide later whether to promote an ad-hoc target to a formal AC (re-run `/wf plan <slug> <slice>` for an unbuilt slice, or add a new slice via `/wf intake <slug> <scope>` — there is no in-place amend).
 
 # Step 3 — Adapter selection
 
@@ -278,7 +278,7 @@ findings-severity:
   low: <N>
   incidental: <N>                       # defects noticed off-target during navigation
 
-recommended-next: "/wf plan <slug> probe-<descriptor>" | "/wf intake fix <slug> probe-<descriptor>" | "/wf-meta status <slug>" | "<re-run instruction>"
+recommended-next: "/wf plan <slug> probe-<descriptor>" | "/wf intake fix <slug> probe-<descriptor>" | "/wf status <slug>" | "<re-run instruction>"
 
 depends-on: []
 tags: [probe]
@@ -351,7 +351,7 @@ Routing logic:
 
 | Condition | Recommendation |
 |---|---|
-| `findings-count: 0` AND no tripwires fired | `/wf-meta status <slug>` — slug is genuinely ready; status will surface "runtime-evidence-status: clean" |
+| `findings-count: 0` AND no tripwires fired | `/wf status <slug>` — slug is genuinely ready; status will surface "runtime-evidence-status: clean" |
 | Findings exist, severity ≤ high, fits in ≤3 files | `/wf intake fix <slug> probe-<descriptor>` |
 | Findings exist, severity ≥ high OR cross-cutting OR multi-adapter divergence | `/wf plan <slug> probe-<descriptor>` |
 | `status: awaiting-environment` | Re-run probe after applying the remediation hint. |

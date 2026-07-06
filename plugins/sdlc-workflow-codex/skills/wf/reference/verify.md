@@ -84,7 +84,7 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
    | `design-critique` | Read `07-design-critique.md`. Note any prescriptive feedback that should have been actioned. |
    | `instrument` | Read `04b-instrument.md`. For each designed signal, confirm the implementation actually emits the log/metric/trace. Run the affected code path and observe the signal fires (live or via tests). Report any missing signals. |
    | `experiment` | Read `04c-experiment.md`. Confirm: (a) feature flag is wired correctly; (b) cohort split logic produces the documented distribution; (c) primary/secondary/guardrail metrics fire on the expected events; (d) rollback path works. |
-   | `benchmark` (status: baseline) | Run `$wf benchmark <slug>` in compare mode. Compare results against the baseline numbers in `05c-benchmark.md`. Flag regressions exceeding the documented tripwires (>10% CPU / >25% memory by default). |
+   | `benchmark` (status: baseline) | Run the benchmark compare by loading `skills/wf/reference/augment/benchmark.md` in compare mode. Compare results against the baseline numbers in `05c-benchmark.md`. Flag regressions exceeding the documented tripwires (>10% CPU / >25% memory by default). |
 8. **Carry forward** `open-questions` from the index.
 9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch (`git branch --show-current`). If not, switch to it. Verification must run against the implementation branch, not the base branch.
 
@@ -282,7 +282,7 @@ Prompt with:
 | `design-critique` | Read `07-design-critique.md`. Note actioned-vs-unactioned recommendations. |
 | `instrument` | Read `04b-instrument.md`. For each designed signal, exercise the affected code path and confirm the log/metric/trace fires (via tests, live observation, or search the repository on log output). Report any missing signals. |
 | `experiment` | Read `04c-experiment.md`. Confirm: feature flag is wired, cohort split produces documented distribution, all metrics (primary/secondary/guardrail) fire on the right events, rollback path works. |
-| `benchmark` (status: baseline) | Run `$wf benchmark <slug>` in compare mode. Compare against `05c-benchmark.md` baseline. Flag regressions exceeding documented tripwires (default >10% CPU / >25% memory). |
+| `benchmark` (status: baseline) | Run the benchmark compare by loading `skills/wf/reference/augment/benchmark.md` in compare mode. Compare against `05c-benchmark.md` baseline. Flag regressions exceeding documented tripwires (default >10% CPU / >25% memory). |
 
 **Reporting:**
 - Pass: all mock fidelity items honored, all augmentation type-checks pass, no critical findings outstanding.
@@ -457,7 +457,7 @@ runtime-evidence-deferrals:
     cleared-by: null    # set to <probe-descriptor> when a probe run clears the deferral
 ```
 
-`$wf-meta status`, `$wf-meta next`, and `$wf ship` read this list. `$wf ship` refuses to start while any entry has `cleared-by: null`.
+`$wf status`, `$wf next`, and `$wf ship` read this list. `$wf ship` refuses to start while any entry has `cleared-by: null`.
 
 # Verify-owned fix loop (MANDATORY — single round, user-gated)
 

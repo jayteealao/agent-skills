@@ -1,76 +1,29 @@
 ---
 name: wf-meta
-description: Navigate, inspect, and meta-control existing SDLC workflows — pick what to run next, check status, resume, sync the registry, amend or extend a plan, skip a stage, close a slug, or explain how something works. Does not produce stage artifacts; for those use `/wf`.
+description: "RETIRED — dissolved into `/wf`. The lifecycle-navigation members are now `/wf` keys. This stub only redirects; it does no work. Use `/wf status`, `/wf recap`, `/wf close`, `/wf ship-plan`, or `/wf intake <slug> <scope>`."
 disable-model-invocation: true
-argument-hint: "<next|status|resume|sync|amend|extend|skip|close|how|announce|init-ship-plan|build-pipeline> [args...]"
+argument-hint: "(retired — use /wf)"
 ---
 
-# External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+# `/wf-meta` is retired — its members are `/wf` keys now
 
-You are the **lifecycle-navigation dispatcher** for the SDLC plugin. The 12 sub-commands you route to are *meta-controls* — they manage existing workflows or answer questions about them. They do not produce stage artifacts. Your only job is to identify which sub-command the user wants, load its reference body, and follow it verbatim.
+The `wf-meta` skill was dissolved into the single `/wf` dispatcher (the third and final subsume, after
+`wf-quick` and `wf-design`). **This stub does no work** — it exists only to tell you the new command.
+Re-run using the mapping below:
 
-> **Narrative fragments — any artifact (v9.70.0).** The non-stage artifacts these meta-controls write (sync report, announce, close record, amendments) may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+| Old `/wf-meta …` | New command |
+|---|---|
+| `/wf-meta status [slug]` | `/wf status [slug]` — dashboard/detail; also **absorbs `next`** (it prints the exact next command) and **`sync`** (it reconciles `.ai/workflows/INDEX.md`). Deep drift check: `/wf status <slug> deep`. |
+| `/wf-meta next [slug]` | `/wf status <slug>` (the detail view's `## Next` is the routing) |
+| `/wf-meta sync [slug]` | `/wf status` (registry reconcile runs automatically); `/wf status <slug> deep` for the reality-drift report |
+| `/wf-meta resume <slug>` | `/wf recap <slug>` — renamed; recaps what's been done in plain language (also **explains** a plan/shape/review/findings: `/wf recap <slug> <focus>`) |
+| `/wf-meta how …` | `/wf recap <slug> <focus>` (explain a workflow artifact) · the `deep-research` skill (codebase / web research) |
+| `/wf-meta skip <slug> <stage>` | `/wf close <slug> <slice>` — skipping is now **slice-scoped**, not stage-scoped |
+| `/wf-meta close <slug> [reason]` | `/wf close <slug> [reason]` |
+| `/wf-meta amend …` | **removed** — there is no in-place amend. Add a new slice: `/wf intake <slug> <scope>`. Correct an *unbuilt* slice's plan: `/wf plan <slug> <slice> <correction>`. Edit the ship plan: `/wf ship-plan edit`. |
+| `/wf-meta extend <slug> …` | `/wf intake <slug> <new scope>` — an existing slug + free scope auto-routes to extension |
+| `/wf-meta announce <slug>` | `/wf ship <slug> announce` — comms is a phase of `ship` |
+| `/wf-meta init-ship-plan …` | `/wf ship-plan init …` |
+| `/wf-meta build-pipeline …` | `/wf ship-plan build …` |
 
-# Step 0 — Resolve the sub-command
-
-Parse `$ARGUMENTS`. The first token must be one of the 12 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying meta-action.
-
-**Known sub-command keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/reference/<key>.md`:
-
-| Key | Argument hint | What it does (one line) |
-|---|---|---|
-| `next`            | `[slug]`                       | Advance to the next stage of the workflow (or report what the next stage is). |
-| `status`          | `[slug]`                       | Report current workflow state: stage, slice, blockers, recent activity. |
-| `resume`          | `[slug]`                       | Pick up an in-progress workflow where it left off. |
-| `sync`            | `[slug]`                       | Reconcile workflow state with disk (re-read artifacts, detect drift, repair index). |
-| `amend`           | `<scope> <target>`             | Edit a prior stage's artifact in place. `scope=ship-plan` edits `.ai/ship-plan.md` (project-level); other scopes edit workflow artifacts. |
-| `extend`          | `<scope> <target>`             | Add new work to an existing workflow without resetting prior stages. |
-| `skip`            | `<stage> [slug]`               | Mark a stage as skipped without running it; writes a stub artifact so downstream prerequisites are still satisfied. |
-| `close`           | `<reason> [slug]`              | Archive a workflow at any stage. Five close reasons; produces 99-close.md. |
-| `how`             | `<mode> <topic>`               | Routes across five explanation modes: quick code answer, codebase exploration, deep web research, workflow-artifact explanation, findings explanation. |
-| `announce`        | `[slug]`                       | Produce a Diátaxis-aligned external announcement for a completed workflow. |
-| `init-ship-plan`  | `[--from-template <kind>]`     | Author the project-level `.ai/ship-plan.md` (one-time) via **discovery → hypothesis → confirm**: reads CI workflows, infra-as-code, package manifests, runbooks, linters, hook frameworks, governance files; proposes a full-pipeline shape; lets the user confirm or correct each contract. Captures both the outbound release (Blocks A–G) and the inbound developer experience (Blocks H–K: code-quality gates, commit/PR-title convention, local git hooks, dev-setup, branch protection + merge controls, CODEOWNERS, dependency automation, environment protection, CI ergonomics, and security/supply-chain gates). Templates (`kotlin-maven-central`, `npm-public`, `pypi`, `container-image`, `server-deploy`, `library-internal`) are *hypothesis seeds*, not control-flow branches. Supports open `additional-contracts[]` extensions. |
-| `build-pipeline`  | `[--dry-run]`                  | Audit the repo against `.ai/ship-plan.md` (Audits A–S) and bring the **entire** CI/CD + developer-experience pipeline into compliance: release + pre-merge workflows, code-quality + commit/PR-title CI, security/supply-chain gates (CodeQL, dependency-audit, secret-scan, SBOM, license), local git hooks, editorconfig/version files/task targets, CODEOWNERS, PR/issue templates, dependency automation, and CI ergonomics. Creates missing files, patches existing files (no overwrites), wires secrets; when the plan opts in (`apply-via: gh-api`), applies three remote settings — branch protection, environment protection, repo merge settings — each behind an explicit confirm gate. Generates fully runnable config from the plan's literal commands. |
-
-**Resolution rules:**
-
-1. If the first positional token matches one of the 12 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`.
-2. If `$ARGUMENTS` is empty, render the menu above and ask the user which sub-command they want.
-3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf-meta sub-command. Pick one of: next, status, resume, sync, amend, extend, skip, close, how, announce, init-ship-plan, build-pipeline."*
-
-# Step 1 — Execute
-
-1. Read the reference file in full from `${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/reference/<key>.md`.
-2. Treat its content as your instructions for this invocation. Do not summarize, paraphrase, or skip — follow it verbatim.
-3. The reference body contains the meta-action's full definition (preamble, rules, output contract). Honor every conditional input and every artifact write the reference describes.
-4. The remaining `$ARGUMENTS` after the matched key are the sub-command's own arguments — pass them through verbatim.
-
-# Step 2 — Emit Final Summary (MANDATORY)
-
-After the reference's logic completes, emit a chat summary as the LAST output before returning control to the user. This contract is uniform across every sub-command this router dispatches; the reference may carry its own chat-return content, but this section governs the shape.
-
-**Format (compact — a short narrative, then the anchors):**
-
-```
-wf-meta <sub-command> complete: <slug-or-scope>
-
-<Narrative — a short prose paragraph (no bullets, no field labels) telling the story: what this run produced or decided, how, and the top risk or caveat. See the Narrative rule below.>
-
-Artifacts: <comma-separated paths, or "none">
-Next: <recommended command, or "Done">
-```
-
-**Rules:**
-
-- **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
-- **Verb-first first line.** Name the sub-command and the slug (or other scope: `INDEX.md` for `sync`, the topic for `how`, etc.).
-- **Artifacts** are the paths created or modified in this invocation. Most `wf-meta` sub-commands are read-only or registry-only — use `"none"` when no per-workflow files changed. For `sync`, the artifact is `.ai/workflows/INDEX.md`. For `amend`, the touched per-workflow stage file. For `announce`, the announcement output (chat-only unless `--write` is implied).
-- **Narrative — the heart of the summary, REQUIRED for any sub-command that produces an artifact.** In place of the old terse key-facts line, write a short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the user what happened* — what this run produced or decided, how, the load-bearing counts and decisions, and the top risk or caveat. Write it like you're telling a colleague, not filling a form. Omit only for genuinely read-only sub-commands.
-- **Next** is a concrete invocation when applicable, or `Done` when the meta-action is its own terminal step (e.g., `status` after enumerating workflows).
-- **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
-- If the reference defines its own "Chat return contract" or "Hand off to user" step, treat that as the *content* spec — pick the load-bearing fields and keep it compact. **A reference that says to "return ONLY" a receipt (slug / wrote / options) means only those *receipt fields* — it does NOT waive the substance summary above. Always surface what the artifact says — its key decisions, counts, verdict, top risk — not merely the paths it wrote.** Keep the *full* detail in the artifact; the chat summary carries the gist.
+Tell the user the corrected command and STOP. Do not attempt to perform the operation from this stub.

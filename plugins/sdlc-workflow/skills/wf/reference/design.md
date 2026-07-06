@@ -87,7 +87,7 @@ before proceeding.
      `setup`/`teach`/`audit`/`critique`/`extract`.
 2. **In-workflow shape** — read `.ai/workflows/<slug>/00-index.md`. Parse `title`,
    `current-stage`, `status`, `branch`, `stack`, `open-questions`, `augmentations`. If
-   `status: closed` → STOP (*"Workflow `<slug>` is closed. Use `/wf-meta resume <slug>` to
+   `status: closed` → STOP (*"Workflow `<slug>` is closed. Use `/wf recap <slug>` to
    reopen."*). Reuse the `stack` fingerprint for the inspection sub-agents where it answers the
    question.
 3. **Run the preflight gates** from `_design-context.md`. The **image gate** stays

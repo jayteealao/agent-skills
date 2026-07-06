@@ -43,7 +43,7 @@ You are a **diagnostician**, not a fixer.
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: rca` → **resume mode**. Read that index. If `01-rca.md` is complete, the user likely meant to run the recommended next skill — tell them and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new RCA**. Derive a slug: `rca-<short-symptom>` (kebab-case, max 5 words, e.g., `rca-checkout-double-charge`). This is an ordinary `.ai/workflows/<slug>/` directory — there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route, so no special-casing is needed in the view layer.
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `rca` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf-meta resume <slug>` to continue the existing workflow." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `rca` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf recap <slug>` to review the existing workflow." Stop.
 3. **Branch posture (do NOT switch branches):**
    - Investigation is read-only — do not create or switch branches.
    - Record the current branch in the index as `branch` and `base-branch` so the eventual fix workflow knows where the diagnosis was performed.
@@ -457,4 +457,4 @@ Beyond the structured page, this artifact ships one or more **free narrative fra
 
 - **Not a fixer** — `wf-rca` produces an RCA artifact and a routing recommendation. It does not edit application code. It does not run mutating commands. It does not commit, push, or open a PR.
 - **Not a hotfix** — `$wf-hotfix` is what you run *after* `wf-rca` recommends it. `wf-rca` decides whether the situation warrants the hotfix path.
-- **Not a how/explain** — `$wf-docs how` is for explaining existing code or artifacts on demand. `wf-rca` is for *finding* a cause that is not yet explained.
+- **Not a how/explain** — `$wf recap <slug> <focus>` or `$deep-research` is for explaining existing code or artifacts on demand. `wf-rca` is for *finding* a cause that is not yet explained.

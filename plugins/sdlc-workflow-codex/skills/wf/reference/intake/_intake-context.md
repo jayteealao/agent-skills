@@ -24,7 +24,7 @@ widget tells the story better than prose. Full guidance:
 # Workflow registry & slug semantics
 
 `.ai/workflows/INDEX.md` is the global workflow registry (format documented in
-`../wf-meta/reference/sync.md`). Columns:
+`../status.md`). Columns:
 `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`, sorted alphabetically by slug,
 closed rows retained.
 
@@ -32,7 +32,7 @@ closed rows retained.
 reused by a new workflow.
 
 **Collision detection** (a *new* workflow whose derived slug already exists) is owned by
-`intake/default.md` Step 0 — it prompts resume / amend / pick-different / cancel and never silently
+`intake/default.md` Step 0 — it prompts catch-up (recap) / add-scope (extend) / pick-different / cancel and never silently
 proceeds. **This is distinct from slug-mode:** when the dispatcher detects that the *first
 positional token* is an exact existing-slug match, that is an *intentional* attach handled by
 `reference/_compressed-slice.md` — no collision prompt fires.
@@ -57,7 +57,7 @@ per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
   must satisfy the **intake** required set: `status` ∈ `{complete, awaiting-input}`, `stage-number: 1`,
   `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`.
 - **The authoritative `workflow-type` discriminator lives on `00-index.md`** (mirror it onto the lead
-  for readability, but the index is canonical — the standard stage commands and resume read it there).
+  for readability, but the index is canonical — the standard stage commands and `$wf recap` read it there).
 - **`00-index.md` is a fully-conformant `type: index`** — the heavy 22-field `indexFrontmatter`
   (`status: active` not `ready`; `progress` a stage→status **object** `{intake: …, shape: …, …}` with
   enum values `not-started|in-progress|complete|skipped`, NOT a list). Use the template + 22-field set

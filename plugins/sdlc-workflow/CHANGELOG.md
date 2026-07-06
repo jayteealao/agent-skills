@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — `wf-meta` + `wf-docs` dissolved into `/wf`; surface compacted to 20 keys (9.98.0)
+
+The last two sibling routers are retired, making `/wf` the *single* SDLC entry point (the third and final subsume after `wf-quick`→`/wf` and `wf-design`→`/wf design`). `/wf` is reframed from "one stage artifact per key" to **one SDLC operation per key**, and the resulting surface is compacted from a would-be 28 keys down to **20**, grouped in families: 10 stages, 5 standalone/drivers (`design`/`probe`/`simplify`/`auto`/`yolo`), 2 navigation (`status`/`recap`), lifecycle control (`close`), and 2 routers (`ship-plan`/`docs`).
+
+- **Navigation folds into `status`.** `/wf status` absorbs `next` (it prints the exact next command in its detail view) and `sync` (it reconciles `.ai/workflows/INDEX.md` idempotently on every run; `/wf status <slug> deep` runs the reality-drift check + writes the sync report). No `/wf-meta next`/`sync` keys.
+- **`resume` → `recap`.** Renamed and rewritten to recap what a workflow *has done so far* in plain language (whole workflow or one slice), and to **explain** a plan/shape/review/findings artifact (`/wf recap <slug> <focus>` — the former `how` D/E explain modes). `how`'s research modes route to the `deep-research` skill. Aux artifact `90-resume.md`/`type:resume` → `90-recap.md`/`type:recap` (renderer `recap.mjs`; `resume` kept a release as a schema alias).
+- **`amend` dropped entirely; `extend` auto-routed.** There is no in-place amend — corrections are a new slice or a fix. `/wf intake <existing-slug> <free scope>` auto-routes to **extension** (net-new slices) via the new `intake/extend.md` mode; convention over flags, no keyword. Ship-plan block-editing survives as `/wf ship-plan edit`.
+- **`skip` folds into `close`.** `/wf close <slug> <slice>` closes/skips a *slice* (slice is the unit now; stage-skip retired); `/wf close <slug> [reason]` still archives the whole workflow.
+- **`announce` folds into `ship`.** Post-publish comms is a phase of `ship`; `/wf ship <slug> announce` re-runs comms only. `announce.md` relocated to `wf/reference/ship/announce.md`.
+- **Augmentations become a `shape` decision.** `instrument`/`experiment`/`benchmark`/`profile` are no longer keys — `shape` authors an `## Augmentation Plan` (`augmentations-needed` frontmatter) and `plan`/`implement`/`verify` apply it (loading `wf/reference/augment/<type>.md` as internal sub-procedures). Ad-hoc profiling stays reachable via `/wf probe`.
+- **`ship-plan` + `docs` routers.** `/wf ship-plan {init,build,edit}` consolidates the former `init-ship-plan`/`build-pipeline`/`amend ship-plan`. `/wf docs` is the former `/wf-docs` (orchestrator or a single Diátaxis primitive), relocated under `wf/reference/docs/`.
+- **`review` unified.** `/wf review` is now the single review surface: `<slug>` runs the workflow stage, `<dimension>` / `sweep <aggregate>` runs ad-hoc (the former standalone `sdlc-workflow:review` skill, folded in; its 33 rubrics relocated to `wf/reference/review/`).
+- **Skills removed.** `imagegen` (expired deprecated alias), `wide-event-observability` (folded into the `instrument` augmentation as its deep reference), and `sdlc-workflow:review` (folded into `/wf review`). Net plugin skills: `wf`, `consult`, `imagery`, `uiproto`, `error-analysis`, `refactoring-patterns`, `test-patterns`.
+- **Retired siblings.** `wf-meta` and `wf-docs` SKILL.md become one-release redirect stubs mapping every old member to its new command; the `wf/SKILL.md` dispatcher also carries the redirect messaging. Schema drops the two amendment types; renderers drop the amendment renderers.
+
 ### Removed — session-start orientation message stripped (9.97.0)
 
 The `session-start-orient` hook no longer emits a workflow-orientation `systemMessage` into context. It is now a pure background-maintenance hook: it enqueues the whole-repo dashboard render and self-heals the tray, and injects nothing into the session.

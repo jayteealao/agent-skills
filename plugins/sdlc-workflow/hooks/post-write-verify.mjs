@@ -54,7 +54,7 @@ import {
 // rendered by `review-dimension.mjs`), `design-audit`, and `design-critique`.
 // Entries are the literal frontmatter `type:` value (so review-dimension is
 // listed as `review-command`). The two automation-regenerable snapshots that
-// also render rich — `sync-report` (/wf-meta sync) and `docs-index` (/wf-docs) —
+// also render rich — `sync-report` (/wf status deep) and `docs-index` (/wf docs) —
 // are intentionally NOT gated: they are rewritten by automation each run, so a
 // hard block would wedge the regenerator rather than prompt an author.
 const RICH_TIER_TYPES = new Set([

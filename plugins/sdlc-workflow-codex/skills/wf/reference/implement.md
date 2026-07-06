@@ -83,7 +83,7 @@ You are a **workflow orchestrator** running the implementation stage.
    | `design-critique` | `07-design-critique.md` | Note the critique recommendations — apply where they conflict with default choices. |
    | `instrument` | `04b-instrument.md` | **Implement the instrumentation signals defined in the plan.** Each dark-path entry has a designed signal — add the log/metric/trace call to the code being implemented. Use the framework named in the artifact. |
    | `experiment` | `04c-experiment.md` | **Wire up the experiment.** Add the feature flag, cohort split logic, and metric instrumentation defined in the artifact. The implementation must include both the variant and control paths. |
-   | `benchmark` (status: baseline) | `05c-benchmark.md` | Note the baseline numbers — implementation must not regress. After implement completes, `$wf benchmark <slug>` should be re-run in compare mode (handled by wf-verify). |
+   | `benchmark` (status: baseline) | `05c-benchmark.md` | Note the baseline numbers — implementation must not regress. After implement completes, the compare is re-run by `verify` (which loads `augment/benchmark.md` in compare mode). Benchmark is a shape-decided augmentation authored by `plan`, not a standalone skill. |
 
    **Read design planning artifacts** (separate from augmentations):
    - `02b-design.md` — design brief if present. Carry forward register (brand/product), color strategy, and anti-goals.

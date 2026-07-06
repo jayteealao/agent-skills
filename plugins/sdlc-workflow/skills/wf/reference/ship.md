@@ -17,7 +17,7 @@ You are running `wf-ship`, **stage 9 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `.ai/ship-plan.md` (project-level — author via `/wf-meta init-ship-plan` once per project) AND `08-handoff.md` with `readiness-verdict: ready` |
+| Requires | `.ai/ship-plan.md` (project-level — author via `/wf ship-plan init` once per project) AND `08-handoff.md` with `readiness-verdict: ready` |
 | Conditional inputs (mandatory when present) | `augmentations:` list in `00-index.md` — every entry MUST get a changelog entry (translated to user language). The release notes are incomplete if any augmentation is omitted. Prior `09-ship-run-*.md` with `status: awaiting-input` — must offer to resume rather than start fresh. |
 | Produces | `09-ship-run-<run-id>.md` (per release) + refreshed `09-ship-runs.md` (per-workflow index). Legacy `09-ship.md` is read-only; never written by this version. |
 | Next | `/wf retro <slug>` (if go) or `/wf implement <slug> <slice>` (if blockers) |
@@ -30,7 +30,7 @@ You are running `wf-ship`, **stage 9 of 10** in the SDLC lifecycle.
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT fix code — if blockers require code changes, recommend returning to `/wf implement <slug> <slice>`.
-- Do NOT modify `.ai/ship-plan.md` — to edit the plan, run `/wf-meta amend ship-plan`. The plan is the contract; runs follow it.
+- Do NOT modify `.ai/ship-plan.md` — to edit the plan, run `/wf ship-plan edit`. The plan is the contract; runs follow it.
 - Your job: **read the plan, generate or resume a run, execute the 13 idempotent steps, write the run artifact**.
 - Each step in the run sequence is independently re-runnable. Re-running step N when N already completed is a **no-op + note**, not a duplicate side-effect. This is the load-bearing property of the run split.
 - Follow the numbered steps below exactly in order. Do not skip, reorder, or combine steps.
@@ -38,17 +38,22 @@ You are a **workflow orchestrator**, not a problem solver.
 # Step 0 — Orient (MANDATORY)
 
 1. **Resolve the slug** from `$ARGUMENTS` (first positional). If missing, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+1.5. **Announce re-run shortcut.** If the second positional token is exactly `announce`, this is a
+   comms-only re-run (regenerate announcements without re-shipping): load
+   `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/ship/announce.md` and run **only** the announce phase for
+   `<slug>`, then STOP. Do NOT run the 13-step sequence below. (`announce` is not a valid environment,
+   so this never collides with the environment positional in sub-step 3.)
 2. **Detect `--init-plan` flag.** If present in `$ARGUMENTS`, this invocation is a redirect — print:
    ```
-   The plan-author flow is `/wf-meta init-ship-plan`, not `/wf ship --init-plan`.
-   Run: /wf-meta init-ship-plan [--from-template <kind>]
+   The plan-author flow is `/wf ship-plan init`, not `/wf ship --init-plan`.
+   Run: /wf ship-plan init [--from-template <kind>]
    ```
    STOP.
 3. **Resolve environment** (optional second positional). If passed (e.g., `staging`, `production`), it overrides the plan's default. Otherwise use the first environment in `ship-plan.ship-environments[]`.
 4. **Read `.ai/ship-plan.md`.** If missing, STOP:
    ```
    No ship plan found at .ai/ship-plan.md.
-   Run: /wf-meta init-ship-plan [--from-template <kind>]
+   Run: /wf ship-plan init [--from-template <kind>]
    ```
    Parse all blocks (A–G) into in-memory state.
 5. **Read `00-index.md`** for the workflow — parse `current-stage`, `status`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `augmentations:`.
@@ -306,6 +311,19 @@ Update `00-index.md` accordingly: `current-stage`, `recommended-next-command`, `
 
 See the `## Run artifact schema` section below.
 
+## Step 14 — Announce (post-publish comms phase)
+
+Runs only when the run reached `go-nogo: go` or `conditional-go` (skip entirely for `no-go` or a
+paused/`awaiting-input` run — there is nothing shipped to announce yet). This is the phase that
+absorbed the former standalone `/wf-meta announce`.
+
+Load `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/ship/announce.md` and run it for `<slug>` — it drafts
+the audience/channel-tailored announcements from this run's artifact, writes `announce.md`, and stamps
+`announcements-sent` back onto the run. The announce phase is interactive (it asks audience + channel);
+if the user declines or defers comms, note that and move on — the run itself is already complete. To
+regenerate comms later without re-shipping, the user runs `/wf ship <slug> announce` (the Step 1.5
+shortcut), which loads the same reference directly.
+
 ---
 
 # Run artifact schema
@@ -468,7 +486,7 @@ Use when: ship found verification evidence was stale (freshness research delta s
 **Option D: Resume paused run** → `/wf ship <slug>`
 Use when: `status: awaiting-input` — required answers missing, post-publish poll bound exceeded, or a recovery playbook was started but not completed.
 
-**Option E: Roll back** → manual + `/wf-meta amend ship-plan` (if the rollback-mechanism needs codifying)
+**Option E: Roll back** → manual + `/wf ship-plan edit` (if the rollback-mechanism needs codifying)
 Use when: post-publish checks failed and the plan's `rollback-mechanism` was triggered. Set `rolled-back: true`, `rollback-sha`, `rollback-reason` in the run artifact.
 
 Write ALL viable options into `## Recommended Next Stage` so the user can choose.
@@ -478,10 +496,10 @@ Write ALL viable options into `## Recommended Next Stage` so the user can choose
 # Backwards compatibility
 
 - Workflows with an existing legacy `09-ship.md` keep working. **Reading it is fine; writing it is gone.** This version of `wf-ship` never writes `09-ship.md` — only `09-ship-run-<run-id>.md` and `09-ship-runs.md`.
-- `/wf-meta status` and `/wf-meta resume` should treat both shapes as valid:
+- `/wf status` and `/wf recap` should treat both shapes as valid:
   - If `09-ship-runs.md` exists → use the new shape.
   - Else if `09-ship.md` exists → read it for context, but propose authoring a plan + running a fresh run.
-- The legacy `09-ship.md` artifact never had a `plan-ref` or `run-id`. If you encounter one and need to migrate, the simplest path is: author a plan via `/wf-meta init-ship-plan`, then run `/wf ship <slug>` for the next release; the legacy file stays as historical record.
+- The legacy `09-ship.md` artifact never had a `plan-ref` or `run-id`. If you encounter one and need to migrate, the simplest path is: author a plan via `/wf ship-plan init`, then run `/wf ship <slug>` for the next release; the legacy file stays as historical record.
 
 ---
 
@@ -492,12 +510,12 @@ The most common new-user error is running `/wf ship <slug>` before authoring a p
 If the user keeps running into the missing-plan error, suggest the `--from-template` shortcut:
 
 ```
-/wf-meta init-ship-plan --from-template kotlin-maven-central
-/wf-meta init-ship-plan --from-template npm-public
-/wf-meta init-ship-plan --from-template pypi
-/wf-meta init-ship-plan --from-template container-image
-/wf-meta init-ship-plan --from-template server-deploy
-/wf-meta init-ship-plan --from-template library-internal
+/wf ship-plan init --from-template kotlin-maven-central
+/wf ship-plan init --from-template npm-public
+/wf ship-plan init --from-template pypi
+/wf ship-plan init --from-template container-image
+/wf ship-plan init --from-template server-deploy
+/wf ship-plan init --from-template library-internal
 ```
 
 Each template seeds Blocks A–G with sensible defaults and one or two recovery playbooks distilled from common failure modes.

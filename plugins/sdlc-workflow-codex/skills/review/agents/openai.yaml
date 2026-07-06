@@ -1,6 +1,0 @@
-interface:
-  display_name: "SDLC Code Review"
-  short_description: "Code review across 33 dimensions — single rubric or multi-dimension sweep"
-  default_prompt: "Run a pre-merge sweep review on the current worktree changes."
-policy:
-  allow_implicit_invocation: false

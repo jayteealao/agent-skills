@@ -1,5 +1,5 @@
 ---
-description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream skill ($wf intake fix, $wf intake refactor, $wf intake, $wf-meta amend, $wf-docs, etc.). NEVER writes code directly. Adapted from the Codex bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
+description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream skill ($wf intake fix, $wf intake refactor, $wf intake, $wf docs, etc.). NEVER writes code directly. Adapted from the Codex bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
 argument-hint: "[branch [<base>] | commit <sha-or-range> | plan <slug> <slice> | codebase [<path>]]"
 ---
 
@@ -14,7 +14,7 @@ You are running `$wf simplify`, a **review-and-route triage utility**. Three par
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `simplify` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `reference/_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (`type: slice`, `slice-type: simplify`, `compressed: true`, `origin: simplify`); no new workflow, no new branch, no standalone `.ai/simplify/<run-id>.md`, no new top-level `00-index.md`; additive index updates only; chat return `simplify → compressed slice <slice-slug> on <slug>` plus routing summary and top assignments scoped with `<slug>` (e.g., `$wf intake refactor <slug> <target>`, `$wf-meta amend <slug>`).
+If the dispatcher selected **slug-mode** (the first token after `simplify` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `reference/_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (`type: slice`, `slice-type: simplify`, `compressed: true`, `origin: simplify`); no new workflow, no new branch, no standalone `.ai/simplify/<run-id>.md`, no new top-level `00-index.md`; additive index updates only; chat return `simplify → compressed slice <slice-slug> on <slug>` plus routing summary and top assignments scoped with `<slug>` (e.g., `$wf intake refactor <slug> <target>`, `$wf intake <slug> <correction>`).
 
 If slug-mode was not selected, ignore this section and proceed standalone per the instructions below.
 
@@ -236,11 +236,11 @@ For each `accept` finding, assign a `route` based on what shape of follow-up wor
 | `route-fix` | `$wf intake fix "<short description>"` | Trivial mechanical cleanup, ≤1 file, no behaviour change. Typos, dead code, unnecessary comments, missing reuse of a tiny helper. |
 | `route-refactor` | `$wf intake refactor "<area>"` | Behaviour-preserving restructure across multiple files. Copy-paste consolidation, abstraction extraction, leaky boundary fixup. |
 | `route-intake` | `$wf intake "<feature description>"` | Substantive change with possible behaviour impact, or an architectural problem. New abstraction, API simplification, performance work that crosses tripwires. |
-| `route-amend-plan` | `$wf-meta amend <slug> <slice>` | Plan-scope only. Finding flags an issue in the plan prose; apply the proposed delta via amend. |
-| `route-amend-shape` | `$wf-meta amend <slug>` | Finding implicates the workflow's shaped spec (acceptance criteria, scope). Rare from simplify; arises when a plan-scope finding cascades up. |
+| `route-amend-plan` | `$wf intake <slug> <slice>` | Plan-scope only. Finding flags an issue in the plan prose; add the correction as a new slice. |
+| `route-amend-shape` | `$wf intake <slug> <correction>` | Finding implicates the workflow's shaped spec (acceptance criteria, scope). Rare from simplify; arises when a plan-scope finding cascades up. |
 | `route-verify` | `$wf verify <slug> <slice>` | Missing or inadequate test coverage for the change. Verify re-runs acceptance criteria and may surface deeper gaps. |
 | `route-add-test` | `$wf intake fix "add test for <X>"` | Specific missing test you can add as a one-file fix. |
-| `route-docs` | `$wf-docs <primitive>` or noted for handoff | Doc gap. Handoff's Diátaxis docs-plan handling usually picks this up; explicit route is for standalone doc gaps. |
+| `route-docs` | `$wf docs <primitive>` or noted for handoff | Doc gap. Handoff's Diátaxis docs-plan handling usually picks this up; explicit route is for standalone doc gaps. |
 | `route-handoff-config` | Edit `00-index.md` `public-surface:` / `docs-mirror:` / `review-bots:` keys | Finding flags drift in surfaces handoff's T3.6/T3.7/T5.1 cares about. The fix is project-level config, not code. |
 | `route-noop` | — | Informational; recorded but no action. Some findings are useful to know but not worth acting on. |
 
@@ -411,7 +411,7 @@ refs:
 ### route-intake (`$wf intake`)
 ...
 
-### route-amend-plan (`$wf-meta amend ...`)
+### route-amend-plan (`$wf intake <slug> <slice>`)
 ...
 
 ### Other routes

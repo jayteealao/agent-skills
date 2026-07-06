@@ -8,8 +8,12 @@ You are the **entry dispatcher** for the SDLC plugin, invoked as `$wf intake`. I
 The **default** mode is the full product-owner intake (the canonical stage 1). The eight mode
 keywords (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`)
 are *arguments* to this one key — each was a standalone `$wf-quick` sub-command and is now a
-compressed/standalone entry flow. Your job: parse the invocation, resolve the **mode** and the
-**shape** (standalone vs slug-mode), load the shared context, then load the mode's reference and
+compressed/standalone entry flow. Intake also owns one **keyword-less** mode, **extension**: naming
+an existing on-disk slug followed by free scope text (`$wf intake <existing-slug> <new scope>`)
+auto-routes to `reference/intake/extend.md`, which adds net-new slices to that workflow. This is where scope
+corrections and follow-on work land — there is no `amend`; already-built work is never re-specified
+in place. Your job: parse the invocation, resolve the **mode** and the
+**shape** (standalone vs slug-mode vs extension), load the shared context, then load the mode's reference and
 run only the flow span the mode dictates.
 
 > Runtime-truth verification (`$wf probe`) and read-only triage (`$wf simplify`) are NOT intake
@@ -22,28 +26,37 @@ run only the flow span the mode dictates.
 Tokenize respecting shell quoting (`"two words"` is one token). The **mode keyword set** is:
 `fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`.
 
-Resolve in this exact order (the order matters — slug-mode is checked FIRST):
+Resolve in this exact order (the order matters — the slug checks come FIRST):
 
-1. **Slug-mode (checked first).** If `token0` exactly matches an existing
+1. **Slug + mode keyword → compressed slice.** If `token0` exactly matches an existing
    `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is in the mode keyword set →
    **slug-mode**. Consume `token0` as `<slug>` and `token1` as `<mode>`; the rest are the mode's
    instructions. The run will attach as **one compressed slice** on that workflow (Step 4).
-   *(An exact on-disk slug match is an intentional attach — it does NOT trigger the resume/amend
-   collision prompt, which guards only against an accidentally re-derived slug. See
-   `reference/intake/_intake-context.md`.)*
+   *(An exact on-disk slug match is an intentional attach — it does NOT trigger the collision
+   prompt, which guards only against an accidentally re-derived slug. See `_intake-context.md`.)*
    - If `token0` matches a **closed** workflow → ask the user directly in chat: *"Workflow `<token0>` is closed. Append a
      compressed slice anyway?"* On yes → slug-mode; on no → STOP.
-   - If `token0` matches an existing slug but `token1` is **not** a mode keyword (or absent) →
-     this is *not* slug-mode. Fall through to branch 3 (default), which will run its own Step 0
-     collision detection and prompt resume / amend / pick-different.
 
-2. **Explicit mode (no slug).** Else if `token0` is in the mode keyword set → **explicit mode,
+2. **Slug + free scope (or nothing) → extension.** Else if `token0` exactly matches an existing
+   `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is *not* a mode keyword (it is
+   free scope text, `from-review`, `from-retro`, or absent) → **extension mode**. Consume `token0`
+   as `<slug>`; the rest is the new scope (seed) passed through verbatim. Load `reference/intake/extend.md`
+   and follow it — it adds net-new slice(s) to that workflow and never touches completed work. This
+   is the auto-route that replaces the former `$wf-meta extend` command: *an existing slug plus new
+   scope is the signal*, no keyword required (convention over flags). **Extension writes full slice
+   files, so the `_compressed-slice.md` override does NOT apply** (unlike branch 1's compressed
+   slice). There is no `amend` path — correcting already-built work is a *new* slice (this branch)
+   or `$wf intake <slug> fix`, never an in-place amendment.
+   - If `token0` matches a **closed** workflow → extension is still valid (new scope may extend a
+     closed workflow). Proceed; `extend.md` handles closed/complete workflows by construction.
+
+3. **Explicit mode (no slug).** Else if `token0` is in the mode keyword set → **explicit mode,
    standalone**. Load `reference/intake/<token0>.md`; the rest are its instructions. *(This matches
    the old `$wf-quick <sub> …` behavior: a description that legitimately begins with a mode word —
    e.g. "fix the typo" — routes to that mode, which is almost always what the user wants. For
    the rare genuine collision, the user quotes the whole description as one token; see below.)*
 
-3. **Default + suggest-and-confirm.** Else the tokens are a **raw task description** → the
+4. **Default + suggest-and-confirm.** Else the tokens are a **raw task description** → the
    default intake flow (`reference/intake/default.md`). **Before loading it**, run the lightweight
    auto-route classification (below). On a strong single match, propose that mode to the user
    directly in chat; on accept, load that mode's reference instead (standalone); on decline, run
@@ -53,13 +66,13 @@ Resolve in this exact order (the order matters — slug-mode is checked FIRST):
 or render the mode menu and ask which entry the user wants.
 
 **Quote-escape.** A quoted multi-word first token (`$wf intake "rca dashboard refresh"`) never
-matches a slug or a bare keyword, so it routes to branch 3 (default) — the escape hatch for a
+matches a slug or a bare keyword, so it routes to branch 4 (default) — the escape hatch for a
 description that legitimately begins with a slug or mode word.
 
-## Auto-route classification (branch 3 only)
+## Auto-route classification (branch 4 only)
 
 Propose a mode **only when ALL** of these hold — otherwise run `reference/intake/default.md` silently:
-- (a) no explicit mode keyword and no slug match (you are in branch 3); and
+- (a) no explicit mode keyword and no slug match (you are in branch 4); and
 - (b) the description contains **no lifecycle vocabulary** (`shape`, `slice`, `plan`, `implement`,
   `verify`, `review`, `handoff`, `ship`, `retro` — those signal the user knows the stage they want);
   and
@@ -94,16 +107,18 @@ decline, `reference/intake/default.md`. The confirm step is what makes proposing
 code-writing without the user's yes, and the user can always state the mode explicitly
 (`$wf intake fix …`) to skip the prompt.
 
-**Record** the resolved shape (slug-mode | explicit | default), slug (if any), mode, and
-instructions before proceeding.
+**Record** the resolved shape (slug-mode | extension | explicit | default), slug (if any), mode,
+and instructions before proceeding.
 
 # Step 1 — Load shared context
 
 Load `reference/intake/_intake-context.md` in full and apply it:
 the External Output Boundary, the narrative-fragment tier, and the workflow-registry / slug
-semantics. Do not restate or fork its rules. If **slug-mode**, also load
-`reference/_compressed-slice.md` — it governs the slice output and
+semantics. Do not restate or fork its rules. If **slug-mode** (branch 1, a mode keyword on an
+existing slug), also load `reference/_compressed-slice.md` — it governs the slice output and
 overrides any standalone "create workflow / branch / top-level index" step in the mode reference.
+**Extension mode (branch 2) does NOT load `_compressed-slice.md`** — it
+writes full slice files per `reference/intake/extend.md`.
 
 # Step 2 — Resolve mode → flow span
 
@@ -121,6 +136,7 @@ mode→span map (a future mode is one new row):
 | `refactor` | compressed **standard** lifecycle — `01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]**; branch `refactor/<slug>` (opt-in) | compressed slice, **branch suppressed** | → `$wf implement <slug>` (`07-review` defaults to `refactor-safety`) |
 | `update-deps` | compressed **standard** lifecycle in-slug — `01-update-deps`(intake) → `02-shape` → `03-slice` → `04-plan` → **[gate]** → **self-authored** `05-implement`/`06-verify`; branch `deps/<slug>` | compressed slice **only** (companion dir suppressed) | → `$wf review <slug>` (self-authors `05`/`06`; skips `$wf implement`+`$wf verify`) |
 | `ideate` | **terminal analysis** — roots a `type:workflow-index` slug with the `01-ideate` lead only (no build stages) | compressed slice | terminal → user picks → `$wf intake <idea>` |
+| `extend` | n/a — extension always attaches to an existing slug | **adds full net-new `03-slice-<new>.md` file(s)** to the named workflow; never a compressed slice; never touches completed work | → `$wf plan <slug> <new-slice>` |
 
 Notes:
 - **The dispatcher is a pure router.** It does not itself create the workflow folder — each mode
@@ -147,17 +163,21 @@ Load the resolved reference in full and follow it verbatim. Do not summarize, pa
 | `refactor` | `reference/intake/refactor.md` |
 | `update-deps` | `reference/intake/update-deps.md` |
 | `ideate` | `reference/intake/ideate.md` |
+| `extend` *(auto-routed — branch 2)* | `reference/intake/extend.md` |
 
 The reference is the authoritative instruction for *what* the mode does; this dispatcher governs
-*how far the flow runs* around it and the standalone-vs-slug-mode shape.
+*how far the flow runs* around it and the standalone-vs-slug-mode / extension shape. `extend` has no
+keyword — it is reached only via branch 2 (an existing slug followed by free scope).
 
 # Step 4 — Execute
 
 1. Run the loaded mode reference. In **standalone** shape, honor every artifact write, branch step,
-   and routing rule it describes. In **slug-mode**, the `reference/_compressed-slice.md` contract
+   and routing rule it describes. In **slug-mode** (branch 1), the `reference/_compressed-slice.md` contract
    overrides any instruction that would create a new workflow, branch, top-level `00-index.md`,
-   standalone `01-<mode>.md` / `hf-*` / `rf-*` artifact, or off-pipeline companion — write only
-   the one compressed slice plus the additive index updates.
+   standalone `01-<mode>.md` / `hf-*` / `rf-*` artifact, or off-pipeline companion — write only the
+   one compressed slice plus the additive index updates. In **extension** (branch 2), follow
+   `reference/intake/extend.md` as written — it adds full net-new slice files to the existing workflow and
+   never touches completed work; the compressed-slice override does not apply.
 2. The remaining `$ARGUMENTS` after the matched mode (and after the slug, if consumed) are the
    mode's own arguments — pass them through verbatim.
 

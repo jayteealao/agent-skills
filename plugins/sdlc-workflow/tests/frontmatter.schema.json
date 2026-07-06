@@ -772,8 +772,29 @@
       }
     },
 
+    "recapFrontmatter": {
+      "type": "object",
+      "description": "Plain-language catch-up / explain artifact written by /wf recap (formerly resume). scope: workflow (whole run), slice (one slice), or explain (a focus artifact). focus is the explained artifact when scope=explain.",
+      "required": [
+        "schema", "type", "slug", "scope", "generated-at",
+        "current-stage", "stage-number", "status", "refs"
+      ],
+      "properties": {
+        "type": { "const": "recap" },
+        "scope": { "enum": ["workflow", "slice", "explain"] },
+        "slice": { "type": "string" },
+        "focus": { "type": "string" },
+        "generated-at": { "$ref": "#/$defs/iso8601" },
+        "stage-number": { "type": "integer", "minimum": 0 },
+        "current-stage": { "type": "string" },
+        "status": { "type": "string" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
     "resumeFrontmatter": {
       "type": "object",
+      "description": "DEPRECATED alias of recap (renamed 2026-07). Retained one release so a legacy 90-resume.md still validates; new writes use type:recap.",
       "required": [
         "schema", "type", "slug", "generated-at",
         "current-stage", "stage-number", "status",
@@ -817,47 +838,6 @@
         },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "refs": { "$ref": "#/$defs/stringArray" }
-      }
-    },
-
-    "shapeAmendmentFrontmatter": {
-      "type": "object",
-      "required": [
-        "schema", "type", "slug", "amendment-number", "created-at",
-        "amends", "source", "source-ref", "affected-slices", "tags", "refs"
-      ],
-      "properties": {
-        "type": { "const": "shape-amendment" },
-        "amendment-number": { "type": "integer", "minimum": 1 },
-        "amends": { "type": "string" },
-        "source": { "enum": ["from-review", "from-retro", "manual"] },
-        "source-ref": { "type": "string" },
-        "affected-slices": { "$ref": "#/$defs/stringArray" },
-        "created-at": { "$ref": "#/$defs/iso8601" },
-        "tags": { "$ref": "#/$defs/stringArray" },
-        "refs": { "$ref": "#/$defs/refs" }
-      }
-    },
-
-    "sliceAmendmentFrontmatter": {
-      "type": "object",
-      "required": [
-        "schema", "type", "slug", "slice-slug", "amendment-number",
-        "created-at", "amends", "source", "source-ref",
-        "original-status", "plan-needs-update", "tags", "refs"
-      ],
-      "properties": {
-        "type": { "const": "slice-amendment" },
-        "slice-slug": { "type": "string" },
-        "amendment-number": { "type": "integer", "minimum": 1 },
-        "amends": { "type": "string" },
-        "source": { "enum": ["from-review", "from-retro", "manual"] },
-        "source-ref": { "type": "string" },
-        "original-status": { "type": "string" },
-        "plan-needs-update": { "type": "boolean" },
-        "created-at": { "$ref": "#/$defs/iso8601" },
-        "tags": { "$ref": "#/$defs/stringArray" },
-        "refs": { "$ref": "#/$defs/refs" }
       }
     },
 
@@ -1462,11 +1442,10 @@
         { "$ref": "#/$defs/shipRunFrontmatter" },
         { "$ref": "#/$defs/shipRunsIndexFrontmatter" },
         { "$ref": "#/$defs/retroFrontmatter" },
+        { "$ref": "#/$defs/recapFrontmatter" },
         { "$ref": "#/$defs/resumeFrontmatter" },
         { "$ref": "#/$defs/skipRecordFrontmatter" },
         { "$ref": "#/$defs/syncReportFrontmatter" },
-        { "$ref": "#/$defs/shapeAmendmentFrontmatter" },
-        { "$ref": "#/$defs/sliceAmendmentFrontmatter" },
         { "$ref": "#/$defs/simplifyRunFrontmatter" },
         { "$ref": "#/$defs/augmentationFrontmatter" },
         { "$ref": "#/$defs/rcaFrontmatter" },

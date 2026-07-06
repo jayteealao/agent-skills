@@ -1,58 +1,58 @@
 {
   "router": "/wf",
-  "description": "Routing-resolution fixtures for the /wf skill. The first positional token selects skills/wf/reference/<key>.md. `intake` is a two-level dispatcher (intake.md): a mode keyword (fix/rca/investigate/discover/hotfix/refactor/update-deps/ideate) resolves to intake/<mode>.md, a plain description to intake/default.md, and an existing slug before a mode attaches a compressed slice (still via intake/<mode>.md). `probe` and `simplify` are their own keys (formerly /wf-quick sub-commands). The standalone /wf-quick router was retired in this release.",
+  "description": "Routing-resolution fixtures for the /wf skill (20-key surface after the wf-meta+wf-docs dissolve). The first positional token selects skills/wf/reference/<key>.md. intake is a mode dispatcher: a mode keyword resolves to intake/<mode>.md, an existing slug + free scope auto-routes to intake/extend.md (extension), an existing slug + mode attaches a compressed slice. status/recap/close are navigation/lifecycle keys; ship-plan and docs are routers. review owns its own slug-vs-dimension resolution. The former wf-meta and wf-docs skills are dissolved into /wf; the augmentation keys (instrument/experiment/benchmark/profile) are gone \u2014 they are now a shape decision applied by plan/implement/verify.",
   "fixtures": [
     {
       "id": "wf-intake-default",
-      "purpose": "Plain intake, no mode keyword — the default product-owner intake (stage 1). intake.md dispatches to the default mode reference.",
+      "purpose": "Plain intake, no mode keyword \u00e2\u20ac\u201d the default product-owner intake (stage 1). intake.md dispatches to the default mode reference.",
       "invocation": "/wf intake support OAuth callback flow",
       "expectedReferencePath": "skills/wf/reference/intake/default.md"
     },
     {
       "id": "wf-intake-fix-mode",
-      "purpose": "intake 'fix' mode — compressed planning entry. intake.md resolves the mode keyword to intake/fix.md.",
+      "purpose": "intake 'fix' mode \u00e2\u20ac\u201d compressed planning entry. intake.md resolves the mode keyword to intake/fix.md.",
       "invocation": "/wf intake fix add-rate-limiting",
       "expectedReferencePath": "skills/wf/reference/intake/fix.md"
     },
     {
       "id": "wf-intake-rca-mode",
-      "purpose": "intake 'rca' mode — root-cause-first entry (two positional args: incident + date).",
+      "purpose": "intake 'rca' mode \u00e2\u20ac\u201d root-cause-first entry (two positional args: incident + date).",
       "invocation": "/wf intake rca payment-timeout 2026-04-30",
       "expectedReferencePath": "skills/wf/reference/intake/rca.md"
     },
     {
       "id": "wf-intake-update-deps-mode",
-      "purpose": "intake 'update-deps' mode — hyphenated keyword parses correctly.",
+      "purpose": "intake 'update-deps' mode \u00e2\u20ac\u201d hyphenated keyword parses correctly.",
       "invocation": "/wf intake update-deps",
       "expectedReferencePath": "skills/wf/reference/intake/update-deps.md"
     },
     {
       "id": "wf-intake-ideate-mode",
-      "purpose": "intake 'ideate' mode — pre-pipeline ideation; the mode reference creates no workflow.",
+      "purpose": "intake 'ideate' mode \u00e2\u20ac\u201d pre-pipeline ideation; the mode reference creates no workflow.",
       "invocation": "/wf intake ideate",
       "expectedReferencePath": "skills/wf/reference/intake/ideate.md"
     },
     {
       "id": "wf-intake-investigate-mode",
-      "purpose": "intake 'investigate' mode — solution-options sketch.",
+      "purpose": "intake 'investigate' mode \u00e2\u20ac\u201d solution-options sketch.",
       "invocation": "/wf intake investigate payments",
       "expectedReferencePath": "skills/wf/reference/intake/investigate.md"
     },
     {
       "id": "wf-intake-discover-mode",
-      "purpose": "intake 'discover' mode — hypothesis test; everything after the keyword is the statement.",
+      "purpose": "intake 'discover' mode \u00e2\u20ac\u201d hypothesis test; everything after the keyword is the statement.",
       "invocation": "/wf intake discover users abandon checkout flow",
       "expectedReferencePath": "skills/wf/reference/intake/discover.md"
     },
     {
       "id": "wf-intake-hotfix-mode",
-      "purpose": "intake 'hotfix' mode — emergency entry.",
+      "purpose": "intake 'hotfix' mode \u00e2\u20ac\u201d emergency entry.",
       "invocation": "/wf intake hotfix payment-timeout breaking checkout",
       "expectedReferencePath": "skills/wf/reference/intake/hotfix.md"
     },
     {
       "id": "wf-intake-refactor-mode",
-      "purpose": "intake 'refactor' mode — behavior-preserving entry.",
+      "purpose": "intake 'refactor' mode \u00e2\u20ac\u201d behavior-preserving entry.",
       "invocation": "/wf intake refactor src/auth/session.ts",
       "expectedReferencePath": "skills/wf/reference/intake/refactor.md"
     },
@@ -100,7 +100,7 @@
     },
     {
       "id": "wf-implement-reviews-edge-case",
-      "purpose": "implement with literal `reviews` second arg (fix-blockers mode). The second token is the reference's own argument, not a sub-key — the router must not treat `reviews` as ambiguous.",
+      "purpose": "implement with literal `reviews` second arg (fix-blockers mode). The second token is the reference's own argument, not a sub-key \u00e2\u20ac\u201d the router must not treat `reviews` as ambiguous.",
       "invocation": "/wf implement reviews onboarding-1",
       "expectedReferencePath": "skills/wf/reference/implement.md"
     },
@@ -141,36 +141,6 @@
       "expectedReferencePath": "skills/wf/reference/retro.md"
     },
     {
-      "id": "wf-instrument-slug",
-      "purpose": "instrument augmentation with slug.",
-      "invocation": "/wf instrument add-onboarding",
-      "expectedReferencePath": "skills/wf/reference/instrument.md"
-    },
-    {
-      "id": "wf-experiment-slug",
-      "purpose": "experiment augmentation with slug.",
-      "invocation": "/wf experiment add-onboarding",
-      "expectedReferencePath": "skills/wf/reference/experiment.md"
-    },
-    {
-      "id": "wf-benchmark-baseline",
-      "purpose": "benchmark with mode (baseline before implement).",
-      "invocation": "/wf benchmark baseline add-onboarding",
-      "expectedReferencePath": "skills/wf/reference/benchmark.md"
-    },
-    {
-      "id": "wf-benchmark-compare",
-      "purpose": "benchmark with mode (compare after implement).",
-      "invocation": "/wf benchmark compare add-onboarding",
-      "expectedReferencePath": "skills/wf/reference/benchmark.md"
-    },
-    {
-      "id": "wf-profile-area",
-      "purpose": "profile against an explicit code area.",
-      "invocation": "/wf profile src/auth/session.ts",
-      "expectedReferencePath": "skills/wf/reference/profile.md"
-    },
-    {
       "id": "wf-unknown-key",
       "purpose": "Unknown first token must NOT be silently treated as a slug. Router prints an error listing valid keys.",
       "invocation": "/wf foobar add-onboarding",
@@ -183,6 +153,48 @@
       "invocation": "/wf",
       "expectedBehavior": "menu",
       "expectedReferencePath": null
+    },
+    {
+      "id": "wf-status",
+      "purpose": "status navigation key (absorbs next+sync). Dashboard/detail/registry-reconcile.",
+      "invocation": "/wf status",
+      "expectedReferencePath": "skills/wf/reference/status.md"
+    },
+    {
+      "id": "wf-recap-slug",
+      "purpose": "recap navigation key (renamed from resume, absorbs how explain modes).",
+      "invocation": "/wf recap oauth-callback",
+      "expectedReferencePath": "skills/wf/reference/recap.md"
+    },
+    {
+      "id": "wf-close-slug",
+      "purpose": "close lifecycle key (absorbs skip, slice-scoped). Workflow close with a reason.",
+      "invocation": "/wf close oauth-callback cancelled",
+      "expectedReferencePath": "skills/wf/reference/close.md"
+    },
+    {
+      "id": "wf-ship-plan-router",
+      "purpose": "ship-plan router key (init/build/edit). Resolves the sub-key inside the router.",
+      "invocation": "/wf ship-plan init",
+      "expectedReferencePath": "skills/wf/reference/ship-plan.md"
+    },
+    {
+      "id": "wf-docs-router",
+      "purpose": "docs router key (former /wf-docs). Orchestrator or a Diataxis primitive, resolved inside the router.",
+      "invocation": "/wf docs how-to auth-callback",
+      "expectedReferencePath": "skills/wf/reference/docs.md"
+    },
+    {
+      "id": "wf-intake-extension",
+      "purpose": "intake extension auto-route: an existing on-disk slug followed by free scope (no mode keyword) routes to intake/extend.md (replaces the former wf-meta extend).",
+      "invocation": "/wf intake oauth-callback also support PKCE",
+      "expectedReferencePath": "skills/wf/reference/intake/extend.md"
+    },
+    {
+      "id": "wf-review-ad-hoc",
+      "purpose": "review as the single review surface: a known dimension (no slug) runs ad-hoc, resolved inside review.md Step 00.",
+      "invocation": "/wf review security",
+      "expectedReferencePath": "skills/wf/reference/review.md"
     }
   ]
 }

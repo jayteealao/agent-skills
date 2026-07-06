@@ -34,13 +34,13 @@ You are a **workflow orchestrator**, not a problem solver.
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Derive the slug** from `$ARGUMENTS`. Use the task description to create a lowercase kebab-case slug. If `$ARGUMENTS` looks like an existing slug, use it.
 2. **Registry collision check** (v9.11.0; opportunistic-bootstrap added in v9.25.0). Before touching disk, consult `.ai/workflows/INDEX.md` if it exists:
-   - **If `INDEX.md` does NOT exist** → no registry yet, so no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do NOT bail out — Step 10 (below) will bootstrap `.ai/workflows/INDEX.md` with a header line + this workflow's row at the end of intake, so the *next* intake gets full collision detection without requiring an explicit `$wf-meta sync`. (Sync remains authoritative for full refresh — removing stale rows, fixing status drift across all workflows. Intake only does additive "append self if absent.")
+   - **If `INDEX.md` does NOT exist** → no registry yet, so no collision detection is possible at this step (the disk check in sub-step 3 still gates the fresh-vs-resume decision). Do NOT bail out — Step 10 (below) will bootstrap `.ai/workflows/INDEX.md` with a header line + this workflow's row at the end of intake, so the *next* intake gets full collision detection without requiring an explicit `$wf status`. (Status auto-reconciles for full refresh — removing stale rows, fixing status drift across all workflows. Intake only does additive "append self if absent.")
    - **If `INDEX.md` exists**, search / list files in the repository for an exact slug match: `grep -P "^<derived-slug>\t" .ai/workflows/INDEX.md`. Three branches based on the result:
      - **Row exists AND status column ≠ `closed`** → the slug is already in active use. STOP and ask the user directly in chat, presenting the options as a short numbered list:
        ```
        Slug `<slug>` is already an open workflow (status: <status>). What do you want to do?
-       1. Resume the existing workflow — switch to `$wf-meta resume <slug>` to continue the existing one.
-       2. Amend the existing workflow — switch to `$wf-meta amend <slug> <scope>` to modify a prior stage of the existing one.
+       1. Catch up on the existing workflow — run `$wf recap <slug>` to see what's been done, or `$wf status <slug>` for where it stands and the next command.
+       2. Add new scope to it — run `$wf intake <slug> <new scope>` to add net-new slice(s) (extension). Corrections to already-built work also land as a new slice — there is no in-place amend.
        3. Pick a different slug for this new workflow — pass a different slug as the first argument and re-run `$wf intake <new-slug> <description>`.
        4. Cancel — don't start anything.
        ```
@@ -49,7 +49,7 @@ You are a **workflow orchestrator**, not a problem solver.
        ```
        Slug `<slug>` belongs to a closed workflow. Slugs are stable — a new workflow cannot reuse it. What do you want to do?
        1. Pick a different slug for this new workflow — pass a different slug as the first argument and re-run `$wf intake <new-slug> <description>`.
-       2. Reopen the closed workflow — switch to `$wf-meta resume <slug>`. The closed workflow's artifacts stay intact; resume picks up from where it left off.
+       2. Add new scope to the closed workflow — run `$wf intake <slug> <new scope>` to extend it with net-new slice(s); the closed workflow's artifacts stay intact. Run `$wf recap <slug>` first to review what it did.
        3. Cancel — don't start anything.
        ```
        Do NOT proceed past Step 0. STOP.
@@ -170,7 +170,7 @@ Do this in order:
 10. **Register this workflow in `.ai/workflows/INDEX.md`** (additive bootstrap, v9.25.0). After `00-index.md` is finalized, ensure the registry contains a row for this slug. Re-read the just-written `00-index.md` frontmatter so the row reflects the *final* values (the branch/status/workflow-type fields can change between Step 0 and now based on PO answers in Batch A).
     - **If `.ai/workflows/INDEX.md` does NOT exist** → create it with the header comment (verbatim from the sync spec) followed by exactly one row for this workflow. Use the canonical column order: `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`. Header line:
       ```
-      # .ai/workflows/INDEX.md — global workflow registry. Maintained by $wf-meta sync (bootstrap+refresh, Step -1) and additively touched by slug-mode compressed-slice writes from $wf intake/$wf probe/$wf simplify (updated-at only) and by $wf intake (append self if absent, v9.25.0). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
+      # .ai/workflows/INDEX.md — global workflow registry. Reconciled by $wf status (bootstrap+refresh) and additively touched by slug-mode compressed-slice writes from $wf intake/$wf probe/$wf simplify (updated-at only) and by $wf intake (append self if absent). Columns: slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at. Sorted alphabetically by slug. Closed workflows are retained.
       ```
       Surface in the chat return: *"Bootstrapped `.ai/workflows/INDEX.md` with this workflow's row. Positional slug detection (compressed-slice attach) is now enabled."*
     - **If `.ai/workflows/INDEX.md` exists AND the slug is already present** → do nothing (the collision check in Step 0 should have already redirected us; reaching Step 10 with a matching row means this is a resume on a row written by an earlier intake run — leave the existing row in place so sync owns updates).

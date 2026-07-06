@@ -133,15 +133,15 @@ Do this in order:
 4. Summarize the problem, solution, affected areas, verification evidence, risks, and follow-ups in reviewer-friendly language.
 5. **Documentation generation (Diátaxis):**
    a. Read `02-shape.md` and check the `## Documentation Plan` section and `docs-needed` / `docs-types` frontmatter.
-   b. If `docs-needed: true`, for each identified doc type, load the matching primitive reference from the `wf-docs` skill and follow it verbatim. Each primitive contains the full Diátaxis discipline for its quadrant — structure, writing rules, anti-patterns, and final self-check.
+   b. If `docs-needed: true`, for each identified doc type, load the matching Diátaxis primitive reference (`docs/<primitive>.md`) and follow it verbatim. Each primitive contains the full Diátaxis discipline for its quadrant — structure, writing rules, anti-patterns, and final self-check.
 
       | `docs-types` value | Primitive reference to load |
       |---|---|
-      | `reference` | `../../wf-docs/reference/reference.md` |
-      | `how-to` | `../../wf-docs/reference/how-to.md` |
-      | `tutorial` | `../../wf-docs/reference/tutorial.md` |
-      | `explanation` | `../../wf-docs/reference/explanation.md` |
-      | `readme` or `readme-update` | `../../wf-docs/reference/readme.md` |
+      | `reference` | `docs/reference.md` |
+      | `how-to` | `docs/how-to.md` |
+      | `tutorial` | `docs/tutorial.md` |
+      | `explanation` | `docs/explanation.md` |
+      | `readme` or `readme-update` | `docs/readme.md` |
 
       Treat the loaded primitive as authoritative for that doc type. Pass the feature context (from the handoff summary, shape, and verification artifacts) to the primitive as the writing target.
    c. For each doc, respect Diátaxis boundaries — do NOT mix types. If a doc would need to cover both "how to" and "reference", split into two files.
@@ -321,7 +321,7 @@ next-invocation: "$wf ship <slug>"
 
 # Project-level handoff config (read from `00-index.md` frontmatter)
 
-The PR-readiness block (T3.5/T3.6/T3.7/T5.1) is driven by optional config keys in the workflow's `00-index.md`. Each key's block is independent — handoff skips the corresponding step silently if the key is absent. Authored by `$wf-meta amend index`; can be edited directly.
+The PR-readiness block (T3.5/T3.6/T3.7/T5.1) is driven by optional config keys in the workflow's `00-index.md`. Each key's block is independent — handoff skips the corresponding step silently if the key is absent. Authored by editing `00-index.md` directly (amend is removed; edit the file by hand or via `$wf ship-plan edit` for ship-plan config).
 
 ```yaml
 # Optional. Drives T3.6 — public-surface drift check.
