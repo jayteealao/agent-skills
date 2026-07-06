@@ -227,18 +227,20 @@ test('stop-verify clears the ledger when artifacts are valid (no managed touched
 
 const DEMO_INDEX = '---\nschema: sdlc/v1\ntype: index\nslug: demo\ntitle: Demo Feature\ncurrent-stage: plan\nstatus: active\nrecommended-next-invocation: /wf-meta plan demo\n---\n# demo\n';
 
-test('session-start emits orientation but records NO activation without a confirmed hub', () => {
+test('session-start emits NO orientation and records NO activation without a confirmed hub', () => {
   const { repo, pluginData, cleanup } = mkRepo();
   try {
+    // An ACTIVE workflow is present on disk — the strongest case for the
+    // orientation strip: even with something to orient about, the hook stays
+    // silent (pure background maintenance; the wf skills re-read 00-index.md
+    // themselves on invocation).
     writeFileSync(join(repo, '.ai', 'workflows', 'demo', '00-index.md'), DEMO_INDEX);
     // Hub ensure disabled → no hub confirmed → activation must NOT be recorded
     // (the native-interop contract records activation only after a confirmed hub).
     const env = { SDLC_DISABLE_HUB_ENSURE: '1' };
     const res = runHook('session-start.mjs', { cwd: repo, hook_event_name: 'SessionStart', source: 'startup', session_id: 's1' }, { repo, pluginData, env });
     assert.equal(res.status, 0, `stderr=${res.stderr}`);
-    const ctx = JSON.parse(res.stdout).hookSpecificOutput.additionalContext;
-    assert.match(ctx, /demo/);
-    assert.match(ctx, /\$wf-meta plan demo/, 'maps legacy /wf-meta to native $wf-meta');
+    assert.equal(res.stdout.trim(), '', 'no orientation payload — the hook is background-maintenance only');
     assert.ok(!existsSync(join(pluginData, 'activation.json')), 'no activation record without a confirmed hub');
   } finally {
     cleanup();
@@ -254,7 +256,7 @@ test('session-start writes activation once after the hub is confirmed', () => {
     const env = { SDLC_ASSUME_HUB_READY: '1' };
     const res = runHook('session-start.mjs', { cwd: repo, hook_event_name: 'SessionStart', source: 'startup', session_id: 's1' }, { repo, pluginData, env });
     assert.equal(res.status, 0, `stderr=${res.stderr}`);
-    assert.match(JSON.parse(res.stdout).hookSpecificOutput.additionalContext, /\$wf-meta plan demo/, 'maps legacy /wf-meta to native $wf-meta');
+    assert.equal(res.stdout.trim(), '', 'no orientation payload even on the activation path');
 
     const actPath = join(pluginData, 'activation.json');
     assert.ok(existsSync(actPath), 'activation recorded after a confirmed hub');
