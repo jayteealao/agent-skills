@@ -1,6 +1,17 @@
 # Feedback Loops & Hardening — Implementation Plan
 
-> Status: **PROPOSED — not built** (drafted 2026-07-06).
+> Status: **BUILT — all three releases shipped 2026-07-06.**
+> R1 = v9.99.0 (EOB single-source + drift guard, W2a–c, W2d–f constraint-forethought cures);
+> R2 = v9.100.0 (W1 solutions corpus, W2g repeat-deferral tripwire, W4 ship rollback);
+> R3 = v9.101.0 (W3.2 leak guards: lexicon lib + 2 guard entrypoints covering hooks #1–3,
+> `semantic` config block, advisory-first, default OFF).
+> Deltas from the text below, decided at build time: the plan-completion hard gate for W2d was
+> adopted (AskUserQuestion at plan, verify Step 0 refusal as backstop); hooks #1 and #3 share one
+> Bash entrypoint (`leak-guard-bash`); ship-plan's rollback conventions extend **Block E** rather
+> than adding a separate `## Rollback` block (Block E already owned the rollout/rollback contract).
+> The advisory→enforce graduation for W3.2 remains open by design.
+>
+> Original status: PROPOSED (drafted 2026-07-06).
 > Scope constraint (user-set): **no new skills, no new top-level `/wf` keys.** The surface stays at
 > 20 keys. Every capability below lands as a mode, phase, step, or shared reference inside existing
 > keys. One reassignment folded in: **rollback lives under `/wf ship`** (a second-positional token,
