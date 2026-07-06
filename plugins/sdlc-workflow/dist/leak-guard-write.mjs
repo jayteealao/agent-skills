@@ -39,8 +39,13 @@ async function main() {
   if (process.env.SDLC_DISPATCH_ACTIVE === "1") return;
   const input = await readStdinJson();
   const filePath = input?.tool_input?.file_path;
-  const content = input?.tool_input?.content ?? input?.tool_input?.new_string;
-  if (!filePath || !content) return;
+  const parts = [
+    input?.tool_input?.content,
+    input?.tool_input?.new_string,
+    ...Array.isArray(input?.tool_input?.edits) ? input.tool_input.edits.map((e) => e?.new_string) : []
+  ].filter((t) => typeof t === "string" && t.length);
+  if (!filePath || !parts.length) return;
+  const content = parts.join("\n");
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
   if (config.semantic?.enabled !== true) return;

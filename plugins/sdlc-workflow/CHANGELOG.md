@@ -15,7 +15,7 @@ Third and final feedback-loop release — the only runtime-code slice. The Exter
 - **Two new PreToolUse guards** (three hooks' scope in two entry points): `leak-guard-bash` scans the message-bearing arguments of publishing commands — `git commit`/`git tag` messages, `gh pr create` titles/bodies, `gh release create|edit` notes (never the whole command, so reading internal files is never flagged); `leak-guard-write` scans writes to public documentation paths (README*, CHANGELOG*, CONTRIBUTING*, `docs/` outside the internal roots).
 - **Default OFF, advisory-first.** New `semantic` config block in `.ai/sdlc-config.json`: `{ "enabled": false, "mode": "advisory" }`. Advisory emits a systemMessage naming the matched vocabulary; `"enforce"` denies the call with the same message. The graduation gate: run advisory across real workflows and promote to enforce only at a ~0 observed false-positive rate.
 - **Isolation:** both guards respect the external-model dispatch sentinel and never fire inside dispatch child processes; guard errors never break the tool call (advisory infrastructure fails open).
-- Known Phase-1 limit: `--body-file`/`-F` contents are not read (the file *path* is still scanned); later hook phases stay in the semantic-hooks plan.
+- Known Phase-1 limits: `--body-file`/`-F` contents are not read (the file *path* is still scanned), and the guards are wired in the **Claude tree's hooks only** — the bundles ride the shared runtime payload into the Codex mirror, but Codex-native hook wiring waits for the advisory graduation. Later hook phases stay in the semantic-hooks plan.
 
 ### Added — feedback-loops R2: knowledge compounding, repeat-deferral tripwire, ship rollback (9.100.0)
 

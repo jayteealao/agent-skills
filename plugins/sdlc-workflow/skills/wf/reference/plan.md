@@ -553,8 +553,9 @@ Per row:
 **Force-scope rule (MANDATORY — a named wall must be an engineered wall).** Any environment
 dependency sitting on a user-observable AC's critical path — credentials, a device, an external
 service, an inbound callback, a deploy target, infrastructure that does not exist yet — MUST
-resolve, before this plan completes, to exactly one `constraint-resolution:` line written under
-the AC's row:
+resolve, before this plan completes, to exactly one `constraint-resolution:` line, written in a
+per-AC list directly below the Verification Strategy table (one line per AC that names an
+environment dependency, keyed by the AC id):
 
 1. `constraint-resolution: prerequisite-slice: <slug>` — a prerequisite slice or harness scoped
    into the slug (TURN provisioning, an emulator debug build variant, a seeded-fixture harness).

@@ -1366,3 +1366,24 @@ test('leak-guard-write advises on public-doc writes and skips internal paths', (
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('leak-guard-write scans MultiEdit edits[] against public-doc paths', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), semanticConfig('advisory'));
+    const result = runHook(LEAK_HOOKS.write, {
+      cwd: tmp,
+      tool_input: {
+        file_path: 'CHANGELOG.md',
+        edits: [
+          { old_string: 'a', new_string: 'Improved link previews.' },
+          { old_string: 'b', new_string: 'Verified via /wf verify demo.' },
+        ],
+      },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    match(JSON.parse(result.stdout).systemMessage, /External Output Boundary/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});

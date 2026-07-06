@@ -39,9 +39,17 @@ async function main() {
 
   const input = await readStdinJson();
   const filePath = input?.tool_input?.file_path;
-  // Write carries full content; Edit carries the replacement text.
-  const content = input?.tool_input?.content ?? input?.tool_input?.new_string;
-  if (!filePath || !content) return;
+  // Write carries full content; Edit carries the replacement text; MultiEdit
+  // carries an edits[] array of replacements — scan them all.
+  const parts = [
+    input?.tool_input?.content,
+    input?.tool_input?.new_string,
+    ...(Array.isArray(input?.tool_input?.edits)
+      ? input.tool_input.edits.map((e) => e?.new_string)
+      : []),
+  ].filter((t) => typeof t === 'string' && t.length);
+  if (!filePath || !parts.length) return;
+  const content = parts.join('\n');
 
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
