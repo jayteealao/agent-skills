@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — renderers for the `solution` and `ship-rollback` artifact types (9.103.0)
+
+The two artifact types introduced in 9.100.0 (feedback-loops W1/W4) shipped without dedicated renderers, so their views degraded to the plain `fallbackRender` page and the e2e acceptance run reported `no renderer for: solution, ship-rollback`.
+
+- **`renderers/solution.mjs`.** The durable cross-workflow learning (`.ai/solutions/<category>/<slug>.md`, distilled by `/wf retro`) now renders as a frontmatter card + a promoted `category`/`status` metric row + the Problem/Learning/How-to-apply narrative. `status: superseded` tones the badge amber; `source-workflow` (slug or list) becomes the lede.
+- **`renderers/ship-rollback.mjs`.** The runbook-driven reversal record (`09-rollback-<run-id>.md`, written by `/wf ship … rollback`) renders a decision/outcome metric row colored by value — the go/no-go gate and the `rollback-verify-result` (pass → green, fail → red), plus `steps-executed` / `steps-irreversible` and the reversed `run-id`.
+- Both use the shared `renderSimple` base (like `close-record`); the build auto-discovers them as `dist/renderers/<type>.mjs` entrypoints, and `loadRenderer` resolves them by frontmatter `type`. The e2e acceptance run now reports `no renderer for: (none)`.
+
 ### Removed — retired `wf-meta` + `wf-docs` skills deleted completely (9.102.0)
 
 The `wf-meta` and `wf-docs` skills — dissolved into `/wf` keys back in 9.98.0 and kept only as redirect stubs since — are now deleted outright in both trees. The grace period is over: typing the old `/wf-meta …` / `/wf-docs …` names no longer resolves to a tombstone; `/wf`'s own unknown-key handler still prints the mapping to the successor keys (`/wf status`, `/wf recap`, `/wf docs`, etc.), so callers are not left stranded.
