@@ -144,7 +144,7 @@
 
 <p>Fires before any write to a workflow artifact path (<code>*/.ai/workflows/&lt;slug&gt;/*.md</code>). Blocks writes that violate:</p>
 <ul>
-  <li><strong>Filename convention</strong> — files must match <code>NN-stagename.md</code> or <code>NNa-stagename.md</code> (for sub-stages like <code>02b-design.md</code>), plus the allowlisted names <code>risk-register.md</code>, <code>estimate.md</code>, <code>announce.md</code>, <code>skip-&lt;name&gt;.md</code> (wf-meta skip records), <code>po-answers.md</code>, and anything under <code>design-notes/</code>.</li>
+  <li><strong>Filename convention</strong> — files must match <code>NN-stagename.md</code> or <code>NNa-stagename.md</code> (for sub-stages like <code>02b-design.md</code>), plus the allowlisted names <code>risk-register.md</code>, <code>estimate.md</code>, <code>announce.md</code>, <code>skip-&lt;name&gt;.md</code> (close/skip records), <code>po-answers.md</code>, and anything under <code>design-notes/</code>.</li>
   <li><strong>YAML frontmatter</strong> — must be present between <code>---</code> markers and contain <code>schema</code>, <code>type</code>, and <code>slug</code> fields. (The <code>po-answers.md</code> prose log is exempt.)</li>
   <li><strong>Schema version</strong> — <code>schema: sdlc/v1</code>.</li>
   <li><strong>Slug stability</strong> — the frontmatter <code>slug</code> must match the directory name.</li>

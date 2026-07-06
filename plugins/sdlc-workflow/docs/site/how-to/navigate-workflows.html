@@ -93,12 +93,12 @@
 <span class="quadrant howto">how-to</span>
 <h1>Navigate existing workflows</h1>
 
-<p class="lede">You need to find a workflow you started, pick it back up after a break, see what to run next, or repair one that got stuck. This page shows the four commands that handle each of those situations.</p>
+<p class="lede">You need to find a workflow you started, pick it back up after a break, see what to run next, or repair one that got stuck. This page shows the <code>/wf</code> keys that handle each of those situations.</p>
 
 <div class="summary">
 <table>
 <tr><th>Pre-conditions</th><td>At least one workflow directory exists at <code>.ai/workflows/&lt;slug&gt;/</code>. A <dfn>slug</dfn> (a short hyphenated ID like <code>auth-refresh</code>) is the unique name the plugin assigned when you created the workflow.</td></tr>
-<tr><th>Tool</th><td>All commands on this page are sub-commands of <code>/wf-meta</code> — the navigation and maintenance command for existing workflows.</td></tr>
+<tr><th>Tool</th><td>All commands on this page are keys of <code>/wf</code> — the single entry point. Navigation and maintenance of existing workflows live here (the former standalone <code>/wf-meta</code> router is retired).</td></tr>
 </table>
 </div>
 
@@ -106,13 +106,13 @@
 
 <p>You opened the repo and you are not sure what is in flight.</p>
 
-<pre><code>/wf-meta status</code></pre>
+<pre><code>/wf status</code></pre>
 
 <p>Lists every active workflow, the current <a href="../reference/glossary.html">stage</a> (one of ten named steps a workflow moves through), the recommended next command, and any open questions. Use this as your daily entry point before touching anything else.</p>
 
 <p>To zoom in on one workflow, pass its slug:</p>
 
-<pre><code>/wf-meta status auth-refresh</code></pre>
+<pre><code>/wf status auth-refresh</code></pre>
 
 <p>The single-workflow view shows the full 10-stage progress map with a status for each stage (not started / in progress / complete / skipped), the slice statuses, and recent activity. Workflows with open questions appear in the Blocked dashboard group. A <dfn>slice</dfn> is one independently deliverable chunk of the workflow — a named unit of work inside the larger feature.</p>
 
@@ -120,45 +120,45 @@
 
 <p>You walked away from a workflow hours, days, or weeks ago and you need to get back into it.</p>
 
-<pre><code>/wf-meta resume auth-refresh</code></pre>
+<pre><code>/wf recap auth-refresh</code></pre>
 
-<p>Reads the workflow's full artifact trail — every note, plan, and decision the plugin has written under <code>.ai/workflows/auth-refresh/</code> — identifies the next unfinished step, and proposes a concrete command you can run immediately. Use this any time context-switching has left you uncertain where things stand.</p>
+<p>Reads the workflow's full artifact trail — every note, plan, and decision the plugin has written under <code>.ai/workflows/auth-refresh/</code> — identifies the next unfinished step, and proposes a concrete command you can run immediately. Use this any time context-switching has left you uncertain where things stand. (<code>recap</code> is the renamed former <code>resume</code>.)</p>
 
 <h2>Next: get the next command without a full re-read</h2>
 
 <p>You know the workflow well and you just want to know what to run now.</p>
 
-<pre><code>/wf-meta next auth-refresh</code></pre>
+<pre><code>/wf status auth-refresh</code></pre>
 
-<p>Like <code>resume</code>, but lighter. It answers "what should I run next" without re-reading the complete artifact trail. Good when you have been working in the workflow recently and just need a quick reminder of the immediate next action.</p>
+<p>Lighter than <code>recap</code>. The single-workflow <code>status</code> view ends with a <code>## Next</code> block naming the immediate next command, without re-reading the complete artifact trail. Good when you have been working in the workflow recently and just need a quick reminder of the immediate next action. (This absorbs the former <code>/wf-meta next</code>.)</p>
 
 <h2>Repair: fix a stuck or drifted workflow</h2>
 
 <p>Something feels off — maybe the <code>00-index.md</code> control file disagrees with the actual files on disk, or you pulled a branch that added new artifacts and the index was not updated.</p>
 
-<pre><code>/wf-meta sync auth-refresh</code></pre>
+<pre><code>/wf status auth-refresh</code></pre>
 
-<p>Re-reads every artifact on disk and repairs the <code>00-index.md</code> <a href="../reference/glossary.html">control file</a> if it disagrees with reality. Run this after manual edits, after pulling a branch that landed new artifacts, or whenever status output looks wrong.</p>
+<p>The <code>status</code> detail view reconciles the <code>00-index.md</code> <a href="../reference/glossary.html">control file</a> against the artifacts on disk automatically. For a deeper reality-drift report, add <code>deep</code>: <code>/wf status auth-refresh deep</code>. Run this after manual edits, after pulling a branch that landed new artifacts, or whenever status output looks wrong. (This absorbs the former <code>/wf-meta sync</code>.)</p>
 
-<h2>Full sub-command reference</h2>
+<h2>Full key reference</h2>
 
 <details>
-<summary>All /wf-meta sub-commands</summary>
+<summary>The /wf navigation &amp; lifecycle keys</summary>
 <table>
 <thead><tr><th>What you want</th><th>Command</th></tr></thead>
 <tbody>
-<tr><td>"What am I working on?"</td><td><code>/wf-meta status</code></td></tr>
-<tr><td>"Where did I leave off in auth-refresh?"</td><td><code>/wf-meta resume auth-refresh</code></td></tr>
-<tr><td>"What's the next command for auth-refresh?"</td><td><code>/wf-meta next auth-refresh</code></td></tr>
-<tr><td>"Index file looks wrong — repair it."</td><td><code>/wf-meta sync auth-refresh</code></td></tr>
-<tr><td>"Ask a code question, explore the codebase, commission deep web research, or explain a workflow artifact or review findings."</td><td><code>/wf-meta how auth-refresh plan</code></td></tr>
-<tr><td>"Generate a Diátaxis announcement from a shipped workflow."</td><td><code>/wf-meta announce auth-refresh</code></td></tr>
-<tr><td>"Correct a wrong spec, slice, or ship-plan block."</td><td><code>/wf-meta amend auth-refresh &lt;scope&gt;</code></td></tr>
-<tr><td>"Add new slices to an existing workflow."</td><td><code>/wf-meta extend auth-refresh</code></td></tr>
-<tr><td>"Mark a stage skipped with a stub."</td><td><code>/wf-meta skip auth-refresh &lt;stage&gt;</code></td></tr>
-<tr><td>"Archive a finished or abandoned workflow."</td><td><code>/wf-meta close auth-refresh &lt;reason&gt;</code></td></tr>
-<tr><td>"Author the project ship plan (once)."</td><td><code>/wf-meta init-ship-plan</code></td></tr>
-<tr><td>"Build the CI/CD + DX pipeline from the plan."</td><td><code>/wf-meta build-pipeline</code></td></tr>
+<tr><td>"What am I working on?"</td><td><code>/wf status</code></td></tr>
+<tr><td>"Where did I leave off in auth-refresh?"</td><td><code>/wf recap auth-refresh</code></td></tr>
+<tr><td>"What's the next command for auth-refresh?"</td><td><code>/wf status auth-refresh</code></td></tr>
+<tr><td>"Index file looks wrong — repair it."</td><td><code>/wf status auth-refresh</code> (deep report: <code>/wf status auth-refresh deep</code>)</td></tr>
+<tr><td>"Explain a workflow artifact or review findings."</td><td><code>/wf recap auth-refresh plan</code></td></tr>
+<tr><td>"Ask a code question, explore the codebase, or commission deep web research."</td><td>the <code>deep-research</code> skill</td></tr>
+<tr><td>"Generate a Diátaxis announcement from a shipped workflow."</td><td><code>/wf ship auth-refresh announce</code></td></tr>
+<tr><td>"Correct a wrong spec or add new scope."</td><td><code>/wf intake auth-refresh &lt;scope&gt;</code> (there is no <code>amend</code>)</td></tr>
+<tr><td>"Terminate one slice so downstream is satisfied."</td><td><code>/wf close auth-refresh &lt;slice&gt;</code></td></tr>
+<tr><td>"Archive a finished or abandoned workflow."</td><td><code>/wf close auth-refresh &lt;reason&gt;</code></td></tr>
+<tr><td>"Author the project ship plan (once)."</td><td><code>/wf ship-plan init</code></td></tr>
+<tr><td>"Build the CI/CD + DX pipeline from the plan."</td><td><code>/wf ship-plan build</code></td></tr>
 </tbody>
 </table>
 </details>
@@ -168,7 +168,7 @@
 <ul>
   <li><a href="resume-paused-work.html">Pick up a paused ship run →</a></li>
   <li><a href="amend-or-extend.html">Correct the spec or add new scope →</a></li>
-  <li><a href="../reference/commands.html">See every /wf-meta sub-command with full argument lists →</a></li>
+  <li><a href="../reference/commands.html">See every /wf key with full argument lists →</a></li>
 </ul>
 </div>
 

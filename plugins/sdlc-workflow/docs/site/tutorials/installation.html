@@ -95,7 +95,7 @@
 <div class="breadcrumb"><a href="../index.html">Home</a> › Tutorials › Install</div>
 <span class="quadrant tutorial">tutorial</span>
 <h1>Install the plugin</h1>
-<p class="lede">By the end of this page, you'll have the plugin loaded in Claude Code, all skills discovered, and a working <code>/wf-meta status</code> command. About five minutes.</p>
+<p class="lede">By the end of this page, you'll have the plugin loaded in Claude Code, all skills discovered, and a working <code>/wf status</code> command. About five minutes.</p>
 
 <div class="summary">
 <table>
@@ -130,13 +130,13 @@ Since v9.45.0 the hooks, renderer, and serve daemon run from committed <code>dis
 
 <pre><code>/skills</code></pre>
 
-<p>You should see at least: <code>wf</code>, <code>wf-meta</code>, <code>wf-docs</code>, <code>review</code>, <code>error-analysis</code>, <code>wide-event-observability</code>. Each dispatches across many sub-commands (design is now <code>/wf design</code>, not a separate skill) — see <a href="../reference/skills.html">Skills reference</a>.</p>
+<p>You should see at least: <code>wf</code>, <code>review</code>, <code>error-analysis</code>, <code>wide-event-observability</code>. Each dispatches across many sub-commands (design is now <code>/wf design</code>, navigation and lifecycle are now <code>/wf</code> keys) — see <a href="../reference/skills.html">Skills reference</a>.</p>
 
-<h2>Step 3 — Verify a meta command works</h2>
+<h2>Step 3 — Verify a navigation command works</h2>
 
 <p>Open a session at the root of any git repo and run:</p>
 
-<pre><code>/wf-meta status</code></pre>
+<pre><code>/wf status</code></pre>
 
 <p>You should see one of two outcomes:</p>
 
@@ -181,7 +181,7 @@ Since v9.45.0 the hooks, renderer, and serve daemon run from committed <code>dis
 <h2>Troubleshooting</h2>
 
 <dl>
-<dt><strong><code>/wf-meta status</code> says "command not found"</strong></dt>
+<dt><strong><code>/wf status</code> says "command not found"</strong></dt>
 <dd>The command didn't load. Run <code>/plugin list</code> to confirm sdlc-workflow is installed and enabled. If it's missing, re-run step 1.</dd>
 
 <dt><strong>The hook isn't blocking invalid writes</strong></dt>

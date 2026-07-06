@@ -127,7 +127,7 @@ The plugin applies the [Diátaxis framework](https://diataxis.fr) across the lif
 | Architectural decisions, trade-offs | Explanation | Background and rationale |
 | Significant project change | README update | Front door |
 
-**At handoff (stage 8):** documentation is generated from the shape's docs plan before the announcement is drafted. For each doc type planned at shape, the matching Diátaxis primitive is loaded from `skills/wf-docs/reference/<type>.md` and followed verbatim. Generated doc paths land in `08-handoff.md` frontmatter.
+**At handoff (stage 8):** documentation is generated from the shape's docs plan before the announcement is drafted. For each doc type planned at shape, the matching Diátaxis primitive is loaded from `skills/wf/reference/docs/<type>.md` and followed verbatim. Generated doc paths land in `08-handoff.md` frontmatter.
 
 **At announce (post-ship):** announcements automatically link to generated docs by channel — Slack/chat gets a short link, GitHub Release gets markdown blocks, wikis get embedded sections.
 
@@ -139,33 +139,25 @@ The pipeline is linear by design, but real development is cyclic. Three utility 
 
 | Need | Command |
 |---|---|
-| Implementation bugs found in review | `wf-implement <slug> [slice] reviews` — reads `07-review-<slice-slug>.md`, fixes BLOCKER/HIGH findings |
-| Spec or acceptance criteria were wrong | `wf-amend` — creates versioned correction artifacts alongside originals |
-| New scope needed (not bugs, not corrections) | `wf-extend` — appends new slices without touching completed slice files |
+| Implementation bugs found in review | `/wf implement <slug> [slice] reviews` — reads `07-review-<slice-slug>.md`, fixes BLOCKER/HIGH findings |
+| Spec or acceptance criteria were wrong | `/wf intake <slug> <scope>` — adds a corrective slice; no existing artifact is overwritten |
+| New scope needed (not bugs, not corrections) | `/wf intake <slug> <scope>` — adds a new slice without touching completed slice files |
 
-`wf-amend` and `wf-extend` never modify any artifact with `status: complete`. The original record of what was done is always preserved.
+`/wf intake` on an existing slug never modifies any artifact with `status: complete`. The original record of what was done is always preserved.
 
-### How the question-answering system works (wf-how)
+### How code questions and research work
 
-`wf-how` is a standalone command that answers questions about the codebase, workflow artifacts, and external research topics. It runs at any point in the pipeline without advancing workflow state. It routes automatically across five modes based on what you ask:
+For codebase exploration, architecture questions, and web research, use the `deep-research` skill. For explaining a specific workflow artifact — a plan, shape, slice, review, or findings set — use `/wf recap <slug> <focus>`.
 
-| Mode | When it activates | Fan-out |
-|------|------------------|---------|
-| **Quick (A)** | Narrow question about a single function, class, or file | None — one Explore sub-agent reads and answers directly |
-| **Codebase Explain (B)** | "How does X work?" — architectural or flow question | Simple: 1 agent. Complex: 2–4 parallel Explore agents → 1 synthesis agent |
-| **Deep Research (C)** | Industry practices, ecosystem surveys, comparative analysis | 6–8 parallel web research agents (target: 200+ sources) → 1 synthesis agent |
-| **Workflow Explain (D)** | "What does my plan say?" — explain a specific artifact | 1 reader/explainer agent |
-| **Findings Explain (E)** | "Explain the review findings" — understand what findings mean | 1 findings explainer agent |
+| Need | How to get it |
+|------|--------------|
+| "How does X work?" (architecture/flow question) | `deep-research` skill — fans out to multiple Explore agents and synthesizes |
+| Industry practices, ecosystem surveys, comparative analysis | `deep-research` skill — 6–8 parallel web research agents (target: 200+ sources) |
+| "What does my plan say?" / explain a specific artifact | `/wf recap <slug> plan` (or `shape`, `slice`, `review`, `findings`) |
+| Quick code question (single function/type/return value) | `deep-research` skill with a focused prompt |
 
-**Routing is automatic.** The command parses your question for signals — research vocabulary triggers Mode C, narrow scope triggers Mode A, artifact references trigger Mode D or E. State your question naturally and let the command decide. If it guesses wrong, redirect it in chat.
-
-**Every mode offers a Diátaxis output option.** After producing the explanation, the command asks whether you want it saved as a structured doc — Explanation, Reference, or How-to. Defaults by mode: Quick → none, Codebase/Workflow/Findings → Explanation, Deep Research → Reference.
-
-**Artifacts are written to:**
-- `.ai/research/<topic>-<ts>.md` — for codebase explanations and deep research
-- `.ai/workflows/<slug>/90-how-<artifact>.md` — for workflow artifact explanations
-- `.ai/workflows/<slug>/90-findings-explain.md` — for findings explanations
-- `.ai/workflows/<slug>/90-how-<topic>.md` — for quick answers when a workflow is active
+**Artifacts from `/wf recap` are written to:**
+- `.ai/workflows/<slug>/90-recap.md` — the recap/explain artifact (`scope: workflow | slice | explain`; for an explanation, `focus` names the explained artifact — e.g. `plan`, `review`, `findings`)
 
 ---
 
@@ -258,11 +250,11 @@ No slice needed — handoff reads `03-slice.md` and automatically aggregates all
 
 ### Step 9 — Ship
 
-Ship is **plan-driven**. Author the project-level plan once with `/wf-meta init-ship-plan` (or `--from-template <kotlin-maven-central|npm-public|pypi|container-image|server-deploy|library-internal>`); every subsequent `/wf ship <slug>` reads it. The plan captures what "ship" means here, the version scheme, CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, and announcements.
+Ship is **plan-driven**. Author the project-level plan once with `/wf ship-plan init` (or `--from-template <kotlin-maven-central|npm-public|pypi|container-image|server-deploy|library-internal>`); every subsequent `/wf ship <slug>` reads it. The plan captures what "ship" means here, the version scheme, CI/CD wiring, post-publish verification, rollout/rollback, recovery playbooks, and announcements.
 
 ```
-/wf-meta init-ship-plan --from-template npm-public   # one-time per project
-/wf ship dark-mode-toggle-settings                   # per release
+/wf ship-plan init --from-template npm-public   # one-time per project
+/wf ship dark-mode-toggle-settings              # per release
 ```
 
 Ship refuses to start unless `08-handoff.md` reports `readiness-verdict: ready`. It walks 13 idempotent steps (pre-flight, publish dry-run, rollout questions, freshness delta, go/no-go, merge, tag+release, release-workflow watch, post-publish polling, post-release version bump, index update, write run artifact). Runs accumulate as `09-ship-run-<run-id>.md`; partial failures resume from `status: awaiting-input` rather than starting over.
@@ -313,13 +305,13 @@ You do not need a slug yet. The command derives it from your description and cre
 ### … find out what to run next
 
 ```
-/wf-meta next dark-mode-toggle-settings
+/wf status dark-mode-toggle-settings
 ```
 
-Reads `00-index.md` and returns all viable options with reasoning. If you have forgotten the slug:
+Reads `00-index.md` and returns all viable next options with reasoning. If you have forgotten the slug:
 
 ```
-/wf-meta next
+/wf status
 ```
 
 The command searches all `.ai/workflows/*/00-index.md` files and either infers the active workflow or asks you to choose.
@@ -327,13 +319,13 @@ The command searches all `.ai/workflows/*/00-index.md` files and either infers t
 ### … see all workflow status at a glance
 
 ```
-/wf-meta status
+/wf status
 ```
 
 Reads every `00-index.md` in the project and renders a grouped dashboard — active, complete, blocked, and abandoned — with current stage, progress bars, and next invocation for each. No files are written.
 
 ```
-/wf-meta status dark-mode-toggle-settings
+/wf status dark-mode-toggle-settings
 ```
 
 Detail mode for a single workflow: shows every stage status, all artifacts, open questions, and the full recommended next command.
@@ -341,20 +333,20 @@ Detail mode for a single workflow: shows every stage status, all artifacts, open
 ### … recover context after a break
 
 ```
-/wf-meta resume dark-mode-toggle-settings
+/wf recap dark-mode-toggle-settings
 ```
 
-Reads the full workflow trail and distills it into a ~500-word context brief. Written to `90-resume.md` and returned in chat. Designed for starting a new Claude Code session without re-reading all the artifact files manually.
+Reads the full workflow trail and distills it into a plain-language catch-up, proposing a concrete next invocation. Written to `90-recap.md` and returned in chat. Designed for starting a new Claude Code session without re-reading all the artifact files manually.
 
 ### … reconcile workflow state with reality
 
 ```
-/wf-meta sync dark-mode-toggle-settings
+/wf status dark-mode-toggle-settings deep
 ```
 
-Cross-references every code file, test file, branch, PR, and dependency referenced in workflow artifacts against the actual codebase. Especially useful mid-flight (stages 4–7) when long-running workflows can drift due to teammate merges, library releases, or config changes. Produces `00-sync.md` with a health rating (`in-sync / minor-drift / significant-drift / stale`) and per-category drift details.
+Cross-references every code file, test file, branch, PR, and dependency referenced in workflow artifacts against the actual codebase. Especially useful mid-flight (stages 4–7) when long-running workflows can drift due to teammate merges, library releases, or config changes. The deep report includes a health rating (`in-sync / minor-drift / significant-drift / stale`) and per-category drift details.
 
-This command is **read-only and diagnostic** — it surfaces drift but does not fix it. You decide how to respond.
+This view is **read-only and diagnostic** — it surfaces drift but does not fix it. You decide how to respond.
 
 ### … pass supplemental context to a command
 
@@ -406,50 +398,25 @@ After deferring some findings in a previous review:
 
 Skips the full review. Reads `07-review-<slice-slug>.md → ## Triage Decisions` for the resolved slice, collects all findings marked `deferred` or `untriaged`, and presents them for re-triage. Updates the triage section in-place.
 
-### … amend an existing workflow (spec was wrong)
+### … correct a spec or add new scope
 
-Use `wf-amend` when a review or retro reveals that the **spec, acceptance criteria, or fundamental approach** of an existing slice was incorrect — not that the code has bugs, and not that new scope is needed.
-
-```
-/wf-meta amend dark-mode-toggle-settings from-review
-```
-
-The command reads `07-review-<slice-slug>.md` (or aggregates relevant siblings if the spec error spans slices), identifies findings that point to spec errors (not implementation bugs), asks 4–8 questions to understand the correction, then writes versioned amendment artifacts:
-
-- `02-shape-amend-1.md` — if the overall spec needs correcting
-- `03-slice-<slug>-amend-1.md` — if a slice's goal or acceptance criteria need correcting
-
-These files sit alongside originals. No existing artifact is overwritten. The original `03-slice-<slug>.md` gains `amended: true` and a reference to the amendment file in its frontmatter.
-
-After writing amendments, the command routes you to `wf-plan` directed-fix mode to update the plan to match the corrected spec.
-
-**Three source modes:**
-```
-/wf-meta amend dark-mode-toggle-settings from-review    # seed from 07-review-<slice>.md findings
-/wf-meta amend dark-mode-toggle-settings from-retro     # seed from 10-retro.md
-/wf-meta amend dark-mode-toggle-settings                # describe the correction manually
-```
-
-### … add new slices to an existing workflow
-
-Use `wf-extend` when review or retro reveals **new scope** — missing capability that was never planned, not bugs in what was built and not corrections to the spec.
+Whether a review or retro reveals that the **spec, acceptance criteria, or fundamental approach** was wrong — or that **new scope** has appeared — the path is the same: add a new slice with `/wf intake <slug> <scope>`. There is no `amend` command.
 
 ```
-/wf-meta extend dark-mode-toggle-settings from-review
+/wf intake dark-mode-toggle-settings "correct the contrast AC — ratio must be 4.5:1 not 3:1"
+/wf intake dark-mode-toggle-settings "add the missing system-preference auto-detect slice"
 ```
 
-The command reads every `07-review-<slice-slug>.md` in the workflow (extension candidates often span sibling reviews), identifies findings that describe missing capability (not broken code), groups them into candidate slices, asks 4–8 questions about grouping and ordering, confirms the proposed slices with you, then:
+Passing an existing slug plus a free-text scope auto-routes to an extension: it registers a new slice alongside those already there and never touches completed work. To seed the correction from prior findings, describe it in the scope text — e.g. reference the `07-review` blocker or the `10-retro` note you are acting on. After the slice is registered, route to `/wf plan` and then `/wf implement` as normal.
 
-1. Writes new `03-slice-<new-slug>.md` files
-2. Appends new entries to `03-slice.md` non-destructively — existing entries and their `status: complete` flags are preserved
-3. Routes to `wf-plan` for the new slices
+**Ship-plan corrections** use a separate path: `/wf ship-plan edit` corrects a single block of `.ai/ship-plan.md` in place.
 
-```
-/wf-meta extend dark-mode-toggle-settings from-retro    # seed from retro findings
-/wf-meta extend dark-mode-toggle-settings               # describe new scope manually
-```
-
-**Key distinction from re-running wf-slice:** `wf-extend` appends; `wf-slice` replaces.
+| Situation | Command |
+|---|---|
+| Spec/AC/approach was wrong | `/wf intake <slug> <scope>` — add a corrective slice |
+| New scope (missing capability) | `/wf intake <slug> <scope>` — add a slice for the new work |
+| Ship-plan block was wrong | `/wf ship-plan edit` |
+| Code is buggy (spec is correct) | `/wf implement <slug> <slice> reviews` |
 
 ### … add a design brief for a UI feature
 
@@ -473,10 +440,10 @@ Requires project design context — `PRODUCT.md` and `DESIGN.md` at your project
 ### … generate announcements after shipping
 
 ```
-/wf-meta announce dark-mode-toggle-settings
+/wf ship dark-mode-toggle-settings announce
 ```
 
-Reads `08-handoff.md`, `09-ship.md`, `01-intake.md`, and `02-shape.md`. Checks for any planned docs from the shape's docs plan that weren't generated at handoff and loads the matching Diátaxis primitive from `skills/wf-docs/reference/<type>.md` to fill the gap. Then asks which audience and which channels:
+Reads `08-handoff.md`, `09-ship.md`, `01-intake.md`, and `02-shape.md`. Checks for any planned docs from the shape's docs plan that weren't generated at handoff and loads the matching Diátaxis primitive from `skills/wf/reference/docs/<type>.md` to fill the gap. Then asks which audience and which channels:
 
 **Audiences:** `eng`, `product`, `users`, `all`
 
@@ -492,31 +459,18 @@ Each draft includes a **Docs** section linking to the generated documentation fo
 
 ### … ask how something works in the codebase
 
-```
-/wf-meta how how does the auth middleware check permissions?
-/wf-meta how what triggers a re-render in the data table component?
-```
+Use the `deep-research` skill for any code question, architectural exploration, or web research. It fans out to multiple Explore agents for architectural/flow questions, or to 6–8 parallel web research agents for industry research, then synthesizes findings.
 
-Routes to **Mode B (Codebase Explain)**. For narrow questions (single function or module), a single Explore sub-agent reads the relevant code and writes a direct explanation. For architectural or flow questions spanning multiple files, the command decomposes the question into 2–4 exploration angles, spawns parallel Explore sub-agents (one per angle), then synthesizes their findings into a structured explanation:
-
+For codebase exploration, the synthesis covers:
 - **Overview** — what this is and why it exists
 - **Key Concepts** — the central types, services, and abstractions
 - **How It Works** — the flow with `file:line` references and mermaid diagrams where useful
 - **Where Things Live** — a file map for someone about to work in this area
 - **Gotchas** — non-obvious behavior, historical artifacts, sharp edges
 
-Result is saved to `.ai/research/<topic>-<ts>.md`. A Diátaxis explanation doc is offered as an option.
-
 ### … commission deep research on a topic
 
-```
-/wf-meta how --research distributed tracing approaches for microservices
-/wf-meta how --research state of the art in zero-downtime database migrations
-```
-
-Routes to **Mode C (Deep Research)**. Decomposes the question into 6–8 source-type research angles, then spawns all agents in parallel — one each for official specs, academic papers, practitioner blogs, GitHub repos, community forums, recent news, conference talks, and books. Each agent runs 25–35 searches and returns structured source lists.
-
-A synthesis agent deduplicates across all findings (target: 200+ unique sources), reconciles contradictions, and produces:
+Use the `deep-research` skill with your research question. It decomposes the question into 6–8 source-type research angles, spawns all agents in parallel — one each for official specs, academic papers, practitioner blogs, GitHub repos, community forums, recent news, conference talks, and books — then synthesizes findings (target: 200+ unique sources) into:
 
 - **Executive Summary** — 3–5 evidence-backed bullet findings
 - **State of the Art** — what the field currently recommends
@@ -524,34 +478,32 @@ A synthesis agent deduplicates across all findings (target: 200+ unique sources)
 - **Practical Takeaways** — what to actually do in this codebase
 - **Full Citation Index** — tiered by relevance (Primary / Supporting / Tangential)
 
-Result is saved to `.ai/research/<topic>-<ts>.md`. A Diátaxis reference doc is offered as an option.
-
 ### … understand what a workflow plan or artifact says
 
 ```
-/wf-meta how dark-mode-toggle-settings plan
-/wf-meta how dark-mode-toggle-settings shape
-/wf-meta how dark-mode-toggle-settings slice css-token-setup
+/wf recap dark-mode-toggle-settings plan
+/wf recap dark-mode-toggle-settings shape
+/wf recap dark-mode-toggle-settings slice css-token-setup
 ```
 
-Routes to **Mode D (Workflow Explain)**. Reads the target artifact(s) plus `po-answers.md` and produces a plain-language explanation:
+Reads the target artifact(s) plus `po-answers.md` and produces a plain-language explanation:
 
 - **What This Says** — what the artifact actually captures
-- **Key Commitments** — locked-in decisions that can't change without a `wf-amend`
+- **Key Commitments** — locked-in decisions that can't change without adding a corrective slice
 - **Why These Decisions** — rationale from po-answers and shape context
 - **Open Questions** — unresolved items still in the artifact
 - **Implications for Next Steps** — what the next stage must know
 
-Especially useful when resuming a workflow after a long break, onboarding a collaborator, or understanding why a particular approach was chosen. Result is saved to `.ai/workflows/<slug>/90-how-<artifact>.md`.
+Especially useful when resuming a workflow after a long break, onboarding a collaborator, or understanding why a particular approach was chosen. Result is saved to `.ai/workflows/<slug>/90-recap.md` (`scope: explain`).
 
 ### … understand review or implementation findings
 
 ```
-/wf-meta how dark-mode-toggle-settings review
-/wf-meta how dark-mode-toggle-settings findings
+/wf recap dark-mode-toggle-settings review
+/wf recap dark-mode-toggle-settings findings
 ```
 
-Routes to **Mode E (Findings Explain)**. Globs every `07-review-*.md` (per-slice masters and per-command sub-reviews), reads `06-verify.md`, and `02-shape.md` (for acceptance criteria context), then produces a structured explanation of what the findings actually mean:
+Reads every `07-review-*.md` (per-slice masters and per-command sub-reviews), `06-verify.md`, and `02-shape.md` (for acceptance criteria context), then produces a structured explanation of what the findings actually mean:
 
 - **Finding Summary** — plain-language explanation of each finding (not a restatement)
 - **Why It Matters** — concrete risk if each BLOCKER/HIGH finding goes unaddressed
@@ -559,18 +511,7 @@ Routes to **Mode E (Findings Explain)**. Globs every `07-review-*.md` (per-slice
 - **Related Finding Clusters** — findings that share a root cause or are better fixed together
 - **Recommended Priority Order** — fix this first, then this, with reasoning
 
-The `findings` target includes both review findings and verification failures. The `review` target reads review only. After reading the explanation, route to `/wf implement <slug> reviews` to fix the findings.
-
-### … ask a quick code question
-
-```
-/wf-meta how --quick what does UserService.findById return when the user is deleted?
-/wf-meta how --quick what is the shape of the CartItem type?
-```
-
-Forces **Mode A (Quick)**. Spawns a single Explore sub-agent that reads the relevant code and answers directly. No fan-out, no synthesis step. For focused questions about a specific function, type, or return value where you don't need an architectural explanation.
-
-If an active workflow is in progress, the answer is saved to `.ai/workflows/<slug>/90-how-<topic>.md`. Otherwise it goes to `.ai/research/<topic>-<ts>.md`. For very short answers, chat-only output with no artifact.
+The `findings` focus includes both review findings and verification failures. The `review` focus reads review only. After reading the explanation, route to `/wf implement <slug> reviews` to fix the findings.
 
 ### … handle a stage that does not apply
 
@@ -624,7 +565,7 @@ The review command reminds you explicitly: "Consider running `/compact` before `
 If you start a session without remembering where you left off:
 
 ```
-/wf-meta next
+/wf status
 ```
 
 No slug needed. It finds your active workflow and returns the next command ready to copy and run.
@@ -639,12 +580,12 @@ If a review revealed a specific concern but you don't want to re-run the full re
 
 The supplemental text is visible to the command but not persisted — it guides this invocation only.
 
-### wf-sync before planning long-running features
+### Status deep before planning long-running features
 
-On a feature that will span multiple days, run `wf-sync` before starting each new planning or implementation session. Teammate merges, dependency updates, and config changes can silently invalidate plan assumptions. The sync report surfaces these before you've written code against stale assumptions.
+On a feature that will span multiple days, run `/wf status <slug> deep` before starting each new planning or implementation session. Teammate merges, dependency updates, and config changes can silently invalidate plan assumptions. The drift report surfaces these before you've written code against stale assumptions.
 
 ```
-/wf-meta sync dark-mode-toggle-settings
+/wf status dark-mode-toggle-settings deep
 ```
 
 ### Use po-answers.md as the decision audit trail
@@ -675,26 +616,13 @@ After fixing BLOCKER findings in implement, don't re-run the full review — re-
 
 This revisits only deferred and untriaged findings. If the BLOCKER fixes introduced new issues, *then* run a full re-review.
 
-### Use `/wf-meta how` before planning to understand unfamiliar subsystems
+### Use `deep-research` before planning to understand unfamiliar subsystems
 
-If a plan requires touching code you've never worked with before, run `/wf-meta how` before `/wf plan` to get the lay of the land:
+If a plan requires touching code you've never worked with before, use the `deep-research` skill before `/wf plan` to get the lay of the land. The codebase explanation gives the planning sub-agents pre-built context that they would otherwise have to discover themselves — reducing exploration time and improving plan quality for unfamiliar areas.
 
-```
-/wf-meta how how does the payment processing pipeline work?
-/wf plan my-feature-slug payment-slice
-```
+### Use `deep-research` to anchor technical decisions
 
-The codebase explanation gives the planning sub-agents pre-built context that they would otherwise have to discover themselves — reducing exploration time and improving plan quality for unfamiliar areas.
-
-### Use `/wf-meta how --research` to anchor technical decisions
-
-Before committing to an architectural approach, commission research:
-
-```
-/wf-meta how --research approaches to optimistic UI updates with server-side validation
-```
-
-The citation index gives you 200+ sources to cite in `po-answers.md` when the review asks "why was this approach chosen?" Helps distinguish informed decisions from guesses.
+Before committing to an architectural approach, commission research with the `deep-research` skill. The citation index gives you 200+ sources to cite in `po-answers.md` when the review asks "why was this approach chosen?" Helps distinguish informed decisions from guesses.
 
 ### … handle a production incident
 
@@ -737,13 +665,13 @@ Artifacts land in the standard `.ai/workflows/<slug>/` tree as a compressed stan
 ### … audit and update documentation
 
 ```
-/wf-docs                                # audit and update all project docs
-/wf-docs dark-mode-toggle-settings      # generate docs for a workflow's changes
-/wf-docs --audit-only                   # gap analysis only, no writing
-/wf-docs docs/api                       # scope to a specific directory
-/wf-docs tutorial getting-started       # write a single tutorial (primitive mode)
-/wf-docs reference api/users            # write API reference for a single surface
-/wf-docs review docs/concepts/auth.md   # audit one existing doc against Diátaxis
+/wf docs                                # audit and update all project docs
+/wf docs dark-mode-toggle-settings      # generate docs for a workflow's changes
+/wf docs --audit-only                   # gap analysis only, no writing
+/wf docs docs/api                       # scope to a specific directory
+/wf docs tutorial getting-started       # write a single tutorial (primitive mode)
+/wf docs reference api/users            # write API reference for a single surface
+/wf docs review docs/concepts/auth.md   # audit one existing doc against Diátaxis
 ```
 
 Two modes: orchestrator (no primitive keyword) runs a five-pass pipeline; primitive (first arg matches `plan`/`tutorial`/`how-to`/`reference`/`explanation`/`readme`/`review`) loads one Diátaxis reference and writes one document.
@@ -753,8 +681,8 @@ Orchestrator passes:
 1. **Discover** — inventories every markdown file, README, API doc, and inline docstring in scope
 2. **Audit** — parallel sub-agents read each doc against the current codebase, checking accuracy (do code examples still work?), Diátaxis quadrant fit (is a reference doc giving opinions?), and freshness (how long since the code changed?)
 3. **Plan** — gaps and violations grouped by priority: broken (P0) → missing (P1) → wrong quadrant (P2) → stale (P3)
-4. **Generate** — loads the appropriate primitive reference for each planned action (`reference/tutorial.md`, `reference/how-to.md`, `reference/reference.md`, `reference/explanation.md`, `reference/readme.md`)
-5. **Review** — spot-checks generated docs against the Diátaxis rubric in `reference/review.md`
+4. **Generate** — loads the appropriate primitive reference for each planned action (`reference/docs/tutorial.md`, `reference/docs/how-to.md`, `reference/docs/reference.md`, `reference/docs/explanation.md`, `reference/docs/readme.md`)
+5. **Review** — spot-checks generated docs against the Diátaxis rubric in `reference/docs/review.md`
 
 For `slug` mode, the orchestrator reads the workflow's `02-shape.md → ## Documentation Plan` — the doc plan written when the feature was shaped — and fulfills it before adding anything new. Audit artifacts land in `.ai/docs/<run-id>/`. Generated docs are written in-place to their project paths.
 
@@ -781,7 +709,7 @@ Coverage gaps found at baseline are surfaced before any code changes. If signifi
 
 ### Extension rounds are tracked
 
-Every `wf-extend` invocation records an `extension-round: N` on new slice entries. You can see which slices were part of the original design and which were added later — and when — directly from the `03-slice.md` frontmatter. This matters for post-ship analysis of how well initial scoping predicted final scope.
+Every `/wf intake <slug> <scope>` call that adds a new slice records an `extension-round: N` on the new slice entry. You can see which slices were part of the original design and which were added later — and when — directly from the `03-slice.md` frontmatter. This matters for post-ship analysis of how well initial scoping predicted final scope.
 
 ---
 
@@ -800,7 +728,7 @@ Every `wf-extend` invocation records an `extension-round: N` on new slice entrie
 | `/wf review <slug> [slice\|triage]` | 7 | Multi-domain parallel review dispatch (per-slice) | `07-review-<slice>.md` + per-slice per-command |
 | `/wf handoff <slug> [slice-slug]` | 8 | Aggregates all complete slices into one PR package; `[slice-slug]` only for one-PR-per-slice workflows | `08-handoff.md` |
 | `/wf ship <slug> [environment]` | 9 | Plan-driven, replayable release. Reads `.ai/ship-plan.md`; refuses to start unless handoff `readiness-verdict: ready`. Walks 13 idempotent steps (pre-flight, dry-run, rollout questions, freshness delta, go/no-go, merge, tag, release-workflow watch, post-publish poll, post-release bump). Resumes paused runs. `[environment]` overrides plan default. | `09-ship-run-<run-id>.md` + `09-ship-runs.md` |
-| `/wf-meta init-ship-plan [--from-template <kind>]` | — | **One-time per project.** Authors `.ai/ship-plan.md` at repo root. Templates: `kotlin-maven-central`, `npm-public`, `pypi`, `container-image`, `server-deploy`, `library-internal`. Edit later via `/wf-meta amend ship-plan`. | `.ai/ship-plan.md` |
+| `/wf ship-plan init [--from-template <kind>]` | — | **One-time per project.** Authors `.ai/ship-plan.md` at repo root. Templates: `kotlin-maven-central`, `npm-public`, `pypi`, `container-image`, `server-deploy`, `library-internal`. Edit later via `/wf ship-plan edit`. | `.ai/ship-plan.md` |
 | `/wf retro <slug>` | 10 | Extract lessons, improvement actions | `10-retro.md` |
 
 ### Design quality commands
@@ -818,30 +746,29 @@ All require project design context (`PRODUCT.md` + `DESIGN.md`) established by `
 
 | Command | Use when |
 |---|---|
-| `/wf-meta amend <slug> [from-review\|from-retro]` | Spec/AC/approach of an existing slice was wrong |
-| `/wf-meta extend <slug> [from-review\|from-retro]` | New scope (not bugs, not corrections) needs adding |
+| `/wf intake <slug> <scope>` | Spec/AC/approach was wrong, or new scope needs adding — both become a new slice. There is no `amend` or `extend`. |
+| `/wf ship-plan edit` | A ship-plan block needs correcting in place |
 
 ### Discovery and research commands
 
 | Command | Purpose |
 |---|---|
 | `/wf intake ideate [focus-area] [count]` | Scan codebase with 6 parallel lenses, generate 30+ candidates, adversarially filter, rank survivors — produces `.ai/ideation/` artifact ready for `/wf intake` |
-| `/wf intake discover <hypothesis>` | Hypothesis-test — adjudicates a code-level theory ("the rate-limiter is a token bucket in `middleware/`") with FOR / AGAINST / counter-hypothesis sub-agents. Verdict: `holds` / `partial` / `fails` / `inconclusive`, with cited evidence. Different from `/wf-meta how` (which explains code) and from `/wf intake rca` (which starts from a symptom, not a theory). |
+| `/wf intake discover <hypothesis>` | Hypothesis-test — adjudicates a code-level theory ("the rate-limiter is a token bucket in `middleware/`") with FOR / AGAINST / counter-hypothesis sub-agents. Verdict: `holds` / `partial` / `fails` / `inconclusive`, with cited evidence. Different from the `deep-research` skill (which explains code) and from `/wf intake rca` (which starts from a symptom, not a theory). |
 | `/wf intake investigate <problem>` | Solution-options sketcher — takes a code-level problem ("checkout p99 is 2s", "auth flow brittle under concurrent writes") and produces 2–3 distinct engineering approaches with tradeoffs (effort, blast radius, reversibility, top risks). No winner picked — you pick, then route to `/wf intake fix` (small) or `/wf intake` (medium+). Different from `/wf shape` which commits to one design. |
-| `/wf-meta how <question>` | Auto-route question across 5 modes: quick code answer (A), codebase exploration (B), deep web research (C), workflow artifact explanation (D), or findings explanation (E) |
-| `/wf-meta how <slug> plan\|shape\|slice\|review\|findings` | Shortcut to Mode D or E — explain a specific workflow artifact or findings set for the given slug |
-| `/wf-meta how --research <question>` | Force Mode C — commission 6–8 parallel web research agents targeting 200+ sources |
-| `/wf-meta how --quick <question>` | Force Mode A — single Explore agent, direct answer, no fan-out |
+| `deep-research` skill | Codebase exploration, architectural explanation, or deep web research (industry practices, ecosystem surveys, comparative analysis) |
+| `/wf recap <slug> plan\|shape\|slice\|review\|findings` | Explain a specific workflow artifact or findings set for the given slug |
+| `deep-research` skill (focused prompt) | Quick code question — single function, type, or return value; no fan-out needed |
 
 ### Utility commands
 
 | Command | Purpose |
 |---|---|
-| `/wf-meta next [slug]` | Routing helper — returns next viable command(s) |
-| `/wf-meta status [slug]` | Read-only dashboard across all workflows |
-| `/wf-meta resume [slug]` | ~500-word context brief for resuming after a break |
-| `/wf-meta sync [slug]` | Reality reconciliation — surface drift between artifacts and codebase |
-| `/wf-meta announce <slug> [audience]` | Generate stakeholder announcements with Diátaxis doc links |
+| `/wf status [slug]` | Routing helper and read-only dashboard — returns next viable command(s); no-slug view covers all workflows |
+| `/wf status <slug> deep` | Reality reconciliation — surface drift between artifacts and codebase |
+| `/wf recap <slug>` | ~500-word context brief for resuming after a break |
+| `/wf recap <slug> <focus>` | Explain a specific artifact (`plan`, `shape`, `slice`, `review`, `findings`) |
+| `/wf ship <slug> announce` | Generate stakeholder announcements with Diátaxis doc links |
 
 ### Standalone workflows
 
@@ -851,7 +778,7 @@ Self-contained workflows with their own lifecycle that do not require an existin
 |---|---|---|
 | `/wf intake hotfix <description>` | Compressed incident-response *standard* lifecycle (every stage single-pass, scope-locked, max 5 steps; review defaults to security) | `.ai/workflows/<slug>/` |
 | `/wf intake update-deps [package\|--security-only\|--audit-only]` | Scan all deps for staleness and CVEs, research each via web search, update by risk tier (self-authors execution, then `/wf review`) | `.ai/workflows/<slug>/` |
-| `/wf-docs [<primitive>\|slug\|--audit-only\|path]` | Documentation router: orchestrator pipeline (discover → audit → plan → generate → review) or single Diátaxis primitive (plan, tutorial, how-to, reference, explanation, readme, review) | `.ai/docs/<run-id>/` (orchestrator) or in-place (primitive) |
+| `/wf docs [<primitive>\|slug\|--audit-only\|path]` | Documentation key: orchestrator pipeline (discover → audit → plan → generate → review) or single Diátaxis primitive (plan, tutorial, how-to, reference, explanation, readme, review) | `.ai/docs/<run-id>/` (orchestrator) or in-place (primitive) |
 | `/wf intake refactor <description>` | Behavior-preserving refactoring with test baseline, incremental green steps, and before/after API surface comparison | `.ai/workflows/refactor-<slug>/` |
 
 ### Review domains (33 dimensions)
@@ -939,19 +866,19 @@ Fourteen design quality skills — invoked directly by `/wf design` commands and
 
 These skills are the same set provided by the `impeccable` plugin. When both are installed, the design skills are shared.
 
-### Documentation primitives (Diátaxis) — under `/wf-docs`
+### Documentation primitives (Diátaxis) — under `/wf docs`
 
-The 7 Diátaxis primitives live as references inside the `wf-docs` skill at `skills/wf-docs/reference/<primitive>.md`. Invoke directly via `/wf-docs <primitive> <args>`, or rely on the orchestrator (`/wf-docs`) to dispatch them automatically during the generate pass.
+The 7 Diátaxis primitives live as references inside the wf skill's docs references at `skills/wf/reference/docs/<primitive>.md`. Invoke directly via `/wf docs <primitive> <args>`, or rely on the orchestrator (`/wf docs`) to dispatch them automatically during the generate pass.
 
 | Primitive | Reference | Purpose |
 |---|---|---|
-| `plan` | `reference/plan.md` | Classify docs into quadrants, propose docs map and writing order |
-| `tutorial` | `reference/tutorial.md` | Learning-oriented: step-by-step, builds something concrete |
-| `how-to` | `reference/how-to.md` | Task-oriented: goal-driven steps for competent users |
-| `reference` | `reference/reference.md` | Information-oriented: neutral, structured, scannable lookup |
-| `explanation` | `reference/explanation.md` | Understanding-oriented: why, trade-offs, architecture |
-| `readme` | `reference/readme.md` | Front door: routes to deeper docs, not a manual |
-| `review` | `reference/review.md` | Audit docs against Diátaxis principles with prioritised fixes |
+| `plan` | `reference/docs/plan.md` | Classify docs into quadrants, propose docs map and writing order |
+| `tutorial` | `reference/docs/tutorial.md` | Learning-oriented: step-by-step, builds something concrete |
+| `how-to` | `reference/docs/how-to.md` | Task-oriented: goal-driven steps for competent users |
+| `reference` | `reference/docs/reference.md` | Information-oriented: neutral, structured, scannable lookup |
+| `explanation` | `reference/docs/explanation.md` | Understanding-oriented: why, trade-offs, architecture |
+| `readme` | `reference/docs/readme.md` | Front door: routes to deeper docs, not a manual |
+| `review` | `reference/docs/review.md` | Audit docs against Diátaxis principles with prioritised fixes |
 
 ---
 
@@ -1026,17 +953,17 @@ All artifacts for a workflow live under a single directory:
 
 ```
 .ai/
-├── ship-plan.md                         # Project-level ship contract (one per repo; authored by /wf-meta init-ship-plan)
+├── ship-plan.md                         # Project-level ship contract (one per repo; authored by /wf ship-plan init)
 ├── workflows/<slug>/
 │   ├── 00-index.md                      # Control file — pure YAML frontmatter, no body
-│   ├── 00-sync.md                       # Sync report (written by wf-sync if run)
+│   ├── 00-sync.md                       # Sync report (written by /wf status <slug> deep if run)
 │   ├── 01-intake.md
 │   ├── 02-shape.md
 │   ├── 02b-design.md                    # Design brief (optional)
-│   ├── 02-shape-amend-1.md              # Shape amendment (written by wf-amend if run)
+│   ├── 02-shape-amend-1.md              # Shape amendment (written when a corrective slice amends shape)
 │   ├── 03-slice.md                      # Slice master index
 │   ├── 03-slice-<slug>.md               # Per-slice definition
-│   ├── 03-slice-<slug>-amend-1.md       # Slice amendment (written by wf-amend if run)
+│   ├── 03-slice-<slug>-amend-1.md       # Slice amendment (written when a corrective slice amends a prior slice)
 │   ├── 04-plan.md                       # Plan master index
 │   ├── 04-plan-<slug>.md                # Per-slice plan
 │   ├── 05-implement.md                  # Implement master index
@@ -1049,19 +976,17 @@ All artifacts for a workflow live under a single directory:
 │   ├── 09-ship-run-<run-id>.md          # Per-release ship run (accumulating; <run-id> = UTC YYYYMMDDTHHMMZ)
 │   ├── 09-ship-runs.md                  # Lightweight per-workflow run index
 │   ├── 10-retro.md
-│   ├── announce.md                      # Written by wf-announce if run
+│   ├── announce.md                      # Written by /wf ship <slug> announce if run
 │   ├── risk-register.md                 # Optional per-workflow risk register
 │   ├── estimate.md                      # Optional per-workflow estimate
-│   ├── 08b-docs-index.md                # Docs written for this workflow, if wf-docs runs
-│   ├── 90-next.md                       # Written by wf-next if run
-│   ├── 90-resume.md                     # Written by wf-resume if run
-│   ├── 90-how-<topic>.md                # Written by wf-how (Modes A/D) — codebase/artifact explanations
-│   ├── 90-findings-explain.md           # Written by wf-how (Mode E) — findings explanation
+│   ├── 08b-docs-index.md                # Docs written for this workflow, if /wf docs runs
+│   ├── 90-next.md                       # Written by /wf status if run
+│   ├── 90-recap.md                      # Written by /wf recap — catch-up (scope: workflow/slice) or artifact explanation (scope: explain, focus names the artifact)
 │   └── po-answers.md                    # Cumulative product-owner answers log
 ├── ideation/                           # LEGACY — pre-v9.86 wf-ideate runs (new runs root an in-slug type:workflow-index)
 │   └── <focus>-<timestamp>.md           # Ranked improvement candidates (still rendered for back-compat)
 ├── research/
-│   └── <topic>-<timestamp>.md           # Written by wf-how (Modes B/C) — codebase and web research
+│   └── <topic>-<timestamp>.md           # Written by the deep-research skill — codebase and web research
 ├── dep-updates/<run-id>/                # LEGACY — pre-v9.86 update-deps runs (new runs write in-slug standard artifacts)
 │   ├── scan.md                          # Dependency inventory and audit results
 │   ├── research.md                      # Per-package web research findings + priority groups
@@ -1148,8 +1073,8 @@ The view layer is an npm package rooted at `plugins/sdlc-workflow/`. From that d
 | `02-shape-amend-N.md` | `amendment-number`, `amends`, `source`, `source-ref`, `affected-slices` |
 | `03-slice-<slug>-amend-N.md` | `amendment-number`, `amends`, `original-status`, `plan-needs-update` |
 | `00-sync.md` | `health` (in-sync/minor-drift/significant-drift/stale), drift category tables |
-| `90-how-<topic>.md` / `90-findings-explain.md` | `type` (how-quick/how-codebase/how-research/how-workflow/how-findings), `question`, `mode` (A–E), `source-count` (Mode C only), `diataxis-output`, `diataxis-path` |
-| `.ai/research/<topic>.md` | Same fields as above — no `schema: sdlc/v1`, not subject to the validate-write hook |
+| `90-recap.md` | `scope` (workflow/slice/explain), `focus` (the explained artifact when `scope=explain`), `current-stage`, `stage-number`, `status`, `refs` |
+| `.ai/research/<topic>.md` | Deep-research report (from the `deep-research` skill) — no `schema: sdlc/v1`, not subject to the validate-write hook |
 
 All `metric-*` fields are numeric — designed for aggregation, dashboards, and CI/CD gate evaluation.
 

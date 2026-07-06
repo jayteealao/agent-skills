@@ -102,7 +102,7 @@
 <dd>
   <p>Two things can block it.</p>
   <ol>
-    <li><strong>No ship plan yet.</strong> Run <code>/wf-meta init-ship-plan</code> to create <code>.ai/ship-plan.md</code>. Ship reads this file for release instructions before it does anything else.</li>
+    <li><strong>No ship plan yet.</strong> Run <code>/wf ship-plan init</code> to create <code>.ai/ship-plan.md</code>. Ship reads this file for release instructions before it does anything else.</li>
     <li><strong>Readiness check failed.</strong> The <a href="../reference/glossary.html">readiness check</a> — a pass/fail verdict written into <code>08-handoff.md</code> — must say <code>ready</code>. If it doesn't, run <code>/wf handoff</code> to refresh it, then look at the contributing field to see what to fix.</li>
   </ol>
 </dd>
@@ -142,8 +142,8 @@
 <dt><strong>Do I need to run <code>npm install</code> before using the plugin?</strong></dt>
 <dd>No. Since v9.45.0 the plugin ships with committed <code>dist/</code> bundles — all dependencies are bundled in. A fresh install works with no runtime <code>npm install</code>. You only need <code>npm install</code> and <code>npm run build</code> if you are editing the plugin source itself (hooks, lib, renderers, or components). See <a href="../explanation/build-and-dist.html">Build &amp; dist model</a> for details.</dd>
 
-<dt><strong>What is the difference between <code>amend</code>, <code>extend</code>, and <code>implement reviews</code>?</strong></dt>
-<dd><code>/wf-meta amend</code> corrects the spec. <code>/wf-meta extend</code> adds new work items (called <a href="../reference/glossary.html">slices</a>) to an existing workflow. <code>/wf implement &lt;slug&gt; reviews</code> fixes implementation bugs found in code review (the slug argument is required). Use the wrong one and you may overwrite work you intended to keep. <a href="../how-to/amend-or-extend.html">Full decision rule →</a></dd>
+<dt><strong>How do I correct or extend a workflow, and how is that different from <code>implement reviews</code>?</strong></dt>
+<dd>There is no more <code>amend</code>. To correct a spec or add new work items (called <a href="../reference/glossary.html">slices</a>), add a new slice via <code>/wf intake &lt;slug&gt; &lt;new scope&gt;</code> — this replaces both the former <code>amend</code> and <code>extend</code>, keeping provenance clean by construction. <code>/wf implement &lt;slug&gt; reviews</code> fixes implementation bugs found in code review (the slug argument is required). Ship-plan corrections use <code>/wf ship-plan edit</code>. <a href="../how-to/amend-or-extend.html">Full decision rule →</a></dd>
 
 <dt><strong>Does the plugin work without git?</strong></dt>
 <dd>Most of it, yes. The artifact files are plain markdown and work anywhere. Handoff and ship have features that require a git branch (CI polling, PR triage). Set <code>branch-strategy: none</code> when running <code>/wf intake</code> — this value is recorded in the workflow index and causes handoff and ship to skip branch-dependent steps (CI polling, PR triage). The artifact trail still works and is still useful without version control.</dd>

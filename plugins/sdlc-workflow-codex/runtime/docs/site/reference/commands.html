@@ -186,25 +186,23 @@
 </tbody>
 </table>
 
-<h2>/wf-meta — navigation and management</h2>
+<h2>/wf navigation &amp; lifecycle keys</h2>
+
+<p>The former <code>/wf-meta</code> router is retired; its members are <code>/wf</code> keys now.</p>
 
 <table>
-<thead><tr><th>Sub-command</th><th>Args</th><th>What it does</th></tr></thead>
+<thead><tr><th>Key</th><th>Args</th><th>What it does</th></tr></thead>
 <tbody>
-<tr><td><code>/wf-meta next</code></td><td><code>[slug]</code></td><td>Shows the next recommended command for this workflow.</td></tr>
-<tr><td><code>/wf-meta status</code></td><td><code>[slug]</code></td><td>One workflow or all workflows at a glance.</td></tr>
-<tr><td><code>/wf-meta resume</code></td><td><code>[slug]</code></td><td>Re-reads the trail and proposes a concrete next invocation.</td></tr>
-<tr><td><code>/wf-meta sync</code></td><td><code>[slug]</code></td><td>Repairs <code>00-index.md</code> against disk reality.</td></tr>
-<tr><td><code>/wf-meta amend</code></td><td><code>&lt;scope&gt; &lt;target&gt;</code></td><td>Corrects a prior artifact. <code>scope=ship-plan</code> edits <code>.ai/ship-plan.md</code>.</td></tr>
-<tr><td><code>/wf-meta extend</code></td><td><code>&lt;scope&gt; &lt;target&gt;</code></td><td>Adds new slices to an existing workflow.</td></tr>
-<tr><td><code>/wf-meta skip</code></td><td><code>&lt;stage&gt; [slug]</code></td><td>Marks a stage skipped with a stub artifact.</td></tr>
-<tr><td><code>/wf-meta close</code></td><td><code>&lt;reason&gt; [slug]</code></td><td>Archives a workflow (shipped / abandoned / superseded / archived / stuck).</td></tr>
-<tr><td><code>/wf-meta how</code></td><td><code>&lt;question&gt; · &lt;slug&gt; plan|shape|slice|review|findings</code></td><td>Five-mode Q&amp;A. <code>--research</code> or <code>--quick</code> forces a mode.</td></tr>
-<tr><td><code>/wf-meta announce</code></td><td><code>[slug]</code></td><td>Generates a Diátaxis announcement for a completed workflow.</td></tr>
-<tr><td><code>/wf-meta init-ship-plan</code></td><td><code>[--from-template &lt;kind&gt;]</code></td><td>Authors <code>.ai/ship-plan.md</code> — the full pipeline contract covering release (Blocks A–G) and developer experience (Blocks H–K).</td></tr>
-<tr><td><code>/wf-meta build-pipeline</code></td><td><code>[--dry-run]</code></td><td>Audits the repo against <code>.ai/ship-plan.md</code> and builds the entire CI/CD and DX pipeline. No file is overwritten without confirmation.</td></tr>
+<tr><td><code>/wf status</code></td><td><code>[slug] [deep]</code></td><td>One workflow or all at a glance. The single-workflow view ends with the next recommended command and reconciles <code>00-index.md</code> against disk (absorbs the former <code>next</code> and <code>sync</code>). <code>deep</code> adds a reality-drift report.</td></tr>
+<tr><td><code>/wf recap</code></td><td><code>&lt;slug&gt; [focus]</code></td><td>Re-reads the trail and proposes a concrete next invocation (the renamed <code>resume</code>). With a focus (<code>plan</code>|<code>shape</code>|<code>slice</code>|<code>review</code>|<code>findings</code>) it explains that artifact.</td></tr>
+<tr><td><code>/wf intake</code></td><td><code>&lt;slug&gt; &lt;scope&gt;</code></td><td>On an existing slug with new scope, adds a slice — this replaces the former <code>amend</code> and <code>extend</code>. There is no <code>amend</code>.</td></tr>
+<tr><td><code>/wf close</code></td><td><code>&lt;slug&gt; [&lt;slice&gt; | &lt;reason&gt;]</code></td><td>With a slice, terminates just that slice so downstream prerequisites are satisfied (absorbs the former <code>skip</code>, now slice-scoped). With a reason (shipped / abandoned / superseded / archived / stuck), archives the whole workflow.</td></tr>
+<tr><td><code>/wf ship</code></td><td><code>&lt;slug&gt; announce</code></td><td>Generates a Diátaxis announcement for a completed workflow.</td></tr>
+<tr><td><code>/wf ship-plan</code></td><td><code>init | build | edit</code></td><td><code>init</code> authors <code>.ai/ship-plan.md</code> (the pipeline contract — release Blocks A–G and developer-experience Blocks H–K); <code>build</code> audits the repo against it and builds the CI/CD + DX pipeline (nothing overwritten without confirmation); <code>edit</code> corrects a block.</td></tr>
 </tbody>
 </table>
+
+<p>For a code question, codebase exploration, or web research (the former <code>/wf-meta how</code>), use the <code>deep-research</code> skill.</p>
 
 <h2>/wf design — design pipeline</h2>
 
@@ -212,15 +210,15 @@
 
 <p>See <a href="wf-design.html">/wf design in depth</a> for the full sub-command catalog and argument matrix.</p>
 
-<h2>/wf-docs — documentation pipeline</h2>
+<h2>/wf docs — documentation pipeline</h2>
 
-<p>Runs the full pipeline (<code>discover</code> → <code>audit</code> → <code>plan</code> → <code>generate</code> → <code>review</code>) or invokes a single Diátaxis primitive directly (<code>plan</code>, <code>tutorial</code>, <code>how-to</code>, <code>reference</code>, <code>explanation</code>, <code>readme</code>, <code>review</code>).</p>
+<p>The former <code>/wf-docs</code> router is the <code>/wf docs</code> key now. Runs the full pipeline (<code>discover</code> → <code>audit</code> → <code>plan</code> → <code>generate</code> → <code>review</code>) or invokes a single Diátaxis primitive directly (<code>plan</code>, <code>tutorial</code>, <code>how-to</code>, <code>reference</code>, <code>explanation</code>, <code>readme</code>, <code>review</code>).</p>
 
 <p>See <a href="wf.html">/wf docs in depth</a> for the full sub-command list and pipeline flow.</p>
 
 <h2>/review — code review</h2>
 
-<p>Per-dimension or named-sweep review across 33 dimensions and 7 sweeps via parallel sub-agent dispatch. Pass the change context and the command selects which dimensions apply. Unlike the other four commands, <code>/review</code> can also auto-invoke when the model detects a change worth reviewing.</p>
+<p>Per-dimension or named-sweep review across 33 dimensions and 7 sweeps via parallel sub-agent dispatch. Pass the change context and the command selects which dimensions apply. Unlike <code>/wf</code>, <code>/review</code> can also auto-invoke when the model detects a change worth reviewing.</p>
 
 <p>See <a href="review.html">/review in depth</a> for the full dimension list and sweep catalog.</p>
 

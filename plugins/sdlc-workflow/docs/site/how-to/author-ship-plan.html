@@ -97,7 +97,7 @@
 
 <div class="summary">
 <table>
-<tr><th>Pre-conditions</th><td>Plugin v9.42.0+ (for full A–K plan including inbound pipeline; v9.12.0+ for outbound Blocks A–G only). A repo open in Claude Code. No existing <code>.ai/ship-plan.md</code> — if one exists, run <code>/wf-meta amend ship-plan</code> instead.</td></tr>
+<tr><th>Pre-conditions</th><td>Plugin v9.42.0+ (for full A–K plan including inbound pipeline; v9.12.0+ for outbound Blocks A–G only). A repo open in Claude Code. No existing <code>.ai/ship-plan.md</code> — if one exists, run <code>/wf ship-plan edit</code> instead.</td></tr>
 <tr><th>Goal</th><td>Write <code>.ai/ship-plan.md</code> covering the eleven release concerns (Blocks A–K) so that <code>/wf ship</code> has everything it needs.</td></tr>
 <tr><th>Time</th><td>15–30 minutes the first time. Future releases reuse the plan — no re-authoring needed.</td></tr>
 </table>
@@ -113,8 +113,8 @@
 
 <p>The <code>init-ship-plan</code> <a href="../reference/glossary.html">stage</a> (a single automated step in a workflow) reads your repo before asking any questions.</p>
 
-<pre><code>/wf-meta init-ship-plan                              # reads the repo; no seed
-/wf-meta init-ship-plan --from-template npm-public   # biases toward npm-public defaults</code></pre>
+<pre><code>/wf ship-plan init                              # reads the repo; no seed
+/wf ship-plan init --from-template npm-public   # biases toward npm-public defaults</code></pre>
 
 <p>The command scans CI workflow YAML, infrastructure files (Dockerfile, helm, fly.toml), package manifests (package.json, pyproject.toml, Cargo.toml), release tooling (release-please, goreleaser, changesets), and any runbook directories it finds.</p>
 
@@ -148,7 +148,7 @@ actually we publish to a private registry, not GHCR</code></pre>
 <dd>Default rollout strategy (immediate / staged / canary / blue-green / feature-flag). The rollback command. Whether database migrations are reversible.</dd>
 
 <dt><strong>F — Recovery playbooks</strong></dt>
-<dd>Step-by-step remediation for known failure modes. Pre-filled from any runbook files Claude found. Grows over time — add entries later with <code>/wf-meta amend ship-plan</code>.</dd>
+<dd>Step-by-step remediation for known failure modes. Pre-filled from any runbook files Claude found. Grows over time — add entries later with <code>/wf ship-plan edit</code>.</dd>
 
 <dt><strong>G — Announcements</strong></dt>
 <dd>Where release notes go (#releases Slack channel, mailing list). An optional message template path.</dd>
@@ -190,9 +190,9 @@ git commit -m "chore: author ship plan"</code></pre>
 
 <p>When CI/CD changes, secrets rotate, or you want to add a recovery playbook after an incident, run:</p>
 
-<pre><code>/wf-meta amend ship-plan</code></pre>
+<pre><code>/wf ship-plan edit</code></pre>
 
-<p>Pick the block (A–K) or additional-contract id to edit. The amend flow re-runs only that block's confirmation loop — discovery is skipped because the existing plan is the source of truth. <code>plan-version</code> increments by 1. Amending Block H or C also re-derives the pre-merge check lists. After changing an inbound block (H–K), run <code>/wf-meta build-pipeline</code> to bring the repo and remote settings back into compliance.</p>
+<p>Pick the block (A–K) or additional-contract id to edit. The edit flow re-runs only that block's confirmation loop — discovery is skipped because the existing plan is the source of truth. <code>plan-version</code> increments by 1. Editing Block H or C also re-derives the pre-merge check lists. After changing an inbound block (H–K), run <code>/wf ship-plan build</code> to bring the repo and remote settings back into compliance.</p>
 
 <details>
 <summary>Technical detail — templates as hypothesis seeds</summary>

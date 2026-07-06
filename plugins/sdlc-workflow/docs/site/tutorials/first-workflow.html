@@ -176,7 +176,7 @@ sequenceDiagram
 
 <p>Confirm:</p>
 
-<pre><code>/wf-meta status add-health-endpoint</code></pre>
+<pre><code>/wf status add-health-endpoint</code></pre>
 
 <p>You should see <code>current-stage: intake</code>, <code>status: complete</code>, and one of the recommended-next options is <code>/wf shape add-health-endpoint</code>.</p>
 
@@ -330,7 +330,7 @@ Shape is where the AI commits to <em>understanding</em> rather than guessing. Th
 
 <h2 id="stopping">Stopping here (Ship + Retro)</h2>
 
-<p>For this tutorial we stop at handoff. Why? Because <strong>ship is plan-driven</strong> — it requires <code>.ai/ship-plan.md</code> at the repo root, which you author once per project with <code>/wf-meta init-ship-plan</code>. The two pages that take you the rest of the way:</p>
+<p>For this tutorial we stop at handoff. Why? Because <strong>ship is plan-driven</strong> — it requires <code>.ai/ship-plan.md</code> at the repo root, which you author once per project with <code>/wf ship-plan init</code>. The two pages that take you the rest of the way:</p>
 
 <div class="tile-grid">
 <a class="tile" href="../how-to/author-ship-plan.html">
@@ -353,7 +353,7 @@ Shape is where the AI commits to <em>understanding</em> rather than guessing. Th
   <li><strong>Each stage produces a permanent artifact</strong> under <code>.ai/workflows/&lt;slug&gt;/</code>. Commit them. Three weeks later, future-you can still read why a decision was made.</li>
   <li><strong>Stages don't bleed.</strong> Plan describes intent; implement describes what was done; review finds gaps; handoff packages. Each artifact has one shape.</li>
   <li><strong>You drive.</strong> Every stage offers Options A/B/C/D for the next step — the default is sequential, but you can skip-to, loop back, or branch.</li>
-  <li><strong>You can stop and resume.</strong> Walk away after stage 4. Come back next week. <code>/wf-meta resume add-health-endpoint</code> picks up where you left off — the artifacts hold the state.</li>
+  <li><strong>You can stop and resume.</strong> Walk away after stage 4. Come back next week. <code>/wf recap add-health-endpoint</code> picks up where you left off — the artifacts hold the state.</li>
 </ul>
 
 <div class="related">

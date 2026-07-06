@@ -160,14 +160,14 @@ You know what you want to do. This page maps your situation to the exact command
 <table>
 <thead><tr><th>I want to…</th><th>Command</th></tr></thead>
 <tbody>
-<tr><td>See all my in-progress workflows</td><td><code>/wf-meta status</code></td></tr>
-<tr><td>Pick up a workflow I walked away from</td><td><code>/wf-meta resume &lt;slug&gt;</code></td></tr>
-<tr><td>See what stage a workflow is at</td><td><code>/wf-meta next &lt;slug&gt;</code></td></tr>
-<tr><td>Add scope to an in-progress workflow</td><td><code>/wf-meta amend &lt;slug&gt;</code></td></tr>
-<tr><td>Mark a workflow done without shipping</td><td><code>/wf-meta close &lt;slug&gt;</code></td></tr>
-<tr><td>Sync the workflow registry after manual file changes</td><td><code>/wf-meta sync</code></td></tr>
-<tr><td>Set up how this repo releases (once per repo)</td><td><code>/wf-meta init-ship-plan</code></td></tr>
-<tr><td>Audit CI/CD against the ship plan</td><td><code>/wf-meta build-pipeline</code></td></tr>
+<tr><td>See all my in-progress workflows</td><td><code>/wf status</code></td></tr>
+<tr><td>Pick up a workflow I walked away from</td><td><code>/wf recap &lt;slug&gt;</code></td></tr>
+<tr><td>See what stage a workflow is at</td><td><code>/wf status &lt;slug&gt;</code></td></tr>
+<tr><td>Add scope to an in-progress workflow</td><td><code>/wf intake &lt;slug&gt; &lt;scope&gt;</code></td></tr>
+<tr><td>Mark a workflow done without shipping</td><td><code>/wf close &lt;slug&gt;</code></td></tr>
+<tr><td>Sync the workflow registry after manual file changes</td><td><code>/wf status</code></td></tr>
+<tr><td>Set up how this repo releases (once per repo)</td><td><code>/wf ship-plan init</code></td></tr>
+<tr><td>Audit CI/CD against the ship plan</td><td><code>/wf ship-plan build</code></td></tr>
 </tbody>
 </table>
 
@@ -203,8 +203,8 @@ You know what you want to do. This page maps your situation to the exact command
 </tr>
 <tr>
   <td>Generate or update documentation</td>
-  <td><code>/wf-docs &lt;sub-command&gt;</code></td>
-  <td>Generates site pages, API docs, or reference content. Run <code>/wf-docs</code> with no sub-command for the list.</td>
+  <td><code>/wf docs &lt;sub-command&gt;</code></td>
+  <td>Generates site pages, API docs, or reference content. Run <code>/wf docs</code> with no sub-command for the list.</td>
 </tr>
 </tbody>
 </table>

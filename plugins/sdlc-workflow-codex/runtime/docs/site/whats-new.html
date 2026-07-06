@@ -137,7 +137,7 @@ User-facing highlights since v9.11, up to v9.88. Each entry links to the relevan
 <p>All hooks, the renderer, the serve daemon, and the tray app now run from committed <code>dist/</code> bundles with dependencies inlined via esbuild. A CI freshness gate keeps the bundles in sync with source. See <a href="explanation/build-and-dist.html">Build &amp; dist model →</a></p>
 
 <h2>v9.42–9.43 — Ship-plan inbound pipeline (Blocks H–K)</h2>
-<p>The ship plan grew four new blocks covering code-quality gates, local developer experience, repo governance, and security/supply-chain checks. <code>/wf-meta build-pipeline</code> audits your repo against the plan and generates the CI/CD and DX pipeline configuration. See <a href="reference/ship-plan-schema.html">Ship-plan schema →</a></p>
+<p>The ship plan grew four new blocks covering code-quality gates, local developer experience, repo governance, and security/supply-chain checks. <code>/wf ship-plan build</code> audits your repo against the plan and generates the CI/CD and DX pipeline configuration. See <a href="reference/ship-plan-schema.html">Ship-plan schema →</a></p>
 
 <h2>v9.41.0 — Handoff waits for real CI signal</h2>
 <p>Handoff used to snapshot CI status and move on. Now it watches CI to a <strong>terminal state</strong> and waits for bot reviews to settle before triaging. Readiness is now judged on actual signal, not a stale snapshot. See <a href="how-to/triage-pr-comments.html">Triage PR comments →</a></p>

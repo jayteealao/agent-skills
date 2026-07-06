@@ -115,9 +115,9 @@ Before you type your first command, this page gives you the map. One read and yo
   <td>Eight compressed intake modes — <code>fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code> — plus <code>/wf probe</code> and <code>/wf simplify</code> as top-level keys. The former <code>/wf-quick</code> router is retired.</td>
 </tr>
 <tr>
-  <td><code>/wf-meta</code></td>
+  <td><code>/wf status</code> · <code>/wf recap</code></td>
   <td>You want to look up, navigate, or manage your workflows</td>
-  <td>Status, resume, next, sync, amend, extend, skip, close, how, announce — everything for working <em>with</em> workflows that already exist. Sub-commands: <code>status</code>, <code>resume</code>, <code>next</code>, <code>sync</code>, <code>amend</code>, <code>extend</code>, <code>skip</code>, <code>close</code>, <code>how</code>, <code>announce</code>, <code>init-ship-plan</code>, <code>build-pipeline</code></td>
+  <td>Navigation and lifecycle — everything for working <em>with</em> workflows that already exist. Keys: <code>/wf status</code> (dashboard/detail; absorbs the old <code>next</code> and <code>sync</code>), <code>/wf recap</code> (the old <code>resume</code>/<code>how</code>), <code>/wf close</code> (the old <code>skip</code>/<code>close</code>), <code>/wf ship-plan</code> (init/build/edit), and <code>/wf ship &lt;slug&gt; announce</code>. Add scope with <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code>. The former <code>/wf-meta</code> router is retired.</td>
 </tr>
 <tr>
   <td><code>/wf design</code></td>
@@ -125,9 +125,9 @@ Before you type your first command, this page gives you the map. One read and yo
   <td>20 design sub-commands — colorize, polish, audit, critique, the transforms, and more. The design brief (<code>02b-design.md</code>) and visual contract (<code>02c-craft.md</code>) are authored by the normal lifecycle (<code>shape</code> and <code>plan</code>); this key hosts the ad-hoc transforms + analysis operators. <code>/wf design &lt;slug&gt; &lt;transform&gt;</code> builds in-workflow (compressed); <code>/wf design &lt;cmd&gt;</code> runs the full lifecycle</td>
 </tr>
 <tr>
-  <td><code>/wf-docs</code></td>
+  <td><code>/wf docs</code></td>
   <td>You want to generate or update documentation</td>
-  <td>Generates site pages, API docs, or reference content from your code and artifacts. Integrates with the doc site generator</td>
+  <td>Generates site pages, API docs, or reference content from your code and artifacts, using the Diátaxis structure. The former <code>/wf-docs</code> router is retired — it is now the <code>/wf docs</code> key</td>
 </tr>
 <tr>
   <td><code>/review</code></td>
@@ -188,7 +188,7 @@ flowchart LR
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
-  you["You type a command"] --> cmd["/wf, /wf-meta, /wf-docs, /review, etc."]
+  you["You type a command"] --> cmd["/wf, /review, etc."]
   cmd --> stages["Claude runs one or more stages"]
   stages --> artifacts["Writes artifacts to .ai/workflows/&lt;slug&gt;/"]
   artifacts --> next["Next stage reads previous artifacts"]

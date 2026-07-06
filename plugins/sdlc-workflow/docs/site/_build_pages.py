@@ -317,9 +317,9 @@ Before you type your first command, this page gives you the map. One read and yo
   <td>Eight compressed intake modes — <code>fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code> — plus <code>/wf probe</code> and <code>/wf simplify</code> as top-level keys. The former <code>/wf-quick</code> router is retired.</td>
 </tr>
 <tr>
-  <td><code>/wf-meta</code></td>
+  <td><code>/wf status</code> · <code>/wf recap</code></td>
   <td>You want to look up, navigate, or manage your workflows</td>
-  <td>Status, resume, next, sync, amend, extend, skip, close, how, announce — everything for working <em>with</em> workflows that already exist. Sub-commands: <code>status</code>, <code>resume</code>, <code>next</code>, <code>sync</code>, <code>amend</code>, <code>extend</code>, <code>skip</code>, <code>close</code>, <code>how</code>, <code>announce</code>, <code>init-ship-plan</code>, <code>build-pipeline</code></td>
+  <td>Navigation and lifecycle — everything for working <em>with</em> workflows that already exist. Keys: <code>/wf status</code> (dashboard/detail; absorbs the old <code>next</code> and <code>sync</code>), <code>/wf recap</code> (the old <code>resume</code>/<code>how</code>), <code>/wf close</code> (the old <code>skip</code>/<code>close</code>), <code>/wf ship-plan</code> (init/build/edit), and <code>/wf ship &lt;slug&gt; announce</code>. Add scope with <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code>. The former <code>/wf-meta</code> router is retired.</td>
 </tr>
 <tr>
   <td><code>/wf design</code></td>
@@ -327,9 +327,9 @@ Before you type your first command, this page gives you the map. One read and yo
   <td>20 design sub-commands — colorize, polish, audit, critique, the transforms, and more. The design brief (<code>02b-design.md</code>) and visual contract (<code>02c-craft.md</code>) are authored by the normal lifecycle (<code>shape</code> and <code>plan</code>); this key hosts the ad-hoc transforms + analysis operators. <code>/wf design &lt;slug&gt; &lt;transform&gt;</code> builds in-workflow (compressed); <code>/wf design &lt;cmd&gt;</code> runs the full lifecycle</td>
 </tr>
 <tr>
-  <td><code>/wf-docs</code></td>
+  <td><code>/wf docs</code></td>
   <td>You want to generate or update documentation</td>
-  <td>Generates site pages, API docs, or reference content from your code and artifacts. Integrates with the doc site generator</td>
+  <td>Generates site pages, API docs, or reference content from your code and artifacts, using the Diátaxis structure. The former <code>/wf-docs</code> router is retired — it is now the <code>/wf docs</code> key</td>
 </tr>
 <tr>
   <td><code>/review</code></td>
@@ -390,7 +390,7 @@ flowchart LR
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
-  you["You type a command"] --> cmd["/wf, /wf-meta, /wf-docs, /review, etc."]
+  you["You type a command"] --> cmd["/wf, /review, etc."]
   cmd --> stages["Claude runs one or more stages"]
   stages --> artifacts["Writes artifacts to .ai/workflows/&lt;slug&gt;/"]
   artifacts --> next["Next stage reads previous artifacts"]
@@ -494,7 +494,7 @@ You have 10 minutes and a real change to make. This walkthrough takes you from a
 
 <p>You ran a five-command workflow that took one session. The artifact trail means:</p>
 <ul>
-  <li>Next time you open Claude, you can run <code>/wf-meta status</code> and see this workflow in the list — closed, with the PR link and commit hash</li>
+  <li>Next time you open Claude, you can run <code>/wf status</code> and see this workflow in the list — closed, with the PR link and commit hash</li>
   <li>A reviewer can read <code>01-fix.md</code> and understand the intent without reading the diff; <code>06-verify.md</code> and <code>07-review.md</code> show what was checked and what was found</li>
   <li>If the same bug pattern appears elsewhere, you have a record of how you thought about it</li>
 </ul>
@@ -591,14 +591,14 @@ You know what you want to do. This page maps your situation to the exact command
 <table>
 <thead><tr><th>I want to…</th><th>Command</th></tr></thead>
 <tbody>
-<tr><td>See all my in-progress workflows</td><td><code>/wf-meta status</code></td></tr>
-<tr><td>Pick up a workflow I walked away from</td><td><code>/wf-meta resume &lt;slug&gt;</code></td></tr>
-<tr><td>See what stage a workflow is at</td><td><code>/wf-meta next &lt;slug&gt;</code></td></tr>
-<tr><td>Add scope to an in-progress workflow</td><td><code>/wf-meta amend &lt;slug&gt;</code></td></tr>
-<tr><td>Mark a workflow done without shipping</td><td><code>/wf-meta close &lt;slug&gt;</code></td></tr>
-<tr><td>Sync the workflow registry after manual file changes</td><td><code>/wf-meta sync</code></td></tr>
-<tr><td>Set up how this repo releases (once per repo)</td><td><code>/wf-meta init-ship-plan</code></td></tr>
-<tr><td>Audit CI/CD against the ship plan</td><td><code>/wf-meta build-pipeline</code></td></tr>
+<tr><td>See all my in-progress workflows</td><td><code>/wf status</code></td></tr>
+<tr><td>Pick up a workflow I walked away from</td><td><code>/wf recap &lt;slug&gt;</code></td></tr>
+<tr><td>See what stage a workflow is at</td><td><code>/wf status &lt;slug&gt;</code></td></tr>
+<tr><td>Add scope to an in-progress workflow</td><td><code>/wf intake &lt;slug&gt; &lt;scope&gt;</code></td></tr>
+<tr><td>Mark a workflow done without shipping</td><td><code>/wf close &lt;slug&gt;</code></td></tr>
+<tr><td>Sync the workflow registry after manual file changes</td><td><code>/wf status</code></td></tr>
+<tr><td>Set up how this repo releases (once per repo)</td><td><code>/wf ship-plan init</code></td></tr>
+<tr><td>Audit CI/CD against the ship plan</td><td><code>/wf ship-plan build</code></td></tr>
 </tbody>
 </table>
 
@@ -634,8 +634,8 @@ You know what you want to do. This page maps your situation to the exact command
 </tr>
 <tr>
   <td>Generate or update documentation</td>
-  <td><code>/wf-docs &lt;sub-command&gt;</code></td>
-  <td>Generates site pages, API docs, or reference content. Run <code>/wf-docs</code> with no sub-command for the list.</td>
+  <td><code>/wf docs &lt;sub-command&gt;</code></td>
+  <td>Generates site pages, API docs, or reference content. Run <code>/wf docs</code> with no sub-command for the list.</td>
 </tr>
 </tbody>
 </table>
@@ -728,7 +728,7 @@ User-facing highlights since v9.11, up to v9.88. Each entry links to the relevan
 <p>All hooks, the renderer, the serve daemon, and the tray app now run from committed <code>dist/</code> bundles with dependencies inlined via esbuild. A CI freshness gate keeps the bundles in sync with source. See <a href="explanation/build-and-dist.html">Build &amp; dist model →</a></p>
 
 <h2>v9.42–9.43 — Ship-plan inbound pipeline (Blocks H–K)</h2>
-<p>The ship plan grew four new blocks covering code-quality gates, local developer experience, repo governance, and security/supply-chain checks. <code>/wf-meta build-pipeline</code> audits your repo against the plan and generates the CI/CD and DX pipeline configuration. See <a href="reference/ship-plan-schema.html">Ship-plan schema →</a></p>
+<p>The ship plan grew four new blocks covering code-quality gates, local developer experience, repo governance, and security/supply-chain checks. <code>/wf ship-plan build</code> audits your repo against the plan and generates the CI/CD and DX pipeline configuration. See <a href="reference/ship-plan-schema.html">Ship-plan schema →</a></p>
 
 <h2>v9.41.0 — Handoff waits for real CI signal</h2>
 <p>Handoff used to snapshot CI status and move on. Now it watches CI to a <strong>terminal state</strong> and waits for bot reviews to settle before triaging. Readiness is now judged on actual signal, not a stale snapshot. See <a href="how-to/triage-pr-comments.html">Triage PR comments →</a></p>
@@ -1118,7 +1118,7 @@ PAGES.append((
 
 <p>First, each stage has to commit to its output before the next stage begins. The shape artifact captures the spec before any code is written. The plan artifact captures the approach before implementation starts. If those were merged into a single file written after the fact, the spec would just reflect what got built, not what was asked for.</p>
 
-<p>Second, resuming work is cheap. You can stop after any stage, come back weeks later, and run <code>/wf-meta resume</code>. The command reads the artifact trail and tells you exactly where things stand.</p>
+<p>Second, resuming work is cheap. You can stop after any stage, come back weeks later, and run <code>/wf recap</code>. The command reads the artifact trail and tells you exactly where things stand.</p>
 
 <p>Third, answering "why did we do X?" becomes mechanical. The artifacts are committed files. You can open <code>.ai/workflows/</code>, find the <a href="../reference/glossary.html">slug</a> (the short identifier for this unit of work), and read the relevant stage's notes directly. No AI recall needed.</p>
 
@@ -1195,7 +1195,7 @@ PAGES.append((
 
 <p>First, <strong>artifacts lose meaning</strong>. If <code>plan</code> also writes code, the plan file ends up documenting only what survived implementation. A plan written before the code represents intent. A plan written after represents rationalization. They look the same on disk but serve different purposes.</p>
 
-<p>Second, <strong>failures have nowhere to go</strong>. When <code>implement</code> finds the plan was wrong, it needs a defined path back to <code>/wf-meta amend</code>. When <code>review</code> finds a bug, it runs a user-gated fix loop in-process — every finding the user marks "Fix" dispatches a fix sub-agent inside the same invocation. If that loop cannot resolve the issue, there is a defined escape path: <code>/wf implement … reviews</code>. The discipline creates a graph where every failure has a named next move. Without it, Claude improvises — and improvisation leaves no trace.</p>
+<p>Second, <strong>failures have nowhere to go</strong>. When <code>implement</code> finds the plan was wrong, it needs a defined path back — a corrective slice via <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code>. When <code>review</code> finds a bug, it runs a user-gated fix loop in-process — every finding the user marks "Fix" dispatches a fix sub-agent inside the same invocation. If that loop cannot resolve the issue, there is a defined escape path: <code>/wf implement … reviews</code>. The discipline creates a graph where every failure has a named next move. Without it, Claude improvises — and improvisation leaves no trace.</p>
 
 <h2>What collapse looks like in practice</h2>
 
@@ -1280,13 +1280,13 @@ PAGES.append((
 
 <p>A tutorial generated this way will not drift into explanation. A reference page will not sprout step-by-step instructions. The quadrant boundary is enforced by the template, not by hoping the writer remembers the rule.</p>
 
-<h3>3. The /wf-docs command runs a standalone docs cycle</h3>
+<h3>3. The /wf docs key runs a standalone docs cycle</h3>
 
-<p>The <code>/wf-docs</code> command (one of the four top-level commands) runs a discover, audit, plan, generate, and review cycle on a project's existing documentation. It does not require an active workflow. Each document it generates targets exactly one quadrant.</p>
+<p>The <code>/wf docs</code> key runs a discover, audit, plan, generate, and review cycle on a project's existing documentation. It does not require an active workflow. Each document it generates targets exactly one quadrant.</p>
 
 <details>
 <summary>Technical detail — where the quadrant templates live</summary>
-<p>The per-quadrant templates are stored at <code>skills/wf-docs/reference/&lt;type&gt;.md</code> inside the plugin. Each file contains structure rules, anti-patterns, and a self-check for that quadrant. Handoff loads the file at generation time; it is not embedded in the handoff prompt itself. Editing those files changes what the generator produces.</p>
+<p>The per-quadrant templates are stored at <code>skills/wf/reference/docs/&lt;type&gt;.md</code> inside the plugin. Each file contains structure rules, anti-patterns, and a self-check for that quadrant. Handoff loads the file at generation time; it is not embedded in the handoff prompt itself. Editing those files changes what the generator produces.</p>
 </details>
 
 <h2>This doc site</h2>
@@ -1450,7 +1450,7 @@ PAGES.append((
 <dd>Default: run <code>/wf slice</code> to break the shaped idea into work units. If the feature is UI-heavy, shape has already authored the design brief (<code>02b-design.md</code>) and <code>/wf plan</code> will author the visual contract — design rides the normal flow. Alternative: skip slicing entirely and jump to plan for a single-slice feature.</dd>
 
 <dt><strong>After review</strong></dt>
-<dd>Default: run <code>/wf handoff</code> to prepare the PR. Alternative: run <code>/wf implement &lt;slug&gt; reviews</code> if the review found issues that must be addressed first. Alternative: run <code>/wf-meta amend</code> if the review revealed the original spec was wrong.</dd>
+<dd>Default: run <code>/wf handoff</code> to prepare the PR. Alternative: run <code>/wf implement &lt;slug&gt; reviews</code> if the review found issues that must be addressed first. Alternative: add a corrective slice via <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code> if the review revealed the original spec was wrong.</dd>
 
 <dt><strong>After ship</strong></dt>
 <dd>Default: run <code>/wf retro</code> to close out the work. Alternative: resume a paused run. Alternative: roll back and amend the plan with a recovery playbook for the next attempt.</dd>
@@ -1843,25 +1843,25 @@ PAGES.append((
 
 <p>The review stage still runs — it defaults to <code>/wf review &lt;slug&gt; security</code> (auth, tokens, crypto, permissions) — keeping the audit trail complete while staying fast.</p>
 
-<h2>Skip a single stage mid-workflow</h2>
+<h2>Skip a slice mid-workflow</h2>
 
-<p>You are part-way through a workflow and one stage is not worth running. Use the <code>skip</code> sub-command (a sub-command is one of the named actions you pass after the main command) of <code>/wf-meta</code>:</p>
+<p>You are part-way through a multi-slice workflow and one slice is not worth running. Use <code>/wf close</code> with the slice name — it absorbs the former <code>skip</code> sub-command, now scoped to a slice rather than a single pipeline stage:</p>
 
-<pre><code>/wf-meta skip my-slug verify</code></pre>
+<pre><code>/wf close my-slug &lt;slice&gt;</code></pre>
 
-<p>This writes a stub artifact for that stage so the next stage does not reject the workflow. The skip is recorded in <code>00-index.md</code> — you stay accountable for it.</p>
+<p>This marks the slice terminated so downstream prerequisites are satisfied, and writes a slice skip record. The skip is recorded — you stay accountable for it.</p>
 
 <h2>Walk away and resume later</h2>
 
 <p>Artifacts are written to disk as they are produced. If you need to stop mid-workflow, just stop. Nothing is lost. Resume when ready:</p>
 
-<pre><code>/wf-meta resume my-slug</code></pre>
+<pre><code>/wf recap my-slug</code></pre>
 
 <h2>Abandon a workflow that went the wrong direction</h2>
 
 <p>You started a workflow and the approach turned out to be wrong. Do not delete the directory — that breaks the audit trail. Close it with a reason instead:</p>
 
-<pre><code>/wf-meta close my-slug cancelled</code></pre>
+<pre><code>/wf close my-slug cancelled</code></pre>
 
 <p>The workflow stops appearing as active. The artifacts remain for reference.</p>
 
@@ -1889,8 +1889,8 @@ PAGES.append((
 <h2>What is not a valid escape hatch</h2>
 
 <ul>
-  <li><strong>Do not hand-edit artifact frontmatter to fix a stage status.</strong> Use <code>/wf-meta sync</code> — it reads disk state and rebuilds the index from reality.</li>
-  <li><strong>Do not delete the workflow directory to start over.</strong> Close it first (<code>/wf-meta close my-slug cancelled</code>), then start a fresh workflow. The closed record belongs in the trail.</li>
+  <li><strong>Do not hand-edit artifact frontmatter to fix a stage status.</strong> Use <code>/wf status</code> — it reconciles the index against disk reality automatically.</li>
+  <li><strong>Do not delete the workflow directory to start over.</strong> Close it first (<code>/wf close my-slug cancelled</code>), then start a fresh workflow. The closed record belongs in the trail.</li>
   <li><strong>Do not edit <code>readiness-verdict: blocked</code> to <code>ready</code> by hand.</strong> The verdict is computed from real signals. Overwriting it hides the problem, not the risk.</li>
 </ul>
 
@@ -1928,8 +1928,8 @@ PAGES.append((
 
 <h2>Explore unfamiliar code before planning</h2>
 <p><strong>When:</strong> you are about to plan a change in a part of the codebase you have not worked in before.</p>
-<p>Run <code>/wf-meta how &lt;question&gt;</code> first. The <code>/wf-meta</code> command handles utility work that sits outside the main pipeline — in this case it dispatches parallel explore sub-agents and synthesises an explanation. Plan then has the context it needs and produces better acceptance criteria.</p>
-<pre><code>/wf-meta how "how does the auth middleware validate JWT tokens here?"
+<p>Run the <code>deep-research</code> skill first — it dispatches parallel explore sub-agents and synthesises an explanation of the unfamiliar code. Plan then has the context it needs and produces better acceptance criteria. (To explain an existing workflow artifact instead, use <code>/wf recap &lt;slug&gt; &lt;focus&gt;</code>.)</p>
+<pre><code>deep-research "how does the auth middleware validate JWT tokens here?"
 /wf plan add-token-refresh default-slice</code></pre>
 
 <h2>Narrow the review-bot list to reduce noise</h2>
@@ -1946,7 +1946,7 @@ PAGES.append((
 
 <h2>Record a surprise failure in the ship plan</h2>
 <p><strong>When:</strong> a ship run hit a failure mode the plan did not anticipate and you have now resolved it.</p>
-<p>Run <code>/wf-meta amend ship-plan</code> after fixing the issue. Add the failure and its resolution to the recovery playbooks block in the plan. The plan then carries that institutional knowledge for every future ship on the same project.</p>
+<p>Run <code>/wf ship-plan edit</code> after fixing the issue. Add the failure and its resolution to the recovery playbooks block in the plan. The plan then carries that institutional knowledge for every future ship on the same project.</p>
 
 <h2>Add an add-on only where it matters</h2>
 <p><strong>When:</strong> one slice needs benchmarking or instrumentation but others do not.</p>
@@ -1954,12 +1954,10 @@ PAGES.append((
 
 <h2>Skip shape and slice for a trivial change</h2>
 <p><strong>When:</strong> the change is a single-file edit that does not need the full scoping interview, but you still want a commit record.</p>
-<p>You can skip straight from intake to plan:</p>
-<pre><code>/wf intake "rename FooBar to FooBaz"
-/wf-meta skip &lt;slug&gt; shape
-/wf-meta skip &lt;slug&gt; slice
+<p>Use a compressed intake mode — <code>/wf intake fix</code> collapses shape and slice into a single planning pass, writing all the planning artifacts at once before handing off to <code>/wf implement</code>:</p>
+<pre><code>/wf intake fix "rename FooBar to FooBaz"
 /wf plan &lt;slug&gt; default-slice</code></pre>
-<p>Or use <code>/wf intake fix</code>, which handles the same skip path in one command. If you are unsure which fits, see the entry-point guide linked below.</p>
+<p>Manual stage-skipping is gone — the compressed modes (<code>fix</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>) are the supported way to shorten the lifecycle. If you are unsure which fits, see the entry-point guide linked below.</p>
 
 <div class="related">
 <h3>Where next</h3>
@@ -2031,7 +2029,7 @@ PAGES.append((
 
 <p><strong>Why it happens.</strong> Intake modes are shorter. Under pressure, "shorter" looks like "faster." For a change that genuinely fits an intake mode — a single-file fix, a copy edit, a config tweak — it is faster. For a larger change, intake modes write a single-pass, lightweight plan (shape, slice, and plan in one compressed session), which increases the chance of implementation surprises for genuinely large or high-risk work.</p>
 
-<p><strong>Fix.</strong> Run <code>/wf-meta close &lt;slug&gt; superseded</code> to close the old workflow, then restart with <code>/wf intake</code>. The intake modes are for changes that fit the compressed shape, not for changes you're hoping will fit it.</p>
+<p><strong>Fix.</strong> Run <code>/wf close &lt;slug&gt; superseded</code> to close the old workflow, then restart with <code>/wf intake</code>. The intake modes are for changes that fit the compressed shape, not for changes you're hoping will fit it.</p>
 
 <div class="related">
 <h3>Where next</h3>
@@ -2063,7 +2061,7 @@ PAGES.append((
 <dd>
   <p>Two things can block it.</p>
   <ol>
-    <li><strong>No ship plan yet.</strong> Run <code>/wf-meta init-ship-plan</code> to create <code>.ai/ship-plan.md</code>. Ship reads this file for release instructions before it does anything else.</li>
+    <li><strong>No ship plan yet.</strong> Run <code>/wf ship-plan init</code> to create <code>.ai/ship-plan.md</code>. Ship reads this file for release instructions before it does anything else.</li>
     <li><strong>Readiness check failed.</strong> The <a href="../reference/glossary.html">readiness check</a> — a pass/fail verdict written into <code>08-handoff.md</code> — must say <code>ready</code>. If it doesn't, run <code>/wf handoff</code> to refresh it, then look at the contributing field to see what to fix.</li>
   </ol>
 </dd>
@@ -2103,8 +2101,8 @@ PAGES.append((
 <dt><strong>Do I need to run <code>npm install</code> before using the plugin?</strong></dt>
 <dd>No. Since v9.45.0 the plugin ships with committed <code>dist/</code> bundles — all dependencies are bundled in. A fresh install works with no runtime <code>npm install</code>. You only need <code>npm install</code> and <code>npm run build</code> if you are editing the plugin source itself (hooks, lib, renderers, or components). See <a href="../explanation/build-and-dist.html">Build &amp; dist model</a> for details.</dd>
 
-<dt><strong>What is the difference between <code>amend</code>, <code>extend</code>, and <code>implement reviews</code>?</strong></dt>
-<dd><code>/wf-meta amend</code> corrects the spec. <code>/wf-meta extend</code> adds new work items (called <a href="../reference/glossary.html">slices</a>) to an existing workflow. <code>/wf implement &lt;slug&gt; reviews</code> fixes implementation bugs found in code review (the slug argument is required). Use the wrong one and you may overwrite work you intended to keep. <a href="../how-to/amend-or-extend.html">Full decision rule →</a></dd>
+<dt><strong>How do I correct or extend a workflow, and how is that different from <code>implement reviews</code>?</strong></dt>
+<dd>There is no more <code>amend</code>. To correct a spec or add new work items (called <a href="../reference/glossary.html">slices</a>), add a new slice via <code>/wf intake &lt;slug&gt; &lt;new scope&gt;</code> — this replaces both the former <code>amend</code> and <code>extend</code>, keeping provenance clean by construction. <code>/wf implement &lt;slug&gt; reviews</code> fixes implementation bugs found in code review (the slug argument is required). Ship-plan corrections use <code>/wf ship-plan edit</code>. <a href="../how-to/amend-or-extend.html">Full decision rule →</a></dd>
 
 <dt><strong>Does the plugin work without git?</strong></dt>
 <dd>Most of it, yes. The artifact files are plain markdown and work anywhere. Handoff and ship have features that require a git branch (CI polling, PR triage). Set <code>branch-strategy: none</code> when running <code>/wf intake</code> — this value is recorded in the workflow index and causes handoff and ship to skip branch-dependent steps (CI polling, PR triage). The artifact trail still works and is still useful without version control.</dd>

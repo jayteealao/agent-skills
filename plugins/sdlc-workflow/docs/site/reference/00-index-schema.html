@@ -147,7 +147,7 @@
     deferred-at: &lt;ISO 8601&gt;          # when verify wrote the deferral
     cleared-by: null                 # null until cleared; probe-&lt;descriptor&gt; when probe satisfies it</code></pre>
 
-<p>An entry never moves out of the array — clearing is recorded by mutating <code>cleared-by</code> from <code>null</code> to the clearing artifact's identifier. This preserves the audit trail: a future reader can see which slices once had open deferrals and how each was eventually closed. The <code>/wf-meta status</code> Runtime column derives its display from this field (count of <code>cleared-by: null</code> entries → <code>deferrals: N</code>).</p>
+<p>An entry never moves out of the array — clearing is recorded by mutating <code>cleared-by</code> from <code>null</code> to the clearing artifact's identifier. This preserves the audit trail: a future reader can see which slices once had open deferrals and how each was eventually closed. The <code>/wf status</code> Runtime column derives its display from this field (count of <code>cleared-by: null</code> entries → <code>deferrals: N</code>).</p>
 
 <h2>v9.5.0 PR-readiness config keys</h2>
 

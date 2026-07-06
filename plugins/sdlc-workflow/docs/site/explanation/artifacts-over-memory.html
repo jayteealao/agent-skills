@@ -118,7 +118,7 @@
 
 <p>First, each stage has to commit to its output before the next stage begins. The shape artifact captures the spec before any code is written. The plan artifact captures the approach before implementation starts. If those were merged into a single file written after the fact, the spec would just reflect what got built, not what was asked for.</p>
 
-<p>Second, resuming work is cheap. You can stop after any stage, come back weeks later, and run <code>/wf-meta resume</code>. The command reads the artifact trail and tells you exactly where things stand.</p>
+<p>Second, resuming work is cheap. You can stop after any stage, come back weeks later, and run <code>/wf recap</code>. The command reads the artifact trail and tells you exactly where things stand.</p>
 
 <p>Third, answering "why did we do X?" becomes mechanical. The artifacts are committed files. You can open <code>.ai/workflows/</code>, find the <a href="../reference/glossary.html">slug</a> (the short identifier for this unit of work), and read the relevant stage's notes directly. No AI recall needed.</p>
 

@@ -235,7 +235,7 @@
 
 <h4>When NOT to use</h4>
 <ul>
-  <li>Use <code>/wf-meta skip slice</code> only for quick commands that already decomposed at <code>/wf intake</code> time.</li>
+  <li>Use <code>/wf close &lt;slug&gt; &lt;slice&gt;</code> only for quick commands that already decomposed at <code>/wf intake</code> time.</li>
 </ul>
 
 <hr>
@@ -455,7 +455,7 @@ interactive-verification-defer-reason: "Robolectric covers the state machine (9/
 
 <h4>What it writes</h4>
 <ul>
-  <li>Diátaxis docs per <code>02-shape.md</code> docs plan (loads <code>skills/wf-docs/reference/&lt;type&gt;.md</code> primitive verbatim)</li>
+  <li>Diátaxis docs per <code>02-shape.md</code> docs plan (loads <code>skills/wf/reference/docs/&lt;type&gt;.md</code> primitive verbatim)</li>
   <li><code>08-handoff.md</code> with the full PR-readiness frontmatter block</li>
   <li>Pushed branch + new or updated PR</li>
 </ul>
@@ -502,7 +502,7 @@ interactive-verification-defer-reason: "Robolectric covers the state machine (9/
 <ul>
   <li>Running <code>/wf probe &lt;slug&gt; &lt;target&gt;</code> in a capable environment — captured evidence that satisfies the deferred AC sets <code>cleared-by: probe-&lt;descriptor&gt;</code> automatically.</li>
   <li>Re-running <code>/wf verify &lt;slug&gt; &lt;slice&gt;</code> in a capable environment — produces fresh runtime evidence and rewrites the verify artifact without the deferral.</li>
-  <li>Removing the deferral entry from <code>00-index.md</code> manually (only when the AC has been amended out via <code>/wf-meta amend</code>).</li>
+  <li>Removing the deferral entry from <code>00-index.md</code> manually (only when the AC has been scoped out via a new slice added with <code>/wf intake &lt;slug&gt; &lt;new scope&gt;</code>).</li>
 </ul>
 
 <p>Cleared deferrals (<code>cleared-by</code> non-null — typically a probe descriptor) do not block ship; they're kept in the index for audit. <strong>The block bites only on <code>cleared-by: null</code> entries.</strong> This is the hard-block half of the deferral mechanism — earlier stages (verify, review, handoff) surface deferrals as soft warnings; ship is where the block fires.</p>

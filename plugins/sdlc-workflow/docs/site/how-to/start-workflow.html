@@ -162,13 +162,13 @@
 <dt><strong>"I have a theory about how this code works and want it tested against the codebase."</strong></dt>
 <dd>
   <code>/wf intake discover "&lt;hypothesis&gt;"</code><br>
-  FOR / AGAINST / counter-hypothesis sub-commands adjudicate the claim. Verdict: <code>holds</code>, <code>partial</code>, <code>fails</code>, or <code>inconclusive</code>, with cited evidence. Different from <code>/wf-meta how</code> — that explains how code works; <code>discover</code> tests whether your theory is correct.
+  FOR / AGAINST / counter-hypothesis sub-commands adjudicate the claim. Verdict: <code>holds</code>, <code>partial</code>, <code>fails</code>, or <code>inconclusive</code>, with cited evidence. Different from <code>/wf recap &lt;slug&gt; &lt;focus&gt;</code> — that explains a workflow artifact; <code>discover</code> tests whether your theory is correct.
 </dd>
 
 <dt><strong>"I want to read about an unfamiliar subsystem."</strong></dt>
 <dd>
-  <code>/wf-meta how "&lt;question&gt;"</code><br>
-  Five-mode question answering. Doesn't write a stage artifact unless you opt in.
+  <code>/wf recap &lt;slug&gt; &lt;focus&gt;</code><br>
+  Explains a workflow artifact in depth. Doesn't write a stage artifact unless you opt in.
 </dd>
 
 <dt><strong>"I want to clean up or triage a branch before going further."</strong></dt>

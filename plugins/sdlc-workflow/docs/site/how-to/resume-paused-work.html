@@ -93,7 +93,7 @@
 <span class="quadrant howto">how-to</span>
 <h1>Resume paused work</h1>
 
-<p class="lede">You stepped away from a piece of work — maybe days ago — and now need to pick it back up. Run <code>/wf-meta resume &lt;slug&gt;</code> and the plugin reads every stage artifact, synthesises a dense ~500-word context brief — goal, decisions, current state, open questions — and surfaces a recommended next command so you can orient quickly after a break. If you only need the next command without the full brief, <code>/wf-meta next &lt;slug&gt;</code> is the lighter-weight routing helper.</p>
+<p class="lede">You stepped away from a piece of work — maybe days ago — and now need to pick it back up. Run <code>/wf recap &lt;slug&gt;</code> and the plugin reads every stage artifact, synthesises a dense ~500-word context brief — goal, decisions, current state, open questions — and surfaces a recommended next command so you can orient quickly after a break. If you only need the next command without the full brief, <code>/wf status &lt;slug&gt;</code> is the lighter-weight routing helper.</p>
 
 <div class="summary">
 <table>
@@ -106,7 +106,7 @@
 
 <p>First, list every open workflow to remind yourself which one you want:</p>
 
-<pre><code>/wf-meta status</code></pre>
+<pre><code>/wf status</code></pre>
 
 <p>This prints a table of open workflows. Each row shows a <strong>slug</strong> — the short identifier for a workflow, for example <code>auth-token-refresh</code> — along with its current stage and how long it has been open.</p>
 
@@ -120,7 +120,7 @@ perf-cache-layer       5·implement   2 hours</code></pre>
 
 <p>Pick the slug you want and run:</p>
 
-<pre><code>/wf-meta resume auth-token-refresh</code></pre>
+<pre><code>/wf recap auth-token-refresh</code></pre>
 
 <p>The command reads every <strong>artifact</strong> (a workflow note — a markdown file the plugin writes as a stage completes) in that workflow's directory, distils them into a brief covering goal, decisions made, current state, and open questions, and surfaces a recommended next command inside a <code>## Next</code> section. You can accept the suggestion or type something different.</p>
 

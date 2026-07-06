@@ -112,7 +112,7 @@ Plain-language definitions for every term the plugin uses. Each entry gives you 
 <dd>How this workflow relates to git branches. Three options: <code>dedicated</code> (its own feature branch and PR), <code>shared</code> (commits to an existing collaborative branch), <code>none</code> (no branch operations — just commits).</dd>
 
 <dt><strong>Command</strong> (router)</dt>
-<dd>One of the things you type: <code>/wf</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, <code>/review</code>. (The former <code>/wf-quick</code> router is retired — its flows are now intake modes or top-level <code>/wf</code> keys.) Internally called a <em>router</em> — it dispatches to sub-commands — but "command" is the user-facing term. (Design was once a sixth, <code>/wf-design</code>; it is now the <code>/wf design</code> sub-command.) See <a href="commands.html">Commands reference →</a></dd>
+<dd>One of the things you type: <code>/wf</code> or <code>/review</code>. (The former <code>/wf-quick</code>, <code>/wf-meta</code>, and <code>/wf-docs</code> routers are retired — their flows are now <code>/wf</code> keys.) Internally called a <em>router</em> — it dispatches to sub-commands — but "command" is the user-facing term. (Design was once a sixth, <code>/wf-design</code>; it is now the <code>/wf design</code> sub-command.) See <a href="commands.html">Commands reference →</a></dd>
 
 <dt><strong>Conditional input</strong></dt>
 <dd>An artifact that a stage will consume <em>if it exists</em> but does not require. Each stage's preamble lists its conditional inputs.</dd>

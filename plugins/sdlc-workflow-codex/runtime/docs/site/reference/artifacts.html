@@ -100,15 +100,15 @@
 <h2>Workflow directory tree</h2>
 
 <pre><code>.ai/
-├── ship-plan.md                         # Project-level. Authored once via /wf-meta init-ship-plan.
+├── ship-plan.md                         # Project-level. Authored once via /wf ship-plan init.
 ├── workflows/&lt;slug&gt;/
 │   ├── 00-index.md                      # Control file (pure YAML frontmatter, no body)
-│   ├── 00-sync.md                       # Written by /wf-meta sync if run
+│   ├── 00-sync.md                       # Written by /wf status if run
 │   ├── 01-intake.md                     # Initial requirements
 │   ├── 02-shape.md                      # Deep spec + docs plan
 │   ├── 02b-design.md                    # Design brief (UX register, anti-goals) — /wf shape
 │   ├── 02c-craft.md                     # Visual contract (NOT code) — /wf plan
-│   ├── 02-shape-amend-N.md              # Written by /wf-meta amend
+│   ├── 02-shape-amend-N.md              # Legacy amendment record (retired type)
 │   ├── 03-slice.md                      # Master slice index
 │   ├── 03-slice-&lt;slug&gt;.md               # Per-slice definition
 │   ├── 03-slice-&lt;slug&gt;-amend-N.md       # Per-slice amendment
@@ -129,19 +129,19 @@
 │   ├── 09-ship-run-&lt;run-id&gt;.md          # Per-release artifact
 │   ├── 09-ship-runs.md                  # Per-workflow run index
 │   ├── 10-retro.md                      # Lessons learned
-│   ├── 99-close.md                      # Written by /wf-meta close
+│   ├── 99-close.md                      # Written by /wf close &lt;slug&gt; &lt;reason&gt;
 │   ├── 90-next.md / 90-resume.md        # Optional helpers
-│   ├── 90-how-&lt;topic&gt;.md                # Written by /wf-meta how
+│   ├── 90-how-&lt;topic&gt;.md                # Written by /wf recap &lt;slug&gt; &lt;focus&gt;
 │   ├── design-notes/                    # /wf design transformation + extract operators
 │   │   ├── animate-&lt;ts&gt;.md              # one file per transformation (animate, bolder, clarify, …)
 │   │   ├── extract-&lt;ts&gt;.md              # read-only inspection / token + component extraction
 │   │   └── &lt;sub&gt;-&lt;ts&gt;.md                # 15 transformation operators total
 │   └── po-answers.md                    # Cumulative product-owner answers log
 ├── ideation/&lt;focus&gt;-&lt;ts&gt;.md             # (legacy — old /wf-quick ideate runs only; current runs write to workflows/&lt;slug&gt;/)
-├── research/&lt;topic&gt;-&lt;ts&gt;.md             # /wf-meta how (research mode)
+├── research/&lt;topic&gt;-&lt;ts&gt;.md             # /wf recap &lt;slug&gt; &lt;focus&gt; (research mode)
 ├── simplify/&lt;run-id&gt;.md                 # (legacy — pre-v9.86.0 runs only; current runs write to workflows/&lt;slug&gt;/01-simplify.md)
 ├── dep-updates/&lt;run-id&gt;/                # (legacy — old /wf-quick update-deps runs only; current runs write to workflows/&lt;slug&gt;/)
-└── docs/&lt;run-id&gt;/                       # /wf-docs pipeline tree
+└── docs/&lt;run-id&gt;/                       # /wf docs pipeline tree
 
 # Project-level design context (authored by /wf design setup)
 PRODUCT.md                               # Product/brand context (audience, voice, register)

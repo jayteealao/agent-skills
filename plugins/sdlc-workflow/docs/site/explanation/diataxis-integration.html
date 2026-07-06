@@ -136,13 +136,13 @@
 
 <p>A tutorial generated this way will not drift into explanation. A reference page will not sprout step-by-step instructions. The quadrant boundary is enforced by the template, not by hoping the writer remembers the rule.</p>
 
-<h3>3. The /wf-docs command runs a standalone docs cycle</h3>
+<h3>3. The /wf docs key runs a standalone docs cycle</h3>
 
-<p>The <code>/wf-docs</code> command (one of the four top-level commands) runs a discover, audit, plan, generate, and review cycle on a project's existing documentation. It does not require an active workflow. Each document it generates targets exactly one quadrant.</p>
+<p>The <code>/wf docs</code> key runs a discover, audit, plan, generate, and review cycle on a project's existing documentation. It does not require an active workflow. Each document it generates targets exactly one quadrant.</p>
 
 <details>
 <summary>Technical detail — where the quadrant templates live</summary>
-<p>The per-quadrant templates are stored at <code>skills/wf-docs/reference/&lt;type&gt;.md</code> inside the plugin. Each file contains structure rules, anti-patterns, and a self-check for that quadrant. Handoff loads the file at generation time; it is not embedded in the handoff prompt itself. Editing those files changes what the generator produces.</p>
+<p>The per-quadrant templates are stored at <code>skills/wf/reference/docs/&lt;type&gt;.md</code> inside the plugin. Each file contains structure rules, anti-patterns, and a self-check for that quadrant. Handoff loads the file at generation time; it is not embedded in the handoff prompt itself. Editing those files changes what the generator produces.</p>
 </details>
 
 <h2>This doc site</h2>
