@@ -77,7 +77,7 @@ export function render(artifact, ctx) {
   // 10-column swimlane SVG is illegible at 390px (M-DASH-02..05).
   const desktopBody = `
     ${figureHtml}
-    ${slugSection('Active', active)}
+    ${slugSection('Active', active, { groupByBranch: true })}
     ${slugSection('Recently shipped', complete)}
     ${slugSection('Closed', closed)}
     ${quickSection(quick)}
@@ -176,13 +176,75 @@ function projectSection(list) {
   </section>`;
 }
 
-function slugSection(label, list) {
+function slugSection(label, list, { groupByBranch = false } = {}) {
   if (!list.length) return '';
-  const rows = list.map((s) => projectRow(s)).join('');
+  const rows = groupByBranch ? renderRowsGroupedByBranch(list) : list.map((s) => projectRow(s)).join('');
   return `<section class="project-list">
     <h2 class="sdlc-h2">${label} <span class="meta">(${list.length})</span></h2>
     ${rows}
   </section>`;
+}
+
+// Cluster slugs that share a git branch — the batch-handoff/ship candidates — under
+// a branch header carrying a readiness chip, so a reader sees at a glance which
+// branches are ready to `/wf handoff pr#N` / `/wf ship pr#N` together. Solo and
+// branchless slugs render as plain rows (no group chrome for the common case).
+// Deterministic: groups emit at their first member's position, in list order.
+function renderRowsGroupedByBranch(list) {
+  const byBranch = new Map();
+  for (const s of list) {
+    const b = String(s.fm.branch ?? '').trim();
+    if (!b) continue;
+    if (!byBranch.has(b)) byBranch.set(b, []);
+    byBranch.get(b).push(s);
+  }
+  const emitted = new Set();
+  const parts = [];
+  for (const s of list) {
+    if (emitted.has(s)) continue;
+    const b = String(s.fm.branch ?? '').trim();
+    const members = b ? byBranch.get(b) : null;
+    if (members && members.length >= 2) {
+      members.forEach((m) => emitted.add(m));
+      parts.push(branchGroup(b, members));
+    } else {
+      emitted.add(s);
+      parts.push(projectRow(s));
+    }
+  }
+  return parts.join('');
+}
+
+function branchGroup(branch, members) {
+  const rows = members.map((s) => projectRow(s)).join('');
+  const r = branchReadiness(members);
+  return `<div class="branch-group">
+    <div class="branch-head">
+      <span class="branch-name"><span class="branch-glyph" aria-hidden="true">⎇</span> ${escapeHtml(branch)}</span>
+      <span class="branch-count">${members.length} slugs</span>
+      <span class="branch-chip ${r.tone}">${escapeHtml(r.label)}</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
+// Branch-level readiness from index-only fields (the dashboard summary is
+// index-scoped; the authoritative pr-readiness-verdict lives in the lead's
+// 08-handoff.md). A member counts as ready once it reaches handoff/ship/retro or
+// is shipped; any blocked member dominates the chip.
+function branchReadiness(members) {
+  const READY_STAGES = new Set(['handoff', 'ship', 'retro']);
+  const SHIPPED = new Set(['shipped', 'complete', 'completed', 'done']);
+  let ready = 0, blocked = 0;
+  for (const s of members) {
+    const st = String(s.fm.status ?? '').trim().toLowerCase();
+    if (st === 'blocked' || s.fm.blocked === true) { blocked++; continue; }
+    if (READY_STAGES.has(String(s.fm['current-stage'] ?? '')) || SHIPPED.has(st)) ready++;
+  }
+  if (blocked) return { tone: 'bad', label: `${blocked} blocked` };
+  if (ready === members.length) return { tone: 'ok', label: 'all ready — batch ship' };
+  if (ready > 0) return { tone: 'warn', label: `${ready}/${members.length} ready` };
+  return { tone: 'idle', label: 'in progress' };
 }
 
 // Quick / investigative workflows (type: workflow-index). These don't fit the

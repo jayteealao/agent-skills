@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — dashboard branch grouping (9.106.0)
+
+The cross-slug dashboard (`.ai/_view/INDEX.html`) now clusters Active workflows that share a git branch under a branch header with an at-a-glance readiness chip — the visual companion to the v9.105.0 batch `/wf handoff|ship pr#N`. A reader sees which branches are ready to hand off or ship together without opening each slug.
+
+- Slugs sharing a `branch:` (2+) render inside a `.branch-group` with a `⎇ <branch>` label, a member count, and a readiness chip derived from index-level state: `all ready — batch ship` (every member at handoff/ship/retro or shipped), `N/M ready`, `in progress`, or `N blocked` (blocked dominates). Solo and branchless slugs render as plain rows — no group chrome for the common case.
+- Desktop Active section only; Recently-shipped/Closed and the mobile card view stay flat. Deterministic ordering (a group emits at its first member's position), so existing single-branch dashboards render byte-identically (all 50 renderer snapshots unchanged).
+
 ### Added — branch-scoped batch handoff/ship + revision ledger (9.105.0)
 
 `/wf handoff` and `/wf ship` (and read-only `/wf status`) now accept a **polymorphic first argument** — `slug` | `pr#N`/`#N`/bare integer | branch name — resolved by exact existence check inside each reference (first match wins). A PR/branch argument runs **batch mode** over every slug whose `00-index.md` shares that branch, and reports which slugs are handoff-ready / ship-ready. Both trees (main + Codex mirror).

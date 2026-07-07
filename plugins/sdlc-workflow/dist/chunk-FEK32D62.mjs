@@ -7,7 +7,7 @@ import {
 import {
   artifactHeader,
   pageHref
-} from "./chunk-SHLVL5XH.mjs";
+} from "./chunk-K6HI2KDD.mjs";
 import {
   escapeHtml
 } from "./chunk-4WRIEOIP.mjs";
@@ -58,7 +58,7 @@ function render(artifact, ctx) {
   });
   const desktopBody = `
     ${figureHtml}
-    ${slugSection("Active", active)}
+    ${slugSection("Active", active, { groupByBranch: true })}
     ${slugSection("Recently shipped", complete)}
     ${slugSection("Closed", closed)}
     ${quickSection(quick)}
@@ -144,13 +144,66 @@ function projectSection(list) {
     ${rows}
   </section>`;
 }
-function slugSection(label, list) {
+function slugSection(label, list, { groupByBranch = false } = {}) {
   if (!list.length) return "";
-  const rows = list.map((s) => projectRow(s)).join("");
+  const rows = groupByBranch ? renderRowsGroupedByBranch(list) : list.map((s) => projectRow(s)).join("");
   return `<section class="project-list">
     <h2 class="sdlc-h2">${label} <span class="meta">(${list.length})</span></h2>
     ${rows}
   </section>`;
+}
+function renderRowsGroupedByBranch(list) {
+  const byBranch = /* @__PURE__ */ new Map();
+  for (const s of list) {
+    const b = String(s.fm.branch ?? "").trim();
+    if (!b) continue;
+    if (!byBranch.has(b)) byBranch.set(b, []);
+    byBranch.get(b).push(s);
+  }
+  const emitted = /* @__PURE__ */ new Set();
+  const parts = [];
+  for (const s of list) {
+    if (emitted.has(s)) continue;
+    const b = String(s.fm.branch ?? "").trim();
+    const members = b ? byBranch.get(b) : null;
+    if (members && members.length >= 2) {
+      members.forEach((m) => emitted.add(m));
+      parts.push(branchGroup(b, members));
+    } else {
+      emitted.add(s);
+      parts.push(projectRow(s));
+    }
+  }
+  return parts.join("");
+}
+function branchGroup(branch, members) {
+  const rows = members.map((s) => projectRow(s)).join("");
+  const r = branchReadiness(members);
+  return `<div class="branch-group">
+    <div class="branch-head">
+      <span class="branch-name"><span class="branch-glyph" aria-hidden="true">\u2387</span> ${escapeHtml(branch)}</span>
+      <span class="branch-count">${members.length} slugs</span>
+      <span class="branch-chip ${r.tone}">${escapeHtml(r.label)}</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+function branchReadiness(members) {
+  const READY_STAGES = /* @__PURE__ */ new Set(["handoff", "ship", "retro"]);
+  const SHIPPED = /* @__PURE__ */ new Set(["shipped", "complete", "completed", "done"]);
+  let ready = 0, blocked = 0;
+  for (const s of members) {
+    const st = String(s.fm.status ?? "").trim().toLowerCase();
+    if (st === "blocked" || s.fm.blocked === true) {
+      blocked++;
+      continue;
+    }
+    if (READY_STAGES.has(String(s.fm["current-stage"] ?? "")) || SHIPPED.has(st)) ready++;
+  }
+  if (blocked) return { tone: "bad", label: `${blocked} blocked` };
+  if (ready === members.length) return { tone: "ok", label: "all ready \u2014 batch ship" };
+  if (ready > 0) return { tone: "warn", label: `${ready}/${members.length} ready` };
+  return { tone: "idle", label: "in progress" };
 }
 function quickSection(list) {
   if (!list.length) return "";
