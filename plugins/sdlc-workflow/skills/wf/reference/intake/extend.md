@@ -195,7 +195,7 @@ Explain what motivated this extension — which review finding, retro item, or u
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after comparison, a timeline, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../_fragment-authoring.md) Step F2 and `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # Step 5 — Update Master Slice Index (non-destructive)
 
@@ -247,8 +247,7 @@ Do NOT change `current-stage`, `status`, `selected-slice-or-focus`, or any other
 ---
 
 # Chat return contract
-Return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this run produced — what the new scope *is* and why it emerged, the key decisions and counts, and the top risk or caveat. The dispatcher leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this run produced, key decisions and counts, top risk), then this receipt:
 - `slug: <slug>`
 - `wrote:` list of new slice files written, plus `03-slice.md` (updated)
 - `new-slices:` list of new slice slugs with one-line goals

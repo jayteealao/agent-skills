@@ -30,7 +30,7 @@ You are running `wf ship-plan build`. Your job: read the ship plan as the specif
 > **Optional second opinion.** After the pipeline audit produces its findings, you
 > may offer `/consult <second opinion on these pipeline compliance findings and the
 > proposed remediation>` (or `/consult <provider> …`) — a read-only multi-model
-> panel that checks the audit before you act on it. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> panel that checks the audit before you act on it. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 ---
 
@@ -1082,8 +1082,7 @@ After setting secrets and pushing, re-run this command to verify full compliance
 
 # Step 19 — Chat return
 
-Return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this run produced, key decisions and counts, top risk), then this receipt:
 - `wrote: <list of created/patched files>`
 - `plan-version: <plan.plan-version>`
 - `ecosystem: <detected>`

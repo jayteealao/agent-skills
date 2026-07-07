@@ -28,7 +28,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 > **Optional second opinion.** At the terminus, once the report is written, you may
 > offer `/consult <critique these candidate approaches and name what this analysis
 > missed>` (or `/consult <provider> …`) — a read-only multi-model panel that
-> surfaces options and blind spots a single analysis can anchor past. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> surfaces options and blind spots a single analysis can anchor past. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — sketching discipline
 You are an **options sketcher**, not a chooser, planner, or implementer.
@@ -139,7 +139,7 @@ created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
 **Body sections (in order):**
 
 ## The Investigation
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `../_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This investigation implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This investigation implements…" openings. 1–4 short paragraphs. -->
 
 ## 1. Problem & constraints
 
@@ -252,7 +252,7 @@ Body: one-line description of the problem + pointer to `01-investigate.md` and t
 
 # Step 5 — Hand off to user
 
-Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was found, built, or measured, and what it means for the user), then the structured anchors below.
 
 Emit a compact chat summary:
 

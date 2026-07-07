@@ -24,7 +24,7 @@ You are running `$wf slice`, **stage 3 of 10** in the SDLC lifecycle.
 > routing), you may offer `$consult <critique this slice decomposition —
 > independence, ordering, any risky slice buried mid-sequence>` (or `$consult
 > <provider> …`) — a read-only multi-model panel that pressure-tests the
-> decomposition before rework gets expensive. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> decomposition before rework gets expensive. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -67,11 +67,10 @@ Break a shaped work item into thin, independently verifiable vertical slices. Wr
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Use parallel subagents for multi-domain research. Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
-- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
+- **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read it and honor it in the output — existence is optional, consumption is required; silent omission is a contract violation.
 
 # Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** the chat summary's lead paragraph, in the artifact's story voice — see [_narrative-voice.md](_narrative-voice.md). Same voice as the artifact's `## The Slices` section: relevance first, tradeoffs stated plainly, no `"This slice breakdown implements…"` openings. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Slices` story voice, then this receipt:
 - `slug: <slug>`
 - `wrote: <paths>` (list all slice files written)
 - `options:` (list all viable next options — see Adaptive Routing below)
@@ -183,7 +182,7 @@ next-invocation: "$wf plan <slug> <best-first-slice>"
 # Slice Index
 
 ## The Slices
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This slice breakdown implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This slice breakdown implements…" openings. 1–4 short paragraphs. -->
 
 ## Slice Strategy
 
@@ -239,7 +238,7 @@ refs:
 # Slice: <slice-name>
 
 ## The Slice
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This slice implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This slice implements…" openings. 1–4 short paragraphs. -->
 
 ## Goal
 
@@ -265,43 +264,33 @@ refs:
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 ---
 
 ## Additive-write contract (v9.20.1+)
 
 Both `03-slice-index.md` and per-slice `03-slices/<slice-slug>.md` are
-revisable. When `$wf slice` is re-invoked on an existing slug:
+revisable. When `$wf slice` is re-invoked on an existing slug, follow the
+shared additive-write contract in [_additive-write.md](_additive-write.md)
+for every file that will be rewritten, with:
 
-1. **Snapshot existing slice files** that will be rewritten to
-   `.ai/workflows/<slug>/history/`:
-   - `03-slice-index-<rev>.md` for the index file.
-   - `slices/<slice-slug>/history/03-slice-<rev>.md` for per-slice detail
-     files, where `<rev>` is the current `revision-count`.
-2. **Bump `revision-count`** on each rewritten file by 1. Refresh
-   `updated-at`.
-3. **Append**, don't overwrite:
-   ```
-   ## Revision <new-revision-count> — <ISO timestamp>
+- Snapshots in `.ai/workflows/<slug>/history/`: `03-slice-index-<rev>.md` for
+  the index; `slices/<slice-slug>/history/03-slice-<rev>.md` for per-slice
+  detail files.
+- Revision-section lead: "Why this slice changed:".
 
-   Why this slice changed:
-   - …
+Stage-specific additions:
 
-   <updated slice content here>
-   ```
-4. **New slices added in this run** start fresh — they have no prior
-   revision and no history snapshot. Their `revision-count` begins at 1.
-5. **Removed slices** stay in storage. Mark their frontmatter
+1. **New slices added in this run** start fresh — they have no prior revision
+   and no history snapshot. Their `revision-count` begins at 1.
+2. **Removed slices** stay in storage. Mark their frontmatter
    `status: dropped` with a `dropped-reason:` field and append a final
-   `## Dropped — <ISO>` section to the body. Removal of a slice file
-   from disk is reserved for explicit `$wf` status operations that the
+   `## Dropped — <ISO>` section to the body. Removal of a slice file from
+   disk is reserved for explicit `$wf status` reconcile operations that the
    renderer surfaces with a tombstone view.
-
-**Exception**: if frontmatter carries `regenerable: true`, overwrite
-freely. The slice index does NOT normally carry this flag.
 
 The renderer aggregates per-slice history into the slug overview's
 prior-revisions block. The slice-grid figure-canvas reflects the current
-slice status across the whole slug, including dropped slices (rendered
-in `--blocker` with a strikethrough).
+slice status across the whole slug, including dropped slices (rendered in
+`--blocker` with a strikethrough).

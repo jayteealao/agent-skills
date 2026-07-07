@@ -138,7 +138,7 @@ created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
 **Body sections (in order):**
 
 ## The Discovery
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `../_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This discovery implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This discovery implements…" openings. 1–4 short paragraphs. -->
 
 ## 1. Hypothesis
 
@@ -231,7 +231,7 @@ Body: one-line description of the hypothesis + pointer to `01-discover.md` and t
 
 # Step 5 — Hand off to user
 
-Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was found, built, or measured, and what it means for the user), then the structured anchors below.
 
 Emit a compact chat summary:
 

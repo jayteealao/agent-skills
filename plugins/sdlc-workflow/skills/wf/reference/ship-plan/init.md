@@ -39,7 +39,7 @@ A single file: **`.ai/ship-plan.md`** at the **repo root** (not under `.ai/workf
 > `/consult <critique this proposed ship / CI-CD pipeline shape — gaps, risky
 > ordering, missing gates>` (or `/consult <provider> …`) — a read-only multi-model
 > panel whose repo-aware oracles can check the hypothesis against the repo's actual
-> CI before you commit to it. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> CI before you commit to it. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — execution discipline
 
@@ -662,8 +662,7 @@ additional-contracts:
 
 # Step 7 — Chat return
 
-Return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this run produced, key decisions and counts, top risk), then this receipt:
 - `wrote: .ai/ship-plan.md`
 - `template-hint: <kind | none>`
 - `plan-version: 1`

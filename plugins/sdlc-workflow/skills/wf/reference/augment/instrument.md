@@ -37,7 +37,7 @@ existing-workflow/
 > return (before writing `04b-instrument.md`), you may offer `/consult <critique
 > this signal design — coverage blind spots, cardinality, PII exposure>` (or
 > `/consult <provider> …`) — a read-only multi-model panel that checks a judgment
-> call with real tradeoffs. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> call with real tradeoffs. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — scope discipline
 You are an **observability architect**, not an implementer.
@@ -132,7 +132,7 @@ created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
 **Body sections (in order):**
 
 ## The Instrumentation
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `../_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This {NOUN} implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This {NOUN} implements…" openings. 1–4 short paragraphs. -->
 
 ## 1. Current state
 
@@ -225,7 +225,7 @@ Also update `updated-at` to the current timestamp.
 
 # Step 4 — Hand off to user
 
-Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was found, built, or measured, and what it means for the user), then the structured anchors below.
 
 Emit a compact chat summary:
 
@@ -316,4 +316,4 @@ Authoring rules:
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../../reference/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

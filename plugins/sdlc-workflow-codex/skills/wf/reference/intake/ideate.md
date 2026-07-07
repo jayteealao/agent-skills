@@ -30,7 +30,7 @@ This skill does NOT start or advance any workflow. It discovers improvement oppo
 > **Optional second opinion.** At the terminus, once the ideas are ranked, you may
 > offer `$consult <widen this idea set and flag blind spots>` (or `$consult
 > <provider> …`) — a read-only multi-model panel that brings divergent breadth to
-> the brainstorm. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> the brainstorm. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are an **opportunity discoverer and adversarial filter**, not a problem solver.
@@ -375,7 +375,7 @@ culled:
 # Ideation: <focus-area or "Codebase-Wide">
 
 ## The Ideation
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `../_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This ideation implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This ideation implements…" openings. 1–4 short paragraphs. -->
 
 *Generated: <date> | Lenses: <list> | Raw: <N> → Filtered: <N> → Showing: <N>*
 
@@ -418,11 +418,10 @@ $wf intake ideate dx 20             # DX lens, top 20
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # Chat return contract
-Return — lead with the substance first, then the receipt:
-- **narrative:** the chat summary's lead paragraph, in the artifact's story voice — see [_narrative-voice.md](../_narrative-voice.md). Same voice as the artifact's `## The Ideation` section: relevance first, tradeoffs stated plainly, no `"This ideation implements…"` openings. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead in the artifact's `## The Ideation` story voice, then this receipt:
 - `wrote: .ai/workflows/<slug>/01-ideate.md + 00-index.md`
 - `ideas: <N> survivors from <M> raw candidates`
 - The ranked list (Step 5 format)

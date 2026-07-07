@@ -21,12 +21,9 @@ or modify code; `audit`/`critique` produce review reports; `extract` reverse-eng
 load the shared design context, run preflight, load the command's reference, then run the
 flow span the command's category dictates.
 
-> **Narrative fragments — any artifact.** Beyond the typed `.html.fragment` the rich stages
-> project from a sibling `.yaml`, *any* artifact you write may also ship free **narrative
-> fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as
-> the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the
-> page. Design work especially benefits: drop in a live component preview, an annotated mock,
-> or a token swatch board. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+> **Narrative fragments.** Any artifact may ship free narrative fragments — design work
+> especially benefits (a live component preview, an annotated mock, a token swatch board).
+> Rules: [_fragment-authoring.md](_fragment-authoring.md) Step F2.
 
 # Step 0 — Parse the invocation (slug-vs-command resolution)
 
@@ -282,7 +279,6 @@ Next: <recommended command, or "Done">
 ```
 
 **Rules:**
-- **Always emit** unless the flow STOPped with an error — then the error replaces the summary.
 - **First line.** Name the command and the slug; no-slug runs that created a slug name the new
   slug; truly standalone runs use `"freestanding"`.
 - **Narrative — the heart of the summary, REQUIRED for any command that produces an artifact.**
@@ -300,9 +296,6 @@ Next: <recommended command, or "Done">
 - **Next** is a concrete invocation, or `Done`. A completed in-workflow build typically routes to
   `/wf review <slug>`; `audit`/`critique` route to `/wf review <slug>`; standalone runs usually
   `Done`.
-- **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat
-  return, not external-facing copy. Outside this block, the External Output Boundary still applies.
 - If the command reference defines its own "Chat return contract", treat that as the *content*
-  spec — pick the load-bearing fields and keep it compact. **A reference that says to "return
-  ONLY" a receipt means only those *receipt fields* — it does NOT waive the substance summary
-  above.** Keep the full detail in the artifact; the chat summary carries the gist.
+  spec — pick the load-bearing fields and keep it compact.
+- Framing rules — narrative definition, "return only" caveat, internal audience, always-emit — are single-sourced in [_chat-return.md](_chat-return.md); apply them here.

@@ -14,13 +14,13 @@ Two modes of operation:
 - **Orchestrator** (`/wf docs`, `/wf docs <slug>`, `/wf docs --audit-only`, `/wf docs <path>`) — run the full pipeline. Discover existing docs, audit them against the codebase and Diátaxis principles, plan what to create/update/remove, generate using the appropriate primitive references, and spot-review the output.
 - **Primitive** (`/wf docs <primitive> <args>`) — load one Diátaxis reference and write a single document. The primitive is responsible for its own quadrant discipline; this key simply loads and follows the matching `docs/<primitive>.md`.
 
-> **Narrative fragments — any artifact (v9.70.0).** Any docs artifact you write may also ship free **narrative fragments**: `<stem>.<label>.html.fragment` siblings of unrestricted raw HTML — as many as the story needs, no contract and no sibling `.yaml` required — rendered raw-inline below the page. Author one whenever a bespoke diagram, flow, comparison, or interactive example tells the story better than prose. Full guidance: `${CLAUDE_PLUGIN_ROOT}/reference/narrative-fragments.md`.
+> **Narrative fragments.** Any docs artifact may ship free narrative fragments whenever a bespoke diagram, flow, comparison, or interactive example tells the story better than prose. Rules: [_fragment-authoring.md](_fragment-authoring.md) Step F2.
 
 > **Optional second opinion.** After the audit (and again after generate), you may
 > offer `/consult <completeness blind spots in this doc plan>` or `/consult
 > <accuracy pass on this reference doc>` (or `/consult <provider> …`) — a read-only
 > multi-model panel that runs a cross-model completeness and accuracy check on
-> developer-facing docs. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> developer-facing docs. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # Step 0 — Mode + sub-command resolution (MANDATORY)
 
@@ -342,11 +342,9 @@ Next: <recommended command, or "Done">
 
 **Rules:**
 
-- **Always emit** unless the reference STOPped with an error message — in that case the error replaces the summary.
 - **First line.** Name the mode and the scope: a workflow slug, a project path, or `--audit-only` for orchestrator runs without a slug. For primitive mode, name the primitive (`tutorial`, `how-to`, `reference`, `explanation`, `readme`, `review`) and the target.
 - **Artifacts.** The docs files created or modified in this invocation. For orchestrator mode, include the audit and plan artifacts. For primitive mode, the single document written.
 - **Files counts** (orchestrator only) — the audit verdict in four numbers. Use `0` rather than omitting a row.
 - **Quadrant** (primitive only) — the Diátaxis quadrant the primitive emitted. `n/a` for `readme` and `review` primitives.
-- **Narrative — the heart of the summary, REQUIRED for any sub-command that produces an artifact.** In place of the old terse key-facts line, write a short **prose paragraph** (2–5 sentences, no bullets, no field labels) that *tells the user what happened* — what this run produced or decided, how, the load-bearing counts and decisions, and the top risk or caveat. Write it like you're telling a colleague, not filling a form. Omit only for genuinely read-only sub-commands.
 - **Next.** For orchestrator: typically "Review generated docs" or "Run wf docs again to verify". For primitive: usually `Done` unless a follow-up is warranted (e.g., `Done — consider /wf docs review` after writing a long reference).
-- **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed here; this is the chat return, not external-facing copy. Outside this block, the External Output Boundary still applies.
+- Framing rules — narrative definition, "return only" caveat, internal audience, always-emit — are single-sourced in [_chat-return.md](_chat-return.md); apply them here.

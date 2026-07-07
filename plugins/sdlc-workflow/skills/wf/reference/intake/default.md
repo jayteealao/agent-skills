@@ -120,8 +120,7 @@ Convert a rough request into a clear intake brief, create the workflow folder, c
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** the chat summary's lead paragraph, in the artifact's story voice — see [_narrative-voice.md](../_narrative-voice.md). Same voice as the artifact's `## The Intake` section: relevance first, tradeoffs stated plainly, no `"This intake implements…"` openings. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead in the artifact's `## The Intake` story voice, then this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `options:` (list all viable next options — see Adaptive Routing below)
@@ -298,7 +297,7 @@ next-invocation: "/wf shape <slug>"
 # Intake
 
 ## The Intake
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `../_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This intake implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This intake implements…" openings. 1–4 short paragraphs. -->
 
 ## Restated Request
 
@@ -349,7 +348,7 @@ If required answers are still missing, set frontmatter `status: awaiting-input` 
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../../reference/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 ---
 
@@ -358,35 +357,24 @@ Beyond the structured page, this artifact ships one or more **free narrative fra
 `01-intake.md` is a revisable artifact. Re-invocation happens when the user
 returns with answers to open questions, when scope changes, or when a related
 intake informs the current one. **Do not overwrite the body** — preserve the
-narrative of how the problem statement evolved.
+narrative of how the problem statement evolved: follow the shared
+additive-write contract in [_additive-write.md](../_additive-write.md) with:
 
-1. **Snapshot the current file** to
-   `.ai/workflows/<slug>/history/01-intake-<rev>.md` where `<rev>` is the
-   current `revision-count` (before this run's increment). Verbatim byte-copy.
-2. **Bump `revision-count`** in frontmatter by 1. Refresh `updated-at`.
-3. **Append** a new section rather than rewriting prior content:
-   ```
-   ## Revision <new-revision-count> — <ISO timestamp>
+- Snapshot: `.ai/workflows/<slug>/history/01-intake-<rev>.md`.
+- Revision-section lead: "What changed and why:" (user returned with answers,
+  scope expanded, a related intake informed this one).
 
-   What changed and why:
-   - User returned with answers to open questions (or: scope expanded …)
-   - …
+Stage-specific additions:
 
-   <new intake content here — restated problem / acceptance criteria>
-   ```
-   The `## Initial` and any prior `## Revision N` sections stay intact.
-4. **Open-question resolution**: when a previously-open question is now
+1. **Open-question resolution**: when a previously-open question is now
    answered, do NOT silently delete the question from the body. Instead, add
    the answer below the original question with a `→` marker, or call it out
    in the new `## Revision <n>` section's "What changed" list.
-5. **`status: awaiting-input` transitions**: if this run resolves all open
+2. **`status: awaiting-input` transitions**: if this run resolves all open
    questions, transition `status` to `complete` and clear `open-questions`
    in frontmatter. Note the transition in the new revision section.
 
-**Exception**: if frontmatter declares `regenerable: true`, overwrite freely.
-The intake artifact does not normally carry this flag.
+History view paths are stable (`<slug>/intake/history/<rev>/INDEX.html`) —
+prior intakes remain linkable from later artifacts (shape, plan) that
+reference an intake-at-the-time.
 
-The renderer surfaces prior revisions as a collapsible `<details class="history">`
-at the bottom of the page. History view paths are stable
-(`<slug>/intake/history/<rev>/INDEX.html`) — prior intakes remain linkable
-from later artifacts (shape, plan) that reference an intake-at-the-time.

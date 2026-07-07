@@ -28,7 +28,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 > **Optional second opinion.** At the terminus, once the report is written, you may
 > offer `$consult <critique these candidate approaches and name what this analysis
 > missed>` (or `$consult <provider> …`) — a read-only multi-model panel that
-> surfaces options and blind spots a single analysis can anchor past. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> surfaces options and blind spots a single analysis can anchor past. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — sketching discipline
 You are an **options sketcher**, not a chooser, planner, or implementer.
@@ -138,7 +138,7 @@ created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
 **Body sections (in order):**
 
 ## The Investigation
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `../_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This investigation implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This investigation implements…" openings. 1–4 short paragraphs. -->
 
 ## 1. Problem & constraints
 
@@ -219,7 +219,7 @@ For each fired tripwire: `[tripwire-name]: <what specifically tripped it>`. Clos
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # Step 4 — Write `00-index.md`
 

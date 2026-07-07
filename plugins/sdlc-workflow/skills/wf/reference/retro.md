@@ -22,7 +22,7 @@ You are running `wf-retro`, **stage 10 of 10** in the SDLC lifecycle.
 > **Optional second opinion.** At the synthesis step (after the analysis sub-agents
 > return), you may offer `/consult <what systemic patterns span this workflow's
 > friction?>` (or `/consult <provider> …`) — a read-only multi-model panel that
-> spots cross-stage patterns the per-domain sub-agents miss. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> spots cross-stage patterns the per-domain sub-agents miss. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -166,11 +166,10 @@ Extract reusable lessons and turn them into concrete improvements to prompts, ho
 - **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
-- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
+- **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read it and honor it in the output — existence is optional, consumption is required; silent omission is a contract violation.
 
 # Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** the chat summary's lead paragraph, in the artifact's story voice — see [_narrative-voice.md](_narrative-voice.md). Same voice as the artifact's `## The Retro` section: relevance first, tradeoffs stated plainly, no `"This retro implements…"` openings. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Retro` story voice, then this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `next: workflow complete` (or options if follow-up is warranted)
@@ -229,7 +228,7 @@ next-invocation: ""
 # Retro
 
 ## The Retro
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This retro implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This retro implements…" openings. 1–4 short paragraphs. -->
 
 ## What Went Well
 - ...
@@ -284,7 +283,7 @@ If the workflow introduced no shortcuts: "No deferred debt — no `sdlc-debt:` m
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 ---
 
@@ -293,29 +292,18 @@ Beyond the structured page, this artifact ships one or more **free narrative fra
 `10-retro.md` is usually one-shot (a retro runs once at workflow close), but
 it IS revisable — extended retrospectives sometimes add a follow-up "30-day
 check" or "quarterly look-back" section. When `/wf retro` is re-invoked on a
-slug that already has one:
+slug that already has one, follow the shared additive-write contract in
+[_additive-write.md](_additive-write.md) with:
 
-1. **Snapshot the current file** to
-   `.ai/workflows/<slug>/history/10-retro-<rev>.md` where `<rev>` is the
-   current `revision-count` (before this run's increment).
-2. **Bump `revision-count`** in frontmatter by 1. Refresh `updated-at`.
-3. **Append** a new section rather than rewriting prior content:
-   ```
-   ## Revision <new-revision-count> — <ISO timestamp>
+- Snapshot: `.ai/workflows/<slug>/history/10-retro-<rev>.md`.
+- Revision-section lead: "What this revisit adds:" (a 30-day check-in, a
+  follow-up after an incident, a quarterly review).
 
-   What this revisit adds:
-   - 30-day check-in (or: follow-up after incident, or: quarterly review)
-
-   <new retro content — updated outcomes, new lessons, fresh action items>
-   ```
-   Earlier `## Initial` retro content stays intact. A retro's value is largely
-   *historical* — reading the original "things we'd do differently" alongside
-   "what we actually did differently 30 days later" is more useful than
-   reading a single edited-in-place document.
-
-**Exception**: `regenerable: true` opts out. Retros do not normally carry
-this flag.
+A retro's value is largely *historical* — reading the original "things we'd
+do differently" alongside "what we actually did differently 30 days later"
+is more useful than a single edited-in-place document.
 
 The renderer aggregates retro revisions into a single timeline view — each
 revision is a date-stamped entry on the retro page rather than buried under
 a `<details>` block (retros are short enough to display in full).
+

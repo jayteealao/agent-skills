@@ -1,6 +1,6 @@
 {
   "name": "sdlc-workflow",
-  "version": "9.103.0",
+  "version": "9.104.0",
   "description": "Two commands — `/wf` (the single SDLC entry point) and `/review` — driving a 10-stage lifecycle from intake through retro, with per-slice artifacts, runtime-truth verification, and PO-confirmed stack fingerprinting. Navigation, ship-plan, and docs are `/wf` keys; design folds into `/wf design`; quick/standalone flows are `/wf intake` modes plus the `/wf probe` and `/wf simplify` keys.",
   "author": {
     "name": "jayte"

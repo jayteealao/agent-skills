@@ -47,7 +47,7 @@ existing-workflow/
 > **Optional second opinion.** In compare mode, when regressions are found, you may
 > offer `$consult <diagnose the likely cause of these regressions given the diff
 > and the plan>` (or `$consult <provider> …`) — a read-only multi-model panel that
-> grounds the "likely cause" in the actual change instead of a guess. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> grounds the "likely cause" in the actual change instead of a guess. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — measurement discipline
 You are a **performance analyst**, not an optimizer.
@@ -137,7 +137,7 @@ measured-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"`>
 **Body sections:**
 
 ## The Benchmark
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `../_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This {NOUN} implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This {NOUN} implements…" openings. 1–4 short paragraphs. -->
 
 ## Benchmark Targets
 
@@ -357,4 +357,4 @@ Authoring rules:
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

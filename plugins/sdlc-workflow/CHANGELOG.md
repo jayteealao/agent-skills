@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — `/wf` skill progressive-disclosure optimization (9.104.0)
+
+A two-round, behavior-preserving optimization of the `/wf` skill tree in BOTH trees (main + Codex mirror). Nothing was removed — no key, mode, gate, or template; text either moved behind a conditional load or was single-sourced and cited.
+
+- **Conditional loading.** `handoff`'s GitHub machinery (CI watch, fix-subagent contract, T5.1 PR-comment triage) hoisted into `reference/_pr-ci-handoff.md`, read only when the PR/CI path is active — a local-branch handoff never loads it. `review.md` split into a 67-line entry (Step 00 + the full ad-hoc section) and `reference/review/_stage.md`, loaded only on a slug match — an ad-hoc `/wf review <dimension>` now loads ~7KB instead of ~73KB.
+- **New single-source references**, each with a fingerprint drift-guard test (the `_output-boundary.md` pattern): `_fix-loop.md` (the seven fix-dispatch invariants shared by verify/review/implement-reviews/handoff), `_chat-return.md` (the leaf-side chat-return framing; also fixes two contract contradictions — `ship-plan/edit.md`'s "Return only:" and `ship/announce.md`'s missing narrative requirement), `_additive-write.md` (the snapshot→bump→append revisable-artifact contract for intake/shape/slice/handoff/retro).
+- **Dedup sweeps.** The free-narrative-fragments paragraph (46 byte-identical copies restating `_fragment-authoring.md` Step F2), the chat-return framing (3 drifted dialects across 28 files/tree), the story-section register restatement (20 drifted variants across 46 copies), the consult-blockquote policy tail (36), and the conditional-inputs paragraph (14) — all now cite their canonical home. `SKILL.md`'s always-loaded tier drops its triple roster statement and two long blockquotes.
+- **Prose compression.** The nine largest stage references per tree (verify, plan, review stage body, handoff, ship, simplify, implement, shape, probe) tightened 4.5–14.3% each under a strict contract — headings byte-for-byte, every step/gate/threshold/enum/template/link preserved — verified by before/after heading-inventory diffs and a cross-tree heading comparison.
+- Net: main skills tree −2,304/+891 lines; Codex mirror −2,145/+786. New test `tests/unit/skills/shared-reference-drift.test.mjs` (4 tests) enforces single-source-or-fail-CI for the new shared references and the review split, in both trees.
+
 ### Fixed — renderers for the `solution` and `ship-rollback` artifact types (9.103.0)
 
 The two artifact types introduced in 9.100.0 (feedback-loops W1/W4) shipped without dedicated renderers, so their views degraded to the plain `fallbackRender` page and the e2e acceptance run reported `no renderer for: solution, ship-rollback`.

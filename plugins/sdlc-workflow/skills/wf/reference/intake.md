@@ -198,19 +198,11 @@ Next: <recommended command, or "Done">
 ```
 
 **Rules:**
-- **Always emit** unless the mode STOPped with an error — then the error replaces the summary.
 - **First line.** Name the mode and the slug (standalone: the workflow created — `ideate`/`investigate`/
   `discover` may have none; slug-mode: the workflow the slice attached to).
-- **Narrative — the heart, REQUIRED for any mode that produces an artifact.** A short prose
-  paragraph (2–5 sentences, no bullets, no field labels): what was produced/decided, the
-  load-bearing counts and the top risk. Write it like telling a colleague, not filling a form.
-  Omit only for genuinely read-only runs with nothing to narrate.
 - **Artifacts** are the paths created or modified this run. `"none"` for read-only runs.
 - **Next** is a concrete invocation, or `Done`. In slug-mode, scope `Next` with `<slug>` as the
   first positional (`/wf implement <slug>`).
-- **Internal audience.** `.ai/` paths ARE allowed here (chat return, not external copy). Outside
-  this block the External Output Boundary still applies.
 - If the mode reference defines its own "Chat return contract", treat it as the *content* spec —
-  pick the load-bearing fields and keep it compact. **A reference that says to "return ONLY" a
-  receipt means only those *receipt fields* — it does NOT waive the substance narrative above.**
-  Keep the full detail in the artifact; the chat summary carries the gist.
+  pick the load-bearing fields and keep it compact.
+- Framing rules — narrative definition, "return only" caveat, internal audience, always-emit — are single-sourced in [_chat-return.md](_chat-return.md); apply them here.

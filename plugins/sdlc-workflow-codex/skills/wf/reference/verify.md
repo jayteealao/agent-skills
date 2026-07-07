@@ -22,20 +22,18 @@ You are running `$wf verify`, **stage 6 of 10** in the SDLC lifecycle.
 
 > **Auto second opinion (diagnosis).** After the perceptual review pass, **auto-invoke**
 > `$consult codex <do these screenshots and observations actually satisfy the
-> user-observable AC, or is something off?>` (pin `codex`/`claude`) whenever the
-> evidence is ambiguous or a gate is borderline — a read-only panel that gives the
-> captured evidence an independent eye for UX issues or AC gaps the primary pass
-> talked itself past. Skip it when the AC is plainly met.
+> user-observable AC, or is something off?>` (pin `codex`/`claude`) when evidence is
+> ambiguous or a gate is borderline. Skip when the AC is plainly met.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator that owns its own triage→fix loop**.
-- You run checks and compare results against acceptance criteria. You do NOT improvise fixes while checks are running.
-- After all checks and the user-observable AC gate finish (Step 7.6), you own a **single-round, user-gated fix loop**: every failing check and every unmet AC is triaged in chat presenting options as a short numbered list (Fix / Skip / Escalate), and `Fix` choices spawn sub-agents that apply the minimal patch. You re-run only the affected checks once, then finalize the artifact.
-- ONE round only. If anything still fails after that round, write `convergence: escalated` and route the user to re-invoke `$wf verify` or to `$wf implement` as a manual escape — **do not loop again in this invocation**.
+- Run checks and compare results against acceptance criteria. Do NOT improvise fixes while checks are running.
+- After all checks and the user-observable AC gate finish (Step 7.5), own a **single-round, user-gated fix loop** (Step 7.6): triage every failure in chat as a short numbered list (Fix / Skip / Escalate); `Fix` choices spawn sub-agents that apply the minimal patch; re-run only affected checks once, then finalize.
+- ONE round only. If anything still fails, write `convergence: escalated` and route to re-invoke `$wf verify` or `$wf implement` — **do not loop again in this invocation**.
 - Do NOT review, handoff, or ship — those are later stages.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps. The fix loop only runs in Step 7.6, never before checks complete.
+- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps. The fix loop runs only in Step 7.6, never before checks complete.
 - Your only output is the workflow artifacts, the dispatched fix sub-agents, and the compact chat summary defined below.
-- If you catch yourself about to start fixing code outside the Step 7.6 sub-agent dispatch, STOP and return to the next unfinished workflow step.
+- If you catch yourself about to start fixing code outside Step 7.6, STOP and return to the next unfinished step.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
 1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice selector**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
@@ -55,11 +53,11 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
    - All modes: if implement record shows `Status: Awaiting input` → STOP.
    - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → WARN: "This has already been verified. Running again will overwrite. Proceed?"
    - **Stack gate (do NOT silently re-detect):** Inspect the `stack:` block in `00-index.md` and `stack-source` in `04-plan-<slice-slug>.md` (standard/forwarded modes).
-     - If `stack:` is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Verify's interactive sub-agent (functional sub-agent 3) needs the PO-confirmed stack to pick adapters and companion skills. Re-run `$wf intake <slug>` to capture it before verifying." Verify must NOT re-detect — sub-agent 3 below constrains adapter matching against `stack.platforms`, so detection alone is insufficient evidence of intent.
-     - If `stack.user-confirmed: false` → **HARD GATE — do not proceed silently.** Ask the user in chat: "stack: was auto-detected but the PO never confirmed it. Sub-agent 3 will run against unconfirmed tooling — adapter selection may be wrong. Options: (1) Stop and re-run intake Batch B to confirm the stack first. (2) Proceed with unconfirmed stack — verify will stamp result as weak-provenance and review/ship may refuse it." If the user chooses Stop → STOP. If the user explicitly chooses Proceed → set `stack-source: unconfirmed-auto-detect` in the verify slice frontmatter AND surface it under `## Caveats`. Never auto-proceed.
-     - If `04-plan-<slice-slug>.md` carries `stack-source: unconfirmed-auto-detect` → propagate the same warning and frontmatter stamp. Verification inherits the plan's stack provenance — if the plan was built on weak truth, the verify report says so.
+     - If `stack:` is **missing entirely** → STOP: "Stack fingerprint missing from `00-index.md`. Sub-agent 3 needs the PO-confirmed stack to pick adapters. Re-run `$wf intake <slug>` first." Verify must NOT re-detect — detection alone is insufficient evidence of intent.
+     - If `stack.user-confirmed: false` → **HARD GATE — do not proceed silently.** Ask the user in chat: "stack: was auto-detected but the PO never confirmed it. Adapter selection may be wrong. (1) Stop and re-run intake Batch B to confirm the stack first. (2) Proceed with unconfirmed stack — result stamped weak-provenance and review/ship may refuse it." Stop → STOP. Proceed → set `stack-source: unconfirmed-auto-detect` in the verify slice frontmatter AND `## Caveats`. Never auto-proceed.
+     - If `04-plan-<slice-slug>.md` carries `stack-source: unconfirmed-auto-detect` → propagate the same warning and frontmatter stamp (verification inherits the plan's stack provenance).
      - If `stack.user-confirmed: true` and plan agrees → proceed. Sub-agent 3 MUST intersect matched adapters with `stack.platforms`; companion skills used for evidence MUST come from `stack.available-skills`.
-   - **Constraint-resolution gate (refuse inherited unresolved environment walls):** Read `## Verification Strategy` in the plan file. Every **user-observable** AC whose strategy names an environment dependency (credentials, device, external service, inbound callback, deploy target, missing infrastructure) must carry a `constraint-resolution:` line authored at plan time (`prerequisite-slice: <slug>` | `proxy+deferral: <named clearing event>` | `po-accepted: <reason>`) — plan authors this (see plan.md). If an AC's named dependency has **none of the three**, record the criterion under `constraint-resolution-missing:` in the verify frontmatter and treat it as `blocked-runtime-evidence-missing` material at Step 7.5 — the deferral escape hatch is **not available** for it (a deferral without a plan-authored clearing event is exactly the silent accumulation this gate exists to stop). Routing for this case is Option E (`$wf plan` — author the resolution), not Option F.
+   - **Constraint-resolution gate (refuse inherited unresolved environment walls):** Read `## Verification Strategy` in the plan file. Every **user-observable** AC whose strategy names an environment dependency (credentials, device, external service, inbound callback, deploy target, missing infrastructure) must carry a `constraint-resolution:` line authored at plan time (`prerequisite-slice: <slug>` | `proxy+deferral: <named clearing event>` | `po-accepted: <reason>`). If **none of the three** is present, record the criterion under `constraint-resolution-missing:` in the verify frontmatter and treat as `blocked-runtime-evidence-missing` at Step 7.5 — the deferral hatch is **not available** for it. Routing: Option E (`$wf plan` — author the resolution), not Option F.
 6. **Read the source context by mode:**
    - **Compressed mode**: `01-quick.md` (acceptance criteria + plan) + `05-implement.md`.
    - **Forwarded mode**: `01-rca.md` or `01-investigate.md` + `02-shape.md` (synthesized) + `04-plan.md` (if exists) + `05-implement-<slice-slug>.md`.
@@ -71,7 +69,7 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
      - `02-shape.md` — overall spec context
    - All modes also read `po-answers.md` if it exists.
 7. **Read augmentation verification context (`02c-craft.md` is mandatory when present):**
-   `02c-craft.md` — **if the file exists you MUST read it** — extract `## Mock fidelity inventory`. Each item is an additional acceptance criterion that verify must check. Cross-reference `05-implement-<slice-slug>.md` → `## Visual Contract Honored` to confirm each item was honored in code.
+   `02c-craft.md` — **MUST read if it exists** — extract `## Mock fidelity inventory`. Each item is an additional AC. Cross-reference `05-implement-<slice-slug>.md` → `## Visual Contract Honored` to confirm each was honored in code.
 
    Read the `augmentations:` list in `00-index.md`. For each entry, read the referenced artifact and apply the type-specific re-check:
 
@@ -84,7 +82,7 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
    | `experiment` | Read `04c-experiment.md`. Confirm: (a) feature flag is wired correctly; (b) cohort split logic produces the documented distribution; (c) primary/secondary/guardrail metrics fire on the expected events; (d) rollback path works. |
    | `benchmark` (status: baseline) | Run the benchmark compare by loading `skills/wf/reference/augment/benchmark.md` in compare mode. Compare results against the baseline numbers in `05c-benchmark.md`. Flag regressions exceeding the documented tripwires (>10% CPU / >25% memory by default). |
 8. **Carry forward** `open-questions` from the index.
-9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy` is `dedicated`, confirm you are on the correct branch (`git branch --show-current`). If not, switch to it. Verification must run against the implementation branch, not the base branch.
+9. **Branch check:** Read `branch-strategy` and `branch` from `00-index.md`. If `branch-strategy: dedicated`, confirm the correct branch via `git branch --show-current` and switch if needed. Verification must run against the implementation branch, not the base branch.
 
 # Parallel verification
 When verification spans multiple concerns, launch parallel sub-agents. Do not spin up sub-agents when a single test command covers everything.
@@ -158,17 +156,17 @@ Prompt the agent with ALL of the following:
 
 ### Functional sub-agent 3 — Interactive & Runtime-Truth Verification
 
-**This sub-agent is MANDATORY when the slice's AC contains any user-observable criterion** (see Step 6.5 — User-observable AC gate). It is how you verify the feature **actually works the way a human would experience it** — automated tests prove code correctness, but interactive verification proves the user-visible behavior. A slice cannot transition to `result: pass` if a user-observable AC has no matching interactive evidence.
+**This sub-agent is MANDATORY when the slice's AC contains any user-observable criterion** (see Step 6.5 — User-observable AC gate). Automated tests prove code correctness; interactive verification proves user-visible behavior. A slice cannot reach `result: pass` if a user-observable AC has no matching interactive evidence.
 
 **Platform recipes live in the adapter registry**, not inline:
 
 > Read `runtime-adapters.md` and follow the recipe for every adapter whose detection signals match the repo (web / android / ios / cli / desktop / service / notebook / etc.). Adapter selection is documented at the top of that file.
 
-**Climb the constraint-resolution ladder before deferring anything (MANDATORY).** A user-observable AC asserts runtime behavior, so "no device / no browser / no creds" is not a defer-reason — it is the *start* of a ladder climb, not the end. For each user-observable AC whose obvious path is blocked, climb the ladder for its class (runtime-adapters.md → *Constraint-resolution ladder*), **executing any tool bootstrap the plan's `## Verification Strategy` already authorized**, and record the highest rung that produced evidence. Defer ONLY the residual that no rung can reach. Three hard rules this enforces:
+**Climb the constraint-resolution ladder before deferring anything (MANDATORY).** "No device / no browser / no creds" is not a defer-reason — it is the *start* of a ladder climb, not the end. For each user-observable AC whose obvious path is blocked, climb the ladder for its class (runtime-adapters.md → *Constraint-resolution ladder*), executing any tool bootstrap the plan's `## Verification Strategy` already authorized, and record the highest rung that produced evidence. Defer ONLY the residual that no rung can reach. Three hard rules:
 
-- **Static reasoning is never evidence for a user-observable AC.** A "decidable by reasoning over the truth table" note proves *code correctness* (what code-only AC are for), not user-visible behavior. Drive the criterion; do not reason past it to a `pass`.
-- **Verify the layer the AC is about.** If the AC asserts a live integration (a real query, a rules/permission check, an index-backed lookup), a mock-backed pass is insufficient — climb to the emulator/testcontainer rung before `pass` (the integration-blindspot guard in the `service` adapter). A mocked integration does not verify a user-observable AC about that integration.
-- **Punting to a future slice is a deferral, not a pass.** "Will be verified during `<other slice>`" must register a deferral that the later slice (or `$wf probe`) is obligated to clear — it is never grounds for `result: pass` on this slice.
+- **Static reasoning is never evidence for a user-observable AC.** A "decidable by reasoning over the truth table" note proves *code correctness*, not user-visible behavior. Drive the criterion; do not reason past it to a `pass`.
+- **Verify the layer the AC is about.** If the AC asserts a live integration (a real query, a rules/permission check, an index-backed lookup), a mock-backed pass is insufficient — climb to the emulator/testcontainer rung before `pass`. A mocked integration does not verify a user-observable AC about that integration.
+- **Punting to a future slice is a deferral, not a pass.** "Will be verified during `<other slice>`" must register a deferral that the later slice (or `$wf probe`) is obligated to clear — never grounds for `result: pass` on this slice.
 
 Prompt the agent with ALL of the following:
 
@@ -184,7 +182,7 @@ Prompt the agent with ALL of the following:
    - If `stack.user-confirmed: false` OR `stack-source: unconfirmed-auto-detect` → run all matched adapters but stamp each evidence record with `stack-confirmed: false`. The verify report's `## Caveats` section MUST state that adapter selection was not PO-confirmed.
    - If `stack.platforms` is empty after intersection → record `bootstrap-failure: { adapter: none, step: stack-intersection, remediation: "Confirmed stack lists no platforms matching repo detection. Re-run $wf intake to reconcile." }` and skip to teardown. Do NOT pick a default adapter to fill the gap.
    - Multi-match (e.g., web + service) is common and must be driven when both are in `stack.platforms`. Record the final adapter keys under `adapters-used:` in the verify report.
-2. **Bootstrap each matched adapter** per its `Bootstrap` section. If any bootstrap step fails after the adapter's documented resolution attempts, the sub-agent reports `bootstrap-failure: { adapter, step, exit-code, output-tail, remediation }` and does NOT proceed past bootstrap for that adapter. The user-observable AC gate (Step 6.5) will then refuse `result: pass` and require either an `interactive-verification: deferred` annotation with a reason, or a remediation pass via `$wf probe` once the environment is repaired.
+2. **Bootstrap each matched adapter** per its `Bootstrap` section. If any bootstrap step fails after the adapter's documented resolution attempts, report `bootstrap-failure: { adapter, step, exit-code, output-tail, remediation }` and do NOT proceed past bootstrap for that adapter. The user-observable AC gate (Step 6.5) will then refuse `result: pass` and require either an `interactive-verification: deferred` annotation or a remediation pass via `$wf probe`.
 
 2b. **Capture longitudinal baseline before driving (MANDATORY — Gap 3 fix).** Before driving any criterion on the current branch, capture before-state screenshots for each surface named in the AC:
    - Check whether a prior evidence run exists at `.ai/workflows/<slug>/verify-evidence/<slice-slug>-run-*/`. If prior evidence exists, read those screenshots as the before-state — no git stash needed.
@@ -198,9 +196,9 @@ Prompt the agent with ALL of the following:
 
    **b. Stability check (Gap 4 fix):** After the first drive produces a result, re-drive the same criterion at least twice more without resetting state. If any re-drive produces a different outcome — different visual state, different console output, different response — flag the criterion as `stability: flaky`. Flaky criteria are HIGH issues indicating race conditions or state leakage. Record `stability-check-flaky-count: <N>`.
 
-   **c. Perceptual review pass (Gap 2 fix):** After determining pass/fail against the criterion text, make a second independent pass on the final screenshot. Ask: *independent of the criterion, what do I notice about this screen?* Report on: visual hierarchy, spacing consistency, font rendering, element alignment, truncated text, color that diverges from surrounding conventions, anything that would make a first-time user pause. Record these observations under `## Friction Notes` (not under issues — they are informational unless they contradict product conventions from step 0).
+   **c. Perceptual review pass (Gap 2 fix):** After determining pass/fail against the criterion text, make a second independent pass on the final screenshot. Ask: *independent of the criterion, what do I notice about this screen?* Report on: visual hierarchy, spacing consistency, font rendering, element alignment, truncated text, color divergences, anything that would make a first-time user pause. Record under `## Friction Notes` (informational unless they contradict product conventions from step 0).
 
-   **d. Anomaly investigation mandate (Gap 9 fix):** When reading evidence (screenshot, response body, console output), if anything appears unexpected — a console error, a network request to an unexpected endpoint, a visual element that is present but should not be, or absent but should be — do not just record the observation and move on. Pivot: open the browser DevTools console (via CDP or MCP browser tools), read the network tab for the relevant time window, inspect the DOM for the anomalous element. Report what you find as a sub-finding attached to the criterion. Never filter an anomaly as "probably unrelated" — record and let the reviewer decide.
+   **d. Anomaly investigation mandate (Gap 9 fix):** When reading evidence (screenshot, response body, console output), if anything appears unexpected — a console error, a network request to an unexpected endpoint, an element present/absent unexpectedly — pivot: open DevTools console (via CDP or MCP browser tools), read the network tab, inspect the DOM. Report as a sub-finding. Never filter an anomaly as "probably unrelated" — record and let the reviewer decide.
 
    - Navigate or invoke the surface named in the criterion.
    - Perform the user actions described.
@@ -209,21 +207,21 @@ Prompt the agent with ALL of the following:
 4. **Tear down each adapter** per its `Tear down` section. Idempotent — re-runs of verify must not leave the environment dirtier each pass.
 5. **Run existing test suites** that target the same surface (Playwright/Cypress E2E for web, Maestro suites for Android, XCUITest for iOS, etc.) in addition to the per-criterion drives, when they exist. The adapter's `Drive` section names the relevant suite invocations.
 
-6. **Free exploration (MANDATORY — Gap 1 fix).** After verifying all AC, set aside the criteria list entirely and navigate the surface as a first-time user would. Cover every interactive element on the surface, at least one adjacent flow the feature connects to, and try reaching the same outcome via a path different from the one the AC describes. Note anything that surprises you, feels incomplete, or breaks — even if every AC passes. Record findings under `## Free Exploration Notes`. These are informational and do not affect `result:`, but surface as reviewer-visible observations. A finding that directly contradicts any AC becomes a standard issue.
+6. **Free exploration (MANDATORY — Gap 1 fix).** After verifying all AC, set aside the criteria list and navigate the surface as a first-time user. Cover every interactive element, at least one adjacent flow, and try reaching the same outcome via a different path. Note anything that surprises, feels incomplete, or breaks — even if every AC passes. Record under `## Free Exploration Notes` (informational; does not affect `result:`, but reviewer-visible). A finding that directly contradicts any AC becomes a standard issue.
 
-7. **Adversarial micro-tests (MANDATORY — Gaps 5 & 10 fix).** After free exploration, run this fixed test set against the primary action surface, regardless of whether AC specify these scenarios:
-   - **Empty submission:** Submit the primary form/action with no input. A crash or unhandled error is a BLOCKER; a graceful validation message is informational.
-   - **Extreme input:** Paste a very large input into each text field (enough to stress field limits). A crash or UI breakage is HIGH; clean truncation or rejection is informational.
-   - **Rapid repeat:** Trigger the primary action multiple times in rapid succession. Record whether duplicate submissions occur, whether debouncing works, or whether the UI breaks.
-   - **Mid-flow interruption:** Navigate away mid-flow (back button, different route), then navigate back. Record whether state is preserved, cleared gracefully, or broken.
-   - **Network failure:** Use the adapter's network simulation capability to trigger an offline or degraded-network state during the primary action. Record whether the error is handled gracefully or produces a crash/blank screen.
-   Record all results under `## Adversarial Tests`. BLOCKER and HIGH findings enter the main issue list. Informational findings stay in the adversarial section.
+7. **Adversarial micro-tests (MANDATORY — Gaps 5 & 10 fix).** After free exploration, run this fixed test set regardless of whether AC specify these scenarios:
+   - **Empty submission:** Submit with no input. Crash or unhandled error = BLOCKER; graceful validation = informational.
+   - **Extreme input:** Paste a very large input into each text field. Crash or UI breakage = HIGH; clean truncation/rejection = informational.
+   - **Rapid repeat:** Trigger the primary action multiple times rapidly. Record duplicate submissions, debouncing, or UI breakage.
+   - **Mid-flow interruption:** Navigate away mid-flow then back. Record whether state is preserved, cleared gracefully, or broken.
+   - **Network failure:** Trigger offline or degraded-network during the primary action. Crash or blank screen = HIGH; graceful error = informational.
+   Record under `## Adversarial Tests`. BLOCKER and HIGH findings enter the main issue list; informational findings stay in the adversarial section.
 
-8. **Failure mode probes (MANDATORY — Gap 10 fix).** For each user-observable AC, after verifying the happy path, probe the boundary conditions that AC never specify:
-   - **Slow response:** Enable network throttling (Fast 3G or equivalent) and re-drive the criterion. Record whether loading states appear, whether timeouts are handled, whether the final result is still correct.
-   - **Concurrent session:** Open the same surface in a second independent session and perform the same action simultaneously. Record whether state collisions, double-writes, or UI desync occur.
-   - **Session expiry:** If authentication is in scope, invalidate the session mid-flow (remove or expire the token or cookie) and re-drive. Record whether expiry is handled gracefully or causes a crash/blank screen.
-   Record all results under `## Failure Mode Probes`. Findings that expose unhandled error states are HIGH issues.
+8. **Failure mode probes (MANDATORY — Gap 10 fix).** For each user-observable AC, after the happy path, probe boundary conditions AC never specify:
+   - **Slow response:** Enable Fast 3G throttling and re-drive. Record loading states, timeout handling, and final result correctness.
+   - **Concurrent session:** Open the same surface in a second session and perform the same action simultaneously. Record state collisions, double-writes, or UI desync.
+   - **Session expiry:** If auth is in scope, invalidate the session mid-flow and re-drive. Record graceful handling vs. crash/blank screen.
+   Record under `## Failure Mode Probes`. Unhandled error states are HIGH issues.
 
 The `runtime-adapters.md` `Evidence protocol` and `Accessibility checks` sections apply across all platforms; do not duplicate them here.
 
@@ -256,7 +254,7 @@ After driving each user-observable criterion, run an a11y scan on the surface ju
 
 ### Functional sub-agent 4 — Augmentation Re-verification (only if `02c-craft.md` or `00-index.md` `augmentations:` list is non-empty)
 
-Launch ONLY if any of these exist: `02c-craft.md`, or any entry in `00-index.md` `augmentations:` list. This sub-agent enforces contracts that the standard test suites do not catch.
+Launch ONLY if `02c-craft.md` exists or any entry appears in `00-index.md` `augmentations:`. This sub-agent enforces contracts the standard test suites do not catch.
 
 > **`verify` is the design consumer that *measures it* (when `stack.ui ≠ ∅`).** The a11y / perf / responsive / web-vitals gates above are the **measurable design floor** for any UI slice, and the per-augmentation re-checks below confirm each *applied* transform actually hit its goal. The canonical laws and absolute bans behind that floor are single-sourced in `design/_design-context.md` — load its Accessibility law + Absolute bans when `stack.ui ≠ ∅` (even if no `02b`/`02c` exists) so the measurable checks match the design canon. These numbers are measured **once, here** — `$wf review`'s design-audit dimension (and ad-hoc `$wf design audit`) *interpret* them from `06-verify-*.md` rather than re-running axe-core, so the two stages can never disagree about the same measurement. Record them in the verify report so audit can read them.
 
@@ -288,7 +286,7 @@ Prompt with:
 
 ### Web research sub-agent 5 — Freshness: Dependencies, AC Staleness, and Standards Drift
 
-Launch when ANY of the following is true: (a) any test failure occurred, (b) the plan was written more than 14 days ago (check `created-at` in `04-plan-<slice-slug>.md`), or (c) the slice modifies an integration point with an external API or schema. This sub-agent previously only ran on test failures — it now also catches AC staleness and standards drift proactively.
+Launch when ANY of the following: (a) any test failure occurred, (b) the plan was written more than 14 days ago (check `created-at` in `04-plan-<slice-slug>.md`), or (c) the slice modifies an integration point with an external API or schema.
 
 Prompt with:
 
@@ -302,10 +300,7 @@ Prompt with:
 - If any criterion references behavior of an external dependency that has since changed, flag it as `ac-stale: true` with a one-line description of the change. AC staleness is not a verify failure — it surfaces as a `## Freshness Research` finding and routes to `$wf plan` (Option E) if the drift is material.
 - Record `ac-staleness-checked: true | false` and `ac-stale-count: <N>` in the output.
 
-Merge all sub-agent results. For each check, record: command run, pass/fail, relevant output. Do NOT fix issues at this stage — the user-gated fix loop runs once in Step 7.6 after all check results are merged and the AC gate has partitioned issues.
-
-# Purpose
-Verify that the selected slice meets acceptance criteria and is ready for review.
+Merge all sub-agent results. For each check, record: command run, pass/fail, relevant output. Do NOT fix issues at this stage — the fix loop runs once in Step 7.6 after all checks and the AC gate have finished.
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
@@ -317,13 +312,12 @@ Verify that the selected slice meets acceptance criteria and is ready for review
 - **Ask the user directly in chat** for multiple-choice PO questions (structured decisions, confirmations), presenting options as a short numbered list. Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
-- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
+- **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read it and honor it in the output — existence is optional, consumption is required; silent omission is a contract violation.
 - **Evidence versioning across re-invocations:** When `06-verify-<slice-slug>.md` already exists (i.e., this is a re-run), do NOT overwrite the previous evidence directory. Before writing new evidence, move the existing evidence to a timestamped snapshot: `mv .ai/workflows/<slug>/verify-evidence/<slice-slug>/ .ai/workflows/<slug>/verify-evidence/<slice-slug>-run-<N>/` where `N` is the re-run count (read from the existing artifact's `fix-rounds-run` field + 1). New evidence goes into the fresh `<slice-slug>/` directory. This preserves a diff-able record of what changed between rounds — reviewers can compare `<slice-slug>-run-1/` vs. `<slice-slug>/` to see whether fixes changed observable behavior.
 - **Re-verify writes back; the index never contradicts a slice.** When a re-invocation changes a per-slice outcome (e.g. `fail` → `pass` after a fix round, or a deferral clears), update that per-slice `06-verify-<slice-slug>.md`'s `result` and `updated-at` **in place**, then re-derive the master `06-verify.md` rollup from the per-slice files. The verify-index MUST NOT report `pass` (or "re-verified" / "all-slices-passing") for a slice whose own per-slice file still says `result: fail` — that stale-artifact contradiction hides a real failure behind a green rollup. Rule of order: change the slice file first, then the index; never the index alone.
 
 # Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** the chat summary's lead paragraph, in the artifact's story voice — see [_narrative-voice.md](_narrative-voice.md). Same voice as the artifact's `## The Verification` section: relevance first, tradeoffs stated plainly, no `"This verification implements…"` openings. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Verification` story voice, then this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `result: <pass | fail | partial | blocked-runtime-evidence-missing>`
@@ -356,23 +350,23 @@ Routing is **driven by `convergence:`** plus the post-fix-loop `result:`. Verify
 After completing the fix loop, evaluate the results and present the user with ALL viable options:
 
 **Option A: Review** → `$wf review <slug> <selected-slice>`
-Use when: `convergence: not-needed` OR `convergence: converged` AND `result: pass`. Verify is clean (either nothing failed, or the one-round fix loop resolved everything). Ready for a code review.
-**Compact recommended if verify was lengthy** — test output, fix sub-agent chatter, and debugging context is noise for review dispatch.
+Use when: `convergence: not-needed` OR `convergence: converged` AND `result: pass`.
+**Compact recommended if verify was lengthy** — test output and fix sub-agent chatter is noise for review dispatch.
 
 **Option B: Re-invoke verify for a second round** → `$wf verify <slug> <selected-slice>`
-Use when: `convergence: escalated` AND the user wants to attempt another round of fixes on the remaining issues. Verify enforces a one-round cap per invocation; a second round requires a fresh invocation so each round has its own audit trail. State the unresolved issues clearly before recommending this.
+Use when: `convergence: escalated` and the user wants another fix round. Each round requires a fresh invocation for its own audit trail. State unresolved issues clearly before recommending.
 
 **Option C: Escalate to manual implement (escape hatch)** → `$wf implement <slug> <selected-slice>`
-Use when: The remaining issues are not mechanically fixable by a single-finding sub-agent — they need design rethink, multi-file restructuring, or input the verify agent cannot supply. Use this when re-invoking verify would just escalate again.
+Use when: remaining issues need design rethink, multi-file restructuring, or input verify cannot supply — re-invoking verify would just escalate again.
 
 **Option D: Skip review, go to Handoff** → `$wf handoff <slug> <selected-slice>`
-Use when: This is a solo project with no reviewer, OR the change was already externally reviewed (e.g., pair-programmed), OR it's a trivial fix where formal review adds no value. Only suggest this when there is a clear reason AND `result: pass`.
+Use when: solo project, change was already externally reviewed, or trivial fix where review adds no value. Only when `result: pass`.
 
 **Option E: Revisit Plan** → `$wf plan <slug> <selected-slice>`
-Use when: Verification revealed a fundamental flaw in the approach, not just a bug — the plan itself needs rethinking. This dominates Option C when the issue is "wrong approach" rather than "wrong code".
+Use when: verification revealed a fundamental flaw in the approach — the plan needs rethinking (dominates Option C when the issue is "wrong approach" rather than "wrong code").
 
 **Option F: Re-verify in a capable environment, or apply a deferral** → `$wf verify <slug> <selected-slice>` (re-run) OR amend with `interactive-verification: deferred`
-Use when: `result: blocked-runtime-evidence-missing` and the fix loop could not produce the missing evidence (the environment could not support the interactive checks — no emulator, no API key, no device, etc.). Either move to an environment where the interactive checks can run, or annotate the slice with a deferral reason. Deferrals will not block review or handoff but will block ship. A deferral is only lawful over a *probed* incapability (see the escape hatch's attempt-before-declare rule) and is unavailable for criteria listed in `constraint-resolution-missing:` — those route to Option E.
+Use when: `result: blocked-runtime-evidence-missing` and the fix loop could not produce missing evidence. Either move to an environment that supports the interactive checks, or annotate with a deferral reason. Deferrals do not block review or handoff but block ship. A deferral is only lawful over a *probed* incapability (see the escape hatch's attempt-before-declare rule) and is unavailable for criteria listed in `constraint-resolution-missing:` — those route to Option E.
 
 **Option G: Slug-wide runtime probe** → `$wf probe <slug>`
 Use when: Per-slice verify passed, but you want a slug-wide runtime sweep against the running artifact (e.g., to catch cross-slice integration breakage). Probe is the backward re-entry counterpart to the per-slice interactive gate — it observes the whole artifact, not one slice's surface.
@@ -381,13 +375,13 @@ Write ALL viable options (not just the default) into `## Recommended Next Stage`
 
 # User-observable AC gate (MANDATORY)
 
-This gate closes the "verified but actually broken" leak. It runs in Step 7.5 of the numbered steps above. The rule is simple: **runtime evidence is required for every user-observable AC. No evidence, no pass.**
+This gate closes the "verified but actually broken" leak. It runs in Step 7.5. The rule: **runtime evidence is required for every user-observable AC. No evidence, no pass.**
 
 ## Partitioning AC into code-only vs user-observable
 
 Read every AC entry from `03-slice-<slice-slug>.md` (or the compressed-mode equivalent — see Step 0.4 source-mode rules). For each AC entry, apply this two-step rule:
 
-**Authoring note (for `$wf slice` authors):** The `observable:` annotation is the only mechanism to correct a heuristic miscall, and it must be set at slice-authoring time — not discovered at verify time. When writing AC entries in `03-slice-<slice-slug>.md`, tag any criterion whose classification is ambiguous: `<!-- observable: true -->` or `<!-- observable: false -->` immediately after the criterion text. Criteria that name an internal function but whose observable outcome is user-visible MUST be tagged `observable: true`; criteria that describe a user-visible outcome that is fully covered by an existing automated assertion with no need for a live adapter run may be tagged `observable: false`. When in doubt, omit the tag and let the heuristic run — but if the slice author knows the heuristic will miscall, tag it now to avoid a blocked result at stage 6.
+**Authoring note (for `$wf slice` authors):** The `observable:` annotation is the only mechanism to correct a heuristic miscall, and must be set at slice-authoring time. Tag ambiguous criteria with `<!-- observable: true -->` or `<!-- observable: false -->` immediately after the criterion text. Criteria that name an internal function but whose outcome is user-visible MUST be tagged `observable: true`; criteria describing a user-visible outcome fully covered by an existing automated assertion may be tagged `observable: false`. When in doubt, omit the tag and let the heuristic run — tag it now only if a miscall would block verify.
 
 **Step A — explicit override wins.** If the AC entry carries an `observable: true | false` annotation (inline tag or comment in the slice file), that value is final. Authors use this to correct heuristic miscalls.
 
@@ -398,7 +392,7 @@ Read every AC entry from `03-slice-<slice-slug>.md` (or the compressed-mode equi
 
 Criteria that fail all three checks are treated as `code-only` (e.g., "the new util function handles null inputs") and the interactive gate does not fire for them.
 
-Record the partition in the verify artifact under `## Acceptance Criteria Status` — every AC entry has a `kind: code-only | user-observable` column. This is what allows reviewers to see which criteria the gate considered relevant.
+Record the partition under `## Acceptance Criteria Status` — every AC entry has a `kind: code-only | user-observable` column so reviewers can see which criteria the gate evaluated.
 
 ## Matching user-observable AC against interactive evidence
 
@@ -419,19 +413,19 @@ After matching:
 | At least one user-observable AC has no matching interactive evidence AND no deferral annotation | `blocked-runtime-evidence-missing` |
 | At least one AC fails or is partial, but every user-observable AC has runtime evidence (positive or negative) | `fail` or `partial` |
 
-The new `blocked-runtime-evidence-missing` variant is distinct from `fail` because the failure is procedural (evidence was not produced) rather than substantive (evidence shows the AC is not met). The downstream routing for the two differs — `fail` recommends `$wf implement` to fix the code; `blocked-runtime-evidence-missing` recommends either re-running verify in an environment that supports the interactive checks, or applying a deferral annotation if the environment cannot support them.
+`blocked-runtime-evidence-missing` is distinct from `fail`: the failure is procedural (evidence not produced) rather than substantive (AC shown unmet). Routing differs — `fail` → `$wf implement`; `blocked-runtime-evidence-missing` → re-run verify in a capable environment or apply a deferral annotation.
 
-**Write-time enforcement (post-write-verify gate — the R7 backstop).** These result rules are not honor-system. The `post-write-verify` hook **HARD-BLOCKS** the write of a `verify` artifact whose `result: pass` contradicts its evidence: `metric-acceptance-met < metric-acceptance-total`, or `interactive-verification: deferred`. It also **forbids** the invented `metric-acceptance-unverified-interactive` field (use the deferral hatch instead), and **warns** when shadow-deferral prose ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified during `<slice>`", "decidable by static reasoning") co-occurs with `result: pass`. So a false pass cannot be written: reconcile `result` with the evidence, or take the honest `partial` + deferral path. (Opt out per-repo with `hooks.verifyResultGate: false` / `hooks.verifyDeferralLint: false`, but the default is on.)
+**Write-time enforcement (post-write-verify gate — the R7 backstop).** These result rules are not honor-system. The `post-write-verify` hook **HARD-BLOCKS** a `verify` artifact whose `result: pass` contradicts its evidence: `metric-acceptance-met < metric-acceptance-total`, or `interactive-verification: deferred`. It also **forbids** the invented `metric-acceptance-unverified-interactive` field (use the deferral hatch instead), and **warns** when shadow-deferral prose ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified during `<slice>`", "decidable by static reasoning") co-occurs with `result: pass`. Reconcile `result` with the evidence or take the `partial` + deferral path. (Opt out per-repo with `hooks.verifyResultGate: false` / `hooks.verifyDeferralLint: false`, default is on.)
 
 ## Escape hatch — `interactive-verification: deferred`
 
-Some AC are user-observable but genuinely cannot be probed in the current environment — but a deferral is a **last resort that must be paid for**: it is honest only AFTER the constraint-resolution ladder (runtime-adapters.md) has been climbed and each rung's outcome recorded. Defer only the residual that no rung can reach.
+A deferral is a **last resort that must be paid for**: it is honest only AFTER the constraint-resolution ladder (runtime-adapters.md) has been climbed and each rung's outcome recorded. Defer only the residual that no rung can reach.
 
 **The defer-reason MUST enumerate the rungs tried — a defer-reason that names no attempted rung is rejected.** Replace "no Android emulator/device" with "Robolectric covers the state machine (9/9); Roborazzi golden covers the visual; AVD boot attempted (failed: HAXM unavailable); residual = live multi-touch pointer routing." Bare phrases — "no emulator", "no creds", "deferred to user", "decidable by static reasoning" — are not acceptable defer-reasons; each must show the ladder was climbed first.
 
-**Attempt before declare (positive-evidence capability probes).** "The environment cannot produce X" may be written ONLY after *executing* a capability probe and recording its literal command + output tail in the artifact — `firebase projects:list` / `gcloud auth application-default print-access-token` for deploy credentials, `adb devices` for devices, an env-var presence check for keyed services, one spec run past the guard for credential-gated suites. A defer-reason asserting incapability with no recorded probe is invalid, same discipline as naming every rung tried. Read-only introspection probes are always allowed unprompted; anything that consumes quota or sends traffic follows the ladder's pre-authorization rule. (Both failure modes this cures are real: credentials declared absent that were configured all along — two wasted verify rounds — and locally-verifiable specs recorded as deferrals.)
+**Attempt before declare (positive-evidence capability probes).** "The environment cannot produce X" may be written ONLY after *executing* a capability probe and recording its literal command + output tail in the artifact — `firebase projects:list` / `gcloud auth application-default print-access-token` for deploy credentials, `adb devices` for devices, an env-var presence check for keyed services, one spec run past the guard for credential-gated suites. A defer-reason asserting incapability with no recorded probe is invalid. Read-only probes are always allowed unprompted; anything that consumes quota or sends traffic follows the ladder's pre-authorization rule.
 
-**A skipped-guard sweep is an error, not a deferral.** When an interactive suite runs and every spec exits via a credential/environment guard (0 specs executed), the criterion is `blocked-runtime-evidence-missing` with the guard's unmet precondition named ("set `E2E_ADMIN_USER_EMAIL`/`_PASSWORD` and re-run") — NEVER `interactive-verification: deferred`. Deferral is reserved for evidence no reachable rung can produce, not for un-provisioned test configuration.
+**A skipped-guard sweep is an error, not a deferral.** When an interactive suite runs and every spec exits via a credential/environment guard (0 specs executed), the criterion is `blocked-runtime-evidence-missing` with the guard's unmet precondition named ("set `E2E_ADMIN_USER_EMAIL`/`_PASSWORD` and re-run") — NEVER `interactive-verification: deferred`. Deferral is reserved for evidence no reachable rung can produce.
 
 To proceed without a hard fail once the residual is genuinely environment-bound, the slice author may add to the per-slice verify file frontmatter:
 
@@ -440,12 +434,12 @@ interactive-verification: deferred
 interactive-verification-defer-reason: "<rungs tried + the residual that survives them — not a bare 'no device'>"
 ```
 
-When this annotation is present on a slice:
+When this annotation is present:
 - The gate writes `result: partial` (not `pass`) with a note that runtime evidence was deferred.
 - The deferral is appended to `00-index.md` under `runtime-evidence-deferrals` (see schema below).
-- `$wf review` and `$wf handoff` proceed with a soft warning; `$wf ship` HARD-BLOCKS until every deferral is cleared by a subsequent `$wf probe` run that produces matching evidence, or by re-running verify in a capable environment.
+- `$wf review` and `$wf handoff` proceed with a soft warning; `$wf ship` HARD-BLOCKS until every deferral is cleared by a subsequent `$wf probe` run or by re-running verify in a capable environment.
 
-**Decision (recorded in plan §2.4):** No silent skip. Every deferral is named, dated, and surfaces in the slug's progress view and dashboard. The block bites at ship, not earlier, so in-flight work that legitimately waits on an environment is not stalled mid-pipeline.
+**Decision (recorded in plan §2.4):** No silent skip. Every deferral is named, dated, and surfaces in the slug's progress view and dashboard. The block bites at ship, not earlier, so work legitimately waiting on an environment is not stalled mid-pipeline.
 
 ## 00-index.md additions for deferrals
 
@@ -460,20 +454,13 @@ runtime-evidence-deferrals:
     repeat-of: <slice-slug>   # ONLY when this deferral's constraint matches an earlier entry — see below
 ```
 
-**Repeat-deferral marker.** Before appending, scan the existing `runtime-evidence-deferrals` for
-an entry whose reason names the *same environment dependency* (fuzzy match on the wall — the same
-credential gate, device class, missing service — not exact text). On a match, append
-`repeat-of: <slice-slug of the first occurrence>` to the new entry: the accumulation becomes
-visible in the artifact, `$wf status`, and the dashboard instead of discoverable only by reading
-every slice record. A wall being paid a second time is plan's tripwire signal — the next plan for
-this slug MUST either scope the harness that retires it or record `harness-declined: <reason>`
-(see plan.md's repeat-deferral tripwire).
+**Repeat-deferral marker.** Before appending, scan `runtime-evidence-deferrals` for an entry naming the *same environment dependency* (fuzzy match — same credential gate, device class, missing service). On a match, append `repeat-of: <slice-slug of the first occurrence>`: the accumulation becomes visible in the artifact, `$wf status`, and the dashboard instead of hidden across per-slice records. A wall hit a second time is plan's tripwire — the next plan for this slug MUST either scope the harness that retires it or record `harness-declined: <reason>` (see plan.md's repeat-deferral tripwire).
 
 `$wf status` and `$wf ship` read this list. `$wf ship` refuses to start while any entry has `cleared-by: null`.
 
 # Verify-owned fix loop (MANDATORY — single round, user-gated)
 
-This loop is what lets `$wf verify` finalize either a passing artifact or a substantively-blocked one without bouncing the user back to `$wf implement` for routine fixes. It runs in Step 7.6, AFTER all checks (Step 4) and the user-observable AC gate (Step 7.5) have produced an issue inventory. It is bounded to **one round** by contract — re-runs require the user to re-invoke `$wf verify`.
+This loop lets `$wf verify` finalize a passing or substantively-blocked artifact without bouncing the user to `$wf implement` for routine fixes. It runs in Step 7.6, AFTER all checks (Step 4) and the user-observable AC gate (Step 7.5) have produced an issue inventory. Bounded to **one round** — re-runs require the user to re-invoke `$wf verify`. Conforms to [_fix-loop.md](_fix-loop.md); everything below is verify-specific parameterization.
 
 ## Inputs to the loop
 
@@ -487,14 +474,14 @@ Record the count as `metric-issues-found-initial`. If the count is **zero**, set
 
 ## Triage protocol
 
-For each issue, ask the user in chat presenting options as a short numbered list. Batch up to 4 issues per message. Each issue:
+For each issue, ask the user in chat as a short numbered list. Batch up to 4 issues per message. Each issue:
 - Identify: issue type, one-line summary, file:line or check name.
 - Options:
   1. Fix — Spawn a sub-agent to apply the minimal patch in this run.
-  2. Skip — Leave as-is for now; will surface in the verify artifact under Issues Found.
+  2. Skip — Leave as-is; surfaces in the verify artifact under Issues Found.
   3. Escalate — Out of scope for verify — route to `$wf implement` or back to plan.
 
-The triage is **always required**. Verify never silently auto-fixes. If the user picks `Skip` for everything, the loop is over with `convergence: not-needed` and the existing failures stay recorded.
+Triage is **always required** — verify never silently auto-fixes. If the user picks `Skip` for everything, the loop ends with `convergence: not-needed` and the failures stay recorded.
 
 ## Fix dispatch (single round)
 
@@ -526,7 +513,7 @@ For each issue triaged `Fix`, sequentially (one at a time):
    Return a brief summary of what you changed, including the regression
    test path (or the one-line exemption reason).
    ```
-2. When the sub-agent returns: read the changed file(s); sanity-check the patch addresses the issue and does not obviously break sibling code. If the patch looks correct, accept it. If the patch is wrong, discard and record `COULD NOT FIX`.
+2. When the sub-agent returns: read the changed file(s); sanity-check the patch addresses the issue without obviously breaking sibling code. If correct, accept. If wrong, discard and record `COULD NOT FIX`.
 
 ## Re-check (single round)
 
@@ -554,14 +541,9 @@ When `convergence: escalated`:
 
 ## Commit (only when fixes landed AND re-check passed)
 
-If at least one `Fix` sub-agent successfully modified files **AND all re-checks for `Fix`-triaged issues passed** AND `branch-strategy` is `dedicated` or `shared`:
-- Stage every file the fix sub-agents touched.
-- Commit with message: `fix(<slug>): verify-time fixes for <slice-slug>`.
-- Record the commit SHA in the verify artifact `## Verify-Owned Fixes` section.
-- Do NOT push.
-- If `branch-strategy: none`, skip the commit; the fixes remain in the working tree.
+If at least one `Fix` sub-agent successfully modified files **AND all re-checks for `Fix`-triaged issues passed**: follow the shared commit discipline ([_fix-loop.md](_fix-loop.md) rule 7) with message `fix(<slug>): verify-time fixes for <slice-slug>`, and record the SHA in `## Verify-Owned Fixes`.
 
-**Do NOT commit if any `Fix`-triaged re-check still fails.** In that case, record `convergence: escalated`, leave the working tree as-is, and route the user to re-invoke verify. A commit that does not resolve the issue it was meant to fix must not enter git history — it would make the audit trail misleading.
+**Do NOT commit if any `Fix`-triaged re-check still fails.** Record `convergence: escalated`, leave the working tree as-is, and route the user to re-invoke verify. A commit that does not resolve its issue must not enter git history.
 
 ## Fix Status table (in artifact body)
 
@@ -578,10 +560,7 @@ Commit: <SHA or "(no commit — branch-strategy: none)" or "(no files changed)">
 Regression tests added: <N>
 ```
 
-Record `regression-tests-added: <N>` in the frontmatter. A **code-bug** fix whose row shows neither a
-regression-test path nor a recorded exemption reason is itself a finding — append it to
-`## Issues Found` as MED (`fix landed without its regression test`). Lint/format, config, tooling,
-and docs fixes are exempt by type (`n-a`).
+Record `regression-tests-added: <N>` in frontmatter. A **code-bug** fix whose row shows neither a regression-test path nor an exemption reason is a finding — append to `## Issues Found` as MED (`fix landed without its regression test`). Lint/format, config, tooling, and docs fixes are exempt (`n-a`).
 
 # Verify artifact schemas
 
@@ -692,7 +671,7 @@ next-invocation: "$wf review <slug> <slice-slug>"
 # Verify: <slice-name>
 
 ## The Verification
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This verification implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This verification implements…" openings. 1–4 short paragraphs. -->
 
 ## Verification Summary
 
@@ -817,4 +796,4 @@ Web-only. Core Web Vitals captured via Chrome DevTools Protocol during the prima
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

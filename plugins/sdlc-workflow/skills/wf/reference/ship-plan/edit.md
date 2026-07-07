@@ -64,7 +64,7 @@ Update only the changed block's frontmatter and corresponding markdown section. 
 
 ## Step S5 — Chat return
 
-Return only:
+Return per [_chat-return.md](../_chat-return.md) — narrative lead, then only this receipt:
 - `wrote: .ai/ship-plan.md`
 - `block-amended: <A|B|C|D|E|F|G|H|I|J|K | additional-contract:<id>>`
 - `plan-version: <new value>`

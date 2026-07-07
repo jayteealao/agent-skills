@@ -15,45 +15,33 @@ You are running `$wf ship`, **stage 9 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `.ai/ship-plan.md` (project-level — author via `$wf ship-plan init` once per project) AND `08-handoff.md` with `readiness-verdict: ready` |
-| Conditional inputs (mandatory when present) | `augmentations:` list in `00-index.md` — every entry MUST get a changelog entry (translated to user language). The release notes are incomplete if any augmentation is omitted. Prior `09-ship-run-*.md` with `status: awaiting-input` — must offer to resume rather than start fresh. |
+| Conditional inputs (mandatory when present) | `augmentations:` list in `00-index.md` — every entry MUST get a changelog entry (translated to user language). Prior `09-ship-run-*.md` with `status: awaiting-input` — must offer to resume rather than start fresh. |
 | Produces | `09-ship-run-<run-id>.md` (per release) + refreshed `09-ship-runs.md` (per-workflow index). Legacy `09-ship.md` is read-only; never written by this version. |
 | Next | `$wf retro <slug>` (if go) or `$wf implement <slug> <slice>` (if blockers) |
 
 > **Optional second opinion.** At the Go/No-Go gate, you may offer `$consult
 > <risk-review this release: pre-flight, dry-run, freshness delta, and any deferred
-> findings>` (or `$consult <provider> …`) — a read-only multi-model panel that is a
-> second opinion before the irreversible merge. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> findings>` (or `$consult <provider> …`) — a read-only multi-model panel before the irreversible merge. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT fix code — if blockers require code changes, recommend returning to `$wf implement <slug> <slice>`.
-- Do NOT modify `.ai/ship-plan.md` — to edit the plan, run `$wf ship-plan edit`. The plan is the contract; runs follow it.
+- Do NOT modify `.ai/ship-plan.md` — to edit the plan, run `$wf ship-plan edit`. Runs follow the plan as a contract.
 - Your job: **read the plan, generate or resume a run, execute the 13 idempotent steps, write the run artifact**.
-- Each step in the run sequence is independently re-runnable. Re-running step N when N already completed is a **no-op + note**, not a duplicate side-effect. This is the load-bearing property of the run split.
+- Each step is independently re-runnable. Re-running step N when N already completed is a **no-op + note**, not a duplicate side-effect.
 - Follow the numbered steps below exactly in order. Do not skip, reorder, or combine steps.
 
 # Step 0 — Orient (MANDATORY)
 
 1. **Resolve the slug** from `$ARGUMENTS` (first positional). If missing, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-1.5. **Announce re-run shortcut.** If the second positional token is exactly `announce`, this is a
-   comms-only re-run (regenerate announcements without re-shipping): load
-   `skills/wf/reference/ship/announce.md` and run **only** the announce phase for
-   `<slug>`, then STOP. Do NOT run the 13-step sequence below. (`announce` is not a valid environment,
-   so this never collides with the environment positional in sub-step 3.)
-1.6. **Rollback shortcut.** If the second positional token is exactly `rollback`, this is a
-   runbook-driven reversal of a prior completed run: load
-   `skills/wf/reference/ship/rollback.md` and run **only** that phase for
-   `<slug>`, then STOP. Do NOT run the 13-step sequence below. Optional third positional =
-   `<run-id>`; default = the most recent run in `09-ship-runs.md` with `status: complete`. A
-   paused (`awaiting-input`) run has shipped nothing and is refused — resume or fail it instead.
-   (`rollback` is not a valid environment either, so no positional collision.)
-2. **Detect `--init-plan` flag.** If present in `$ARGUMENTS`, this invocation is a redirect — print:
+1.5. **Announce re-run shortcut.** If the second positional is exactly `announce` (not a valid environment, so no collision with sub-step 3): load `skills/wf/reference/ship/announce.md`, run **only** the announce phase for `<slug>`, then STOP. Do NOT run the 13-step sequence.
+1.6. **Rollback shortcut.** If the second positional is exactly `rollback` (not a valid environment): load `skills/wf/reference/ship/rollback.md`, run **only** that phase for `<slug>`, then STOP. Do NOT run the 13-step sequence. Optional third positional = `<run-id>`; default = most recent `status: complete` run in `09-ship-runs.md`. A paused (`awaiting-input`) run is refused — resume or fail it instead.
+2. **Detect `--init-plan` flag.** If present, print and STOP:
    ```
    The plan-author flow is `$wf ship-plan init`, not `$wf ship --init-plan`.
    Run: $wf ship-plan init [--from-template <kind>]
    ```
-   STOP.
-3. **Resolve environment** (optional second positional). If passed (e.g., `staging`, `production`), it overrides the plan's default. Otherwise use the first environment in `ship-plan.ship-environments[]`.
+3. **Resolve environment** (optional second positional, e.g. `staging`, `production`). Overrides the plan's default; otherwise use the first entry in `ship-plan.ship-environments[]`.
 4. **Read `.ai/ship-plan.md`.** If missing, STOP:
    ```
    No ship plan found at .ai/ship-plan.md.
@@ -80,9 +68,9 @@ You are a **workflow orchestrator**, not a problem solver.
      (b) re-running `$wf verify <slug> <slice-slug>` in an environment that supports the interactive checks for that slice, OR
      (c) recording an explicit PO risk-acceptance as `ship-override-authorization: {by, at, reason}` on the entry — for genuinely deploy-time-circular cases only (e.g. build-inlined config confirmable only post-deploy).
    ```
-   **`cleared-by` is for EVIDENCE, never risk-acceptance.** It must hold a probe/evidence descriptor proving the AC was actually observed — not a prose "we'll accept the risk" string, which would silently unlock ship without evidence (the exact abuse this gate exists to stop). PO risk-acceptance goes in the distinct `ship-override-authorization` field, which the ship summary surfaces as an **explicit override** (recorded, not disguised as evidence). A multi-AC deferral may log partial progress in `cleared-acs: [...]` while `cleared-by` stays null.
+   **`cleared-by` is for EVIDENCE, never risk-acceptance.** It must hold a probe/evidence descriptor proving the AC was actually observed — not a prose "we'll accept the risk" string (that would silently unlock ship without evidence). PO risk-acceptance goes in `ship-override-authorization`, which the ship summary surfaces as an **explicit override** (recorded, not disguised as evidence). A multi-AC deferral may log partial progress in `cleared-acs: [...]` while `cleared-by` stays null.
 
-   Block logic: an entry blocks ship when `cleared-by: null` **and** it carries no `ship-override-authorization`. Evidenced entries (non-null `cleared-by`, typically a probe descriptor) and PO-overridden entries do not block — but list every override distinctly in the ship summary for the record. This gate is the hard-block half of the deferral mechanism. Earlier stages (verify, review, handoff) surface deferrals as soft warnings; ship is where the block fires.
+   Evidenced entries (non-null `cleared-by`, typically a probe descriptor) and PO-overridden entries do not block — but list every override distinctly in the ship summary for the record. This gate is the hard-block half of the deferral mechanism; earlier stages (verify, review, handoff) surface deferrals as soft warnings.
 7. **Read every `07-review-*.md` and `po-answers.md`** for changelog/release-notes context.
 8. **Resume detection.** Search for `.ai/workflows/<slug>/09-ship-run-*.md`. For any with `status: awaiting-input`:
    Ask the user directly in chat presenting a short numbered list:
@@ -90,26 +78,25 @@ You are a **workflow orchestrator**, not a problem solver.
    1. Resume <run-id> (Recommended) — Continue from the failed step.
    2. Start fresh — Generate a new run-id; the prior run stays paused.
    3. Mark prior as failed and start fresh — Set the prior run status: failed."
-   If **resume**: load that run's frontmatter into in-memory state and skip to the first step whose evidence field is empty.
+   If **resume**: load that run's frontmatter and skip to the first step with an empty evidence field.
    If **start fresh**: leave the prior run untouched (or set `failed`); generate a new `run-id`.
 9. **Generate `run-id`** (UTC compact ISO-8601): `date -u +"%Y%m%dT%H%MZ"`. Use as the filename suffix and the `run-id` field.
 10. **Carry forward** `open-questions` from the index.
 
 # Workflow rules
-- Store run artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Maintain `09-ship-runs.md` as the lightweight per-workflow run index. Never leave the canonical result only in chat — write the stage file first.
-- **The ship plan lives at `.ai/ship-plan.md` (repo root), NOT under `.ai/workflows/`.** This file is project-scoped, shared across workflows.
-- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
+- Store run artifacts under `.ai/workflows/<slug>/`. `00-index.md` is the control file; `09-ship-runs.md` is the per-workflow run index. Never leave the canonical result only in chat — write the stage file first.
+- **The ship plan lives at `.ai/ship-plan.md` (repo root), NOT under `.ai/workflows/`.** Project-scoped, shared across workflows.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter; the body is human-readable narrative only.
 - **Timestamps must be real:** For `created-at`, `updated-at`, and `observed-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Never guess or use `T00:00:00Z`.
-- If a step cannot finish, set `status: awaiting-input` in the run frontmatter, record what's blocking in the relevant section, and STOP. The next invocation resumes from there.
+- If a step cannot finish, set `status: awaiting-input`, record what's blocking, and STOP. The next invocation resumes from there.
 - Append every PO answer to `po-answers.md` with timestamp and stage.
 - Reuse earlier workflow files. Do not silently broaden scope.
 - **Conditional inputs are mandatory when present.** If the workflow has `augmentations:`, every entry MUST get a changelog line.
-- **Idempotency invariants per step.** Pre-flight is a no-op if the version is already applied. Merge is a no-op if the PR is merged. Tag is a no-op if the tag exists. Polling is stateful and resumes from the last `pending` check.
-- **Backwards compatibility.** If a legacy `09-ship.md` exists from a prior workflow, do not write to it. Read for context only. New shape uses `09-ship-run-<run-id>.md` plus `09-ship-runs.md`.
+- **Idempotency invariants per step.** Pre-flight is a no-op if the version is already applied. Merge is a no-op if the PR is merged. Tag is a no-op if the tag exists. Polling resumes from the last `pending` check.
+- **Backwards compatibility.** If a legacy `09-ship.md` exists, do not write to it — read for context only. New shape uses `09-ship-run-<run-id>.md` plus `09-ship-runs.md`.
 
 # Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** the chat summary's lead paragraph, in the artifact's story voice — see [_narrative-voice.md](_narrative-voice.md). Same voice as the artifact's `## The Ship` section: relevance first, tradeoffs stated plainly, no `"This ship run implements…"` openings. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Ship` story voice, then this receipt:
 - `slug: <slug>`
 - `run-id: <run-id>`
 - `wrote: <path>`
@@ -121,7 +108,7 @@ After writing files, return — lead with the substance first, then the receipt:
 
 # The 13-step run sequence
 
-Each step is independently re-runnable. Detect the already-done state before performing the side-effect.
+Each step is independently re-runnable; detect the already-done state before performing the side-effect.
 
 ## Step 1 — Pre-flight (idempotent)
 
@@ -134,24 +121,22 @@ Mark the corresponding task `in_progress`.
    - `conventional-commits` → use the project's bump tooling (`npx changeset version`, `npm version`, etc. — captured in `plan.version-bump-cmd`).
    - `manual` → ask the user directly in chat with three suggested bumps based on commit log: patch, minor, major (presented as a short numbered list).
    - `fixed` → use the literal version from the plan.
-   Confirm the proposed version with the user before applying. Record `version` and `prior-version: <git describe --tags --abbrev=0 || echo "none">`.
+   Confirm with the user before applying. Record `version` and `prior-version: <git describe --tags --abbrev=0 || echo "none">`.
 
-1.3 **Apply version to every `version-source-of-truth` file.** Idempotency check: read each file first. If the literal already equals `version`, skip the write for that file. After writing, if any diff exists, run a single commit: `git commit -am "build: bump version to <version>"`.
+1.3 **Apply version to every `version-source-of-truth` file.** Read each file first; if already at `version`, skip. After writing, if any diff exists, commit: `git commit -am "build: bump version to <version>"`.
 
 1.4 **Verify required secrets.** For each `plan.required-secrets[]`:
-   - Confirm the secret exists: `gh secret list | grep -q "^<NAME>\b"`
-   - Get the last-updated date: `gh secret list --json name,updatedAt | jq -r '.[] | select(.name=="<NAME>") | .updatedAt'`
-   - If `(now - updatedAt).days > plan.secrets-staleness-threshold-days`, WARN. The user can proceed but the warning is recorded in the run.
+   - Confirm exists: `gh secret list | grep -q "^<NAME>\b"`
+   - Get last-updated: `gh secret list --json name,updatedAt | jq -r '.[] | select(.name=="<NAME>") | .updatedAt'`
+   - If `(now - updatedAt).days > plan.secrets-staleness-threshold-days`, WARN (user may proceed; warning recorded in run).
 
-1.5 **Regenerate changelog** per `plan.version-bump-rule`. For `git-cliff`: `git cliff --output CHANGELOG.md`. Diff-check: if the changelog already includes `<version>`, skip the regen. Otherwise commit: `git commit -am "docs: update changelog for <version>"`.
+1.5 **Regenerate changelog** per `plan.version-bump-rule`. For `git-cliff`: `git cliff --output CHANGELOG.md`. If the changelog already includes `<version>`, skip. Otherwise commit: `git commit -am "docs: update changelog for <version>"`.
 
 Record `pre-flight-status: pass` (or `pre-flight-status: warn` with reasons if any secret was stale).
 
 ## Step 2 — Publish dry-run (mandatory if `plan.publish-dry-run-cmd` is set)
 
-If the plan has no `publish-dry-run-cmd`, set `publish-dry-run-passed: skipped` and skip to step 3.
-
-Idempotency: re-running step 2 is always safe — dry-runs do not produce side effects.
+If the plan has no `publish-dry-run-cmd`, set `publish-dry-run-passed: skipped` and skip to step 3. Re-running step 2 is always safe — dry-runs have no side effects.
 
 2.1 Execute `plan.publish-dry-run-cmd`. Capture stdout + stderr.
 
@@ -166,19 +151,19 @@ Idempotency: re-running step 2 is always safe — dry-runs do not produce side e
 
 ## Step 3 — Rollout questions (per-run only, never re-asked)
 
-Idempotency: if `go-nogo`, `rollout-strategy`, and `merge-strategy` are already set in the run state, skip step 3.
+Idempotency: skip if `go-nogo`, `rollout-strategy`, and `merge-strategy` are already set.
 
 3.1 **Confirm rollout-strategy.** Default is `plan.rollout-strategy`. Ask the user directly in chat presenting the plan default plus "Override" as a short numbered list.
 
-3.2 **Confirm release window** (freeform): when does this go out? blackout windows, on-call coverage.
+3.2 **Confirm release window** (freeform): timing, blackout windows, on-call coverage.
 
-3.3 **Stakeholder/compliance overrides for this run** (freeform): does this release require sign-off from anyone the plan doesn't already list?
+3.3 **Stakeholder/compliance overrides for this run** (freeform): sign-off required beyond the plan's list?
 
 Append all answers to `po-answers.md` with `stage: ship` and the `run-id`.
 
 ## Step 4 — Freshness pass — DELTA only
 
-Idempotency: re-running step 4 is safe (read-only research).
+Idempotency: read-only; re-running is always safe.
 
 4.1 Find the last successful run for this workflow: search for `09-ship-run-*.md`, filter `status: complete`, sort by `created-at`, pick the most recent. Read its `## Freshness Research` section.
 
@@ -187,11 +172,11 @@ Idempotency: re-running step 4 is safe (read-only research).
    - **Dependency security** sub-agent: only if `package.json`, `pyproject.toml`, `Cargo.toml`, or equivalent has changed since the last run's `head-sha-at-start`.
    - **CI/CD config** sub-agent: only if `.github/workflows/*.yml` or related CI files changed since the last run.
 
-4.3 If no prior successful run exists, run the **full** freshness pass (the same 3-sub-agent fan-out as today's ship). Merge findings into `## Freshness Research`.
+4.3 If no prior successful run exists, run the **full** freshness pass (all 3 sub-agents). Merge findings into `## Freshness Research`.
 
 ## Step 5 — Go/No-Go
 
-Idempotency: if `go-nogo` is already set, skip.
+Idempotency: skip if `go-nogo` is already set.
 
 Ask the user directly in chat presenting a short numbered list:
 "Based on readiness, dry-run, and freshness, what is the go/no-go decision?
@@ -199,7 +184,7 @@ Ask the user directly in chat presenting a short numbered list:
 2. Conditional go — Proceed with caveats — record the caveats below.
 3. No-go — Do not merge. Return to fix blockers."
 
-If `no-go`: set run `status: complete` with `go-nogo: no-go`; skip steps 6–10. Write the run artifact (step 13). The PR stays open.
+If `no-go`: set `status: complete`, `go-nogo: no-go`; skip steps 6–10; write the run artifact (step 13). The PR stays open.
 
 ## Step 6 — Merge (if `plan.ship-meaning` includes merging AND go-nogo ≠ no-go)
 
@@ -259,14 +244,13 @@ Idempotency: each check has its own `status` (`pass | fail | pending`). Resume f
 
 9.3 Outcomes:
    - All checks `pass` → set step 9 done.
-   - Bound exceeded → set run `status: awaiting-input` with the still-pending checks listed; stop. The next ship invocation can resume polling from where it left off.
+   - Bound exceeded → set run `status: awaiting-input` with the still-pending checks listed; stop.
 
 ## Step 10 — Post-release version bump (if `plan.post-release-version != none`)
 
 Idempotency: read each `version-source-of-truth` file — if already at the post-release version, skip.
 
 10.1 Compute next dev version per `plan.post-release-version-cmd`.
-
 10.2 Apply to every `version-source-of-truth` file. Commit: `git commit -am "build: bump to <next-dev-version>"`.
 
 10.3 Push: `git push origin <base-branch>`. Record `post-release-bump-sha: <git rev-parse HEAD>`.
@@ -304,16 +288,13 @@ See the `## Run artifact schema` section below.
 
 ## Step 14 — Announce (post-publish comms phase)
 
-Runs only when the run reached `go-nogo: go` or `conditional-go` (skip entirely for `no-go` or a
-paused/`awaiting-input` run — there is nothing shipped to announce yet). This is the phase that
-absorbed the former standalone `$wf-meta announce`.
+Runs only when the run reached `go-nogo: go` or `conditional-go` (skip for `no-go` or `awaiting-input`). This is the phase that absorbed the former standalone `$wf-meta announce`.
 
 Load `skills/wf/reference/ship/announce.md` and run it for `<slug>` — it drafts
-the audience/channel-tailored announcements from this run's artifact, writes `announce.md`, and stamps
-`announcements-sent` back onto the run. The announce phase is interactive (it asks audience + channel);
-if the user declines or defers comms, note that and move on — the run itself is already complete. To
-regenerate comms later without re-shipping, the user runs `$wf ship <slug> announce` (the Step 1.5
-shortcut), which loads the same reference directly.
+audience/channel-tailored announcements, writes `announce.md`, and stamps `announcements-sent`
+onto the run. The announce phase is interactive; if the user declines or defers, note that and
+move on — the run is already complete. To regenerate comms later without re-shipping, the user runs
+`$wf ship <slug> announce` (the Step 1.5 shortcut).
 
 ---
 
@@ -371,7 +352,7 @@ next-invocation: "$wf retro <slug>"
 # Ship Run — <slug> @ <version> @ <environment>
 
 ## The Ship
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This ship run implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This ship run implements…" openings. 1–4 short paragraphs. -->
 
 ## Pre-flight
 - branch + tree clean
@@ -458,7 +439,7 @@ runs:
 | <id> | <ver> | <env> | <status> | <decision> | <notes> |
 ```
 
-The body table is regenerated from frontmatter on every run — frontmatter is the source of truth. Cheap; the body is short.
+The body table is regenerated from frontmatter on every run — frontmatter is the source of truth.
 
 ---
 
@@ -467,25 +448,19 @@ The body table is regenerated from frontmatter on every run — frontmatter is t
 After completing this run, evaluate the outcome and present the user with ALL viable options:
 
 **Option A (default): Retro** → `$wf retro <slug>`
-Use when: status is `complete` and `go-nogo` is `go` or `conditional-go`. The release is out.
+Use when: `status: complete` and `go-nogo` is `go` or `conditional-go`.
 
 **Option B: Fix and re-implement** → `$wf implement <slug> <selected-slice>`
-Use when: ship found blockers requiring code changes, OR rebase had conflicts, OR a recovery playbook required code-side fixes (e.g., revert a bad migration).
+Use when: ship found blockers requiring code changes, rebase had conflicts, or a recovery playbook required code-side fixes.
 
 **Option C: Re-verify** → `$wf verify <slug> <selected-slice>`
-Use when: ship found verification evidence was stale (freshness research delta surfaced new CVEs the verify stage didn't see).
+Use when: freshness research surfaced new CVEs the verify stage didn't see.
 
 **Option D: Resume paused run** → `$wf ship <slug>`
 Use when: `status: awaiting-input` — required answers missing, post-publish poll bound exceeded, or a recovery playbook was started but not completed.
 
 **Option E: Roll back** → `$wf ship <slug> rollback [<run-id>]`
-Use when: post-publish checks failed, or a shipped release must be reversed after the fact. The
-rollback phase (`reference/ship/rollback.md`) loads the run's recorded steps, authors a reversal
-runbook with each step marked reversible or irreversible (irreversible steps surface as
-mitigations), gates on an explicit Go/No-Go, executes, verifies the prior state is live via the
-plan's `rollback-verify-cmd`, and writes `09-rollback-<run-id>.md` — stamping this run
-`rolled-back: true` + `rollback-artifact`. For an in-flight emergency during post-publish polling,
-the Block F recovery playbooks still apply first; the rollback phase is the deliberate reversal.
+Use when: post-publish checks failed or a shipped release must be reversed. The rollback phase (`reference/ship/rollback.md`) loads the run's recorded steps, authors a reversal runbook with each step marked reversible or irreversible (irreversible steps surface as mitigations), gates on an explicit Go/No-Go, executes, verifies the prior state is live via `rollback-verify-cmd`, and writes `09-rollback-<run-id>.md` — stamping this run `rolled-back: true` + `rollback-artifact`. For an in-flight emergency during post-publish polling, the Block F recovery playbooks still apply first; the rollback phase is the deliberate reversal.
 
 Write ALL viable options into `## Recommended Next Stage` so the user can choose.
 
@@ -493,7 +468,7 @@ Write ALL viable options into `## Recommended Next Stage` so the user can choose
 
 # Backwards compatibility
 
-- Workflows with an existing legacy `09-ship.md` keep working. **Reading it is fine; writing it is gone.** This version of `$wf ship` never writes `09-ship.md` — only `09-ship-run-<run-id>.md` and `09-ship-runs.md`.
+- Workflows with an existing legacy `09-ship.md` keep working. **Reading it is fine; writing it is gone** — `$wf ship` only writes `09-ship-run-<run-id>.md` and `09-ship-runs.md`.
 - `$wf status` and `$wf recap` should treat both shapes as valid:
   - If `09-ship-runs.md` exists → use the new shape.
   - Else if `09-ship.md` exists → read it for context, but propose authoring a plan + running a fresh run.
@@ -503,9 +478,7 @@ Write ALL viable options into `## Recommended Next Stage` so the user can choose
 
 # When the plan is missing
 
-The most common new-user error is running `$wf ship <slug>` before authoring a plan. The hard stop in step 0.4 is by design: ship is plan-driven, and the plan captures org knowledge (signing key format, registry token sources, recovery playbooks) that cannot be inferred from the workflow alone.
-
-If the user keeps running into the missing-plan error, suggest the `--from-template` shortcut:
+Ship is plan-driven; the plan captures org knowledge (signing key format, registry token sources, recovery playbooks) that cannot be inferred from the workflow alone. If the user hits the missing-plan error, suggest the `--from-template` shortcut:
 
 ```
 $wf ship-plan init --from-template kotlin-maven-central
@@ -516,7 +489,7 @@ $wf ship-plan init --from-template server-deploy
 $wf ship-plan init --from-template library-internal
 ```
 
-Each template seeds Blocks A–G with sensible defaults and one or two recovery playbooks distilled from common failure modes.
+Each template seeds Blocks A–G with sensible defaults and recovery playbooks for common failure modes.
 
 ---
 
@@ -527,7 +500,7 @@ written next to `09-ship-run.md`. **Without the `.yaml` the page silently degrad
 plain prose** — the deploy timeline, the per-env checks matrix, and the rollback panel
 never appear (`ship-run.mjs` returns `renderSimple` when the sibling YAML is absent).
 The `post-write-verify` hook **BLOCKS the `.md` write (exit 2) when the sibling
-`.yaml` is missing**, so author the `.yaml` first (or in the same turn) — here, now.
+`.yaml` is missing** — author the `.yaml` first (or in the same turn).
 (If this is a genuine no-op ship-run with nothing to project, set `fragment: none` in
 its frontmatter to opt out.)
 
@@ -568,11 +541,7 @@ Gallery reference (bundled): [`reference/fragments-gallery.html`](../../../refer
 
 ### Fragment scope
 
-The fragment is **body-only** (see `_fragment-authoring.md` → "Scope"): the
-`ship-run.mjs` renderer owns the page heading and the metric-row. Do **not**
-repeat them in the fragment — it carries the interactive layer (the animated
-deploy timeline, the clickable check matrix with its log panel, and the rollback
-actions):
+The fragment is **body-only** (see `_fragment-authoring.md` → "Scope"): `ship-run.mjs` owns the page heading and metric-row. Do **not** repeat them — the fragment carries the interactive layer only:
 
 ```html
 <section class="fragment-shiprun" data-artifact="ship-run" data-release="v3.2.0">
@@ -590,4 +559,4 @@ actions):
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

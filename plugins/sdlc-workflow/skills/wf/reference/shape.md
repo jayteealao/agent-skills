@@ -19,143 +19,130 @@ You are running `wf-shape`, **stage 2 of 10** in the SDLC lifecycle.
 | Next | `/wf slice <slug>` (default) |
 | Skip-to | `/wf plan <slug>` if the shaped spec is a single coherent unit that does not benefit from slicing |
 
-> **Design brief ownership (moved here).** When the work has UI surface, the
-> **design brief** `02b-design.md` is authored *here*, as part of shape — not by a
-> separate design command. Shape does the discovery; `plan` later resolves the
-> visual-direction gates and authors the visual contract `02c-craft.md`; `implement`
-> builds against it. See Step 5b below.
+> **Design brief ownership (moved here).** When the work has UI surface, `02b-design.md` is authored *here*, as part of shape — not by a separate design command. `plan` later resolves the visual-direction gates and authors `02c-craft.md`; `implement` builds against it. See Step 5b below.
 
-> **Optional second opinion.** Once the mini-spec is drafted (before you write
-> `02-shape.md`), you may offer `/consult <critique these acceptance criteria,
-> edge cases, and scope>` (or `/consult <provider> …`) — a read-only multi-model
-> panel that stress-tests the spec before a wrong one can propagate through every
-> downstream stage. The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> **Optional second opinion.** Once the mini-spec is drafted (before writing `02-shape.md`), you may offer `/consult <critique these acceptance criteria, edge cases, and scope>` (or `/consult <provider> …`) — a read-only multi-model panel that stress-tests the spec before a wrong one propagates downstream. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
-- Do NOT start designing, architecting, implementing, or coding the solution.
-- Do NOT jump ahead to slicing, planning, or implementation.
+- Do NOT design, architect, implement, or code the solution.
 - Your job is to produce a **mini-spec with acceptance criteria** — not to build anything.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
-- If you catch yourself about to start solving the problem, STOP and return to the next unfinished workflow step.
+- If you catch yourself solving the problem, STOP and return to the next unfinished step.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
+1. **Resolve the slug** from `$ARGUMENTS`. If none, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
-   - `01-intake.md` must exist. If missing → STOP. Tell the user: "Run `/wf intake` first."
-   - If `01-intake.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open intake questions first.
-   - If `current-stage` in the index is already past shape → WARN: "Stage 2 (shape) has already been completed. Running it again will overwrite `02-shape.md`. Proceed?" Use AskUserQuestion if available, otherwise ask in chat.
-4. **Read** `01-intake.md` and `po-answers.md`.
-5. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
+   - `01-intake.md` must exist. If missing → STOP: "Run `/wf intake` first."
+   - If `01-intake.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve open intake questions first.
+   - If `current-stage` is already past shape → WARN: "Stage 2 (shape) is complete. Running again will overwrite `02-shape.md`. Proceed?" Use AskUserQuestion if available, otherwise ask in chat.
+4. Read `01-intake.md` and `po-answers.md`.
+5. Carry forward `selected-slice-or-focus` and `open-questions` from the index.
 
 # Parallel research
-Always launch Explore sub-agent 1 and Explore sub-agent 2. Launch additional sub-agents for cross-domain work.
+Always launch Explore sub-agent 1 and Explore sub-agent 2; add more for cross-domain work.
 
 **Sub-agent 2 (web search) skip criteria — skip ONLY if ALL of the following are true:**
-- The feature introduces zero new external dependencies
-- The feature makes no changes to existing dependency usage (no new API surface, no version changes)
-- The affected area is not security-sensitive (auth, tokens, crypto, CORS, CSP, input sanitization)
-- No browser/platform APIs involved (Web APIs, mobile OS APIs, CSS features)
-- No external API integrations (no REST, GraphQL, OAuth, webhooks, third-party SDKs)
+- Zero new external dependencies; no new API surface, no version changes
+- Not security-sensitive (auth, tokens, crypto, CORS, CSP, input sanitization)
+- No browser/platform APIs (Web APIs, mobile OS APIs, CSS features)
+- No external API integrations (REST, GraphQL, OAuth, webhooks, third-party SDKs)
 
-**When in doubt: always launch sub-agent 2.** Web search is fast and frequently surfaces breaking changes, CVEs, and better patterns that change the spec before implementation begins.
+**When in doubt: always launch sub-agent 2.** Web search is fast and frequently surfaces breaking changes, CVEs, and better patterns before implementation begins.
 
 ### Explore sub-agent 1 — Codebase Architecture & Integration Surface
 
-Prompt the agent with ALL of the following. It must report findings for each section:
+Prompt the agent with ALL of the following; it must report findings for each section:
 
 **Directory & module structure:**
 - Map the top-level directory structure and identify the organizational pattern (monorepo, feature folders, layer-based, domain-driven)
-- Identify the entry points (main/index/app/server files) and trace how the request reaches the area this work will touch
-- List the key modules/packages/namespaces involved and their public API surfaces (exports, exposed functions, classes, types)
+- Identify entry points (main/index/app/server files) and trace how the request reaches the area this work will touch
+- List key modules/packages/namespaces and their public API surfaces (exports, exposed functions, classes, types)
 
 **Existing patterns & conventions:**
-- Identify naming conventions (files, functions, variables, CSS classes, DB columns) — look at 3-5 representative files in the affected area
-- Identify error handling patterns (try/catch style, Result types, error middleware, custom error classes)
-- Identify dependency injection or service location patterns (constructors, providers, containers, global singletons)
-- Identify configuration patterns (env vars, config files, feature flags, secrets management)
-- Identify logging/observability patterns (structured logging, log levels, tracing, metrics)
+- Naming conventions (files, functions, variables, CSS classes, DB columns) — look at 3-5 representative files in the affected area
+- Error handling patterns (try/catch style, Result types, error middleware, custom error classes)
+- Dependency injection or service location patterns (constructors, providers, containers, global singletons)
+- Configuration patterns (env vars, config files, feature flags, secrets management)
+- Logging/observability patterns (structured logging, log levels, tracing, metrics)
 
 **Integration surfaces:**
-- What code **calls into** the affected area? (callers, consumers, dependents — use grep for imports/requires of affected modules)
-- What does the affected area **call out to**? (downstream dependencies, external services, databases, message queues, caches)
+- What code **calls into** the affected area? (callers, consumers — grep imports/requires of affected modules)
+- What does the affected area **call out to**? (external services, databases, message queues, caches)
 - What events, hooks, callbacks, or pub/sub channels does the affected area participate in?
 - What middleware, interceptors, or decorators wrap the affected code path?
 
 **Data flow:**
 - Trace the primary data flow: input source → validation → transformation → persistence → response
-- Identify data models/schemas/types involved (DB schemas, API request/response types, domain models)
-- Identify serialization boundaries (JSON parse/stringify, protobuf, ORM hydration)
+- Data models/schemas/types involved (DB schemas, API request/response types, domain models)
+- Serialization boundaries (JSON parse/stringify, protobuf, ORM hydration)
 
 **Test structure:**
-- What test framework is in use? (Jest, Vitest, pytest, Go testing, etc.)
-- Where do tests live relative to source? (co-located `__tests__/`, centralized `tests/`, `*_test.go` beside source)
-- What test helpers, factories, fixtures, and mocks exist? (list file paths)
-- What is the testing convention? (unit per module? integration per feature? E2E per user flow?)
-- What areas have thin or missing test coverage relevant to this work?
+- Test framework in use (Jest, Vitest, pytest, Go testing, etc.)
+- Where tests live relative to source (`__tests__/`, centralized `tests/`, `*_test.go`, etc.)
+- Test helpers, factories, fixtures, and mocks — list file paths
+- Testing convention (unit per module? integration per feature? E2E per user flow?)
+- Areas with thin or missing coverage relevant to this work
 
 **Interactive & visual verification tooling:**
 
-Drive this block from the `stack:` fingerprint in `00-index.md` (written by intake Step 0.5 and confirmed in Batch B) and the runtime-adapter registry at [runtime-adapters.md](runtime-adapters.md). The job is to **describe what's available and let the PO pick**, not to default to one tool. Stay descriptive.
+Drive this block from the `stack:` fingerprint in `00-index.md` and [runtime-adapters.md](runtime-adapters.md). The job is to **describe what's available and let the PO pick**, not to default to one tool.
 
-1. **Re-read `stack:`** from `00-index.md`. If the block is missing or `user-confirmed: false`, note it as an open question and propose re-running intake; do NOT silently re-detect.
-2. **Match `stack.platforms` to runtime adapters.** For each platform present, surface the matched adapter (web, android, ios, cli, desktop, service, notebook) and its detected drivers — already-installed ones first, additions-to-install last. Examples (do **not** treat as exhaustive; the adapter registry is the source of truth):
-   - `platforms: [web]` → existing in-repo Playwright/Cypress > Chrome MCP if session-available > `dev-browser` if installed > propose `dev-browser` install only if the PO wants a richer interactive driver
-   - `platforms: [android]` → in-repo Maestro flows > adb input > Espresso/UI Automator if configured. Cross-reference companion session skills from `stack.available-skills` (e.g., `android-cli`, `lazylogcat`, `perfetto-trace-analysis`, `adaptive`) and list them as opt-in helpers.
-   - `platforms: [ios]` → existing XCUITest / Detox > Maestro (1.30+ supports iOS) > simctl fallbacks
-   - `platforms: [service]` → existing integration test suites > curl/httpie ad-hoc drives
-3. **Cross-reference the session catalog.** From `stack.available-skills` and `stack.available-mcp`, list anything that maps to this task (e.g., a Compose UI change → `adaptive`, `migrate-xml-views-to-jetpack-compose`, `styles`; a Postgres change → `postgresql-mcp`; a docs deliverable → `diataxis`). Present them as **candidates** with a one-line "why this fits," not selections.
+1. **Re-read `stack:`** from `00-index.md`. If missing or `user-confirmed: false`, note it as an open question and propose re-running intake; do NOT silently re-detect.
+2. **Match `stack.platforms` to runtime adapters.** Surface each matched adapter and detected drivers — installed ones first, additions-to-install last. Examples (adapter registry is the source of truth):
+   - `platforms: [web]` → in-repo Playwright/Cypress > Chrome MCP if session-available > `dev-browser` if installed
+   - `platforms: [android]` → in-repo Maestro flows > adb input > Espresso/UI Automator. Cross-reference `stack.available-skills` (e.g., `android-cli`, `lazylogcat`, `perfetto-trace-analysis`, `adaptive`) as opt-in helpers.
+   - `platforms: [ios]` → XCUITest/Detox > Maestro (1.30+) > simctl fallbacks
+   - `platforms: [service]` → existing integration test suites > curl/httpie ad-hoc
+3. **Cross-reference the session catalog.** From `stack.available-skills` and `stack.available-mcp`, list anything mapping to this task (e.g., Compose UI → `adaptive`, `migrate-xml-views-to-jetpack-compose`, `styles`; Postgres → `postgresql-mcp`; docs → `diataxis`). Present as **candidates** with a one-line "why this fits," not selections.
 4. **What's already wired in.** Note dev servers, emulator AVDs, simulator configs, screenshot/regression tools (Percy, Chromatic, `adb shell screencap`), and manual smoke scripts under `docs/`, `scripts/`, `testing/`, `QA/`.
-5. **Surface a tooling question for the PO.** End the section by recording a single concrete question for `02-shape.md` along the lines of: *"For verification, the available drivers are A, B, C. Companion skills that look relevant: X, Y. Any preference, or any of these off-limits?"* Capture the answer in `po-answers.md`. The shaped spec's acceptance criteria must reference *whatever the PO chose* — not a baked-in default.
+5. **Surface a tooling question for the PO.** Record a concrete question: *"For verification, the available drivers are A, B, C. Companion skills: X, Y. Any preference, or any off-limits?"* Capture the answer in `po-answers.md`. Acceptance criteria must reference *whatever the PO chose*, not a baked-in default.
 
-Anti-pattern to avoid: writing "use dev-browser" or "use Maestro" into the spec because the workflow defaults there. The workflow's job is to map the design space; the PO picks the point in it.
+Anti-pattern: writing "use dev-browser" or "use Maestro" because the workflow defaults there. Map the design space; the PO picks the point.
 
 ### Explore sub-agent 2 — External Dependencies & Freshness
 
 Prompt the agent with ALL of the following:
 
 **Dependency versions & compatibility:**
-- Check the project's package manifest (package.json, requirements.txt, go.mod, Cargo.toml, etc.) for the versions of dependencies this work touches
-- Web search for the **latest stable version** of each relevant dependency — note if the project is behind and whether upgrading is needed or risky
+- Check the package manifest (package.json, requirements.txt, go.mod, Cargo.toml, etc.) for versions of dependencies this work touches
+- Web search for the **latest stable version** of each — note if the project is behind and whether upgrading is needed or risky
 - Check for **deprecation notices** or **breaking changes** between the project's version and the latest
 
 **Library documentation & patterns:**
-- Web search for the official documentation of each dependency/API this work interacts with
-- Verify that the patterns currently used in the codebase match the library's **recommended approach** for the project's version
-- Check for **migration guides** if the work involves upgrading or if the current version is approaching EOL
+- Web search official documentation for each dependency/API this work interacts with
+- Verify patterns in the codebase match the library's **recommended approach** for the project's version
+- Check for **migration guides** if the work involves upgrading or the current version is approaching EOL
 
 **Security advisories:**
 - Web search for recent CVEs or security advisories affecting the dependencies this work touches
-- Check GitHub issues/security advisories for the relevant repositories
+- Check GitHub security advisories for relevant repositories
 - Note any advisories that affect the approach or require specific mitigations
 
 **Ecosystem context:**
-- Check GitHub issues and PRs on the relevant dependency repos for known bugs that could affect this work
-- Check if there are community-recommended alternatives or complementary libraries that the shaped spec should consider
+- Check GitHub issues and PRs on relevant dependency repos for known bugs that could affect this work
+- Check for community-recommended alternatives or complementary libraries the shaped spec should consider
 - Search for relevant blog posts, release announcements, or RFC documents that affect architectural decisions
 
 **Implementation best practices:**
-- Web search for established patterns and community consensus on how to implement this type of feature correctly — look at official guides, framework docs, and opinionated style guides
-- Search for known anti-patterns and common mistakes for this kind of feature — especially on official docs, web.dev, engineering blogs, and dev community posts (dev.to, css-tricks, Stack Overflow)
+- Web search for established patterns and community consensus on implementing this feature type — official guides, framework docs, opinionated style guides
+- Search for known anti-patterns and common mistakes — official docs, web.dev, engineering blogs, dev community posts (dev.to, css-tricks, Stack Overflow)
 - Note any RFCs, W3C specs, platform guidelines, or accessibility standards that prescribe behavior for this feature type
-- Identify whether the approach the shaped spec is heading toward is considered idiomatic, legacy, or controversial in the current ecosystem
+- Identify whether the approach is considered idiomatic, legacy, or controversial in the current ecosystem
 
 **Known gotchas & performance pitfalls:**
-- Web search for common performance traps specific to this feature type (e.g., unnecessary re-renders, N+1 queries, layout thrash, bundle size impact, memory leaks, cold-start latency)
-- Search for community "lessons learned", "what I wish I knew", or postmortems involving this kind of feature — these surface the non-obvious failure modes
-- Note any known limitations, quirks, or required workarounds the spec should explicitly account for before acceptance criteria are written
+- Web search for common performance traps for this feature type (unnecessary re-renders, N+1 queries, layout thrash, bundle size, memory leaks, cold-start latency)
+- Search for community "lessons learned", "what I wish I knew", or postmortems — these surface non-obvious failure modes
+- Note known limitations, quirks, or required workarounds the spec should account for before acceptance criteria are written
 
-Merge all sub-agent findings into the stage file under `## Affected Areas`, `## Dependencies / Sequencing Notes`, and `## Freshness Research`. Best practices and gotcha findings should directly inform acceptance criteria and edge cases in the spec — surface them to the synthesizer.
-
-# Purpose
-Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.
+Merge all sub-agent findings into the stage file under `## Affected Areas`, `## Dependencies / Sequencing Notes`, and `## Freshness Research`. Best practices and gotcha findings must directly inform acceptance criteria and edge cases — surface them to the synthesizer.
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter; the markdown body is human-readable narrative only.
+- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
@@ -165,8 +152,7 @@ Turn the intake brief into a compact implementable mini-spec with explicit accep
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** the chat summary's lead paragraph, in the artifact's story voice — see [_narrative-voice.md](_narrative-voice.md). Same voice as the artifact's `## The Shape` section: relevance first, tradeoffs stated plainly, no `"This shape implements…"` openings. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Shape` story voice, then this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `options:` (list all viable next options — see Adaptive Routing below)
@@ -174,77 +160,77 @@ After writing files, return — lead with the substance first, then the receipt:
 
 **Mandatory discovery phase — 20 impartial questions about the feature.**
 
-Before writing the mini-spec, interview the user with 20 questions about the feature being built. The goal is to surface decisions, assumptions, and unknowns that the intake brief left ambiguous.
+Before writing the mini-spec, interview the user with 20 questions to surface decisions, assumptions, and unknowns the intake brief left ambiguous.
 
 **Rules:**
 - Ask exactly 20 questions across 5 rounds of 4 using AskUserQuestion.
 - Every question must be about *this specific feature* — reference it by name, use concrete details from the intake brief. No generic process questions.
-- Questions must be impartial — do not lead toward a particular answer. Options should represent genuinely different directions, not a "right answer" with decoys.
-- Options should be specific to the feature where possible. Fall back to general options only when the feature context doesn't suggest concrete alternatives.
-- If a question was already clearly answered in intake, pre-fill your understanding and ask the user to confirm or revise instead of asking from scratch.
-- Wait for each round's answers before generating the next round — later questions should build on earlier answers.
+- Questions must be impartial — options should represent genuinely different directions, not a "right answer" with decoys.
+- Options should be feature-specific where possible; fall back to general options only when the context doesn't suggest concrete alternatives.
+- If a question was already answered in intake, pre-fill your understanding and ask the user to confirm or revise.
+- Wait for each round's answers before generating the next — later questions should build on earlier answers.
 
 **What to ask about (5 rounds):**
 
-Round 1 — **What does the feature do?** Nail down the core interaction: what action the user takes, what they provide as input, what they get back, and what triggers them to use it in the first place.
+Round 1 — **What does the feature do?** Core interaction: what action the user takes, what they provide as input, what they get back, and what triggers them to use it.
 
-Round 2 — **How does the feature behave?** Explore the dynamics: what happens after the main action, whether it's reversible, timing model (sync/async/real-time), and how it connects to other parts of the product.
+Round 2 — **How does the feature behave?** Dynamics: what happens after the main action, whether it's reversible, timing model (sync/async/real-time), how it connects to other parts of the product.
 
-Round 3 — **What does the feature look like?** Clarify the surface area: where it lives in the product (page, modal, inline, CLI), how much data it handles, what distinct states the user sees (empty, loading, error, success), and whether it follows or breaks existing patterns.
+Round 3 — **What does the feature look like?** Surface area: where it lives (page, modal, inline, CLI), how much data it handles, what distinct states the user sees (empty, loading, error, success), whether it follows or breaks existing patterns.
 
-Round 4 — **What can go wrong?** Probe failure modes: worst-case impact of bugs, how invalid input is handled, what happens when dependencies fail, and who has access/permissions.
+Round 4 — **What can go wrong?** Failure modes: worst-case impact of bugs, how invalid input is handled, what happens when dependencies fail, who has access/permissions.
 
-Round 5 — **Where are the boundaries?** Define the edges, leading with scope restraint: which parts of the brief does v1 *actually* need versus what is speculative gold-plating, premature generality, or "while we're here" scope that can be deferred — present these as trim options the PO chooses, never a unilateral cut (the question is "do you actually need X, or does Y cover it?", not a refusal to build). Then: what's explicitly out of scope, how to transition from old to new behavior, and what existing code/data is touched. This round is the lifecycle's rung 1 ("does this need to exist?") — a criterion trimmed here is a slice never created, a plan never written, and code never implemented, so it is the highest-leverage place to apply restraint. Restraint here is bounded: never trim what the user explicitly asked for, and never trade away a non-functional requirement (security, accessibility, data integrity) for a smaller scope.
+Round 5 — **Where are the boundaries?** Define edges, leading with scope restraint: which parts of the brief does v1 *actually* need versus speculative gold-plating, premature generality, or "while we're here" scope that can be deferred — present these as trim options the PO chooses, never a unilateral cut (the question is "do you actually need X, or does Y cover it?", not a refusal to build). Then: what's explicitly out of scope, how to transition from old to new behavior, what existing code/data is touched. This round is rung 1 of the lifecycle ("does this need to exist?") — a criterion trimmed here is a slice never created, a plan never written, code never implemented, so it is the highest-leverage place to apply restraint. Restraint is bounded: never trim what the user explicitly asked for, and never trade away a non-functional requirement (security, accessibility, data integrity) for a smaller scope.
 
 **How to construct each question:**
-- `question`: A specific question about the feature. Reference the feature by name. E.g., "What should the export modal show when the user has no reports yet?" not "What happens in the empty state?"
+- `question`: Specific to the feature — reference it by name. E.g., "What should the export modal show when the user has no reports yet?" not "What happens in the empty state?"
 - `header`: Short label (max 12 chars) for the chip display.
-- `options`: 2–4 options. Each option should describe a concrete direction specific to the feature. The user can always pick "Other" for freeform input.
-- `multiSelect`: true when multiple options can coexist, false when they're mutually exclusive.
+- `options`: 2–4 options describing concrete directions specific to the feature. The user can always pick "Other" for freeform input.
+- `multiSelect`: true when multiple options can coexist, false when mutually exclusive.
 
 After completing all 5 rounds, append every answer to `po-answers.md` with timestamp and `stage: shape`. Then proceed to the remaining steps.
-3. **Run all 5 discovery rounds.** Do not skip rounds. Do not compress multiple rounds into one. Wait for each round's answers before proceeding to the next — use earlier answers to sharpen later questions.
-4. Run freshness research via Explore sub-agent 2 (see skip criteria above) for external dependencies, patterns, APIs, standards, and known issues that could change the spec.
-5. Synthesize discovery answers into a small behavior-focused mini-spec.
-5b. **Author the design brief (when `stack.ui ≠ ∅` and the work has visual surface).** Read the `stack:` fingerprint in `00-index.md`. If it shows a UI/frontend layer **and** this work introduces meaningful visual surface (new screens, components, states, or a redesign), author `02b-design.md` now by following the brief-authoring procedure in [design/shape.md](design/shape.md) — the discovery interview (fold it into the answers you already gathered; ask only the visual-direction questions the 20-question pass didn't cover), the design-brief sections, and the `recommended-references:` frontmatter array. Write it as **plain discovery**: capture register, color strategy, scene sentence, anti-goals, state inventory, and recommended references — but do **NOT** generate image probes and do **NOT** run a visual-direction confirm gate here. Those two gates are `plan`'s (it resolves the image gate and confirms direction when it authors the visual contract). Do **not** write a resolved `image-gate` to `02b-design.md` — leaving it unset marks the gate unresolved for `plan` (the schema field `image-gate` only accepts `pass`/`skipped:*`, so there is no `pending` value to write). If `stack.ui` is empty or the work has no visual surface, skip this step. See also `design/_design-context.md` for the register determination and shared design laws.
-6. **Documentation plan (Diátaxis):** Using the shaped spec, classify what documentation this feature needs. Apply the Diátaxis model:
-   - Does this introduce new API surface or config? → needs **reference** docs
-   - Does this add user-facing behavior? → needs a **how-to guide**
-   - Is this a major new capability for new users? → needs a **tutorial**
-   - Does this involve architectural decisions or trade-offs? → needs an **explanation** page
-   - Does this significantly change the project's capabilities? → needs a **README update**
-   - Write the classification into `## Documentation Plan` in the shape file. For each identified doc, note: type, target audience, what it must cover, what it must NOT cover (boundary discipline).
+3. **Run all 5 discovery rounds.** Do not skip or compress rounds. Wait for each round's answers before proceeding — use earlier answers to sharpen later questions.
+4. Run freshness research via Explore sub-agent 2 (see skip criteria above) for external dependencies, patterns, APIs, standards, and known issues.
+5. Synthesize discovery answers into a behavior-focused mini-spec.
+5b. **Author the design brief (when `stack.ui ≠ ∅` and the work has visual surface).** If `00-index.md` shows a UI/frontend layer **and** this work introduces meaningful visual surface (new screens, components, states, or a redesign), author `02b-design.md` now per [design/shape.md](design/shape.md) — fold visual-direction questions into the answers already gathered; ask only what the 20-question pass didn't cover. Write it as **plain discovery**: register, color strategy, scene sentence, anti-goals, state inventory, recommended references. Do **NOT** generate image probes and do **NOT** run a visual-direction confirm gate here — those are `plan`'s (it resolves the image gate and authors `02c-craft.md`). Do not write a resolved `image-gate` to `02b-design.md` — leaving it unset marks the gate unresolved for `plan` (the field only accepts `pass`/`skipped:*`). If `stack.ui` is empty or no visual surface, skip this step. See `design/_design-context.md` for register determination and shared design laws.
+6. **Documentation plan (Diátaxis):** Classify what documentation this feature needs:
+   - New API surface or config? → **reference** docs
+   - User-facing behavior? → **how-to guide**
+   - Major new capability for new users? → **tutorial**
+   - Architectural decisions or trade-offs? → **explanation** page
+   - Significantly changes project capabilities? → **README update**
+   - Write the classification into `## Documentation Plan`. For each identified doc: type, target audience, what it must cover, what it must NOT cover.
    - If no user-facing docs are needed (pure internal refactor, test-only change), write "None required" with reasoning.
-6b. **Augmentation plan (perf / observability / rollout).** Augmentation is no longer a separate command the user must remember to invoke — **shape decides it, and downstream stages apply it**. Exactly like the documentation plan above, classify whether this work needs any of the four augmentations, and record the decision so `plan`/`implement`/`verify` honor it:
-   - **instrument** (observability) — does this add a code path whose behavior in production is worth *seeing* (a new flow that could fail silently, a feature whose adoption/latency matters)? → needs instrumentation (dark-path detection + signal design; artifact `04b-instrument.md`).
-   - **experiment** (rollout scaffolding) — is the rollout risky enough to want an A/B, feature flag, or canary with metrics + a rollback? → needs experiment design (artifact `04c-experiment.md`).
-   - **benchmark** (perf baseline+compare) — is this performance-sensitive (a hot path, a data-structure change, a rendering loop) such that a before/after measurement is warranted? → needs a benchmark (baseline before implement, compare after; artifact `05c-benchmark.md`; regression tripwires >10% CPU / >25% memory).
-   - **profile** (ad-hoc hotspot diagnosis) — is there a specific known hotspot worth profiling? → note it (profiling is usually ad-hoc; flag the area here so `plan` can schedule it, or reach for it later via `/wf probe`).
-   - To surface these, fold **1–2 questions** into the discovery interview (Step 2): *"Is any part of this perf-sensitive or worth measuring? Is the rollout risky enough to want a flag/canary? Is there a behavior change worth instrumenting in production?"* Ask only what the 20-question pass didn't already answer.
-   - Write the result into `## Augmentation Plan` and set the `augmentations-needed:` frontmatter array. **This section is REQUIRED even when the answer is "none"** (write `augmentations-needed: []` and a one-line reason) — a required section is how augmentation stays discoverable now that it is shape-gated rather than user-invoked.
+6b. **Augmentation plan (perf / observability / rollout).** Shape decides augmentation; downstream stages apply it. Classify whether this work needs any of the four, and record the decision so `plan`/`implement`/`verify` honor it:
+   - **instrument** (observability) — new flow that could fail silently, or whose adoption/latency matters? → dark-path detection + signal design; artifact `04b-instrument.md`.
+   - **experiment** (rollout scaffolding) — risky enough to want A/B, feature flag, or canary with metrics + rollback? → artifact `04c-experiment.md`.
+   - **benchmark** (perf baseline+compare) — hot path, data-structure change, or rendering loop warranting before/after measurement? → baseline before implement, compare after; artifact `05c-benchmark.md`; regression tripwires >10% CPU / >25% memory.
+   - **profile** (ad-hoc hotspot) — specific known hotspot worth profiling? → flag the area so `plan` can schedule it, or reach for it later via `/wf probe`.
+   - Fold **1–2 questions** into the discovery interview (Step 2): *"Is any part of this perf-sensitive? Is the rollout risky enough for a flag/canary? Is there a behavior change worth instrumenting in production?"* Ask only what the 20-question pass didn't answer.
+   - Write the result into `## Augmentation Plan` and set `augmentations-needed:` in frontmatter. **REQUIRED even when the answer is none** (write `augmentations-needed: []` and a one-line reason).
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 8. Update `00-index.md` with the recommended default option.
 9. Write `.ai/workflows/<slug>/02-shape.md` (and, if Step 5b applied, `.ai/workflows/<slug>/02b-design.md` — its structure, sibling `.yaml`, and fragment contract are defined in [design/shape.md](design/shape.md)).
 
 # Adaptive routing — evaluate what's actually next
-After completing this stage, do NOT blindly recommend `/wf slice`. Evaluate the shaped spec and present the user with ALL viable options:
+After completing this stage, do NOT blindly recommend `/wf slice`. Present the user with ALL viable options:
 
 **Option A (default): Slice** → `/wf slice <slug>`
-Use when: The spec covers multiple distinct areas, has more than one acceptance criterion cluster, or would benefit from incremental delivery.
+Use when: Spec covers multiple distinct areas, has more than one AC cluster, or would benefit from incremental delivery.
 
 **Option B: Skip to Plan** → `/wf plan <slug>`
-Use when: The shaped spec is a single coherent unit — one clear scope, one acceptance path, no meaningful way to split it further. Criteria: single concern, ≤5 files likely touched, one delivery unit.
+Use when: Single coherent unit — one clear scope, one acceptance path, ≤5 files likely touched, no meaningful way to split.
 
 **Option C: Revisit Intake** → `/wf intake <slug>`
-Use when: Shaping revealed that the intake brief is wrong, missing key constraints, or fundamentally misunderstands the problem.
+Use when: Shaping revealed the intake brief is wrong, missing key constraints, or misunderstands the problem.
 
 **Option D: Blocked — re-run shape** → `/wf shape <slug>`
 Use when: Required PO answers are still missing.
 
 **Option E: (design is already in the pipeline)** — no separate design command.
-When `stack.ui ≠ ∅` and the work has visual surface, shape has **already authored** the design brief `02b-design.md` (Step 5b). The visual contract `02c-craft.md` and its direction gates are authored downstream at `plan`, and `implement` builds against them — design is woven through the normal `slice → plan → implement → verify` flow, so Option A (Slice) or Option B (Plan) carries the design work forward. There is no `/wf design <slug> craft` hand-off. (The standalone design transforms — `colorize`, `typeset`, `animate`, … — remain available ad-hoc via `/wf design <slug> <transform>` for a focused, single-move change; they are not part of the default flow.) If `stack.ui` is empty, ignore this note.
+When `stack.ui ≠ ∅` and the work has visual surface, shape has **already authored** `02b-design.md` (Step 5b). `plan` authors `02c-craft.md` and resolves the direction gates; `implement` builds against them — design is woven through the normal `slice → plan → implement → verify` flow, so Option A or B carries it forward. There is no `/wf design <slug> craft` hand-off. (Standalone design transforms — `colorize`, `typeset`, `animate`, … — remain available ad-hoc via `/wf design <slug> <transform>`; they are not part of the default flow.) If `stack.ui` is empty, ignore this note.
 
-Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
+Write ALL viable options into `## Recommended Next Stage` so the user can choose.
 
 Write `02-shape.md` with this structure:
 
@@ -273,7 +259,7 @@ next-invocation: "/wf slice <slug>"
 # Shape
 
 ## The Shape
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Write it in the voice defined in `_narrative-voice.md` (Sebastian Raschka register: relevance first, why before how, tradeoffs stated plainly, varied rhythm — NO "This shape implements…" openings). 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions, and the top risk; structured sections below are drill-down. Voice per `_narrative-voice.md` — no "This shape implements…" openings. 1–4 short paragraphs. -->
 
 ## Problem Statement
 
@@ -308,7 +294,7 @@ next-invocation: "/wf slice <slug>"
 - ...
 
 ## Out of Scope
-<!-- Include capabilities deferred by the Round 5 scope-restraint pass: speculative generality, gold-plating, and "while we're here" additions the core ask does not require. Record each with a one-line rationale so the deferral is a logged decision the PO agreed to, not a silent drop. -->
+<!-- Capabilities deferred by the Round 5 scope-restraint pass: speculative generality, gold-plating, "while we're here" additions the core ask does not require. Record each with a one-line rationale — a logged decision the PO agreed to, not a silent drop. -->
 - ...
 
 ## Definition of Done
@@ -316,46 +302,32 @@ next-invocation: "/wf slice <slug>"
 
 ## Verification Strategy
 
-**Target verification environment (record this first — it is the fact most often missed).** State the concrete environment verification will run in, because it determines what every acceptance criterion can actually be observed with: host OS, whether an Android device/emulator or iOS simulator is available, which browser/driver is present or installable (Playwright / Cypress / dev-browser / Chrome MCP), and whether live or staging credentials exist. Surfacing this **here**, before any AC is finalized, is what lets `slice` author each AC with a verification path that fits — instead of `verify` discovering the wall and rationalizing past it. Source it from Explore sub-agent 1's interactive-tooling findings and the PO's tooling answer.
+**Target verification environment (record this first — it is the fact most often missed).** State the concrete environment verification will run in: host OS, whether an Android device/emulator or iOS simulator is available, which browser/driver is present or installable (Playwright / Cypress / dev-browser / Chrome MCP), and whether live or staging credentials exist. Surfacing this **here**, before any AC is finalized, lets `slice` author each AC with a verification path that fits — instead of `verify` discovering the wall and rationalizing past it. Source it from Explore sub-agent 1's interactive-tooling findings and the PO's tooling answer.
 
-**Observation Model (per headline outcome).** For each desired behavior / acceptance criterion, state *how a human or tool would observe success* and *in what environment* — e.g., "carousel is single-column at 375px → observed by driving a 375px-viewport browser and reading the rendered layout," not merely "carousel is single-column." If you cannot name how an outcome would be observed in the target environment, the criterion is not done being authored: re-scope it to something observable, or flag the constraint now so `slice` and `plan` inherit it.
+**Observation Model (per headline outcome).** For each acceptance criterion, state *how* a human or tool would observe success *and in what environment* — e.g., "carousel is single-column at 375px → observed by driving a 375px-viewport browser and reading the rendered layout," not merely "carousel is single-column." If you cannot name how an outcome would be observed in the target environment, re-scope it to something observable, or flag the constraint now so `slice` and `plan` inherit it.
 
-**Force-scope rule (constraints get engineered, not documented).** When the Observation Model or
-the target-environment statement names an environment dependency on a headline outcome's critical
-path — credentials, a device, an external service, an inbound callback, infrastructure that does
-not exist yet (a TURN relay, a staging deploy) — the shape MUST route it into scope, not into
-prose. Exactly one of: flag it as a **candidate prerequisite slice or harness** for `slice` to
-scope; state the **proxy observation** the plan will hold pre-deploy plus the **named event that
-clears the residual** ("cleared by the first `-rc.N` prerelease CI run"); or record **explicit PO
-risk-acceptance** in `po-answers.md`. Writing "known limitation — document at handoff" while an
-acceptance criterion depends on that limitation is ILLEGAL wording — the phrase is the tell that a
-constraint is being deferred to documentation instead of scope. `plan` enforces this per-AC (its
-`constraint-resolution:` gate); naming the wall honestly here is what keeps that gate cheap.
+**Force-scope rule (constraints get engineered, not documented).** When the Observation Model or target-environment statement names an environment dependency on a headline outcome's critical path — credentials, a device, an external service, an inbound callback, infrastructure that does not yet exist (a TURN relay, a staging deploy) — shape MUST route it into scope, not prose. Exactly one of: flag it as a **candidate prerequisite slice or harness** for `slice` to scope; state the **proxy observation** the plan will hold pre-deploy plus the **named event that clears the residual** ("cleared by the first `-rc.N` prerelease CI run"); or record **explicit PO risk-acceptance** in `po-answers.md`. Writing "known limitation — document at handoff" while an AC depends on that limitation is ILLEGAL — the phrase is the tell that a constraint is being deferred to documentation instead of scope. `plan` enforces this per-AC (its `constraint-resolution:` gate); naming the wall honestly here keeps that gate cheap.
 
-**Outcome-metric criteria need a pre-deploy proxy.** A criterion stated as a live outcome metric
-("rich-preview rate ≥ 75% over the live corpus") must be paired here with a pre-deploy proxy
-observation (e.g., a fixture-corpus assertion over the top-N recorded failure pages) so
-verification holds *something* before ship; the live metric becomes the clearing event for the
-residual deferral.
+**Outcome-metric criteria need a pre-deploy proxy.** A live outcome metric criterion ("rich-preview rate ≥ 75% over the live corpus") must be paired with a pre-deploy proxy observation (e.g., a fixture-corpus assertion over the top-N recorded failure pages) so verification holds *something* before ship; the live metric becomes the clearing event for the residual deferral.
 
-Then classify how each acceptance criterion and edge case will be verified:
+Then classify how each AC and edge case will be verified:
 
-**Automated checks** (CI/test suite can run these):
+**Automated checks** (CI/test suite):
 - ...
 
 **Interactive verification** (requires running the app and observing behavior):
 - Platform: web / Android / iOS / desktop / CLI
 - Tool: Playwright / Maestro / adb / browser automation / dev-server + manual / other
-- What to verify: describe the user flow and expected visual/behavioral outcome
+- What to verify: user flow and expected visual/behavioral outcome
 - Evidence capture: screenshot / screen recording / console output / network trace
 
 **Human-in-the-loop checks** (requires human judgement):
 - ...
 
-If purely backend/library with no UI: "Automated only — no interactive verification needed. [reason]"
+If purely backend/library with no UI: "Automated only — no interactive verification needed. [reason]."
 
 ## Documentation Plan
-Classify using Diátaxis. For each doc needed, specify:
+Classify using Diátaxis. For each doc needed:
 - **Type**: tutorial / how-to / reference / explanation / readme-update
 - **Audience**: beginner / competent user / maintainer
 - **Must cover**: ...
@@ -365,15 +337,11 @@ Classify using Diátaxis. For each doc needed, specify:
 If no docs needed: "None required — [reason]"
 
 ## Augmentation Plan
-Which augmentations this work needs — decided here, applied by `plan`/`implement`/`verify`. **Required
-section** (write it even when the answer is none). For each augmentation flagged in `augmentations-needed`:
-- **instrument** → what signals/events matter, which dark paths need visibility. `plan` folds signal
-  design in; `implement` wires it; artifact `04b-instrument.md`.
-- **experiment** → the hypothesis, the mechanism (A/B / flag / canary), the metrics + the rollback.
-  `plan` designs it; `implement` wires the flag; artifact `04c-experiment.md`.
-- **benchmark** → what to measure and the perf budget. `plan` adds a baseline step; `implement` captures
-  the baseline; `verify` runs the compare against tripwires (>10% CPU / >25% memory); artifact `05c-benchmark.md`.
-- **profile** → the specific hotspot/area to profile (usually ad-hoc; may be run later via `/wf probe`).
+Which augmentations this work needs — decided here, applied by `plan`/`implement`/`verify`. **Required section** (write it even when the answer is none). For each augmentation flagged in `augmentations-needed`:
+- **instrument** → what signals/events matter, which dark paths need visibility. `plan` folds signal design in; `implement` wires it; artifact `04b-instrument.md`.
+- **experiment** → hypothesis, mechanism (A/B / flag / canary), metrics + rollback. `plan` designs it; `implement` wires the flag; artifact `04c-experiment.md`.
+- **benchmark** → what to measure and the perf budget. `plan` adds a baseline step; `implement` captures it; `verify` compares against tripwires (>10% CPU / >25% memory); artifact `05c-benchmark.md`.
+- **profile** → specific hotspot/area to profile (usually ad-hoc; may be run later via `/wf probe`).
 
 If none: "None required — [reason]" and `augmentations-needed: []`.
 
@@ -391,45 +359,16 @@ If none: "None required — [reason]" and `augmentations-needed: []`.
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell. Follow [_fragment-authoring.md](_fragment-authoring.md) **Step F2** (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 ---
 
 ## Additive-write contract (v9.20.1+)
 
-`02-shape.md` is a revisable artifact. When `/wf shape` is re-invoked on a
-slug that already has one, **do not overwrite the body**. Instead:
+`02-shape.md` is a revisable artifact. When `/wf shape` is re-invoked on a slug that already has one, **do not overwrite the body** — follow [_additive-write.md](_additive-write.md) with:
 
-1. **Snapshot the current file** to
-   `.ai/workflows/<slug>/history/02-shape-<rev>.md` where `<rev>` is the
-   current `revision-count` (before this run's increment). Use a verbatim
-   byte-copy — do not re-emit, do not reformat.
-2. **Bump `revision-count`** in frontmatter by 1. Refresh `updated-at` to
-   the current ISO timestamp.
-3. **Append** a new section to the body rather than rewriting earlier
-   content:
-   ```
-   ## Revision <new-revision-count> — <ISO timestamp>
+- Snapshot: `.ai/workflows/<slug>/history/02-shape-<rev>.md` (sibling `02-shape.yaml` per the shared YAML rule).
+- Revision-section lead: "What changed and why:".
 
-   What changed and why:
-   - …
+`regenerable: true` applies only if `/wf shape` is wrapping an auto-derived shape (e.g., post-amendment regeneration) — it does not normally carry the flag. History view paths are stable (`<slug>/shape/history/<rev>/INDEX.html`).
 
-   <new shape content here>
-   ```
-   Earlier `## Initial` / `## Revision N` blocks stay intact. Readers can
-   diff history snapshots when they need the exact prior wording, but the
-   live document narrates the evolution in-place.
-4. **`02-shape.yaml` sibling** (when present) follows the same rule:
-   top-level scalars update in place; array fields append rather than
-   replace. On structurally incompatible rewrites, snapshot the YAML
-   alongside the MD as `history/02-shape-<rev>.yaml`.
-
-**Exception**: if frontmatter declares `regenerable: true`, overwrite
-freely. The shape artifact does not normally carry this flag — it would
-only apply if `/wf shape` is wrapping an auto-derived shape (e.g.,
-post-amendment regeneration).
-
-The renderer surfaces prior revisions as a collapsible `<details class="history">`
-at the bottom of the page. The history view paths are stable
-(`<slug>/shape/history/<rev>/INDEX.html`) — old revisions remain linkable
-from PRs and docs forever.

@@ -26,7 +26,7 @@ or edits code.
 > `$consult <critique this release announcement for clarity, accuracy, and tone>`
 > (or `$consult <provider> …`) — a read-only multi-model panel that reads the draft
 > as an outside audience would. (The announcement is product-facing copy, so it
-> carries no workflow internals.) The model may run this itself when it clearly adds value (pin `codex`/`claude` to stay free); otherwise just offer it.
+> carries no workflow internals.) Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **communications writer**, not a developer.
@@ -171,7 +171,7 @@ Do NOT change any other field. This closes the ship→announce loop: the run art
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after comparison, a timeline, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../_fragment-authoring.md) Step F2 and `skills/wf/reference/narrative-fragments.md`.
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # Step 6 — Update index
 
@@ -183,6 +183,7 @@ Read `00-index.md` frontmatter. Update ONLY:
 Do NOT change `status`, `current-stage`, or any other field.
 
 # Chat return contract
+Return per [_chat-return.md](../_chat-return.md) — narrative lead, then this receipt:
 Return:
 - `slug: <slug>`
 - `wrote: announce.md` (plus any doc paths generated in Step 2)

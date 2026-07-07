@@ -136,9 +136,7 @@ users). The outward notice speaks product language — what changed for whom and
 never release-machinery internals. Draft only; the user decides where it goes.
 
 # Chat return contract
-After writing files, return — substance first, then the receipt:
-- **narrative:** what was reversed, what could not be and how it was mitigated, and the verified
-  end state — in the artifact's story voice.
+After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead (what was reversed, what could not be and how it was mitigated, and the verified end state), then this receipt:
 - `slug: <slug>`
 - `run-id: <run-id>`
 - `wrote: 09-rollback-<run-id>.md`
