@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   pageHref
-} from "./chunk-OJDSJJI5.mjs";
+} from "./chunk-SHLVL5XH.mjs";
 import {
   jsYaml
 } from "./chunk-LFGT2BKG.mjs";
@@ -457,6 +457,23 @@ function renderHistoryBlock(history) {
     <summary>${history.length} prior revision${history.length === 1 ? "" : "s"}</summary>
     <ol>${items}</ol>
   </details>`;
+}
+function renderRevisionLedger(fm, sy) {
+  const revs = Array.isArray(sy?.revisions) && sy.revisions.length ? sy.revisions : Array.isArray(fm?.revisions) ? fm.revisions : null;
+  if (!revs || !revs.length) return "";
+  const ordered = [...revs].sort((a, b) => (Number(b?.rev) || 0) - (Number(a?.rev) || 0));
+  const items = ordered.map((r) => {
+    if (typeof r !== "object" || r === null) {
+      return `<li><span class="rev-why">${escape(String(r))}</span></li>`;
+    }
+    const rev = r.rev != null ? `<span class="rev-n">rev ${escape(r.rev)}</span>` : "";
+    const when = r.at ?? r.when ?? "";
+    const trigger = r.trigger ? `<span class="rev-trigger">${escape(r.trigger)}</span>` : "";
+    const why = r.because ?? r.summary ?? r.note ?? r.what ?? "";
+    const changed = r.changed ? ` \u2014 ${escape(r.changed)}` : "";
+    return `<li>${rev}${trigger}${when ? `<span class="rev-when">${escape(when)}</span>` : ""}<span class="rev-why">${escape(why)}${changed}</span></li>`;
+  }).join("");
+  return `<details class="revisions rev-ledger" open><summary>Revision ledger (${revs.length})</summary><ol class="rev-timeline">${items}</ol></details>`;
 }
 function escape(s) {
   return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
@@ -5669,5 +5686,6 @@ export {
   loadArtifact,
   loadHistory,
   renderHistoryBlock,
+  renderRevisionLedger,
   md2html
 };

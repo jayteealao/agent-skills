@@ -356,9 +356,9 @@ Author **free narrative fragments** for any beat the structured page can't tell.
 
 ## Additive-write contract (v9.20.1+)
 
-`02-shape.md` is a revisable artifact. When `$wf shape` is re-invoked on a slug that already has one, **do not overwrite the body** — follow [_additive-write.md](_additive-write.md) with:
+`02-shape.md` is a revisable artifact. When `$wf shape` is re-invoked on a slug that already has one, follow [_additive-write.md](_additive-write.md) — snapshot, **rewrite the body to current truth** (do not stack `## Revision N` sections), and add one ledger entry:
 
 - Snapshot: `.ai/workflows/<slug>/history/02-shape-<rev>.md` (sibling `02-shape.yaml` per the shared YAML rule).
-- Revision-section lead: "What changed and why:".
+- **Ledger entry**: `trigger: scope-change` (or `answers-returned` when the reshape resolves open questions), `because:` naming what prompted the reshape, `changed:` naming what moved in the spec.
 
-`regenerable: true` applies only if `$wf shape` is wrapping an auto-derived shape (e.g., post-amendment regeneration) — it does not normally carry the flag. History view paths are stable (`<slug>/shape/history/<rev>/INDEX.html`).
+`regenerable: true` applies only if `$wf shape` is wrapping an auto-derived shape (e.g., post-amendment regeneration) — it does not normally carry the flag, and when it does there is no ledger entry. History view paths are stable (`<slug>/shape/history/<rev>/INDEX.html`).

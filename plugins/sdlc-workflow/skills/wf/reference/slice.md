@@ -273,17 +273,20 @@ Author **free narrative fragments** for any beat the structured page can't tell 
 Both `03-slice-index.md` and per-slice `03-slices/<slice-slug>.md` are
 revisable. When `/wf slice` is re-invoked on an existing slug, follow the
 shared additive-write contract in [_additive-write.md](_additive-write.md)
-for every file that will be rewritten, with:
+for every file that will be rewritten — snapshot, **rewrite the body to current
+truth**, add one ledger entry:
 
 - Snapshots in `.ai/workflows/<slug>/history/`: `03-slice-index-<rev>.md` for
   the index; `slices/<slice-slug>/history/03-slice-<rev>.md` for per-slice
   detail files.
-- Revision-section lead: "Why this slice changed:".
+- **Ledger entry** per rewritten file: `trigger: scope-change` (default) or
+  `new-slice` when slices were added, `because:` naming why the slicing changed,
+  `changed:` naming what moved.
 
 Stage-specific additions:
 
 1. **New slices added in this run** start fresh — they have no prior revision
-   and no history snapshot. Their `revision-count` begins at 1.
+   and no history snapshot. Their `revision-count` begins at 1 (no ledger yet).
 2. **Removed slices** stay in storage. Mark their frontmatter
    `status: dropped` with a `dropped-reason:` field and append a final
    `## Dropped — <ISO>` section to the body. Removal of a slice file from

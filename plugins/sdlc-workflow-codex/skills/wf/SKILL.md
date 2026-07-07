@@ -34,8 +34,8 @@ Parse `$ARGUMENTS`. The first token must be one of the 19 known keys below; the 
 | `implement`  | `<slug> [slice\|reviews]` | Code the slice; writes 05-implement-<slice>.md. Wires any shape-decided augmentations. Second arg `reviews` triggers fix-blockers mode. |
 | `verify`     | `<slug> [slice]`          | Run tests, lints, typecheck; apply the user-observable AC gate; own a single-round, user-gated fix loop; re-check augmentations (benchmark compare). Writes 06-verify-<slice>.md. |
 | `review`     | `<slug> [slice\|triage]` · or ad-hoc `<dimension>` / `sweep <aggregate>` | **The single review surface.** `$wf review <slug>` runs the workflow STAGE (accumulating-ledger dispatch, per `review-scope`). `$wf review <dimension>` / `$wf review sweep <aggregate>` (no slug) runs **ad-hoc** review — one rubric inline or a parallel fan-out (absorbs the former standalone review skill). Owns its own first-token resolution (slug vs dimension). See `reference/review.md`. |
-| `handoff`    | `<slug>`                  | Aggregate completed slices into a PR description; writes 08-handoff.md. Refuses if any required review has unresolved blockers. |
-| `ship`       | `<slug> [env\|announce\|rollback]` | Release via `.ai/ship-plan.md`; writes 09-ship-run-<run-id>.md + updates 09-ship-runs.md. Its post-publish **announce phase** drafts stakeholder comms; `$wf ship <slug> announce` re-runs comms only (absorbs the former `announce`). `$wf ship <slug> rollback [<run-id>]` runs the **rollback phase** — a runbook-driven, Go/No-Go-gated reversal of a prior completed run (writes 09-rollback-<run-id>.md). |
+| `handoff`    | `<slug\|pr#N\|branch>`    | Aggregate completed slices into a PR description; writes 08-handoff.md. A `pr#N`/branch first arg runs **batch mode** — aggregates every slug on the branch, reports which are handoff-ready, packages the ready ones, opens the single shared PR, and writes the branch-level readiness on the lead slug. Refuses (per slug) if any required review has unresolved blockers. |
+| `ship`       | `<slug\|pr#N\|branch> [env\|announce\|rollback]` | Release via `.ai/ship-plan.md`; writes 09-ship-run-<run-id>.md + updates 09-ship-runs.md. A `pr#N`/branch first arg runs **batch mode** — all-or-nothing across the branch (merge is atomic per PR), one run on the lead slug, followers get a `shipped-via` pointer. Its post-publish **announce phase** drafts stakeholder comms; `$wf ship <slug> announce` re-runs comms only. `$wf ship <slug> rollback [<run-id>]` runs the **rollback phase** — a runbook-driven, Go/No-Go-gated reversal (writes 09-rollback-<run-id>.md). |
 | `retro`      | `<slug>`                  | Post-mortem across the workflow; writes 10-retro.md. |
 
 ### Standalone / drivers
@@ -75,16 +75,17 @@ After sub-command resolution, before dispatch: if the user passed a positional s
 
 **Applies to** these **slug-consuming** sub-commands:
 
-`shape`, `slice`, `plan`, `implement`, `verify`, `handoff`, `ship`, `retro`, `status`, `recap`, `close`
+`shape`, `slice`, `plan`, `implement`, `verify`, `retro`, `recap`, `close`
 
 **Does NOT apply** to keys that own their own first-token resolution or take a non-slug first arg:
+- `handoff`, `ship`, `status` — take a **polymorphic** first token (`slug` | `pr#N`/`#N`/bare int | branch name), resolved by exact existence check inside their reference (Step 0). A non-matching first token is a PR/branch reference, not a typo'd slug — so Step 0.5 must NOT fire for them.
 - `intake` — resolves its first token by exact existence check inside `reference/intake.md` (slug-mode / extension / mode keyword / description), never a typo'd slug.
 - `review` — owns its slug-vs-dimension resolution (`reference/review.md` Step 00): an exact slug is the stage, a known dimension/`sweep` is ad-hoc. A non-matching first token is a dimension or the ad-hoc menu, not a typo.
 - `design`, `probe`, `auto` — each resolves an *optional* slug by exact existence check / single-active inference inside its reference; a non-matching first token is a design command / slug-required STOP / a route-to-intake, handled there.
 - `simplify` — its first positional is a scope keyword (`branch`/`commit`/`plan`/`codebase`), not a slug.
 - `ship-plan`, `docs` — **routers**: their first token is a sub-key / primitive / path / flag resolved inside the router reference, not a slug.
 
-*Keep this list in sync with the 19-key table — exclude any future key that creates a new slug, takes a non-slug first arg, or resolves its slug by its own existence check. `status`/`recap`/`close` take an **optional** slug and fall through to single-active inference when none is passed, so Step 0.5 only fires for them when a non-matching slug arg is actually present.*
+*Keep this list in sync with the 19-key table — exclude any future key that creates a new slug, takes a non-slug first arg, or resolves its slug by its own existence check. `recap`/`close` take an **optional** slug and fall through to single-active inference when none is passed, so Step 0.5 only fires for them when a non-matching slug arg is actually present. `handoff`/`ship`/`status` are excluded entirely — their first token is polymorphic (slug/PR/branch) and resolved inside the reference.*
 
 **Procedure:**
 

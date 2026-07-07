@@ -296,13 +296,15 @@ slug that already has one, follow the shared additive-write contract in
 [_additive-write.md](_additive-write.md) with:
 
 - Snapshot: `.ai/workflows/<slug>/history/10-retro-<rev>.md`.
-- Revision-section lead: "What this revisit adds:" (a 30-day check-in, a
-  follow-up after an incident, a quarterly review).
+- **Rewrite the body** so the retro reads as current truth — fold the revisit's
+  findings into the relevant sections rather than appending a `## Revision N`
+  block. The `## The Retrospective` story section carries the arc (what we said
+  at close vs. what actually happened 30 days later).
+- **Ledger entry**: append one `revisions:` entry with `trigger: manual` (or
+  `scope-change` for an incident-driven revisit), `because:` naming the revisit
+  ("30-day check-in", "post-incident follow-up", "quarterly review"), and
+  `changed:` naming what moved.
 
-A retro's value is largely *historical* — reading the original "things we'd
-do differently" alongside "what we actually did differently 30 days later"
-is more useful than a single edited-in-place document.
-
-The renderer aggregates retro revisions into a single timeline view — each
-revision is a date-stamped entry on the retro page rather than buried under
-a `<details>` block (retros are short enough to display in full).
+A retro's value is largely *historical* — the point of the revisit is to compare
+original intent against later reality. That comparison lives in the story
+section and in the verbatim history snapshots, not in a stack of body sections.

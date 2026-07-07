@@ -1,6 +1,6 @@
 ---
-description: Run a release using the project's `.ai/ship-plan.md`. Reads the plan, generates a run-id, and walks the 13-step idempotent ship sequence (pre-flight → publish dry-run → rollout → freshness delta → go/no-go → merge → tag → workflow watch → post-publish poll → post-release bump → index update → write run artifact). Replayable: re-running after a partial failure resumes at the failed step. Refuses to start when `08-handoff.md` `readiness-verdict ≠ ready`.
-argument-hint: <slug> [environment|announce|rollback] [<run-id>] [--init-plan]
+description: Run a release using the project's `.ai/ship-plan.md`. Reads the plan, generates a run-id, and walks the 13-step idempotent ship sequence (pre-flight → publish dry-run → rollout → freshness delta → go/no-go → merge → tag → workflow watch → post-publish poll → post-release bump → index update → write run artifact). Replayable: re-running after a partial failure resumes at the failed step. A `pr#N`/branch first argument ships EVERY slug on the branch atomically as one run (all-or-nothing). Refuses to start unless readiness is `ready`.
+argument-hint: <slug|pr#N|branch> [environment|announce|rollback] [<run-id>] [--init-plan]
 ---
 
 # External Output Boundary (MANDATORY)
@@ -14,9 +14,9 @@ You are running `$wf ship`, **stage 9 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | `.ai/ship-plan.md` (project-level — author via `$wf ship-plan init` once per project) AND `08-handoff.md` with `readiness-verdict: ready` |
-| Conditional inputs (mandatory when present) | `augmentations:` list in `00-index.md` — every entry MUST get a changelog entry (translated to user language). Prior `09-ship-run-*.md` with `status: awaiting-input` — must offer to resume rather than start fresh. |
-| Produces | `09-ship-run-<run-id>.md` (per release) + refreshed `09-ship-runs.md` (per-workflow index). Legacy `09-ship.md` is read-only; never written by this version. |
+| Requires | `.ai/ship-plan.md` (project-level — author via `$wf ship-plan init` once per project) AND `08-handoff.md` with `readiness-verdict: ready` (single-slug) or `pr-readiness-verdict: ready` (batch — the branch-level AND). |
+| Conditional inputs (mandatory when present) | `augmentations:` list in `00-index.md` (union across the roster in batch mode) — every entry MUST get a changelog entry (translated to user language). Prior `09-ship-run-*.md` with `status: awaiting-input` — must offer to resume rather than start fresh. |
+| Produces | `09-ship-run-<run-id>.md` (per release, on the lead slug) + refreshed `09-ship-runs.md` per roster slug (followers carry a `shipped-via` pointer). Legacy `09-ship.md` is read-only; never written by this version. |
 | Next | `$wf retro <slug>` (if go) or `$wf implement <slug> <slice>` (if blockers) |
 
 > **Optional second opinion.** At the Go/No-Go gate, you may offer `$consult
@@ -33,7 +33,14 @@ You are a **workflow orchestrator**, not a problem solver.
 
 # Step 0 — Orient (MANDATORY)
 
-1. **Resolve the slug** from `$ARGUMENTS` (first positional). If missing, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+1. **Resolve the first positional** — polymorphic, same order as `$wf handoff` (first match wins):
+   - **Exact slug** (`.ai/workflows/<arg>/00-index.md` exists) → **single-slug ship**. `ship-scope: slug`.
+   - **PR reference** `pr#N` / `#N` / bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName` → branch path below. `ship-scope: branch`.
+   - **Branch name** (matches a `branch:` in some `00-index.md`) → **batch ship**. `ship-scope: branch`.
+   - **Absent** → infer the most recent active workflow; single-slug. If ambiguous, ask.
+
+   **Build the roster** (`branch-slugs`): single-slug → `[<slug>]`; batch → every slug whose `00-index.md` `branch:` equals the resolved branch. **Elect the lead**: reuse the `handoff-lead:` recorded at handoff time (it MUST already exist — batch ship follows a batch handoff); if absent, elect the first roster slug alphabetically. The lead owns the single `09-ship-run-<run-id>.md`; followers get a `shipped-via` pointer.
+
 1.5. **Announce re-run shortcut.** If the second positional is exactly `announce` (not a valid environment, so no collision with sub-step 3): load `skills/wf/reference/ship/announce.md`, run **only** the announce phase for `<slug>`, then STOP. Do NOT run the 13-step sequence.
 1.6. **Rollback shortcut.** If the second positional is exactly `rollback` (not a valid environment): load `skills/wf/reference/ship/rollback.md`, run **only** that phase for `<slug>`, then STOP. Do NOT run the 13-step sequence. Optional third positional = `<run-id>`; default = most recent `status: complete` run in `09-ship-runs.md`. A paused (`awaiting-input`) run is refused — resume or fail it instead.
 2. **Detect `--init-plan` flag.** If present, print and STOP:
@@ -48,14 +55,13 @@ You are a **workflow orchestrator**, not a problem solver.
    Run: $wf ship-plan init [--from-template <kind>]
    ```
    Parse all blocks (A–G) into in-memory state.
-5. **Read `00-index.md`** for the workflow — parse `current-stage`, `status`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `augmentations:`.
-6. **Read `08-handoff.md`** — parse `readiness-verdict`. If missing or `≠ ready`, STOP:
-   ```
-   Handoff readiness-verdict is "<verdict>". Ship requires "ready".
-   Run: $wf handoff <slug>   # to refresh the readiness block
-   ```
-   Also parse `pr-url`, `pr-number`, `branch`, `base-branch`, `has-deferred-comments`. If `has-deferred-comments: true`, WARN before continuing.
-6.5. **Runtime-evidence deferral gate (HARD BLOCK — added per RUNTIME-PROBE-PLAN.md §2.4).** Parse `runtime-evidence-deferrals` from `00-index.md` (this field may be absent on older workflows — treat absent as empty). An entry is **open** when `cleared-by: null` AND it carries no `ship-override-authorization`. Every open entry must be cleared before ship.
+5. **Read `00-index.md`** for **each roster slug** — parse `current-stage`, `status`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `augmentations:`, and `handoff-lead:`. In batch mode the PR/branch fields must agree across the roster (they share one branch/PR); if they disagree, STOP and report the inconsistency.
+6. **Readiness gate — all-or-nothing across the roster.** Ship is atomic per PR: you cannot merge some slugs on a branch and not others. So **every** roster slug must be shippable, or none ship.
+   - **Single-slug**: read `08-handoff.md`, parse `readiness-verdict`. If missing or `≠ ready`, STOP: "Handoff readiness-verdict is `<verdict>`. Ship requires `ready`. Run: `$wf handoff <slug>`."
+   - **Batch**: read the **lead's** `08-handoff.md` and parse `pr-readiness-verdict` (the branch-level AND). If `≠ ready`, STOP and **print the roster report** (which slugs are ready vs. not): "Ship is all-or-nothing per PR. `pr-readiness-verdict` is `<verdict>` — bring every slug ready first: `$wf handoff pr#N`." Do NOT ship the ready subset.
+
+   Parse `pr-url`, `pr-number`, `branch`, `base-branch`, `has-deferred-comments` from the lead handoff. If `has-deferred-comments: true`, WARN before continuing.
+6.5. **Runtime-evidence deferral gate (HARD BLOCK — added per RUNTIME-PROBE-PLAN.md §2.4).** Parse `runtime-evidence-deferrals` from **every roster slug's** `00-index.md` (absent on older workflows → treat as empty). An entry is **open** when `cleared-by: null` AND it carries no `ship-override-authorization`. Every open entry, on **any** roster slug, must be cleared before ship — one slug's open deferral blocks the whole atomic run.
 
    If any entry is still open, STOP with:
    ```
@@ -71,7 +77,7 @@ You are a **workflow orchestrator**, not a problem solver.
    **`cleared-by` is for EVIDENCE, never risk-acceptance.** It must hold a probe/evidence descriptor proving the AC was actually observed — not a prose "we'll accept the risk" string (that would silently unlock ship without evidence). PO risk-acceptance goes in `ship-override-authorization`, which the ship summary surfaces as an **explicit override** (recorded, not disguised as evidence). A multi-AC deferral may log partial progress in `cleared-acs: [...]` while `cleared-by` stays null.
 
    Evidenced entries (non-null `cleared-by`, typically a probe descriptor) and PO-overridden entries do not block — but list every override distinctly in the ship summary for the record. This gate is the hard-block half of the deferral mechanism; earlier stages (verify, review, handoff) surface deferrals as soft warnings.
-7. **Read every `07-review-*.md` and `po-answers.md`** for changelog/release-notes context.
+7. **Read every `07-review-*.md` and `po-answers.md`** for changelog/release-notes context — across **all roster slugs** in batch mode, so the release notes cover the whole branch.
 8. **Resume detection.** Search for `.ai/workflows/<slug>/09-ship-run-*.md`. For any with `status: awaiting-input`:
    Ask the user directly in chat presenting a short numbered list:
    "A prior ship run is paused. What would you like to do?
@@ -80,8 +86,22 @@ You are a **workflow orchestrator**, not a problem solver.
    3. Mark prior as failed and start fresh — Set the prior run status: failed."
    If **resume**: load that run's frontmatter and skip to the first step with an empty evidence field.
    If **start fresh**: leave the prior run untouched (or set `failed`); generate a new `run-id`.
-9. **Generate `run-id`** (UTC compact ISO-8601): `date -u +"%Y%m%dT%H%MZ"`. Use as the filename suffix and the `run-id` field.
-10. **Carry forward** `open-questions` from the index.
+9. **Generate `run-id`** (UTC compact ISO-8601): `date -u +"%Y%m%dT%H%MZ"`. Use as the filename suffix and the `run-id` field. In batch mode there is ONE run-id for the whole branch.
+10. **Carry forward** `open-questions` from the index (union across roster slugs in batch mode).
+
+# Batch ship (scope: branch) — one run, one artifact, N pointers
+
+The 13-step sequence acts on the **branch/PR**, which is shared — so it runs
+**exactly once** per branch, owned by the lead slug.
+
+- The single `09-ship-run-<run-id>.md` is written under the **lead** slug with
+  `ship-scope: branch` and `branch-slugs: [...]`.
+- **Aggregation points** read the whole roster: the changelog/release-notes
+  (step 7 + `augmentations:`) cover every slug's reviews and augmentations; the
+  announce phase covers the branch; rollback resolves through the lead.
+- Each **follower** slug gets a pointer row in its own `09-ship-runs.md`
+  (`shipped-via: <lead>/09-ship-run-<run-id>.md`) and its `00-index.md` advances
+  to shipped — no duplicate run artifact.
 
 # Workflow rules
 - Store run artifacts under `.ai/workflows/<slug>/`. `00-index.md` is the control file; `09-ship-runs.md` is the per-workflow run index. Never leave the canonical result only in chat — write the stage file first.
@@ -257,7 +277,7 @@ Idempotency: read each `version-source-of-truth` file — if already at the post
 
 ## Step 11 — Update `09-ship-runs.md` index
 
-Append (or update the entry for) this run. Refresh the run table from frontmatter — the body is regenerated, the frontmatter is the source of truth.
+Append or update this run's entry. Frontmatter is the source of truth; the body table is regenerated from it. **Batch mode**: update the **lead** slug's `09-ship-runs.md` with the real run row, and each **follower** slug's `09-ship-runs.md` with a pointer row carrying `shipped-via: <lead>/09-ship-run-<run-id>.md` (same run-id, no duplicate run artifact).
 
 ```yaml
 ---
@@ -304,13 +324,17 @@ move on — the run is already complete. To regenerate comms later without re-sh
 ---
 schema: sdlc/v1
 type: ship-run
-slug: <slug>
+slug: <slug>                # the LEAD slug in batch mode
 run-id: "<YYYYMMDDTHHMMZ>"
 status: <complete | awaiting-input | failed | rolled-back>
 plan-ref: ../../ship-plan.md
 plan-version-at-run: <integer copied from plan at run-start>
 created-at: "<ISO 8601>"
 updated-at: "<ISO 8601>"
+
+# Scope (batch ship)
+ship-scope: <slug | branch>          # branch = one atomic run for every slug on the branch
+branch-slugs: [<slug-1>, <slug-2>, ...]   # the roster released together (present when ship-scope: branch)
 
 # Per-run inputs
 environment: <env name>
@@ -430,6 +454,8 @@ slug: <slug>
 updated-at: "<iso>"
 runs:
   - { run-id: <id>, version: <ver>, environment: <env>, status: <status>, go-nogo: <decision>, notes: "<≤80 chars>" }
+  # follower slug in a batch ship — a pointer row, no local run artifact:
+  - { run-id: <id>, version: <ver>, environment: <env>, status: <status>, go-nogo: <decision>, shipped-via: "<lead>/09-ship-run-<id>.md", notes: "shipped with <lead>" }
 ---
 
 # Ship Runs

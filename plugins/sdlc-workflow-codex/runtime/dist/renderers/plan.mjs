@@ -8,14 +8,15 @@ import {
 } from "../chunk-PDBKNARE.mjs";
 import {
   md2html,
-  renderHistoryBlock
-} from "../chunk-H6E3LPBK.mjs";
+  renderHistoryBlock,
+  renderRevisionLedger
+} from "../chunk-MGTWQJEG.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-OJDSJJI5.mjs";
+} from "../chunk-SHLVL5XH.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
@@ -291,14 +292,7 @@ function riskCallouts(risks) {
   }).join("");
 }
 function revisionsBlock(fm, sy) {
-  const revs = sy?.revisions ?? fm.revisions;
-  if (!Array.isArray(revs) || !revs.length) return "";
-  const items = revs.map((r) => {
-    const when = typeof r === "object" ? r.when ?? r.at ?? "" : "";
-    const what = typeof r === "object" ? r.summary ?? r.note ?? r.what ?? "" : String(r);
-    return `<li>${when ? `<span class="when">${escapeHtml(when)}</span> ` : ""}${escapeHtml(what)}</li>`;
-  }).join("");
-  return `<details class="revisions"><summary>Prior revisions (${revs.length})</summary><ol>${items}</ol></details>`;
+  return renderRevisionLedger(fm, sy);
 }
 function placeholderTopologySvg() {
   const W = 920, H = 150;

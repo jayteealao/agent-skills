@@ -320,12 +320,8 @@ Steps:
 1. **Read the existing `04-plan-<slice-slug>.md`** in full.
 2. **Parse the feedback** from the supplemental text.
 3. **Re-inspect the codebase** if the feedback changes which files or patterns are relevant (use Explore sub-agents).
-4. **Apply the feedback surgically** — edit only the sections that need changing. Preserve what is still correct. Do NOT start from scratch unless the feedback is a complete rejection.
-5. **Append to `## Revision History`** (create if it doesn't exist):
-   - Revision timestamp
-   - Mode: Directed Fix
-   - Feedback: the exact text provided
-   - What was changed and why
+4. **Apply the feedback surgically** — edit only the sections that need changing. Preserve what is still correct. Do NOT start from scratch unless the feedback is a complete rejection. The body stays current truth — do not append a `## Revision N` section.
+5. **Snapshot + ledger entry** per [_additive-write.md](_additive-write.md): byte-copy the pre-edit file to `history/04-plan-<slice-slug>-<rev>.md`, then append one `revisions:` entry — `trigger: review-feedback`, `because:` the exact feedback text (trimmed to a phrase), `changed:` what moved. Bump `revision-count`.
 6. **Re-check cohesion** with sibling plans if the changes affect cross-slice dependencies.
 7. **Update the master `04-plan.md`** summary if strategy or key risks changed.
 8. Write the updated `04-plan-<slice-slug>.md`.
@@ -352,13 +348,9 @@ Steps:
    - Integration gaps not visible before
    - Duplicated work between plans
 5. **Produce a review summary** listing issues found (if any) with severity.
-6. **Fix the issues** found — edit the plan sections that need changing.
-7. **Append to `## Revision History`**:
-   - Revision timestamp
-   - Mode: Auto-Review
-   - Issues found: {count} — {list of what was wrong}
-   - What was changed
-8. If NO issues were found, append: "Auto-review: no issues found. Plan is current." and leave the plan unchanged.
+6. **Fix the issues** found — edit the plan sections that need changing (body stays current truth).
+7. **Snapshot + ledger entry** per [_additive-write.md](_additive-write.md): `trigger: manual` (self-review), `because: "auto-review — {count} issues found"`, `changed:` what moved. Bump `revision-count`.
+8. If NO issues were found, this is a **no-op re-run**: leave the file byte-for-byte unchanged, write no snapshot and no ledger entry, and report "Auto-review: no issues found. Plan is current." in the chat return.
 9. **Update the master `04-plan.md`** if anything changed.
 10. Write the updated `04-plan-<slice-slug>.md`.
 
@@ -380,8 +372,8 @@ Steps:
    - Integration gaps
    - Ordering problems
    - Duplicated work
-5. **Fix all issues found** — update each affected `04-plan-<slice-slug>.md`.
-6. **Append to `## Revision History`** in each modified plan file.
+5. **Fix all issues found** — update each affected `04-plan-<slice-slug>.md` (body stays current truth).
+6. **Snapshot + ledger entry** in each *modified* plan file per [_additive-write.md](_additive-write.md) (`trigger: manual`, `because: "review-all pass"`). Unchanged plans are no-ops — no snapshot, no ledger entry.
 7. **Update the master `04-plan.md`** — summaries, cross-cutting concerns, conflicts.
 8. Write all updated files.
 9. **Report:** In the chat return, list which plans were updated and which were clean.
@@ -474,6 +466,7 @@ metric-files-to-touch: <N>
 metric-step-count: <N>
 has-blockers: false
 revision-count: 0
+revisions: []   # reason-centric ledger per _additive-write.md; one entry per re-run that changed the plan
 tags: []
 stack-source: <confirmed|unconfirmed-auto-detect>   # read from 00-index.md stack.user-confirmed at plan time; downstream stages may refuse to proceed on `unconfirmed-auto-detect`
 refs:
@@ -600,8 +593,9 @@ If a criterion needs tooling outside `stack:`: do NOT pick a default. Add an ent
 
 ## Freshness Research
 
-## Revision History
-*(appended by review-and-fix mode)*
+<!-- No `## Revision History` body section. Plan revisions are recorded in the
+     `revisions:` frontmatter ledger (see _additive-write.md) and rendered as a
+     timeline; the body is rewritten to current truth on each review-and-fix run. -->
 
 ## Recommended Next Stage
 - **Option A (default):** `$wf implement <slug> <slice-slug>` — [reason]

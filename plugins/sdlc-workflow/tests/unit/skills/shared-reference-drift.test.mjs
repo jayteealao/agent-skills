@@ -33,7 +33,7 @@ const SHARED = [
   },
   {
     file: '_additive-write.md',
-    fingerprint: 'narrates the evolution in-place',
+    fingerprint: 'State wants a document; history wants a log',
     citation: /\[_additive-write\.md\]\(([^)]+)\)/,
   },
 ];

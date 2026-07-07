@@ -2,14 +2,15 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
-  renderHistoryBlock
-} from "./chunk-H6E3LPBK.mjs";
+  renderHistoryBlock,
+  renderRevisionLedger
+} from "./chunk-MGTWQJEG.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "./chunk-OJDSJJI5.mjs";
+} from "./chunk-SHLVL5XH.mjs";
 import {
   escapeHtml
 } from "./chunk-4WRIEOIP.mjs";
@@ -47,7 +48,8 @@ function renderSimple(artifact, ctx, { title, lede = "", metricFields = [] } = {
   const fragmentBlock = artifact.fragment ? `<div class="fragment">${artifact.fragment}</div>` : "";
   const fmCardBlock = artifact.fragment ? "" : fmCard;
   const proseBlock = artifact.body ? `<div class="prose">${md2html(artifact.body)}</div>` : "";
-  const bodyHtml = `${fragmentBlock}${fmCardBlock}${proseBlock}`;
+  const ledgerBlock = renderRevisionLedger(fm, artifact.siblingYaml);
+  const bodyHtml = `${fragmentBlock}${ledgerBlock}${fmCardBlock}${proseBlock}`;
   return {
     headerHtml,
     bodyHtml: bodyHtml + renderHistoryBlock(artifact.history),

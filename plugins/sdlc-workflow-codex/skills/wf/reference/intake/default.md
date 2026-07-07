@@ -330,20 +330,22 @@ Author **free narrative fragments** for any beat the structured page can't tell 
 
 `01-intake.md` is a revisable artifact. Re-invocation happens when the user
 returns with answers to open questions, when scope changes, or when a related
-intake informs the current one. **Do not overwrite the body** — preserve the
-narrative of how the problem statement evolved: follow the shared
-additive-write contract in [_additive-write.md](../_additive-write.md) with:
+intake informs the current one. Follow the shared additive-write contract in
+[_additive-write.md](../_additive-write.md) — snapshot, **rewrite the body to
+current truth**, add one ledger entry:
 
 - Snapshot: `.ai/workflows/<slug>/history/01-intake-<rev>.md`.
-- Revision-section lead: "What changed and why:" (user returned with answers,
-  scope expanded, a related intake informed this one).
+- **Ledger entry**: `trigger: answers-returned` (user returned with answers),
+  `scope-change` (scope expanded), or `manual` (a related intake informed this
+  one); `because:` and `changed:` naming the prompt and the effect.
 
 Stage-specific additions:
 
 1. **Open-question resolution**: when a previously-open question is now
-   answered, do NOT silently delete the question from the body. Instead, add
-   the answer below the original question with a `→` marker, or call it out
-   in the new `## Revision <n>` section's "What changed" list.
+   answered, fold the answer into the problem statement so the body reads as
+   current truth — add the answer below the original question with a `→` marker
+   rather than leaving the question dangling. Name the resolution in the ledger
+   entry's `changed:` phrase; the verbatim prior wording lives in the snapshot.
 2. **`status: awaiting-input` transitions**: if this run resolves all open
    questions, transition `status` to `complete` and clear `open-questions`
    in frontmatter. Note the transition in the new revision section.

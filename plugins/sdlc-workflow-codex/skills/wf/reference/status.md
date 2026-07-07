@@ -1,6 +1,6 @@
 ---
-description: Dashboard across all workflows, plus single-workflow detail and routing. Reads every .ai/workflows/*/00-index.md and renders a grouped status table; with a slug, shows the detail view and the exact next command to run. Reconciles the global registry .ai/workflows/INDEX.md when it drifts from disk (idempotent, reported). An optional `deep` mode runs a reality-drift check against code/git/deps and writes a sync report.
-argument-hint: "[slug] [deep]"
+description: Dashboard across all workflows, plus single-workflow detail and routing. Reads every .ai/workflows/*/00-index.md and renders a grouped status table; with a slug, shows the detail view and the exact next command to run; with a `pr#N`/branch, shows a read-only roster of every slug on that branch and which are handoff-ready / ship-ready. Reconciles the global registry .ai/workflows/INDEX.md when it drifts from disk (idempotent, reported). An optional `deep` mode runs a reality-drift check against code/git/deps and writes a sync report.
+argument-hint: "[slug|pr#N|branch] [deep]"
 ---
 
 # External Output Boundary (MANDATORY)
@@ -70,10 +70,47 @@ below runs *after* it, against the freshly reconciled set.
 
 # Step 0 — Resolve mode
 1. Parse `$ARGUMENTS`. If the **last** token is `deep`, set deep-mode and strip it.
-2. If a slug remains → **detail mode** (single workflow). Read `00-index.md` directly.
-3. If no slug remains → **dashboard mode** across all workflows.
-4. If enumeration found **no** workflows (registry empty AND search empty) → tell the user: "No
+2. Resolve the remaining first token (polymorphic, first match wins):
+   - **Exact slug** (`.ai/workflows/<token>/00-index.md` exists) → **detail mode** (single workflow). Read `00-index.md` directly.
+   - **PR reference** `pr#N` / `#N` / bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then **roster mode** below.
+   - **Branch name** (matches a `branch:` column in `.ai/workflows/INDEX.md`) → **roster mode** below.
+   - **No token** → **dashboard mode** across all workflows.
+3. If enumeration found **no** workflows (registry empty AND search empty) → tell the user: "No
    workflows found. Start one with `$wf intake <description>`." STOP.
+
+# Roster Mode (`pr#N` / branch) — read-only branch view
+
+This is the read-only counterpart to batch `$wf handoff` / `$wf ship`: it answers
+"which slugs on this branch are handoff-ready or ship-ready" **without triggering
+anything**. It writes nothing beyond the Step -1 registry reconcile.
+
+1. From `.ai/workflows/INDEX.md` (just reconciled), collect every slug whose
+   `branch` column equals the resolved branch — the roster. If none → "No
+   workflows are on branch `<branch>`." STOP.
+2. For each roster slug, read `00-index.md` and (if present) `08-handoff.md`.
+   Derive, per slug: `current-stage`, per-slug review verdict / open blockers,
+   `readiness-verdict` (from its handoff, if any), `runtime-evidence-status`
+   (same computation as dashboard mode), and `handoff-lead:`.
+3. Read the lead slug's `08-handoff.md` for the branch-level `pr-readiness-verdict`
+   (absent → not yet handed off as a batch).
+4. **Render the roster** and STOP:
+
+   ```
+   ## Branch <branch> — PR #<N> (<pr-url>)
+   Lead slug: <lead>   ·   PR-readiness: <ready | awaiting-input | blocked | not-handed-off>
+
+   | Slug | Stage | Review | Blockers | Handoff-ready | Ship-ready | Runtime | Next |
+   |---|---|---|---|---|---|---|---|
+   | <slug> | review | ship | 0 | ✓ | ✓ | — | $wf ship pr#<N> |
+   | <slug> | implement | — | 2 | ✗ (reviews) | ✗ | deferrals: 1 | $wf review <slug> |
+
+   Handoff-ready = the slug passes its own handoff prerequisites.
+   Ship-ready = pr-readiness-verdict is `ready` AND the slug's runtime-evidence is clean.
+   ```
+
+   The bottom line names the single batch action available now: `$wf handoff pr#N`
+   if any slug is packageable-but-not-packaged, `$wf ship pr#N` if the whole
+   branch is ship-ready, or the specific per-slug command blocking progress.
 
 # Dashboard Mode (no slug)
 

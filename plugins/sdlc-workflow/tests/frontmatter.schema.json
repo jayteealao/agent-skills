@@ -24,6 +24,21 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "revisionLedger": {
+      "type": "array",
+      "description": "Reason-centric revision ledger written by the additive-write contract (single source: skills/wf/reference/_additive-write.md). One entry per re-invocation that actually changed the artifact; the body is a living document (rewritten in place), the ledger records WHY each revision happened. Distinct from the on-disk history/ snapshots, which hold verbatim prior wording. Replaced the old in-body `## Revision N` append pattern in v9.105.0.",
+      "items": {
+        "type": "object",
+        "required": ["rev", "at", "trigger"],
+        "properties": {
+          "rev":     { "type": "integer", "minimum": 1 },
+          "at":      { "$ref": "#/$defs/iso8601" },
+          "trigger": { "enum": ["review-feedback", "ci-fix", "new-slice", "new-slug-joined", "scope-change", "answers-returned", "resume", "manual"] },
+          "because": { "type": "string" },
+          "changed": { "type": "string" }
+        }
+      }
+    },
     "base": {
       "description": "Fields shared by every workflow artifact.",
       "type": "object",
@@ -217,6 +232,7 @@
         "stage-number": { "const": 1 },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" },
         "next-command": { "type": "string" },
@@ -247,6 +263,7 @@
             ]
           }
         },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
       }
@@ -325,6 +342,7 @@
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "total-slices": { "type": "integer", "minimum": 0 },
         "best-first-slice": { "type": "string" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "slices": {
           "type": "array",
@@ -360,6 +378,7 @@
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "complexity": { "enum": ["xs", "s", "m", "l", "xl"] },
         "depends-on": { "$ref": "#/$defs/stringArray" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
       }
@@ -406,6 +425,7 @@
         "metric-step-count":     { "type": "integer", "minimum": 0 },
         "has-blockers":          { "type": "boolean" },
         "revision-count":        { "type": "integer", "minimum": 0 },
+        "revisions":             { "$ref": "#/$defs/revisionLedger" },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "tags": { "$ref": "#/$defs/stringArray" },
@@ -622,6 +642,30 @@
         "handoff-mode": { "enum": ["aggregate", "single-slice"] },
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 8 },
+        "handoff-scope": {
+          "enum": ["slug", "branch"],
+          "description": "How this handoff was invoked. `slug` = the classic per-slug handoff. `branch` = a branch/PR-scoped batch run that aggregates every slug whose 00-index.md shares this branch (v9.105.0). Absent → treat as `slug`."
+        },
+        "handoff-fingerprint": {
+          "type": "string",
+          "description": "No-op guard for the additive-write contract: a stable hash of the inputs this handoff was packaged from (commit range + slice statuses + review verdicts). A re-run whose recomputed fingerprint matches this value changed nothing and is skipped (no snapshot, no ledger entry)."
+        },
+        "handoff-lead": {
+          "type": "string",
+          "description": "In a branch-scoped batch handoff, the single slug that OWNS the branch-level PR-readiness block (CI watch, triage, rebase, verdict). Recorded on first batch run and stable across re-runs. On the lead's own artifact, equals its slug."
+        },
+        "readiness-via": {
+          "type": "string",
+          "description": "Follower-slug pointer to the lead slug's handoff artifact that carries the authoritative branch-level readiness block (e.g. `<lead-slug>/08-handoff.md`). Present only on non-lead slugs in a batch handoff; when set, this artifact's own readiness fields are advisory and the PR-level verdict lives on the lead."
+        },
+        "branch-slugs": {
+          "$ref": "#/$defs/stringArray",
+          "description": "Every workflow slug whose 00-index.md shares this branch and was in scope for the batch handoff (the roster). Present only when handoff-scope is `branch`."
+        },
+        "pr-readiness-verdict": {
+          "enum": ["ready", "blocked", "awaiting-input"],
+          "description": "Branch/PR-level readiness = AND across every slug on the branch. Distinct from the per-slug `readiness-verdict`: a slug can be individually ready while the PR is not (a sibling slug's commits are unreviewed). Ship gates on this, not on the per-slug field. Written on the lead slug."
+        },
         "pr-title": { "type": "string" },
         "pr-url": { "type": "string" },
         "pr-number": { "type": ["integer", "null"] },
@@ -659,6 +703,7 @@
         "triage-deferred-thread-ids": { "$ref": "#/$defs/stringArray" },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
       }
@@ -717,6 +762,18 @@
         "rollback-sha": { "type": "string" },
         "rollback-reason": { "type": "string" },
         "announcements-sent": { "$ref": "#/$defs/stringArray" },
+        "ship-scope": {
+          "enum": ["slug", "branch"],
+          "description": "How this ship was invoked. `slug` = classic single-slug ship. `branch` = a branch/PR-scoped batch ship where every slug on the branch merges atomically as one run (v9.105.0). Absent → `slug`."
+        },
+        "branch-slugs": {
+          "$ref": "#/$defs/stringArray",
+          "description": "Every workflow slug on the branch that this single ship run released together. Present only when ship-scope is `branch`; the run artifact lives on the lead slug and followers carry a pointer."
+        },
+        "shipped-via": {
+          "type": "string",
+          "description": "Follower-slug pointer to the lead slug's ship-run artifact that actually executed the merge/tag/release for this branch (e.g. `<lead-slug>/09-ship-run-<run-id>.md`). Present only on non-lead slugs in a batch ship; their own 00-index advances to shipped without a duplicate run artifact."
+        },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "tags": { "$ref": "#/$defs/stringArray" },
@@ -741,6 +798,10 @@
               "environment": { "type": "string" },
               "status": { "type": "string" },
               "go-nogo": { "enum": ["go", "conditional-go", "no-go"] },
+              "shipped-via": {
+                "type": "string",
+                "description": "For a follower slug in a batch ship: the lead slug's ship-run artifact this row points to. Lets a follower's run index record the release without a duplicate run artifact."
+              },
               "notes": { "type": "string", "maxLength": 80 }
             }
           }
@@ -767,6 +828,7 @@
         "metric-stages-skipped":    { "type": "integer", "minimum": 0 },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
       }
