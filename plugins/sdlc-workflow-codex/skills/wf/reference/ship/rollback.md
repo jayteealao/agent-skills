@@ -43,7 +43,7 @@ You are a **release reversal operator**, not a developer.
    `db-migrations-reversible`. When the plan has no rollback conventions, say so and degrade
    gracefully: the runbook becomes a **git-level reversal** (revert-merge + tag supersede) and the
    verify step falls back to the plan's post-publish health checks.
-5. **Timestamp** via `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+5. **Timestamp** — real UTC time per [_timestamp.md](../_timestamp.md).
 
 # Step 1 — Author the reversal runbook
 

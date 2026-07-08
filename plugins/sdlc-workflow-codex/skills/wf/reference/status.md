@@ -138,7 +138,7 @@ A slug can be `Active`/`Blocked` *and* carry a runtime-evidence status — the t
 2. **Blocked** — `status` is `awaiting-input`, OR `open-questions` non-empty, OR a prerequisite stage awaiting-input.
 3. **Completed** — `status` is `complete`, `shipped`, `closed`, or `abandoned`.
 
-**Staleness:** if `updated-at` is >7 days ago, append `(stale)` to the status (`date -u +%s` vs parsed `updated-at`).
+**Staleness:** if `updated-at` is >7 days ago, append `(stale)` to the status (epoch seconds per [_timestamp.md](_timestamp.md) vs parsed `updated-at`).
 
 **Render the dashboard.** The Runtime column shows `runtime-evidence-status`: `clean` → `—`;
 `deferrals: <N>`; `probe-findings: <N>`; both separated by `+` when both apply.

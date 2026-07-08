@@ -70,7 +70,7 @@ Body: open with `## The Dependency Update` — the story section (1–2 short pa
 # Step 2 — Research + prioritize → `02-shape.md`
 For each package that needs updating, launch parallel web-research sub-agents in batches of 3–5.
 
-**Model for every dispatched batch agent:** `haiku`. REQUIRED — each does web search + structured extraction (versions, breaking changes, migration steps, CVEs, compatibility) per package; bounded extraction.
+**Effort tier for every dispatched batch agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED — each does web search + structured extraction (versions, breaking changes, migration steps, CVEs, compatibility) per package; bounded extraction.
 
 Each batch agent returns per package: current/latest version, update-type, breaking changes, migration steps, CVEs, compatibility, recommendation (update-now / update-with-migration / hold).
 
@@ -204,11 +204,10 @@ progress:
 Then **register the slug in `.ai/workflows/INDEX.md`** per `intake/default.md` Step 10.
 
 # Step 6 — Gate before implement (MANDATORY)
-Apply the **compressed-lifecycle gate** from `_intake-context.md` — for update-deps offer the tier-aware options:
+Apply the **compressed-lifecycle gate** from `_intake-context.md` — ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) with the tier-aware options:
 ```
-AskUserQuestion:
-  question: "Dependency update plan ready. P0: <N> security · P1: <N> major · P2: <N> safe · Hold: <N>. Proceed?"
-  options:
+question: "Dependency update plan ready. P0: <N> security · P1: <N> major · P2: <N> safe · Hold: <N>. Proceed?"
+options:
     - Proceed with full plan
     - Proceed with P0 security updates only
     - Audit-only — save plan, do not implement
@@ -296,6 +295,6 @@ Next: $wf review <slug>  →  $wf handoff  →  $wf ship
 
 # Workflow rules
 - Store artifacts **in-slug** under `.ai/workflows/<slug>/` (legacy `.ai/dep-updates/<run-id>/` runs still validate + render via fallback, but new runs are in-slug).
-- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — get the current UTC time per [_timestamp.md](../_timestamp.md).
 - Always use the package manager's own commands — never edit lockfiles directly. Never mix security updates with major migrations in one commit. Web-search every package being updated — don't rely solely on `npm outdated`.
 - Review is not skipped — update-deps self-verifies (`06-verify.md`) then routes to `$wf review`.

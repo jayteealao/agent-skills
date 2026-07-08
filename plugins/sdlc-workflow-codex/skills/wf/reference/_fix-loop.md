@@ -15,12 +15,13 @@ this file instead of restating them.
    to the next unfinished workflow step.
 2. **User gate.** No stage silently auto-fixes. A human decision (triage answer,
    approval of a proposed CI fix) always precedes dispatch.
-3. **Pinned dispatch.** One sub-agent per issue. Where the stage file pins a
-   model (review.md pins `model: sonnet` — REQUIRED on that call), that pin must
-   stay. Rationale: read-finding-then-patch is the bounded profile Sonnet handles
-   well; fix sub-agents must not silently inherit the parent session's model.
-   Stage-specific flags (e.g. verify's `isolation: worktree`) are additive
-   requirements defined in the stage file.
+3. **Pinned dispatch.** One sub-agent per issue. Where the stage file pins an
+   effort tier (review pins **medium** effort on fix dispatch — REQUIRED on that
+   call), that pin must stay. Rationale: read-finding-then-patch is a bounded
+   profile; fix sub-agents must not silently inherit the parent session's
+   configuration (see [_subagents.md](_subagents.md) effort tiering).
+   Stage-specific flags (e.g. verify's isolated-worktree requirement) are
+   additive requirements defined in the stage file.
 4. **Minimal patch.** The sub-agent prompt always requires: apply the minimal
    fix for this one issue; do NOT refactor, reformat, or broaden scope;
    self-check the result (no new lint/type errors, surrounding code coherent)

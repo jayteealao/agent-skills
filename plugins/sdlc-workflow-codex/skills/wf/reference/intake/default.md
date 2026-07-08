@@ -101,13 +101,13 @@ Convert a rough request into a clear intake brief, create the workflow folder, c
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](../_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, `pr-url`, `pr-number`, `open-questions`, `tags`, `stack`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`. The `stack` block is written by Step 0.5 (repo + session fingerprint) and confirmed/corrected in Batch B; it is observational, not prescriptive.
 - **Ask the user directly in chat** for multiple-choice PO questions (branch strategy, rollout preference, merge strategy, go/no-go, risk tolerance), presenting options as a short numbered list. Use freeform chat for open-ended questions (requirements, constraints, acceptance criteria). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel subagents for multi-domain research. Do not spin up subagents for trivial work.
+- Use parallel subagents for multi-domain research per [_subagents.md](../_subagents.md). Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract

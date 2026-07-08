@@ -129,7 +129,7 @@ function startBootstrap(projectRoot, config) {
       repoRoot: projectRoot,
       kind: 'bootstrap',
       bucket: '__bootstrap__',
-      enqueuedBy: { host: 'claude', pid: process.pid },
+      enqueuedBy: { host: process.env.SDLC_HOST || 'claude', pid: process.pid },
     }, { maxPending: config.view?.renderQueue?.maxPending });
 
     if (ensureHubEnabled(config.view)) {

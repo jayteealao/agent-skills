@@ -155,7 +155,7 @@ profiling-method: static | dynamic-cpu | dynamic-memory | hybrid | fallback-timi
 hotspots-found: <N>
 optimization-candidates: <N>
 confidence: <high|medium|low>
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 

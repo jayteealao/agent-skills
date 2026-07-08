@@ -52,7 +52,7 @@ Resolve in this exact order (the order matters — the slug checks come FIRST):
 
 3. **Explicit mode (no slug).** Else if `token0` is in the mode keyword set → **explicit mode,
    standalone**. Load `reference/intake/<token0>.md`; the rest are its instructions. *(This matches
-   the old `$wf-quick <sub> …` behavior: a description that legitimately begins with a mode word —
+   the former `$wf-quick <sub> …` behavior: a description that legitimately begins with a mode word —
    e.g. "fix the typo" — routes to that mode, which is almost always what the user wants. For
    the rare genuine collision, the user quotes the whole description as one token; see below.)*
 

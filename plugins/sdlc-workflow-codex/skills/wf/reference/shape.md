@@ -142,13 +142,13 @@ Merge all sub-agent findings into the stage file under `## Affected Areas`, `## 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter; markdown body is human-readable narrative only.
-- **Timestamps must be real:** Run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash for `created-at`/`updated-at`. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at`/`updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
 - **Ask the user directly in chat** for multiple-choice PO questions (risk tolerance, appetite, structured decisions), presenting options as a numbered list. Use freeform chat for open-ended questions (behavior, acceptance criteria, non-goals). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel subagents for multi-domain research; do not spin up subagents for trivial work.
+- Use parallel subagents for multi-domain research per [_subagents.md](_subagents.md); do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Chat return contract

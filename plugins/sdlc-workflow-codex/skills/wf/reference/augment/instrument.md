@@ -125,7 +125,7 @@ dark-paths-found: <N>
 signals-designed: <N>
 pii-warnings: <true|false>
 status: ready
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 

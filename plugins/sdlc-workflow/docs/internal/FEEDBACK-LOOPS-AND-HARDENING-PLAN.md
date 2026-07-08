@@ -11,6 +11,11 @@
 > than adding a separate `## Rollback` block (Block E already owned the rollout/rollback contract).
 > The advisory→enforce graduation for W3.2 remains open by design.
 >
+> **W5–W6 appended 2026-07-07: PROPOSED — not built.** Fresh-eyes additions (deliberately NOT
+> sourced from the ideas backlogs): W5 = `/wf intake adopt` (pipeline entry for work that already
+> happened); W6 = `steer.md` (per-workflow standing-instructions contract every stage honors).
+> They ship as **R4** — see the sequencing table.
+>
 > Original status: PROPOSED (drafted 2026-07-06).
 > Scope constraint (user-set): **no new skills, no new top-level `/wf` keys.** The surface stays at
 > 20 keys. Every capability below lands as a mode, phase, step, or shared reference inside existing
@@ -40,12 +45,22 @@ addition:
    *enforced* via semantic leak hooks Phase 1.
 4. **W4 — Rollback under ship**: `/wf ship <slug> rollback` — a runbook-driven, user-gated reversal
    of a prior ship run, mirroring the `announce` re-run shortcut.
+5. **W5 — Adopt mode on intake** (appended 2026-07-07): every current entry path assumes the work
+   lies *ahead*, but a large share of real sessions produce the work first and want the quality
+   tail after. `/wf intake adopt` reverse-engineers minimal stage artifacts from the existing
+   diff and lands the workflow at verify.
+6. **W6 — `steer.md` standing-instructions contract** (appended 2026-07-07): the human's only
+   influence points today are gates and re-runs. A user-owned per-workflow `steer.md` that every
+   stage reads at Step 0 turns asynchronous steering ("don't touch the config loader") from
+   artifact-drift into honored signal.
 
 Origin of each item: W1 = CE-COMPARISON #1/#2/#28; W2a–c = CE-COMPARISON #3/#10 + verify-gaps
 re-check; W2d–g = 2026-07-06 constraint-forethought transcript audit (user-confirmed complaint:
 "verification needs prod before it can work"); W3 = PROGRESSIVE-DISCLOSURE-AUDIT F1/F2 +
 HOOKS-SEMANTIC-PLAN Phase 1; W4 = IDEAS.md #15 (`wf-rollback`), reassigned by the user from a
-standalone key to a `ship` phase.
+standalone key to a `ship` phase; W5/W6 = 2026-07-07 fresh-eyes surface review (user-directed:
+"forget the ideas files"), targeting the seams where the lifecycle meets messy reality rather
+than borrowed capabilities.
 
 ---
 
@@ -431,6 +446,146 @@ autonomously.
 
 ---
 
+## W5 — `/wf intake adopt`: pipeline entry for work that already happened
+
+> Appended 2026-07-07. Status: **PROPOSED — not built.**
+
+**Problem.** All nine current entry paths (plain intake + eight compressed modes) start from a
+*description* and assume the work lies ahead. Real sessions often run the other way: explore with
+Claude, patch files, and only then want the quality tail — verify, review, handoff. Today the
+options are re-narrating done work as an intake description (the pipeline then re-plans what
+already exists) or skipping the pipeline entirely — which is exactly when quality escapes. This is
+the single biggest mismatch between the plugin's model and how work actually arrives.
+
+### W5.1 — Dispatch
+
+- New mode keyword `adopt` in `reference/intake.md`'s mode table, routing to a new
+  `reference/intake/adopt.md` (sibling of the existing mode references). Invocation:
+  `/wf intake adopt [<description>]` — the optional description disambiguates *why* the work was
+  done; the diff supplies *what*.
+- `skills/wf/SKILL.md`: intake row's mode list gains `adopt`; no new key, no arg-shape change.
+- Mode semantics: `adopt` creates a **new workflow** from the working tree / branch state.
+  (Adopting untracked work *into an existing slug* as a slice is an open question below — not in
+  the first cut.)
+
+### W5.2 — Evidence gathering (Step A0)
+
+- Resolve the base branch (same resolution the review stage uses). Collect: `git status
+  --porcelain` (dirty tree), `git log <base>..HEAD --oneline` (commits ahead), and
+  `git diff <base>...HEAD` + unstaged diff (the adoptable surface).
+- **Refuse when there is nothing to adopt**: clean tree AND zero commits ahead → STOP with
+  "Nothing to adopt — the working tree matches `<base>`. Use `/wf intake <description>` for new
+  work."
+- Record the adopted surface (file list, insertion/deletion counts, commit SHAs) — this becomes
+  the provenance evidence in every reconstructed artifact.
+
+### W5.3 — Reconstruction + confirmation gate
+
+- Reverse-engineer **minimal** stage artifacts from the diff + description:
+  - `02-shape.md` — inferred goal, scope-in (exactly what the diff touches), scope-out
+    (explicitly: everything else), and ACs derived from the *observed behavior* of the change.
+    AC authoring obeys the v9.95 verifiability-first rules and **W2d applies at adoption time**:
+    an inferred AC with an environment dependency gets a prerequisite slice, a proxy AC + named
+    clearing event, or PO risk-acceptance — adopted work does not get to skip constraint
+    forethought just because the code exists.
+  - `03-slice.md` — a single slice covering the diff by default; split only when the diff
+    contains clearly separable concerns (heuristic: disjoint file sets AND independently
+    revertable).
+  - `04-plan-<slice>.md` — records what *was* done, not what will be: the Simplicity Ladder and
+    reuse sections become retrospective observations ("rung taken: …"), and
+    `## Verification Strategy` is authored **forward** — it is the real deliverable of this mode.
+  - `05-implement-<slice>.md` — synthesized from the diff; `## Deviations from Plan` states
+    "n/a — adopted"; debt markers (`sdlc-debt:`) are harvested from the diff as usual.
+- **Every reconstructed artifact carries `provenance: adopted`** in frontmatter, so downstream
+  stages and readers never mistake reconstruction for forethought. The rendered view shows the
+  stamp (small template addition; rides the normal version bump).
+- **Confirmation gate (MANDATORY, before any artifact writes):** present the inferred goal,
+  scope, slice split, and AC list via `AskUserQuestion` — inference from a diff can be wrong, and
+  a wrong adopted shape poisons every downstream stage. On correction, re-present once; on second
+  correction, fall back to interactive shape questions for the contested part.
+- Branch handling: adopt **records** the current branch in `00-index.md`; it never creates or
+  switches branches — the work already lives somewhere.
+
+### W5.4 — Landing
+
+- Chat return routes to **`/wf verify <slug>`** — the entire point of adopting is the quality
+  tail. `status` treats the workflow as any other (current-stage: implement-complete).
+- `auto`/`yolo` may be invoked after adoption and will drive verify→review→(handoff) normally;
+  nothing adopt-specific is needed in the drivers.
+- Codex mirror: `adopt` ships in both trees (it is not Workflow-tool dependent).
+
+### W5.5 — Non-goals
+
+- No retroactive `01-intake` interview reconstruction — shape is the first reconstructed
+  artifact; intake's artifact records only the adoption evidence (W5.2).
+- No adoption of *pushed/merged* history (that is archaeology, not adoption — the quality tail
+  has nothing left to gate). Adoptable surface = working tree + unpushed/unmerged branch delta.
+
+---
+
+## W6 — `steer.md`: per-workflow standing-instructions contract
+
+> Appended 2026-07-07. Status: **PROPOSED — not built.**
+
+**Problem.** The human's influence points are stage gates (AskUserQuestion) and re-running stages.
+Real steering is asynchronous: mid-implement you learn "don't touch the config loader — it's
+being rewritten next week" or "prefer the queue approach." There is nowhere durable to put that:
+hand-editing artifacts is ambiguous (status deep treats divergence as *drift*), and chat
+instructions evaporate at the next session or sub-agent boundary.
+
+### W6.1 — The file
+
+- `.ai/workflows/<slug>/steer.md` — **optional, user-owned, free prose.** No frontmatter, no
+  schema. Bullets of standing constraints, preferences, and vetoes.
+- Stages **never author or edit it**. One exception: when the user dictates steering in chat
+  ("add to steering: never touch `config/loader.ts`"), the stage may *transcribe* verbatim —
+  transcription, not authorship.
+- Hook integration: add `steer.md` to the prose-exempt list (same mechanism as `po-answers.md` /
+  `isProseLogPath`) so `pre-write-validate`/`post-write-verify` never demand frontmatter of it.
+  This is the workstream's only `lib/` touch — R4 therefore needs a dist rebuild + buildId bump.
+
+### W6.2 — The read contract (single-sourced — do not create the next 74-copy problem)
+
+- Create `reference/_steering.md` — ONE canonical statement of the contract, cited by name from
+  each stage reference's Step 0 (the `_output-boundary.md` lesson applied prospectively; a
+  drift-guard assertion rides the same conventions test).
+- The contract:
+  1. **Read** `steer.md` if present, before any stage work.
+  2. **Precedence**: live user instructions in this session > `steer.md` > stage-reference
+     defaults. Steering never overrides a MANDATORY gate (EOB, sibling-yaml enforcement, AC
+     verifiability) — a steering entry that tries gets surfaced, not obeyed.
+  3. **Conflict**: when an entry conflicts with the stage contract or is impossible for this
+     stage, raise it via `AskUserQuestion` — never silently ignore, never silently obey into a
+     broken state.
+  4. **Acknowledge**: when `steer.md` exists, the stage artifact records what was honored — a
+     short `steering-honored:` frontmatter list ("avoided config/loader.ts", "used queue
+     approach"). Absent file → no field, no noise.
+- **Sub-agent propagation (load-bearing):** dispatching stages (plan research, implement coders,
+  verify/review sub-agents, docs pipeline) MUST inject the relevant steering excerpts into
+  sub-agent prompts — sub-agents do the actual writes and never re-read the workflow directory.
+  A steering file that only the orchestrator reads is decorative.
+
+### W6.3 — Interactions
+
+- **`status <slug> deep`** (reality-drift check): `steer.md` is *signal, not drift*. The check
+  reads it; "artifact contradicts a steering entry" becomes a drift finding, "steer.md exists" is
+  normal.
+- **`auto`/`yolo`**: the drivers inherit the contract for free (stages read their own
+  references), but yolo's policy table gains one row: **a steering veto outranks any yolo policy
+  default** — steering is the user's standing voice inside an autonomous run, which is exactly
+  where it matters most.
+- **`recap`**: mentions active steering entries in the catch-up narrative (one line).
+- **W1 synergy**: a steering entry that recurs across workflows is a candidate solutions-corpus
+  learning; retro's distillation step may promote it (durability filter still applies).
+
+### W6.4 — Non-goals
+
+- No repo-level global `steer.md` in this cut (see open question) — per-workflow only.
+- No structured schema; the moment steering needs YAML it has become configuration, which
+  belongs in `sdlc-config.json` or the ship plan instead.
+
+---
+
 ## Sequencing & releases
 
 | Release | Contents | Why this order |
@@ -438,6 +593,7 @@ autonomously.
 | **R1** | W3.1 (EOB extract + 74-file sweep + drift test) + W2a + W2b + W2c + **W2d/W2e/W2f** (force-scope rule, ladder rungs, capability probes) | Pure reference/prose + one schema field + one test. The predicate must land before W1 adds `.ai/solutions/` (no fifth enumerated path). W2d–f are the highest-pain items (user-confirmed) and pure prose — no reason to wait. Big mechanical diff — keep it isolated for reviewability. |
 | **R2** | W1 (solutions corpus: retro producer, plan consumer, schema, validation checks) + **W2g** (repeat-deferral tripwire — its cross-slug leg rides W1's corpus) + W4 (ship rollback) | All reference-level; W4 also touches SKILL.md's key table. |
 | **R3** | W3.2 (leak hooks Phase 1: lexicon lib + 3 prompt hooks + config block) | The only runtime-code slice — needs dist rebuild, buildId bump, `sync:codex`, and the hook-isolation checks; keep it out of the prose releases. |
+| **R4** *(appended 2026-07-07, not built)* | W5 (`intake adopt`: mode table entry + `intake/adopt.md` + provenance stamp) + W6 (`steer.md`: `_steering.md` contract + Step 0 citations across stage references + prose-exempt hook entry + yolo policy row) | Mostly reference/prose; W6's prose-exemption touches `lib/` (isProseLogPath), so R4 carries a dist rebuild + buildId bump + `sync:codex` like R3. W6's Step 0 citation sweep touches every stage reference — keep it in its own release for the same reviewability reason as R1's sweep. |
 
 Every release: version bump (5 source spots + doc-site brands + marketplace top-level),
 `npm run build` when `lib/`/`hooks/` change (R3), regenerate `docs/site` **before** `sync:codex`
@@ -472,3 +628,16 @@ surface and will conflict textually with the dissolve sweep if interleaved.
   — probe during R3, same spirit as HOOKS-SEMANTIC Phase 0's probe script.
 - **W4**: should a rollback run itself be announceable by default (opt-out) rather than offered
   (opt-in)? Ship plans with a `comms` channel arguably want opt-out.
+- **W5**: should `adopt` also support attaching to an existing slug (`/wf intake <slug> adopt` —
+  adopt untracked work as a new slice of a live workflow)? The mode-dispatch grammar already
+  distinguishes slug+mode; deferred to keep the first cut's inference surface small.
+- **W5**: default AC posture for adopted work — derive ACs from observed behavior only, or also
+  ask the user for *intended* behavior the diff might have missed? (Proposed: observed-only for
+  the first cut; the confirmation gate is where intent corrections enter.)
+- **W6**: is a repo-level `.ai/steer.md` (read by every workflow) worth having alongside the
+  per-workflow file? Precedence would be per-workflow > repo-level. (Lean yes eventually — repo
+  conventions like "never touch generated dist/" recur — but it overlaps CLAUDE.md's role;
+  decide after per-workflow steering proves out.)
+- **W6**: frontmatter `steering-honored:` list vs. a `## Steering Honored` body section?
+  (Proposed: frontmatter — machine-checkable, and the sibling-yaml schemas already carry
+  additive optional fields cheaply.)

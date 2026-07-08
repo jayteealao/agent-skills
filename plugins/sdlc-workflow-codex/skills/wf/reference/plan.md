@@ -265,7 +265,7 @@ After ALL slice sub-agents complete:
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter; the markdown body is human-readable narrative only.
-- **Timestamps must be real:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash for `created-at` / `updated-at`. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` / `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
@@ -383,7 +383,7 @@ After completing this stage, evaluate the plan(s) and present ALL viable options
 
 **Option A (default): Implement** → `$wf implement <slug> <slice-slug>`
 Use when: The plan is complete and ready for execution.
-**Compact recommended** — planning research (alternatives, web searches, codebase exploration) is noise for implementation. Tell the user: "Consider `/compact` before `$wf implement` — workflow state lives in the artifact files and the SessionStart hook re-reads it after compaction."
+**Compact recommended** — planning research (alternatives, web searches, codebase exploration) is noise for implementation. Tell the user: "Consider compacting the session before `$wf implement` — workflow state lives in the artifact files and the SessionStart hook re-reads it after compaction."
 
 **Option B: Implement all (sequential)** → start with `$wf implement <slug> <first-slice-slug>`
 Use when: All slices are planned and the user wants to work through them in order.

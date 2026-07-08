@@ -154,7 +154,7 @@ async function main() {
       kind,
       bucket,
       paths,
-      enqueuedBy: { host: "claude", pid: process.pid }
+      enqueuedBy: { host: process.env.SDLC_HOST || "claude", pid: process.pid }
     }, { maxPending: view.renderQueue?.maxPending });
   }
   ensureHubBestEffort(cwd, viewRoot, view);

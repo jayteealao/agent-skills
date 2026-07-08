@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anthropic.com/plugins/sdlc-workflow/sdlc-config.schema.json",
+  "$id": "https://github.com/jayteealao/agent-skills/schemas/sdlc-workflow/sdlc-config.schema.json",
   "title": "SDLC Workflow Local Configuration",
   "description": "Optional per-project configuration for sdlc-workflow view rendering, bootstrap, serve, and hook behavior. Store at .ai/sdlc-config.json.",
   "type": "object",

@@ -79,7 +79,7 @@ pipeline (rather than re-implementing it per mode) and is what makes the workflo
 specialized), then routes to `$wf review`; it never invokes `$wf implement` or `$wf verify`.
 
 **The gate (D4) — stop-and-prompt before `05-implement`.** After `04-plan` is written and before any
-execution, the mode pauses for the human via `AskUserQuestion`:
+execution, the mode pauses for the human per the gate-question ladder ([_gate-question.md](../_gate-question.md)):
 
 ```
 question: "Plan for `<slug>` is ready (<N> steps, <M> files). Proceed to implementation?"

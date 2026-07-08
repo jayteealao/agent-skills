@@ -58,7 +58,7 @@ If `$ARGUMENTS` contains enough to answer all three, skip to Step 2.
 Do NOT write the artifact yet. Hold answers in working memory and proceed.
 
 # Step 2 — Parallel adjudication
-Launch all three sub-agents simultaneously. Do not proceed to synthesis until all three complete. Use parallel subagents only when working in parallel mode; otherwise do the work yourself sequentially, covering all three perspectives in turn.
+Launch all three sub-agents simultaneously as parallel read-only `explorer` children per [_subagents.md](../_subagents.md). Do not proceed to synthesis until all three complete.
 
 ### Explore sub-agent 1 — Evidence FOR
 
@@ -130,7 +130,7 @@ verdict: holds | partial | fails | inconclusive
 confidence: high | medium | low
 recommended-next: <command-if-any or "none">
 status: ready-for-routing
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 

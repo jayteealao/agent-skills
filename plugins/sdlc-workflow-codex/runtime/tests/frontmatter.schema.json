@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anthropic.com/plugins/sdlc-workflow/frontmatter.schema.json",
+  "$id": "https://github.com/jayteealao/agent-skills/schemas/sdlc-workflow/frontmatter.schema.json",
   "title": "SDLC Workflow Artifact Frontmatter",
   "description": "JSON Schema for the YAML frontmatter of every artifact produced by the sdlc-workflow plugin. Each artifact is a markdown file under .ai/workflows/<slug>/ (or .ai/simplify/, .ai/profiles/ for off-pipeline outputs). The frontmatter block (between the leading `---` markers) is parsed as YAML and validated against the matching branch of `oneOf` selected by the `type` field.",
 

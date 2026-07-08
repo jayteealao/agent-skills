@@ -81,7 +81,7 @@ Error: Token not found
 # Check token expiration
 echo $TOKEN | cut -d. -f2 | base64 -d | jq .exp
 
-# Verify system time
+# Verify system time (e.g., on POSIX)
 date -u
 
 # Check credential config

@@ -51,7 +51,7 @@ Use parallel Explore sub-agents to gather what is needed before writing — do n
 ### Parallel research (use sub-agents)
 Launch in parallel before writing. Skip if the change is a one-line fix in a file the user has explicitly named.
 
-**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call — both agents do bounded targeted reads with structured-output extraction.
+**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every spawn — both agents do bounded targeted reads with structured-output extraction.
 
 #### Explore sub-agent 1 — Codebase grounding
 Prompt with ALL of the following:
@@ -65,7 +65,7 @@ Return structured text: `files_in_scope`, `nearby_patterns` (1-3), `reuse_candid
 #### Explore sub-agent 2 — Web freshness (skip if pure internal change)
 Skip if the change is purely internal (no new external dependency, no API integration, no platform/browser API, no security surface). Otherwise: search the relevant library/API docs for latest-stable syntax + known gotchas/deprecations in the last 12 months; return 2-3 source URLs, a 1-line takeaway each, and a **go/no-go** on whether the approach is current.
 
-### Then write all four planning artifacts, each schema-conformant. Use real timestamps — run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash.
+### Then write all four planning artifacts, each schema-conformant. Use real timestamps per [_timestamp.md](../_timestamp.md).
 
 **`01-fix.md` — `type: intake` (the compressed brief, replaces standalone intake):**
 ```yaml
@@ -226,7 +226,7 @@ progress:
 
 # Step 3 — Gate before implement (MANDATORY unless auto-proceeding)
 
-Apply the **compressed-lifecycle gate** from `_intake-context.md`: `AskUserQuestion` (Proceed / Adjust / Escalate). You MAY auto-proceed without pausing if the change is clearly low-risk (≤3 files, no tripwires, no open questions) — record the decision in `01-fix.md`'s body either way. On **Adjust**, revise the relevant planning artifact and re-gate. On **Escalate**, recommend `$wf intake <description>` and stop.
+Apply the **compressed-lifecycle gate** from `_intake-context.md`: ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) — Proceed / Adjust / Escalate. You MAY auto-proceed without pausing if the change is clearly low-risk (≤3 files, no tripwires, no open questions) — record the decision in `01-fix.md`'s body either way. On **Adjust**, revise the relevant planning artifact and re-gate. On **Escalate**, recommend `$wf intake <description>` and stop.
 
 # Step 4 — Hand off
 

@@ -808,8 +808,9 @@ Create `.ai/reviews/<SESSION_SLUG>/reviews/review-cost-<YYYY-MM-DD>.md` with:
 ## Step 10: Update session README
 
 ```bash
-echo "- [Cost Review](reviews/review-cost-$(date +%Y-%m-%d).md)" >> .ai/reviews/<SESSION_SLUG>/README.md
+echo "- [Cost Review](reviews/review-cost-<yyyy-mm-dd>.md)" >> .ai/reviews/<SESSION_SLUG>/README.md
 ```
+(use the real current date per [_timestamp.md](../_timestamp.md))
 
 # OUTPUT FORMAT
 

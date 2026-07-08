@@ -54,7 +54,7 @@ There are no flags. `auto` always stops at the review; `handoff`, `ship`, and `r
    - **Multi-slice standard** (roster with per-slice `03-slice-<slice>.md` files) → **suffixed**: `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md`.
    - **Change-mode** (`workflow-type: fix | hotfix | refactor`) and **single-scope standard** (one slice, only a `04-plan.md` master, no per-slice plan files) → **un-suffixed**: `04-plan.md`, `05-implement.md`, `06-verify.md`, `07-review.md`. (Note: `05-implement.md`/`06-verify.md` also serve as *master indices* in suffixed mode — in suffixed mode always key off the suffixed per-slice files, never the master.)
    - **`workflow-type: update-deps`** → implement and verify are self-managed by the mode; `auto` does NOT drive them. If the slug is not yet past verify, PAUSE and route the user to `$wf intake update-deps <slug>`.
-5. **Branch posture.** Run `git branch --show-current`. If it differs from `00-index.md.branch` (and `branch` is non-empty), ask the user with the platform's blocking question tool (`AskUserQuestion` in Claude Code, `request_user_input` in Codex, `ask_user` in Gemini):
+5. **Branch posture.** Run `git branch --show-current`. If it differs from `00-index.md.branch` (and `branch` is non-empty), ask the user per the gate-question ladder ([_gate-question.md](_gate-question.md)):
 
 ```yaml
 question: "Working tree is on `<current-branch>`, but workflow `<slug>` is on `<slug-branch>`. `$wf auto` will run implement/verify against the checked-out tree. How should it proceed?"

@@ -39,7 +39,7 @@ compressed: true
 origin: wf/<op>             # e.g. intake/rca, probe, simplify
 status: defined
 stage-number: 3
-created-at: "<iso-8601 from `date -u +"%Y-%m-%dT%H:%M:%SZ"`>"
+created-at: "<real UTC timestamp per _timestamp.md>"
 updated-at: "<same>"
 complexity: <xs|s|m|l|xl>   # estimate from the op's own analysis; use xs when not applicable (e.g. a pure rca diagnosis)
 depends-on: []

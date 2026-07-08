@@ -61,7 +61,7 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 
 # Step 1 — Parallel Codebase Exploration
 
-Launch exploration sub-agents in parallel. Each sub-agent gets a specific lens and must return **structured findings** — not generic advice, but specific evidence from this codebase. Launch only the lenses relevant to the focus area (or all six if no focus). Work sequentially unless the user explicitly requested parallel execution.
+Launch exploration sub-agents in parallel — read-only `explorer` children per [_subagents.md](../_subagents.md), in waves of ≤6. Each sub-agent gets a specific lens and must return **structured findings** — not generic advice, but specific evidence from this codebase. Launch only the lenses relevant to the focus area (or all six if no focus).
 
 ---
 
@@ -321,7 +321,7 @@ Ready to start:
 
 The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** files under `.ai/workflows/<slug>/` (the slug derived in Step 0 sub-step 2b), then register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](default.md) Step 10.
 
-Generate a timestamp: `date -u +"%Y%m%dT%H%M%SZ"` via Bash.
+Generate a timestamp (UTC compact `<yyyymmdd>T<hhmmss>Z`) per [_timestamp.md](../_timestamp.md).
 
 **`00-index.md` — `type: workflow-index`** (lightweight; analysis modes do not get the heavy 22-field `type: index`):
 ```yaml
@@ -362,7 +362,7 @@ ideas:
     impact: <critical|high|medium|low>
     effort: <xs|s|m|l|xl>
     score: <float>
-    entry: "<$wf-intake slug-suggestion>"
+    entry: "<$wf intake slug-suggestion>"
   - ...
 culled:
   - id: IDEA-NNN

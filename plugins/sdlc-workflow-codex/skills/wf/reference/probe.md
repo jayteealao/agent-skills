@@ -238,7 +238,7 @@ origin: probe
 stage-number: 3
 status: complete | awaiting-environment
 complexity: xs
-created-at: "<iso-8601 from `date -u +"%Y-%m-%dT%H:%M:%SZ"`>"
+created-at: "<real UTC timestamp per _timestamp.md>"
 updated-at: "<same>"
 
 probe-target: "<verbatim user string or 'slug-wide'>"

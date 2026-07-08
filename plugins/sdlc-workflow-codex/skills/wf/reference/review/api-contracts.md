@@ -648,8 +648,9 @@ Create `.ai/reviews/<SESSION_SLUG>/reviews/review-api-contracts-<YYYY-MM-DD>.md`
 ## Step 10: Update session README
 
 ```bash
-echo "- [API Contracts Review](reviews/review-api-contracts-$(date +%Y-%m-%d).md)" >> .ai/reviews/<SESSION_SLUG>/README.md
+echo "- [API Contracts Review](reviews/review-api-contracts-<yyyy-mm-dd>.md)" >> .ai/reviews/<SESSION_SLUG>/README.md
 ```
+(use the real current date per [_timestamp.md](../_timestamp.md))
 
 ## Step 11: Output summary
 

@@ -39,7 +39,7 @@ Parse `$ARGUMENTS`.
    - Argument is a path (resolves to an existing directory or file) → `mode: path`, `scope-path: <path>`.
    - Argument is none of the above → STOP. *"`<token>` is not a recognized primitive, slug, path, or flag. Run `$wf docs` with no arguments for full-project audit, or pick one of: plan, tutorial, how-to, reference, explanation, readme, review."*
 
-3. **Generate run ID** for orchestrator mode: `docs-<YYYYMMDD-HHMM>` (run `date +"%Y%m%d-%H%M"` via Bash).
+3. **Generate run ID** for orchestrator mode: `docs-<YYYYMMDD-HHMM>` (real current time per [_timestamp.md](_timestamp.md)).
 
 4. **For `mode: workflow`**: read the workflow's index and all stage artifacts to understand what changed. Pay special attention to `02-shape.md` → `## Documentation Plan` (the Diátaxis doc plan written at shape).
 
@@ -80,7 +80,7 @@ doc-files-found: <count>
 has-docs-folder: <true|false>
 doc-generator: <tool or "none">
 status: complete
-created-at: <real timestamp via bash>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
@@ -304,7 +304,7 @@ Invoked only when Step 0 resolved to a primitive (first token matched a known ke
 # Workflow rules (orchestrator mode)
 - Store audit artifacts under `.ai/docs/<run-id>/`. Documentation output goes to project doc paths (not under `.ai/`).
 - **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`.
-- **Timestamps must be real:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash.
+- **Timestamps must be real:** get the current UTC time per [_timestamp.md](_timestamp.md).
 - Always read source code before writing docs — do not write from memory or inference alone.
 - Diátaxis quadrant discipline is non-negotiable. When in doubt, consult the [Diátaxis framework](https://diataxis.fr).
 - For `mode: workflow`: check `02-shape.md → ## Documentation Plan` first — that plan was written by the author who knew the intent. Fulfill it before adding new docs.

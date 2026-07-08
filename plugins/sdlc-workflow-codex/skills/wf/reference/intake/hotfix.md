@@ -75,7 +75,7 @@ Body: open with `## The Hotfix` — the story section (1–2 short paragraphs in
 # Step 2 — Diagnose → `02-shape.md`
 Launch parallel sub-agents to identify root cause. Do not proceed until both complete.
 
-**Model for every dispatched agent:** `sonnet`. REQUIRED on every `Task` call — both agents do causal reasoning under time pressure (root-cause tracing across recent changes; blast-radius reasoning). Haiku is insufficient; Opus too slow.
+**Effort tier for every dispatched agent:** **high** (per [_subagents.md](../_subagents.md)). REQUIRED on every spawn — both agents do causal reasoning under time pressure (root-cause tracing across recent changes; blast-radius reasoning). Low effort is insufficient for causal tracing; do not over-provision beyond high — an active incident cannot wait.
 
 ### Explore sub-agent 1 — Root Cause Investigation
 Prompt with ALL of: read the areas most likely to contain the bug; `git log --oneline -20` on affected files cross-referenced with the brief's "recent changes"; `git log --oneline --since="72 hours ago" -- <affected-path>`; grep for the symptom's exception names / error strings / failure patterns; check TODO/FIXME/HACK near the area; look for failing related tests; identify the **exact file(s)+line(s)** of origin. Report `file:line`, root-cause hypothesis (2–4 sentences), confidence (high/medium/low), supporting evidence.
@@ -231,6 +231,6 @@ Next: $wf implement <slug>  →  $wf verify  →  $wf review <slug> security  �
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Never leave canonical results only in chat.
-- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — get the current UTC time per [_timestamp.md](../_timestamp.md).
 - Review is not skipped — but for a hotfix it defaults to the **security** rubric (auth, tokens, crypto, permissions). `$wf review <slug> security` is always safe to run quickly; widen only if the change warrants it.
 - Write each artifact atomically (temp → rename) so a crash never leaves a half-written workflow.

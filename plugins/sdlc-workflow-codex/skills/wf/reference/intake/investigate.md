@@ -63,7 +63,7 @@ If `$ARGUMENTS` contains enough to answer all three, skip to Step 2.
 Do NOT write the artifact yet. Hold answers in working memory and proceed.
 
 # Step 2 — Parallel map-and-sketch
-Launch all three sub-agents simultaneously. Do not proceed to synthesis until all three complete. Work sequentially unless the user explicitly requested parallel execution.
+Launch all three sub-agents simultaneously as parallel read-only `explorer` children per [_subagents.md](../_subagents.md). Do not proceed to synthesis until all three complete.
 
 ### Explore sub-agent 1 — Architecture cartographer
 
@@ -131,7 +131,7 @@ option-ids: [A, B, C]   # only those present
 constraints: [<from-question-3>]
 recommended-next: user-picks   # this skill never picks
 status: ready-for-routing
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 

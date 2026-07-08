@@ -130,7 +130,7 @@ targets-measured: <N>
 targets-failed: <N>
 baseline-branch: <current-branch>
 baseline-commit: <run `git rev-parse --short HEAD`>
-measured-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"`>
+measured-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 

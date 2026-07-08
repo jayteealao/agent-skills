@@ -11,6 +11,7 @@
 // enforcement boundary. Always best-effort: never blocks a non-artifact write.
 
 import {
+  emitPermissionDecision,
   parseHookArgs,
   readEvent,
   resolveLayout,
@@ -40,7 +41,10 @@ function main() {
       timeoutMs: 4000,
     });
     if (res.status === 2) {
-      // Relay the validator's corrective reason and DENY the write.
+      // DENY the write: modern permissionDecision envelope on stdout, plus the
+      // legacy exit-2 + stderr path as fallback for pre-GA CLIs.
+      const reason = res.stderr || `pre-write validation failed for ${t.path}`;
+      emitPermissionDecision('deny', reason);
       if (res.stderr) process.stderr.write(res.stderr);
       return 2;
     }

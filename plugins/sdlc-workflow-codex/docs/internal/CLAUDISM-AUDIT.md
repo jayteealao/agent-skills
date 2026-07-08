@@ -1,6 +1,110 @@
 # Claudism Audit: sdlc-workflow-codex
 
 Date: 2026-06-16
+Re-audited: 2026-07-08 (see the re-audit section directly below; the original
+2026-06-16 findings and file ledger are retained beneath it as historical
+record — a large fraction of their file paths no longer exist)
+
+---
+
+## Re-Audit: 2026-07-08
+
+### State at re-audit
+
+| Surface | State |
+| --- | --- |
+| Claude plugin | `sdlc-workflow` v9.106.0 (`3de67e9`); `/wf` = 20 keys; `wf-meta`/`wf-docs` dissolved (v9.98.0), craft dissolved (v9.96.0) |
+| Codex plugin manifest | `.codex-plugin/plugin.json` name `sdlc-workflow-codex` v0.6.0 (`package.json` still says `0.1.0` — version drift, see NEW-1) |
+| Codex skill surface | 8 skills: `wf` (19 keys, no `yolo`), `consult`, `imagery`, `uiproto`, `error-analysis`, `refactoring-patterns`, `setup-wide-logging`, `test-patterns`. No standalone `review`, `wf-quick`, `wf-design`, `wf-meta`, `wf-docs` |
+| Codex hooks | `hooks/hooks.json` registers 5 events: SessionStart, PreToolUse, PostToolUse, Stop, SubagentStop |
+
+The original audit's four claudism criteria still apply. One classification
+refinement: prose of the form "the former `$wf-meta`" (historical mapping in
+the dissolve documentation, e.g. `skills/wf/SKILL.md` Resolution rule 3,
+`status.md`, `ship.md`, `intake.md`, `close.md`) is **intentional** and is not
+counted. Only *directive* uses of retired spellings count.
+
+### Original-finding status
+
+| Finding | Status 2026-07-08 |
+| --- | --- |
+| P1-A docs site teaches Claude slash commands | **STILL PRESENT** — 52 site files use `/wf ` syntax, 7 say "slash command", 3 say "Claude Code plugin" (`runtime/docs/site/index.html:99`, `explanation/build-and-dist.html:100`, `_build_pages.py:1776`). Stale `reference/wf-quick.html` / `reference/wf-design.html` pages still shipped |
+| P1-B provenance defaults to claude | **PARTIALLY FIXED** — hooks no longer hard-code a host, but `hooks/session-start.mjs` still does not set `SDLC_HUB_STARTED_BY`/`SDLC_HOST` before hub-ensure, so `runtime/dist/hub-serve.mjs:54` (`process.env.SDLC_HUB_STARTED_BY \|\| "claude"`) stamps Codex-started hubs as claude; `runtime/dist/post-write-render.mjs:157` hard-codes `enqueuedBy: { host: "claude" }` with no env indirection |
+| P1-C invalid router spellings (original 6 locations) | **OBSOLETE** — all six files deleted in the wf-quick/wf-design dissolves. Successor findings: see NEW-2/NEW-3 |
+| P1-D `/compact` guidance | **STILL PRESENT** — `skills/wf/reference/plan.md:386`, `skills/wf/reference/implement.md:221` |
+| P2-A Claude MCP tools in runtime-adapters | **STILL PRESENT** — `skills/wf/reference/runtime-adapters.md:183-189` (`mcp__claude-in-chrome__*` tool list), `:237` (`claude-api` / `claude-code-guide`) |
+| P2-B Bash/POSIX timestamp mandates | **STILL PRESENT** — 36 files (35 under `skills/wf/reference/`, incl. all `intake/*`, `augment/*`, `ship/rollback.md`, 5 review dims; plus `skills/error-analysis/references/log-patterns.md:85`). None fixed; count shifted only because the dissolve moved files |
+| P2-C Anthropic schema `$id` | **STILL PRESENT** — `runtime/tests/frontmatter.schema.json:3` |
+| P3-A "Claude is capable…" in design guidelines | **OBSOLETE** — `references/design/` deleted; successor tree `skills/wf/reference/design/` is clean |
+| P3-B retro centers CLAUDE.md | **RECLASSIFIED: intentional dual-host interop** — every occurrence now pairs `AGENTS.md` first (`retro.md:97,98,180,247`) |
+| P3-C "slash-command names" in review refs | **FIXED** — zero matches across all 34 `skills/wf/reference/review/` dimension files |
+| P3-D Unix-only operational snippets | **MOSTLY FIXED** — `refactoring-patterns` and `setup-wide-logging` clean; one remnant in `error-analysis/references/log-patterns.md:85` (illustrative, low severity) |
+
+### New findings (not in the 2026-06-16 audit)
+
+- **NEW-1 (P1): the plugin manifest itself describes the retired surface.**
+  `.codex-plugin/plugin.json:4` says "four handwritten router skills (`$wf`,
+  `$wf-meta`, `$wf-docs`, `$review`)" and the `interface.longDescription` says
+  "five routers". `$wf-meta` and `$wf-docs` are dissolved; `review` is `$wf
+  review`. This is the public marketplace-facing description. Same file: the
+  manifest is v0.6.0 while `package.json` is 0.1.0 — reconcile whichever is
+  authoritative.
+- **NEW-2 (P2): directive retired-router spellings in shared references.**
+  `references/artifact-interop.md:57-59,67` (`$wf-meta status/resume/next` as
+  current commands), `references/narrative-fragments.md:31` (lists `$wf-docs`,
+  `$wf-meta` as live skills), `references/native-operating-model.md:28`
+  (`via $wf-meta status / resume / next`). Correct forms: `$wf status`,
+  `$wf recap`, `$wf docs`.
+- **NEW-3 (P2): directive retired spellings in intake references.**
+  `skills/wf/reference/intake/rca.md:459` (`$wf-hotfix`; correct: `$wf intake
+  hotfix`) and `skills/wf/reference/intake/ideate.md:365` (artifact template
+  field `<$wf-intake slug-suggestion>`; correct: `$wf intake <slug>`).
+- **NEW-4 (non-finding, recorded for future scans): `claude` as a consult
+  provider.** `skills/consult/SKILL.md` and ~23 reference files carry the
+  "pin `codex`/`claude` to stay free" second-opinion boilerplate. Intentional
+  external-dispatch interop, not a claudism — but the consult path invokes the
+  `claude` CLI, which may be absent in a pure Codex environment; the skill
+  already treats providers as availability-probed.
+- **NEW-5 (P1): `AskUserQuestion` referenced as an executable tool.** Five
+  directive uses instruct Codex to call a Claude-only tool that does not exist
+  on the Codex surface — exactly what NATIVE-INTEROP-REWRITE-PLAN's
+  "should not" list forbids:
+  `skills/wf/reference/intake/_intake-context.md:82`,
+  `skills/wf/reference/intake/fix.md:229`,
+  `skills/wf/reference/intake/refactor.md:42` and `:108`,
+  `skills/wf/reference/intake/update-deps.md:209`.
+  `skills/wf/reference/auto.md:57` shows the correct pattern ("the platform's
+  blocking question tool — `AskUserQuestion` in Claude Code,
+  `request_user_input` in Codex"). Note the Codex tool is **plan-mode-only**
+  (fails in code mode and `codex exec`), so the fix needs a degradation ladder,
+  not a 1:1 name swap — see `CODEX-PLATFORM-GAPS.md`.
+
+### Re-audit verification scans
+
+Same four scan families as the original, with two adjustments: exclude
+`former \`\$wf-` (historical-mapping prose) from the router-spelling scan, and
+add the manifest to the scan surface:
+
+```sh
+rg -n -i "claude|anthropic|mcp__claude|claude-api|claude-code-guide|CLAUDE\.md" plugins/sdlc-workflow-codex/skills plugins/sdlc-workflow-codex/references plugins/sdlc-workflow-codex/.codex-plugin
+rg -n -i "slash.command|/compact" plugins/sdlc-workflow-codex/skills plugins/sdlc-workflow-codex/references
+rg -n "\\\$wf-(intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|hotfix|quick|design|meta|docs)" plugins/sdlc-workflow-codex/skills plugins/sdlc-workflow-codex/references plugins/sdlc-workflow-codex/.codex-plugin | rg -v "former|retired|absorbs|absorbed|replaces|is now|no longer"
+rg -n -i "via Bash|date -u \+|\\\$\(date \+" plugins/sdlc-workflow-codex/skills plugins/sdlc-workflow-codex/references
+rg -n "AskUserQuestion" plugins/sdlc-workflow-codex/skills | rg -v "in Claude Code"
+```
+
+The suggested regression gate from the original audit still does not exist
+(`npm test` / `verify:no-legacy` catch none of these categories); the scan
+above is the candidate implementation, plus a docs-site brand check for
+`/wf ` vs `$wf `.
+
+Platform-contract gaps (hooks support on the installed CLI, enforcement
+boundary, subagent/user-input adoption) are tracked separately in
+`CODEX-PLATFORM-GAPS.md`.
+
+---
+
+## Original Audit (2026-06-16) — historical
 
 Scope:
 - Package-wide claudism scan of `plugins/sdlc-workflow-codex`.

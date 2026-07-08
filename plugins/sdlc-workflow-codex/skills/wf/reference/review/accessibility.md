@@ -944,8 +944,9 @@ Create `.ai/reviews/<SESSION_SLUG>/reviews/review-accessibility-<YYYY-MM-DD>.md`
 ## Step 12: Update session README
 
 ```bash
-echo "- [Accessibility Review](reviews/review-accessibility-$(date +%Y-%m-%d).md)" >> .ai/reviews/<SESSION_SLUG>/README.md
+echo "- [Accessibility Review](reviews/review-accessibility-<yyyy-mm-dd>.md)" >> .ai/reviews/<SESSION_SLUG>/README.md
 ```
+(use the real current date per [_timestamp.md](../_timestamp.md))
 
 ## Step 13: Output summary
 

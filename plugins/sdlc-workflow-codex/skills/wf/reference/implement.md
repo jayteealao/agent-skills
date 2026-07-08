@@ -174,7 +174,7 @@ Apply fixes. Repeat until no material defects remain. Record what the pass caugh
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave canonical results only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) first. All machine-readable state goes in frontmatter; the markdown body is human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
@@ -218,7 +218,7 @@ After completing, evaluate and present ALL viable options:
 
 **Option A (default): Verify** → `$wf verify <slug> <slice-slug>`
 Use when: The implementation touches testable behavior.
-**Compact recommended** — tell the user: "Consider `/compact` before `$wf verify` — workflow state lives in artifact files on disk and the SessionStart hook re-reads it after compaction."
+**Compact recommended** — tell the user: "Consider compacting the session before `$wf verify` — workflow state lives in artifact files on disk and the SessionStart hook re-reads it after compaction."
 
 **Option B: Skip to Review** → `$wf review <slug> <slice-slug>`
 Use when: Purely declarative change with no testable behavior.

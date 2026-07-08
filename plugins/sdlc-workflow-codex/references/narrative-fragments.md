@@ -27,8 +27,8 @@ plugin makes **no demands** on the markup: no required wrapper, no scoped CSS, n
 write HTML; the page renders it verbatim.
 
 Author **as many as the story needs** (including zero). They are not limited to
-the rich-tier artifacts — *any* markdown artifact produced by *any* subcommand
-(`$wf`, `$wf-docs`, `$wf-meta`, `$review`, …) can
+the rich-tier artifacts — *any* markdown artifact produced by *any* `$wf`
+sub-command (intake, review, docs, status, …) can
 carry them, because they are injected by a central seam that runs for every
 renderer and the generic fallback alike.
 

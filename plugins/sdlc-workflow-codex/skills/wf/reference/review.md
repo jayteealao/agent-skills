@@ -59,8 +59,8 @@ Reached from Step 00 branch 2 — the former standalone `review` skill (now diss
 
 ## Sweep execution (parallel sub-agent dispatch)
 1. Resolve the composition from the aggregate table above.
-2. Prepare ONE sub-agent task per dimension D: `description: "review-{D}"`; use `haiku` for most dimensions, `sonnet` for `architecture`/`refactor-safety`/`security` (pass the model explicitly — reviewers must not inherit the parent model); `prompt` = the rubric body from `review/{D}.md` + the concrete scope/target/paths + the standard findings-schema + output instruction (return inline; no artifact in ad-hoc mode).
-3. **Dispatch in parallel** — one message with all N sub-agent task calls (sequential dispatch is forbidden).
+2. Prepare ONE sub-agent task per dimension D: `description: "review-{D}"`; read-only `explorer` children per [_subagents.md](_subagents.md), tiered by effort — **low** for most dimensions, **high** for `architecture`/`refactor-safety`/`security` (set it explicitly — reviewers must not inherit the parent configuration); `prompt` = the rubric body from `review/{D}.md` + the concrete scope/target/paths + the standard findings-schema + output instruction (return inline; no artifact in ad-hoc mode).
+3. **Dispatch in parallel** — spawn all N sub-agents together, in waves of ≤6 per [_subagents.md](_subagents.md) (sequential dispatch is forbidden).
 4. Wait for all to return, then **synthesize**: collect findings; dedupe by `(file:line + root cause)` (keep the most specific severity, merge rationales, tag with both dimensions); normalize severity to BLOCKER/HIGH/MED/LOW/NIT (map any other scale first); triage BLOCKER+HIGH by asking the user directly in chat, presenting each finding as a short numbered list with: finding text + impact + suggested fix — the user chooses accept (will fix), defer (acknowledge but ship), or reject (false positive); derive the verdict (Ship = no blocker/high · Ship with caveats = high only · Don't ship = any blocker).
 
 ## Output + final summary

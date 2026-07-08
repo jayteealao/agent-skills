@@ -86,7 +86,7 @@ You are a **workflow orchestrator**, not a problem solver.
    3. Mark prior as failed and start fresh — Set the prior run status: failed."
    If **resume**: load that run's frontmatter and skip to the first step with an empty evidence field.
    If **start fresh**: leave the prior run untouched (or set `failed`); generate a new `run-id`.
-9. **Generate `run-id`** (UTC compact ISO-8601): `date -u +"%Y%m%dT%H%MZ"`. Use as the filename suffix and the `run-id` field. In batch mode there is ONE run-id for the whole branch.
+9. **Generate `run-id`** (UTC compact ISO-8601 `<yyyymmdd>T<hhmm>Z`, real time per [_timestamp.md](_timestamp.md)). Use as the filename suffix and the `run-id` field. In batch mode there is ONE run-id for the whole branch.
 10. **Carry forward** `open-questions` from the index (union across roster slugs in batch mode).
 
 # Batch ship (scope: branch) — one run, one artifact, N pointers
@@ -107,7 +107,7 @@ The 13-step sequence acts on the **branch/PR**, which is shared — so it runs
 - Store run artifacts under `.ai/workflows/<slug>/`. `00-index.md` is the control file; `09-ship-runs.md` is the per-workflow run index. Never leave the canonical result only in chat — write the stage file first.
 - **The ship plan lives at `.ai/ship-plan.md` (repo root), NOT under `.ai/workflows/`.** Project-scoped, shared across workflows.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter; the body is human-readable narrative only.
-- **Timestamps must be real:** For `created-at`, `updated-at`, and `observed-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at`, `updated-at`, and `observed-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If a step cannot finish, set `status: awaiting-input`, record what's blocking, and STOP. The next invocation resumes from there.
 - Append every PO answer to `po-answers.md` with timestamp and stage.
 - Reuse earlier workflow files. Do not silently broaden scope.

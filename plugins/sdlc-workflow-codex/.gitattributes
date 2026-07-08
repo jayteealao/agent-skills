@@ -1,0 +1,16 @@
+# Enforce LF for all text files in this plugin so content hashing is identical
+# on Windows and Linux — runtime/ carries the synced shared-runtime payload
+# whose buildId (runtime-manifest.json) is a sha256 over the raw bytes of
+# dist/assets/components/schemas; a Windows clone with core.autocrlf=true
+# would otherwise get CRLF in the working tree and fail verify-runtime's
+# buildId reproduction (and any byte-parity check against the main tree).
+* text=auto eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.mjs text eol=lf
+*.js text eol=lf
+*.sh text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf

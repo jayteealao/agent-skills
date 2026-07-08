@@ -89,7 +89,7 @@ branch: <branch or "none">
 had-open-pr: <true|false>
 pr-url: <url or "none">
 unmerged-commits: <N or 0>
-closed-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"`>
+closed-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
@@ -149,7 +149,7 @@ slug: <slug>
 skipped-stage: "slice:<slice>"
 skipped-stage-artifact: 03-slice-<slice>.md
 reason: <reason from Step S1>
-skipped-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"`>
+skipped-at: <real UTC timestamp per _timestamp.md>
 high-risk: <true if the slice was in-progress with real work, else false>
 ---
 ```

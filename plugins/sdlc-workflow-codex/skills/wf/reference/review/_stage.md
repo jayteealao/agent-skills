@@ -114,7 +114,7 @@ Then STOP — do not continue to the full review workflow.
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. Machine-readable state goes in frontmatter; markdown body is human-readable narrative only.
-- **Timestamps must be real:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash for `created-at`/`updated-at`. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at`/`updated-at`, get the current UTC time per [_timestamp.md](../_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
@@ -286,7 +286,7 @@ Print to chat:
 
 # Step 3: Dispatch Parallel Sub-Agents
 
-For EACH selected command, spawn a sub-agent. All agents run in parallel.
+For EACH selected command, spawn a read-only `explorer` sub-agent per [_subagents.md](../_subagents.md). All agents run in parallel, in waves of ≤6 when more dimensions are selected; children return findings only — the coordinator merges them into the single accumulating ledger under the mutation lease (Step 4).
 
 **Each sub-agent receives this prompt** (substitute the per-slice or slug-wide variant based on the current `review-scope`):
 
@@ -324,7 +324,7 @@ IDs and `surfaced-at` stamps. MERGE your fresh findings into it:
     never delete it.
   - Leave `deferred` / `dismissed` / `fixed` / `could-not-fix` findings' status untouched
     unless you re-surface them (then `last-seen-at` only).
-Get `now` from `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Emit the FULL merged set (open AND resolved), not just this run's deltas.
+Get `now` per [_timestamp.md](../_timestamp.md). Emit the FULL merged set (open AND resolved), not just this run's deltas.
 
 IMPORTANT: Write your complete review findings to the file:
   - Per-slice: `.ai/workflows/{slug}/07-review-{slice-slug}-{command-name}.md`
@@ -433,7 +433,7 @@ After all sub-agents finish, **MERGE** this run's findings into the existing mas
    - OPEN MED/LOW/NIT only, or no open findings → **Ship**
    Fixed / dismissed / resolved findings never count against the verdict. **Neither do `pre-existing: true` findings — including pre-existing BLOCKERs**: the verdict is about *this change*. Pre-existing findings surface in `## Pre-existing Debt` and route to `$wf intake fix|refactor`.
 
-Get `now` from `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash (one stamp for the whole run).
+Get `now` per [_timestamp.md](../_timestamp.md) (one stamp for the whole run).
 
 ---
 

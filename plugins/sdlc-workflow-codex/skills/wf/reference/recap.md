@@ -165,7 +165,7 @@ no advancing the workflow.
 
 # Step 3 — Save and return
 
-1. **Timestamp:** run `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+1. **Timestamp:** get the current UTC time per [_timestamp.md](_timestamp.md).
 2. **Write `.ai/workflows/<slug>/90-recap.md`** with this frontmatter, followed by the recap body:
 
 ```yaml

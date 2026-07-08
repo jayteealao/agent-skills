@@ -58,7 +58,7 @@ Validation:
 - `plan` — confirm the plan file exists. If missing, STOP: *"No plan found at `<path>`. Run `$wf plan <slug> <slice>` first or check the slug/slice arguments."*
 - `codebase` — confirm path exists.
 
-Record: `run-id` (`date -u +"%Y%m%dT%H%MZ"`, UTC compact ISO-8601), `scope` (`branch | commit | plan | codebase`), and `target` (resolved target string for the artifact frontmatter).
+Record: `run-id` (UTC compact ISO-8601 `<yyyymmdd>T<hhmm>Z`, real time per [_timestamp.md](_timestamp.md)), `scope` (`branch | commit | plan | codebase`), and `target` (resolved target string for the artifact frontmatter).
 
 ---
 
@@ -110,7 +110,7 @@ Debt findings join the aggregate in **Step 3** and route through the **Step 4** 
 
 # Step 2 — Dispatch three sub-agents in parallel
 
-**MANDATORY**: issue a single message containing all three agent tool calls. Sequential dispatch is forbidden. Use parallel subagents only when working in parallel mode; otherwise cover all three rubrics in turn yourself.
+**MANDATORY**: issue a single message containing all three agent tool calls. Sequential dispatch is forbidden — the three rubrics run as parallel read-only `explorer` children per [_subagents.md](_subagents.md).
 
 Each agent receives the scope token + target, the Step 1 input (`INPUT_DIFF`, `INPUT_PLAN_TEXT`, or codebase file list), and the rubric below.
 

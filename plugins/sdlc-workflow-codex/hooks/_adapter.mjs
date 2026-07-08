@@ -72,6 +72,20 @@ export function bundledEntry(runtimeRoot, name) {
 }
 
 /**
+ * Env for every shared-runtime spawn from a Codex hook: provenance the shared
+ * runtime derives host identity from (`SDLC_HOST` for render-queue/enqueuedBy,
+ * `SDLC_HUB_STARTED_BY` for hub launch records). Explicit caller values win so
+ * tests and escape hatches can override.
+ */
+export function codexHostEnv(base = process.env) {
+  return {
+    ...base,
+    SDLC_HOST: base.SDLC_HOST || 'codex',
+    SDLC_HUB_STARTED_BY: base.SDLC_HUB_STARTED_BY || 'codex',
+  };
+}
+
+/**
  * Spawn a bundled shared-runtime policy entrypoint with `stdin` (an object,
  * JSON-encoded) on its stdin. Synchronous so the serialized dispatcher stays
  * sequential. Returns `{ status, stdout, stderr, timedOut }`. Never throws.
@@ -83,6 +97,7 @@ export function runBundled(runtimeRoot, name, stdin, { cwd, timeoutMs = 12000 } 
     encoding: 'utf-8',
     timeout: timeoutMs,
     windowsHide: true,
+    env: codexHostEnv(),
   });
   return {
     status: typeof r.status === 'number' ? r.status : (r.signal ? 1 : 0),
@@ -310,6 +325,27 @@ export function emitAdditionalContext(eventName, text) {
 
 export function emitStopBlock(reason) {
   process.stdout.write(`${JSON.stringify({ decision: 'block', reason })}\n`);
+}
+
+/**
+ * Modern PreToolUse permission envelope (hooks GA). `decision` is
+ * "deny" | "allow"; "ask" is NOT supported by Codex. Callers pairing this with
+ * exit 2 + stderr keep the legacy path as fallback for older CLIs.
+ */
+export function emitPermissionDecision(decision, reason) {
+  const out = { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: decision } };
+  if (reason) out.hookSpecificOutput.permissionDecisionReason = reason;
+  process.stdout.write(`${JSON.stringify(out)}\n`);
+}
+
+/**
+ * PermissionRequest resolution envelope: programmatically resolve an approval
+ * prompt. Any deny wins across hooks; absence of output = no opinion.
+ */
+export function emitPermissionRequestDecision(behavior, message) {
+  const decision = { behavior };
+  if (message) decision.message = message;
+  process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision } })}\n`);
 }
 
 // ── small host-native path helpers ──────────────────────────────────────────────

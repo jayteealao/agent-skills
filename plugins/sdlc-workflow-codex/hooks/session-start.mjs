@@ -20,6 +20,7 @@ import { join } from 'node:path';
 
 import {
   bundledEntry,
+  codexHostEnv,
   computeBaseline,
   findProjectRoot,
   needsActivation,
@@ -87,7 +88,9 @@ function ensureHubConfirmed(runtimeRoot, projectRoot) {
         '--project-root', projectRoot,
         '--view', join(projectRoot, '.ai', '_view'),
       ],
-      { stdio: 'ignore', windowsHide: true, timeout: HUB_CONFIRM_TIMEOUT_MS },
+      // Codex provenance: hub-ensure (and any hub it starts) must record this
+      // launch as codex-started, not the shared runtime's claude default.
+      { stdio: 'ignore', windowsHide: true, timeout: HUB_CONFIRM_TIMEOUT_MS, env: codexHostEnv() },
     );
     return true;   // exit 0 → hub confirmed healthy
   } catch {

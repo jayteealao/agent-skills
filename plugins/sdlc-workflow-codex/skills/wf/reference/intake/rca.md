@@ -64,7 +64,7 @@ If the user provided a stack trace or error message in `$ARGUMENTS`, treat it as
 Do NOT write the artifact yet. Hold the answers in working memory and proceed to Step 2.
 
 # Step 2 — Parallel root-cause investigation
-Launch parallel sub-agents to identify the root cause. Do not proceed to synthesis until all complete. Work sequentially unless the user explicitly requested parallel execution.
+Launch parallel read-only `explorer` sub-agents per [_subagents.md](../_subagents.md) to identify the root cause. Do not proceed to synthesis until all complete.
 
 ### Explore sub-agent 1 — Code path investigation
 
@@ -125,7 +125,7 @@ root-cause-confidence: <high|medium|low>
 blast-radius: <low|medium|high|skipped>
 recommended-next: <$wf plan|$wf intake fix|$wf intake hotfix|human-triage>
 status: ready-for-fix-routing
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
@@ -456,5 +456,5 @@ Author **free narrative fragments** for any beat the structured page can't tell 
 # What this skill is NOT
 
 - **Not a fixer** — `wf-rca` produces an RCA artifact and a routing recommendation. It does not edit application code. It does not run mutating commands. It does not commit, push, or open a PR.
-- **Not a hotfix** — `$wf-hotfix` is what you run *after* `wf-rca` recommends it. `wf-rca` decides whether the situation warrants the hotfix path.
+- **Not a hotfix** — `$wf intake hotfix` is what you run *after* `wf-rca` recommends it. `wf-rca` decides whether the situation warrants the hotfix path.
 - **Not a how/explain** — `$wf recap <slug> <focus>` or `$deep-research` is for explaining existing code or artifacts on demand. `wf-rca` is for *finding* a cause that is not yet explained.

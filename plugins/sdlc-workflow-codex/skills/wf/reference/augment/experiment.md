@@ -115,7 +115,7 @@ flag-name: <e.g., "enable_new_checkout_flow">
 flag-framework: <e.g., "LaunchDarkly" | "env-var-fallback" | "none detected">
 requires-instrument: <true|false>
 status: ready
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 

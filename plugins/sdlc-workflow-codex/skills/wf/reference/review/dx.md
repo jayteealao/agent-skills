@@ -1203,8 +1203,9 @@ Create `.ai/reviews/<SESSION_SLUG>/reviews/review-dx-<YYYY-MM-DD>.md` with:
 ## Step 11: Update session README
 
 ```bash
-echo "- [Developer Experience Review](reviews/review-dx-$(date +%Y-%m-%d).md)" >> .ai/reviews/<SESSION_SLUG>/README.md
+echo "- [Developer Experience Review](reviews/review-dx-<yyyy-mm-dd>.md)" >> .ai/reviews/<SESSION_SLUG>/README.md
 ```
+(use the real current date per [_timestamp.md](../_timestamp.md))
 
 ## Step 12: Output summary
 

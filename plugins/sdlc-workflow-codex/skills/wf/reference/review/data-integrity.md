@@ -1090,8 +1090,9 @@ Create `.ai/reviews/<SESSION_SLUG>/reviews/review-data-integrity-<YYYY-MM-DD>.md
 ## Step 10: Update session README
 
 ```bash
-echo "- [Data Integrity Review](reviews/review-data-integrity-$(date +%Y-%m-%d).md)" >> .ai/reviews/<SESSION_SLUG>/README.md
+echo "- [Data Integrity Review](reviews/review-data-integrity-<yyyy-mm-dd>.md)" >> .ai/reviews/<SESSION_SLUG>/README.md
 ```
+(use the real current date per [_timestamp.md](../_timestamp.md))
 
 # OUTPUT FORMAT
 

@@ -78,6 +78,21 @@ test('rq: enqueue writes a durable, well-formed record under .ai/_view/.render-q
   deepEqual(rec.paths, ['.ai/workflows/acct-export/04-plan.md']);
 });
 
+test('rq: enqueue preserves explicit codex host provenance (SDLC_HOST-threading writers)', () => {
+  const { viewDir, repoRoot } = mkRepo();
+  // The hooks derive enqueuedBy.host from SDLC_HOST (codex adapters set it;
+  // Claude leaves it unset → the 'claude' default above). The queue must carry
+  // the writer's value through verbatim.
+  const r = enqueue(viewDir, {
+    repoRoot, kind: 'bootstrap', bucket: '__bootstrap__',
+    enqueuedBy: { host: 'codex', pid: 4242 },
+  }, { now: clock });
+  ok(r.ok, 'enqueue reports ok');
+  const rec = readPending(viewDir)[0].record;
+  equal(rec.enqueuedBy.host, 'codex', 'explicit host preserved');
+  equal(rec.enqueuedBy.pid, 4242);
+});
+
 test('rq: enqueue never throws on a bad viewDir; returns ok:false', () => {
   const r = enqueue('', { kind: 'incremental', bucket: 'x' });
   equal(r.ok, false);

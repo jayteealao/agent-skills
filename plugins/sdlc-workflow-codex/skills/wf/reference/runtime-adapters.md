@@ -179,14 +179,15 @@ SCRIPT
 - Screenshots are saved to `~/.dev-browser/tmp/` — copy them to the evidence directory.
 - Use `--connect` flag instead of `--headless` if the user has a running Chrome with remote debugging enabled.
 
-### 2. Chrome MCP tools (fallback)
-If `mcp__claude-in-chrome__*` tools are available in the session:
-- `mcp__claude-in-chrome__navigate` to load pages
-- `mcp__claude-in-chrome__read_page` to inspect content
-- `mcp__claude-in-chrome__computer` for interactions (click, type)
-- `mcp__claude-in-chrome__get_page_text` to read page content
-- `mcp__claude-in-chrome__read_console_messages` to check for errors
-- `mcp__claude-in-chrome__read_network_requests` to verify API calls
+### 2. Codex Browser plugin (fallback)
+If the Codex Browser plugin (or Chrome plugin) is enabled in the session, use its browser-control tools:
+- navigate to load pages
+- page/DOM reads to inspect content
+- pointer/keyboard interactions (click, type)
+- console message reads to check for errors
+- network request reads to verify API calls
+
+If neither browser plugin is available, fall through to Playwright (below).
 
 ### 3. Playwright directly
 If configured in the project, run existing Playwright test suites or write inline scripts.
@@ -234,8 +235,8 @@ Surface these only if they appear in `stack.available-skills` / `stack.available
 
 - **`frontend-design`** — when the work introduces a new UI surface and the PO wants design-quality output rather than a wired-up component.
 - **`playground`** — when the deliverable is an interactive single-file explorer rather than a production-wired feature.
-- **`claude-api` / `claude-code-guide`** — when the work involves the Anthropic SDK or an AI coding assistant itself.
-- **MCP browsers** (`mcp__Claude_in_Chrome__*`, `mcp__Claude_Preview__*`) — if available, these are session-native alternatives to dev-browser; surface alongside dev-browser as drive candidates.
+- **Provider SDK documentation** — when the work involves an AI-provider SDK or an AI coding assistant itself, consult that provider's official SDK docs.
+- **Session-native browsers** (Codex Browser/Chrome plugins, other browser-control MCP servers) — if available, these are session-native alternatives to dev-browser; surface alongside dev-browser as drive candidates.
 
 ---
 
