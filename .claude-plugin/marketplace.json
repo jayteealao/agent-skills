@@ -1,10 +1,10 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills-marketplace",
-  "version": "1.133.0",
-  "description": "A curated collection of Claude Code skills and plugins for developers",
   "owner": {
     "name": "jayte"
+  },
+  "metadata": {
+    "description": "A curated collection of Claude Code skills and plugins for developers"
   },
   "plugins": [
     {
@@ -26,6 +26,13 @@
       "description": "DailyTags plugin",
       "source": "./plugins/daily-tags",
       "category": "productivity",
+      "version": "0.1.0"
+    },
+    {
+      "name": "xquik-x-data",
+      "description": "Source-backed planning for Xquik REST API and remote MCP workflows for X data research, monitoring, exports, and automation.",
+      "source": "./plugins/xquik-x-data",
+      "category": "research",
       "version": "0.1.0"
     },
     {
