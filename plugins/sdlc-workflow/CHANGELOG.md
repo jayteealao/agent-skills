@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — `/wf yolo` drives compressed intake modes + RCA; forwarded-mode doc accuracy (9.108.0)
+
+`/wf yolo`'s orientation gate previously recognized only standard multi-slice workflows: it hard-coded the `01-intake.md` filename and keyed readiness on artifact presence alone, so it wrongly bounced fully-planned compressed change-mode slugs back to `/wf intake` and mis-routed terminal analyses to `/wf slice`. Orientation now classifies the slug by `workflow-type` and drives every workflow that has a decided build.
+
+- **Compressed change-modes now drive.** The readiness gate resolves the stage-1 intake lead from `workflow-type` (`fix`→`01-fix.md`, `hotfix`→`01-hotfix.md`, `refactor`→`01-refactor.md`, else `01-intake.md`; all `type: intake`) instead of the literal `01-intake.md`. A `fix`/`hotfix`/`refactor` slug sitting at the pre-implement gate now drives `implement→verify→review` like any standard slug. `update-deps` stays deliberately excluded (it self-authors `05`/`06`, which yolo's chain would double-author).
+- **RCA is drivable (forwarded, single-scope).** An RCA's diagnosis (`01-rca.md`, `type: rca`) is its intake and it synthesizes `02-shape.md`, so `yolo` drives it from `plan` onward over a synthesized one-entry roster (no `03-slice.md` required). It honors the RCA's `recommended-next` as the review flavor (`hotfix` → the `security` rubric) without re-running intake/shape, and hard-stops only on `recommended-next: human-triage`. As a by-product, any single-scope standard workflow (a `04-plan.md` master with no `03-slice.md`) is now drivable too.
+- **Terminal modes routed correctly.** `investigate`/`discover`/`ideate` (no decided build) are never routed to `/wf slice` or `/wf plan <slug>`; orientation hands back the mode's own recorded next step — each seeds a *new* `/wf intake` workflow.
+- **Forwarded-mode doc accuracy.** The `implement`/`verify`/`review`/`probe` stage references wrongly described "forwarded mode" as covering both `rca` and `investigate` with a synthesized `02-shape.md`. Only `rca` synthesizes a shape; `investigate` is terminal (no shape until a downstream `/wf intake` authors one). Corrected across both plugin trees (8 citers each). `/wf yolo` and its workflow script are Claude-only (built on the Workflow tool) and are not mirrored to the Codex tree.
+
 ### Changed — Codex remediation: host provenance, claudism cleanup, hook modernization (9.107.0)
 
 Executes `plugins/sdlc-workflow-codex/docs/internal/CODEX-REMEDIATION-PLAN.md` (Phases 0–7). Main-tree changes ride this release; the Codex tree ships in the same commit as plugin `9.107.0` — version-parity with the Claude plugin from here on (was 0.6.0/0.1.0 drift).

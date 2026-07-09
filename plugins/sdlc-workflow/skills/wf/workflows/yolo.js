@@ -145,6 +145,12 @@ const ORIENT_RESULT = {
     targetSlice: { type: 'string' },
     reviewScope: { enum: ['per-slice', 'slug-wide'] },
     workflowType: { type: 'string' },
+    // single-scope workflow (a forwarded rca, or a one-slice standard workflow): 03-slice.md is absent and
+    // orient synthesized a one-entry roster [selected-slice]. Stage files are un-suffixed; reviewScope is slug-wide.
+    singleScope: { type: 'boolean' },
+    // honored default review rubric — an rca whose recommended-next is hotfix → 'security'; empty = standard
+    // dimension selection. Threaded into the review stage so yolo respects the RCA's recommended build flavor.
+    reviewDimension: { type: 'string' },
     fileConvention: { enum: ['suffixed', 'unsuffixed'] },
     branch: {
       type: 'object',
@@ -266,18 +272,61 @@ async function orient() {
     `1. Read ${projectRoot}/.ai/workflows/${slug}/00-index.md. Parse: status, current-stage, review-scope ` +
     `(default 'per-slice' if the field is absent), workflow-type, branch-strategy (default 'none' if absent), ` +
     `branch, base-branch.\n` +
-    `2. Read ${projectRoot}/.ai/workflows/${slug}/03-slice.md (the roster). Capture EVERY slice slug in roster order.\n` +
+    `2. Read ${projectRoot}/.ai/workflows/${slug}/03-slice.md (the roster). Capture EVERY slice slug in roster ` +
+    `order. If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE (selected-slice is set on 00-index.md — true ` +
+    `for a forwarded rca and for any one-slice standard workflow), synthesize a one-entry roster [selected-slice] ` +
+    `(fall back to the slug if selected-slice is empty), set singleScope=true, and set reviewScope='slug-wide' (one ` +
+    `un-suffixed 07-review.md — never a per-slice split for a single scope). Do NOT route to '/wf slice' for a ` +
+    `single-scope workflow; a roster of one is complete.\n` +
     `3. Resolve fileConvention: 'suffixed' for a multi-slice standard workflow that has per-slice ` +
     `03-slice-<slice>.md files (so stage files are 04-plan-<slice>.md, 06-verify-<slice>.md, 07-review-<slice>.md); ` +
-    `'unsuffixed' for a change-mode (workflow-type fix|hotfix|refactor) or a single-scope standard workflow (one ` +
-    `slice, only a 04-plan.md master) where stage files are 04-plan.md, 06-verify.md, 07-review.md.\n` +
+    `'unsuffixed' for a change-mode (workflow-type fix|hotfix|refactor), a forwarded rca driven single-scope, or any ` +
+    `single-scope standard workflow (one slice, only a 04-plan.md master) where stage files are 04-plan.md, ` +
+    `06-verify.md, 07-review.md.\n` +
     `4. Determine mode: 'slice' if a target slice was given, else 'slug'. In slice mode, confirm the target slice ` +
     `is in the roster — if not, set ok=false, blockReason, route='/wf slice ${slug}'.\n` +
-    `5. READINESS GATE (yolo never runs intake/shape autonomously — they own product-owner alignment): ` +
-    `01-intake.md must exist and not be status: awaiting-input; 02-shape.md must exist; 03-slice.md must exist. ` +
-    `If any is missing or awaiting-input, set ok=false with blockReason and route='/wf intake <description>' (or ` +
-    `'/wf shape ${slug}' / '/wf slice ${slug}' for the specific gap). Also: if workflow-type is 'update-deps', ` +
-    `set ok=false, route='/wf intake update-deps ${slug}' (yolo does not drive that self-managed mode).\n` +
+    `5. READINESS GATE (yolo drives from PLAN onward only — it NEVER runs intake or shape autonomously; those own ` +
+    `product-owner alignment). First CLASSIFY by 00-index.md workflow-type — only workflows with a decided build are ` +
+    `drivable, and a non-build type must NOT fall through to the slice check:\n` +
+    `   5a. TERMINAL-ANALYSIS, no decided build — workflow-type ∈ {investigate, discover, ideate} (00-index.md ` +
+    `type: workflow-index; by design NO 03-slice.md/04-plan.md). Unlike rca, these do NOT converge on one build: ` +
+    `investigate emits 2–3 UNPICKED option sketches and writes NO 02-shape.md; discover emits a yes/no VERDICT whose ` +
+    `only follow-up is more analysis (e.g. /wf intake rca), not a build; ideate emits a RANKED MENU whose ideas each ` +
+    `become their OWN new workflow. The missing ingredient is a human product decision (pick an option / act on the ` +
+    `verdict / choose an idea) — exactly the intake+shape alignment yolo must not make. So yolo drives NOTHING here; ` +
+    `'missing 03-slice.md' is EXPECTED and must NEVER route to '/wf slice'. These are also never continued IN PLACE ` +
+    `(investigate has no shape to plan) — each SEEDS A NEW /wf intake workflow, so do NOT route to '/wf plan ${slug}' ` +
+    `either. Set ok=false, blockReason naming the terminal type, and set route from the workflow's OWN recorded next ` +
+    `step (00-index.md next-invocation / the 01-<mode>.md lead): ideate → its recorded '/wf intake <chosen-idea>'; ` +
+    `investigate → 'pick an option in 01-investigate.md, then /wf intake fix <option> (or /wf intake <option>) — ` +
+    `/wf yolo drives it once intaked+shaped'; discover → 'act on the verdict in 01-discover.md (/wf intake rca ` +
+    `<symptom> if it failed; no build if it holds)'.\n` +
+    `   5b. RCA with a DECIDED build — workflow-type 'rca'. The diagnosis IS the intake and 02-shape.md is its ` +
+    `synthesized shape, so intake+shape are already COMPLETE and yolo may drive plan→implement→verify→review over ` +
+    `the single scope (the plan/implement/verify/review references all have a 'forwarded mode' path for this). Read ` +
+    `recommended-next from 01-rca.md frontmatter (fallback: 00-index.md recommended-routes.primary / next-invocation):\n` +
+    `      • human-triage — OR 01-rca.md shows root-cause-confidence: low AND blast-radius: high — is a genuine ` +
+    `product STOP: set ok=false, blockReason='RCA recommends human triage (low confidence + high blast radius)', ` +
+    `route='read .ai/workflows/${slug}/01-rca.md and choose the build route by hand, then /wf yolo ${slug}'.\n` +
+    `      • otherwise (recommended-next ∈ {/wf plan, /wf intake fix, /wf intake hotfix}) → DRIVABLE single-scope ` +
+    `build. Readiness passes when 01-rca.md (type: rca — the intake lead) and 02-shape.md both exist; 03-slice.md is ` +
+    `NOT required (single-scope roster was synthesized in step 2, singleScope=true). HONOR the recommendation via ` +
+    `reviewDimension = the review stage's default rubric: recommended-next hotfix → 'security'; plan/fix → leave ` +
+    `reviewDimension empty (standard selection). yolo drives from PLAN regardless — it does NOT re-run /wf intake ` +
+    `fix|hotfix, mint a new branch, or change base-branch; the drive runs on the tree the RCA recorded.\n` +
+    `   5c. SELF-MANAGED build — workflow-type 'update-deps': set ok=false, route='/wf intake update-deps ${slug}' — ` +
+    `yolo does not drive it (it self-authors 05/06 and skips /wf implement + /wf verify, which yolo's fixed ` +
+    `plan→implement→verify→review chain would double-author).\n` +
+    `   5d. STANDARD build lifecycle — everything else (standard/feature, plus the compressed change-modes fix / ` +
+    `hotfix / refactor; 00-index.md type: index). Apply the readiness check: the stage-1 intake artifact must exist ` +
+    `and not be status: awaiting-input; 02-shape.md must exist; 03-slice.md must exist (UNLESS singleScope was ` +
+    `synthesized in step 2 for a one-slice standard workflow). The intake lead is 01-intake.md for a standard ` +
+    `workflow, but the change-modes name it after the mode — resolve from workflow-type: fix→01-fix.md, ` +
+    `hotfix→01-hotfix.md, refactor→01-refactor.md, else 01-intake.md (all carry frontmatter type: intake, ` +
+    `stage-number 1; accept any 01-*.md whose frontmatter is type: intake if the named file is somehow absent). If ` +
+    `the resolved intake lead, 02-shape.md, or (when required) 03-slice.md is missing or awaiting-input, set ok=false ` +
+    `with blockReason and route='/wf intake <description>' (or '/wf shape ${slug}' / '/wf slice ${slug}' for the ` +
+    `specific gap).\n` +
     `6. For ALL roster slices (in roster order — the COMPLETE list, both modes; the full roster is needed so ` +
     `slice-mode can route to the next slice), check on disk which of plan/implement/verify/review already exist ` +
     `AND are terminal-clean, marking each 'done' | 'todo':\n` +
@@ -364,11 +413,17 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     ? ` This is autonomous fix ROUND ${extra.round} of up to 2 — a prior round already applied one fix pass; ` +
       `resolve only what still fails. If warned the slice was already verified, proceed with the overwrite.`
     : ''
+  const dimensionHint =
+    stage === 'review' && idx.reviewDimension
+      ? ` Default review rubric: '${idx.reviewDimension}' — the forwarded RCA recommended a build flavor whose ` +
+        `default dimension is '${idx.reviewDimension}' (the review reference does not auto-apply it for ` +
+        `workflow-type: rca, so honor it here); widen to additional dimensions only if the diff warrants.`
+      : ''
   const scopeHint =
     stage === 'review'
       ? ` Review scope is '${idx.reviewScope}' (per 00-index.md): ${idx.reviewScope === 'slug-wide'
           ? 'write the single 07-review.md over the whole branch diff (git diff ' + (idx.branch.base || '<base>') + '...HEAD)'
-          : 'write 07-review-' + sliceArg + '.md over git diff HEAD for this slice'}.`
+          : 'write 07-review-' + sliceArg + '.md over git diff HEAD for this slice'}.${dimensionHint}`
       : ''
   return await agent(
     `Execute the SDLC '${stage}' stage for slug '${slug}'${sliceClause}, FULLY AUTONOMOUSLY (no human in the loop).\n\n` +
