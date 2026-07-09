@@ -13,7 +13,7 @@ You are running `$wf implement`, **stage 5 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | One of: (a) standard mode — `02-shape.md` + `04-plan-<slice-slug>.md` (or `04-plan.md` for single-scope); (b) compressed mode (`workflow-type: quick`) — `01-quick.md`; (c) forwarded mode (`workflow-type: rca` / `investigate`) — `02-shape.md` (synthesized) + optional `04-plan.md`; (d) change-mode (`workflow-type: fix` / `hotfix` / `refactor`) — the compressed-lifecycle's **un-suffixed single-slice** standard files (`04-plan.md`). `update-deps` self-authors its own `05`/`06` and redirects here; `docs` uses its own implement command. |
+| Requires | One of: (a) standard mode — `02-shape.md` + `04-plan-<slice-slug>.md` (or `04-plan.md` for single-scope); (b) compressed mode (`workflow-type: quick`) — `01-quick.md`; (c) forwarded mode (`workflow-type: rca`) — `02-shape.md` (synthesized) + optional `04-plan.md`; (d) change-mode (`workflow-type: fix` / `hotfix` / `refactor`) — the compressed-lifecycle's **un-suffixed single-slice** standard files (`04-plan.md`). `update-deps` self-authors its own `05`/`06` and redirects here; `docs` uses its own implement command. |
 | Conditional inputs (mandatory when present) | `02b-design.md` (design brief — register, color strategy, anti-goals MUST be honored), `02c-craft.md` (visual contract — mock fidelity inventory items MUST be honored as acceptance criteria), `04b-instrument.md` (instrumentation signals MUST be added to the code), `04c-experiment.md` (feature flag/cohort wiring MUST be added), `05c-benchmark.md` (baseline — implementation MUST NOT regress), `augmentations:` list in `00-index.md` (every entry MUST be consumed per type — see Step 0.7) |
 | Produces | `05-implement-<slice-slug>.md` + updates `05-implement.md` master |
 | Next | `$wf verify <slug> <slice-slug>` (default) |
@@ -37,7 +37,8 @@ You are a **workflow orchestrator** running the implementation stage.
 3. **Check for reviews mode:** If the second argument is literally `reviews` → **review-fix** invocation. See "Reviews Mode" below. Skip the rest of Step 0 and go directly to that section.
 4. **Determine workflow source mode** from `workflow-type`:
    - `workflow-type: quick` → **compressed mode**. Source artifact is `01-quick.md` (brief, shape, design, slice, and plan in one document). No `02-shape.md` / `03-slice-*.md` / `04-plan-*.md` files exist; do not require them.
-   - `workflow-type: rca` or `workflow-type: investigate` → **forwarded mode**. Source artifacts (`01-rca.md` / `01-investigate.md`) hold the rich context. A synthesized `02-shape.md` exists; planning may have been added via `$wf plan` or this may be a quick-style continuation.
+   - `workflow-type: rca` → **forwarded mode**. The rich context lives in `01-rca.md`; a synthesized `02-shape.md` exists (the RCA writes it as a forwarding contract). Planning may have been added via `$wf plan`, or this may be a quick-style continuation.
+   - `workflow-type: investigate` → **terminal analysis — not built in place.** `$wf intake investigate` produces option sketches and **no `02-shape.md`** (and no plan); a chosen option is re-intaked via `$wf intake <option>` as a NEW workflow that does its own shape pass. A bare `investigate` slug therefore has no plan, so the plan-prerequisite in Step 0.6 already STOPs; if you reach here, direct the user to `$wf intake <option>`.
    - `workflow-type: fix` / `hotfix` / `refactor` (legacy `rf`) → **change-mode (compressed standard lifecycle).** Authored as STANDARD, single-slice, **un-suffixed** files: `01-<mode>.md` (`type: intake`; `01-fix.md` / `01-hotfix.md` / `01-refactor.md`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`. Exactly **one** slice; `selected-slice` on the index is its slug. Implement as **standard mode** with one substitution: every per-slice file is **un-suffixed** — read `04-plan.md` and write `05-implement.md` (NOT the `-<slice-slug>`-suffixed files of multi-slice standard mode). Wherever a step below names a suffixed file, use the un-suffixed name. (hotfix's `07-review` defaults to `security`; refactor's to `refactor-safety`. **refactor**: one atomic green step per plan step — never combine; commit per step; if verify fails, fix the refactor, not the test.)
    - `workflow-type: update-deps` → **self-managed change-mode.** Self-authors `05-implement.md` / `06-verify.md` inside its own flow, then routes to `$wf review`. Should NOT use `$wf implement`. STOP and direct the user back to `$wf intake update-deps <slug>`.
    - `workflow-type: docs` → **alternate workflow** with its own implement stage. STOP and direct the user to that workflow's implement command.
@@ -52,7 +53,7 @@ You are a **workflow orchestrator** running the implementation stage.
    - **Compressed mode**:
      - `01-quick.md` — single source for brief, shape, slice, and plan. Read end-to-end.
    - **Forwarded mode**:
-     - `01-rca.md` or `01-investigate.md` — rich source artifact (read for context beyond the synthesized shape).
+     - `01-rca.md` — rich source artifact (read for context beyond the synthesized shape).
      - `02-shape.md` — synthesized shape forwarding contract.
      - `04-plan.md` (if `$wf plan` was run after the forward) — full plan.
    - **Standard mode**:
