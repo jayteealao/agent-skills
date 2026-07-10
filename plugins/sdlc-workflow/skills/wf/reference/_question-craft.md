@@ -1,0 +1,49 @@
+# Shared question-craft contract (single source)
+
+Every PO-facing question in this workflow — the intake batches, the shape and
+slice interviews, the plan discovery rounds, and any ad-hoc structured decision —
+is answered by a product owner who may be non-technical, or technical but new to
+this codebase. A question is well-formed only if someone who cannot read the
+code can still pick an answer confidently. Citing sites contribute their own
+topics and round structure; this file owns how each question is written.
+
+**Per-question requirements:**
+
+1. **Frame the decision in outcome terms first.** Open with one or two
+   plain-language sentences: what is being decided, why it surfaced now, and
+   what the choice affects (delivery time, risk, cost, user experience, future
+   flexibility). The technical mechanism comes second, never first.
+2. **Name jargon AND translate it.** Keep the precise technical term — the
+   artifact needs it — but attach a short gloss (≤10 words) on first use:
+   *"extend the existing repository layer (the code that already talks to the
+   database)"*. Never simplify by dropping the term, and never assume the term
+   carries meaning on its own.
+3. **Options state consequences, not just mechanisms.** Each option's
+   description says what choosing it means in outcome terms — effort, risk,
+   maintenance burden, what becomes easier or harder later — not merely the
+   name of the approach. Two options whose descriptions differ only in jargon
+   are one option; go find the real tradeoff.
+4. **State reversibility.** Say whether the choice is cheap to change later or
+   hard to unwind. Hard-to-reverse choices are flagged as such in the question
+   framing, not buried in an option description.
+5. **Recommend when a recommendation exists.** Put the recommended option
+   first, mark it "(Recommended)", and give the reason in one clause.
+   Impartiality (each interview's own rule) means presenting genuinely
+   different directions — it does not mean withholding judgment the PO would
+   want.
+6. **Give an "if unsure" escape.** Make clear which option is safe for a PO
+   who cannot evaluate the tradeoff (usually the recommended one), and that
+   picking "Other" to ask for a deeper explanation is always a valid answer —
+   answering a question about the question costs one round, guessing wrong
+   costs a rebuild.
+
+**Litmus test** — before sending a round, reread each question as someone who
+has never opened this repository: could they choose without asking a follow-up?
+If not, rewrite the framing. The fix is more context, not a simpler decision.
+
+**Where the words go (AskUserQuestion):** the `question` field carries the
+plain-language framing (it can be 2–3 sentences); option `label`s stay short;
+option `description`s carry the consequence text and glosses. When a round
+needs more setup than the fields comfortably hold, put a 1–2 line lead-in in
+chat before the tool call saying what the round decides and why it matters.
+Freeform chat questions follow the same six requirements in prose.

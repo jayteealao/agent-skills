@@ -78,6 +78,17 @@ executed.
 - Invocation: explicit `$name` / `/skills` browse; implicit by description
   match unless `policy.allow_implicit_invocation: false` in
   `agents/openai.yaml`.
+  **CORRECTED 2026-07-10 (verified on codex-cli 0.143.0 via `codex debug
+  prompt-input`):** `allow_implicit_invocation: false` removes the skill from
+  the model-visible skills list ENTIRELY — explicit `$name` mention injects
+  nothing either, because the model resolves `$name` against that same list.
+  There is no Claude-style "user-invocable but not model-invocable" channel.
+  A skill with `false` is therefore completely uninvocable; the only
+  auto-fire guard Codex offers is the description text itself. This is why
+  `$wf`/`$consult`/`$imagery`/`$uiproto` were unrecognized until their flags
+  were flipped to `true`. Plugin skills also surface under the qualified name
+  `<plugin>:<skill>` (e.g. `sdlc-workflow-codex:wf`); the model matches bare
+  `$wf` against the suffix.
 - `agents/openai.yaml` (snake_case): `interface.{display_name,
   short_description, icon_small, icon_large, brand_color, default_prompt}`,
   `policy.allow_implicit_invocation`, `dependencies.tools[]` (type `"mcp"`

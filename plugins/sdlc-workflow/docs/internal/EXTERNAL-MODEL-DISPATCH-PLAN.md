@@ -746,6 +746,10 @@ skips) — +40 new across `tests/unit/skills/{consult-dispatch,imagery,uiproto}.
 4. **`consult` frontmatter** uses `disable-model-invocation: true` (slash-invocable, no model
    auto-fire) instead of the plan's `user-invocable: true` — honors "always explicit/opt-in" and
    avoids surprise per-token spend. Codex side: `allow_implicit_invocation: false`.
+   **(REVERSED 2026-07-10: on codex-cli 0.143.0, `allow_implicit_invocation: false` hides the
+   skill from the model entirely — explicit `$name` invocation stops working too, unlike Claude's
+   `disable-model-invocation`. All four codex `agents/openai.yaml` flags now read `true`; the
+   spend guard is the description text plus the script-level `externalDispatch.enabled` re-check.)
 5. **`imagery`/`uiproto` egress gated at the SKILL level AND (as of the 2026-06-24 review, §13.1)
    the SCRIPT level** — `gen-openai`/`gen-gemini`/`gen-stitch`/`gen-llm` each re-check
    `externalDispatch.enabled` themselves; the built-in `image_gen` + text fallback never egress and

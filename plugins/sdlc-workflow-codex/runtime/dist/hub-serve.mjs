@@ -3,8 +3,8 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-PJEXNJ2L.mjs";
-import "./chunk-LYJR4BUR.mjs";
+} from "./chunk-NQOZQCLO.mjs";
+import "./chunk-GJS4FO6S.mjs";
 import "./chunk-PDBKNARE.mjs";
 import {
   hostAllowed,
@@ -18,18 +18,22 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-DJMV6FQQ.mjs";
-import "./chunk-UK4KW6VG.mjs";
+} from "./chunk-S5M3GTYD.mjs";
+import "./chunk-Q7XQ77PQ.mjs";
 import "./chunk-4WRIEOIP.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
-} from "./chunk-4TBLJ5B7.mjs";
+} from "./chunk-Z2L4NLCI.mjs";
 import {
+  REGISTRY_FRESH_GRACE_MS,
   REGISTRY_VERSION,
   countPending,
   createRenderQueueDrainer,
+  enqueue,
+  entryWithinGrace,
+  logPrune,
   pruneRegistry,
   readRegistry,
   refreshEntriesLiveness,
@@ -37,7 +41,7 @@ import {
   validateEntry,
   writePidFile,
   writeRegistry
-} from "./chunk-JH5USZ6A.mjs";
+} from "./chunk-T6TC3LOO.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -125,6 +129,9 @@ function createHubServer({
   codeBrowser = null,
   heartbeatMs = 25e3,
   reconcileMs = 1e4,
+  // Fresh-registration survival window (F2) — how long a never-rendered,
+  // empty-queue entry survives the reconcile prune. Injectable for tests.
+  registrationGraceMs = REGISTRY_FRESH_GRACE_MS,
   pluginRoot = PLUGIN_ROOT,
   // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). null → off; main()
   // supplies the env-derived machine config (heal defaults ON there). Mirrors
@@ -164,6 +171,22 @@ function createHubServer({
     log: logHub,
     maxAttempts: heal.config.maxAttempts
   });
+  function ensureBootstrapQueued(entry) {
+    try {
+      if (!entry?.id || !entry.viewDir || !entry.repoRoot) return;
+      if (!existsSync(entry.viewDir)) return;
+      if (existsSync(`${entry.viewDir}/.last-render`)) return;
+      if (countPending(entry.viewDir) > 0) return;
+      const r = enqueue(entry.viewDir, {
+        repoRoot: entry.repoRoot,
+        kind: "bootstrap",
+        bucket: "__bootstrap__",
+        enqueuedBy: { host: STARTED_BY_HOST, pid: process.pid }
+      });
+      if (r.ok) logHub(`bootstrap render queued for never-rendered ${entry.id}`);
+    } catch {
+    }
+  }
   function reload() {
     try {
       pruneRegistry();
@@ -178,6 +201,7 @@ function createHubServer({
       refreshEntriesLiveness(entries);
     } catch {
     }
+    for (const e of entries) ensureBootstrapQueued(e);
     rewatchAll();
     invalidateLanding();
   }
@@ -247,7 +271,8 @@ function createHubServer({
     let changed = false;
     const live = [];
     for (const e of entries) {
-      const present = existsSync(e.repoRoot) && existsSync(e.viewDir) && (existsSync(`${e.viewDir}/.last-render`) || countPending(e.viewDir) > 0);
+      const backing = existsSync(e.repoRoot) && existsSync(e.viewDir);
+      const present = backing && (existsSync(`${e.viewDir}/.last-render`) || countPending(e.viewDir) > 0 || entryWithinGrace(e, registrationGraceMs));
       if (present) {
         live.push(e);
         continue;
@@ -263,7 +288,9 @@ function createHubServer({
       }
       lastReloadAt.delete(e.id);
       lastRenderMtime.delete(e.id);
-      logHub(`reconcile: pruned ${e.id} (backing files gone)`);
+      const reason = backing ? "no .last-render + empty queue past registration grace" : "backing files gone";
+      logHub(`reconcile: pruned ${e.id} (${reason})`);
+      logPrune(`reconcile-prune ${e.id} (${e.repoRoot ?? "?"}): ${reason}`);
     }
     if (changed) {
       entries = live;
@@ -645,6 +672,8 @@ data: ${JSON.stringify({ ok: true })}
       }
       watchEntry(entry);
       invalidateLanding();
+      ensureBootstrapQueued(entry);
+      renderQueue.drainEntry(entry);
       emitReload(entry.id, entry.lastRenderedAt);
       sendJson(res, { ok: true, id: entry.id });
     });

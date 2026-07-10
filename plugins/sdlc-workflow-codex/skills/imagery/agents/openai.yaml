@@ -3,4 +3,4 @@ interface:
   short_description: "Generate design images from a prompt (built-in image_gen, gpt-image-2, nano-banana); supersedes imagegen"
   default_prompt: "Generate a visual probe for the current design direction."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

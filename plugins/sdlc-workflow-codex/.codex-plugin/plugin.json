@@ -1,6 +1,6 @@
 {
   "name": "sdlc-workflow-codex",
-  "version": "9.108.0",
+  "version": "9.109.0",
   "description": "Native Codex SDLC plugin: one handwritten $wf workflow skill (19 sub-commands spanning intake modes fix/rca/investigate/discover/hotfix/refactor/update-deps/ideate, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, docs, probe, simplify, status/recap) plus consult, imagery, uiproto, error-analysis, refactoring-patterns, setup-wide-logging, and test-patterns — over the same shared runtime, hub, and .ai/ artifacts as the Claude sdlc-workflow plugin. Requires a hooks-GA Codex CLI (verified on 0.143.0) with hooks enabled.",
   "author": {
     "name": "jayte",
@@ -30,9 +30,9 @@
     ],
     "websiteURL": "https://github.com/jayteealao/agent-skills/tree/main/plugins/sdlc-workflow-codex",
     "defaultPrompt": [
-      "Run the next SDLC stage for this workflow.",
-      "Review the current branch across the pre-merge dimensions.",
-      "Investigate and fix this failing test."
+      "$wf status — then run the next SDLC stage for this workflow ($wf is the skill; `wf` is NOT a shell command — on Windows it opens the Firewall console).",
+      "$wf review — review the current branch across the pre-merge dimensions.",
+      "$wf intake fix — investigate and fix this failing test."
     ],
     "brandColor": "#0F766E"
   }

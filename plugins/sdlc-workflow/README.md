@@ -190,7 +190,7 @@ options:
 /wf shape dark-mode-toggle-settings
 ```
 
-This is the most interview-intensive stage. The command asks **20 questions across 5 rounds** — generated dynamically from your intake brief, not hardcoded. The five rounds cover:
+This is the most interview-intensive stage. The command asks **20 baseline questions across 5 rounds** — generated dynamically from your intake brief, not hardcoded — and extends with up to 2 extra rounds when unresolved decision points would otherwise block slicing or leave acceptance criteria unverifiable. The five baseline rounds cover:
 
 1. What does it do? (core interaction)
 2. How does it behave? (state, persistence, edge cases)
@@ -720,7 +720,7 @@ Every `/wf intake <slug> <scope>` call that adds a new slice records an `extensi
 | Command | Stage | Purpose | Artifact |
 |---|---|---|---|
 | `/wf intake <description>` | 1 | Capture scope, criteria, branch strategy | `01-intake.md` |
-| `/wf shape <slug>` | 2 | 20-question feature interview, mini-spec, docs plan (also writes the design brief `02b-design.md` for UI work) | `02-shape.md` (+ `02b-design.md`) |
+| `/wf shape <slug>` | 2 | Adaptive feature interview (20-question baseline), mini-spec, docs plan (also writes the design brief `02b-design.md` for UI work) | `02-shape.md` (+ `02b-design.md`) |
 | `/wf slice <slug>` | 3 | Decompose into vertical slices | `03-slice.md` + per-slice |
 | `/wf plan <slug> [slice\|all] [feedback]` | 4 | Repo-aware implementation plan | `04-plan.md` + per-slice |
 | `/wf implement <slug> [slice\|reviews]` | 5 | Execute plan, atomic commits | `05-implement.md` + per-slice |

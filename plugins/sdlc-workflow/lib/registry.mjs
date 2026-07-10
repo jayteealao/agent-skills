@@ -40,6 +40,11 @@ import { countPending } from './render-queue.mjs';
 
 export const REGISTRY_VERSION = 2;   // v2 (SLUG-BRANCH-IDENTITY §4.2): id = hash(repoRoot) only
 export const SHARD_SOFT_CAP = 100;   // §3.4 — writer-as-janitor merge trigger
+// Fresh-registration survival window (FRESH-REPO-REGISTRATION-FIX-PLAN F2): a
+// repo registered moments ago legitimately has neither `.last-render` nor
+// queued work while its bootstrap render is still being scheduled; the prune
+// paths keep it alive this long before the no-output arm may fire.
+export const REGISTRY_FRESH_GRACE_MS = 10 * 60 * 1000;
 
 /* ───────────────────────── Home-dir paths ───────────────────────── */
 // `~/.sdlc/` is the correct home for all of these precisely because the hub is a
@@ -447,30 +452,44 @@ export function mergeShardsIntoRegistry() {
 /* ───────────────────────── pruning (§3.5) ───────────────────────── */
 
 /**
+ * True while an entry's `updatedAt` is younger than `graceMs` — the fresh-
+ * registration survival window (FRESH-REPO-REGISTRATION-FIX-PLAN F2). Without
+ * it, a repo registered with an empty queue is reaped before its bootstrap
+ * render can land. A missing or unparseable `updatedAt` is NOT fresh.
+ */
+export function entryWithinGrace(entry, graceMs = REGISTRY_FRESH_GRACE_MS, now = Date.now()) {
+  const t = Date.parse(entry?.updatedAt ?? '');
+  return Number.isFinite(t) && now - t < graceMs;
+}
+
+/**
  * Drop any entry whose repoRoot or viewDir no longer exists (or that fails
  * validation), OR that has neither rendered output (.last-render) nor pending
- * render-queue work. The pending-queue clause (RENDER-DISPATCH-PLAN) keeps a
- * freshly-REGISTERED-but-not-yet-RENDERED repo alive — a hook now registers a
- * brand-new repo BEFORE its first render so the hub will drain its queue, so the
- * old "no .last-render → prune" would otherwise kill it before it ever renders.
- * Rewrites registry.json and clears shards. Logs pruned entries.
- * Returns { kept, pruned }.
+ * render-queue work once past the fresh-registration grace window. The
+ * pending-queue clause (RENDER-DISPATCH-PLAN) keeps a registered-but-not-yet-
+ * rendered repo alive while its render is queued; the grace window (F2) covers
+ * the moments before that first job exists at all. Missing backing dirs and
+ * failed validation prune immediately regardless of grace — that arm is the
+ * real GC. Rewrites registry.json and clears shards. Logs pruned entries with
+ * the arm that fired. Returns { kept, pruned }.
  */
-export function pruneRegistry() {
+export function pruneRegistry({ graceMs = REGISTRY_FRESH_GRACE_MS, now = Date.now() } = {}) {
   const { entries } = readRegistry({ validate: false, logInvalid: false });
   const kept = [];
   let pruned = 0;
   for (const e of entries) {
     const valid = validateEntry(e).ok;
-    const present = valid
-      && existsSync(e.repoRoot)
-      && existsSync(e.viewDir)
+    const backing = valid && existsSync(e.repoRoot) && existsSync(e.viewDir);
+    const hasWork = backing
       && (existsSync(join(e.viewDir, '.last-render')) || countPending(e.viewDir) > 0);
-    if (present) {
+    if (backing && (hasWork || entryWithinGrace(e, graceMs, now))) {
       kept.push(e);
     } else {
       pruned++;
-      logPrune(`prune ${e.id ?? '?'} (${e.repoRoot ?? '?'} @ ${e.headBranch ?? e.branch ?? '?'}): ${valid ? 'missing repoRoot/viewDir, no .last-render + no queued renders' : 'failed validation'}`);
+      const reason = !valid ? 'failed validation'
+        : !backing ? 'missing repoRoot/viewDir'
+          : 'no .last-render + no queued renders past registration grace';
+      logPrune(`prune ${e.id ?? '?'} (${e.repoRoot ?? '?'} @ ${e.headBranch ?? e.branch ?? '?'}): ${reason}`);
     }
   }
   writeRegistryAtomic({ version: REGISTRY_VERSION, entries: kept });
@@ -480,7 +499,10 @@ export function pruneRegistry() {
   return { kept: kept.length, pruned };
 }
 
-function logPrune(line) {
+// Exported so the hub's reconcile loop can mirror its prunes into the same
+// on-disk log (F3) — a daemon's stdout is gone once the console closes, and a
+// reaped fresh repo used to leave zero trace.
+export function logPrune(line) {
   try {
     mkdirSync(sdlcHomeDir(), { recursive: true });
     appendFileSync(pruneLogPath(), `[${new Date().toISOString()}] ${line}\n`, 'utf-8');
@@ -546,6 +568,33 @@ function postEntryToHub(hub, entry) {
   });
 }
 
+/* ───────────────────────── consumer .ai/.gitignore seed (F13) ───────────────────────── */
+
+const AI_GITIGNORE_RULES = ['_view/', 'workflows/*/.locks/'];
+
+/**
+ * Seed `.ai/.gitignore` next to a VALIDATED viewDir (its parent is known to be
+ * a real `.ai` dir) so the rendered view and per-slug lock dirs stay out of
+ * `git status` — a fresh repo otherwise stages its own render output
+ * (FRESH-REPO-REGISTRATION-FIX-PLAN F13). Append-only and idempotent: user
+ * lines are preserved, present rules are never duplicated. Best-effort — a
+ * failure must never affect registration.
+ */
+function seedAiGitignore(viewDir) {
+  try {
+    const path = join(dirname(viewDir), '.gitignore');
+    let text = '';
+    try { text = readFileSync(path, 'utf-8'); } catch { /* absent — created below */ }
+    const have = new Set(text.split(/\r?\n/).map((l) => l.trim()));
+    const missing = AI_GITIGNORE_RULES.filter((r) => !have.has(r));
+    if (!missing.length) return;
+    const head = text
+      ? text.replace(/\r?\n?$/, '\n')
+      : '# managed by sdlc-workflow — render output and locks stay out of git\n';
+    writeFileSync(path, `${head}${missing.join('\n')}\n`, 'utf-8');
+  } catch { /* best-effort */ }
+}
+
 /* ───────────────────────── public upsert entrypoint ───────────────────────── */
 
 /**
@@ -566,9 +615,24 @@ export async function upsertRegistryEntry({ projectRoot = process.cwd(), viewDir
     const entry = await buildEntry({ projectRoot, viewDir: resolvedView, configHash, existing });
     if (!entry) return { action: 'skipped-not-git' };
 
+    // F1 (FRESH-REPO-REGISTRATION-FIX-PLAN): a brand-new repo has no .ai/_view
+    // yet — hub-ensure registers BEFORE its writeStatus creates the dir, so
+    // validateEntry's realpath used to reject the very first registration.
+    // Create the dir at this choke point (covers every caller) and re-stamp the
+    // entry with the now-resolvable realpath. A mkdir failure falls through to
+    // validateEntry, which rejects with the precise reason.
+    try {
+      mkdirSync(resolvedView, { recursive: true });
+      entry.viewDir = realpathSync.native(resolvedView);
+    } catch { /* validateEntry below owns the reject */ }
+
     // Self-reject a poisoned/misconfigured entry before it ever lands on disk.
     const v = validateEntry(entry);
     if (!v.ok) { logPrune(`reject-on-write ${entry.id}: ${v.reason}`); return { action: 'rejected', id: entry.id }; }
+
+    // F13: the parent of a validated viewDir is a real `.ai` dir — seed its
+    // .gitignore so render output and lock dirs never pollute `git status`.
+    seedAiGitignore(entry.viewDir);
 
     // Sole-writer path: hand the entry to the hub if it's alive.
     const hub = liveHub();

@@ -276,7 +276,7 @@ After ALL slice sub-agents complete:
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
+- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 - **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read and honor it — silent omission is a contract violation.
@@ -298,6 +298,7 @@ Do this in order:
    - Do not re-ask anything decided in shape or slice artifacts. Pre-fill known decisions and confirm only if sub-agent findings contradict them.
    - Questions must be impartial — present genuinely different implementation approaches, not a "right answer" with decoys.
    - Later rounds build on earlier answers and sub-agent findings.
+   - **Legibility ([_question-craft.md](_question-craft.md)) is mandatory here more than anywhere.** Plan questions are the most technical in the lifecycle — assume the PO has never opened the codebase: frame each decision in outcome terms first, gloss every technical term, describe options by consequence (effort, risk, what gets harder later), state reversibility, mark a recommendation with its reason, and say which option is safe if unsure. A question the PO can only answer by guessing produces a plan built on a guess.
 
    **What to ask about:**
    - **Implementation approach** — When sub-agents found multiple viable patterns, ask which to follow. When there's a choice between extending existing code vs. writing new, surface that tradeoff. When a library offers multiple APIs, ask which fits.

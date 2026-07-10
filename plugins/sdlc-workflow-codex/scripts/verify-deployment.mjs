@@ -62,6 +62,44 @@ if (!versionOut) {
   }
 }
 
+// 1b. Codex Desktop bundled binary (FRESH-REPO-REGISTRATION-FIX-PLAN F6):
+// Desktop sessions run their OWN bundled codex.exe, not the PATH one — a
+// PATH-only check once reported a stale third install while Desktop actually
+// ran 0.144.0-alpha.4. Scan the Desktop install dirs and compare both worlds.
+if (process.platform === 'win32') {
+  const desktopBin = join(process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local'), 'OpenAI', 'Codex', 'bin');
+  const desktopVersions = [];
+  try {
+    for (const dir of readdirSync(desktopBin)) {
+      const exe = join(desktopBin, dir, 'codex.exe');
+      if (!existsSync(exe)) continue;
+      const r = spawnSync(exe, ['--version'], { encoding: 'utf-8', windowsHide: true, timeout: 30000 });
+      const out = r.status === 0 ? (r.stdout || '').trim() : null;
+      if (out) desktopVersions.push({ dir, version: out });
+    }
+  } catch { /* no Desktop install — CLI-only machine */ }
+  if (!desktopVersions.length) {
+    ok('no Codex Desktop bundled binary found (CLI-only machine)');
+  } else {
+    const min = parseVersion(VERIFIED_CLI);
+    for (const d of desktopVersions) {
+      const v = parseVersion(d.version);
+      if (v && versionLt(v, min)) {
+        warn(`Codex Desktop bundled ${d.version} (bin/${d.dir}) predates the verified hooks-GA baseline ${VERIFIED_CLI} — Desktop sessions there run WITHOUT working hooks`);
+      } else {
+        ok(`Codex Desktop bundled ${d.version} (bin/${d.dir})`);
+      }
+    }
+    const pathV = parseVersion(versionOut ?? '');
+    const newestDesktop = desktopVersions
+      .map((d) => parseVersion(d.version)).filter(Boolean)
+      .sort((a, b) => (versionLt(a, b) ? -1 : 1)).pop();
+    if (pathV && newestDesktop && (versionLt(pathV, newestDesktop) || versionLt(newestDesktop, pathV))) {
+      warn(`PATH codex ${pathV.join('.')} and Desktop bundled ${newestDesktop.join('.')} diverge — terminal and Desktop sessions run different builds`);
+    }
+  }
+}
+
 // 2. hooks + multi_agent feature state
 const features = codex(['features', 'list']);
 if (features == null) {

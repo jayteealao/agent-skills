@@ -1,7 +1,6 @@
 ---
 name: wf
 description: The single entry point for the SDLC lifecycle. Runs one SDLC operation per key — a canonical stage (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro), a standalone/driver (design, probe, simplify, auto), a navigation query (status, recap), lifecycle control (close), or a router (ship-plan, docs) — and writes its artifact (when it has one) to `.ai/workflows/<slug>/`. `intake` also dispatches compressed entry modes (fix, rca, investigate, discover, hotfix, refactor, update-deps, ideate) and auto-routes extension (`$wf intake <existing-slug> <new scope>`). `review` is the single review surface (workflow stage AND ad-hoc dimension/sweep). Navigation (`status`/`recap`), lifecycle control (`close`), the ship-plan pipeline (`ship-plan`), and documentation (`docs`) are all keys now — the former `$wf-meta` and `$wf-docs` skills are dissolved into this one skill.
-disable-model-invocation: true
 argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|probe|simplify|auto|status|recap|close|ship-plan|docs> [args...]"
 ---
 

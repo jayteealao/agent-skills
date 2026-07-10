@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — fresh repos self-register: viewDir-before-register, bootstrap-render-on-accept, prune grace + logging (9.109.0)
+
+A brand-new repo could **never** become registered + rendered with the hub on its own (FRESH-REPO-REGISTRATION-FIX-PLAN, from the hello-test forensics): `hub-ensure` registered before anything created `.ai/_view`, so `validateEntry`'s realpath rejected the very first registration; any later successful registration was then reaped by the reconcile prune within one 10 s tick (no `.last-render`, empty queue) — and that prune logged only to the daemon's stdout, leaving zero on-disk trace.
+
+- **F1 — viewDir created at the registration choke point.** `upsertRegistryEntry()` now `mkdirSync`s the view dir (and re-stamps the entry with its realpath) before validation, covering every caller — session-start hub-ensure, render hooks, heal.
+- **F2 — fresh entries survive and self-render.** The hub queues one `kind: bootstrap` render when it accepts a never-rendered registration (POST accept + reload shard fold-in; gated on `.last-render` absence + an empty queue so re-registration never re-renders), and both prune paths (`pruneRegistry`, hub `reconcile()`) honor a 10-minute registration grace window keyed on `updatedAt`. The missing-backing-files arm still prunes immediately.
+- **F3 — prunes are observable.** Reconcile prunes now also append to `~/.sdlc/registry.prune.log` with the arm that fired (`backing files gone` vs `no .last-render + empty queue past registration grace`).
+- **F13 — registration seeds `.ai/.gitignore`** (`_view/`, `workflows/*/.locks/`) at the same choke point, append-only and idempotent, so a consumer repo never stages its own render output.
+- **Codex hook diagnostics (F4/F6).** The Codex adapter gains opt-in payload capture (`SDLC_HOOK_DEBUG=1` or a `hook-debug` flag file → `PLUGIN_DATA/hook-debug.jsonl`) since rollout JSONL never records hook executions; `verify:deployment` now also versions the Codex **Desktop** bundled binary (`%LOCALAPPDATA%\OpenAI\Codex\bin\*`) and warns on PATH-vs-Desktop divergence.
+- **Codex `$wf` visibility (F11).** `allow_implicit_invocation: false` hides a Codex skill entirely — explicit `$name` invocation dies too (unlike Claude's `disable-model-invocation`). Flipped to `true` across all four skills, dropped the inert `disable-model-invocation` frontmatter, and reworded the `defaultPrompt` chips to name `$wf` (bare `wf` on Windows resolves to the Firewall console).
+- **Acceptance:** a new cold-start E2E (temp git repo + one workflow, real hub server, real renderer over the real wire path) fails on the old code and passes now; unit coverage pins both prune arms, the grace window, bootstrap idempotence, and gitignore seeding.
+- Also folded in: adaptive question counts for `/wf shape` (20 = floor + bounded extension rule) and intake Batch B need-driven wording, both trees.
+
 ### Changed — `/wf yolo` drives compressed intake modes + RCA; forwarded-mode doc accuracy (9.108.0)
 
 `/wf yolo`'s orientation gate previously recognized only standard multi-slice workflows: it hard-coded the `01-intake.md` filename and keyed readiness on artifact presence alone, so it wrongly bounced fully-planned compressed change-mode slugs back to `/wf intake` and mis-routed terminal analyses to `/wf slice`. Orientation now classifies the slug by `workflow-type` and drives every workflow that has a decided build.

@@ -146,7 +146,7 @@ Merge all sub-agent findings into the stage file under `## Affected Areas`, `## 
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Ask the user directly in chat** for multiple-choice PO questions (risk tolerance, appetite, structured decisions), presenting options as a numbered list. Use freeform chat for open-ended questions (behavior, acceptance criteria, non-goals). Append every answer to `po-answers.md` with timestamp and stage.
+- **Ask the user directly in chat** for multiple-choice PO questions (risk tolerance, appetite, structured decisions), presenting options as a numbered list. Use freeform chat for open-ended questions (behavior, acceptance criteria, non-goals). Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Use parallel subagents for multi-domain research per [_subagents.md](_subagents.md); do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
@@ -158,12 +158,12 @@ After writing files, return per [_chat-return.md](_chat-return.md) — narrative
 - `options:` (all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
-**Mandatory discovery phase — 20 impartial questions about the feature.**
+**Mandatory discovery phase — adaptive interview, 20-question baseline.**
 
-Before writing the mini-spec, interview the user with 20 questions to surface decisions, assumptions, and unknowns left ambiguous by the intake brief.
+Before writing the mini-spec, interview the user to surface decisions, assumptions, and unknowns left ambiguous by the intake brief: 20 baseline questions, extended while unresolved decision points remain (see the extension rule below).
 
 **Rules:**
-- Ask exactly 20 questions across 5 rounds of 4 in chat, presenting options as a short numbered list.
+- Ask 20 baseline questions across 5 rounds of 4 in chat, presenting options as a short numbered list. 20 is a floor, not a ceiling — after Round 5, apply the extension rule below.
 - Every question must be about *this specific feature* — reference it by name, use concrete details from the intake brief. No generic process questions.
 - Questions must be impartial — options should represent genuinely different directions, not a "right answer" with decoys.
 - Options should be feature-specific where possible; fall back to general options only when context doesn't suggest concrete alternatives.
@@ -183,15 +183,19 @@ Round 4 — **What can go wrong?** Failure modes: worst-case impact of bugs, how
 Round 5 — **Where are the boundaries?** Define edges, leading with scope restraint: which parts of the brief does v1 *actually* need versus speculative gold-plating, premature generality, or "while we're here" scope that can be deferred — present these as trim options the PO chooses, never a unilateral cut (the question is "do you actually need X, or does Y cover it?", not a refusal to build). Then: what's explicitly out of scope, how to transition from old to new behavior, what existing code/data is touched. This round is rung 1 of the lifecycle ("does this need to exist?") — a criterion trimmed here is a slice never created, a plan never written, code never implemented, so it is the highest-leverage place to apply restraint. Restraint is bounded: never trim what the user explicitly asked for, and never trade away a non-functional requirement (security, accessibility, data integrity) for a smaller scope.
 
 **How to construct each question:**
+- Follow the legibility contract in [_question-craft.md](_question-craft.md) — outcome-first framing, glossed jargon, consequence-stating options, reversibility, a marked recommendation, an "if unsure" default. The PO must be able to answer without reading the code.
 - Concrete options specific to the feature. Each option describes a direction; allow "Other" or freeform input.
 - Indicate whether multiple options can coexist or are mutually exclusive.
 
-After all 5 rounds, append every answer to `po-answers.md` with timestamp and `stage: shape`. Then proceed to the remaining steps.
-3. **Run all 5 discovery rounds.** Do not skip or compress rounds. Wait for each round's answers before proceeding — use earlier answers to sharpen later questions.
+**Extension rule — extend while ambiguity blocks, never pad:**
+After Round 5, inventory what is still unresolved. A decision point qualifies for an extension round only if leaving it open would block slicing, make an acceptance criterion unverifiable, or force plan/implement to guess a direction the PO should choose. If any qualify, run up to 2 additional rounds (up to 4 questions each) targeting ONLY those decision points — say in each extension round's lead-in which unresolved point each question closes. Stop the moment nothing qualifying remains; never fill a round for symmetry. Anything still unresolved after 2 extension rounds goes to `## Unknowns / Open Questions` (and `status: awaiting-input` if it blocks the spec), not more rounds.
+
+After all rounds (5 baseline + any extension rounds), append every answer to `po-answers.md` with timestamp and `stage: shape`. Then proceed to the remaining steps.
+3. **Run all 5 baseline discovery rounds, then apply the extension rule.** Do not skip or compress the baseline rounds. Wait for each round's answers before proceeding — use earlier answers to sharpen later questions.
 4. Run freshness research via Explore sub-agent 2 (see skip criteria above) for external dependencies, patterns, APIs, standards, and known issues.
 5. Synthesize discovery answers into a behavior-focused mini-spec.
-5b. **Author the design brief (when `stack.ui ≠ ∅` and the work has visual surface).** If `00-index.md` shows a UI/frontend layer **and** this work introduces meaningful visual surface (new screens, components, states, or a redesign), author `02b-design.md` now per [design/shape.md](design/shape.md) — fold visual-direction questions into the answers already gathered; ask only what the 20-question pass didn't cover. Write it as **plain discovery**: register, color strategy, scene sentence, anti-goals, state inventory, recommended references. Do **NOT** generate image probes and do **NOT** run a visual-direction confirm gate here — those are `plan`'s (it resolves the image gate and authors `02c-craft.md`). Do not write a resolved `image-gate` to `02b-design.md` — leaving it unset marks the gate unresolved for `plan` (the field only accepts `pass`/`skipped:*`). If `stack.ui` is empty or no visual surface, skip this step. See `design/_design-context.md` for register determination and shared design laws.
-6b. **Augmentation plan (perf / observability / rollout).** Fold augmentation questions into discovery rounds (Rounds 2–4 naturally surface observability gaps, performance sensitivity, and rollout risk). After the 20 questions, synthesize into `## Augmentation Plan` and set `augmentations-needed:` frontmatter. For each type, ask (or infer from answers):
+5b. **Author the design brief (when `stack.ui ≠ ∅` and the work has visual surface).** If `00-index.md` shows a UI/frontend layer **and** this work introduces meaningful visual surface (new screens, components, states, or a redesign), author `02b-design.md` now per [design/shape.md](design/shape.md) — fold visual-direction questions into the answers already gathered; ask only what the discovery interview didn't cover. Write it as **plain discovery**: register, color strategy, scene sentence, anti-goals, state inventory, recommended references. Do **NOT** generate image probes and do **NOT** run a visual-direction confirm gate here — those are `plan`'s (it resolves the image gate and authors `02c-craft.md`). Do not write a resolved `image-gate` to `02b-design.md` — leaving it unset marks the gate unresolved for `plan` (the field only accepts `pass`/`skipped:*`). If `stack.ui` is empty or no visual surface, skip this step. See `design/_design-context.md` for register determination and shared design laws.
+6b. **Augmentation plan (perf / observability / rollout).** Fold augmentation questions into discovery rounds (Rounds 2–4 naturally surface observability gaps, performance sensitivity, and rollout risk). After the discovery interview, synthesize into `## Augmentation Plan` and set `augmentations-needed:` frontmatter. For each type, ask (or infer from answers):
    - **`instrument`**: Dark code paths with no observable signal? Will anyone know in production whether this worked?
    - **`experiment`**: Business uncertainty whether this change is better? Would a controlled rollout (feature flag, A/B, canary) reduce risk?
    - **`benchmark`**: Performance target in the AC, or regression risk in a latency-sensitive area?

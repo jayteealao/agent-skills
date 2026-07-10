@@ -3,4 +3,4 @@ interface:
   short_description: "Prototype a UI component/screen from a prompt (Google Stitch + LLM-HTML), embedded as a sandboxed iframe"
   default_prompt: "Prototype a UI component for the current design direction."
 policy:
-  allow_implicit_invocation: false
+  allow_implicit_invocation: true

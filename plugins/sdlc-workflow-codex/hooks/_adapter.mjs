@@ -17,7 +17,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 // Bump only on a real change to the Codex hook stdin/matcher/output contract.
@@ -28,15 +28,47 @@ export const HUB_NAME = 'sdlc-workflow-hub';
 
 // ── stdin / argv ──────────────────────────────────────────────────────────────
 
+/**
+ * F4 (FRESH-REPO-REGISTRATION-FIX-PLAN): opt-in raw-payload capture. Codex
+ * rollout JSONL never records hook executions, so when event delivery breaks
+ * (the Desktop PostToolUse gap) there is nothing on disk to diagnose. With
+ * SDLC_HOOK_DEBUG=1 in the env — or a `hook-debug` flag file in PLUGIN_DATA —
+ * every readEvent() appends one line to PLUGIN_DATA/hook-debug.jsonl: which
+ * hook script ran, how many stdin bytes arrived, the parsed top-level keys,
+ * and the raw payload. Best-effort and off the critical path: a capture
+ * failure never affects the hook, and with neither switch set the cost is one
+ * existsSync.
+ */
+function captureHookDebug(rawText, parsed) {
+  try {
+    const { pluginData } = resolveLayout(parseHookArgs());
+    if (process.env.SDLC_HOOK_DEBUG !== '1' && !existsSync(join(pluginData, 'hook-debug'))) return;
+    mkdirSync(pluginData, { recursive: true });
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      hookScript: process.argv[1] ?? null,
+      rawStdinLength: rawText == null ? null : rawText.length,
+      parsedKeys: parsed && typeof parsed === 'object' ? Object.keys(parsed) : null,
+      hook_event_name: parsed?.hook_event_name ?? null,
+      tool_name: parsed?.tool_name ?? null,
+      raw: rawText ?? null,
+    });
+    appendFileSync(join(pluginData, 'hook-debug.jsonl'), `${line}\n`, 'utf-8');
+  } catch { /* never on the critical path */ }
+}
+
 /** Read + parse the single JSON event Codex writes to the hook's stdin. */
 export function readEvent() {
+  let text = null;
+  let parsed = null;
   try {
-    const text = readFileSync(0, 'utf-8');
-    if (!text || !text.trim()) return null;
-    return JSON.parse(text);
+    text = readFileSync(0, 'utf-8');
+    if (text && text.trim()) parsed = JSON.parse(text);
   } catch {
-    return null;
+    parsed = null;
   }
+  captureHookDebug(text, parsed);
+  return parsed;
 }
 
 /** Parse `--plugin-root` / `--plugin-data` (substituted by Codex in hooks.json). */

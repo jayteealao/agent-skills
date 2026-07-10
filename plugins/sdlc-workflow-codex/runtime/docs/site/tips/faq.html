@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.108.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.109.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -131,7 +131,7 @@
 <dd>The <a href="../reference/glossary.html">slug</a> is a kebab-case, lowercase, stable identifier derived from the title at intake. Titles can have punctuation, capitals, and spaces; slugs cannot. Once set, the slug never changes — it is the directory name under <code>.ai/workflows/</code>. If you need a different slug, close the workflow and start a new one.</dd>
 
 <dt><strong>Why does the shape stage ask so many questions for something simple?</strong></dt>
-<dd>That is usually a signal to switch commands. Shape runs a deep interview — up to 20 questions across five rounds — designed for changes that need a written spec. If the questions feel out of proportion to the change, run <code>/wf intake fix</code> instead. You can always run full shape later if the scope grows.</dd>
+<dd>That is usually a signal to switch commands. Shape runs a deep interview — a 20-question baseline across five rounds, extending only while blocking ambiguity remains — designed for changes that need a written spec. If the questions feel out of proportion to the change, run <code>/wf intake fix</code> instead. You can always run full shape later if the scope grows.</dd>
 
 <dt><strong>My PR has a bot comment I don't want to triage. Can I ignore it?</strong></dt>
 <dd>Depends on the comment type. Walkthrough summaries (informational) are classified as low-priority and never block the readiness check. Suggestion comments from bots may be classified as needing a response. If the triage loop cycles five times (the maximum) without resolving, the readiness check flips to <code>awaiting-input</code> and stops — at that point you need to either act on the bot's suggestions or dismiss them explicitly so the loop can complete.</dd>

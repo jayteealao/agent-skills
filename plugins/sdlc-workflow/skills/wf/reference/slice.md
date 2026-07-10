@@ -63,7 +63,7 @@ Break a shaped work item into thin, independently verifiable vertical slices. Wr
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
+- **Use AskUserQuestion** for multiple-choice PO questions (structured decisions, confirmations). Use freeform chat for open-ended questions. Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
@@ -89,6 +89,7 @@ Do this in order:
    - Every question must be about *how to decompose this specific feature* — reference concrete parts of the shaped spec, not abstract slicing theory.
    - Questions must be impartial — present genuinely different decomposition strategies without favoring one.
    - Skip questions already answered in the shape or intake artifacts.
+   - Construct each question per [_question-craft.md](_question-craft.md) — decomposition tradeoffs (thin slices vs. chunked, rollout coupling) are technical; describe options by what the PO experiences (more PRs and faster feedback vs. fewer review passes), not by mechanism.
 
    **What to ask about:**
    - **Delivery order preferences** — Does the user want the riskiest part first or the most visible part first? Is there a demo date, milestone, or dependency that should drive which slice ships earliest?
