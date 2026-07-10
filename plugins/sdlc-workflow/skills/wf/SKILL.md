@@ -97,6 +97,18 @@ After sub-command resolution, before dispatch: if the user passed a positional s
 5. If a best match exists, STOP with: *"Unknown slug `<candidate>`. Did you mean `<best-match>`<closed-suffix>? (Run `/wf status` to list all workflows.)"* — `<closed-suffix>` is ` (closed)` iff the best-match row's status is `closed`. Show the corrected command verbatim: *"Retry: `/wf <sub-command> <best-match> <remaining args>`"*.
 6. Step 0.5 is purely advisory — it never auto-corrects. The user must re-invoke with the suggested slug.
 
+# Step 0.7 — Git repository precondition (v9.110.0)
+
+Before dispatch, confirm the project is a git repository: run `git rev-parse --show-toplevel` from the project root. If it succeeds, continue to Step 1. Skip this check when Step 0 ended at the menu (empty `$ARGUMENTS`) or at an unknown-key error.
+
+If it **fails** (not a git repo), do NOT proceed silently. The hub's registry identity is git-derived — in a non-git directory every registration attempt returns `skipped-not-git` with no visible error, queued renders never drain, no dashboard/view is ever rendered, and the slug branches recorded in `INDEX.md` cannot exist. Ask the user first (AskUserQuestion where available; otherwise ask in chat and WAIT for the reply):
+
+> This directory is not a git repository. `/wf` needs git — the hub registers repos by git identity, and slug branches live in git. Run `git init` now?
+> - **Yes — run `git init` (Recommended):** initialize the repo, then continue with the requested operation.
+> - **No — continue without git:** artifacts still write to `.ai/workflows/`, but the hub will not register or render this repo until `git init` is run and any `/wf` command re-registers it.
+
+On consent, run `git init` only — never stage or commit the user's files — then continue to Step 1. On decline, continue, but restate the unrendered-repo caveat in the Step 2 summary's `Next:` line. Never run `git init` without asking.
+
 # Step 1 — Execute
 
 1. Read the reference file in full from `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<key>.md`.
