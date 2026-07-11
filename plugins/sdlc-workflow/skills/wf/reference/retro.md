@@ -1,6 +1,6 @@
 ---
-description: Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation.
-argument-hint: <slug>
+description: Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation. A `pr#N` or branch-name first argument retrospects EVERY slug on that branch (batch mode), one 10-retro.md each, and synthesizes the cross-slug lessons that span the whole branch.
+argument-hint: <slug|pr#N|branch>
 ---
 
 # External Output Boundary (MANDATORY)
@@ -34,7 +34,11 @@ You are a **workflow orchestrator**, not a problem solver.
 - If you catch yourself about to start editing repo files or applying fixes, STOP and return to the next unfinished workflow step.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+1. **Resolve the first argument — it is polymorphic** (`slug` | `pr#N`/`#N`/bare int | branch name), first match wins so a slug is never mistaken for a branch:
+   - **Exact slug**: `.ai/workflows/<arg>/00-index.md` exists → **single-slug retro** (`retro-scope: slug`). The classic path — continue with items 2–5 for that one slug.
+   - **PR reference** `pr#N` / `#N` / bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then the branch path below.
+   - **Branch name**: matches a `branch:` recorded in some `00-index.md` / `.ai/workflows/INDEX.md` (or an existing git branch) → **batch retro** (`retro-scope: branch`) — see `## Batch retro` below, then return here per-slug.
+   - **Absent**: infer the most recent active workflow from `.ai/workflows/*/00-index.md` → single-slug. If ambiguous, ask the user.
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
    - At minimum, `05-implement.md` should exist (there must be something to retro on). If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
@@ -42,6 +46,15 @@ You are a **workflow orchestrator**, not a problem solver.
    - If `current-stage` in the index shows the workflow is already complete → WARN: "This workflow has already been retrospected. Running retro again will overwrite `10-retro.md`. Proceed?"
 4. **Read the full workflow trail** — every stage file that exists, plus `po-answers.md`. This includes design artifacts: `02b-design.md`, `02c-craft.md`, `design-notes/*`, `07-design-audit.md`, `07-design-critique.md`. Retro should reflect on design decisions (was the chosen color strategy right? did the mock fidelity inventory hold?) and augmentation outcomes (did `harden` catch real issues? did `optimize` deliver measurable gains?), not just engineering ones.
 5. **Carry forward** `open-questions` from the index.
+
+# Batch retro (`pr#N` / branch)
+
+Runs when Step 0 resolved a branch — the retrospective counterpart of batch `/wf ship pr#N`: after a batch of slugs shipped together on one branch, retro them together.
+
+1. **Build the roster.** Scan every `.ai/workflows/*/00-index.md`; the roster is every slug whose `branch:` equals the resolved branch. If none → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
+2. **Per-slug retro.** For each roster slug, run the full single-slug procedure — Step 0 items 2–5 (orient + prereq check + read the trail), the parallel analysis, and the write of `10-retro.md` — with `retro-scope: branch`, `branch:`, and `branch-slugs:` added to that slug's retro frontmatter. **Prerequisite skip, don't abort:** a slug with nothing beyond intake (no `05-implement*.md`) is marked "nothing to retro" in the roster and skipped — a laggard slug must not block retrospecting its shipped siblings (mirrors handoff's not-ready-skip). Mark each retrospected slug complete in its `00-index.md`.
+3. **Synthesize cross-slug lessons — the value batch retro adds.** After the per-slug retros, look across the whole branch for patterns no single-slug retro can see: friction that recurred across slugs, a root cause shared by multiple slugs, a plan assumption that broke the same way twice, sequencing pain between slugs. Distill these into `.ai/solutions/` under the **same durability filter and dedupe-on-merge discipline** as the single-slug distillation step (see *Parallel analysis*), setting `source-workflow` to the list of contributing roster slugs. Cross-slug learnings are exactly what gets lost when a batch is retrospected one slug at a time. Zero cross-slug learnings is a legitimate outcome; do not pad.
+4. **Return in chat** per the *Chat return contract* — a combined branch-level retro narrative (what went well / what hurt across the whole branch, the cross-slug root causes, the top improvements) first, then a per-slug roster of outcomes (slug · retrospected / skipped · learnings written).
 
 # Parallel analysis
 When the workflow trail is large or spans multiple domains, launch parallel sub-agents. Do not spin up sub-agents for simple, single-slice workflows.
@@ -175,6 +188,8 @@ After writing files, return per [_chat-return.md](_chat-return.md) — narrative
 - `next: workflow complete` (or options if follow-up is warranted)
 - ≤3 short blocker bullets if needed
 
+**Batch mode** (`retro-scope: branch`): lead with the combined branch-level retro narrative (the cross-slug story), then the receipt as a per-slug roster — one `wrote:` line per retrospected slug, the skipped slugs named with their reason, and a single `cross-slug learnings:` line pointing at the `.ai/solutions/` files the synthesis wrote.
+
 Do this in order:
 1. Identify what worked, what caused friction, and what should be codified.
 2. Suggest concrete updates for AGENTS.md, CLAUDE.md, hooks, test coverage, CI checks, and command prompts.
@@ -208,6 +223,9 @@ Write `10-retro.md` with this structure:
 schema: sdlc/v1
 type: retro
 slug: <slug>
+retro-scope: <slug | branch>          # branch = part of a batch retro over every slug on the branch
+branch: "<branch name or empty>"      # set in batch mode
+branch-slugs: []                      # the roster (batch mode only; empty otherwise)
 status: complete
 stage-number: 10
 created-at: "<iso-8601>"

@@ -1,8 +1,9 @@
 // Drift guards for the branch-scoped batch handoff/ship + revision-ledger work
 // (v9.105.0). Two invariants, checked in BOTH trees so a codex mirror that
 // silently drops the feature fails CI:
-//   1. handoff.md / ship.md / status.md carry the polymorphic first-token
-//      resolution (slug | pr#N | branch) — the entry point for batch mode.
+//   1. handoff.md / ship.md / status.md — and recap.md / retro.md — carry the
+//      polymorphic first-token resolution (slug | pr#N | branch) — the entry
+//      point for batch mode.
 //   2. The additive-write contract is the ledger model, not the old in-body
 //      `## Revision N` append pattern; the revisable references teach the ledger.
 import { test } from 'node:test';
@@ -33,6 +34,24 @@ test('handoff + ship + status expose polymorphic first-token resolution (batch e
       // Must build a branch roster.
       assert.match(src, /roster/i, `${name}: ${file} lost the branch roster concept`);
     }
+  }
+});
+
+test('recap + retro expose polymorphic first-token resolution + branch roster (batch entry point)', () => {
+  for (const { name, root } of trees) {
+    for (const file of ['recap.md', 'retro.md']) {
+      const src = ref(root, file);
+      // Must accept a PR reference and resolve it to a branch.
+      assert.match(src, /pr#N|pr#<N>|`#N`/, `${name}: ${file} lost the pr#N first-token form`);
+      assert.match(src, /headRefName/, `${name}: ${file} lost the PR→branch resolution (gh pr view headRefName)`);
+      // Must build a branch roster and record it in frontmatter.
+      assert.match(src, /roster/i, `${name}: ${file} lost the branch roster concept`);
+      assert.match(src, /branch-slugs/, `${name}: ${file} lost the branch-slugs roster field`);
+    }
+    // recap batch is whole-workflow only (no slice/focus); retro batch adds the cross-slug synthesis.
+    assert.match(ref(root, 'recap.md'), /recap-scope/, `${name}: recap.md lost recap-scope`);
+    assert.match(ref(root, 'retro.md'), /retro-scope/, `${name}: retro.md lost retro-scope`);
+    assert.match(ref(root, 'retro.md'), /cross-slug/i, `${name}: retro.md lost the cross-slug lesson synthesis (the batch value-add)`);
   }
 });
 

@@ -1,6 +1,6 @@
 ---
-description: Recap or explain a workflow in plain understandable language. Give it a slug to recap the whole workflow, a slug and a slice to recap one slice, or a slug and a focus (plan, shape, review, findings) to explain that artifact. Reads the trail and tells the story — what was decided, built, checked, and where it stands. Does not advance the workflow.
-argument-hint: "<slug> [slice-slug | plan | shape | slice | review | findings]"
+description: Recap or explain a workflow in plain understandable language. Give it a slug to recap the whole workflow, a slug and a slice to recap one slice, or a slug and a focus (plan, shape, review, findings) to explain that artifact. A `pr#N` or branch-name first argument recaps EVERY slug on that branch (batch mode) and tells the combined story. Reads the trail and tells the story — what was decided, built, checked, and where it stands. Does not advance the workflow.
+argument-hint: "<slug|pr#N|branch> [slice-slug | plan | shape | slice | review | findings]"
 ---
 
 # External Output Boundary (MANDATORY)
@@ -31,13 +31,15 @@ You are a **storyteller of the work done**, not a problem solver.
 
 # Step 0 — Resolve scope
 
-`$ARGUMENTS`: the first token is the **slug**; an optional second token is a **slice-slug**.
+`$ARGUMENTS`: the first token is **polymorphic** (`slug` | `pr#N`/`#N`/bare int | branch name); an optional second token is a **slice-slug** or **focus keyword** (single-slug only).
 
-1. **Resolve the slug (required).**
-   - If `$ARGUMENTS` provides a slug → use it. Verify `.ai/workflows/<slug>/00-index.md` exists. If it does not → STOP: *"No workflow `<slug>` found. Run `/wf status` to list workflows."*
-   - If no slug is given → this command is slug-first. Try to infer: if `.ai/workflows/INDEX.md` exists, read it and filter rows whose status is not `closed`; if **exactly one** non-closed row exists, use it and note the inference in the recap header. If **multiple**, list them (`slug — status — updated-at`) and ask which one via `AskUserQuestion` (or in chat). If **none** → STOP: *"No workflows found. Start one with `/wf intake <description>`."*
+1. **Resolve the first token (polymorphic, first match wins)** — so a slug is never mistaken for a branch:
+   - **Exact slug**: `.ai/workflows/<token>/00-index.md` exists → **single-slug recap** (`recap-scope: slug`). This is the classic path (Steps 1–3).
+   - **PR reference** `pr#N` / `#N` / a bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then follow the branch path below (`recap-scope: branch`).
+   - **Branch name**: matches a `branch:` recorded in some `00-index.md` / `.ai/workflows/INDEX.md`, or an existing git branch → **batch recap** (`recap-scope: branch`) — see **Step B** below.
+   - **Absent**: this command is slug-first. Try to infer: if `.ai/workflows/INDEX.md` exists, read it and filter rows whose status is not `closed`; if **exactly one** non-closed row exists, use it (single-slug) and note the inference in the recap header. If **multiple**, list them (`slug — status — updated-at`) and ask which one via `AskUserQuestion` (or in chat). If **none** → STOP: *"No workflows found. Start one with `/wf intake <description>`."*
 
-2. **Resolve the second token (optional).** Resolve in this order:
+2. **Resolve the second token (optional — single-slug only).** In **batch mode** (`pr#N`/branch) a second token does not apply: batch recap is whole-workflow scope for every slug on the branch. If a second token is passed with a `pr#N`/branch first arg → STOP: *"Batch recap (`pr#N`/branch) recaps every slug on the branch whole — it doesn't take a slice or focus. Run `/wf recap <slug> <slice|focus>` for a scoped single-slug recap."* In **single-slug** mode, resolve in this order:
    - **No second token** → **whole-workflow recap** (Steps 1–3).
    - **Exact slice-slug match** — `.ai/workflows/<slug>/03-slice-<token>.md` exists → **slice recap**
      (Steps 1–3, slice-scoped). Slice match is checked FIRST so a slice literally named `plan`/`review`
@@ -48,6 +50,19 @@ You are a **storyteller of the work done**, not a problem solver.
    - **Neither** → STOP: *"`<token>` is not a slice of `<slug>` or a focus keyword (plan/shape/slice/
      review/findings). Run `/wf recap <slug>` for the whole-workflow recap, or `/wf status <slug>` to
      see its slices."*
+
+# Step B — Batch recap (`pr#N` / branch)
+
+Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped counterpart of batch `/wf handoff` / `/wf ship` and of `/wf status pr#N` roster mode: catch me up on **everything on this branch**, not one slug.
+
+1. **Build the roster.** From `.ai/workflows/INDEX.md` (or a glob of `.ai/workflows/*/00-index.md`), collect every slug whose `branch:` equals the resolved branch. Include non-closed slugs; note any closed ones in the combined header but don't re-narrate them in depth. If the roster is empty → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
+2. **Per-slug recap.** For each roster slug, run Steps 1–2 (read the trail, compose the whole-workflow recap) and Step 3 (write that slug's `90-recap.md`) — with `recap-scope: branch`, `branch: <branch>`, and `branch-slugs: [...]` added to that artifact's frontmatter so each records it was part of a branch recap. Do NOT recap individual slices in batch mode — whole-workflow scope only.
+3. **Compose the combined branch narrative** — the value batch recap adds over N separate recaps. In the recap voice (`_narrative-voice.md`), tell the story that ties the slugs together:
+   - **What this branch is doing** — the shared goal across the slugs (1–3 sentences).
+   - **How the slugs relate** — dependencies, ordering, which slug blocks which, what they share.
+   - **Where the branch stands** — a roster table (slug · stage · status · what's left) plus a short prose read of overall readiness (are they converging on one PR? which slug is the laggard?).
+   - **What's left across the branch** — the combined remaining work and the single most useful next command (`/wf handoff pr#N` if they're converging, or the specific per-slug command blocking progress).
+4. **Return in chat** per Step 3 item 3 — the combined branch narrative first, then a compact per-slug recap section for each roster slug.
 
 # Step 1 — Read the trail
 
@@ -174,6 +189,9 @@ schema: sdlc/v1
 type: recap
 slug: <slug>
 scope: <workflow | slice | explain>
+recap-scope: <slug | branch>          # branch = written as part of a batch recap over every slug on the branch
+branch: "<branch name or empty>"      # set in batch mode
+branch-slugs: []                      # the roster (batch mode only; empty otherwise)
 slice: "<slice-slug or empty>"
 focus: "<plan|shape|slice|review|findings or empty>"
 generated-at: "<iso-8601>"
@@ -188,3 +206,5 @@ refs:
 3. **Return the recap in chat.** The chat output IS the recap — no preamble, no "here's your recap",
    no restating the frontmatter. Just the readable recap itself, so the user gets the whole story in
    one read. The `## What's left` section carries the routing; do not add a separate options footer.
+   **In batch mode** (Step B) the chat leads with the combined branch narrative, then each roster
+   slug's recap beneath it — the branch narrative carries the routing.
