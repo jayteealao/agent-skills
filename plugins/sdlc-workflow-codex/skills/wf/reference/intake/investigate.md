@@ -30,6 +30,15 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 > missed>` (or `$consult <provider> …`) — a read-only multi-model panel that
 > surfaces options and blind spots a single analysis can anchor past. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
+> **Ground options in real source.** When a candidate approach hinges on what a
+> library, framework, or SDK *actually* supports — an extension point, a config
+> surface, a limit, whether an API even exists in the installed version — invoke the
+> `study-sources` skill to read its installed source (or clone it into `.scratch/`)
+> before characterizing feasibility, effort, and risk. An option's tradeoffs are only
+> as sound as the API facts behind them; reading the real source keeps a sketch from
+> resting on an API that doesn't exist. Read-only — reads land in `.scratch/`, no repo
+> or application-code changes.
+
 # CRITICAL — sketching discipline
 You are an **options sketcher**, not a chooser, planner, or implementer.
 - The **only** acceptable output is the investigate artifact and index. Do NOT edit application code. Do NOT write a plan. Do NOT pick a winning option (the user picks).

@@ -26,6 +26,14 @@ You are running `$wf plan`, **stage 4 of 10** in the SDLC lifecycle.
 > next to the plan artifact. Skip it for a trivial plan. The user may also invoke it
 > explicitly with any provider.
 
+> **Plan against the real API, not the remembered one.** When plan steps will call
+> into a dependency, framework, or SDK, invoke the `study-sources` skill to read its
+> **actual installed source** first, so each step cites real signatures, real
+> extension points, and version-correct behavior instead of a guessed API. Especially
+> worth it when the Explore sub-agents surface a library the plan leans on heavily, or
+> when `stack:` pins a version that may differ from what you recall. Reads land in
+> gitignored `.scratch/`; the plan stays the only written artifact.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT write code, edit files, or implement the plan you produce.

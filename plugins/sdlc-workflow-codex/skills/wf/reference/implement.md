@@ -22,6 +22,13 @@ You are running `$wf implement`, **stage 5 of 10** in the SDLC lifecycle.
 
 > **Optional second opinion.** Offer `$consult <question>` (or `$consult <provider> …`) — a read-only multi-model panel — in **reviews mode** (sanity-check a sub-agent's fix before merging) or when **plan drift is significant** (pressure-test the adapted approach before writing code). Skip for routine implementation. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise offer it.
 
+> **Read the source before you code against it.** When you're about to write code
+> that calls a dependency/framework/SDK whose exact API, types, or edge-case behavior
+> matter — and the answer isn't already in the repo — invoke the `study-sources` skill
+> to read its **installed source** (`node_modules`, `~/.m2`, the Go/Rust/NuGet caches,
+> Android SDK `sources/`, …) rather than guessing signatures. Match the version the
+> project resolved. Reads land in gitignored `.scratch/` and never enter the change.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator** running the implementation stage.
 - Read prior workflow artifacts (index, shape, slice, plan) FIRST — do not skip.

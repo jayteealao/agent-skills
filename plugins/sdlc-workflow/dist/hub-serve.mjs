@@ -3,8 +3,8 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-AVWE3IOU.mjs";
-import "./chunk-I564QS7A.mjs";
+} from "./chunk-SG5MVWP3.mjs";
+import "./chunk-JXGXHJQS.mjs";
 import "./chunk-PDBKNARE.mjs";
 import {
   hostAllowed,
@@ -19,7 +19,7 @@ import {
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
 } from "./chunk-J2RO6O56.mjs";
-import "./chunk-VZTPBQ7Z.mjs";
+import "./chunk-WTFBOQH6.mjs";
 import "./chunk-4WRIEOIP.mjs";
 import {
   readRenderedIdentity,

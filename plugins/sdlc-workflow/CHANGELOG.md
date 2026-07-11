@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.117.0] - 2026-07-11
+
+### Added — `/wf` stages now reach for `study-sources`
+
+Wires the v9.116.0 `study-sources` skill into the lifecycle so stages read **real upstream source** instead of working from recalled API shapes. A new **Step 0.8** in `wf/SKILL.md` declares source-study available lifecycle-wide (read-only; installed-cache-first, `.scratch/` fallback) and names the long-tail keys (`probe`, `intake fix`/`hotfix`, `shape`, `design`) that may invoke it opportunistically. Five stages gain a tailored, `/consult`-style nudge at their existing decision points: **`intake rca`** (read the dependency's real source when the symptom trail leaves the repo, before fixing a hypothesis), **`intake investigate`** (ground option feasibility in the real API, not a guessed one), **`plan`** (plan steps cite real signatures/extension points/version-correct behavior), **`implement`** (read installed source before coding against an API whose edge cases matter), and **`intake update-deps`** (when a P0/P1 changelog is `unverified` or silent, fetch the target version's source and diff the changed API into a cited migration fact). Reference-doc content only, both trees; no runtime logic change — `dist`/buildId move only from the version-string embed.
+
 ## [9.116.0] - 2026-07-11
 
 ### Added — `study-sources` skill: read real upstream source instead of guessing

@@ -109,6 +109,10 @@ If it **fails** (not a git repo), do NOT proceed silently. The hub's registry id
 
 On consent, run `git init` only — never stage or commit the user's files — then continue to Step 1. On decline, continue, but restate the unrendered-repo caveat in the Step 2 summary's `Next:` line. Never run `git init` without asking.
 
+# Step 0.8 — Source-study is available lifecycle-wide (v9.117.0)
+
+Across **every** stage, when the work turns on *how a dependency, framework, or SDK actually behaves* — an exact signature, an edge case, an error string, a version-specific change — reach for the `study-sources` skill instead of working from recalled API shapes. It reads real source: first from whatever is already installed (`node_modules`, `~/.m2`, the Gradle/Android/Go/Rust/.NET/Ruby/PHP/Swift/Dart caches), and only if absent, by fetching into a gitignored `.scratch/`. It is **read-only** — never builds, runs, or adopts a dependency, and nothing it fetches enters the repo or git history. `intake rca`, `intake investigate`, `plan`, `implement`, and `intake update-deps` call it out explicitly; any other key (`probe`, `intake fix`/`hotfix`, `shape`, `design`) may invoke it opportunistically whenever a source read would remove guesswork.
+
 # Step 1 — Execute
 
 1. Read the reference file in full from `reference/<key>.md`.

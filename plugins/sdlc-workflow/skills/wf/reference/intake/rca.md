@@ -31,6 +31,14 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 > unless the cause is already proven — a read-only panel whose repo-aware oracles
 > check the hypothesis against the real code before you commit to a fix.
 
+> **Read the real source (diagnosis).** When the symptom trail leads *out of the
+> repo* — a stack frame inside `node_modules`/`site-packages`/a cached JAR, an error
+> string absent from the tree, version-specific behavior — invoke the `study-sources`
+> skill to read that dependency/framework/SDK's **actual installed source** before
+> settling on a hypothesis. A root cause grounded in the real implementation beats one
+> grounded in recalled API behavior, which is exactly where plausible-but-wrong RCAs
+> come from. Reads land in gitignored `.scratch/` — no repo mutation, no fix.
+
 # CRITICAL — investigation discipline
 You are a **diagnostician**, not a fixer.
 - The **only** acceptable output is the RCA artifact, the synthesized shape, and the index. Do NOT edit application code. Do NOT propose a patch. Do NOT run code that would mutate state (DB writes, deployments, git commits).
