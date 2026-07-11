@@ -7,6 +7,10 @@ argument-hint: <slug> rollback [<run-id>]
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+
 You are running the **rollback phase** of `$wf ship` — the deliberate, runbook-driven reversal of a
 release that already shipped. It mirrors the `announce` re-run shortcut in dispatch shape (a second
 positional token), but where announce writes copy, rollback **reverses recorded release steps** —

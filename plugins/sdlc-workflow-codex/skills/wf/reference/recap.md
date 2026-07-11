@@ -7,6 +7,10 @@ argument-hint: "<slug|pr#N|branch> [slice-slug | plan | shape | slice | review |
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+
 You are running `recap`, the **plain-language catch-up** command for the SDLC lifecycle.
 
 # Pipeline
@@ -72,6 +76,7 @@ Read what actually exists — do not infer from filenames.
 1. `00-index.md` — parse `title`, `slug`, `status`, `current-stage`, `stage-number`, `updated-at`, `selected-slice-or-focus`, `open-questions`, `recommended-next-invocation`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `progress`, `workflow-files`.
 2. Every stage file listed in `workflow-files` (or search `.ai/workflows/<slug>/*.md`). For each, read frontmatter and scan the body for: the scope and acceptance criteria (intake/shape), how the work was split (slice), the approach taken (plan), what was actually built and any deviations (implement), what was checked and the result (verify), findings still open (review), what shipped (handoff/ship), and lessons (retro).
 3. `po-answers.md` — the product-owner decisions that constrain the work. Keep the ones that still matter; drop superseded ones.
+3b. `steer.md` if present (the user's standing-steering file; see `_steering.md`) — the active constraints/preferences that govern the work. Surface them; do not act on them (recap advances nothing).
 4. If slices exist, search for `03-slice-*.md` / `04-plan-*.md` / `05-implement-*.md` / `06-verify-*.md` / `07-review-*.md` to build the slice-by-slice progress picture.
 
 **Slice recap (slug + slice):** read `00-index.md` and `02-shape.md` for context, then focus on that slice's own trail — `03-slice-<slice>.md`, `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md` (whichever exist), plus any slice amendments/compressed-slice notes. Read `po-answers.md` entries tagged to this slice. Ignore the other slices except where this slice depends on them.
@@ -116,7 +121,8 @@ Only if the workflow is sliced. A quick table so the state is scannable alongsid
 ## What you need to know
 The non-obvious decisions and constraints someone picking this up MUST respect — "migration must be
 reversible", "can't touch auth until slice X lands", "the external API caps at 100/min". Include open
-questions and active blockers here (or "None").
+questions and active blockers here (or "None"). If `steer.md` exists, add one line naming the active
+standing-steering entries (e.g. "Steering in effect: don't touch `config/loader.ts`; prefer the queue").
 
 ## What's left
 The remaining work in plain terms, then the concrete next command.

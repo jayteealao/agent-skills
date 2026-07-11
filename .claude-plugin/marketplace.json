@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills-marketplace",
-  "version": "1.146.0",
+  "version": "1.147.0",
   "description": "A curated collection of Claude Code skills and plugins for developers",
   "owner": {
     "name": "jayte"
@@ -12,7 +12,7 @@
       "description": "Two commands — `/wf` (the single SDLC entry point) and `/review` — driving a 10-stage lifecycle from intake through retro, with per-slice artifacts, runtime-truth verification, and PO-confirmed stack fingerprinting. Navigation, ship-plan, and docs are `/wf` keys; design folds into `/wf design`; quick/standalone flows are `/wf intake` modes plus the `/wf probe` and `/wf simplify` keys.",
       "source": "./plugins/sdlc-workflow",
       "category": "productivity",
-      "version": "9.119.0"
+      "version": "9.120.0"
     }
   ]
 }

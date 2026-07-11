@@ -23,7 +23,21 @@
 > workflow-type; tests added (paths + provenance). Build-time deltas from the text below: adopt
 > writes `05-implement` too (the plan's W5.3 said 02–05 but the prose listed to 04 in one place —
 > 05 is authored since execution is already done) and `00-index` enters at `current-stage:
-> implement` / `implement: complete`. **W6 (`steer.md`) still PROPOSED — not built.**
+> implement` / `implement: complete`.
+>
+> **W6 BUILT 2026-07-11 as v9.120.0** (both trees): `steer.md` per-workflow standing-instructions
+> contract. New single-source `reference/_steering.md` cited from every stage entry point (16
+> top-level stages + `intake/default.md` + shared `intake/_intake-context.md` + `ship`
+> announce/rollback = 20 files main / 19 codex, `yolo` being Claude-only); `steer.md` added to the
+> hooks' prose-exempt `isProseLogPath` (the only `lib/` touch → dist rebuild, buildId `6dcc60733a30`);
+> optional `steering-honored:` frontmatter field; yolo policy row (steering veto = HARD-STOP over
+> auto-resolve), `status … deep` steering-as-signal check, recap one-liner, retro→solutions promotion;
+> `steering.test.mjs` drift guard + 2 prose-exempt hook tests. **The feedback-loops & hardening plan
+> is now fully built (W1–W6).** Build-time deltas from the text below: the citation lives as a compact
+> block right after each stage's EOB block (uniform, drift-guarded anchor) rather than surgically
+> inside each Step 0 body; the intake modes collapse to 2 citations because they already funnel
+> through `_intake-context.md`; `ship-plan/*` and `augment/*`/`review/*` are excluded (project-level /
+> sub-procedures that inherit via the propagation clause).
 >
 > Original status: PROPOSED (drafted 2026-07-06).
 > Scope constraint (user-set): **no new skills, no new top-level `/wf` keys.** The surface stays at
@@ -534,7 +548,7 @@ the single biggest mismatch between the plugin's model and how work actually arr
 
 ## W6 — `steer.md`: per-workflow standing-instructions contract
 
-> Appended 2026-07-07. Status: **PROPOSED — not built.**
+> Appended 2026-07-07. Status: **BUILT — v9.120.0 (2026-07-11), both trees.**
 
 **Problem.** The human's influence points are stage gates (AskUserQuestion) and re-running stages.
 Real steering is asynchronous: mid-implement you learn "don't touch the config loader — it's
@@ -602,7 +616,7 @@ instructions evaporate at the next session or sub-agent boundary.
 | **R1** | W3.1 (EOB extract + 74-file sweep + drift test) + W2a + W2b + W2c + **W2d/W2e/W2f** (force-scope rule, ladder rungs, capability probes) | Pure reference/prose + one schema field + one test. The predicate must land before W1 adds `.ai/solutions/` (no fifth enumerated path). W2d–f are the highest-pain items (user-confirmed) and pure prose — no reason to wait. Big mechanical diff — keep it isolated for reviewability. |
 | **R2** | W1 (solutions corpus: retro producer, plan consumer, schema, validation checks) + **W2g** (repeat-deferral tripwire — its cross-slug leg rides W1's corpus) + W4 (ship rollback) | All reference-level; W4 also touches SKILL.md's key table. |
 | **R3** | W3.2 (leak hooks Phase 1: lexicon lib + 3 prompt hooks + config block) | The only runtime-code slice — needs dist rebuild, buildId bump, `sync:codex`, and the hook-isolation checks; keep it out of the prose releases. |
-| **R4** *(appended 2026-07-07, not built)* | W5 (`intake adopt`: mode table entry + `intake/adopt.md` + provenance stamp) + W6 (`steer.md`: `_steering.md` contract + Step 0 citations across stage references + prose-exempt hook entry + yolo policy row) | Mostly reference/prose; W6's prose-exemption touches `lib/` (isProseLogPath), so R4 carries a dist rebuild + buildId bump + `sync:codex` like R3. W6's Step 0 citation sweep touches every stage reference — keep it in its own release for the same reviewability reason as R1's sweep. |
+| **R4** *(W5 built v9.118.0, W6 built v9.120.0)* | W5 (`intake adopt`: mode table entry + `intake/adopt.md` + provenance stamp) + W6 (`steer.md`: `_steering.md` contract + Step 0 citations across stage references + prose-exempt hook entry + yolo policy row) | Mostly reference/prose; W6's prose-exemption touches `lib/` (isProseLogPath), so R4 carries a dist rebuild + buildId bump + `sync:codex` like R3. W6's Step 0 citation sweep touches every stage reference — keep it in its own release for the same reviewability reason as R1's sweep. |
 
 Every release: version bump (5 source spots + doc-site brands + marketplace top-level),
 `npm run build` when `lib/`/`hooks/` change (R3), regenerate `docs/site` **before** `sync:codex`

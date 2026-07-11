@@ -7,6 +7,10 @@ argument-hint: "<slug> [<slice> | cancelled|superseded|deferred|completed-extern
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+
 You are running `$wf close`, the **lifecycle-termination utility** for the SDLC lifecycle. It has two
 scopes, resolved by whether the second token names a slice:
 - **Workflow close** — `$wf close <slug> [reason]` archives the entire workflow.

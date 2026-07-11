@@ -7,6 +7,10 @@ argument-hint: "[slug|pr#N|branch] [deep]"
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+
 You are running `$wf status`, the **dashboard, detail view, and router** for all SDLC workflows.
 
 # Pipeline
@@ -250,7 +254,13 @@ read-only detail view.
    ahead/behind (`git rev-list --left-right --count <base>...<branch>`), PR status
    (`gh pr view <n> --json state,mergeable,reviewDecision,statusCheckRollup` if `gh` present), SHA existence.
 4. **Check dependency reality** — package present in lockfile/manifest; version drift; config-file freshness.
-5. **Assess health** — per-category totals (Code, Test, Git, Deps, External) with ✓/⚠/✗/? counts. Rate:
+4b. **Check steering reality** — if `steer.md` exists (the user-owned standing-steering file; see
+   `_steering.md`), read it as **signal, not drift**: its mere presence is normal, expected state and
+   is never a finding. A finding arises only when a **stage artifact contradicts a steering entry** —
+   e.g. steering says "never touch `config/loader.ts`" but an `05-implement` diff or a plan decision
+   did. Surface each contradiction as a `⚠ steering-violation` drift finding under a **Steering**
+   category; absent file → skip this check silently, no category, no counts.
+5. **Assess health** — per-category totals (Code, Test, Git, Deps, External, Steering) with ✓/⚠/✗/? counts. Rate:
    `in-sync` (no ✗, ≤2 ⚠) · `minor-drift` (no ✗, 3+ ⚠) · `significant-drift` (any ✗) · `stale` (>7d old AND drift).
 6. **Write `.ai/workflows/<slug>/00-sync.md`** (`type: sync-report`, `regenerable: true`, `health: <rating>`)
    with the summary table, per-category tables, drift details, and recommended actions. **Overwrite

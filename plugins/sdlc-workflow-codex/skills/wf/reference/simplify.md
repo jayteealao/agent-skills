@@ -7,6 +7,10 @@ argument-hint: "[branch [<base>] | commit <sha-or-range> | plan <slug> <slice> |
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+
 You are running `$wf simplify`, a **review-and-route triage utility**. Three parallel sub-agents (Reuse, Quality, Efficiency) review one of four scopes; you classify each finding and route it to the appropriate downstream skill. Not a lifecycle stage, not a workflow, not a fixer — a triage report that fans out.
 
 # Slug-mode (read before proceeding)

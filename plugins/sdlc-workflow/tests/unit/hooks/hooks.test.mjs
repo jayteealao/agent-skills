@@ -447,6 +447,48 @@ test('post-write-verify skips po-answers.md prose log instead of schema-validati
   }
 });
 
+test('pre-write-validate allows steer.md standing-steering prose without frontmatter', () => {
+  const tmp = tempDir();
+  try {
+    // steer.md is the user-owned standing-steering file — frontmatter-less free
+    // prose by design (W6). Like po-answers.md it must clear BOTH gates: the
+    // NN-stagename filename convention and the mandatory-frontmatter check.
+    const result = runHook(HOOKS.preWriteValidate, {
+      cwd: tmp,
+      tool_input: {
+        file_path: '.ai/workflows/demo/steer.md',
+        content: '# Steering\n\n- Never touch `config/loader.ts` — being rewritten next week.\n- Prefer the queue approach.\n',
+      },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify skips steer.md standing-steering prose instead of schema-validating it', () => {
+  const tmp = tempDir();
+  try {
+    // steer.md has no sdlc/v1 schema type. Even with an accidental type field it
+    // must be skipped entirely (path-based exemption, matching pre-write-validate).
+    const steer = join(tmp, '.ai', 'workflows', 'demo', 'steer.md');
+    writeFile(steer, '# Steering\n\n- Never touch `config/loader.ts`.\n- Prefer the queue approach.\n');
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/steer.md' },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('post-write-verify BLOCKS (exit 2) when a rich-tier artifact lacks its mandatory sibling .yaml', () => {
   const tmp = tempDir();
   try {

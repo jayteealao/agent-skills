@@ -7,6 +7,10 @@ argument-hint: <slug|pr#N|branch>
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+
 You are running `wf-retro`, **stage 10 of 10** in the SDLC lifecycle.
 
 # Pipeline
@@ -135,7 +139,10 @@ pattern-level learnings from the merged findings. Each must pass ALL THREE durab
 Zero learnings is a legitimate outcome; do not pad. A **repeated runtime-evidence deferral** is a
 prime candidate ("<wall> blocks all interactive ACs; the one-time harness that retires it = …",
 category `testing` or `gotcha`) — plan's learnings scan is what stops the next slug from re-paying
-that wall.
+that wall. A **standing-steering entry that recurs across workflows** (from this or prior slugs'
+`steer.md`; see `_steering.md`) is likewise a candidate — when a preference or veto keeps being
+re-typed, promote it to a durable learning (usually `process` or category matching its subject) so a
+future plan reads it instead of waiting for the user to steer again; the durability filter still applies.
 
 **Dedupe before write:** read `.ai/solutions/INDEX.md` (if it exists) and check for overlapping
 tags/titles. On overlap, UPDATE the existing file — refresh the evidence, extend

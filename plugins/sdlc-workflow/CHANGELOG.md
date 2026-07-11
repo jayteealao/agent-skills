@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.120.0] - 2026-07-11
+
+### Added — `steer.md`: per-workflow standing instructions every stage honors
+
+Adds a durable, asynchronous way to steer a workflow between gates. Until now the human's only influence points were stage gates (`AskUserQuestion`) and re-running a stage; mid-run guidance like "don't touch the config loader — it's being rewritten" or "prefer the queue approach" had nowhere durable to live (hand-editing artifacts read as *drift*, chat instructions evaporated at the next session or sub-agent boundary). Now an optional user-owned **`.ai/workflows/<slug>/steer.md`** — free prose, no frontmatter, no schema — carries standing constraints, preferences, and vetoes, and **every stage reads it at Step 0 and honors it.**
+
+The contract is single-sourced in a new **`reference/_steering.md`** (both trees), cited by a compact block in every stage entry point (the 16 top-level stages, `intake/default.md` + the shared `intake/_intake-context.md`, and the `ship` announce/rollback phases). It defines five obligations: **read** at Step 0 (absent file → no steering, no noise); **precedence** (live user > `steer.md` > stage defaults, and steering *never* overrides a MANDATORY gate — a violating entry is surfaced, not obeyed); **conflict** via `AskUserQuestion` rather than silent ignore-or-obey; **acknowledge** what was honored in a new optional `steering-honored:` frontmatter list; and — load-bearing — **propagate** the relevant entries into every sub-agent prompt, since sub-agents never re-read the workflow directory. Stages never author or edit `steer.md` (they may transcribe a chat-dictated entry verbatim).
+
+Interactions: `/wf yolo` gains a policy row and precise-prose paragraph — in an unattended run steering is the user's *only* voice, so a steering **veto** outranks every auto-resolve default and a lawful action that would cross it is a HARD-STOP; `/wf status <slug> deep` reads `steer.md` as **signal, not drift** (only a stage artifact *contradicting* an entry is a finding); `/wf recap` surfaces active steering in one line; and `/wf retro` may promote a steering entry that recurs across workflows into the `.ai/solutions/` learnings corpus (durability filter intact). `steer.md` joins `po-answers.md` on the hooks' prose-exempt path (`isProseLogPath`), so the frontmatter gates never demand a schema of it — the only `lib/` touch, carried by the dist rebuild.
+
+New drift-guard test (`steering.test.mjs`) enforces the single source the same way the External Output Boundary guard does; two hook tests cover the `steer.md` prose exemption. Implements workstream W6 — the final piece of the feedback-loops & hardening plan.
+
 ## [9.119.0] - 2026-07-11
 
 ### Added — `/wf handoff` + `/wf ship` are ship-plan aware

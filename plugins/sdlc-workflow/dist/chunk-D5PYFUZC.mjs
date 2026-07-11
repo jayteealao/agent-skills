@@ -54,7 +54,7 @@ function isWorkflowMarkdownPath(filePath) {
 }
 function isProseLogPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
-  return /(?:^|\/)\.ai\/workflows\/[^/]+\/po-answers\.md$/.test(normalized);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:po-answers|steer)\.md$/.test(normalized);
 }
 function isProjectContextMarkdownPath(filePath) {
   const normalized = normalizePathForMatch(filePath);

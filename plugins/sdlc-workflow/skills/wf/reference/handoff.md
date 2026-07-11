@@ -7,6 +7,10 @@ argument-hint: <slug|pr#N|branch> [slice-slug]
 Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+
 You are running `wf-handoff`, **stage 8 of 10** in the SDLC lifecycle.
 
 # Pipeline
