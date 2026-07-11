@@ -15,7 +15,7 @@ import {
 import {
   ensureHubEnabled,
   spawnHubEnsure
-} from "./chunk-IODAVJPB.mjs";
+} from "./chunk-62ZCQV76.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
@@ -23,7 +23,7 @@ import {
   enqueue,
   resolveEntrypoint,
   sdlcHomeDir
-} from "./chunk-TS3E2TXZ.mjs";
+} from "./chunk-U4OUM73W.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";

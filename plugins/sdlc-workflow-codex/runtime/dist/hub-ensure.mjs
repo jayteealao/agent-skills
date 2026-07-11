@@ -3,16 +3,16 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   ensureHubLifecycle
-} from "./chunk-TCEUF7BZ.mjs";
-import "./chunk-4GGSQZEX.mjs";
-import "./chunk-EAAGPG7C.mjs";
+} from "./chunk-MW5WFXDC.mjs";
+import "./chunk-J2RO6O56.mjs";
+import "./chunk-5K66NEIW.mjs";
 import "./chunk-K6PBZI5W.mjs";
 import {
   appendError,
   countPending,
   upsertRegistryEntry,
   writeStatus
-} from "./chunk-TS3E2TXZ.mjs";
+} from "./chunk-U4OUM73W.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -52,14 +52,16 @@ async function main() {
       }
     }
   }
+  let registerError = null;
   try {
-    await upsertRegistryEntry({ projectRoot, viewDir });
+    const r = await upsertRegistryEntry({ projectRoot, viewDir });
+    if (r?.action === "skipped-not-git") registerError = "not a git repo \u2014 run git init to register with the hub";
   } catch {
   }
   try {
     writeStatus(viewDir, {
       pendingCount: countPending(viewDir),
-      lastError: hubUp || skipEnsure ? null : "hub unreachable",
+      lastError: registerError ?? (hubUp || skipEnsure ? null : "hub unreachable"),
       hubLastSeenAt: hubUp ? (/* @__PURE__ */ new Date()).toISOString() : null
     });
   } catch {

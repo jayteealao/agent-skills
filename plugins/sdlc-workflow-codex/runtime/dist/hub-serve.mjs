@@ -3,8 +3,8 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-4RQ5VTSU.mjs";
-import "./chunk-P5U74UXP.mjs";
+} from "./chunk-RLL4AU66.mjs";
+import "./chunk-27OHDZZU.mjs";
 import "./chunk-PDBKNARE.mjs";
 import {
   hostAllowed,
@@ -18,14 +18,14 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-4GGSQZEX.mjs";
-import "./chunk-WSLNFNXW.mjs";
+} from "./chunk-J2RO6O56.mjs";
+import "./chunk-B3MH7WOI.mjs";
 import "./chunk-4WRIEOIP.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
-} from "./chunk-EAAGPG7C.mjs";
+} from "./chunk-5K66NEIW.mjs";
 import {
   REGISTRY_FRESH_GRACE_MS,
   REGISTRY_VERSION,
@@ -41,7 +41,7 @@ import {
   validateEntry,
   writePidFile,
   writeRegistry
-} from "./chunk-TS3E2TXZ.mjs";
+} from "./chunk-U4OUM73W.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";

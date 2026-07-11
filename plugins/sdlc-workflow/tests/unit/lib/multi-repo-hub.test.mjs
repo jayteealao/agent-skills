@@ -384,6 +384,20 @@ test('registry: a poisoned entry is rejected at write (never lands on disk)', as
   equal(existsSync(shardDir()) ? readdirSync(shardDir()).filter((n) => n.endsWith('.json')).length : 0, 0, 'no shard written');
 });
 
+test('registry: a non-git projectRoot skips registration WITH a prune-log line (skip-not-git)', async () => {
+  setHome();
+  // A plain directory — .ai/_view exists but there is no git toplevel, so
+  // buildEntry returns null. Before v9.112.0 this skip was invisible on disk
+  // (the Waypoint failure): assert the trail now names the cure.
+  const plain = join(tmp('sdlc-notgit-'), 'plain');
+  mkdirSync(join(plain, '.ai', '_view'), { recursive: true });
+  const res = await upsertRegistryEntry({ projectRoot: plain, viewDir: join(plain, '.ai', '_view') });
+  equal(res.action, 'skipped-not-git', 'non-git dir cannot register');
+  equal(readRegistry().entries.length, 0, 'nothing persisted');
+  const log = readFileSync(pruneLogPath(), 'utf-8');
+  match(log, /skip-not-git .*no git toplevel — run git init to register/, 'the skip leaves a visible prune-log trail');
+});
+
 /* ───────────────────────── concurrency (§3.4 must-fix #4) ───────────────────────── */
 
 test('registry: concurrent renders never lose an entry (shard model)', async () => {

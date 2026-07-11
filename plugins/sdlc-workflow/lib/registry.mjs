@@ -613,7 +613,14 @@ export async function upsertRegistryEntry({ projectRoot = process.cwd(), viewDir
     // preservation see prior state.
     const existing = readRegistry({ logInvalid: false }).entries;
     const entry = await buildEntry({ projectRoot, viewDir: resolvedView, configHash, existing });
-    if (!entry) return { action: 'skipped-not-git' };
+    // A non-git directory can never register (identity is git-derived), and
+    // before this line the skip was completely invisible on disk — the third
+    // silent failure in the fresh-repo family (Waypoint, 2026-07-10: 54 queued
+    // renders, never registered). Leave a prune-log trail with the cure.
+    if (!entry) {
+      logPrune(`skip-not-git ${projectRoot}: no git toplevel — run git init to register`);
+      return { action: 'skipped-not-git' };
+    }
 
     // F1 (FRESH-REPO-REGISTRATION-FIX-PLAN): a brand-new repo has no .ai/_view
     // yet — hub-ensure registers BEFORE its writeStatus creates the dir, so
