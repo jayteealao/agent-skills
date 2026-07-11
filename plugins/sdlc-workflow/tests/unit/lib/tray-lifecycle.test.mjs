@@ -11,6 +11,7 @@ import { equal, deepEqual, ok } from 'node:assert/strict';
 import {
   bundlePathFromCommandLine, normalizeBundlePath, sameBundle,
   parseTrayProcessList, listRunningTrays, reconcileRunningTray,
+  isHubHealthyEnough, MIN_HUB_UPTIME_MS,
 } from '../../../lib/tray-lifecycle.mjs';
 
 const CUR = 'C:\\Users\\me\\.claude\\plugins\\cache\\m\\sdlc-workflow\\9.81.0\\dist\\tray.mjs';
@@ -23,8 +24,8 @@ const NOW = 1_000_000;
 // process list, with platform pinned to win32 so the table runs cross-OS. The
 // heartbeat is injected (default: none) and `now` pinned so heartbeat staleness
 // is deterministic and nothing reads the real ~/.sdlc/ file.
-function harness(trays, { heartbeat = null, now = NOW } = {}) {
-  const calls = { killed: [], respawned: [] };
+function harness(trays, { heartbeat = null, now = NOW, hub = { reachable: false, uptimeMs: 0 } } = {}) {
+  const calls = { killed: [], respawned: [], probes: 0 };
   return {
     calls,
     opts: {
@@ -35,6 +36,7 @@ function harness(trays, { heartbeat = null, now = NOW } = {}) {
       kill: (pid) => calls.killed.push(pid),
       respawn: (a) => calls.respawned.push(a),
       readHeartbeat: () => heartbeat,
+      probeHub: async () => { calls.probes++; return hub; },
       now,
     },
   };
@@ -138,6 +140,57 @@ test('reconcile: only the heartbeat-proven-wedged current tray is reaped; an unp
   equal(r.action, 'killed-stale');
   deepEqual(h.calls.killed, [44]);
   equal(h.calls.respawned.length, 0);
+});
+
+test('isHubHealthyEnough: reachable + uptime past the floor → true; short uptime / unreachable → false', () => {
+  ok(isHubHealthyEnough({ reachable: true, uptimeMs: MIN_HUB_UPTIME_MS + 1 }));
+  ok(!isHubHealthyEnough({ reachable: true, uptimeMs: MIN_HUB_UPTIME_MS - 1 }));
+  ok(!isHubHealthyEnough({ reachable: false, uptimeMs: 999_999 }));
+  ok(!isHubHealthyEnough(null));
+});
+
+test('reconcile: a live current tray stamping DOWN while the hub is up+settled is reaped + respawned (display wedge)', async () => {
+  const h = harness(
+    [{ pid: 55, bundlePath: CUR, commandLine: 'x' }],
+    { heartbeat: { pid: 55, lastPollAt: NOW - 3000, iconState: 'down' }, hub: { reachable: true, uptimeMs: 120_000 } },
+  );
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'respawned');
+  deepEqual(r.killed, [55]);
+  equal(h.calls.respawned.length, 1);
+  equal(h.calls.respawned[0].trayBundle, CUR);
+  equal(h.calls.probes, 1);   // hub probed exactly once — a down candidate existed
+});
+
+test('reconcile: a DOWN-stamped tray is left ALONE while the hub is still coming up (uptime below floor)', async () => {
+  const h = harness(
+    [{ pid: 55, bundlePath: CUR, commandLine: 'x' }],
+    { heartbeat: { pid: 55, lastPollAt: NOW - 3000, iconState: 'down' }, hub: { reachable: true, uptimeMs: 5_000 } },
+  );
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'unchanged');   // legit hub-coming-up window, not a wedge
+  deepEqual(h.calls.killed, []);
+  equal(h.calls.probes, 1);       // probed to check, but the gate held
+});
+
+test('reconcile: a DOWN-stamped tray is left alone when the hub is genuinely unreachable (really down)', async () => {
+  const h = harness(
+    [{ pid: 55, bundlePath: CUR, commandLine: 'x' }],
+    { heartbeat: { pid: 55, lastPollAt: NOW - 3000, iconState: 'down' }, hub: { reachable: false, uptimeMs: 0 } },
+  );
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'unchanged');
+  deepEqual(h.calls.killed, []);
+});
+
+test('reconcile: an UP-stamped current tray never triggers a hub probe (no candidate, healthy machine pays nothing)', async () => {
+  const h = harness(
+    [{ pid: 55, bundlePath: CUR, commandLine: 'x' }],
+    { heartbeat: { pid: 55, lastPollAt: NOW - 3000, iconState: 'up' }, hub: { reachable: true, uptimeMs: 120_000 } },
+  );
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'unchanged');
+  equal(h.calls.probes, 0);   // never probed — no down candidate
 });
 
 test('reconcile: no tray running → none (tolerated)', async () => {

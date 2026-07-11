@@ -3,9 +3,10 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   TRAY_HEARTBEAT_STALE_MS,
+  heartbeatShowsDown,
   isTrayHeartbeatStale,
   readTrayHeartbeat
-} from "./chunk-O2BWRA46.mjs";
+} from "./chunk-H2S5DJI3.mjs";
 import {
   resolveDurableNodePath
 } from "./chunk-ERHYJB4B.mjs";
@@ -18,7 +19,7 @@ import {
 import {
   isPidAlive,
   resolveEntrypoint
-} from "./chunk-T6TC3LOO.mjs";
+} from "./chunk-TS3E2TXZ.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -30,6 +31,12 @@ import { fileURLToPath } from "node:url";
 
 // lib/tray-lifecycle.mjs
 import { spawnSync } from "node:child_process";
+var MIN_HUB_UPTIME_MS = 3e4;
+function isHubHealthyEnough(hubHealth, { minUptimeMs = MIN_HUB_UPTIME_MS } = {}) {
+  if (!hubHealth || !hubHealth.reachable) return false;
+  const up = Number(hubHealth.uptimeMs);
+  return Number.isFinite(up) && up >= minUptimeMs;
+}
 function bundlePathFromCommandLine(commandLine) {
   const s = String(commandLine ?? "");
   const quoted = s.match(/"([^"]*tray\.(?:mjs|cjs))"/i);
@@ -101,6 +108,15 @@ function defaultKill(pid) {
 function defaultRespawn({ nodePath, trayBundle, env = process.env }) {
   spawnDetached(nodePath, [trayBundle], { env });
 }
+async function defaultProbeHub() {
+  try {
+    const { getHealth } = await import("./tray-actions-4DDR2MJS.mjs");
+    const probe = await getHealth();
+    return { reachable: Boolean(probe?.reachable), uptimeMs: Number(probe?.payload?.uptimeMs) };
+  } catch {
+    return { reachable: false, uptimeMs: 0 };
+  }
+}
 async function reconcileRunningTray({
   platform = process.platform,
   currentBundle,
@@ -109,8 +125,10 @@ async function reconcileRunningTray({
   kill = defaultKill,
   respawn = defaultRespawn,
   readHeartbeat = readTrayHeartbeat,
+  probeHub = defaultProbeHub,
   now = Date.now(),
   stalenessMs = TRAY_HEARTBEAT_STALE_MS,
+  minHubUptimeMs = MIN_HUB_UPTIME_MS,
   env = process.env,
   log = () => {
   }
@@ -121,8 +139,15 @@ async function reconcileRunningTray({
   if (!trays.length) return { action: "none", killed: [], running: 0 };
   const heartbeat = readHeartbeat();
   const isCurrent = (t) => sameBundle(t.bundlePath, currentBundle, platform);
-  const isWedged = (t) => isCurrent(t) && isTrayHeartbeatStale(t, heartbeat, { now, stalenessMs });
-  const isReapable = (t) => !isCurrent(t) || isWedged(t);
+  const isColdWedged = (t) => isCurrent(t) && isTrayHeartbeatStale(t, heartbeat, { now, stalenessMs });
+  const showsDown = (t) => isCurrent(t) && heartbeatShowsDown(t, heartbeat, { now, stalenessMs });
+  let hubHealthyEnough = false;
+  if (trays.some(showsDown)) {
+    hubHealthyEnough = isHubHealthyEnough(await probeHub(), { minUptimeMs: minHubUptimeMs });
+  }
+  const isDisplayWedged = (t) => showsDown(t) && hubHealthyEnough;
+  const wedgeReason = (t) => !isCurrent(t) ? "stale" : isColdWedged(t) ? "cold" : isDisplayWedged(t) ? "display" : null;
+  const isReapable = (t) => wedgeReason(t) !== null;
   const stale = trays.filter(isReapable);
   if (!stale.length) return { action: "unchanged", killed: [], running: trays.length };
   const killed = [];
@@ -131,10 +156,10 @@ async function reconcileRunningTray({
       kill(t.pid);
       killed.push(t.pid);
     } catch (err) {
-      log(`[tray] could not stop ${isWedged(t) ? "wedged" : "stale"} pid ${t.pid}: ${err?.message ?? err}`);
+      log(`[tray] could not stop ${wedgeReason(t)} pid ${t.pid}: ${err?.message ?? err}`);
     }
   }
-  const liveCurrentUp = trays.some((t) => isCurrent(t) && !isWedged(t));
+  const liveCurrentUp = trays.some((t) => isCurrent(t) && !isReapable(t));
   if (liveCurrentUp) {
     log(`[tray] reaped ${killed.length} stale/wedged tray(s); a live current tray is already running`);
     return { action: "killed-stale", killed, running: trays.length };

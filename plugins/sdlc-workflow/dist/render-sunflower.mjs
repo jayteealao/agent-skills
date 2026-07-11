@@ -6,13 +6,13 @@ import {
   maybeConfigureTailscale,
   readHubConfig,
   tailscaleDnsName
-} from "./chunk-DETT54MC.mjs";
-import "./chunk-S5M3GTYD.mjs";
+} from "./chunk-TCEUF7BZ.mjs";
+import "./chunk-4GGSQZEX.mjs";
 import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-ADIC3B52.mjs";
+} from "./chunk-DL2YZ5T3.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
@@ -20,7 +20,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-TRXOJ3QK.mjs";
+} from "./chunk-WSLNFNXW.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
@@ -29,7 +29,7 @@ import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
-} from "./chunk-Z2L4NLCI.mjs";
+} from "./chunk-EAAGPG7C.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
@@ -42,7 +42,7 @@ import {
   resolveEntrypoint,
   upsertRegistryEntry,
   writePidFile
-} from "./chunk-T6TC3LOO.mjs";
+} from "./chunk-TS3E2TXZ.mjs";
 import {
   activeWorkflowIndexes,
   classifyRenderState,

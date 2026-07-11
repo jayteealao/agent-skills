@@ -33,15 +33,22 @@ export function trayHeartbeatPath(homeDir = sdlcHomeDir()) {
 }
 
 /**
- * Stamp the driver's liveness. Best-effort: never throws (a heartbeat write must
- * never crash the tray's poll loop). `pid` is the driver process; `bundle` its
- * launched tray.mjs path (diagnostic — the heal matches on pid). Returns whether
- * the write succeeded. Every I/O seam is injectable for tests.
+ * Stamp the driver's liveness AND its last-computed display truth. Best-effort:
+ * never throws (a heartbeat write must never crash the tray's poll loop). `pid`
+ * is the driver process; `bundle` its launched tray.mjs path (diagnostic — the
+ * heal matches on pid). `iconState`/`summary` record what the driver's most
+ * recent poll COMPUTED (not what the native helper rendered — that is opaque);
+ * the display-wedge heal (lib/tray-lifecycle.mjs) reads `iconState` to catch a
+ * driver stuck computing 'down' while the hub is actually up. Returns whether the
+ * write succeeded. Every I/O seam is injectable for tests.
  */
-export function writeTrayHeartbeat({ pid, bundle, now = Date.now(), homeDir, writeFile = writeFileSync } = {}) {
+export function writeTrayHeartbeat({ pid, bundle, iconState, summary, now = Date.now(), homeDir, writeFile = writeFileSync } = {}) {
   try {
     const path = trayHeartbeatPath(homeDir ?? sdlcHomeDir());
-    writeFile(path, `${JSON.stringify({ pid, bundle, lastPollAt: now })}\n`, 'utf-8');
+    const rec = { pid, bundle, lastPollAt: now };
+    if (iconState !== undefined) rec.iconState = iconState;
+    if (summary !== undefined) rec.summary = summary;
+    writeFile(path, `${JSON.stringify(rec)}\n`, 'utf-8');
     return true;
   } catch {
     return false;
@@ -71,4 +78,21 @@ export function isTrayHeartbeatStale(tray, heartbeat, { now = Date.now(), stalen
   const last = Number(heartbeat.lastPollAt);
   if (!Number.isFinite(last)) return false;
   return now - last > stalenessMs;
+}
+
+/**
+ * PURE: does this LIVE tray's most recent poll show a 'down' display? True ONLY
+ * when the stamp belongs to THIS pid, its poll is FRESH (not heartbeat-stale — the
+ * driver's poll loop is alive, so this is not the cold-poll case the other heal
+ * owns), and the stamped `iconState` is 'down'. It captures a driver whose OWN
+ * probe keeps computing 'down'; combined with a live-and-settled hub (checked by
+ * the caller), that is a driver-side wedge. A pid mismatch, a stale/absent stamp,
+ * or any non-'down' state all read false — the heal stays conservative.
+ */
+export function heartbeatShowsDown(tray, heartbeat, { now = Date.now(), stalenessMs = TRAY_HEARTBEAT_STALE_MS } = {}) {
+  if (!tray || !heartbeat) return false;
+  if (Number(heartbeat.pid) !== Number(tray.pid)) return false;
+  const last = Number(heartbeat.lastPollAt);
+  if (!Number.isFinite(last) || now - last > stalenessMs) return false;  // must be a LIVE poll
+  return heartbeat.iconState === 'down';
 }

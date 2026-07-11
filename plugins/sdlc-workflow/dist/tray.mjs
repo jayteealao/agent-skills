@@ -2,31 +2,36 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  ensureHubOnLaunch,
+  getHealth,
+  openConfig,
+  openDashboard,
+  openLogs,
+  openRepo,
+  perRepoServeEnabled,
+  refreshRegistry,
+  restartHub,
+  stopHubAction,
+  togglePerRepoServe
+} from "./chunk-H53TAPT7.mjs";
+import {
   writeTrayHeartbeat
-} from "./chunk-O2BWRA46.mjs";
+} from "./chunk-H2S5DJI3.mjs";
 import {
   disableAutostart,
   enableAutostart,
   isAutostartEnabled,
   refreshAutostart
 } from "./chunk-ERHYJB4B.mjs";
-import {
-  ensureHubLifecycle,
-  hubConfigPath,
-  readHubConfig,
-  stopHub,
-  writeHubConfig
-} from "./chunk-DETT54MC.mjs";
-import "./chunk-S5M3GTYD.mjs";
+import "./chunk-TCEUF7BZ.mjs";
+import "./chunk-4GGSQZEX.mjs";
 import {
   runtimeIdentity
-} from "./chunk-Z2L4NLCI.mjs";
+} from "./chunk-EAAGPG7C.mjs";
 import "./chunk-K6PBZI5W.mjs";
 import {
-  hubPidPath,
-  readPidFile,
   sdlcHomeDir
-} from "./chunk-T6TC3LOO.mjs";
+} from "./chunk-TS3E2TXZ.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
 import "./chunk-LFGT2BKG.mjs";
@@ -35,8 +40,8 @@ import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/tray.mjs
-import { existsSync as existsSync2, readFileSync, mkdirSync, copyFileSync, statSync, chmodSync } from "node:fs";
-import { dirname, join as join2, resolve } from "node:path";
+import { existsSync, readFileSync, mkdirSync, copyFileSync, statSync, chmodSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // lib/tray-protocol.mjs
@@ -79,11 +84,12 @@ var Tray = class {
    *   menu = { icon, title, tooltip, isTemplateIcon, items:[{title,tooltip,checked,
    *            enabled,hidden,icon,items,onClick}] } — icon is a base64 string.
    */
-  constructor({ binPath, menu, debug = false, platform = process.platform }) {
+  constructor({ binPath, menu, debug = false, platform = process.platform, spawn: spawnFn = spawn }) {
     this.binPath = binPath;
     this.menu = menu;
     this.debug = debug;
     this.platform = platform;
+    this._spawn = spawnFn;
     this.map = /* @__PURE__ */ new Map();
     this.proc = null;
     this.rl = null;
@@ -92,10 +98,19 @@ var Tray = class {
   }
   /** Spawn the helper and send the menu once it reports ready. Resolves then. */
   start() {
+    return this._spawnAndWait();
+  }
+  // Spawn one helper process, wire its stdio, and resolve when it reports ready.
+  // Shared by start() and restart(); the latter tears down the previous process
+  // first. Each process carries its own readline on `_rl` so a restart can close
+  // the old reader without leaking it, and a `_replacing` flag so a process we are
+  // deliberately swapping out does NOT fire the driver-level exit callbacks (which
+  // call process.exit — that would take the whole tray down on every restart).
+  _spawnAndWait() {
     return new Promise((resolve2, reject) => {
       let proc;
       try {
-        proc = spawn(this.binPath, [], { windowsHide: true });
+        proc = this._spawn(this.binPath, [], { windowsHide: true });
       } catch (err) {
         reject(err);
         return;
@@ -104,6 +119,7 @@ var Tray = class {
       proc.stderr?.resume();
       let settled = false;
       proc.on("error", (err) => {
+        if (proc._replacing) return;
         this._errorCbs.forEach((cb) => cb(err));
         if (!settled) {
           settled = true;
@@ -111,14 +127,16 @@ var Tray = class {
         }
       });
       proc.on("exit", (code) => {
+        if (proc._replacing) return;
         this._exitCbs.forEach((cb) => cb(code));
         if (!settled) {
           settled = true;
           reject(new Error(`tray helper exited (code ${code}) before becoming ready`));
         }
       });
-      this.rl = createInterface({ input: proc.stdout });
-      this.rl.on("line", (line) => {
+      proc._rl = createInterface({ input: proc.stdout });
+      this.rl = proc._rl;
+      proc._rl.on("line", (line) => {
         const wasReady = this._onLine(line);
         if (wasReady && !settled) {
           settled = true;
@@ -126,6 +144,37 @@ var Tray = class {
         }
       });
     });
+  }
+  /**
+   * Replace the running helper with a fresh process and render `menu` on it. The
+   * native helper's `update-menu` path is unreliable for large structural changes
+   * (notably the down→up transition, where the item count grows) — a clean
+   * respawn always renders correctly. Tears the old process down WITHOUT firing
+   * the driver's exit handlers, so the tray keeps running. Resolves once the new
+   * helper is ready; rejects if it never comes up (caller can fall back to update).
+   */
+  async restart(menu) {
+    if (menu) this.menu = menu;
+    const old = this.proc;
+    if (old) {
+      old._replacing = true;
+      try {
+        old._rl?.close();
+      } catch {
+      }
+      try {
+        old.stdin?.writable && old.stdin.write(`${JSON.stringify({ type: "exit" })}
+`);
+      } catch {
+      }
+      setTimeout(() => {
+        try {
+          old.kill();
+        } catch {
+        }
+      }, 250);
+    }
+    return this._spawnAndWait();
   }
   _menuObject() {
     this.map = /* @__PURE__ */ new Map();
@@ -316,160 +365,6 @@ function buildRepoItems(entries, now) {
   });
 }
 
-// lib/tray-actions.mjs
-import { spawn as spawn2 } from "node:child_process";
-import { existsSync } from "node:fs";
-import { request } from "node:http";
-import { join } from "node:path";
-async function hubEndpoint() {
-  const rec = await readPidFile(hubPidPath());
-  if (rec && rec.port) {
-    const host = rec.host && rec.host !== "0.0.0.0" ? rec.host : "127.0.0.1";
-    return { host, port: Number(rec.port), token: rec.token ?? "", pid: rec.pid ?? null };
-  }
-  let port = 4173;
-  try {
-    port = Number(readHubConfig({ create: false }).port) || 4173;
-  } catch {
-  }
-  return { host: "127.0.0.1", port, token: "", pid: null };
-}
-async function getHealth({ timeoutMs = 1200 } = {}) {
-  const endpoint = await hubEndpoint();
-  const probe = await httpGetJson({ host: endpoint.host, port: endpoint.port, path: "/__sdlc/health", timeoutMs });
-  return { reachable: probe.ok, payload: probe.json, endpoint };
-}
-async function refreshRegistry({ timeoutMs = 1500 } = {}) {
-  const endpoint = await hubEndpoint();
-  return httpRequestJson({
-    host: endpoint.host,
-    port: endpoint.port,
-    path: "/__sdlc/registry/refresh",
-    method: "POST",
-    token: endpoint.token,
-    timeoutMs
-  });
-}
-async function restartHub({ pluginRoot, log: log2 = () => {
-} } = {}) {
-  await stopHub({ log: log2 });
-  return ensureHubLifecycle({ pluginRoot, log: log2 });
-}
-async function stopHubAction({ log: log2 = () => {
-} } = {}) {
-  return stopHub({ log: log2 });
-}
-async function ensureHubOnLaunch({ pluginRoot, log: log2 = () => {
-} } = {}) {
-  return ensureHubLifecycle({ pluginRoot, log: log2 });
-}
-function togglePerRepoServe() {
-  const cfg = readHubConfig({ create: true });
-  const next = cfg.perRepoServe !== true;
-  cfg.perRepoServe = next;
-  writeHubConfig(cfg);
-  return next;
-}
-function perRepoServeEnabled() {
-  try {
-    return readHubConfig({ create: false }).perRepoServe === true;
-  } catch {
-    return false;
-  }
-}
-function openerCommand(platform, target) {
-  const t = String(target);
-  if (platform === "win32") return { command: "cmd", args: ["/c", "start", "", t] };
-  if (platform === "darwin") return { command: "open", args: [t] };
-  return { command: "xdg-open", args: [t] };
-}
-function defaultOpener(command, args) {
-  const child = spawn2(command, args, { stdio: "ignore", windowsHide: true });
-  child.unref();
-}
-function openTarget(target, { opener = defaultOpener, platform = process.platform } = {}) {
-  const { command, args } = openerCommand(platform, target);
-  opener(command, args);
-  return { command, args };
-}
-async function openDashboard({ opener, platform } = {}) {
-  const endpoint = await hubEndpoint();
-  return openTarget(`http://${endpoint.host}:${endpoint.port}/`, { opener, platform });
-}
-async function openRepo(href, { opener, platform } = {}) {
-  const endpoint = await hubEndpoint();
-  return openTarget(`http://${endpoint.host}:${endpoint.port}${href}`, { opener, platform });
-}
-function openConfig({ opener, platform } = {}) {
-  return openTarget(hubConfigPath(), { opener, platform });
-}
-function resolveLogTarget({ cwd = process.cwd(), homeDir = sdlcHomeDir(), exists = existsSync } = {}) {
-  const cwdLog = join(cwd, ".ai", "_view", ".bootstrap.log");
-  if (exists(cwdLog)) return cwdLog;
-  const pruneLog = join(homeDir, "registry.prune.log");
-  if (exists(pruneLog)) return pruneLog;
-  return homeDir;
-}
-function openLogs({ opener, platform, cwd, homeDir, exists } = {}) {
-  return openTarget(resolveLogTarget({ cwd, homeDir, exists }), { opener, platform });
-}
-function httpGetJson({ host, port, path, timeoutMs }) {
-  return new Promise((resolve2) => {
-    const req = request({ hostname: host, port, path, method: "GET", timeout: timeoutMs }, (res) => {
-      if (res.statusCode !== 200) {
-        res.resume();
-        resolve2({ ok: false, json: null, status: res.statusCode });
-        return;
-      }
-      let buf = "";
-      res.setEncoding("utf-8");
-      res.on("data", (c) => {
-        if (buf.length < 262144) buf += c;
-      });
-      res.on("end", () => {
-        try {
-          resolve2({ ok: true, json: JSON.parse(buf), status: 200 });
-        } catch {
-          resolve2({ ok: false, json: null, status: 200 });
-        }
-      });
-    });
-    req.on("timeout", () => {
-      req.destroy();
-      resolve2({ ok: false, json: null, status: 0 });
-    });
-    req.on("error", () => resolve2({ ok: false, json: null, status: 0 }));
-    req.end();
-  });
-}
-function httpRequestJson({ host, port, path, method, token, timeoutMs }) {
-  return new Promise((resolve2) => {
-    const headers = {};
-    if (token) headers["x-sdlc-token"] = token;
-    const req = request({ hostname: host, port, path, method, timeout: timeoutMs, headers }, (res) => {
-      let buf = "";
-      res.setEncoding("utf-8");
-      res.on("data", (c) => {
-        if (buf.length < 262144) buf += c;
-      });
-      res.on("end", () => {
-        let json = null;
-        try {
-          json = JSON.parse(buf);
-        } catch {
-        }
-        resolve2({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, json });
-      });
-    });
-    req.on("timeout", () => {
-      req.destroy();
-      resolve2({ ok: false, status: 0, json: null });
-    });
-    req.on("error", () => resolve2({ ok: false, status: 0, json: null }));
-    req.end();
-  });
-}
-
 // scripts/tray.mjs
 var __dirname = dirname(fileURLToPath(import.meta.url));
 var PLUGIN_ROOT = resolve(__dirname, "..");
@@ -481,7 +376,10 @@ var TRAY_BIN_NAMES = {
   linux: "tray_linux_release"
 };
 var POLL_MS = 5e3;
+var INITIAL_PROBE_RETRIES = 6;
+var INITIAL_PROBE_DELAY_MS = 500;
 var log = (...a) => console.log("[tray]", ...a);
+var delay = (ms) => new Promise((r) => setTimeout(r, ms));
 function iconBase64(state) {
   const ext = process.platform === "win32" ? "ico" : "png";
   const suffix = state === "down" ? "-down" : state === "stale" ? "-stale" : "";
@@ -495,20 +393,20 @@ function ensureRuntimeBinary() {
   const name = TRAY_BIN_NAMES[process.platform];
   if (!name) throw new Error(`tray: unsupported platform ${process.platform}`);
   const vendored = resolve(PLUGIN_ROOT, "bin", "tray", name);
-  if (!existsSync2(vendored)) throw new Error(`tray: vendored helper missing at ${vendored}`);
-  const dir = join2(sdlcHomeDir(), "bin");
+  if (!existsSync(vendored)) throw new Error(`tray: vendored helper missing at ${vendored}`);
+  const dir = join(sdlcHomeDir(), "bin");
   mkdirSync(dir, { recursive: true });
-  const runtime = join2(dir, name);
+  const runtime = join(dir, name);
   let stale = true;
   try {
-    stale = !existsSync2(runtime) || statSync(runtime).size !== statSync(vendored).size;
+    stale = !existsSync(runtime) || statSync(runtime).size !== statSync(vendored).size;
   } catch {
   }
   if (stale) {
     try {
       copyFileSync(vendored, runtime);
     } catch (err) {
-      if (!existsSync2(runtime)) throw new Error(`tray: failed to copy helper to ${runtime}: ${err.message}`);
+      if (!existsSync(runtime)) throw new Error(`tray: failed to copy helper to ${runtime}: ${err.message}`);
     }
   }
   if (process.platform !== "win32") {
@@ -521,6 +419,7 @@ function ensureRuntimeBinary() {
 }
 var tray = null;
 var lastSig = "";
+var lastIconState = "";
 var refreshTimer = null;
 function signatureOf(h) {
   return JSON.stringify({
@@ -610,18 +509,31 @@ async function currentHealth() {
   return formatHealth({ reachable: probe.reachable, payload: probe.payload, pluginVersion: PLUGIN_VERSION }, Date.now());
 }
 async function refresh() {
-  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE });
   const h = await currentHealth();
+  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE, iconState: h.iconState, summary: h.summary });
   const sig = signatureOf(h);
   if (sig === lastSig && tray) return;
   lastSig = sig;
-  if (tray) tray.update(buildMenu(h));
+  const iconChanged = h.iconState !== lastIconState;
+  lastIconState = h.iconState;
+  if (!tray) return;
+  if (iconChanged) {
+    tray.restart(buildMenu(h)).catch((err) => {
+      log("helper respawn on transition failed:", err.message);
+      try {
+        tray.update(buildMenu(h));
+      } catch {
+      }
+    });
+  } else {
+    tray.update(buildMenu(h));
+  }
 }
-function refreshSoon(delay = 700) {
+function refreshSoon(delay2 = 700) {
   setTimeout(() => {
     refresh().catch(() => {
     });
-  }, delay);
+  }, delay2);
 }
 var lastTickAt = Date.now();
 function pollTick() {
@@ -634,7 +546,7 @@ function pollTick() {
 async function selfcheck() {
   const name = TRAY_BIN_NAMES[process.platform] ?? TRAY_BIN_NAMES.linux;
   const vendored = resolve(PLUGIN_ROOT, "bin", "tray", name);
-  const hasBin = existsSync2(vendored);
+  const hasBin = existsSync(vendored);
   const icon = iconBase64("up");
   const sample = formatHealth({ reachable: false, payload: null, pluginVersion: PLUGIN_VERSION });
   log(`selfcheck: binary=${hasBin} icon=${icon.length > 0} summary="${sample.summary}"`);
@@ -655,8 +567,14 @@ async function main() {
     });
   }
   writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE });
-  const h = await currentHealth();
+  let h = await currentHealth();
+  for (let i = 0; i < INITIAL_PROBE_RETRIES && h.iconState === "down"; i++) {
+    await delay(INITIAL_PROBE_DELAY_MS);
+    h = await currentHealth();
+  }
+  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE, iconState: h.iconState, summary: h.summary });
   lastSig = signatureOf(h);
+  lastIconState = h.iconState;
   tray = new Tray({ binPath, menu: buildMenu(h) });
   tray.onError((err) => log("helper error:", err.message));
   tray.onExit(() => process.exit(0));

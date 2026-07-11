@@ -1262,6 +1262,16 @@ test('branch-liveness: classifies live / merged / gone / unknown, never throws (
   // gone: a branch ref that does not exist locally.
   equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main' }), 'gone');
 
+  // planned: the SAME missing ref reads as planned while the workflow is still
+  // at a pre-branch stage (implement cuts the dedicated branch later); at or
+  // after implement — or with an unrecognized stage — it stays gone.
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main', currentStage: 'slice' }), 'planned');
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main', currentStage: 'routing' }), 'planned');
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main', currentStage: 'implement' }), 'gone');
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main', currentStage: 'bogus-stage' }), 'gone');
+  // A pre-branch stage never masks a branch that actually exists.
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/live', baseBranch: 'main', currentStage: 'slice' }), 'live');
+
   // unknown: no branch (branch-strategy:none), a non-git dir, and empty args.
   equal(computeBranchState({ repoRoot: repo, branch: null, baseBranch: 'main' }), 'unknown');
   equal(computeBranchState({ repoRoot: join(root, 'not-a-repo'), branch: 'x' }), 'unknown');
@@ -1279,12 +1289,14 @@ test('branch-liveness: refreshEntriesLiveness stamps branchState across entries,
       { slug: 's1', branch: 'feat/merged', baseBranch: 'main', prNumber: null },
       { slug: 's2', branch: 'feat/ghost', baseBranch: 'main', prNumber: null },
       { slug: 's3', branch: null, baseBranch: 'main', prNumber: null },
+      { slug: 's4', branch: 'feat/ghost', baseBranch: 'main', prNumber: null, currentStage: 'plan' },
     ],
   }];
   refreshEntriesLiveness(entries);
   equal(entries[0].slugMeta[0].branchState, 'merged');
   equal(entries[0].slugMeta[1].branchState, 'gone');
   equal(entries[0].slugMeta[2].branchState, 'unknown');
+  equal(entries[0].slugMeta[3].branchState, 'planned', 'pre-branch stage + missing ref → planned on refresh');
   // Garbage input never throws.
   refreshEntriesLiveness(null);
   refreshEntriesLiveness([{ no: 'slugMeta' }]);
@@ -1297,12 +1309,14 @@ test('inbox: surfaces merged / branch-gone active slugs as a 4th attention reaso
     { slug: 'merged-feat', currentStage: 'ship', status: 'active', blocked: false, classification: 'active', branch: 'feat/x', branchState: 'merged' },
     { slug: 'gone-feat', currentStage: 'implement', status: 'active', blocked: false, classification: 'active', branch: 'feat/y', branchState: 'gone' },
     { slug: 'live-feat', currentStage: 'implement', status: 'active', blocked: false, classification: 'active', branch: 'feat/z', branchState: 'live' },
+    { slug: 'planned-feat', currentStage: 'slice', status: 'active', blocked: false, classification: 'active', branch: 'feat/w', branchState: 'planned' },
   ] })];
   const items = inboxItems(entries, now);
   const bySlug = Object.fromEntries(items.map((i) => [i.sm.slug, i]));
   ok(bySlug['merged-feat']?.reasons.some((r) => r.key === 'merged'), 'merged slug surfaced with merged reason');
   ok(bySlug['gone-feat']?.reasons.some((r) => r.key === 'gone'), 'gone slug surfaced with gone reason');
   ok(!bySlug['live-feat'], 'a live, otherwise-healthy slug is NOT surfaced');
+  ok(!bySlug['planned-feat'], 'a planned (not-yet-cut) branch is expected — NOT surfaced');
 });
 
 test('hub landing: renders soft merged / branch-gone badges on slug links (§4.3)', () => {
@@ -1310,10 +1324,12 @@ test('hub landing: renders soft merged / branch-gone badges on slug links (§4.3
   const entries = [entryStub({ id: 'r', repo: 'web', headBranch: 'main', lastRenderedAt: '2026-06-08T11:00:00.000Z', slugMeta: [
     { slug: 'done-feat', currentStage: 'ship', status: 'active', blocked: false, classification: 'active', branch: 'feat/done', branchStrategy: 'dedicated', baseBranch: 'main', branchState: 'merged' },
     { slug: 'lost-feat', currentStage: 'implement', status: 'active', blocked: false, classification: 'active', branch: 'feat/lost', branchStrategy: 'dedicated', baseBranch: 'main', branchState: 'gone' },
+    { slug: 'future-feat', currentStage: 'slice', status: 'active', blocked: false, classification: 'active', branch: 'feat/future', branchStrategy: 'dedicated', baseBranch: 'main', branchState: 'planned' },
   ] })];
   const html = renderHubLanding(entries, { now });
   match(html, /lq merged">merged/, 'merged badge rendered');
   match(html, /lq gone">branch gone/, 'branch-gone badge rendered');
+  match(html, /lq planned">branch planned/, 'branch-planned badge rendered (soft, non-attention)');
 });
 
 /* ───────────────────────── cross-repo inbox (§11.3) ───────────────────────── */

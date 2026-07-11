@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — tray display recovers after a wedge: heartbeat display-truth, helper respawn on transition, initial-probe retry (9.111.0)
+
+The system-tray app could show a stale status (e.g. "hub down — start it?") while the hub was in fact healthy, and never self-correct — the existing heals only caught a *cold poll* (a wedged driver whose heartbeat stops advancing), not a live driver whose *display* was wrong. The tray has two independent failure surfaces — the Node **driver** that computes health and the native **helper** that renders the menu — and each fix targets one:
+
+- **Fix #1 — heartbeat carries display truth.** `writeTrayHeartbeat` now records the driver's last-computed `iconState`/`summary`, and `reconcileRunningTray` reaps a current-bundle tray whose stamp shows `down` while a fresh hub probe reports the hub up and settled (`heartbeatShowsDown` + `isHubHealthyEnough`, gated on `MIN_HUB_UPTIME_MS` so the legitimate hub-coming-up window is never mistaken for a wedge). The hub is probed at most once per pass and only when a `down` candidate exists, so a healthy machine pays nothing. Catches a **driver-side** probe wedge.
+- **Fix #2 — helper respawn on icon-state transition.** `Tray.restart()` swaps the native helper for a clean render (its `update-menu` path handles the down→up item-count growth poorly — the frozen-display bug), without firing the driver's exit handlers that would tear the tray down. The poll loop calls it on any `iconState` change, falling back to an in-place update if the respawn can't come up. Catches a **helper-side** render wedge.
+- **Fix #3 — initial-probe retry.** A freshly launched tray retries its first probe briefly before committing the initial menu, so a tray started while the hub is a beat from ready (a session start that respawns the tray and restarts the hub together) does not latch its first frame onto a transient `down`.
+- **Coverage:** new unit tests pin the display-wedge reap branch + uptime gate + probe-only-when-candidate (tray-lifecycle), the `iconState` round-trip + `heartbeatShowsDown` liveness/cold/pid guards (tray-heartbeat), and the `restart()` exit-suppression via an injected spawn seam (new tray-protocol suite).
+
 ### Fixed — fresh repos self-register: viewDir-before-register, bootstrap-render-on-accept, prune grace + logging (9.109.0)
 
 A brand-new repo could **never** become registered + rendered with the hub on its own (FRESH-REPO-REGISTRATION-FIX-PLAN, from the hello-test forensics): `hub-ensure` registered before anything created `.ai/_view`, so `validateEntry`'s realpath rejected the very first registration; any later successful registration was then reaped by the reconcile prune within one 10 s tick (no `.last-render`, empty queue) — and that prune logged only to the daemon's stdout, leaving zero on-disk trace.

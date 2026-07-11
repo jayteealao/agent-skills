@@ -255,7 +255,7 @@ async function collectSlugMeta({ projectRoot, workflowsRoot }) {
           // git. Local-git only (checkPr:false) so the hot artifact-write render
           // path never makes a `gh` network call (R2); local ref + base-ancestry
           // already yield gone/merged. The hub refresh is likewise local-only.
-          branchState: computeBranchState({ repoRoot: projectRoot, branch, baseBranch, prNumber, checkPr: false }),
+          branchState: computeBranchState({ repoRoot: projectRoot, branch, baseBranch, prNumber, currentStage: w.currentStage ?? null, checkPr: false }),
         };
       });
   } catch {

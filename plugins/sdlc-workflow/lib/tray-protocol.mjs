@@ -65,11 +65,12 @@ export class Tray {
    *   menu = { icon, title, tooltip, isTemplateIcon, items:[{title,tooltip,checked,
    *            enabled,hidden,icon,items,onClick}] } — icon is a base64 string.
    */
-  constructor({ binPath, menu, debug = false, platform = process.platform }) {
+  constructor({ binPath, menu, debug = false, platform = process.platform, spawn: spawnFn = spawn }) {
     this.binPath = binPath;
     this.menu = menu;
     this.debug = debug;
     this.platform = platform;
+    this._spawn = spawnFn;   // injectable for tests; defaults to node:child_process spawn
     this.map = new Map();
     this.proc = null;
     this.rl = null;
@@ -79,30 +80,63 @@ export class Tray {
 
   /** Spawn the helper and send the menu once it reports ready. Resolves then. */
   start() {
+    return this._spawnAndWait();
+  }
+
+  // Spawn one helper process, wire its stdio, and resolve when it reports ready.
+  // Shared by start() and restart(); the latter tears down the previous process
+  // first. Each process carries its own readline on `_rl` so a restart can close
+  // the old reader without leaking it, and a `_replacing` flag so a process we are
+  // deliberately swapping out does NOT fire the driver-level exit callbacks (which
+  // call process.exit — that would take the whole tray down on every restart).
+  _spawnAndWait() {
     return new Promise((resolve, reject) => {
       let proc;
-      try { proc = spawn(this.binPath, [], { windowsHide: true }); }
+      try { proc = this._spawn(this.binPath, [], { windowsHide: true }); }
       catch (err) { reject(err); return; }
       this.proc = proc;
       // Drain stderr so a chatty helper can't fill the OS pipe buffer and block.
       proc.stderr?.resume();
       let settled = false;
       proc.on('error', (err) => {
+        if (proc._replacing) return;
         this._errorCbs.forEach((cb) => cb(err));
         if (!settled) { settled = true; reject(err); }
       });
       proc.on('exit', (code) => {
+        if (proc._replacing) return;   // a deliberate swap — not a real helper death
         this._exitCbs.forEach((cb) => cb(code));
         // If the helper dies before emitting `ready` (crash, missing libs, arch
         // mismatch), settle the start() promise instead of hanging forever.
         if (!settled) { settled = true; reject(new Error(`tray helper exited (code ${code}) before becoming ready`)); }
       });
-      this.rl = createInterface({ input: proc.stdout });
-      this.rl.on('line', (line) => {
+      proc._rl = createInterface({ input: proc.stdout });
+      this.rl = proc._rl;
+      proc._rl.on('line', (line) => {
         const wasReady = this._onLine(line);
         if (wasReady && !settled) { settled = true; resolve(this); }
       });
     });
+  }
+
+  /**
+   * Replace the running helper with a fresh process and render `menu` on it. The
+   * native helper's `update-menu` path is unreliable for large structural changes
+   * (notably the down→up transition, where the item count grows) — a clean
+   * respawn always renders correctly. Tears the old process down WITHOUT firing
+   * the driver's exit handlers, so the tray keeps running. Resolves once the new
+   * helper is ready; rejects if it never comes up (caller can fall back to update).
+   */
+  async restart(menu) {
+    if (menu) this.menu = menu;
+    const old = this.proc;
+    if (old) {
+      old._replacing = true;                                  // suppress its exit/error propagation
+      try { old._rl?.close(); } catch { /* already closed */ }
+      try { old.stdin?.writable && old.stdin.write(`${JSON.stringify({ type: 'exit' })}\n`); } catch { /* helper gone */ }
+      setTimeout(() => { try { old.kill(); } catch { /* already gone */ } }, 250);
+    }
+    return this._spawnAndWait();
   }
 
   _menuObject() {

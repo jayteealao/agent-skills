@@ -49,21 +49,33 @@ function prMerged(repoRoot, prNumber) {
   }
 }
 
+// Stages that precede branch creation. The dedicated slug branch is cut by
+// implement (auto/yolo do it up front, but then the ref exists and this set is
+// never consulted) — so a missing ref while still at one of these stages means
+// "declared, not created yet", not attrition. An unknown/absent stage falls
+// through to 'gone' (the pre-planned behavior) so a malformed row never hides
+// a genuinely deleted branch.
+const PRE_BRANCH_STAGES = new Set(['intake', 'shape', 'slice', 'plan', 'design', 'routing']);
+
 /**
  * Classify a slug's declared branch within its repo.
  *
  *   'live'    — `refs/heads/<branch>` exists and is NOT fully merged into base.
  *   'merged'  — branch ref exists AND its tip is an ancestor of base-branch
  *               (`git merge-base --is-ancestor`), or its PR resolves MERGED.
- *   'gone'    — branch ref not found locally (deleted, possibly post-merge).
+ *   'planned' — branch ref not found AND the workflow is still at a pre-branch
+ *               stage (intake/shape/slice/plan/design/routing): implement will
+ *               create it later. Expected, never attention-worthy.
+ *   'gone'    — branch ref not found locally at/after implement (deleted,
+ *               possibly post-merge).
  *   'unknown' — no branch declared (e.g. branch-strategy:none), git unavailable,
  *               or any error. Fails open; the caller renders no badge.
  *
  * @param {{repoRoot?:string, branch?:string|null, baseBranch?:string|null,
- *          prNumber?:number|null, checkPr?:boolean}} opts
- * @returns {'live'|'merged'|'gone'|'unknown'}
+ *          prNumber?:number|null, currentStage?:string|null, checkPr?:boolean}} opts
+ * @returns {'live'|'merged'|'planned'|'gone'|'unknown'}
  */
-export function computeBranchState({ repoRoot, branch, baseBranch, prNumber, checkPr = true } = {}) {
+export function computeBranchState({ repoRoot, branch, baseBranch, prNumber, currentStage, checkPr = true } = {}) {
   try {
     const b = String(branch ?? '').trim();
     if (!repoRoot || !b) return 'unknown';           // nothing to assess
@@ -78,7 +90,7 @@ export function computeBranchState({ repoRoot, branch, baseBranch, prNumber, che
       if (checkPr && prMerged(repoRoot, prNumber)) return 'merged';
       return 'live';
     }
-    return 'gone';
+    return PRE_BRANCH_STAGES.has(String(currentStage ?? '').trim().toLowerCase()) ? 'planned' : 'gone';
   } catch {
     return 'unknown';
   }
@@ -106,6 +118,7 @@ export function refreshEntriesLiveness(entries = [], { checkPr = false } = {}) {
             branch: sm.branch,
             baseBranch: sm.baseBranch,
             prNumber: sm.prNumber,
+            currentStage: sm.currentStage,
             checkPr,
           });
         } catch {
