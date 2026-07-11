@@ -49,6 +49,10 @@
         "regenerable": {
           "type": "boolean",
           "description": "When true, the renderer treats this artifact as a view over other state. Sub-commands may overwrite freely; the calm-reader surfaces a `regenerable` badge. Added in v9.20.0 as part of the additive-write contract."
+        },
+        "provenance": {
+          "enum": ["authored", "adopted"],
+          "description": "How the artifact's content was produced. Absent or `authored` = written forward by its stage (the default; do not stamp it explicitly). `adopted` = reverse-engineered from an already-existing diff by `/wf intake adopt`. Downstream stages and any pattern-mining over 04-plan/05-implement (retro learnings, reuse analysis) MUST treat `adopted` artifacts as reconstruction, not forethought. Added in v9.118.0."
         }
       },
       "required": ["schema", "type"]
@@ -131,7 +135,7 @@
           "enum": [
             "feature", "fix", "quick", "rca", "investigate",
             "rf", "refactor", "hotfix", "dep-update", "update-deps",
-            "docs", "discover", "standard"
+            "docs", "discover", "standard", "adopt"
           ]
         },
         "public-surface": {},

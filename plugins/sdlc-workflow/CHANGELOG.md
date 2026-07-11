@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.118.0] - 2026-07-11
+
+### Added — `/wf intake adopt`: bring already-done work into the lifecycle
+
+Adds a **reverse-entry** intake mode for a case every other entry path ignored: the change is *already made* in the working tree and you only afterward decide it deserves recorded verification. Where `fix`/`hotfix`/`refactor` author a plan and build forward, **`adopt` reads the current working-tree / branch diff and reconstructs the record backward** — `01-adopt` (intake) → `02-shape` → `03-slice` → `04-plan` → `05-implement`, all stamped **`provenance: adopted`** so no downstream stage or pattern-miner mistakes reconstruction for forethought — then lands the workflow at `/wf verify` so the standard quality tail (verify → review → handoff) runs over the adopted change. The one thing adopt authors *forward* is `04-plan`'s `## Verification Strategy` (constraint forethought still applies to environment-dependent ACs); it never writes or undoes code. A **confirm-before-write gate** presents the inferred goal / scope / slice split / ACs before any artifact is written, because a wrong inferred shape would poison every downstream stage. Adopt is standalone-only (never slug-attachable, never auto-proposed), refuses a clean or fully-published tree, and records the current branch without creating or switching one.
+
+New mode reference `intake/adopt.md` (both trees); dispatcher, `wf/SKILL.md`, and the renderer path map (`01-adopt` → `intake/`) wired for it; new optional `provenance` field and `adopt` workflow-type added to the frontmatter schema; `01-adopt` path-placement and `provenance`-accepted tests added. Implements workstream W5 of the feedback-loops & hardening plan.
+
 ## [9.117.0] - 2026-07-11
 
 ### Added — `/wf` stages now reach for `study-sources`

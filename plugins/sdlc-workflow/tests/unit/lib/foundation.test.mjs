@@ -118,6 +118,23 @@ test('schema-validator: validates frontmatter and sibling YAML schemas', () => {
   equal(sibling.valid, true);
 });
 
+test('schema-validator: provenance is an accepted optional field (adopt mode)', () => {
+  // /wf intake adopt stamps every reconstructed artifact provenance:adopted; the
+  // field is documented on the shared `base` def. The per-type branch validator is
+  // permissive (this schema uses no additionalProperties:false), so the point of
+  // this test is that stamping provenance never breaks validation and that the
+  // default (authored / absent) path stays valid.
+  for (const provenance of ['adopted', 'authored']) {
+    const r = validateFrontmatter(
+      { ...validIntakeFrontmatter(), provenance },
+      { schemaPath: SCHEMA_PATH },
+    );
+    equal(r.valid, true);
+  }
+  // Absent provenance (the authored default) remains valid.
+  equal(validateFrontmatter(validIntakeFrontmatter(), { schemaPath: SCHEMA_PATH }).valid, true);
+});
+
 test('schema-validator: plan sibling YAML accepts the rich object-form convention', () => {
   // Reconciled (v9.62.0): modules as { id, label, role } objects, files
   // referencing them via `module:` with change-type in `status` and a category

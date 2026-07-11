@@ -16,6 +16,15 @@
 > happened); W6 = `steer.md` (per-workflow standing-instructions contract every stage honors).
 > They ship as **R4** — see the sequencing table.
 >
+> **W5 BUILT 2026-07-11 as v9.118.0** (both trees, uncommitted): `intake/adopt.md` reverse-entry
+> mode reconstructing `01-adopt`→`05-implement` from the working-tree diff (all `provenance:
+> adopted`), confirm-before-write gate, lands at verify; dispatcher + `wf/SKILL.md` + renderer path
+> map (`01-adopt`→`intake/`) wired; frontmatter schema gains optional `provenance` + `adopt`
+> workflow-type; tests added (paths + provenance). Build-time deltas from the text below: adopt
+> writes `05-implement` too (the plan's W5.3 said 02–05 but the prose listed to 04 in one place —
+> 05 is authored since execution is already done) and `00-index` enters at `current-stage:
+> implement` / `implement: complete`. **W6 (`steer.md`) still PROPOSED — not built.**
+>
 > Original status: PROPOSED (drafted 2026-07-06).
 > Scope constraint (user-set): **no new skills, no new top-level `/wf` keys.** The surface stays at
 > 20 keys. Every capability below lands as a mode, phase, step, or shared reference inside existing

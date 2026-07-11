@@ -25,10 +25,13 @@ var PHASE_BY_BASENAME = {
   // every change-mode lead MUST land at intake/ or the intake card 404s. (Renderer
   // dispatch is by frontmatter `type` → intake.mjs; view-path placement is by
   // filename → here. Separate axes — see the file header.)
+  // `01-adopt` (/wf intake adopt) is the reverse-entry lead — same `type: intake`,
+  // same intake-card placement rule as the change-mode leads above.
   "01-fix": ["intake", null],
   "01-hotfix": ["intake", null],
   "01-refactor": ["intake", null],
   "01-update-deps": ["intake", null],
+  "01-adopt": ["intake", null],
   // Forwarded / investigative workflows (/wf intake rca|investigate, /wf probe)
   // keep their own named lead dirs. Without these entries resolveViewPath returns
   // null and the orchestrator skips them entirely — the RCA/probe writeup is then
@@ -280,7 +283,7 @@ function breadcrumbFromView(viewRel, slug) {
 }
 
 // renderers/_shell.mjs
-var PLUGIN_VERSION = "9.117.0";
+var PLUGIN_VERSION = "9.118.0";
 function renderShell(params) {
   const {
     title,

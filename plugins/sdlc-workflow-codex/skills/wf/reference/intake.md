@@ -1,14 +1,16 @@
 ---
-description: Entry-point dispatcher for the SDLC lifecycle. Plain `$wf intake <description>` runs the default product-owner intake (stage 1 of 10). A mode keyword routes a compressed/standalone entry flow — `fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate` — each a former `$wf-quick` sub-command, now an intake mode. Passing an existing slug before a mode attaches the run as a compressed slice. With no keyword, intake may propose a mode (suggest-and-confirm) before falling back to the default flow.
-argument-hint: "[slug] [fix|rca|investigate|discover|hotfix|refactor|update-deps|ideate] <description> | <description>"
+description: Entry-point dispatcher for the SDLC lifecycle. Plain `$wf intake <description>` runs the default product-owner intake (stage 1 of 10). A mode keyword routes a compressed/standalone entry flow — `fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt` — most a former `$wf-quick` sub-command, now an intake mode (`adopt` is the reverse-entry mode: it adopts work already done into the lifecycle). Passing an existing slug before a mode attaches the run as a compressed slice. With no keyword, intake may propose a mode (suggest-and-confirm) before falling back to the default flow.
+argument-hint: "[slug] [fix|rca|investigate|discover|hotfix|refactor|update-deps|ideate|adopt] <description> | <description>"
 ---
 
 You are the **entry dispatcher** for the SDLC plugin, invoked as `$wf intake`. Intake is the
 *front door* of the lifecycle, and it has **modes** — alternative ways a piece of work enters.
-The **default** mode is the full product-owner intake (the canonical stage 1). The eight mode
-keywords (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`)
-are *arguments* to this one key — each was a standalone `$wf-quick` sub-command and is now a
-compressed/standalone entry flow. Intake also owns one **keyword-less** mode, **extension**: naming
+The **default** mode is the full product-owner intake (the canonical stage 1). The nine mode
+keywords (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`,
+`adopt`) are *arguments* to this one key — most were standalone `$wf-quick` sub-commands and are now
+compressed/standalone entry flows. `adopt` is the **reverse-entry** mode: instead of entering with
+work ahead of you, it adopts a change *already made in the working tree* into the lifecycle and
+lands it at verify (see `reference/intake/adopt.md`). Intake also owns one **keyword-less** mode, **extension**: naming
 an existing on-disk slug followed by free scope text (`$wf intake <existing-slug> <new scope>`)
 auto-routes to `reference/intake/extend.md`, which adds net-new slices to that workflow. This is where scope
 corrections and follow-on work land — there is no `amend`; already-built work is never re-specified
@@ -24,14 +26,20 @@ run only the flow span the mode dictates.
 
 `$ARGUMENTS` reaches you with the leading `intake` key already stripped by `wf/SKILL.md`.
 Tokenize respecting shell quoting (`"two words"` is one token). The **mode keyword set** is:
-`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`.
+`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt`.
+**`adopt` is standalone-only** — it always roots a *new* workflow from the working tree and is
+**never** slug-attachable (it cannot be a compressed slice of an existing workflow); it is also
+never auto-proposed. The carve-outs below enforce this.
 
 Resolve in this exact order (the order matters — the slug checks come FIRST):
 
 1. **Slug + mode keyword → compressed slice.** If `token0` exactly matches an existing
-   `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is in the mode keyword set →
-   **slug-mode**. Consume `token0` as `<slug>` and `token1` as `<mode>`; the rest are the mode's
-   instructions. The run will attach as **one compressed slice** on that workflow (Step 4).
+   `.ai/workflows/<token0>/00-index.md` on disk **AND** `token1` is in the mode keyword set
+   *(except `adopt`)* → **slug-mode**. Consume `token0` as `<slug>` and `token1` as `<mode>`; the
+   rest are the mode's instructions. The run will attach as **one compressed slice** on that
+   workflow (Step 4). **If `token1` is `adopt`**, this is not slug-mode — STOP and tell the user:
+   *"`adopt` roots a new workflow from the current diff; it can't attach to an existing slug. Run
+   `$wf intake adopt` (no slug), or `$wf intake <slug> <scope>` to extend `<slug>` with new work."*
    *(An exact on-disk slug match is an intentional attach — it does NOT trigger the collision
    prompt, which guards only against an accidentally re-derived slug. See `_intake-context.md`.)*
    - If `token0` matches a **closed** workflow → ask the user directly in chat: *"Workflow `<token0>` is closed. Append a
@@ -78,7 +86,9 @@ Propose a mode **only when ALL** of these hold — otherwise run `reference/inta
   and
 - (c) it strongly matches exactly **one** of the patterns below.
 
-**Any of the eight modes may be proposed.** Match on the description's *shape of intent*:
+**Any of the eight `$wf-quick`-lineage modes may be proposed** (`adopt` is **never** auto-proposed
+— adopting an existing diff is an explicit decision the user states with `$wf intake adopt`, never
+something inferred from a task description). Match on the description's *shape of intent*:
 
 | Signal in the description | Propose |
 |---|---|
@@ -136,6 +146,7 @@ mode→span map (a future mode is one new row):
 | `refactor` | compressed **standard** lifecycle — `01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]**; branch `refactor/<slug>` (opt-in) | compressed slice, **branch suppressed** | → `$wf implement <slug>` (`07-review` defaults to `refactor-safety`) |
 | `update-deps` | compressed **standard** lifecycle in-slug — `01-update-deps`(intake) → `02-shape` → `03-slice` → `04-plan` → **[gate]** → **self-authored** `05-implement`/`06-verify`; branch `deps/<slug>` | compressed slice **only** (companion dir suppressed) | → `$wf review <slug>` (self-authors `05`/`06`; skips `$wf implement`+`$wf verify`) |
 | `ideate` | **terminal analysis** — roots a `type:workflow-index` slug with the `01-ideate` lead only (no build stages) | compressed slice | terminal → user picks → `$wf intake <idea>` |
+| `adopt` | **reverse-entry** — reconstructs `01-adopt`(intake) → `02-shape` → `03-slice` → `04-plan` → **`05-implement`** from the working-tree diff (all `provenance: adopted`), confirm-before-write gate; records the current branch, never creates one | n/a — adopt is standalone-only (never slug-attachable) | → `$wf verify <slug>` (the standard verification chain takes over from stage 6) |
 | `extend` | n/a — extension always attaches to an existing slug | **adds full net-new `03-slice-<new>.md` file(s)** to the named workflow; never a compressed slice; never touches completed work | → `$wf plan <slug> <new-slice>` |
 
 Notes:
@@ -163,6 +174,7 @@ Load the resolved reference in full and follow it verbatim. Do not summarize, pa
 | `refactor` | `reference/intake/refactor.md` |
 | `update-deps` | `reference/intake/update-deps.md` |
 | `ideate` | `reference/intake/ideate.md` |
+| `adopt` | `reference/intake/adopt.md` |
 | `extend` *(auto-routed — branch 2)* | `reference/intake/extend.md` |
 
 The reference is the authoritative instruction for *what* the mode does; this dispatcher governs
