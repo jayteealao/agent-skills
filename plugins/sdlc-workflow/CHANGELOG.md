@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — `diataxis` documentation skill
+
+The former standalone `diataxis` marketplace plugin (deleted in marketplace v1.139.0) is restored as a **single consolidated skill** under both trees (`skills/diataxis/`). Its seven original skills become reference docs under `references/` (tutorial, how-to, reference, explanation, readme, doc-planner, docs-reviewer); a new `SKILL.md` is an overview + quadrant router that classifies a request and loads the one matching reference. User- and model-invocable (Codex gets an `agents/openai.yaml` with `allow_implicit_invocation: true` so it isn't hidden). It is the **standalone** documentation surface — the general-purpose counterpart to the lifecycle-bound `/wf docs`, which writes docs as `.ai/` workflow artifacts. Wired into both READMEs, both `plugin.json` (keywords `documentation`/`diataxis`; codex roster back to "five independent engineering skills"), and the doc-site `reference/skills.html` in both trees.
+
+### Removed — `refactoring-patterns`, `test-patterns`, and `error-analysis` skills deleted
+
+All three passive knowledge skills (each a SKILL.md + 4 reference docs, plus the codex tree's `agents/openai.yaml` companions) are deleted outright from **both trees**. None were wired into the `/wf` lifecycle — no command or stage loaded them — and their generic content (AAA test structure, extract/rename/move mechanics, error-categorization taxonomies) duplicated what the model already applies unprompted; `/wf intake refactor`, `/wf intake rca`, and the verify/review gates carry the lifecycle-level discipline themselves. Skill surface is now `wf` + `consult`/`imagery`/`uiproto` (Claude) and those plus `setup-wide-logging` (Codex, "four independent engineering skills"). Reconciled surfaces: both READMEs, both `plugin.json` descriptions/keywords, `MIGRATION.md`, and the doc-site `reference/skills.html` + `tutorials/installation.html` in both trees — the doc-site rewrites also cured pre-existing drift (pages still listed the long-deleted `imagegen`, `review`, and `wide-event-observability` skills and omitted `consult`/`imagery`/`uiproto`).
+
 ### Fixed — tray display recovers after a wedge: heartbeat display-truth, helper respawn on transition, initial-probe retry (9.111.0)
 
 The system-tray app could show a stale status (e.g. "hub down — start it?") while the hub was in fact healthy, and never self-correct — the existing heals only caught a *cold poll* (a wedged driver whose heartbeat stops advancing), not a live driver whose *display* was wrong. The tray has two independent failure surfaces — the Node **driver** that computes health and the native **helper** that renders the menu — and each fix targets one:

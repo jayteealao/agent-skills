@@ -1,6 +1,0 @@
-interface:
-  display_name: "Error Analysis"
-  short_description: "Analyze errors, stack traces, and logs to identify root causes and propose targeted fixes"
-  default_prompt: "Analyze this error and find the root cause: [paste error/stack trace here]"
-policy:
-  allow_implicit_invocation: true

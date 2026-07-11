@@ -124,20 +124,19 @@
 
 <h2 id="auto-invoke">Auto-invocation</h2>
 
-<p>Most commands never auto-invoke — you must run them explicitly. The exception is <code>/review</code>, which the model can trigger on its own when it detects a change worth reviewing. Two of the support skills — <code>error-analysis</code> and <code>wide-event-observability</code> — also auto-invoke on their own triggering conditions. The other three (<code>imagegen</code>, <code>refactoring-patterns</code>, <code>test-patterns</code>) are internal helpers: they are loaded by commands like <code>/wf design</code> or <code>/wf verify</code>, not triggered autonomously.</p>
+<p>Most commands never auto-invoke — you must run them explicitly. The exception is <code>/review</code>, which the model can trigger on its own when it detects a change worth reviewing. Of the support skills, the model may run <code>consult</code> autonomously when a second opinion adds material value, and <code>diataxis</code> auto-invokes on documentation-writing or docs-review requests. The other two (<code>imagery</code>, <code>uiproto</code>) are internal helpers: they are loaded by <code>/wf design</code>, not triggered autonomously.</p>
 
 <h2>Support skills</h2>
 
-<p>Five skills under <code>skills/</code> are not commands. They are focused capabilities the model invokes directly — either on its own, or when a command loads them internally:</p>
+<p>Four skills under <code>skills/</code> are not commands. They are focused capabilities the model invokes directly — either on its own, or when a command loads them internally:</p>
 
 <table>
 <thead><tr><th>Skill</th><th>What it does</th></tr></thead>
 <tbody>
-<tr><td><code>error-analysis</code></td><td>Root-cause analysis of errors, stack traces, and logs. Auto-invokes on debugging, incident-response, or "why is this failing" requests.</td></tr>
-<tr><td><code>test-patterns</code></td><td>Patterns for generating and organizing tests — unit, integration, data factories, coverage — across languages and frameworks.</td></tr>
-<tr><td><code>refactoring-patterns</code></td><td>Safe behavior-preserving refactoring — extract, rename, move, simplify — with test-baseline and rollback guidance.</td></tr>
-<tr><td><code>wide-event-observability</code></td><td>Designing and implementing wide-event logging with tail sampling for context-rich, queryable observability.</td></tr>
-<tr><td><code>imagegen</code></td><td>Generates an image from a text prompt with automatic fallback. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
+<tr><td><code>diataxis</code></td><td>Writes or reviews documentation under the Diátaxis framework — routes a request to the right quadrant (tutorial, how-to, reference, explanation), plus README, doc-planning, and docs-review references. The standalone counterpart to <code>/wf docs</code>.</td></tr>
+<tr><td><code>consult</code></td><td>Read-only multi-model second opinion — plan critique, code review, design analysis, diagnosis. Fans out to all available providers; never edits the repo.</td></tr>
+<tr><td><code>imagery</code></td><td>Generates images from a text prompt, fanning out to all available providers. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
+<tr><td><code>uiproto</code></td><td>Prototypes a UI component or screen as a self-contained, sandboxed HTML fragment. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
 </tbody>
 </table>
 

@@ -19,9 +19,8 @@ resumes cleanly in the other.
 | `$wf` | The single SDLC entry point. Run one canonical stage (intake → … → retro), a perf/observability augmentation, or the compressed design workflow (`$wf design`). `$wf intake` dispatches compressed entry modes (fix, rca, investigate, discover, hotfix, refactor, update-deps, ideate). `$wf probe` is runtime-truth verification; `$wf simplify` is read-only triage. `$wf auto` is the end-to-end lifecycle driver. Navigation and lifecycle are keys too — `$wf status` (dashboard; absorbs the old next/sync), `$wf recap` (resume/explain), `$wf close` (skip/close), `$wf ship-plan` (init/build/edit) — and documentation is `$wf docs` (Diátaxis: tutorial, how-to, reference, explanation, readme, plan, review). The former `$wf-meta` and `$wf-docs` routers are retired, folded into these keys. 19 sub-commands total. |
 | `$review` | Code review across 33 dimensions + 7 aggregates (`$review sweep <aggregate>`). |
 
-**Five independent skills** — `error-analysis`, `refactoring-patterns`, `test-patterns`,
-`wide-event-observability`, `setup-wide-logging`. (No `imagegen` — Codex provides a
-system one.)
+**Five independent skills** — `consult`, `imagery`, `uiproto`, `diataxis`,
+`setup-wide-logging`. (No `imagegen` — Codex provides a system one.)
 
 Every router sub-command is a handwritten Codex-native reference under
 `skills/<router>/reference/<key>.md`. No skill reads or translates Claude prompt prose,

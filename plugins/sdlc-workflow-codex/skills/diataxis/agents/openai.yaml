@@ -1,0 +1,6 @@
+interface:
+  display_name: "Diátaxis Documentation"
+  short_description: "Write or review docs by Diátaxis quadrant — tutorial, how-to, reference, explanation, README, plus a doc planner and reviewer"
+  default_prompt: "Plan the documentation this project needs, classified into Diátaxis quadrants."
+policy:
+  allow_implicit_invocation: true

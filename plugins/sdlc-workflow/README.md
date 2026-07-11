@@ -830,16 +830,13 @@ Invoke a single domain as `/review <dimension>` (skill auto-trigger or explicit 
 | `/review sweep infra` | infra, ci, release, migrations, logging, observability |
 | `/review sweep ux` | accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy |
 
-### Analysis skills
-
-Available during implementation and verification:
+### Documentation skills
 
 | Skill | Purpose |
 |---|---|
-| `error-analysis` | Root cause identification from errors, stack traces, logs |
-| `refactoring-patterns` | Safe refactoring: extract, rename, move, simplify |
-| `test-patterns` | Test generation: unit, integration, factories, coverage strategies |
-| `wide-event-observability` | Wide-event logging and tail sampling design |
+| `diataxis` | Write or review documentation under the Diátaxis framework — routes a request to the right quadrant (tutorial, how-to, reference, explanation), plus README, doc-planning, and docs-review references. The standalone counterpart to the lifecycle-bound `/wf docs`. |
+
+### Wide-event logging
 
 The `setup-wide-logging` command configures wide-event logging for Express/Koa/Fastify/Next.js with Pino/Winston/Bunyan.
 
