@@ -9,7 +9,7 @@ import { equal, ok } from 'node:assert/strict';
 
 import {
   isTrayHeartbeatStale, heartbeatShowsDown, writeTrayHeartbeat, readTrayHeartbeat,
-  trayHeartbeatPath, TRAY_HEARTBEAT_STALE_MS,
+  clearTrayHeartbeat, trayHeartbeatPath, TRAY_HEARTBEAT_STALE_MS,
 } from '../../../lib/tray-heartbeat.mjs';
 
 const NOW = 1_000_000;
@@ -88,6 +88,16 @@ test('heartbeatShowsDown: a COLD stamp is NOT a display wedge (that is the cold-
 test('heartbeatShowsDown: pid mismatch / missing → false', () => {
   ok(!heartbeatShowsDown({ pid: 7 }, { pid: 9, lastPollAt: NOW, iconState: 'down' }, { now: NOW, stalenessMs: 60_000 }));
   ok(!heartbeatShowsDown({ pid: 7 }, null, { now: NOW, stalenessMs: 60_000 }));
+});
+
+test('clearTrayHeartbeat removes the stamp (the deliberate-Quit signal) — force + best-effort', () => {
+  let removed = null;
+  equal(clearTrayHeartbeat({ homeDir: 'H', rm: (p, opts) => { removed = p; equal(opts.force, true); } }), true);
+  equal(removed, trayHeartbeatPath('H'));
+});
+
+test('clearTrayHeartbeat never throws on an fs error (best-effort)', () => {
+  equal(clearTrayHeartbeat({ homeDir: 'H', rm: () => { throw new Error('locked'); } }), false);
 });
 
 test('writeTrayHeartbeat never throws on an fs error (best-effort)', () => {

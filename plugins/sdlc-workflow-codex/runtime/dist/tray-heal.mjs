@@ -6,7 +6,7 @@ import {
   heartbeatShowsDown,
   isTrayHeartbeatStale,
   readTrayHeartbeat
-} from "./chunk-HFXZG7RM.mjs";
+} from "./chunk-SU4XJL2X.mjs";
 import {
   resolveDurableNodePath
 } from "./chunk-ERHYJB4B.mjs";
@@ -37,11 +37,14 @@ function isHubHealthyEnough(hubHealth, { minUptimeMs = MIN_HUB_UPTIME_MS } = {})
   const up = Number(hubHealth.uptimeMs);
   return Number.isFinite(up) && up >= minUptimeMs;
 }
+var BUNDLE_TAIL = String.raw`[\\/](?:dist|scripts)[\\/]tray\.(?:mjs|cjs)`;
+var QUOTED_BUNDLE_RE = new RegExp(`"([^"]*${BUNDLE_TAIL})"`, "i");
+var BARE_BUNDLE_RE = new RegExp(`(\\S*${BUNDLE_TAIL})`, "i");
 function bundlePathFromCommandLine(commandLine) {
   const s = String(commandLine ?? "");
-  const quoted = s.match(/"([^"]*tray\.(?:mjs|cjs))"/i);
+  const quoted = s.match(QUOTED_BUNDLE_RE);
   if (quoted) return quoted[1];
-  const bare = s.match(/(\S*tray\.(?:mjs|cjs))/i);
+  const bare = s.match(BARE_BUNDLE_RE);
   return bare ? bare[1] : null;
 }
 function normalizeBundlePath(p, platform = process.platform) {
@@ -78,7 +81,7 @@ function parseTrayProcessList(raw) {
 var WIN_PROBE_PS = [
   "$ErrorActionPreference='SilentlyContinue';",
   "$p = Get-CimInstance Win32_Process |",
-  "  Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'tray\\.(mjs|cjs)' } |",
+  "  Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match '[\\\\/](dist|scripts)[\\\\/]tray\\.(mjs|cjs)' } |",
   "  Select-Object ProcessId,CommandLine;",
   "if ($p) { $p | ConvertTo-Json -Compress }"
 ].join(" ");
@@ -125,6 +128,7 @@ async function reconcileRunningTray({
   kill = defaultKill,
   respawn = defaultRespawn,
   readHeartbeat = readTrayHeartbeat,
+  pidAlive = isPidAlive,
   probeHub = defaultProbeHub,
   now = Date.now(),
   stalenessMs = TRAY_HEARTBEAT_STALE_MS,
@@ -136,7 +140,16 @@ async function reconcileRunningTray({
   if (platform !== "win32") return { action: "unsupported", killed: [], running: 0 };
   if (!currentBundle) return { action: "no-current-bundle", killed: [], running: 0 };
   const trays = await list({ platform }) ?? [];
-  if (!trays.length) return { action: "none", killed: [], running: 0 };
+  if (!trays.length) {
+    const hb = readHeartbeat();
+    const hbPid = Number(hb?.pid);
+    if (hb && Number.isInteger(hbPid) && hbPid > 0 && !pidAlive(hbPid)) {
+      respawn({ platform, nodePath, trayBundle: currentBundle, env });
+      log("[tray] heartbeat outlived its process (crashed tray) \u2014 revived the current bundle");
+      return { action: "revived", killed: [], running: 0 };
+    }
+    return { action: "none", killed: [], running: 0 };
+  }
   const heartbeat = readHeartbeat();
   const isCurrent = (t) => sameBundle(t.bundlePath, currentBundle, platform);
   const isColdWedged = (t) => isCurrent(t) && isTrayHeartbeatStale(t, heartbeat, { now, stalenessMs });

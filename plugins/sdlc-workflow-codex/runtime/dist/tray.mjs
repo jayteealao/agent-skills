@@ -15,8 +15,9 @@ import {
   togglePerRepoServe
 } from "./chunk-S2AIOFR5.mjs";
 import {
+  clearTrayHeartbeat,
   writeTrayHeartbeat
-} from "./chunk-HFXZG7RM.mjs";
+} from "./chunk-SU4XJL2X.mjs";
 import {
   disableAutostart,
   enableAutostart,
@@ -41,6 +42,7 @@ import "./chunk-SGA7NFMW.mjs";
 
 // scripts/tray.mjs
 import { existsSync, readFileSync, mkdirSync, copyFileSync, statSync, chmodSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -93,12 +95,22 @@ var Tray = class {
     this.map = /* @__PURE__ */ new Map();
     this.proc = null;
     this.rl = null;
+    this._pending = null;
     this._exitCbs = [];
     this._errorCbs = [];
   }
   /** Spawn the helper and send the menu once it reports ready. Resolves then. */
   start() {
-    return this._spawnAndWait();
+    return this._track(this._spawnAndWait());
+  }
+  // Publish an in-flight spawn on `_pending` and clear it on settle. While a
+  // spawn is pending, restart() piggybacks on it and update() defers — the ready
+  // handler reads `this.menu` at send time, so the freshest menu always wins.
+  _track(promise) {
+    this._pending = promise.finally(() => {
+      this._pending = null;
+    });
+    return this._pending;
   }
   // Spawn one helper process, wire its stdio, and resolve when it reports ready.
   // Shared by start() and restart(); the latter tears down the previous process
@@ -155,6 +167,12 @@ var Tray = class {
    */
   async restart(menu) {
     if (menu) this.menu = menu;
+    if (this._pending) {
+      return this._pending.then((res) => {
+        this._write({ type: "update-menu", menu: this._menuObject() });
+        return res;
+      });
+    }
     const old = this.proc;
     if (old) {
       old._replacing = true;
@@ -172,9 +190,9 @@ var Tray = class {
           old.kill();
         } catch {
         }
-      }, 250);
+      }, 250).unref?.();
     }
-    return this._spawnAndWait();
+    return this._track(this._spawnAndWait());
   }
   _menuObject() {
     this.map = /* @__PURE__ */ new Map();
@@ -225,6 +243,11 @@ var Tray = class {
   /** Re-render the tray (icon + all items). Pass a new menu or mutate `this.menu`. */
   update(menu) {
     if (menu) this.menu = menu;
+    if (this._pending) {
+      this._pending.then(() => this._write({ type: "update-menu", menu: this._menuObject() })).catch(() => {
+      });
+      return;
+    }
     this._write({ type: "update-menu", menu: this._menuObject() });
   }
   onExit(cb) {
@@ -241,7 +264,7 @@ var Tray = class {
         this.proc?.kill();
       } catch {
       }
-    }, 250);
+    }, 250).unref?.();
   }
 };
 
@@ -397,9 +420,10 @@ function ensureRuntimeBinary() {
   const dir = join(sdlcHomeDir(), "bin");
   mkdirSync(dir, { recursive: true });
   const runtime = join(dir, name);
+  const fileHash = (p) => createHash("sha256").update(readFileSync(p)).digest("hex");
   let stale = true;
   try {
-    stale = !existsSync(runtime) || statSync(runtime).size !== statSync(vendored).size;
+    stale = !existsSync(runtime) || statSync(runtime).size !== statSync(vendored).size || fileHash(runtime) !== fileHash(vendored);
   } catch {
   }
   if (stale) {
@@ -498,6 +522,7 @@ function onToggleAutostart() {
 }
 function quit() {
   if (refreshTimer) clearInterval(refreshTimer);
+  clearTrayHeartbeat();
   try {
     tray?.kill();
   } catch {
@@ -520,20 +545,22 @@ async function refresh() {
   if (iconChanged) {
     tray.restart(buildMenu(h)).catch((err) => {
       log("helper respawn on transition failed:", err.message);
-      try {
-        tray.update(buildMenu(h));
-      } catch {
-      }
+      setTimeout(() => {
+        tray.restart(buildMenu(h)).catch((err2) => {
+          log("helper respawn retry failed:", err2.message, "\u2014 exiting so the heal can revive");
+          process.exit(1);
+        });
+      }, 1e3);
     });
   } else {
     tray.update(buildMenu(h));
   }
 }
-function refreshSoon(delay2 = 700) {
+function refreshSoon(ms = 700) {
   setTimeout(() => {
     refresh().catch(() => {
     });
-  }, delay2);
+  }, ms);
 }
 var lastTickAt = Date.now();
 function pollTick() {

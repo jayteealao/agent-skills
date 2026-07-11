@@ -24,7 +24,7 @@ const NOW = 1_000_000;
 // process list, with platform pinned to win32 so the table runs cross-OS. The
 // heartbeat is injected (default: none) and `now` pinned so heartbeat staleness
 // is deterministic and nothing reads the real ~/.sdlc/ file.
-function harness(trays, { heartbeat = null, now = NOW, hub = { reachable: false, uptimeMs: 0 } } = {}) {
+function harness(trays, { heartbeat = null, now = NOW, hub = { reachable: false, uptimeMs: 0 }, pidAlive = () => false } = {}) {
   const calls = { killed: [], respawned: [], probes: 0 };
   return {
     calls,
@@ -36,6 +36,7 @@ function harness(trays, { heartbeat = null, now = NOW, hub = { reachable: false,
       kill: (pid) => calls.killed.push(pid),
       respawn: (a) => calls.respawned.push(a),
       readHeartbeat: () => heartbeat,
+      pidAlive,
       probeHub: async () => { calls.probes++; return hub; },
       now,
     },
@@ -46,6 +47,17 @@ test('bundlePathFromCommandLine: quoted, unquoted, none', () => {
   equal(bundlePathFromCommandLine(`"${NODE}"  "${OLD}"`), OLD);
   equal(bundlePathFromCommandLine(`${NODE} ${OLD}`), OLD);
   equal(bundlePathFromCommandLine('node --inspect server.mjs'), null);
+});
+
+test('bundlePathFromCommandLine: only dist|scripts tray bundles match — unrelated tray-ish processes are never candidates', () => {
+  // Another project's tray script must NOT read as an SDLC tray (the heal would
+  // terminate it as "stale"): the path segment before tray.mjs is the guard.
+  equal(bundlePathFromCommandLine('"C:\\node.exe" "C:\\other-app\\tray.mjs"'), null);
+  equal(bundlePathFromCommandLine('"C:\\node.exe" "C:\\other-app\\src\\mytray.mjs"'), null);
+  equal(bundlePathFromCommandLine('"C:\\node.exe" "C:\\other-app\\electron-tray.cjs"'), null);
+  // …while a source-run SDLC tray (scripts/tray.mjs) still matches.
+  const SRC = 'C:\\dev\\agent-skills\\plugins\\sdlc-workflow\\scripts\\tray.mjs';
+  equal(bundlePathFromCommandLine(`"${NODE}" "${SRC}"`), SRC);
 });
 
 test('normalizeBundlePath + sameBundle: win32 case/sep-insensitive, posix strict', () => {
@@ -193,11 +205,36 @@ test('reconcile: an UP-stamped current tray never triggers a hub probe (no candi
   equal(h.calls.probes, 0);   // never probed — no down candidate
 });
 
-test('reconcile: no tray running → none (tolerated)', async () => {
+test('reconcile: no tray running and no heartbeat → none (never ran, or a clean Quit)', async () => {
   const h = harness([]);
   const r = await reconcileRunningTray(h.opts);
   equal(r.action, 'none');
   deepEqual(h.calls.killed, []);
+  equal(h.calls.respawned.length, 0);
+});
+
+test('reconcile: no tray but a heartbeat whose pid is DEAD → revived (crash detected)', async () => {
+  // A crashed/reaped driver cannot clear its heartbeat; only menu-Quit does.
+  const h = harness([], { heartbeat: { pid: 77, lastPollAt: NOW - 3000 }, pidAlive: () => false });
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'revived');
+  deepEqual(h.calls.killed, []);
+  equal(h.calls.respawned.length, 1);
+  equal(h.calls.respawned[0].trayBundle, CUR);
+  equal(h.calls.respawned[0].nodePath, NODE);
+});
+
+test('reconcile: no tray, heartbeat pid still ALIVE (pid reuse) → none (cannot prove a crash)', async () => {
+  const h = harness([], { heartbeat: { pid: 77, lastPollAt: NOW - 3000 }, pidAlive: () => true });
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'none');
+  equal(h.calls.respawned.length, 0);
+});
+
+test('reconcile: no tray, heartbeat without a usable pid → none (conservative)', async () => {
+  const h = harness([], { heartbeat: { lastPollAt: NOW - 3000 }, pidAlive: () => false });
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'none');
   equal(h.calls.respawned.length, 0);
 });
 

@@ -5,7 +5,7 @@ import {
 } from "./chunk-U4OUM73W.mjs";
 
 // lib/tray-heartbeat.mjs
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 var TRAY_HEARTBEAT_STALE_MS = 6e4;
 function trayHeartbeatPath(homeDir = sdlcHomeDir()) {
@@ -19,6 +19,14 @@ function writeTrayHeartbeat({ pid, bundle, iconState, summary, now = Date.now(),
     if (summary !== void 0) rec.summary = summary;
     writeFile(path, `${JSON.stringify(rec)}
 `, "utf-8");
+    return true;
+  } catch {
+    return false;
+  }
+}
+function clearTrayHeartbeat({ homeDir, rm = rmSync } = {}) {
+  try {
+    rm(trayHeartbeatPath(homeDir ?? sdlcHomeDir()), { force: true });
     return true;
   } catch {
     return false;
@@ -50,6 +58,7 @@ function heartbeatShowsDown(tray, heartbeat, { now = Date.now(), stalenessMs = T
 export {
   TRAY_HEARTBEAT_STALE_MS,
   writeTrayHeartbeat,
+  clearTrayHeartbeat,
   readTrayHeartbeat,
   isTrayHeartbeatStale,
   heartbeatShowsDown

@@ -55,12 +55,21 @@ export function isHubHealthyEnough(hubHealth, { minUptimeMs = MIN_HUB_UPTIME_MS 
 
 /* ───────────────────────── pure helpers ───────────────────────── */
 
-/** Extract the tray bundle path (…/dist/tray.mjs|.cjs) from a process command line. */
+// The tray bundle always lives at <plugin-root>/dist/tray.mjs (bundle) or
+// …/scripts/tray.mjs (source run) — every shipped version and the dev tree
+// alike. Requiring that dist|scripts path segment keeps the probe from matching
+// (and the heal from TERMINATING) unrelated node processes whose command line
+// merely ends in tray.mjs — another project's tray script, mytray.mjs, etc.
+const BUNDLE_TAIL = String.raw`[\\/](?:dist|scripts)[\\/]tray\.(?:mjs|cjs)`;
+const QUOTED_BUNDLE_RE = new RegExp(`"([^"]*${BUNDLE_TAIL})"`, 'i');
+const BARE_BUNDLE_RE = new RegExp(`(\\S*${BUNDLE_TAIL})`, 'i');
+
+/** Extract the tray bundle path (…/dist|scripts/tray.mjs|.cjs) from a process command line. */
 export function bundlePathFromCommandLine(commandLine) {
   const s = String(commandLine ?? '');
-  const quoted = s.match(/"([^"]*tray\.(?:mjs|cjs))"/i);
+  const quoted = s.match(QUOTED_BUNDLE_RE);
   if (quoted) return quoted[1];
-  const bare = s.match(/(\S*tray\.(?:mjs|cjs))/i);
+  const bare = s.match(BARE_BUNDLE_RE);
   return bare ? bare[1] : null;
 }
 
@@ -110,7 +119,7 @@ export function parseTrayProcessList(raw) {
 const WIN_PROBE_PS = [
   "$ErrorActionPreference='SilentlyContinue';",
   '$p = Get-CimInstance Win32_Process |',
-  "  Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'tray\\.(mjs|cjs)' } |",
+  "  Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match '[\\\\/](dist|scripts)[\\\\/]tray\\.(mjs|cjs)' } |",
   '  Select-Object ProcessId,CommandLine;',
   'if ($p) { $p | ConvertTo-Json -Compress }',
 ].join(' ');
@@ -190,13 +199,22 @@ async function defaultProbeHub() {
  *
  *   non-win32                                → { action: 'unsupported' }   (no-op)
  *   no currentBundle given                   → { action: 'no-current-bundle' }
- *   no tray running                          → { action: 'none' }         (tolerated)
+ *   no tray + no heartbeat                   → { action: 'none' }         (nothing ever ran, or a clean Quit)
+ *   no tray + heartbeat, stamped pid dead    → { action: 'revived' }      (crash — relaunch current once)
+ *   no tray + heartbeat, stamped pid alive   → { action: 'none' }         (pid reused — cannot prove a crash)
  *   only live current-bundle trays running   → { action: 'unchanged' }    (left alone — no thrash)
  *   reapable tray(s) + a live current also up→ { action: 'killed-stale' } (reap them, keep live, NO dup spawn)
  *   reapable tray(s), no live current         → { action: 'respawned' }   (reap + launch current once)
  *
  * "Live current" = current bundle AND none of the wedge modes. Converges: a
  * respawned current tray stamps a fresh 'up' heartbeat and is `unchanged` next pass.
+ *
+ * The revive row closes the crash gap: the driver exits when its native helper
+ * dies, and a killed/crashed driver cannot clear its heartbeat — only the menu's
+ * deliberate Quit does (scripts/tray.mjs clearTrayHeartbeat). So heartbeat-minus-
+ * process = "a tray should be running here". The stamped-pid-alive guard keeps
+ * Windows pid reuse from reading an unrelated process as a still-running tray…
+ * and, conservatively, from reviving over one we cannot reason about.
  *
  * @returns {Promise<{action:string, killed:number[], running:number}>}
  */
@@ -208,6 +226,7 @@ export async function reconcileRunningTray({
   kill = defaultKill,
   respawn = defaultRespawn,
   readHeartbeat = readTrayHeartbeat,
+  pidAlive = isPidAlive,
   probeHub = defaultProbeHub,
   now = Date.now(),
   stalenessMs = TRAY_HEARTBEAT_STALE_MS,
@@ -219,7 +238,19 @@ export async function reconcileRunningTray({
   if (!currentBundle) return { action: 'no-current-bundle', killed: [], running: 0 };
 
   const trays = (await list({ platform })) ?? [];
-  if (!trays.length) return { action: 'none', killed: [], running: 0 };
+  if (!trays.length) {
+    // Crash revive (decision table above): a heartbeat outliving its process
+    // means the tray died without the menu's Quit. Revive only when the stamped
+    // pid is provably dead — an alive pid may be reuse by an unrelated process.
+    const hb = readHeartbeat();
+    const hbPid = Number(hb?.pid);
+    if (hb && Number.isInteger(hbPid) && hbPid > 0 && !pidAlive(hbPid)) {
+      respawn({ platform, nodePath, trayBundle: currentBundle, env });
+      log('[tray] heartbeat outlived its process (crashed tray) — revived the current bundle');
+      return { action: 'revived', killed: [], running: 0 };
+    }
+    return { action: 'none', killed: [], running: 0 };
+  }
 
   // One heartbeat read for the whole pass; the per-tray match is by pid.
   const heartbeat = readHeartbeat();

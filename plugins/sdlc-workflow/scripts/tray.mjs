@@ -17,6 +17,7 @@
  */
 
 import { existsSync, readFileSync, mkdirSync, copyFileSync, statSync, chmodSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,7 +30,7 @@ import {
 import {
   isAutostartEnabled, enableAutostart, disableAutostart, refreshAutostart,
 } from '../lib/tray-autostart.mjs';
-import { writeTrayHeartbeat } from '../lib/tray-heartbeat.mjs';
+import { writeTrayHeartbeat, clearTrayHeartbeat } from '../lib/tray-heartbeat.mjs';
 import { sdlcHomeDir } from '../lib/registry.mjs';
 import { runtimeIdentity } from '../lib/runtime-manifest.mjs';
 
@@ -83,8 +84,15 @@ function ensureRuntimeBinary() {
   const dir = join(sdlcHomeDir(), 'bin');
   mkdirSync(dir, { recursive: true });
   const runtime = join(dir, name);
+  // Size first (cheap, catches most updates), then a content hash so a rebuilt
+  // helper that happens to keep its byte size still refreshes. Launch-time only.
+  const fileHash = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
   let stale = true;
-  try { stale = !existsSync(runtime) || statSync(runtime).size !== statSync(vendored).size; } catch { /* copy */ }
+  try {
+    stale = !existsSync(runtime)
+      || statSync(runtime).size !== statSync(vendored).size
+      || fileHash(runtime) !== fileHash(vendored);
+  } catch { /* copy */ }
   if (stale) {
     try {
       copyFileSync(vendored, runtime);
@@ -165,6 +173,10 @@ function onToggleAutostart() {
 
 function quit() {
   if (refreshTimer) clearInterval(refreshTimer);
+  // A deliberate Quit clears the heartbeat so the heal does NOT read this exit
+  // as a crash and revive the tray (lib/tray-lifecycle.mjs revive row). A crash
+  // or TerminateProcess reap can't run this — its stamp survives, and revives.
+  clearTrayHeartbeat();
   try { tray?.kill(); } catch { /* ignore */ }
   setTimeout(() => process.exit(0), 400);
 }
@@ -195,18 +207,26 @@ async function refresh() {
     // An icon-state transition (down↔up↔stale) restructures the menu — the native
     // helper's update-menu path renders these poorly (the down→up item-count
     // growth is the frozen-display bug), so respawn the helper for a clean render.
-    // Fall back to an in-place update if the respawn can't come up.
+    // On failure the OLD helper is already torn down (an in-place update would
+    // write to the dead new process — a silent invisible-tray zombie), so retry
+    // the respawn once; if the helper can't come up twice, exit non-zero. The
+    // heartbeat this driver leaves behind makes the heal revive a fresh tray.
     tray.restart(buildMenu(h)).catch((err) => {
       log('helper respawn on transition failed:', err.message);
-      try { tray.update(buildMenu(h)); } catch { /* helper gone */ }
+      setTimeout(() => {
+        tray.restart(buildMenu(h)).catch((err2) => {
+          log('helper respawn retry failed:', err2.message, '— exiting so the heal can revive');
+          process.exit(1);
+        });
+      }, 1000);
     });
   } else {
     tray.update(buildMenu(h));
   }
 }
 
-function refreshSoon(delay = 700) {
-  setTimeout(() => { refresh().catch(() => {}); }, delay);
+function refreshSoon(ms = 700) {
+  setTimeout(() => { refresh().catch(() => {}); }, ms);
 }
 
 // One poll tick. A wall-clock gap far larger than POLL_MS means the timer was
@@ -262,6 +282,9 @@ async function main() {
   lastIconState = h.iconState;
   tray = new Tray({ binPath, menu: buildMenu(h) });
   tray.onError((err) => log('helper error:', err.message));
+  // A genuine helper death takes the driver down WITHOUT clearing the heartbeat
+  // (unlike Quit) — the stamp outliving the process is what lets the heal tell
+  // this crash apart from a deliberate exit and revive the tray.
   tray.onExit(() => process.exit(0));
   await tray.start();
   log(`ready — ${h.summary}`);

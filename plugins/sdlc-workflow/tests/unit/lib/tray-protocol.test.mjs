@@ -73,6 +73,53 @@ test('restart(): swaps the helper, renders the new menu, and does NOT fire the d
   equal(sentOnNew.items[1].title, 'up-b');
 });
 
+test('restart() while a spawn is pending piggybacks: ONE helper, both promises settle, freshest menu wins', async () => {
+  const p1 = makeFakeProc();
+  const p2 = makeFakeProc();
+  const p3 = makeFakeProc();   // must never be consumed
+  let spawns = 0;
+  const spawn = (bin) => { spawns++; return [p1, p2, p3][spawns - 1]; };
+  const tray = new Tray({ binPath: 'x', menu: { items: [{ title: 'v1' }] }, spawn });
+  const started = tray.start();
+  ready(p1);
+  await started;
+
+  const r1 = tray.restart({ items: [{ title: 'v2' }] });          // spawns p2, pending
+  const r2 = tray.restart({ items: [{ title: 'v3-final' }] });    // piggybacks — NO third spawn
+  ready(p2);
+  await Promise.all([r1, r2]);                                    // neither promise is abandoned
+  equal(spawns, 2);
+
+  // p2 got its initial bare menu on ready, then the piggybacked restart's
+  // follow-up update — the last render carries the menu set LAST.
+  const last = lastWrite(p2);
+  equal(last.type, 'update-menu');
+  equal(last.menu.items[0].title, 'v3-final');
+});
+
+test('update() while a spawn is pending defers — no update-menu before the initial bare menu', async () => {
+  const p1 = makeFakeProc();
+  const p2 = makeFakeProc();
+  const tray = new Tray({ binPath: 'x', menu: { items: [{ title: 'a' }] }, spawn: spawnFactory([p1, p2]) });
+  const started = tray.start();
+  ready(p1);
+  await started;
+
+  const restarted = tray.restart({ items: [{ title: 'b' }] });
+  tray.update({ items: [{ title: 'c' }] });      // pending spawn → must not write yet
+  equal(p2.writes.length, 0);                    // nothing hit the not-yet-ready helper
+  ready(p2);
+  await restarted;
+  await new Promise((r) => setImmediate(r));     // let the deferred update flush
+
+  const first = JSON.parse(p2.writes[0]);
+  ok(!('type' in first));                        // FIRST write is the bare initial menu…
+  equal(first.items[0].title, 'c');              // …already carrying the deferred menu
+  const last = lastWrite(p2);                    // …then the deferred update re-renders it
+  equal(last.type, 'update-menu');
+  equal(last.menu.items[0].title, 'c');
+});
+
 test('a genuine helper exit (not a swap) still fires the driver exit handler', async () => {
   const p = makeFakeProc();
   let exits = 0;

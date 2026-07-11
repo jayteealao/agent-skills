@@ -16,7 +16,7 @@
 // is PURE and the I/O sits behind injectable seams, so both consumers stay
 // unit-testable without a real tray or filesystem.
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { sdlcHomeDir } from './registry.mjs';
@@ -49,6 +49,21 @@ export function writeTrayHeartbeat({ pid, bundle, iconState, summary, now = Date
     if (iconState !== undefined) rec.iconState = iconState;
     if (summary !== undefined) rec.summary = summary;
     writeFile(path, `${JSON.stringify(rec)}\n`, 'utf-8');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Remove the heartbeat file — the deliberate-Quit signal. A crashed or reaped
+ * driver cannot run this, so "heartbeat exists but no tray process" reads as a
+ * crash and the heal revives the tray (lib/tray-lifecycle.mjs); a menu Quit
+ * clears the stamp first and stays quit. Best-effort, never throws.
+ */
+export function clearTrayHeartbeat({ homeDir, rm = rmSync } = {}) {
+  try {
+    rm(trayHeartbeatPath(homeDir ?? sdlcHomeDir()), { force: true });
     return true;
   } catch {
     return false;

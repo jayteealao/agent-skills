@@ -74,13 +74,23 @@ export class Tray {
     this.map = new Map();
     this.proc = null;
     this.rl = null;
+    this._pending = null;   // in-flight spawn promise — serializes start/restart, defers update
     this._exitCbs = [];
     this._errorCbs = [];
   }
 
   /** Spawn the helper and send the menu once it reports ready. Resolves then. */
   start() {
-    return this._spawnAndWait();
+    return this._track(this._spawnAndWait());
+  }
+
+  // Publish an in-flight spawn on `_pending` and clear it on settle. While a
+  // spawn is pending, restart() piggybacks on it and update() defers — the ready
+  // handler reads `this.menu` at send time, so the freshest menu always wins.
+  _track(promise) {
+    this._pending = promise.finally(() => { this._pending = null; });
+    // The extra .finally link is what callers await; keep rejections flowing.
+    return this._pending;
   }
 
   // Spawn one helper process, wire its stdio, and resolve when it reports ready.
@@ -129,14 +139,25 @@ export class Tray {
    */
   async restart(menu) {
     if (menu) this.menu = menu;
+    // A spawn is already in flight (an earlier restart, or start itself): don't
+    // tear it down and race a second helper — piggyback on it. Both callers share
+    // one settlement, so no promise is ever abandoned by rapid icon flapping. The
+    // follow-up update closes the microtask race where the spawn went ready (and
+    // rendered the previous menu) just before this menu landed.
+    if (this._pending) {
+      return this._pending.then((res) => {
+        this._write({ type: 'update-menu', menu: this._menuObject() });
+        return res;
+      });
+    }
     const old = this.proc;
     if (old) {
       old._replacing = true;                                  // suppress its exit/error propagation
       try { old._rl?.close(); } catch { /* already closed */ }
       try { old.stdin?.writable && old.stdin.write(`${JSON.stringify({ type: 'exit' })}\n`); } catch { /* helper gone */ }
-      setTimeout(() => { try { old.kill(); } catch { /* already gone */ } }, 250);
+      setTimeout(() => { try { old.kill(); } catch { /* already gone */ } }, 250).unref?.();
     }
-    return this._spawnAndWait();
+    return this._track(this._spawnAndWait());
   }
 
   _menuObject() {
@@ -179,6 +200,13 @@ export class Tray {
   /** Re-render the tray (icon + all items). Pass a new menu or mutate `this.menu`. */
   update(menu) {
     if (menu) this.menu = menu;
+    // A helper that hasn't reported ready must not receive update-menu before
+    // its initial bare menu — defer until the spawn settles, then re-render so
+    // this menu still lands even if ready fired (with the previous menu) first.
+    if (this._pending) {
+      this._pending.then(() => this._write({ type: 'update-menu', menu: this._menuObject() })).catch(() => {});
+      return;
+    }
     this._write({ type: 'update-menu', menu: this._menuObject() });
   }
 
@@ -188,6 +216,6 @@ export class Tray {
   /** Ask the helper to quit, then force-kill if it lingers. */
   kill() {
     this._write({ type: 'exit' });
-    setTimeout(() => { try { this.proc?.kill(); } catch { /* already gone */ } }, 250);
+    setTimeout(() => { try { this.proc?.kill(); } catch { /* already gone */ } }, 250).unref?.();
   }
 }
