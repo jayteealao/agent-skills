@@ -90,11 +90,12 @@ test('restart() while a spawn is pending piggybacks: ONE helper, both promises s
   await Promise.all([r1, r2]);                                    // neither promise is abandoned
   equal(spawns, 2);
 
-  // p2 got its initial bare menu on ready, then the piggybacked restart's
-  // follow-up update — the last render carries the menu set LAST.
-  const last = lastWrite(p2);
-  equal(last.type, 'update-menu');
-  equal(last.menu.items[0].title, 'v3-final');
+  // Ready renders this.menu at send time, so the initial bare menu already
+  // carries the menu set LAST; the piggyback chase is then a no-op diff.
+  equal(p2.writes.length, 1);
+  const sent = JSON.parse(p2.writes[0]);
+  ok(!('type' in sent));
+  equal(sent.items[0].title, 'v3-final');
 });
 
 test('update() while a spawn is pending defers — no update-menu before the initial bare menu', async () => {
@@ -115,9 +116,119 @@ test('update() while a spawn is pending defers — no update-menu before the ini
   const first = JSON.parse(p2.writes[0]);
   ok(!('type' in first));                        // FIRST write is the bare initial menu…
   equal(first.items[0].title, 'c');              // …already carrying the deferred menu
-  const last = lastWrite(p2);                    // …then the deferred update re-renders it
-  equal(last.type, 'update-menu');
-  equal(last.menu.items[0].title, 'c');
+  equal(p2.writes.length, 1);                    // …so the deferred chase no-op diffs
+});
+
+test('update(): content-only change → per-item update-item with seq_id -1 (the helper has no full re-render)', async () => {
+  const p = makeFakeProc();
+  const tray = new Tray({
+    binPath: 'x',
+    menu: { tooltip: 't', items: [{ title: 'status: A', enabled: false }, { title: 'Open' }] },
+    spawn: () => p,
+  });
+  const started = tray.start();
+  ready(p);
+  await started;
+
+  const handled = tray.update({ tooltip: 't', items: [{ title: 'status: B', enabled: false }, { title: 'Open' }] });
+  equal(handled, true);
+  equal(p.writes.length, 2);                     // bare menu + exactly one item update
+  const msg = JSON.parse(p.writes[1]);
+  equal(msg.type, 'update-item');
+  equal(msg.seq_id, -1);                         // helper resolves the target from __id
+  equal(msg.item.__id, 1);
+  equal(msg.item.title, 'status: B');
+});
+
+test('update(): tray-chrome change rides the FIRST item update as update-item-and-menu', async () => {
+  const p = makeFakeProc();
+  const tray = new Tray({
+    binPath: 'x', menu: { tooltip: 'up 1m', icon: 'AAA', items: [{ title: 'a' }, { title: 'b' }] }, spawn: () => p,
+  });
+  const started = tray.start();
+  ready(p);
+  await started;
+
+  // tooltip + both item titles change → first change carries the chrome
+  equal(tray.update({ tooltip: 'up 2m', icon: 'AAA', items: [{ title: 'a2' }, { title: 'b2' }] }), true);
+  const first = JSON.parse(p.writes[1]);
+  equal(first.type, 'update-item-and-menu');
+  equal(first.menu.tooltip, 'up 2m');
+  equal(first.item.title, 'a2');
+  const second = JSON.parse(p.writes[2]);
+  equal(second.type, 'update-item');
+  equal(second.item.title, 'b2');
+});
+
+test('update(): chrome-only change uses an unchanged carrier item (updateItem is idempotent)', async () => {
+  const p = makeFakeProc();
+  const tray = new Tray({ binPath: 'x', menu: { tooltip: 'v1', items: [{ title: 'a' }] }, spawn: () => p });
+  const started = tray.start();
+  ready(p);
+  await started;
+
+  equal(tray.update({ tooltip: 'v2', items: [{ title: 'a' }] }), true);
+  equal(p.writes.length, 2);
+  const msg = JSON.parse(p.writes[1]);
+  equal(msg.type, 'update-item-and-menu');
+  equal(msg.menu.tooltip, 'v2');
+  equal(msg.item.title, 'a');                    // carrier is the (unchanged) first real item
+});
+
+test('update(): submenu row change targets the row by its own __id', async () => {
+  const p = makeFakeProc();
+  const menu = (uptime) => ({
+    tooltip: 't',
+    items: [{ title: 'Health', items: [{ title: `Uptime: ${uptime}`, enabled: false }] }],
+  });
+  const tray = new Tray({ binPath: 'x', menu: menu('1s'), spawn: () => p });
+  const started = tray.start();
+  ready(p);
+  await started;
+
+  equal(tray.update(menu('2s')), true);
+  equal(p.writes.length, 2);
+  const msg = JSON.parse(p.writes[1]);
+  equal(msg.type, 'update-item');
+  equal(msg.item.__id, 2);                       // depth-first: Health=1, its row=2
+  equal(msg.item.title, 'Uptime: 2s');
+});
+
+test('update(): SHAPE change returns false and writes nothing — caller must respawn', async () => {
+  const p = makeFakeProc();
+  const tray = new Tray({ binPath: 'x', menu: { tooltip: 't', items: [{ title: 'a' }] }, spawn: () => p });
+  const started = tray.start();
+  ready(p);
+  await started;
+
+  const before = p.writes.length;
+  equal(tray.update({ tooltip: 't', items: [{ title: 'a' }, { title: 'NEW ROW' }] }), false);
+  equal(p.writes.length, before);                // nothing was sent to the helper
+});
+
+test('update(): no visible change → handled, zero writes', async () => {
+  const p = makeFakeProc();
+  const tray = new Tray({ binPath: 'x', menu: { tooltip: 't', items: [{ title: 'a' }] }, spawn: () => p });
+  const started = tray.start();
+  ready(p);
+  await started;
+  equal(tray.update({ tooltip: 't', items: [{ title: 'a' }] }), true);
+  equal(p.writes.length, 1);                     // just the initial bare menu
+});
+
+test('a click after an in-place update routes to the NEW handler', async () => {
+  const p = makeFakeProc();
+  let hits = '';
+  const menu = (tag) => ({ items: [{ title: tag, onClick: () => { hits += tag; } }] });
+  const tray = new Tray({ binPath: 'x', menu: menu('old'), spawn: () => p });
+  const started = tray.start();
+  ready(p);
+  await started;
+
+  tray.update(menu('new'));
+  p.stdout.write('{"type":"clicked","__id":1}\n');
+  await new Promise((r) => setImmediate(r));
+  equal(hits, 'new');
 });
 
 test('a genuine helper exit (not a swap) still fires the driver exit handler', async () => {

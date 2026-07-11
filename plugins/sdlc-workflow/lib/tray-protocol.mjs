@@ -7,11 +7,22 @@
 // from the shipped bundle. We speak the SAME line-delimited JSON the vendored
 // binary expects, so the identical binary works.
 //
-// Wire protocol (observed from systray2/index.js):
+// Wire protocol (verified against the vendored binary's strings + the
+// systray-portable fork source it was built from — NOT the systray2 JS docs,
+// which describe an `update-menu` full re-render this binary does not have):
 //   • helper → us:  one JSON object per stdout line. `{type:'ready'}` once at
 //     startup, then `{type:'clicked', __id, …}` per menu click.
-//   • us → helper:  the initial menu as a bare JSON object; thereafter
-//     `{type:'update-menu', menu}` to re-render and `{type:'exit'}` to quit.
+//   • us → helper:  the initial menu as a bare JSON object. After that the ONLY
+//     mutations the helper understands are PER-ITEM:
+//       `{type:'update-item', seq_id:-1, item}`          — retitle/recheck ONE item
+//       `{type:'update-item-and-menu', seq_id:-1, item, menu}` — ditto + tray
+//         chrome (icon/title/tooltip); `menu` here is chrome only, items ignored
+//       `{type:'exit'}`                                   — quit
+//     `seq_id:-1` makes the helper resolve the target from `item.__id`. There is
+//     NO way to add or remove items after startup — structural changes need a
+//     helper respawn (restart()). update() diffs against the last-rendered tree,
+//     sends per-item updates when the shape is unchanged, and returns false when
+//     the caller must respawn instead.
 //   • Every item carries a numeric `__id` (depth-first, 1-based) so a click maps
 //     back to its handler. Linux has no native checkmarks, so a `(√)` suffix is
 //     appended to checked titles there (mirrors systray2).
@@ -47,6 +58,40 @@ function buildWire(items, ctx) {
   });
 }
 
+// Structural fingerprint of a wire tree: separator-ness + nesting, nothing else.
+// Two trees with the same shape get identical depth-first __ids from buildWire,
+// which is what makes an in-place per-item diff valid between renders.
+function shapeOf(items) {
+  return items.map((it) => {
+    const kind = it.title === SEPARATOR.title ? 's' : 'i';
+    return Array.isArray(it.items) ? `${kind}[${shapeOf(it.items)}]` : kind;
+  }).join('');
+}
+
+// Collect the wire nodes whose visible fields changed between two SAME-SHAPE
+// trees (callers must check shapeOf first). Separators are skipped — the helper
+// holds no updatable handle for them.
+function diffWire(prev, next, out = []) {
+  for (let i = 0; i < next.length; i++) {
+    const a = prev[i];
+    const b = next[i];
+    if (b.title !== SEPARATOR.title && (
+      a.title !== b.title || a.tooltip !== b.tooltip || a.checked !== b.checked
+      || a.enabled !== b.enabled || a.hidden !== b.hidden
+      || (a.icon ?? '') !== (b.icon ?? '') || (a.isTemplateIcon ?? false) !== (b.isTemplateIcon ?? false)
+    )) out.push(b);
+    if (Array.isArray(b.items)) diffWire(a.items, b.items, out);
+  }
+  return out;
+}
+
+function firstRealItem(items) {
+  for (const it of items) {
+    if (it.title !== SEPARATOR.title) return it;
+  }
+  return null;
+}
+
 function applyLinuxChecks(items, platform) {
   if (platform !== 'linux') return;
   for (const item of items) {
@@ -75,6 +120,8 @@ export class Tray {
     this.proc = null;
     this.rl = null;
     this._pending = null;   // in-flight spawn promise — serializes start/restart, defers update
+    this._lastWire = null;    // wire tree last rendered on the helper (diff base for update)
+    this._lastChrome = null;  // tray icon/title/tooltip last rendered
     this._exitCbs = [];
     this._errorCbs = [];
   }
@@ -146,7 +193,7 @@ export class Tray {
     // rendered the previous menu) just before this menu landed.
     if (this._pending) {
       return this._pending.then((res) => {
-        this._write({ type: 'update-menu', menu: this._menuObject() });
+        this.update();   // no-op diff unless the menu changed after ready fired
         return res;
       });
     }
@@ -160,17 +207,27 @@ export class Tray {
     return this._track(this._spawnAndWait());
   }
 
-  _menuObject() {
-    this.map = new Map();
-    const items = buildWire(this.menu.items, { counter: 1, map: this.map });
+  // Build the wire tree for this.menu into `map` (click routing). Kept separate
+  // from _menuObject so update() can build into a THROWAWAY map and only commit
+  // it when the render actually happens in place.
+  _buildItems(map) {
+    const items = buildWire(this.menu.items, { counter: 1, map });
     applyLinuxChecks(items, this.platform);   // mutates the wire copies, not the originals
+    return items;
+  }
+
+  _chromeObject() {
     return {
       icon: this.menu.icon ?? '',
       title: this.menu.title ?? '',
       tooltip: this.menu.tooltip ?? '',
       isTemplateIcon: this.menu.isTemplateIcon ?? false,
-      items,
     };
+  }
+
+  _menuObject() {
+    this.map = new Map();
+    return { ...this._chromeObject(), items: this._buildItems(this.map) };
   }
 
   _write(obj) {
@@ -185,7 +242,10 @@ export class Tray {
     try { action = JSON.parse(line); } catch { return false; }
     if (this.debug) console.error('[tray←]', line.slice(0, 160));
     if (action.type === 'ready') {
-      this._write(this._menuObject());   // initial menu is sent as a bare object
+      const m = this._menuObject();
+      this._write(m);                    // initial menu is sent as a bare object
+      this._lastWire = m.items;          // diff base for subsequent in-place updates
+      this._lastChrome = { icon: m.icon, title: m.title, tooltip: m.tooltip, isTemplateIcon: m.isTemplateIcon };
       return true;
     }
     if (action.type === 'clicked') {
@@ -197,17 +257,45 @@ export class Tray {
     return false;
   }
 
-  /** Re-render the tray (icon + all items). Pass a new menu or mutate `this.menu`. */
+  /**
+   * Re-render the tray IN PLACE via per-item diffs — the only mutation the
+   * helper supports (see the wire-protocol note atop this file; the old
+   * whole-menu `update-menu` message was silently ignored by the binary, which
+   * is why nothing ever updated dynamically). Diffs the new menu against the
+   * last-rendered wire tree and sends `update-item` per changed node; a tray
+   * chrome change (icon/tooltip/title) rides the first one as
+   * `update-item-and-menu`. Returns TRUE when handled (including no-ops and
+   * deferrals onto an in-flight spawn) and FALSE when the menu SHAPE changed —
+   * items cannot be added/removed in place, the caller must restart() instead.
+   */
   update(menu) {
     if (menu) this.menu = menu;
-    // A helper that hasn't reported ready must not receive update-menu before
-    // its initial bare menu — defer until the spawn settles, then re-render so
-    // this menu still lands even if ready fired (with the previous menu) first.
+    // A helper that hasn't reported ready must not receive item updates before
+    // its initial bare menu — defer until the spawn settles; ready renders
+    // this.menu itself, so the chase is usually a no-op diff.
     if (this._pending) {
-      this._pending.then(() => this._write({ type: 'update-menu', menu: this._menuObject() })).catch(() => {});
-      return;
+      this._pending.then(() => { this.update(); }).catch(() => {});
+      return true;
     }
-    this._write({ type: 'update-menu', menu: this._menuObject() });
+    if (!this._lastWire) return false;   // nothing rendered yet — need a full spawn
+    const map = new Map();
+    const items = this._buildItems(map);
+    if (shapeOf(items) !== shapeOf(this._lastWire)) return false;   // structural — respawn
+    const updates = diffWire(this._lastWire, items);
+    const chrome = this._chromeObject();
+    const chromeDirty = !this._lastChrome || JSON.stringify(chrome) !== JSON.stringify(this._lastChrome);
+    this.map = map;   // same shape ⇒ same __ids — commit fresh click handlers
+    this._lastWire = items;
+    if (updates.length || chromeDirty) {
+      if (chromeDirty) {
+        // updateItem is idempotent, so an unchanged carrier item is harmless.
+        const carrier = updates.shift() ?? firstRealItem(items);
+        if (carrier) this._write({ type: 'update-item-and-menu', seq_id: -1, item: carrier, menu: chrome });
+        this._lastChrome = chrome;
+      }
+      for (const node of updates) this._write({ type: 'update-item', seq_id: -1, item: node });
+    }
+    return true;
   }
 
   onExit(cb) { this._exitCbs.push(cb); }

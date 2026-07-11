@@ -220,8 +220,16 @@ async function refresh() {
         });
       }, 1000);
     });
-  } else {
-    tray.update(buildMenu(h));
+  } else if (!tray.update(buildMenu(h))) {
+    // Same icon but the menu SHAPE changed (repo roster grew/shrank, detail rows
+    // appeared) — the helper cannot add or remove items in place (per-item
+    // updates are all it supports), so only a respawn can render this. On
+    // failure, invalidate the dedup signature so the next poll retries instead
+    // of reading "already rendered".
+    tray.restart(buildMenu(h)).catch((err) => {
+      log('helper respawn on menu-shape change failed:', err.message);
+      lastSig = '';
+    });
   }
 }
 

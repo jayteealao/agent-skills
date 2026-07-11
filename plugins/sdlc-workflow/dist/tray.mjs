@@ -69,6 +69,27 @@ function buildWire(items, ctx) {
     return out;
   });
 }
+function shapeOf(items) {
+  return items.map((it) => {
+    const kind = it.title === SEPARATOR.title ? "s" : "i";
+    return Array.isArray(it.items) ? `${kind}[${shapeOf(it.items)}]` : kind;
+  }).join("");
+}
+function diffWire(prev, next, out = []) {
+  for (let i = 0; i < next.length; i++) {
+    const a = prev[i];
+    const b = next[i];
+    if (b.title !== SEPARATOR.title && (a.title !== b.title || a.tooltip !== b.tooltip || a.checked !== b.checked || a.enabled !== b.enabled || a.hidden !== b.hidden || (a.icon ?? "") !== (b.icon ?? "") || (a.isTemplateIcon ?? false) !== (b.isTemplateIcon ?? false))) out.push(b);
+    if (Array.isArray(b.items)) diffWire(a.items, b.items, out);
+  }
+  return out;
+}
+function firstRealItem(items) {
+  for (const it of items) {
+    if (it.title !== SEPARATOR.title) return it;
+  }
+  return null;
+}
 function applyLinuxChecks(items, platform) {
   if (platform !== "linux") return;
   for (const item of items) {
@@ -96,6 +117,8 @@ var Tray = class {
     this.proc = null;
     this.rl = null;
     this._pending = null;
+    this._lastWire = null;
+    this._lastChrome = null;
     this._exitCbs = [];
     this._errorCbs = [];
   }
@@ -169,7 +192,7 @@ var Tray = class {
     if (menu) this.menu = menu;
     if (this._pending) {
       return this._pending.then((res) => {
-        this._write({ type: "update-menu", menu: this._menuObject() });
+        this.update();
         return res;
       });
     }
@@ -194,17 +217,25 @@ var Tray = class {
     }
     return this._track(this._spawnAndWait());
   }
-  _menuObject() {
-    this.map = /* @__PURE__ */ new Map();
-    const items = buildWire(this.menu.items, { counter: 1, map: this.map });
+  // Build the wire tree for this.menu into `map` (click routing). Kept separate
+  // from _menuObject so update() can build into a THROWAWAY map and only commit
+  // it when the render actually happens in place.
+  _buildItems(map) {
+    const items = buildWire(this.menu.items, { counter: 1, map });
     applyLinuxChecks(items, this.platform);
+    return items;
+  }
+  _chromeObject() {
     return {
       icon: this.menu.icon ?? "",
       title: this.menu.title ?? "",
       tooltip: this.menu.tooltip ?? "",
-      isTemplateIcon: this.menu.isTemplateIcon ?? false,
-      items
+      isTemplateIcon: this.menu.isTemplateIcon ?? false
     };
+  }
+  _menuObject() {
+    this.map = /* @__PURE__ */ new Map();
+    return { ...this._chromeObject(), items: this._buildItems(this.map) };
   }
   _write(obj) {
     if (!this.proc || !this.proc.stdin?.writable) return;
@@ -225,7 +256,10 @@ var Tray = class {
     }
     if (this.debug) console.error("[tray\u2190]", line.slice(0, 160));
     if (action.type === "ready") {
-      this._write(this._menuObject());
+      const m = this._menuObject();
+      this._write(m);
+      this._lastWire = m.items;
+      this._lastChrome = { icon: m.icon, title: m.title, tooltip: m.tooltip, isTemplateIcon: m.isTemplateIcon };
       return true;
     }
     if (action.type === "clicked") {
@@ -240,15 +274,44 @@ var Tray = class {
     }
     return false;
   }
-  /** Re-render the tray (icon + all items). Pass a new menu or mutate `this.menu`. */
+  /**
+   * Re-render the tray IN PLACE via per-item diffs — the only mutation the
+   * helper supports (see the wire-protocol note atop this file; the old
+   * whole-menu `update-menu` message was silently ignored by the binary, which
+   * is why nothing ever updated dynamically). Diffs the new menu against the
+   * last-rendered wire tree and sends `update-item` per changed node; a tray
+   * chrome change (icon/tooltip/title) rides the first one as
+   * `update-item-and-menu`. Returns TRUE when handled (including no-ops and
+   * deferrals onto an in-flight spawn) and FALSE when the menu SHAPE changed —
+   * items cannot be added/removed in place, the caller must restart() instead.
+   */
   update(menu) {
     if (menu) this.menu = menu;
     if (this._pending) {
-      this._pending.then(() => this._write({ type: "update-menu", menu: this._menuObject() })).catch(() => {
+      this._pending.then(() => {
+        this.update();
+      }).catch(() => {
       });
-      return;
+      return true;
     }
-    this._write({ type: "update-menu", menu: this._menuObject() });
+    if (!this._lastWire) return false;
+    const map = /* @__PURE__ */ new Map();
+    const items = this._buildItems(map);
+    if (shapeOf(items) !== shapeOf(this._lastWire)) return false;
+    const updates = diffWire(this._lastWire, items);
+    const chrome = this._chromeObject();
+    const chromeDirty = !this._lastChrome || JSON.stringify(chrome) !== JSON.stringify(this._lastChrome);
+    this.map = map;
+    this._lastWire = items;
+    if (updates.length || chromeDirty) {
+      if (chromeDirty) {
+        const carrier = updates.shift() ?? firstRealItem(items);
+        if (carrier) this._write({ type: "update-item-and-menu", seq_id: -1, item: carrier, menu: chrome });
+        this._lastChrome = chrome;
+      }
+      for (const node of updates) this._write({ type: "update-item", seq_id: -1, item: node });
+    }
+    return true;
   }
   onExit(cb) {
     this._exitCbs.push(cb);
@@ -552,8 +615,11 @@ async function refresh() {
         });
       }, 1e3);
     });
-  } else {
-    tray.update(buildMenu(h));
+  } else if (!tray.update(buildMenu(h))) {
+    tray.restart(buildMenu(h)).catch((err) => {
+      log("helper respawn on menu-shape change failed:", err.message);
+      lastSig = "";
+    });
   }
 }
 function refreshSoon(ms = 700) {
