@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.116.0] - 2026-07-11
+
+### Added — `study-sources` skill: read real upstream source instead of guessing
+
+New standalone, model-invocable skill `study-sources` (both trees) that grounds work in **actual dependency and upstream source** rather than recalled API shapes. A router `SKILL.md` teaches two habits — **read what's installed before you clone** (map of every ecosystem's local source cache) and **everything fetched lands in a gitignored `.scratch/`** (never the project tree or git history) — backed by ten per-ecosystem references: `git-sources` (shallow/blobless/sparse clone recipes for any Git host), `javascript` (node_modules, pnpm/Yarn-Berry stores, `npm pack`), `python` (site-packages, sdist via `pip download`), `jvm` (Maven `~/.m2`/Gradle `-sources.jar`, decompilation fallback), `android` (SDK `sources/`, AAR unpacking, AndroidX/AOSP via cs.android.com), `go` (`$GOPATH/pkg/mod`), `rust` (`~/.cargo/registry/src`, `cargo vendor`), `dotnet` (NuGet cache, SourceLink, ILSpy), `ruby-php-swift-dart` (gems/Composer `vendor`/SwiftPM checkouts/pub-cache), and `native-c-cpp` (system headers, vcpkg/Conan, distro source packages). Read-only by contract: it fetches source to study, never builds, runs, or adopts a dependency. Codex mirror carries `agents/openai.yaml` with `allow_implicit_invocation: true`. Purely additive — no runtime logic change; `dist`/buildId move only from the version-string embed.
+
 ## [9.115.0] - 2026-07-11
 
 ### Changed — `update-deps` research must cite an authoritative changelog
