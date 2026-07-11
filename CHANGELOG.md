@@ -4,6 +4,19 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.139.0 - 2026-07-11
+
+### Removed
+- **Marketplace pruned to the SDLC workflow only.** Deleted four plugins — `daily-carry`, `release-automation`, `daily-tags`, and `diataxis` — and removed their entries from `.claude-plugin/marketplace.json`. The marketplace now ships `sdlc-workflow` (Claude) and its `sdlc-workflow-codex` sibling (registered in the Codex `.agents/plugins/marketplace.json`). The `diataxis` content was not discarded — it was absorbed into `sdlc-workflow` as a consolidated `diataxis` skill (see that plugin's changelog).
+
+### Fixed
+- Root README "Available Plugins" table corrected: dropped the deleted `daily-carry` row and the phantom `agent-behavior-patterns` row (which pointed at a directory that never existed), and updated the install example to `/plugin install sdlc-workflow`.
+
+### Marketplace
+- Marketplace bumped to v1.139.0.
+
+---
+
 ## Version 1.10.0 - 2026-03-20
 
 ### Changed

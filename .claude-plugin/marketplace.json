@@ -1,40 +1,12 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills-marketplace",
-  "version": "1.138.0",
+  "version": "1.139.0",
   "description": "A curated collection of Claude Code skills and plugins for developers",
   "owner": {
     "name": "jayte"
   },
   "plugins": [
-    {
-      "name": "daily-carry",
-      "description": "Essential daily-use skills: Portainer deployment management and Tech Research Enforcer for verified coding answers",
-      "source": "./plugins/daily-carry",
-      "category": "deployment",
-      "version": "1.2.0"
-    },
-    {
-      "name": "release-automation",
-      "description": "Automated release workflow for any project type with version bumping, changelog generation, documentation sync, and git operations. Supports Node.js, Python, Rust, Go, Java, generic projects, monorepos, and Claude Code plugins.",
-      "source": "./plugins/release-automation",
-      "category": "automation",
-      "version": "2.0.0"
-    },
-    {
-      "name": "daily-tags",
-      "description": "DailyTags plugin",
-      "source": "./plugins/daily-tags",
-      "category": "productivity",
-      "version": "0.1.0"
-    },
-    {
-      "name": "diataxis",
-      "description": "Documentation writing and review skills based on the Diátaxis framework. Seven skills covering all four documentation quadrants (tutorial, how-to, reference, explanation), plus README landing pages, a doc planner, and a docs reviewer.",
-      "source": "./plugins/diataxis",
-      "category": "documentation",
-      "version": "1.0.0"
-    },
     {
       "name": "sdlc-workflow",
       "description": "Two commands — `/wf` (the single SDLC entry point) and `/review` — driving a 10-stage lifecycle from intake through retro, with per-slice artifacts, runtime-truth verification, and PO-confirmed stack fingerprinting. Navigation, ship-plan, and docs are `/wf` keys; design folds into `/wf design`; quick/standalone flows are `/wf intake` modes plus the `/wf probe` and `/wf simplify` keys.",
