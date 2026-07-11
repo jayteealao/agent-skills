@@ -685,6 +685,10 @@
           "enum": ["none", "regenerated", "drift-without-regen", "skipped"]
         },
         "docs-mirror-status": { "enum": ["up-to-date", "regenerated", "skipped"] },
+        "ship-plan-readiness": {
+          "enum": ["ok", "missing", "drift", "acknowledged", "not-applicable", "skipped"],
+          "description": "Verdict of the shared ship-plan readiness pre-check (handoff step 6.7 / ship step 0.4, in _ship-plan-readiness.md). `ok` = plan present + drift-clean; `acknowledged` = drift found but the user recorded an explicit per-run reason to proceed; `not-applicable` = handoff only, shipping handled outside /wf ship. `missing`/`drift` cause a STOP (handoff writes status: awaiting-input), so a completed artifact never carries them. Absent on artifacts predating the pre-check → treat as `skipped`."
+        },
         "rebase-status": {
           "enum": ["fast-forward", "rebased-clean", "conflicts",
                    "lease-failure", "skipped"]
@@ -733,6 +737,10 @@
         "prior-version": { "type": "string" },
         "go-nogo": { "enum": ["go", "conditional-go", "no-go"] },
         "merge-strategy": { "enum": ["rebase", "squash", "merge", "none"] },
+        "ship-plan-readiness": {
+          "enum": ["ok", "acknowledged", "skipped"],
+          "description": "Verdict of the shared ship-plan readiness pre-check at ship step 0.4 (_ship-plan-readiness.md). A written ship run only ever carries `ok` or `acknowledged` — a `missing`/`drift`/cancel outcome STOPs before the 13-step sequence, so no run artifact is written. Absent on runs predating the pre-check → treat as `skipped`."
+        },
         "pre-flight-status": { "enum": ["pass", "warn", "fail"] },
         "publish-dry-run-passed": {
           "oneOf": [

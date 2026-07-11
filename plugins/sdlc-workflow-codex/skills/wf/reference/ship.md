@@ -49,12 +49,7 @@ You are a **workflow orchestrator**, not a problem solver.
    Run: $wf ship-plan init [--from-template <kind>]
    ```
 3. **Resolve environment** (optional second positional, e.g. `staging`, `production`). Overrides the plan's default; otherwise use the first entry in `ship-plan.ship-environments[]`.
-4. **Read `.ai/ship-plan.md`.** If missing, STOP:
-   ```
-   No ship plan found at .ai/ship-plan.md.
-   Run: $wf ship-plan init [--from-template <kind>]
-   ```
-   Parse all blocks (A–G) into in-memory state.
+4. **Read `.ai/ship-plan.md` and run the ship-plan readiness pre-check.** Load [_ship-plan-readiness.md](_ship-plan-readiness.md) and follow it verbatim (caller = `ship`, commit range = the release HEAD). It resolves the **missing-plan** gate and the **plan-drift** gate before the run proceeds — a missing plan, unacknowledged drift, or a cancel all STOP here, before the 13-step sequence. Only `ok` or `acknowledged` continue. Stamp the returned `ship-plan-readiness` into the run artifact (Step 13). On `ok`/`acknowledged`, parse all blocks (A–G) into in-memory state and continue.
 5. **Read `00-index.md`** for **each roster slug** — parse `current-stage`, `status`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `augmentations:`, and `handoff-lead:`. In batch mode the PR/branch fields must agree across the roster (they share one branch/PR); if they disagree, STOP and report the inconsistency.
 6. **Readiness gate — all-or-nothing across the roster.** Ship is atomic per PR: you cannot merge some slugs on a branch and not others. So **every** roster slug must be shippable, or none ship.
    - **Single-slug**: read `08-handoff.md`, parse `readiness-verdict`. If missing or `≠ ready`, STOP: "Handoff readiness-verdict is `<verdict>`. Ship requires `ready`. Run: `$wf handoff <slug>`."
@@ -342,6 +337,7 @@ version: "<chosen version>"
 prior-version: "<last release tag, or 'none'>"
 go-nogo: <go | conditional-go | no-go>
 merge-strategy: <rebase | squash | merge | none>
+ship-plan-readiness: <ok | acknowledged>   # ship-plan pre-check verdict (Step 0.4); missing/drift STOP before a run is written
 
 # Per-run evidence (set as steps complete; absent fields = not yet run)
 head-sha-at-start: "<sha>"
@@ -379,6 +375,7 @@ next-invocation: "$wf retro <slug>"
 <!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This ship run implements…" openings. 1–4 short paragraphs. -->
 
 ## Pre-flight
+- ship-plan readiness: <ok | acknowledged — with the drift signals + reason if acknowledged>
 - branch + tree clean
 - version chosen: <version> (prior: <prior-version>)
 - source-of-truth files updated: <list>
@@ -502,9 +499,9 @@ Write ALL viable options into `## Recommended Next Stage` so the user can choose
 
 ---
 
-# When the plan is missing
+# When the plan is missing or drifted
 
-Ship is plan-driven; the plan captures org knowledge (signing key format, registry token sources, recovery playbooks) that cannot be inferred from the workflow alone. If the user hits the missing-plan error, suggest the `--from-template` shortcut:
+Ship is plan-driven; the plan captures org knowledge (signing key format, registry token sources, recovery playbooks) that cannot be inferred from the workflow alone. The missing-plan and plan-drift gates both live in [_ship-plan-readiness.md](_ship-plan-readiness.md) — ship detects and routes, it never edits the plan (that is `$wf ship-plan init` / `$wf ship-plan edit`). A missing plan STOPs; detected drift STOPs unless the user records an explicit per-run acknowledgement. If the user hits the missing-plan gate, suggest the `--from-template` shortcut:
 
 ```
 $wf ship-plan init --from-template kotlin-maven-central

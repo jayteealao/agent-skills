@@ -36,6 +36,11 @@ const SHARED = [
     fingerprint: 'State wants a document; history wants a log',
     citation: /\[_additive-write\.md\]\(([^)]+)\)/,
   },
+  {
+    file: '_ship-plan-readiness.md',
+    fingerprint: 'is worse than no plan at all',
+    citation: /\[_ship-plan-readiness\.md\]\(([^)]+)\)/,
+  },
 ];
 
 function* walk(dir, exts) {

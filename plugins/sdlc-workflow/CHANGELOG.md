@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.119.0] - 2026-07-11
+
+### Added — `/wf handoff` + `/wf ship` are ship-plan aware
+
+Both release-facing stages now run a shared **ship-plan readiness pre-check** before they commit to their work — handoff before it declares a PR ship-ready, ship before it starts the irreversible 13-step release — so a missing or drifted `.ai/ship-plan.md` is caught early instead of dead-ending the release. The check does three things: detects a **missing** plan, detects **drift** between the plan and how the code actually ships, then **gates**. Per the plan-as-contract discipline it **routes, never edits** — a fix STOPs with the exact `/wf ship-plan init` (create) or `/wf ship-plan edit` (amend the named block) command; the only non-route outcome is an explicit, recorded, per-run acknowledgement to proceed on known drift.
+
+Drift detection spans three signal groups: **version-sources / secrets / workflow files** (plan paths that vanished, new version-bearing manifests, `${{ secrets.X }}` used in workflows but absent from the plan, release-workflow files missing or newly added); the **release-relevant change surface** of the packaged diff (`.github/workflows`, Dockerfiles/IaC, dependency manifests, or a migration with no matching rollback playbook); and a **staleness heuristic** (≥5 pipeline/manifest commits since the plan was last updated). Each finding names the ship-plan block to amend. Both stages gate but never dead-end: ship offers create/cancel (it cannot run planless), handoff can mark shipping **external** (`not-applicable`), and drift can be **acknowledged** per-run.
+
+New shared single-source reference `_ship-plan-readiness.md` (both trees), cited from `ship.md` (Step 0.4) and `handoff.md` (step 6.7) and guarded by the shared-reference drift test; new `ship-plan-readiness` frontmatter field on the handoff + ship-run schemas. Reference-doc + schema change only; `dist`/buildId move only from the version-string embed.
+
 ## [9.118.0] - 2026-07-11
 
 ### Added — `/wf intake adopt`: bring already-done work into the lifecycle

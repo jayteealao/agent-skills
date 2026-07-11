@@ -20,6 +20,7 @@ You are running `$wf handoff`, **stage 8 of 10** in the SDLC lifecycle.
 | Produces | `08-handoff.md` per slug — covering all complete slices (or one slice if explicitly scoped). In batch mode: one per slug on the branch, plus a single shared PR and the branch-level readiness block on the lead slug. |
 | Next | `$wf ship <slug>` (default) — or `$wf ship pr#N` to ship every ready slug on the branch together |
 | Skip-to | `$wf retro <slug>` if shipping is handled externally or not applicable |
+| Ship-plan gate (step 6.7) | Runs the shared [_ship-plan-readiness.md](_ship-plan-readiness.md) pre-check — a missing or drifted `.ai/ship-plan.md` STOPs at `awaiting-input`, routing to `$wf ship-plan init` / `edit`, so the PR is never declared ship-ready against a stale release contract. |
 
 > **Optional second opinion.** Before writing the final readiness verdict, you may
 > offer `$consult <review this PR diff and open findings for design drift,
@@ -88,6 +89,8 @@ You are a **workflow orchestrator**, not a problem solver.
    | `<slug>` | implement/review/handoff | ship / dont-ship | N | fresh / changed / new | package / skip-unchanged / **not-ready: <reason>** |
 
    In single-slug mode the roster is one row. In batch mode it is the whole branch.
+
+6.7. **Ship-plan readiness pre-check (gate).** Load [_ship-plan-readiness.md](_ship-plan-readiness.md) and follow it verbatim (caller = `handoff`, commit range = `git merge-base HEAD origin/<base-branch>`..`HEAD`). Handoff produces a PR that `$wf ship` will consume, so it verifies now that the release contract exists and still matches the repo — catching a missing or drifted `.ai/ship-plan.md` *before* the PR is declared ship-ready rather than at the ship gate. This stage **gates**: a missing plan or unacknowledged drift STOPs the run before packaging and routes to `$wf ship-plan init` / `$wf ship-plan edit` via the slug's `00-index.md` `recommended-next-*` (no partial `08-handoff.md` is written — resume handoff after the plan is fixed). `ok`, `acknowledged`, and `not-applicable` (shipping handled externally) proceed. Handoff never edits the plan — it detects and routes. Stamp the returned `ship-plan-readiness` into `08-handoff.md` frontmatter (in batch mode the lead owns the single project-level check). Skip only when a prior run this session already resolved it to `ok`/`not-applicable` and nothing in Group 2's change surface moved since.
 
 7. **Read full context** (for each slug being packaged):
    - `02-shape.md` — overall spec and docs plan
@@ -319,6 +322,7 @@ pr-url: "<url or empty if branch-strategy is not dedicated>"
 pr-number: <N or 0>
 branch: "<branch name>"
 base-branch: "<target branch>"
+ship-plan-readiness: <ok | acknowledged | not-applicable>   # ship-plan pre-check (step 6.7); missing/drift STOP at awaiting-input
 has-migration: <true|false>
 has-config-change: <true|false>
 has-docs-changes: <true|false>
