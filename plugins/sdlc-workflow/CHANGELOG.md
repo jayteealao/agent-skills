@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.115.0] - 2026-07-11
+
+### Changed — `update-deps` research must cite an authoritative changelog
+
+`/wf intake update-deps` Step 2 (research + prioritize) now requires each web-research batch agent to ground its breaking-changes and migration-steps in the package's **own changelog or release notes** — not blog posts or Q&A — fetched in priority order (repo `CHANGELOG.md`/`HISTORY`/`NEWS` → GitHub/GitLab Releases for the target range → an official migration guide). Agents must read **every intermediate major** across the update (a 3→6 jump reads the 4.0, 5.0, and 6.0 notes, since breaking changes stack) and record the exact source URL(s) plus the highest version whose notes were actually read. A P0/P1 package with no locatable changelog is no longer assumed clean: it is marked `changelog: unverified` and recommended `hold`, because a missing changelog is a risk signal, not an all-clear. `02-shape.md` gains a `changelog-source:` + `changelog-read-through:` field per package, and **every P1 migration must cite the changelog it derives from** — an uncited P1 migration is not plan-ready and drops to Hold. This closes the audit's soft spot where changelog reading was only an emergent behavior of "web search" rather than a required, traceable, fail-closed step. Applied identically to both trees; no runtime/`dist` change (reference-doc content only).
+
 ## [9.114.0] - 2026-07-11
 
 ### Added — `/wf yolo` drives `update-deps`

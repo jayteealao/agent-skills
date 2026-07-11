@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderSimple
-} from "./chunk-2UL3GSGM.mjs";
+} from "./chunk-Z3W3RYFH.mjs";
 import {
   escapeHtml
 } from "./chunk-4WRIEOIP.mjs";

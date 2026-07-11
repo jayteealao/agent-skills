@@ -494,19 +494,26 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
 // alone, then false-stopped a converged, defect-free slice as "did not converge"
 // (~500k tokens per recurrence on any secret/live-service-gated AC). The guard that
 // matters is NOT which array holds it — a substantive residual already returned false
-// above, so by here any recorded entry is a non-substantive deferral/note — it is that
-// SOMETHING was recorded (a bare partial with nothing recorded anywhere is still a
-// silently-dropped AC and stays un-clean). So accept the deferral from EITHER
-// terminal.deferrals[] OR the residual[] the caller passes in.
+// above, so by here any recorded entry is a non-substantive deferral/note. So accept
+// the deferral from EITHER terminal.deferrals[] OR the residual[] the caller passes in.
+//
+// But "something was recorded" is NOT enough on its own: residual[] is the broader
+// "deferred / could-not-fix" bucket, and a could-not-fix note need carry no `ac`. The
+// collectDeferrals (the ship-block hand-back) surfaces a deferral only when it carries an
+// `ac` — its push() guard drops any ac-less entry from BOTH arrays. So "something was
+// recorded" is not enough on its own: residual[] is the broader "deferred / could-not-fix"
+// bucket and a could-not-fix note need carry no `ac`. If this gate proceeded on a bare
+// `.length > 0`, a partial whose only residual is an ac-less note would pass here yet
+// record NOTHING for /wf ship to block on — the exact silently-dropped AC this function
+// exists to stop. So the clean signal must MATCH the collector: a partial is clean only
+// when at least one ac-bearing deferral exists in EITHER array.
 function verifyClean(t, residual) {
   if (!t) return false
   const converged = t.convergence === 'converged' || t.convergence === 'not-needed'
   if (!converged || t.substantiveResidual === true) return false
   if (t.result === 'pass') return true
-  const recorded =
-    (Array.isArray(t.deferrals) && t.deferrals.length > 0) ||
-    (Array.isArray(residual) && residual.length > 0)
-  return t.result === 'partial' && recorded
+  const hasAc = (arr) => Array.isArray(arr) && arr.some((d) => d && d.ac)
+  return t.result === 'partial' && (hasAc(t.deferrals) || hasAc(residual))
 }
 
 // driveVerify() — verify gets up to N=2 autonomous fix rounds (the reference
