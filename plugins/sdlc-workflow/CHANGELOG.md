@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.114.0] - 2026-07-11
+
+### Added — `/wf yolo` drives `update-deps`
+- `/wf yolo <slug>` now drives a `workflow-type: update-deps` slug autonomously instead of refusing at orientation. Because update-deps does not decompose into `/wf implement` + `/wf verify` (those redirect back to intake) — its intake reference self-authors `05-implement.md` + `06-verify.md` in tier order (P0 security → P1 major+migration → P2 safe batch) — yolo wraps that self-managed execution in one subagent, resolving the Step 6 scope gate by policy (**full plan, defer failures**: drive every tier, mark a failing package `blocked` and continue), then runs the standard slug-wide review. yolo drives from the plan gate onward; readiness requires `01`–`04` complete (the human's own `/wf intake update-deps` run authors those).
+
+### Fixed — yolo verify false-stop on residual-parked deferrals
+- `verifyClean` no longer hard-stops a converged, non-substantive `partial` verify whose runtime-evidence deferral was recorded in the result's `residual[]` array instead of `terminal.deferrals[]`. The gate can only see `terminal`, so a plan-authorized deferral (e.g. a secret- or live-service-gated acceptance criterion) parked in `residual[]` was mis-reported as "did not converge." The gate now accepts the deferral from **either** array — still requiring that one is recorded, so a bare partial with nothing recorded anywhere still stops — and `collectDeferrals` surfaces residual-parked deferrals into the ship-block hand-back.
+
 ## [9.113.0] - 2026-07-11
 
 ### Added — `diataxis` documentation skill

@@ -128,6 +128,23 @@ const POLICY = {
     `(ship | ship-with-caveats with metric-findings-blocker == 0) is the ENDPOINT — return status:'complete'. ` +
     `HARD-STOP (return status:'hard-stop') only if verdict: dont-ship, OR an OPEN BLOCKER is a security / ` +
     `data-loss issue you could not fix after the loop.`,
+  'update-deps':
+    `AUTONOMOUS OVERRIDE for the self-managed update-deps exec — intake/update-deps.md Step 6 asks the user ` +
+    `(AskUserQuestion) to choose the update scope (full plan / P0 security only / audit-only / adjust). DO NOT ask. ` +
+    `Resolve it as "Proceed with full plan": execute ALL planned tiers — P0 security (sequential, one package at a ` +
+    `time), P1 major+migration (sequential, one at a time, applying ONLY the API-forced app-code changes the bump ` +
+    `itself demands), and P2 safe minor/patch (single batch). NEVER treat it as audit-only.\n\n` +
+    `DEFER-DON'T-FIX on failure: any package whose update fails its test/build command is marked \`blocked\` in ` +
+    `05-implement.md and the run CONTINUES — never edit application code to force a package's tests green beyond the ` +
+    `migration the bump forces, never mix a security update with a major migration in one commit, never hand-edit ` +
+    `lockfiles (use the package manager's own command). A run that updates some packages and blocks others is a ` +
+    `legitimate result: partial, not a hard-stop.\n\n` +
+    `Then self-author 06-verify.md by running the FULL suite + build against the updated state. For a user-observable ` +
+    `AC that this environment genuinely CANNOT evidence, apply the SAME runtime-evidence deferral escape as the ` +
+    `verify policy: record it in 00-index.md runtime-evidence-deferrals, write result: partial (NOT ` +
+    `blocked-runtime-evidence-missing), keep substantiveResidual false. STOP after 06-verify.md — do NOT route to ` +
+    `/wf review or /wf handoff (yolo runs the slug-wide review itself). Return the verify terminal state ` +
+    `(convergence, result, deferrals, substantiveResidual) so yolo gates on it exactly like a standard verify.`,
 }
 
 // ---------------------------------------------------------------------------
@@ -314,9 +331,17 @@ async function orient() {
     `reviewDimension = the review stage's default rubric: recommended-next hotfix → 'security'; plan/fix → leave ` +
     `reviewDimension empty (standard selection). yolo drives from PLAN regardless — it does NOT re-run /wf intake ` +
     `fix|hotfix, mint a new branch, or change base-branch; the drive runs on the tree the RCA recorded.\n` +
-    `   5c. SELF-MANAGED build — workflow-type 'update-deps': set ok=false, route='/wf intake update-deps ${slug}' — ` +
-    `yolo does not drive it (it self-authors 05/06 and skips /wf implement + /wf verify, which yolo's fixed ` +
-    `plan→implement→verify→review chain would double-author).\n` +
+    `   5c. SELF-MANAGED build — workflow-type 'update-deps'. yolo DRIVES this via a self-managed exec path: it does ` +
+    `NOT decompose into /wf implement + /wf verify (those redirect back to intake). Instead yolo wraps ` +
+    `intake/update-deps.md Steps 6–9, which self-author 05-implement.md + 06-verify.md in tier order, then runs the ` +
+    `standard slug-wide review. yolo drives from the PLAN gate onward — it never authors the scan/research/` +
+    `prioritize/plan itself (that is the human's own /wf intake update-deps run). READINESS: 01-update-deps.md ` +
+    `(type: intake, status: complete), 02-shape.md, 03-slice.md, and 04-plan.md must ALL exist and be ` +
+    `status: complete. If any is missing or not complete, set ok=false with blockReason and ` +
+    `route='/wf intake update-deps ${slug}' (or '/wf plan ${slug}' when 04-plan is the only gap). When 01–04 are ` +
+    `complete, set ok=true and workflowType='update-deps', then PROCEED to step 6 (the single-slice roster: ` +
+    `implement→05-implement.md, verify→06-verify.md, both un-suffixed; reviewScope slug-wide). Do NOT fall through ` +
+    `to 5d.\n` +
     `   5d. STANDARD build lifecycle — everything else (standard/feature, plus the compressed change-modes fix / ` +
     `hotfix / refactor; 00-index.md type: index). Apply the readiness check: the stage-1 intake artifact must exist ` +
     `and not be status: awaiting-input; 02-shape.md must exist; 03-slice.md must exist (UNLESS singleScope was ` +
@@ -462,13 +487,26 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
 // blocked-runtime-evidence-missing (un-evidenced AND un-deferred), a substantive
 // fail/partial, or an escalated loop is NOT clean. driveVerify and evaluateGate
 // share this so the in-loop decision and the defensive gate can never drift.
-function verifyClean(t) {
+//
+// The deferral is CONTRACT-authored into terminal.deferrals[], but verify subagents
+// routinely park a plan-authorized deferral in the sibling residual[] instead (with
+// substantiveResidual:false) — the driver, which can't see residual[] via terminal
+// alone, then false-stopped a converged, defect-free slice as "did not converge"
+// (~500k tokens per recurrence on any secret/live-service-gated AC). The guard that
+// matters is NOT which array holds it — a substantive residual already returned false
+// above, so by here any recorded entry is a non-substantive deferral/note — it is that
+// SOMETHING was recorded (a bare partial with nothing recorded anywhere is still a
+// silently-dropped AC and stays un-clean). So accept the deferral from EITHER
+// terminal.deferrals[] OR the residual[] the caller passes in.
+function verifyClean(t, residual) {
   if (!t) return false
   const converged = t.convergence === 'converged' || t.convergence === 'not-needed'
   if (!converged || t.substantiveResidual === true) return false
   if (t.result === 'pass') return true
-  // A deferral-only partial is continuable; a partial with no recorded deferral is not.
-  return t.result === 'partial' && Array.isArray(t.deferrals) && t.deferrals.length > 0
+  const recorded =
+    (Array.isArray(t.deferrals) && t.deferrals.length > 0) ||
+    (Array.isArray(residual) && residual.length > 0)
+  return t.result === 'partial' && recorded
 }
 
 // driveVerify() — verify gets up to N=2 autonomous fix rounds (the reference
@@ -484,8 +522,9 @@ async function driveVerify(sliceArg, idx) {
     if (!last) return { stage: 'verify', slice: sliceArg, status: 'hard-stop', artifactPath: '', terminal: {}, transient: true, hardStopReason: 'verify did not return (subagent skipped or hit a transient API error) — re-run to retry this slice; resume skips completed stages' }
     if (last.status === 'hard-stop') return last
     const t = last.terminal || {}
-    if (verifyClean(t)) {
-      const deferred = Array.isArray(t.deferrals) ? t.deferrals.length : 0
+    if (verifyClean(t, last.residual)) {
+      const deferred = (Array.isArray(t.deferrals) ? t.deferrals.length : 0) +
+                       (Array.isArray(last.residual) ? last.residual.filter(d => d && d.ac).length : 0)
       if (deferred > 0) log(`verify:${sliceArg} clean with ${deferred} runtime-evidence deferral(s) — recorded in 00-index runtime-evidence-deferrals; review/handoff proceed, /wf ship blocks until cleared`)
       return last
     }
@@ -553,12 +592,81 @@ async function driveReview(sliceArg, idx) {
   )
 }
 
+// runUpdateDepsExec() — the self-managed execution stage for workflow-type
+// update-deps. update-deps does NOT decompose into /wf implement + /wf verify (those
+// references redirect back to intake); its intake reference SELF-AUTHORS 05/06 in tier
+// order. So yolo wraps intake/update-deps.md Steps 6–9 in ONE subagent — same "wrap,
+// not fork" contract as runStage — with the Step 6 scope gate resolved by
+// POLICY['update-deps'] (full plan, defer failures), self-authoring 05-implement.md +
+// 06-verify.md, then STOPPING before review. Its terminal gate IS the verify gate, so
+// it returns stage:'verify' — evaluateGate('verify') and collectDeferrals then treat it
+// identically to a standard verify stage.
+async function runUpdateDepsExec(idx) {
+  return await agent(
+    `Execute the SELF-MANAGED update-deps execution for slug '${slug}', FULLY AUTONOMOUSLY (no human in the loop).\n\n` +
+    `${EOB}\n\n` +
+    `Read ${referenceRoot}/intake/update-deps.md IN FULL and follow Steps 6–9 VERBATIM. Its scan/research/` +
+    `prioritize/slice/plan (Steps 1–5) are ALREADY DONE on disk — 01-update-deps.md, 02-shape.md, 03-slice.md and ` +
+    `04-plan.md are complete; you START at Step 6. Apply ONE override wherever the reference asks the user or pauses ` +
+    `for a human — resolve it by this policy:\n\n${POLICY['update-deps']}\n\n` +
+    `Operating rules:\n` +
+    `- Project root ${projectRoot} is ABSOLUTE. Resolve every artifact path under it and run git as ` +
+    `\`git -C ${projectRoot} …\`. Do not rely on your working directory — it is not this repo.\n` +
+    `- Write SCHEMA-COMPLETE frontmatter for 05-implement.md and 06-verify.md: a strict validator enforces the full ` +
+    `sdlc/v1 contract and rejects an incomplete write. Match update-deps.md Step 7/8 field-for-field.\n` +
+    `- Record EVERY autonomous decision into the artifacts (## Updated / ## Blocked / ## Held in 05-implement.md; ` +
+    `## Test Result / ## Build / ## Blocked packages in 06-verify.md) so this run is exactly as auditable as a ` +
+    `human-gated one. Nothing dies silently inside an artifact.\n` +
+    `- STOP after writing 06-verify.md — do NOT route to /wf review or /wf handoff and do NOT run the review. yolo ` +
+    `runs the slug-wide review as its own next stage.\n\n` +
+    `Return the terminal state as a STAGE_RESULT with stage:'verify' (its gate IS the verify gate): status ` +
+    `('complete' when 06 is convergence ∈ {not-needed, converged} with result pass or a deferral-only partial; ` +
+    `'hard-stop' when the policy stopped you), artifactPath = the 06-verify.md path, and terminal ` +
+    `{ convergence, result, deferrals ([] if none), substantiveResidual } — plus the decisions you recorded and ` +
+    `any residual (blocked / held packages).`,
+    { schema: STAGE_RESULT, label: 'update-deps:exec', phase: 'Drive' }
+  )
+}
+
+// driveUpdateDeps() — control flow for the self-managed update-deps class. One
+// exec stage (self-authors 05 + 06) then the standard slug-wide review. Resume is
+// free: a terminal-clean 05 AND 06 on disk skip the exec. The outcome mirrors the
+// slug-wide endpoint shape so the shared collectDeferrals / hand-back path applies.
+async function driveUpdateDeps(idx) {
+  const entry = idx.slices[0] || {}
+  const done = entry.stages || {}
+  const ran = []
+  // 05 and 06 are authored together in one intake pass, so from yolo's view the exec
+  // is one stage: skip it only when implement AND verify are both terminal-clean.
+  if (done.implement === 'done' && done.verify === 'done') {
+    log(`skip update-deps exec (05/06 already terminal-clean)`)
+  } else {
+    log(`yolo → update-deps self-managed exec ${slug} (self-authors 05/06)`)
+    const exec = await runUpdateDepsExec(idx)
+    ran.push(exec)
+    if (!exec || exec.status === 'hard-stop') {
+      return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'exec', reason: (exec && exec.hardStopReason) || 'update-deps self-managed exec stopped', ran, route: `address the exec blocker, then re-run /wf yolo ${slug}` }
+    }
+    if (evaluateGate('verify', exec) === 'hard-stop') {
+      return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'exec', reason: `update-deps verify did not clear the gate: ${JSON.stringify(exec.terminal || {})}`, ran, route: `address the verify residual, then re-run /wf yolo ${slug}` }
+    }
+  }
+  // slug-wide review over the branch diff — same endpoint as the standard slug-wide path.
+  log(`yolo → review ${slug} (slug-wide, update-deps)`)
+  const rev = await driveReview(null, idx)
+  ran.push(rev)
+  const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
+  return stopped
+    ? { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'review', reason: (rev && rev.hardStopReason) || 'slug-wide review did not clear the gate', ran, slugWide: rev, route: `address the review blockers, then re-run /wf yolo ${slug}` }
+    : { ok: true, mode: 'update-deps', stopped: false, ran, slugWide: rev, route: `/wf handoff ${slug}` }
+}
+
 // evaluateGate() — defensive double-check that a 'complete' status is backed by
 // terminal fields that actually clear the gate (catches a subagent mis-report).
 function evaluateGate(stage, res) {
   const t = (res && res.terminal) || {}
   if (stage === 'verify') {
-    return verifyClean(t) ? 'proceed' : 'hard-stop'   // same rule as driveVerify — deferral-only partial proceeds
+    return verifyClean(t, res && res.residual) ? 'proceed' : 'hard-stop'   // same rule as driveVerify — deferral-only partial proceeds
   }
   if (stage === 'review') {
     return (t.verdict === 'ship' || t.verdict === 'ship-with-caveats') && (t.blockerCount || 0) === 0 ? 'proceed' : 'hard-stop'
@@ -599,11 +707,26 @@ async function driveChain(stages, sliceArg, idx) {
 function collectDeferrals(o) {
   const chains = Array.isArray(o.results) ? o.results : (o.ran ? [{ ran: o.ran }] : [])
   const out = []
+  const seen = new Set()
+  const push = (slice, ac, reason) => {
+    if (!ac) return
+    const key = `${slice || ''}::${ac}`
+    if (seen.has(key)) return
+    seen.add(key)
+    out.push({ slice, ac, reason })
+  }
   for (const c of chains) {
     for (const r of (c && c.ran) || []) {
-      if (r && r.stage === 'verify' && r.terminal && Array.isArray(r.terminal.deferrals)) {
-        for (const d of r.terminal.deferrals) out.push({ slice: r.slice || (d && d.slice), ac: d && d.ac, reason: d && d.reason })
-      }
+      if (!r || r.stage !== 'verify') continue
+      const t = r.terminal || {}
+      if (Array.isArray(t.deferrals)) for (const d of t.deferrals) push(r.slice || (d && d.slice), d && d.ac, d && d.reason)
+      // Verify subagents sometimes park the deferral in the sibling residual[] instead of
+      // terminal.deferrals[] (the same mis-placement verifyClean now tolerates). Surface
+      // those too — entries carrying an `ac` — so the run's ship-block hand-back isn't
+      // blind to a mis-placed deferral. Enforcement is the 00-index registry the subagent
+      // writes regardless of array; this only keeps the run summary honest. Dedup by
+      // (slice, ac) so a deferral recorded in BOTH arrays counts once.
+      if (Array.isArray(r.residual)) for (const d of r.residual) if (d && d.ac) push(r.slice || d.slice, d.ac, d.reason)
     }
   }
   return out
@@ -622,7 +745,7 @@ if (!idx) {
   return { ok: false, stopped: true, transient: true, reason: 'orient did not return (subagent skipped or hit a transient API error) — re-run to retry; resume skips completed stages', route: `/wf yolo ${slug}${slice ? ' ' + slice : ''}` }
 }
 if (!idx.ok) {
-  return { ok: false, stopped: true, mode: idx.mode, reason: idx.blockReason || 'workflow not ready (intake/shape/slice incomplete or update-deps mode)', route: idx.route }
+  return { ok: false, stopped: true, mode: idx.mode, reason: idx.blockReason || 'workflow not ready (intake/shape/slice/plan incomplete, or a terminal-analysis type with no decided build)', route: idx.route }
 }
 // Branch posture — DEDICATED only. Land the tree on the slug branch (create it from
 // base-branch if it does not exist yet) BEFORE driving any stage, so the whole run —
@@ -644,7 +767,11 @@ if (idx.branch.strategy === 'dedicated' && !idx.branch.match) {
 phase('Drive')
 let outcome
 
-if (idx.mode === 'slice') {
+if (idx.workflowType === 'update-deps') {
+  // ---- Self-managed class — update-deps drives its own tier-ordered exec. --
+  // Not a per-slice chain: one exec (self-authors 05/06) then slug-wide review.
+  outcome = await driveUpdateDeps(idx)
+} else if (idx.mode === 'slice') {
   // ---- Slice mode — drive one slice, then route to the next. -------------
   const stages = idx.reviewScope === 'per-slice'
     ? ['plan', 'implement', 'verify', 'review']
