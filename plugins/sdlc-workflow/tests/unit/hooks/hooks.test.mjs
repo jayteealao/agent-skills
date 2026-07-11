@@ -329,6 +329,30 @@ test('pre-write-validate blocks bad filename, missing frontmatter, bad schema, a
   }
 });
 
+test('pre-write-validate normalizes a Grok/Cursor camelCase payload (toolInput → tool_input)', () => {
+  // Claude-compatible hosts (Grok Build, Cursor) load this plugin's hooks.json
+  // but deliver the event on camelCase keys. The lib/stdin.mjs shim aliases
+  // toolInput → tool_input so the guard still fires; without it the hook reads
+  // undefined, early-returns exit 0, and — since PreToolUse fails OPEN on those
+  // hosts — the validation gate would silently pass. This asserts the block.
+  const tmp = tempDir();
+  try {
+    const result = runHook(HOOKS.preWriteValidate, {
+      cwd: tmp,
+      hookEventName: 'pre_tool_use',
+      toolName: 'search_replace',
+      toolInput: {
+        file_path: '.ai/workflows/demo/not-numbered.md',
+        content: md({ schema: 'sdlc/v1', type: 'intake', slug: 'demo' }),
+      },
+    }, tmp);
+    equal(result.status, 2, result.stderr);
+    match(result.stderr, /Filename 'not-numbered\.md'/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('pre-write-validate allows valid content and warns on missing registry', () => {
   const tmp = tempDir();
   try {

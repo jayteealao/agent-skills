@@ -118,11 +118,25 @@ async function readStdin() {
   }
   return text;
 }
+function normalizeHookPayload(input) {
+  if (!input || typeof input !== "object") return input;
+  const aliases = [
+    ["toolInput", "tool_input"],
+    ["toolName", "tool_name"],
+    ["hookEventName", "hook_event_name"]
+  ];
+  for (const [camel, snake] of aliases) {
+    if (input[snake] === void 0 && input[camel] !== void 0) {
+      input[snake] = input[camel];
+    }
+  }
+  return input;
+}
 async function readStdinJson({ emptyValue = {} } = {}) {
   const text = (await readStdin()).trim();
   if (!text) return emptyValue;
   try {
-    return JSON.parse(text);
+    return normalizeHookPayload(JSON.parse(text));
   } catch (err) {
     err.message = `invalid hook JSON on stdin: ${err.message}`;
     throw err;

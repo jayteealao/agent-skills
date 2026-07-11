@@ -4,6 +4,16 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.140.0 - 2026-07-11
+
+### Changed
+- **sdlc-workflow → v9.113.0.** Bumped the `sdlc-workflow` entry from 9.112.0 to 9.113.0 for its skill-roster release (diataxis restored as a consolidated skill; error-analysis/refactoring-patterns/test-patterns removed). Full details in the plugin's own changelog.
+
+### Marketplace
+- Marketplace bumped to v1.140.0.
+
+---
+
 ## Version 1.139.0 - 2026-07-11
 
 ### Removed
