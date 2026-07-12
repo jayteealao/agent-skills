@@ -8,6 +8,12 @@ when_to_use: When designing logging/observability systems, debugging production 
 
 You are an observability architect implementing **wide events / canonical log lines** with **tail sampling** to transform logging from "grep text files" to "query structured events with business context."
 
+> **Shared knowledge base.** This is the single source of wide-event / sampling / redaction doctrine for the
+> plugin. Both `/wf observability` (the project-level foundation router) and `augment/instrument` (per-change
+> signal design) reference it, so the schema, sampling, and redaction rules never drift. When `.ai/observability.md`
+> exists, it is the project's *instantiation* of this doctrine — design against its Block-A schema, not from
+> scratch.
+
 ## Core Philosophy (from loggingsucks.com)
 
 **Traditional logging is broken** because:
@@ -22,7 +28,55 @@ You are an observability architect implementing **wide events / canonical log li
 - Error details when applicable
 - Complete request context in a single queryable event
 
-## Wide Event Structure
+## The Language-Agnostic Core (read this first)
+
+The wide-event idea is **stack-neutral**. It is *not* an Express middleware or a TypeScript interface — those are
+one realization. The concept, in any language or runtime:
+
+> **Emit one context-rich, queryable event per unit of work.** Accumulate context as the unit runs (in a
+> request-scoped builder), and emit it **once** at completion. Keep 100% of the signal (errors, slow, VIPs,
+> flagged); sample the noise. Normalize field names so every event is queryable the same way.
+
+A "unit of work" is whatever the runtime processes end-to-end: an HTTP request, a queue message, a gRPC call, a
+scheduled job, a serverless invocation, a CLI run.
+
+### The canonical field vocabulary (stack-neutral)
+
+| Concept | Canonical field(s) | Why it's here |
+|---|---|---|
+| Correlation | `request_id`, `trace_id`, `span_id` | tie events across services into one story |
+| Service identity | `service`, `version`, `env` | which build, where |
+| Outcome | `operation`, `duration_ms`, `outcome`, `status` | what happened and how long it took |
+| Actor | `user.id`, `user.tier` | *who* — the cohort dimension every analysis needs |
+| Error | `error.type`, `error.code`, `error.retriable` | the failure, structured (not a string) |
+| Domain | project-specific (`cart.total_cents`, …) | the business context grep can never give you |
+
+**Normalize keys** — one `user.id`, never `userId` / `user_id` / `uid` across call sites. Divergent keys break
+every cohort query silently.
+
+### Adapters realize this per language
+
+The same three moving parts — a **schema** (the fields above), a **tail-sampling function** (keep signal, sample
+noise), and a **request-scoped builder + emit-once hook** — are expressed idiomatically per stack. JavaScript is
+**one adapter, not the default**:
+
+| Stack | Schema as | Emit-once hook | Structured logger |
+|---|---|---|---|
+| **Node/TS** *(the reference adapter below)* | `interface` / type | HTTP middleware `res.on('finish')` | pino / winston |
+| Go | `struct` | `defer` at handler entry | slog / zerolog |
+| Python | `dataclass` / `TypedDict` | middleware / decorator / `finally` | structlog / `logging` |
+| JVM | record / POJO | servlet filter / interceptor | logback + structured encoder |
+| Rust | struct + `serde` | `Drop` guard / middleware | `tracing` |
+| .NET | record | middleware | Serilog |
+
+The sections below teach the **Node/TypeScript reference adapter** in depth, then the React/frontend adapter. Read
+them as *one worked example of the core above* — port the pattern to the unit's real language; never foist
+JavaScript on a non-JS service.
+
+## Wide Event Structure (reference adapter — TypeScript)
+
+The TypeScript `interface` below is the Node adapter's expression of the canonical vocabulary. In Go it is a
+`struct`, in Python a `dataclass` — same fields, idiomatic shape.
 
 ```typescript
 interface WideEvent {
@@ -257,7 +311,11 @@ function redactSensitive(event: WideEvent): WideEvent {
 }
 ```
 
-## Implementation Guide: Express/Node.js
+## Reference Adapter: Express/Node.js (one realization of the core)
+
+This is the **reference adapter** — the fullest worked example. It realizes the language-agnostic core (schema +
+tail sampling + request-scoped builder + emit-once hook) in Express + pino. On a Go, Python, JVM, Rust, or .NET
+service, port the *pattern*, not the syntax (see the adapter table above).
 
 ### Step 1: Wide Event Middleware
 
@@ -453,7 +511,10 @@ const logger = pino({
 export default logger;
 ```
 
-## Implementation Guide: React/Frontend
+## Reference Adapter: React/Frontend (the client tier — opt-in)
+
+The client/edge tier is an **opt-in extension** (Block H of `.ai/observability.md`), not a default. When in scope,
+the same core applies — emit fewer, richer events with business context — realized in the browser below.
 
 ### Goal on the Client
 

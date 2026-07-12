@@ -1,6 +1,6 @@
 {
   "router": "/wf",
-  "description": "Routing-resolution fixtures for the /wf skill (20-key surface after the wf-meta+wf-docs dissolve). The first positional token selects skills/wf/reference/<key>.md. intake is a mode dispatcher: a mode keyword resolves to intake/<mode>.md, an existing slug + free scope auto-routes to intake/extend.md (extension), an existing slug + mode attaches a compressed slice. status/recap/close are navigation/lifecycle keys; ship-plan and docs are routers. review owns its own slug-vs-dimension resolution. The former wf-meta and wf-docs skills are dissolved into /wf; the augmentation keys (instrument/experiment/benchmark/profile) are gone \u2014 they are now a shape decision applied by plan/implement/verify.",
+  "description": "Routing-resolution fixtures for the /wf skill (21-key surface after the wf-meta+wf-docs dissolve, plus the observability router that dissolved the standalone setup-wide-logging command). The first positional token selects skills/wf/reference/<key>.md. intake is a mode dispatcher: a mode keyword resolves to intake/<mode>.md, an existing slug + free scope auto-routes to intake/extend.md (extension), an existing slug + mode attaches a compressed slice. status/recap/close are navigation/lifecycle keys; ship-plan, docs, and observability are routers. review owns its own slug-vs-dimension resolution. The former wf-meta and wf-docs skills are dissolved into /wf; the augmentation keys (instrument/experiment/benchmark/profile) are gone \u2014 they are now a shape decision applied by plan/implement/verify.",
   "fixtures": [
     {
       "id": "wf-intake-default",
@@ -183,6 +183,12 @@
       "purpose": "docs router key (former /wf-docs). Orchestrator or a Diataxis primitive, resolved inside the router.",
       "invocation": "/wf docs how-to auth-callback",
       "expectedReferencePath": "skills/wf/reference/docs.md"
+    },
+    {
+      "id": "wf-observability-router",
+      "purpose": "observability router key (init/build/audit). Resolves the sub-key inside the router. Dissolved the standalone setup-wide-logging command; init inventories the codebase + reads the ship-plan and authors .ai/observability.md, build realizes it, audit sweeps it.",
+      "invocation": "/wf observability init",
+      "expectedReferencePath": "skills/wf/reference/observability.md"
     },
     {
       "id": "wf-intake-extension",

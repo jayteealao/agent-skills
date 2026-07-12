@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.132.0] - 2026-07-13
+
+### Added — the `/wf observability` router: a language-agnostic, consultative observability architect
+
+Full build of `docs/internal/OBSERVABILITY-ROUTER-PLAN.md` (waves W1–W5) in one release. Promotes the orphaned, Node/TS-only `setup-wide-logging` command into a project-level `/wf` **router** — the 21st key (Codex 20th; `ship-plan` and `docs` are the sanctioned non-stage router precedent). It fills the real gap: `augment/instrument` is per-change (writes a *plan*); nothing owned the **project-wide** observability *foundation*.
+
+- **W1 — the router.** New `observability` key in both `wf/SKILL.md` dispatchers (Claude 20→21, Codex 19→20) — dispatch table, argument-hint, Step 0.5 router-exclusion, resolution-rule roster, and a thin `reference/observability.md` cloned from `ship-plan.md`. Sub-keys `init | build | audit` (no `edit` — amend the contract by hand in v1).
+- **W2 — `init` (the consultative core).** Extends `ship-plan init`'s discovery→hypothesis→confirm with a **deep, language-agnostic observability inventory** (logging/metrics/tracing/error-tracking/product-analytics + existing collector/dashboard/IaC config, across every runtime present), a **ship-plan read** (tailors the backend to the real deploy target), and a **consult** over the real forks (schema, sampling, PII, backend platform [self-hosted OSS / vendor / cloud-native], pipeline, dashboards, provisioning ceiling). Writes a decisions contract `.ai/observability.md` (Blocks A–H) — no code, no infra, STOP-on-exists.
+- **W3 — `build` (four output classes).** Realizes the contract: (1) **emit code** as idiomatic multi-language adapters (Node the reference adapter; Go/Python/JVM/Rust/.NET their own, unknown stacks a `# TODO:` skeleton — never four hardcoded TS blocks); (2) **pipeline config**; (3) **backend/IaC**; (4) **dashboards-as-code** that query the wide-event schema. Inherits `ship-plan build`'s no-overwrite / minimal-diff / trace-insertion rules and its remote-mutation gating. Hard safety rails: **never enters a vendor credential**; every remote/billable step is confirm-gated with a print-only fallback; respects the contract's `provisioning.ceiling`.
+- **W4 — `audit`.** Read-only soundness sweep cloned from `ship-plan audit`: seven lenses (`dark-path-coverage`, `schema-consistency`, `pii-and-redaction`, `sampling-soundness`, `one-event-discipline`, `pipeline-and-backend`, `dashboard-coverage`), refute-before-report, accumulating ledger `.ai/observability-audit.md`, routes each finding to its fixer.
+- **W5 — dissolve + de-JS + boundary.** Deleted the standalone `commands/setup-wide-logging.md` and the Codex `setup-wide-logging` skill; added a redirect in both `SKILL.md`s (`setup-wide-logging` → `/wf observability build`) and updated both manifests + READMEs. `augment/wide-event-observability.md` now **leads with a language-agnostic core** (the concept + a stack-neutral field vocabulary + a per-language adapter table) with the Express/React sections demoted to *one reference adapter* — the shared doctrine no longer re-injects JS-centrism. `augment/instrument.md` states the foundation-vs-per-change boundary both directions and, when `.ai/observability.md` exists, designs against its Block-A schema + Block-E pipeline.
+- Gates: `npm test` 636/0/2; doc-site 51 pages stamped v9.132.0; codex 23/23; `verify:claudisms` + `verify:no-legacy` clean; runtime parity OK (191 files, shared buildId). Both trees; `sync:codex` run. **House-rule note:** the intent-fidelity plan's "stay at 20 keys" is deliberately excepted here — a project-level router is not a lifecycle stage or a mode of one, and routers are the sanctioned exception.
+
 ## [9.131.0] - 2026-07-12
 
 ### Added — the meta-loop: knowledge compounding beyond one repo (INTENT-FIDELITY R5, final)

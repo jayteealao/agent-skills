@@ -13,6 +13,12 @@ You are running `wf-instrument`, an **observability augmentation** that adds an 
 
 > **Deep reference — wide-event observability.** For the canonical wide-event / structured-logging patterns (tail sampling, canonical log lines, context-rich queryable events) this augmentation designs against, load [wide-event-observability.md](wide-event-observability.md) — the former standalone `wide-event-observability` skill, folded in here as this augmentation's knowledge base.
 
+> **Foundation vs. per-change (the boundary).** This augmentation designs signals for **one change**, against the
+> project's existing observability foundation. To establish or audit that **project-wide** foundation — the schema,
+> emit layer, sampling, pipeline, backend, and dashboards — use `$wf observability` (`init` → `build` → `audit`).
+> **When `.ai/observability.md` exists, design against it:** use its Block-A schema as the canonical field
+> vocabulary (do not invent divergent keys) and its Block-E pipeline as the delivery path. Read it in Step 0.
+
 # Shape
 This is an **augmentation**, not an entry point. It writes into an existing workflow directory — it never starts a new workflow.
 
@@ -57,6 +63,11 @@ You are an **observability architect**, not an implementer.
    - Read `02-shape.md` in full — this defines what is in scope.
    - Read any `04-plan-*.md` files present — these name specific files and steps.
    - Read `00-index.md` frontmatter — check `current-stage`, `status`, and any existing `augmentations:` entries.
+   - **If `.ai/observability.md` exists at the repo root**, read its **Block A** (canonical wide-event schema) and
+     **Block E** (collection pipeline). The signals you design MUST use that schema's field vocabulary and target
+     that pipeline — not a fresh convention. This is how per-change instrumentation stays consistent with the
+     project foundation. If it does not exist, design against the shared doctrine and note that
+     `$wf observability init` would establish the project-wide contract.
 4. **Identify files in scope:**
    - Extract the explicit file list from `02-shape.md` ("Scope in" or "Files in scope" section) and any plan files.
    - This is the set of files the instrumentation must cover.
@@ -98,6 +109,8 @@ For each dark path and for each partially-instrumented path that will be touched
   3. **Measure** the performance or business impact of this change (observable magnitude)
 - Signal design rules:
   - Use the existing instrumentation framework (do not introduce a new logging library)
+  - **If `.ai/observability.md` exists, use its Block-A canonical field names** — do not invent divergent keys
+    (`user.id`, not `userId`/`user_id`). Schema consistency is what makes the project's dashboards queryable.
   - Follow wide-event patterns: emit structured fields, not string-formatted messages
   - Include business context where relevant (user ID type, request ID, relevant entity IDs)
   - Flag any fields that must be redacted or hashed (PII, secrets, tokens)
@@ -248,7 +261,7 @@ If dark paths are zero, note:
 # What this skill is NOT
 
 - **Not an implementer** — `wf-instrument` designs the instrumentation plan. `wf-implement` builds it. Do not write application code.
-- **Not an observability platform** — it does not set up Datadog, Grafana, Prometheus, or any tooling. It plans what signals to emit; the platform choice is the user's.
+- **Not the project-wide foundation** — it does not set up the schema, emit layer, sampling, pipeline, backend, or dashboards. That is `$wf observability` (`init`/`build`/`audit`). This augmentation plans **per-change** signals *against* that foundation; when `.ai/observability.md` exists it designs to that contract's schema and pipeline.
 - **Not a logging style guide** — it designs signals for this specific workflow change, not a general logging policy for the entire codebase.
 - **Not a prerequisite** — instrumentation is optional. `wf-implement` works without it. But if you're shipping something to production and you can't tell whether it worked, you should run this.
 

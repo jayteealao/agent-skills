@@ -836,9 +836,9 @@ Invoke a single domain as `/wf review <dimension>` (ad-hoc, no slug), or `/wf re
 |---|---|
 | `diataxis` | Write or review documentation under the Diátaxis framework — routes a request to the right quadrant (tutorial, how-to, reference, explanation), plus README, doc-planning, and docs-review references. The standalone counterpart to the lifecycle-bound `/wf docs`. |
 
-### Wide-event logging
+### Observability
 
-The `setup-wide-logging` command configures wide-event logging for Express/Koa/Fastify/Next.js with Pino/Winston/Bunyan.
+The `/wf observability` router establishes and audits a project-wide observability foundation, language-agnostically. `init` inventories the codebase's current logging/telemetry/analytics and reads `.ai/ship-plan.md` to consultatively author `.ai/observability.md` (schema + sampling + redaction + pipeline + backend + dashboards); `build` realizes it (emit-layer adapters per language, collector/pipeline config, backend IaC, and dashboards-as-code — every remote/billable step gated, credentials never entered); `audit` runs a read-only soundness sweep. This dissolved the old Node/TS-only `setup-wide-logging` command; `augment/instrument` designs per-change signals against the `.ai/observability.md` contract.
 
 ### Design quality skills
 
