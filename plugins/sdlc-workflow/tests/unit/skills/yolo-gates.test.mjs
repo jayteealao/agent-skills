@@ -42,13 +42,18 @@ function extractFn(src, name) {
   throw new Error(`unbalanced braces extracting ${name}`);
 }
 
-// evaluateGate calls verifyClean, so build all three together in one scope and hand them back.
-const { verifyClean, evaluateGate, collectDeferrals } = new Function(
+// evaluateGate calls verifyClean, so build them together in one scope and hand them back.
+// probeGaps (F2), reChallengeClause + deferralPressure (F3) are also pure top-level fns, so
+// they extract by the same brace-matching — testing the SHIPPED code with no drift-prone copy.
+const { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure } = new Function(
   [
     extractFn(yoloSrc, 'verifyClean'),
     extractFn(yoloSrc, 'evaluateGate'),
     extractFn(yoloSrc, 'collectDeferrals'),
-    'return { verifyClean, evaluateGate, collectDeferrals };',
+    extractFn(yoloSrc, 'probeGaps'),
+    extractFn(yoloSrc, 'reChallengeClause'),
+    extractFn(yoloSrc, 'deferralPressure'),
+    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure };',
   ].join('\n')
 )();
 
@@ -163,4 +168,122 @@ test('collectDeferrals: surfaces residual-parked deferrals and dedups one record
 test('collectDeferrals: ignores non-verify stages and empty outcomes', () => {
   assert.deepEqual(collectDeferrals({ ran: [{ stage: 'review', terminal: { deferrals: [{ ac: 'X' }] } }] }), []);
   assert.deepEqual(collectDeferrals({}), []);
+});
+
+test('collectDeferrals: threads the probe receipt through into the ship-block hand-back', () => {
+  const outcome = {
+    ran: [{
+      stage: 'verify', slice: 's1',
+      terminal: { deferrals: [{ ac: 'AC1', reason: 'live svc', probe: 'curl … → 000' }] },
+    }],
+  };
+  assert.deepEqual(collectDeferrals(outcome), [
+    { slice: 's1', ac: 'AC1', reason: 'live svc', probe: 'curl … → 000' },
+  ]);
+  // no probe recorded → the field is simply absent (not an empty string)
+  assert.deepEqual(
+    collectDeferrals({ ran: [{ stage: 'verify', slice: 's2', terminal: { deferrals: [{ ac: 'AC2', reason: 'r' }] } }] }),
+    [{ slice: 's2', ac: 'AC2', reason: 'r' }]
+  );
+});
+
+// ---------------------------------------------------------------------------
+// probeGaps (F2) — the deferral-LAW compliance check verifyClean deliberately does NOT
+// enforce. Returns ac-bearing deferral entries (deduped by ac, both arrays) with no
+// non-empty `probe`. A non-empty result drives ONE corrective re-run, then a hard-stop.
+// ---------------------------------------------------------------------------
+test('probeGaps: every deferral receipted ⇒ no gaps', () => {
+  assert.deepEqual(
+    probeGaps({ deferrals: [{ ac: 'AC1', reason: 'r', probe: 'adb devices → none' }] }, []),
+    []
+  );
+  assert.deepEqual(probeGaps({ deferrals: [] }, []), []);
+});
+
+test('probeGaps: a probe-less deferral is the only gap returned', () => {
+  const gaps = probeGaps({ deferrals: [
+    { ac: 'AC1', reason: 'r1', probe: 'firebase projects:list → 0 projects' },
+    { ac: 'AC2', reason: 'r2' },   // no probe
+  ] }, []);
+  assert.equal(gaps.length, 1);
+  assert.equal(gaps[0].ac, 'AC2');
+});
+
+test('probeGaps: an empty / whitespace probe counts as missing', () => {
+  assert.equal(probeGaps({ deferrals: [{ ac: 'AC1', reason: 'r', probe: '' }] }, []).length, 1);
+  assert.equal(probeGaps({ deferrals: [{ ac: 'AC1', reason: 'r', probe: '   ' }] }, []).length, 1);
+});
+
+test('probeGaps: a probe on the residual copy credits the terminal copy of the same ac (dedupe either array)', () => {
+  // terminal copy carries no probe; the residual-parked copy of the SAME ac does → compliant.
+  assert.deepEqual(
+    probeGaps({ deferrals: [{ ac: 'AC1', reason: 'r' }] }, [{ ac: 'AC1', reason: 'r', probe: 'env KEY unset' }]),
+    []
+  );
+});
+
+test('probeGaps: ac-less notes are ignored (match collectDeferrals)', () => {
+  assert.deepEqual(probeGaps({ deferrals: [{ reason: 'no ac named' }] }, [{ note: 'flaky teardown' }]), []);
+});
+
+test('probeGaps: gaps are drawn from BOTH arrays and deduped by ac', () => {
+  const gaps = probeGaps(
+    { deferrals: [{ ac: 'AC1', reason: 'a' }] },                        // no probe
+    [{ ac: 'AC1', reason: 'a' }, { ac: 'AC2', reason: 'b' }]            // AC1 dup (no probe), AC2 new (no probe)
+  );
+  assert.deepEqual(gaps.map(g => g.ac).sort(), ['AC1', 'AC2']);
+});
+
+// ---------------------------------------------------------------------------
+// reChallengeClause (F3) — open prior deferrals → a RE-CHALLENGE block for the verify
+// prompt. Pinned as a string (P1-4): no execution, just the template shape.
+// ---------------------------------------------------------------------------
+test('reChallengeClause: empty / absent prior deferrals ⇒ no clause', () => {
+  assert.equal(reChallengeClause([]), '');
+  assert.equal(reChallengeClause(undefined), '');
+  assert.equal(reChallengeClause(null), '');
+});
+
+test('reChallengeClause: lists each open prior deferral and forbids inheriting it', () => {
+  const clause = reChallengeClause([
+    { slice: 's1', reason: 'Firebase creds unavailable', deferredAt: '2026-06-30T00:00:00Z', repeatOf: 's0' },
+  ]);
+  assert.match(clause, /RE-CHALLENGE/);
+  assert.match(clause, /s1/);
+  assert.match(clause, /Firebase creds unavailable/);
+  assert.match(clause, /deferred-at: 2026-06-30/);
+  assert.match(clause, /repeat-of: s0/);
+  assert.match(clause, /Do NOT inherit|NOT facts/);
+});
+
+// ---------------------------------------------------------------------------
+// deferralPressure (F3) — hand-back rollup across prior (index) + this run's deferrals.
+// Visibility only; null when there is no pressure.
+// ---------------------------------------------------------------------------
+test('deferralPressure: null when there is no pressure at all', () => {
+  assert.equal(deferralPressure([], []), null);
+  assert.equal(deferralPressure(undefined, undefined), null);
+});
+
+test('deferralPressure: counts open entries, the oldest date, and repeat walls across prior + run', () => {
+  const p = deferralPressure(
+    [
+      { slice: 's1', reason: 'no creds', deferredAt: '2026-06-30T00:00:00Z' },
+      { slice: 's2', reason: 'no device', deferredAt: '2026-07-05T00:00:00Z', repeatOf: 's1' },
+    ],
+    [{ slice: 's3', ac: 'AC9', reason: 'live svc' }]   // this run's new deferral (no date — yolo has no clock)
+  );
+  assert.equal(p.open, 3);
+  assert.equal(p.oldestDeferredAt, '2026-06-30T00:00:00Z');
+  assert.equal(p.repeatWalls, 1);
+});
+
+test('deferralPressure: collapses duplicate prior entries by slice::key', () => {
+  const p = deferralPressure(
+    [{ slice: 's1', reason: 'no creds' }, { slice: 's1', reason: 'no creds' }],
+    []
+  );
+  assert.equal(p.open, 1);
+  assert.equal(p.repeatWalls, 0);
+  assert.equal(p.oldestDeferredAt, null);
 });

@@ -92,31 +92,51 @@ const POLICY = {
     `fixable issue: apply the minimal patch and run that single fix round, recording outcomes in ` +
     `"## Verify-Owned Fixes". If the reference warns the slice was already verified and asks to overwrite, ` +
     `proceed (re-running is intended).\n\n` +
-    `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence: some user-observable AC need interactive runtime ` +
-    `proof. When — and ONLY when — this environment genuinely CANNOT produce that proof (no emulator/simulator/` +
-    `device, no display/GPU, a required external service / API key / credential is unreachable here, or the ` +
-    `runtime adapter's bootstrap fails and the one fix round cannot repair it), DO NOT cancel the run and NEVER ` +
-    `fabricate evidence. Instead apply verify.md's deferral escape hatch for that AC: set ` +
-    `'interactive-verification: deferred' + 'interactive-verification-defer-reason: "<why this environment cannot ` +
-    `verify it>"' in the per-slice verify frontmatter, register the deferral in 00-index.md ` +
-    `runtime-evidence-deferrals (slice, reason, deferred-at, cleared-by: null), and record it under the slice's ` +
-    `## Acceptance Criteria Status. A deferred AC writes result: partial (NOT blocked-runtime-evidence-missing) ` +
-    `and is NOT a substantive residual — the slice PROCEEDS. The deferral is the safety net, not a weakening of ` +
-    `the gate: it does not block review or handoff, but /wf ship HARD-BLOCKS until a later /wf probe or a ` +
-    `re-verify in a capable environment clears it.\n\n` +
-    `The boundary is STRICT: defer ONLY genuine environmental impossibility, never to dodge verification you ` +
-    `could actually run, and never a SUBSTANTIVE failure. If you DID drive the AC and the behavior is wrong, ` +
-    `that is result: fail (substantive) — never a deferral. A user-observable AC left with neither evidence NOR ` +
-    `a deferral is result: blocked-runtime-evidence-missing and is NOT acceptable to proceed on. Reserve ` +
+    `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence — this RESTATES verify.md's deferral law (§"Climb the ` +
+    `constraint-resolution ladder", §"Escape hatch"); it does NOT relax it. A deferral is lawful ONLY over a ` +
+    `PROBED incapability, never a bare excuse:\n` +
+    `  1. CLIMB THE LADDER FIRST. "No device / no display / no creds / no service" is the START of a ` +
+    `constraint-resolution climb (runtime-adapters.md), not a defer-reason. Execute any tool bootstrap the plan's ` +
+    `## Verification Strategy authorized, record the highest rung that produced evidence, and defer ONLY the ` +
+    `residual no rung can reach. Headless/emulator/container rungs are real evidence; reach for them before ` +
+    `deferring (headless runtimes boot by default — see runtime-adapters.md).\n` +
+    `  2. ATTEMPT BEFORE DECLARE. "The environment cannot produce X" is writable ONLY after you EXECUTE a ` +
+    `capability probe THIS run and record its literal command + one-line output tail — e.g. \`firebase ` +
+    `projects:list\`, \`adb devices\`, an env-var check for a keyed service, one spec run past the guard for a ` +
+    `credential-gated suite. A defer-reason with no recorded probe is INVALID. The defer-reason must also ` +
+    `enumerate the rungs tried (bare phrases — "no emulator", "no creds", "deferred to user", "decidable by ` +
+    `static reasoning" — are rejected).\n` +
+    `  3. NEVER INHERIT A PRIOR DEFERRAL. A defer-reason from a prior artifact, prior slice, or prior run is a ` +
+    `CLAIM to re-test, not a fact. Re-run its probe fresh in THIS run: if the wall no longer stands, produce the ` +
+    `evidence now; if it still stands, attach THIS run's probe receipt. Copying forward a stale wall (the Crumb ` +
+    `stale-creds incident) is the failure this guard exists to stop.\n` +
+    `  4. A SKIPPED OR GUARD-EXITED SPEC IS NOT EVIDENCE for the AC it gates. Treat that AC as un-evidenced: climb ` +
+    `to another rung, or defer with a probe receipt, or write result: blocked-runtime-evidence-missing naming the ` +
+    `unmet precondition. An all-skipped sweep (0 specs executed) is blocked-runtime-evidence-missing, NEVER a ` +
+    `deferral.\n` +
+    `When a deferral is lawful under 1–4, apply verify.md's escape hatch for that AC: set ` +
+    `'interactive-verification: deferred' + 'interactive-verification-defer-reason: "<rungs tried + probe receipt ` +
+    `+ the residual that survives them>"' in the per-slice verify frontmatter, register the deferral in ` +
+    `00-index.md runtime-evidence-deferrals (slice, reason, deferred-at, cleared-by: null), and record it under ` +
+    `the slice's ## Acceptance Criteria Status. A deferred AC writes result: partial (NOT ` +
+    `blocked-runtime-evidence-missing) and is NOT a substantive residual — the slice PROCEEDS. The deferral does ` +
+    `not block review or handoff, but /wf ship HARD-BLOCKS until a later /wf probe or a re-verify in a capable ` +
+    `environment clears it.\n\n` +
+    `The boundary is STRICT: defer ONLY genuine probed impossibility, never to dodge verification you could ` +
+    `actually run, and never a SUBSTANTIVE failure. If you DID drive the AC and the behavior is wrong, that is ` +
+    `result: fail (substantive) — never a deferral. A user-observable AC left with neither evidence NOR a lawful ` +
+    `deferral is result: blocked-runtime-evidence-missing and is NOT acceptable to proceed on. Reserve ` +
     `convergence: escalated for SUBSTANTIVE unresolved issues — a slice whose only residual is deferred-evidence ` +
     `AC (all checks pass, all code-only AC met, all producible user-observable AC evidenced) is ` +
     `convergence: converged (or not-needed if no fix was required), NOT escalated.\n\n` +
     `Set the terminal state HONESTLY: convergence: not-needed | converged | escalated; result: pass | fail | ` +
-    `partial | blocked-runtime-evidence-missing. Report deferrals: [{ac, reason}, ...] for EVERY AC you deferred ` +
-    `(empty list if none), and substantiveResidual: true iff any AC still fails / is partially met for a CODE ` +
-    `reason after the fix round (false when the only residual is deferred-evidence AC). Return status:'complete' ` +
-    `when convergence ∈ {not-needed, converged} AND substantiveResidual is false AND result ∈ {pass, OR partial ` +
-    `with ≥1 recorded deferral}; otherwise return status:'hard-stop'.`,
+    `partial | blocked-runtime-evidence-missing. Report deferrals: [{ac, reason, probe}, ...] for EVERY AC you ` +
+    `deferred (empty list if none) — where 'probe' is the literal capability-probe command + one-line output ` +
+    `tail you executed THIS run to establish the wall (a deferral with no probe will be challenged and re-run). ` +
+    `Set substantiveResidual: true iff any AC still fails / is partially met for a CODE reason after the fix ` +
+    `round (false when the only residual is deferred-evidence AC). Return status:'complete' when convergence ∈ ` +
+    `{not-needed, converged} AND substantiveResidual is false AND result ∈ {pass, OR partial with ≥1 recorded ` +
+    `deferral}; otherwise return status:'hard-stop'.`,
   review:
     `AUTONOMOUS OVERRIDE — the review reference triages findings via AskUserQuestion (Fix/Defer/Dismiss). DO NOT ` +
     `ask. Decide by the FIX-AS-MUCH-AS-POSSIBLE policy: FIX every BLOCKER, HIGH, and MED finding (MED has NO ` +
@@ -139,12 +159,17 @@ const POLICY = {
     `migration the bump forces, never mix a security update with a major migration in one commit, never hand-edit ` +
     `lockfiles (use the package manager's own command). A run that updates some packages and blocks others is a ` +
     `legitimate result: partial, not a hard-stop.\n\n` +
-    `Then self-author 06-verify.md by running the FULL suite + build against the updated state. For a user-observable ` +
-    `AC that this environment genuinely CANNOT evidence, apply the SAME runtime-evidence deferral escape as the ` +
-    `verify policy: record it in 00-index.md runtime-evidence-deferrals, write result: partial (NOT ` +
+    `Then self-author 06-verify.md by running the FULL suite + build against the updated state. Apply the SAME ` +
+    `runtime-evidence deferral LAW as the verify policy: a deferral is lawful ONLY over a PROBED incapability — ` +
+    `climb the constraint-resolution ladder (runtime-adapters.md) first; the defer-reason must enumerate the ` +
+    `rungs tried and include the literal capability-probe command + output tail executed THIS run; never inherit a ` +
+    `prior run's defer-reason (re-probe it fresh); and a skipped/guard-exited spec is not evidence for the AC it ` +
+    `gates (an all-skipped sweep is blocked-runtime-evidence-missing, never a deferral). For a lawfully deferred ` +
+    `AC record it in 00-index.md runtime-evidence-deferrals, write result: partial (NOT ` +
     `blocked-runtime-evidence-missing), keep substantiveResidual false. STOP after 06-verify.md — do NOT route to ` +
     `/wf review or /wf handoff (yolo runs the slug-wide review itself). Return the verify terminal state ` +
-    `(convergence, result, deferrals, substantiveResidual) so yolo gates on it exactly like a standard verify.`,
+    `(convergence, result, deferrals [{ac, reason, probe}], substantiveResidual) so yolo gates on it exactly like ` +
+    `a standard verify.`,
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +193,22 @@ const ORIENT_RESULT = {
     // honored default review rubric — an rca whose recommended-next is hotfix → 'security'; empty = standard
     // dimension selection. Threaded into the review stage so yolo respects the RCA's recommended build flavor.
     reviewDimension: { type: 'string' },
+    // F3 — open runtime-evidence-deferrals read verbatim from 00-index.md (cleared-by: null only).
+    // driveVerify appends a RE-CHALLENGE clause from these so a prior run's wall is re-PROBED, never
+    // inherited as fact; the hand-back rolls them into deferralPressure. Visibility, not a new gate.
+    priorDeferrals: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          slice: { type: 'string' },
+          reason: { type: 'string' },
+          deferredAt: { type: 'string' },   // iso-8601 from the index
+          clearedBy: { type: 'string' },     // null/absent = still open
+          repeatOf: { type: 'string' },      // earlier slice with the same wall
+        },
+      },
+    },
     fileConvention: { enum: ['suffixed', 'unsuffixed'] },
     branch: {
       type: 'object',
@@ -230,9 +271,20 @@ const STAGE_RESULT = {
         // could not produce runtime evidence (each written as verify.md's
         // `interactive-verification: deferred` escape hatch + registered in
         // 00-index.md runtime-evidence-deferrals; /wf ship later blocks on them).
+        // `probe` is the literal capability-probe command + one-line output tail the
+        // subagent executed THIS run to establish the wall (attempt-before-declare —
+        // verify.md §"Escape hatch"). A deferral with no probe is challenged by
+        // probeGaps()/driveVerify with one corrective re-run before it is accepted.
         deferrals: {
           type: 'array',
-          items: { type: 'object', properties: { ac: { type: 'string' }, reason: { type: 'string' } } },
+          items: {
+            type: 'object',
+            properties: {
+              ac: { type: 'string' },
+              reason: { type: 'string' },
+              probe: { type: 'string' },
+            },
+          },
         },
         // verify → TRUE if any AC still fails / is partially met for a CODE reason
         // (the behavior is wrong) after the fix round — as opposed to merely lacking
@@ -288,7 +340,10 @@ async function orient() {
     `Slug: ${slug}${slice ? `\nTarget slice: ${slice}  (slice mode)` : `\n(no slice given → slug mode)`}\n\n` +
     `1. Read ${projectRoot}/.ai/workflows/${slug}/00-index.md. Parse: status, current-stage, review-scope ` +
     `(default 'per-slice' if the field is absent), workflow-type, branch-strategy (default 'none' if absent), ` +
-    `branch, base-branch.\n` +
+    `branch, base-branch. ALSO parse the \`runtime-evidence-deferrals\` list (if present): capture every entry ` +
+    `whose \`cleared-by\` is null/absent (STILL OPEN) into priorDeferrals as ` +
+    `{ slice, reason (verbatim), deferredAt (= deferred-at), clearedBy (= cleared-by, null if open), repeatOf ` +
+    `(= repeat-of, omit if absent) }. Omit already-cleared entries. Empty/absent list → priorDeferrals: [].\n` +
     `2. Read ${projectRoot}/.ai/workflows/${slug}/03-slice.md (the roster). Capture EVERY slice slug in roster ` +
     `order. If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE (selected-slice is set on 00-index.md — true ` +
     `for a forwarded rca and for any one-slice standard workflow), synthesize a one-entry roster [selected-slice] ` +
@@ -426,6 +481,27 @@ async function ensureBranch(idx) {
   )
 }
 
+// reChallengeClause() — F3: fold the run's OPEN prior deferrals (from orient's
+// priorDeferrals) into a RE-CHALLENGE block for the verify prompt. A deferral recorded
+// by an earlier run is a CLAIM to re-test, never a fact to inherit — the Crumb
+// stale-creds incident (a carried-forward "Firebase creds unavailable" paired with a
+// mocked 0-issues verify) is exactly what this stops. Empty list → '' (no clause).
+function reChallengeClause(priorDeferrals) {
+  if (!Array.isArray(priorDeferrals) || !priorDeferrals.length) return ''
+  const lines = priorDeferrals.map(d => {
+    const parts = [`slice '${(d && d.slice) || '?'}'`, `reason: ${(d && d.reason) || '(none recorded)'}`]
+    if (d && d.deferredAt) parts.push(`deferred-at: ${d.deferredAt}`)
+    if (d && d.repeatOf) parts.push(`repeat-of: ${d.repeatOf}`)
+    return `    • ${parts.join(' — ')}`
+  }).join('\n')
+  return ` PRIOR DEFERRALS — RE-CHALLENGE. Earlier runs recorded these OPEN runtime-evidence deferrals ` +
+    `(00-index.md, cleared-by: null):\n${lines}\n` +
+    `These are CLAIMS recorded by earlier runs, NOT facts. Do NOT inherit any of them. For each whose constraint ` +
+    `could touch what you are verifying now, re-run its capability probe FRESH in THIS run: a wall that no longer ` +
+    `stands must be verified now (produce the evidence and clear the deferral); a wall that still stands gets a ` +
+    `FRESH probe receipt on this run's deferral — never the old reason copied forward.`
+}
+
 // ---------------------------------------------------------------------------
 // runStage() — THE core wrapper. Points a fresh subagent at the on-disk
 // reference and overrides only the interactive gate. This is "wrap, not fork":
@@ -438,6 +514,20 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     ? ` This is autonomous fix ROUND ${extra.round} of up to 2 — a prior round already applied one fix pass; ` +
       `resolve only what still fails. If warned the slice was already verified, proceed with the overwrite.`
     : ''
+  // F2 corrective probe round — a prior verify round returned structurally clean but
+  // deferred these AC(s) with no capability-probe receipt. This is NOT a fix pass; it is
+  // a demand for the receipt the deferral law requires (verify.md §"Attempt before declare").
+  const probeClause =
+    stage === 'verify' && Array.isArray(extra.probeAcs) && extra.probeAcs.length
+      ? ` CORRECTIVE PROBE ROUND — a prior round deferred these AC(s) WITHOUT a capability-probe receipt: ` +
+        `${extra.probeAcs.join(', ')}. For EACH, execute the capability probe NOW (if the prior round did not) ` +
+        `and attach its receipt — the literal command you ran + a one-line output tail — to that deferral's ` +
+        `\`probe\` field (and to interactive-verification-defer-reason). If a probe shows the wall no longer ` +
+        `stands, produce the evidence INSTEAD of the deferral. A deferral still carrying no probe after this ` +
+        `round will hard-stop the run.`
+      : ''
+  // F3 — open prior deferrals become a RE-CHALLENGE block (verify only): re-probe, never inherit.
+  const reChallenge = stage === 'verify' ? reChallengeClause(idx.priorDeferrals) : ''
   const dimensionHint =
     stage === 'review' && idx.reviewDimension
       ? ` Default review rubric: '${idx.reviewDimension}' — the forwarded RCA recommended a build flavor whose ` +
@@ -456,8 +546,11 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `Read ${referenceRoot}/${stage}.md IN FULL and follow it VERBATIM to do the stage's real work and write its ` +
     `artifact(s) under ${projectRoot}/.ai/workflows/${slug}/ — with ONE override: wherever the reference tells you ` +
     `to ask the user (AskUserQuestion) or pause for a human, DO NOT. Resolve it yourself by this policy:\n\n` +
-    `${POLICY[stage]}${roundClause}${scopeHint}\n\n` +
+    `${POLICY[stage]}${roundClause}${probeClause}${reChallenge}${scopeHint}\n\n` +
     `Operating rules:\n` +
+    `- Your mandate is ONLY the '${stage}' stage for ${sliceArg ? `slice '${sliceArg}'` : `slug '${slug}'`}. Do ` +
+    `NOT run other stages, do NOT claim completion of other slices or of the whole workflow, and do NOT recommend ` +
+    `routes beyond what this stage's reference itself returns.\n` +
     `- Project root ${projectRoot} is ABSOLUTE. Resolve every artifact path under it and run git as ` +
     `\`git -C ${projectRoot} …\`. Do not rely on your working directory — it is not this repo.\n` +
     `- Write SCHEMA-COMPLETE frontmatter: a strict validator enforces the full sdlc/v1 frontmatter and rejects an ` +
@@ -469,8 +562,9 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `status:'hard-stop' with hardStopReason.\n\n` +
     `Return the terminal state: stage, slice, status ('complete' when the gate is clean, 'hard-stop' when the ` +
     `policy stopped you), the primary artifactPath, and terminal fields — plan/implement: statusField; verify: ` +
-    `convergence + result + deferrals (ACs deferred for un-producible runtime evidence, [] if none) + ` +
-    `substantiveResidual (true iff an AC fails/partials for a CODE reason); review: verdict + blockerCount ` +
+    `convergence + result + deferrals ([{ac, reason, probe}] — ACs deferred for un-producible runtime evidence, ` +
+    `each with the literal capability-probe command + output tail you ran THIS round to establish the wall; [] if ` +
+    `none) + substantiveResidual (true iff an AC fails/partials for a CODE reason); review: verdict + blockerCount ` +
     `(= metric-findings-blocker, OPEN) — plus the decisions you recorded and any residual ` +
     `(deferred / could-not-fix) findings.`,
     { schema: STAGE_RESULT, label: `${stage}${sliceArg ? ':' + sliceArg : ''}`, phase: 'Drive' }
@@ -516,20 +610,64 @@ function verifyClean(t, residual) {
   return t.result === 'partial' && (hasAc(t.deferrals) || hasAc(residual))
 }
 
+// probeGaps() — the deferral-LAW compliance check that verifyClean deliberately does
+// NOT enforce. verifyClean's accept condition is untouched (the v9.114 lesson: never
+// hard-gate a converged, defect-free slice on a formatting technicality — that cost
+// ~500k tokens per recurrence). But verify.md §"Attempt before declare" requires a
+// PROBE RECEIPT on every deferral — the literal capability-probe command + output tail
+// executed THIS run. probeGaps returns the ac-bearing deferral entries (deduped by ac,
+// across BOTH terminal.deferrals[] and the sibling residual[]) that carry no non-empty
+// `probe`. Dedupe credits EITHER array: if any copy of an ac records a probe, that ac is
+// compliant. driveVerify turns a non-empty result into ONE corrective re-run (soft),
+// then a hard-stop (the law is not optional) — never a first-round hard gate.
+function probeGaps(t, residual) {
+  const probed = new Set()       // ac → some copy carries a non-empty probe
+  const gapEntry = new Map()     // ac → first probe-less entry seen (dedupe by ac)
+  const scan = (arr) => {
+    if (!Array.isArray(arr)) return
+    for (const d of arr) {
+      if (!d || !d.ac) continue   // ac-less notes are not deferrals — ignored (matches collectDeferrals)
+      if (typeof d.probe === 'string' && d.probe.trim() !== '') probed.add(d.ac)
+      else if (!gapEntry.has(d.ac)) gapEntry.set(d.ac, d)
+    }
+  }
+  scan(t && t.deferrals)
+  scan(residual)
+  const gaps = []
+  for (const [ac, entry] of gapEntry) if (!probed.has(ac)) gaps.push(entry)
+  return gaps
+}
+
 // driveVerify() — verify gets up to N=2 autonomous fix rounds (the reference
 // does one fix round per invocation; a second invocation is round 2). A slice
 // that is clean — including one whose only residual is environment-DEFERRED
 // evidence — proceeds. Still-substantively-escalated after round 2 → HARD-STOP.
 async function driveVerify(sliceArg, idx) {
   let last
+  let probeCorrection = null   // set when a prior round was clean but its deferrals lacked probe receipts
   for (let round = 1; round <= 2; round++) {
-    last = await runStage('verify', sliceArg, idx, { round })
+    last = await runStage('verify', sliceArg, idx, { round, probeAcs: probeCorrection })
     // A null return = the verify subagent was skipped or died on a terminal API
     // error after retries (not a quality failure). Stop cleanly; resume retries it.
     if (!last) return { stage: 'verify', slice: sliceArg, status: 'hard-stop', artifactPath: '', terminal: {}, transient: true, hardStopReason: 'verify did not return (subagent skipped or hit a transient API error) — re-run to retry this slice; resume skips completed stages' }
     if (last.status === 'hard-stop') return last
     const t = last.terminal || {}
     if (verifyClean(t, last.residual)) {
+      // Structurally clean — but the deferral law demands a probe receipt on every deferral
+      // (verify.md §"Attempt before declare"). verifyClean tolerates a missing receipt (the
+      // v9.114 no-hard-gate lesson); probeGaps surfaces it here. First offense with a round
+      // left → ONE corrective re-run that demands the receipt (or the evidence, if the wall
+      // fell). Still probe-less after that → hard-stop: the law is not optional, and re-running
+      // is cheap because resume skips completed stages.
+      const gaps = probeGaps(t, last.residual)
+      if (gaps.length) {
+        if (round < 2 && !probeCorrection) {
+          probeCorrection = gaps.map(g => g.ac)
+          log(`verify:${sliceArg} clean but ${gaps.length} deferral(s) carry no capability-probe receipt (${probeCorrection.join(', ')}) — one corrective re-run to attach receipts (or produce evidence if the wall fell)`)
+          continue
+        }
+        return { ...last, status: 'hard-stop', hardStopReason: `deferral(s) still carry no capability-probe receipt after a corrective re-run: ${gaps.map(g => g.ac).join(', ')} — attach the literal probe command + output tail per verify.md §"Attempt before declare", or produce the evidence if the wall no longer stands` }
+      }
       const deferred = (Array.isArray(t.deferrals) ? t.deferrals.length : 0) +
                        (Array.isArray(last.residual) ? last.residual.filter(d => d && d.ac).length : 0)
       if (deferred > 0) log(`verify:${sliceArg} clean with ${deferred} runtime-evidence deferral(s) — recorded in 00-index runtime-evidence-deferrals; review/handoff proceed, /wf ship blocks until cleared`)
@@ -615,8 +753,11 @@ async function runUpdateDepsExec(idx) {
     `Read ${referenceRoot}/intake/update-deps.md IN FULL and follow Steps 6–9 VERBATIM. Its scan/research/` +
     `prioritize/slice/plan (Steps 1–5) are ALREADY DONE on disk — 01-update-deps.md, 02-shape.md, 03-slice.md and ` +
     `04-plan.md are complete; you START at Step 6. Apply ONE override wherever the reference asks the user or pauses ` +
-    `for a human — resolve it by this policy:\n\n${POLICY['update-deps']}\n\n` +
+    `for a human — resolve it by this policy:\n\n${POLICY['update-deps']}${reChallengeClause(idx.priorDeferrals)}\n\n` +
     `Operating rules:\n` +
+    `- Your mandate is ONLY the self-managed update-deps exec (05-implement.md + 06-verify.md) for slug '${slug}'. ` +
+    `Do NOT run /wf review or /wf handoff, do NOT claim completion of the whole workflow, and do NOT recommend ` +
+    `routes beyond what update-deps.md Steps 6–9 themselves return.\n` +
     `- Project root ${projectRoot} is ABSOLUTE. Resolve every artifact path under it and run git as ` +
     `\`git -C ${projectRoot} …\`. Do not rely on your working directory — it is not this repo.\n` +
     `- Write SCHEMA-COMPLETE frontmatter for 05-implement.md and 06-verify.md: a strict validator enforces the full ` +
@@ -643,6 +784,7 @@ async function driveUpdateDeps(idx) {
   const entry = idx.slices[0] || {}
   const done = entry.stages || {}
   const ran = []
+  let execProbeGaps = []   // ACs the exec deferred without a probe receipt — surfaced, not re-run (no round loop here)
   // 05 and 06 are authored together in one intake pass, so from yolo's view the exec
   // is one stage: skip it only when implement AND verify are both terminal-clean.
   if (done.implement === 'done' && done.verify === 'done') {
@@ -657,15 +799,24 @@ async function driveUpdateDeps(idx) {
     if (evaluateGate('verify', exec) === 'hard-stop') {
       return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'exec', reason: `update-deps verify did not clear the gate: ${JSON.stringify(exec.terminal || {})}`, ran, route: `address the verify residual, then re-run /wf yolo ${slug}` }
     }
+    // No round loop on this path (the plan/exec is one pass), so a probe-less deferral is
+    // surfaced in the hand-back rather than triggering a corrective re-run — the standard
+    // verify path is where the corrective-round volume is. Revisit if the pattern recurs here.
+    const g = probeGaps(exec.terminal || {}, exec.residual)
+    if (g.length) {
+      execProbeGaps = g.map(x => x.ac)
+      log(`update-deps exec: ${g.length} deferral(s) carry no capability-probe receipt (${execProbeGaps.join(', ')}) — surfaced in the hand-back; re-run /wf verify (to attach receipts) or /wf probe in a capable environment`)
+    }
   }
   // slug-wide review over the branch diff — same endpoint as the standard slug-wide path.
   log(`yolo → review ${slug} (slug-wide, update-deps)`)
   const rev = await driveReview(null, idx)
   ran.push(rev)
   const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
+  const probeGapsField = execProbeGaps.length ? { probeGaps: execProbeGaps } : {}
   return stopped
-    ? { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'review', reason: (rev && rev.hardStopReason) || 'slug-wide review did not clear the gate', ran, slugWide: rev, route: `address the review blockers, then re-run /wf yolo ${slug}` }
-    : { ok: true, mode: 'update-deps', stopped: false, ran, slugWide: rev, route: `/wf handoff ${slug}` }
+    ? { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'review', reason: (rev && rev.hardStopReason) || 'slug-wide review did not clear the gate', ran, slugWide: rev, ...probeGapsField, route: `address the review blockers, then re-run /wf yolo ${slug}` }
+    : { ok: true, mode: 'update-deps', stopped: false, ran, slugWide: rev, ...probeGapsField, route: `/wf handoff ${slug}` }
 }
 
 // evaluateGate() — defensive double-check that a 'complete' status is backed by
@@ -715,28 +866,57 @@ function collectDeferrals(o) {
   const chains = Array.isArray(o.results) ? o.results : (o.ran ? [{ ran: o.ran }] : [])
   const out = []
   const seen = new Set()
-  const push = (slice, ac, reason) => {
+  const push = (slice, ac, reason, probe) => {
     if (!ac) return
     const key = `${slice || ''}::${ac}`
     if (seen.has(key)) return
     seen.add(key)
-    out.push({ slice, ac, reason })
+    // `probe` (the capability-probe receipt) rides through to the ship-block hand-back so
+    // /wf ship's block list and the run summary show RECEIPTED deferrals — omitted when absent.
+    out.push(probe ? { slice, ac, reason, probe } : { slice, ac, reason })
   }
   for (const c of chains) {
     for (const r of (c && c.ran) || []) {
       if (!r || r.stage !== 'verify') continue
       const t = r.terminal || {}
-      if (Array.isArray(t.deferrals)) for (const d of t.deferrals) push(r.slice || (d && d.slice), d && d.ac, d && d.reason)
+      if (Array.isArray(t.deferrals)) for (const d of t.deferrals) push(r.slice || (d && d.slice), d && d.ac, d && d.reason, d && d.probe)
       // Verify subagents sometimes park the deferral in the sibling residual[] instead of
       // terminal.deferrals[] (the same mis-placement verifyClean now tolerates). Surface
       // those too — entries carrying an `ac` — so the run's ship-block hand-back isn't
       // blind to a mis-placed deferral. Enforcement is the 00-index registry the subagent
       // writes regardless of array; this only keeps the run summary honest. Dedup by
       // (slice, ac) so a deferral recorded in BOTH arrays counts once.
-      if (Array.isArray(r.residual)) for (const d of r.residual) if (d && d.ac) push(r.slice || d.slice, d.ac, d.reason)
+      if (Array.isArray(r.residual)) for (const d of r.residual) if (d && d.ac) push(r.slice || d.slice, d.ac, d.reason, d.probe)
     }
   }
   return out
+}
+
+// deferralPressure() — F3 hand-back rollup. Combines the OPEN prior deferrals orient read
+// from 00-index (recorded by earlier runs) with THIS run's new deferrals into one pressure
+// headline: { open, oldestDeferredAt, repeatWalls }. It makes the standing pile visible in
+// every yolo hand-back instead of only inside artifacts — the bot-backend pattern (the same
+// 22–24 live-voice ACs deferred run after run with no escalating visibility). Visibility
+// only: NO new gate (plan.md's repeat-deferral tripwire already governs retirement).
+// oldestDeferredAt is lexicographic-min over ISO-8601 strings (= chronological); yolo scripts
+// have no clock, so only prior entries (read from disk) carry a date. Returns null when empty.
+function deferralPressure(priorDeferrals, runDeferrals) {
+  const prior = Array.isArray(priorDeferrals) ? priorDeferrals : []
+  const run = Array.isArray(runDeferrals) ? runDeferrals : []
+  if (!prior.length && !run.length) return null
+  const seen = new Set()
+  let open = 0, repeatWalls = 0, oldestDeferredAt = null
+  const consider = (slice, key, deferredAt, repeatOf) => {
+    const k = `${slice || ''}::${key || ''}`
+    if (seen.has(k)) return
+    seen.add(k)
+    open++
+    if (repeatOf) repeatWalls++
+    if (deferredAt && (!oldestDeferredAt || String(deferredAt) < String(oldestDeferredAt))) oldestDeferredAt = deferredAt
+  }
+  for (const d of prior) consider(d && d.slice, d && d.reason, d && d.deferredAt, d && d.repeatOf)
+  for (const d of run) consider(d && d.slice, (d && d.ac) || (d && d.reason), null, null)
+  return { open, oldestDeferredAt, repeatWalls }
 }
 
 // ===========================================================================
@@ -840,6 +1020,15 @@ const deferrals = collectDeferrals(outcome)
 if (deferrals.length) {
   outcome.runtimeEvidenceDeferrals = deferrals
   log(`runtime-evidence deferrals on this run: ${deferrals.length} — review/handoff proceed; /wf ship blocks until each is cleared by /wf probe or a re-verify in a capable environment`)
+}
+// F3 rollup — standing deferral pressure across prior (index) + this run, made visible here.
+const pressure = deferralPressure(idx.priorDeferrals, deferrals)
+if (pressure && pressure.open > 0) {
+  outcome.deferralPressure = pressure
+  const bits = [`${pressure.open} open`]
+  if (pressure.oldestDeferredAt) bits.push(`oldest since ${pressure.oldestDeferredAt}`)
+  if (pressure.repeatWalls) bits.push(`${pressure.repeatWalls} repeat-of wall(s)`)
+  log(`deferral pressure: ${bits.join(', ')} — surfaced so the pile does not hide inside artifacts; plan's repeat-deferral tripwire governs retirement`)
 }
 if (branchAction) outcome.branch = branchAction   // surface the up-front create/switch in the hand-back
 log(outcome.stopped ? `yolo HARD-STOP at ${outcome.stoppedAt || 'orient'}: ${outcome.reason}` : `yolo reached the endpoint — next: ${outcome.route}`)
