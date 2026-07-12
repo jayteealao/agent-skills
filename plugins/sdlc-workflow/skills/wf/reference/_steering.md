@@ -43,6 +43,11 @@ authorship.
 - In an autonomous run (`/wf auto`, `/wf yolo`) a **steering veto outranks any policy default** —
   steering is the user's standing voice exactly where the interactive gates it would speak through
   are absent.
+- Standing steering may **pre-answer a NAMED intent-bearing question** (per
+  [_decision-classes.md](_decision-classes.md)) — that is ratification in advance, and the
+  autonomous run resolves that one decision by the entry instead of stopping. It may **not
+  blanket-authorize the class**: a steering entry cannot grant an autonomous run standing leave to
+  settle intent-bearing decisions in general.
 - `status <slug> deep` reads `steer.md` as **signal, not drift**: "an artifact contradicts a steering
   entry" is a drift finding; "steer.md exists" is normal, expected state.
 - A steering entry that recurs across workflows is a candidate solutions-corpus learning; retro's

@@ -108,6 +108,11 @@ Prompt the agent with ALL of the following:
 - Did any stage produce artifacts that the next stage couldn't use directly?
 - Which adoption-matrix `USE` rows never earned their install (installed but zero usage)? Cross-reference `02-shape.md`'s adoption matrix against what shipped — a `USE` dependency with no production import/call is committed-and-abandoned debt worth naming.
 
+**Intent drift (transitive fidelity — code vs. intake):**
+- Which intake directives did the shipped code **narrow**, and was each narrowing **ratified**? Cross-reference `02-shape.md`'s `## Intake Fidelity` table and any `07-review-*intent-fidelity*.md` findings against what actually shipped — an unratified narrowing is a lesson, not a footnote.
+- Which **RIMs** (the `00-index.md` `intent-risks` ledger) turned out **mis-adjudicated** — the shape-time decision looked right but the shipped behaviour proved it wrong?
+- Which **limitation-claims** (the "known limitation — document at handoff" deferrals) were later **disproven** — the wall cleared on its own, or was never really a wall?
+
 ### Explore sub-agent 3 — Repo Infrastructure Improvement Opportunities
 
 Prompt the agent with ALL of the following:

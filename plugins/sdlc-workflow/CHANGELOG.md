@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.129.0] - 2026-07-12
+
+### Added — decision taxonomy + intent-fidelity review dimension (INTENT-FIDELITY R3)
+
+Release 3 of `docs/internal/INTENT-FIDELITY-HARDENING-PLAN.md` (waves W4, W6, W10.2, W10.3): the judgment-heavy layer, built once R1's ledger vocabulary was live. Reference-only (two new files + prose wiring), both trees.
+
+- **W4 — decision taxonomy (`_decision-classes.md`, new, both trees).** A single-source definition of **intent-bearing** vs **implementation-detail** decisions. Intent-bearing = touches a ledgered RIM, alters/narrows a PO directive, **assigns control authority** (which component — code or the model — owns a user-facing behaviour), changes the core-loop mechanism, or drops a committed capability. The rule: intent-bearing decisions are **never** resolved by an autonomous policy — asked of the PO in a human-gated run, a stop condition in an autonomous run. A 6-example table (the waypoint control-authority inversion is example #1). `plan`/`implement` cite it and stamp autonomous records `class: implementation-detail` (an `intent-bearing` stamp is the tell); `yolo.md` gains a policy STOP row (Claude-only); `auto.md` asks at the gate; `_steering.md` may pre-ratify a *named* intent-bearing question but not the class.
+- **W6 — intent-fidelity review dimension (`review/intent-fidelity.md`, new, the 34th, both trees).** The one dimension that validates **transitive** fidelity (code→intake) rather than local consistency. Inputs: intake's Restated Request / Known Constraints / Success Criteria, the RIM ledger, shape's Intake Fidelity table, the charter, the slice diff. Four questions: advance-or-imitate, uncovered-narrowing, **control-authority** (the waypoint check — does the component the intake assigned actually own the behaviour), vocabulary. **Always-on** for lifecycle slugs at both per-slice and slug-wide scope — joins `correctness` in the always-kept set, never suppressed by the user-focus override (Minimum raised to 4). W6.2: slug-wide review must answer the intake's Success Criteria **verbatim**. W6.3: retro drift questions.
+- **W10.2 — consequence-framed questions.** For an intent-bearing decision, each option must state its **runtime consequence**, not its design label — "the model will never decide what to ask next; a fixed 5-stage script" rather than "state-machine-driven interview".
+- **W10.3 — shape pre-mortem.** Before completion, a short adversarial pre-mortem ("it is N weeks later and the shipped product betrayed its intake; write the two most likely post-mortems") whose outputs seed RIM entries — the pre-mortem generates the risks the W1 ledger then forces shape to adjudicate. Consult-optional when `externalDispatch.enabled`.
+- New drift guards in `intent-fidelity.test.mjs` pin both new files (both trees), the always-on wiring, the taxonomy citations, the consequence/pre-mortem clauses, and a 34-dimension roster check. Codex mirrored in native idiom (`$wf`, ask-in-chat); `verify-claudisms` clean.
+
 ## [9.128.0] - 2026-07-12
 
 ### Added — evidence-quality gates (INTENT-FIDELITY R2 ∪ YOLO F4/F5: the merged verify + hooks release)

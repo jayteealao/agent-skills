@@ -36,6 +36,17 @@ topics and round structure; this file owns how each question is written.
    picking "Other" to ask for a deeper explanation is always a valid answer —
    answering a question about the question costs one round, guessing wrong
    costs a rebuild.
+7. **Intent-bearing decisions state the runtime consequence, not the design
+   label (INTENT-FIDELITY W10.2).** For any decision that classes as
+   intent-bearing per [_decision-classes.md](_decision-classes.md) — one that
+   assigns *control authority* or reframes what the product fundamentally *is* —
+   each option MUST say, in one sentence, what the user or learner **experiences
+   differently at runtime**, not the name of the architecture behind it:
+   *"the model never decides what to ask next; a fixed 5-stage script asks the
+   same questions in the same order every time"* — NOT *"state-machine-driven
+   interview"*. The design label is exactly where the narrowing hides; naming
+   the lived consequence is what lets a non-technical PO catch it before it
+   ships.
 
 **Scope of authority — a PO answer decides only the question it was asked (INTENT-FIDELITY W2.1).**
 When an answer forecloses an *approach* (kills a vendor, a library, a budget), the *requirement*

@@ -7,7 +7,7 @@ import {
 import {
   artifactHeader,
   pageHref
-} from "./chunk-QBSCHSFO.mjs";
+} from "./chunk-GK6SA5IB.mjs";
 import {
   escapeHtml
 } from "./chunk-4WRIEOIP.mjs";

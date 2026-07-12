@@ -72,6 +72,7 @@ Then STOP — do not continue to the full review workflow.
    - At least one `05-implement-<slice-slug>.md` must exist. If `03-slice.md` lists slices with `status: complete` but only some have implement records, WARN: "Slug-wide review covers the entire branch diff. Slices without implement records: <list>. Their code may appear in the diff; their ACs will not be checked."
    - Any `06-verify-*.md` files are read for context but never block.
    - **Adoption-matrix reconciliation (mechanical pass over shape).** If `02-shape.md` carries an adoption matrix (the table of dependencies/libraries with a `USE`/`AVOID`/etc. decision per row), reconcile every `USE` row against the branch diff: each must cite at least one production usage site — a real import/call in shipped code. A `USE` row with zero usage (installed, never wired in) becomes a finding, severity **MED**, titled "committed and abandoned" (installed, zero usage) and routed through the normal ledger. This is a mechanical check, not a judgment call: no production import/call for a `USE` dependency ⇒ finding.
+   - **Success-Criteria re-basing (MANDATORY, slug-wide milestone check).** The slug-wide review MUST answer the intake's **Success Criteria verbatim** — quote each criterion from `01-intake.md`, state its current truth against the branch diff with concrete evidence (`file:line`, a passing test, or an observed run), and **never paraphrase** the criterion. This is the milestone the per-slice reviews structurally cannot judge: a branch can pass every per-slice gate and still miss the intake's headline outcome. Route each unmet or only-partially-met criterion through the normal ledger (via the `intent-fidelity` dimension). Additive: when `03-slice.md` marks a slice as a **visible milestone**, the same verbatim Success-Criteria check also runs once at that slice's per-slice review.
    - If `07-review.md` already exists → this run **merges** into it. Read it now (with its sibling `.yaml`) for dedupe + resolve-sweep at Step 4; nothing is overwritten. Prior per-slice `07-review-<slice>.md` files are left untouched.
 6. **Read the full context:**
 
@@ -174,6 +175,7 @@ Each command maps to `review/<name>.md` — **except** `design-audit` and `desig
 - `correctness` — logic, invariants, edge cases
 - `security` — vulnerabilities, insecure defaults
 - `code-simplification` — missed reuse, unnecessary complexity, inefficiencies
+- `intent-fidelity` — **always-on for lifecycle slugs** (`workflow-type: default`), at BOTH per-slice and slug-wide scope: does the diff advance the intake's product, or a simplified imitation of it? Joins `correctness` in the always-kept set and is **never suppressed by the user-focus override**. Ad-hoc reviews reach it by name (`$wf review intent-fidelity`). (Compressed/change-mode slugs may skip it; it is a lifecycle-slug gate.)
 
 ### Always include for any backend source change
 (`.ts`, `.js`, `.mjs`, `.py`, `.go`, `.java`, `.cs`, `.rb`, `.php`, `.rs`, `.kt`, `.swift`, `.scala`, `.ex`, `.exs`)
@@ -260,9 +262,9 @@ These run as ordinary dimensions inside the fan-out — reachable ad-hoc via `$w
 - `dx`
 
 ### Selection Constraints
-- **Minimum**: 3 (`correctness` + `security` + `code-simplification`)
+- **Minimum**: 3 (`correctness` + `security` + `code-simplification`); for lifecycle slugs (`workflow-type: default`) `intent-fidelity` is also always-on (per-slice AND slug-wide), so the floor is 4.
 - **Maximum**: 15 — raise only if the change genuinely spans many domains; do not artificially cap thorough coverage
-- **User focus override**: include named dimensions + `correctness`; suppress unrelated commands
+- **User focus override**: include named dimensions + `correctness` (+ `intent-fidelity` for lifecycle slugs — never suppressed by the focus filter); suppress unrelated commands
 - **Config/docs-only**: drop `correctness`/`backend-concurrency`/`testing`/`code-simplification`; keep `security`, `docs`, relevant infra/release
 - **Test-only**: keep `testing`, `correctness`, `code-simplification`; drop most others
 - **When in doubt, include**: a false positive costs one sub-agent; a missed issue costs a production incident

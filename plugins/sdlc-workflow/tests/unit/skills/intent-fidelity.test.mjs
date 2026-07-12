@@ -5,7 +5,7 @@
 // BOTH trees (the schema + renderer guards are main-tree only — codex has neither).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
@@ -133,6 +133,58 @@ test('R2 — plan/implement carry the limitation-citation + suppression-debt rul
     const impl = ref(root, 'implement.md');
     assert.match(plan + impl, /hypothes/i, `${name}: lost the "comments are hypotheses" rule`);
     assert.match(impl, /sdlc-debt/, `${name}: implement lost the suppression → sdlc-debt rule`);
+  }
+});
+
+// ── R3 taxonomy + review dimension + question framing (both trees) ──────────
+test('R3 — _decision-classes.md exists in every tree with both classes + the example table', () => {
+  for (const { name, root } of trees) {
+    const p = path.join(root, 'skills', 'wf', 'reference', '_decision-classes.md');
+    assert.ok(existsSync(p), `${name}: missing _decision-classes.md`);
+    const src = readFileSync(p, 'utf8');
+    assert.match(src, /intent-bearing/i, `${name}: decision-classes lost the intent-bearing class`);
+    assert.match(src, /implementation-detail/i, `${name}: decision-classes lost the implementation-detail class`);
+    assert.match(src, /control authority/i, `${name}: decision-classes lost the control-authority criterion`);
+    assert.match(src, /class: implementation-detail/, `${name}: decision-classes lost the autonomous stamp rule`);
+  }
+});
+
+test('R3 — the intent-fidelity review dimension exists in every tree (the 34th)', () => {
+  for (const { name, root } of trees) {
+    const p = path.join(root, 'skills', 'wf', 'reference', 'review', 'intent-fidelity.md');
+    assert.ok(existsSync(p), `${name}: missing review/intent-fidelity.md`);
+    const src = readFileSync(p, 'utf8');
+    assert.match(src, /transitive/i, `${name}: intent-fidelity lost the transitive-fidelity framing`);
+    assert.match(src, /control authority/i, `${name}: intent-fidelity lost the control-authority question`);
+  }
+});
+
+test('R3 — review/_stage.md keeps intent-fidelity always-on; plan/implement + yolo cite the taxonomy', () => {
+  for (const { name, root } of trees) {
+    const stage = ref(root, 'review/_stage.md');
+    assert.match(stage, /intent-fidelity/, `${name}: review selection lost intent-fidelity`);
+    const plan = ref(root, 'plan.md');
+    const impl = ref(root, 'implement.md');
+    assert.match(plan + impl, /_decision-classes/, `${name}: plan/implement lost the taxonomy citation`);
+  }
+  // yolo is Claude-only — its policy row lives in the main tree only.
+  const yolo = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', 'yolo.md'), 'utf8');
+  assert.match(yolo, /_decision-classes|intent-bearing/, 'yolo lost the intent-bearing STOP row');
+});
+
+test('R3 — question-craft consequence framing + shape pre-mortem (both trees)', () => {
+  for (const { name, root } of trees) {
+    assert.match(ref(root, '_question-craft.md'), /runtime consequence/i, `${name}: question-craft lost consequence framing`);
+    assert.match(ref(root, 'shape.md'), /pre-mortem/i, `${name}: shape lost the pre-mortem`);
+  }
+});
+
+test('R3 — the review dimension roster is 34 in every tree', () => {
+  for (const { name, root } of trees) {
+    const dir = path.join(root, 'skills', 'wf', 'reference', 'review');
+    const dims = readdirSync(dir).filter((f) => f.endsWith('.md') && !f.startsWith('_'));
+    assert.ok(dims.includes('intent-fidelity.md'), `${name}: intent-fidelity.md not in the roster`);
+    assert.ok(dims.length >= 34, `${name}: expected >=34 review dimensions, got ${dims.length}`);
   }
 });
 

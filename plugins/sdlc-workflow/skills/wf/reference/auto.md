@@ -127,6 +127,7 @@ After each stage, read the named keys from the just-written artifact (or `00-ind
 Notes that bind the table:
 
 - **The stage already asked.** When a stage PAUSEs because it set `awaiting-input` / `escalated`, that state is the *result of the stage's own user interaction*, not something `auto` decides. `auto` reads the recorded verdict and stops — it does not re-prompt and never overrides the stage's own gate.
+- **Intent-bearing decisions are asked at the gate.** A delegated stage under `auto` ASKS an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) at its gate — the human is present — rather than batching it into the stage's autonomous block; only implementation-detail decisions are auto-resolved and recorded.
 - **One fix pass per stage, then hand back.** `verify` enforces a single fix round per invocation by design; `review` accumulates findings across runs and runs its fix loop once per invocation. `auto` does **not** auto-re-invoke either for another pass — that is a deliberate user decision. When a stage PAUSEs (verify `escalated`, or `review` leaving open blockers), `auto` PAUSEs and recommends the re-invocation in the summary.
 - **A clean `review` is the endpoint, not a PROCEED into handoff.** `auto` stops there and recommends `/wf handoff <slug>`.
 
