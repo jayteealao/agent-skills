@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.121.0] - 2026-07-12
+
+### Fixed — "no display" is a boot-mode choice, not incapability: headless recipes for android / ios / desktop
+
+A common false verify failure — most visible under `/wf yolo`, where stages run as background-workflow subagents with no attached desktop — was the runtime adapters treating **"no display"** as a terminal wall. The Android bootstrap booted the emulator *windowed* (`emulator -avd <name>` with no `-no-window`), so a subagent, SSH, or CI host with no display never reached `sys.boot_completed`; the agent then recorded "no emulator/device" and deferred (or the AC went unmet) — even though the device-free rungs and a **headless** emulator were both reachable. The plugin's own "climb the ladder before deferring" discipline was being short-circuited by a boot flag.
+
+The fix makes **headless the default** across every display-dependent adapter in `runtime-adapters.md` (both trees):
+
+- **Android** — bootstrap boots with `-no-window -no-audio -no-boot-anim -gpu swiftshader_indirect`; screenshots prefer `adb exec-out screencap -p` (reads the framebuffer, no window, no `/sdcard` round-trip); the constraint-ladder rung and remediation hints now separate a **no-display** miss (re-boot headless) from the genuine wall (`emulator -accel-check` shows no KVM/HAXM/WHPX nested virtualization).
+- **iOS** — clarifies that `xcrun simctl boot` brings up the simulator *runtime* with no window and `simctl io booted screenshot` reads it directly; `open -a Simulator` is display-only and skipped headless. The real wall is a missing simulator *runtime*, never a missing display.
+- **Desktop** — names the Linux virtual-framebuffer path (`xvfb-run -a …`) for Electron/Playwright, and marks a native macOS/Windows GUI session as the genuine wall; adds a `cannot open display` remediation hint.
+- **Constraint-resolution ladder** — a new general clause makes the rule reusable: for any headless-capable adapter, **"no display" is a lawful defer-reason only after the adapter's own headless boot mode has been attempted and its probe output recorded.** Attempt-before-declare applies unchanged — the headless invocation *is* the probe, and the wall it may expose is missing hardware acceleration, never the missing window.
+
+Reference-doc-only change (no `lib/`/`dist` behavior); `dist`/buildId move only from the version-string embed. Codex mirror regenerated from source (parity preserved: only the 5 known token-sub hunks differ).
+
 ## [9.120.0] - 2026-07-11
 
 ### Added — `steer.md`: per-workflow standing instructions every stage honors

@@ -47,6 +47,18 @@ rule below. And when an interactive suite runs but every spec exits via a creden
 guard (0 executed), that is `blocked-runtime-evidence-missing` with the unmet precondition
 named — never a deferral.
 
+**"No display" is not incapability for a headless-capable adapter — boot headless first.** A
+windowing surface is a *boot mode*, not a prerequisite. An Android emulator boots with `-no-window`
++ a software GPU, an iOS simulator's *runtime* boots via `xcrun simctl boot` with no `Simulator.app`
+window, and a Linux GUI app runs under `xvfb-run`'s virtual framebuffer — and in every case the
+screenshot comes from the framebuffer (`adb exec-out screencap`, `xcrun simctl io booted
+screenshot`, Xvfb capture), never from a visible window. So a background subagent or CI host with no
+attached display has **not** reached the residual rung; it has hit a boot-flag choice it never made.
+"No display" is a lawful defer-reason ONLY after the adapter's own **headless** boot mode has been
+attempted and its probe output recorded — and the wall it exposes is missing hardware acceleration
+(`emulator -no-window` failed because no KVM/HAXM/WHPX nested virtualization), never the missing
+window. Attempt-before-declare (above) applies unchanged: the headless invocation *is* the probe.
+
 **Tool absence is not a terminal state — but the fix is *pre-authorized upstream*, never an improvised verify-time install.** The verification tool is named at `slice` (the per-AC `verify:` stub) and engineered at `plan` (`## Verification Strategy`), so by the time verify runs, any install/bootstrap a criterion needs is a step the PO already approved. Verify **executes** that authorized bootstrap (the plan said "install Playwright for AC-8" → verify installs it and drives) — it does **not** silently introduce a *new* tool the plan never named, which still routes back through shape (the PO owns tooling choices). If an AC needs a tool that was never planned and none is installed, that is the upstream gap this whole chain exists to prevent: use a `stack:`-listed alternative if one genuinely covers the AC, otherwise register an honest deferral **and** flag the missing verification plan so it is fixed at the source. The cure is to *plan* the tool; the ladder is how you climb once it is planned.
 
 ### Web UI (no dev-browser / viewport pinned / no display)
@@ -60,7 +72,7 @@ named — never a deferral.
 ### Android (no device / emulator)
 1. Robolectric — unit + Compose interaction (gesture dispatch, callback wiring, state machines).
 2. Roborazzi — device-free screenshot goldens (visual fidelity, layout, theming).
-3. Boot an AVD (`emulator -avd …`) → instrumented + Maestro flows.
+3. Boot an AVD **headless** (`emulator -avd … -no-window -gpu swiftshader_indirect`) → instrumented + Maestro flows. No display is needed; screenshots come from the framebuffer via `adb exec-out screencap`. This rung is only unreachable when *headless* boot fails (no KVM/HAXM/WHPX), not when there is no window.
 4. Real device drive (live pointer routing, multi-touch, wall-clock timing).
 5. **Residual only:** hardware-specific (true pinch, hover, signed build) → pre-registered deferral.
 
@@ -250,7 +262,7 @@ Surface these only if they appear in `stack.available-skills` / `stack.available
 
 ## Bootstrap
 1. **Probe for a connected device or running emulator** — `adb devices`. If any device shows `device` status, skip to step 3.
-2. **Boot an emulator** — list available AVDs with `emulator -list-avds`. If at least one exists, boot the first one in the background: `emulator -avd <name> -no-snapshot-load &`. Wait for `adb wait-for-device`, then poll `adb shell getprop sys.boot_completed` until it returns `1` (timeout 90 seconds).
+2. **Boot an emulator (headless by default)** — list available AVDs with `emulator -list-avds`. If at least one exists, boot the first one **headless** in the background: `emulator -avd <name> -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot-load &`. The `-no-window` + software-GPU flags let the emulator boot with **no display** (essential when driving from a background subagent, an SSH/CI host, or any session without a desktop) — screenshots are still captured from the framebuffer (see Observe). Drop `-no-window` only when you want a visible window AND a display is attached. Wait for `adb wait-for-device`, then poll `adb shell getprop sys.boot_completed` until it returns `1` (timeout 90 seconds). If the boot never completes, run `emulator -accel-check` and capture its output — a headless boot that fails here is the *genuine* wall (no KVM/HAXM/WHPX hardware acceleration), distinct from "no display".
 3. **Build and install the app** — `./gradlew installDebug` (or the project's equivalent). Resolution attempt before failing: if `installDebug` fails on signing or stale dex, try `./gradlew clean installDebug` once.
 4. **Launch the app** — `adb shell am start -n <package>/<launcher-activity>` (read package + activity from `AndroidManifest.xml`).
 
@@ -267,7 +279,7 @@ Surface these only if they appear in `stack.available-skills` / `stack.available
 - **Optional — generate Maestro flow from probe target.** If a probe target describes a navigation flow and no Maestro flow exists, the probe MAY synthesize one inline (write to `<evidence-dir>/generated-<descriptor>.maestro.yaml` and run it). Do not commit synthesized flows; they are evidence, not source.
 
 ## Observe
-- **Screenshots** — `adb shell screencap /sdcard/<slug>.png && adb pull /sdcard/<slug>.png <evidence-dir>/`. **Read the screenshot** to confirm the expected visual state.
+- **Screenshots** — `adb exec-out screencap -p > <evidence-dir>/<slug>.png` (preferred — reads the framebuffer directly, so it works on a **headless** emulator with no window and skips the `/sdcard` round-trip). The older `adb shell screencap /sdcard/<slug>.png && adb pull …` form also works and is window-independent too. **Read the screenshot** to confirm the expected visual state.
 - **Logcat** — `adb logcat -d *:E` filtered to the app's package (`--pid=$(adb shell pidof <package>)`). Capture errors only by default; capture full output (`*:V`) when investigating a crash.
 - **Maestro test reports** — Maestro writes to `~/.maestro/tests/` by default; copy the relevant run report into evidence.
 - **Maestro assertions** — `assertVisible`, `assertNotVisible`, `assertText` produce structured pass/fail in the test output; capture and quote them.
@@ -288,6 +300,8 @@ Surface these only if they appear in `stack.available-skills` / `stack.available
 
 ## Remediation hints
 - `adb devices` empty AND no AVDs → "Install at least one Android Virtual Device via Android Studio's AVD Manager, or connect a physical device with USB debugging enabled."
+- Emulator boot hangs / never reaches `sys.boot_completed` from a background subagent or headless host → this is almost always a **windowed** boot with no display, not a missing emulator. Re-boot with the headless flags (`-no-window -gpu swiftshader_indirect`); do NOT record "no display" as a deferral until the *headless* boot has itself been tried.
+- Headless boot still fails → run `emulator -accel-check`. If it reports no hardware acceleration (no KVM on Linux, no HAXM/WHPX on Windows/Intel, no Hypervisor.framework on macOS), *that* is the genuine wall: a nested-virtualization-less host cannot boot any emulator. Record the `-accel-check` output as the capability probe and defer the AVD rung's residual — the device-free rungs (Robolectric, Roborazzi) still run and must be climbed first.
 - `installDebug` fails → "Run `./gradlew assembleDebug` manually to see the build error. Common causes: missing signing config, expired Gradle cache, network failure fetching dependencies."
 - App crashes on launch → "Probe captured the crash in logcat; the runtime probe cannot proceed past launch. Treat as a high-severity finding."
 
@@ -317,7 +331,7 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 
 ## Bootstrap
 1. **Probe for a booted simulator** — `xcrun simctl list devices | grep Booted`. If one is booted, skip to step 3.
-2. **Boot a simulator** — list available with `xcrun simctl list devices available`. Boot the first iPhone device: `xcrun simctl boot "<device-name>"`. Open Simulator.app if not already running: `open -a Simulator`.
+2. **Boot a simulator (runtime boots without a window)** — list available with `xcrun simctl list devices available`. Boot the first iPhone device: `xcrun simctl boot "<device-name>"`. This boots the simulator **runtime** — it does not need a display, and `xcrun simctl io booted screenshot` reads its framebuffer directly. `open -a Simulator` only opens the *visible window* onto that runtime; run it **only** when a display is attached and you want a live window (skip it in a background subagent / headless host — the boot above is sufficient to build, install, drive via `simctl`, and screenshot). "No display" therefore never blocks this adapter; a missing simulator *runtime* does.
 3. **Build and install** — `xcodebuild` or `flutter run --debug` or `react-native run-ios`. Resolution attempt before failing: if `xcodebuild` fails on missing pods, try `cd ios && pod install && cd ..` once.
 
 ## Drive
@@ -345,7 +359,7 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 ```
 
 ## Remediation hints
-- No iOS simulators available → "Open Xcode → Preferences → Platforms → install at least one iOS Simulator runtime."
+- No iOS simulators available → "Open Xcode → Preferences → Platforms → install at least one iOS Simulator runtime." (Note: "no simulator *runtime*" is the real wall — a headless host with no display is **not** blocked, since `simctl boot` + `simctl io booted screenshot` need no window.)
 - `pod install` fails → "Update CocoaPods (`sudo gem install cocoapods`) and re-run."
 - Code signing error → "Open the project in Xcode and select a development team in Signing & Capabilities, then re-run probe."
 
@@ -407,7 +421,8 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 ## Bootstrap
 1. **Build the desktop app** — `npm run electron:dev`, `cargo tauri dev`, or the project's documented launch command.
 2. **For Electron**: probe may attach via Playwright for Electron — install if needed (`npm install -D playwright`).
-3. **Resolution attempt before failing:** retry once after `npm install` / `cargo build` if the launch fails.
+3. **Headless host (no display)** — a GUI app started from a background subagent, SSH, or CI has no display to draw into. On **Linux**, wrap the launch and the whole drive in a virtual framebuffer: `xvfb-run -a <launch/test command>` (Electron + Playwright-for-Electron run cleanly under Xvfb, and `page.screenshot()` reads the offscreen surface). On **macOS / Windows**, a native GUI app genuinely needs an interactive desktop session — that (not a missing display flag) is the real wall, so if none is available, defer with the recorded launch failure after climbing any device-free rungs (unit/component tests) first. Do NOT record "no display" as the residual until `xvfb-run` (Linux) has been attempted.
+4. **Resolution attempt before failing:** retry once after `npm install` / `cargo build` if the launch fails.
 
 ## Drive
 - **Electron** — Playwright for Electron exposes the same Page API as web. Use it for click/type/screenshot.
@@ -430,6 +445,7 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 
 ## Remediation hints
 - Electron app fails to start → "Run the dev script manually and check for missing native modules; common culprits are `node-gyp` build failures."
+- App exits with `cannot open display` / `Missing X server` / `GTK could not initialize` (Linux, headless) → this is a **no-display** failure, not a broken build. Re-run the launch and drive under `xvfb-run -a …`; only after the framebuffer attempt fails is the display genuinely unavailable.
 - Tauri build fails → "Ensure Rust toolchain and platform-specific build tools (Xcode CLT on macOS, MSVC on Windows, libwebkit2gtk on Linux) are installed."
 
 ---
