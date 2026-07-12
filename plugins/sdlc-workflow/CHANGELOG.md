@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.123.0] - 2026-07-12
+
+### Fixed — `/review` reframed as the `/wf review` key (it is not a standalone command)
+
+Follow-up to v9.122.0. The standalone `/review` skill was folded into `/wf review` back in v9.98.0 (`skills/review/` deleted; no `commands/review.md`), so `/review` is no longer an invocable command — yet the plugin/marketplace descriptions and several reference pages still advertised "Two commands — `/wf` and `/review`." Reframed the whole surface to a single command:
+
+- **Manifests.** `plugins/sdlc-workflow/.claude-plugin/plugin.json` and the `.claude-plugin/marketplace.json` `sdlc-workflow` entry now describe **one command — `/wf`** (20 keys), with code review as the `/wf review` key.
+- **Doc-site.** `reference/commands.html`, `reference/skills.html`, and `reference/review.html` no longer present `/review` as a second top-level command: review is the `/wf review` key (workflow stage on a slug, or ad-hoc with a dimension/sweep). Every `/review <arg>` invocation example is now `/wf review <arg>`; retired-command *references* keep the historical `/review` name. Also corrected a **false auto-invoke claim** — `/wf review` does NOT auto-invoke (the `/wf` skill is `disable-model-invocation`); auto-invocation is a property of the support skills (`consult`/`diataxis`/`study-sources`) only.
+- **Codex.** `plugins/sdlc-workflow-codex/README.md`'s standalone `$review` row relabeled `$wf review` (the review key of `$wf`, not a standalone command).
+- **Claude `README.md`** already repointed its dead `skills/review/SKILL.md` link in v9.122.0.
+
+Doc-site + manifest-description content only; `dist`/buildId move only from the version-string embed. Codex mirror regenerated via `sync:codex`.
+
 ## [9.122.0] - 2026-07-12
 
 ### Fixed — doc-site drift reconciliation (DOC-SITE-DRIFT-AUDIT-2026-07-12)

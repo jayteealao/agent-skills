@@ -390,7 +390,7 @@ flowchart LR
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
-  you["You type a command"] --> cmd["/wf, /review, etc."]
+  you["You type a command"] --> cmd["/wf, /wf review, etc."]
   cmd --> stages["Claude runs one or more stages"]
   stages --> artifacts["Writes artifacts to .ai/workflows/&lt;slug&gt;/"]
   artifacts --> next["Next stage reads previous artifacts"]
@@ -685,8 +685,11 @@ PAGES.append((
     '<a href="index.html">Home</a> &rsaquo; What\'s new',
     """
 <p class="lede">
-User-facing highlights since v9.11, up to v9.122. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
+User-facing highlights since v9.11, up to v9.123. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
 </p>
+
+<h2>v9.123.0 — <code>/review</code> reframed as <code>/wf review</code></h2>
+<p>Standalone <code>/review</code> stopped existing as its own invocable command once it folded into the lifecycle, but the plugin/marketplace descriptions and a few reference pages still advertised it as a second top-level command. They now correctly frame <code>/wf</code> as the single command, with code review as its <code>/wf review</code> key — a workflow stage on a slug (<code>/wf review &lt;slug&gt;</code>) or ad-hoc with a dimension (<code>/wf review &lt;dimension&gt;</code>). Also corrected: <code>/wf review</code> does <em>not</em> auto-invoke (the <code>/wf</code> skill is <code>disable-model-invocation</code>). See <a href="reference/commands.html">Commands →</a></p>
 
 <h2>v9.122.0 — Documentation reconciliation</h2>
 <p>A full doc-site pass reconciled every page against the v9.121 source of truth after ~33 feature releases. Retired surfaces (standalone <code>/review</code>, <code>/wf-quick</code>/<code>/wf-design</code> routers, <code>amend</code>, the <code>craft</code> design command, and the four augmentation "keys") are no longer taught as live; this changelog is backfilled through v9.121; the <code>/wf</code> reference and schema pages now cover <code>yolo</code>, <code>adopt</code>, <code>steer.md</code>, ship-plan readiness, batch handoff/ship, and the newer frontmatter fields; and the glossary's cross-page anchor links resolve again. See <a href="reference/wf.html">&#47;wf reference →</a></p>

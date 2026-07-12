@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.123.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -188,7 +188,7 @@ flowchart LR
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
-  you["You type a command"] --> cmd["/wf, /review, etc."]
+  you["You type a command"] --> cmd["/wf, /wf review, etc."]
   cmd --> stages["Claude runs one or more stages"]
   stages --> artifacts["Writes artifacts to .ai/workflows/&lt;slug&gt;/"]
   artifacts --> next["Next stage reads previous artifacts"]

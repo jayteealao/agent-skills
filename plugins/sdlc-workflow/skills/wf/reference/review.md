@@ -11,6 +11,17 @@ this operation produces: translate workflow context to product language and leak
 > exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
 > above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
+> **Ground findings in the real source (both modes).** Before asserting that code misuses a
+> dependency, framework, or SDK — wrong signature, unhandled edge case, a call that "can't
+> work," a security claim about a library's behavior — invoke the `study-sources` skill to
+> read its **actual installed source** (`node_modules`, `~/.m2`, the Go/Rust/NuGet caches,
+> Android SDK `sources/`, …) and confirm the defect against the version the project resolved.
+> A finding grounded in the real implementation beats one grounded in a recalled API — the
+> latter is exactly where plausible-but-wrong review comments come from. This holds in **both**
+> stage mode and ad-hoc dimension/sweep mode; inject the same instruction into every reviewer
+> sub-agent you dispatch. Read-only — reads land in gitignored `.scratch/`, never in the review
+> artifact or the diff.
+
 You are running `wf-review`, **stage 7 of 10** in the SDLC lifecycle.
 
 # Step 00 — Resolve scope: workflow stage vs ad-hoc (MANDATORY, before everything)
