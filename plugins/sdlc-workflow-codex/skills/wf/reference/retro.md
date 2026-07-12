@@ -43,6 +43,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - **PR reference** `pr#N` / `#N` / bare integer → resolve the branch via `gh pr view <N> --json headRefName -q .headRefName`, then the branch path below.
    - **Branch name**: matches a `branch:` recorded in some `00-index.md` / `.ai/workflows/INDEX.md` (or an existing git branch) → **batch retro** (`retro-scope: branch`) — see `## Batch retro` below, then return here per-slug.
    - **Absent**: infer the most recent active workflow from `.ai/workflows/*/00-index.md` → single-slug. If ambiguous, ask the user.
+   - **`deep` token** (anywhere in the arguments, alongside the slug) → set `deep-retro: true` and run the deep-retro pass in *Deep retro* below. **Opt-in, never default** — omit the token and retro runs from artifacts alone. Note: the deep pass's richest source (session transcripts) is Claude-only; on the Codex host `deep` falls back to an artifact-only deep pass (see *Deep retro*).
 2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
 3. **Check prerequisites:**
    - At minimum, `05-implement.md` should exist (there must be something to retro on). If nothing exists beyond intake → STOP. Tell the user: "Not enough completed work to retrospect. Run more stages first."
@@ -59,6 +60,29 @@ Runs when Step 0 resolved a branch — the retrospective counterpart of batch `$
 2. **Per-slug retro.** For each roster slug, run the full single-slug procedure — Step 0 items 2–5 (orient + prereq check + read the trail), the parallel analysis, and the write of `10-retro.md` — with `retro-scope: branch`, `branch:`, and `branch-slugs:` added to that slug's retro frontmatter. **Prerequisite skip, don't abort:** a slug with nothing beyond intake (no `05-implement*.md`) is marked "nothing to retro" in the roster and skipped — a laggard slug must not block retrospecting its shipped siblings (mirrors handoff's not-ready-skip). Mark each retrospected slug complete in its `00-index.md`.
 3. **Synthesize cross-slug lessons — the value batch retro adds.** After the per-slug retros, look across the whole branch for patterns no single-slug retro can see: friction that recurred across slugs, a root cause shared by multiple slugs, a plan assumption that broke the same way twice, sequencing pain between slugs. Distill these into `.ai/solutions/` under the **same durability filter and dedupe-on-merge discipline** as the single-slug distillation step (see *Parallel analysis*), setting `source-workflow` to the list of contributing roster slugs. Cross-slug learnings are exactly what gets lost when a batch is retrospected one slug at a time. Zero cross-slug learnings is a legitimate outcome; do not pad.
 4. **Return in chat** per the *Chat return contract* — a combined branch-level retro narrative (what went well / what hurt across the whole branch, the cross-slug root causes, the top improvements) first, then a per-slug roster of outcomes (slug · retrospected / skipped · learnings written).
+
+# Deep retro (`deep` token — opt-in)
+
+Runs only when Step 0 set `deep-retro: true`. The artifact trail records *decisions*; it does not
+record the *moments* — the "I'll mirror it exactly" beat that no stage file captured. The deep pass's
+richest source is the repo's session transcripts, mined to recover those moments and feed grounding
+evidence into the analysis sub-agents below.
+
+- **Transcript mining is Claude-only — not available on the Codex host.** The transcript source lives
+  under a Claude-specific session-transcript directory (`~/.claude/projects/…/*.jsonl`); the Codex
+  runtime has no equivalent transcript dir, so this host cannot mine transcripts. On Codex a `deep` run
+  is honored but **falls back to an artifact-only deep pass** — a deeper, more adversarial re-read of the
+  existing stage trail, `po-answers.md`, and the git history for the same decision moments — and the
+  retro notes that transcript mining was skipped (runtime-gated), never instructing a read of a
+  transcript path this host does not have.
+- **Opt-in, never default.** It is heavy and runtime-specific. Only the explicit `deep` token turns it on.
+- **What the deep pass looks for.** **Decision moments** — points where an approach was chosen, an
+  assumption locked in, or a user instruction interpreted (especially "mirror/match exactly", "just like
+  X", silent narrowings). Extract the moment, what was decided, and whether the artifacts recorded it.
+  Un-recorded decisions are prime `## Root Causes` and durable-learning input. On the Codex host the
+  evidence comes from the artifact trail + git history rather than transcripts.
+- Fold the findings into the parallel analysis (intent-drift especially) — the deep pass supplies
+  evidence, the analysis sub-agents and distillation still own the write.
 
 # Parallel analysis
 When the workflow trail is large or spans multiple domains, launch parallel sub-agents. Do not spin up sub-agents for simple, single-slice workflows.
@@ -179,6 +203,19 @@ allowed). Writing these files IS part of retro's output contract — it is not "
 improvements" (Option D's scope stays repo instruction/hook/CI edits, which retro still never
 applies).
 
+**Classify each learning `about-the-project` vs `about-the-workflow`.** A project lesson is about
+*this repo* (its code, stack, domain); a workflow lesson is about `$wf` itself (a stage prompt
+misfired, a gate was wrong, a reference misled). The two go different places:
+- **Promote a project lesson to the global corpus (W12.1) — user-confirmed, never automatic.** Only
+  when `.ai/sdlc-config.json` sets `solutions.globalDir` (default `null` = disabled). A repo lesson
+  can carry project specifics (paths, names, secrets-shaped detail), so promotion is a **privacy
+  decision the user makes** — offer it by asking in chat and copy to the global dir ONLY on an
+  explicit yes. NEVER promote silently or by policy (a stop condition on an autonomous run).
+- **Channel a workflow lesson to plugin-backlog (W12.2).** When `solutions.globalDir` is set, append
+  each `about-the-workflow` lesson to a user-reviewable `plugin-feedback.md` in that dir — the channel
+  by which the workflow improves the workflow, with the user as editor. Append only; never edit `$wf`
+  itself. If `globalDir` is unset, keep the lesson in the repo corpus and note it in the retro body.
+
 # Purpose
 Extract reusable lessons and turn them into concrete improvements to prompts, hooks, repo instructions, tests, and automation.
 
@@ -237,6 +274,7 @@ schema: sdlc/v1
 type: retro
 slug: <slug>
 retro-scope: <slug | branch>          # branch = part of a batch retro over every slug on the branch
+deep-retro: false                     # true only when the `deep` token ran the deep pass (transcript mining is Claude-only; the Codex host falls back to an artifact-only deep pass)
 branch: "<branch name or empty>"      # set in batch mode
 branch-slugs: []                      # the roster (batch mode only; empty otherwise)
 status: complete

@@ -169,6 +169,7 @@ Pick the highest rung that meets the acceptance criteria; never trade an edge-ca
 
 **Learnings scan (solutions corpus — runs alongside the reuse scan):**
 - Read `.ai/solutions/INDEX.md` if it exists. Match the slice's `## Goal` / `## Scope (In)` keywords against the index hooks; load matching files (typically 0–3) and use their `tags:` for a second-pass match.
+- **Also read the user-level corpus when configured.** If `.ai/sdlc-config.json` sets `solutions.globalDir` (default `null` = disabled), read that directory's `INDEX.md` too and match it the same way. Load from BOTH corpora; on a conflicting learning the **repo corpus wins** (project truth outranks a cross-project note).
 - For each match report: its path, the learning in one line, and **what this plan does differently because of it** — a learning that changes nothing is a non-match.
 - If the index does not exist or nothing matches, report "No applicable learnings found." Results land in the plan's `## Applied Learnings` section.
 

@@ -108,6 +108,15 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
   memory: {
     seedRules: true,
   },
+  // Knowledge-compounding corpus (INTENT-FIDELITY W12 meta-loop). `.ai/solutions/`
+  // is the per-repo corpus (feedback-loops W1). `globalDir` optionally points plan's
+  // reuse scan at a USER-LEVEL corpus read alongside it, and gives retro a place to
+  // promote a repo lesson (always user-confirmed) + append about-the-workflow lessons
+  // to a `plugin-feedback.md`. null = disabled (no global corpus); the dir stays local,
+  // never synced by the plugin (repo lessons can carry project specifics).
+  solutions: {
+    globalDir: null,
+  },
 });
 
 const configValidators = new Map();   // schemaPath → compiled validator

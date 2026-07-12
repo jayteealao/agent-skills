@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.131.0] - 2026-07-12
+
+### Added — the meta-loop: knowledge compounding beyond one repo (INTENT-FIDELITY R5, final)
+
+Release 5 (last) of `docs/internal/INTENT-FIDELITY-HARDENING-PLAN.md` (wave W12) — deliberately last, shaped by R1–R4 field experience. This closes the full intent-fidelity program: the plugin can now improve itself, with the user as editor.
+
+- **W12.1 — global solutions corpus.** New `solutions.globalDir` config (default `null` = disabled). `plan`'s reuse scan reads a **user-level** corpus alongside the repo's `.ai/solutions/` (the repo corpus wins on conflict). `retro` may propose promoting a repo lesson to the global corpus — **always user-confirmed, never automatic** (privacy: repo lessons can carry project specifics); the global dir stays local and is never synced by the plugin.
+- **W12.2 — retro → plugin-backlog channel.** `retro` classifies each lesson `about-the-project` vs `about-the-workflow`; workflow lessons (things about `/wf` itself) append to a user-reviewable `plugin-feedback.md` in the global dir — the channel by which the workflow improves the workflow, which the waypoint analysis performed by hand.
+- **W12.3 — deep retro (opt-in, Claude-only).** `/wf retro <slug> deep` mines the repo's session transcripts (`~/.claude/projects/<repo>/*.jsonl`) for decision moments — the grounding method that surfaces "I'll mirror it exactly"-type beats no artifact recorded. Heavy and runtime-specific; opt-in only, never default. The Codex mirror frames it honestly: transcript mining is Claude-only, so a Codex `deep` run falls back to an artifact-only deep pass.
+- `solutions` added to `DEFAULT_SDLC_CONFIG` + `sdlc-config.schema.json` (round-trip tested); retro/plan prose both trees. `verify-claudisms` clean.
+
+**Intent-fidelity program complete (R1–R5, v9.127.0–v9.131.0).** Together with the YOLO evidence-integrity phases (v9.126.0 + the merged R2), `/wf` now has the upward-traceability instruments it lacked: an intent-risk ledger and charter that force ambient reframings into written, gated decisions; evidence-rung labelling with a mock-evidence hard-block; a decision taxonomy that keeps intent-bearing calls out of autonomous policy; an always-on intent-fidelity review dimension; yolo charter checkpoints; and a compounding knowledge corpus.
+
 ## [9.130.0] - 2026-07-12
 
 ### Added — charter, scenario harness, and yolo fidelity checkpoints (INTENT-FIDELITY R4)

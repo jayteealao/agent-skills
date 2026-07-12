@@ -172,6 +172,18 @@
         }
       }
     },
+    "solutions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Knowledge-compounding corpus (INTENT-FIDELITY W12 meta-loop). `.ai/solutions/` is always the per-repo corpus; globalDir optionally adds a user-level one.",
+      "properties": {
+        "globalDir": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Absolute path to a USER-LEVEL solutions corpus read by plan's reuse scan alongside the repo's .ai/solutions/, and the target for retro's user-confirmed lesson promotion + the about-the-workflow plugin-feedback.md channel. null (default) disables it. The dir stays local — never synced by the plugin, since repo lessons can contain project specifics (privacy)."
+        }
+      }
+    },
     "memory": {
       "type": "object",
       "additionalProperties": false,

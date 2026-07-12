@@ -3,13 +3,13 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-NLKAKSOO.mjs";
+} from "../chunk-QV6ZT2RF.mjs";
 import {
   artifactHeader,
   metricRow,
   pageHref,
   statusBadge
-} from "../chunk-25QMSE2S.mjs";
+} from "../chunk-GWMRBZ2I.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";

@@ -247,6 +247,30 @@ test('R4 — yolo.md documents the charter checkpoint + decision digest (Claude-
   assert.match(yolo, /decision digest|decisionDigest/i, 'yolo lost the decision digest');
 });
 
+// ── R5 meta-loop (config plumbing + retro/plan prose) ───────────────────────
+test('R5 — solutions.globalDir round-trips through config (default null, validates a path)', async () => {
+  const cfg = await import(pathToFileURL(path.join(pluginRoot, 'lib', 'config.mjs')).href);
+  assert.equal(cfg.DEFAULT_SDLC_CONFIG.solutions.globalDir, null, 'default globalDir should be null');
+  const merged = cfg.deepMerge(cfg.DEFAULT_SDLC_CONFIG, { solutions: { globalDir: '/home/u/.sdlc/solutions' } });
+  assert.equal(merged.solutions.globalDir, '/home/u/.sdlc/solutions', 'user globalDir did not merge through');
+  const good = await cfg.validateConfig({ solutions: { globalDir: '/x' } });
+  assert.equal(good.valid, true, JSON.stringify(good.errors));
+  const bad = await cfg.validateConfig({ solutions: { nope: 1 } });
+  assert.equal(bad.valid, false, 'unknown solutions key should be rejected (additionalProperties:false)');
+});
+
+test('R5 — retro carries the global-corpus + plugin-feedback + deep-retro prose', () => {
+  for (const { name, root } of trees) {
+    const retro = ref(root, 'retro.md');
+    assert.match(retro, /globalDir|global (corpus|solutions)/i, `${name}: retro lost the global-corpus promotion`);
+    assert.match(retro, /plugin-feedback|about-the-workflow/i, `${name}: retro lost the plugin-feedback channel`);
+  }
+  // deep-retro transcript mining is Claude-only (codex has no transcript dir).
+  const mainRetro = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', 'retro.md'), 'utf8');
+  assert.match(mainRetro, /\bdeep\b/, 'main retro lost the deep token');
+  assert.match(mainRetro, /transcript/i, 'main retro lost transcript mining');
+});
+
 // ── W1.3 renderer chip (main tree renderer) ─────────────────────────────────
 test('W1.3 — index renderer emits an intent-risks chip, byte-stable when absent', async () => {
   const mod = await import(pathToFileURL(path.join(pluginRoot, 'renderers', 'index.mjs')).href);
