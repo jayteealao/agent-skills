@@ -211,6 +211,11 @@ After all rounds (5 baseline + any extension rounds), append every answer to `po
    - If no user-facing docs are needed (pure internal refactor, test-only change), write "None required" with reasoning.
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 8. Update `00-index.md` with the recommended default option.
+8a. **Adjudicate the intent-risk (RIM) ledger (MANDATORY GATE — mirrors the force-scope rule).** Read `00-index.md` `intent-risks` (authored by intake from "Risks if Misunderstood"). For EVERY entry with `status: open`, set exactly one of:
+   - `status: adjudicated` — with `decision:` (the named choice AND its tradeoff, not a restatement) and `adjudicated-by: 02-shape.md#<section>`. If the risk touches a **PO directive** (anything in intake's Known Constraints or a recorded PO answer), `po-ratified` must be `true` — a PO question was asked THIS stage; cite the `po-answers.md` entry. `false` is legal only with an explicit PO-declined note; `not-required` only when the decision alters no PO directive.
+   - `status: carried` — the risk genuinely cannot be resolved at shape; it MUST then appear in `## Unknowns / Open Questions` with the receiving stage named.
+   A shape that leaves ANY RIM `open` may NOT write `status: complete`. Adjudication prose that merely restates the risk without a decision ("we will keep this in mind") is ILLEGAL — the tell is the same as the force-scope rule's. Write the updated `intent-risks` entries back into `00-index.md`. (Compressed intake modes may carry no RIMs — then this step is a no-op.)
+8b. **Author the `## Intake Fidelity` table (MANDATORY section).** One row per intake **Known Constraint / directive** and each numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` or `dropped` row REQUIRES `authority` = a quoted PO answer whose **scope covers the requirement** (per [_question-craft.md](_question-craft.md)'s scope-of-authority rule) or a this-stage PO ratification. "Consequence of another answer" is NOT authority — an over-read narrowing (a vendor answer silently becoming a requirement cut) is exactly what this table exposes; owe the PO one more question rather than write an unauthorised narrowing.
 9. Write `.ai/workflows/<slug>/02-shape.md` (and, if Step 5b applied, `.ai/workflows/<slug>/02b-design.md` — its structure, sibling `.yaml`, and fragment contract are defined in [design/shape.md](design/shape.md)).
 
 # Adaptive routing — evaluate what's actually next
@@ -260,7 +265,7 @@ next-invocation: "$wf slice <slug>"
 # Shape
 
 ## The Shape
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions, and the top risk; structured sections below are drill-down. Voice per `_narrative-voice.md` — no "This shape implements…" openings. 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions, and the top risk; structured sections below are drill-down. Voice per `_narrative-voice.md` — no "This shape implements…" openings. 1–4 short paragraphs. The story MUST name the highest-severity intent-risk (RIM) carried from intake and how shape disposed of it (the choice made, or what it was carried to) — this keeps the load-bearing adjudication legible to a PO who reads only the prose. -->
 
 ## Problem Statement
 
@@ -275,6 +280,7 @@ next-invocation: "$wf slice <slug>"
   - `interactive` — requires running the app and verifying visually or through device interaction (browser, emulator, device)
   - `manual` — requires human judgement or external system check
 - Interactive criteria MUST specify: what tool/method to use (Playwright, Maestro, adb, browser automation, etc.), what to look for, and how to capture evidence (screenshot, recording, console output)
+- **Named-mechanism rule (a test may not name a machine the design does not own).** Any architectural mechanism named in an AC, its verification method, or a test-plan line — a state machine, scheduler, queue, cache, pipeline, orchestrator, a controlling regex — MUST exist as a **named decision in this artifact's body**: one sentence stating the mechanism, what it replaces, and why. A mechanism that enters only through a test method (an AC verified by "interview state-machine unit tests" with no body decision naming the FSM) is a control-authority decision smuggled past adjudication — name it in the body (and, if it touches a RIM or PO directive, adjudicate it per Step 8a) or drop it from the AC.
 
 ## Non-Functional Requirements
 - ...
@@ -297,6 +303,12 @@ next-invocation: "$wf slice <slug>"
 ## Out of Scope
 <!-- Capabilities deferred by the Round 5 scope-restraint pass: speculative generality, gold-plating, "while we're here" additions the core ask does not require. Record each with a one-line rationale — a logged decision the PO agreed to, not a silent drop. -->
 - ...
+
+## Intake Fidelity
+<!-- REQUIRED (Step 8b). One row per intake Known Constraint / directive AND each numbered Restated-Request item. A `narrowed`/`dropped` row's `authority` must be a quoted PO answer whose SCOPE covers the requirement (not the consequence of a differently-scoped answer) or a this-stage PO ratification. This table is where an over-read narrowing — a vendor answer silently becoming a requirement cut — becomes visibly illegal. It is a named input to the intent-fidelity review dimension downstream. -->
+| Intake directive | Disposition | How | Authority |
+|---|---|---|---|
+| ... | honored / narrowed / dropped | ... | quoted PO answer (scope-covering) / this-stage ratification / — |
 
 ## Definition of Done
 - ...

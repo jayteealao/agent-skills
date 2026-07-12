@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-W6ROBDIP.mjs";
+} from "../chunk-ZX5ID3SE.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,7 +13,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-4BKAPEVK.mjs";
+} from "../chunk-QUZHLY62.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
@@ -46,6 +46,23 @@ var STAGE_NAV = {
   ship: { types: ["ship-runs-index", "ship-run"], dir: "ship" },
   retro: { types: ["retro"], dir: "retro" }
 };
+function intentRisksChip(risks) {
+  if (!Array.isArray(risks) || !risks.length) return "";
+  const by = { open: 0, adjudicated: 0, carried: 0 };
+  for (const r of risks) {
+    const s = String(r?.status ?? "").trim().toLowerCase();
+    if (s in by) by[s]++;
+  }
+  const total = by.open + by.adjudicated + by.carried;
+  if (!total) return "";
+  if (by.open > 0) {
+    return `<span class="badge is-warn" title="unadjudicated intent-risks \u2014 shape should resolve these">\u26A0 ${by.open} intent-risk${by.open === 1 ? "" : "s"} open</span>`;
+  }
+  const parts = [];
+  if (by.adjudicated) parts.push(`${by.adjudicated} adjudicated`);
+  if (by.carried) parts.push(`${by.carried} carried`);
+  return `<span class="badge" title="intent-risk (RIM) ledger">\u2691 risks \xB7 ${escapeHtml(parts.join(" \xB7 "))}</span>`;
+}
 function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
   const current = fm["current-stage"] ?? "intake";
@@ -59,6 +76,7 @@ function render(artifact, ctx) {
       ${fm.branch ? `<span class="badge">\u2387 ${escapeHtml(fm.branch)}</span>` : ""}
       ${statusBadge(fm.status)}
       ${stageBadge(current)}
+      ${intentRisksChip(fm["intent-risks"])}
       ${fm["pr-number"] ? `<span class="meta">PR #${escapeHtml(fm["pr-number"])}</span>` : ""}
       ${fm["updated-at"] ? `<span class="meta">updated ${escapeHtml(fm["updated-at"])}</span>` : ""}
     </aside>

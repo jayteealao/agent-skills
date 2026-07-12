@@ -70,6 +70,7 @@ You are a **workflow orchestrator**, not a problem solver.
    For each roster slug, evaluate:
 
    - **Implement gate (all modes)**: `05-implement-<slice-slug>.md` must exist for every slice in the slug's scope. Missing → not-ready: "Run `/wf implement <slug> <slice>` for missing slices."
+   - **Intent-risk gate (all modes)**: Parse `intent-risks` (the RIM ledger) from the slug's `00-index.md` (absent on older workflows → treat as empty). Any entry with `status: open` → not-ready: "An unadjudicated intent-risk means shape never resolved a load-bearing ambiguity — run `/wf shape <slug>` to adjudicate it (set the entry to `adjudicated` or `carried`)." This mirrors the runtime-evidence-deferral (ship.md step 6.5) and ship-plan-readiness (step 6.7) gates — handoff detects and routes, it never adjudicates. `carried` RIMs are **legal** (consciously deferred to a named stage) but MUST be surfaced in the PR body and the handoff summary's `## Reviewer Focus Areas`.
 
    **Per-slice review mode** (`review-scope: per-slice` or absent):
    - `07-review-<slice-slug>.md` must exist for every slice in scope. Missing → not-ready: "Run `/wf review <slug> <slice>` for each slice."

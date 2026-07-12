@@ -18,6 +18,16 @@ content spec.
   a receipt means only those receipt *fields* — the substance narrative above
   them is still mandatory. Always surface what the artifact says (key decisions,
   counts, verdict, top risk), not merely the paths it wrote.
+- **Lead the receipt with a `Deltas` line (INTENT-FIDELITY W10.1).** A stage that
+  changed the product's shape must surface it at the one altitude the PO reliably
+  reads — the chat return, not a 300-line artifact. Immediately below the narrative,
+  before the other receipt fields, emit a `Deltas:` line naming: intake directives
+  **narrowed** (from shape's Intake Fidelity table), architectural **mechanisms
+  introduced** (from the named-mechanism decisions), and intent-bearing decisions
+  **pending or auto-resolved** (from the decision-class stamps, once those exist).
+  Nothing new is computed — the line only surfaces what shape/verify already recorded.
+  When there is nothing to report, the line reads `Deltas: none` (one word). A stage
+  with no fidelity/mechanism/decision surface (e.g. a pure status read) omits the line.
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed in the
   chat return — this is the internal summary, not external-facing copy. Outside
   it, the External Output Boundary ([_output-boundary.md](_output-boundary.md))

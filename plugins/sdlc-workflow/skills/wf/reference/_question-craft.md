@@ -37,6 +37,17 @@ topics and round structure; this file owns how each question is written.
    answering a question about the question costs one round, guessing wrong
    costs a rebuild.
 
+**Scope of authority — a PO answer decides only the question it was asked (INTENT-FIDELITY W2.1).**
+When an answer forecloses an *approach* (kills a vendor, a library, a budget), the *requirement*
+that approach served does NOT silently degrade into being dropped. The stage MUST either (a) show
+the requirement is still met another way, or (b) ask the PO a follow-up question about the
+requirement itself. A vendor answer ("no Neon; only Cloudflare backends") does not authorise a
+requirement change ("no sync in v1") — that is a second decision the PO never made. When recording
+an answer to `po-answers.md`, append an explicit `scope:` line stating what it decides and what it
+does NOT: *"scope: chooses the sync-backend vendor; does NOT decide whether v1 syncs."* Shape's
+Intake Fidelity table and the intent-fidelity review dimension both read that scope line to catch
+an over-read narrowing.
+
 **Litmus test** — before sending a round, reread each question as someone who
 has never opened this repository: could they choose without asking a follow-up?
 If not, rewrite the framing. The fix is more context, not a simpler decision.

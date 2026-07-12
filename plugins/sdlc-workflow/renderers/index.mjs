@@ -31,6 +31,29 @@ const STAGE_NAV = {
   retro:     { types: ['retro'],                                        dir: 'retro' },
 };
 
+// Intent-Risk (RIM) ledger chip (INTENT-FIDELITY W1.3) — sits beside the status/
+// stage chips. Renders nothing when the ledger is absent (older workflows), so
+// existing pages are byte-stable. Any `status: open` entry dominates as a warning
+// tone (shape should have adjudicated it); otherwise it summarises adjudicated /
+// carried counts. Reuses the same at-a-glance role the deferral pressure has.
+function intentRisksChip(risks) {
+  if (!Array.isArray(risks) || !risks.length) return '';
+  const by = { open: 0, adjudicated: 0, carried: 0 };
+  for (const r of risks) {
+    const s = String(r?.status ?? '').trim().toLowerCase();
+    if (s in by) by[s]++;
+  }
+  const total = by.open + by.adjudicated + by.carried;
+  if (!total) return '';
+  if (by.open > 0) {
+    return `<span class="badge is-warn" title="unadjudicated intent-risks — shape should resolve these">⚠ ${by.open} intent-risk${by.open === 1 ? '' : 's'} open</span>`;
+  }
+  const parts = [];
+  if (by.adjudicated) parts.push(`${by.adjudicated} adjudicated`);
+  if (by.carried) parts.push(`${by.carried} carried`);
+  return `<span class="badge" title="intent-risk (RIM) ledger">⚑ risks · ${escapeHtml(parts.join(' · '))}</span>`;
+}
+
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
   const current = fm['current-stage'] ?? 'intake';
@@ -47,6 +70,7 @@ export function render(artifact, ctx) {
       ${fm.branch ? `<span class="badge">⎇ ${escapeHtml(fm.branch)}</span>` : ''}
       ${statusBadge(fm.status)}
       ${stageBadge(current)}
+      ${intentRisksChip(fm['intent-risks'])}
       ${fm['pr-number'] ? `<span class="meta">PR #${escapeHtml(fm['pr-number'])}</span>` : ''}
       ${fm['updated-at'] ? `<span class="meta">updated ${escapeHtml(fm['updated-at'])}</span>` : ''}
     </aside>

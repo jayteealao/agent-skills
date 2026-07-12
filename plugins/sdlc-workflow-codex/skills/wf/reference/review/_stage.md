@@ -71,6 +71,7 @@ Then STOP — do not continue to the full review workflow.
    **Slug-wide mode** (`review-scope: slug-wide`):
    - At least one `05-implement-<slice-slug>.md` must exist. If `03-slice.md` lists slices with `status: complete` but only some have implement records, WARN: "Slug-wide review covers the entire branch diff. Slices without implement records: <list>. Their code may appear in the diff; their ACs will not be checked."
    - Any `06-verify-*.md` files are read for context but never block.
+   - **Adoption-matrix reconciliation (mechanical pass over shape).** If `02-shape.md` carries an adoption matrix (the table of dependencies/libraries with a `USE`/`AVOID`/etc. decision per row), reconcile every `USE` row against the branch diff: each must cite at least one production usage site — a real import/call in shipped code. A `USE` row with zero usage (installed, never wired in) becomes a finding, severity **MED**, titled "committed and abandoned" (installed, zero usage) and routed through the normal ledger. This is a mechanical check, not a judgment call: no production import/call for a `USE` dependency ⇒ finding.
    - If `07-review.md` already exists → this run **merges** into it. Read it now (with its sibling `.yaml`) for dedupe + resolve-sweep at Step 4; nothing is overwritten. Prior per-slice `07-review-<slice>.md` files are left untouched.
 6. **Read the full context:**
 

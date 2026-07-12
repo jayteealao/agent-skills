@@ -328,7 +328,11 @@ next-invocation: "/wf shape <slug>"
 - ...
 
 ## Risks if Misunderstood
+<!-- Each risk here is ALSO a tracked ledger entry (INTENT-FIDELITY W1). Give each a stable id RIM-1..n and a severity; the prose stays, the ids are additive. The ledger is what forces shape to adjudicate each one in writing instead of letting it evaporate. -->
+- **RIM-1** (severity: high|medium|low) — <one-line risk statement>
 - ...
+
+<!-- LEDGER AUTHORING: write these into 00-index.md frontmatter as `intent-risks` — one entry per RIM with `id`, `risk` (the one-line statement), `severity`, `status: open`, and empty `adjudicated-by` / `decision` / `po-ratified: null`. Shape MUST adjudicate every `open` entry before it can complete (see shape.md Step 8a); handoff/ship HARD-BLOCK on any that stay `open`. This reuses the exact machinery `runtime-evidence-deferrals` already proves out. Compressed intake modes (fix/hotfix/refactor/update-deps/adopt): author entries ONLY if the risk section produces any — the ledger is optional there. Terminal-analysis modes (investigate/discover/ideate): no ledger (no build follows). -->
 
 ## Success Criteria
 - ...

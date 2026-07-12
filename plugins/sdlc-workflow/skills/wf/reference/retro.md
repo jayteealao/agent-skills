@@ -106,6 +106,7 @@ Prompt the agent with ALL of the following:
 - Read `po-answers.md`. Were there questions that took multiple rounds to resolve?
 - Were there assumptions made without asking that later turned out wrong?
 - Did any stage produce artifacts that the next stage couldn't use directly?
+- Which adoption-matrix `USE` rows never earned their install (installed but zero usage)? Cross-reference `02-shape.md`'s adoption matrix against what shipped — a `USE` dependency with no production import/call is committed-and-abandoned debt worth naming.
 
 ### Explore sub-agent 3 — Repo Infrastructure Improvement Opportunities
 

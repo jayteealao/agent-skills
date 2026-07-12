@@ -149,6 +149,8 @@ For **every** acceptance criterion you write into a per-slice file:
    - **re-scope** the AC to an observable proxy that *can* be verified in the target environment, or
    - **pre-register the deferral now** — state the constraint at birth (e.g., "operator session required: prod OAuth credentials"), so it is a logged decision the PO agreed to, not a verify-time surprise papered over with a `pass`.
 
+4. **Name every architectural mechanism in the artifact body.** Any architectural mechanism named in an AC, a verification method, or a `verify:` test-plan line — a state machine, scheduler, queue, cache, pipeline, orchestrator, or controlling regex — MUST exist as a named decision in this slice's body: one sentence stating the mechanism, what it replaces, and why. A mechanism that enters only through a test method is a design decision smuggled past review; name it in the body or drop it from the AC. (Mirrors shape's AC-authoring rule.)
+
 This discipline is what `plan` (`## Verification Strategy`) and `verify` (the user-observable AC gate) both build on. Getting it right here is cheaper than every downstream stage that inherits a bad AC.
 
 ---

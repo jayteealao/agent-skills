@@ -75,6 +75,17 @@ You are a **workflow orchestrator**, not a problem solver.
    **`cleared-by` is for EVIDENCE, never risk-acceptance.** It must hold a probe/evidence descriptor proving the AC was observed — a prose "we'll accept the risk" string would silently unlock ship without evidence (the exact abuse this gate exists to stop). PO risk-acceptance goes in the distinct `ship-override-authorization` field, surfaced as an **explicit override** in the ship summary. A multi-AC deferral may log partial progress in `cleared-acs: [...]` while `cleared-by` stays null.
 
    Block logic: an entry blocks when `cleared-by: null` **and** no `ship-override-authorization`. Evidenced and PO-overridden entries do not block — but list every override distinctly in the ship summary. Earlier stages (verify, review, handoff) surface deferrals as soft warnings; ship is where the hard block fires.
+6.6. **Intent-risk (RIM) gate (HARD BLOCK — mirrors 6.5).** Parse `intent-risks` (the RIM ledger) from **every roster slug's** `00-index.md` (absent on older workflows → treat as empty). An entry is **open** when `status: open`. Every open entry, on **any** roster slug, must be adjudicated before ship — one slug's open intent-risk blocks the whole atomic run.
+
+   If any entry is still open, STOP with:
+   ```
+   Ship is blocked: <N> open intent-risk(s) (RIM).
+   Shape never resolved a load-bearing ambiguity for the following — ship requires each adjudicated:
+     - <RIM-id> (<severity>): <risk>
+     - ...
+   Adjudicate each by running `/wf shape <slug>` — shape sets every open entry to `adjudicated` (resolved) or `carried` (consciously deferred to a named stage). Ship never adjudicates; it detects and routes.
+   ```
+   `carried` RIMs are **legal** (they were consciously deferred to a named stage) and do not block — but list every `carried` entry distinctly in the ship summary so the deferral stays visible. Only `status: open` blocks. Earlier stages (shape adjudicates; handoff surfaces) route back to shape; ship is where the hard block fires.
 7. **Read every `07-review-*.md` and `po-answers.md`** for changelog/release-notes context — across **all roster slugs** in batch mode, so the release notes cover the whole branch.
 8. **Resume detection.** Glob `.ai/workflows/<slug>/09-ship-run-*.md`. For any with `status: awaiting-input`:
    ```yaml

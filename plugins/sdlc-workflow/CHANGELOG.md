@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.127.0] - 2026-07-12
+
+### Added — intent-fidelity spine (INTENT-FIDELITY R1: the upward-traceability instruments)
+
+Implements Release 1 of `docs/internal/INTENT-FIDELITY-HARDENING-PLAN.md` (waves W1, W2, W7, W9.4, W10.1), governed by the reconciliation in `docs/internal/EVIDENCE-SCHEMA-CONTRACT.md`. Provenance: the waypoint-app drift analysis — a full-lifecycle `/wf` run, all stages green, that shipped a product structurally unlike its intake. The diagnosis: `/wf` had excellent **downward** traceability (shape→slice→plan→AC) and **zero upward** traceability (code→intake). R1 lands the transitive-fidelity spine — pure reference/prompt changes plus one renderer chip — so an ambient reframing becomes a written decision someone must own. Both trees; no hook/dist behavior change beyond the chip.
+
+- **W1 — Intent-Risk (RIM) ledger.** Intake's "Risks if Misunderstood" prose becomes a tracked ledger: each risk gets a stable `RIM-n` id + severity, written to `00-index.md` `intent-risks` frontmatter (new schema field, mirroring the proven `runtime-evidence-deferrals` machinery). **Shape MUST adjudicate every `open` entry before it can complete** (`status: adjudicated` with a real decision + tradeoff, PO-ratified when it touches a PO directive; or `status: carried` to a named stage) — restating a risk without a decision is illegal, and a shape leaving any RIM `open` may not write `status: complete`. `status.md` deep-mode renders the ledger and flags open-after-shape as an inconsistency; `recap.md` digests it; **`handoff.md` and `ship.md` HARD-BLOCK on any `open` RIM** and surface `carried` ones. `plan`/`implement`: a decision touching a `carried` RIM is intent-bearing, never auto-resolved. Renderer: an intent-risks chip beside the status/stage chips (byte-stable when the ledger is absent).
+- **W2 — scope-of-authority + Intake Fidelity table.** `_question-craft.md`: a PO answer decides **only the question it was asked** — foreclosing an approach (a vendor, a library) does not silently drop the requirement it served; the stage must show the requirement is still met or ask a follow-up, and answers record an explicit `scope:` line. `shape.md`: a required `## Intake Fidelity` table — one row per intake directive with disposition (honored/narrowed/dropped) and **authority**, where a `narrowed`/`dropped` row must cite a scope-covering PO answer, making an over-read narrowing visibly illegal.
+- **W7 — named-mechanism rule.** In `shape.md` and `slice.md`: any architectural mechanism named in an AC, verification method, or test line (state machine, scheduler, queue, cache, pipeline, orchestrator, controlling regex) must exist as a named decision in the artifact body — a mechanism that enters only through a test method is a control-authority decision smuggled past adjudication.
+- **W9.4 — adoption-matrix reconciliation.** Slug-wide review mechanically checks every shape `USE` row against a real production usage site, else a MED "committed and abandoned" finding; `retro.md` gets the matching question.
+- **W10.1 — chat-return Deltas line.** Stage-completion returns lead the receipt with a `Deltas:` line — directives narrowed, mechanisms introduced, intent-bearing decisions pending/auto-resolved — surfacing what the artifacts already record at the one altitude the PO reliably reads.
+- New drift-guard suite `tests/unit/skills/intent-fidelity.test.mjs` (both trees) pins every gate phrase; a schema round-trip validates the `intent-risks` ledger; a renderer test confirms the chip is byte-stable when the ledger is absent. Mirrored to the Codex tree in its native idiom (`$wf`, ask-in-chat); `verify-claudisms` clean.
+
 ## [9.126.0] - 2026-07-12
 
 ### Added — YOLO evidence integrity, Phase 1 (probe receipts, prior-deferral re-challenge, stage-scope clamp)

@@ -224,6 +224,35 @@
               }
             }
           }
+        },
+        "intent-risks": {
+          "type": "array",
+          "description": "Intent-Risk (RIM) ledger (INTENT-FIDELITY W1). Intake distils the 'Risks if Misunderstood' prose into tracked entries; shape MUST adjudicate every open one (set status + decision, PO-ratify when it touches a PO directive) before it can complete; handoff/ship HARD-BLOCK on any status: open, and surface carried ones. Mirrors the runtime-evidence-deferrals machinery.",
+          "items": {
+            "type": "object",
+            "required": ["id", "risk", "severity", "status"],
+            "properties": {
+              "id": { "type": "string", "description": "Stable id RIM-1..n." },
+              "risk": { "type": "string", "description": "One-line statement of the intake risk." },
+              "severity": { "enum": ["high", "medium", "low"] },
+              "status": {
+                "enum": ["open", "adjudicated", "carried"],
+                "description": "open = not yet decided (illegal after shape completes); adjudicated = shape named the choice; carried = genuinely cannot resolve at shape, receiving stage named in Open Questions."
+              },
+              "adjudicated-by": {
+                "type": "string",
+                "description": "Artifact + section that adjudicated it, e.g. 02-shape.md#desired-behavior. Empty until adjudicated."
+              },
+              "decision": {
+                "type": "string",
+                "description": "One line: what was chosen and why (the tradeoff). Restating the risk without a decision is illegal."
+              },
+              "po-ratified": {
+                "anyOf": [{ "type": "boolean" }, { "const": "not-required" }, { "type": "null" }],
+                "description": "true | false | 'not-required' | null (unset). When the risk touches a PO directive, must be true (cite the po-answers.md entry) or an explicit PO-declined false; not-required only when the decision alters no PO directive."
+              }
+            }
+          }
         }
       }
     },

@@ -123,6 +123,9 @@ The non-obvious decisions and constraints someone picking this up MUST respect â
 reversible", "can't touch auth until slice X lands", "the external API caps at 100/min". Include open
 questions and active blockers here (or "None"). If `steer.md` exists, add one line naming the active
 standing-steering entries (e.g. "Steering in effect: don't touch `config/loader.ts`; prefer the queue").
+If `00-index.md` carries `intent-risks` (the Intent-Risk / RIM ledger), add a one-line digest â€”
+"Intent-risks: N adjudicated, M carried, K open" (counted by `status`); flag any still `open` as a
+loose end the reader should know about.
 
 ## What's left
 The remaining work in plain terms, then the concrete next command.
