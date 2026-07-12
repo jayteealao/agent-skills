@@ -537,6 +537,12 @@ wall and either the harness now scoped into the Step-by-Step Plan or the recorde
 - path/or/module: why
 
 ## Proposed Change Strategy
+<!-- Constraint precedence (W8.3): when an NFR is the stated rationale for a mechanism choice (e.g. a <3s
+latency budget → a single-call FSM over a multi-turn loop), QUOTE the NFR's charter ranking from
+`02-shape.md` `## Non-Functional Requirements` (`yields-to: C<n>` / `outranks: C<n> (PO-ratified)`). Citing
+an UNRANKED NFR to justify a mechanism that narrows a charter commitment is the tell of an intent-bearing
+decision smuggled in as a perf detail — classify it per [_decision-classes.md](_decision-classes.md) and
+route it to the PO, never auto-resolve it (a stop condition on an autonomous run). -->
 
 ## Step-by-Step Plan
 1. ...

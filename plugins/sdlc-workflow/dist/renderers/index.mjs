@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-WORZPLSB.mjs";
+} from "../chunk-NLKAKSOO.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,7 +13,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-GK6SA5IB.mjs";
+} from "../chunk-25QMSE2S.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
@@ -63,6 +63,22 @@ function intentRisksChip(risks) {
   if (by.carried) parts.push(`${by.carried} carried`);
   return `<span class="badge" title="intent-risk (RIM) ledger">\u2691 risks \xB7 ${escapeHtml(parts.join(" \xB7 "))}</span>`;
 }
+function charterChip(charter) {
+  if (!Array.isArray(charter) || !charter.length) return "";
+  const by = { honored: 0, "at-risk": 0, broken: 0 };
+  for (const c of charter) {
+    const s = String(c?.status ?? "honored").trim().toLowerCase();
+    if (s in by) by[s]++;
+  }
+  const total = charter.length;
+  if (by.broken > 0) {
+    return `<span class="badge is-warn" title="a charter commitment is broken \u2014 the build departed from intake">\u2691 ${by.broken}/${total} charter broken</span>`;
+  }
+  if (by["at-risk"] > 0) {
+    return `<span class="badge" title="a charter commitment is at risk">\u2691 charter \xB7 ${by["at-risk"]}/${total} at-risk</span>`;
+  }
+  return `<span class="badge" title="intake charter (positive commitments)">\u2691 charter \xB7 ${total}</span>`;
+}
 function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
   const current = fm["current-stage"] ?? "intake";
@@ -77,6 +93,7 @@ function render(artifact, ctx) {
       ${statusBadge(fm.status)}
       ${stageBadge(current)}
       ${intentRisksChip(fm["intent-risks"])}
+      ${charterChip(fm["charter"])}
       ${fm["pr-number"] ? `<span class="meta">PR #${escapeHtml(fm["pr-number"])}</span>` : ""}
       ${fm["updated-at"] ? `<span class="meta">updated ${escapeHtml(fm["updated-at"])}</span>` : ""}
     </aside>

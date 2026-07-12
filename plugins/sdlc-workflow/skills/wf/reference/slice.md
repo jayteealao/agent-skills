@@ -108,6 +108,7 @@ Do this in order:
 4. Assign each slice a **slice-slug** (lowercase kebab-case).
 5. Put risk-reduction and uncertainty-reduction early.
 6. Identify the best first slice.
+6b. **Charter-scenario coverage (when `02-shape.md` carries a `## Charter Scenario`).** The **visible-milestone slice** (the first slice at which a user can see the core loop working end-to-end) and the **final slice** each carry a standing acceptance criterion: `charter scenario executes through step N` — progressive coverage, where the milestone slice proves the steps built so far and the final slice proves ALL steps. Tag it `observable: true` (verify runs it interactively, same ladder as any user-observable AC) and attach a `verify:` stub like any other. Skip when the shape authored no Charter Scenario (compressed modes / non-loop features).
 7. **Write one `03-slice-<slice-slug>.md` per slice** (see template below).
 8. **Write the master `03-slice.md`** (see template below) with links to every per-slice file.
 9. **Evaluate adaptive routing** (see below) and write ALL viable options into the master file's `## Recommended Next Stage`.
@@ -256,7 +257,7 @@ refs:
 - what's out (handled by other slices)
 
 ## Acceptance Criteria
-<!-- Author each AC WITH its verification path — see "AC verifiability discipline" above. Tag every criterion `observable:` (a justified feasibility decision), and attach a `verify:` stub to every `observable: true` one. A user-observable AC with no nameable verification method is re-scoped or pre-registered as a deferral here — never authored to "decide later". -->
+<!-- Author each AC WITH its verification path — see "AC verifiability discipline" above. Tag every criterion `observable:` (a justified feasibility decision), and attach a `verify:` stub to every `observable: true` one. A user-observable AC with no nameable verification method is re-scoped or pre-registered as a deferral here — never authored to "decide later". The visible-milestone slice and the final slice ALSO carry the standing charter-scenario AC (Step 6b) when `02-shape.md` has a `## Charter Scenario`: `charter scenario executes through step N`, `observable: true`. -->
 - Given ... When ... Then ...
   <!-- observable: true|false — one-line justification of the partition -->
   verify: { method: <tool/technique>, env: <target env / what must be installed or booted>, fixture: <seed data / deterministic state>, rung: <constraint-ladder rung> }   ← only for observable: true

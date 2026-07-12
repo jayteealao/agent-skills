@@ -219,6 +219,34 @@ test('R2 — verify + index evidence fields validate (EVIDENCE-SCHEMA-CONTRACT)'
     'deferral item schema missing absorbed-by / needed-by / probe');
 });
 
+// ── R4 charter (schema + prose + chip) ──────────────────────────────────────
+test('R4 — charter validates against the index schema', () => {
+  const require = createRequire(import.meta.url);
+  let Ajv;
+  try { Ajv = require('ajv'); } catch { return; }
+  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'tests', 'frontmatter.schema.json'), 'utf8'));
+  const defs = schema.$defs ?? schema.definitions;
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  const validate = ajv.compile(defs.indexFrontmatter.properties['charter']);
+  assert.ok(validate([{ id: 'C1', commitment: 'the model owns probing', source: '01-intake.md#restated', status: 'honored' }]), JSON.stringify(validate.errors));
+  assert.equal(validate([{ id: 'C1', commitment: 'x', status: 'maybe' }]), false); // bad status
+  assert.equal(validate([{ commitment: 'x', status: 'honored' }]), false);          // id required
+});
+
+test('R4 — charter authoring/scenario/precedence prose lands (both trees)', () => {
+  for (const { name, root } of trees) {
+    assert.match(ref(root, 'intake/default.md'), /charter/i, `${name}: intake lost charter authoring`);
+    assert.match(ref(root, 'shape.md'), /Charter Scenario/i, `${name}: shape lost the charter scenario`);
+    assert.match(ref(root, 'shape.md'), /yields-to|outranks/i, `${name}: shape lost constraint precedence`);
+  }
+});
+
+test('R4 — yolo.md documents the charter checkpoint + decision digest (Claude-only)', () => {
+  const yolo = readFileSync(path.join(pluginRoot, 'skills', 'wf', 'reference', 'yolo.md'), 'utf8');
+  assert.match(yolo, /charter/i, 'yolo lost the charter checkpoint');
+  assert.match(yolo, /decision digest|decisionDigest/i, 'yolo lost the decision digest');
+});
+
 // ── W1.3 renderer chip (main tree renderer) ─────────────────────────────────
 test('W1.3 — index renderer emits an intent-risks chip, byte-stable when absent', async () => {
   const mod = await import(pathToFileURL(path.join(pluginRoot, 'renderers', 'index.mjs')).href);
@@ -233,4 +261,17 @@ test('W1.3 — index renderer emits an intent-risks chip, byte-stable when absen
   const clean = mod.render({ ...base, frontmatter: { ...base.frontmatter, 'intent-risks': [{ id: 'RIM-1', status: 'adjudicated' }, { id: 'RIM-2', status: 'carried' }] } }, ctx).headerHtml;
   assert.match(clean, /adjudicated/, 'adjudicated/carried counts not surfaced');
   assert.ok(!/\bopen\b/i.test(clean.replace(/intent-risk/gi, '')), 'clean ledger falsely reported open');
+});
+
+test('W8.1 — index renderer emits a charter chip, byte-stable when absent', async () => {
+  const mod = await import(pathToFileURL(path.join(pluginRoot, 'renderers', 'index.mjs')).href);
+  const base = { frontmatter: { slug: 's', title: 'S', 'current-stage': 'shape', status: 'active' }, body: '', history: null };
+  const ctx = { allArtifacts: {} };
+  assert.ok(!mod.render(base, ctx).headerHtml.includes('charter'), 'charter chip leaked when absent');
+
+  const broken = mod.render({ ...base, frontmatter: { ...base.frontmatter, charter: [{ id: 'C1', commitment: 'x', status: 'broken' }] } }, ctx).headerHtml;
+  assert.match(broken, /charter broken/i, 'broken commitment did not surface a warning chip');
+
+  const ok = mod.render({ ...base, frontmatter: { ...base.frontmatter, charter: [{ id: 'C1', status: 'honored' }, { id: 'C2', status: 'honored' }] } }, ctx).headerHtml;
+  assert.match(ok, /charter · 2/, 'honored charter count not surfaced');
 });

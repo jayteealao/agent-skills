@@ -334,6 +334,22 @@ next-invocation: "/wf shape <slug>"
 
 <!-- LEDGER AUTHORING: write these into 00-index.md frontmatter as `intent-risks` — one entry per RIM with `id`, `risk` (the one-line statement), `severity`, `status: open`, and empty `adjudicated-by` / `decision` / `po-ratified: null`. Shape MUST adjudicate every `open` entry before it can complete (see shape.md Step 8a); handoff/ship HARD-BLOCK on any that stay `open`. This reuses the exact machinery `runtime-evidence-deferrals` already proves out. Compressed intake modes (fix/hotfix/refactor/update-deps/adopt): author entries ONLY if the risk section produces any — the ledger is optional there. Terminal-analysis modes (investigate/discover/ideate): no ledger (no build follows). -->
 
+## Charter
+<!-- The 3–7 positive commitments this build must honor — deliberately FEW. A charter that restates the
+whole intake is boilerplate; keep only the load-bearing promises. Each commitment must be FALSIFIABLE BY
+CODE (a reader can point at a behavior that proves or breaks it), not a mood or an aspiration. Distilled
+from the Restated Request, Intended Outcome, and Known Constraints. Compressed intake modes
+(fix/hotfix/refactor/update-deps/adopt): SKIP — no charter. -->
+- **C1** — <one positive commitment, falsifiable by code> — source: `01-intake.md#<section>`
+- ...
+
+<!-- LEDGER AUTHORING: write these into 00-index.md frontmatter as `charter` — one entry per commitment
+with `id` (C1..), `commitment` (the one-line statement), `source` (the `01-intake.md#section` it distills),
+and `status: honored`. Additive cross-wiring downstream (ids only, no new machinery): shape's RIM
+adjudications (Step 8a) MAY name the charter ids they protect; the `## Intake Fidelity` table rows MAY
+reference charter ids; the intent-fidelity review dimension checks its question 1 per charter id.
+Compressed intake modes: skip (no charter). -->
+
 ## Success Criteria
 - ...
 

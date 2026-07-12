@@ -45,7 +45,7 @@ function extractFn(src, name) {
 // evaluateGate calls verifyClean, so build them together in one scope and hand them back.
 // probeGaps (F2), reChallengeClause + deferralPressure (F3) are also pure top-level fns, so
 // they extract by the same brace-matching — testing the SHIPPED code with no drift-prone copy.
-const { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure } = new Function(
+const { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest } = new Function(
   [
     extractFn(yoloSrc, 'verifyClean'),
     extractFn(yoloSrc, 'evaluateGate'),
@@ -53,7 +53,8 @@ const { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClaus
     extractFn(yoloSrc, 'probeGaps'),
     extractFn(yoloSrc, 'reChallengeClause'),
     extractFn(yoloSrc, 'deferralPressure'),
-    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure };',
+    extractFn(yoloSrc, 'decisionDigest'),
+    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest };',
   ].join('\n')
 )();
 
@@ -286,4 +287,36 @@ test('deferralPressure: collapses duplicate prior entries by slice::key', () => 
   assert.equal(p.open, 1);
   assert.equal(p.repeatWalls, 0);
   assert.equal(p.oldestDeferredAt, null);
+});
+
+// ---------------------------------------------------------------------------
+// decisionDigest (W11.1) — groups every recorded autonomous decision by W4 class.
+// ---------------------------------------------------------------------------
+test('decisionDigest: null when no decisions were recorded', () => {
+  assert.equal(decisionDigest({ ran: [{ stage: 'plan', decisions: [] }] }), null);
+  assert.equal(decisionDigest({}), null);
+});
+
+test('decisionDigest: groups by class across slug-mode chains and surfaces intent-bearing stamps', () => {
+  const outcome = {
+    results: [
+      { ran: [{ stage: 'plan', slice: 's1', decisions: [{ class: 'implementation-detail', decision: 'chose lib X' }, { class: 'implementation-detail' }] }] },
+      { ran: [{ stage: 'implement', slice: 's2', decisions: [{ decision: 'no class stamp' }, { class: 'intent-bearing', decision: 'inverted control authority' }] }] },
+    ],
+  };
+  const d = decisionDigest(outcome);
+  assert.equal(d.total, 4);
+  assert.equal(d.byClass['implementation-detail'], 2);
+  assert.equal(d.byClass['unclassified'], 1);
+  assert.equal(d.byClass['intent-bearing'], 1);
+  // an intent-bearing stamp on an autonomous record is surfaced (it should have been a stop)
+  assert.equal(d.intentBearing.length, 1);
+  assert.match(d.intentBearing[0].decision, /control authority/);
+});
+
+test('decisionDigest: works in slice-mode (outcome.ran) too', () => {
+  const d = decisionDigest({ ran: [{ stage: 'plan', decisions: [{ class: 'implementation-detail' }] }] });
+  assert.equal(d.total, 1);
+  assert.deepEqual(d.byClass, { 'implementation-detail': 1 });
+  assert.deepEqual(d.intentBearing, []);
 });

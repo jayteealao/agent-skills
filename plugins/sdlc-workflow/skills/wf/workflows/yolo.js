@@ -209,6 +209,21 @@ const ORIENT_RESULT = {
         },
       },
     },
+    // W11 — the charter (00-index `charter:`): the intake's 3–7 positive commitments.
+    // yolo runs a cheap fidelity checkpoint every K slices asking "is the build still
+    // advancing each commitment?"; a `broken` verdict is a stop. Empty/absent on
+    // compressed lifecycles (no charter) → no checkpoints.
+    charter: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          commitment: { type: 'string' },
+          status: { type: 'string' },   // honored | at-risk | broken
+        },
+      },
+    },
     fileConvention: { enum: ['suffixed', 'unsuffixed'] },
     branch: {
       type: 'object',
@@ -344,6 +359,8 @@ async function orient() {
     `whose \`cleared-by\` is null/absent (STILL OPEN) into priorDeferrals as ` +
     `{ slice, reason (verbatim), deferredAt (= deferred-at), clearedBy (= cleared-by, null if open), repeatOf ` +
     `(= repeat-of, omit if absent) }. Omit already-cleared entries. Empty/absent list → priorDeferrals: [].\n` +
+    `   ALSO parse the \`charter\` list (if present) into charter as { id, commitment (verbatim), status }. ` +
+    `Empty/absent (e.g. a compressed lifecycle) → charter: [].\n` +
     `2. Read ${projectRoot}/.ai/workflows/${slug}/03-slice.md (the roster). Capture EVERY slice slug in roster ` +
     `order. If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE (selected-slice is set on 00-index.md — true ` +
     `for a forwarded rca and for any one-slice standard workflow), synthesize a one-entry roster [selected-slice] ` +
@@ -919,6 +936,70 @@ function deferralPressure(priorDeferrals, runDeferrals) {
   return { open, oldestDeferredAt, repeatWalls }
 }
 
+// decisionDigest() — W11.1 end-of-run rollup. Groups EVERY autonomous decision the run
+// recorded (across all chains) by its W4 class stamp (`class: implementation-detail`), so the
+// human's post-run inspection is one structured section, not twelve artifacts. An
+// intent-bearing stamp on an autonomous record is the tell that the policy overstepped —
+// surfaced under `intentBearing` so it can't hide. Pure + extractable like the other rollups.
+function decisionDigest(o) {
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  const groups = {}
+  let total = 0
+  const intentBearing = []
+  for (const c of chains) {
+    for (const r of (c && c.ran) || []) {
+      for (const d of (r && r.decisions) || []) {
+        if (!d) continue
+        total++
+        const cls = (d.class && String(d.class).trim()) || 'unclassified'
+        groups[cls] = (groups[cls] || 0) + 1
+        if (cls === 'intent-bearing') intentBearing.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
+      }
+    }
+  }
+  if (!total) return null
+  return { total, byClass: groups, intentBearing }
+}
+
+// CHECKPOINT_RESULT — the charter fidelity checkpoint's structured return (W11.1).
+const CHECKPOINT_RESULT = {
+  type: 'object',
+  required: ['commitments'],
+  properties: {
+    commitments: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'status'],
+        properties: {
+          id: { type: 'string' },
+          status: { enum: ['honored', 'at-risk', 'broken'] },
+          note: { type: 'string' },
+        },
+      },
+    },
+    summary: { type: 'string' },
+  },
+}
+
+// charterCheckpoint() — W11.1: every K slices, a cheap read-only subagent reads the charter
+// and the last K implement artifacts and asks "is the build still advancing each commitment?".
+// A `broken` verdict is a stop; at-risk is surfaced. Read-only — it never writes.
+async function charterCheckpoint(idx, throughSlice) {
+  const charterList = (idx.charter || []).map(c => `${c.id}: ${c.commitment}`).join('\n    ')
+  return await agent(
+    `CHARTER FIDELITY CHECKPOINT (W11) for slug '${slug}', after slice '${throughSlice}'. READ-ONLY — do not ` +
+    `write, edit, or commit. Project root ${projectRoot} is ABSOLUTE; run git as \`git -C ${projectRoot} …\`.\n\n` +
+    `The intake committed to these charter commitments:\n    ${charterList}\n\n` +
+    `Read the last few implement artifacts under ${projectRoot}/.ai/workflows/${slug}/ and inspect the built ` +
+    `code they touched. For EACH commitment, judge whether the build so far is still ADVANCING it: 'honored' ` +
+    `(the code visibly serves it), 'at-risk' (drifting — a decision has weakened it), or 'broken' (the code ` +
+    `now contradicts it — e.g. the intake said the model owns a decision and the code hard-codes it). Return ` +
+    `{ commitments: [{id, status, note}], summary }. Judge against the CODE, not the artifacts' claims.`,
+    { schema: CHECKPOINT_RESULT, label: `checkpoint:${throughSlice}`, phase: 'Drive' }
+  )
+}
+
 // ===========================================================================
 // Control flow
 // ===========================================================================
@@ -992,12 +1073,33 @@ if (idx.workflowType === 'update-deps') {
   const reviewPer = idx.reviewScope === 'per-slice'
   const perSliceStages = reviewPer ? ['plan', 'implement', 'verify', 'review'] : ['plan', 'implement', 'verify']
   const results = []
-  for (const s of idx.slices) {
+  const CHECKPOINT_EVERY = 3   // W11.1 default K
+  const charterCheckpoints = []
+  let brokenCharter = null
+  for (let si = 0; si < idx.slices.length; si++) {
+    const s = idx.slices[si]
     const chain = await driveChain(perSliceStages, s.slice, idx)
     results.push(chain)
     if (chain.stopped) {
       outcome = { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: chain.at, stoppedSlice: s.slice, reason: chain.reason, results, route: `address the gate at '${chain.at}' on slice '${s.slice}', then re-run /wf yolo ${slug}` }
       break
+    }
+    // W11.1 — charter fidelity checkpoint every K slices (not after the last, which the
+    // slug-wide review + final scenario cover). A `broken` commitment stops the run.
+    const isLast = si === idx.slices.length - 1
+    if ((idx.charter || []).length && !isLast && (si + 1) % CHECKPOINT_EVERY === 0) {
+      const cp = await charterCheckpoint(idx, s.slice)
+      if (cp) {
+        charterCheckpoints.push({ throughSlice: s.slice, ...cp })
+        const broken = (cp.commitments || []).filter(c => c && c.status === 'broken')
+        const atRisk = (cp.commitments || []).filter(c => c && c.status === 'at-risk')
+        if (atRisk.length) log(`charter checkpoint after '${s.slice}': ${atRisk.length} commitment(s) at-risk — ${atRisk.map(c => c.id).join(', ')}`)
+        if (broken.length) {
+          brokenCharter = { throughSlice: s.slice, broken }
+          outcome = { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: 'charter-checkpoint', stoppedSlice: s.slice, reason: `charter commitment(s) BROKEN after '${s.slice}': ${broken.map(c => `${c.id} (${c.note || 'no note'})`).join('; ')} — the build has departed from what the intake committed to; a human must re-decide before continuing`, results, charterCheckpoints, route: `read the broken commitment(s), decide whether to re-shape or accept, then re-run /wf yolo ${slug}` }
+          break
+        }
+      }
     }
   }
   if (!outcome) {
@@ -1014,6 +1116,8 @@ if (idx.workflowType === 'update-deps') {
         : { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf handoff ${slug}` }
     }
   }
+  // W11.1 — surface the charter checkpoints on the slug hand-back (both the stop and the endpoint).
+  if (charterCheckpoints.length && !outcome.charterCheckpoints) outcome.charterCheckpoints = charterCheckpoints
 }
 
 const deferrals = collectDeferrals(outcome)
@@ -1031,5 +1135,13 @@ if (pressure && pressure.open > 0) {
   log(`deferral pressure: ${bits.join(', ')} — surfaced so the pile does not hide inside artifacts; plan's repeat-deferral tripwire governs retirement`)
 }
 if (branchAction) outcome.branch = branchAction   // surface the up-front create/switch in the hand-back
+// W11.1 — decision digest: every autonomous decision this run recorded, grouped by W4 class,
+// so the human's post-run inspection is structured, not archaeological.
+const digest = decisionDigest(outcome)
+if (digest) {
+  outcome.decisionDigest = digest
+  const parts = Object.entries(digest.byClass).map(([k, n]) => `${n} ${k}`).join(', ')
+  log(`autonomous decisions this run: ${digest.total} (${parts})${digest.intentBearing.length ? ` — ${digest.intentBearing.length} stamped intent-bearing (should have been a stop; inspect)` : ''}`)
+}
 log(outcome.stopped ? `yolo HARD-STOP at ${outcome.stoppedAt || 'orient'}: ${outcome.reason}` : `yolo reached the endpoint — next: ${outcome.route}`)
 return outcome

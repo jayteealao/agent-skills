@@ -202,6 +202,8 @@ unproven-integrations:
 
 While `first-light: null`, every AC depending on that integration caps at `partial` — mock/emulator rungs are proxies, never `pass`. Any live observation (a tagged smoke run, `$wf probe`, a live e2e) **stamps** `first-light` with its timestamp and lifts the cap.
 
+**Charter scenario (when the slice carries the `charter scenario executes through step N` standing AC).** The charter scenario is a **user-observable** AC: run it as INTERACTIVE verification through its covered steps — same browser/adapter rungs and the same constraint-resolution ladder as any user-observable AC, never a static-reasoning `pass`. It is **subject to first-light**: a scenario whose critical dependency is still `first-light: null` caps at `partial`. A slug can NEVER finish with its charter scenario never having run against reality — the final slice's scenario (all steps) must reach a real rung before ship. Skip when no slice carries the standing AC (compressed modes / no `## Charter Scenario`).
+
 **Mitigation-wiring is traceable — "the code exists" is not evidence.** Any mitigation the shape *mandates* (fallback, escape hatch, kill switch) must be evidenced by an AC that **exercises the wired path** — fault injection, a forced fallback, a flag flip — with the mitigation actually firing. Mitigation ACs are **code-only-forbidden**: their `kind` is `user-observable` and their evidence is the mitigation firing, never a static read that the branch is present.
 
 Prompt the agent with ALL of the following:

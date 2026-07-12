@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.130.0] - 2026-07-12
+
+### Added — charter, scenario harness, and yolo fidelity checkpoints (INTENT-FIDELITY R4)
+
+Release 4 of `docs/internal/INTENT-FIDELITY-HARDENING-PLAN.md` (waves W8, W11) — the largest new concept, landed once R1's ledger vocabulary and R3's taxonomy were field-tested. Where W1/W2 track the negative space (risks, narrowings), the charter gives the intake's **positive commitments** identity, citations, and a runtime check.
+
+- **W8.1 — the charter (`charter:` frontmatter, new).** Intake distils **3–7 falsifiable-by-code commitments** ("the model decides whether and what to probe in the interview") into `00-index.md` — deliberately few; a charter that restates the whole intake is boilerplate. Each `{id: C1.., commitment, source, status: honored|at-risk|broken}`. RIM adjudications may name the charter ids they protect; the intent-fidelity dimension checks its question 1 per-id. The dashboard renders a charter chip beside the RIM chip (byte-stable when absent). Compressed lifecycles carry no charter.
+- **W8.2 — core-loop scenario harness.** When the intake's Restated Request contains a numbered core loop, `shape` authors a `## Charter Scenario` — the loop as ONE scripted end-to-end scenario with an observable checkpoint per step. `slice` gives the visible-milestone and final slices a standing AC ("charter scenario executes through step N"); `verify` runs it as interactive verification on the same ladder rungs, subject to first-light — a slug can never finish with the scenario never having run against reality. (The waypoint vending-machine would have failed step 2's checkpoint — "probe reflects the stated goal" — at the milestone, days early.)
+- **W8.3 — constraint precedence.** An NFR that could conflict with a charter commitment carries `yields-to: C1` or `outranks: C1 (PO-ratified)`; an unranked conflict is a PO question. `plan` must quote the ranking when an NFR is a mechanism rationale — citing an unranked NFR against a commitment (waypoint's <3s → single-call FSM) is intent-bearing.
+- **W11.1 — yolo fidelity checkpoints + decision digest (`workflows/yolo.js`, Claude-only).** Every 3 slices, a cheap read-only checkpoint subagent reads the charter + recent implement artifacts and judges each commitment honored / at-risk / broken against the **code**; a `broken` commitment is a HARD-STOP (`stoppedAt: 'charter-checkpoint'`). End of run, `outcome.decisionDigest` groups every autonomous decision by W4 class — an `intent-bearing` stamp on an autonomous record is surfaced as a should-have-been-a-stop. New pure helpers `decisionDigest` + `charterCheckpoint`; `orient` now captures the charter. `yolo.md` documents both with new `Charter:` / `Decisions:` hand-back anchors.
+- **W11.2 — mid-build discover checkpoint.** When a `severity: high` RIM's visible-milestone slice lands clean, `auto` asks whether to run a read-only `/wf discover` first; `yolo` records it as a recommended next step. (Waypoint's decisive discover run just ran two days late; this schedules it.)
+- Tests: 3 new `decisionDigest` cases in `yolo-gates.test.mjs` (extracted like the other pure gates), charter schema round-trip + charter-chip byte-stability + R4 prose drift guards in `intent-fidelity.test.mjs`. Codex mirrored (charter/scenario/precedence/discover); `yolo.md`/`yolo.js` stay Claude-only. `verify-claudisms` clean.
+
 ## [9.129.0] - 2026-07-12
 
 ### Added — decision taxonomy + intent-fidelity review dimension (INTENT-FIDELITY R3)

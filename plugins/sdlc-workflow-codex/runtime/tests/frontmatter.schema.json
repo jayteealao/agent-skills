@@ -237,6 +237,20 @@
             }
           }
         },
+        "charter": {
+          "type": "array",
+          "description": "Charter — the intake's 3-7 POSITIVE commitments as first-class spec (INTENT-FIDELITY W8.1). Deliberately few; a charter that restates the whole intake is boilerplate. Commitments must be falsifiable by code. RIM adjudications name the charter ids they protect; the intent-fidelity dimension checks question 1 per-id; the charter scenario (shape) exercises the core loop end-to-end. Compressed lifecycles (fix/hotfix/refactor/update-deps/adopt) carry no charter.",
+          "items": {
+            "type": "object",
+            "required": ["id", "commitment", "status"],
+            "properties": {
+              "id": { "type": "string", "description": "Stable id C1..n." },
+              "commitment": { "type": "string", "description": "One falsifiable positive commitment, e.g. 'the model decides whether and what to probe in the interview'." },
+              "source": { "type": "string", "description": "Where in the intake it was committed, e.g. 01-intake.md#restated-request step 2." },
+              "status": { "enum": ["honored", "at-risk", "broken"], "description": "Set by verify runs + the intent-fidelity review + yolo checkpoints. A broken commitment is a yolo stop." }
+            }
+          }
+        },
         "evidence-quality": {
           "type": "object",
           "description": "Slug-level evidence-rung rollup (INTENT-FIDELITY W9.1 + YOLO F5). Counts of user-observable AC evidence by highest rung, aggregated from the 06-verify AC status tables. The dashboard renders it as a chip; a slug with zero live-rung evidence on charter-cited ACs cannot ship without recorded PO acceptance.",

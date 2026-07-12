@@ -199,6 +199,7 @@ After all rounds (5 baseline + any extension rounds), append every answer to `po
 4. Run freshness research via Explore sub-agent 2 (see skip criteria above) for external dependencies, patterns, APIs, standards, and known issues.
 5. Synthesize discovery answers into a behavior-focused mini-spec.
 5b. **Author the design brief (when `stack.ui ≠ ∅` and the work has visual surface).** If `00-index.md` shows a UI/frontend layer **and** this work introduces meaningful visual surface (new screens, components, states, or a redesign), author `02b-design.md` now per [design/shape.md](design/shape.md) — fold visual-direction questions into the answers already gathered; ask only what the discovery interview didn't cover. Write it as **plain discovery**: register, color strategy, scene sentence, anti-goals, state inventory, recommended references. Do **NOT** generate image probes and do **NOT** run a visual-direction confirm gate here — those are `plan`'s (it resolves the image gate and authors `02c-craft.md`). Do not write a resolved `image-gate` to `02b-design.md` — leaving it unset marks the gate unresolved for `plan` (the field only accepts `pass`/`skipped:*`). If `stack.ui` is empty or no visual surface, skip this step. See `design/_design-context.md` for register determination and shared design laws.
+5c. **Author the Charter Scenario (when the intake's Restated Request names a numbered core loop).** If the request describes a core loop as numbered steps, author the `## Charter Scenario` section: the loop as ONE scripted end-to-end scenario, each step carrying an **observable checkpoint** a human or tool could confirm — e.g. "goal entered → probe question shown that references the stated goal → answer captured → …". This is the executable spine `slice` carries as a standing AC (progressive coverage) and `verify` runs as interactive verification. If the Restated Request names no core loop, or in compressed intake modes, skip this step and omit the section.
 6b. **Augmentation plan (perf / observability / rollout).** Fold augmentation questions into discovery rounds (Rounds 2–4 naturally surface observability gaps, performance sensitivity, and rollout risk). After the discovery interview, synthesize into `## Augmentation Plan` and set `augmentations-needed:` frontmatter. For each type, ask (or infer from answers):
    - **`instrument`**: Dark code paths with no observable signal? Will anyone know in production whether this worked?
    - **`experiment`**: Business uncertainty whether this change is better? Would a controlled rollout (feature flag, A/B, canary) reduce risk?
@@ -274,6 +275,15 @@ next-invocation: "$wf slice <slug>"
 
 ## Desired Behavior
 
+## Charter Scenario
+<!-- Authored only when the intake's Restated Request names a numbered core loop (Step 5c); otherwise omit
+the section entirely. The core loop as ONE scripted end-to-end scenario — every step carries an OBSERVABLE
+checkpoint a human or tool could confirm, not just an intent. `slice` carries this scenario as a standing AC
+(progressive coverage — the visible-milestone slice through step N, the final slice through all steps);
+`verify` runs it as interactive verification subject to first-light. Compressed intake modes: skip. -->
+1. <step> → <observable checkpoint>
+2. ...
+
 ## Acceptance Criteria
 - Given ... When ... Then ...
 - For each criterion, classify verification method:
@@ -284,6 +294,12 @@ next-invocation: "$wf slice <slug>"
 - **Named-mechanism rule (a test may not name a machine the design does not own).** Any architectural mechanism named in an AC, its verification method, or a test-plan line — a state machine, scheduler, queue, cache, pipeline, orchestrator, a controlling regex — MUST exist as a **named decision in this artifact's body**: one sentence stating the mechanism, what it replaces, and why. A mechanism that enters only through a test method (an AC verified by "interview state-machine unit tests" with no body decision naming the FSM) is a control-authority decision smuggled past adjudication — name it in the body (and, if it touches a RIM or PO directive, adjudicate it per Step 8a) or drop it from the AC.
 
 ## Non-Functional Requirements
+<!-- Constraint precedence (W8.3): any NFR that COULD conflict with a charter commitment (`00-index.md`
+`charter:`) MUST carry an explicit ranking against it — `yields-to: C<n>` (the commitment wins) or
+`outranks: C<n> (PO-ratified)` (the NFR wins, and a PO answer THIS stage authorizes it; cite the
+`po-answers.md` entry). An UNRANKED NFR-vs-charter conflict is an open question routed to the PO, never an
+author's silent call. `plan` QUOTES this ranking when it cites the NFR as a mechanism rationale — an
+unranked NFR cited against a commitment is the tell of an intent-bearing decision. -->
 - ...
 
 ## Edge Cases / Failure Modes
