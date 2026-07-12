@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -95,7 +95,7 @@
 
 <p class="lede">This page is for when you need to understand how the plugin commands are implemented — for example to debug unexpected behavior or trace why a command ran differently than expected.</p>
 
-<p>The plugin's behavior lives in a small set of <strong>skills</strong> — self-contained instruction files the model reads and executes. Two of them are <strong>commands</strong> (also called routers): <code>/wf</code> and <code>/review</code>, each accepting a sub-command that dispatches to the matching reference file. The rest are <strong>support skills</strong> the model draws on for focused tasks — <code>consult</code>, <code>imagery</code>, <code>uiproto</code>, and <code>diataxis</code>. (Design is no longer its own command-skill — it now lives under <code>/wf</code> as the <code>/wf design</code> sub-command. The former <code>/wf-quick</code>, <code>/wf-meta</code>, and <code>/wf-docs</code> commands are retired; their flows are now <code>/wf</code> keys.)</p>
+<p>The plugin's behavior lives in a small set of <strong>skills</strong> — self-contained instruction files the model reads and executes. Two of them are <strong>commands</strong> (also called routers): <code>/wf</code> and <code>/review</code>, each accepting a sub-command that dispatches to the matching reference file. The rest are <strong>support skills</strong> the model draws on for focused tasks — <code>consult</code>, <code>imagery</code>, <code>uiproto</code>, <code>diataxis</code>, and <code>study-sources</code>. (Design is no longer its own command-skill — it now lives under <code>/wf</code> as the <code>/wf design</code> sub-command. The former <code>/wf-quick</code>, <code>/wf-meta</code>, and <code>/wf-docs</code> commands are retired; their flows are now <code>/wf</code> keys.)</p>
 
 <p>Every command can be run explicitly with a slash — <code>/wf</code> and <code>/review</code>. Skills are also how the model auto-invokes behavior without you typing a slash command; which skills can auto-invoke is covered in <a href="#auto-invoke">Auto-invocation</a> below.</p>
 
@@ -104,7 +104,7 @@
 <table>
 <thead><tr><th>Command</th><th>What it covers</th><th>Typical use</th></tr></thead>
 <tbody>
-<tr><td><code>/wf</code></td><td>20 sub-commands: 10 lifecycle stages · 4 add-on types · design · probe · simplify · auto · docs · navigation &amp; lifecycle keys</td><td>Run explicitly: <code>/wf &lt;stage&gt; &lt;slug&gt;</code>.</td></tr>
+<tr><td><code>/wf</code></td><td>20 sub-commands: 10 lifecycle stages · 4 add-on types · design · probe · simplify · auto · yolo drivers · status · recap · close · ship-plan &amp; docs routers</td><td>Run explicitly: <code>/wf &lt;stage&gt; &lt;slug&gt;</code>.</td></tr>
 <tr><td><code>/review</code></td><td>33 review dimensions across 7 named sweeps</td><td>Can auto-invoke; the model selects dimensions based on change context.</td></tr>
 </tbody>
 </table>
@@ -124,11 +124,11 @@
 
 <h2 id="auto-invoke">Auto-invocation</h2>
 
-<p>Most commands never auto-invoke — you must run them explicitly. The exception is <code>/review</code>, which the model can trigger on its own when it detects a change worth reviewing. Of the support skills, the model may run <code>consult</code> autonomously when a second opinion adds material value, and <code>diataxis</code> auto-invokes on documentation-writing or docs-review requests. The other two (<code>imagery</code>, <code>uiproto</code>) are internal helpers: they are loaded by <code>/wf design</code>, not triggered autonomously.</p>
+<p>Most commands never auto-invoke — you must run them explicitly. The exception is <code>/review</code>, which the model can trigger on its own when it detects a change worth reviewing. Of the support skills, the model may run <code>consult</code> autonomously when a second opinion adds material value, and <code>diataxis</code> auto-invokes on documentation-writing or docs-review requests. The read-only <code>study-sources</code> can also auto-invoke when a task depends on how a real dependency or upstream source actually behaves. The remaining two (<code>imagery</code>, <code>uiproto</code>) are internal helpers: they are loaded by <code>/wf design</code>, not triggered autonomously.</p>
 
 <h2>Support skills</h2>
 
-<p>Four skills under <code>skills/</code> are not commands. They are focused capabilities the model invokes directly — either on its own, or when a command loads them internally:</p>
+<p>Five skills under <code>skills/</code> are not commands. They are focused capabilities the model invokes directly — either on its own, or when a command loads them internally:</p>
 
 <table>
 <thead><tr><th>Skill</th><th>What it does</th></tr></thead>
@@ -137,6 +137,7 @@
 <tr><td><code>consult</code></td><td>Read-only multi-model second opinion — plan critique, code review, design analysis, diagnosis. Fans out to all available providers; never edits the repo.</td></tr>
 <tr><td><code>imagery</code></td><td>Generates images from a text prompt, fanning out to all available providers. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
 <tr><td><code>uiproto</code></td><td>Prototypes a UI component or screen as a self-contained, sandboxed HTML fragment. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
+<tr><td><code>study-sources</code></td><td>Read-only: fetches and reads real upstream and dependency source (installed caches first — <code>node_modules</code>, <code>~/.m2</code>, Gradle/Android/Go/Rust/.NET/Ruby/PHP/Swift/Dart — else clones into a gitignored <code>.scratch/</code>) so knowledge comes from actual code. Never enters the repo's git history; wired lifecycle-wide.</td></tr>
 </tbody>
 </table>
 

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -117,6 +117,8 @@
 <h2>Branch-aware multi-repo hub <span class="badge">v9.49</span></h2>
 
 <p>The hub serves every registered repo from one process and groups the landing inbox <strong>repo → branch → slug</strong>. Registry identity is <strong>repo-scoped</strong> (<code>REGISTRY_VERSION = 2</code>): a repo's id is <code>hash(repoRoot)</code> alone — branch is no longer part of the digest, so switching branches no longer forks a repo into duplicate registry entries. Per-slug rows carry branch metadata (<code>branch</code>, <code>branchStrategy</code>, <code>baseBranch</code>, <code>prNumber</code>, <code>prUrl</code>) and a soft <strong>liveness badge</strong> — <code>live</code> / <code>merged</code> / <code>gone</code> / <code>unknown</code> — so stale branches are visually de-emphasised. Liveness is advisory and never blocks anything (see <a href="../explanation/branch-strategy.html">Branch strategy</a>).</p>
+
+<p><span class="badge">v9.106</span> When two or more slugs share a branch, the inbox clusters them under a single <code>⎇ &lt;branch&gt;</code> header carrying a <strong>readiness chip</strong> that summarises the group's shared handoff/ship state, rather than repeating branch metadata on every row. <span class="badge">v9.112</span> Registry reconcile treats a registered path that is not a git working tree as a <code>skipped-not-git</code> no-op — it is left in place rather than reaped, so a directory that is simply not (or not yet) a repo is never mistaken for a stale entry.</p>
 
 <p>Prefer a GUI to manage the hub? The <a href="tray.html">tray app</a> (<code>npm run tray</code>) puts hub status and controls in your system tray.</p>
 
@@ -216,6 +218,8 @@
   <li>If a hub is alive (PID-file-gated probe of <code>~/.sdlc/hub.pid</code>) — defers to it, reaping any redundant per-repo daemon.</li>
   <li>Otherwise spawns the standalone fallback daemon — <code>dist/render-sunflower-serve.mjs</code> in installs, falling back to <code>scripts/render-sunflower-serve.mjs</code> for maintainers before their first build (<code>resolveEntrypoint</code> prefers the committed bundle) — writing a PID file at <code>.ai/_view/.serve.pid</code>.</li>
 </ol>
+
+<p>When a Claude and a Codex process race to start the hub at the same moment, startup is serialized by a <code>hub.lock.takeover</code> marker: the stale-lock takeover is funneled through that single marker rather than a blind <code>rm</code>, so two hubs cannot both win the port on a shared host.</p>
 
 <p>A running per-repo daemon that reports a different <code>runtimeVersion</code> on its health endpoint is treated as stale and reaped, so a new install deterministically replaces the old daemon's code. The hub supervisor similarly keys adoption on <code>hub.runtimeVersion</code> from the health payload; the top-level <code>version</code> field is a legacy alias kept for pre-v9.75 compatibility.</p>
 

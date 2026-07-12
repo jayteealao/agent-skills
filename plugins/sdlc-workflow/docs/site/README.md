@@ -52,7 +52,7 @@ python3 _build_pages.py
 
 The generator then propagates that one definition everywhere:
 
-- inlines the sidebar into all 42 generated pages,
+- inlines the sidebar into all 21 generated pages,
 - writes `nav.html` (the canonical standalone copy — **generated, do not hand-edit**),
 - patches the inlined `<aside id="sidebar">…</aside>` block in the hand-authored pages (`index.html`, `tutorials/installation.html`, `tutorials/first-workflow.html`, `reference/serve.html`, `reference/types.html`),
 - derives every page's Previous/Next pager from the `SIDEBAR` link order, so reading order can't drift when a page is inserted.

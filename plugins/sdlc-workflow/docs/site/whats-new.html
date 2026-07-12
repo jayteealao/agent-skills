@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -94,8 +94,53 @@
 <h1>What's new</h1>
 
 <p class="lede">
-User-facing highlights since v9.11, up to v9.88. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
+User-facing highlights since v9.11, up to v9.122. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
 </p>
+
+<h2>v9.122.0 — Documentation reconciliation</h2>
+<p>A full doc-site pass reconciled every page against the v9.121 source of truth after ~33 feature releases. Retired surfaces (standalone <code>/review</code>, <code>/wf-quick</code>/<code>/wf-design</code> routers, <code>amend</code>, the <code>craft</code> design command, and the four augmentation "keys") are no longer taught as live; this changelog is backfilled through v9.121; the <code>/wf</code> reference and schema pages now cover <code>yolo</code>, <code>adopt</code>, <code>steer.md</code>, ship-plan readiness, batch handoff/ship, and the newer frontmatter fields; and the glossary's cross-page anchor links resolve again. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.121.0 — Headless verify: "no display" is a boot choice, not a wall</h2>
+<p>Display-dependent verification adapters (Android, iOS, desktop) now boot <strong>headless by default</strong>, so a stage running as a background sub-agent with no attached screen — the common case under <code>/wf yolo</code> — no longer mistakes "no display" for "cannot verify." The Android emulator boots with <code>-no-window</code>, iOS reads the simulator runtime directly, and Linux desktop uses a virtual framebuffer. A missing display is only a lawful defer-reason after the adapter's headless boot has actually been attempted and its probe output recorded. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.120.0 — <code>steer.md</code>: standing instructions every stage honors</h2>
+<p>An optional user-owned <code>.ai/workflows/&lt;slug&gt;/steer.md</code> (free prose, no schema) now carries standing constraints, preferences, and vetoes for a workflow — "don't touch the config loader", "prefer the queue approach" — and <strong>every stage reads it at Step 0 and honors it</strong>. Precedence is live-user &gt; <code>steer.md</code> &gt; stage defaults, and steering never overrides a mandatory gate. In an unattended <code>/wf yolo</code> run, a steering veto outranks every auto-resolve default. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.119.0 — <code>/wf handoff</code> and <code>/wf ship</code> are ship-plan aware</h2>
+<p>Both release-facing stages now run a shared <strong>ship-plan readiness pre-check</strong> before committing to their work, so a missing or drifted <code>.ai/ship-plan.md</code> is caught early instead of dead-ending the release. It detects a missing plan or drift (vanished plan paths, new version manifests, unlisted CI secrets, migrations with no rollback), then routes you to <code>/wf ship-plan init</code> or <code>/wf ship-plan edit</code> — it never edits the plan itself. See <a href="how-to/author-ship-plan.html">Author a ship plan →</a></p>
+
+<h2>v9.118.0 — <code>/wf intake adopt</code>: bring already-done work into the lifecycle</h2>
+<p>A <strong>reverse-entry</strong> intake mode for when the change is <em>already made</em> in your working tree and you only afterward decide it deserves recorded verification. <code>adopt</code> reads the current diff and reconstructs the record backward (<code>01-adopt</code> → <code>02-shape</code> → <code>03-slice</code> → <code>04-plan</code> → <code>05-implement</code>, all stamped <code>provenance: adopted</code>), then lands the workflow at <code>/wf verify</code> so the standard quality tail runs over the adopted change. A confirm-before-write gate shows you the inferred shape first; it never writes or undoes code. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.116–9.117 — <code>study-sources</code>: read real upstream source instead of guessing</h2>
+<p>A new read-only skill that grounds work in <strong>actual dependency and upstream source</strong> rather than recalled API shapes. It reads what's already installed first (<code>node_modules</code>, <code>~/.m2</code>, the Gradle/Android/Go/Rust/.NET/Ruby/PHP/Swift/Dart caches) and only fetches into a gitignored <code>.scratch/</code> if absent — nothing it reads enters your repo or git history. A lifecycle-wide Step 0.8 makes it available to every stage; <code>intake rca</code>, <code>intake investigate</code>, <code>plan</code>, <code>implement</code>, and <code>intake update-deps</code> reach for it explicitly. See <a href="reference/skills.html">Skills →</a></p>
+
+<h2>v9.114–9.115 — <code>update-deps</code> autonomy and mandatory changelog citation</h2>
+<p><code>/wf yolo</code> can now drive an <code>update-deps</code> workflow autonomously (full plan, defer failures) instead of refusing. And <code>/wf intake update-deps</code> now requires each research batch to ground its breaking-changes in the package's <strong>own changelog or release notes</strong> — reading every intermediate major and citing the exact source. A P0/P1 package with no locatable changelog is marked <code>unverified</code> and recommended <code>hold</code>, not assumed clean. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.113.0 — <code>diataxis</code> skill restored; three passive skills removed</h2>
+<p>The <code>diataxis</code> documentation skill returns as a single consolidated skill — the standalone, general-purpose counterpart to the lifecycle-bound <code>/wf docs</code>. At the same time the unused <code>refactoring-patterns</code>, <code>test-patterns</code>, and <code>error-analysis</code> knowledge skills were deleted (never wired into any stage; their content is applied unprompted). The skill surface is now <code>wf</code> plus <code>consult</code>, <code>imagery</code>, <code>uiproto</code>, <code>diataxis</code>, and <code>study-sources</code>. See <a href="reference/skills.html">Skills →</a></p>
+
+<h2>v9.108.0 — <code>/wf yolo</code>: autonomous lifecycle driver</h2>
+<p>The no-human-gates sibling of <code>/wf auto</code> (Claude-only). <code>/wf yolo &lt;slug&gt;</code> drives every stage and resolves each gate by a written policy rather than pausing for you, stopping before handoff. It classifies the slug by <code>workflow-type</code> so compressed change-modes (<code>fix</code>/<code>hotfix</code>/<code>refactor</code>) and RCA drive correctly, defers acceptance criteria it genuinely can't verify, and creates or switches to a dedicated branch up front. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.105–9.106 — Branch-scoped batch handoff/ship + revision ledger</h2>
+<p><code>/wf handoff</code>, <code>/wf ship</code>, <code>/wf recap</code>, <code>/wf retro</code>, and <code>/wf status</code> now accept a <strong>polymorphic first argument</strong> — a slug, <code>pr#N</code>, or a branch name. A PR/branch argument runs <strong>batch mode</strong> over every slug on the branch: batch handoff opens one shared PR and reports which slugs are ready; batch ship is all-or-nothing across the branch. Revisable artifacts became living documents with a reason-centric <code>revisions:</code> frontmatter ledger, and the dashboard now clusters branch-shared workflows under a <code>⎇ branch</code> header with a readiness chip. See <a href="reference/serve.html">Serve daemon &amp; hub →</a></p>
+
+<h2>v9.98–9.102 — <code>/wf</code> becomes the single entry point (20 keys)</h2>
+<p>The last sibling routers dissolved into <code>/wf</code>: <code>/wf-meta</code> and <code>/wf-docs</code> are retired (their members are now keys like <code>/wf status</code>, <code>/wf recap</code>, <code>/wf close</code>, <code>/wf ship-plan</code>, <code>/wf docs</code>), the standalone <code>/review</code> skill folded into <code>/wf review</code>, and <code>amend</code> was dropped (corrections are a new slice or a fix; the ship plan uses <code>/wf ship-plan edit</code>). The surface compacted to <strong>20 keys</strong> — 10 stages, 5 standalone/drivers, 2 navigation, 1 lifecycle-control, 2 routers. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.96.0 — Design folds into the lifecycle; <code>craft</code> retired</h2>
+<p>UI work now rides the normal <code>shape → plan → implement → verify</code> flow instead of a separate <code>craft</code> command. <code>shape</code> authors the design brief (<code>02b-design.md</code>), <code>plan</code> authors the visual contract (<code>02c-craft.md</code>) and resolves the image gate, and <code>implement</code> applies the contract with a mandatory critique pass. <code>/wf design</code> is now a transforms-and-analysis dispatcher of <strong>20 commands</strong> (15 transforms + <code>audit</code>/<code>critique</code>/<code>extract</code>/<code>setup</code>/<code>teach</code>) — there is no <code>craft</code> command. See <a href="how-to/use-design.html">Use design →</a></p>
+
+<h2>v9.95.0 — Verifiability-first acceptance criteria</h2>
+<p>Closes the "verified but actually broken" leak class. Every user-observable acceptance criterion is now authored <em>with</em> its verification path — <code>slice</code> attaches a <code>verify: { method, env, fixture, rung }</code> stub, <code>plan</code> adds a <code>## Verification Strategy</code>, and <code>verify</code> mandates a constraint-resolution ladder before any deferral (static reasoning is never evidence, a mock never satisfies an integration criterion). A write-time hook hard-blocks a <code>result: pass</code> that contradicts its own evidence. See <a href="reference/pipeline.html">Pipeline →</a></p>
+
+<h2>v9.92–9.94 — Narrative story sections, external-model dispatch, and new review dimensions</h2>
+<p>Every <code>/wf</code> artifact now opens with a prose <strong>story section</strong> named after its stage (<code>## The Plan</code>, <code>## The Verification</code>) — a self-sufficient lead you can read alone. The plugin also gained opt-in <strong>external-model dispatch</strong> (<code>consult</code> as a read-only oracle, <code>imagery</code>, <code>uiproto</code>; gated behind <code>externalDispatch.enabled</code>), and code review grew to <strong>33 dimensions</strong> with the <code>motion</code> and <code>interface-craft</code> lenses. See <a href="reference/artifacts.html">Artifacts →</a></p>
+
+<h2>v9.90–9.91 — YAGNI build-avoidance ladder</h2>
+<p>A simplicity-first ladder now runs through the generative stages: <code>shape</code> asks a scope-restraint question, <code>plan</code> checks stdlib → native-platform → reuse before endorsing new code or a dependency, and <code>implement</code> favors direct calls over wrappers — with a non-negotiable "lazy ≠ negligent" guard that never trims validation, error handling, security, or accessibility. Intentional shortcuts leave an <code>sdlc-debt:</code> marker that <code>verify</code> validates, <code>retro</code> reconciles, and <code>/wf simplify</code> sweeps. See <a href="reference/wf.html">&#47;wf reference →</a></p>
 
 <h2>v9.88.0 — <code>/wf auto</code>: end-to-end lifecycle driver</h2>
 <p><code>/wf auto &lt;slug&gt;</code> drives every slice through the full pipeline then runs a final review, stopping before handoff. <code>/wf auto &lt;slug&gt; &lt;slice&gt;</code> drives a single slice and routes to the next. Runs each stage in-process; writes no own artifact. Any gate failure pauses and surfaces the blocking issue. See <a href="reference/wf.html">&#47;wf reference →</a></p>

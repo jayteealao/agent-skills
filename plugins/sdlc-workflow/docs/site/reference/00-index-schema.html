@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -111,7 +111,7 @@
 <tr><td><code>stage-number</code></td><td>integer</td><td>Integer &#8805; 0.</td></tr>
 <tr><td><code>created-at</code></td><td>ISO 8601</td><td>Timestamp set at intake; never changed.</td></tr>
 <tr><td><code>updated-at</code></td><td>ISO 8601</td><td>Real timestamp from <code>date -u</code>.</td></tr>
-<tr><td><code>selected-slice</code></td><td>string</td><td>Currently active slice slug. (Readers also accept the legacy <code>selected-slice-or-focus</code> as a fallback.)</td></tr>
+<tr><td><code>selected-slice</code></td><td>string</td><td>Currently active slice slug. Its alias <code>selected-slice-or-focus</code> (used when a focus target rather than a formal slice is in play) is <em>preferred</em> by the skill references and the session-start hook; those readers fall back to <code>selected-slice</code> only when the alias is absent.</td></tr>
 <tr><td><code>open-questions</code></td><td>array</td><td>Unanswered questions blocking progress.</td></tr>
 <tr><td><code>next-command</code></td><td>string</td><td>Command name (e.g., <code>wf-shape</code>).</td></tr>
 <tr><td><code>next-invocation</code></td><td>string</td><td>Full slash command, ready to copy.</td></tr>
@@ -133,8 +133,9 @@
 
 <table>
 <tr><th><code>slices</code></th><td>Array of per-slice summary objects (<code>slug</code>, <code>status</code>, <code>complexity</code>, <code>depends-on</code>). Written once slices are defined.</td></tr>
-<tr><th><code>augmentations</code></th><td>Array of <code>{ type, artifact, status, created-at }</code> objects (benchmark adds <code>mode</code>; design transforms add <code>files-modified</code>). Appended by <code>/wf instrument</code>, <code>experiment</code>, <code>benchmark</code>, and <code>/wf design</code> operators. "Add-ons" (<a href="../reference/glossary.html">glossary</a>) are the actions that append to this array.</td></tr>
-<tr><th><code>workflow-type</code></th><td>Schema enum: <code>feature</code>, <code>fix</code> (legacy: <code>quick</code>), <code>rca</code>, <code>investigate</code>, <code>rf</code>, <code>refactor</code>, <code>hotfix</code>, <code>dep-update</code>, <code>update-deps</code>, <code>docs</code>, <code>discover</code>, <code>standard</code>.</td></tr>
+<tr><th><code>augmentations</code></th><td>Array of <code>{ type, artifact, status, created-at }</code> objects (benchmark adds <code>mode</code>; design transforms add <code>files-modified</code>). Appended when <code>plan</code>/<code>implement</code> apply a shape-decided augmentation (<code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, <code>profile</code>) or a <code>/wf design</code> operator runs. These are <a href="../reference/glossary.html">augmentations</a>, not <code>/wf</code> keys — <code>shape</code> decides them (<code>augmentations-needed</code>).</td></tr>
+<tr><th><code>workflow-type</code></th><td>Schema enum: <code>feature</code>, <code>fix</code> (legacy: <code>quick</code>), <code>rca</code>, <code>investigate</code>, <code>rf</code>, <code>refactor</code>, <code>hotfix</code>, <code>dep-update</code>, <code>update-deps</code>, <code>docs</code>, <code>discover</code>, <code>standard</code>, <code>adopt</code>.</td></tr>
+<tr><th><code>provenance</code> <span class="badge">v9.118</span></th><td><code>authored</code> (default; do not stamp explicitly) or <code>adopted</code>. <code>adopted</code> means the artifact was reverse-engineered from an already-existing diff by <code>/wf intake adopt</code>; downstream stages and any pattern-mining over <code>04-plan</code>/<code>05-implement</code> (retro learnings, reuse analysis) must treat it as reconstruction, not forethought.</td></tr>
 
 <tr><th><code>runtime-evidence-deferrals</code> <span class="badge">v9.14</span></th><td>Array of <code>{ slice, reason, deferred-at, cleared-by }</code> objects. Appended by <code>/wf verify</code> when a slice's user-observable acceptance criterion is annotated with <code>interactive-verification: deferred</code>. <code>/wf ship</code> Step 6.5 hard-blocks while any entry has <code>cleared-by: null</code>. Cleared by a <code>/wf probe</code> run whose captured evidence satisfies the deferred criterion (sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or by a verify re-run in a capable environment.</td></tr>
 </table>

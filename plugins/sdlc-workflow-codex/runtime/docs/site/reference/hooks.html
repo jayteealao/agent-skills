@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -93,7 +93,7 @@
 <span class="quadrant reference">reference</span>
 <h1>Hooks reference</h1>
 
-<p class="lede">Hooks are what make the plugin active during normal Claude Code use — they fire automatically when you write files, start sessions, and run commands. Two of the five hooks act as <strong>guards</strong>: they catch malformed artifact files before they are saved, so broken frontmatter never silently corrupts your workflow history.</p>
+<p class="lede">Hooks are what make the plugin active during normal Claude Code use — they fire automatically when you write files, start sessions, and run commands. Two of the seven hooks act as <strong>guards</strong>: they catch malformed artifact files before they are saved, so broken frontmatter never silently corrupts your workflow history.</p>
 
 <h2>What the hooks do for you</h2>
 
@@ -136,7 +136,7 @@
 </tbody>
 </table>
 
-<p>All seven are wired via <code>hooks/hooks.json</code> and run from committed <strong>esbuild bundles under <code>dist/</code></strong>, not the <code>hooks/*.mjs</code> source files. This means they run with no <code>npm install</code> on a fresh install — all dependencies are inlined.</p>
+<p>All seven are wired via <code>hooks/hooks.json</code> and run from committed <strong>esbuild bundles under <code>dist/</code></strong>, not the <code>hooks/*.mjs</code> source files. This means they run with no <code>npm install</code> on a fresh install — all dependencies are inlined. The hooks are not Claude-Code-only: a shared <code>normalizeHookPayload</code> (in <code>lib/stdin.mjs</code>) aliases the camelCase hook payload keys emitted by Grok and Cursor to the snake_case fields the hooks expect, so the same bundles run across those hosts.</p>
 
 <h2>What each hook validates</h2>
 

@@ -783,7 +783,7 @@ Self-contained workflows with their own lifecycle that do not require an existin
 
 ### Review domains (33 dimensions)
 
-Invoke a single domain as `/review <dimension>` (skill auto-trigger or explicit `/review` invocation). Dispatched automatically by `wf-review` based on artifact analysis. The `review` skill body lives at [`skills/review/SKILL.md`](./skills/review/SKILL.md); each dimension's rubric is at `skills/review/reference/<dimension>.md`.
+Invoke a single domain as `/wf review <dimension>` (ad-hoc, no slug), or `/wf review sweep` for the full fan-out. The former standalone `/review` skill is dissolved into `/wf review` — the review surface now lives under [`skills/wf/reference/review/`](./skills/wf/reference/review/) (Step 00 in [`skills/wf/reference/review.md`](./skills/wf/reference/review.md); each dimension's rubric is at `skills/wf/reference/review/<dimension>.md`).
 
 **Always selected for any code change:** `correctness`, `security`, `code-simplification`
 

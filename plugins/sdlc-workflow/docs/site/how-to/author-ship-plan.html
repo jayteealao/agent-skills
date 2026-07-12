@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -109,9 +109,11 @@
 
 <p>The <a href="../reference/ship-plan-schema.html">ship plan</a> (a Markdown file with a YAML front-matter block) stores eleven "release concerns" — things like branch protection rules, the version-bump command, and rollback steps. Once committed, every <code>/wf ship</code> run reads the file directly.</p>
 
+<p>Both <code>/wf handoff</code> and <code>/wf ship</code> now run a shared ship-plan-readiness pre-check first. If <code>.ai/ship-plan.md</code> is missing or has drifted from the repo, they route you back here to <code>/wf ship-plan init</code> or <code>/wf ship-plan edit</code> rather than editing the plan themselves.</p>
+
 <h2>Step 1 — Run the init command</h2>
 
-<p>The <code>init-ship-plan</code> <a href="../reference/glossary.html">stage</a> (a single automated step in a workflow) reads your repo before asking any questions.</p>
+<p><code>/wf ship-plan init</code> is a router sub-command — not a pipeline stage. It reads your repo before asking any questions.</p>
 
 <pre><code>/wf ship-plan init                              # reads the repo; no seed
 /wf ship-plan init --from-template npm-public   # biases toward npm-public defaults</code></pre>

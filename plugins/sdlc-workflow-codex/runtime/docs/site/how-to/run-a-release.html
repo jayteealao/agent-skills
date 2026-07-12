@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -161,12 +161,11 @@
 
 <h2>If you need to roll back</h2>
 
-<p>Roll back manually using the method in <code>plan.rollback-mechanism</code> — for example, a git revert, a feature-flag toggle, or a redeploy of the prior version. Then record what happened in the run artifact:</p>
+<p>Do not hand-edit the run artifact. Run the sanctioned rollback phase, which is Go/No-Go gated and uses the method in <code>plan.rollback-mechanism</code> — for example, a git revert, a feature-flag toggle, or a redeploy of the prior version:</p>
 
-<pre><code># edit 09-ship-run-&lt;run-id&gt;.md and set:
-rolled-back: true
-rollback-sha: &lt;sha&gt;
-rollback-reason: "&lt;one sentence&gt;"</code></pre>
+<pre><code>/wf ship &lt;slug&gt; rollback [&lt;run-id&gt;]</code></pre>
+
+<p>It confirms the rollback with you, executes it, and writes <code>09-rollback-&lt;run-id&gt;.md</code> capturing what happened. Omit <code>&lt;run-id&gt;</code> to roll back the most recent run.</p>
 
 <p>To capture the failure as a recovery playbook so it is handled automatically next time:</p>
 

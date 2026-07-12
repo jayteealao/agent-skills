@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -168,6 +168,7 @@ flowchart TD
 <tbody>
 <tr><td>(no badge)</td><td>The branch ref exists and has not yet been fully merged into its base (active). Also shown when no branch is declared (<code>branch-strategy: none</code>), git is unavailable, or any error — fails open.</td></tr>
 <tr><td><code>merged</code></td><td>The branch tip is an ancestor of the base branch, or the pull request resolved as <code>MERGED</code>. Rendered as a visible chip.</td></tr>
+<tr><td><code>planned</code></td><td>The branch ref is not found <em>and</em> the workflow is still at a pre-branch stage (intake, shape, slice, or plan) — its dedicated branch has not been created yet. Distinct from <code>branch gone</code>, which means the branch existed and was deleted. Rendered as a visible chip.</td></tr>
 <tr><td><code>branch gone</code></td><td>The branch ref is no longer present locally — typically deleted after merging. Rendered as a visible chip.</td></tr>
 </tbody>
 </table>

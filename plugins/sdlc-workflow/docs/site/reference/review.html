@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -276,6 +276,10 @@
 </ol>
 
 <p>Artifact names depend on <code>review-scope</code> (set at intake): per-slice mode (default) produces <code>07-review-&lt;slice&gt;.md</code> + <code>07-review-&lt;slice&gt;-&lt;dimension&gt;.md</code>; slug-wide mode produces <code>07-review.md</code> + <code>07-review-&lt;dimension&gt;.md</code> and reviews the entire branch diff.</p>
+
+<p>Re-running <code>/wf review &lt;slug&gt;</code> does not overwrite the previous review — findings merge into an accumulating <strong>ledger</strong>. Each finding carries a <code>surfaced-at</code> marker and a <code>status</code>; a re-run that no longer reproduces an earlier finding marks it <code>resolved</code> rather than dropping it, so the history of what was raised and cleared survives. A sibling <code>.yaml</code> fragment holds the open-only findings the dashboard renders.</p>
+
+<p>Each finding also carries <code>pre-existing: true|false</code>. A BLOCKER that predates this workflow (<code>pre-existing: true</code>) is routed to a <code>## Pre-existing Debt</code> bucket that points you at <code>/wf intake fix</code> or <code>/wf intake refactor</code>, and it does <em>not</em> count toward the Ship verdict — only findings introduced by this change gate the release.</p>
 
 <p>Re-run with <code>/wf review &lt;slug&gt; triage</code> to re-visit deferred findings without re-running the full review — useful after initially deferring HIGH findings and then deciding to address them.</p>
 

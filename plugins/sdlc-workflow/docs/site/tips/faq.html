@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -146,7 +146,7 @@
 <dd>There is no more <code>amend</code>. To correct a spec or add new work items (called <a href="../reference/glossary.html">slices</a>), add a new slice via <code>/wf intake &lt;slug&gt; &lt;new scope&gt;</code> — this replaces both the former <code>amend</code> and <code>extend</code>, keeping provenance clean by construction. <code>/wf implement &lt;slug&gt; reviews</code> fixes implementation bugs found in code review (the slug argument is required). Ship-plan corrections use <code>/wf ship-plan edit</code>. <a href="../how-to/amend-or-extend.html">Full decision rule →</a></dd>
 
 <dt><strong>Does the plugin work without git?</strong></dt>
-<dd>Most of it, yes. The artifact files are plain markdown and work anywhere. Handoff and ship have features that require a git branch (CI polling, PR triage). Set <code>branch-strategy: none</code> when running <code>/wf intake</code> — this value is recorded in the workflow index and causes handoff and ship to skip branch-dependent steps (CI polling, PR triage). The artifact trail still works and is still useful without version control.</dd>
+<dd>Most of it, yes — but there is a sanctioned "continue without git" path with limits. Since v9.110 every <code>/wf</code> dispatch (not just handoff/ship) first confirms the project is a git repo via <code>git rev-parse --show-toplevel</code>; in a non-git directory it fires a mandatory prompt offering to run <code>git init</code>. If you decline, artifacts still write to <code>.ai/workflows/</code> as plain markdown, but the hub registers repos by git identity — so a non-git repo returns <code>skipped-not-git</code> (a silent no-op, v9.112) on every registration: no dashboard or view ever renders, and slug branches cannot exist until you run <code>git init</code> and re-run. Handoff and ship also have features that require a git branch (CI polling, PR triage). Set <code>branch-strategy: none</code> when running <code>/wf intake</code> — this value is recorded in the workflow index and causes handoff and ship to skip branch-dependent steps (CI polling, PR triage). The artifact trail still works and is still useful without version control.</dd>
 
 </dl>
 

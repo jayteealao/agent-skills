@@ -71,7 +71,7 @@ SIDEBAR = r"""<aside id="sidebar">
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="{base}reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="{base}reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="{base}reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="{base}reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="{base}reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="{base}reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -309,12 +309,12 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/wf</code></td>
   <td>You have a real feature, fix, or refactor to ship</td>
-  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. Sub-commands: <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code>, <code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code> (end-to-end lifecycle driver — new in v9.88.0), <code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, <code>profile</code></td>
+  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. 20 keys: the 10 stages (<code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code>), the standalone/drivers <code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code>, <code>yolo</code>, the navigation keys <code>status</code>, <code>recap</code>, lifecycle <code>close</code>, and the routers <code>ship-plan</code>, <code>docs</code>. Observability/rollout/perf work (instrument, experiment, benchmark, profile) are <em>augmentations</em> that <code>shape</code> decides, not keys you type.</td>
 </tr>
 <tr>
   <td><code>/wf intake &lt;mode&gt;</code></td>
   <td>You want a faster path for small, well-defined changes</td>
-  <td>Eight compressed intake modes — <code>fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code> — plus <code>/wf probe</code> and <code>/wf simplify</code> as top-level keys. The former <code>/wf-quick</code> router is retired.</td>
+  <td>Nine compressed intake modes — <code>fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code>, and <code>adopt</code> (reverse-entry: adopt an already-made diff) — plus <code>/wf probe</code> and <code>/wf simplify</code> as top-level keys. The former <code>/wf-quick</code> router is retired.</td>
 </tr>
 <tr>
   <td><code>/wf status</code> · <code>/wf recap</code></td>
@@ -332,9 +332,9 @@ Before you type your first command, this page gives you the map. One read and yo
   <td>Generates site pages, API docs, or reference content from your code and artifacts, using the Diátaxis structure. The former <code>/wf-docs</code> router is retired — it is now the <code>/wf docs</code> key</td>
 </tr>
 <tr>
-  <td><code>/review</code></td>
+  <td><code>/wf review</code></td>
   <td>You want a structured code review on a PR or a diff</td>
-  <td>33-dimension code review. Sub-commands: a single dimension inline (<code>/review correctness</code>), or a full sweep (<code>/review sweep</code>) that fans out one agent per dimension</td>
+  <td>33-dimension code review — the single review surface. <code>/wf review &lt;slug&gt;</code> runs the workflow stage; ad-hoc (no slug), run a single dimension inline (<code>/wf review correctness</code>) or a full sweep (<code>/wf review sweep</code>) that fans out one agent per dimension. The former standalone <code>/review</code> skill is folded into this key.</td>
 </tr>
 </tbody>
 </table>
@@ -440,7 +440,7 @@ You have 10 minutes and a real change to make. This walkthrough takes you from a
 
 <pre><code>/wf intake fix "typo in invalid-payload error message"</code></pre>
 
-<p>Claude asks you two or three questions: which file, what's the exact fix, do you want a test touched. Answer them in plain language. Claude then writes two files under <code>.ai/workflows/</code>:</p>
+<p>Claude asks you two or three questions: which file, what's the exact fix, do you want a test touched. Answer them in plain language. Claude then writes the compressed planning set — five files — under <code>.ai/workflows/</code>:</p>
 
 <pre><code>.ai/workflows/typo-invalid-payload-error-message/
   00-index.md        ← registry entry (slug, type, branch, status)
@@ -647,17 +647,17 @@ You know what you want to do. This page maps your situation to the exact command
 <tbody>
 <tr>
   <td>Review a specific dimension of my code (e.g. security)</td>
-  <td><code>/review &lt;dimension&gt;</code></td>
+  <td><code>/wf review &lt;dimension&gt;</code></td>
   <td>Runs one rubric inline. Available dimensions: correctness, security, performance, architecture, accessibility, supply-chain, and 27 more. See <a href="../reference/review.html">the review reference →</a></td>
 </tr>
 <tr>
   <td>Run a full 33-dimension review and get a verdict</td>
-  <td><code>/review sweep</code></td>
+  <td><code>/wf review sweep</code></td>
   <td>Fans out one agent per dimension in parallel. Slower but comprehensive.</td>
 </tr>
 <tr>
   <td>Review a specific GitHub PR</td>
-  <td><code>/review &lt;dimension&gt; PR#&lt;number&gt;</code></td>
+  <td><code>/wf review &lt;dimension&gt; PR#&lt;number&gt;</code></td>
   <td></td>
 </tr>
 </tbody>
@@ -685,8 +685,53 @@ PAGES.append((
     '<a href="index.html">Home</a> &rsaquo; What\'s new',
     """
 <p class="lede">
-User-facing highlights since v9.11, up to v9.88. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
+User-facing highlights since v9.11, up to v9.122. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
 </p>
+
+<h2>v9.122.0 — Documentation reconciliation</h2>
+<p>A full doc-site pass reconciled every page against the v9.121 source of truth after ~33 feature releases. Retired surfaces (standalone <code>/review</code>, <code>/wf-quick</code>/<code>/wf-design</code> routers, <code>amend</code>, the <code>craft</code> design command, and the four augmentation "keys") are no longer taught as live; this changelog is backfilled through v9.121; the <code>/wf</code> reference and schema pages now cover <code>yolo</code>, <code>adopt</code>, <code>steer.md</code>, ship-plan readiness, batch handoff/ship, and the newer frontmatter fields; and the glossary's cross-page anchor links resolve again. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.121.0 — Headless verify: "no display" is a boot choice, not a wall</h2>
+<p>Display-dependent verification adapters (Android, iOS, desktop) now boot <strong>headless by default</strong>, so a stage running as a background sub-agent with no attached screen — the common case under <code>/wf yolo</code> — no longer mistakes "no display" for "cannot verify." The Android emulator boots with <code>-no-window</code>, iOS reads the simulator runtime directly, and Linux desktop uses a virtual framebuffer. A missing display is only a lawful defer-reason after the adapter's headless boot has actually been attempted and its probe output recorded. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.120.0 — <code>steer.md</code>: standing instructions every stage honors</h2>
+<p>An optional user-owned <code>.ai/workflows/&lt;slug&gt;/steer.md</code> (free prose, no schema) now carries standing constraints, preferences, and vetoes for a workflow — "don't touch the config loader", "prefer the queue approach" — and <strong>every stage reads it at Step 0 and honors it</strong>. Precedence is live-user &gt; <code>steer.md</code> &gt; stage defaults, and steering never overrides a mandatory gate. In an unattended <code>/wf yolo</code> run, a steering veto outranks every auto-resolve default. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.119.0 — <code>/wf handoff</code> and <code>/wf ship</code> are ship-plan aware</h2>
+<p>Both release-facing stages now run a shared <strong>ship-plan readiness pre-check</strong> before committing to their work, so a missing or drifted <code>.ai/ship-plan.md</code> is caught early instead of dead-ending the release. It detects a missing plan or drift (vanished plan paths, new version manifests, unlisted CI secrets, migrations with no rollback), then routes you to <code>/wf ship-plan init</code> or <code>/wf ship-plan edit</code> — it never edits the plan itself. See <a href="how-to/author-ship-plan.html">Author a ship plan →</a></p>
+
+<h2>v9.118.0 — <code>/wf intake adopt</code>: bring already-done work into the lifecycle</h2>
+<p>A <strong>reverse-entry</strong> intake mode for when the change is <em>already made</em> in your working tree and you only afterward decide it deserves recorded verification. <code>adopt</code> reads the current diff and reconstructs the record backward (<code>01-adopt</code> → <code>02-shape</code> → <code>03-slice</code> → <code>04-plan</code> → <code>05-implement</code>, all stamped <code>provenance: adopted</code>), then lands the workflow at <code>/wf verify</code> so the standard quality tail runs over the adopted change. A confirm-before-write gate shows you the inferred shape first; it never writes or undoes code. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.116–9.117 — <code>study-sources</code>: read real upstream source instead of guessing</h2>
+<p>A new read-only skill that grounds work in <strong>actual dependency and upstream source</strong> rather than recalled API shapes. It reads what's already installed first (<code>node_modules</code>, <code>~/.m2</code>, the Gradle/Android/Go/Rust/.NET/Ruby/PHP/Swift/Dart caches) and only fetches into a gitignored <code>.scratch/</code> if absent — nothing it reads enters your repo or git history. A lifecycle-wide Step 0.8 makes it available to every stage; <code>intake rca</code>, <code>intake investigate</code>, <code>plan</code>, <code>implement</code>, and <code>intake update-deps</code> reach for it explicitly. See <a href="reference/skills.html">Skills →</a></p>
+
+<h2>v9.114–9.115 — <code>update-deps</code> autonomy and mandatory changelog citation</h2>
+<p><code>/wf yolo</code> can now drive an <code>update-deps</code> workflow autonomously (full plan, defer failures) instead of refusing. And <code>/wf intake update-deps</code> now requires each research batch to ground its breaking-changes in the package's <strong>own changelog or release notes</strong> — reading every intermediate major and citing the exact source. A P0/P1 package with no locatable changelog is marked <code>unverified</code> and recommended <code>hold</code>, not assumed clean. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.113.0 — <code>diataxis</code> skill restored; three passive skills removed</h2>
+<p>The <code>diataxis</code> documentation skill returns as a single consolidated skill — the standalone, general-purpose counterpart to the lifecycle-bound <code>/wf docs</code>. At the same time the unused <code>refactoring-patterns</code>, <code>test-patterns</code>, and <code>error-analysis</code> knowledge skills were deleted (never wired into any stage; their content is applied unprompted). The skill surface is now <code>wf</code> plus <code>consult</code>, <code>imagery</code>, <code>uiproto</code>, <code>diataxis</code>, and <code>study-sources</code>. See <a href="reference/skills.html">Skills →</a></p>
+
+<h2>v9.108.0 — <code>/wf yolo</code>: autonomous lifecycle driver</h2>
+<p>The no-human-gates sibling of <code>/wf auto</code> (Claude-only). <code>/wf yolo &lt;slug&gt;</code> drives every stage and resolves each gate by a written policy rather than pausing for you, stopping before handoff. It classifies the slug by <code>workflow-type</code> so compressed change-modes (<code>fix</code>/<code>hotfix</code>/<code>refactor</code>) and RCA drive correctly, defers acceptance criteria it genuinely can't verify, and creates or switches to a dedicated branch up front. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.105–9.106 — Branch-scoped batch handoff/ship + revision ledger</h2>
+<p><code>/wf handoff</code>, <code>/wf ship</code>, <code>/wf recap</code>, <code>/wf retro</code>, and <code>/wf status</code> now accept a <strong>polymorphic first argument</strong> — a slug, <code>pr#N</code>, or a branch name. A PR/branch argument runs <strong>batch mode</strong> over every slug on the branch: batch handoff opens one shared PR and reports which slugs are ready; batch ship is all-or-nothing across the branch. Revisable artifacts became living documents with a reason-centric <code>revisions:</code> frontmatter ledger, and the dashboard now clusters branch-shared workflows under a <code>⎇ branch</code> header with a readiness chip. See <a href="reference/serve.html">Serve daemon &amp; hub →</a></p>
+
+<h2>v9.98–9.102 — <code>/wf</code> becomes the single entry point (20 keys)</h2>
+<p>The last sibling routers dissolved into <code>/wf</code>: <code>/wf-meta</code> and <code>/wf-docs</code> are retired (their members are now keys like <code>/wf status</code>, <code>/wf recap</code>, <code>/wf close</code>, <code>/wf ship-plan</code>, <code>/wf docs</code>), the standalone <code>/review</code> skill folded into <code>/wf review</code>, and <code>amend</code> was dropped (corrections are a new slice or a fix; the ship plan uses <code>/wf ship-plan edit</code>). The surface compacted to <strong>20 keys</strong> — 10 stages, 5 standalone/drivers, 2 navigation, 1 lifecycle-control, 2 routers. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.96.0 — Design folds into the lifecycle; <code>craft</code> retired</h2>
+<p>UI work now rides the normal <code>shape → plan → implement → verify</code> flow instead of a separate <code>craft</code> command. <code>shape</code> authors the design brief (<code>02b-design.md</code>), <code>plan</code> authors the visual contract (<code>02c-craft.md</code>) and resolves the image gate, and <code>implement</code> applies the contract with a mandatory critique pass. <code>/wf design</code> is now a transforms-and-analysis dispatcher of <strong>20 commands</strong> (15 transforms + <code>audit</code>/<code>critique</code>/<code>extract</code>/<code>setup</code>/<code>teach</code>) — there is no <code>craft</code> command. See <a href="how-to/use-design.html">Use design →</a></p>
+
+<h2>v9.95.0 — Verifiability-first acceptance criteria</h2>
+<p>Closes the "verified but actually broken" leak class. Every user-observable acceptance criterion is now authored <em>with</em> its verification path — <code>slice</code> attaches a <code>verify: { method, env, fixture, rung }</code> stub, <code>plan</code> adds a <code>## Verification Strategy</code>, and <code>verify</code> mandates a constraint-resolution ladder before any deferral (static reasoning is never evidence, a mock never satisfies an integration criterion). A write-time hook hard-blocks a <code>result: pass</code> that contradicts its own evidence. See <a href="reference/pipeline.html">Pipeline →</a></p>
+
+<h2>v9.92–9.94 — Narrative story sections, external-model dispatch, and new review dimensions</h2>
+<p>Every <code>/wf</code> artifact now opens with a prose <strong>story section</strong> named after its stage (<code>## The Plan</code>, <code>## The Verification</code>) — a self-sufficient lead you can read alone. The plugin also gained opt-in <strong>external-model dispatch</strong> (<code>consult</code> as a read-only oracle, <code>imagery</code>, <code>uiproto</code>; gated behind <code>externalDispatch.enabled</code>), and code review grew to <strong>33 dimensions</strong> with the <code>motion</code> and <code>interface-craft</code> lenses. See <a href="reference/artifacts.html">Artifacts →</a></p>
+
+<h2>v9.90–9.91 — YAGNI build-avoidance ladder</h2>
+<p>A simplicity-first ladder now runs through the generative stages: <code>shape</code> asks a scope-restraint question, <code>plan</code> checks stdlib → native-platform → reuse before endorsing new code or a dependency, and <code>implement</code> favors direct calls over wrappers — with a non-negotiable "lazy ≠ negligent" guard that never trims validation, error handling, security, or accessibility. Intentional shortcuts leave an <code>sdlc-debt:</code> marker that <code>verify</code> validates, <code>retro</code> reconciles, and <code>/wf simplify</code> sweeps. See <a href="reference/wf.html">&#47;wf reference →</a></p>
 
 <h2>v9.88.0 — <code>/wf auto</code>: end-to-end lifecycle driver</h2>
 <p><code>/wf auto &lt;slug&gt;</code> drives every slice through the full pipeline then runs a final review, stopping before handoff. <code>/wf auto &lt;slug&gt; &lt;slice&gt;</code> drives a single slice and routes to the next. Runs each stage in-process; writes no own artifact. Any gate failure pauses and surfaces the blocking issue. See <a href="reference/wf.html">&#47;wf reference →</a></p>
@@ -927,6 +972,7 @@ fix(api): correct spelling in invalid-payload error message (a3f19c2)</code></pr
 <tr><td><code>/wf intake update-deps</code></td><td>Audit and tier dependency updates (P0 security → P1 major → P2 safe → hold)</td><td>Standard lifecycle in-slug under <code>.ai/workflows/&lt;slug&gt;/</code></td></tr>
 <tr><td><code>/wf intake refactor</code></td><td>Behaviour-preserving refactor with test baseline capture and re-verification</td><td>Stage-locked: baseline → refactor → re-verify</td></tr>
 <tr><td><code>/wf intake ideate</code></td><td>Brainstorm and rank improvement candidates</td><td><code>01-ideate.md</code> (type: ideation, ranked candidates + adversarial filter log) + <code>00-index.md</code> (type: workflow-index) under <code>.ai/workflows/&lt;slug&gt;/</code></td></tr>
+<tr><td><code>/wf intake adopt</code></td><td>Reverse-entry — work already done in the working tree that you want to bring into the lifecycle after the fact</td><td>Reads the existing working-tree diff and reconstructs the record backward (stamped <code>provenance: adopted</code>), landing at <code>/wf verify</code></td></tr>
 <tr><td><code>/wf simplify</code></td><td>Three-agent triage of a branch, commit, plan, or codebase — routes findings, never writes code</td><td>Routing report under <code>simplify/</code></td></tr>
 </tbody>
 </table>
@@ -1003,6 +1049,8 @@ node dist/tray.mjs
   <li><strong>Linux</strong> — XDG autostart</li>
 </ul>
 <p>File presence is the on/off state — no admin rights needed. When the tray starts with autostart enabled it also ensures the hub is running, so the hub comes up at logon before any Claude session starts (the lifecycle call is idempotent and simply adopts an already-running hub). The launcher embeds absolute paths captured at enable-time and self-heals if a plugin upgrade relocates the bundle. Turn autostart off from the same menu item before uninstalling the plugin.</p>
+
+<p>Beyond healing the launcher file, the tray also heals the <em>running process</em> after an upgrade <span class="badge">v9.81</span>. At session start it detects a tray still executing a prior version's bundle (on Windows via a WMI process scan), kills it, and respawns from the current bundle so a stale build cannot linger. A liveness heartbeat <span class="badge">v9.89</span> lets the heal reap even a wedged current-version tray. If you need to disable the running-process heal, set the environment variable <code>SDLC_DISABLE_TRAY_HEAL=1</code>.</p>
 
 <details>
 <summary>Technical details — how the tray is built</summary>
@@ -1284,6 +1332,8 @@ PAGES.append((
 
 <p>The <code>/wf docs</code> key runs a discover, audit, plan, generate, and review cycle on a project's existing documentation. It does not require an active workflow. Each document it generates targets exactly one quadrant.</p>
 
+<p>For documentation work entirely outside a <code>/wf</code> lifecycle, a standalone <code>diataxis</code> skill also exists <span class="badge">v9.113</span>. It is the general-purpose counterpart to the lifecycle-bound <code>/wf docs</code>: the same quadrant discipline (classify the request, then enforce the boundary between tutorial, how-to, reference, and explanation), invocable directly for a one-off tutorial, how-to guide, reference page, explanation, README, doc plan, or a review of existing docs. Reach for <code>/wf docs</code> when documentation is a stage of a lifecycle workflow, and the standalone <code>diataxis</code> skill otherwise.</p>
+
 <details>
 <summary>Technical detail — where the quadrant templates live</summary>
 <p>The per-quadrant templates are stored at <code>skills/wf/reference/docs/&lt;type&gt;.md</code> inside the plugin. Each file contains structure rules, anti-patterns, and a self-check for that quadrant. Handoff loads the file at generation time; it is not embedded in the handoff prompt itself. Editing those files changes what the generator produces.</p>
@@ -1389,6 +1439,7 @@ flowchart TD
 <tbody>
 <tr><td>(no badge)</td><td>The branch ref exists and has not yet been fully merged into its base (active). Also shown when no branch is declared (<code>branch-strategy: none</code>), git is unavailable, or any error — fails open.</td></tr>
 <tr><td><code>merged</code></td><td>The branch tip is an ancestor of the base branch, or the pull request resolved as <code>MERGED</code>. Rendered as a visible chip.</td></tr>
+<tr><td><code>planned</code></td><td>The branch ref is not found <em>and</em> the workflow is still at a pre-branch stage (intake, shape, slice, or plan) — its dedicated branch has not been created yet. Distinct from <code>branch gone</code>, which means the branch existed and was deleted. Rendered as a visible chip.</td></tr>
 <tr><td><code>branch gone</code></td><td>The branch ref is no longer present locally — typically deleted after merging. Rendered as a visible chip.</td></tr>
 </tbody>
 </table>
@@ -1505,7 +1556,7 @@ PAGES.append((
 
 <h2>What "bolted-on" means in practice</h2>
 
-<p>A stage (<a href="../reference/glossary.html">glossary</a>) is a mandatory position in the workflow sequence. An add-on is not a stage. It is a separate command you run before or alongside the relevant stage. Running it writes an <a href="../reference/glossary.html">artifact</a> — a workflow note — and registers that artifact in the slice index so downstream stages know it exists.</p>
+<p>A stage (<a href="../reference/glossary.html">glossary</a>) is a mandatory position in the workflow sequence. An add-on is not a stage — and, since v9.98, it is <strong>not a command you run</strong> either. <code>shape</code> decides which add-ons a piece of work needs (writing an <code>## Augmentation Plan</code> and the <code>augmentations-needed</code> frontmatter), and <code>plan</code>/<code>implement</code>/<code>verify</code> apply them by loading <code>skills/wf/reference/augment/&lt;type&gt;.md</code> as an internal sub-procedure. Applying one writes an <a href="../reference/glossary.html">artifact</a> — a workflow note — and registers it in the slice index so downstream stages know it exists. (<code>rca</code> is the exception — it is still invoked directly, via <code>/wf intake rca</code>.)</p>
 
 <p>The downstream stages (implement, handoff, ship) read the index. If an add-on artifact is registered, they incorporate it. If no add-on artifact is registered, they skip that path entirely. You never have to remove empty placeholders.</p>
 
@@ -1525,17 +1576,17 @@ PAGES.append((
 <dd>Use this when the cause of a failure or regression is unknown and needs diagnosis before a fix can be planned. Running <code>/wf intake rca &lt;slug&gt;</code> in slug-mode attaches the analysis as an <code>augmentation-type: rca</code> artifact to an existing workflow, registering it in the slice index for downstream stages to pick up.</dd>
 </dl>
 
-<p><strong>Profile</strong> (<code>/wf profile</code>) is a freestanding performance-profiling command — not an augmentation type. It writes to <code>.ai/profiles/</code> rather than a workflow folder and is never registered in a workflow&#39;s <code>augmentations</code> array. Use it when you want to understand where time is spent in a named area, independent of any active workflow.</p>
+<p><strong>Profile</strong> is the fourth thing <code>shape</code> can flag in <code>augmentations-needed</code> (ad-hoc hotspot work) — but its artifact is <code>type: profile</code>, not <code>type: augmentation</code>, so it is not one of the four <code>augmentation-type</code> discriminator values. For a freestanding profiling pass with no active workflow, reach for <code>/wf probe</code>; there is no <code>/wf profile</code> key.</p>
 
 <h2>How registration works</h2>
 
-<p>When you run an add-on command for a slice, the plugin appends an entry to the <code>augmentations</code> array in that slice's index file (<code>00-index.md</code>). That entry is what downstream stages check. The artifact file and the index entry are created together; you do not manage the index manually.</p>
+<p>When <code>plan</code> or <code>implement</code> applies a shape-decided add-on for a slice, the plugin appends an entry to the <code>augmentations</code> array in that slice's index file (<code>00-index.md</code>). That entry is what downstream stages check. The artifact file and the index entry are created together; you do not manage the index manually.</p>
 
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
-  user["You run /wf instrument my-slug route"]
-  user --> inst["04b-instrument.md written"]
+  user["shape decides: augmentations-needed: [instrument]"]
+  user --> inst["plan/implement write 04b-instrument.md"]
   inst --> reg["00-index.md augmentations array updated"]
   reg --> impl["/wf implement reads 04b-*.md"]
   reg --> handoff["/wf handoff surfaces it as a reviewer note"]
@@ -1547,7 +1598,7 @@ flowchart TD
   class inst,reg art
 </pre>
 </div>
-<p class="caption">Running an add-on once registers it permanently. Every downstream stage that runs after that point will pick it up automatically.</p>
+<p class="caption">Once <code>shape</code> flags an add-on, it is registered permanently. Every downstream stage that runs after that point picks it up automatically.</p>
 
 <h2>How downstream stages surface add-ons</h2>
 
@@ -1779,7 +1830,7 @@ PAGES.append((
 <h2>What runs from <code>dist/</code></h2>
 <p>Every piece of the plugin that executes at runtime is served from a committed bundle:</p>
 <ul>
-  <li>The five hooks: <code>pre-write-validate</code>, <code>post-write-verify</code>, <code>post-write-auto-stage</code>, <code>post-write-render</code>, and <code>session-start-orient</code>.</li>
+  <li>The seven hooks: <code>pre-write-validate</code>, <code>post-write-verify</code>, <code>post-write-auto-stage</code>, <code>post-write-render</code>, <code>session-start-orient</code>, and the two advisory External-Output-Boundary guards <code>leak-guard-bash</code> and <code>leak-guard-write</code> (default off).</li>
   <li>The renderer and serve daemons: <code>render-sunflower.mjs</code>, <code>render-sunflower-serve.mjs</code>, and <code>hub-serve.mjs</code>.</li>
   <li>Several maintenance and coordination helpers: <code>hub-ensure.mjs</code> (render-queue drain trigger), <code>hub-upgrade.mjs</code> (runtime upgrade), <code>tray-heal.mjs</code> (stale-tray reconcile), and <code>verify-runtime.mjs</code> (integrity check).</li>
   <li>The tray app: <code>tray.mjs</code>.</li>
@@ -1790,8 +1841,9 @@ PAGES.append((
 <p>Source files live in <code>scripts/</code>, <code>hooks/</code>, <code>lib/</code>, <code>renderers/</code>, and <code>components/</code>. After editing any of those you must rebuild before committing:</p>
 <pre><code>npm install            # installs the dev toolchain — never needed at user runtime
 npm run build          # rebuilds dist/ from source
+npm run sync:codex     # mirrors the rebuilt runtime into the Codex plugin tree (keeps buildId in lockstep)
 npm test               # runs the test suite (against source, not dist/)
-npm run hooks:install  # optional: installs a pre-commit hook that rebuilds dist/ automatically</code></pre>
+npm run hooks:install  # optional: points core.hooksPath at .githooks/ (you supply the hook scripts)</code></pre>
 
 <div class="callout warn">
 <strong>The test suite runs against source, not dist.</strong> A passing <code>npm test</code> does not prove <code>dist/</code> is current. A CI freshness gate catches this: it rebuilds and compares. Stale bundles fail CI, and an un-rebuilt <code>dist/</code> means production runs old code even when tests are green.
@@ -1799,7 +1851,7 @@ npm run hooks:install  # optional: installs a pre-commit hook that rebuilds dist
 
 <details>
 <summary>Technical details — how the build works</summary>
-<p>The build script calls <code>esbuild</code> for each entry point with code-splitting enabled. Shared dependencies (<code>markdown-it</code>, <code>js-yaml</code>, <code>ajv</code>, and shared library helpers) are extracted into <code>dist/chunk-&lt;hash&gt;.mjs</code> shared chunks. Entry-point bundles import those chunks at runtime — no package resolution needed. No dynamic requires, no runtime <code>npm install</code>. <code>npm run hooks:install</code> writes a pre-commit Git hook that re-runs the build and stages the result, so <code>dist/</code> cannot drift behind committed source during normal development.</p>
+<p>The build script calls <code>esbuild</code> for each entry point with code-splitting enabled. Shared dependencies (<code>markdown-it</code>, <code>js-yaml</code>, <code>ajv</code>, and shared library helpers) are extracted into <code>dist/chunk-&lt;hash&gt;.mjs</code> shared chunks. Entry-point bundles import those chunks at runtime — no package resolution needed. No dynamic requires, no runtime <code>npm install</code>. <code>npm run hooks:install</code> only runs <code>git config core.hooksPath .githooks</code>, pointing Git at a <code>.githooks/</code> directory where you would supply your own hook scripts — it does not write or install any hook file, and no such scripts are committed today.</p>
 </details>
 
 <div class="related">
@@ -2105,7 +2157,7 @@ PAGES.append((
 <dd>There is no more <code>amend</code>. To correct a spec or add new work items (called <a href="../reference/glossary.html">slices</a>), add a new slice via <code>/wf intake &lt;slug&gt; &lt;new scope&gt;</code> — this replaces both the former <code>amend</code> and <code>extend</code>, keeping provenance clean by construction. <code>/wf implement &lt;slug&gt; reviews</code> fixes implementation bugs found in code review (the slug argument is required). Ship-plan corrections use <code>/wf ship-plan edit</code>. <a href="../how-to/amend-or-extend.html">Full decision rule →</a></dd>
 
 <dt><strong>Does the plugin work without git?</strong></dt>
-<dd>Most of it, yes. The artifact files are plain markdown and work anywhere. Handoff and ship have features that require a git branch (CI polling, PR triage). Set <code>branch-strategy: none</code> when running <code>/wf intake</code> — this value is recorded in the workflow index and causes handoff and ship to skip branch-dependent steps (CI polling, PR triage). The artifact trail still works and is still useful without version control.</dd>
+<dd>Most of it, yes — but there is a sanctioned "continue without git" path with limits. Since v9.110 every <code>/wf</code> dispatch (not just handoff/ship) first confirms the project is a git repo via <code>git rev-parse --show-toplevel</code>; in a non-git directory it fires a mandatory prompt offering to run <code>git init</code>. If you decline, artifacts still write to <code>.ai/workflows/</code> as plain markdown, but the hub registers repos by git identity — so a non-git repo returns <code>skipped-not-git</code> (a silent no-op, v9.112) on every registration: no dashboard or view ever renders, and slug branches cannot exist until you run <code>git init</code> and re-run. Handoff and ship also have features that require a git branch (CI polling, PR triage). Set <code>branch-strategy: none</code> when running <code>/wf intake</code> — this value is recorded in the workflow index and causes handoff and ship to skip branch-dependent steps (CI polling, PR triage). The artifact trail still works and is still useful without version control.</dd>
 
 </dl>
 

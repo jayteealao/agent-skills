@@ -10,13 +10,13 @@ import {
   md2html,
   renderHistoryBlock,
   renderRevisionLedger
-} from "../chunk-ZISOLNTR.mjs";
+} from "../chunk-WPE3YO27.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-ZM2WIWFC.mjs";
+} from "../chunk-YKFHAL6B.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -188,7 +188,7 @@
 <p>You are building a new settings screen. The workflow slug is <code>settings-v2</code> and shape has already run.</p>
 
 <ol>
-<li>Design and build the screen in one compressed pass: <code>/wf design settings-v2 craft</code>. It writes the brief <code>02b-design.md</code> and contract <code>02c-craft.md</code>, then drives <code>slice → plan → implement → verify</code> itself — no hand-back.</li>
+<li>Design the screen through the normal lifecycle: <code>/wf shape settings-v2</code> writes the brief <code>02b-design.md</code>, then <code>/wf plan settings-v2</code> resolves the visual-direction gates and writes the contract <code>02c-craft.md</code>, and <code>/wf implement settings-v2</code> builds against it. (There is no <code>craft</code> command — the lifecycle authors both.)</li>
 <li>You want a stronger accessibility pass. Run: <code>/wf design settings-v2 harden</code>. The transform builds the hardened surface at its implement step and registers a <code>design-harden</code> add-on.</li>
 <li>Review judges it: <code>/wf review settings-v2</code> runs <code>design-audit</code> as a dimension, interpreting the a11y/perf numbers <code>verify</code> already measured.</li>
 <li>At handoff, the plugin reads the add-on and adds <em>"Accessibility improvements applied — N components updated, axe-core scan clean"</em> to <code>08-handoff.md</code> automatically.</li>

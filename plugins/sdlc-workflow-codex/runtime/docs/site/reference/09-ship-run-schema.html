@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -156,8 +156,22 @@ next-invocation: "/wf retro &lt;slug&gt;"</code></pre>
 <tr><td><code>run-id</code></td><td>UTC compact ISO-8601 timestamp. Doubles as a sortable filename component.</td></tr>
 <tr><td><code>status</code></td><td>Current state of this run. See the state machine below.</td></tr>
 <tr><td><code>plan-ref</code></td><td>Relative path to the <code>ship-plan.md</code> this run executed against.</td></tr>
-<tr><td><code>plan-version-at-run</code></td><td>The <code>version:</code> value in <code>ship-plan.md</code> at the moment the run started. Lets you detect if the plan changed after the run.</td></tr>
+<tr><td><code>plan-version-at-run</code></td><td>The integer <code>plan-version</code> counter value on <code>.ai/ship-plan.md</code> at the moment the run started (an integer ≥ 1 that <code>/wf ship-plan edit</code> increments — not a version <em>string</em>). Lets you detect if the plan changed after the run.</td></tr>
+<tr><td><code>ship-plan-readiness</code> <span class="badge">v9.119</span></td><td>Verdict of the shared ship-plan-readiness pre-check at ship Step 0.4. A written run only ever carries <code>ok</code> or <code>acknowledged</code> (drift found but the user recorded an explicit per-run reason to proceed) — a <code>missing</code>/<code>drift</code>/cancel outcome STOPs before the 13-step sequence, so no run artifact is written. Absent on runs predating the check → treat as <code>skipped</code>.</td></tr>
+<tr><td><code>steering-honored</code> <span class="badge">v9.120</span></td><td>Array of the standing-steering entries (from the workflow's user-owned <code>steer.md</code>) this run honored. Present only when <code>steer.md</code> exists; omitted otherwise.</td></tr>
 <tr><td><code>created-at</code> / <code>updated-at</code></td><td>ISO-8601 timestamps. <code>updated-at</code> advances on every step completion.</td></tr>
+</tbody>
+</table>
+
+<h3>Branch-scoped batch ship <span class="badge">v9.105</span></h3>
+<p>Set only when a run was invoked over a <code>pr#N</code>/branch (batch mode). The single run artifact lives on the lead slug; followers carry a pointer.</p>
+<table>
+<thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>ship-scope</code></td><td><code>slug</code> (classic single-slug ship) or <code>branch</code> (a branch/PR-scoped batch ship where every slug on the branch merges atomically as one run). Absent → <code>slug</code>.</td></tr>
+<tr><td><code>branch-slugs</code></td><td>Every workflow slug on the branch that this single run released together. Present only when <code>ship-scope</code> is <code>branch</code>.</td></tr>
+<tr><td><code>shipped-via</code></td><td>On a non-lead follower slug, a pointer to the lead slug's ship-run artifact that actually executed the merge/tag/release (e.g. <code>&lt;lead-slug&gt;/09-ship-run-&lt;run-id&gt;.md</code>). The follower's <code>00-index</code> advances to shipped without a duplicate run artifact.</td></tr>
+<tr><td><code>revisions</code></td><td>Reason-centric ledger (<code>{rev, at, trigger, because, changed}</code>) recording why a revisable artifact was rewritten across re-runs.</td></tr>
 </tbody>
 </table>
 

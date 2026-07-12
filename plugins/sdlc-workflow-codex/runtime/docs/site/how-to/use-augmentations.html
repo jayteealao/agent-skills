@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -107,17 +107,15 @@
 
 <p>Without add-ons, a slice moves straight from plan to implement to review. That is fine for most changes. But sometimes you need more: you want to know a code path is observable before you ship, or you want to gate rollout behind a feature flag, or you want hard numbers before and after a change.</p>
 
-<p>Add-ons give you those extras as named stages that slot in alongside the main flow. They are opt-in — you add them only when you need them. Running an add-on appends a record to the <code>augmentations:</code> list in your workflow's <code>00-index.md</code> file (the central registry for that workflow). Downstream stages — <a href="../reference/glossary.html">handoff</a> and <a href="../reference/glossary.html">ship</a> — read that list and surface the results to reviewers and the changelog automatically.</p>
+<p>Add-ons give you those extras as named stages that slot in alongside the main flow. They are opt-in and <strong>not</strong> standalone <code>/wf</code> keys — you do not run <code>/wf instrument</code> or <code>/wf benchmark</code>. Instead, <code>shape</code> decides which add-ons a slice needs (it records them in the slice's <code>augmentations-needed</code> list), and <code>plan</code>, <code>implement</code>, and <code>verify</code> apply them as they run. For a one-off, ad-hoc measurement that is not tied to a slice, reach for <code>/wf probe</code>. Once an add-on runs, it appends a record to the <code>augmentations:</code> list in your workflow's <code>00-index.md</code> file (the central registry for that workflow). Downstream stages — <a href="../reference/glossary.html">handoff</a> and <a href="../reference/glossary.html">ship</a> — read that list and surface the results to reviewers and the changelog automatically.</p>
 
 <h2>Instrument — add observability to a code path</h2>
 
 <p>You are about to change code that has no logs, metrics, or traces. If something goes wrong in production, you will have nothing to look at. Running the instrument add-on lets you design the signals first, before implementation.</p>
 
-<p>Run it for a specific slice:</p>
+<p>List <code>instrument</code> in the slice's <code>augmentations-needed</code> when you shape it (for example the <code>login-slice</code> of <code>auth-refactor</code>); <code>plan</code> and <code>implement</code> then carry it out.</p>
 
-<pre><code>/wf instrument auth-refactor login-slice</code></pre>
-
-<p>The command produces <code>04b-instrument.md</code>. That file names the signals worth recording (log lines, metric counters, or trace spans), where in the code they go, and what a healthy vs. unhealthy reading looks like. When handoff runs later, it translates the entry into a reviewer-visible note: <em>"Added observability — 3 signals for previously unobserved code paths."</em></p>
+<p>The add-on produces <code>04b-instrument.md</code>. That file names the signals worth recording (log lines, metric counters, or trace spans), where in the code they go, and what a healthy vs. unhealthy reading looks like. When handoff runs later, it translates the entry into a reviewer-visible note: <em>"Added observability — 3 signals for previously unobserved code paths."</em></p>
 
 <p><strong>Add instrument when:</strong> the slice touches a code path that is currently invisible in production.</p>
 
@@ -125,9 +123,9 @@
 
 <p>You are shipping a behaviour change and want a measured rollout rather than a hard cutover. Running the experiment add-on designs the cohort split, the feature flag, and the rollback signal before you write a line of code.</p>
 
-<pre><code>/wf experiment auth-refactor login-slice</code></pre>
+<p>List <code>experiment</code> in the slice's <code>augmentations-needed</code> at shape time; the build stages carry it out.</p>
 
-<p>The command produces <code>04c-experiment.md</code>. That file covers: which users see the new behaviour, what flag controls it, how to read the results, and what triggers a rollback. Ship picks up the entry and adds a corresponding changelog line.</p>
+<p>The add-on produces <code>04c-experiment.md</code>. That file covers: which users see the new behaviour, what flag controls it, how to read the results, and what triggers a rollback. Ship picks up the entry and adds a corresponding changelog line.</p>
 
 <p><strong>Add experiment when:</strong> the slice changes user-visible behaviour and you want the ability to measure and reverse it without a full redeploy.</p>
 
@@ -135,9 +133,7 @@
 
 <p>Performance regressions are easy to miss without a before-and-after comparison. The benchmark add-on runs in two passes: once before implementation (baseline) and once after (compare). If you skip the baseline, you have nothing to compare against.</p>
 
-<pre><code>/wf benchmark auth-refactor</code></pre>
-
-<p>Run the command before implementation to capture the baseline. Run it again after implementation to compare. Pass <code>baseline</code> or <code>compare</code> as a second argument to force the mode — e.g. <code>/wf benchmark auth-refactor baseline</code>. The command produces <code>05c-benchmark.md</code> and records the <code>mode</code> (baseline or compare) in the workflow index (<code>00-index.md</code>) alongside the result file.</p>
+<p>List <code>benchmark</code> in the slice's <code>augmentations-needed</code> at shape time. It runs in two passes: <code>verify</code> captures the baseline before implementation and the compare pass after. The add-on produces <code>05c-benchmark.md</code> and records the <code>mode</code> (baseline or compare) in the workflow index (<code>00-index.md</code>) alongside the result file.</p>
 
 <p><strong>Add benchmark when:</strong> the slice could affect performance — even if you do not expect it to. A baseline is cheap; a regression caught in CI is cheaper than one caught in production.</p>
 

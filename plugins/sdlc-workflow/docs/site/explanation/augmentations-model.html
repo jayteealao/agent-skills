@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.121.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.122.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,7 +51,7 @@
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -106,7 +106,7 @@
 
 <h2>What "bolted-on" means in practice</h2>
 
-<p>A stage (<a href="../reference/glossary.html">glossary</a>) is a mandatory position in the workflow sequence. An add-on is not a stage. It is a separate command you run before or alongside the relevant stage. Running it writes an <a href="../reference/glossary.html">artifact</a> — a workflow note — and registers that artifact in the slice index so downstream stages know it exists.</p>
+<p>A stage (<a href="../reference/glossary.html">glossary</a>) is a mandatory position in the workflow sequence. An add-on is not a stage — and, since v9.98, it is <strong>not a command you run</strong> either. <code>shape</code> decides which add-ons a piece of work needs (writing an <code>## Augmentation Plan</code> and the <code>augmentations-needed</code> frontmatter), and <code>plan</code>/<code>implement</code>/<code>verify</code> apply them by loading <code>skills/wf/reference/augment/&lt;type&gt;.md</code> as an internal sub-procedure. Applying one writes an <a href="../reference/glossary.html">artifact</a> — a workflow note — and registers it in the slice index so downstream stages know it exists. (<code>rca</code> is the exception — it is still invoked directly, via <code>/wf intake rca</code>.)</p>
 
 <p>The downstream stages (implement, handoff, ship) read the index. If an add-on artifact is registered, they incorporate it. If no add-on artifact is registered, they skip that path entirely. You never have to remove empty placeholders.</p>
 
@@ -126,17 +126,17 @@
 <dd>Use this when the cause of a failure or regression is unknown and needs diagnosis before a fix can be planned. Running <code>/wf intake rca &lt;slug&gt;</code> in slug-mode attaches the analysis as an <code>augmentation-type: rca</code> artifact to an existing workflow, registering it in the slice index for downstream stages to pick up.</dd>
 </dl>
 
-<p><strong>Profile</strong> (<code>/wf profile</code>) is a freestanding performance-profiling command — not an augmentation type. It writes to <code>.ai/profiles/</code> rather than a workflow folder and is never registered in a workflow&#39;s <code>augmentations</code> array. Use it when you want to understand where time is spent in a named area, independent of any active workflow.</p>
+<p><strong>Profile</strong> is the fourth thing <code>shape</code> can flag in <code>augmentations-needed</code> (ad-hoc hotspot work) — but its artifact is <code>type: profile</code>, not <code>type: augmentation</code>, so it is not one of the four <code>augmentation-type</code> discriminator values. For a freestanding profiling pass with no active workflow, reach for <code>/wf probe</code>; there is no <code>/wf profile</code> key.</p>
 
 <h2>How registration works</h2>
 
-<p>When you run an add-on command for a slice, the plugin appends an entry to the <code>augmentations</code> array in that slice's index file (<code>00-index.md</code>). That entry is what downstream stages check. The artifact file and the index entry are created together; you do not manage the index manually.</p>
+<p>When <code>plan</code> or <code>implement</code> applies a shape-decided add-on for a slice, the plugin appends an entry to the <code>augmentations</code> array in that slice's index file (<code>00-index.md</code>). That entry is what downstream stages check. The artifact file and the index entry are created together; you do not manage the index manually.</p>
 
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
-  user["You run /wf instrument my-slug route"]
-  user --> inst["04b-instrument.md written"]
+  user["shape decides: augmentations-needed: [instrument]"]
+  user --> inst["plan/implement write 04b-instrument.md"]
   inst --> reg["00-index.md augmentations array updated"]
   reg --> impl["/wf implement reads 04b-*.md"]
   reg --> handoff["/wf handoff surfaces it as a reviewer note"]
@@ -148,7 +148,7 @@ flowchart TD
   class inst,reg art
 </pre>
 </div>
-<p class="caption">Running an add-on once registers it permanently. Every downstream stage that runs after that point will pick it up automatically.</p>
+<p class="caption">Once <code>shape</code> flags an add-on, it is registered permanently. Every downstream stage that runs after that point picks it up automatically.</p>
 
 <h2>How downstream stages surface add-ons</h2>
 

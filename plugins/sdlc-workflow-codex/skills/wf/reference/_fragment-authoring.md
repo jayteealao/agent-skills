@@ -19,8 +19,9 @@ When a subcommand's reference reaches its "write the view fragments" step, it
 performs **one or both** of these, depending on the artifact:
 
 - **Step F1 — Fixed fragment** *(rich artifacts only: review, plan, design,
-  design-brief, ship-run, rca, simplify-run, profile, benchmark, experiment,
-  instrument, review-dimension)*. **Mandatory** for these types:
+  ship-run, rca, simplify-run, profile, benchmark, experiment, instrument,
+  review-command, design-audit, design-critique, design-contract)*. **Mandatory**
+  for these types:
   1. Write the sibling `<stem>.yaml` (the structured data; the renderer gates the
      whole rich figure/table on it — a missing `.yaml` hard-blocks at write time).
   2. Write the sibling `<stem>.html.fragment` — the one contract-bound interactive
