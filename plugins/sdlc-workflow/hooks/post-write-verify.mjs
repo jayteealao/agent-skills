@@ -19,6 +19,7 @@ import { loadConfig } from '../lib/config.mjs';
 import { logError } from '../lib/error-log.mjs';
 import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { validateFrontmatterFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
+import { findUncitedLimitationClaims, findUnmarkedSuppressions, findUnownedMechanisms } from '../lib/limitation-lexicon.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
 import {
   collectToolInputPaths,
@@ -261,7 +262,8 @@ function blockVerifyResultGate(rel, message) {
 async function enforceVerifyResultGate(paths, config) {
   const resultGate = config.hooks?.verifyResultGate !== false;
   const proseLint = config.hooks?.verifyDeferralLint !== false;
-  if (!resultGate && !proseLint) return;
+  const mockGate = config.hooks?.mockEvidenceGate !== false;
+  if (!resultGate && !proseLint && !mockGate) return;
 
   const warnings = [];
   for (const path of paths) {
@@ -270,6 +272,22 @@ async function enforceVerifyResultGate(paths, config) {
     if (fragmentOwningType(text) !== 'verify') continue;
     const { data, content } = safeParseFrontmatter(text, { filePath: path.absolute });
     if (!data || data.result !== 'pass') continue;
+
+    // Mock-evidence gate (INTENT-FIDELITY W5.2/W9.1 + YOLO F5; EVIDENCE-SCHEMA-CONTRACT §5).
+    // A user-observable AC evidenced only by a mock / static rung is NOT met. The verify
+    // stage records the count in metric-acceptance-mock-rung (the machine-readable projection
+    // of the per-AC evidence-rung labels). result: pass with any such AC is a hard block.
+    if (mockGate) {
+      const mock = data['metric-acceptance-mock-rung'];
+      if (typeof mock === 'number' && mock > 0) {
+        blockVerifyResultGate(path.original,
+          `result: pass but metric-acceptance-mock-rung (${mock}) > 0. At least one user-observable AC's ` +
+          'highest evidence-rung is cited-mock / uncited-mock / static — a mock or static analysis does not ' +
+          'evidence user-observable behaviour. Climb the constraint-resolution ladder to a live/headless/' +
+          'emulator rung, or take the deferral path (interactive-verification: deferred + a 00-index ' +
+          'runtime-evidence-deferrals entry), then set result: partial. Opt out with hooks.mockEvidenceGate: false.');
+      }
+    }
 
     if (resultGate) {
       const met = data['metric-acceptance-met'];
@@ -309,6 +327,92 @@ async function enforceVerifyResultGate(paths, config) {
   }
 }
 
+// The NEW text a Write/Edit/MultiEdit introduced (so the lints flag added lines, not
+// pre-existing code). Write → content; Edit → new_string; MultiEdit → joined new_strings.
+function newTextFromInput(input) {
+  const ti = input?.tool_input ?? {};
+  if (typeof ti.content === 'string') return ti.content;
+  if (typeof ti.new_string === 'string') return ti.new_string;
+  if (Array.isArray(ti.edits)) return ti.edits.map((e) => e?.new_string ?? '').join('\n');
+  return '';
+}
+
+// Code-file advisory lints (INTENT-FIDELITY W3.2 limitation-claim + W9.3 suppression-debt).
+// Runs on the NEW text of any Write/Edit to a NON-artifact file — warn-only, never blocks.
+// A limitation comment with no citation is a hypothesis; a suppression with no sdlc-debt:
+// marker is untracked debt. Emits one systemMessage per lint class.
+function enforceCodeFileLints(input, config, artifactPaths) {
+  const limitationLint = config.hooks?.limitationClaimLint !== false;
+  const debtLint = config.hooks?.suppressionDebtLint !== false;
+  if (!limitationLint && !debtLint) return;
+
+  const artifactSet = new Set((artifactPaths ?? []).map((p) => p.original));
+  const paths = collectToolInputPaths(input).filter(
+    (p) => !artifactSet.has(p) && !isManagedArtifactMarkdownPath(p) && !isProseLogPath(p),
+  );
+  if (!paths.length) return;
+  const text = newTextFromInput(input);
+  if (!text.trim()) return;
+
+  const lines = [];
+  if (limitationLint) {
+    for (const hit of findUncitedLimitationClaims(text)) {
+      lines.push(`  - limitation claim without a citation (line ${hit.line}): "${hit.text}"`);
+    }
+  }
+  if (debtLint) {
+    for (const hit of findUnmarkedSuppressions(text)) {
+      lines.push(`  - suppression without an sdlc-debt: marker (line ${hit.line}): "${hit.text}"`);
+    }
+  }
+  if (!lines.length) return;
+  outputSystemMessage(
+    `wf: intent-fidelity code lints (advisory) on ${paths.join(', ')}:\n${lines.join('\n')}\n` +
+    'A "does not exist / not exposed / was removed" comment is a HYPOTHESIS — cite the installed source ' +
+    '(a study-sources read of node_modules/, a repro, an issue, or a URL) within ±3 lines, or delete it; ' +
+    'never replicate an in-repo limitation comment into new code without re-verifying it. A new `as any` / ' +
+    '`@ts-ignore` / `eslint-disable` needs an `sdlc-debt:` marker so the debt lifecycle (verify/retro/simplify) ' +
+    'inherits it. Opt out: hooks.limitationClaimLint / hooks.suppressionDebtLint.',
+  );
+}
+
+// Named-mechanism artifact lint (INTENT-FIDELITY W7.2). On a shape/slice artifact, a
+// mechanism noun that appears in an AC / verification line but in NO decision section of
+// the body is a design decision smuggled past adjudication. Warn-only.
+async function enforceNamedMechanismLint(paths, config) {
+  if (config.hooks?.namedMechanismLint === false) return;
+  const warns = [];
+  for (const path of paths) {
+    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
+    const text = await readTextIfExists(path.absolute);
+    const type = fragmentOwningType(text);
+    if (type !== 'shape' && type !== 'slice') continue;
+    const { content } = safeParseFrontmatter(text, { filePath: path.absolute });
+    if (!content) continue;
+    // AC/verification region = lines under Acceptance Criteria / Verification headings;
+    // decision text = everything else (the body's prose where a mechanism must be owned).
+    const acLines = [];
+    const decisionLines = [];
+    let inAc = false;
+    for (const line of content.split(/\r?\n/)) {
+      if (/^#{1,4}\s/.test(line)) inAc = /acceptance criteria|verification|test/i.test(line);
+      (inAc ? acLines : decisionLines).push(line);
+    }
+    const unowned = findUnownedMechanisms(acLines.join('\n'), decisionLines.join('\n'));
+    if (unowned.length) warns.push({ rel: path.original, nouns: unowned });
+  }
+  if (warns.length) {
+    const lines = warns.map((w) => `  - ${w.rel}: ${w.nouns.join(', ')}`);
+    outputSystemMessage(
+      `wf: named-mechanism lint (advisory) — a mechanism named in an AC/verification line has no owning ` +
+      `decision in the artifact body:\n${lines.join('\n')}\n` +
+      'A test may not name a machine the design does not own. State the mechanism in the body (what it is, ' +
+      'what it replaces, why) and adjudicate it if it touches a RIM or PO directive, or drop it from the AC. ' +
+      'Opt out: hooks.namedMechanismLint: false.',
+    );
+  }
+}
+
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 async function main() {
@@ -327,6 +431,10 @@ async function main() {
     .filter((path) => isManagedArtifactMarkdownPath(path))
     .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
     .filter(({ absolute }) => absolute && existsSync(absolute));
+
+  // Code-file advisory lints run even when this write touched no managed artifact
+  // (they target source files, not artifacts) — so they precede the early return.
+  enforceCodeFileLints(input, config, paths);
 
   if (!paths.length) return;
 
@@ -351,6 +459,7 @@ async function main() {
     // presence (blocks on a missing rich-tier .yaml, nudges on a missing
     // .html.fragment; may exit 2).
     await enforceVerifyResultGate(paths, config);
+    await enforceNamedMechanismLint(paths, config);
     await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);
     return;

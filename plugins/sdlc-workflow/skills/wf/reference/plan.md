@@ -38,6 +38,22 @@ You are running `wf-plan`, **stage 4 of 10** in the SDLC lifecycle.
 > when `stack:` pins a version that may differ from what you recall. Reads land in
 > gitignored `.scratch/`; the plan stays the only written artifact.
 
+> **A limitation claim carries its evidence.** Any plan step that asserts a dependency
+> capability DOES NOT EXIST — not exposed, removed, broke, "the API can't do X" — must
+> cite evidence in the same artifact: a `study-sources` read of the **installed** source
+> (name the `node_modules/` or vendored path actually opened), a failing minimal repro,
+> or an upstream issue link. An uncited absence-claim is a guess, and a guess sends the
+> plan around a wall that may not exist.
+> 1. **Comments are hypotheses.** An existing in-repo comment claiming a limitation is
+>    NEVER sufficient authority to plan a workaround around it — re-verify the premise
+>    first (one `study-sources` read; the skill exists for exactly this).
+> 2. **Recalled API shapes never justify `as any` / `@ts-ignore` alone.** If the plan
+>    anticipates a suppression, the plan step must cite the type actually read from the
+>    installed package, or the mismatch repro — not a remembered signature.
+> A warn-only hook (`limitationClaimLint`) flags an uncited limitation comment at write
+> time; the citation markers it looks for are `source:` / `node_modules/` / `repro:` /
+> `issue:` / a URL within ±3 lines.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT write code, edit files, or implement the plan you produce.
@@ -572,6 +588,13 @@ gate only moves the stop later and makes it more expensive.
 **Outcome-metric ACs need a pre-deploy proxy.** An AC stated as a live outcome metric
 ("rich-preview rate ≥ 75% over the live corpus") additionally requires a pre-deploy proxy AC — a
 fixture-corpus assertion verify can hold now — with the live metric as the deferral's clearing event.
+
+**Mandated-mitigation ACs are code-only-forbidden.** Any mitigation a shape MANDATES — a
+fallback, an escape hatch, a kill switch — must be traceable to an AC that **exercises the wired
+path**: fault injection, a forced fallback, a flag flip. "The fallback code exists" is not an AC;
+a mitigation that is never exercised is indistinguishable from a mitigation that silently doesn't
+fire. Author the mitigation AC to drive the path, and add its verification seam (the injection
+hook, the forced-error fixture, the flag toggle) as a Step-by-Step Plan task.
 
 **Tooling resolution (honors the stack-routing guardrail).** When a slice `verify:` stub names a tool not in `stack:`, the PO owns the call — made here so verify never improvises past a missing tool:
 - **Add it to the stack** → route back through shape (`/wf shape <slug>`), update the fingerprint, return; or

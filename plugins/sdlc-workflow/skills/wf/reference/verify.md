@@ -162,6 +162,10 @@ Prompt the agent with ALL of the following:
 - Report coverage percentage for the files this slice changed
 - Flag any new code paths with 0% coverage
 
+**Skipped-gating-spec mapping (MANDATORY — a skip is a missing-evidence event, not a green):**
+- A spec that did not execute — guard exit, `.skip`/`.todo`, missing env/secret, filtered out — produced **no** evidence for the AC it was designated to gate. It cannot inherit the suite's overall green.
+- Map every skipped spec to the AC(s) it gates and record `skipped-gating-specs: [{spec, ac, precondition}]` (`precondition` = the unmet reason, e.g. `E2E_ADMIN_USER_EMAIL` unset). The AC gate (Step 7.5) routes each such AC through the ladder (another rung), a deferral with a probe receipt, or `blocked-runtime-evidence-missing`.
+
 **Cross-slice regression check (MANDATORY when sibling slices have been verified):**
 - Read `06-verify.md`. Collect every `slice-slug` with `result: pass` or `partial` that is NOT the current slice.
 - For each sibling, identify `files-modified` from `05-implement-<sibling-slug>.md`. If any overlap with the current slice's `files-modified`, flag as a regression target.
@@ -180,8 +184,25 @@ Prompt the agent with ALL of the following:
 **Climb the constraint-resolution ladder before deferring anything (MANDATORY).** "No device / no browser / no creds" is not a defer-reason — it is the *start* of a ladder climb. For each user-observable AC whose obvious path is blocked, climb the ladder for its class (runtime-adapters.md → *Constraint-resolution ladder*), **executing any tool bootstrap the plan's `## Verification Strategy` already authorized**, and record the highest rung that produced evidence. Defer ONLY the residual that no rung can reach. Three hard rules:
 
 - **Static reasoning is never evidence for a user-observable AC.** "Decidable by reasoning" proves code correctness, not user-visible behavior. Drive the criterion; do not reason to a `pass`.
-- **Verify the layer the AC is about.** If the AC asserts a live integration (real query, rules/permission check, index-backed lookup), a mock-backed pass is insufficient — climb to the emulator/testcontainer rung (the integration-blindspot guard in the `service` adapter).
+- **Verify the layer the AC is about — a user-observable mock is not met.** This generalizes the shipped integration-blindspot guard from "AC asserts a live integration" to *all* user-observable ACs: a user-observable AC whose highest achieved `evidence-rung` is `cited-mock`, `uncited-mock`, or `static` is **not met**. A mock-backed or static-reasoned pass is insufficient — climb the ladder (`runtime-adapters.md`; for a live integration, the emulator/testcontainer rung) or take the deferral path. Record the highest rung reached as `evidence-rung` on that AC (§ Acceptance Criteria Status).
 - **Punting to a future slice is a deferral, not a pass.** "Will be verified during `<other slice>`" must register a deferral the later slice (or `/wf probe`) is obligated to clear — never grounds for `result: pass` on this slice.
+
+**Mock provenance + fixture-fidelity (record where the shape came from).** Any mock/fixture that **emulates an external interface** — library stream/event shapes, HTTP payloads, SDK return types — records `mock-provenance: <node_modules path read | captured-real-output ref | docs URL>`. "From recollection" is **illegal**: an unrecorded provenance forces `evidence-rung: uncited-mock`.
+- **Grep check.** When an AC's evidence rests on mocked external-interface events, grep the *installed* package for the mocked identifiers (event names, method names). **Zero hits ⇒ presumptively fictional ⇒ finding + cap that AC at `partial`.**
+- **Fixture-fidelity spot-check.** Spot-check the fixture's shape against the real contract — the dependency's types/`.d.ts`, official docs, or one free schema-level call — and record `fixture-fidelity: checked | unchecked — <why>` per fixture. Spot-check only (shape/enum names), **not** a contract-test mandate; `/wf study-sources` is the natural tool. `fixture-fidelity: checked` is what upgrades a mock from `uncited-mock` to `cited-mock`.
+
+**First-light (an integration whose real behaviour is unproven caps at `partial`).** When a slice introduces an external integration whose real behaviour has **not** been observed live in this workflow, register it in `00-index.md`:
+
+```yaml
+unproven-integrations:
+  - name: <integration>
+    introduced-by: <slice-slug>
+    first-light: null   # ISO-8601 stamp of the first live observation; null = never yet observed live
+```
+
+While `first-light: null`, every AC depending on that integration caps at `partial` — mock/emulator rungs are proxies, never `pass`. Any live observation (a tagged smoke run, `/wf probe`, a live e2e) **stamps** `first-light` with its timestamp and lifts the cap.
+
+**Mitigation-wiring is traceable — "the code exists" is not evidence.** Any mitigation the shape *mandates* (fallback, escape hatch, kill switch) must be evidenced by an AC that **exercises the wired path** — fault injection, a forced fallback, a flag flip — with the mitigation actually firing. Mitigation ACs are **code-only-forbidden**: their `kind` is `user-observable` and their evidence is the mitigation firing, never a static read that the branch is present.
 
 Prompt the agent with ALL of the following:
 
@@ -424,6 +445,8 @@ For each `user-observable` AC, look in the sub-agent 3 results for a matching `i
 - **Matched, result: partial** → AC counts as partially met. List the gap.
 - **Not matched** → AC has no runtime evidence. The gate refuses `result: pass` for the slice.
 
+**User-observable mock is not met (the generalized integration-blindspot guard).** Regardless of a sub-agent's local pass, a user-observable AC whose `evidence-rung` is `cited-mock`, `uncited-mock`, or `static` is **not met** — the evidence proves code shape, not user-visible behavior. Climb the ladder (`runtime-adapters.md`) to a real rung (`live`/`headless`/`emulator-or-container`) or take the deferral path. A skipped gating spec (see `skipped-gating-specs`) that no other rung evidenced routes the same way.
+
 ## Result writeback
 
 After matching:
@@ -432,11 +455,12 @@ After matching:
 |---|---|
 | All AC met (code-only via test suites, user-observable via interactive evidence) | `pass` |
 | At least one user-observable AC has no matching interactive evidence AND no deferral annotation | `blocked-runtime-evidence-missing` |
+| At least one AC's designated gating spec was skipped, no other rung evidenced it, and no deferral annotation | `blocked-runtime-evidence-missing` |
 | At least one AC fails or is partial, but every user-observable AC has runtime evidence (positive or negative) | `fail` or `partial` |
 
 `blocked-runtime-evidence-missing` is procedural (evidence not produced), not substantive (code wrong). Routing differs: `fail` → `/wf implement`; `blocked-runtime-evidence-missing` → re-run in a capable environment or apply a deferral annotation.
 
-**Write-time enforcement (post-write-verify gate — the R7 backstop).** The `post-write-verify` hook **HARD-BLOCKS** a `verify` artifact whose `result: pass` contradicts its evidence: `metric-acceptance-met < metric-acceptance-total`, or `interactive-verification: deferred`. It **forbids** the invented `metric-acceptance-unverified-interactive` field and **warns** when shadow-deferral prose ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified during `<slice>`", "decidable by static reasoning") co-occurs with `result: pass`. Reconcile `result` with the evidence or take the honest `partial` + deferral path. (Opt out per-repo with `hooks.verifyResultGate: false` / `hooks.verifyDeferralLint: false`.)
+**Write-time enforcement (post-write-verify gate — the R7 backstop).** The `post-write-verify` hook **HARD-BLOCKS** a `verify` artifact whose `result: pass` contradicts its evidence: `metric-acceptance-met < metric-acceptance-total`, or `interactive-verification: deferred`. The `mockEvidenceGate` extension additionally **hard-blocks `result: pass` while `metric-acceptance-mock-rung > 0`** — a user-observable AC row carrying `evidence-rung: cited-mock | uncited-mock | static` cannot pass (opt out `hooks.mockEvidenceGate: false`, default ON). It **forbids** the invented `metric-acceptance-unverified-interactive` field and **warns** when shadow-deferral prose ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified during `<slice>`", "decidable by static reasoning") co-occurs with `result: pass`. Reconcile `result` with the evidence or take the honest `partial` + deferral path. (Opt out per-repo with `hooks.verifyResultGate: false` / `hooks.verifyDeferralLint: false`.)
 
 ## Escape hatch — `interactive-verification: deferred`
 
@@ -447,6 +471,8 @@ Deferral is a **last resort**: it is honest only after the constraint-resolution
 **Attempt before declare (positive-evidence capability probes).** "The environment cannot produce X" may be written ONLY after *executing* a capability probe and recording its literal command + output tail — `firebase projects:list` / `gcloud auth application-default print-access-token` for deploy credentials, `adb devices` for devices, an env-var check for keyed services, one spec run past the guard for credential-gated suites. A defer-reason with no recorded probe is invalid. Read-only introspection probes are always allowed unprompted; quota-consuming or traffic-sending probes follow the ladder's pre-authorization rule.
 
 **A skipped-guard sweep is an error, not a deferral.** When every spec exits via a credential/environment guard (0 specs executed), the criterion is `blocked-runtime-evidence-missing` with the unmet precondition named ("set `E2E_ADMIN_USER_EMAIL`/`_PASSWORD` and re-run") — NEVER `interactive-verification: deferred`. Deferral is reserved for evidence no reachable rung can produce.
+
+**A per-AC skip is the same error, one AC deep.** When *some* specs ran green but the spec that is the **designated evidence for a specific AC** was skipped (guard exit, `.skip`/`.todo`, missing env/secret, filtered out), that AC produced **no** evidence — it cannot inherit the suite's green. Route it through the ladder (another rung), or defer with a probe receipt, or write `blocked-runtime-evidence-missing`. This is the per-AC companion to the all-skipped sweep above; the skipped specs are recorded as `skipped-gating-specs: [{spec, ac, precondition}]` (Step 4 Test Execution).
 
 To proceed without a hard fail once the residual is genuinely environment-bound, the slice author may add to the per-slice verify file frontmatter:
 
@@ -473,9 +499,15 @@ runtime-evidence-deferrals:
     deferred-at: "<iso-8601>"
     cleared-by: null    # set to <probe-descriptor> when a probe run clears the deferral
     repeat-of: <slice-slug>   # ONLY when this deferral's constraint matches an earlier entry — see below
+    absorbed-by: [<slice-slug>, ...]   # slices that inherit this open deferral instead of clearing it
+    needed-by: <slice-slug>   # the slice that consumes this prerequisite; set at plan time
 ```
 
 **Repeat-deferral marker.** Before appending, scan existing `runtime-evidence-deferrals` for an entry naming the *same environment dependency* (fuzzy match — same credential gate, device class, or missing service). On a match, append `repeat-of: <slice-slug of the first occurrence>`: the accumulation becomes visible in the artifact, `/wf status`, and dashboard. A wall paid twice is plan's tripwire — the next plan for this slug MUST scope the harness that retires it or record `harness-declined: <reason>` (see plan.md's repeat-deferral tripwire).
+
+**Deferral stacking is a stop, not an absorption.** When a later slice would inherit an open deferral rather than clear it, append its slug to `absorbed-by`. Absorbing a deferral into a **third** slice is a **STOP**: verify surfaces it as a decision — *"foundation gap: N slices now stack on unproven `<X>` — provision the clearing event now, or PO-accept explicitly"* — and records the resolution in `po-answers.md`. Do not silently let the stack grow.
+
+**`needed-by` escalation.** External prerequisites and deferrals carry `needed-by: <slice>` (the consuming slice, set at plan time). When the `needed-by` slice reaches `complete` while the prerequisite is still unmet (`cleared-by: null`), the deferral's status **escalates** — a completed consumer standing on an unmet prerequisite is a surfaced decision, not a quiet carry-forward.
 
 `/wf status` and `/wf ship` read this list. `/wf ship` refuses to start while any entry has `cleared-by: null`.
 
@@ -723,6 +755,9 @@ For each criterion, record:
 - **status**: met / partially met / not met / unverified / runtime-evidence-missing
 - **verification method**: automated (test suite) / interactive (runtime adapter) / manual
 - **evidence**: test output / screenshot path / response capture / console output / "(none — runtime evidence missing)"
+- **evidence-rung**: the HIGHEST rung that produced the recorded evidence for this AC — `live | headless | emulator-or-container | cited-mock | uncited-mock | static | n-a` (`n-a` for `code-only` ACs with no runtime surface).
+
+Per-slice rollup line under this section (`evidence: live 2 / headless 1 / cited-mock 3`). `00-index.md` gets an `evidence-quality:` slug rollup (counts by rung) plus `metric-acceptance-mock-rung` frontmatter = the count of user-observable ACs whose `evidence-rung` is `cited-mock`, `uncited-mock`, or `static`.
 
 The `kind` column makes the AC gate auditable — reviewers can see at a glance which criteria the gate evaluated and which it skipped.
 

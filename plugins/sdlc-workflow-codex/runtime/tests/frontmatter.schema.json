@@ -212,6 +212,18 @@
                 "$ref": "#/$defs/stringArray",
                 "description": "For a multi-AC deferral, the subset of AC ids evidenced so far (partial progress) while cleared-by stays null."
               },
+              "absorbed-by": {
+                "$ref": "#/$defs/stringArray",
+                "description": "Slices that inherited this deferral (INTENT-FIDELITY W5.3). Absorbing the same deferral into a THIRD slice is a stop, not an absorption — verify surfaces it as an inheritance-breadth decision (provision the clearing event now, or PO-accept explicitly)."
+              },
+              "needed-by": {
+                "type": "string",
+                "description": "The slice by which this deferral's clearing evidence is due (INTENT-FIDELITY W9.2, set at plan time). status escalates when the needed-by slice is complete while cleared-by is still null; yolo stops on a charter-critical prerequisite past its needed-by boundary."
+              },
+              "probe": {
+                "type": "string",
+                "description": "The literal capability-probe command + one-line output tail executed the run this deferral was written (YOLO F1/F2 attempt-before-declare). Carried into the ship-block hand-back so /wf ship shows receipted deferrals."
+              },
               "ship-override-authorization": {
                 "type": "object",
                 "required": ["by", "at", "reason"],
@@ -222,6 +234,24 @@
                   "reason": { "type": "string" }
                 }
               }
+            }
+          }
+        },
+        "evidence-quality": {
+          "type": "object",
+          "description": "Slug-level evidence-rung rollup (INTENT-FIDELITY W9.1 + YOLO F5). Counts of user-observable AC evidence by highest rung, aggregated from the 06-verify AC status tables. The dashboard renders it as a chip; a slug with zero live-rung evidence on charter-cited ACs cannot ship without recorded PO acceptance.",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "unproven-integrations": {
+          "type": "array",
+          "description": "External integrations whose real behaviour has not been observed live in this workflow (INTENT-FIDELITY W5.2). While first-light is null, ACs depending on the integration cap at partial (mock/emulator rungs are proxies, never pass). Any live observation (tagged smoke, /wf probe, live e2e) stamps first-light.",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "introduced-by": { "type": "string", "description": "The slice that introduced the integration." },
+              "first-light": { "type": ["string", "null"], "description": "ISO-8601 of first live observation; null until observed. Set by verify." }
             }
           }
         },
@@ -566,6 +596,24 @@
         "metric-interactive-checks-run":    { "type": "integer", "minimum": 0 },
         "metric-interactive-checks-passed": { "type": "integer", "minimum": 0 },
         "metric-issues-found":              { "type": "integer", "minimum": 0 },
+        "metric-acceptance-mock-rung": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of USER-OBSERVABLE AC whose highest evidence-rung is cited-mock / uncited-mock / static (the machine-readable projection of the per-AC evidence-rung labels in the ## Acceptance Criteria Status body). The post-write-verify mockEvidenceGate HARD-BLOCKS result: pass while this is > 0 (INTENT-FIDELITY W5.2/W9.1 + YOLO F5). Absent/0 on a slice with no user-observable-mock AC."
+        },
+        "skipped-gating-specs": {
+          "type": "array",
+          "description": "Specs designated as the evidence for a specific AC that were SKIPPED (guard exit, .skip/.todo, missing env/secret, filtered out) while the rest of the suite ran (YOLO F4). A skipped gating spec is a missing-evidence event for its AC — that AC cannot inherit the suite's green. Empty when no skipped spec gates an AC.",
+          "items": {
+            "type": "object",
+            "required": ["spec", "ac"],
+            "properties": {
+              "spec": { "type": "string" },
+              "ac": { "type": "string" },
+              "precondition": { "type": "string", "description": "The unmet precondition, e.g. 'set BETTER_AUTH_SECRET and re-run'." }
+            }
+          }
+        },
         "evidence-dir": { "type": "string" },
         "convergence": {
           "enum": ["not-needed", "converged", "escalated"],

@@ -208,6 +208,58 @@ function formatValidationErrors(errors = []) {
   return errors.map((err) => `${err.path || "/"}: ${err.message}`).join("\n");
 }
 
+// lib/limitation-lexicon.mjs
+var LIMITATION_RE = /does not (exist|ship|expose)|is(n'?t| not) (available|exposed|supported)|no longer (exists|available|exposed|supported)|(API|method|function|field|prop(?:erty)?) is missing|not (?:a )?(?:real|valid) (?:API|method|export)|was removed (?:from|in)\b/i;
+var CITATION_MARKER_RE = /source:|node_modules\/|\brepro:|\bissue:\s*#?\d|https?:\/\/|study-sources|\.d\.ts\b/i;
+var SUPPRESSION_RE = /\bas any\b|@ts-ignore|@ts-expect-error|eslint-disable|#\s*type:\s*ignore|#\s*noqa|@SuppressWarnings|#pragma warning disable|\/\/\s*nolint|@Suppress\b/;
+var DEBT_MARKER_RE = /sdlc-debt:/i;
+var MECHANISM_RE = /\b(state[- ]machine|scheduler|queue|cache|pipeline|orchestrator|regex)\b/i;
+function lines(text) {
+  return String(text ?? "").split(/\r?\n/);
+}
+function markerWithin(ls, i, window, marker) {
+  const lo = Math.max(0, i - window), hi = Math.min(ls.length - 1, i + window);
+  for (let j = lo; j <= hi; j++) if (marker.test(ls[j])) return true;
+  return false;
+}
+function findUncitedLimitationClaims(text, { onlyComments = true } = {}) {
+  const ls = lines(text);
+  const out = [];
+  for (let i = 0; i < ls.length; i++) {
+    const line = ls[i];
+    if (!LIMITATION_RE.test(line)) continue;
+    if (onlyComments && !/^\s*(\/\/|\/\*|\*|#|<!--|--)/.test(line) && !/\/\/|\/\*|#\s|<!--/.test(line)) continue;
+    if (markerWithin(ls, i, 3, CITATION_MARKER_RE)) continue;
+    out.push({ line: i + 1, text: line.trim().slice(0, 200) });
+  }
+  return out;
+}
+function findUnmarkedSuppressions(text) {
+  const ls = lines(text);
+  const out = [];
+  for (let i = 0; i < ls.length; i++) {
+    if (!SUPPRESSION_RE.test(ls[i])) continue;
+    if (markerWithin(ls, i, 2, DEBT_MARKER_RE)) continue;
+    out.push({ line: i + 1, text: ls[i].trim().slice(0, 200) });
+  }
+  return out;
+}
+function findUnownedMechanisms(acText, decisionText) {
+  const found = /* @__PURE__ */ new Set();
+  const dt = String(decisionText ?? "").toLowerCase();
+  for (const line of lines(acText)) {
+    let m;
+    const re = new RegExp(MECHANISM_RE.source, "ig");
+    while (m = re.exec(line)) {
+      const noun = m[1].toLowerCase().replace(/[- ]/g, " ");
+      if (!dt.includes(noun) && !dt.includes(noun.replace(" ", "-")) && !dt.includes(noun.replace(" ", ""))) {
+        found.add(m[1].toLowerCase());
+      }
+    }
+  }
+  return [...found];
+}
+
 // hooks/post-write-verify.mjs
 var RICH_TIER_TYPES = /* @__PURE__ */ new Set([
   "review",
@@ -276,11 +328,11 @@ async function enforceSiblingFragments(paths, config) {
     }
   }
   if (blocking.length) {
-    const lines = blocking.map((r) => `  - ${r.rel} (type: ${r.type}) \u2014 missing ${r.missing.join(" + ")}`);
+    const lines2 = blocking.map((r) => `  - ${r.rel} (type: ${r.type}) \u2014 missing ${r.missing.join(" + ")}`);
     process.stderr.write(
       `wf-postwrite-verify: rich-tier artifact written without its mandatory sibling .yaml:
 
-${lines.join("\n")}
+${lines2.join("\n")}
 
 The sunflower view GATES the whole rich page (file-change topology, files-touched
 table, verdict heatmap, risk callouts, etc.) on the sibling .yaml \u2014 without it the
@@ -297,10 +349,10 @@ If this artifact legitimately has no structured data to project, set
     process.exit(2);
   }
   if (nudges.length) {
-    const lines = nudges.map((r) => `  - ${r.rel} (type: ${r.type}) \u2014 missing ${r.missing.join(" + ")}`);
+    const lines2 = nudges.map((r) => `  - ${r.rel} (type: ${r.type}) \u2014 missing ${r.missing.join(" + ")}`);
     outputSystemMessage(
       `wf: rich-tier artifact(s) have their sibling .yaml but no .html.fragment:
-${lines.join("\n")}
+${lines2.join("\n")}
 The page already renders rich from the .yaml; the .html.fragment only adds the interactive layer (collapsible rows, filters, copy controls). Author it per reference/fragment-author-contract.md if this artifact warrants interactivity.`
     );
   }
@@ -352,7 +404,8 @@ with the acceptance evidence, then continue. Opt out with hooks.verifyResultGate
 async function enforceVerifyResultGate(paths, config) {
   const resultGate = config.hooks?.verifyResultGate !== false;
   const proseLint = config.hooks?.verifyDeferralLint !== false;
-  if (!resultGate && !proseLint) return;
+  const mockGate = config.hooks?.mockEvidenceGate !== false;
+  if (!resultGate && !proseLint && !mockGate) return;
   const warnings = [];
   for (const path of paths) {
     if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
@@ -360,6 +413,15 @@ async function enforceVerifyResultGate(paths, config) {
     if (fragmentOwningType(text) !== "verify") continue;
     const { data, content } = safeParseFrontmatter(text, { filePath: path.absolute });
     if (!data || data.result !== "pass") continue;
+    if (mockGate) {
+      const mock = data["metric-acceptance-mock-rung"];
+      if (typeof mock === "number" && mock > 0) {
+        blockVerifyResultGate(
+          path.original,
+          `result: pass but metric-acceptance-mock-rung (${mock}) > 0. At least one user-observable AC's highest evidence-rung is cited-mock / uncited-mock / static \u2014 a mock or static analysis does not evidence user-observable behaviour. Climb the constraint-resolution ladder to a live/headless/emulator rung, or take the deferral path (interactive-verification: deferred + a 00-index runtime-evidence-deferrals entry), then set result: partial. Opt out with hooks.mockEvidenceGate: false.`
+        );
+      }
+    }
     if (resultGate) {
       const met = data["metric-acceptance-met"];
       const total = data["metric-acceptance-total"];
@@ -382,11 +444,76 @@ async function enforceVerifyResultGate(paths, config) {
     }
   }
   if (warnings.length) {
-    const lines = warnings.map((w) => `  - ${w.rel}: found "${w.phrase}" while result: pass`);
+    const lines2 = warnings.map((w) => `  - ${w.rel}: found "${w.phrase}" while result: pass`);
     outputSystemMessage(
       `wf: possible prose-only deferral in a passing verify artifact:
-${lines.join("\n")}
+${lines2.join("\n")}
 A user-observable AC that was "deferred to user/manual", left "UNVERIFIED-INTERACTIVE", punted to a later slice, or "decided by static reasoning" is NOT met by a runtime drive. If that is what happened, set result: partial + interactive-verification: deferred (with the rungs tried in the defer-reason) and register the deferral in 00-index runtime-evidence-deferrals \u2014 do not leave it as a silent pass. Disable this lint with hooks.verifyDeferralLint: false.`
+    );
+  }
+}
+function newTextFromInput(input) {
+  const ti = input?.tool_input ?? {};
+  if (typeof ti.content === "string") return ti.content;
+  if (typeof ti.new_string === "string") return ti.new_string;
+  if (Array.isArray(ti.edits)) return ti.edits.map((e) => e?.new_string ?? "").join("\n");
+  return "";
+}
+function enforceCodeFileLints(input, config, artifactPaths) {
+  const limitationLint = config.hooks?.limitationClaimLint !== false;
+  const debtLint = config.hooks?.suppressionDebtLint !== false;
+  if (!limitationLint && !debtLint) return;
+  const artifactSet = new Set((artifactPaths ?? []).map((p) => p.original));
+  const paths = collectToolInputPaths(input).filter(
+    (p) => !artifactSet.has(p) && !isManagedArtifactMarkdownPath(p) && !isProseLogPath(p)
+  );
+  if (!paths.length) return;
+  const text = newTextFromInput(input);
+  if (!text.trim()) return;
+  const lines2 = [];
+  if (limitationLint) {
+    for (const hit of findUncitedLimitationClaims(text)) {
+      lines2.push(`  - limitation claim without a citation (line ${hit.line}): "${hit.text}"`);
+    }
+  }
+  if (debtLint) {
+    for (const hit of findUnmarkedSuppressions(text)) {
+      lines2.push(`  - suppression without an sdlc-debt: marker (line ${hit.line}): "${hit.text}"`);
+    }
+  }
+  if (!lines2.length) return;
+  outputSystemMessage(
+    `wf: intent-fidelity code lints (advisory) on ${paths.join(", ")}:
+${lines2.join("\n")}
+A "does not exist / not exposed / was removed" comment is a HYPOTHESIS \u2014 cite the installed source (a study-sources read of node_modules/, a repro, an issue, or a URL) within \xB13 lines, or delete it; never replicate an in-repo limitation comment into new code without re-verifying it. A new \`as any\` / \`@ts-ignore\` / \`eslint-disable\` needs an \`sdlc-debt:\` marker so the debt lifecycle (verify/retro/simplify) inherits it. Opt out: hooks.limitationClaimLint / hooks.suppressionDebtLint.`
+  );
+}
+async function enforceNamedMechanismLint(paths, config) {
+  if (config.hooks?.namedMechanismLint === false) return;
+  const warns = [];
+  for (const path of paths) {
+    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
+    const text = await readTextIfExists(path.absolute);
+    const type = fragmentOwningType(text);
+    if (type !== "shape" && type !== "slice") continue;
+    const { content } = safeParseFrontmatter(text, { filePath: path.absolute });
+    if (!content) continue;
+    const acLines = [];
+    const decisionLines = [];
+    let inAc = false;
+    for (const line of content.split(/\r?\n/)) {
+      if (/^#{1,4}\s/.test(line)) inAc = /acceptance criteria|verification|test/i.test(line);
+      (inAc ? acLines : decisionLines).push(line);
+    }
+    const unowned = findUnownedMechanisms(acLines.join("\n"), decisionLines.join("\n"));
+    if (unowned.length) warns.push({ rel: path.original, nouns: unowned });
+  }
+  if (warns.length) {
+    const lines2 = warns.map((w) => `  - ${w.rel}: ${w.nouns.join(", ")}`);
+    outputSystemMessage(
+      `wf: named-mechanism lint (advisory) \u2014 a mechanism named in an AC/verification line has no owning decision in the artifact body:
+${lines2.join("\n")}
+A test may not name a machine the design does not own. State the mechanism in the body (what it is, what it replaces, why) and adjudicate it if it touches a RIM or PO directive, or drop it from the AC. Opt out: hooks.namedMechanismLint: false.`
     );
   }
 }
@@ -400,6 +527,7 @@ async function main() {
   if (config.hooks.verifyOnWrite === false) return;
   const schemaPath = join(PLUGIN_ROOT, "tests", "frontmatter.schema.json");
   const paths = collectToolInputPaths(input).filter((path) => isManagedArtifactMarkdownPath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
+  enforceCodeFileLints(input, config, paths);
   if (!paths.length) return;
   const failures = [];
   for (const path of paths) {
@@ -413,6 +541,7 @@ async function main() {
   }
   if (!failures.length) {
     await enforceVerifyResultGate(paths, config);
+    await enforceNamedMechanismLint(paths, config);
     await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);
     return;

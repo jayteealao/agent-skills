@@ -1,6 +1,6 @@
 {
   "name": "@sdlc-workflow/codex-native",
-  "version": "9.127.0",
+  "version": "9.128.0",
   "private": true,
   "type": "module",
   "scripts": {

@@ -78,6 +78,14 @@ Each batch agent returns per package: current/latest version, update-type, break
 
 **When the changelog can't settle it, read the source.** For a P0/P1 package whose changelog is `unverified`, ambiguous, or silent on a symbol the repo actually calls, invoke the `study-sources` skill to fetch the **target version's real source** (source JAR, `npm pack`, sdist, `go mod download`, the Cargo/NuGet cache, or a clone of the release tag into `.scratch/`) and diff its changed API against the current usage. Reading the real diff turns an `unverified` guess into a cited migration fact — record the version you read alongside `changelog-source:`. This is a read-only study step; it never installs or runs the candidate version.
 
+**A limitation claim carries its evidence.** Any claim that a capability was REMOVED, broke,
+or is no longer exposed by the target version must cite it in the artifact: the changelog/release
+line that announces the removal (`changelog-source:` URL), a `study-sources` read of the target
+version's **installed** source (name the path opened), or an upstream issue. Do not infer removal
+from a remembered API or from an in-repo comment — a comment claiming a limitation is a hypothesis
+to re-verify, never authority to plan a migration around. An uncited "the new version dropped X"
+drops the package to `Hold: changelog unverified`.
+
 Then **prioritize** into tiers: **P0 Security** (active CVE with a fix → update immediately, one at a time), **P1 Major+migration** (breaking changes → one at a time), **P2 Minor/patch safe** (batch up to 10), **Hold** (incompatible / peer-blocked / recommended hold). Write `02-shape.md`:
 ```yaml
 ---

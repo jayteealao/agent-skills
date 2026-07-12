@@ -132,6 +132,26 @@
           "type": "boolean",
           "default": true,
           "description": "When true (default), the post-write-verify hook WARNS (non-blocking systemMessage) when shadow-deferral vocabulary in a `verify` body co-occurs with `result: pass` (e.g. 'deferred to user/manual', 'UNVERIFIED-INTERACTIVE', 'will be verified during <slice>', 'decidable by static reasoning'). Heuristic, so it warns rather than blocks. Set false to silence the prose-deferral lint."
+        },
+        "mockEvidenceGate": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook HARD-BLOCKS (exit 2) a `verify` artifact with `result: pass` while metric-acceptance-mock-rung > 0 — i.e. at least one user-observable AC's highest evidence-rung is cited-mock / uncited-mock / static (INTENT-FIDELITY W5.2/W9.1 + YOLO F5). A user-observable AC evidenced only by a mock or static analysis is not met — climb the ladder or defer. WARNS additionally when an unproven-integration (first-light: null) co-occurs with a passing dependent AC. Set false to disable. See EVIDENCE-SCHEMA-CONTRACT.md §5."
+        },
+        "limitationClaimLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the pre-write-validate (code files) and post-write-verify (artifacts) hooks WARN (non-blocking) when an added/modified comment claims a dependency capability does not exist / is not exposed / was removed (the limitation lexicon) with no citation marker within ±3 lines (source:, node_modules/, repro:, issue:, a URL). INTENT-FIDELITY W3.2 — a comment is a hypothesis, not authority. Set false to silence."
+        },
+        "suppressionDebtLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the hooks WARN (non-blocking) when a new type/lint suppression (`as any`, `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, language equivalents) is added without an `sdlc-debt:` marker within ±2 lines. INTENT-FIDELITY W9.3 — the existing debt lifecycle (verify validates, retro reconciles, simplify sweeps) then inherits the class. Set false to silence."
+        },
+        "namedMechanismLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a mechanism-suggesting noun (state machine, scheduler, queue, cache, pipeline, orchestrator, regex) appears in a shape/slice AC or verification line but in no decision section of the artifact body. INTENT-FIDELITY W7 — a test may not name a machine the design does not own. Heuristic, so it warns. Set false to silence."
         }
       }
     },

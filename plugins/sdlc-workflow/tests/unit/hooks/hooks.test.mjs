@@ -422,6 +422,31 @@ test('post-write-verify validates written workflow artifacts with Ajv', () => {
   }
 });
 
+test('post-write-verify mock-evidence gate blocks result: pass with a user-observable mock AC', () => {
+  const tmp = tempDir();
+  try {
+    // A passing verify whose evidence for a user-observable AC bottoms out at a mock rung.
+    const p = join(tmp, '.ai', 'workflows', 'demo', '06-verify-core.md');
+    writeFile(p, md(validVerify({ 'metric-acceptance-mock-rung': 1 })));
+    const blocked = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/06-verify-core.md' },
+    }, tmp);
+    equal(blocked.status, 2, blocked.stderr);
+    match(blocked.stderr, /metric-acceptance-mock-rung/);
+
+    // rung 0 (all AC on real rungs) passes clean.
+    writeFile(p, md(validVerify({ 'metric-acceptance-mock-rung': 0 })));
+    const ok = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/06-verify-core.md' },
+    }, tmp);
+    equal(ok.status, 0, ok.stderr);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('post-write-verify skips po-answers.md prose log instead of schema-validating it', () => {
   const tmp = tempDir();
   try {

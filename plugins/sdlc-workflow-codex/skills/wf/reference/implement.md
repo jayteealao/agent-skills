@@ -33,6 +33,21 @@ You are running `$wf implement`, **stage 5 of 10** in the SDLC lifecycle.
 > Android SDK `sources/`, …) rather than guessing signatures. Match the version the
 > project resolved. Reads land in gitignored `.scratch/` and never enter the change.
 
+> **A limitation claim carries its evidence.** Any code comment or deviation asserting a
+> dependency capability DOES NOT EXIST — not exposed, removed, broke, "the API can't do
+> X" — must carry evidence at the site or in the record: a `study-sources` read of the
+> **installed** source (name the `node_modules/` or vendored path actually opened), a
+> failing minimal repro, or an upstream issue link.
+> 1. **Comments are hypotheses.** An existing in-repo comment claiming a limitation is
+>    NEVER sufficient authority to replicate its workaround in new code — re-verify the
+>    premise first (one `study-sources` read; the skill exists for exactly this).
+> 2. **Recalled API shapes never justify `as any` / `@ts-ignore` alone.** The suppression
+>    must cite the type actually read from the installed package, or the mismatch repro —
+>    a remembered signature is not authority.
+> A warn-only hook (`limitationClaimLint`) flags an uncited limitation comment at write
+> time; the citation markers it looks for are `source:` / `node_modules/` / `repro:` /
+> `issue:` / a URL within ±3 lines.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator** running the implementation stage.
 - Read prior workflow artifacts (index, shape, slice, plan) FIRST — do not skip.
@@ -154,6 +169,8 @@ Shape settled *what* to build and plan settled *which strategy* (build-avoidance
 **Lazy ≠ negligent — NON-NEGOTIABLE, never trimmed for brevity:** trust-boundary input validation, error handling that prevents data loss, security, accessibility, real-hardware calibration, and anything an acceptance criterion requires. Minimal code missing a safety check is *unfinished*, not lazy — review/verify gates bounce it as a BLOCKER, so the shortcut only defers rework. Non-trivial logic leaves its verification behind; trivial one-liners do not.
 
 **Mark deliberate shortcuts.** When you take an intentional simplification with a known ceiling (global lock, O(n²) scan, naive heuristic, hard-coded value), leave a one-line `sdlc-debt:` comment at the site naming the ceiling and upgrade path, and record it in `## Anything Deferred` (deferral) or `## Known Risks / Caveats` (ceiling is live in shipped code). The marker keeps the shortcut visible and harvestable by `$wf simplify codebase`.
+
+**Every new type/lint suppression is debt — mark it.** Any suppression you introduce — `as any`, `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, or a language equivalent (`# type: ignore`, `@Suppress`, `#[allow(...)]`, `// nolint`) — must carry an `sdlc-debt:` marker with a reason at the site. This adds no new lifecycle: the existing debt machinery inherits the class — verify validates the marker, retro reconciles it, `$wf simplify` sweeps it. A warn-only hook (`suppressionDebtLint`) flags an unmarked suppression at write time; it looks for `sdlc-debt:` within ±2 lines.
 
 **A build decision that touches a `carried` intent-risk is intent-bearing — never auto-resolve it.** If a decision during the build would resolve an intent-risk (RIM) that `00-index.md`'s `intent-risks` still marks `status: carried` (one shape could not settle and deferred to a named later stage), it is by definition intent-bearing: ask the PO (human-gated run), never settle it by an autonomous policy. On an autonomous run it is a **stop condition**, not an assumption to fill. (Forward-compatible with the coming `_decision-classes.md` taxonomy — this rule holds even before that file exists.)
 
@@ -405,6 +422,10 @@ For each item in `02c-craft.md` → `## Mock fidelity inventory`, confirm honore
 - ...
 
 ## Deviations from Plan
+<!-- A deviation of kind "planned API not found" (the plan assumed a capability the
+     installed source does not expose) MUST NAME the source file read that established
+     the absence — the `node_modules/` or vendored path, the failing repro, or the
+     upstream issue. A bare "the API didn't work" is not a recorded deviation. -->
 - ...
 
 ## Anything Deferred

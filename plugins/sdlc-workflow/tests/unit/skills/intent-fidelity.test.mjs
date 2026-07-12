@@ -112,6 +112,61 @@ test('intent-risks validates against the 00-index frontmatter schema', () => {
   assert.equal(validate([{ id: 'RIM-9', risk: 'z', severity: 'low', status: 'maybe' }]), false);
 });
 
+// ── R2 reference prose (both trees) ─────────────────────────────────────────
+test('R2 — verify.md carries the evidence-rung / mock / skip / first-light gate rules', () => {
+  for (const { name, root } of trees) {
+    const src = ref(root, 'verify.md');
+    assert.match(src, /evidence-rung/, `${name}: verify lost evidence-rung`);
+    assert.match(src, /uncited-mock/, `${name}: verify lost the cited/uncited-mock split`);
+    assert.match(src, /mock-provenance/, `${name}: verify lost mock-provenance`);
+    assert.match(src, /fixture-fidelity/, `${name}: verify lost the fixture-fidelity spot-check`);
+    assert.match(src, /skipped-gating-specs/, `${name}: verify lost the per-AC skip rule`);
+    assert.match(src, /first-light/, `${name}: verify lost first-light tracking`);
+    assert.match(src, /absorbed-by/, `${name}: verify lost the deferral-stacking stop`);
+    assert.match(src, /metric-acceptance-mock-rung/, `${name}: verify lost the mock-rung gate hook reference`);
+  }
+});
+
+test('R2 — plan/implement carry the limitation-citation + suppression-debt rules', () => {
+  for (const { name, root } of trees) {
+    const plan = ref(root, 'plan.md');
+    const impl = ref(root, 'implement.md');
+    assert.match(plan + impl, /hypothes/i, `${name}: lost the "comments are hypotheses" rule`);
+    assert.match(impl, /sdlc-debt/, `${name}: implement lost the suppression → sdlc-debt rule`);
+  }
+});
+
+// ── R2 evidence-schema fields validate against the frontmatter schema ───────
+test('R2 — verify + index evidence fields validate (EVIDENCE-SCHEMA-CONTRACT)', () => {
+  const require = createRequire(import.meta.url);
+  let Ajv;
+  try { Ajv = require('ajv'); } catch { return; }
+  const schema = JSON.parse(readFileSync(path.join(pluginRoot, 'tests', 'frontmatter.schema.json'), 'utf8'));
+  const defs = schema.$defs ?? schema.definitions;
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  const compile = (s) => ajv.compile(s);
+
+  // verify: metric-acceptance-mock-rung + skipped-gating-specs
+  const verifyProps = defs.verifyFrontmatter.properties;
+  assert.ok(verifyProps['metric-acceptance-mock-rung'], 'verify schema missing metric-acceptance-mock-rung');
+  assert.ok(compile(verifyProps['metric-acceptance-mock-rung'])(2));
+  assert.equal(compile(verifyProps['metric-acceptance-mock-rung'])(-1), false);
+  const skip = compile(verifyProps['skipped-gating-specs']);
+  assert.ok(skip([{ spec: 'auth.e2e.ts', ac: 'AC-7', precondition: 'set BETTER_AUTH_SECRET' }]), JSON.stringify(skip.errors));
+  assert.equal(skip([{ spec: 'x' }]), false); // ac required
+
+  // index: evidence-quality + unproven-integrations
+  const idxProps = defs.indexFrontmatter.properties;
+  assert.ok(compile(idxProps['evidence-quality'])({ live: 2, 'cited-mock': 3 }));
+  const unproven = compile(idxProps['unproven-integrations']);
+  assert.ok(unproven([{ name: 'openrouter', 'introduced-by': 'platform-proofs', 'first-light': null }]), JSON.stringify(unproven.errors));
+
+  // deferral items: absorbed-by, needed-by, probe (W5.3/W9.2/YOLO F2)
+  const deferral = idxProps['runtime-evidence-deferrals'].items.properties;
+  assert.ok(deferral['absorbed-by'] && deferral['needed-by'] && deferral['probe'],
+    'deferral item schema missing absorbed-by / needed-by / probe');
+});
+
 // ── W1.3 renderer chip (main tree renderer) ─────────────────────────────────
 test('W1.3 — index renderer emits an intent-risks chip, byte-stable when absent', async () => {
   const mod = await import(pathToFileURL(path.join(pluginRoot, 'renderers', 'index.mjs')).href);
