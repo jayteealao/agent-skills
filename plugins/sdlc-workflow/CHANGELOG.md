@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.125.0] - 2026-07-12
+
+### Added — memory-seed kernel (a minimal `/wf` rule set forced into the agent memory files)
+
+Implements `docs/internal/MEMORY-SEED-PLAN.md`. Every SessionStart now seeds a tiny, versioned, fenced `/wf` rules kernel into the repo's agent memory files, so a fresh model working in an sdlc repo starts with the invariants that make it reach for the right tool — chiefly *ground facts in real source (study-sources), don't guess* — always in context rather than only when it happens to reach for a skill.
+
+- **Single canonical source via `@import`.** The literal kernel lives in **`AGENTS.md`** behind a `<!-- sdlc:wf-rules vN … -->` fence; **`CLAUDE.md`** gets only an `@AGENTS.md` import fence, which Claude Code expands into context at launch. Codex reads `AGENTS.md`'s literal contents natively, so both hosts get the kernel from one source (the `@import` is Claude-only, which is exactly why the kernel must be literal in `AGENTS.md` — a dedicated third file would force duplication). The CLAUDE.md pointer is version-independent; only the AGENTS.md fence carries the version and is replaced in place on a kernel bump.
+- **Owns exactly the fence.** The seeder never touches a byte outside its sentinels. It appends after existing content, no-ops when the current version is already present, and won't add a duplicate `@AGENTS.md` when the user already imports it by hand (even detecting mentions that sit only inside code blocks/spans, where the directive is inert).
+- **Scoped + opt-out.** Runs only in sdlc-engaged repos (those with `.ai/workflows/`), so it never edits the memory files of an unrelated repo the plugin merely happens to be installed in. New `memory.seedRules` config (default `true`) disables it; `SDLC_DISABLE_MEMORY_SEED=1` is an env escape hatch. Fail-open throughout — a read-only repo or fs error silently skips; seeding never breaks or slows session start.
+- **One-time notice.** The first insert into a repo surfaces a single `systemMessage` naming the files and the opt-out flag (gated by a `.ai/.wf-rules-seeded` marker); every later session is silent, including silent version replacements. The notice is Claude-only — on Codex the write is self-documenting via the fence comment.
+- New `lib/memory-seed.mjs` (pure fence surgery + fail-open fs orchestrator) and bundled `dist/seed-memory.mjs` entrypoint, invoked on both hosts (Claude via `hooks.json`, Codex via its native SessionStart running the synced `runtime/dist/`). 19-case unit suite covers create/append/version-replace/idempotence (incl. CRLF-normalized files, so a Windows `autocrlf` checkout never churns)/opt-out/fail-open. Mirrored to the Codex tree via `sync:codex`.
+
 ## [9.124.0] - 2026-07-12
 
 ### Added — `/wf ship-plan audit` (read-only soundness audit of the ship pipeline)

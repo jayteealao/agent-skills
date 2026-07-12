@@ -55,6 +55,7 @@ const DIST = join(PLUGIN_ROOT, 'dist');
 // Flat top-level entrypoints — every Claude-invoked process.
 const HOOK_ENTRIES = [
   'session-start-orient',   // SessionStart
+  'seed-memory',            // SessionStart — seed the /wf rules kernel (MEMORY-SEED-PLAN); both hosts
   'pre-write-validate',     // PreToolUse
   'leak-guard-bash',        // PreToolUse(Bash) — EOB leak guard, advisory-first (HOOKS-SEMANTIC Phase 1)
   'leak-guard-write',       // PreToolUse(Write|Edit) — EOB leak guard for public-doc paths

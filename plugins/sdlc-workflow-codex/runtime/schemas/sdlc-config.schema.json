@@ -151,6 +151,18 @@
           "description": "'advisory' emits a non-blocking systemMessage naming the matched vocabulary; 'enforce' denies the tool call (exit 2) with the same message."
         }
       }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Agent memory-file seeding (MEMORY-SEED-PLAN). Governs whether the SessionStart hook seeds a minimal, versioned `/wf` rules kernel into the repo's agent memory files. The kernel lives literally in AGENTS.md (canonical; read by Codex natively and by Claude via an `@AGENTS.md` import the seeder adds to CLAUDE.md). The plugin owns EXACTLY the fenced region and never touches a byte outside it; seeding only runs in sdlc-engaged repos (those with .ai/workflows/).",
+      "properties": {
+        "seedRules": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), each SessionStart ensures the fenced `/wf` rules block in AGENTS.md and the `@AGENTS.md` import in CLAUDE.md, replacing an older kernel version in place and never re-announcing after the first insert. Set false to disable seeding entirely (existing seeded blocks are left untouched)."
+        }
+      }
     }
   }
 }

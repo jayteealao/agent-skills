@@ -6,6 +6,7 @@ import {
   renderCodeBrowserPage,
   resolveRequestPath
 } from "./chunk-IOYXLHW6.mjs";
+import "./chunk-4WRIEOIP.mjs";
 import {
   codeBrowserConfigFromEnv,
   createHealController,
@@ -15,7 +16,6 @@ import {
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
 } from "./chunk-J2RO6O56.mjs";
-import "./chunk-4WRIEOIP.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,

@@ -99,6 +99,15 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     enabled: false,
     mode: 'advisory',
   },
+  // Agent memory-file seeding (MEMORY-SEED-PLAN): when seedRules is true
+  // (default), each SessionStart in an sdlc-engaged repo (one with .ai/workflows/)
+  // ensures a small, versioned, fenced `/wf` rules block in AGENTS.md (canonical;
+  // read by Codex natively and by Claude via an `@AGENTS.md` import added to
+  // CLAUDE.md). The plugin owns only the fenced region and never edits outside it.
+  // Set false to disable seeding entirely.
+  memory: {
+    seedRules: true,
+  },
 });
 
 const configValidators = new Map();   // schemaPath → compiled validator

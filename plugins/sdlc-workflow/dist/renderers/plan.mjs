@@ -4,19 +4,19 @@ import {
   callout
 } from "../chunk-EG7S7OJR.mjs";
 import {
-  figureCanvas
-} from "../chunk-PDBKNARE.mjs";
-import {
   md2html,
   renderHistoryBlock,
   renderRevisionLedger
-} from "../chunk-QMQZCZSS.mjs";
+} from "../chunk-I6HNESDF.mjs";
+import {
+  figureCanvas
+} from "../chunk-PDBKNARE.mjs";
 import {
   artifactHeader,
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-4XT743KJ.mjs";
+} from "../chunk-PTNMZJ27.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";

@@ -2,17 +2,10 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  ensureHubLifecycle,
-  maybeConfigureTailscale,
-  readHubConfig,
-  tailscaleDnsName
-} from "./chunk-MW5WFXDC.mjs";
-import "./chunk-J2RO6O56.mjs";
-import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-QMQZCZSS.mjs";
+} from "./chunk-I6HNESDF.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
@@ -20,11 +13,18 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-4XT743KJ.mjs";
+} from "./chunk-PTNMZJ27.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
 } from "./chunk-4WRIEOIP.mjs";
+import {
+  ensureHubLifecycle,
+  maybeConfigureTailscale,
+  readHubConfig,
+  tailscaleDnsName
+} from "./chunk-65BE5KJY.mjs";
+import "./chunk-J2RO6O56.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
@@ -59,7 +59,7 @@ import {
 import {
   configHash,
   loadConfigWithMeta
-} from "./chunk-IJYGUPYT.mjs";
+} from "./chunk-LGV2OZL4.mjs";
 import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
