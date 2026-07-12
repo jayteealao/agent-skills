@@ -37,7 +37,7 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
 # Step A0 — Gather the adoptable surface (MANDATORY — before anything else)
 
 1. **Resolve the base branch.** Use the same resolution the review stage uses: the tracked upstream of the current branch if set, else the repo default (`main`/`master`). Record it as `<base>`.
-2. **Collect the surface** via Bash (use real output, never guess):
+2. **Collect the surface** (use real command output, never guess):
    - `git status --porcelain` — uncommitted (staged + unstaged + untracked) changes.
    - `git log <base>..HEAD --oneline` — commits ahead of base on this branch.
    - `git diff <base>...HEAD` **and** `git diff` (unstaged) **and** `git diff --cached` (staged) — the full adoptable diff. Include untracked files' contents (`git status` lists them; read the notable ones).
@@ -50,7 +50,7 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
 
 Use parallel Explore sub-agents to understand the diff before inferring intent — do not reconstruct from the diff text alone.
 
-**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call — both do bounded, targeted reads with structured-output extraction.
+**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every spawn — both are read-only `explorer` children doing bounded, targeted reads with structured-output extraction.
 
 #### Explore sub-agent 1 — Diff comprehension
 Prompt with ALL of the following:
@@ -74,7 +74,7 @@ Prompt with:
 
 # Step 2 — Confirmation gate (MANDATORY — before any artifact is written)
 
-Inference from a diff can be wrong, and a wrong adopted shape poisons every downstream stage. **Before writing any file**, present the inferred shape and confirm via `AskUserQuestion`:
+Inference from a diff can be wrong, and a wrong adopted shape poisons every downstream stage. **Before writing any file**, present the inferred shape and confirm with the user directly in chat:
 
 ```
 question: "Adopting <N> changed files on branch `<branch>` as workflow `<slug>`. Inferred goal: “<goal>”. Scope, slice split (<M> slice(s)), and <K> acceptance criteria are drafted from the diff. Adopt this shape?"
@@ -93,7 +93,7 @@ options:
 
 # Step 3 — Write the reconstructed artifacts (each schema-conformant, each `provenance: adopted`)
 
-Use real timestamps — run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Write each artifact atomically (temp path → rename). **Every frontmatter block below includes `provenance: adopted`.**
+Use real timestamps — get the current UTC time per [_timestamp.md](../_timestamp.md). Write each artifact atomically (temp path → rename). **Every frontmatter block below includes `provenance: adopted`.**
 
 **`01-adopt.md` — `type: intake` (the adoption record, replaces standalone intake):**
 ```yaml

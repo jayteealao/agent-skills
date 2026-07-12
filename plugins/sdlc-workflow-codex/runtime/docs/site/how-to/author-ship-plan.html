@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.123.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.124.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -195,6 +195,18 @@ git commit -m "chore: author ship plan"</code></pre>
 <pre><code>/wf ship-plan edit</code></pre>
 
 <p>Pick the block (A–K) or additional-contract id to edit. The edit flow re-runs only that block's confirmation loop — discovery is skipped because the existing plan is the source of truth. <code>plan-version</code> increments by 1. Editing Block H or C also re-derives the pre-merge check lists. After changing an inbound block (H–K), run <code>/wf ship-plan build</code> to bring the repo and remote settings back into compliance.</p>
+
+<h2>Auditing the plan for soundness</h2>
+
+<p><code>/wf ship-plan build</code> checks whether the repo <em>matches</em> the plan — it trusts the plan and closes the gap. The handoff/ship readiness pre-check catches <em>mechanical drift</em> (a version file moved, a secret went unplanned). Neither asks the harder question: <strong>is the plan itself correct?</strong> That is what <code>audit</code> is for.</p>
+
+<pre><code>/wf ship-plan audit            # full fan-out across all seven lenses
+/wf ship-plan audit release-safety   # re-check just one lens after a fix
+/wf ship-plan audit triage     # revisit findings you previously acknowledged</code></pre>
+
+<p>It is <strong>read-only</strong> — it never edits the plan, never touches a workflow, never ships. It fans out one adversarial reviewer per lens — <code>plan-soundness</code>, <code>release-safety</code>, <code>ci-correctness</code>, <code>secrets-and-permissions</code>, <code>supply-chain</code>, <code>rollback-realism</code>, <code>version-integrity</code> — each of which tries to <em>break</em> the plan, the built pipeline, and the release-relevant codebase on paper before a real release breaks in production. The canonical catch: a plan whose release fires <code>tag-on-main</code> but whose version bump runs <em>inside</em> that tag-triggered workflow, so every tag ships the pre-bump version. Valid YAML, compliant with the plan, and wrong — invisible to drift detection, exactly what audit exists to find.</p>
+
+<p>Findings accumulate in <code>.ai/ship-plan-audit.md</code>: re-runs dedupe and merge in place, findings you fixed are marked <code>resolved</code>, and each open finding is <strong>routed</strong> to the command that can fix it — <code>/wf ship-plan edit &lt;block&gt;</code> for a plan defect, <code>/wf ship-plan build</code> for a pipeline gap, <code>/wf intake fix</code> for a codebase issue. The verdict is <code>sound</code>, <code>ship-with-caveats</code>, or <code>unsound</code>. Run it after your first <code>build</code>, and again before a first real release.</p>
 
 <details>
 <summary>Technical detail — templates as hypothesis seeds</summary>

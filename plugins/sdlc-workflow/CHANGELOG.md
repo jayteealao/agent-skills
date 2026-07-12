@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.124.0] - 2026-07-12
+
+### Added — `/wf ship-plan audit` (read-only soundness audit of the ship pipeline)
+
+A fourth `ship-plan` sub-command that asks whether the plan is *correct*, not merely present or compliant — the question none of its three neighbours cover. `ship-plan build` trusts the plan as ground truth (*"what it says is right"*) and mutates the repo to match it; the handoff/ship readiness pre-check catches only mechanical drift (a moved version file, an unplanned secret); `ship` just executes. So a plan can be fully compliant, drift-free, and still quietly wrong — e.g. a `tag-on-main` release whose version bump runs *inside* the tag-triggered workflow, so every tag is cut from the pre-bump commit and ships the old version. `audit` is the adversarial reasoning pass built to catch exactly that.
+
+- **Read-only, route-don't-fix.** Never edits the plan (that is `edit`), never mutates a workflow or remote setting (that is `build`), never ships. The only file it writes is its ledger.
+- **Full parallel fan-out, always.** One adversarial reviewer per lens on every run — `plan-soundness`, `release-safety`, `ci-correctness`, `secrets-and-permissions`, `supply-chain`, `rollback-realism`, `version-integrity` — each refuting its own candidates before reporting, with a second refutation on blockers/highs before they land. Each lens reasons across all three targets: the plan, the built pipeline, and the release-relevant codebase.
+- **Accumulating ledger** at `.ai/ship-plan-audit.md`: re-runs dedupe by a stable finding id and merge in place, findings that disappeared flip to `resolved` (never silently deleted), nothing is overwritten. The verdict is `sound` / `ship-with-caveats` / `unsound`.
+- **Routes** every open finding to its sanctioned fixer — `/wf ship-plan edit <block>` (plan defect), `/wf ship-plan build` (pipeline gap), `/wf intake fix` (release-relevant codebase), or `/wf review sweep pre-merge` for deep code-correctness beyond the release surface, which `audit` deliberately does not own.
+- Wired into the `ship-plan` router (`skills/wf/reference/ship-plan.md`) and the `/wf` dispatcher row (`skills/wf/SKILL.md`). Light discovery pointers added from `ship-plan build`'s next-steps and the readiness pre-check (when `plan-stale` fires, it may suggest a soundness pass). Documented in `how-to/author-ship-plan.html`. Mirrored to the Codex tree in its native idiom — `$wf`, effort-tiered `explorer` children in waves of ≤6, ask-in-chat triage.
+
 ## [9.123.0] - 2026-07-12
 
 ### Fixed — `/review` reframed as the `/wf review` key (it is not a standalone command)

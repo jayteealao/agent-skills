@@ -1,6 +1,6 @@
 ---
-description: Ship-plan router — manage the project-level `.ai/ship-plan.md` contract. Dispatches to `init` (author a new plan), `build` (bring the repo pipeline into compliance), or `edit` (amend one block of an existing plan).
-argument-hint: "<init|build|edit> [args...]"
+description: Ship-plan router — manage the project-level `.ai/ship-plan.md` contract. Dispatches to `init` (author a new plan), `build` (bring the repo pipeline into compliance), `edit` (amend one block of an existing plan), or `audit` (read-only soundness review of the plan + built pipeline + release-relevant codebase).
+argument-hint: "<init|build|edit|audit> [args...]"
 ---
 
 # External Output Boundary (MANDATORY)
@@ -18,6 +18,7 @@ The first token of `$ARGUMENTS` (after `ship-plan` is stripped by `wf/SKILL.md`)
 | `init` | Author a new `.ai/ship-plan.md` from scratch | `ship-plan/init.md` |
 | `build` | Audit and build the pipeline to match the plan | `ship-plan/build.md` |
 | `edit` | Amend one block of an existing plan | `ship-plan/edit.md` |
+| `audit` | Read-only soundness audit of the plan + built pipeline + release-relevant codebase | `ship-plan/audit.md` |
 | missing / unknown | Show usage and ask | (see below) |
 
 **No token or unknown token** → STOP. Render usage:
@@ -27,6 +28,7 @@ Usage:
   /wf ship-plan init [--from-template <kind>]   Author the project-level .ai/ship-plan.md (one-time per repo).
   /wf ship-plan build [--dry-run]               Audit the repo against the plan; create missing files, patch non-compliant ones.
   /wf ship-plan edit                            Amend one block of an existing plan (A–K, or an additional-contract id).
+  /wf ship-plan audit [<lens> | triage]         Read-only soundness audit of the plan, its built pipeline, and the release-relevant codebase; writes findings to .ai/ship-plan-audit.md and routes each to its fixer. Fixes nothing itself.
 
 Which would you like to run?
 ```

@@ -174,7 +174,7 @@
     },
     {
       "id": "wf-ship-plan-router",
-      "purpose": "ship-plan router key (init/build/edit). Resolves the sub-key inside the router.",
+      "purpose": "ship-plan router key (init/build/edit/audit). Resolves the sub-key inside the router.",
       "invocation": "/wf ship-plan init",
       "expectedReferencePath": "skills/wf/reference/ship-plan.md"
     },

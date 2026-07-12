@@ -7,7 +7,7 @@ You are the **entry dispatcher** for the SDLC plugin, invoked as `$wf intake`. I
 *front door* of the lifecycle, and it has **modes** — alternative ways a piece of work enters.
 The **default** mode is the full product-owner intake (the canonical stage 1). The nine mode
 keywords (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`,
-`adopt`) are *arguments* to this one key — most were standalone `$wf-quick` sub-commands and are now
+`adopt`) are *arguments* to this one key — most were formerly standalone `$wf-quick` sub-commands and are now
 compressed/standalone entry flows. `adopt` is the **reverse-entry** mode: instead of entering with
 work ahead of you, it adopts a change *already made in the working tree* into the lifecycle and
 lands it at verify (see `reference/intake/adopt.md`). Intake also owns one **keyword-less** mode, **extension**: naming
@@ -86,7 +86,7 @@ Propose a mode **only when ALL** of these hold — otherwise run `reference/inta
   and
 - (c) it strongly matches exactly **one** of the patterns below.
 
-**Any of the eight `$wf-quick`-lineage modes may be proposed** (`adopt` is **never** auto-proposed
+**Any of the eight former `$wf-quick`-lineage modes may be proposed** (`adopt` is **never** auto-proposed
 — adopting an existing diff is an explicit decision the user states with `$wf intake adopt`, never
 something inferred from a task description). Match on the description's *shape of intent*:
 

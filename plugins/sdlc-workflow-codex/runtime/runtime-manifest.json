@@ -1,10 +1,10 @@
 {
   "family": "sdlc-workflow",
   "hubName": "sdlc-workflow-hub",
-  "runtimeVersion": "9.123.0",
+  "runtimeVersion": "9.124.0",
   "hubProtocolVersion": 1,
   "artifactSchema": "sdlc/v1",
   "registryVersion": 2,
   "hubConfigVersion": 1,
-  "buildId": "662652550dbb04f54646a892286027911e1dd0ab0a53cf138556f89878bc2a46"
+  "buildId": "732b3c91118313bf064d777f753ec3657e0baf30db98480752a70cd6ed66dc70"
 }

@@ -1100,5 +1100,6 @@ Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this r
   - For any `*-applied` field that is `printed`/`skipped`/`failed`, run the `gh api` command from the compliance artifact (needs repo-admin auth)
   - Push a PR to trigger the pre-merge workflow (build/test/lint/type-check/coverage + commitlint + PR-title + security gates)
   - Create a test tag or trigger `workflow_dispatch` to test the release workflow end-to-end
-  - `/wf ship-plan build --dry-run` to re-audit after making changes
+  - `/wf ship-plan build --dry-run` to re-check compliance after making changes
+  - `/wf ship-plan audit` for a read-only **soundness** pass over the plan and the pipeline you just built — compliance means "matches the plan"; audit asks whether the plan (and the workflows realizing it) are actually *correct* before a real release
   - `/wf ship <slug>` when ready for the first real release

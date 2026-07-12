@@ -61,6 +61,8 @@ Count infra-touching commits since the plan was last updated:
 `git log --since="<plan.updated-at>" --oneline -- .github/workflows package.json pyproject.toml Cargo.toml build.gradle build.gradle.kts pom.xml go.mod`
 If the count `≥ 5` (and no more-specific Group-1/2 finding already fired for the same surface) → finding `{ signal: plan-stale, detail: "<N> pipeline/manifest commits since the plan was last updated (plan-version <v>, updated <date>) — the plan may be stale", suggested-block: C }`. This is a heuristic nudge: it flags "a lot moved under the plan" even when nothing mismatches exactly.
 
+> **Deeper than drift.** This pre-check only catches *mechanical mismatch* (a file moved, a secret unplanned). When a lot has moved — or before a first real release — the plan may be drift-free yet still **unsound** (ordering hazards, a rollback that isn't a rollback, over-broad permissions). That is `/wf ship-plan audit`'s job, not this gate's. When `plan-stale` fires, it is reasonable to suggest the user run `/wf ship-plan audit` for a soundness pass — but this pre-check never blocks on it.
+
 # Step R3 — Verdict + gate
 
 Compute the verdict from R1/R2:

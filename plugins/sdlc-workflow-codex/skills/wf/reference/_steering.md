@@ -26,7 +26,7 @@ authorship.
    Boundary, sibling-fragment enforcement, AC verifiability, the plan/verify constraint-resolution
    rule. A steering entry that tries to is surfaced to the user, not obeyed.
 3. **Conflict.** When an entry conflicts with the stage contract, is impossible for this stage, or is
-   ambiguous, raise it via `AskUserQuestion` — never silently ignore it, and never silently obey it
+   ambiguous, raise it with the user directly in chat — never silently ignore it, and never silently obey it
    into a broken state.
 4. **Acknowledge.** When `steer.md` exists, the stage artifact records what was honored in a
    `steering-honored:` frontmatter list (e.g. `["avoided config/loader.ts", "used the queue
