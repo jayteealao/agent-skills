@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>/wf review — 33 review dimensions and 7 sweeps · sdlc-workflow</title>
+<title>/wf review — 34 review dimensions and 7 sweeps · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -91,7 +91,7 @@
 </aside><main>
 <div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf review command</div>
 <span class="quadrant reference">reference</span>
-<h1>/wf review — 33 review dimensions and 7 sweeps</h1>
+<h1>/wf review — 34 review dimensions and 7 sweeps</h1>
 
 <p class="lede">You reach for <code>/wf review</code> when you want a structured code review. It runs one named <a href="../reference/glossary.html">dimension</a> (a focused rubric — like "security" or "correctness") inline, or fans out every dimension in a named sweep in parallel and gives you a unified verdict.</p>
 
@@ -102,7 +102,7 @@
 <tr><td>Check one specific angle (e.g. security) on my current diff</td><td><code>/wf review security</code></td></tr>
 <tr><td>Run a focused multi-angle sweep before merging</td><td><code>/wf review sweep pre-merge</code></td></tr>
 <tr><td>Review a specific file, not the whole diff</td><td><code>/wf review correctness ./src/auth.ts</code></td></tr>
-<tr><td>Run all 33 dimensions before a major release</td><td><code>/wf review sweep all</code></td></tr>
+<tr><td>Run all 34 dimensions before a major release</td><td><code>/wf review sweep all</code></td></tr>
 </tbody>
 </table>
 </div>
@@ -112,7 +112,7 @@
 <ul>
   <li><a href="#single-vs-sweep">Single dimension vs sweep — which to use</a></li>
   <li><a href="#sweeps">The 7 sweeps</a></li>
-  <li><a href="#dimensions">The 33 dimensions — by category</a></li>
+  <li><a href="#dimensions">The 34 dimensions — by category</a></li>
   <li><a href="#severity">Severity levels</a></li>
   <li><a href="#target">Targeting — files, PRs, worktree</a></li>
   <li><a href="#integration">Integration with /wf review</a></li>
@@ -144,7 +144,7 @@
 <table class="no-mobile-scroll">
 <thead><tr><th>Sweep name</th><th>Dimensions included</th><th>When to use</th></tr></thead>
 <tbody>
-<tr><td><code>all</code></td><td>All 33 dimensions</td><td>Pre-major-release defensive review. Most expensive — reserve for releases or audits.</td></tr>
+<tr><td><code>all</code></td><td>All 34 dimensions</td><td>Pre-major-release defensive review. Most expensive — reserve for releases or audits.</td></tr>
 <tr><td><code>pre-merge</code></td><td>correctness, testing, security, refactor-safety, maintainability</td><td>Standard gate before merging a feature branch.</td></tr>
 <tr><td><code>quick</code></td><td>correctness, style-consistency, dx, ux-copy, overengineering</td><td>Smoke check before opening a PR.</td></tr>
 <tr><td><code>security</code></td><td>security, privacy, infra-security, data-integrity, supply-chain</td><td>Security-focused review of auth or data changes.</td></tr>
@@ -156,7 +156,7 @@
 
 <hr>
 
-<h2 id="dimensions">The 33 dimensions — by category</h2>
+<h2 id="dimensions">The 34 dimensions — by category</h2>
 
 <p>Each dimension below is a named rubric you can pass to <code>/wf review</code>. For example: <code>/wf review data-integrity</code> or <code>/wf review ux-copy ./src/components/FormError.tsx</code>.</p>
 
@@ -205,6 +205,7 @@
 <tr><th><code>maintainability</code></th><td>Code clarity, naming, function shape, comment quality.</td></tr>
 <tr><th><code>overengineering</code></th><td>Speculative abstractions, premature interfaces, unused flexibility.</td></tr>
 <tr><th><code>refactor-safety</code></th><td>For refactor PRs: behavior preserved, tests covering parity.</td></tr>
+<tr><th><code>intent-fidelity</code></th><td>Does the diff advance the intake's product, or a simplified imitation? The one upward-traceability check — code back to the original request, naming any narrowing not covered by a fidelity-table row or intent-risk adjudication.</td></tr>
 <tr><th><code>code-simplification</code></th><td>Specific opportunities to remove code without losing function.</td></tr>
 <tr><th><code>style-consistency</code></th><td>Matches existing project conventions (not a generic style guide).</td></tr>
 </table>

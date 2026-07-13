@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -114,7 +114,7 @@
 
 <dl>
 <dt><strong>instrument</strong> — observability design</dt>
-<dd>Use this when the code path you are changing has no logs, metrics, or traces and you want to add them. The add-on writes <code>04b-instrument.md</code> describing the signals to add. The implement stage reads that file and adds the signals alongside the feature code.</dd>
+<dd>Use this when the code path you are changing has no logs, metrics, or traces and you want to add them. The add-on writes <code>04b-instrument.md</code> describing the signals to add. The implement stage reads that file and adds the signals alongside the feature code. This is the <em>slice-scoped</em> path — for repo-wide observability (logging/telemetry architecture across the whole project) use the standalone <code>/wf observability</code> router (<code>init</code>/<code>build</code>/<code>audit</code>) instead.</dd>
 
 <dt><strong>experiment</strong> — measured rollout</dt>
 <dd>Use this when you want to gate a behaviour change behind a feature flag with a defined cohort split and rollback signal. The add-on writes <code>04c-experiment.md</code> with flag wiring, cohort design, and success metrics.</dd>

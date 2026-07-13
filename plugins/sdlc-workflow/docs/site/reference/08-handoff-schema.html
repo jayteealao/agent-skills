@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -184,7 +184,10 @@ next-invocation: "/wf ship &lt;slug&gt;"</code></pre>
   <li><code>public-surface-drift</code> ≠ <code>drift-without-regen</code></li>
   <li><code>rebase-status</code> ∈ {<code>fast-forward</code>, <code>rebased-clean</code>, <code>skipped</code>}</li>
   <li><code>has-deferred-comments</code> = false</li>
+  <li>the slug's <code>intent-risks</code> (RIM) ledger in <code>00-index.md</code> has <strong>no</strong> entry with <code>status: open</code></li>
 </ul>
+
+<p>The last condition is the <strong>intent-risk gate</strong>: an unadjudicated intent-risk means <code>shape</code> never resolved a load-bearing ambiguity, so handoff marks the slug not-ready and routes to <code>/wf shape &lt;slug&gt;</code> to adjudicate it (set the entry to <code>adjudicated</code> or <code>carried</code>) — handoff detects and routes, it never adjudicates. <code>carried</code> RIMs are legal (consciously deferred to a named stage) but must be surfaced in the PR body and the handoff summary's <code>## Reviewer Focus Areas</code>.</p>
 
 <p><code>blocked</code> is set when any hard-fail condition above is true. <code>awaiting-input</code> is set for soft fails: pending checks, deferred review suggestions, or required reviewers who have not yet responded.</p>
 

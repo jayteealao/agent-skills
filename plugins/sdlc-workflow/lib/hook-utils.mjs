@@ -75,7 +75,14 @@ export function isProjectContextMarkdownPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return (
     /(?:^|\/)(PRODUCT|DESIGN)\.md$/.test(normalized) ||
-    /(?:^|\/)\.ai\/ship-plan\.md$/.test(normalized)
+    /(?:^|\/)\.ai\/ship-plan\.md$/.test(normalized) ||
+    // Project-root observability artifacts: .ai/observability.md (type:
+    // observability-plan) and .ai/observability-build.md (type:
+    // observability-build), authored/realized by /wf observability. The optional
+    // -build keeps .ai/observability-audit.md OUT — that ledger is kind-keyed
+    // (kind: observability-audit, no sdlc/v1 type) and must not be schema-gated.
+    // Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).
+    /(?:^|\/)\.ai\/observability(?:-build)?\.md$/.test(normalized)
   );
 }
 
@@ -94,6 +101,12 @@ export function projectContextPathInfo(filePath) {
   }
   if (/(?:^|\/)\.ai\/ship-plan\.md$/.test(normalized)) {
     return { filename: 'ship-plan.md', expectedType: 'ship-plan' };
+  }
+  if (/(?:^|\/)\.ai\/observability\.md$/.test(normalized)) {
+    return { filename: 'observability.md', expectedType: 'observability-plan' };
+  }
+  if (/(?:^|\/)\.ai\/observability-build\.md$/.test(normalized)) {
+    return { filename: 'observability-build.md', expectedType: 'observability-build' };
   }
   return null;
 }

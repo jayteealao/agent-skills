@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -165,6 +165,18 @@
   FOR / AGAINST / counter-hypothesis sub-commands adjudicate the claim. Verdict: <code>holds</code>, <code>partial</code>, <code>fails</code>, or <code>inconclusive</code>, with cited evidence. Different from <code>/wf recap &lt;slug&gt; &lt;focus&gt;</code> — that explains a workflow artifact; <code>discover</code> tests whether your theory is correct.
 </dd>
 
+<dt><strong>"I want to brainstorm — I don't have a concrete change yet, just a problem space."</strong></dt>
+<dd>
+  <code>/wf intake ideate "&lt;problem space&gt;"</code><br>
+  Ideation entry. Generates and pressure-tests candidate directions before any is committed to. Route the winner into <code>/wf intake fix</code> (small) or <code>/wf intake</code> (medium+) once you pick one.
+</dd>
+
+<dt><strong>"I already made changes in my working tree and want to bring them into the pipeline."</strong></dt>
+<dd>
+  <code>/wf intake adopt "&lt;what you changed&gt;"</code><br>
+  Reverse entry. Adopts an existing working-tree diff into a workflow and lands it at <code>verify</code>, so already-written code picks up review, handoff, and ship without being re-implemented.
+</dd>
+
 <dt><strong>"I want to read about an unfamiliar subsystem."</strong></dt>
 <dd>
   <code>/wf recap &lt;slug&gt; &lt;focus&gt;</code><br>
@@ -192,11 +204,13 @@ flowchart TD
   start -- "Runtime-truth check on a running artifact — verified but actually broken?" --> probe["/wf probe &lt;slug&gt;"]
   start -- "Need 2–3 distinct engineering approaches sketched before committing" --> investigate["/wf intake investigate"]
   start -- "Have a theory about how this code works and want it adjudicated" --> discover["/wf intake discover"]
+  start -- "No concrete change yet — brainstorm a problem space" --> ideate["/wf intake ideate"]
+  start -- "Already changed the working tree — adopt it into the pipeline" --> adopt["/wf intake adopt"]
   start -- "A real feature or substantive change" --> wf["/wf intake"]
 
   classDef quick fill:#fef3c7,stroke:#b45309,color:#1f1f1d
   classDef full fill:#dbeafe,stroke:#1d4ed8,color:#1f1f1d
-  class hotfix,fix,deps,refactor,rca,probe,investigate,discover quick
+  class hotfix,fix,deps,refactor,rca,probe,investigate,discover,ideate,adopt quick
   class wf full
 </pre>
 </div>

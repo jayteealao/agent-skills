@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -95,7 +95,7 @@
 
 <p class="lede">Every command at a glance — what each does and when to reach for it. There is one top-level command, <code>/wf</code>, the single SDLC entry point; code review is its <code>/wf review</code> key and design is <code>/wf design</code>. Pick the right key here, then follow the per-command link for full argument detail.</p>
 
-<p>A <strong>command</strong> (sometimes called a "router" in older docs) is a slash command the plugin exposes. The plugin exposes exactly one — <code>/wf</code> — which dispatches to a key based on the first argument you pass it; code review is the <code>/wf review</code> key (the former standalone <code>/review</code> skill is folded into it). Design, once the standalone <code>/wf-design</code> router, is now the <code>/wf design</code> sub-command. The former <code>/wf-quick</code>, <code>/wf-meta</code>, and <code>/wf-docs</code> routers have all been retired: quick flows are now intake modes (<code>/wf intake &lt;mode&gt;</code>) or top-level keys (<code>/wf probe</code>, <code>/wf simplify</code>), navigation/lifecycle are <code>/wf</code> keys (<code>/wf status</code>, <code>/wf recap</code>, <code>/wf close</code>, <code>/wf ship-plan</code>), and documentation is the <code>/wf docs</code> key.</p>
+<p>A <strong>command</strong> (sometimes called a "router" in older docs) is a slash command the plugin exposes. The plugin exposes exactly one — <code>/wf</code> — which dispatches to a key based on the first argument you pass it; code review is the <code>/wf review</code> key (the former standalone <code>/review</code> skill is folded into it). Design, once the standalone <code>/wf-design</code> router, is now the <code>/wf design</code> sub-command. The former <code>/wf-quick</code>, <code>/wf-meta</code>, and <code>/wf-docs</code> routers have all been retired: quick flows are now intake modes (<code>/wf intake &lt;mode&gt;</code>) or top-level keys (<code>/wf probe</code>, <code>/wf simplify</code>), navigation/lifecycle are <code>/wf</code> keys (<code>/wf status</code>, <code>/wf recap</code>, <code>/wf close</code>, <code>/wf ship-plan</code>), documentation is the <code>/wf docs</code> key, and project-wide observability is the <code>/wf observability</code> router (which subsumes the retired <code>setup-wide-logging</code> command).</p>
 
 <h2>Commands</h2>
 
@@ -129,7 +129,7 @@
 </tr>
 <tr>
   <td><a href="review.html"><code>/wf review</code></a></td>
-  <td>Code review across 33 dimensions and 7 named sweeps via parallel sub-agent dispatch.</td>
+  <td>Code review across 34 dimensions and 7 named sweeps via parallel sub-agent dispatch.</td>
   <td>Pre-merge review, security audit, or targeted quality check on a diff or file.</td>
 </tr>
 </tbody>
@@ -156,10 +156,10 @@
 <tr><td><code>/wf handoff</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>8</td><td>Aggregates complete slices and runs a PR-readiness block.</td></tr>
 <tr><td><code>/wf ship</code></td><td><code>&lt;slug&gt; [env|announce|rollback]</code></td><td>9</td><td>Plan-driven, replayable release. <code>/wf ship &lt;slug&gt; announce</code> re-runs the post-publish comms phase only; <code>/wf ship &lt;slug&gt; rollback [&lt;run-id&gt;]</code> reverses a prior completed run via an authored runbook — every step marked reversible or irreversible (irreversible ones surface as mitigations), gated on an explicit Go/No-Go, verified with the ship plan&#39;s rollback checks, and recorded as <code>09-rollback-&lt;run-id&gt;.md</code>.</td></tr>
 <tr><td><code>/wf retro</code></td><td><code>&lt;slug&gt;</code></td><td>10</td><td>Extracts concrete improvement actions, and distills 0–3 durable learnings into the <code>.ai/solutions/</code> corpus (each must recur, be non-obvious, and be actionable — zero is a legitimate outcome) so future plans start from what this workflow learned.</td></tr>
-<tr><td><code>/wf instrument</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>add-on</td><td>Observability add-on. Writes <code>04b-instrument.md</code>.</td></tr>
-<tr><td><code>/wf experiment</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>add-on</td><td>Feature flag and cohort design. Writes <code>04c-experiment.md</code>.</td></tr>
-<tr><td><code>/wf benchmark</code></td><td><code>&lt;slug&gt; [baseline|compare]</code></td><td>add-on</td><td>Performance baseline and compare. Writes <code>05c-benchmark.md</code>.</td></tr>
-<tr><td><code>/wf profile</code></td><td><code>&lt;area&gt;</code></td><td>add-on</td><td>Profiling pass (freestanding).</td></tr>
+<tr><td><code>instrument</code></td><td><em>not typed</em></td><td>augmentation</td><td>Observability augmentation — <strong>not</strong> a <code>/wf</code> command. <code>shape</code> decides it (<code>augmentations-needed</code>); <code>plan</code>/<code>implement</code>/<code>verify</code> apply it. Writes <code>04b-instrument.md</code>. (For <em>project-wide</em> observability, use the <code>/wf observability</code> router instead.)</td></tr>
+<tr><td><code>experiment</code></td><td><em>not typed</em></td><td>augmentation</td><td>Feature-flag and cohort-design augmentation — <strong>not</strong> a <code>/wf</code> command. Decided by <code>shape</code>, applied by <code>plan</code>/<code>implement</code>/<code>verify</code>. Writes <code>04c-experiment.md</code>.</td></tr>
+<tr><td><code>benchmark</code></td><td><em>not typed</em></td><td>augmentation</td><td>Performance baseline-and-compare augmentation — <strong>not</strong> a <code>/wf</code> command. Decided by <code>shape</code>, applied by <code>plan</code>/<code>implement</code>/<code>verify</code>. Writes <code>05c-benchmark.md</code>.</td></tr>
+<tr><td><code>profile</code></td><td><em>not typed</em></td><td>augmentation</td><td>Hotspot-profiling augmentation — <strong>not</strong> a <code>/wf</code> command. <code>shape</code> flags it for <code>plan</code> to schedule; for a freestanding profiling pass with no active slice, use <code>/wf probe</code>.</td></tr>
 <tr><td><code>/wf probe</code></td><td><code>&lt;slug&gt; [target]</code></td><td>add-on</td><td>Runtime-truth verification. Slug-mode only. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td></tr>
 <tr><td><code>/wf simplify</code></td><td><code>[branch|commit &lt;sha&gt;|plan &lt;slug&gt; &lt;slice&gt;|codebase [&lt;path&gt;]]</code></td><td>add-on</td><td>3-agent review and route triage. Never writes code. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td></tr>
 <tr><td><code>/wf auto</code></td><td><code>&lt;slug&gt; [&lt;slice&gt;]</code></td><td>driver</td><td>End-to-end lifecycle driver. Drives every slice &rarr; final review and stops before handoff; with a slice arg it drives that one slice then routes to the next. Writes no artifact of its own; never opens a PR.</td></tr>
@@ -198,7 +198,8 @@
 <tr><td><code>/wf intake</code></td><td><code>&lt;slug&gt; &lt;scope&gt;</code></td><td>On an existing slug with new scope, adds a slice — this replaces the former <code>amend</code> and <code>extend</code>. There is no <code>amend</code>.</td></tr>
 <tr><td><code>/wf close</code></td><td><code>&lt;slug&gt; [&lt;slice&gt; | &lt;reason&gt;]</code></td><td>With a slice, terminates just that slice so downstream prerequisites are satisfied (absorbs the former <code>skip</code>, now slice-scoped). With a reason (shipped / abandoned / superseded / archived / stuck), archives the whole workflow.</td></tr>
 <tr><td><code>/wf ship</code></td><td><code>&lt;slug&gt; announce</code></td><td>Generates a Diátaxis announcement for a completed workflow.</td></tr>
-<tr><td><code>/wf ship-plan</code></td><td><code>init | build | edit</code></td><td><code>init</code> authors <code>.ai/ship-plan.md</code> (the pipeline contract — release Blocks A–G and developer-experience Blocks H–K); <code>build</code> audits the repo against it and builds the CI/CD + DX pipeline (nothing overwritten without confirmation); <code>edit</code> corrects a block.</td></tr>
+<tr><td><code>/wf ship-plan</code></td><td><code>init | build | edit | audit</code></td><td><code>init</code> authors <code>.ai/ship-plan.md</code> (the pipeline contract — release Blocks A–G and developer-experience Blocks H–K); <code>build</code> audits the repo against it and builds the CI/CD + DX pipeline (nothing overwritten without confirmation); <code>edit</code> corrects a block; <code>audit</code> runs a read-only soundness audit of the plan and accumulates findings in <code>.ai/ship-plan-audit.md</code> (never edits the plan).</td></tr>
+<tr><td><code>/wf observability</code></td><td><code>init | build | audit</code></td><td>Project-wide observability router (subsumes the retired <code>setup-wide-logging</code> command). <code>init</code> inventories the codebase and authors <code>.ai/observability.md</code> (language-agnostic, consultative); <code>build</code> realizes that plan in the codebase; <code>audit</code> reviews observability coverage and writes <code>.ai/observability-audit.md</code>.</td></tr>
 </tbody>
 </table>
 
@@ -218,7 +219,7 @@
 
 <h2>/wf review — code review</h2>
 
-<p>Per-dimension or named-sweep review across 33 dimensions and 7 sweeps via parallel sub-agent dispatch. Pass the change context and the command selects which dimensions apply. Run it ad-hoc with no slug (<code>/wf review &lt;dimension&gt;</code> or <code>/wf review sweep &lt;aggregate&gt;</code>), or as the workflow review stage (<code>/wf review &lt;slug&gt;</code>). Like every <code>/wf</code> key it is invoked explicitly — it does not auto-invoke.</p>
+<p>Per-dimension or named-sweep review across 34 dimensions and 7 sweeps via parallel sub-agent dispatch. Pass the change context and the command selects which dimensions apply. Run it ad-hoc with no slug (<code>/wf review &lt;dimension&gt;</code> or <code>/wf review sweep &lt;aggregate&gt;</code>), or as the workflow review stage (<code>/wf review &lt;slug&gt;</code>). Like every <code>/wf</code> key it is invoked explicitly — it does not auto-invoke.</p>
 
 <p>See <a href="review.html">/wf review in depth</a> for the full dimension list and sweep catalog.</p>
 

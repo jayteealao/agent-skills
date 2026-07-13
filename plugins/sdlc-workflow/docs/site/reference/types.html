@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -211,9 +211,13 @@
 <tbody>
 <tr><td><code>project-context</code></td><td>Authored (or generated)</td><td><code>PRODUCT.md</code>, <code>DESIGN.md</code></td><td>project-context.mjs</td><td>—</td></tr>
 <tr><td><code>ship-plan</code></td><td><code>/wf ship-plan init</code></td><td><code>.ai/ship-plan.md</code></td><td>ship-plan.mjs</td><td>—</td></tr>
+<tr><td><code>observability-plan</code></td><td><code>/wf observability init</code></td><td><code>.ai/observability.md</code></td><td>fallbackRender</td><td>—</td></tr>
+<tr><td><code>observability-build</code></td><td><code>/wf observability build</code></td><td><code>.ai/observability-build.md</code></td><td>fallbackRender</td><td>—</td></tr>
 <tr><td><code>solution</code></td><td><code>/wf retro</code></td><td><code>.ai/solutions/&lt;category&gt;/&lt;slug&gt;.md</code></td><td>solution.mjs</td><td>—</td></tr>
 </tbody>
 </table>
+
+<p>The <code>/wf observability audit</code> ledger at <code>.ai/observability-audit.md</code> is an <em>accumulating</em> plain-markdown ledger keyed by <code>kind: observability-audit</code> — <strong>not</strong> an admitted schema <code>type</code>, so it is not one of the <code>oneOf</code> branches (the same reason the <code>ship-plan</code> audit ledger and <code>po-answers.md</code>/<code>steer.md</code> are outside the type system). It carries its own <code>runs[]</code>/<code>findings[]</code> frontmatter and takes no sibling <code>.yaml</code>.</p>
 
 <h2>Meta / navigation types</h2>
 

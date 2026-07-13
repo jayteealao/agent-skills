@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -163,15 +163,15 @@ Workflow is now closed.</code></pre>
 
 <h2>Close vs. skip — they are different things</h2>
 
-<p>Before closing a whole workflow, make sure you do not mean to skip a single <a href="../reference/glossary.html">stage</a>. Skip says "this one step does not apply"; close says "the entire workflow is over".</p>
+<p>Before closing a whole workflow, make sure you do not mean to skip a single <a href="../reference/glossary.html">slice</a>. Skip says "this one slice does not apply"; close says "the entire workflow is over".</p>
 
 <table>
 <thead><tr><th>Action</th><th>Command</th><th>Effect</th></tr></thead>
 <tbody>
 <tr>
-  <td>Skip one stage</td>
+  <td>Skip one slice</td>
   <td><code>/wf close &lt;slug&gt; &lt;slice&gt;</code></td>
-  <td>Writes a stub artifact so later stages' prerequisites are satisfied. The workflow continues.</td>
+  <td>Marks that one slice as closed/skipped so later stages' prerequisites are satisfied. The workflow continues.</td>
 </tr>
 <tr>
   <td>Close the workflow</td>

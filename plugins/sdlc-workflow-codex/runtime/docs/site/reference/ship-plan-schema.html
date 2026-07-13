@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -93,7 +93,7 @@
 <span class="quadrant reference">reference</span>
 <h1>Ship-plan schema (.ai/ship-plan.md)</h1>
 
-<p class="lede">You would look this up when you want to know exactly which field to set in <code>.ai/ship-plan.md</code> — the per-repo release configuration you author once via <a href="wf.html"><code>/wf ship-plan init</code></a> and update with <code>/wf ship-plan edit</code>. Every field accepted by <code>/wf ship</code> and <code>/wf ship-plan build</code> is listed here.</p>
+<p class="lede">You would look this up when you want to know exactly which field to set in <code>.ai/ship-plan.md</code> — the per-repo release configuration you author once via <a href="wf.html"><code>/wf ship-plan init</code></a> and update with <code>/wf ship-plan edit</code>. Every field accepted by <code>/wf ship</code> and <code>/wf ship-plan build</code> is listed here. (<code>/wf ship-plan audit</code> is a read-only soundness review of this file — it writes <code>.ai/ship-plan-audit.md</code> and adds no schema fields of its own.)</p>
 
 <div class="summary">
 <p><strong>What this file is.</strong> <code>.ai/ship-plan.md</code> is the project-level release contract — one file per repo, sitting at the repo root (not under <code>.ai/workflows/</code>). It is authored through a guided conversation with <code>/wf ship-plan init</code> and is <em>not</em> generated per-release. Individual release records live instead in <a href="09-ship-run-schema.html">ship-run artifacts</a>.</p>

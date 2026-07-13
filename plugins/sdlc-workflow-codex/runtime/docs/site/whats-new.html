@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -94,8 +94,35 @@
 <h1>What's new</h1>
 
 <p class="lede">
-User-facing highlights since v9.11, up to v9.123. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
+User-facing highlights since v9.11, up to v9.132. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
 </p>
+
+<h2>v9.132.0 — <code>/wf observability</code>: a project-level observability router</h2>
+<p>Observability graduates from an in-workflow augmentation to its own key. <code>/wf observability init</code> inventories the repo's current logging, metrics, and analytics, reads the ship plan, and consultatively authors <code>.ai/observability.md</code> (schema, sampling, redaction, pipeline, backend, dashboards — language-agnostic); <code>build</code> realizes it (emit-layer adapters, collector and pipeline config, backend IaC, dashboards-as-code — every remote or billable step gated); <code>audit</code> runs a read-only soundness sweep into <code>.ai/observability-audit.md</code>. The retired <code>setup-wide-logging</code> command is dissolved into <code>/wf observability build</code>. See <a href="reference/commands.html">Commands →</a></p>
+
+<h2>v9.131.0 — The meta-loop: learnings that compound beyond one workflow (intent-fidelity R5)</h2>
+<p><code>/wf retro</code> now distills 0–3 durable learnings — each must recur, be non-obvious, and be actionable — into a <code>.ai/solutions/</code> corpus, so future plans start from what earlier workflows learned rather than from a blank page. Zero is a legitimate outcome. This closes the five-round intent-fidelity program (R1–R5). See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.130.0 — Charter, scenario harness, and yolo fidelity checkpoints (intent-fidelity R4)</h2>
+<p><code>shape</code> writes a charter scenario that exercises the intake's core loop end to end, and <code>/wf yolo</code> gains charter checkpoints so an unattended run cannot quietly drift away from the intake's stated commitments. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.129.0 — Decision taxonomy and the intent-fidelity review dimension (intent-fidelity R3)</h2>
+<p>A decision taxonomy separates <strong>intent-bearing</strong> calls (which need a written, ratified decision) from <strong>mechanical</strong> ones (safe to auto-resolve), keeping the former out of autonomous policy. And review gains an always-on <code>intent-fidelity</code> dimension — the <strong>34th</strong> — that asks whether the diff advances the intake's actual product or a simplified imitation of it. See <a href="reference/review.html">&#47;wf review →</a></p>
+
+<h2>v9.128.0 — Evidence-quality gates: rungs and a mock-evidence hard-block (intent-fidelity R2)</h2>
+<p>Verify evidence is now labelled by <strong>rung</strong> — from "asserted" up to a live runtime observation — and a hard gate blocks a slug from shipping on mock or placeholder evidence for charter-cited acceptance criteria without a recorded product-owner acceptance. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.127.0 — The intent-fidelity spine: an intent-risk ledger (intent-fidelity R1)</h2>
+<p><code>shape</code> now records an intent-risk (RIM) ledger — the ways a reframing could betray the intake — as first-class frontmatter. Every open risk must be adjudicated, and <code>handoff</code>/<code>ship</code> hard-block while any risk is still <code>open</code>. This is the upward-traceability instrument the lifecycle previously lacked. See <a href="reference/00-index-schema.html">00-index schema →</a></p>
+
+<h2>v9.126.0 — YOLO evidence integrity: probe receipts and prior-deferral re-challenge</h2>
+<p><code>/wf yolo</code> now records probe receipts for the runtime truth it claims, re-challenges deferrals carried in from earlier sessions instead of silently rediscovering them, and clamps each stage to its own scope. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.125.0 — Memory-seed kernel: a minimal rule set forced into agent memory</h2>
+<p>A dedicated SessionStart hook seeds a versioned, fenced <code>/wf</code> rules block into <code>AGENTS.md</code> and an <code>@AGENTS.md</code> import into <code>CLAUDE.md</code>, so both Claude and Codex open a session already knowing the lifecycle's ground rules. It owns only its own fence, fires only in repos that already have <code>.ai/workflows/</code>, and is opt-out via <code>memory.seedRules</code>. See <a href="reference/hooks.html">Hooks →</a></p>
+
+<h2>v9.124.0 — <code>/wf ship-plan audit</code>: soundness-check the release pipeline</h2>
+<p>A read-only audit that fans out across seven lenses to find where <code>.ai/ship-plan.md</code> is unsound or has drifted from the repo, accumulating its findings in <code>.ai/ship-plan-audit.md</code>. Like the other audits it <strong>routes rather than fixes</strong> — it never edits the plan itself. See <a href="how-to/author-ship-plan.html">Author a ship plan →</a></p>
 
 <h2>v9.123.0 — <code>/review</code> reframed as <code>/wf review</code></h2>
 <p>Standalone <code>/review</code> stopped existing as its own invocable command once it folded into the lifecycle, but the plugin/marketplace descriptions and a few reference pages still advertised it as a second top-level command. They now correctly frame <code>/wf</code> as the single command, with code review as its <code>/wf review</code> key — a workflow stage on a slug (<code>/wf review &lt;slug&gt;</code>) or ad-hoc with a dimension (<code>/wf review &lt;dimension&gt;</code>). Also corrected: <code>/wf review</code> does <em>not</em> auto-invoke (the <code>/wf</code> skill is <code>disable-model-invocation</code>). See <a href="reference/commands.html">Commands →</a></p>

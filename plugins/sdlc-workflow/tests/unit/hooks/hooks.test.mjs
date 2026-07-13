@@ -1251,6 +1251,36 @@ test('skip-record prefix filename clears pre-write, and ship-plan needs only pro
     writeFile(join(tmp, planRel), planContent);
     r = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: planRel } }, tmp);
     equal(r.status, 0, `post-write blocked ship-plan.md: ${r.stderr}`);
+
+    // observability-plan (.ai/observability.md): project-root artifact, valid frontmatter → allowed (v9.132.0).
+    const obsPlanRel = '.ai/observability.md';
+    const obsPlanContent = md({ schema: 'sdlc/v1', type: 'observability-plan', slug: 'demo', 'plan-version': 1 });
+    writeFile(join(tmp, obsPlanRel), obsPlanContent);
+    r = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: obsPlanRel, content: obsPlanContent } }, tmp);
+    equal(r.status, 0, `pre-write blocked observability.md: ${r.stderr}`);
+    r = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: obsPlanRel } }, tmp);
+    equal(r.status, 0, `post-write blocked observability.md: ${r.stderr}`);
+
+    // observability-build (.ai/observability-build.md): the build run record carries NO slug — must still validate.
+    const obsBuildRel = '.ai/observability-build.md';
+    const obsBuildContent = md({ schema: 'sdlc/v1', type: 'observability-build', backend: 'grafana-cloud' });
+    writeFile(join(tmp, obsBuildRel), obsBuildContent);
+    r = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: obsBuildRel } }, tmp);
+    equal(r.status, 0, `post-write blocked observability-build.md: ${r.stderr}`);
+
+    // Enforcement is live: a wrong type on the observability path is hard-blocked pre-write.
+    const obsWrongContent = md({ schema: 'sdlc/v1', type: 'ship-plan', slug: 'demo', 'project-name': 'demo', 'plan-version': 1 });
+    r = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: obsPlanRel, content: obsWrongContent } }, tmp);
+    equal(r.status, 2, `pre-write should block a wrong type on .ai/observability.md, got ${r.status}`);
+
+    // The audit ledger is kind-keyed (kind: observability-audit, no sdlc/v1 type) — must stay EXEMPT, never schema-gated.
+    const obsAuditRel = '.ai/observability-audit.md';
+    const obsAuditContent = md({ kind: 'observability-audit', 'last-run': 1, verdict: 'sound' });
+    writeFile(join(tmp, obsAuditRel), obsAuditContent);
+    r = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: obsAuditRel, content: obsAuditContent } }, tmp);
+    equal(r.status, 0, `pre-write blocked the exempt observability-audit.md ledger: ${r.stderr}`);
+    r = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: obsAuditRel } }, tmp);
+    equal(r.status, 0, `post-write blocked the exempt observability-audit.md ledger: ${r.stderr}`);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

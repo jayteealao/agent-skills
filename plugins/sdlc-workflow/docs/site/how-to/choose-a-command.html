@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -148,6 +148,11 @@ You know what you want to do. This page maps your situation to the exact command
   <td>Produces a ranked list written to <code>.ai/workflows/&lt;slug&gt;/01-ideate.md</code>. Good for planning sessions.</td>
 </tr>
 <tr>
+  <td>Adopt a change you already made into the lifecycle</td>
+  <td><code>/wf intake adopt</code></td>
+  <td>Reverse entry: reads the current working-tree diff, reconstructs the record backward (each artifact stamped <code>provenance: adopted</code>), and lands at <code>/wf verify</code> so the standard quality tail runs over the adopted change. Confirms the inferred shape before writing; never touches your code.</td>
+</tr>
+<tr>
   <td>Triage whether something is worth fixing at all</td>
   <td><code>/wf simplify</code></td>
   <td>3-agent review (reuse / quality / efficiency) across your branch. Never writes code — produces a routing report pointing to the right downstream command for each finding.</td>
@@ -167,7 +172,9 @@ You know what you want to do. This page maps your situation to the exact command
 <tr><td>Mark a workflow done without shipping</td><td><code>/wf close &lt;slug&gt;</code></td></tr>
 <tr><td>Sync the workflow registry after manual file changes</td><td><code>/wf status</code></td></tr>
 <tr><td>Set up how this repo releases (once per repo)</td><td><code>/wf ship-plan init</code></td></tr>
-<tr><td>Audit CI/CD against the ship plan</td><td><code>/wf ship-plan build</code></td></tr>
+<tr><td>Bring CI/CD into compliance with the ship plan</td><td><code>/wf ship-plan build</code></td></tr>
+<tr><td>Audit the ship plan for soundness (read-only)</td><td><code>/wf ship-plan audit</code></td></tr>
+<tr><td>Set up structured logging / telemetry for this repo</td><td><code>/wf observability init</code></td></tr>
 </tbody>
 </table>
 
@@ -217,10 +224,10 @@ You know what you want to do. This page maps your situation to the exact command
 <tr>
   <td>Review a specific dimension of my code (e.g. security)</td>
   <td><code>/wf review &lt;dimension&gt;</code></td>
-  <td>Runs one rubric inline. Available dimensions: correctness, security, performance, architecture, accessibility, supply-chain, and 27 more. See <a href="../reference/review.html">the review reference →</a></td>
+  <td>Runs one rubric inline. Available dimensions: correctness, security, performance, architecture, accessibility, supply-chain, and 28 more. See <a href="../reference/review.html">the review reference →</a></td>
 </tr>
 <tr>
-  <td>Run a full 33-dimension review and get a verdict</td>
+  <td>Run a full 34-dimension review and get a verdict</td>
   <td><code>/wf review sweep</code></td>
   <td>Fans out one agent per dimension in parallel. Slower but comprehensive.</td>
 </tr>

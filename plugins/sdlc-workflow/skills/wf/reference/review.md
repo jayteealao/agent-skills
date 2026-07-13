@@ -52,13 +52,13 @@ Reached from Step 00 branch 2 — the former standalone `sdlc-workflow:review` s
 
 **Dimension keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/review/<key>.md`:
 
-`accessibility`, `api-contracts`, `architecture`, `backend-concurrency`, `ci`, `code-simplification`, `correctness`, `cost`, `data-integrity`, `docs`, `dx`, `frontend-accessibility`, `frontend-performance`, `infra`, `infra-security`, `interface-craft`, `logging`, `maintainability`, `migrations`, `motion`, `observability`, `overengineering`, `performance`, `privacy`, `refactor-safety`, `release`, `reliability`, `scalability`, `security`, `style-consistency`, `supply-chain`, `testing`, `ux-copy`.
+`accessibility`, `api-contracts`, `architecture`, `backend-concurrency`, `ci`, `code-simplification`, `correctness`, `cost`, `data-integrity`, `docs`, `dx`, `frontend-accessibility`, `frontend-performance`, `infra`, `infra-security`, `intent-fidelity`, `interface-craft`, `logging`, `maintainability`, `migrations`, `motion`, `observability`, `overengineering`, `performance`, `privacy`, `refactor-safety`, `release`, `reliability`, `scalability`, `security`, `style-consistency`, `supply-chain`, `testing`, `ux-copy`.
 
 **Aggregate keys** (reached via `/wf review sweep <aggregate>`) — each dispatches one reviewer sub-agent per dimension in its composition:
 
 | Aggregate | Dimensions |
 |---|---|
-| `all` | every dimension (~33 sub-agents — broadest, most expensive) |
+| `all` | every dimension (34 sub-agents — broadest, most expensive) |
 | `architecture` | architecture, performance, scalability, api-contracts |
 | `infra` | infra, ci, release, migrations, logging, observability |
 | `pre-merge` | correctness, testing, security, refactor-safety, maintainability |

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -118,6 +118,8 @@
 <p>The add-on produces <code>04b-instrument.md</code>. That file names the signals worth recording (log lines, metric counters, or trace spans), where in the code they go, and what a healthy vs. unhealthy reading looks like. When handoff runs later, it translates the entry into a reviewer-visible note: <em>"Added observability — 3 signals for previously unobserved code paths."</em></p>
 
 <p><strong>Add instrument when:</strong> the slice touches a code path that is currently invisible in production.</p>
+
+<div class="callout note"><strong>Slice-scoped vs. repo-wide</strong>The <code>instrument</code> add-on designs signals for one slice. If you want to stand up or audit logging and telemetry across the whole repository — not just this slice — use the project-level <code>/wf observability init|build|audit</code> router instead.</div>
 
 <h2>Experiment — roll out behind a feature flag</h2>
 

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -93,9 +93,9 @@
 <span class="quadrant reference">reference</span>
 <h1>/wf command — every lifecycle stage in depth</h1>
 
-<p class="lede">You reach for <code>/wf</code> when you have a real feature, fix, or refactor to ship — one where you want clear acceptance criteria, a written plan, proper review, and a documented trail from idea to production. It is the <strong>single SDLC entry point</strong> — <strong>20 keys</strong>, one SDLC operation each: 10 ordered <a href="../reference/glossary.html">stages</a> (intake through retro), 5 standalone/drivers (<code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code>, <code>yolo</code>), 2 navigation keys (<code>status</code>, <code>recap</code>), lifecycle control (<code>close</code>), and 2 routers (<code>ship-plan</code>, <code>docs</code>). Every key is invoked as <code>/wf &lt;key&gt; [args]</code>. Observability, flag-gated rollout, and performance work are not separate keys — they are <a href="../explanation/augmentations-model.html">augmentations</a> that <code>shape</code> decides and <code>plan</code>/<code>implement</code>/<code>verify</code> apply.</p>
+<p class="lede">You reach for <code>/wf</code> when you have a real feature, fix, or refactor to ship — one where you want clear acceptance criteria, a written plan, proper review, and a documented trail from idea to production. It is the <strong>single SDLC entry point</strong> — <strong>21 keys</strong>, one SDLC operation each: 10 ordered <a href="../reference/glossary.html">stages</a> (intake through retro), 5 standalone/drivers (<code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code>, <code>yolo</code>), 2 navigation keys (<code>status</code>, <code>recap</code>), lifecycle control (<code>close</code>), and 3 routers (<code>ship-plan</code>, <code>docs</code>, <code>observability</code>). Every key is invoked as <code>/wf &lt;key&gt; [args]</code>. Flag-gated rollout and performance work are not separate keys — they are <a href="../explanation/augmentations-model.html">augmentations</a> that <code>shape</code> decides and <code>plan</code>/<code>implement</code>/<code>verify</code> apply.</p>
 
-<p>This page deep-dives the 10 stages plus the <code>auto</code> and <code>yolo</code> drivers. The standalone (<code>design</code>/<code>probe</code>/<code>simplify</code>), navigation (<code>status</code>/<code>recap</code>), lifecycle (<code>close</code>), and router (<code>ship-plan</code>/<code>docs</code>) keys have their own pages — see the sidebar. An optional user-owned <code>.ai/workflows/&lt;slug&gt;/steer.md</code> (free prose, no schema) carries standing constraints and vetoes that <strong>every stage reads at Step 0 and honors</strong> (live-user &gt; <code>steer.md</code> &gt; stage defaults; never overriding a mandatory gate).</p>
+<p>This page deep-dives the 10 stages plus the <code>auto</code> and <code>yolo</code> drivers. The standalone (<code>design</code>/<code>probe</code>/<code>simplify</code>), navigation (<code>status</code>/<code>recap</code>), lifecycle (<code>close</code>), and router (<code>ship-plan</code>/<code>docs</code>/<code>observability</code>) keys have their own pages — see the sidebar. An optional user-owned <code>.ai/workflows/&lt;slug&gt;/steer.md</code> (free prose, no schema) carries standing constraints and vetoes that <strong>every stage reads at Step 0 and honors</strong> (live-user &gt; <code>steer.md</code> &gt; stage defaults; never overriding a mandatory gate).</p>
 
 <p>Every entry on this page is invoked as <code>/wf &lt;sub-command&gt; [args]</code>. Each <a href="../reference/glossary.html">sub-command</a> maps to one stage of the pipeline and reads the <a href="../reference/glossary.html">artifacts</a> the previous stage wrote.</p>
 
@@ -401,7 +401,7 @@ interactive-verification-defer-reason: "Robolectric covers the state machine (9/
 
 <h2 id="wf-review">/wf review &lt;slug&gt; [slice|triage]</h2>
 
-<p class="sub-intro">You reach for this sub-command once verify passes — it fans out across up to 33 review dimensions in parallel and aggregates the findings into a single ship verdict.</p>
+<p class="sub-intro">You reach for this sub-command once verify passes — it fans out across up to 34 review dimensions in parallel and aggregates the findings into a single ship verdict.</p>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>7 — multi-domain parallel review dispatch</td></tr>
@@ -410,7 +410,7 @@ interactive-verification-defer-reason: "Robolectric covers the state machine (9/
 <tr><th>Default next</th><td><code>/wf handoff &lt;slug&gt;</code> (if ship verdict) or <code>/wf implement &lt;slice&gt; reviews</code> (if blockers)</td></tr>
 </table></div>
 
-<p>Not a single reviewer. A dispatch orchestrator that reads shape and slice, decides which of the 33 review dimensions matter for this change, and runs each as a parallel sub-agent. Findings are aggregated, de-duplicated, and triaged with you.</p>
+<p>Not a single reviewer. A dispatch orchestrator that reads shape and slice, decides which of the 34 review dimensions matter for this change, and runs each as a parallel sub-agent. Findings are aggregated, de-duplicated, and triaged with you.</p>
 
 <h4>What it reads</h4>
 <ul>
@@ -558,7 +558,7 @@ interactive-verification-defer-reason: "Robolectric covers the state machine (9/
 
 <h2 id="wf-augmentations">Augmentations — instrument · experiment · benchmark · profile</h2>
 
-<p class="sub-intro">Observability, flag-gated rollout, and performance work ride the lifecycle as <strong>augmentations</strong>. They are <strong>not</strong> <code>/wf</code> keys — you never type <code>/wf instrument</code>. Instead <code>shape</code> decides which a piece of work needs (writing an <code>## Augmentation Plan</code> and the <code>augmentations-needed</code> frontmatter), and <code>plan</code>/<code>implement</code>/<code>verify</code> apply them by loading <code>skills/wf/reference/augment/&lt;type&gt;.md</code> as an internal sub-procedure. See <a href="../explanation/augmentations-model.html">the augmentations model</a> for the full picture.</p>
+<p class="sub-intro">Flag-gated rollout and performance work ride the lifecycle as <strong>augmentations</strong>. They are <strong>not</strong> <code>/wf</code> keys — you never type <code>/wf instrument</code>. (Project-wide observability is different — it has its own <code>/wf observability</code> router; see <a href="../reference/commands.html">Commands</a>.) Instead <code>shape</code> decides which a piece of work needs (writing an <code>## Augmentation Plan</code> and the <code>augmentations-needed</code> frontmatter), and <code>plan</code>/<code>implement</code>/<code>verify</code> apply them by loading <code>skills/wf/reference/augment/&lt;type&gt;.md</code> as an internal sub-procedure. See <a href="../explanation/augmentations-model.html">the augmentations model</a> for the full picture.</p>
 
 <div class="summary"><table>
 <tr><th>Decided by</th><td><code>shape</code> — <code>augmentations-needed: [instrument|experiment|benchmark|profile]</code> (<code>[]</code> when none)</td></tr>

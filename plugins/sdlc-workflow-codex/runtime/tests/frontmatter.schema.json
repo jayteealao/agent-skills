@@ -1337,6 +1337,51 @@
       }
     },
 
+    "observabilityPlanFrontmatter": {
+      "type": "object",
+      "description": ".ai/observability.md — the project-level observability contract authored by `/wf observability init` and read by `/wf observability build`, `/wf observability audit`, and the per-slice `instrument` augmentation. Language-agnostic: a canonical wide-event schema, sampling, redaction, emit layer, pipeline, backend, and dashboards. Like `.ai/ship-plan.md` this is a project-root `.ai/` artifact, not a per-slug workflow file. The branch stays open (no additionalProperties:false) — the rich block content (schema-core, schema-domain, emit[], additional-contracts[]) is documented here but its inner shapes live in the observability/init reference. Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).",
+      "required": ["schema", "type", "slug", "plan-version"],
+      "properties": {
+        "type": { "const": "observability-plan" },
+        "slug": { "$ref": "#/$defs/slug" },
+        "plan-version": { "type": "integer", "minimum": 1, "description": "Bumped on each material re-author; `build` stamps `plan-version-at-run` and `audit` stamps `audited-plan-version` from it." },
+        "project-name": { "type": "string" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "ship-plan-read": { "type": "boolean", "description": "Whether `.ai/ship-plan.md` informed the backend choice." },
+        "schema-core": { "type": "object", "description": "Block A — canonical correlation/service/outcome/actor/error field vocabulary." },
+        "schema-domain": { "type": "array", "description": "Block A — project-specific fields ({ key, type, unit })." },
+        "key-normalization": { "type": "string" },
+        "emit": { "type": "array", "description": "Block B — per-unit emit layer ({ unit, language, mechanism, builder-location })." },
+        "additional-contracts": { "type": "array", "description": "Typed, open extension content for project-specific shape (Block extensions)." },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "observabilityBuildFrontmatter": {
+      "type": "object",
+      "description": ".ai/observability-build.md — the run record written by `/wf observability build` when it realizes the contract (emit adapters, collection-pipeline config, backend/IaC, dashboards-as-code). Records which output classes were made compliant, what was created/patched, and the gated provisioning outcome. Project-root `.ai/` artifact; open branch (no additionalProperties:false). Added in v9.132.0.",
+      "required": ["schema", "type"],
+      "properties": {
+        "type": { "const": "observability-build" },
+        "slug": { "$ref": "#/$defs/slug" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "plan-version-at-run": { "type": "integer", "minimum": 1, "description": "The `plan-version` of `.ai/observability.md` this run realized." },
+        "backend": { "type": "string" },
+        "provisioning-ceiling": { "type": "string" },
+        "files-created": { "$ref": "#/$defs/stringArray" },
+        "files-patched": { "$ref": "#/$defs/stringArray" },
+        "audits": { "type": "object", "description": "Per output-class verdict: A-emit-layer / B-pipeline / C-backend / D-dashboards → compliant | fixed | missing | skipped." },
+        "backend-applied": { "type": "string", "description": "yes | printed | skipped | failed | n/a." },
+        "dashboards-published": { "type": "string", "description": "yes | printed | skipped | failed | n/a." },
+        "deps-to-install": { "type": "array" },
+        "credentials-to-set-manually": { "type": "array" },
+        "validation": { "type": "object" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
     "announceFrontmatter": {
       "type": "object",
       "description": "Release/change announcement. v9.35.0: required[] relaxed to schema/type/slug to match the wf-meta announce template (which emits created-at + audiences/channels lists); the richer fields below stay optional.",
@@ -1669,6 +1714,8 @@
         { "$ref": "#/$defs/designAuditFrontmatter" },
         { "$ref": "#/$defs/projectContextFrontmatter" },
         { "$ref": "#/$defs/shipPlanFrontmatter" },
+        { "$ref": "#/$defs/observabilityPlanFrontmatter" },
+        { "$ref": "#/$defs/observabilityBuildFrontmatter" },
         { "$ref": "#/$defs/announceFrontmatter" },
         { "$ref": "#/$defs/riskRegisterFrontmatter" },
         { "$ref": "#/$defs/estimateFrontmatter" },

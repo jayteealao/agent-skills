@@ -309,7 +309,7 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/wf</code></td>
   <td>You have a real feature, fix, or refactor to ship</td>
-  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. 20 keys: the 10 stages (<code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code>), the standalone/drivers <code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code>, <code>yolo</code>, the navigation keys <code>status</code>, <code>recap</code>, lifecycle <code>close</code>, and the routers <code>ship-plan</code>, <code>docs</code>. Observability/rollout/perf work (instrument, experiment, benchmark, profile) are <em>augmentations</em> that <code>shape</code> decides, not keys you type.</td>
+  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. 21 keys: the 10 stages (<code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code>), the standalone/drivers <code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code>, <code>yolo</code>, the navigation keys <code>status</code>, <code>recap</code>, lifecycle <code>close</code>, and the routers <code>ship-plan</code>, <code>docs</code>, <code>observability</code>. In-workflow instrument, experiment, benchmark, and profile are <em>augmentations</em> that <code>shape</code> decides, not keys you type; project-wide observability has its own <code>/wf observability</code> router key.</td>
 </tr>
 <tr>
   <td><code>/wf intake &lt;mode&gt;</code></td>
@@ -334,7 +334,7 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/wf review</code></td>
   <td>You want a structured code review on a PR or a diff</td>
-  <td>33-dimension code review — the single review surface. <code>/wf review &lt;slug&gt;</code> runs the workflow stage; ad-hoc (no slug), run a single dimension inline (<code>/wf review correctness</code>) or a full sweep (<code>/wf review sweep</code>) that fans out one agent per dimension. The former standalone <code>/review</code> skill is folded into this key.</td>
+  <td>34-dimension code review — the single review surface. <code>/wf review &lt;slug&gt;</code> runs the workflow stage; ad-hoc (no slug), run a single dimension inline (<code>/wf review correctness</code>) or a full sweep (<code>/wf review sweep</code>) that fans out one agent per dimension. The former standalone <code>/review</code> skill is folded into this key.</td>
 </tr>
 </tbody>
 </table>
@@ -579,6 +579,11 @@ You know what you want to do. This page maps your situation to the exact command
   <td>Produces a ranked list written to <code>.ai/workflows/&lt;slug&gt;/01-ideate.md</code>. Good for planning sessions.</td>
 </tr>
 <tr>
+  <td>Adopt a change you already made into the lifecycle</td>
+  <td><code>/wf intake adopt</code></td>
+  <td>Reverse entry: reads the current working-tree diff, reconstructs the record backward (each artifact stamped <code>provenance: adopted</code>), and lands at <code>/wf verify</code> so the standard quality tail runs over the adopted change. Confirms the inferred shape before writing; never touches your code.</td>
+</tr>
+<tr>
   <td>Triage whether something is worth fixing at all</td>
   <td><code>/wf simplify</code></td>
   <td>3-agent review (reuse / quality / efficiency) across your branch. Never writes code — produces a routing report pointing to the right downstream command for each finding.</td>
@@ -598,7 +603,9 @@ You know what you want to do. This page maps your situation to the exact command
 <tr><td>Mark a workflow done without shipping</td><td><code>/wf close &lt;slug&gt;</code></td></tr>
 <tr><td>Sync the workflow registry after manual file changes</td><td><code>/wf status</code></td></tr>
 <tr><td>Set up how this repo releases (once per repo)</td><td><code>/wf ship-plan init</code></td></tr>
-<tr><td>Audit CI/CD against the ship plan</td><td><code>/wf ship-plan build</code></td></tr>
+<tr><td>Bring CI/CD into compliance with the ship plan</td><td><code>/wf ship-plan build</code></td></tr>
+<tr><td>Audit the ship plan for soundness (read-only)</td><td><code>/wf ship-plan audit</code></td></tr>
+<tr><td>Set up structured logging / telemetry for this repo</td><td><code>/wf observability init</code></td></tr>
 </tbody>
 </table>
 
@@ -648,10 +655,10 @@ You know what you want to do. This page maps your situation to the exact command
 <tr>
   <td>Review a specific dimension of my code (e.g. security)</td>
   <td><code>/wf review &lt;dimension&gt;</code></td>
-  <td>Runs one rubric inline. Available dimensions: correctness, security, performance, architecture, accessibility, supply-chain, and 27 more. See <a href="../reference/review.html">the review reference →</a></td>
+  <td>Runs one rubric inline. Available dimensions: correctness, security, performance, architecture, accessibility, supply-chain, and 28 more. See <a href="../reference/review.html">the review reference →</a></td>
 </tr>
 <tr>
-  <td>Run a full 33-dimension review and get a verdict</td>
+  <td>Run a full 34-dimension review and get a verdict</td>
   <td><code>/wf review sweep</code></td>
   <td>Fans out one agent per dimension in parallel. Slower but comprehensive.</td>
 </tr>
@@ -685,8 +692,35 @@ PAGES.append((
     '<a href="index.html">Home</a> &rsaquo; What\'s new',
     """
 <p class="lede">
-User-facing highlights since v9.11, up to v9.123. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
+User-facing highlights since v9.11, up to v9.132. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
 </p>
+
+<h2>v9.132.0 — <code>/wf observability</code>: a project-level observability router</h2>
+<p>Observability graduates from an in-workflow augmentation to its own key. <code>/wf observability init</code> inventories the repo's current logging, metrics, and analytics, reads the ship plan, and consultatively authors <code>.ai/observability.md</code> (schema, sampling, redaction, pipeline, backend, dashboards — language-agnostic); <code>build</code> realizes it (emit-layer adapters, collector and pipeline config, backend IaC, dashboards-as-code — every remote or billable step gated); <code>audit</code> runs a read-only soundness sweep into <code>.ai/observability-audit.md</code>. The retired <code>setup-wide-logging</code> command is dissolved into <code>/wf observability build</code>. See <a href="reference/commands.html">Commands →</a></p>
+
+<h2>v9.131.0 — The meta-loop: learnings that compound beyond one workflow (intent-fidelity R5)</h2>
+<p><code>/wf retro</code> now distills 0–3 durable learnings — each must recur, be non-obvious, and be actionable — into a <code>.ai/solutions/</code> corpus, so future plans start from what earlier workflows learned rather than from a blank page. Zero is a legitimate outcome. This closes the five-round intent-fidelity program (R1–R5). See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.130.0 — Charter, scenario harness, and yolo fidelity checkpoints (intent-fidelity R4)</h2>
+<p><code>shape</code> writes a charter scenario that exercises the intake's core loop end to end, and <code>/wf yolo</code> gains charter checkpoints so an unattended run cannot quietly drift away from the intake's stated commitments. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.129.0 — Decision taxonomy and the intent-fidelity review dimension (intent-fidelity R3)</h2>
+<p>A decision taxonomy separates <strong>intent-bearing</strong> calls (which need a written, ratified decision) from <strong>mechanical</strong> ones (safe to auto-resolve), keeping the former out of autonomous policy. And review gains an always-on <code>intent-fidelity</code> dimension — the <strong>34th</strong> — that asks whether the diff advances the intake's actual product or a simplified imitation of it. See <a href="reference/review.html">&#47;wf review →</a></p>
+
+<h2>v9.128.0 — Evidence-quality gates: rungs and a mock-evidence hard-block (intent-fidelity R2)</h2>
+<p>Verify evidence is now labelled by <strong>rung</strong> — from "asserted" up to a live runtime observation — and a hard gate blocks a slug from shipping on mock or placeholder evidence for charter-cited acceptance criteria without a recorded product-owner acceptance. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.127.0 — The intent-fidelity spine: an intent-risk ledger (intent-fidelity R1)</h2>
+<p><code>shape</code> now records an intent-risk (RIM) ledger — the ways a reframing could betray the intake — as first-class frontmatter. Every open risk must be adjudicated, and <code>handoff</code>/<code>ship</code> hard-block while any risk is still <code>open</code>. This is the upward-traceability instrument the lifecycle previously lacked. See <a href="reference/00-index-schema.html">00-index schema →</a></p>
+
+<h2>v9.126.0 — YOLO evidence integrity: probe receipts and prior-deferral re-challenge</h2>
+<p><code>/wf yolo</code> now records probe receipts for the runtime truth it claims, re-challenges deferrals carried in from earlier sessions instead of silently rediscovering them, and clamps each stage to its own scope. See <a href="reference/wf.html">&#47;wf reference →</a></p>
+
+<h2>v9.125.0 — Memory-seed kernel: a minimal rule set forced into agent memory</h2>
+<p>A dedicated SessionStart hook seeds a versioned, fenced <code>/wf</code> rules block into <code>AGENTS.md</code> and an <code>@AGENTS.md</code> import into <code>CLAUDE.md</code>, so both Claude and Codex open a session already knowing the lifecycle's ground rules. It owns only its own fence, fires only in repos that already have <code>.ai/workflows/</code>, and is opt-out via <code>memory.seedRules</code>. See <a href="reference/hooks.html">Hooks →</a></p>
+
+<h2>v9.124.0 — <code>/wf ship-plan audit</code>: soundness-check the release pipeline</h2>
+<p>A read-only audit that fans out across seven lenses to find where <code>.ai/ship-plan.md</code> is unsound or has drifted from the repo, accumulating its findings in <code>.ai/ship-plan-audit.md</code>. Like the other audits it <strong>routes rather than fixes</strong> — it never edits the plan itself. See <a href="how-to/author-ship-plan.html">Author a ship plan →</a></p>
 
 <h2>v9.123.0 — <code>/review</code> reframed as <code>/wf review</code></h2>
 <p>Standalone <code>/review</code> stopped existing as its own invocable command once it folded into the lifecycle, but the plugin/marketplace descriptions and a few reference pages still advertised it as a second top-level command. They now correctly frame <code>/wf</code> as the single command, with code review as its <code>/wf review</code> key — a workflow stage on a slug (<code>/wf review &lt;slug&gt;</code>) or ad-hoc with a dimension (<code>/wf review &lt;dimension&gt;</code>). Also corrected: <code>/wf review</code> does <em>not</em> auto-invoke (the <code>/wf</code> skill is <code>disable-model-invocation</code>). See <a href="reference/commands.html">Commands →</a></p>
@@ -1053,7 +1087,7 @@ node dist/tray.mjs
 </ul>
 <p>File presence is the on/off state — no admin rights needed. When the tray starts with autostart enabled it also ensures the hub is running, so the hub comes up at logon before any Claude session starts (the lifecycle call is idempotent and simply adopts an already-running hub). The launcher embeds absolute paths captured at enable-time and self-heals if a plugin upgrade relocates the bundle. Turn autostart off from the same menu item before uninstalling the plugin.</p>
 
-<p>Beyond healing the launcher file, the tray also heals the <em>running process</em> after an upgrade <span class="badge">v9.81</span>. At session start it detects a tray still executing a prior version's bundle (on Windows via a WMI process scan), kills it, and respawns from the current bundle so a stale build cannot linger. A liveness heartbeat <span class="badge">v9.89</span> lets the heal reap even a wedged current-version tray. If you need to disable the running-process heal, set the environment variable <code>SDLC_DISABLE_TRAY_HEAL=1</code>.</p>
+<p>Beyond healing the launcher file, the tray also heals the <em>running process</em> after an upgrade <span class="badge">v9.81</span>. At session start it detects a tray still executing a prior version's bundle (on Windows via a WMI process scan), kills it, and respawns from the current bundle so a stale build cannot linger. A liveness heartbeat <span class="badge">v9.89</span> lets the heal reap even a wedged current-version tray. A further heartbeat-driven <em>display-truth</em> recovery <span class="badge">v9.111</span> handles a subtler failure — a live, current-version tray whose menu is wedged showing stale content (for example "hub down" while the hub is actually healthy): the heartbeat detects the display-vs-state mismatch and respawns the native helper on the icon-state transition, with an initial-probe retry so the first paint is correct. If you need to disable the running-process heal, set the environment variable <code>SDLC_DISABLE_TRAY_HEAL=1</code>.</p>
 
 <details>
 <summary>Technical details — how the tray is built</summary>
@@ -1567,7 +1601,7 @@ PAGES.append((
 
 <dl>
 <dt><strong>instrument</strong> — observability design</dt>
-<dd>Use this when the code path you are changing has no logs, metrics, or traces and you want to add them. The add-on writes <code>04b-instrument.md</code> describing the signals to add. The implement stage reads that file and adds the signals alongside the feature code.</dd>
+<dd>Use this when the code path you are changing has no logs, metrics, or traces and you want to add them. The add-on writes <code>04b-instrument.md</code> describing the signals to add. The implement stage reads that file and adds the signals alongside the feature code. This is the <em>slice-scoped</em> path — for repo-wide observability (logging/telemetry architecture across the whole project) use the standalone <code>/wf observability</code> router (<code>init</code>/<code>build</code>/<code>audit</code>) instead.</dd>
 
 <dt><strong>experiment</strong> — measured rollout</dt>
 <dd>Use this when you want to gate a behaviour change behind a feature flag with a defined cohort split and rollback signal. The add-on writes <code>04c-experiment.md</code> with flag wiring, cohort design, and success metrics.</dd>
@@ -1833,7 +1867,7 @@ PAGES.append((
 <h2>What runs from <code>dist/</code></h2>
 <p>Every piece of the plugin that executes at runtime is served from a committed bundle:</p>
 <ul>
-  <li>The seven hooks: <code>pre-write-validate</code>, <code>post-write-verify</code>, <code>post-write-auto-stage</code>, <code>post-write-render</code>, <code>session-start-orient</code>, and the two advisory External-Output-Boundary guards <code>leak-guard-bash</code> and <code>leak-guard-write</code> (default off).</li>
+  <li>The eight hooks: <code>pre-write-validate</code>, <code>post-write-verify</code>, <code>post-write-auto-stage</code>, <code>post-write-render</code>, <code>session-start-orient</code>, <code>seed-memory</code>, and the two advisory External-Output-Boundary guards <code>leak-guard-bash</code> and <code>leak-guard-write</code> (default off).</li>
   <li>The renderer and serve daemons: <code>render-sunflower.mjs</code>, <code>render-sunflower-serve.mjs</code>, and <code>hub-serve.mjs</code>.</li>
   <li>Several maintenance and coordination helpers: <code>hub-ensure.mjs</code> (render-queue drain trigger), <code>hub-upgrade.mjs</code> (runtime upgrade), <code>tray-heal.mjs</code> (stale-tray reconcile), and <code>verify-runtime.mjs</code> (integrity check).</li>
   <li>The tray app: <code>tray.mjs</code>.</li>
@@ -1841,7 +1875,7 @@ PAGES.append((
 <p>The loader (<code>lib/entrypoint.mjs</code>) picks the bundle at <code>dist/&lt;name&gt;.mjs</code> when it exists. It falls back to the source file in <code>scripts/</code> only if no bundle is present — that is the state before the first build on a fresh maintainer checkout.</p>
 
 <h2>The one rule for maintainers</h2>
-<p>Source files live in <code>scripts/</code>, <code>hooks/</code>, <code>lib/</code>, <code>renderers/</code>, and <code>components/</code>. After editing any of those you must rebuild before committing:</p>
+<p>Source files live in <code>scripts/</code>, <code>hooks/</code>, <code>lib/</code>, <code>renderers/</code>, and <code>components/</code> — plus <code>package.json</code>, since a dependency or version change must rebuild <code>dist/</code> in the same commit. After editing any of those you must rebuild before committing:</p>
 <pre><code>npm install            # installs the dev toolchain — never needed at user runtime
 npm run build          # rebuilds dist/ from source
 npm run sync:codex     # mirrors the rebuilt runtime into the Codex plugin tree (keeps buildId in lockstep)

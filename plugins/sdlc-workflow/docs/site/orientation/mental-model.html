@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -107,7 +107,7 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/wf</code></td>
   <td>You have a real feature, fix, or refactor to ship</td>
-  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. 20 keys: the 10 stages (<code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code>), the standalone/drivers <code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code>, <code>yolo</code>, the navigation keys <code>status</code>, <code>recap</code>, lifecycle <code>close</code>, and the routers <code>ship-plan</code>, <code>docs</code>. Observability/rollout/perf work (instrument, experiment, benchmark, profile) are <em>augmentations</em> that <code>shape</code> decides, not keys you type.</td>
+  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. 21 keys: the 10 stages (<code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code>), the standalone/drivers <code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code>, <code>yolo</code>, the navigation keys <code>status</code>, <code>recap</code>, lifecycle <code>close</code>, and the routers <code>ship-plan</code>, <code>docs</code>, <code>observability</code>. In-workflow instrument, experiment, benchmark, and profile are <em>augmentations</em> that <code>shape</code> decides, not keys you type; project-wide observability has its own <code>/wf observability</code> router key.</td>
 </tr>
 <tr>
   <td><code>/wf intake &lt;mode&gt;</code></td>
@@ -132,7 +132,7 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/wf review</code></td>
   <td>You want a structured code review on a PR or a diff</td>
-  <td>33-dimension code review — the single review surface. <code>/wf review &lt;slug&gt;</code> runs the workflow stage; ad-hoc (no slug), run a single dimension inline (<code>/wf review correctness</code>) or a full sweep (<code>/wf review sweep</code>) that fans out one agent per dimension. The former standalone <code>/review</code> skill is folded into this key.</td>
+  <td>34-dimension code review — the single review surface. <code>/wf review &lt;slug&gt;</code> runs the workflow stage; ad-hoc (no slug), run a single dimension inline (<code>/wf review correctness</code>) or a full sweep (<code>/wf review sweep</code>) that fans out one agent per dimension. The former standalone <code>/review</code> skill is folded into this key.</td>
 </tr>
 </tbody>
 </table>

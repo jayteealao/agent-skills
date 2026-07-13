@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.133.0] - 2026-07-13
+
+### Fixed — doc-site drift reconciliation (DOC-SITE-DRIFT-AUDIT-2026-07-13) + observability artifact types now schema-validated
+
+Follow-up to v9.122.0. A fresh six-cluster drift audit reconciled `docs/site/**` against source after the nine releases (v9.124.0–v9.132.0) that shipped with no doc pass, and closed the ground-truth schema gap the audit surfaced: the `/wf observability` router wrote artifacts the schema didn't admit.
+
+- **Doc-site reconciliation.** The `/wf observability` router is now taught as the real **21st key** everywhere (was still described as "not a key, an augmentation" on five pages; four pages still said "20 keys"). `whats-new.html` backfilled with all nine missing entries (v9.124.0–v9.132.0; the body had frozen at v9.123.0 under a v9.132 brand). Two site-wide count drifts corrected: review dimensions **33 → 34** (the v9.129 `intent-fidelity` dimension, added to the review page's list) and hooks **7 → 8** (the v9.125 `seed-memory` SessionStart hook, now documented with its own row/subsection). Schema pages gained the intent-fidelity frontmatter fields (`charter`, `intent-risks`/RIM, `evidence-quality`, `unproven-integrations`, the open-intent-risk handoff gate). Plus precision fixes: `3·slice` (not `3·design`), slice-scoped `close`, `adopt`/`ideate` intake modes, the `diataxis`/`study-sources` skills in the install list, the v9.111 tray display-truth recovery, the `package.json` rebuild trigger, and the `instrument`/`experiment`/`benchmark` rows recast as shape-decided augmentations (not typeable `/wf` keys). Source reconciled alongside: `reference/review.md`'s dimension list/count (was `~33`) is now `34` with `intent-fidelity` listed.
+- **Observability artifact types (schema).** Added `observabilityPlanFrontmatter` (type `observability-plan`, `.ai/observability.md`) and `observabilityBuildFrontmatter` (type `observability-build`, `.ai/observability-build.md`) `oneOf` branches to `tests/frontmatter.schema.json`, permissive in the `ship-plan` style (open branch; only the load-bearing spine required). Documented both in `reference/types.html`. The `/wf observability audit` ledger (`.ai/observability-audit.md`) is intentionally **not** a schema `type` — it is a `kind: observability-audit` accumulating ledger (like the `ship-plan` audit ledger / `po-answers.md` / `steer.md`), documented as such.
+- **Enforcement wiring.** `.ai/observability.md` and `.ai/observability-build.md` are now project-level managed artifacts in `lib/hook-utils.mjs` (`isProjectContextMarkdownPath` + `projectContextPathInfo`), so `pre-write-validate` checks `schema`+`type` (no slug required — the slug-less build record passes) and `post-write-verify` deep-validates them against the schema. The path regex `\.ai\/observability(?:-build)?\.md$` deliberately **excludes** the kind-keyed `observability-audit` ledger so it is never schema-gated. Six regression assertions added to `tests/unit/hooks/hooks.test.mjs` (plan/build happy-path, wrong-type hard-block, ledger exemption).
+- Gates: `npm test` 636/0/2; `npm run verify` 51 pages stamped v9.133.0; `npm run verify:codex` parity OK (191 files, shared buildId); `npm run verify:runtime` OK. Both trees; `build` + `sync:codex` run.
+
 ## [9.132.0] - 2026-07-13
 
 ### Added — the `/wf observability` router: a language-agnostic, consultative observability architect

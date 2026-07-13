@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -103,7 +103,7 @@
 <h2>What runs from <code>dist/</code></h2>
 <p>Every piece of the plugin that executes at runtime is served from a committed bundle:</p>
 <ul>
-  <li>The seven hooks: <code>pre-write-validate</code>, <code>post-write-verify</code>, <code>post-write-auto-stage</code>, <code>post-write-render</code>, <code>session-start-orient</code>, and the two advisory External-Output-Boundary guards <code>leak-guard-bash</code> and <code>leak-guard-write</code> (default off).</li>
+  <li>The eight hooks: <code>pre-write-validate</code>, <code>post-write-verify</code>, <code>post-write-auto-stage</code>, <code>post-write-render</code>, <code>session-start-orient</code>, <code>seed-memory</code>, and the two advisory External-Output-Boundary guards <code>leak-guard-bash</code> and <code>leak-guard-write</code> (default off).</li>
   <li>The renderer and serve daemons: <code>render-sunflower.mjs</code>, <code>render-sunflower-serve.mjs</code>, and <code>hub-serve.mjs</code>.</li>
   <li>Several maintenance and coordination helpers: <code>hub-ensure.mjs</code> (render-queue drain trigger), <code>hub-upgrade.mjs</code> (runtime upgrade), <code>tray-heal.mjs</code> (stale-tray reconcile), and <code>verify-runtime.mjs</code> (integrity check).</li>
   <li>The tray app: <code>tray.mjs</code>.</li>
@@ -111,7 +111,7 @@
 <p>The loader (<code>lib/entrypoint.mjs</code>) picks the bundle at <code>dist/&lt;name&gt;.mjs</code> when it exists. It falls back to the source file in <code>scripts/</code> only if no bundle is present — that is the state before the first build on a fresh maintainer checkout.</p>
 
 <h2>The one rule for maintainers</h2>
-<p>Source files live in <code>scripts/</code>, <code>hooks/</code>, <code>lib/</code>, <code>renderers/</code>, and <code>components/</code>. After editing any of those you must rebuild before committing:</p>
+<p>Source files live in <code>scripts/</code>, <code>hooks/</code>, <code>lib/</code>, <code>renderers/</code>, and <code>components/</code> — plus <code>package.json</code>, since a dependency or version change must rebuild <code>dist/</code> in the same commit. After editing any of those you must rebuild before committing:</p>
 <pre><code>npm install            # installs the dev toolchain — never needed at user runtime
 npm run build          # rebuilds dist/ from source
 npm run sync:codex     # mirrors the rebuilt runtime into the Codex plugin tree (keeps buildId in lockstep)

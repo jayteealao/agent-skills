@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.132.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.133.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -146,7 +146,7 @@ node dist/tray.mjs
 </ul>
 <p>File presence is the on/off state — no admin rights needed. When the tray starts with autostart enabled it also ensures the hub is running, so the hub comes up at logon before any Claude session starts (the lifecycle call is idempotent and simply adopts an already-running hub). The launcher embeds absolute paths captured at enable-time and self-heals if a plugin upgrade relocates the bundle. Turn autostart off from the same menu item before uninstalling the plugin.</p>
 
-<p>Beyond healing the launcher file, the tray also heals the <em>running process</em> after an upgrade <span class="badge">v9.81</span>. At session start it detects a tray still executing a prior version's bundle (on Windows via a WMI process scan), kills it, and respawns from the current bundle so a stale build cannot linger. A liveness heartbeat <span class="badge">v9.89</span> lets the heal reap even a wedged current-version tray. If you need to disable the running-process heal, set the environment variable <code>SDLC_DISABLE_TRAY_HEAL=1</code>.</p>
+<p>Beyond healing the launcher file, the tray also heals the <em>running process</em> after an upgrade <span class="badge">v9.81</span>. At session start it detects a tray still executing a prior version's bundle (on Windows via a WMI process scan), kills it, and respawns from the current bundle so a stale build cannot linger. A liveness heartbeat <span class="badge">v9.89</span> lets the heal reap even a wedged current-version tray. A further heartbeat-driven <em>display-truth</em> recovery <span class="badge">v9.111</span> handles a subtler failure — a live, current-version tray whose menu is wedged showing stale content (for example "hub down" while the hub is actually healthy): the heartbeat detects the display-vs-state mismatch and respawns the native helper on the icon-state transition, with an initial-probe retry so the first paint is correct. If you need to disable the running-process heal, set the environment variable <code>SDLC_DISABLE_TRAY_HEAL=1</code>.</p>
 
 <details>
 <summary>Technical details — how the tray is built</summary>
