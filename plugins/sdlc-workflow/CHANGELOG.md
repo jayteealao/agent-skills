@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.134.0] - 2026-07-13
+
+### Added — `/wf status advise`: cross-slug sequencing across the whole open portfolio
+
+The dashboard shows *state* (here are your open workflows) and `/wf status <slug>` routes *one* slug to its next command — but nothing reasoned *across* slugs to answer "given everything open, what should I do next, in what order, and what should I stop doing." `advise` is that missing portfolio-level counterpart to a single slug's `## Next`.
+
+- **A new `advise` mode of `status`** (not a new key — the 21-key roster is untouched). `/wf status advise` reasons across every non-terminal workflow; `/wf status advise <branch|pr#N>` scopes to one branch's roster; `/wf status advise fast` drops to Tier-0 (frontmatter only). Read-only and route-don't-act: it recommends commands (including `/wf close`), never runs them, and writes no artifact of its own — advice is time-sensitive, so it stays a chat render (a persisted plan goes stale the moment you act on it). Its only write is the shared Step -1 `INDEX.md` reconcile.
+- **A constrained sort, not a heuristic.** HARD constraints fix order (dependency edges, same-branch footprint collisions, blocked slugs); SOFT priorities rank within them (steer.md priority → proximity-to-done → carried-risk-paid-soonest → decay → effort-left); and a **WIP pass** surfaces what to *stop* (stale slugs nothing depends on become close-or-commit decisions). Tier 1 reads each slug's `02-shape.md`/`04-plan-*.md` to build the dependency/collision graph.
+- **Seeks code truth on demand (Tier 2).** When the artifacts don't settle a suspected edge — overlapping module footprints, or a "needs X" with no clear producer — advise goes to the codebase, scoped to the one question (Glob the shared paths, `git log` ownership, Grep the symbol, `git diff --name-only base...branch`), and cites the result as evidence. Broad drift is handed off to `/wf status <slug> deep`, not chased inline.
+- **Output** leads with the single highest-leverage move, then the ranked plan, blocked set, decisions, carried risk, and sequencing notes — every row with a one-line rationale so the ranking is auditable, each next-command chaining into `/wf auto`/`yolo`. Steering (steer.md) is honored as a cross-slug priority overlay, with the tradeoff stated out loud when it reorders proximity.
+- Both trees (Claude `/wf` + Codex `$wf` dialect, codex offers only `$wf auto`). Gates: `npm test` 636/0/2; `npm run verify` 51 pages stamped v9.134.0; `npm run verify:codex` parity OK (191 files, shared buildId `bb01be515d4b`); `build` + `sync:codex` run.
+
 ## [9.133.0] - 2026-07-13
 
 ### Fixed — doc-site drift reconciliation (DOC-SITE-DRIFT-AUDIT-2026-07-13) + observability artifact types now schema-validated
