@@ -25,7 +25,7 @@ You are running `wf-shape`, **stage 2 of 10** in the SDLC lifecycle.
 
 > **Design brief ownership (moved here).** When the work has UI surface, `02b-design.md` is authored *here*, as part of shape — not by a separate design command. `plan` later resolves the visual-direction gates and authors `02c-craft.md`; `implement` builds against it. See Step 5b below.
 
-> **Optional second opinion.** Once the mini-spec is drafted (before writing `02-shape.md`), you may offer `/consult <critique these acceptance criteria, edge cases, and scope>` (or `/consult <provider> …`) — a read-only multi-model panel that stress-tests the spec before a wrong one propagates downstream. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion.** Once the mini-spec is drafted (before writing `02-shape.md`), **auto-invoke** `/consult codex <critique these acceptance criteria, edge cases, and scope>` (pinning `codex`/`claude` keeps it free) whenever a spec error would be expensive to unwind downstream: a new capability or externally-observable surface, more than one slice, or any `intent-risk` (RIM) carried in from intake. Fire it rather than offering it in next-steps; skip only a single-slice, internal, low-risk tweak. The user may invoke it explicitly with any provider.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.

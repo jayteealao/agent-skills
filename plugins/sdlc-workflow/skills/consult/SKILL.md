@@ -23,11 +23,14 @@ It generalizes the single-model `codex:rescue` pattern into a **multi-model
 panel**: by default it fans out to every available provider in parallel and
 returns a panel of opinions plus a one-line consensus/divergence read.
 
-The model may invoke this skill **autonomously** when a second opinion adds material
-value (the `/wf` stages call out where). It is still never triggered by a hook or by
-serving — only by a deliberate model or user decision. Dispatch sends repo and
-artifact content to a third party, so autonomous runs pin a free CLI and stay
-sparing (see Step 0).
+The model **auto-invokes** this skill at the judgment points the `/wf` stages call
+out (plan, shape, design, review, verify/diagnosis, handoff) — not rarely, but
+whenever those stages' **objective** triggers fire. It is still never triggered by a
+hook or by serving — only by a deliberate model or user decision. The cost caution
+applies to *provider choice, not frequency*: a self-initiated run pins a **free**
+subscription CLI (`codex`/`claude`), which costs nothing per call, so fire it freely
+at the designated gates. "Sparing" governs only the **paid** REST oracles (`gemini`,
+`openai`, gateway models) — never fan those out unattended (see Step 0).
 
 # Step 0 — Resolve the request
 
@@ -133,10 +136,12 @@ invocation**. To stay free, pin a subscription CLI: `consult codex <question>` o
 
 # Callers
 
-`consult` is user-invocable, and the model also **auto-invokes** it when a second
-opinion adds material value — at the plan, design, review, and diagnosis (verify /
-root-cause) judgment points, including during the autonomous `/wf auto` and
-`/wf yolo` drivers. Model-initiated runs pin a free CLI (`codex`/`claude`) and are
-used sparingly — only when they materially de-risk a gate. It conceptually
-supersedes `codex:rescue` (one model → a multi-model panel) but does not edit that
-separate plugin.
+`consult` is user-invocable, and the model also **auto-invokes** it at the plan,
+shape, design, review, verify, and handoff judgment points (and their equivalents in
+the autonomous `/wf auto` and `/wf yolo` drivers) whenever that stage's **objective**
+trigger fires — a carried intent-risk, a ship-with-caveats verdict, an inferred-not-
+observed AC, a risk-bearing surface, and so on, as each stage specifies. It is a
+default action at those gates, not a rare one. Model-initiated runs pin a free CLI
+(`codex`/`claude`); the "used sparingly" caution scopes to the **paid** REST oracles
+only. It conceptually supersedes `codex:rescue` (one model → a multi-model panel) but
+does not edit that separate plugin.

@@ -24,11 +24,15 @@ You are running `$wf plan`, **stage 4 of 10** in the SDLC lifecycle.
 | Next | `$wf implement <slug> <slice-slug>` (default) |
 | Skip-to | `$wf implement <slug> <slice-slug>` directly if plan is trivial |
 
-> **Auto second opinion.** After the plan is written, **auto-invoke** `$consult codex
-> <question about this plan>` (pin `codex`/`claude` to stay free) whenever the plan
-> carries real risk or ambiguity — fan out a read-only critique panel and embed it
-> next to the plan artifact. Skip it for a trivial plan. The user may also invoke it
-> explicitly with any provider.
+> **Auto second opinion (default ON — skip only when trivial).** After the plan is
+> written, **auto-invoke** `$consult codex <question about this plan>` and embed the
+> read-only critique panel next to the plan artifact. Pinning `codex`/`claude` makes
+> this **free**, so run it by default rather than listing it in next-steps. **Fire it**
+> whenever ANY objective signal is present: the slice touches concurrency, auth, data
+> migration, money/billing, or an external API; the plan carries any `## Unknowns /
+> Open Questions` entry; any `intent-risk` (RIM) is `carried`; or appetite is medium or
+> larger. Skip only a plan with none of these and a small appetite. The user may also
+> invoke it explicitly with any provider.
 
 > **Plan against the real API, not the remembered one.** When plan steps will call
 > into a dependency, framework, or SDK, invoke the `study-sources` skill to read its

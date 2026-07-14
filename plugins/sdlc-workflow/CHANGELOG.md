@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.135.0] - 2026-07-14
+
+### Changed — consult auto-invokes on objective triggers, not self-graded discretion
+
+Analysis of real `/wf` sessions found `consult` almost never self-fired: across the lifecycle it was authored as an advisory blockquote gated behind subjective self-assessment ("whenever the plan carries real risk", "for borderline verdicts", "when clearly valuable"), and two stages (shape, handoff) explicitly said "otherwise just offer it." A model optimistic about its own just-written work rarely grades that work "risky" or "borderline", so the second opinion got surfaced to the user as a next-step suggestion instead of being run. This release replaces discretion with **objective triggers the stage has already computed**, and decouples free-CLI liberality from paid-fan-out restraint.
+
+- **Objective triggers per stage.** `plan` fires when the slice touches concurrency / auth / data-migration / money / external-API, or the plan carries any `## Unknowns` entry, or any `intent-risk` (RIM) is `carried`, or appetite ≥ medium. `review` fires whenever `verdict: ship-with-caveats` (the verdict *is* the trigger) or a blocker was fixed in-loop and flipped to ship. `verify` fires whenever any AC is met by *inference* rather than direct observation, or any AC is deferred. `shape` fires on a new capability / observable surface / >1 slice / carried RIM. `handoff` fires on any open review finding / security-or-observable surface / carried RIM. `design` fires when the direction chose among options, adds a new interaction pattern, or left a visual-direction gate open.
+- **Removed the two "just offer it" punts** (shape, handoff) — those stages now auto-invoke like the rest.
+- **Cost caution rescoped to provider choice, not frequency.** The free subscription CLIs (`codex`/`claude`) cost nothing per call, so the model fires them freely at the designated gates; "sparing" now governs only the paid REST oracles (`gemini`/`openai`/gateway), which are still never fanned out unattended. `consult/SKILL.md`, the `auto`/`yolo` drivers, and each stage's blockquote were realigned to this framing.
+- Both trees (Claude `/wf` + Codex `$wf` dialect; `yolo` is Claude-only). Docs-only behavior change — no schema, hook, or runtime surface touched. Gates: `npm test`; `npm run verify` (51 pages stamped v9.135.0); `npm run verify:codex` parity OK; `build` + `sync:codex` run.
+
 ## [9.134.0] - 2026-07-13
 
 ### Added — `/wf status advise`: cross-slug sequencing across the whole open portfolio

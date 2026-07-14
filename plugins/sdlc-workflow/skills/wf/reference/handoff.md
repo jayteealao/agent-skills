@@ -26,11 +26,14 @@ You are running `wf-handoff`, **stage 8 of 10** in the SDLC lifecycle.
 | Skip-to | `/wf retro <slug>` if shipping is handled externally or not applicable |
 | Ship-plan gate (step 6.7) | Runs the shared [_ship-plan-readiness.md](_ship-plan-readiness.md) pre-check — a missing or drifted `.ai/ship-plan.md` STOPs at `awaiting-input`, routing to `/wf ship-plan init` / `edit`, so the PR is never declared ship-ready against a stale release contract. |
 
-> **Optional second opinion.** Before writing the final readiness verdict, you may
-> offer `/consult <review this PR diff and open findings for design drift,
-> architectural smell, or security blind spots>` (or `/consult <provider> …`) — a
-> read-only multi-model panel that catches what CI cannot, right before the PR is
-> declared ready. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion.** Before writing the final readiness verdict, **auto-invoke**
+> `/consult codex <review this PR diff and open findings for design drift,
+> architectural smell, or security blind spots>` (pinning `codex`/`claude` keeps it
+> free) whenever the PR carries any open review finding (even non-blocking), touches a
+> security-sensitive or externally-observable surface, or any `intent-risk` (RIM) is
+> still `carried` at handoff — a read-only panel that catches what CI cannot, right
+> before the PR is declared ready. Fire it rather than offering it; skip only a clean,
+> low-surface PR with no open findings. The user may invoke it with any provider.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.

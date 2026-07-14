@@ -20,10 +20,13 @@ Bash**. It writes no code (write/delegate mode is deferred). It generalizes the
 single-model rescue pattern into a **multi-model panel** — by default it fans out
 to every available provider in parallel.
 
-The model may invoke this **autonomously** when a second opinion adds material value
-(the `$wf` stages call out where). Never triggered by a hook — only by a deliberate
-model or user decision. Dispatch sends repo/artifact content to a third party, so
-autonomous runs pin a free CLI and stay sparing (see Step 0).
+The model **auto-invokes** this at the judgment points the `$wf` stages call out
+(plan, shape, design, review, verify/diagnosis, handoff) — not rarely, but whenever
+those stages' **objective** triggers fire. Never triggered by a hook — only by a
+deliberate model or user decision. The cost caution is about *provider choice, not
+frequency*: a self-initiated run pins a **free** CLI (`codex`/`claude`), which costs
+nothing per call, so fire it freely at the gates. "Sparing" governs only the **paid**
+REST oracles — never fan those out unattended (see Step 0).
 
 # Step 0 — Resolve
 
@@ -89,7 +92,10 @@ per-token on every invocation. Pin a CLI (`$consult codex …`) to stay free, or
 one paid model (`$consult openai …`). Model-initiated auto-runs always pin a free CLI —
 the paid REST oracles are never fanned out unattended.
 
-Callers: user-invocable, and the model **auto-invokes** it when a second opinion adds
-material value — at the plan, design, review, and diagnosis (verify / root-cause)
-gates, including during the autonomous `$wf auto` driver. Model-initiated runs pin a
-free CLI (`codex`/`claude`) and stay sparing. Supersedes the rescue pattern conceptually.
+Callers: user-invocable, and the model **auto-invokes** it at the plan, shape, design,
+review, verify, and handoff gates (and their equivalents in the autonomous `$wf auto`
+driver) whenever that stage's **objective** trigger fires — a carried intent-risk, a
+ship-with-caveats verdict, an inferred-not-observed AC, a risk-bearing surface, as each
+stage specifies. A default action at those gates, not a rare one. Model-initiated runs
+pin a free CLI (`codex`/`claude`); the "sparing" caution scopes to the **paid** REST
+oracles only. Supersedes the rescue pattern conceptually.

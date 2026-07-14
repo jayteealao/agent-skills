@@ -26,8 +26,11 @@ You are running `wf-verify`, **stage 6 of 10** in the SDLC lifecycle.
 
 > **Auto second opinion (diagnosis).** After the perceptual review pass, **auto-invoke**
 > `/consult codex <do these screenshots and observations actually satisfy the
-> user-observable AC, or is something off?>` (pin `codex`/`claude`) when evidence is
-> ambiguous or a gate is borderline. Skip when the AC is plainly met.
+> user-observable AC, or is something off?>` (pinning `codex`/`claude` keeps it free).
+> **Fire it** — don't defer it to next-steps — whenever any AC is judged met by
+> *inference* rather than direct observation, or any AC verification is deferred
+> (headless/device wall, pre-registered manual re-run). Skip only when every AC is
+> plainly met by direct observed evidence.
 
 > **Verify against the real contract, not the remembered one.** When an acceptance
 > criterion turns on how a dependency, framework, or SDK *actually* behaves — a return

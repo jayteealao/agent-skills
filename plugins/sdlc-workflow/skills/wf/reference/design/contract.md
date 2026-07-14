@@ -93,10 +93,12 @@ Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after c
 
 > **Auto second opinion.** Before writing the contract, **auto-invoke** `/consult codex
 > <critique this design direction — does it satisfy the brief, and what visual or
-> interaction risks does it carry?>` (pin `codex`/`claude` to stay free) whenever the
-> direction involves real trade-offs — a read-only panel that gives the approved
-> direction an independent design eye before the contract locks it in. Skip it for a
-> trivial surface. The user may invoke it explicitly with any provider.
+> interaction risks does it carry?>` (pinning `codex`/`claude` keeps it free) whenever
+> the direction chose among competing options, introduces a new interaction pattern or
+> primary surface, or the brief left a visual-direction gate open — a read-only panel
+> that gives the approved direction an independent design eye before the contract locks
+> it in. Fire it rather than offering it; skip only a trivial, single-option surface.
+> The user may invoke it explicitly with any provider.
 
 ## Step 4: Mock fidelity inventory
 
