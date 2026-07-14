@@ -27,10 +27,15 @@ This skill does NOT start or advance any workflow. It discovers improvement oppo
 | Produces | A `type: workflow-index` slug workflow: `.ai/workflows/<slug>/01-ideate.md` (`type: ideation` — ranked ideas + adversarial filter log) + a lightweight `00-index.md` (`type: workflow-index`). (Legacy off-pipeline `.ai/ideation/<focus>-<timestamp>.md` runs still render via the retained ideation discovery.) |
 | Next | `$wf intake <idea-title>` — kick off a workflow for any chosen idea |
 
-> **Optional second opinion.** At the terminus, once the ideas are ranked, you may
-> offer `$consult <widen this idea set and flag blind spots>` (or `$consult
-> <provider> …`) — a read-only multi-model panel that brings divergent breadth to
-> the brainstorm. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** At the terminus, once the ideas are ranked
+> (before Step 6 writes the artifact), **auto-invoke** `$consult codex <widen this idea set and
+> flag blind spots — what did this analysis miss?>` (pinning `codex`/`claude` keeps it free) when
+> ANY of: (a) the ranked list will feed a build decision the user signalled they intend to act on
+> now; (b) any surviving idea is `impact: critical` or category `security`; (c) the adversarial
+> filter culled more than half the raw candidates (a high cull rate means the lens set may be
+> systematically narrow — divergent breadth is exactly the cure). Fold distinct additions in
+> through the same adversarial filter before ranking. Skip only when none of the triggers hold;
+> the user may invoke it explicitly with any provider.
 
 # CRITICAL — execution discipline
 You are an **opportunity discoverer and adversarial filter**, not a problem solver.

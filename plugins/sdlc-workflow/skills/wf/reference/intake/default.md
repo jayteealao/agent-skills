@@ -23,6 +23,16 @@ You are running `wf intake`, **stage 1 of 10** in the SDLC lifecycle.
 | Next | `/wf shape <slug>` (default) |
 | Skip-to | `/wf plan <slug>` if the task is trivially scoped and needs no shaping or slicing |
 
+> **Auto second opinion (objective triggers).** Once the intake brief is drafted (Step 6c — after
+> the misreading pass, before writing `01-intake.md`), **auto-invoke** `/consult codex <critique
+> this restated request, charter, and RIM ledger — did I misread the ask?>` (pinning
+> `codex`/`claude` keeps it free) when ANY of: (a) the work introduces a new capability or
+> externally-observable surface AND appetite is medium or larger; (b) any authored RIM has
+> `severity: high`; (c) the request touches security, payments, auth, data migration, or deletion
+> semantics. Intake is where a misread request is cheapest to catch — fire it rather than offering
+> it in next-steps; skip only when none of the triggers hold. The user may invoke it explicitly
+> with any provider.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT attempt to diagnose, debug, fix, implement, design, or otherwise work on the user's task.
@@ -108,6 +118,27 @@ Goal: cheaply observe what the repo *already uses* and what *tooling is availabl
 
 4. **Do NOT recommend anything yet.** No "you should use X." That happens in shape, after the user has confirmed or corrected the fingerprint. This step's only output is observation written to disk.
 
+# Step 0.7 — Bounded Explore pass (ground the questions in the code — conditional)
+
+Intake questions asked blind push ambiguities the codebase would resolve for free onto the PO, or
+leak them into shape. So, **when the request names or implies a specific area of the codebase and
+is not trivially scoped**, launch **one** Explore sub-agent (medium breadth) before Batch B.
+
+**Skip criteria — skip ONLY if ANY of these hold** (mirrors shape's research skips):
+- The request is a trivial mechanical change (typo, rename, version bump, config flip)
+- The request names no codebase area and implies none (a green-field capability with no existing
+  surface to map)
+
+**The agent's one job:** *map the affected area — what exists today, what the request would touch,
+which ambiguities the code already answers.* No solutioning, no recommendations.
+
+**Findings land in `01-intake.md` → `## Affected Areas (preliminary)`** (see the template below) — file paths, the existing behavior in
+one line each, and any request-ambiguity the code already resolves. Two consumers depend on this
+exact section: Batch B questions MUST reference the findings where relevant ("the code already has
+X — does this request replace it or extend it?"), and shape's Explore sub-agent 1 opens with it
+("verify and deepen, do not re-derive") — that handoff clause is what keeps total research cost
+flat across the two stages.
+
 # Purpose
 Convert a rough request into a clear intake brief, create the workflow folder, capture the first product-owner answers, and establish the canonical slug.
 
@@ -117,7 +148,7 @@ Convert a rough request into a clear intake brief, create the workflow folder, c
 - **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
-- `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, `pr-url`, `pr-number`, `open-questions`, `tags`, `stack`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`. The `stack` block is written by Step 0.5 (repo + session fingerprint) and confirmed/corrected in Batch B; it is observational, not prescriptive.
+- `00-index.md` frontmatter must always have: `schema`, `type`, `slug`, `title`, `status`, `current-stage`, `stage-number`, `updated-at`, `created-at`, `selected-slice`, `branch-strategy`, `branch`, `base-branch`, `review-scope`, `review-scope-confirmed`, `appetite`, `pr-url`, `pr-number`, `open-questions`, `tags`, `stack`, `next-command`, `next-invocation`, `workflow-files`, `progress`, and (if slices exist) `slices`. The `stack` block is written by Step 0.5 (repo + session fingerprint) and confirmed/corrected in Batch B; it is observational, not prescriptive.
 - **Use AskUserQuestion** for multiple-choice PO questions (branch strategy, rollout preference, merge strategy, go/no-go, risk tolerance). Use freeform chat for open-ended questions (requirements, constraints, acceptance criteria). Construct every question per [_question-craft.md](../_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
@@ -137,9 +168,21 @@ Inputs: `$ARGUMENTS` (full raw request), `$0` (first token if supplied).
 Do this in order:
 1. Parse the request and derive the workflow slug.
 2. Create `.ai/workflows/<slug>/` directory. Write `00-index.md` using the index template below. Create `po-answers.md` if missing.
-3. Ask focused product-owner questions in two batches:
-   **Batch A — Structured questions (use AskUserQuestion):**
-   Call AskUserQuestion with these questions (adjust based on what's already known from `$ARGUMENTS`):
+3. Ask focused product-owner questions in two batches — **substance first (Batch B), process
+   second (Batch A)**. The process answers (branch, appetite) are far better informed after the PO
+   has described the work, so the historical batch labels stay but the ORDER is B → A.
+
+   **Batch B — Freeform substance questions (in chat — ASK THESE FIRST):**
+   Ask freeform questions covering the areas below. 2–5 is typical, but the count is need-driven, not fixed: keep asking (in small batches, building on earlier answers) while the desired outcome is vague, a success criterion is not yet falsifiable, or a mentioned constraint is uncaptured — and stop the moment those are pinned down. Never pad to reach a count; park anything the PO can't answer now in `open-questions` (`status: awaiting-input`) instead of pressing. **Ground questions in the Step 0.7 Explore findings where relevant** — "the code already has X — does this request replace it or extend it?" beats asking the PO to describe what the code already answers. Cover:
+   - desired outcome and who benefits
+   - concrete success criteria
+   - explicit non-goals
+   - timeline, compliance, operational, or platform constraints
+   - already-decided technical constraints or vendor choices
+   - **stack confirmation** (always include this) — summarize the Step 0.5 `stack:` block in one or two human-readable lines and ask: *"I detected this is a `<platforms>` repo using `<ui>` + `<build>`, with `<testing>` for tests and `<observability>` for logging. Available session tooling that looks relevant: `<top 3-5 skills/MCP by name>`. Anything missing, wrong, or off-limits for this task?"* Capture corrections verbatim in `po-answers.md`. After the answer arrives, update the `stack:` block in `00-index.md` (add/remove entries to match reality) and set `stack.user-confirmed: true`. This is the descriptive contract: detection proposes, the PO disposes. Do **not** use the detected stack to recommend an implementation approach at this stage — that conversation belongs in shape.
+
+   **Batch A — Structured process questions (use AskUserQuestion — asked AFTER Batch B):**
+   Call AskUserQuestion with these questions (adjust based on what's already known from `$ARGUMENTS` and Batch B):
    ```
    Question 1:
      question: "What branch strategy should this workflow use?"
@@ -164,32 +207,42 @@ Do this in order:
        - label: "Large"
          description: "Multiple days. Definitely needs slicing and incremental delivery."
      multiSelect: false
-
-   Question 3:
-     question: "How should the review stage be scoped?"
-     header: "Review scope"
-     options:
-       - label: "Per slice (Recommended)"
-         description: "Each slice gets its own 07-review-<slice>.md. Required when running review repeatedly across multiple slices — handoff aggregates per-slice verdicts."
-       - label: "Slug-wide"
-         description: "One 07-review.md for the whole workflow against the cumulative branch diff. Re-running review overwrites the file. Best for single-slice or holistic reviews."
-     multiSelect: false
    ```
+   Record the appetite answer as `appetite:` in `00-index.md` frontmatter — it is machine-read
+   downstream (shape scales its pre-mortem horizon by it; slice reads it for slice-count
+   expectations; plan's consult trigger keys off it).
+
+   **Review scope is NOT asked here** (moved in v9.136.0): the PO cannot judge review layout
+   before slicing exists. `00-index.md` carries the provisional default `review-scope: per-slice`
+   with `review-scope-confirmed: false`; `slice` asks the PO once the roster is known (`plan` asks
+   instead on the skip-to-plan path that bypasses slice).
+
    If the user chose "Dedicated" for branch strategy, follow up (in chat or a second AskUserQuestion) for:
    - Preferred branch name (default: `feat/<slug>`)
    - Base branch (default: `main` or `master`, whichever exists)
-
-   **Batch B — Freeform questions (in chat):**
-   Ask additional freeform questions covering the areas below. 2–5 is typical, but the count is need-driven, not fixed: keep asking (in small batches, building on earlier answers) while the desired outcome is vague, a success criterion is not yet falsifiable, or a mentioned constraint is uncaptured — and stop the moment those are pinned down. Never pad to reach a count; park anything the PO can't answer now in `open-questions` (`status: awaiting-input`) instead of pressing. Cover:
-   - desired outcome and who benefits
-   - concrete success criteria
-   - explicit non-goals
-   - timeline, compliance, operational, or platform constraints
-   - already-decided technical constraints or vendor choices
-   - **stack confirmation** (always include this) — summarize the Step 0.5 `stack:` block in one or two human-readable lines and ask: *"I detected this is a `<platforms>` repo using `<ui>` + `<build>`, with `<testing>` for tests and `<observability>` for logging. Available session tooling that looks relevant: `<top 3-5 skills/MCP by name>`. Anything missing, wrong, or off-limits for this task?"* Capture corrections verbatim in `po-answers.md`. After the answer arrives, update the `stack:` block in `00-index.md` (add/remove entries to match reality) and set `stack.user-confirmed: true`. This is the descriptive contract: detection proposes, the PO disposes. Do **not** use the detected stack to recommend an implementation approach at this stage — that conversation belongs in shape.
 4. Capture ALL answers (structured + freeform) in `po-answers.md`.
 5. Run freshness research for any external technology, dependency, platform, API, or standard that is mentioned or obviously implicated.
-6. Write the intake brief without designing the implementation.
+6. **Draft** the intake brief without designing the implementation (steps 6a–6c refine it before it is written to disk in Step 9).
+6a. **Misreading pass (MANDATORY — the RIM quality floor).** Before the brief is final, run one
+   short in-run pass: *"Name the 3 most likely ways this request could be misread."* Each candidate
+   either becomes a RIM entry in `## Risks if Misunderstood` or is dismissed in that section with a
+   stated reason ("considered: <misreading> — dismissed because <reason>"). In-run, no sub-agents —
+   this is the floor; shape's blind pre-mortem stays the deep pass. The `## Risks if Misunderstood`
+   and `## Charter` sections may NEVER be silently absent in default mode: zero entries is legal
+   only as the explicit declaration `intent-risks: none-declared` / `charter: none-declared` in
+   `00-index.md` frontmatter plus a one-line reason in the body ("pure mechanical rename; no
+   interpretive surface"). Silence is illegal — shape's Step 9a backfills a missing ledger instead
+   of waving it through.
+6b. **Ratify the charter with the PO (MANDATORY when a charter is authored).** Present the 3–7
+   distilled commitments in one `AskUserQuestion` — *"These are the promises I heard — confirm or
+   correct"* (multiSelect confirm/edit per [_question-craft.md](../_question-craft.md)). Record the
+   ratification in `po-answers.md`; ratified charter entries carry `po-ratified: true` in the
+   `00-index.md` `charter` ledger. A charter the PO ratified at stage 1 carries real authority
+   downstream (shape's adjudications and the intent-fidelity review dimension cite it); an
+   unratified charter is only inferred authority.
+6c. **Auto second opinion** — apply the objective triggers in the blockquote above the CRITICAL
+   section; when any holds, fire `/consult` now, and fold material findings back into the brief
+   (a confirmed misreading becomes a RIM or a reworded Restated Request).
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 8. Update `00-index.md` with the recommended default option.
 9. Write `.ai/workflows/<slug>/01-intake.md`.
@@ -236,7 +289,9 @@ selected-slice: ""
 branch-strategy: <dedicated|shared|none>
 branch: "<feat/slug or empty>"
 base-branch: "<main|master|develop>"
-review-scope: <per-slice|slug-wide>   # default per-slice; chosen at intake. Drives /wf review file layout and /wf handoff gating.
+review-scope: per-slice               # PROVISIONAL default — confirmed at slice (or plan on the skip-to-plan path), NOT asked at intake. Drives /wf review file layout and /wf handoff gating.
+review-scope-confirmed: false         # slice/plan flips to true after the PO answers with the roster known
+appetite: <small|medium|large>        # Batch A answer. Machine-read downstream: shape's pre-mortem horizon, slice's count expectations, plan's consult trigger.
 pr-url: ""
 pr-number: 0
 open-questions: []
@@ -304,10 +359,21 @@ next-invocation: "/wf shape <slug>"
 <!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This intake implements…" openings. 1–4 short paragraphs. -->
 
 ## Restated Request
+<!-- If the request implies a sequence of user actions (a core loop — "user does A, gets B, then C"),
+state that loop as NUMBERED STEPS. The numbered loop is a deliberate artifact: shape derives the
+Charter Scenario (the executable end-to-end spine) from it. An unnumbered loop does not exempt shape
+— it will derive one from prose — but numbering it here is the honest, cheap form. -->
 
 ## Intended Outcome
 
 ## Primary User / Actor
+
+## Affected Areas (preliminary)
+<!-- Step 0.7's bounded Explore findings — file paths, one-line existing behavior each, and any
+request-ambiguity the code already resolves. Omit the section only when Step 0.7's skip criteria
+held. Consumed twice downstream: Batch B questions reference it, and shape's Explore sub-agent 1
+opens with it ("verify and deepen, do not re-derive"). -->
+- ...
 
 ## Known Constraints
 - ...
@@ -328,25 +394,29 @@ next-invocation: "/wf shape <slug>"
 - ...
 
 ## Risks if Misunderstood
-<!-- Each risk here is ALSO a tracked ledger entry (INTENT-FIDELITY W1). Give each a stable id RIM-1..n and a severity; the prose stays, the ids are additive. The ledger is what forces shape to adjudicate each one in writing instead of letting it evaporate. -->
+<!-- Each risk here is ALSO a tracked ledger entry (INTENT-FIDELITY W1). Give each a stable id RIM-1..n and a severity; the prose stays, the ids are additive. The ledger is what forces shape to adjudicate each one in writing instead of letting it evaporate. NEVER silently absent in default mode (Step 6a): zero entries requires the explicit declaration `intent-risks: none-declared` in 00-index.md frontmatter plus a one-line reason here. Record the Step 6a misreading pass in this section too: each dismissed candidate as "considered: <misreading> — dismissed because <reason>". -->
 - **RIM-1** (severity: high|medium|low) — <one-line risk statement>
 - ...
 
-<!-- LEDGER AUTHORING: write these into 00-index.md frontmatter as `intent-risks` — one entry per RIM with `id`, `risk` (the one-line statement), `severity`, `status: open`, and empty `adjudicated-by` / `decision` / `po-ratified: null`. Shape MUST adjudicate every `open` entry before it can complete (see shape.md Step 8a); handoff/ship HARD-BLOCK on any that stay `open`. This reuses the exact machinery `runtime-evidence-deferrals` already proves out. Compressed intake modes (fix/hotfix/refactor/update-deps/adopt): author entries ONLY if the risk section produces any — the ledger is optional there. Terminal-analysis modes (investigate/discover/ideate): no ledger (no build follows). -->
+<!-- LEDGER AUTHORING: write these into 00-index.md frontmatter as `intent-risks` — one entry per RIM with `id`, `risk` (the one-line statement), `severity`, `status: open`, and empty `adjudicated-by` / `decision` / `po-ratified: null`. When the section legitimately has zero entries, write `intent-risks: none-declared` instead (an absent key is ILLEGAL in default mode — shape's Step 9a backfills it). Shape MUST adjudicate every `open` entry before it can complete (see shape.md Step 9a); handoff/ship HARD-BLOCK on any that stay `open`. This reuses the exact machinery `runtime-evidence-deferrals` already proves out. Compressed intake modes (fix/hotfix/refactor/update-deps/adopt): author entries ONLY if the risk section produces any — the ledger is optional there, and `none-declared` is not required. Terminal-analysis modes (investigate/discover/ideate): no ledger (no build follows). -->
 
 ## Charter
 <!-- The 3–7 positive commitments this build must honor — deliberately FEW. A charter that restates the
 whole intake is boilerplate; keep only the load-bearing promises. Each commitment must be FALSIFIABLE BY
 CODE (a reader can point at a behavior that proves or breaks it), not a mood or an aspiration. Distilled
-from the Restated Request, Intended Outcome, and Known Constraints. Compressed intake modes
-(fix/hotfix/refactor/update-deps/adopt): SKIP — no charter. -->
+from the Restated Request, Intended Outcome, and Known Constraints. NEVER silently absent in default
+mode: zero commitments requires `charter: none-declared` in 00-index.md frontmatter plus a one-line
+reason here. Ratified with the PO in Step 6b before writing. Compressed intake modes
+(fix/hotfix/refactor/update-deps/adopt): SKIP — no charter, no declaration needed. -->
 - **C1** — <one positive commitment, falsifiable by code> — source: `01-intake.md#<section>`
 - ...
 
 <!-- LEDGER AUTHORING: write these into 00-index.md frontmatter as `charter` — one entry per commitment
 with `id` (C1..), `commitment` (the one-line statement), `source` (the `01-intake.md#section` it distills),
-and `status: honored`. Additive cross-wiring downstream (ids only, no new machinery): shape's RIM
-adjudications (Step 8a) MAY name the charter ids they protect; the `## Intake Fidelity` table rows MAY
+`status: honored`, and `po-ratified: true` once Step 6b's confirmation lands (false with an explicit
+PO-declined note otherwise). When zero commitments, write `charter: none-declared` instead. Additive
+cross-wiring downstream (ids only, no new machinery): shape's RIM
+adjudications (Step 9a) MAY name the charter ids they protect; the `## Intake Fidelity` table rows MAY
 reference charter ids; the intent-fidelity review dimension checks its question 1 per charter id.
 Compressed intake modes: skip (no charter). -->
 

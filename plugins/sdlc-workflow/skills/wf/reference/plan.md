@@ -78,6 +78,14 @@ You are a **workflow orchestrator**, not a problem solver.
      - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but not PO-confirmed. The plan's interactive verification may pick tooling the PO does not want. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Use AskUserQuestion if available. If the user proceeds, mark `stack-source: unconfirmed-auto-detect` in the plan's frontmatter so downstream stages know.
      - If `stack.user-confirmed: true` → proceed. Sub-agent 3 and the plan's interactive verification template both consume this confirmed block as their source of truth.
    - If `current-stage` in the index is already past plan → WARN before overwriting.
+   - **Review-scope fallback (skip-to-plan path only, v9.136.0):** if `00-index.md` shows
+     `review-scope-confirmed: false` (or the key is present and false — absent means a
+     pre-v9.136.0 workflow that was asked at intake), the workflow bypassed `slice` (where the
+     question normally lands). Ask it here with ONE `AskUserQuestion` — this is a single-scope
+     workflow, so recommend `Slug-wide` ("one 07-review.md against the cumulative diff") over
+     `Per slice`. Record the answer in `po-answers.md` (`stage: plan`), set `review-scope:` and
+     `review-scope-confirmed: true` in `00-index.md`. `review`/`handoff` trust the flag; the
+     question is asked exactly once per workflow.
 4. **Read** `02-shape.md`, `03-slice.md` (if exists), the relevant `03-slice-<slice-slug>.md` file(s), and `po-answers.md`.
 4b. **Read design context — mandatory when present** (file existence is optional; consumption is required for any UI/visual-design work). `plan` is the design consumer that *cites it*: the union-loader turns each recommended reference into a concrete plan-step pointer, and the plan carries the register and anti-goals forward. **Baseline design canon (even with no design artifact):** when `stack.ui ≠ ∅`, also load `skills/wf/reference/design/_design-context.md` for the register, shared design laws, absolute bans, and the motion/interface-detail summary — the design floor for any UI work, applied even when neither `02b`/`02c` exists. `_design-context.md` carries the floor and a craft *summary*: when the feature touches motion, interface detail, or typography, also load the specific home (`animate.md` / `polish.md` / `typeset.md`) for the actual rules. Use only those sections; its preflight/image/mutation sections govern `/wf design`, not plan. Gate: if `stack.ui` is empty and no design artifacts exist, skip this step.
    - `02b-design.md` — register, recommended references, anti-goals.

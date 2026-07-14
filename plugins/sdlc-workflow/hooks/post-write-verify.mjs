@@ -376,6 +376,51 @@ function enforceCodeFileLints(input, config, artifactPaths) {
   );
 }
 
+// Intake ledger lint (INTAKE-SHAPE-HARDENING W2.1). A default-mode intake (the artifact
+// literally named 01-intake.md with type: intake — compressed modes write 01-fix.md /
+// 01-hotfix.md / … and are exempt) may never be SILENTLY ledger-less: zero RIMs / zero
+// charter commitments is legal only as the explicit `intent-risks: none-declared` /
+// `charter: none-declared` declaration on the sibling 00-index.md. Warn-only — shape's
+// Step 9a backfill is the hard consequence; this lint just surfaces the gap at write time
+// while the author is still in context.
+async function enforceIntakeLedgerLint(paths, config) {
+  if (config.hooks?.intakeLedgerLint === false) return;
+  const warns = [];
+  for (const path of paths) {
+    const base = path.original.replace(/\\/g, '/').split('/').at(-1);
+    if (base !== '01-intake.md') continue;
+    const text = await readTextIfExists(path.absolute);
+    if (fragmentOwningType(text) !== 'intake') continue;
+    const indexPath = path.absolute.replace(/01-intake\.md$/, '00-index.md');
+    const indexText = await readTextIfExists(indexPath);
+    // No sibling 00-index.md → not a default-mode intake in flight (Step 2 creates
+    // the index before Step 9 writes the brief). Skip rather than guess.
+    if (!indexText) continue;
+    const { data: idx } = safeParseFrontmatter(indexText, { filePath: indexPath });
+    const missing = [];
+    const bodyHasRims = /(^|\n)\s*-\s*\*\*RIM-\d+/.test(text || '');
+    const idxRisks = idx?.['intent-risks'];
+    const risksDeclared = Array.isArray(idxRisks) ? idxRisks.length > 0 : idxRisks === 'none-declared';
+    if (!bodyHasRims && !risksDeclared) missing.push('intent-risks (RIM ledger)');
+    const bodyHasCharter = /(^|\n)\s*-\s*\*\*C\d+\*\*/.test(text || '');
+    const idxCharter = idx?.charter;
+    const charterDeclared = Array.isArray(idxCharter) ? idxCharter.length > 0 : idxCharter === 'none-declared';
+    if (!bodyHasCharter && !charterDeclared) missing.push('charter');
+    if (missing.length) warns.push({ rel: path.original, missing });
+  }
+  if (warns.length) {
+    const lines = warns.map((w) => `  - ${w.rel}: missing ${w.missing.join(' + ')}`);
+    outputSystemMessage(
+      `wf: intake ledger lint (advisory) — a default-mode intake landed without its intent ledger:\n${lines.join('\n')}\n` +
+      'A default intake may not be SILENTLY ledger-less: author RIM entries (## Risks if Misunderstood, ' +
+      'the Step 6a misreading pass) and 3-7 charter commitments into 00-index.md, or declare the explicit ' +
+      'escape `intent-risks: none-declared` / `charter: none-declared` with a one-line reason in the body. ' +
+      "Otherwise shape's Step 9a will STOP and backfill the ledger before adjudicating. " +
+      'Opt out: hooks.intakeLedgerLint: false.',
+    );
+  }
+}
+
 // Named-mechanism artifact lint (INTENT-FIDELITY W7.2). On a shape/slice artifact, a
 // mechanism noun that appears in an AC / verification line but in NO decision section of
 // the body is a design decision smuggled past adjudication. Warn-only.
@@ -459,6 +504,7 @@ async function main() {
     // presence (blocks on a missing rich-tier .yaml, nudges on a missing
     // .html.fragment; may exit 2).
     await enforceVerifyResultGate(paths, config);
+    await enforceIntakeLedgerLint(paths, config);
     await enforceNamedMechanismLint(paths, config);
     await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);

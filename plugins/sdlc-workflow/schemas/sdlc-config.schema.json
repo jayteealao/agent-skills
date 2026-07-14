@@ -152,6 +152,11 @@
           "type": "boolean",
           "default": true,
           "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a mechanism-suggesting noun (state machine, scheduler, queue, cache, pipeline, orchestrator, regex) appears in a shape/slice AC or verification line but in no decision section of the artifact body. INTENT-FIDELITY W7 — a test may not name a machine the design does not own. Heuristic, so it warns. Set false to silence."
+        },
+        "intakeLedgerLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a default-mode intake artifact (01-intake.md, type: intake) lands with neither RIM/charter ledger entries on the sibling 00-index.md nor the explicit `intent-risks: none-declared` / `charter: none-declared` escape. INTAKE-SHAPE-HARDENING W2.1 — a default intake may not be silently ledger-less; shape's Step 9a backfill is the hard consequence. Set false to silence."
         }
       }
     },

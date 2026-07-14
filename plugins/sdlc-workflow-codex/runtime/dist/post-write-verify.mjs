@@ -488,6 +488,38 @@ ${lines2.join("\n")}
 A "does not exist / not exposed / was removed" comment is a HYPOTHESIS \u2014 cite the installed source (a study-sources read of node_modules/, a repro, an issue, or a URL) within \xB13 lines, or delete it; never replicate an in-repo limitation comment into new code without re-verifying it. A new \`as any\` / \`@ts-ignore\` / \`eslint-disable\` needs an \`sdlc-debt:\` marker so the debt lifecycle (verify/retro/simplify) inherits it. Opt out: hooks.limitationClaimLint / hooks.suppressionDebtLint.`
   );
 }
+async function enforceIntakeLedgerLint(paths, config) {
+  if (config.hooks?.intakeLedgerLint === false) return;
+  const warns = [];
+  for (const path of paths) {
+    const base = path.original.replace(/\\/g, "/").split("/").at(-1);
+    if (base !== "01-intake.md") continue;
+    const text = await readTextIfExists(path.absolute);
+    if (fragmentOwningType(text) !== "intake") continue;
+    const indexPath = path.absolute.replace(/01-intake\.md$/, "00-index.md");
+    const indexText = await readTextIfExists(indexPath);
+    if (!indexText) continue;
+    const { data: idx } = safeParseFrontmatter(indexText, { filePath: indexPath });
+    const missing = [];
+    const bodyHasRims = /(^|\n)\s*-\s*\*\*RIM-\d+/.test(text || "");
+    const idxRisks = idx?.["intent-risks"];
+    const risksDeclared = Array.isArray(idxRisks) ? idxRisks.length > 0 : idxRisks === "none-declared";
+    if (!bodyHasRims && !risksDeclared) missing.push("intent-risks (RIM ledger)");
+    const bodyHasCharter = /(^|\n)\s*-\s*\*\*C\d+\*\*/.test(text || "");
+    const idxCharter = idx?.charter;
+    const charterDeclared = Array.isArray(idxCharter) ? idxCharter.length > 0 : idxCharter === "none-declared";
+    if (!bodyHasCharter && !charterDeclared) missing.push("charter");
+    if (missing.length) warns.push({ rel: path.original, missing });
+  }
+  if (warns.length) {
+    const lines2 = warns.map((w) => `  - ${w.rel}: missing ${w.missing.join(" + ")}`);
+    outputSystemMessage(
+      `wf: intake ledger lint (advisory) \u2014 a default-mode intake landed without its intent ledger:
+${lines2.join("\n")}
+A default intake may not be SILENTLY ledger-less: author RIM entries (## Risks if Misunderstood, the Step 6a misreading pass) and 3-7 charter commitments into 00-index.md, or declare the explicit escape \`intent-risks: none-declared\` / \`charter: none-declared\` with a one-line reason in the body. Otherwise shape's Step 9a will STOP and backfill the ledger before adjudicating. Opt out: hooks.intakeLedgerLint: false.`
+    );
+  }
+}
 async function enforceNamedMechanismLint(paths, config) {
   if (config.hooks?.namedMechanismLint === false) return;
   const warns = [];
@@ -541,6 +573,7 @@ async function main() {
   }
   if (!failures.length) {
     await enforceVerifyResultGate(paths, config);
+    await enforceIntakeLedgerLint(paths, config);
     await enforceNamedMechanismLint(paths, config);
     await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);

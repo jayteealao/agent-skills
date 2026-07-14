@@ -238,18 +238,27 @@
           }
         },
         "charter": {
-          "type": "array",
-          "description": "Charter — the intake's 3-7 POSITIVE commitments as first-class spec (INTENT-FIDELITY W8.1). Deliberately few; a charter that restates the whole intake is boilerplate. Commitments must be falsifiable by code. RIM adjudications name the charter ids they protect; the intent-fidelity dimension checks question 1 per-id; the charter scenario (shape) exercises the core loop end-to-end. Compressed lifecycles (fix/hotfix/refactor/update-deps/adopt) carry no charter.",
-          "items": {
-            "type": "object",
-            "required": ["id", "commitment", "status"],
-            "properties": {
-              "id": { "type": "string", "description": "Stable id C1..n." },
-              "commitment": { "type": "string", "description": "One falsifiable positive commitment, e.g. 'the model decides whether and what to probe in the interview'." },
-              "source": { "type": "string", "description": "Where in the intake it was committed, e.g. 01-intake.md#restated-request step 2." },
-              "status": { "enum": ["honored", "at-risk", "broken"], "description": "Set by verify runs + the intent-fidelity review + yolo checkpoints. A broken commitment is a yolo stop." }
+          "description": "Charter — the intake's 3-7 POSITIVE commitments as first-class spec (INTENT-FIDELITY W8.1). Deliberately few; a charter that restates the whole intake is boilerplate. Commitments must be falsifiable by code. RIM adjudications name the charter ids they protect; the intent-fidelity dimension checks question 1 per-id; the charter scenario (shape) exercises the core loop end-to-end. Compressed lifecycles (fix/hotfix/refactor/update-deps/adopt) carry no charter. INTAKE-SHAPE-HARDENING W2.1: a default-mode intake with genuinely zero commitments writes the explicit string 'none-declared' (with a one-line reason in the artifact body) — an absent key is the illegal silent form.",
+          "anyOf": [
+            { "const": "none-declared" },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "commitment", "status"],
+                "properties": {
+                  "id": { "type": "string", "description": "Stable id C1..n." },
+                  "commitment": { "type": "string", "description": "One falsifiable positive commitment, e.g. 'the model decides whether and what to probe in the interview'." },
+                  "source": { "type": "string", "description": "Where in the intake it was committed, e.g. 01-intake.md#restated-request step 2." },
+                  "status": { "enum": ["honored", "at-risk", "broken"], "description": "Set by verify runs + the intent-fidelity review + yolo checkpoints. A broken commitment is a yolo stop." },
+                  "po-ratified": {
+                    "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+                    "description": "true once intake Step 6b's charter-confirmation AskUserQuestion lands (INTAKE-SHAPE-HARDENING W2.4); false only with an explicit PO-declined note; null/absent = legacy unratified charter (inferred authority only)."
+                  }
+                }
+              }
             }
-          }
+          ]
         },
         "evidence-quality": {
           "type": "object",
@@ -270,33 +279,46 @@
           }
         },
         "intent-risks": {
-          "type": "array",
-          "description": "Intent-Risk (RIM) ledger (INTENT-FIDELITY W1). Intake distils the 'Risks if Misunderstood' prose into tracked entries; shape MUST adjudicate every open one (set status + decision, PO-ratify when it touches a PO directive) before it can complete; handoff/ship HARD-BLOCK on any status: open, and surface carried ones. Mirrors the runtime-evidence-deferrals machinery.",
-          "items": {
-            "type": "object",
-            "required": ["id", "risk", "severity", "status"],
-            "properties": {
-              "id": { "type": "string", "description": "Stable id RIM-1..n." },
-              "risk": { "type": "string", "description": "One-line statement of the intake risk." },
-              "severity": { "enum": ["high", "medium", "low"] },
-              "status": {
-                "enum": ["open", "adjudicated", "carried"],
-                "description": "open = not yet decided (illegal after shape completes); adjudicated = shape named the choice; carried = genuinely cannot resolve at shape, receiving stage named in Open Questions."
-              },
-              "adjudicated-by": {
-                "type": "string",
-                "description": "Artifact + section that adjudicated it, e.g. 02-shape.md#desired-behavior. Empty until adjudicated."
-              },
-              "decision": {
-                "type": "string",
-                "description": "One line: what was chosen and why (the tradeoff). Restating the risk without a decision is illegal."
-              },
-              "po-ratified": {
-                "anyOf": [{ "type": "boolean" }, { "const": "not-required" }, { "type": "null" }],
-                "description": "true | false | 'not-required' | null (unset). When the risk touches a PO directive, must be true (cite the po-answers.md entry) or an explicit PO-declined false; not-required only when the decision alters no PO directive."
+          "description": "Intent-Risk (RIM) ledger (INTENT-FIDELITY W1). Intake distils the 'Risks if Misunderstood' prose into tracked entries; shape MUST adjudicate every open one (set status + decision, PO-ratify when it touches a PO directive) before it can complete; handoff/ship HARD-BLOCK on any status: open, and surface carried ones. Mirrors the runtime-evidence-deferrals machinery. INTAKE-SHAPE-HARDENING W2.1: a default-mode intake with genuinely zero risks writes the explicit string 'none-declared' (with a one-line reason in the artifact body) — an absent key is the illegal silent form, and shape's Step 9a backfills it.",
+          "anyOf": [
+            { "const": "none-declared" },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "risk", "severity", "status"],
+                "properties": {
+                  "id": { "type": "string", "description": "Stable id RIM-1..n." },
+                  "risk": { "type": "string", "description": "One-line statement of the intake risk." },
+                  "severity": { "enum": ["high", "medium", "low"] },
+                  "status": {
+                    "enum": ["open", "adjudicated", "carried"],
+                    "description": "open = not yet decided (illegal after shape completes); adjudicated = shape named the choice; carried = genuinely cannot resolve at shape, receiving stage named in Open Questions."
+                  },
+                  "adjudicated-by": {
+                    "type": "string",
+                    "description": "Artifact + section that adjudicated it, e.g. 02-shape.md#desired-behavior. Empty until adjudicated."
+                  },
+                  "decision": {
+                    "type": "string",
+                    "description": "One line: what was chosen and why (the tradeoff). Restating the risk without a decision is illegal."
+                  },
+                  "po-ratified": {
+                    "anyOf": [{ "type": "boolean" }, { "const": "not-required" }, { "type": "null" }],
+                    "description": "true | false | 'not-required' | null (unset). When the risk touches a PO directive, must be true (cite the po-answers.md entry) or an explicit PO-declined false; not-required only when the decision alters no PO directive."
+                  }
+                }
               }
             }
-          }
+          ]
+        },
+        "appetite": {
+          "enum": ["small", "medium", "large"],
+          "description": "The PO's Batch A appetite answer, machine-readable (INTAKE-SHAPE-HARDENING W2.3). Consumers: shape scales its pre-mortem horizon by it; slice reads it for slice-count expectations; plan's consult trigger keys off it. Absent on pre-v9.136.0 workflows."
+        },
+        "review-scope-confirmed": {
+          "type": "boolean",
+          "description": "false = review-scope is the provisional intake default (per-slice), not yet PO-confirmed; slice asks once the roster is known (plan asks on the skip-to-plan path) and flips this to true (INTAKE-SHAPE-HARDENING W3.2). Absent on pre-v9.136.0 workflows (treated as confirmed — they were asked at intake)."
         }
       }
     },
@@ -333,6 +355,10 @@
         "type": { "const": "shape" },
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 2 },
+        "charter-scenario": {
+          "type": "string",
+          "description": "REQUIRED on standard-lifecycle shapes from v9.136.0 (INTAKE-SHAPE-HARDENING W2.2): 'authored' when the ## Charter Scenario section exists, or 'none — <reason>' when the work genuinely has no core interaction loop. Skipping is a declaration, never a silence. Compressed intake modes omit the key. Not schema-required (pre-v9.136.0 shapes lack it); shape.md Step 5b is the enforcement."
+        },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "docs-needed": { "type": "boolean" },

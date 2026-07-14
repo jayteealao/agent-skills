@@ -109,6 +109,20 @@ Do this in order:
 5. Put risk-reduction and uncertainty-reduction early.
 6. Identify the best first slice.
 6b. **Charter-scenario coverage (when `02-shape.md` carries a `## Charter Scenario`).** The **visible-milestone slice** (the first slice at which a user can see the core loop working end-to-end) and the **final slice** each carry a standing acceptance criterion: `charter scenario executes through step N` — progressive coverage, where the milestone slice proves the steps built so far and the final slice proves ALL steps. Tag it `observable: true` (verify runs it interactively, same ladder as any user-observable AC) and attach a `verify:` stub like any other. Skip when the shape authored no Charter Scenario (compressed modes / non-loop features).
+6c. **Confirm review scope (the roster is now known — intake deliberately did not ask this).**
+   `00-index.md` carries the provisional default `review-scope: per-slice` with
+   `review-scope-confirmed: false` (v9.136.0 — the PO cannot judge review layout before slicing
+   exists, so intake stopped asking). Now that the slice count is known, ask ONE `AskUserQuestion`
+   with the recommendation informed by the roster:
+   - **Roster has 1 slice** → recommend `Slug-wide`: "One 07-review.md against the cumulative
+     branch diff — the natural fit for a single slice."
+   - **Roster has >1 slice** → recommend `Per slice (Recommended)`: "Each slice gets its own
+     07-review-<slice>.md; handoff aggregates per-slice verdicts."
+   Offer both options either way (per [_question-craft.md](_question-craft.md) — consequence-stating,
+   marked recommendation). Record the answer in `po-answers.md` (`stage: slice`), set
+   `review-scope:` to the choice and `review-scope-confirmed: true` in `00-index.md` (Step 10's
+   index update carries it). Skip ONLY if `review-scope-confirmed` is already `true` (a re-run, or
+   a pre-v9.136.0 workflow that was asked at intake).
 7. **Write one `03-slice-<slice-slug>.md` per slice** (see template below).
 8. **Write the master `03-slice.md`** (see template below) with links to every per-slice file.
 9. **Evaluate adaptive routing** (see below) and write ALL viable options into the master file's `## Recommended Next Stage`.

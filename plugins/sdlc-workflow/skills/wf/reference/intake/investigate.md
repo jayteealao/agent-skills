@@ -25,10 +25,15 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Next | User picks an option, then: `/wf intake fix <option-description>` (small option, ≤3 files / ≤5 steps / no new dependency) or `/wf intake <option-description>` (medium+). |
 | Escalate | If sub-agents agree no viable option exists within the current architecture → surface `architecture-blocking` and recommend a design pass via `/wf intake` with the problem framed as an architecture question. |
 
-> **Optional second opinion.** At the terminus, once the report is written, you may
-> offer `/consult <critique these candidate approaches and name what this analysis
-> missed>` (or `/consult <provider> …`) — a read-only multi-model panel that
-> surfaces options and blind spots a single analysis can anchor past. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** At the terminus, once the option set is
+> synthesized (before Step 4 writes the index), **auto-invoke** `/consult codex <critique these
+> candidate approaches and name what this analysis missed>` (pinning `codex`/`claude` keeps it
+> free) when ANY of: (a) any tripwire fired (`single-viable-option` especially — a second model
+> is the cheapest test of whether the option space is genuinely that narrow); (b) any option is
+> `effort: large` or requires a schema change or an architecture violation; (c) the options span
+> security, auth, data migration, or money/billing. Fold distinct options or refutations into the
+> artifact (an option the panel kills moves to "considered and rejected" with the reason). Skip
+> only when none of the triggers hold; the user may invoke it explicitly with any provider.
 
 > **Ground options in real source.** When a candidate approach hinges on what a
 > library, framework, or SDK *actually* supports — an extension point, a config
