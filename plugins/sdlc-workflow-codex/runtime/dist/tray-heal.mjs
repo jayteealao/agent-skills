@@ -57,6 +57,13 @@ function sameBundle(a, b, platform = process.platform) {
   const na = normalizeBundlePath(a, platform);
   return Boolean(na) && na === normalizeBundlePath(b, platform);
 }
+function selectSurplusTrays(liveCurrent, heartbeat) {
+  if (!Array.isArray(liveCurrent) || liveCurrent.length < 2) return [];
+  const hbPid = Number(heartbeat?.pid);
+  const keepHb = Number.isInteger(hbPid) && liveCurrent.some((t) => t.pid === hbPid);
+  const keeperPid = keepHb ? hbPid : liveCurrent.reduce((min, t) => t.pid < min ? t.pid : min, liveCurrent[0].pid);
+  return liveCurrent.filter((t) => t.pid !== keeperPid);
+}
 function parseTrayProcessList(raw) {
   if (!raw || !String(raw).trim()) return [];
   let parsed;
@@ -160,7 +167,12 @@ async function reconcileRunningTray({
   }
   const isDisplayWedged = (t) => showsDown(t) && hubHealthyEnough;
   const wedgeReason = (t) => !isCurrent(t) ? "stale" : isColdWedged(t) ? "cold" : isDisplayWedged(t) ? "display" : null;
-  const isReapable = (t) => wedgeReason(t) !== null;
+  const isWedged = (t) => wedgeReason(t) !== null;
+  const liveCurrent = trays.filter((t) => isCurrent(t) && !isWedged(t));
+  const surplus = selectSurplusTrays(liveCurrent, heartbeat);
+  const surplusPids = new Set(surplus.map((t) => t.pid));
+  const isReapable = (t) => isWedged(t) || surplusPids.has(t.pid);
+  const reapReason = (t) => wedgeReason(t) ?? (surplusPids.has(t.pid) ? "surplus" : null);
   const stale = trays.filter(isReapable);
   if (!stale.length) return { action: "unchanged", killed: [], running: trays.length };
   const killed = [];
@@ -169,13 +181,14 @@ async function reconcileRunningTray({
       kill(t.pid);
       killed.push(t.pid);
     } catch (err) {
-      log(`[tray] could not stop ${wedgeReason(t)} pid ${t.pid}: ${err?.message ?? err}`);
+      log(`[tray] could not stop ${reapReason(t)} pid ${t.pid}: ${err?.message ?? err}`);
     }
   }
-  const liveCurrentUp = trays.some((t) => isCurrent(t) && !isReapable(t));
-  if (liveCurrentUp) {
-    log(`[tray] reaped ${killed.length} stale/wedged tray(s); a live current tray is already running`);
-    return { action: "killed-stale", killed, running: trays.length };
+  const keeperUp = liveCurrent.some((t) => !surplusPids.has(t.pid));
+  if (keeperUp) {
+    const action = surplus.length && surplus.length === stale.length ? "deduped" : "killed-stale";
+    log(`[tray] reaped ${killed.length} tray(s) (stale/wedged/surplus); a live current tray remains`);
+    return { action, killed, running: trays.length };
   }
   respawn({ platform, nodePath, trayBundle: currentBundle, env });
   log(`[tray] reaped ${killed.length} stale/wedged tray(s); respawned the current bundle`);

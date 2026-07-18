@@ -26,6 +26,16 @@
 // reaps a current-bundle tray whose liveness heartbeat (lib/tray-heartbeat.mjs)
 // has gone cold; a current tray with a fresh stamp is left alone.
 //
+// A third failure is MULTIPLICITY: the spawn path is not atomic (a session-start
+// heal respawn racing the autostart launcher, or two near-simultaneous session
+// heals) can leave more than one healthy, current-bundle tray alive — each paints
+// its own systray icon. None of the wedge modes above match them (they are all
+// current + fresh), and the heartbeat's pid-match guard means only ONE owns the
+// stamp, so the others are never provably wedged. Absent a dedicated rule reconcile
+// reads N healthy duplicates as "unchanged" and they persist forever. So reconcile
+// ALSO collapses a live current-bundle duplicate set down to one (keeping the
+// heartbeat owner), reaping the surplus without a respawn.
+//
 // Windows-first: the tray is in practice Windows-only and process discovery is
 // implemented via WMI/CIM. On other platforms listRunningTrays returns [] and
 // reconcileRunningTray is a clean no-op. Every OS/exec/spawn seam is injectable
@@ -85,6 +95,25 @@ export function normalizeBundlePath(p, platform = process.platform) {
 export function sameBundle(a, b, platform = process.platform) {
   const na = normalizeBundlePath(a, platform);
   return Boolean(na) && na === normalizeBundlePath(b, platform);
+}
+
+/**
+ * PURE: given several LIVE current-bundle trays — a duplicate set that no wedge
+ * mode covers because each is healthy and on the current bundle — choose which to
+ * REAP so exactly one survives. The keeper is the heartbeat's stamped pid when it
+ * is among them (that instance owns the shared liveness file, so keeping it avoids
+ * orphaning the stamp); otherwise the lowest pid, a stable, order-independent
+ * choice. Returns the trays to reap (keeper excluded). Fewer than two in → nothing
+ * to reap (`[]`), so the common single-tray case costs nothing.
+ */
+export function selectSurplusTrays(liveCurrent, heartbeat) {
+  if (!Array.isArray(liveCurrent) || liveCurrent.length < 2) return [];
+  const hbPid = Number(heartbeat?.pid);
+  const keepHb = Number.isInteger(hbPid) && liveCurrent.some((t) => t.pid === hbPid);
+  const keeperPid = keepHb
+    ? hbPid
+    : liveCurrent.reduce((min, t) => (t.pid < min ? t.pid : min), liveCurrent[0].pid);
+  return liveCurrent.filter((t) => t.pid !== keeperPid);
 }
 
 /**
@@ -202,7 +231,8 @@ async function defaultProbeHub() {
  *   no tray + no heartbeat                   → { action: 'none' }         (nothing ever ran, or a clean Quit)
  *   no tray + heartbeat, stamped pid dead    → { action: 'revived' }      (crash — relaunch current once)
  *   no tray + heartbeat, stamped pid alive   → { action: 'none' }         (pid reused — cannot prove a crash)
- *   only live current-bundle trays running   → { action: 'unchanged' }    (left alone — no thrash)
+ *   one live current-bundle tray running     → { action: 'unchanged' }    (left alone — no thrash)
+ *   >1 live current-bundle tray, none wedged → { action: 'deduped' }      (reap all but one, keep heartbeat owner)
  *   reapable tray(s) + a live current also up→ { action: 'killed-stale' } (reap them, keep live, NO dup spawn)
  *   reapable tray(s), no live current         → { action: 'respawned' }   (reap + launch current once)
  *
@@ -267,24 +297,37 @@ export async function reconcileRunningTray({
   const isDisplayWedged = (t) => showsDown(t) && hubHealthyEnough;
 
   const wedgeReason = (t) => (!isCurrent(t) ? 'stale' : isColdWedged(t) ? 'cold' : isDisplayWedged(t) ? 'display' : null);
-  const isReapable = (t) => wedgeReason(t) !== null;
+  const isWedged = (t) => wedgeReason(t) !== null;
 
+  // Live current-bundle trays: current AND clear of every wedge mode. More than one
+  // means the spawn path leaked a duplicate — keep exactly one (the heartbeat owner)
+  // and reap the rest as surplus. This is the ONLY branch that reaps a healthy tray.
+  const liveCurrent = trays.filter((t) => isCurrent(t) && !isWedged(t));
+  const surplus = selectSurplusTrays(liveCurrent, heartbeat);
+  const surplusPids = new Set(surplus.map((t) => t.pid));
+
+  const isReapable = (t) => isWedged(t) || surplusPids.has(t.pid);
+  const reapReason = (t) => wedgeReason(t) ?? (surplusPids.has(t.pid) ? 'surplus' : null);
   const stale = trays.filter(isReapable);
   if (!stale.length) return { action: 'unchanged', killed: [], running: trays.length };
 
   const killed = [];
   for (const t of stale) {
     try { kill(t.pid); killed.push(t.pid); }
-    catch (err) { log(`[tray] could not stop ${wedgeReason(t)} pid ${t.pid}: ${err?.message ?? err}`); }
+    catch (err) { log(`[tray] could not stop ${reapReason(t)} pid ${t.pid}: ${err?.message ?? err}`); }
   }
 
-  // A LIVE current-bundle tray is still running (current + no wedge mode, not
-  // reaped) — reaping the stale/wedged peers is enough; spawning another would
-  // leave two icons. Thrash guard.
-  const liveCurrentUp = trays.some((t) => isCurrent(t) && !isReapable(t));
-  if (liveCurrentUp) {
-    log(`[tray] reaped ${killed.length} stale/wedged tray(s); a live current tray is already running`);
-    return { action: 'killed-stale', killed, running: trays.length };
+  // A LIVE current-bundle tray survives whenever liveCurrent was non-empty — the
+  // surplus reap keeps exactly one of them, and a wedge-only reap never touches a
+  // live current peer. Only respawn when the reap left NO live current tray behind.
+  // Spawning while a keeper is up would just re-create the duplicate we removed.
+  const keeperUp = liveCurrent.some((t) => !surplusPids.has(t.pid));
+  if (keeperUp) {
+    // Pure-dedup (every reaped tray was surplus, no wedge) is reported distinctly so
+    // the heal's telemetry separates "collapsed duplicates" from "reaped a wedge".
+    const action = surplus.length && surplus.length === stale.length ? 'deduped' : 'killed-stale';
+    log(`[tray] reaped ${killed.length} tray(s) (stale/wedged/surplus); a live current tray remains`);
+    return { action, killed, running: trays.length };
   }
 
   respawn({ platform, nodePath, trayBundle: currentBundle, env });

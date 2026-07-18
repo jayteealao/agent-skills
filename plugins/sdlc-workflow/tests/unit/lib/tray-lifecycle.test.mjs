@@ -11,7 +11,7 @@ import { equal, deepEqual, ok } from 'node:assert/strict';
 import {
   bundlePathFromCommandLine, normalizeBundlePath, sameBundle,
   parseTrayProcessList, listRunningTrays, reconcileRunningTray,
-  isHubHealthyEnough, MIN_HUB_UPTIME_MS,
+  selectSurplusTrays, isHubHealthyEnough, MIN_HUB_UPTIME_MS,
 } from '../../../lib/tray-lifecycle.mjs';
 
 const CUR = 'C:\\Users\\me\\.claude\\plugins\\cache\\m\\sdlc-workflow\\9.81.0\\dist\\tray.mjs';
@@ -246,6 +246,70 @@ test('reconcile: stale + current both up → kill stale, keep current, NO duplic
   const r = await reconcileRunningTray(h.opts);
   equal(r.action, 'killed-stale');
   deepEqual(h.calls.killed, [1]);
+  equal(h.calls.respawned.length, 0);
+});
+
+test('selectSurplusTrays: keeps the heartbeat owner, reaps the rest', () => {
+  const trays = [{ pid: 10 }, { pid: 22 }, { pid: 31 }];
+  const surplus = selectSurplusTrays(trays, { pid: 22 });
+  deepEqual(surplus.map((t) => t.pid).sort((a, b) => a - b), [10, 31]);
+});
+
+test('selectSurplusTrays: heartbeat pid absent → keeps the lowest pid (deterministic, order-independent)', () => {
+  const surplus = selectSurplusTrays([{ pid: 31 }, { pid: 10 }, { pid: 22 }], { pid: 999 });
+  deepEqual(surplus.map((t) => t.pid).sort((a, b) => a - b), [22, 31]);   // 10 kept
+});
+
+test('selectSurplusTrays: fewer than two trays → nothing to reap', () => {
+  deepEqual(selectSurplusTrays([{ pid: 1 }], { pid: 1 }), []);
+  deepEqual(selectSurplusTrays([], null), []);
+});
+
+test('reconcile: three healthy current trays collapse to one — reap the two non-heartbeat peers, keep the owner, NO respawn', async () => {
+  // The real bug: a non-atomic spawn path (concurrent session-start heals racing
+  // the autostart launcher) left three healthy, current-bundle trays alive. None
+  // is wedged, and only pid 22944 owns the heartbeat, so the pid-match guard means
+  // the other two are never provably stale — pre-fix this read as 'unchanged'.
+  const h = harness(
+    [
+      { pid: 27048, bundlePath: CUR, commandLine: 'x' },
+      { pid: 27372, bundlePath: CUR, commandLine: 'x' },
+      { pid: 22944, bundlePath: CUR, commandLine: 'x' },
+    ],
+    { heartbeat: { pid: 22944, lastPollAt: NOW - 3000 } },
+  );
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'deduped');
+  deepEqual(h.calls.killed.sort((a, b) => a - b), [27048, 27372]);   // owner 22944 survives
+  equal(h.calls.respawned.length, 0);                               // keeper up → never respawn
+});
+
+test('reconcile: duplicate current trays with NO heartbeat → keep the lowest pid, reap the rest', async () => {
+  const h = harness([
+    { pid: 800, bundlePath: CUR, commandLine: 'x' },
+    { pid: 400, bundlePath: CUR, commandLine: 'x' },
+  ]);
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'deduped');
+  deepEqual(h.calls.killed, [800]);          // 400 (lowest) kept
+  equal(h.calls.respawned.length, 0);
+});
+
+test('reconcile: surplus duplicate AND a stale-bundle tray together → reap both, keep the live keeper, report killed-stale', async () => {
+  // A mixed pass: an OLD-bundle wedge plus a duplicate current tray. Both are
+  // reaped; because a wedge was among them the pass reports killed-stale (not the
+  // pure-dedup 'deduped'), and the surviving current keeper suppresses respawn.
+  const h = harness(
+    [
+      { pid: 1, bundlePath: OLD, commandLine: 'x' },
+      { pid: 50, bundlePath: CUR, commandLine: 'x' },
+      { pid: 60, bundlePath: CUR, commandLine: 'x' },
+    ],
+    { heartbeat: { pid: 50, lastPollAt: NOW - 3000 } },
+  );
+  const r = await reconcileRunningTray(h.opts);
+  equal(r.action, 'killed-stale');
+  deepEqual(h.calls.killed.sort((a, b) => a - b), [1, 60]);   // old wedge + surplus 60; owner 50 kept
   equal(h.calls.respawned.length, 0);
 });
 

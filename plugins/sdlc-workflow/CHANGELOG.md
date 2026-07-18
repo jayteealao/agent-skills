@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.137.0] - 2026-07-18
+
+### Fixed — the live-tray heal now collapses duplicate healthy trays, not just stale/wedged ones
+
+A user found **three** sdlc-workflow tray icons in their systray — three healthy `dist/tray.mjs` drivers on the *current* bundle, each having spawned its own native helper, so three icons. The cause is two individually-correct conservative guards intersecting: the tray spawn path is not atomic (a session-start heal respawn racing the autostart launcher, or two near-simultaneous session heals, can each pass the "no tray yet" check and launch), and `lib/tray-heartbeat`'s staleness/`down` predicates deliberately refuse to judge a tray whose pid doesn't own the heartbeat stamp. Together they meant duplicates could be *born* but never *reasoned about*: `reconcileRunningTray` only ever reaped **stale-bundle**, **cold-poll**, or **display-wedged** trays, so N healthy current-bundle copies matched no wedge mode and were read as steady-state `unchanged` — persisting indefinitely.
+
+- **New reap mode: multiplicity.** `reconcileRunningTray` now identifies the set of *live current-bundle* trays (current AND clear of every wedge mode) and, when more than one exists, keeps exactly one — the heartbeat owner when it's among them (so the shared liveness stamp is never orphaned), else the lowest pid for a deterministic, order-independent choice — and reaps the rest as surplus. This is the only branch that reaps a *healthy* tray, and it never respawns (a keeper is always up), so it cannot thrash. A pure-dedup pass is reported as the new `deduped` action; a mixed pass (surplus alongside a genuine wedge) still reports `killed-stale`. The existing wedge classification is untouched, so every prior decision-table row is unchanged.
+- New pure helper `selectSurplusTrays(liveCurrent, heartbeat)`. Drift-guard coverage added to `tests/unit/lib/tray-lifecycle.test.mjs` (three healthy trays → `deduped` keeping the heartbeat owner; no-heartbeat → keep lowest pid; surplus + stale-bundle → `killed-stale`; plus keeper-selection unit cases). `lib/` change → `dist/` rebuilt, doc-site re-rendered, and codex runtime re-synced in the same release. Gates: `npm test` 642/0/2; `npm run verify` 51 pages stamped v9.137.0; `npm run verify:codex` parity OK (191 files, shared buildId `e14e244b8874`); `build` + `render:clean` + `sync:codex` run.
+
 ## [9.136.0] - 2026-07-14
 
 ### Changed — intake/shape hardening: every gate gets an unconditional input, the interview gets a coverage instrument, and the pre-mortem gets an independent generator
