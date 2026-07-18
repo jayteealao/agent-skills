@@ -9,6 +9,10 @@
     "$schema": {
       "type": "string"
     },
+    "artifactTracking": {
+      "enum": ["tracked", "ignored"],
+      "description": "Whether the .ai/ workflow artifact tree is committed to git ('tracked') or gitignored except ship-plan.md + sdlc-config.json ('ignored'). Recorded once by /wf ship-plan init Step 3.5 so handoff/ship's clean-tree handling reads a policy instead of deciding ad hoc mid-release. Absent = policy unset (status surfaces a one-time advisory; ship asks per-run)."
+    },
     "view": {
       "type": "object",
       "additionalProperties": false,

@@ -26,6 +26,7 @@ import {
   hasFrontmatterFence,
   isManagedArtifactMarkdownPath,
   isProjectContextMarkdownPath,
+  isProbeEvidencePath,
   isProseLogPath,
   outputSystemMessage,
   projectRootFromInput,
@@ -474,6 +475,9 @@ async function main() {
   const schemaPath = join(PLUGIN_ROOT, 'tests', 'frontmatter.schema.json');
   const paths = collectToolInputPaths(input)
     .filter((path) => isManagedArtifactMarkdownPath(path))
+    // probe-evidence/ is free-form runtime evidence — never schema-gated
+    // (mirrors the pre-write-validate carve-out; see isProbeEvidencePath).
+    .filter((path) => !isProbeEvidencePath(path))
     .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
     .filter(({ absolute }) => absolute && existsSync(absolute));
 

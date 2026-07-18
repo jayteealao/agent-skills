@@ -37,6 +37,8 @@ positional slug detection (compressed-slice attach via `$wf intake`/`$wf probe`/
 fresh registry to consult. The repair is **idempotent and low-risk** — running it twice produces an
 identical file — so `status` self-heals the registry rather than merely warning about drift.
 
+**One-time advisory — artifact-tracking policy unset.** While reconciling, if `.ai/sdlc-config.json` has no `artifactTracking` key AND at least one workflow exists, append one advisory line to the status report (never a gate, never a prompt): "artifact-tracking policy unset — `.ai/` tracked-vs-ignored is currently decided ad hoc at ship time; record it via `$wf ship-plan edit` (or init Step 3.5) to give ship's clean-tree gate a policy to read." Print it at most once per invocation; a repo that has recorded the key never sees it again.
+
 **File: `.ai/workflows/INDEX.md`** — one header line (a `#` comment), then one tab-separated row per
 workflow, sorted alphabetically by slug. Closed workflows are retained (positional slug detection
 skips closed rows, but a slug match still triggers the "append a slice to a closed workflow?"

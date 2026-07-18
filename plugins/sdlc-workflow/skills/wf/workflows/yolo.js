@@ -114,7 +114,16 @@ const POLICY = {
     `to another rung, or defer with a probe receipt, or write result: blocked-runtime-evidence-missing naming the ` +
     `unmet precondition. An all-skipped sweep (0 specs executed) is blocked-runtime-evidence-missing, NEVER a ` +
     `deferral.\n` +
-    `When a deferral is lawful under 1–4, apply verify.md's escape hatch for that AC: set ` +
+    `  5. ENVIRONMENT CLAIMS ARE PROBE RESULTS, AND PROVISIONING MUST PERSIST. "No device attached", "port ` +
+    `already held", "no emulator on this host" are claims exactly like a missing credential — writable only with ` +
+    `the literal probe command + output tail (\`adb devices\`, the port query, the emulator list), and re-executed ` +
+    `FRESH by the next verify rather than inherited (rule 3 applies to environment facts too). Before declaring ` +
+    `an environment wall, check whether the repo already ships provisioning for it (scripts/, plan-named setup) ` +
+    `and RUN it. Capability you create inside this run (an emulator/AVD, seeded data, an env file) counts ONLY if ` +
+    `it persists beyond your subagent context — provision via the repo's own script (or write one and record its ` +
+    `path); a capability provisioned only ephemerally does not exist for later stages and its wall will falsely ` +
+    `re-stand.\n` +
+    `When a deferral is lawful under 1–5, apply verify.md's escape hatch for that AC: set ` +
     `'interactive-verification: deferred' + 'interactive-verification-defer-reason: "<rungs tried + probe receipt ` +
     `+ the residual that survives them>"' in the per-slice verify frontmatter, register the deferral in ` +
     `00-index.md runtime-evidence-deferrals (slice, reason, deferred-at, cleared-by: null), and record it under ` +
@@ -206,6 +215,11 @@ const ORIENT_RESULT = {
           deferredAt: { type: 'string' },   // iso-8601 from the index
           clearedBy: { type: 'string' },     // null/absent = still open
           repeatOf: { type: 'string' },      // earlier slice with the same wall
+          // true iff the index entry carries ship-override-authorization — the PO's
+          // explicit risk-acceptance (recorded via ship step 6.5 route c, never by
+          // yolo). An authorized deferral is settled: no re-challenge, no probe-
+          // receipt escalation, and a partial verify walled only by it counts done.
+          authorized: { type: 'boolean' },
         },
       },
     },
@@ -250,6 +264,11 @@ const ORIENT_RESULT = {
         required: ['slice', 'stages'],
         properties: {
           slice: { type: 'string' },
+          // roster status from 00-index.md slices[] (defined | in-progress |
+          // complete | skipped). Slug-mode skips 'skipped' entries instead of
+          // driving them into a HARD-STOP (Waypoint 2026-07-14: a 6.7-h run
+          // died on an already-skipped slice with a conforming skip record).
+          status: { type: 'string' },
           stages: {
             type: 'object',
             // each ∈ 'done' (present + terminal-clean on disk) | 'todo' | 'n-a'
@@ -358,11 +377,15 @@ async function orient() {
     `branch, base-branch. ALSO parse the \`runtime-evidence-deferrals\` list (if present): capture every entry ` +
     `whose \`cleared-by\` is null/absent (STILL OPEN) into priorDeferrals as ` +
     `{ slice, reason (verbatim), deferredAt (= deferred-at), clearedBy (= cleared-by, null if open), repeatOf ` +
-    `(= repeat-of, omit if absent) }. Omit already-cleared entries. Empty/absent list → priorDeferrals: [].\n` +
+    `(= repeat-of, omit if absent), authorized (true iff the entry carries ship-override-authorization — the PO ` +
+    `risk-acceptance stamp; omit otherwise) }. Omit already-cleared entries. Empty/absent list → priorDeferrals: [].\n` +
     `   ALSO parse the \`charter\` list (if present) into charter as { id, commitment (verbatim), status }. ` +
     `Empty/absent (e.g. a compressed lifecycle) → charter: [].\n` +
     `2. Read ${projectRoot}/.ai/workflows/${slug}/03-slice.md (the roster). Capture EVERY slice slug in roster ` +
-    `order. If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE (selected-slice is set on 00-index.md — true ` +
+    `order, and record each entry's roster status from 00-index.md slices[] (defined | in-progress | complete | ` +
+    `skipped) as slices[].status — capture 'skipped' entries too (the driver skips them itself; dropping them here ` +
+    `would break slice-mode routing to the NEXT slice). If 03-slice.md is ABSENT and the workflow is SINGLE-SCOPE ` +
+    `(selected-slice is set on 00-index.md — true ` +
     `for a forwarded rca and for any one-slice standard workflow), synthesize a one-entry roster [selected-slice] ` +
     `(fall back to the slug if selected-slice is empty), set singleScope=true, and set reviewScope='slug-wide' (one ` +
     `un-suffixed 07-review.md — never a per-slice split for a single scope). Do NOT route to '/wf slice' for a ` +
@@ -429,7 +452,10 @@ async function orient() {
     `AND are terminal-clean, marking each 'done' | 'todo':\n` +
     `   - plan: artifact present AND frontmatter status: complete\n` +
     `   - implement: artifact present AND status: complete\n` +
-    `   - verify: artifact present AND convergence ∈ {not-needed, converged} AND result: pass\n` +
+    `   - verify: artifact present AND convergence ∈ {not-needed, converged} AND (result: pass, OR result: partial ` +
+    `where EVERY open runtime-evidence-deferral for this slice in priorDeferrals has authorized=true — a ` +
+    `PO-authorized deferral is settled and needs no re-verify; a partial with any open UN-authorized deferral stays ` +
+    `'todo' so the next verify re-challenges the wall)\n` +
     `   - review: artifact present AND verdict ∈ {ship, ship-with-caveats} AND metric-findings-blocker == 0\n` +
     `   In slug-wide review scope, mark every per-slice 'review' as 'n-a' (review runs once at slug level, not per slice).\n` +
     `7. Branch posture (READ-ONLY — report, never switch or create): run ` +
@@ -505,6 +531,12 @@ async function ensureBranch(idx) {
 // mocked 0-issues verify) is exactly what this stops. Empty list → '' (no clause).
 function reChallengeClause(priorDeferrals) {
   if (!Array.isArray(priorDeferrals) || !priorDeferrals.length) return ''
+  // A PO-authorized deferral (ship-override-authorization on the index entry) is a
+  // settled human decision — re-challenging it re-litigates what the PO already
+  // accepted and re-walls a run the PO explicitly unblocked (bot-backend 2026-07-12:
+  // accepted deferrals forced hand-crafted slice-mode workarounds). Exclude them.
+  priorDeferrals = priorDeferrals.filter(d => !(d && d.authorized === true))
+  if (!priorDeferrals.length) return ''
   const lines = priorDeferrals.map(d => {
     const parts = [`slice '${(d && d.slice) || '?'}'`, `reason: ${(d && d.reason) || '(none recorded)'}`]
     if (d && d.deferredAt) parts.push(`deferred-at: ${d.deferredAt}`)
@@ -627,6 +659,22 @@ function verifyClean(t, residual) {
   return t.result === 'partial' && (hasAc(t.deferrals) || hasAc(residual))
 }
 
+// acKey() — canonical AC identity for deferral dedupe/matching. Verify subagents
+// routinely emit the SAME deferral in two shapes: fully-labeled in
+// terminal.deferrals[] ("AC2 — three consecutive turns …", with a probe receipt)
+// and bare in the sibling residual[] ("AC2", no receipt). Exact-string keying
+// treats those as two different ACs — the bare copy then looks un-probed and
+// probeGaps false-HARD-STOPs a compliant slice (Playster 2026-07-15: one 79-min
+// resume plus a second run lost to exactly this). Extract the leading AC token
+// when one exists (AC2, AC-7a, AC 3.1 …) and normalize case/separators; fall
+// back to the trimmed string for free-form labels so unrelated labels never
+// collide into one key.
+function acKey(ac) {
+  const s = String(ac ?? '').trim()
+  const m = s.match(/^AC[-\s]?[\w.]+/i)
+  return (m ? m[0] : s).replace(/[-\s]/g, '').toUpperCase()
+}
+
 // probeGaps() — the deferral-LAW compliance check that verifyClean deliberately does
 // NOT enforce. verifyClean's accept condition is untouched (the v9.114 lesson: never
 // hard-gate a converged, defect-free slice on a formatting technicality — that cost
@@ -638,14 +686,14 @@ function verifyClean(t, residual) {
 // compliant. driveVerify turns a non-empty result into ONE corrective re-run (soft),
 // then a hard-stop (the law is not optional) — never a first-round hard gate.
 function probeGaps(t, residual) {
-  const probed = new Set()       // ac → some copy carries a non-empty probe
-  const gapEntry = new Map()     // ac → first probe-less entry seen (dedupe by ac)
+  const probed = new Set()       // acKey → some copy carries a non-empty probe
+  const gapEntry = new Map()     // acKey → first probe-less entry seen (dedupe by acKey)
   const scan = (arr) => {
     if (!Array.isArray(arr)) return
     for (const d of arr) {
       if (!d || !d.ac) continue   // ac-less notes are not deferrals — ignored (matches collectDeferrals)
-      if (typeof d.probe === 'string' && d.probe.trim() !== '') probed.add(d.ac)
-      else if (!gapEntry.has(d.ac)) gapEntry.set(d.ac, d)
+      if (typeof d.probe === 'string' && d.probe.trim() !== '') probed.add(acKey(d.ac))
+      else if (!gapEntry.has(acKey(d.ac))) gapEntry.set(acKey(d.ac), d)
     }
   }
   scan(t && t.deferrals)
@@ -676,7 +724,15 @@ async function driveVerify(sliceArg, idx) {
       // left → ONE corrective re-run that demands the receipt (or the evidence, if the wall
       // fell). Still probe-less after that → hard-stop: the law is not optional, and re-running
       // is cheap because resume skips completed stages.
-      const gaps = probeGaps(t, last.residual)
+      // A slice whose open deferrals the PO already authorized (ship-override-
+      // authorization on the 00-index entry) is settled — demanding fresh probe
+      // receipts there re-walls a run the PO explicitly unblocked. Authorization
+      // granularity is the index entry (slice-level), so the whole slice's
+      // receipt-escalation is waived; NEW deferrals still register in the index
+      // and still block /wf ship until cleared or authorized themselves.
+      const sliceAuthorized = Array.isArray(idx.priorDeferrals) &&
+        idx.priorDeferrals.some(p => p && p.slice === sliceArg && p.authorized === true)
+      const gaps = sliceAuthorized ? [] : probeGaps(t, last.residual)
       if (gaps.length) {
         if (round < 2 && !probeCorrection) {
           probeCorrection = gaps.map(g => g.ac)
@@ -885,7 +941,9 @@ function collectDeferrals(o) {
   const seen = new Set()
   const push = (slice, ac, reason, probe) => {
     if (!ac) return
-    const key = `${slice || ''}::${ac}`
+    // acKey-normalized so a labeled terminal copy and a bare residual copy of the
+    // same AC count once (same normalization probeGaps uses).
+    const key = `${slice || ''}::${acKey(ac)}`
     if (seen.has(key)) return
     seen.add(key)
     // `probe` (the capability-probe receipt) rides through to the ship-block hand-back so
@@ -932,7 +990,7 @@ function deferralPressure(priorDeferrals, runDeferrals) {
     if (deferredAt && (!oldestDeferredAt || String(deferredAt) < String(oldestDeferredAt))) oldestDeferredAt = deferredAt
   }
   for (const d of prior) consider(d && d.slice, d && d.reason, d && d.deferredAt, d && d.repeatOf)
-  for (const d of run) consider(d && d.slice, (d && d.ac) || (d && d.reason), null, null)
+  for (const d of run) consider(d && d.slice, (d && d.ac) ? acKey(d.ac) : (d && d.reason), null, null)
   return { open, oldestDeferredAt, repeatWalls }
 }
 
@@ -1078,6 +1136,14 @@ if (idx.workflowType === 'update-deps') {
   let brokenCharter = null
   for (let si = 0; si < idx.slices.length; si++) {
     const s = idx.slices[si]
+    // An already-skipped roster entry (00-index slices[].status: skipped, with its
+    // skip record) has nothing to drive — walking it into verify HARD-STOPs the
+    // whole run at a slice a human already retired. Skip it, keep it countable.
+    if (s.status === 'skipped') {
+      log(`slice '${s.slice}' is status: skipped in the roster — skipping (a skip record retires it; nothing to drive)`)
+      results.push({ slice: s.slice, skipped: true, ran: [], stopped: false })
+      continue
+    }
     const chain = await driveChain(perSliceStages, s.slice, idx)
     results.push(chain)
     if (chain.stopped) {

@@ -144,13 +144,21 @@ Each step is independently re-runnable; detect the already-done state before per
 
 Mark the corresponding task `in_progress`.
 
-1.1 **Branch + tree state.** Confirm you are on `<branch>`. `git status --porcelain` must be empty. If dirty, STOP — ask the user to commit/stash. Record `branch`, `head-sha-at-start: <git rev-parse HEAD>`.
+1.1 **Branch + tree state.** Confirm you are on `<branch>`. `git status --porcelain` must be empty. If dirty, do NOT blanket-STOP — **classify every dirty path first** and only STOP on what actually needs a human (one release run once stopped on 404 paths, 396 of them this plugin's own bookkeeping, and resolved it with mid-ship repo surgery):
+
+   1. **Plugin-seeded files** — `CLAUDE.md` whose diff is entirely inside the `<!-- sdlc:wf-rules-import -->` fence, an untracked `AGENTS.md` containing only the `<!-- sdlc:wf-rules -->` fence, `.ai/.wf-rules-seeded`. These are the memory-seed kernel's own writes (verify mechanically: the diff/file must contain nothing outside the fences). Offer one-keystroke resolution (ask in chat with a short numbered list and wait for the answer): commit as `chore(sdlc): seed wf rules` (recommended) or gitignore the marker file — never a bare "go commit/stash it yourself".
+   2. **`.ai/` workflow bookkeeping** — resolve per the repo's recorded `artifact-tracking` policy (`.ai/sdlc-config.json`; see `$wf ship-plan init`). `tracked` → offer "commit bookkeeping now" (`chore(sdlc): workflow artifacts`); `ignored` → these paths should not be dirty at all — surface the policy violation (likely a missing `.gitignore` block) instead of committing. Policy unset → ask once (this ship run only; recommend recording it via `ship-plan edit`).
+   3. **`ship-plan build` output** — files whose diff carries the `# Added by wf ship-plan build` provenance comment. **Never silently commit-and-include**: this is unreviewed release-critical code entering the release at the last gate (exactly how three Major-defect workflow steps once reached a production release with an external bot as their only reviewer). Offer: route to a review slice first (recommended; STOP with the `$wf intake <slug> fix …` seed), or explicitly accept as-is (recorded in `## Pre-flight` as `unreviewed-build-output-accepted` with the file list).
+   4. **Everything else** — STOP and ask the user to commit/stash, as before. Unknown always fails closed.
+
+   When the tree is clean (or has been resolved), record `branch`, `head-sha-at-start: <git rev-parse HEAD>`.
 
 1.2 **Determine version.** Per `plan.version-bump-rule`:
    - `git-cliff` → run `plan.version-bump-cmd` (default: `git cliff --bumped-version`).
    - `conventional-commits` → use the project's bump tooling (`npx changeset version`, `npm version`, etc. — captured in `plan.version-bump-cmd`).
    - `manual` → ask the user directly in chat with three suggested bumps based on commit log: patch, minor, major (presented as a short numbered list).
    - `fixed` → use the literal version from the plan.
+   **Tag-collision check (before confirming):** verify the computed target version has no existing release identity — `git tag -l "v<version>" "<version>"` must return nothing, and `gh release view` for the matching tag form must 404. A hit means the branch's release identity is stale (one handoff certified a versionName "frozen" four days after that version had already shipped) — STOP with the collision named and route to the bump decision (the next version) rather than proceeding to re-release an existing identity.
    Confirm with the user before applying. Record `version` and `prior-version: <git describe --tags --abbrev=0 || echo "none">`.
 
 1.3 **Apply version to every `version-source-of-truth` file.** Read each file first; if already at `version`, skip. After writing, if any diff exists, commit: `git commit -am "build: bump version to <version>"`.
@@ -160,7 +168,7 @@ Mark the corresponding task `in_progress`.
    - Get last-updated: `gh secret list --json name,updatedAt | jq -r '.[] | select(.name=="<NAME>") | .updatedAt'`
    - If `(now - updatedAt).days > plan.secrets-staleness-threshold-days`, WARN (user may proceed; warning recorded in run).
 
-1.5 **Regenerate changelog** per `plan.version-bump-rule`. For `git-cliff`: `git cliff --output CHANGELOG.md`. If the changelog already includes `<version>`, skip. Otherwise commit: `git commit -am "docs: update changelog for <version>"`.
+1.5 **Regenerate changelog** per `plan.version-bump-rule`. If the changelog already includes `<version>`, skip. For `git-cliff`: **check for a `cliff.toml` first** — with no repo config, `git cliff --output CHANGELOG.md` replaces the whole file with default-format commit dump, clobbering a hand-curated changelog (it once rewrote 199 curated lines; the run had to revert and hand-write the entry). No `cliff.toml` + an existing curated CHANGELOG → do NOT regenerate the full file; prepend a hand-written entry in the file's own style (`git cliff --unreleased --strip header` is safe input for drafting it). Then commit: `git commit -am "docs: update changelog for <version>"`.
 
 Record `pre-flight-status: pass` (or `pre-flight-status: warn` with reasons if any secret was stale).
 
@@ -220,7 +228,9 @@ If `no-go`: set `status: complete`, `go-nogo: no-go`; skip steps 6–10; write t
 
 Skip this step entirely when `branch-strategy ≠ dedicated`.
 
-Idempotency check: `gh pr view <pr-number> --json state,mergeCommit,merged` — if `merged: true`, set `merge-sha: <mergeCommit.oid>` and skip to step 7.
+Idempotency check: `gh pr view <pr-number> --json state,mergeCommit,mergedAt` — if `state` is `MERGED`, set `merge-sha: <mergeCommit.oid>` and skip to step 7. (There is no `merged` boolean field on this endpoint — requesting it errors.)
+
+6.0 **Re-verify GitHub's own merge gate before attempting.** `gh pr view <pr-number> --json mergeable,mergeStateStatus`. `BLOCKED` (usually unresolved review threads under `required_conversation_resolution`) or `CONFLICTING` → STOP with the cause named and route back to handoff's thread-triage/rebase machinery — the handoff readiness verdict may be stale by ship time; never discover this from the merge command's error.
 
 6.1 Confirm with user: *"Ready to merge `<branch>` into `<base-branch>` using `<merge-strategy>` strategy. Proceed? (yes/no)"*
 
@@ -228,6 +238,8 @@ Idempotency check: `gh pr view <pr-number> --json state,mergeCommit,merged` — 
    - `rebase` → `gh pr merge <pr-number> --rebase`
    - `squash` → `gh pr merge <pr-number> --squash`
    - `merge` → `gh pr merge <pr-number> --merge`
+
+   **If GitHub refuses the configured strategy despite a clean gate** (e.g. "This branch can't be rebased" — the rebase engine can refuse a long linear branch it cannot replay, seen on a 101-commit greenfield branch with every check green): do NOT silently switch strategy. Report the refusal, then offer the equivalent-outcome fallbacks explicitly — for `rebase` on an already-linear branch, a fast-forward push of `HEAD` to `<base-branch>` produces the identical history (GitHub auto-marks the PR merged); otherwise offer the other enabled merge methods with their history consequences named. Any fallback needs the user's explicit go — pushing to a protected base is exactly the action permission classifiers gate.
 
 6.3 Record `merge-sha: <git rev-parse HEAD on base-branch after merge>` and `merge-strategy: <strategy>`.
 
@@ -263,12 +275,13 @@ If no playbook matches: WARN and ask whether to abort or proceed manually.
 
 Skip when `plan.post-publish-checks` is empty.
 
-Idempotency: each check has its own `status` (`pass | fail | pending`). Resume from the last `pending` check. Do not re-poll a check whose status is already `pass` or `fail`.
+Idempotency: each check has its own `status` (`pass | fail | skip | pending`). Resume from the last `pending` check. Do not re-poll a check whose status is already `pass`, `fail`, or `skip`.
 
 9.1 For each `plan.post-publish-checks[]` whose run-state is not yet `pass`:
    - Substitute environment variables (`$VERSION`, `$PACKAGE`, `$IMAGE`, `$GROUP`, `$ARTIFACT`, `$NAMESPACE`, `$DEPLOYMENT`, `$HOST`, etc.) from the run state.
    - Execute `cmd`. Compare against `expect`.
    - Record `{ kind, status, observed-at, evidence }` in the run.
+   - **A check that did not actually run records `skip`, never `pass`** — regardless of exit code. A smoke script that exits 0 printing "…not set — skipping" is a skip (one such ✓ was recorded as an end-to-end verification and had to be retracted); a check that is not applicable to this ship (wrong platform/surface) is a skip with the reason in `evidence`. `pass` requires positive evidence of the checked behavior, and skips are listed distinctly in the ship summary so a green run with skipped checks never reads as fully verified.
 
 9.2 Loop with `plan.poll-interval-seconds` between iterations. Bound by `plan.propagation-window-max-minutes`.
 
@@ -296,7 +309,7 @@ type: ship-runs-index
 slug: <slug>
 updated-at: "<iso>"
 runs:
-  - { run-id: <run-id>, version: <version>, environment: <env>, status: <status>, go-nogo: <go|conditional-go|no-go>, notes: "<short>" }
+  - { run-id: <run-id>, version: <version>, environment: <env>, status: <status>, go-nogo: <go|conditional-go|no-go|pending>, notes: "<short — max 160 chars; the schema enforces the cap, so author within it>" }
   - ...
 ---
 # Ship Runs
@@ -315,6 +328,8 @@ Update `00-index.md` accordingly: `current-stage`, `recommended-next-command`, `
 ## Step 13 — Write `09-ship-run-<run-id>.md`
 
 See the `## Run artifact schema` section below.
+
+**A run paused before the Go/No-Go gate is representable — record it honestly.** A ship stopped at pre-flight/dry-run (STOP, awaiting a user decision, resumable) writes `status: awaiting-input` with `go-nogo: pending` — never `no-go`, which is a *decision* the gate never reached (one paused run was forced into `no-go` by the old schema and the record read as a rejected release after it later shipped). `release-workflow-conclusion: ""` likewise means not-reached. In `00-index.md`, a paused ship is `progress.ship: in-progress`.
 
 ## Step 14 — Announce (post-publish comms phase)
 
@@ -350,7 +365,7 @@ branch-slugs: [<slug-1>, <slug-2>, ...]   # the roster released together (presen
 environment: <env name>
 version: "<chosen version>"
 prior-version: "<last release tag, or 'none'>"
-go-nogo: <go | conditional-go | no-go>
+go-nogo: <go | conditional-go | no-go | pending>   # pending = paused before the step-5 gate (status: awaiting-input)
 merge-strategy: <rebase | squash | merge | none>
 ship-plan-readiness: <ok | acknowledged>   # ship-plan pre-check verdict (Step 0.4); missing/drift STOP before a run is written
 
@@ -363,7 +378,7 @@ release-tag: "<vX.Y.Z or empty>"
 release-workflow-run-id: "<gh run id or empty>"
 release-workflow-conclusion: <success | failure | cancelled | empty>
 post-publish-checks:
-  - { kind: <kind>, status: <pass|fail|pending>, observed-at: "<iso>", evidence: "<short>" }
+  - { kind: <kind>, status: <pass|fail|skip|pending>, observed-at: "<iso>", evidence: "<short>" }   # skip = did not run / not applicable — never recorded as pass
 post-release-bump-sha: "<sha or empty>"
 
 # Per-run outcomes

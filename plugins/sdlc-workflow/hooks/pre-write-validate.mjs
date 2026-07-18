@@ -23,6 +23,7 @@ import {
   formatList,
   hasFrontmatterFence,
   isProjectContextMarkdownPath,
+  isProbeEvidencePath,
   isProseLogPath,
   isWorkflowMarkdownPath,
   outputSystemMessage,
@@ -93,6 +94,9 @@ async function main() {
   }
 
   const filename = basename(info.filename);
+  // probe-evidence/ evidence files are free-form (no filename convention, no
+  // frontmatter) — see isProbeEvidencePath in hook-utils.
+  if (isProbeEvidencePath(filePath)) return;
   const errors = [];
   // po-answers.md is the frontmatter-less product-owner prose log — exempt from
   // both the filename convention and the frontmatter requirement. See isProseLogPath.

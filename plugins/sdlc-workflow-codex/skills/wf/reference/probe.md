@@ -361,6 +361,7 @@ Author **free narrative fragments** for any beat the structured page can't tell 
 If `runtime-evidence-deferrals` in `00-index.md` contains entries whose `cleared-by: null` and whose `slice` appears in `target-resolution.matched-slices`:
 
 - For each matched deferral, check whether the probe produced evidence that satisfies the deferred user-observable AC.
+- **Direction check first:** if the deferred AC is a prove-fail-closed criterion (a gate/guard/health-check catching a failure — shape.md's direction rule), the probe evidence must show the *failure branch firing* (induced fault caught, bad input rejected). A green happy-path observation does NOT clear it — one "unhealthy revision caught" AC was once cleared by a healthy release, leaving the gate never exercised. On a direction mismatch, leave `cleared-by: null` and record in `## Tripwires` what evidence would qualify (the fault to inject).
 - If yes, set `cleared-by: probe-<descriptor>` in `00-index.md.runtime-evidence-deferrals`.
 - If no, leave `cleared-by: null` and surface this in the slice's `## Tripwires` section.
 

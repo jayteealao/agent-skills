@@ -45,8 +45,9 @@ function extractFn(src, name) {
 // evaluateGate calls verifyClean, so build them together in one scope and hand them back.
 // probeGaps (F2), reChallengeClause + deferralPressure (F3) are also pure top-level fns, so
 // they extract by the same brace-matching — testing the SHIPPED code with no drift-prone copy.
-const { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest } = new Function(
+const { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest, acKey } = new Function(
   [
+    extractFn(yoloSrc, 'acKey'),
     extractFn(yoloSrc, 'verifyClean'),
     extractFn(yoloSrc, 'evaluateGate'),
     extractFn(yoloSrc, 'collectDeferrals'),
@@ -54,7 +55,7 @@ const { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClaus
     extractFn(yoloSrc, 'reChallengeClause'),
     extractFn(yoloSrc, 'deferralPressure'),
     extractFn(yoloSrc, 'decisionDigest'),
-    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest };',
+    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest, acKey };',
   ].join('\n')
 )();
 
@@ -319,4 +320,66 @@ test('decisionDigest: works in slice-mode (outcome.ran) too', () => {
   assert.equal(d.total, 1);
   assert.deepEqual(d.byClass, { 'implementation-detail': 1 });
   assert.deepEqual(d.intentBearing, []);
+});
+
+// ---------------------------------------------------------------------------
+// W2 (HANDOFF-SHIP-HARDENING, 9.138.0) — acKey normalization + authorized deferrals
+// ---------------------------------------------------------------------------
+
+test('acKey: extracts and normalizes the leading AC token across label shapes', () => {
+  assert.equal(acKey('AC2'), acKey('AC2 — three consecutive turns are heard'));
+  assert.equal(acKey('ac-7a'), acKey('AC 7a'));
+  assert.equal(acKey('AC3.1'), acKey('ac3.1 — decimal sub-criterion'));
+  // free-form labels fall back to the whole trimmed string — distinct labels stay distinct
+  assert.notEqual(acKey('latency budget'), acKey('cold-start budget'));
+  assert.notEqual(acKey('AC2'), acKey('AC21'));
+});
+
+test('probeGaps: a bare residual copy dedupes against the labeled, receipted terminal copy (Playster false HARD-STOP)', () => {
+  // the exact shape that burned two Playster runs: fully-labeled + receipted in
+  // terminal.deferrals[], bare duplicate in residual[]
+  const t = { deferrals: [{ ac: 'AC2 — three consecutive turns are heard', probe: 'adb devices → 1 device' }] };
+  const residual = [{ ac: 'AC2' }];
+  assert.deepEqual(probeGaps(t, residual), []);
+});
+
+test('probeGaps: normalization never credits a receipt to a genuinely different AC', () => {
+  const t = { deferrals: [{ ac: 'AC2 — heard', probe: 'probe ran' }] };
+  const residual = [{ ac: 'AC3' }];
+  const gaps = probeGaps(t, residual);
+  assert.equal(gaps.length, 1);
+  assert.equal(gaps[0].ac, 'AC3');
+});
+
+test('collectDeferrals: labeled terminal copy + bare residual copy of the same ac count once', () => {
+  const out = collectDeferrals({
+    ran: [{
+      stage: 'verify', slice: 's1',
+      terminal: { deferrals: [{ ac: 'AC2 — heard end-to-end', reason: 'no device', probe: 'adb devices → none' }] },
+      residual: [{ ac: 'AC2', reason: 'no device' }],
+    }],
+  });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].probe, 'adb devices → none');
+});
+
+test('deferralPressure: run deferrals with differently-labeled copies of one ac collapse', () => {
+  const p = deferralPressure([], [
+    { slice: 's1', ac: 'AC2 — heard' },
+    { slice: 's1', ac: 'AC2' },
+  ]);
+  assert.equal(p.open, 1);
+});
+
+test('reChallengeClause: PO-authorized deferrals are excluded from the re-challenge block', () => {
+  const clause = reChallengeClause([
+    { slice: 's1', reason: 'no live voice env', authorized: true },
+    { slice: 's2', reason: 'no staging DB' },
+  ]);
+  assert.doesNotMatch(clause, /no live voice env/);
+  assert.match(clause, /no staging DB/);
+});
+
+test('reChallengeClause: all-authorized prior deferrals ⇒ no clause at all', () => {
+  assert.equal(reChallengeClause([{ slice: 's1', reason: 'accepted wall', authorized: true }]), '');
 });

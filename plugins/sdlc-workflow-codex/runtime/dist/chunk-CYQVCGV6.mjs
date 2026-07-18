@@ -56,6 +56,10 @@ function isProseLogPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:po-answers|steer)\.md$/.test(normalized);
 }
+function isProbeEvidencePath(filePath) {
+  const normalized = normalizePathForMatch(filePath);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/probe-evidence\//.test(normalized);
+}
 function isProjectContextMarkdownPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return /(?:^|\/)(PRODUCT|DESIGN)\.md$/.test(normalized) || /(?:^|\/)\.ai\/ship-plan\.md$/.test(normalized) || // Project-root observability artifacts: .ai/observability.md (type:
@@ -164,6 +168,7 @@ export {
   workflowPathInfo,
   isWorkflowMarkdownPath,
   isProseLogPath,
+  isProbeEvidencePath,
   isProjectContextMarkdownPath,
   projectContextPathInfo,
   isManagedArtifactMarkdownPath,

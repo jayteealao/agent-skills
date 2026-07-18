@@ -427,6 +427,16 @@ For each picked, run a small sub-loop (3–5 freeform questions in chat) capturi
 
 Each becomes an entry in `additional-contracts[]`. `$wf ship` ignores these by default; consumers that want them must read them by `id`.
 
+## Step 3.5 — Artifact-tracking policy (one question, settled once)
+
+Whether the `.ai/` workflow tree is committed to git or gitignored keeps getting decided ad hoc — worst case mid-ship, at the clean-tree gate, with hundreds of bookkeeping paths dirty (one release run un-tracked 473 paths as in-flight repo surgery, having nearly merged 451 bookkeeping files into `main`). Settle it here, once. Ask in chat and wait:
+
+> Should the `.ai/` workflow artifacts (intake/shape/plan/verify bookkeeping) be committed to git, or kept local?
+> 1. Tracked (Recommended) — artifacts ride the branch: reviewable, shared across machines. Ship's clean-tree gate offers a one-keystroke "commit bookkeeping" for them.
+> 2. Ignored — artifacts stay local. Writes a `.gitignore` block: `.ai/` except `ship-plan.md` + `sdlc-config.json` (the project-level contracts stay tracked).
+
+Record the answer as `artifactTracking: "tracked" | "ignored"` in `.ai/sdlc-config.json` (create the file with just this key if absent — never clobber other keys). On "Ignored", also write the `.gitignore` block now (append, with a `# sdlc-workflow artifacts` marker comment) so the policy is mechanically true, not aspirational. `$wf ship`'s pre-flight (Step 1.1) and `$wf handoff` read this policy instead of improvising; existing repos without the key get a one-time advisory from `$wf status`, never a new gate.
+
 ---
 
 # Step 4 — Exemplar pass (on request)

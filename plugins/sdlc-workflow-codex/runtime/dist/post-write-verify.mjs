@@ -5,6 +5,7 @@ import {
   collectToolInputPaths,
   hasFrontmatterFence,
   isManagedArtifactMarkdownPath,
+  isProbeEvidencePath,
   isProjectContextMarkdownPath,
   isProseLogPath,
   outputSystemMessage,
@@ -12,7 +13,7 @@ import {
   readStdinJson,
   readTextIfExists,
   resolveProjectPath
-} from "./chunk-CDKEYATP.mjs";
+} from "./chunk-CYQVCGV6.mjs";
 import {
   logError
 } from "./chunk-SCQPZLF2.mjs";
@@ -558,7 +559,7 @@ async function main() {
   const config = await loadConfig(projectRoot);
   if (config.hooks.verifyOnWrite === false) return;
   const schemaPath = join(PLUGIN_ROOT, "tests", "frontmatter.schema.json");
-  const paths = collectToolInputPaths(input).filter((path) => isManagedArtifactMarkdownPath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
+  const paths = collectToolInputPaths(input).filter((path) => isManagedArtifactMarkdownPath(path)).filter((path) => !isProbeEvidencePath(path)).map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) })).filter(({ absolute }) => absolute && existsSync(absolute));
   enforceCodeFileLints(input, config, paths);
   if (!paths.length) return;
   const failures = [];

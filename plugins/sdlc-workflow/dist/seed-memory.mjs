@@ -5,7 +5,7 @@ import {
   outputSystemMessage,
   projectRootFromInput,
   readStdinJson
-} from "./chunk-CDKEYATP.mjs";
+} from "./chunk-CYQVCGV6.mjs";
 import {
   logError
 } from "./chunk-SCQPZLF2.mjs";

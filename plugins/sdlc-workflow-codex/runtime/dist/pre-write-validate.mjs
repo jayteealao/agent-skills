@@ -4,6 +4,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   formatList,
   hasFrontmatterFence,
+  isProbeEvidencePath,
   isProjectContextMarkdownPath,
   isProseLogPath,
   isWorkflowMarkdownPath,
@@ -14,7 +15,7 @@ import {
   readTextIfExists,
   resolveProjectPath,
   workflowPathInfo
-} from "./chunk-CDKEYATP.mjs";
+} from "./chunk-CYQVCGV6.mjs";
 import {
   logError
 } from "./chunk-SCQPZLF2.mjs";
@@ -75,6 +76,7 @@ async function main() {
     return;
   }
   const filename = basename(info.filename);
+  if (isProbeEvidencePath(filePath)) return;
   const errors = [];
   const isProseLog = isProseLogPath(filePath);
   const inDesignNotes = info.storageRel.startsWith("design-notes/");

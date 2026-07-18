@@ -45,6 +45,10 @@ Run all three groups. Collect every mismatch into `drift-findings[]` as `{ signa
 
 3. **Workflow files.** Confirm `plan.ci-pipeline.release-workflow-file` (and `plan.release-workflow-file`, `plan.release-workflow-file`'s equivalents) still exist on disk → missing → finding `{ signal: workflow-missing, detail: "<file> named by the plan does not exist", suggested-block: C }`. Then list `.github/workflows/*.y*ml` files added since the plan's `updated-at` (`git log --since="<plan.updated-at>" --name-only --diff-filter=A -- .github/workflows`) and for each → finding `{ signal: workflow-new, detail: "<file> was added after the plan was last updated", suggested-block: C }`.
 
+4. **Version already released.** For each path in `plan.version-source-of-truth[]`, read the version it currently carries and check it against existing release identities: `git tag -l "v<version>" "<version>"` and (when a remote exists) `gh release view <tag> --json tagName` for the matching tag form. A working-tree version that already has a tag/release → finding `{ signal: version-already-released, detail: "<path> carries <version> but tag <tag> already exists (released <date>) — the branch's release identity is stale", suggested-block: B }`. This is the collision a handoff once certified as "release identity frozen" four days after that identity had shipped — nothing structural caught it; session memory did.
+
+5. **Compliance record staleness (advisory).** If `.ai/pipeline-compliance.md` exists and its `plan-version` is lower than the plan's current `plan-version` → soft finding `{ signal: compliance-stale, detail: "pipeline-compliance.md records build state for plan v<M> but the plan is v<N> — re-run /wf ship-plan build --dry-run to re-verify", suggested-block: C }` (advisory — never the sole blocker). The compliance file is a build **receipt**, not trusted state: it can survive branch resets and keep asserting "done" for infrastructure that no longer exists. Any consumer must re-verify against the live repo/remote; this finding is only the cheap nudge to do so.
+
 ## Group 2 — Release-relevant change surface (the packaged diff)
 
 Diff the caller's commit range name-only (`git diff --name-only <range>`). Raise findings when the change touches release-shaping surface the plan may not yet reflect:
@@ -63,9 +67,23 @@ If the count `≥ 5` (and no more-specific Group-1/2 finding already fired for t
 
 > **Deeper than drift.** This pre-check only catches *mechanical mismatch* (a file moved, a secret unplanned). When a lot has moved — or before a first real release — the plan may be drift-free yet still **unsound** (ordering hazards, a rollback that isn't a rollback, over-broad permissions). That is `/wf ship-plan audit`'s job, not this gate's. When `plan-stale` fires, it is reasonable to suggest the user run `/wf ship-plan audit` for a soundness pass — but this pre-check never blocks on it.
 
+# Step R2.5 — Acknowledgement-ledger filter (persistence without silence)
+
+Acknowledgements live in a sibling ledger, `.ai/ship-plan-acks.yaml` (list of entries `{ signals: [], fingerprint, plan-version, stage, at, reason }` plus an optional `pending-amend: { signals: [], at }`). The pre-check reads and appends to this ledger; it still **never** edits the plan itself. A `plan-version` bump invalidates the whole ledger — delete entries whose `plan-version` is below the plan's current version (an amended plan must re-earn its `ok`; this also clears any `pending-amend`).
+
+Before gating, partition `drift-findings[]` against the ledger:
+
+- A finding whose `(signal, fingerprint)` matches a ledger entry at the current `plan-version` is **already acknowledged** — drop it from the gate and report it as one advisory line ("previously acknowledged: <signal> — <reason> (<at>)"). It never re-asks.
+- The fingerprint is what makes this safe: **new drift always still gates.**
+  - Group-1/Group-3 findings fingerprint on the finding's `detail` surface (the specific path/secret/workflow/version named) — a *different* mismatch is a *new* finding.
+  - The structural Group-2 signals (`release-surface-touched`, `dependencies-changed`) fingerprint on `(signal, branch)` — they re-fire on every new commit to the same branch *by construction* (any branch that touches workflows/manifests keeps touching them) and cannot clear until merge, so one acknowledgement covers the branch. One prior branch acknowledged the identical pair three times across handoff and ship; that third ask protected nothing.
+  - `migration-without-rollback` fingerprints on `(signal, branch)` likewise; `plan-stale` on `(signal, plan-version)`.
+
+Findings that survive the filter proceed to the R3 gate as before.
+
 # Step R3 — Verdict + gate
 
-Compute the verdict from R1/R2:
+Compute the verdict from R1/R2 (post-R2.5 filter — a run whose every finding was already acknowledged is verdict `ok` with the advisory lines in the report):
 
 - `missing` — no plan (from R1).
 - `drift` — `drift-findings[]` is non-empty.
@@ -105,7 +123,9 @@ Infer a `--from-template <kind>` suggestion from the ecosystem (npm→`npm-publi
 
 ## Drift gate
 
-Print the `drift-findings[]` as a short table (signal · detail · block to amend), then:
+**Answered-but-unexecuted amend (re-fire guard).** If the ledger carries `pending-amend` and the plan's `plan-version` is unchanged since it was recorded, the user already chose "Amend the plan" for these signals and the amendment never happened — do NOT re-ask the identical question as if it were new (one drift once consumed three STOP rounds this way, one of them a verbatim re-fire). Present a reminder instead: "You chose *Amend the plan* at <at> for <signals>, but plan-version is unchanged — run `/wf ship-plan edit` (blocks <blocks>) now, or acknowledge the drift to proceed." Options: **Amend now** (STOP, route as below; keep `pending-amend`) / **Acknowledge and proceed** (as below; clears `pending-amend`) / **Cancel**.
+
+Otherwise print the `drift-findings[]` as a short table (signal · detail · block to amend), then:
 
 ```yaml
 question: "The ship plan drifted from the repo (<N> finding(s)). Amend it before continuing?"
@@ -117,8 +137,8 @@ options:
 multiSelect: false
 ```
 
-- **Amend the plan** → STOP. Print `/wf ship-plan edit` and the specific block letters from the findings' `suggested-block`. Set `ship-plan-readiness: drift`. For `handoff`, point the slug's `00-index.md` `recommended-next-*` at `/wf ship-plan edit` and resume after the amendment (no partial package); for `ship`, do not start the run.
-- **Acknowledge and proceed** → capture a freeform reason. Append it to `po-answers.md` with `stage: <handoff|ship>` and the finding signals. Set `ship-plan-readiness: acknowledged` and record the reason + finding signals in the artifact (handoff: `## Risks / Caveats`; ship: `## Pre-flight`). Return to the caller and continue. **The acknowledgement is per-run** — it does not persist to the next handoff/ship, so recurring drift keeps re-surfacing until the plan is actually amended.
+- **Amend the plan** → STOP. Print `/wf ship-plan edit` and the specific block letters from the findings' `suggested-block`. Set `ship-plan-readiness: drift` and record `pending-amend: { signals, at }` in `.ai/ship-plan-acks.yaml` (so the next run reminds instead of re-asking — see the re-fire guard above). For `handoff`, point the slug's `00-index.md` `recommended-next-*` at `/wf ship-plan edit` and resume after the amendment (no partial package); for `ship`, do not start the run.
+- **Acknowledge and proceed** → capture a freeform reason. Append it to `po-answers.md` with `stage: <handoff|ship>` and the finding signals, AND append a ledger entry to `.ai/ship-plan-acks.yaml` (`{ signals, fingerprint, plan-version, stage, at, reason }` per finding, fingerprinted per Step R2.5; clear any `pending-amend` covering these signals). Set `ship-plan-readiness: acknowledged` and record the reason + finding signals in the artifact (handoff: `## Risks / Caveats`; ship: `## Pre-flight`). Return to the caller and continue. The acknowledgement **persists via the ledger** at the current `plan-version` — the same finding never re-gates, while new drift and a bumped plan always do (R2.5).
 - **Cancel** → STOP.
 
 # Step R4 — Record the outcome

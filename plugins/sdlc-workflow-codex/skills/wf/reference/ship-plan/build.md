@@ -18,6 +18,8 @@ You are running `wf ship-plan build`. Your job: read the ship plan as the specif
 - **Two output classes.** (1) **Files** — `.github/workflows/*.yml` (outbound + inbound CI: release, pre-merge, code-quality, commit/PR-title, CodeQL, scheduled scans) plus inbound-DX config files at their conventional paths: commitlint config, git-hook framework config (`.husky/`, `lefthook.yml`, `.pre-commit-config.yaml`), `.editorconfig`, runtime-version files, task-runner targets, `CODEOWNERS`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/`, `.github/dependabot.yml` / `renovate.json`, `CONTRIBUTING.md`. (2) **Remote state** — branch protection (Step 12), GitHub Environment protection (Step 14), and repo merge settings (Step 15). Everything in class (1) follows the no-overwrite / minimal-diff / trace-insertion rules.
 - **Remote mutation is gated and opt-in.** The remote state this skill touches is limited to **branch protection, environment protection, and repo merge settings** — each only when the plan opts in (`apply-via: gh-api` / equivalent). Never apply silently: show the current-vs-desired diff and the exact `gh api` payload, then require an explicit confirm. A "print commands only" choice is always offered and writes the skills to the compliance artifact instead of executing them. This skill never pushes code, opens PRs, sets secrets, or runs a release.
 - **Trace insertions.** When adding to an existing file, add a single-line comment above the inserted block: `# Added by wf ship-plan build — plan v<N>, <YYYY-MM-DD>`. Never add this comment to content the user wrote themselves. For non-YAML config files use that language's comment syntax; for files that cannot carry comments (JSON), record the provenance in the compliance artifact instead.
+- **The next release must stay green.** Build closes the gap toward the plan's *target* state, but it must never wire a gate whose upstream infrastructure does not exist yet — a `needs:` on a staging-smoke job with no staging apps provisioned, a required context nothing reports, an environment gate on an environment that hasn't been created. Doing so makes the very next tag/release guaranteed-red (one build left production deploys blocked for days this way). Any gate whose referenced infrastructure Step 17's provisioning probe cannot confirm is **scaffolded inert**: gate the job/step on a repo variable (`if: ${{ vars.SDLC_GATE_<NAME> == 'true' }}`) with the activation step recorded in the compliance artifact's `gates-to-activate:` ledger. The gate goes live via that explicit activation, never as a side effect of build.
+- **Never pin a version literal the repo already declares.** Tool/runtime versions in generated workflows must reference or match the repo's own declaration (`packageManager`, `.nvmrc`, `engines`, gradle wrapper, `.tool-versions`) — a second copy drifts and breaks the pipeline on first run (a pinned `pnpm/action-setup version:` alongside `packageManager` broke all five generated workflows of one project's first CI run).
 
 # What this skill does NOT do
 
@@ -971,6 +973,16 @@ For each generated **inbound config file**:
 
 3. **JSON files** (`renovate.json`, `dependabot` is YAML, commitlint `.json` variants): parse with `node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" <file>`. **YAML files** (`lefthook.yml`, `.pre-commit-config.yaml`, `dependabot.yml`): `python -c "import sys,yaml; yaml.safe_load(open(sys.argv[1]))" <file>`. On failure: show the file + error, do not revert, set `config-syntax: fail`.
 
+Syntax is table stakes — the audit corpus shows generated pipelines failing on *consistency* and *provisioning*, never syntax. Continue:
+
+4. **Action-input consistency (version literals).** For every created/patched workflow, cross-check every pinned tool/runtime version against the repo's own declaration: `pnpm/action-setup` `version:` vs `package.json` `packageManager` (never pin both — drop the input and let the action read `packageManager`); `setup-node` `node-version:` vs `.nvmrc`/`engines.node` (prefer `node-version-file:`); `setup-java`/gradle vs the wrapper properties; `setup-python` vs `.python-version`/`requires-python`. Any duplicated literal that can drift → fix to reference the repo declaration; if genuinely impossible, record the pair in the compliance artifact. Set `version-consistency: pass | fixed | fail`.
+
+5. **Graph integrity.** Every `needs:` names a job defined in the same workflow; every repo-local reusable-workflow `uses:` path exists on disk; every `secrets.NAME` referenced is in `plan.required-secrets[]` (else it belongs in `secrets-to-set-manually` AND the plan needs amending); every `vars.NAME` gate is listed in `gates-to-activate:`. Set `graph-integrity: pass | fail` with the broken edges named.
+
+6. **Repo-gate conformance.** Run the repo's OWN formatters/linters over every file build wrote — the same gates Step 0 detected (lefthook/husky/pre-commit config, format scripts). A generated workflow that fails the repo's `format --check` goes red on the pipeline's own first run (five generated workflows once failed their repo's `oxfmt --check` at first CI). Fix formatting in place; set `repo-gates: pass | fixed | skipped` (skipped when the repo has no such gates).
+
+7. **Provisioning probe.** For every *gate* the build wired, confirm the infrastructure it references exists: required status contexts → something in this repo's workflows reports that context name; GitHub environments referenced → `gh api repos/<owner>/<repo>/environments/<name>` succeeds; deploy/smoke `needs:` targets → the plan names the target (apps, clusters, registries) as provisioned, or the user confirms it live; secrets → present per `gh secret list` (absence is not a failure — it goes to `secrets-to-set-manually` — but a *gate that hard-fails on the missing secret* is unprovisioned). Anything unconfirmable is **unprovisioned** → scaffold it inert per the design contract (`if: ${{ vars.SDLC_GATE_<NAME> == 'true' }}`) and append `{ gate, blocked-on, activation }` to `gates-to-activate:`. Set `provisioning: pass | scaffolded-inert | fail`.
+
 ---
 
 # Step 18 — Write compliance artifact
@@ -1016,10 +1028,18 @@ secrets-to-set-manually:
   - { name: "<NAME>", purpose: "<from plan>", command: "gh secret set <NAME>" }
 deps-to-install:                       # dev-deps the generated config references but does not install
   - { name: "<package>", reason: "<commitlint / husky / lint-staged / etc.>", command: "<install cmd>" }
+gates-to-activate:                     # gates scaffolded inert (Step 17.7) — the pipeline goes live per-gate via these, never as a build side effect
+  - { gate: "<SDLC_GATE_NAME>", blocked-on: "<the missing infrastructure>", activation: "gh variable set SDLC_GATE_<NAME> --body true (after <provisioning step>)" }
+routing: <committed | sliced | left-uncommitted>   # Step 18.5 outcome
+uncommitted-outputs: [<paths — only when routing: left-uncommitted>]
 validation:
   yaml-syntax: <pass | fail>
   actionlint: <pass | fail | skipped>
   config-syntax: <pass | fail | skipped>
+  version-consistency: <pass | fixed | fail>
+  graph-integrity: <pass | fail>
+  repo-gates: <pass | fixed | skipped>
+  provisioning: <pass | scaffolded-inert | fail>
 ---
 
 # Pipeline Compliance — <project-name>
@@ -1057,6 +1077,10 @@ For each of the three gated mutations, give the status and — when `printed`/`f
 ## Validation
 <yaml-syntax, actionlint, and config-syntax results per file>
 
+## Gates scaffolded inert
+
+For each `gates-to-activate:` entry: what it gates, what infrastructure it is blocked on, and the exact activation command. A `--dry-run` re-audit reports these as `scaffolded-inert`, not missing.
+
 ## Re-run compliance check
 
 After setting secrets and pushing, re-run this skill to verify full compliance:
@@ -1064,6 +1088,16 @@ After setting secrets and pushing, re-run this skill to verify full compliance:
 $wf ship-plan build --dry-run
 ```
 ```
+
+---
+
+# Step 18.5 — Route the outputs (close the unreviewed-code hole)
+
+Build's outputs are release-critical code that no lifecycle stage has reviewed. Left silently uncommitted, they sit in the working tree until `$wf ship`'s clean-tree gate forces a commit-or-drop decision at the worst moment — which is exactly how 34 unreviewed workflow lines once entered a production release with an external review bot as their only reviewer (it found 3 Major defects in them, including a check that could pass green while defeating its own purpose). Never end a build that wrote files without an explicit routing decision. Ask in chat with a short numbered list and wait for the answer (skip when nothing was written or `--dry-run`):
+
+- **Route to a review slice (Recommended when release/deploy workflows were touched)** — print the seed `$wf intake <slug> fix review ship-plan build outputs (plan v<N>): <file list>` and STOP after Step 19. The slice's verify/review then treat the build diff like any other code before it can ship. Record `routing: sliced`.
+- **Commit now** — `git commit` the written files (explicitly by path, never `-A`) as `chore(ship-plan): build outputs, plan v<N>` with trailer `sdlc-unreviewed: true` (so handoff/review can see the provenance). Recommend `$wf review` over the commit in the chat return. Record `routing: committed`. This is the one commit this skill makes — the "does NOT push/open PRs/release" boundary is unchanged.
+- **Leave uncommitted** — allowed, but recorded: `routing: left-uncommitted` + `uncommitted-outputs: [paths]` in the compliance artifact. `$wf ship`'s Step 1.1 classification refuses to silently sweep these (it routes them to review or an explicit recorded acceptance).
 
 ---
 
@@ -1080,7 +1114,9 @@ Return per [_chat-return.md](../_chat-return.md) — narrative lead (what this r
 - `secrets-to-set-manually: <list of names with gh secret set skills>`
 - `deps-to-install: <list of dev-deps the inbound config needs, with install skills>`
 - `warnings: <inert-until-installed note; merge-queue tier unavailable; mechanism mismatch; etc.>`
-- `validation: yaml-syntax=<status>, actionlint=<status>, config-syntax=<status>`
+- `validation: yaml-syntax=<status>, actionlint=<status>, config-syntax=<status>, version-consistency=<status>, graph-integrity=<status>, repo-gates=<status>, provisioning=<status>`
+- `gates-to-activate: <each inert gate with its blocked-on + activation command — the pipeline is NOT fully live until these are activated>`
+- `routing: <committed | sliced | left-uncommitted — how the outputs left this run (Step 18.5)>`
 - `next-steps:`
   - Install dev deps the inbound config references: `<install cmd>` (commitlint/husky/lint-staged/etc.); then run the hook-framework install (e.g. `npm run prepare`, `pre-commit install`) — **hooks/CI are inert until this is done**
   - Set secrets: `gh secret set <NAME>` for each required secret (or via GitHub Settings → Secrets)

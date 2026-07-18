@@ -857,7 +857,10 @@
         "environment": { "type": "string" },
         "version": { "type": "string" },
         "prior-version": { "type": "string" },
-        "go-nogo": { "enum": ["go", "conditional-go", "no-go"] },
+        "go-nogo": {
+          "enum": ["go", "conditional-go", "no-go", "pending"],
+          "description": "`pending` = the run paused (status: awaiting-input) before reaching the Go/No-Go gate at step 5; never a final value on a `complete` run."
+        },
         "merge-strategy": { "enum": ["rebase", "squash", "merge", "none"] },
         "ship-plan-readiness": {
           "enum": ["ok", "acknowledged", "skipped"],
@@ -884,7 +887,10 @@
             "required": ["kind", "status"],
             "properties": {
               "kind": { "type": "string" },
-              "status": { "enum": ["pass", "fail", "pending"] },
+              "status": {
+                "enum": ["pass", "fail", "skip", "pending"],
+                "description": "A check that did not actually run (not-applicable, or its own output says it skipped) records `skip`, never `pass` — `pass` requires positive evidence of the checked behavior."
+              },
               "observed-at": { "$ref": "#/$defs/iso8601" },
               "evidence": { "type": "string" }
             }
@@ -931,12 +937,12 @@
               "version": { "type": "string" },
               "environment": { "type": "string" },
               "status": { "type": "string" },
-              "go-nogo": { "enum": ["go", "conditional-go", "no-go"] },
+              "go-nogo": { "enum": ["go", "conditional-go", "no-go", "pending"] },
               "shipped-via": {
                 "type": "string",
                 "description": "For a follower slug in a batch ship: the lead slug's ship-run artifact this row points to. Lets a follower's run index record the release without a duplicate run artifact."
               },
-              "notes": { "type": "string", "maxLength": 80 }
+              "notes": { "type": "string", "maxLength": 160 }
             }
           }
         }

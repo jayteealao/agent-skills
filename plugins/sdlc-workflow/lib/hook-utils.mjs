@@ -71,6 +71,19 @@ export function isProseLogPath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:po-answers|steer)\.md$/.test(normalized);
 }
 
+// probe-evidence/ holds raw runtime evidence captured by /wf probe (command
+// output, logs, parsed device state) under
+// .ai/workflows/<slug>/probe-evidence/<descriptor>/. Evidence files are
+// free-form (no NN- filename convention, no frontmatter, any extension), so
+// both write hooks must exempt the subtree — otherwise textual evidence gets
+// smuggled through .txt to dodge the .md contract (seen in the 2026-07-18
+// handoff/ship audit). Centralised here like isProseLogPath so the carve-out
+// can't drift between hooks. Added in 9.138.0 (HANDOFF-SHIP-HARDENING W1.4).
+export function isProbeEvidencePath(filePath) {
+  const normalized = normalizePathForMatch(filePath);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/probe-evidence\//.test(normalized);
+}
+
 export function isProjectContextMarkdownPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return (
