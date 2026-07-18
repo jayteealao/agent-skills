@@ -24,11 +24,14 @@ You are running `wf-slice`, **stage 3 of 10** in the SDLC lifecycle.
 | Next | `/wf plan <slug> <best-first-slice>` (default) |
 | Alt | `/wf plan <slug> all` to plan all slices in parallel |
 
-> **Optional second opinion.** Once `03-slice.md` is drafted (before adaptive
-> routing), you may offer `/consult <critique this slice decomposition —
-> independence, ordering, any risky slice buried mid-sequence>` (or `/consult
-> <provider> …`) — a read-only multi-model panel that pressure-tests the
-> decomposition before rework gets expensive. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** Once `03-slice.md` is drafted (before adaptive
+> routing), **auto-invoke** `/consult codex <critique this slice decomposition — independence,
+> ordering, any risky slice buried mid-sequence>` (pinning `codex`/`claude` keeps it free) when
+> ANY of: (a) the roster has more than 3 slices or a dependency chain 3+ deep; (b) any slice
+> carries the charter-scenario AC or a carried intent-risk (RIM) — risk buried mid-sequence is
+> exactly what an outside read catches; (c) distinct visual surfaces or states were grouped into
+> one slice via the justified-grouping escape. Skip only when none of the triggers hold; the user
+> may invoke it explicitly with any provider.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.

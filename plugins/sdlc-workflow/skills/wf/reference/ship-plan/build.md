@@ -29,10 +29,13 @@ You are running `wf ship-plan build`. Your job: read the ship plan as the specif
 - It does not mutate any remote state beyond the three gated settings above, and never without an explicit confirm + a print-only fallback.
 - It does not author or edit `.ai/ship-plan.md` — that is `/wf ship-plan init` / `/wf ship-plan edit`. This command only *reads* the plan and closes the repo gap against it.
 
-> **Optional second opinion.** After the pipeline audit produces its findings, you
-> may offer `/consult <second opinion on these pipeline compliance findings and the
-> proposed remediation>` (or `/consult <provider> …`) — a read-only multi-model
-> panel that checks the audit before you act on it. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** After the pipeline audit produces its findings,
+> **auto-invoke** `/consult codex <second opinion on these pipeline compliance findings and the
+> proposed remediation>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) any finding is a
+> missing gate on the ship path (hard-block class); (b) the proposed remediation edits CI workflows
+> that deploy to production; (c) the findings show drift between the live pipeline and the decisions
+> recorded in `.ai/ship-plan.md`. Skip only when none of the triggers hold; the user may invoke it
+> explicitly with any provider.
 
 ---
 

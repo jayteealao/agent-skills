@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.138.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.139.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -118,7 +118,7 @@
 <tr><td><code>fix</code></td><td>One file. One change. The fix is obvious.</td><td>Shape + plan merged into a single <code>01-fix.md</code>; routes to <code>/wf implement</code>.</td></tr>
 <tr><td><code>hotfix</code></td><td>Production is broken right now; speed beats review.</td><td>Full standard lifecycle expedited under incident pressure: scoped to minimum viable fix, production-branch base. Review defaults to security rubric (not bypassed). Writes <code>01-hotfix.md</code>, <code>02-shape.md</code>, <code>03-slice.md</code>, <code>04-plan.md</code> then routes to <code>/wf implement</code>.</td></tr>
 <tr><td><code>rca</code></td><td>You have a bug report but don't know the cause yet (static: read code &amp; history).</td><td>Single <code>01-rca.md</code> artifact with parallel diagnosis sub-agents. Recommends downstream command.</td></tr>
-<tr><td><code>investigate</code></td><td>You know there's a problem but want 2–3 distinct approaches before committing.</td><td>Single <code>01-investigate.md</code> with A/B/C options + tradeoff table. No winner picked.</td></tr>
+<tr><td><code>investigate</code></td><td>You know there's a problem but want every distinct approach enumerated before committing.</td><td>Single <code>01-investigate.md</code> sketching every distinct approach found (up to 3 as full tradeoff cards) + tradeoff table. No winner picked.</td></tr>
 <tr><td><code>discover</code></td><td>You have a theory about how the code works and want it verified or falsified.</td><td>Single <code>01-discover.md</code> with FOR/AGAINST/counter-hypothesis evidence and verdict.</td></tr>
 <tr><td><code>update-deps</code></td><td>Dependency audit — security patches, major-version bumps, safe minor updates.</td><td>Tiered scan → research → plan → implement → verify under <code>.ai/dep-updates/</code>.</td></tr>
 <tr><td><code>refactor</code></td><td>Behaviour-preserving restructure with a test-suite baseline captured first.</td><td>Full standard lifecycle with behavior-preserving discipline. Captures test baseline in <code>02-shape.md</code> before touching code, plans incremental green steps. Writes <code>01-refactor.md</code>, <code>02-shape.md</code>, <code>03-slice.md</code>, <code>04-plan.md</code>; routes to <code>/wf implement</code>. Review defaults to refactor-safety.</td></tr>

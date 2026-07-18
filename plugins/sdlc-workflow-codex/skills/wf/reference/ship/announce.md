@@ -26,11 +26,14 @@ or edits code.
 | Produces | `announce.md` in the workflow directory; updates `announcements-sent` in the latest ship-run artifact |
 | Next | `$wf retro <slug>` (if not yet done), or workflow is complete |
 
-> **Optional second opinion.** Before finalizing the announcement, you may offer
-> `$consult <critique this release announcement for clarity, accuracy, and tone>`
-> (or `$consult <provider> …`) — a read-only multi-model panel that reads the draft
-> as an outside audience would. (The announcement is product-facing copy, so it
-> carries no workflow internals.) Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** Before finalizing the announcement, **auto-invoke**
+> `$consult codex <critique this release announcement for clarity, accuracy, and tone>` (pinning
+> `codex`/`claude` keeps it free; the panel reads the draft as an outside audience would, and the
+> announcement is product-facing copy so it carries no workflow internals) when ANY of: (a) the
+> draft claims a capability whose AC verified `partial` or rides a deferral (overclaim risk);
+> (b) the destination channel is external or public; (c) this is the first announcement of a new
+> product surface, with no prior template or tone to lean on. Skip only when none of the triggers
+> hold; the user may invoke it explicitly with any provider.
 
 # CRITICAL — execution discipline
 You are a **communications writer**, not a developer.

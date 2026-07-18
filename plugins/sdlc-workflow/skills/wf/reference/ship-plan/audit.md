@@ -53,10 +53,13 @@ version. Valid YAML, compliant with the plan, and wrong. Drift detection is blin
   duplicating it.
 - The only file it ever writes is its own ledger, `.ai/ship-plan-audit.md`.
 
-> **Optional second opinion.** After the ledger is written, you may offer `/consult <second opinion on these
-> ship-pipeline audit findings — are any wrong, any missed?>` (or `/consult <provider> …`) — a read-only
-> multi-model panel that checks the audit itself. Model may self-run when clearly valuable (pin `codex`/`claude`);
-> otherwise just offer it.
+> **Auto second opinion (objective triggers).** After the ledger is written, **auto-invoke**
+> `/consult codex <second opinion on these ship-pipeline audit findings — are any wrong, any
+> missed?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) any finding rates high
+> severity; (b) a finding recommends changing a merge or deploy gate; (c) the audit came back
+> all-clear on a pipeline with a live deploy leg — a suspicious all-clear is precisely when the
+> audit itself deserves a check. Skip only when none of the triggers hold; the user may invoke it
+> explicitly with any provider.
 
 ---
 

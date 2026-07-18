@@ -31,11 +31,14 @@ existing-workflow/
 | When to run | After `/wf shape` (which decides both augmentations) and ideally with the **instrument** augmentation authored first (observability is needed to measure outcomes). Before `/wf implement` so the flag scaffolding is planned before coding begins. |
 | Warning | If `04b-instrument.md` is NOT present, surface a warning — experiments are hard to evaluate without observable signals. Do NOT block. |
 
-> **Optional second opinion.** After the design sub-agent returns (before writing
-> `04c-experiment.md`), you may offer `/consult <critique this hypothesis and
-> metric choice — primary metric, guardrails, stopping rules>` (or `/consult
-> <provider> …`) — a read-only multi-model panel that checks the design before the
-> experiment goes live and misjudged metrics compound silently. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** After the design sub-agent returns (before writing
+> `04c-experiment.md`), **auto-invoke** `/consult codex <critique this hypothesis and metric choice —
+> primary metric, guardrails, stopping rules>` (pinning `codex`/`claude` keeps it free) when ANY of:
+> (a) the primary metric is a proxy rather than the outcome the shape's AC names; (b) no stopping
+> rule or guardrail could be derived from the artifacts; (c) the experiment gates a charter
+> commitment or a carried intent-risk (RIM). A misjudged metric compounds silently once the
+> experiment is live — that is exactly the error class a second model catches. Skip only when none
+> of the triggers hold; the user may invoke it explicitly with any provider.
 
 # CRITICAL — scope discipline
 You are an **experiment designer**, not an implementer.

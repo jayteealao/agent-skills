@@ -16,11 +16,13 @@ Two modes of operation:
 
 > **Narrative fragments.** Any docs artifact may ship free narrative fragments whenever a bespoke diagram, flow, comparison, or interactive example tells the story better than prose. Rules: [_fragment-authoring.md](_fragment-authoring.md) Step F2.
 
-> **Optional second opinion.** After the audit (and again after generate), you may
-> offer `$consult <completeness blind spots in this doc plan>` or `$consult
-> <accuracy pass on this reference doc>` (or `$consult <provider> …`) — a read-only
-> multi-model panel that runs a cross-model completeness and accuracy check on
-> developer-facing docs. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** After the audit (and again after generate),
+> **auto-invoke** `$consult codex <completeness blind spots in this doc plan>` / `$consult codex
+> <accuracy pass on this reference doc>` (pinning `codex`/`claude` keeps it free) when ANY of:
+> (a) the audit found quadrant violations or stale claims in existing docs; (b) the generated doc
+> documents a public API surface external readers depend on; (c) the plan concludes "None required"
+> for work that changed user-facing behavior — that contradiction is itself the trigger. Skip only
+> when none of the triggers hold; the user may invoke it explicitly with any provider.
 
 # Step 0 — Mode + sub-command resolution (MANDATORY)
 

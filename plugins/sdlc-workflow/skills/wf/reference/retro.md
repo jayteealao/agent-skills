@@ -23,10 +23,13 @@ You are running `wf-retro`, **stage 10 of 10** in the SDLC lifecycle.
 | Produces | `10-retro.md` |
 | Next | Workflow complete. No further stages. |
 
-> **Optional second opinion.** At the synthesis step (after the analysis sub-agents
-> return), you may offer `/consult <what systemic patterns span this workflow's
-> friction?>` (or `/consult <provider> …`) — a read-only multi-model panel that
-> spots cross-stage patterns the per-domain sub-agents miss. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** At the synthesis step (after the analysis
+> sub-agents return), **auto-invoke** `/consult codex <what systemic patterns span this workflow's
+> friction?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the workflow carried a
+> hotfix, rollback, or production incident; (b) any finding implicates the workflow tooling itself
+> (plugin-feedback entries exist); (c) the same friction class recurs across 2+ stages — the
+> cross-stage pattern is what per-domain sub-agents structurally miss. Skip only when none of the
+> triggers hold; the user may invoke it explicitly with any provider.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.

@@ -53,7 +53,13 @@ The dispatcher has consumed the first positional argument (the slug). What remai
 
 No flags — probe takes a slug and an optional target string. It always surfaces incidental defects observed during navigation and drives every adapter the repo matches (intersected with the confirmed stack).
 
-> **Optional second opinion.** After observing (before synthesizing), you may offer `$consult <give an independent read of this runtime evidence against the AC>` (or `$consult <provider> …`) — a read-only multi-model panel. Self-run when clearly valuable (pin `codex`/`claude`); otherwise offer it.
+> **Auto second opinion (objective triggers).** After observing (before synthesizing),
+> **auto-invoke** `$consult codex <give an independent read of this runtime evidence against the
+> AC>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the evidence is ambiguous against
+> the AC — no clean pass/fail; (b) the probe's verdict would clear a registered
+> runtime-evidence-deferral (its read unblocks ship, so it deserves two readers); (c) the
+> observation contradicts an earlier verify result. Skip only when none of the triggers hold; the
+> user may invoke it explicitly with any provider.
 
 # Step 0 — Orient (MANDATORY)
 

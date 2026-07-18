@@ -35,11 +35,14 @@ A single file: **`.ai/ship-plan.md`** at the **repo root** (not under `.ai/workf
 - It does not run any of the skills it discovers (no `gradle publish --dry-run`, no `terraform plan`, etc.). Discovery is read-only.
 - It does not **apply** anything to the repo or remote. Authoring the contract is all this skill does; generating workflows/config and applying remote settings (branch protection, environment protection, merge settings) is `$wf ship-plan build`'s job, behind its own confirm gates.
 
-> **Optional second opinion.** Before you lock the pipeline contract, you may offer
-> `$consult <critique this proposed ship / CI-CD pipeline shape — gaps, risky
-> ordering, missing gates>` (or `$consult <provider> …`) — a read-only multi-model
-> panel whose repo-aware oracles can check the hypothesis against the repo's actual
-> CI before you commit to it. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** Before you lock the pipeline contract,
+> **auto-invoke** `$consult codex <critique this proposed ship / CI-CD pipeline shape — gaps, risky
+> ordering, missing gates>` (pinning `codex`/`claude` keeps it free; the repo-aware oracles check
+> the hypothesis against the repo's actual CI) when ANY of: (a) the proposed pipeline includes a
+> deploy/release leg to a live target; (b) discovery evidence from the repo's actual CI contradicts
+> the hypothesized shape; (c) the path about to be locked is one discovery ranked riskier than an
+> available alternative. Skip only when none of the triggers hold; the user may invoke it explicitly
+> with any provider.
 
 # CRITICAL — execution discipline
 

@@ -36,7 +36,7 @@ If slug-mode was not selected, ignore this section and proceed standalone.
 | Does NOT | Write code, edit files outside its own artifact, commit, push, or open PRs. |
 | Idempotent | Re-running the same scope+target on an already-cleaned input is safe — agents report "no findings" and the artifact records that. |
 
-> **Optional second opinion.** After the routing matrix assigns each finding, offer `/consult <are any of these findings systematically misrouted — e.g. a route-fix that masks an architectural problem?>` (or `/consult <provider> …`) — a read-only multi-model panel that lightly QCs the router's output (routing is otherwise deterministic from the matrix). Self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** After the routing matrix assigns each finding, **auto-invoke** `/consult codex <are any of these findings systematically misrouted — e.g. a route-fix that masks an architectural problem?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) any architectural-smell finding was routed as a quick route-fix — the masking risk the panel exists to catch; (b) the matrix produced a judgment-call or tie routing; (c) findings touch security-adjacent code. Routing is otherwise deterministic from the matrix — skip when none of the triggers hold; the user may invoke it explicitly with any provider.
 
 # CRITICAL — execution discipline (orchestrator-not-fixer)
 You are a **router**, not a problem-solver.

@@ -24,7 +24,7 @@ You are running `$wf implement`, **stage 5 of 10** in the SDLC lifecycle.
 | Skip-to | `$wf review <slug> <slice-slug>` if verification is trivial |
 | Special | `$wf implement <slug> reviews` — fix review findings one by one |
 
-> **Optional second opinion.** Offer `$consult <question>` (or `$consult <provider> …`) — a read-only multi-model panel — in **reviews mode** (sanity-check a sub-agent's fix before merging) or when **plan drift is significant** (pressure-test the adapted approach before writing code). Skip for routine implementation. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise offer it.
+> **Auto second opinion (objective triggers).** **Auto-invoke** `$consult codex <question>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) **reviews mode** is about to merge a sub-agent's fix touching auth, data integrity, money, or concurrency; (b) **plan drift is significant** — the adapted approach departs from a named plan step; (c) this run wrote a new suppression (`sdlc-debt:` marker) to get the build green. Routine implementation with none of these: skip. The user may invoke it explicitly with any provider.
 
 > **Read the source before you code against it.** When you're about to write code
 > that calls a dependency/framework/SDK whose exact API, types, or edge-case behavior

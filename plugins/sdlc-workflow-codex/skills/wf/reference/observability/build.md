@@ -67,9 +67,13 @@ missing** — code, pipeline, backend, and dashboards — under strict no-overwr
 - It does not rip out existing scattered logs (see Step 6 — migration is advisory).
 - It does not run a general correctness sweep — that is `$wf review`.
 
-> **Optional second opinion.** After the gap report, you may offer `$consult <second opinion on this observability
-> build plan — will these adapters actually emit queryable events; is the pipeline sound; any cardinality/cost or
-> PII risk>` (or `$consult <provider> …`). Model may self-run when clearly valuable; otherwise just offer it.
+> **Auto second opinion (objective triggers).** After the gap report, **auto-invoke** `$consult
+> codex <second opinion on this observability build plan — will these adapters actually emit
+> queryable events; is the pipeline sound; any cardinality/cost or PII risk>` (pinning
+> `codex`/`claude` keeps it free) when ANY of: (a) any adapter emits into a pipeline whose
+> queryable sink is not yet verified (emit-without-sink); (b) the gap report flags cardinality or
+> cost risk; (c) the build touches redaction or PII handling. Skip only when none of the triggers
+> hold; the user may invoke it explicitly with any provider.
 
 ---
 

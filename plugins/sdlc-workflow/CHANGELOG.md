@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.139.0] - 2026-07-18
+
+### Changed — consult objective triggers complete the sweep: the weak remainder (18 secondary stages) auto-invokes, and the discretion vocabulary is extinct
+
+v9.135.0 replaced consult's self-graded discretion with objective triggers in the six primary stages, and v9.136.0 covered intake `default`/`ideate`/`investigate` — but the known-gap ledger listed the remaining secondary stages still carrying the weak wording ("Model may self-run when clearly valuable; otherwise just offer it"), and a fresh sweep found four more beyond that list. This release finishes the job: **every** consult second-opinion block in both trees now auto-invokes on objective per-stage triggers, and the discretion vocabulary is gone repo-wide.
+
+- **The 14 known-weak files**: `augment/{benchmark,experiment,instrument,profile}` (regression tripwire fired / unlocalized cause · proxy metric / no stopping rule / gates a charter commitment or carried RIM · PII-adjacent signal / uncovered dark path / unbounded cardinality · hotspot outside the predicted area / architectural candidate / inconclusive variance), `docs` (quadrant violations or stale claims / public API surface / "None required" contradicting user-facing change), `ship-plan/{init,build,audit}` (live deploy leg / CI-evidence contradiction / riskier-path lock · hard-block finding / prod-CI remediation / plan drift · high severity / gate-change recommendation / suspicious all-clear), `observability/{init,build,audit}` (new vendor or recurring cost / unredacted PII / deploy-target conflict · emit-without-sink / cardinality-cost flag / redaction touched · high severity / unprobed promised dashboards / breaking schema change), `slice` (>3 slices or 3-deep chain / charter-scenario AC or carried RIM aboard / justified-grouping escape used), `probe` (ambiguous evidence / verdict clears a registered deferral / contradicts earlier verify), `retro` (hotfix-rollback-incident aboard / findings implicate the tooling / same friction class across 2+ stages).
+- **Four more found by the sweep** (not on the known-gap list): `implement` (reviews-mode merge touching auth/data/money/concurrency / significant plan drift / new `sdlc-debt:` suppression), `ship` (deferral rides the release / base moved since verify / overridden pre-flight or dry-run warning), `ship/announce` (claims a partial/deferred capability / external-public channel / first announcement of a surface), `simplify` (architectural smell routed as a quick fix / judgment-call routing / security-adjacent findings).
+- **New drift-guard suite** `tests/unit/skills/consult-trigger-coverage.test.mjs`: the 18 swept files must carry the trigger block in both trees; the weak vocabulary ("Optional second opinion", "otherwise offer it", "when clearly valuable") is asserted extinct across every reference `.md` in both trees; the codex dialect (`$consult`) is pinned per file.
+- Also fixed in passing: `renderers/_shell.mjs` `PLUGIN_VERSION` had been left at `9.137.0` by the v9.138.0 release (the classically-forgotten bump spot) — now correct.
+- Both trees (18 + 18 files; CRLF preserved where the codex mirror uses it). Docs-only behavior change plus the version-stamp fix — no schema, hook, or runtime surface touched. Gates: `npm test` 649/0/2; `npm run verify` 51 pages stamped v9.139.0; `npm run verify:codex` parity OK; `build` + `sync:codex` run.
+
 ## [9.138.0] - 2026-07-18
 
 ### Changed — handoff/ship hardening: the gates were right, so this release fixes what feeds them

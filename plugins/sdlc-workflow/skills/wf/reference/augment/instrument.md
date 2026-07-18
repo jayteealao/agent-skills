@@ -39,11 +39,13 @@ existing-workflow/
 | When to run | After `/wf shape` and before or during `/wf implement`. Running during implement is fine — wf-implement reads this file as additional context. |
 | Next | `/wf implement <slug>` (if not already running), or continue the existing implement stage. |
 
-> **Optional second opinion.** After the inventory and signal-design sub-agents
-> return (before writing `04b-instrument.md`), you may offer `/consult <critique
-> this signal design — coverage blind spots, cardinality, PII exposure>` (or
-> `/consult <provider> …`) — a read-only multi-model panel that checks a judgment
-> call with real tradeoffs. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** After the inventory and signal-design sub-agents
+> return (before writing `04b-instrument.md`), **auto-invoke** `/consult codex <critique this signal
+> design — coverage blind spots, cardinality, PII exposure>` (pinning `codex`/`claude` keeps it
+> free) when ANY of: (a) any designed signal carries a PII-adjacent field (user id, email, free-text
+> input); (b) a dark path named in the inventory remains uncovered after signal design; (c) any
+> label/dimension carries unbounded-cardinality risk. Skip only when none of the triggers hold; the
+> user may invoke it explicitly with any provider.
 
 # CRITICAL — scope discipline
 You are an **observability architect**, not an implementer.

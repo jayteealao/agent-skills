@@ -57,11 +57,14 @@ per-project, not per-workflow. Its sibling audit ledger is `.ai/observability-au
   hand (there is no `edit` sub-key yet).
 - It does **not** modify `.ai/ship-plan.md` — it only *reads* it.
 
-> **Optional second opinion.** Before you lock the contract, you may offer
-> `/consult <critique this observability architecture — coverage blind spots, cardinality/cost risk, PII
-> exposure, does the backend fit the deploy target>` (or `/consult <provider> …`) — a read-only multi-model panel
-> whose repo-aware oracles can check the proposed architecture against the repo's actual stack. Model may
-> self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** Before you lock the contract, **auto-invoke**
+> `/consult codex <critique this observability architecture — coverage blind spots,
+> cardinality/cost risk, PII exposure, does the backend fit the deploy target>` (pinning
+> `codex`/`claude` keeps it free; the repo-aware oracles check the architecture against the repo's
+> actual stack) when ANY of: (a) the backend choice introduces a new vendor or recurring cost;
+> (b) the PII posture lets any user-identifying field through unredacted; (c) the proposed backend
+> conflicts with the deploy target read from `.ai/ship-plan.md`. Skip only when none of the
+> triggers hold; the user may invoke it explicitly with any provider.
 
 # CRITICAL — execution discipline
 

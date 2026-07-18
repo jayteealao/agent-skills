@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.138.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.139.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -153,10 +153,10 @@
   A <a href="../reference/glossary.html">slug</a> (the short id that names a workflow in progress) is required. Drives the running artifact, captures observable output — screenshots, stdout, response bodies — and compares against acceptance criteria. Does not write a fix.
 </dd>
 
-<dt><strong>"I want 2–3 distinct engineering approaches sketched before I pick one."</strong></dt>
+<dt><strong>"I want every distinct engineering approach sketched before I pick one."</strong></dt>
 <dd>
   <code>/wf intake investigate "&lt;problem&gt;"</code><br>
-  Produces an A/B/C option set with effort, blast radius, reversibility, and risk for each. No winner is picked — that decision stays with you. After you decide, route to <code>/wf intake fix</code> (small) or <code>/wf intake</code> (medium+).
+  Produces an option set covering every distinct approach found (up to 3 presented as full tradeoff cards) with effort, blast radius, reversibility, and risk for each. No winner is picked — that decision stays with you. After you decide, route to <code>/wf intake fix</code> (small) or <code>/wf intake</code> (medium+).
 </dd>
 
 <dt><strong>"I have a theory about how this code works and want it tested against the codebase."</strong></dt>
@@ -202,7 +202,7 @@ flowchart TD
   start -- "Behaviour-preserving refactor" --> refactor["/wf intake refactor"]
   start -- "Bug report, root cause unknown (static diagnosis from code/git)" --> rca["/wf intake rca"]
   start -- "Runtime-truth check on a running artifact — verified but actually broken?" --> probe["/wf probe &lt;slug&gt;"]
-  start -- "Need 2–3 distinct engineering approaches sketched before committing" --> investigate["/wf intake investigate"]
+  start -- "Need every distinct engineering approach sketched before committing" --> investigate["/wf intake investigate"]
   start -- "Have a theory about how this code works and want it adjudicated" --> discover["/wf intake discover"]
   start -- "No concrete change yet — brainstorm a problem space" --> ideate["/wf intake ideate"]
   start -- "Already changed the working tree — adopt it into the pipeline" --> adopt["/wf intake adopt"]

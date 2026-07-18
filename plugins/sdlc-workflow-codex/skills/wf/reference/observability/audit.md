@@ -42,9 +42,12 @@ code, present in the repo, and useless when you page someone at 2am. `audit` is 
   `$wf review sweep pre-merge`.
 - The only file it ever writes is its own ledger, `.ai/observability-audit.md`.
 
-> **Optional second opinion.** After the ledger is written, you may offer `$consult <second opinion on these
-> observability audit findings — are any wrong, any missed?>` (or `$consult <provider> …`). Model may self-run
-> when clearly valuable; otherwise just offer it.
+> **Auto second opinion (objective triggers).** After the ledger is written, **auto-invoke**
+> `$consult codex <second opinion on these observability audit findings — are any wrong, any
+> missed?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) any finding rates high
+> severity; (b) the ledger is all-clear while the contract promises dashboards or alerts the audit
+> never probed; (c) a finding recommends a schema change that would break existing queries. Skip
+> only when none of the triggers hold; the user may invoke it explicitly with any provider.
 
 ---
 

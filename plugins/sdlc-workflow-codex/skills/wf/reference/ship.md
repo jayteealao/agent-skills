@@ -23,9 +23,7 @@ You are running `$wf ship`, **stage 9 of 10** in the SDLC lifecycle.
 | Produces | `09-ship-run-<run-id>.md` (per release, on the lead slug) + refreshed `09-ship-runs.md` per roster slug (followers carry a `shipped-via` pointer). Legacy `09-ship.md` is read-only; never written by this version. |
 | Next | `$wf retro <slug>` (if go) or `$wf implement <slug> <slice>` (if blockers) |
 
-> **Optional second opinion.** At the Go/No-Go gate, you may offer `$consult
-> <risk-review this release: pre-flight, dry-run, freshness delta, and any deferred
-> findings>` (or `$consult <provider> …`) — a read-only multi-model panel before the irreversible merge. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** At the Go/No-Go gate, before the irreversible merge, **auto-invoke** `$consult codex <risk-review this release: pre-flight, dry-run, freshness delta, and any deferred findings>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) any deferred review finding or runtime-evidence-deferral rides the release; (b) the freshness delta shows the base branch moved since verify; (c) pre-flight or the dry-run surfaced a warning that was overridden. Skip only when none of the triggers hold; the user may invoke it explicitly with any provider.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.

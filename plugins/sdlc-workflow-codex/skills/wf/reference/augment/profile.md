@@ -30,10 +30,13 @@ This is a **standalone command**, not tied to any workflow. It writes to `.ai/pr
 | Next | `$wf intake investigate <domain>` — to rank this profiling finding among other investment opportunities |
 | Alt next | `$wf intake <description>` — if the profiling surfaced a clear high-value optimization |
 
-> **Optional second opinion.** At the optimization-candidates synthesis, you may
-> offer `$consult <are these optimization candidates sound, and what architectural
-> patterns did local analysis miss?>` (or `$consult <provider> …`) — a read-only
-> multi-model panel that brings cross-codebase breadth to the analysis. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+> **Auto second opinion (objective triggers).** At the optimization-candidates synthesis,
+> **auto-invoke** `$consult codex <are these optimization candidates sound, and what architectural
+> patterns did local analysis miss?>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) the
+> top hotspot lies outside the area the plan predicted; (b) any candidate requires an architectural
+> change rather than a local fix; (c) run-to-run variance is comparable to the measured delta (the
+> data is inconclusive, so cross-codebase breadth beats re-measuring). Skip only when none of the
+> triggers hold; the user may invoke it explicitly with any provider.
 
 # Core discipline
 - **Evidence first.** Every hotspot claim must cite a specific `file:line` or tool output. Do not say "this is probably slow" without a data point.
