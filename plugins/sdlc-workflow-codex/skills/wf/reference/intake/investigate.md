@@ -1,5 +1,5 @@
 ---
-description: Solution-options sketcher. Takes a code-level problem ("checkout is slow", "auth flow is brittle", "we need to support multi-tenant data") and produces 2–3 candidate engineering approaches grounded in the existing architecture, with tradeoffs (scope, blast radius, effort, risk, reversibility) for each. Does NOT pick a winner — the user does. Does NOT write application code, does NOT diagnose bugs (use `$wf intake rca`), does NOT validate whether the problem is worth solving (it assumes the user already decided). Read-only.
+description: Solution-options sketcher. Takes a code-level problem ("checkout is slow", "auth flow is brittle", "we need to support multi-tenant data") and enumerates every genuinely distinct candidate engineering approach grounded in the existing architecture, with tradeoffs (scope, blast radius, effort, risk, reversibility) for each — up to 3 presented as full cards, surplus distinct options recorded as compressed entries. Does NOT pick a winner — the user does. Does NOT write application code, does NOT diagnose bugs (use `$wf intake rca`), does NOT validate whether the problem is worth solving (it assumes the user already decided). Read-only.
 argument-hint: <problem-statement-or-slug>
 ---
 
@@ -20,9 +20,9 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | | Detail |
 |---|---|
 | Requires | Nothing — starts fresh. Pass a problem statement or an existing slug to resume. |
-| Produces | `01-investigate.md` (problem + architecture map + 2–3 option sketches with tradeoffs), `00-index.md`. **No `02-shape.md`** — the user chooses an option first; the downstream skill (`$wf intake` or `$wf intake fix`) does the shape pass on the chosen option. |
+| Produces | `01-investigate.md` (problem + architecture map + every distinct option sketched with tradeoffs — ≤3 full cards, surplus as compressed entries — plus a status-quo baseline), `00-index.md`. **No `02-shape.md`** — the user chooses an option first; the downstream skill (`$wf intake` or `$wf intake fix`) does the shape pass on the chosen option. |
 | Skips | No fix, no plan, no implementation, no recommendation. The option set *is* the output. |
-| Next | User picks an option, then: `$wf intake fix <option-description>` (small option, ≤3 files / ≤5 steps / no new dependency) or `$wf intake <option-description>` (medium+). |
+| Next | User picks an option, then: `$wf intake fix <option-description>` (`effort: small` per the effort rubric below) or `$wf intake <option-description>` (medium+). |
 | Escalate | If sub-agents agree no viable option exists within the current architecture → surface `architecture-blocking` and recommend a design pass via `$wf intake` with the problem framed as an architecture question. |
 
 > **Auto second opinion (objective triggers).** At the terminus, once the option set is
@@ -43,6 +43,14 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 > as sound as the API facts behind them; reading the real source keeps a sketch from
 > resting on an API that doesn't exist. Read-only — reads land in `.scratch/`, no repo
 > or application-code changes.
+
+# Effort rubric (single source)
+
+The one definition of effort for this skill. Every other mention in this file — sub-agent prompts, option sections, routing — cites this rubric instead of restating thresholds; pass it verbatim into any sub-agent prompt that needs it.
+
+- **small** — ≤3 files, ≤5 steps, no new dependency, no schema change.
+- **medium** — 4–10 files, or a new dependency, or a config change.
+- **large** — >10 files, or an architecture change, migration, or cross-team coordination.
 
 # CRITICAL — sketching discipline
 You are an **options sketcher**, not a chooser, planner, or implementer.
@@ -76,8 +84,10 @@ If `$ARGUMENTS` contains enough to answer all three, skip to Step 2.
 
 Do NOT write the artifact yet. Hold answers in working memory and proceed.
 
-# Step 2 — Parallel map-and-sketch
-Launch all three sub-agents simultaneously as parallel read-only `explorer` children per [_subagents.md](../_subagents.md). Do not proceed to synthesis until all three complete.
+# Step 2 — Map and sketch (two waves)
+Three sub-agents, dispatched in two waves as read-only `explorer` children per [_subagents.md](../_subagents.md): the cartographer and the option generator are independent and launch **in parallel**; the tradeoff characterizer launches **after both return**, because it consumes their output — launched blind it can only produce an empty template. Do not proceed to synthesis until all three complete.
+
+## Wave 1 — cartographer ∥ option generator (launch simultaneously)
 
 ### Explore sub-agent 1 — Architecture cartographer
 
@@ -101,22 +111,27 @@ Return as structured text:
 
 Prompt with ALL of the following:
 - The problem: `<verbatim>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
-- Your job is to propose **2 to 3 genuinely distinct engineering approaches** that could solve the problem within the current architecture (or, if you must violate it, name the violation explicitly as part of the option).
+- Your job is to enumerate **every genuinely distinct engineering approach** that could solve the problem within the current architecture (or, if you must violate it, name the violation explicitly as part of the option). The distinctness requirement below is the only ceiling — typically 2–5 mechanisms exist. Report exactly as many as you find: do not stop at 3 because it feels complete, and do not pad with a near-duplicate to reach a count. Selection for presentation happens at synthesis, not here.
 - Distinctness requirement: options must differ in *mechanism*, not just in surface choices. "Cache at layer X" vs. "cache at layer Y" is one option, not two, unless the layers materially change correctness or operational profile. "Add a cache" vs. "denormalize the data model" vs. "compute lazily on demand" are three distinct options.
 - For each option, do a light read of the affected area to confirm it is at least plausible (no obvious blocker like "this code path is generated and cannot be edited").
 - Name each option with a short, descriptive label (≤6 words) — not "Option A" but "In-process LRU cache on the resolver".
 - Do NOT estimate effort, risk, or rank options — that is sub-agent 3.
 
 Return as structured text:
-- `options`: list of `{id: A|B|C, label, mechanism: one_paragraph, primary_files_touched: [path], requires_new_dependency: bool, requires_schema_change: bool, requires_architecture_violation: <none or one_line>, plausibility_check: one_line}`.
-- `options_considered_and_rejected`: list of `{label, why_rejected: one_line}` — approaches you thought of but didn't include (transparency for the reader; helps avoid "why didn't you consider X?").
+- `options`: list of `{id: sequential letter (A, B, C, D, …), label, mechanism: one_paragraph, primary_files_touched: [path], requires_new_dependency: bool, requires_schema_change: bool, requires_architecture_violation: <none or one_line>, plausibility_check: one_line}`.
+- `options_considered_and_rejected`: list of `{label, why_rejected: one_line}` — approaches you thought of but didn't include (transparency for the reader; helps avoid "why didn't you consider X?"). Merit rejections only (implausible, blocked, dominated) — NOT an overflow bin for viable distinct options; every viable distinct mechanism belongs in `options`.
+
+## Wave 2 — tradeoff characterizer (launch after both Wave 1 agents return)
 
 ### Explore sub-agent 3 — Tradeoff characterizer
 
 Prompt with ALL of the following:
 - The problem: `<verbatim>`. The starting area: `<from question 2>`. The constraints: `<from question 3>`.
-- You will receive sub-agent 2's options *after* it completes (or, if running fully in parallel, you produce a tradeoff template that the synthesis step will fill in). For each option, characterize:
-  - **Effort:** small (≤3 files, ≤5 steps, no new dep, no schema change), medium (4–10 files, or new dep, or config change), large (>10 files, architecture change, migration, cross-team coord).
+- Sub-agent 2's full `options` list, verbatim.
+- Sub-agent 1's `architectural_constraints` and `integration_boundaries`, verbatim — judge each option against the mapped architecture, and flag any option that collides with a constraint or boundary.
+- The effort rubric (from `# Effort rubric`), verbatim.
+- For each option — however many sub-agent 2 returned, including any beyond three — characterize:
+  - **Effort:** small | medium | large, per the effort rubric.
   - **Blast radius:** narrow (one module, one code path), moderate (one subsystem, several code paths), wide (cross-cutting, multiple subsystems).
   - **Reversibility:** easy (one-PR revert restores prior behavior), moderate (some data or config persists post-revert), hard (data migration or external state changes mean revert is not a no-op).
   - **Risk:** what specifically can go wrong; cite the failure mode, not just "it might break". Examples: "Cache invalidation: stale reads if upstream write skips the invalidation step", "Async boundary: ordering violations on concurrent writes", "Schema change: requires backfill which blocks deploys for the table size".
@@ -126,11 +141,16 @@ For each option produce a comparable tradeoff card. Do NOT pick a winner — cha
 
 Return as structured text:
 - `tradeoff_cards`: list of `{option_id, effort, blast_radius, reversibility, top_risks: [one_line_each], operational_fit}`.
+- `constraint_collisions`: list of `{option_id, constraint, one_line_implication}` — options that violate an architectural constraint or integration boundary from sub-agent 1's map (or "none").
 - `cross_option_observations`: 1–2 lines on patterns across options (e.g., "All three require touching `auth/middleware.ts`; that file is the chokepoint regardless of option").
 
 # Step 3 — Synthesize and write `01-investigate.md`
 
 Merge findings from the three sub-agents. **Do not invent options the agents did not surface; do not silently drop options that survived the agents' filtering.** If sub-agent 2 returned only one option and `options_considered_and_rejected` shows nothing was rejected, that's a tripwire — surface it.
+
+**Constraint cross-check (MANDATORY):** before writing, verify every surviving option against sub-agent 1's `architectural_constraints` and `integration_boundaries` — start from sub-agent 3's `constraint_collisions` and add any collision it missed. A collision does not drop the option: set or extend that option's `requires_architecture_violation` and add the collision to its top risks, with the `file:line` evidence from the map. If every option collides, that is the `architecture-blocking` tripwire.
+
+**Select for presentation (cap = 3 full cards):** if more than 3 viable options survived, pick the 3 that maximize spread across mechanism, effort, and risk profile (preferring options that honor the user's constraints) for full option sections. Demote the surplus to compressed entries under "Demoted by presentation cap" in the rejected section — `<label> — <mechanism, one phrase> — effort:<X> — <why it lost the differentiation cut>` — taking the effort value from sub-agent 3's cards. Demotion by cap is NOT rejection on merit: fire the `option-space-truncated` tripwire so the reader knows the option space was wider than the full cards.
 
 **`01-investigate.md` frontmatter:**
 ```yaml
@@ -140,8 +160,9 @@ type: investigate
 slug: <slug>
 workflow-type: investigate
 problem-statement: <one-line problem verbatim>
-option-count: <N: 1, 2, or 3>
-option-ids: [A, B, C]   # only those present
+option-count: <N: total distinct viable options found>
+presented-count: <min(N, 3)>
+option-ids: [A, B, C, …]   # all found; the first `presented-count` are full cards
 constraints: [<from-question-3>]
 recommended-next: user-picks   # this skill never picks
 status: ready-for-routing
@@ -170,7 +191,7 @@ A condensed view of sub-agent 1's findings. Don't dump the whole report — extr
 
 ## 3. Options
 
-One subsection per option. Use the labels from sub-agent 2, not "Option A/B/C" alone:
+One subsection per **presented** option (the ≤3 full cards selected in Step 3). Use the labels from sub-agent 2, not "Option A/B/C" alone:
 
 ### Option A — `<label>`
 
@@ -189,21 +210,21 @@ Repeat for Option B and Option C (if present).
 
 ### Options considered and rejected
 
-A short list from sub-agent 2's `options_considered_and_rejected` — transparency for the reader. Each line: `<label> — <one-line reason rejected>`.
+If the presentation cap demoted viable options (Step 3), open with a **Demoted by presentation cap** sub-list — `<label> — <mechanism, one phrase> — effort:<X> — <why demoted>`. These are viable options, not rejections; a reader may still pick one. Then the merit rejections from sub-agent 2's `options_considered_and_rejected` — transparency for the reader. Each line: `<label> — <one-line reason rejected>`.
 
 ## 4. Side-by-side comparison
 
-A compact table:
+A compact table. The leading **Status quo** column is the do-nothing baseline: mechanism "leave it as is", effort/blast radius/reversibility `—`, and its top-risk cell states the cost of the problem persisting (tie it to the observable from section 1). Every option's tradeoffs read relative to this column.
 
-| | A: <label> | B: <label> | C: <label> |
-|---|---|---|---|
-| Mechanism (one phrase) | … | … | … |
-| Effort | small/medium/large | … | … |
-| Blast radius | narrow/moderate/wide | … | … |
-| Reversibility | easy/moderate/hard | … | … |
-| New dep? | yes (name) / no | … | … |
-| Schema change? | yes / no | … | … |
-| Top risk (the worst one) | … | … | … |
+| | 0: Status quo | A: <label> | B: <label> | C: <label> |
+|---|---|---|---|---|
+| Mechanism (one phrase) | leave it as is | … | … | … |
+| Effort | — | small/medium/large | … | … |
+| Blast radius | — | narrow/moderate/wide | … | … |
+| Reversibility | — | easy/moderate/hard | … | … |
+| New dep? | — | yes (name) / no | … | … |
+| Schema change? | — | yes / no | … | … |
+| Top risk (the worst one) | <cost of the problem persisting> | … | … | … |
 
 Then 2 to 4 lines on cross-option observations (from sub-agent 3) — patterns or shared bottlenecks visible across all options.
 
@@ -213,7 +234,7 @@ This skill does not pick a winner. Pick the option you want and route accordingl
 
 | If you pick … | Route to |
 |---|---|
-| An option with `effort: small`, mechanism is clear, scope is ≤3 files | `$wf intake fix <option-label> — <one-line option description>` |
+| An option with `effort: small` (per the effort rubric) and a clear mechanism | `$wf intake fix <option-label> — <one-line option description>` |
 | An option with `effort: medium` or `large`, OR `requires_schema_change: yes`, OR `requires_new_dependency: yes` with non-trivial integration | `$wf intake <option-label> — <one-line option description>` |
 | You're not sure which option to pick | Stop and think. If the tradeoff matrix in section 4 doesn't disambiguate, ask a human or run `$wf recap <slug> <focus>` / `$deep-research` to deepen understanding of the area before choosing. |
 
@@ -222,9 +243,10 @@ This skill does not pick a winner. Pick the option you want and route accordingl
 Tripwires are **warn-and-continue** — record them, do NOT refuse to write the option set.
 
 - **single-viable-option:** Sub-agent 2 found only one genuinely distinct option. State it plainly — the user should know there isn't a real choice here, the next step is just to execute. Routing collapses to one entry.
+- **option-space-truncated:** More than 3 genuinely distinct viable options were found; the surplus was demoted to compressed entries by the presentation cap, not on merit. The full cards are a curated sample — check "Demoted by presentation cap" before concluding none of the demoted options fits better.
 - **all-options-large:** Every option came back as `effort: large`. The problem may need decomposition before any option becomes tractable — recommend re-running `$wf intake investigate` with a narrower problem statement.
 - **architecture-blocking:** Every viable option requires an architecture violation (sub-agent 2's `requires_architecture_violation` is non-empty on all options). The real next step is a design pass — recommend `$wf intake <problem>` framed as an architecture question, not picking from these options.
-- **problem-not-engineering:** The constraint that makes this hard is product/policy/business, not technical. The sub-agents could not find a meaningfully different engineering approach because the choice is upstream. Note this and stop — engineering option sketches are not the right tool.
+- **problem-not-engineering:** The constraint that makes this hard is product/policy/business, not technical. The sub-agents could not find a meaningfully different engineering approach because the choice is upstream. Record whatever option set exists, but flag prominently that picking among these options will not resolve the problem — the decision belongs to its upstream owner, and routing should go there before choosing.
 - **stale-area:** The recent-churn signal shows the affected area changed >5x in the last 30 days. Any option will land on shifting ground; recommend either pausing until churn settles or coordinating with whoever is actively working in the area.
 
 For each fired tripwire: `[tripwire-name]: <what specifically tripped it>`. Closing line:
@@ -252,7 +274,7 @@ base-branch: <current-branch>
 next-command: user-picks
 next-invocation: "user-picks — see 01-investigate.md section 5"
 option-count: <N>
-option-labels: [<A label>, <B label>, <C label>]
+option-labels: [<A label>, <B label>, <C label>]   # full-card options only
 open-questions: []
 augmentations: []
 progress:
@@ -272,10 +294,11 @@ Emit a compact chat summary:
 ```
 wf-investigate complete: <slug>
 Problem: <one-line problem>
-Options sketched: <N>
+Options found: <N> (<presented-count> full cards)
   A — <label> — effort:<X> radius:<Y> reversibility:<Z>
   B — <label> — effort:<X> radius:<Y> reversibility:<Z>
   C — <label> — effort:<X> radius:<Y> reversibility:<Z>   # if present
+  Demoted by cap: <N−3> — see "Options considered and rejected"   # only if option-space-truncated fired
 Cross-option observation: <one line from section 4>
 Tripwires: <none | comma-separated list>
 Next: pick A, B, or C — then $wf intake fix <option> (small) or $wf intake <option> (medium+)
