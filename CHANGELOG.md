@@ -4,6 +4,17 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.164.0 - 2026-07-19
+
+### Added
+- **hermes-tweet v1.0.0**: New plugin for Hermes Agent X/Twitter research, monitoring, audits, and approval-gated account actions.
+
+### Marketplace
+- Added `hermes-tweet` entry (category: productivity, v1.0.0).
+- Marketplace bumped to v1.164.0.
+
+---
+
 ## Version 1.140.0 - 2026-07-11
 
 ### Changed

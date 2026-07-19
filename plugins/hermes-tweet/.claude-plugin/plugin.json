@@ -1,0 +1,17 @@
+{
+  "name": "hermes-tweet",
+  "version": "1.0.0",
+  "description": "Hermes Agent X/Twitter workflows for read-first research, monitoring, audits, and explicit approval-gated account actions.",
+  "author": {
+    "name": "Xquik"
+  },
+  "license": "MIT",
+  "keywords": [
+    "hermes-agent",
+    "twitter",
+    "x",
+    "social-media",
+    "research",
+    "monitoring"
+  ]
+}

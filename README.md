@@ -35,6 +35,7 @@ node scripts/generate-codex-plugin.mjs sdlc-workflow
 
 | Plugin | Category | Description |
 |--------|----------|-------------|
+| [hermes-tweet](./plugins/hermes-tweet) | productivity | Hermes Agent X/Twitter workflows for read-first research, monitoring, audits, and explicit approval-gated account actions. |
 | [sdlc-workflow](./plugins/sdlc-workflow) | workflow | Canonical SDLC workflow with generated Codex adapters |
 | [sdlc-workflow-codex](./plugins/sdlc-workflow-codex) | workflow | Handwritten Codex-native software delivery workflows |
 
