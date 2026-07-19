@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>/review — 31 review dimensions and 7 sweeps · sdlc-workflow</title>
+<title>/wf review — 34 review dimensions and 7 sweeps · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -91,20 +89,20 @@
   </ul>
 </nav>
 </aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /review command</div>
+<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; /wf review command</div>
 <span class="quadrant reference">reference</span>
-<h1>/review — 31 review dimensions and 7 sweeps</h1>
+<h1>/wf review — 34 review dimensions and 7 sweeps</h1>
 
-<p class="lede">You reach for <code>/review</code> when you want a structured code review. It runs one named <a href="../reference/glossary.html">dimension</a> (a focused rubric — like "security" or "correctness") inline, or fans out every dimension in a named sweep in parallel and gives you a unified verdict.</p>
+<p class="lede">You reach for <code>/wf review</code> when you want a structured code review. It runs one named <a href="../reference/glossary.html">dimension</a> (a focused rubric — like "security" or "correctness") inline, or fans out every dimension in a named sweep in parallel and gives you a unified verdict.</p>
 
 <div class="summary">
 <table>
 <thead><tr><th>I want to…</th><th>What to type</th></tr></thead>
 <tbody>
-<tr><td>Check one specific angle (e.g. security) on my current diff</td><td><code>/review security</code></td></tr>
-<tr><td>Run a focused multi-angle sweep before merging</td><td><code>/review sweep pre-merge</code></td></tr>
-<tr><td>Review a specific file, not the whole diff</td><td><code>/review correctness ./src/auth.ts</code></td></tr>
-<tr><td>Run all 31 dimensions before a major release</td><td><code>/review sweep all</code></td></tr>
+<tr><td>Check one specific angle (e.g. security) on my current diff</td><td><code>/wf review security</code></td></tr>
+<tr><td>Run a focused multi-angle sweep before merging</td><td><code>/wf review sweep pre-merge</code></td></tr>
+<tr><td>Review a specific file, not the whole diff</td><td><code>/wf review correctness ./src/auth.ts</code></td></tr>
+<tr><td>Run all 34 dimensions before a major release</td><td><code>/wf review sweep all</code></td></tr>
 </tbody>
 </table>
 </div>
@@ -114,7 +112,7 @@
 <ul>
   <li><a href="#single-vs-sweep">Single dimension vs sweep — which to use</a></li>
   <li><a href="#sweeps">The 7 sweeps</a></li>
-  <li><a href="#dimensions">The 31 dimensions — by category</a></li>
+  <li><a href="#dimensions">The 34 dimensions — by category</a></li>
   <li><a href="#severity">Severity levels</a></li>
   <li><a href="#target">Targeting — files, PRs, worktree</a></li>
   <li><a href="#integration">Integration with /wf review</a></li>
@@ -130,12 +128,12 @@
 <table>
 <thead><tr><th>Mode</th><th>Form</th><th>Cost</th><th>Use when</th></tr></thead>
 <tbody>
-<tr><td>Single dimension</td><td><code>/review security</code><br><code>/review correctness ./src/auth.ts</code></td><td>One sub-agent</td><td>You know which angle to investigate.</td></tr>
-<tr><td>Sweep</td><td><code>/review sweep pre-merge</code><br><code>/review sweep all worktree</code></td><td>N sub-agents in parallel</td><td>You want defensive breadth across multiple angles at once.</td></tr>
+<tr><td>Single dimension</td><td><code>/wf review security</code><br><code>/wf review correctness ./src/auth.ts</code></td><td>One sub-agent</td><td>You know which angle to investigate.</td></tr>
+<tr><td>Sweep</td><td><code>/wf review sweep pre-merge</code><br><code>/wf review sweep all worktree</code></td><td>N sub-agents in parallel</td><td>You want defensive breadth across multiple angles at once.</td></tr>
 </tbody>
 </table>
 
-<p>Three names overlap — <code>architecture</code>, <code>infra</code>, and <code>security</code> are both sweep names and individual dimensions. A bare invocation runs the dimension. Add the word <code>sweep</code> to run the bundle: <code>/review sweep security</code>.</p>
+<p>Three names overlap — <code>architecture</code>, <code>infra</code>, and <code>security</code> are both sweep names and individual dimensions. A bare invocation runs the dimension. Add the word <code>sweep</code> to run the bundle: <code>/wf review sweep security</code>.</p>
 
 <hr>
 
@@ -146,21 +144,21 @@
 <table class="no-mobile-scroll">
 <thead><tr><th>Sweep name</th><th>Dimensions included</th><th>When to use</th></tr></thead>
 <tbody>
-<tr><td><code>all</code></td><td>All 31 dimensions</td><td>Pre-major-release defensive review. Most expensive — reserve for releases or audits.</td></tr>
+<tr><td><code>all</code></td><td>All 34 dimensions</td><td>Pre-major-release defensive review. Most expensive — reserve for releases or audits.</td></tr>
 <tr><td><code>pre-merge</code></td><td>correctness, testing, security, refactor-safety, maintainability</td><td>Standard gate before merging a feature branch.</td></tr>
 <tr><td><code>quick</code></td><td>correctness, style-consistency, dx, ux-copy, overengineering</td><td>Smoke check before opening a PR.</td></tr>
 <tr><td><code>security</code></td><td>security, privacy, infra-security, data-integrity, supply-chain</td><td>Security-focused review of auth or data changes.</td></tr>
 <tr><td><code>architecture</code></td><td>architecture, performance, scalability, api-contracts</td><td>Architecture review for structural changes.</td></tr>
 <tr><td><code>infra</code></td><td>infra, ci, release, migrations, logging, observability</td><td>Infrastructure or devops change review.</td></tr>
-<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, frontend-performance, ux-copy</td><td>UI feature review.</td></tr>
+<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy</td><td>UI feature review.</td></tr>
 </tbody>
 </table>
 
 <hr>
 
-<h2 id="dimensions">The 31 dimensions — by category</h2>
+<h2 id="dimensions">The 34 dimensions — by category</h2>
 
-<p>Each dimension below is a named rubric you can pass to <code>/review</code>. For example: <code>/review data-integrity</code> or <code>/review ux-copy ./src/components/FormError.tsx</code>.</p>
+<p>Each dimension below is a named rubric you can pass to <code>/wf review</code>. For example: <code>/wf review data-integrity</code> or <code>/wf review ux-copy ./src/components/FormError.tsx</code>.</p>
 
 <h3>Correctness &amp; data</h3>
 <table>
@@ -207,14 +205,17 @@
 <tr><th><code>maintainability</code></th><td>Code clarity, naming, function shape, comment quality.</td></tr>
 <tr><th><code>overengineering</code></th><td>Speculative abstractions, premature interfaces, unused flexibility.</td></tr>
 <tr><th><code>refactor-safety</code></th><td>For refactor PRs: behavior preserved, tests covering parity.</td></tr>
+<tr><th><code>intent-fidelity</code></th><td>Does the diff advance the intake's product, or a simplified imitation? The one upward-traceability check — code back to the original request, naming any narrowing not covered by a fidelity-table row or intent-risk adjudication.</td></tr>
 <tr><th><code>code-simplification</code></th><td>Specific opportunities to remove code without losing function.</td></tr>
 <tr><th><code>style-consistency</code></th><td>Matches existing project conventions (not a generic style guide).</td></tr>
 </table>
 
-<h3>UX &amp; accessibility</h3>
+<h3>UX, motion &amp; accessibility</h3>
 <table>
 <tr><th><code>accessibility</code></th><td>WCAG compliance, semantic HTML, keyboard nav, screen-reader support.</td></tr>
 <tr><th><code>frontend-accessibility</code></th><td>Component-level a11y, focus management, ARIA, color contrast.</td></tr>
+<tr><th><code>motion</code></th><td>Animation/transition feel — easing, timing, interruptibility, origin/physicality, GPU performance, and whether it should animate at all.</td></tr>
+<tr><th><code>interface-craft</code></th><td>Static visual detail — concentric radii, optical alignment, shadows-over-borders, image outlines, tabular numbers, hit areas.</td></tr>
 <tr><th><code>ux-copy</code></th><td>UX writing — labels, errors, empty states, microcopy clarity.</td></tr>
 </table>
 
@@ -260,9 +261,9 @@
 
 <hr>
 
-<h2 id="integration">Integration with /wf review</h2>
+<h2 id="integration">Integration with the /wf lifecycle</h2>
 
-<p>You can run <code>/review</code> standalone at any time. You can also reach it through the workflow lifecycle: <code>/wf review &lt;slug&gt; [&lt;slice&gt;|triage]</code> uses this command under the hood.</p>
+<p>Both forms are the same <code>/wf review</code> key, distinguished by the first argument. Run it <strong>ad-hoc</strong> — a dimension or sweep with no slug (<code>/wf review &lt;dimension&gt;</code>) — to spot-check the current diff at any time. Pass a workflow <strong>slug</strong> instead (<code>/wf review &lt;slug&gt; [&lt;slice&gt;|triage]</code>) and the same key runs as the lifecycle's review stage.</p>
 
 <p>When called via the workflow, the reviewer does more than check the diff. It reads the feature's shape, slice definition, plan, and implementation notes to understand <em>what the code is supposed to do</em> before picking which dimensions to apply. The steps:</p>
 
@@ -277,9 +278,13 @@
 
 <p>Artifact names depend on <code>review-scope</code> (set at intake): per-slice mode (default) produces <code>07-review-&lt;slice&gt;.md</code> + <code>07-review-&lt;slice&gt;-&lt;dimension&gt;.md</code>; slug-wide mode produces <code>07-review.md</code> + <code>07-review-&lt;dimension&gt;.md</code> and reviews the entire branch diff.</p>
 
+<p>Re-running <code>/wf review &lt;slug&gt;</code> does not overwrite the previous review — findings merge into an accumulating <strong>ledger</strong>. Each finding carries a <code>surfaced-at</code> marker and a <code>status</code>; a re-run that no longer reproduces an earlier finding marks it <code>resolved</code> rather than dropping it, so the history of what was raised and cleared survives. A sibling <code>.yaml</code> fragment holds the open-only findings the dashboard renders.</p>
+
+<p>Each finding also carries <code>pre-existing: true|false</code>. A BLOCKER that predates this workflow (<code>pre-existing: true</code>) is routed to a <code>## Pre-existing Debt</code> bucket that points you at <code>/wf intake fix</code> or <code>/wf intake refactor</code>, and it does <em>not</em> count toward the Ship verdict — only findings introduced by this change gate the release.</p>
+
 <p>Re-run with <code>/wf review &lt;slug&gt; triage</code> to re-visit deferred findings without re-running the full review — useful after initially deferring HIGH findings and then deciding to address them.</p>
 
-<p>Use <code>/review</code> standalone when you want to spot-check a file outside a workflow, or run a sweep on a long-lived branch that isn't tracked as a slug.</p>
+<p>Use the ad-hoc form (<code>/wf review &lt;dimension&gt;</code>) when you want to spot-check a file outside a workflow, or run a sweep on a long-lived branch that isn't tracked as a slug.</p>
 
 <div class="related">
 <h3>Where next</h3>
@@ -290,7 +295,7 @@
 </ul>
 </div>
 
-<div class="pager"><a class="prev" href="../reference/wf-docs.html"><span>← Previous</span>/wf-docs</a><a class="next" href="../reference/skills.html"><span>Next →</span>Skills</a></div></main>
+<div class="pager"><a class="prev" href="../reference/wf-design.html"><span>← Previous</span>/wf design</a><a class="next" href="../reference/skills.html"><span>Next →</span>Skills</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

@@ -5,7 +5,7 @@
 
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
-import { renderHistoryBlock } from './_history.mjs';
+import { renderHistoryBlock, renderRevisionLedger } from './_history.mjs';
 import { escapeHtml } from './_validator.mjs';
 
 /**
@@ -65,7 +65,8 @@ export function renderSimple(artifact, ctx, { title, lede = '', metricFields = [
   const fmCardBlock = artifact.fragment ? '' : fmCard;
   const proseBlock = artifact.body
     ? `<div class="prose">${md2html(artifact.body)}</div>` : '';
-  const bodyHtml = `${fragmentBlock}${fmCardBlock}${proseBlock}`;
+  const ledgerBlock = renderRevisionLedger(fm, artifact.siblingYaml);
+  const bodyHtml = `${fragmentBlock}${ledgerBlock}${fmCardBlock}${proseBlock}`;
 
   return {
     headerHtml,

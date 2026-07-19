@@ -60,6 +60,9 @@ test('resolveViewPath: compressed change-mode leads all land at intake/', () => 
   strictEqual(resolveViewPath('01-hotfix.md').viewRel, 'intake/INDEX.html');
   strictEqual(resolveViewPath('01-refactor.md').viewRel, 'intake/INDEX.html');
   strictEqual(resolveViewPath('01-update-deps.md').viewRel, 'intake/INDEX.html');
+  // 01-adopt (/wf intake adopt) is the reverse-entry lead — same type:intake,
+  // same intake-card placement as the change-mode leads above.
+  strictEqual(resolveViewPath('01-adopt.md').viewRel, 'intake/INDEX.html');
 });
 
 test('resolveViewPath: terminal analysis-mode leads land in their own named dirs', () => {

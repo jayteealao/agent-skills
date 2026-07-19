@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -108,8 +106,8 @@
 
 <h2>Explore unfamiliar code before planning</h2>
 <p><strong>When:</strong> you are about to plan a change in a part of the codebase you have not worked in before.</p>
-<p>Run <code>/wf-meta how &lt;question&gt;</code> first. The <code>/wf-meta</code> command handles utility work that sits outside the main pipeline — in this case it dispatches parallel explore sub-agents and synthesises an explanation. Plan then has the context it needs and produces better acceptance criteria.</p>
-<pre><code>/wf-meta how "how does the auth middleware validate JWT tokens here?"
+<p>Run the <code>deep-research</code> skill first — it dispatches parallel explore sub-agents and synthesises an explanation of the unfamiliar code. Plan then has the context it needs and produces better acceptance criteria. (To explain an existing workflow artifact instead, use <code>/wf recap &lt;slug&gt; &lt;focus&gt;</code>.)</p>
+<pre><code>deep-research "how does the auth middleware validate JWT tokens here?"
 /wf plan add-token-refresh default-slice</code></pre>
 
 <h2>Narrow the review-bot list to reduce noise</h2>
@@ -126,7 +124,7 @@
 
 <h2>Record a surprise failure in the ship plan</h2>
 <p><strong>When:</strong> a ship run hit a failure mode the plan did not anticipate and you have now resolved it.</p>
-<p>Run <code>/wf-meta amend ship-plan</code> after fixing the issue. Add the failure and its resolution to the recovery playbooks block in the plan. The plan then carries that institutional knowledge for every future ship on the same project.</p>
+<p>Run <code>/wf ship-plan edit</code> after fixing the issue. Add the failure and its resolution to the recovery playbooks block in the plan. The plan then carries that institutional knowledge for every future ship on the same project.</p>
 
 <h2>Add an add-on only where it matters</h2>
 <p><strong>When:</strong> one slice needs benchmarking or instrumentation but others do not.</p>
@@ -134,12 +132,10 @@
 
 <h2>Skip shape and slice for a trivial change</h2>
 <p><strong>When:</strong> the change is a single-file edit that does not need the full scoping interview, but you still want a commit record.</p>
-<p>You can skip straight from intake to plan:</p>
-<pre><code>/wf intake "rename FooBar to FooBaz"
-/wf-meta skip &lt;slug&gt; shape
-/wf-meta skip &lt;slug&gt; slice
+<p>Use a compressed intake mode — <code>/wf intake fix</code> collapses shape and slice into a single planning pass, writing all the planning artifacts at once before handing off to <code>/wf implement</code>:</p>
+<pre><code>/wf intake fix "rename FooBar to FooBaz"
 /wf plan &lt;slug&gt; default-slice</code></pre>
-<p>Or use <code>/wf intake fix</code>, which handles the same skip path in one command. If you are unsure which fits, see the entry-point guide linked below.</p>
+<p>Manual stage-skipping is gone — the compressed modes (<code>fix</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>) are the supported way to shorten the lifecycle. If you are unsure which fits, see the entry-point guide linked below.</p>
 
 <div class="related">
 <h3>Where next</h3>

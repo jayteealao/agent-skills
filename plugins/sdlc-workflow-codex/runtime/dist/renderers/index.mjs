@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-ZY74LA7J.mjs";
+} from "../chunk-UH6AHFLK.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,12 +13,12 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-U4F4JCWH.mjs";
+} from "../chunk-XLQGUK4I.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
-import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-LFGT2BKG.mjs";
+import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-SGA7NFMW.mjs";
 
 // renderers/index.mjs
@@ -46,6 +46,39 @@ var STAGE_NAV = {
   ship: { types: ["ship-runs-index", "ship-run"], dir: "ship" },
   retro: { types: ["retro"], dir: "retro" }
 };
+function intentRisksChip(risks) {
+  if (!Array.isArray(risks) || !risks.length) return "";
+  const by = { open: 0, adjudicated: 0, carried: 0 };
+  for (const r of risks) {
+    const s = String(r?.status ?? "").trim().toLowerCase();
+    if (s in by) by[s]++;
+  }
+  const total = by.open + by.adjudicated + by.carried;
+  if (!total) return "";
+  if (by.open > 0) {
+    return `<span class="badge is-warn" title="unadjudicated intent-risks \u2014 shape should resolve these">\u26A0 ${by.open} intent-risk${by.open === 1 ? "" : "s"} open</span>`;
+  }
+  const parts = [];
+  if (by.adjudicated) parts.push(`${by.adjudicated} adjudicated`);
+  if (by.carried) parts.push(`${by.carried} carried`);
+  return `<span class="badge" title="intent-risk (RIM) ledger">\u2691 risks \xB7 ${escapeHtml(parts.join(" \xB7 "))}</span>`;
+}
+function charterChip(charter) {
+  if (!Array.isArray(charter) || !charter.length) return "";
+  const by = { honored: 0, "at-risk": 0, broken: 0 };
+  for (const c of charter) {
+    const s = String(c?.status ?? "honored").trim().toLowerCase();
+    if (s in by) by[s]++;
+  }
+  const total = charter.length;
+  if (by.broken > 0) {
+    return `<span class="badge is-warn" title="a charter commitment is broken \u2014 the build departed from intake">\u2691 ${by.broken}/${total} charter broken</span>`;
+  }
+  if (by["at-risk"] > 0) {
+    return `<span class="badge" title="a charter commitment is at risk">\u2691 charter \xB7 ${by["at-risk"]}/${total} at-risk</span>`;
+  }
+  return `<span class="badge" title="intake charter (positive commitments)">\u2691 charter \xB7 ${total}</span>`;
+}
 function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
   const current = fm["current-stage"] ?? "intake";
@@ -59,6 +92,8 @@ function render(artifact, ctx) {
       ${fm.branch ? `<span class="badge">\u2387 ${escapeHtml(fm.branch)}</span>` : ""}
       ${statusBadge(fm.status)}
       ${stageBadge(current)}
+      ${intentRisksChip(fm["intent-risks"])}
+      ${charterChip(fm["charter"])}
       ${fm["pr-number"] ? `<span class="meta">PR #${escapeHtml(fm["pr-number"])}</span>` : ""}
       ${fm["updated-at"] ? `<span class="meta">updated ${escapeHtml(fm["updated-at"])}</span>` : ""}
     </aside>

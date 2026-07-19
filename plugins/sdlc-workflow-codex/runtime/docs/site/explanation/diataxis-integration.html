@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -138,13 +136,15 @@
 
 <p>A tutorial generated this way will not drift into explanation. A reference page will not sprout step-by-step instructions. The quadrant boundary is enforced by the template, not by hoping the writer remembers the rule.</p>
 
-<h3>3. The /wf-docs command runs a standalone docs cycle</h3>
+<h3>3. The /wf docs key runs a standalone docs cycle</h3>
 
-<p>The <code>/wf-docs</code> command (one of the four top-level commands) runs a discover, audit, plan, generate, and review cycle on a project's existing documentation. It does not require an active workflow. Each document it generates targets exactly one quadrant.</p>
+<p>The <code>/wf docs</code> key runs a discover, audit, plan, generate, and review cycle on a project's existing documentation. It does not require an active workflow. Each document it generates targets exactly one quadrant.</p>
+
+<p>For documentation work entirely outside a <code>/wf</code> lifecycle, a standalone <code>diataxis</code> skill also exists <span class="badge">v9.113</span>. It is the general-purpose counterpart to the lifecycle-bound <code>/wf docs</code>: the same quadrant discipline (classify the request, then enforce the boundary between tutorial, how-to, reference, and explanation), invocable directly for a one-off tutorial, how-to guide, reference page, explanation, README, doc plan, or a review of existing docs. Reach for <code>/wf docs</code> when documentation is a stage of a lifecycle workflow, and the standalone <code>diataxis</code> skill otherwise.</p>
 
 <details>
 <summary>Technical detail — where the quadrant templates live</summary>
-<p>The per-quadrant templates are stored at <code>skills/wf-docs/reference/&lt;type&gt;.md</code> inside the plugin. Each file contains structure rules, anti-patterns, and a self-check for that quadrant. Handoff loads the file at generation time; it is not embedded in the handoff prompt itself. Editing those files changes what the generator produces.</p>
+<p>The per-quadrant templates are stored at <code>skills/wf/reference/docs/&lt;type&gt;.md</code> inside the plugin. Each file contains structure rules, anti-patterns, and a self-check for that quadrant. Handoff loads the file at generation time; it is not embedded in the handoff prompt itself. Editing those files changes what the generator produces.</p>
 </details>
 
 <h2>This doc site</h2>

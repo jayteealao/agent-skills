@@ -1,6 +1,0 @@
-interface:
-  display_name: "Test Patterns"
-  short_description: "Generate and organize tests — unit, integration, data factories, coverage strategies — across multiple languages and frameworks"
-  default_prompt: "Write comprehensive tests for this code: [paste code here]"
-policy:
-  allow_implicit_invocation: true

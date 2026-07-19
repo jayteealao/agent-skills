@@ -5,8 +5,9 @@ import {
 } from "../chunk-EG7S7OJR.mjs";
 import {
   md2html,
-  renderHistoryBlock
-} from "../chunk-ZY74LA7J.mjs";
+  renderHistoryBlock,
+  renderRevisionLedger
+} from "../chunk-UH6AHFLK.mjs";
 import {
   figureCanvas
 } from "../chunk-PDBKNARE.mjs";
@@ -15,12 +16,12 @@ import {
   metricRow,
   stageBadge,
   statusBadge
-} from "../chunk-U4F4JCWH.mjs";
+} from "../chunk-XLQGUK4I.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
-import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-LFGT2BKG.mjs";
+import "../chunk-FZ2GR6GF.mjs";
 import "../chunk-SGA7NFMW.mjs";
 
 // renderers/plan.mjs
@@ -291,14 +292,7 @@ function riskCallouts(risks) {
   }).join("");
 }
 function revisionsBlock(fm, sy) {
-  const revs = sy?.revisions ?? fm.revisions;
-  if (!Array.isArray(revs) || !revs.length) return "";
-  const items = revs.map((r) => {
-    const when = typeof r === "object" ? r.when ?? r.at ?? "" : "";
-    const what = typeof r === "object" ? r.summary ?? r.note ?? r.what ?? "" : String(r);
-    return `<li>${when ? `<span class="when">${escapeHtml(when)}</span> ` : ""}${escapeHtml(what)}</li>`;
-  }).join("");
-  return `<details class="revisions"><summary>Prior revisions (${revs.length})</summary><ol>${items}</ol></details>`;
+  return renderRevisionLedger(fm, sy);
 }
 function placeholderTopologySvg() {
   const W = 920, H = 150;

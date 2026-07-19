@@ -17,7 +17,9 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../lib/config.mjs';
 import { logError } from '../lib/error-log.mjs';
+import { safeParseFrontmatter } from '../lib/frontmatter.mjs';
 import { validateFrontmatterFile, validateSiblingYamlFile, formatValidationErrors } from '../lib/schema-validator.mjs';
+import { findUncitedLimitationClaims, findUnmarkedSuppressions, findUnownedMechanisms } from '../lib/limitation-lexicon.mjs';
 import { readStdinJson } from '../lib/stdin.mjs';
 import {
   collectToolInputPaths,
@@ -53,7 +55,7 @@ import {
 // rendered by `review-dimension.mjs`), `design-audit`, and `design-critique`.
 // Entries are the literal frontmatter `type:` value (so review-dimension is
 // listed as `review-command`). The two automation-regenerable snapshots that
-// also render rich — `sync-report` (/wf-meta sync) and `docs-index` (/wf-docs) —
+// also render rich — `sync-report` (/wf status deep) and `docs-index` (/wf docs) —
 // are intentionally NOT gated: they are rewritten by automation each run, so a
 // hard block would wedge the regenerator rather than prompt an author.
 const RICH_TIER_TYPES = new Set([
@@ -224,10 +226,245 @@ async function validateSiblingYamls(paths, config, schemaPath) {
   process.exit(2);
 }
 
+// Shadow-deferral vocabulary (AC-VERIFIABILITY R7 prose-deferral lint). When a
+// `verify` body carries one of these AND the frontmatter says `result: pass`,
+// the slice likely passed a user-observable AC on a prose-only deferral the
+// structured gate can't see. Heuristic → WARN, never block (a body can
+// legitimately quote the phrase while explaining it was AVOIDED).
+const SHADOW_DEFERRAL_RE = /(deferred to (?:the )?(?:user|manual|operator)\b|deferred to manual user|UNVERIFIED[ -]INTERACTIVE|will be verified (?:interactively )?(?:during|in|at)\b|decidable by static reasoning|deferred to user verification)/i;
+
+function blockVerifyResultGate(rel, message) {
+  process.stderr.write(
+    `wf-postwrite-verify: verify result gate BLOCKED ${rel}\n\n${message}\n\n` +
+    'This gate (AC-VERIFIABILITY recommendations R7) makes the "verified but actually\n' +
+    'broken" pass mechanically impossible. Re-Edit the frontmatter to reconcile result\n' +
+    'with the acceptance evidence, then continue. Opt out with hooks.verifyResultGate: false.\n',
+  );
+  process.exit(2);
+}
+
+/**
+ * Write-time `verify` result gate (AC-VERIFIABILITY R7). Closes the
+ * "verified but actually broken" leak at the artifact boundary.
+ *
+ * HARD BLOCK (exit 2), gated by config.hooks.verifyResultGate — frontmatter
+ * cross-field contradictions with no false-positive surface (a true pass meets
+ * every AC and defers none):
+ *   G1: result: pass while metric-acceptance-met < metric-acceptance-total.
+ *   G2: result: pass while interactive-verification: deferred.
+ *
+ * WARN (non-blocking systemMessage), gated by config.hooks.verifyDeferralLint —
+ * heuristic prose-deferral lint: shadow vocabulary in the body co-occurring
+ * with result: pass.
+ *
+ * Only `verify` per-slice artifacts are inspected; everything else is skipped.
+ */
+async function enforceVerifyResultGate(paths, config) {
+  const resultGate = config.hooks?.verifyResultGate !== false;
+  const proseLint = config.hooks?.verifyDeferralLint !== false;
+  const mockGate = config.hooks?.mockEvidenceGate !== false;
+  if (!resultGate && !proseLint && !mockGate) return;
+
+  const warnings = [];
+  for (const path of paths) {
+    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
+    const text = await readTextIfExists(path.absolute);
+    if (fragmentOwningType(text) !== 'verify') continue;
+    const { data, content } = safeParseFrontmatter(text, { filePath: path.absolute });
+    if (!data || data.result !== 'pass') continue;
+
+    // Mock-evidence gate (INTENT-FIDELITY W5.2/W9.1 + YOLO F5; EVIDENCE-SCHEMA-CONTRACT §5).
+    // A user-observable AC evidenced only by a mock / static rung is NOT met. The verify
+    // stage records the count in metric-acceptance-mock-rung (the machine-readable projection
+    // of the per-AC evidence-rung labels). result: pass with any such AC is a hard block.
+    if (mockGate) {
+      const mock = data['metric-acceptance-mock-rung'];
+      if (typeof mock === 'number' && mock > 0) {
+        blockVerifyResultGate(path.original,
+          `result: pass but metric-acceptance-mock-rung (${mock}) > 0. At least one user-observable AC's ` +
+          'highest evidence-rung is cited-mock / uncited-mock / static — a mock or static analysis does not ' +
+          'evidence user-observable behaviour. Climb the constraint-resolution ladder to a live/headless/' +
+          'emulator rung, or take the deferral path (interactive-verification: deferred + a 00-index ' +
+          'runtime-evidence-deferrals entry), then set result: partial. Opt out with hooks.mockEvidenceGate: false.');
+      }
+    }
+
+    if (resultGate) {
+      const met = data['metric-acceptance-met'];
+      const total = data['metric-acceptance-total'];
+      if (typeof met === 'number' && typeof total === 'number' && total > 0 && met < total) {
+        blockVerifyResultGate(path.original,
+          `result: pass but metric-acceptance-met (${met}) < metric-acceptance-total (${total}). ` +
+          'A passing slice must meet EVERY acceptance criterion. Either evidence the unmet AC(s) and ' +
+          `raise metric-acceptance-met to ${total}, or set result to \`partial\` / \`fail\`. If an unmet ` +
+          'AC is user-observable and this environment cannot evidence it, set interactive-verification: ' +
+          'deferred (result becomes `partial`) and register a 00-index runtime-evidence-deferrals entry.');
+      }
+      if (data['interactive-verification'] === 'deferred') {
+        blockVerifyResultGate(path.original,
+          'result: pass but interactive-verification: deferred. A deferred user-observable AC has no ' +
+          'runtime evidence, so the slice cannot pass — set result: partial. (`/wf ship` then hard-blocks ' +
+          'until a probe/re-verify run clears the deferral.)');
+      }
+    }
+
+    if (proseLint) {
+      const hit = SHADOW_DEFERRAL_RE.exec(content || '');
+      if (hit) warnings.push({ rel: path.original, phrase: hit[0].trim() });
+    }
+  }
+
+  if (warnings.length) {
+    const lines = warnings.map((w) => `  - ${w.rel}: found "${w.phrase}" while result: pass`);
+    outputSystemMessage(
+      `wf: possible prose-only deferral in a passing verify artifact:\n${lines.join('\n')}\n` +
+      'A user-observable AC that was "deferred to user/manual", left "UNVERIFIED-INTERACTIVE", punted to a ' +
+      'later slice, or "decided by static reasoning" is NOT met by a runtime drive. If that is what ' +
+      'happened, set result: partial + interactive-verification: deferred (with the rungs tried in the ' +
+      'defer-reason) and register the deferral in 00-index runtime-evidence-deferrals — do not leave it as ' +
+      'a silent pass. Disable this lint with hooks.verifyDeferralLint: false.',
+    );
+  }
+}
+
+// The NEW text a Write/Edit/MultiEdit introduced (so the lints flag added lines, not
+// pre-existing code). Write → content; Edit → new_string; MultiEdit → joined new_strings.
+function newTextFromInput(input) {
+  const ti = input?.tool_input ?? {};
+  if (typeof ti.content === 'string') return ti.content;
+  if (typeof ti.new_string === 'string') return ti.new_string;
+  if (Array.isArray(ti.edits)) return ti.edits.map((e) => e?.new_string ?? '').join('\n');
+  return '';
+}
+
+// Code-file advisory lints (INTENT-FIDELITY W3.2 limitation-claim + W9.3 suppression-debt).
+// Runs on the NEW text of any Write/Edit to a NON-artifact file — warn-only, never blocks.
+// A limitation comment with no citation is a hypothesis; a suppression with no sdlc-debt:
+// marker is untracked debt. Emits one systemMessage per lint class.
+function enforceCodeFileLints(input, config, artifactPaths) {
+  const limitationLint = config.hooks?.limitationClaimLint !== false;
+  const debtLint = config.hooks?.suppressionDebtLint !== false;
+  if (!limitationLint && !debtLint) return;
+
+  const artifactSet = new Set((artifactPaths ?? []).map((p) => p.original));
+  const paths = collectToolInputPaths(input).filter(
+    (p) => !artifactSet.has(p) && !isManagedArtifactMarkdownPath(p) && !isProseLogPath(p),
+  );
+  if (!paths.length) return;
+  const text = newTextFromInput(input);
+  if (!text.trim()) return;
+
+  const lines = [];
+  if (limitationLint) {
+    for (const hit of findUncitedLimitationClaims(text)) {
+      lines.push(`  - limitation claim without a citation (line ${hit.line}): "${hit.text}"`);
+    }
+  }
+  if (debtLint) {
+    for (const hit of findUnmarkedSuppressions(text)) {
+      lines.push(`  - suppression without an sdlc-debt: marker (line ${hit.line}): "${hit.text}"`);
+    }
+  }
+  if (!lines.length) return;
+  outputSystemMessage(
+    `wf: intent-fidelity code lints (advisory) on ${paths.join(', ')}:\n${lines.join('\n')}\n` +
+    'A "does not exist / not exposed / was removed" comment is a HYPOTHESIS — cite the installed source ' +
+    '(a study-sources read of node_modules/, a repro, an issue, or a URL) within ±3 lines, or delete it; ' +
+    'never replicate an in-repo limitation comment into new code without re-verifying it. A new `as any` / ' +
+    '`@ts-ignore` / `eslint-disable` needs an `sdlc-debt:` marker so the debt lifecycle (verify/retro/simplify) ' +
+    'inherits it. Opt out: hooks.limitationClaimLint / hooks.suppressionDebtLint.',
+  );
+}
+
+// Intake ledger lint (INTAKE-SHAPE-HARDENING W2.1). A default-mode intake (the artifact
+// literally named 01-intake.md with type: intake — compressed modes write 01-fix.md /
+// 01-hotfix.md / … and are exempt) may never be SILENTLY ledger-less: zero RIMs / zero
+// charter commitments is legal only as the explicit `intent-risks: none-declared` /
+// `charter: none-declared` declaration on the sibling 00-index.md. Warn-only — shape's
+// Step 9a backfill is the hard consequence; this lint just surfaces the gap at write time
+// while the author is still in context.
+async function enforceIntakeLedgerLint(paths, config) {
+  if (config.hooks?.intakeLedgerLint === false) return;
+  const warns = [];
+  for (const path of paths) {
+    const base = path.original.replace(/\\/g, '/').split('/').at(-1);
+    if (base !== '01-intake.md') continue;
+    const text = await readTextIfExists(path.absolute);
+    if (fragmentOwningType(text) !== 'intake') continue;
+    const indexPath = path.absolute.replace(/01-intake\.md$/, '00-index.md');
+    const indexText = await readTextIfExists(indexPath);
+    // No sibling 00-index.md → not a default-mode intake in flight (Step 2 creates
+    // the index before Step 9 writes the brief). Skip rather than guess.
+    if (!indexText) continue;
+    const { data: idx } = safeParseFrontmatter(indexText, { filePath: indexPath });
+    const missing = [];
+    const bodyHasRims = /(^|\n)\s*-\s*\*\*RIM-\d+/.test(text || '');
+    const idxRisks = idx?.['intent-risks'];
+    const risksDeclared = Array.isArray(idxRisks) ? idxRisks.length > 0 : idxRisks === 'none-declared';
+    if (!bodyHasRims && !risksDeclared) missing.push('intent-risks (RIM ledger)');
+    const bodyHasCharter = /(^|\n)\s*-\s*\*\*C\d+\*\*/.test(text || '');
+    const idxCharter = idx?.charter;
+    const charterDeclared = Array.isArray(idxCharter) ? idxCharter.length > 0 : idxCharter === 'none-declared';
+    if (!bodyHasCharter && !charterDeclared) missing.push('charter');
+    if (missing.length) warns.push({ rel: path.original, missing });
+  }
+  if (warns.length) {
+    const lines = warns.map((w) => `  - ${w.rel}: missing ${w.missing.join(' + ')}`);
+    outputSystemMessage(
+      `wf: intake ledger lint (advisory) — a default-mode intake landed without its intent ledger:\n${lines.join('\n')}\n` +
+      'A default intake may not be SILENTLY ledger-less: author RIM entries (## Risks if Misunderstood, ' +
+      'the Step 6a misreading pass) and 3-7 charter commitments into 00-index.md, or declare the explicit ' +
+      'escape `intent-risks: none-declared` / `charter: none-declared` with a one-line reason in the body. ' +
+      "Otherwise shape's Step 9a will STOP and backfill the ledger before adjudicating. " +
+      'Opt out: hooks.intakeLedgerLint: false.',
+    );
+  }
+}
+
+// Named-mechanism artifact lint (INTENT-FIDELITY W7.2). On a shape/slice artifact, a
+// mechanism noun that appears in an AC / verification line but in NO decision section of
+// the body is a design decision smuggled past adjudication. Warn-only.
+async function enforceNamedMechanismLint(paths, config) {
+  if (config.hooks?.namedMechanismLint === false) return;
+  const warns = [];
+  for (const path of paths) {
+    if (isProseLogPath(path.original) || isProjectContextMarkdownPath(path.original)) continue;
+    const text = await readTextIfExists(path.absolute);
+    const type = fragmentOwningType(text);
+    if (type !== 'shape' && type !== 'slice') continue;
+    const { content } = safeParseFrontmatter(text, { filePath: path.absolute });
+    if (!content) continue;
+    // AC/verification region = lines under Acceptance Criteria / Verification headings;
+    // decision text = everything else (the body's prose where a mechanism must be owned).
+    const acLines = [];
+    const decisionLines = [];
+    let inAc = false;
+    for (const line of content.split(/\r?\n/)) {
+      if (/^#{1,4}\s/.test(line)) inAc = /acceptance criteria|verification|test/i.test(line);
+      (inAc ? acLines : decisionLines).push(line);
+    }
+    const unowned = findUnownedMechanisms(acLines.join('\n'), decisionLines.join('\n'));
+    if (unowned.length) warns.push({ rel: path.original, nouns: unowned });
+  }
+  if (warns.length) {
+    const lines = warns.map((w) => `  - ${w.rel}: ${w.nouns.join(', ')}`);
+    outputSystemMessage(
+      `wf: named-mechanism lint (advisory) — a mechanism named in an AC/verification line has no owning ` +
+      `decision in the artifact body:\n${lines.join('\n')}\n` +
+      'A test may not name a machine the design does not own. State the mechanism in the body (what it is, ' +
+      'what it replaces, why) and adjudicate it if it touches a RIM or PO directive, or drop it from the AC. ' +
+      'Opt out: hooks.namedMechanismLint: false.',
+    );
+  }
+}
+
 const PLUGIN_ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === '1') return;
+  // Defense-in-depth: a dispatched sub-agent (consult skill) must not have its
+  // writes schema-verified as SDLC artifacts. See EXTERNAL-MODEL-DISPATCH-PLAN §3.1.
+  if (process.env.SDLC_DISPATCH_ACTIVE === '1') return;
 
   const input = await readStdinJson();
   const projectRoot = projectRootFromInput(input);
@@ -239,6 +476,10 @@ async function main() {
     .filter((path) => isManagedArtifactMarkdownPath(path))
     .map((path) => ({ original: path, absolute: resolveProjectPath(projectRoot, path) }))
     .filter(({ absolute }) => absolute && existsSync(absolute));
+
+  // Code-file advisory lints run even when this write touched no managed artifact
+  // (they target source files, not artifacts) — so they precede the early return.
+  enforceCodeFileLints(input, config, paths);
 
   if (!paths.length) return;
 
@@ -256,9 +497,15 @@ async function main() {
   }
 
   if (!failures.length) {
-    // Frontmatter is clean. Validate present sibling YAML shape (reconciled
-    // types only; may exit 2), then enforce sibling presence (blocks on a
-    // missing rich-tier .yaml, nudges on a missing .html.fragment; may exit 2).
+    // Frontmatter is clean. First the verify result gate (R7) — hard-block a
+    // `verify` artifact whose `result: pass` contradicts its acceptance evidence
+    // (may exit 2; warns on prose-only deferrals). Then validate present sibling
+    // YAML shape (reconciled types only; may exit 2), then enforce sibling
+    // presence (blocks on a missing rich-tier .yaml, nudges on a missing
+    // .html.fragment; may exit 2).
+    await enforceVerifyResultGate(paths, config);
+    await enforceIntakeLedgerLint(paths, config);
+    await enforceNamedMechanismLint(paths, config);
     await validateSiblingYamls(paths, config, schemaPath);
     await enforceSiblingFragments(paths, config);
     return;

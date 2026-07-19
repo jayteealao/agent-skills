@@ -8,8 +8,8 @@ import { test } from 'node:test';
 import { equal, ok } from 'node:assert/strict';
 
 import {
-  isTrayHeartbeatStale, writeTrayHeartbeat, readTrayHeartbeat,
-  trayHeartbeatPath, TRAY_HEARTBEAT_STALE_MS,
+  isTrayHeartbeatStale, heartbeatShowsDown, writeTrayHeartbeat, readTrayHeartbeat,
+  clearTrayHeartbeat, trayHeartbeatPath, TRAY_HEARTBEAT_STALE_MS,
 } from '../../../lib/tray-heartbeat.mjs';
 
 const NOW = 1_000_000;
@@ -50,6 +50,54 @@ test('write/read round-trip via injected fs seams', () => {
   equal(rec.pid, 11);
   equal(rec.lastPollAt, 42);
   equal(rec.bundle, 'C:\\x\\tray.mjs');
+});
+
+test('write/read round-trip carries iconState + summary when given', () => {
+  let stored = null;
+  const writeFile = (_p, data) => { stored = data; };
+  const readFile = () => stored;
+  writeTrayHeartbeat({ pid: 5, bundle: 'b', iconState: 'down', summary: '● hub down', now: 7, homeDir: 'H', writeFile });
+  const rec = readTrayHeartbeat({ homeDir: 'H', readFile });
+  equal(rec.iconState, 'down');
+  equal(rec.summary, '● hub down');
+});
+
+test('writeTrayHeartbeat omits iconState/summary keys when not supplied (liveness-only stamp)', () => {
+  let stored = null;
+  writeTrayHeartbeat({ pid: 5, bundle: 'b', now: 7, homeDir: 'H', writeFile: (_p, data) => { stored = data; } });
+  const rec = JSON.parse(stored);
+  ok(!('iconState' in rec));
+  ok(!('summary' in rec));
+});
+
+test('heartbeatShowsDown: fresh stamp, this pid, iconState down → true', () => {
+  ok(heartbeatShowsDown({ pid: 7 }, { pid: 7, lastPollAt: NOW - 3000, iconState: 'down' }, { now: NOW, stalenessMs: 60_000 }));
+});
+
+test('heartbeatShowsDown: iconState up (or absent) → false', () => {
+  ok(!heartbeatShowsDown({ pid: 7 }, { pid: 7, lastPollAt: NOW - 3000, iconState: 'up' }, { now: NOW, stalenessMs: 60_000 }));
+  ok(!heartbeatShowsDown({ pid: 7 }, { pid: 7, lastPollAt: NOW - 3000 }, { now: NOW, stalenessMs: 60_000 }));
+});
+
+test('heartbeatShowsDown: a COLD stamp is NOT a display wedge (that is the cold-poll heal)', () => {
+  // even though iconState is down, the poll is stale → this is the cold-poll case,
+  // not a live driver stuck computing down. Must read false here.
+  ok(!heartbeatShowsDown({ pid: 7 }, { pid: 7, lastPollAt: NOW - 61_000, iconState: 'down' }, { now: NOW, stalenessMs: 60_000 }));
+});
+
+test('heartbeatShowsDown: pid mismatch / missing → false', () => {
+  ok(!heartbeatShowsDown({ pid: 7 }, { pid: 9, lastPollAt: NOW, iconState: 'down' }, { now: NOW, stalenessMs: 60_000 }));
+  ok(!heartbeatShowsDown({ pid: 7 }, null, { now: NOW, stalenessMs: 60_000 }));
+});
+
+test('clearTrayHeartbeat removes the stamp (the deliberate-Quit signal) — force + best-effort', () => {
+  let removed = null;
+  equal(clearTrayHeartbeat({ homeDir: 'H', rm: (p, opts) => { removed = p; equal(opts.force, true); } }), true);
+  equal(removed, trayHeartbeatPath('H'));
+});
+
+test('clearTrayHeartbeat never throws on an fs error (best-effort)', () => {
+  equal(clearTrayHeartbeat({ homeDir: 'H', rm: () => { throw new Error('locked'); } }), false);
 });
 
 test('writeTrayHeartbeat never throws on an fs error (best-effort)', () => {

@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -95,12 +93,12 @@
 <span class="quadrant reference">reference</span>
 <h1>Ship-plan schema (.ai/ship-plan.md)</h1>
 
-<p class="lede">You would look this up when you want to know exactly which field to set in <code>.ai/ship-plan.md</code> — the per-repo release configuration you author once via <a href="wf-meta.html"><code>/wf-meta</code></a> <code>init-ship-plan</code> and update with <code>/wf-meta amend ship-plan</code>. Every field accepted by <code>/wf ship</code> and <code>/wf-meta build-pipeline</code> is listed here.</p>
+<p class="lede">You would look this up when you want to know exactly which field to set in <code>.ai/ship-plan.md</code> — the per-repo release configuration you author once via <a href="wf.html"><code>/wf ship-plan init</code></a> and update with <code>/wf ship-plan edit</code>. Every field accepted by <code>/wf ship</code> and <code>/wf ship-plan build</code> is listed here. (<code>/wf ship-plan audit</code> is a read-only soundness review of this file — it writes <code>.ai/ship-plan-audit.md</code> and adds no schema fields of its own.)</p>
 
 <div class="summary">
-<p><strong>What this file is.</strong> <code>.ai/ship-plan.md</code> is the project-level release contract — one file per repo, sitting at the repo root (not under <code>.ai/workflows/</code>). It is authored through a guided conversation with <code>/wf-meta init-ship-plan</code> and is <em>not</em> generated per-release. Individual release records live instead in <a href="09-ship-run-schema.html">ship-run artifacts</a>.</p>
+<p><strong>What this file is.</strong> <code>.ai/ship-plan.md</code> is the project-level release contract — one file per repo, sitting at the repo root (not under <code>.ai/workflows/</code>). It is authored through a guided conversation with <code>/wf ship-plan init</code> and is <em>not</em> generated per-release. Individual release records live instead in <a href="09-ship-run-schema.html">ship-run artifacts</a>.</p>
 
-<p><strong>Two halves.</strong> The schema splits into a <strong>required core</strong> (Blocks A–G — fixed field names that <code>/wf ship</code> reads for outbound release mechanics) and an <strong>inbound pipeline</strong> (Blocks H–K — developer-experience and governance gates authored by <code>/wf-meta init-ship-plan</code>). A third section, <code>additional-contracts[]</code>, is a free-form extension list that <code>/wf ship</code> ignores unless a consumer opts in by <code>id</code>.</p>
+<p><strong>Two halves.</strong> The schema splits into a <strong>required core</strong> (Blocks A–G — fixed field names that <code>/wf ship</code> reads for outbound release mechanics) and an <strong>inbound pipeline</strong> (Blocks H–K — developer-experience and governance gates authored by <code>/wf ship-plan init</code>). A third section, <code>additional-contracts[]</code>, is a free-form extension list that <code>/wf ship</code> ignores unless a consumer opts in by <code>id</code>.</p>
 </div>
 
 <h2>Block A — Ship meaning + environments + cadence</h2>
@@ -172,7 +170,7 @@ db-migrations-reversible: true | false | n/a</code></pre>
   channels: ["#releases", "release-notes@example.com"]
   template-path: ".ai/release-announcement-template.md"</code></pre>
 
-<p>Blocks A–G are the <strong>outbound</strong> half — read by <code>/wf ship</code>. Blocks H–K below are the <strong>inbound</strong> half — the developer-experience and governance pipeline also authored by <code>/wf-meta init-ship-plan</code> and enforced by <code>/wf-meta build-pipeline</code>.</p>
+<p>Blocks A–G are the <strong>outbound</strong> half — read by <code>/wf ship</code>. Blocks H–K below are the <strong>inbound</strong> half — the developer-experience and governance pipeline also authored by <code>/wf ship-plan init</code> and enforced by <code>/wf ship-plan build</code>.</p>
 
 <h2>Block H — Code-quality gates</h2>
 <p>You would check this block when you need to know the exact command each quality gate runs, the minimum test-coverage threshold, or which commit-message spec is enforced locally and in CI.</p>
@@ -183,7 +181,7 @@ db-migrations-reversible: true | false | n/a</code></pre>
   test-coverage: { min-percent: 80, cmd: "npm test -- --coverage" }
   commit-convention:   { spec: conventional, config-path: "commitlint.config.js", enforce: [local, ci] }
   pr-title-convention: { spec: conventional, enforce: [ci] }</code></pre>
-<p>The canonical source for each gate's literal command. Enabled gates derive <code>ci-pipeline.pre-merge-checks[]</code>. <code>commit-convention</code> documents the convention that <code>/wf handoff</code>&#39;s T3.5 gate detects via config-file presence (<code>.commitlintrc</code>, <code>commitlint.config.js</code>, etc.); CI enforcement is added by <code>/wf-meta build-pipeline</code> (Audit L).</p>
+<p>The canonical source for each gate's literal command. Enabled gates derive <code>ci-pipeline.pre-merge-checks[]</code>. <code>commit-convention</code> documents the convention that <code>/wf handoff</code>&#39;s T3.5 gate detects via config-file presence (<code>.commitlintrc</code>, <code>commitlint.config.js</code>, etc.); CI enforcement is added by <code>/wf ship-plan build</code> (Audit L).</p>
 
 <h2>Block I — Local developer experience</h2>
 <p>You would check this block when you need to know which Git-hook framework the project uses, what the bootstrap command is, or whether an <code>.editorconfig</code> file should exist.</p>
@@ -201,7 +199,7 @@ db-migrations-reversible: true | false | n/a</code></pre>
   contributing-doc: true</code></pre>
 
 <h2>Block J — Repo governance</h2>
-<p>You would check this block when you need to know the branch-protection rules, the merge method, who owns which paths in <code>CODEOWNERS</code>, or whether <code>/wf-meta build-pipeline</code> can apply protection rules automatically via the GitHub API.</p>
+<p>You would check this block when you need to know the branch-protection rules, the merge method, who owns which paths in <code>CODEOWNERS</code>, or whether <code>/wf ship-plan build</code> can apply protection rules automatically via the GitHub API.</p>
 <pre><code>governance:
   branch-protection:
     base-branch: main
@@ -223,7 +221,7 @@ db-migrations-reversible: true | false | n/a</code></pre>
   issue-templates: true
   dependency-automation: { tool: renovate, ecosystems: [npm, github-actions], schedule: "weekly" }
   merge: { method: squash, auto-merge: true, merge-queue: false }</code></pre>
-<p><code>apply-via: gh-api</code> lets <code>/wf-meta build-pipeline</code> mutate remote state (branch protection — Audit O; merge settings — Audit R), each only behind an explicit confirm gate. <code>require-code-owner-reviews</code> is what makes the <code>CODEOWNERS</code> file actually enforced.</p>
+<p><code>apply-via: gh-api</code> lets <code>/wf ship-plan build</code> mutate remote state (branch protection — Audit O; merge settings — Audit R), each only behind an explicit confirm gate. <code>require-code-owner-reviews</code> is what makes the <code>CODEOWNERS</code> file actually enforced.</p>
 
 <h2>Block K — Security &amp; supply-chain gates</h2>
 <p>You would check this block when you need to know which security scanner runs in CI, the allowed and denied license list, or whether SBOM generation is wired into the release.</p>
@@ -233,7 +231,7 @@ db-migrations-reversible: true | false | n/a</code></pre>
   secret-scanning:  { tool: gitleaks, cmd: "gitleaks detect --no-banner", pre-commit: true }
   sbom:             { tool: syft, format: spdx, publish-with-release: true }
   license-check:    { tool: license-checker, allow: [MIT, Apache-2.0], deny: [GPL-3.0] }</code></pre>
-<p>Built by <code>/wf-meta build-pipeline</code> (Audit P): CodeQL workflow, dependency-audit + license-check PR steps, secret-scanning (CI + pre-commit hook), SBOM in the release. Aligns to the <a href="../reference/glossary.html">supply-chain</a> review dimension. PR-time gates also feed <code>pre-merge-checks</code>.</p>
+<p>Built by <code>/wf ship-plan build</code> (Audit P): CodeQL workflow, dependency-audit + license-check PR steps, secret-scanning (CI + pre-commit hook), SBOM in the release. Aligns to the <a href="../reference/glossary.html">supply-chain</a> review dimension. PR-time gates also feed <code>pre-merge-checks</code>.</p>
 
 <h2>Block A · environment protection &amp; Block C · ci-ergonomics (extensions)</h2>
 <p>You would check these when you need per-environment required-reviewer gates or want to understand how caching, matrix builds, and concurrency settings are stored in the plan.</p>
@@ -263,18 +261,18 @@ ci-pipeline:
       flag-naming-convention: "release.&lt;slug&gt;"
       cleanup-policy: "remove after 30 days at 100%"
     enforced-by: "Code review checklist"</code></pre>
-<p>Each entry takes the shape <code>{ id, purpose, fields: { ... }, enforced-by: "..." }</code>. <code>/wf ship</code> does not read this list. Entries are authored during <code>/wf-meta init-ship-plan</code> Step 3 and are amendable via <code>/wf-meta amend ship-plan</code> by passing the <code>id</code> at the "Other" prompt.</p>
+<p>Each entry takes the shape <code>{ id, purpose, fields: { ... }, enforced-by: "..." }</code>. <code>/wf ship</code> does not read this list. Entries are authored during <code>/wf ship-plan init</code> Step 3 and are editable via <code>/wf ship-plan edit</code> by passing the <code>id</code> at the "Other" prompt.</p>
 
 <details>
 <summary>Technical details — template-hint and plan-version fields</summary>
 <p><code>template-hint</code> records the <code>--from-template &lt;kind&gt;</code> seed (if any) that biased the authoring conversation: <code>kotlin-maven-central</code>, <code>npm-public</code>, <code>pypi</code>, <code>container-image</code>, <code>server-deploy</code>, <code>library-internal</code>, or <code>none</code>. Informational only — no downstream code reads it. Useful for retro analysis ("which template best matched this project's eventual plan?") and for telling later amend conversations which seed values to compare against.</p>
-<p><code>plan-version</code> starts at 1 and increments by 1 every time <code>/wf-meta amend ship-plan</code> writes a change. Ship-run <a href="09-ship-run-schema.html">artifacts</a> record <code>plan-version-at-run</code> for retro analysis.</p>
+<p><code>plan-version</code> starts at 1 and increments by 1 every time <code>/wf ship-plan edit</code> writes a change. Ship-run <a href="09-ship-run-schema.html">artifacts</a> record <code>plan-version-at-run</code> for retro analysis.</p>
 </details>
 
 <div class="related">
 <h3>Where next</h3>
 <ul>
-  <li><a href="wf-meta.html">See all /wf-meta sub-commands →</a></li>
+  <li><a href="wf.html">See all /wf ship-plan sub-commands →</a></li>
   <li><a href="09-ship-run-schema.html">Read the ship-run schema — what each release writes →</a></li>
   <li><a href="../how-to/run-a-release.html">Run your first release with /wf ship →</a></li>
 </ul>

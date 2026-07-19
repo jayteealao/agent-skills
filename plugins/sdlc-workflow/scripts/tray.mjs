@@ -17,6 +17,7 @@
  */
 
 import { existsSync, readFileSync, mkdirSync, copyFileSync, statSync, chmodSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -29,7 +30,7 @@ import {
 import {
   isAutostartEnabled, enableAutostart, disableAutostart, refreshAutostart,
 } from '../lib/tray-autostart.mjs';
-import { writeTrayHeartbeat } from '../lib/tray-heartbeat.mjs';
+import { writeTrayHeartbeat, clearTrayHeartbeat } from '../lib/tray-heartbeat.mjs';
 import { sdlcHomeDir } from '../lib/registry.mjs';
 import { runtimeIdentity } from '../lib/runtime-manifest.mjs';
 
@@ -51,7 +52,18 @@ const TRAY_BIN_NAMES = {
 };
 
 const POLL_MS = 5000;
+
+// A freshly launched tray retries its FIRST probe briefly before committing the
+// initial menu, so a tray started while the hub is a beat from ready (e.g. a
+// session start that respawns the tray and restarts the hub together) does not
+// latch its first frame onto a transient 'down'. Bounded and short: this smooths
+// the sub-second race — a hub that stays down longer is recovered by the poll
+// loop's down→up transition respawn, not by blocking the icon from appearing.
+const INITIAL_PROBE_RETRIES = 6;
+const INITIAL_PROBE_DELAY_MS = 500;
+
 const log = (...a) => console.log('[tray]', ...a);
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /* ───────────────────────── assets + binary ───────────────────────── */
 
@@ -72,8 +84,15 @@ function ensureRuntimeBinary() {
   const dir = join(sdlcHomeDir(), 'bin');
   mkdirSync(dir, { recursive: true });
   const runtime = join(dir, name);
+  // Size first (cheap, catches most updates), then a content hash so a rebuilt
+  // helper that happens to keep its byte size still refreshes. Launch-time only.
+  const fileHash = (p) => createHash('sha256').update(readFileSync(p)).digest('hex');
   let stale = true;
-  try { stale = !existsSync(runtime) || statSync(runtime).size !== statSync(vendored).size; } catch { /* copy */ }
+  try {
+    stale = !existsSync(runtime)
+      || statSync(runtime).size !== statSync(vendored).size
+      || fileHash(runtime) !== fileHash(vendored);
+  } catch { /* copy */ }
   if (stale) {
     try {
       copyFileSync(vendored, runtime);
@@ -91,6 +110,7 @@ function ensureRuntimeBinary() {
 
 let tray = null;
 let lastSig = '';
+let lastIconState = '';
 let refreshTimer = null;
 
 function signatureOf(h) {
@@ -153,6 +173,10 @@ function onToggleAutostart() {
 
 function quit() {
   if (refreshTimer) clearInterval(refreshTimer);
+  // A deliberate Quit clears the heartbeat so the heal does NOT read this exit
+  // as a crash and revive the tray (lib/tray-lifecycle.mjs revive row). A crash
+  // or TerminateProcess reap can't run this — its stamp survives, and revives.
+  clearTrayHeartbeat();
   try { tray?.kill(); } catch { /* ignore */ }
   setTimeout(() => process.exit(0), 400);
 }
@@ -165,20 +189,52 @@ async function currentHealth() {
 }
 
 async function refresh() {
-  // Stamp liveness BEFORE the dedup early-return so the heartbeat advances on
-  // every poll even when nothing visible changed — that stamp is what the
-  // live-process heal (lib/tray-lifecycle.mjs) reads to tell a healthy tray from
-  // a wedged one. Best-effort: writeTrayHeartbeat never throws.
-  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE });
   const h = await currentHealth();
+  // Stamp liveness AND the last-computed display truth (iconState/summary) BEFORE
+  // the dedup early-return, so the heartbeat advances on every poll even when
+  // nothing visible changed. Two heals read this: the cold-poll heal keys on
+  // lastPollAt going stale, and the display-wedge heal keys on a fresh 'down'
+  // iconState while the hub is up (lib/tray-lifecycle.mjs). currentHealth never
+  // throws and writeTrayHeartbeat never throws — best-effort both ways.
+  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE, iconState: h.iconState, summary: h.summary });
   const sig = signatureOf(h);
   if (sig === lastSig && tray) return;   // nothing visible changed — skip the re-render
   lastSig = sig;
-  if (tray) tray.update(buildMenu(h));
+  const iconChanged = h.iconState !== lastIconState;
+  lastIconState = h.iconState;
+  if (!tray) return;
+  if (iconChanged) {
+    // An icon-state transition (down↔up↔stale) restructures the menu — the native
+    // helper's update-menu path renders these poorly (the down→up item-count
+    // growth is the frozen-display bug), so respawn the helper for a clean render.
+    // On failure the OLD helper is already torn down (an in-place update would
+    // write to the dead new process — a silent invisible-tray zombie), so retry
+    // the respawn once; if the helper can't come up twice, exit non-zero. The
+    // heartbeat this driver leaves behind makes the heal revive a fresh tray.
+    tray.restart(buildMenu(h)).catch((err) => {
+      log('helper respawn on transition failed:', err.message);
+      setTimeout(() => {
+        tray.restart(buildMenu(h)).catch((err2) => {
+          log('helper respawn retry failed:', err2.message, '— exiting so the heal can revive');
+          process.exit(1);
+        });
+      }, 1000);
+    });
+  } else if (!tray.update(buildMenu(h))) {
+    // Same icon but the menu SHAPE changed (repo roster grew/shrank, detail rows
+    // appeared) — the helper cannot add or remove items in place (per-item
+    // updates are all it supports), so only a respawn can render this. On
+    // failure, invalidate the dedup signature so the next poll retries instead
+    // of reading "already rendered".
+    tray.restart(buildMenu(h)).catch((err) => {
+      log('helper respawn on menu-shape change failed:', err.message);
+      lastSig = '';
+    });
+  }
 }
 
-function refreshSoon(delay = 700) {
-  setTimeout(() => { refresh().catch(() => {}); }, delay);
+function refreshSoon(ms = 700) {
+  setTimeout(() => { refresh().catch(() => {}); }, ms);
 }
 
 // One poll tick. A wall-clock gap far larger than POLL_MS means the timer was
@@ -222,10 +278,21 @@ async function main() {
   // heartbeat for this pid (not an absent one) the moment the tray is up.
   writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE });
 
-  const h = await currentHealth();
+  // Retry the first probe briefly so the initial menu doesn't latch onto a
+  // hub-coming-up 'down' (see INITIAL_PROBE_* above).
+  let h = await currentHealth();
+  for (let i = 0; i < INITIAL_PROBE_RETRIES && h.iconState === 'down'; i++) {
+    await delay(INITIAL_PROBE_DELAY_MS);
+    h = await currentHealth();
+  }
+  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE, iconState: h.iconState, summary: h.summary });
   lastSig = signatureOf(h);
+  lastIconState = h.iconState;
   tray = new Tray({ binPath, menu: buildMenu(h) });
   tray.onError((err) => log('helper error:', err.message));
+  // A genuine helper death takes the driver down WITHOUT clearing the heartbeat
+  // (unlike Quit) — the stamp outliving the process is what lets the heal tell
+  // this crash apart from a deliberate exit and revive the tray.
   tray.onExit(() => process.exit(0));
   await tray.start();
   log(`ready — ${h.summary}`);

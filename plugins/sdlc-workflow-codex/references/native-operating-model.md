@@ -25,7 +25,7 @@ Treat an actionable request as permission to inspect, edit, and verify the code 
 
 Do not create lifecycle artifacts for ordinary tasks. Run a structured SDLC workflow only when the user asks for one (`$wf …`), the work will span threads, or continuity would otherwise be lost.
 
-When a workflow IS warranted, the canonical state is the shared `.ai/` artifact tree — the SAME artifacts the Claude host reads and writes, so a workflow started in one host resumes cleanly in the other. There is no separate Codex-only JSON continuity store. Cross-thread continuity comes from reading those artifacts via `$wf-meta status` / `resume` / `next`. The full artifact model, the `schema: sdlc/v1` contract, the next-action mapping, and the mutation lease are described in `artifact-interop.md` — read it before writing any `.ai/` artifact.
+When a workflow IS warranted, the canonical state is the shared `.ai/` artifact tree — the SAME artifacts the Claude host reads and writes, so a workflow started in one host resumes cleanly in the other. There is no separate Codex-only JSON continuity store. Cross-thread continuity comes from reading those artifacts via `$wf status` / `$wf recap`. The full artifact model, the `schema: sdlc/v1` contract, the next-action mapping, and the mutation lease are described in `artifact-interop.md` — read it before writing any `.ai/` artifact.
 
 ## Verify Before Completion
 

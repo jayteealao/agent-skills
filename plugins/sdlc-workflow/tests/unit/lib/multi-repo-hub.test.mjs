@@ -12,6 +12,7 @@ import {
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { deepEqual, equal, match, notEqual, ok } from 'node:assert/strict';
 
@@ -28,6 +29,7 @@ import {
   mergeShardsIntoRegistry,
   sdlcHomeDir,
   registryPath,
+  pruneLogPath,
   SHARD_SOFT_CAP,
 } from '../../../lib/registry.mjs';
 import { createHubServer, parseHubArgs } from '../../../scripts/hub-serve.mjs';
@@ -382,6 +384,20 @@ test('registry: a poisoned entry is rejected at write (never lands on disk)', as
   equal(existsSync(shardDir()) ? readdirSync(shardDir()).filter((n) => n.endsWith('.json')).length : 0, 0, 'no shard written');
 });
 
+test('registry: a non-git projectRoot skips registration WITH a prune-log line (skip-not-git)', async () => {
+  setHome();
+  // A plain directory — .ai/_view exists but there is no git toplevel, so
+  // buildEntry returns null. Before v9.112.0 this skip was invisible on disk
+  // (the Waypoint failure): assert the trail now names the cure.
+  const plain = join(tmp('sdlc-notgit-'), 'plain');
+  mkdirSync(join(plain, '.ai', '_view'), { recursive: true });
+  const res = await upsertRegistryEntry({ projectRoot: plain, viewDir: join(plain, '.ai', '_view') });
+  equal(res.action, 'skipped-not-git', 'non-git dir cannot register');
+  equal(readRegistry().entries.length, 0, 'nothing persisted');
+  const log = readFileSync(pruneLogPath(), 'utf-8');
+  match(log, /skip-not-git .*no git toplevel — run git init to register/, 'the skip leaves a visible prune-log trail');
+});
+
 /* ───────────────────────── concurrency (§3.4 must-fix #4) ───────────────────────── */
 
 test('registry: concurrent renders never lose an entry (shard model)', async () => {
@@ -473,10 +489,14 @@ test('registry: pruneRegistry keeps a registered-but-unrendered repo that has qu
   equal(res.pruned, 0, 'a repo with queued renders survives prune');
   equal(res.kept, 1);
 
-  // Drain it away (render still never produced a .last-render) → now prunable.
+  // Drain it away (render still never produced a .last-render) → prunable, but
+  // only past the fresh-registration grace window (F2): the entry was upserted
+  // moments ago, so the default grace keeps it. graceMs:0 expires it for the test.
   rmSync(join(viewDir, '.render-queue'), { recursive: true, force: true });
   res = pruneRegistry();
-  equal(res.pruned, 1, 'no .last-render and no queued work → pruned');
+  equal(res.pruned, 0, 'within registration grace → still kept');
+  res = pruneRegistry({ graceMs: 0 });
+  equal(res.pruned, 1, 'no .last-render, no queued work, grace expired → pruned');
   equal(res.kept, 0);
 });
 
@@ -1256,6 +1276,16 @@ test('branch-liveness: classifies live / merged / gone / unknown, never throws (
   // gone: a branch ref that does not exist locally.
   equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main' }), 'gone');
 
+  // planned: the SAME missing ref reads as planned while the workflow is still
+  // at a pre-branch stage (implement cuts the dedicated branch later); at or
+  // after implement — or with an unrecognized stage — it stays gone.
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main', currentStage: 'slice' }), 'planned');
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main', currentStage: 'routing' }), 'planned');
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main', currentStage: 'implement' }), 'gone');
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/ghost', baseBranch: 'main', currentStage: 'bogus-stage' }), 'gone');
+  // A pre-branch stage never masks a branch that actually exists.
+  equal(computeBranchState({ repoRoot: repo, branch: 'feat/live', baseBranch: 'main', currentStage: 'slice' }), 'live');
+
   // unknown: no branch (branch-strategy:none), a non-git dir, and empty args.
   equal(computeBranchState({ repoRoot: repo, branch: null, baseBranch: 'main' }), 'unknown');
   equal(computeBranchState({ repoRoot: join(root, 'not-a-repo'), branch: 'x' }), 'unknown');
@@ -1273,12 +1303,14 @@ test('branch-liveness: refreshEntriesLiveness stamps branchState across entries,
       { slug: 's1', branch: 'feat/merged', baseBranch: 'main', prNumber: null },
       { slug: 's2', branch: 'feat/ghost', baseBranch: 'main', prNumber: null },
       { slug: 's3', branch: null, baseBranch: 'main', prNumber: null },
+      { slug: 's4', branch: 'feat/ghost', baseBranch: 'main', prNumber: null, currentStage: 'plan' },
     ],
   }];
   refreshEntriesLiveness(entries);
   equal(entries[0].slugMeta[0].branchState, 'merged');
   equal(entries[0].slugMeta[1].branchState, 'gone');
   equal(entries[0].slugMeta[2].branchState, 'unknown');
+  equal(entries[0].slugMeta[3].branchState, 'planned', 'pre-branch stage + missing ref → planned on refresh');
   // Garbage input never throws.
   refreshEntriesLiveness(null);
   refreshEntriesLiveness([{ no: 'slugMeta' }]);
@@ -1291,12 +1323,14 @@ test('inbox: surfaces merged / branch-gone active slugs as a 4th attention reaso
     { slug: 'merged-feat', currentStage: 'ship', status: 'active', blocked: false, classification: 'active', branch: 'feat/x', branchState: 'merged' },
     { slug: 'gone-feat', currentStage: 'implement', status: 'active', blocked: false, classification: 'active', branch: 'feat/y', branchState: 'gone' },
     { slug: 'live-feat', currentStage: 'implement', status: 'active', blocked: false, classification: 'active', branch: 'feat/z', branchState: 'live' },
+    { slug: 'planned-feat', currentStage: 'slice', status: 'active', blocked: false, classification: 'active', branch: 'feat/w', branchState: 'planned' },
   ] })];
   const items = inboxItems(entries, now);
   const bySlug = Object.fromEntries(items.map((i) => [i.sm.slug, i]));
   ok(bySlug['merged-feat']?.reasons.some((r) => r.key === 'merged'), 'merged slug surfaced with merged reason');
   ok(bySlug['gone-feat']?.reasons.some((r) => r.key === 'gone'), 'gone slug surfaced with gone reason');
   ok(!bySlug['live-feat'], 'a live, otherwise-healthy slug is NOT surfaced');
+  ok(!bySlug['planned-feat'], 'a planned (not-yet-cut) branch is expected — NOT surfaced');
 });
 
 test('hub landing: renders soft merged / branch-gone badges on slug links (§4.3)', () => {
@@ -1304,10 +1338,12 @@ test('hub landing: renders soft merged / branch-gone badges on slug links (§4.3
   const entries = [entryStub({ id: 'r', repo: 'web', headBranch: 'main', lastRenderedAt: '2026-06-08T11:00:00.000Z', slugMeta: [
     { slug: 'done-feat', currentStage: 'ship', status: 'active', blocked: false, classification: 'active', branch: 'feat/done', branchStrategy: 'dedicated', baseBranch: 'main', branchState: 'merged' },
     { slug: 'lost-feat', currentStage: 'implement', status: 'active', blocked: false, classification: 'active', branch: 'feat/lost', branchStrategy: 'dedicated', baseBranch: 'main', branchState: 'gone' },
+    { slug: 'future-feat', currentStage: 'slice', status: 'active', blocked: false, classification: 'active', branch: 'feat/future', branchStrategy: 'dedicated', baseBranch: 'main', branchState: 'planned' },
   ] })];
   const html = renderHubLanding(entries, { now });
   match(html, /lq merged">merged/, 'merged badge rendered');
   match(html, /lq gone">branch gone/, 'branch-gone badge rendered');
+  match(html, /lq planned">branch planned/, 'branch-planned badge rendered (soft, non-attention)');
 });
 
 /* ───────────────────────── cross-repo inbox (§11.3) ───────────────────────── */
@@ -1394,6 +1430,219 @@ test('hub: GET / serves the inbox as the default tab end to end', async () => {
     match(page.body, /payment-bug[\s\S]*reason bad">blocked/, 'blocked item with badge');
     match(page.body, /login-flow[\s\S]*reason cur">in review/, 'review item with badge');
     ok(!/inbox-item[\s\S]*docs-pass/.test(page.body.split('panel-repos')[0]), 'healthy slug absent from inbox panel');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+/* ───────────── fresh-repo registration (FRESH-REPO-REGISTRATION-FIX-PLAN) ───────────── */
+
+// The real plugin root — the E2E cold-start test spawns the actual renderer.
+const PLUGIN_ROOT_REAL = fileURLToPath(new URL('../../../', import.meta.url));
+
+// Point the shard-vs-POST switch in upsertRegistryEntry at an in-test hub so a
+// registration travels the REAL wire path (liveHub → POST /__sdlc/registry/upsert).
+function writeHubPid(port, token = 'tok') {
+  writeFileSync(join(sdlcHomeDir(), 'hub.pid'), JSON.stringify({
+    pid: process.pid, host: '127.0.0.1', port, token,
+  }));
+}
+
+test('registry: F1/F13 — a repo with NO .ai tree registers; upsert creates the viewDir + seeds .ai/.gitignore', async () => {
+  setHome();
+  const repo = join(tmp('sdlc-fresh-'), 'repo');
+  initRepo(repo);
+  const viewDir = join(repo, '.ai', '_view');
+  ok(!existsSync(join(repo, '.ai')), 'precondition: no .ai tree at all');
+
+  const res = await upsertRegistryEntry({ projectRoot: repo, viewDir });
+  equal(res.action, 'sharded', 'first-ever registration is accepted (no hub → shard)');
+  ok(existsSync(viewDir), 'upsert created the view dir itself (B1 fixed)');
+  equal(readRegistry().entries.length, 1, 'the fresh repo is readable from the registry');
+
+  const gi = readFileSync(join(repo, '.ai', '.gitignore'), 'utf-8');
+  match(gi, /^_view\/$/m, '.ai/.gitignore ignores the rendered view');
+  match(gi, /^workflows\/\*\/\.locks\/$/m, '.ai/.gitignore ignores per-slug locks');
+
+  // Idempotent: a second registration must not duplicate rules.
+  await upsertRegistryEntry({ projectRoot: repo, viewDir });
+  equal(readFileSync(join(repo, '.ai', '.gitignore'), 'utf-8'), gi,
+    'second registration leaves .gitignore byte-identical');
+});
+
+test('registry: F13 — gitignore seeding preserves existing user lines and appends only what is missing', async () => {
+  setHome();
+  const repo = join(tmp('sdlc-fresh-gi-'), 'repo');
+  initRepo(repo);
+  mkdirSync(join(repo, '.ai'), { recursive: true });
+  writeFileSync(join(repo, '.ai', '.gitignore'), 'custom.txt\n_view/\n');
+
+  await upsertRegistryEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+  const gi = readFileSync(join(repo, '.ai', '.gitignore'), 'utf-8');
+  match(gi, /^custom\.txt$/m, 'user line preserved');
+  match(gi, /^workflows\/\*\/\.locks\/$/m, 'missing rule appended');
+  equal(gi.match(/_view\//g).length, 1, 'already-present rule not duplicated');
+});
+
+test('registry: F2/F3 — a fresh never-rendered entry survives prune within grace; past it, the arm is logged', async () => {
+  setHome();
+  const repo = join(tmp('sdlc-grace-'), 'repo');
+  initRepo(repo);
+  await upsertRegistryEntry({ projectRoot: repo, viewDir: join(repo, '.ai', '_view') });
+  mergeShardsIntoRegistry();
+
+  let res = pruneRegistry();
+  equal(res.pruned, 0, 'fresh registration survives the default grace window');
+  equal(res.kept, 1);
+
+  res = pruneRegistry({ graceMs: 0 });
+  equal(res.pruned, 1, 'expired grace + no output + empty queue → pruned');
+  const log = readFileSync(pruneLogPath(), 'utf-8');
+  match(log, /past registration grace/, 'prune log names the no-output arm');
+});
+
+test('hub: F2 — accepting a never-rendered registration queues + drains a bootstrap render at once', async () => {
+  setHome();
+  const repo = join(tmp('sdlc-hub-boot-'), 'repo');
+  initRepo(repo);
+  const viewDir = join(repo, '.ai', '_view');
+
+  // Stub renderer: emulate a successful render-sunflower pass (view + marker).
+  const spawnRender = () => {
+    const child = new EventEmitter();
+    setTimeout(() => {
+      try {
+        mkdirSync(viewDir, { recursive: true });
+        writeFileSync(join(viewDir, 'INDEX.html'), '<!DOCTYPE html><html><body>fresh</body></html>');
+        writeFileSync(join(viewDir, '.last-render'), JSON.stringify({
+          renderedAt: new Date().toISOString(), version: PLUGIN_VERSION,
+        }));
+      } catch { /* the marker assertion below surfaces it */ }
+      child.emit('exit', 0);
+    }, 20);
+    return child;
+  };
+
+  const server = createHubServer({
+    token: 'tok', liveReload: false, reconcileMs: 50,
+    pluginRoot: PLUGIN_ROOT_REAL, spawnRender,
+  });
+  const port = await listen(server);
+  try {
+    writeHubPid(port);
+    const res = await upsertRegistryEntry({ projectRoot: repo, viewDir });
+    equal(res.action, 'posted-to-hub', 'fresh repo registration accepted over the wire');
+
+    let tries = 0;
+    while (!existsSync(join(viewDir, '.last-render')) && tries++ < 100) await wait(30);
+    ok(existsSync(join(viewDir, '.last-render')), 'bootstrap render produced .last-render');
+
+    await wait(200);   // ≥3 reconcile ticks — the rendered entry must survive them
+    const dump = JSON.parse((await httpReq(port, '/__sdlc/registry')).body);
+    equal(dump.entries.length, 1, 'entry survives reconcile after its first render');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('hub: F2 — reconcile keeps a never-rendered entry with NO queue work inside the grace window', async () => {
+  setHome();
+  const repo = join(tmp('sdlc-hub-grace-'), 'repo');
+  initRepo(repo);
+  const viewDir = join(repo, '.ai', '_view');
+
+  // A renderer that never settles: the bootstrap job is claimed away (pending
+  // count 0) and no .last-render ever lands — survival is grace ALONE.
+  const spawnRender = () => new EventEmitter();
+
+  const server = createHubServer({
+    token: 'tok', liveReload: false, reconcileMs: 40,
+    pluginRoot: PLUGIN_ROOT_REAL, spawnRender,
+  });
+  const port = await listen(server);
+  try {
+    writeHubPid(port);
+    const res = await upsertRegistryEntry({ projectRoot: repo, viewDir });
+    equal(res.action, 'posted-to-hub');
+    await wait(250);   // ≥5 reconcile ticks
+    const dump = JSON.parse((await httpReq(port, '/__sdlc/registry')).body);
+    equal(dump.entries.length, 1, 'grace window carried the un-rendered entry through reconcile');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('hub: F2/F3 — a fresh entry whose bootstrap render keeps failing is pruned past grace, with a prune-log line', async () => {
+  setHome();
+  const repo = join(tmp('sdlc-hub-fail-'), 'repo');
+  initRepo(repo);
+  const viewDir = join(repo, '.ai', '_view');
+
+  const spawnRender = () => {
+    const child = new EventEmitter();
+    setTimeout(() => child.emit('exit', 1), 10);
+    return child;
+  };
+
+  const server = createHubServer({
+    token: 'tok', liveReload: false, reconcileMs: 40, registrationGraceMs: 1,
+    pluginRoot: PLUGIN_ROOT_REAL, spawnRender,
+  });
+  const port = await listen(server);
+  try {
+    writeHubPid(port);
+    const res = await upsertRegistryEntry({ projectRoot: repo, viewDir });
+    equal(res.action, 'posted-to-hub');
+
+    // 3 failed attempts move the job to .failed/ (no pending work left); the
+    // next reconcile tick prunes since the 1 ms grace is long expired.
+    let tries = 0;
+    while (tries++ < 150) {
+      const dump = JSON.parse((await httpReq(port, '/__sdlc/registry')).body);
+      if (dump.entries.length === 0) break;
+      await wait(40);
+    }
+    const dump = JSON.parse((await httpReq(port, '/__sdlc/registry')).body);
+    equal(dump.entries.length, 0, 'given-up entry pruned once grace expired');
+    const log = readFileSync(pruneLogPath(), 'utf-8');
+    match(log, /reconcile-prune .*past registration grace/, 'reconcile prune reached registry.prune.log');
+  } finally {
+    await closeServer(server);
+  }
+});
+
+test('e2e: cold start — fresh repo + one workflow: registers, REALLY renders, survives, and serves (acceptance)', async () => {
+  setHome();
+  const repo = join(tmp('sdlc-e2e-cold-'), 'repo');
+  initRepo(repo);
+  // A real workflow artifact but NO .ai/_view — the exact state every fresh
+  // repo starts in (the hello-test forensics scenario).
+  const wf = join(repo, '.ai', 'workflows', 'demo');
+  mkdirSync(wf, { recursive: true });
+  writeFileSync(join(wf, '00-index.md'),
+    '---\nschema: sdlc/v1\ntype: index\nslug: demo\nstatus: active\ncurrent-stage: implement\n---\nbody\n');
+  const viewDir = join(repo, '.ai', '_view');
+  ok(!existsSync(viewDir), 'precondition: never rendered, no view dir');
+
+  // Default spawnRender — this spawns the REAL renderer (dist/render-sunflower).
+  const server = createHubServer({
+    token: 'tok', liveReload: false, reconcileMs: 200, pluginRoot: PLUGIN_ROOT_REAL,
+  });
+  const port = await listen(server);
+  try {
+    writeHubPid(port);
+    const res = await upsertRegistryEntry({ projectRoot: repo, viewDir });
+    equal(res.action, 'posted-to-hub', 'cold-start registration accepted');
+
+    let tries = 0;
+    while (!existsSync(join(viewDir, '.last-render')) && tries++ < 200) await wait(150);
+    ok(existsSync(join(viewDir, '.last-render')), 'first render landed — a cold start self-heals');
+    ok(existsSync(join(viewDir, 'INDEX.html')), 'view INDEX.html rendered');
+
+    const reg = JSON.parse(readFileSync(registryPath(), 'utf-8'));
+    equal(reg.entries.length, 1, 'registry.json holds the fresh repo');
+    const page = await httpReq(port, `/r/${encodeURIComponent(reg.entries[0].id)}/`);
+    equal(page.status, 200, 'hub serves the fresh repo view');
   } finally {
     await closeServer(server);
   }

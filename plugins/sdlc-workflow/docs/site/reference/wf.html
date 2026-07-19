@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -95,7 +93,9 @@
 <span class="quadrant reference">reference</span>
 <h1>/wf command — every lifecycle stage in depth</h1>
 
-<p class="lede">You reach for <code>/wf</code> when you have a real feature, fix, or refactor to ship — one where you want clear acceptance criteria, a written plan, proper review, and a documented trail from idea to production. It is the full-lifecycle command: 10 ordered <a href="../reference/glossary.html">stages</a> (intake through retro) plus 4 optional add-ons (instrument, experiment, benchmark, profile) for observability, flag-gated rollout, and performance work, plus the compressed design workflow (<code>/wf design</code>), runtime-truth verification (<code>/wf probe</code>), a read-and-route triage tool (<code>/wf simplify</code>), and the end-to-end lifecycle driver (<code>/wf auto</code>). All 18 keys are invoked as <code>/wf &lt;key&gt; [args]</code>.</p>
+<p class="lede">You reach for <code>/wf</code> when you have a real feature, fix, or refactor to ship — one where you want clear acceptance criteria, a written plan, proper review, and a documented trail from idea to production. It is the <strong>single SDLC entry point</strong> — <strong>21 keys</strong>, one SDLC operation each: 10 ordered <a href="../reference/glossary.html">stages</a> (intake through retro), 5 standalone/drivers (<code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code>, <code>yolo</code>), 2 navigation keys (<code>status</code>, <code>recap</code>), lifecycle control (<code>close</code>), and 3 routers (<code>ship-plan</code>, <code>docs</code>, <code>observability</code>). Every key is invoked as <code>/wf &lt;key&gt; [args]</code>. Flag-gated rollout and performance work are not separate keys — they are <a href="../explanation/augmentations-model.html">augmentations</a> that <code>shape</code> decides and <code>plan</code>/<code>implement</code>/<code>verify</code> apply.</p>
+
+<p>This page deep-dives the 10 stages plus the <code>auto</code> and <code>yolo</code> drivers. The standalone (<code>design</code>/<code>probe</code>/<code>simplify</code>), navigation (<code>status</code>/<code>recap</code>), lifecycle (<code>close</code>), and router (<code>ship-plan</code>/<code>docs</code>/<code>observability</code>) keys have their own pages — see the sidebar. An optional user-owned <code>.ai/workflows/&lt;slug&gt;/steer.md</code> (free prose, no schema) carries standing constraints and vetoes that <strong>every stage reads at Step 0 and honors</strong> (live-user &gt; <code>steer.md</code> &gt; stage defaults; never overriding a mandatory gate).</p>
 
 <p>Every entry on this page is invoked as <code>/wf &lt;sub-command&gt; [args]</code>. Each <a href="../reference/glossary.html">sub-command</a> maps to one stage of the pipeline and reads the <a href="../reference/glossary.html">artifacts</a> the previous stage wrote.</p>
 
@@ -112,8 +112,9 @@
   <li><a href="#wf-handoff">/wf handoff</a></li>
   <li><a href="#wf-ship">/wf ship</a></li>
   <li><a href="#wf-retro">/wf retro</a></li>
-  <li><a href="#wf-instrument">/wf instrument</a> · <a href="#wf-experiment">experiment</a> · <a href="#wf-benchmark">benchmark</a> · <a href="#wf-profile">profile</a></li>
+  <li><a href="#wf-augmentations">Augmentations</a> — instrument · experiment · benchmark · profile (shape-decided, not keys)</li>
   <li><a href="#wf-auto">/wf auto</a> — end-to-end lifecycle driver</li>
+  <li><a href="#wf-yolo">/wf yolo</a> — autonomous lifecycle driver</li>
 </ul>
 </div>
 
@@ -160,6 +161,9 @@
   <li>You have a problem and want 2–3 distinct engineering approaches sketched before picking one → <code>/wf intake investigate</code>.</li>
 </ul>
 
+<h4>Intake is a mode dispatcher</h4>
+<p>Plain <code>/wf intake "&lt;description&gt;"</code> runs stage 1 of the full lifecycle. A mode keyword routes a compressed entry flow instead — <strong>nine modes</strong>: <code>fix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code>, and <code>adopt</code>. <code>adopt</code> is the <strong>reverse-entry</strong> mode: the change is already made in your working tree, so it reads the current diff and reconstructs the record backward (<code>01-adopt</code> → <code>05-implement</code>, stamped <code>provenance: adopted</code>), then lands the workflow at <code>/wf verify</code>. An existing slug plus free scope auto-routes to <strong>extension</strong> (net-new slices) — this replaces the old <code>extend</code>/<code>amend</code>.</p>
+
 <hr>
 
 <h2 id="wf-shape">/wf shape &lt;slug&gt;</h2>
@@ -171,7 +175,7 @@
 <tr><th>Requires</th><td><code>01-intake.md</code></td></tr>
 <tr><th>Produces</th><td><code>02-shape.md</code> — full mini-spec with acceptance criteria, edge cases, constraints, and the docs plan</td></tr>
 <tr><th>Default next</th><td><code>/wf slice &lt;slug&gt;</code></td></tr>
-<tr><th>Skip-to</th><td><code>/wf design &lt;slug&gt; craft</code> for UI features (Stage 2b)</td></tr>
+<tr><th>Design</th><td>For UI features, <code>shape</code> also authors the design brief <code>02b-design.md</code>; the visual contract follows at <code>/wf plan</code> (Stage 2b)</td></tr>
 </table></div>
 
 <p>The deepest interview stage. Shape commits the AI to <em>understanding</em>, not guessing. It dispatches parallel web-research sub-agents (best-practice scan, anti-patterns, gotchas) before asking you to fill in acceptance criteria and the docs plan.</p>
@@ -237,7 +241,7 @@
 
 <h4>When NOT to use</h4>
 <ul>
-  <li>Use <code>/wf-meta skip slice</code> only for quick commands that already decomposed at <code>/wf intake</code> time.</li>
+  <li>Use <code>/wf close &lt;slug&gt; &lt;slice&gt;</code> only for quick commands that already decomposed at <code>/wf intake</code> time.</li>
 </ul>
 
 <hr>
@@ -331,6 +335,8 @@
 
 <p>Reads the acceptance criteria from <code>02-shape.md</code> and the slice file, then exercises each criterion. Captures evidence: test output, response bodies, screenshots (for UI), benchmark results (if <code>05c-benchmark</code> ran).</p>
 
+<p><strong>Regression-test mandate (v9.99).</strong> Every Fix-triaged <em>code bug</em> must land with a minimal regression test that fails before and passes after the patch (test-first when the catching check is re-runnable); the artifact records <code>regression-tests-added</code>, and a code-bug fix with neither a test nor an exemption reason is itself a MED finding. The old "don't touch tests" guard inverts to "never weaken or delete a test to make a check pass".</p>
+
 <h4>What it reads</h4>
 <ul>
   <li>Acceptance criteria from <code>02-shape.md</code> + <code>03-slice-&lt;slice&gt;.md</code></li>
@@ -371,27 +377,31 @@
 
 <p>The <code>blocked-runtime-evidence-missing</code> variant is distinct from <code>fail</code>: it's a <em>procedural</em> failure (evidence not produced) rather than a <em>substantive</em> one (evidence shows the AC is not met). The downstream routing differs — <code>fail</code> recommends <code>/wf implement</code> to fix the code; <code>blocked-runtime-evidence-missing</code> recommends either re-running verify in a capable environment, or applying a deferral.</p>
 
-<h4>Escape hatch — <code>interactive-verification: deferred</code> <span class="badge">v9.14</span></h4>
+<h4>Escape hatch — <code>interactive-verification: deferred</code> <span class="badge">v9.14 · tightened v9.95–v9.99</span></h4>
 
-<p>Some AC are user-observable but genuinely cannot be probed in the current environment (no emulator, no API key, no device). To proceed without a hard fail, the slice author annotates the verify file:</p>
+<p>Some AC are user-observable but genuinely cannot be probed in the current environment. A deferral is a <strong>last resort that must be paid for</strong>: the defer-reason must enumerate the constraint-ladder rungs actually tried, and a claimed incapability (&quot;no credentials&quot;, &quot;no device&quot;) is valid only after <em>executing</em> a capability probe and recording its literal command and output — e.g. <code>firebase projects:list</code> for deploy credentials, <code>adb devices</code> for devices. Bare phrases like &quot;no emulator&quot; or &quot;will verify later&quot; are rejected:</p>
 
 <pre><code>interactive-verification: deferred
-interactive-verification-defer-reason: "no iOS device available for the camera AC; will probe before ship"</code></pre>
+interactive-verification-defer-reason: "Robolectric covers the state machine (9/9); Roborazzi golden covers
+  the visual; AVD boot attempted (failed: HAXM unavailable — output recorded); residual = live multi-touch
+  routing on hardware"</code></pre>
 
-<p>Verify writes <code>result: partial</code> (not <code>pass</code>) and appends an entry to <code>00-index.md.runtime-evidence-deferrals[]</code> with <code>{slice, reason, deferred-at, cleared-by: null}</code>. Verify, review, and handoff surface deferrals as <strong>soft warnings</strong> and proceed. <code>/wf ship</code> <strong>hard-blocks</strong> while any deferral has <code>cleared-by: null</code> (see <a href="#wf-ship">/wf ship</a> Step 6.5 below). Clearing requires either a <code>/wf probe</code> run whose captured evidence satisfies the deferred AC (which sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or a re-run of verify in a capable environment.</p>
+<p>Two related tightenings: a suite whose specs <em>all</em> exit via a credential/environment guard (0 executed) is <code>blocked-runtime-evidence-missing</code> with the unmet precondition named — never a silent deferral. And the hatch is <strong>unavailable</strong> for a criterion whose plan-named environment dependency carries no <code>constraint-resolution:</code> entry — verify refuses to inherit an unengineered wall and routes back to <code>/wf plan</code> to author the resolution (prerequisite harness, proxy + named clearing event, or recorded risk-acceptance).</p>
+
+<p>Verify writes <code>result: partial</code> (not <code>pass</code>) and appends an entry to <code>00-index.md.runtime-evidence-deferrals[]</code> with <code>{slice, reason, deferred-at, cleared-by: null}</code> — plus <code>repeat-of: &lt;slice&gt;</code> when the same environment wall was already deferred earlier in the slug, which obliges the next plan to either scope the harness that retires the wall or record <code>harness-declined</code>. Verify, review, and handoff surface deferrals as <strong>soft warnings</strong> and proceed. <code>/wf ship</code> <strong>hard-blocks</strong> while any deferral has <code>cleared-by: null</code> (see <a href="#wf-ship">/wf ship</a> Step 6.5 below). Clearing requires either a <code>/wf probe</code> run whose captured evidence satisfies the deferred AC (which sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or a re-run of verify in a capable environment.</p>
 
 <h4>Single-round user-gated fix loop <span class="badge">v9.15</span></h4>
 
 <p>After the checks and the AC gate finish, verify owns a <strong>single-round, user-gated fix loop</strong> — it no longer just bounces back to implement. Each failing check and unmet AC is triaged via AskUserQuestion (Fix / Skip / Escalate per issue); chosen fixes spawn sub-agents that apply the minimal patch, then only the affected checks re-run <em>once</em>. It is <strong>one round only</strong>: if anything still fails, verify writes <code>convergence: escalated</code> and routes you to re-invoke <code>/wf verify</code> or to <code>/wf implement</code> as a manual escape. The artifact's <code>convergence:</code> frontmatter records <code>not-needed | converged | escalated</code>.</p>
 
 <h4>If verify fails</h4>
-<p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, route to <code>/wf-meta amend</code>. New v9.14 route: if <code>result: blocked-runtime-evidence-missing</code>, route either to a capable environment for re-run, or annotate with a deferral and proceed (the deferral blocks ship but allows review/handoff).</p>
+<p>Routes back to <code>/wf implement &lt;slug&gt; &lt;slice&gt;</code> with directed fix. Does NOT loosen acceptance criteria. If the criteria themselves were wrong, corrections are a new slice (<code>/wf intake &lt;slug&gt; &lt;scope&gt;</code>) or a directed re-plan. New v9.14 route: if <code>result: blocked-runtime-evidence-missing</code>, route either to a capable environment for re-run, or annotate with a deferral and proceed (the deferral blocks ship but allows review/handoff).</p>
 
 <hr>
 
 <h2 id="wf-review">/wf review &lt;slug&gt; [slice|triage]</h2>
 
-<p class="sub-intro">You reach for this sub-command once verify passes — it fans out across up to 31 review dimensions in parallel and aggregates the findings into a single ship verdict.</p>
+<p class="sub-intro">You reach for this sub-command once verify passes — it fans out across up to 34 review dimensions in parallel and aggregates the findings into a single ship verdict.</p>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>7 — multi-domain parallel review dispatch</td></tr>
@@ -400,7 +410,7 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 <tr><th>Default next</th><td><code>/wf handoff &lt;slug&gt;</code> (if ship verdict) or <code>/wf implement &lt;slice&gt; reviews</code> (if blockers)</td></tr>
 </table></div>
 
-<p>Not a single reviewer. A dispatch orchestrator that reads shape and slice, decides which of the 31 review dimensions matter for this change, and runs each as a parallel sub-agent. Findings are aggregated, de-duplicated, and triaged with you.</p>
+<p>Not a single reviewer. A dispatch orchestrator that reads shape and slice, decides which of the 34 review dimensions matter for this change, and runs each as a parallel sub-agent. Findings are aggregated, de-duplicated, and triaged with you.</p>
 
 <h4>What it reads</h4>
 <ul>
@@ -427,9 +437,13 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <hr>
 
-<h2 id="wf-handoff">/wf handoff &lt;slug&gt; [slice]</h2>
+<h2 id="wf-handoff">/wf handoff &lt;slug&#124;pr#N&#124;branch&gt;</h2>
 
 <p class="sub-intro">You reach for this sub-command when review approves the work and you're ready to open a PR — it packages the artifacts, writes the docs, pushes the branch, and runs the full PR-readiness check.</p>
+
+<p><strong>Batch mode.</strong> A <code>pr#N</code> or branch-name first argument aggregates <em>every</em> slug on that branch: it elects a stable <code>handoff-lead</code>, prints a per-slug readiness roster, packages the ready slugs (each writes its own <code>08-handoff.md</code>), opens the <strong>single shared PR</strong> whose body is the union across packaged slugs, and records the branch-level <code>pr-readiness-verdict</code> (the logical AND across the roster) on the lead. Not-ready slugs are reported and skipped without aborting their ready siblings.</p>
+
+<p><strong>Ship-plan readiness (step 6.7).</strong> Before it declares a PR ship-ready, handoff runs a shared ship-plan-readiness pre-check: a missing or drifted <code>.ai/ship-plan.md</code> STOPs with the exact <code>/wf ship-plan init</code> or <code>/wf ship-plan edit</code> command (it routes, never edits), or handoff can mark shipping <strong>external</strong> (<code>ship-plan-readiness: not-applicable</code>).</p>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>8 — package for PR; run PR-readiness block</td></tr>
@@ -453,7 +467,7 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <h4>What it writes</h4>
 <ul>
-  <li>Diátaxis docs per <code>02-shape.md</code> docs plan (loads <code>skills/wf-docs/reference/&lt;type&gt;.md</code> primitive verbatim)</li>
+  <li>Diátaxis docs per <code>02-shape.md</code> docs plan (loads <code>skills/wf/reference/docs/&lt;type&gt;.md</code> primitive verbatim)</li>
   <li><code>08-handoff.md</code> with the full PR-readiness frontmatter block</li>
   <li>Pushed branch + new or updated PR</li>
 </ul>
@@ -462,9 +476,11 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <hr>
 
-<h2 id="wf-ship">/wf ship &lt;slug&gt; [environment]</h2>
+<h2 id="wf-ship">/wf ship &lt;slug&#124;pr#N&#124;branch&gt; [env&#124;announce&#124;rollback]</h2>
 
 <p class="sub-intro">You reach for this sub-command once handoff signals ready — it merges, tags, publishes, watches CI, and polls post-release checks through a replayable 13-step sequence.</p>
+
+<p><strong>Batch mode</strong> — a <code>pr#N</code>/branch first argument ships every slug on the branch <strong>all-or-nothing</strong> (merge is atomic per PR): the 13-step sequence runs once, owned by the lead (<code>ship-scope: branch</code>), and each follower gets a <code>shipped-via</code> pointer instead of a duplicate run artifact. <strong>Announce</strong> — the post-publish comms phase; <code>/wf ship &lt;slug&gt; announce</code> re-runs comms only. <strong>Rollback</strong> — <code>/wf ship &lt;slug&gt; rollback [&lt;run-id&gt;]</code> runs a runbook-driven, Go/No-Go-gated reversal that writes <code>09-rollback-&lt;run-id&gt;.md</code> (irreversible steps surface as mitigations, never silently skipped). Like handoff, ship runs the shared ship-plan-readiness pre-check first (Step 0.4) — it cannot run planless, and offers create/cancel on a missing plan.</p>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>9 — plan-driven, replayable release</td></tr>
@@ -500,7 +516,7 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 <ul>
   <li>Running <code>/wf probe &lt;slug&gt; &lt;target&gt;</code> in a capable environment — captured evidence that satisfies the deferred AC sets <code>cleared-by: probe-&lt;descriptor&gt;</code> automatically.</li>
   <li>Re-running <code>/wf verify &lt;slug&gt; &lt;slice&gt;</code> in a capable environment — produces fresh runtime evidence and rewrites the verify artifact without the deferral.</li>
-  <li>Removing the deferral entry from <code>00-index.md</code> manually (only when the AC has been amended out via <code>/wf-meta amend</code>).</li>
+  <li>Removing the deferral entry from <code>00-index.md</code> manually (only when the AC has been scoped out via a new slice added with <code>/wf intake &lt;slug&gt; &lt;new scope&gt;</code>).</li>
 </ul>
 
 <p>Cleared deferrals (<code>cleared-by</code> non-null — typically a probe descriptor) do not block ship; they're kept in the index for audit. <strong>The block bites only on <code>cleared-by: null</code> entries.</strong> This is the hard-block half of the deferral mechanism — earlier stages (verify, review, handoff) surface deferrals as soft warnings; ship is where the block fires.</p>
@@ -509,9 +525,11 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <hr>
 
-<h2 id="wf-retro">/wf retro &lt;slug&gt;</h2>
+<h2 id="wf-retro">/wf retro &lt;slug&#124;pr#N&#124;branch&gt;</h2>
 
 <p class="sub-intro">You reach for this sub-command after ship — it reads the full artifact trail and proposes concrete improvements (CLAUDE.md additions, hooks, tests, CI checks) so the next workflow starts better than this one did.</p>
+
+<p><strong>Batch mode</strong> — a <code>pr#N</code>/branch first argument retrospects every slug on the branch (one <code>10-retro.md</code> each), skips slugs with nothing to retro, and synthesizes the cross-slug lessons that span the whole branch. A durable, recurring lesson may be promoted into the <code>.ai/solutions/</code> learnings corpus that <code>plan</code> later scans.</p>
 
 <div class="summary"><table>
 <tr><th>Stage</th><td>10 — extract lessons; close out</td></tr>
@@ -538,81 +556,21 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
 
 <hr>
 
-<h2 id="wf-instrument">/wf instrument &lt;slug&gt; [slice]</h2>
+<h2 id="wf-augmentations">Augmentations — instrument · experiment · benchmark · profile</h2>
 
-<p class="sub-intro">You reach for this add-on when the slice changes code paths that are currently invisible in production — no logs, metrics, or traces to tell you what happened.</p>
-
-<div class="summary"><table>
-<tr><th>Type</th><td>Add-on — observability</td></tr>
-<tr><th>Requires</th><td><code>02-shape.md</code> + a defined slice</td></tr>
-<tr><th>Produces</th><td><code>04b-instrument.md</code></td></tr>
-<tr><th>Registers as</th><td>Entry in <code>00-index.md</code>'s <code>augmentations:</code> array</td></tr>
-</table></div>
-
-<p>Designs the observability for a slice: which logs, metrics, traces to add. Implement reads the add-on file and adds the signals. Handoff translates to "Added observability — N signals for previously unobserved code paths".</p>
-
-<h4>When to use</h4>
-<ul>
-  <li>The slice changes code paths that have no logs/metrics/traces.</li>
-  <li>The change is behaviour you want to monitor in production.</li>
-</ul>
-
-<hr>
-
-<h2 id="wf-experiment">/wf experiment &lt;slug&gt; [slice]</h2>
-
-<p class="sub-intro">You reach for this add-on when you want to gate the behaviour change behind a feature flag and measure a controlled rollout rather than flipping the switch for everyone at once.</p>
+<p class="sub-intro">Flag-gated rollout and performance work ride the lifecycle as <strong>augmentations</strong>. They are <strong>not</strong> <code>/wf</code> keys — you never type <code>/wf instrument</code>. (Project-wide observability is different — it has its own <code>/wf observability</code> router; see <a href="../reference/commands.html">Commands</a>.) Instead <code>shape</code> decides which a piece of work needs (writing an <code>## Augmentation Plan</code> and the <code>augmentations-needed</code> frontmatter), and <code>plan</code>/<code>implement</code>/<code>verify</code> apply them by loading <code>skills/wf/reference/augment/&lt;type&gt;.md</code> as an internal sub-procedure. See <a href="../explanation/augmentations-model.html">the augmentations model</a> for the full picture.</p>
 
 <div class="summary"><table>
-<tr><th>Type</th><td>Add-on — feature flag + cohort design</td></tr>
-<tr><th>Produces</th><td><code>04c-experiment.md</code></td></tr>
+<tr><th>Decided by</th><td><code>shape</code> — <code>augmentations-needed: [instrument|experiment|benchmark|profile]</code> (<code>[]</code> when none)</td></tr>
+<tr><th>Applied by</th><td><code>plan</code> (authors the augment artifact), <code>implement</code> (wires it), <code>verify</code> (re-checks, e.g. benchmark compare)</td></tr>
+<tr><th>Recorded on</th><td><code>00-index.md</code>'s <code>augmentations:</code> array</td></tr>
 </table></div>
 
-<p>For behaviour changes you want to gate behind a flag with a measured rollout. Writes the cohort split design, success metrics, rollback signal. Implement reads it and adds the gating code.</p>
-
-<h4>When to use</h4>
 <ul>
-  <li>The slice changes user-visible behaviour and you want a slow rollout.</li>
-  <li>You need an explicit rollback signal beyond "revert the merge".</li>
-</ul>
-
-<hr>
-
-<h2 id="wf-benchmark">/wf benchmark &lt;slug&gt; [baseline|compare]</h2>
-
-<p class="sub-intro">You reach for this add-on when you want regression insurance — run it before implement to capture a baseline, then again after to see exactly what changed.</p>
-
-<div class="summary"><table>
-<tr><th>Type</th><td>Add-on — perf baseline + compare</td></tr>
-<tr><th>Produces</th><td><code>05c-benchmark.md</code></td></tr>
-</table></div>
-
-<p>Two-phase: run before implement to capture baseline; run after implement (compare mode) to diff against baseline. Compare output flows into <code>06-verify-&lt;slice&gt;.md</code> evidence and into handoff as "Performance baseline taken; verify-stage comparison: &lt;within tripwires | regression&gt;".</p>
-
-<h4>When to use</h4>
-<ul>
-  <li>The change could plausibly affect performance, even if you don't expect it to.</li>
-  <li>You want regression insurance.</li>
-</ul>
-
-<hr>
-
-<h2 id="wf-profile">/wf profile &lt;area&gt;</h2>
-
-<p class="sub-intro">You reach for this add-on when you suspect a hot path but haven't confirmed where it is — it runs a freestanding profiling pass without needing an active workflow slice.</p>
-
-<div class="summary"><table>
-<tr><th>Type</th><td>Add-on — freestanding profiling pass</td></tr>
-<tr><th>Slice-bound</th><td>No — doesn't need a workflow slice</td></tr>
-<tr><th>Produces</th><td><code>.ai/profiles/profile-&lt;timestamp&gt;-&lt;slug&gt;/01-profile.md</code></td></tr>
-</table></div>
-
-<p>The only freestanding add-on. Investigate where time is spent in the named area. Language-detect, static-analysis rubric, dynamic-profiling commands per language, structured-output contract.</p>
-
-<h4>When to use</h4>
-<ul>
-  <li>You suspect a hot path but don't know where.</li>
-  <li>You need to plan a perf improvement before committing to it.</li>
+  <li><strong>instrument</strong> (observability) — designs which logs, metrics, and traces to add for code paths that are otherwise invisible in production. Artifact <code>04b-instrument.md</code>.</li>
+  <li><strong>experiment</strong> (flag-gated rollout) — cohort-split design, success metrics, and rollback signal for a behaviour change you want to roll out gradually behind a flag. Artifact <code>04c-experiment.md</code>.</li>
+  <li><strong>benchmark</strong> (perf baseline + compare) — captures a baseline before implement and diffs against it after; the compare flows into <code>06-verify-&lt;slice&gt;.md</code> with regression tripwires. Artifact <code>05c-benchmark.md</code>.</li>
+  <li><strong>profile</strong> (ad-hoc hotspot) — flags a known hotspot for <code>plan</code> to schedule; for a freestanding profiling pass with no active slice, reach for <code>/wf probe</code>.</li>
 </ul>
 
 <hr>
@@ -652,6 +610,21 @@ interactive-verification-defer-reason: "no iOS device available for the camera A
   <li>Does not open a PR or run CI fixes.</li>
   <li>Does not suppress any stage&#39;s own quality gates.</li>
 </ul>
+
+<hr>
+
+<h2 id="wf-yolo">/wf yolo &lt;slug&gt; [slice]</h2>
+
+<p class="sub-intro">You reach for this when you want a workflow driven end-to-end with <strong>no human gates</strong> — the autonomous sibling of <code>auto</code>. It resolves each gate by a written policy instead of pausing for you, and stops before handoff.</p>
+
+<div class="summary"><table>
+<tr><th>Type</th><td>Autonomous lifecycle driver — Claude-only (not in the Codex build)</td></tr>
+<tr><th>Requires</th><td>An existing slug with a decided build (readiness needs <code>01</code>–<code>04</code> complete)</td></tr>
+<tr><th>Produces</th><td>No artifact of its own — each delegated stage writes its own</td></tr>
+<tr><th>Stops at</th><td>Before handoff, exactly like <code>auto</code></td></tr>
+</table></div>
+
+<p><code>yolo</code> is <code>auto</code> without the inter-stage pauses <em>and</em> without the intra-stage gates: where <code>auto</code> stops and hands back when a stage's gate fires, <code>yolo</code> resolves that gate by a pre-written policy (built on the Workflow tool). It classifies the slug by <code>workflow-type</code> so compressed change-modes (<code>fix</code>/<code>hotfix</code>/<code>refactor</code>) and RCA drive correctly, and it can drive an <code>update-deps</code> slug (full plan, defer failures). It <strong>defers</strong> — never fakes — an acceptance criterion it genuinely cannot verify (an auto-deferral is lawful only over a <em>probed</em> incapability), and it creates or switches to a dedicated branch up front. An active <code>steer.md</code> veto outranks every auto-resolve default and hard-stops a lawful action that would cross it.</p>
 
 <div class="related">
 <h3>Where next</h3>

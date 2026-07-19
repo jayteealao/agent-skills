@@ -1,7 +1,20 @@
 # External-Model Dispatch — Plan
 
-Status: DRAFT (planning). Branch target: **master** (jayte 2026-06-17).
+Status: **BUILT — v9.93.0, 2026-06-23, on master (Phases 0–3 landed).** See §13 build log.
+(Originally DRAFT planning; branch target master, jayte 2026-06-17.)
 Date: 2026-06-16 (decisions appended 2026-06-17). Author: planning pass with jayte.
+
+> **Addendum 2026-07-01 (v9.96.0) — `consult` made autonomous, consent gate dropped.**
+> Reversing D12's "always opt-in, never auto" posture *for `consult` only*: it is now
+> **model-invocable** (`disable-model-invocation: false`) and **auto-runs** at the
+> plan / design / review / diagnosis judgment points, including inside `/wf auto` and
+> `/wf yolo`. The `externalDispatch.enabled` re-check is **removed from
+> `consult/dispatch.mjs`** (§5 rule 1 no longer applies to consult); cost is instead
+> bounded by the rule that any model-initiated run **pins a free CLI (`codex`/`claude`)**
+> and never fans out to paid REST unattended. `imagery` and `uiproto` are unchanged —
+> they keep the consent flag and the script-level trust boundary. The read-only
+> sandbox / credential scrub / hook-isolation guarantees for consult are untouched;
+> only *consent* was removed, not *safety*.
 
 Add the ability, *as part of the SDLC workflow*, to send prompts to external AI
 models — coding sub-agents (Codex / Claude), image models (gpt-image-2,
@@ -697,3 +710,83 @@ Caller: a `/wf design` shape/craft step, beside the `imagery` mock.
 **Small open choices (defaults taken; tell me to change):** the consult intent taxonomy (inferred,
 not a keyword); `imagery` fan-out spending N images/call vs. single-best default; LLM UI in an
 iframe vs. inline. None block Phase 0.
+
+---
+
+## 13. Build log (2026-06-23, v9.93.0, master)
+
+All four phases implemented end-to-end. Tests: 479 total (477 pass, 2 live-only
+skips) — +40 new across `tests/unit/skills/{consult-dispatch,imagery,uiproto}.test.mjs`.
+`verify:docs` green (53 pages stamped v9.93.0), `verify:codex` parity OK (187 files).
+
+- **Phase 0** — `externalDispatch.enabled` (default false) added to `HUB_CONFIG_DEFAULTS`;
+  `SDLC_DISPATCH_ACTIVE` early-exit added to all 5 hook entrypoints; `consult/scripts/{dispatch,isolate}.mjs`.
+  Single build+`sync:codex`+bump (9.92.0→9.93.0; marketplace 1.118.0→1.119.0; `_shell.mjs`; 53 doc stamps).
+- **Phase 1** — `consult` skill (both trees, scripts byte-identical, codex `agents/openai.yaml`);
+  advisory wiring in `/wf plan` + `/review`.
+- **Phase 2** — `imagery` skill (both trees) with `_img.mjs`/`gen-openai.mjs`/`gen-gemini.mjs`/
+  `gen-openai-codex.sh`/`gen-text-fallback.sh`/`embed-img.mjs`; `imagegen` marked `deprecated: true`
+  (thin alias one release); design callers repointed imagegen→imagery in BOTH trees
+  (`shape.md`, `craft.md`, `_design-context.md`, `design.md`). `IMAGEGEN_RESULT` contract preserved.
+- **Phase 3** — `uiproto` skill (both trees) with `gen-stitch.mjs`/`gen-llm.mjs`/`embed-iframe.mjs`;
+  optional `/wf design` craft step wired in both trees; `reference/external-model-dispatch.md` added.
+
+### Deviations from the plan (all verified, all deliberate)
+
+1. **Hook-isolation model INVERTED (load-bearing).** A docs check (claude-code-guide, 2026-06)
+   could NOT confirm the `--settings {"disableAllHooks":true}` key, and the confirmed alternative
+   `--bare` breaks subscription OAuth. So the `SDLC_DISPATCH_ACTIVE` sentinel + the SDLC-hook
+   early-exits (confirmed by construction, zero auth risk) are the **PRIMARY** hook suppression for
+   `consult`, not defense-in-depth. `--settings disableAllHooks` is NOT passed (an unknown key could
+   abort the run). `--sandbox read-only` / `--tools` remain the enforcement.
+2. **Confirmed `--tools "Read,Glob,Grep"`** as the real toolset restriction (A1), and added
+   **`--strict-mcp-config`** (the plan missed that `--tools` does not gate MCP tools).
+3. **Scrub list extended** beyond `ANTHROPIC_API_KEY`/`_AUTH_TOKEN` to the cloud-provider vars
+   (`CLAUDE_CODE_USE_BEDROCK`/`VERTEX`/`FOUNDRY`) — all outrank OAuth.
+4. **`consult` frontmatter** uses `disable-model-invocation: true` (slash-invocable, no model
+   auto-fire) instead of the plan's `user-invocable: true` — honors "always explicit/opt-in" and
+   avoids surprise per-token spend. Codex side: `allow_implicit_invocation: false`.
+   **(REVERSED 2026-07-10: on codex-cli 0.143.0, `allow_implicit_invocation: false` hides the
+   skill from the model entirely — explicit `$name` invocation stops working too, unlike Claude's
+   `disable-model-invocation`. All four codex `agents/openai.yaml` flags now read `true`; the
+   spend guard is the description text plus the script-level `externalDispatch.enabled` re-check.)
+5. **`imagery`/`uiproto` egress gated at the SKILL level AND (as of the 2026-06-24 review, §13.1)
+   the SCRIPT level** — `gen-openai`/`gen-gemini`/`gen-stitch`/`gen-llm` each re-check
+   `externalDispatch.enabled` themselves; the built-in `image_gen` + text fallback never egress and
+   stay available — preserves imagegen's zero-config behavior for non-opted-in users.
+6. **Open items resolved/owned:** the renderer's FREE-fragment path DOES apply `@scope` containment
+   (`renderers/_paths.mjs` + `render-sunflower.mjs scopeFragmentCss`), so consult panels / imagery
+   strips raw-inline safely; uiproto still iframes (full screen = colliding CSS + CSP-blocked JS).
+   C3 (codex hook-disable knob) remains UNVERIFIED — no speculative config injected; isolated
+   `CODEX_HOME`+copied `auth.json` with graceful fallback, read-only sandbox as the guarantee.
+   Codex tree had a pre-existing dangling `imagegen` reference (no skill folder) — repointing to
+   the now-mirrored `imagery` fixes it.
+
+### 13.1 Fresh-eyes review pass (2026-06-24) — 1 critical bug fixed, no bump
+
+A post-build review found a **critical wiring bug** plus two smaller issues; all fixed in the
+skill source (source-read → no rebuild/bump; v9.93.0 unchanged). Tests 479→**483** (481 pass, 2
+live-skip); `verify:docs` + `verify:codex` still green at the **unchanged** buildId `0de9b410f4b7`;
+all three `scripts/` dirs re-diffed byte-identical across trees.
+
+1. **🔴 CRITICAL — `consult/dispatch.mjs` `runCli` never passed the hardened child env to `spawn()`.**
+   `buildClaudeEnv`/`buildCodexEnv` were assigned to a local `childEnv` that `spawn(cmd, cmdArgs, {cwd,
+   stdio, windowsHide})` then ignored — so the child inherited the parent env. This **silently defeated
+   all three** isolate.mjs guarantees: the `SDLC_DISPATCH_ACTIVE` sentinel was never set on the child
+   (→ the repo's SDLC hooks would fire inside the spawned oracle — i.e. the headline hook-isolation
+   deviation was inert), API keys were never scrubbed (→ per-token billing instead of subscription),
+   and the isolated `CODEX_HOME` was computed but unused (temp dir leaked). It slipped past the suite
+   because `runFanout`'s test injects a fake `run` seam and the sentinel test sets the env by hand —
+   the real `runCli`→`spawn` wiring was exercised by nothing. **Fix:** extracted a pure, exported
+   `buildCliSpawn()` that returns the exact `{cmd, cmdArgs, options, tempHome}` handed to `spawn`
+   (so `options.env` is now asserted in tests and cannot silently regress); `runCli` spawns with it
+   and `rmSync`-cleans the temp `CODEX_HOME` (which holds an `auth.json` copy) on close/error.
+2. **🟠 Stale comments** in `isolate.mjs` (header + the sentinel line) and `session-start-orient.mjs`
+   still described the pre-inversion model (`--settings disableAllHooks` "load-bearing", sentinel
+   "defense-in-depth"). Reworded to match deviation #1 — the sentinel is the primary mechanism.
+3. **🟡 Consent enforced in-script only for `consult`.** `imagery`/`uiproto` egress generators gated
+   on API-key presence but not on `externalDispatch.enabled`, contradicting the operator reference's
+   "the script is the trust boundary" claim. Added a `dispatchEnabled` gate to `gen-openai`/`gen-gemini`
+   (via `imagery/_img.mjs`) and `gen-stitch`/`gen-llm` (via new `uiproto/scripts/_consent.mjs`), each
+   exiting `1` (= skip) when off; reference doc made precise (the bash `openai-sub` path stays
+   explicit-keyword + SKILL.md gated). +4 unit tests (2 spawn-wiring regression guards, 2 consent gates).

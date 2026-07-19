@@ -25,8 +25,7 @@ take the same sub-command and arguments.
 
 `$wf` is the lifecycle-stage router (one canonical stage per sub-command);
 `$wf-meta` navigates and mutates existing workflows. The standalone helper skills
-(`error-analysis`, `refactoring-patterns`, `test-patterns`,
-`wide-event-observability`) are invoked the same way under Codex.
+(e.g. `setup-wide-logging`) are invoked the same way under Codex.
 
 ## What stays the same
 

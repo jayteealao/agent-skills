@@ -65,7 +65,7 @@ next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 ---
 ```
-Body: `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
+Body: open with `## The Dependency Update` — the story section (1–2 short paragraphs in the voice of `../_narrative-voice.md`: relevance first, tradeoffs plain, no "This dependency update implements…" opening) — then `## Security Vulnerabilities` (CVEs: severity, package, fix version), `## Outdated Packages` (table: package | current | latest | update-type | days-behind), `## Up to Date` (count only).
 
 # Step 2 — Research + prioritize → `02-shape.md`
 For each package that needs updating, launch parallel web-research sub-agents in batches of 3–5.
@@ -73,6 +73,18 @@ For each package that needs updating, launch parallel web-research sub-agents in
 **Model for every dispatched batch agent:** `haiku`. REQUIRED — each does web search + structured extraction (versions, breaking changes, migration steps, CVEs, compatibility) per package; bounded extraction.
 
 Each batch agent returns per package: current/latest version, update-type, breaking changes, migration steps, CVEs, compatibility, recommendation (update-now / update-with-migration / hold).
+
+**Authoritative source — REQUIRED per package.** Web search is the discovery net, but each agent must ground its breaking-changes + migration-steps in the package's **own changelog or release notes**, not blog posts or Q&A. In priority order, fetch and read: (1) the `CHANGELOG.md` / `HISTORY` / `NEWS` in the package repo, (2) the GitHub/GitLab **Releases** page for the target version range, (3) an official upgrade/migration guide if one exists. Read **every intermediate major** between current and latest — a 3→6 jump means reading the 4.0, 5.0, and 6.0 notes, since breaking changes stack. Record the exact **source URL(s)** consulted and the **highest version whose notes were actually read**. If no authoritative changelog can be located for a P0/P1 package, do NOT infer "no breaking changes" — mark it `changelog: unverified` and recommend `hold` (or manual review); a missing changelog is a risk signal, not an all-clear.
+
+**When the changelog can't settle it, read the source.** For a P0/P1 package whose changelog is `unverified`, ambiguous, or silent on a symbol the repo actually calls, invoke the `study-sources` skill to fetch the **target version's real source** (source JAR, `npm pack`, sdist, `go mod download`, the Cargo/NuGet cache, or a clone of the release tag into `.scratch/`) and diff its changed API against the current usage. Reading the real diff turns an `unverified` guess into a cited migration fact — record the version you read alongside `changelog-source:`. This is a read-only study step; it never installs or runs the candidate version.
+
+**A limitation claim carries its evidence.** Any claim that a capability was REMOVED, broke,
+or is no longer exposed by the target version must cite it in the artifact: the changelog/release
+line that announces the removal (`changelog-source:` URL), a `study-sources` read of the target
+version's **installed** source (name the path opened), or an upstream issue. Do not infer removal
+from a remembered API or from an in-repo comment — a comment claiming a limitation is a hypothesis
+to re-verify, never authority to plan a migration around. An uncited "the new version dropped X"
+drops the package to `Hold: changelog unverified`.
 
 Then **prioritize** into tiers: **P0 Security** (active CVE with a fix → update immediately, one at a time), **P1 Major+migration** (breaking changes → one at a time), **P2 Minor/patch safe** (batch up to 10), **Hold** (incompatible / peer-blocked / recommended hold). Write `02-shape.md`:
 ```yaml
@@ -95,7 +107,7 @@ next-command: wf-slice
 next-invocation: "/wf slice <slug>"
 ---
 ```
-Body: one `## <package>` section each (current/latest, CVEs, breaking changes, migration steps, recommendation, reason), then `## Priority Groups` (the four tiers with their packages), then `## In Scope` / `## Out of Scope` (the Hold tier).
+Body: one `## <package>` section each (current/latest, CVEs, breaking changes, migration steps, recommendation, reason, **`changelog-source:` URL(s) + `changelog-read-through:` the highest version whose notes were read, or `unverified`**), then `## Priority Groups` (the four tiers with their packages), then `## In Scope` / `## Out of Scope` (the Hold tier). **Every P1 (major+migration) package's migration steps MUST cite the changelog source they derive from** — an uncited P1 migration is not plan-ready and drops to `Hold: changelog unverified`.
 
 # Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
 ```yaml

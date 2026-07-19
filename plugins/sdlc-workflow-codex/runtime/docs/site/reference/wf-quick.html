@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -95,11 +93,11 @@
 <span class="quadrant reference">reference</span>
 <h1>Quick &amp; standalone flows</h1>
 
-<p class="lede">The standalone <code>/wf-quick</code> router has been retired. Its ten flows are now distributed across <code>/wf</code>: eight become <strong>intake modes</strong> — arguments to <code>/wf intake &lt;mode&gt;</code> — and two (<code>probe</code> and <code>simplify</code>) become their own top-level <code>/wf</code> keys. You reach for these when you have a small, well-defined change that does not need the full 10-stage lifecycle.</p>
+<p class="lede">The standalone <code>/wf-quick</code> router has been retired. Its ten flows are now distributed across <code>/wf</code>: eight become <strong>intake modes</strong> — arguments to <code>/wf intake &lt;mode&gt;</code> — and two (<code>probe</code> and <code>simplify</code>) become their own top-level <code>/wf</code> keys. A ninth intake mode, <code>adopt</code>, was added later, so <code>/wf intake &lt;mode&gt;</code> now takes nine modes in all. You reach for these when you have a small, well-defined change that does not need the full 10-stage lifecycle.</p>
 
 <h2>The new shape</h2>
 
-<p>The first token after <code>intake</code> is an optional <strong>mode</strong>, resolved by an exact keyword check: if the token matches one of the eight mode names it selects that compressed flow; otherwise the token is the description of the work. The mode decides how compressed the intake run is.</p>
+<p>The first token after <code>intake</code> is an optional <strong>mode</strong>, resolved by an exact keyword check: if the token matches one of the nine mode names it selects that compressed flow; otherwise the token is the description of the work. The mode decides how compressed the intake run is.</p>
 
 <table class="no-mobile-scroll">
 <thead><tr><th>Shape</th><th>Form</th><th>Effect</th></tr></thead>
@@ -110,7 +108,7 @@
 </tbody>
 </table>
 
-<h2>The eight intake modes</h2>
+<h2>The nine intake modes</h2>
 
 <p>Each mode maps to a compressed flow that collapses or skips stages relative to the full pipeline.</p>
 
@@ -125,6 +123,7 @@
 <tr><td><code>update-deps</code></td><td>Dependency audit — security patches, major-version bumps, safe minor updates.</td><td>Tiered scan → research → plan → implement → verify under <code>.ai/dep-updates/</code>.</td></tr>
 <tr><td><code>refactor</code></td><td>Behaviour-preserving restructure with a test-suite baseline captured first.</td><td>Full standard lifecycle with behavior-preserving discipline. Captures test baseline in <code>02-shape.md</code> before touching code, plans incremental green steps. Writes <code>01-refactor.md</code>, <code>02-shape.md</code>, <code>03-slice.md</code>, <code>04-plan.md</code>; routes to <code>/wf implement</code>. Review defaults to refactor-safety.</td></tr>
 <tr><td><code>ideate</code></td><td>Brainstorm improvement candidates for a focus area before sprint planning.</td><td>Single artifact under <code>.ai/ideation/</code> with ranked candidates and effort estimates.</td></tr>
+<tr><td><code>adopt</code></td><td>Work already done outside the lifecycle that you want tracked retroactively.</td><td>Reconstructs the workflow trail for existing changes and marks the workflow <code>provenance: adopted</code>, so already-shipped or in-progress work joins the lifecycle without re-doing it.</td></tr>
 </tbody>
 </table>
 
@@ -177,7 +176,7 @@
 </ul>
 </div>
 
-<div class="pager"><a class="prev" href="../reference/wf.html"><span>← Previous</span>/wf</a><a class="next" href="../reference/wf-meta.html"><span>Next →</span>/wf-meta</a></div></main>
+<div class="pager"><a class="prev" href="../reference/wf.html"><span>← Previous</span>/wf</a><a class="next" href="../reference/wf-design.html"><span>Next →</span>/wf design</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

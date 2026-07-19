@@ -6,40 +6,32 @@ import {
   refreshAutostart
 } from "./chunk-ERHYJB4B.mjs";
 import {
-  currentGitBranch,
-  outputSystemMessage,
   projectRootFromInput,
-  readStdinJson,
-  stringifyField
-} from "./chunk-LC2YZRHK.mjs";
+  readStdinJson
+} from "./chunk-CDKEYATP.mjs";
 import {
   logError
 } from "./chunk-SCQPZLF2.mjs";
 import {
   ensureHubEnabled,
   spawnHubEnsure
-} from "./chunk-L6EQJGVG.mjs";
-import "./chunk-UTP6CBAZ.mjs";
+} from "./chunk-62ZCQV76.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
 import {
-  loadConfig
-} from "./chunk-ZMYLXAL2.mjs";
-import {
-  countPending,
   enqueue,
-  readStatus,
   resolveEntrypoint,
   sdlcHomeDir
-} from "./chunk-DVISHXT5.mjs";
-import {
-  activeWorkflowIndexes,
-  scanWorkflowIndexes
-} from "./chunk-NTSUEAI6.mjs";
+} from "./chunk-U4OUM73W.mjs";
+import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
+import "./chunk-UTP6CBAZ.mjs";
+import {
+  loadConfig
+} from "./chunk-D55RRO3F.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/session-start-orient.mjs
@@ -50,37 +42,13 @@ var __dirname = dirname(fileURLToPath(import.meta.url));
 var PLUGIN_ROOT = resolve(__dirname, "..");
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") return;
+  if (process.env.SDLC_DISPATCH_ACTIVE === "1") return;
   const input = await readStdinJson();
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);
   startBootstrap(projectRoot, config);
   healAutostartLauncher();
   healRunningTray();
-  const workflows = activeWorkflowIndexes(await scanWorkflowIndexes({ projectRoot }));
-  if (!workflows.length) return;
-  const currentBranch = await currentGitBranch(projectRoot);
-  const summaries = workflows.map((workflow) => formatWorkflowSummary(workflow, currentBranch));
-  let message = summaries.length === 1 ? summaries[0] : `Active workflows (${summaries.length}):
-
-${summaries.join("\n\n")}`;
-  const advisory = pendingRenderAdvisory(projectRoot, config);
-  if (advisory) message += `
-
-${advisory}`;
-  outputSystemMessage(message);
-}
-function pendingRenderAdvisory(projectRoot, config) {
-  try {
-    if ((config.view?.renderDispatch ?? "hub") !== "hub") return null;
-    const viewRoot = resolve(projectRoot, ".ai", "_view");
-    const status = readStatus(viewRoot);
-    if (!status?.lastError) return null;
-    const pending = countPending(viewRoot);
-    if (pending <= 0) return null;
-    return `\u26A0 ${pending} view render(s) pending \u2014 ${status.lastError}. The dashboard will refresh once the hub drains the queue; start it (or run \`render-sunflower\`) to refresh now.`;
-  } catch {
-    return null;
-  }
 }
 function healAutostartLauncher() {
   try {
@@ -137,52 +105,13 @@ function startBootstrap(projectRoot, config) {
       repoRoot: projectRoot,
       kind: "bootstrap",
       bucket: "__bootstrap__",
-      enqueuedBy: { host: "claude", pid: process.pid }
+      enqueuedBy: { host: process.env.SDLC_HOST || "claude", pid: process.pid }
     }, { maxPending: config.view?.renderQueue?.maxPending });
     if (ensureHubEnabled(config.view)) {
       spawnHubEnsure({ pluginRoot: PLUGIN_ROOT, projectRoot, viewDir: viewRoot });
     }
   } catch {
   }
-}
-function formatWorkflowSummary(workflow, currentBranch) {
-  const fm = workflow.frontmatter ?? {};
-  let summary = `Active workflow: ${workflow.slug}`;
-  if (fm.title) summary += ` - ${fm.title}`;
-  if (fm["current-stage"]) summary += `
-  Stage: ${fm["current-stage"]}`;
-  if (fm["stage-status"]) summary += ` (${fm["stage-status"]})`;
-  const selectedSlice = fm["selected-slice-or-focus"] ?? fm["selected-slice"];
-  if (selectedSlice) summary += `
-  Slice: ${selectedSlice}`;
-  const strategy = fm["branch-strategy"];
-  if (strategy && strategy !== "none") {
-    const branch = fm.branch;
-    let branchLine = `  Branch: ${branch || "unknown"}`;
-    if (currentBranch && branch) {
-      branchLine += currentBranch === branch ? " (on correct branch)" : ` (current: ${currentBranch} - WRONG BRANCH)`;
-    }
-    if (fm["base-branch"]) branchLine += `, base: ${fm["base-branch"]}`;
-    summary += `
-${branchLine}`;
-  }
-  if (fm["pr-url"]) summary += `
-  PR: ${fm["pr-url"]}`;
-  const nextInvocation = fm["recommended-next-invocation"] ?? fm["next-invocation"];
-  const nextCommand = fm["recommended-next-command"] ?? fm["next-command"];
-  if (nextInvocation) {
-    summary += `
-  Next: ${nextInvocation}`;
-  } else if (nextCommand) {
-    summary += `
-  Next: /${nextCommand} ${workflow.slug}`;
-  }
-  const openQuestions = stringifyField(fm["open-questions"]);
-  if (openQuestions && openQuestions !== "[]" && openQuestions !== "none") {
-    summary += `
-  Open questions: ${openQuestions}`;
-  }
-  return summary;
 }
 main().catch(async (err) => {
   try {

@@ -6,20 +6,20 @@ import {
   isInsideWorkflowArtifacts,
   projectRootFromInput,
   readStdinJson
-} from "./chunk-LC2YZRHK.mjs";
+} from "./chunk-CDKEYATP.mjs";
 import {
   logError
 } from "./chunk-SCQPZLF2.mjs";
-import "./chunk-UTP6CBAZ.mjs";
-import {
-  loadConfig
-} from "./chunk-ZMYLXAL2.mjs";
 import {
   scanWorkflowIndexes
 } from "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
+import "./chunk-UTP6CBAZ.mjs";
+import {
+  loadConfig
+} from "./chunk-D55RRO3F.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/post-write-auto-stage.mjs
@@ -27,6 +27,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") return;
+  if (process.env.SDLC_DISPATCH_ACTIVE === "1") return;
   const input = await readStdinJson();
   const projectRoot = projectRootFromInput(input);
   const config = await loadConfig(projectRoot);

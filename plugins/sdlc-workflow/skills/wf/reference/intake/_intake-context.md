@@ -7,11 +7,12 @@ this file rather than restating it. (Mirrors how the design commands defer to
 `design/_design-context.md`.)
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`, `.ai/ideation/...`, `.ai/simplify/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
+
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](../_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 # Narrative fragments — any artifact
 Beyond the typed `.html.fragment` the rich stages project from a sibling `.yaml`, *any* artifact a
@@ -24,7 +25,7 @@ widget tells the story better than prose. Full guidance:
 # Workflow registry & slug semantics
 
 `.ai/workflows/INDEX.md` is the global workflow registry (format documented in
-`${CLAUDE_PLUGIN_ROOT}/skills/wf-meta/reference/sync.md`). Columns:
+`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/status.md` (the `/wf status` registry-reconcile spec)). Columns:
 `slug<TAB>status<TAB>workflow-type<TAB>branch<TAB>updated-at`, sorted alphabetically by slug,
 closed rows retained.
 
@@ -32,7 +33,7 @@ closed rows retained.
 reused by a new workflow.
 
 **Collision detection** (a *new* workflow whose derived slug already exists) is owned by
-`intake/default.md` Step 0 — it prompts resume / amend / pick-different / cancel and never silently
+`intake/default.md` Step 0 — it prompts catch-up (recap) / add-scope (extend) / pick-different / cancel and never silently
 proceeds. **This is distinct from slug-mode:** when the dispatcher detects that the *first
 positional token* is an exact existing-slug match, that is an *intentional* attach handled by
 `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` — no collision prompt fires.
@@ -57,7 +58,7 @@ per-mode body (what `01-<mode>`/`02-shape`/etc. carry).
   must satisfy the **intake** required set: `status` ∈ `{complete, awaiting-input}`, `stage-number: 1`,
   `created-at`/`updated-at`, `tags`, `refs`, `next-command`, `next-invocation`.
 - **The authoritative `workflow-type` discriminator lives on `00-index.md`** (mirror it onto the lead
-  for readability, but the index is canonical — the standard stage commands and resume read it there).
+  for readability, but the index is canonical — the standard stage commands and `/wf recap` read it there).
 - **`00-index.md` is a fully-conformant `type: index`** — the heavy 22-field `indexFrontmatter`
   (`status: active` not `ready`; `progress` a stage→status **object** `{intake: …, shape: …, …}` with
   enum values `not-started|in-progress|complete|skipped`, NOT a list). Use the template + 22-field set

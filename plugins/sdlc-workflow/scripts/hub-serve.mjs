@@ -27,6 +27,7 @@ import { resolveRequestPath } from '../lib/resolve-request-path.mjs';
 import { hostAllowed } from '../lib/host-allowlist.mjs';
 import {
   readRegistry, writeRegistry, pruneRegistry, validateEntry, REGISTRY_VERSION,
+  logPrune, entryWithinGrace, REGISTRY_FRESH_GRACE_MS,
 } from '../lib/registry.mjs';
 import { refreshEntriesLiveness } from '../lib/branch-liveness.mjs';
 import {
@@ -39,7 +40,7 @@ import {
 import {
   runtimeIdentity, readRenderedIdentity, renderIdentityMatches,
 } from '../lib/runtime-manifest.mjs';
-import { createRenderQueueDrainer, countPending } from '../lib/render-queue.mjs';
+import { createRenderQueueDrainer, countPending, enqueue as enqueueRenderJob } from '../lib/render-queue.mjs';
 import { renderHubLanding } from '../renderers/hub-dashboard.mjs';
 import { renderCodeBrowserPage } from '../renderers/_code-browser-page.mjs';
 
@@ -168,6 +169,9 @@ export function createHubServer({
   codeBrowser = null,
   heartbeatMs = 25000,
   reconcileMs = 10000,
+  // Fresh-registration survival window (F2) — how long a never-rendered,
+  // empty-queue entry survives the reconcile prune. Injectable for tests.
+  registrationGraceMs = REGISTRY_FRESH_GRACE_MS,
   pluginRoot = PLUGIN_ROOT,
   // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). null → off; main()
   // supplies the env-derived machine config (heal defaults ON there). Mirrors
@@ -227,6 +231,29 @@ export function createHubServer({
     maxAttempts: heal.config.maxAttempts,
   });
 
+  // F2 (FRESH-REPO-REGISTRATION-FIX-PLAN): a repo that registered but has never
+  // rendered has no `.last-render` — historically the prune paths reaped it
+  // within one tick, so a brand-new repo could never become visible. Queue ONE
+  // whole-repo bootstrap render for such an entry: the pending job both carries
+  // it through the prune predicates and produces its first view. Idempotence is
+  // the two gates — an already-rendered repo or one with queued work is left
+  // alone, so re-registration never re-renders anything.
+  function ensureBootstrapQueued(entry) {
+    try {
+      if (!entry?.id || !entry.viewDir || !entry.repoRoot) return;
+      if (!existsSync(entry.viewDir)) return;
+      if (existsSync(`${entry.viewDir}/.last-render`)) return;
+      if (countPending(entry.viewDir) > 0) return;
+      const r = enqueueRenderJob(entry.viewDir, {
+        repoRoot: entry.repoRoot,
+        kind: 'bootstrap',
+        bucket: '__bootstrap__',
+        enqueuedBy: { host: STARTED_BY_HOST, pid: process.pid },
+      });
+      if (r.ok) logHub(`bootstrap render queued for never-rendered ${entry.id}`);
+    } catch { /* best-effort — the registration grace still covers the entry */ }
+  }
+
   // Fold shards in + drop dead/poisoned entries at startup, then load the
   // validated set. The hub is the sole writer of registry.json from here on.
   function reload() {
@@ -236,6 +263,9 @@ export function createHubServer({
     // render flips to `gone` here without needing a re-render. Local-git only
     // (checkPr:false) so the reload never blocks on the network; best-effort.
     try { refreshEntriesLiveness(entries); } catch { /* best-effort */ }
+    // F2: entries that arrived via shard while the hub was down get their
+    // bootstrap render queued here (the POST path queues at accept time).
+    for (const e of entries) ensureBootstrapQueued(e);
     rewatchAll();
     invalidateLanding();
   }
@@ -328,17 +358,27 @@ export function createHubServer({
     for (const e of entries) {
       // Keep a repo with rendered output OR pending queue work — a freshly
       // registered repo whose first render is still queued has no .last-render yet
-      // (RENDER-DISPATCH-PLAN), and must survive prune so step 4 can drain it.
-      const present = existsSync(e.repoRoot)
-        && existsSync(e.viewDir)
-        && (existsSync(`${e.viewDir}/.last-render`) || countPending(e.viewDir) > 0);
+      // (RENDER-DISPATCH-PLAN) — OR a registration younger than the grace window
+      // (F2 — its bootstrap render may not even be queued yet). Missing backing
+      // dirs prune immediately regardless of grace: that arm is the real GC.
+      const backing = existsSync(e.repoRoot) && existsSync(e.viewDir);
+      const present = backing
+        && (existsSync(`${e.viewDir}/.last-render`) || countPending(e.viewDir) > 0
+          || entryWithinGrace(e, registrationGraceMs));
       if (present) { live.push(e); continue; }
       changed = true;
       const w = watchers.get(e.id);
       if (w) { try { w.close(); } catch { /* ignore */ } watchers.delete(e.id); }
       lastReloadAt.delete(e.id);
       lastRenderMtime.delete(e.id);
-      logHub(`reconcile: pruned ${e.id} (backing files gone)`);
+      // F3: mirror every reconcile prune into registry.prune.log — a daemon's
+      // stdout is gone once its console closes, and a reaped repo used to leave
+      // zero on-disk trace. The reason string distinguishes the two arms.
+      const reason = backing
+        ? 'no .last-render + empty queue past registration grace'
+        : 'backing files gone';
+      logHub(`reconcile: pruned ${e.id} (${reason})`);
+      logPrune(`reconcile-prune ${e.id} (${e.repoRoot ?? '?'}): ${reason}`);
     }
     if (changed) {
       entries = live;
@@ -687,6 +727,11 @@ export function createHubServer({
       try { writeRegistry(entries); } catch { /* ignore */ }
       watchEntry(entry);
       invalidateLanding();
+      // F2: a first-time registration has no rendered view — queue its bootstrap
+      // render and drain immediately rather than waiting for the next reconcile
+      // tick. Both calls are cheap no-ops for the common re-render POST.
+      ensureBootstrapQueued(entry);
+      renderQueue.drainEntry(entry);
       // Drive the browser reload from the push itself — the primary, uncapped
       // trigger. fs.watch is only a backstop now: it can miss events on Windows
       // atomic-rename writes and is capped at maxWatchedRepos.

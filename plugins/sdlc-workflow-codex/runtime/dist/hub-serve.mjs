@@ -3,15 +3,15 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   renderHubLanding
-} from "./chunk-GE24XDRS.mjs";
-import "./chunk-MYGAMBXV.mjs";
+} from "./chunk-NHEE5BSL.mjs";
+import "./chunk-ZW3MBSBO.mjs";
+import "./chunk-PDBKNARE.mjs";
+import "./chunk-XLQGUK4I.mjs";
 import {
   hostAllowed,
   renderCodeBrowserPage,
   resolveRequestPath
 } from "./chunk-IOYXLHW6.mjs";
-import "./chunk-PDBKNARE.mjs";
-import "./chunk-U4F4JCWH.mjs";
 import "./chunk-4WRIEOIP.mjs";
 import {
   codeBrowserConfigFromEnv,
@@ -20,16 +20,20 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-SBPANAAT.mjs";
+} from "./chunk-J2RO6O56.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
-} from "./chunk-IEXKPLNM.mjs";
+} from "./chunk-5K66NEIW.mjs";
 import {
+  REGISTRY_FRESH_GRACE_MS,
   REGISTRY_VERSION,
   countPending,
   createRenderQueueDrainer,
+  enqueue,
+  entryWithinGrace,
+  logPrune,
   pruneRegistry,
   readRegistry,
   refreshEntriesLiveness,
@@ -37,11 +41,11 @@ import {
   validateEntry,
   writePidFile,
   writeRegistry
-} from "./chunk-DVISHXT5.mjs";
+} from "./chunk-U4OUM73W.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/hub-serve.mjs
@@ -125,6 +129,9 @@ function createHubServer({
   codeBrowser = null,
   heartbeatMs = 25e3,
   reconcileMs = 1e4,
+  // Fresh-registration survival window (F2) — how long a never-rendered,
+  // empty-queue entry survives the reconcile prune. Injectable for tests.
+  registrationGraceMs = REGISTRY_FRESH_GRACE_MS,
   pluginRoot = PLUGIN_ROOT,
   // Stale-render heal config (STALE-RENDER-HEAL-PLAN §3). null → off; main()
   // supplies the env-derived machine config (heal defaults ON there). Mirrors
@@ -164,6 +171,22 @@ function createHubServer({
     log: logHub,
     maxAttempts: heal.config.maxAttempts
   });
+  function ensureBootstrapQueued(entry) {
+    try {
+      if (!entry?.id || !entry.viewDir || !entry.repoRoot) return;
+      if (!existsSync(entry.viewDir)) return;
+      if (existsSync(`${entry.viewDir}/.last-render`)) return;
+      if (countPending(entry.viewDir) > 0) return;
+      const r = enqueue(entry.viewDir, {
+        repoRoot: entry.repoRoot,
+        kind: "bootstrap",
+        bucket: "__bootstrap__",
+        enqueuedBy: { host: STARTED_BY_HOST, pid: process.pid }
+      });
+      if (r.ok) logHub(`bootstrap render queued for never-rendered ${entry.id}`);
+    } catch {
+    }
+  }
   function reload() {
     try {
       pruneRegistry();
@@ -178,6 +201,7 @@ function createHubServer({
       refreshEntriesLiveness(entries);
     } catch {
     }
+    for (const e of entries) ensureBootstrapQueued(e);
     rewatchAll();
     invalidateLanding();
   }
@@ -247,7 +271,8 @@ function createHubServer({
     let changed = false;
     const live = [];
     for (const e of entries) {
-      const present = existsSync(e.repoRoot) && existsSync(e.viewDir) && (existsSync(`${e.viewDir}/.last-render`) || countPending(e.viewDir) > 0);
+      const backing = existsSync(e.repoRoot) && existsSync(e.viewDir);
+      const present = backing && (existsSync(`${e.viewDir}/.last-render`) || countPending(e.viewDir) > 0 || entryWithinGrace(e, registrationGraceMs));
       if (present) {
         live.push(e);
         continue;
@@ -263,7 +288,9 @@ function createHubServer({
       }
       lastReloadAt.delete(e.id);
       lastRenderMtime.delete(e.id);
-      logHub(`reconcile: pruned ${e.id} (backing files gone)`);
+      const reason = backing ? "no .last-render + empty queue past registration grace" : "backing files gone";
+      logHub(`reconcile: pruned ${e.id} (${reason})`);
+      logPrune(`reconcile-prune ${e.id} (${e.repoRoot ?? "?"}): ${reason}`);
     }
     if (changed) {
       entries = live;
@@ -645,6 +672,8 @@ data: ${JSON.stringify({ ok: true })}
       }
       watchEntry(entry);
       invalidateLanding();
+      ensureBootstrapQueued(entry);
+      renderQueue.drainEntry(entry);
       emitReload(entry.id, entry.lastRenderedAt);
       sendJson(res, { ok: true, id: entry.id });
     });

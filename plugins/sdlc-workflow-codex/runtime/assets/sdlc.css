@@ -160,6 +160,22 @@ hr { border: 0; border-top: 1px solid var(--rule); margin: var(--gap-lg) 0; }
 .prose th, .prose td { border-bottom: 1px solid var(--rule); padding: 8px 12px; text-align: left; }
 .prose blockquote { border-left: 3px solid var(--rule-2); padding-left: 16px; color: var(--ink-2); margin: 14px 0; }
 
+/* ── Story lead ───────────────────────────────────────────────────────────
+   The hoisted "## The <Stage>" narrative that opens every artifact, rendered
+   first (above the figure and structured sections). A quiet accent rule + a
+   slightly larger lead paragraph mark it as the editorial opening, not just
+   another body section. Kept self-contained (not piggybacked on .prose) so its
+   typography never depends on source-order specificity against .prose rules. */
+.story { border-left: 3px solid var(--accent); padding-left: 22px; margin: 4px 0 30px; max-width: 72ch; }
+.story h2 { font-family: var(--serif); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); margin: 0 0 10px; }
+.story p { font-size: 17px; line-height: 1.7; color: var(--ink); margin: 0 0 14px; }
+.story p:first-of-type { font-size: 18px; }
+.story p:last-child { margin-bottom: 0; }
+.story ul, .story ol { padding-left: 24px; margin: 0 0 14px; }
+.story li { font-size: 16px; line-height: 1.65; margin: 0 0 6px; }
+.story code { background: var(--paper-2); padding: 1px 6px; border-radius: var(--rad-sm); font-size: 13px; }
+.story a { color: var(--accent); }
+
 /* ── Headings ─────────────────────────────────────────────────────────── */
 
 .sdlc-h1 {
@@ -619,6 +635,28 @@ pre.diff .diff-ctx::before { content: "  "; }
 .project-row .time { font-size: 12px; color: var(--ink-3); font-family: var(--mono); white-space: nowrap; }
 .project-row .slug code { font-size: 12px; }
 .project-row .meta { font-size: 12px; color: var(--ink-3); font-family: var(--mono); }
+
+/* Branch grouping — slugs sharing a git branch (batch handoff/ship candidates). */
+.branch-group { border-left: 2px solid var(--accent-soft); margin: 4px 0 10px; }
+.branch-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 14px; background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+}
+.branch-head .branch-name { font-family: var(--mono); font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.branch-head .branch-glyph { color: var(--accent); }
+.branch-head .branch-count { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.branch-chip {
+  margin-left: auto;
+  font-family: var(--mono); font-size: 11px;
+  padding: 2px 8px; border-radius: var(--rad-sm);
+  background: var(--accent-soft); color: var(--accent);
+}
+.branch-chip.ok   { color: var(--low); }
+.branch-chip.warn { color: var(--med); }
+.branch-chip.bad  { color: var(--blocker); }
+.branch-chip.idle { color: var(--ink-3); }
+.branch-group .project-row { padding-left: 20px; }
 .stage-pill {
   font-family: var(--mono);
   font-size: 11px;

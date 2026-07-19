@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -99,7 +97,7 @@
 
 <div class="summary">
 <table>
-<tr><th>Pre-conditions</th><td><code>.ai/ship-plan.md</code> exists (<a href="author-ship-plan.html">author it</a>). Your <a href="../reference/glossary.html#handoff">handoff</a> artifact (<code>08-handoff.md</code>) carries <code>readiness-verdict: ready</code> — meaning the automated <strong>readiness check</strong> (a gate that confirms all required evidence fields are filled before shipping is allowed) passed. You are on the workflow branch.</td></tr>
+<tr><th>Pre-conditions</th><td><code>.ai/ship-plan.md</code> exists (<a href="author-ship-plan.html">author it</a>; to pressure-test its soundness first, run the read-only <code>/wf ship-plan audit</code>, which writes findings to <code>.ai/ship-plan-audit.md</code>). Your <a href="../reference/glossary.html#handoff">handoff</a> artifact (<code>08-handoff.md</code>) carries <code>readiness-verdict: ready</code> — meaning the automated <strong>readiness check</strong> (a gate that confirms all required evidence fields are filled before shipping is allowed) passed. You are on the workflow branch.</td></tr>
 <tr><th>Goal</th><td>A completed ship run captured in <code>09-ship-run-&lt;run-id&gt;.md</code>.</td></tr>
 <tr><th>If something fails</th><td>The run pauses with <code>status: awaiting-input</code>. Re-running <code>/wf ship &lt;slug&gt;</code> offers to resume from the failed step.</td></tr>
 </table>
@@ -163,16 +161,15 @@
 
 <h2>If you need to roll back</h2>
 
-<p>Roll back manually using the method in <code>plan.rollback-mechanism</code> — for example, a git revert, a feature-flag toggle, or a redeploy of the prior version. Then record what happened in the run artifact:</p>
+<p>Do not hand-edit the run artifact. Run the sanctioned rollback phase, which is Go/No-Go gated and uses the method in <code>plan.rollback-mechanism</code> — for example, a git revert, a feature-flag toggle, or a redeploy of the prior version:</p>
 
-<pre><code># edit 09-ship-run-&lt;run-id&gt;.md and set:
-rolled-back: true
-rollback-sha: &lt;sha&gt;
-rollback-reason: "&lt;one sentence&gt;"</code></pre>
+<pre><code>/wf ship &lt;slug&gt; rollback [&lt;run-id&gt;]</code></pre>
+
+<p>It confirms the rollback with you, executes it, and writes <code>09-rollback-&lt;run-id&gt;.md</code> capturing what happened. Omit <code>&lt;run-id&gt;</code> to roll back the most recent run.</p>
 
 <p>To capture the failure as a recovery playbook so it is handled automatically next time:</p>
 
-<pre><code>/wf-meta amend ship-plan</code></pre>
+<pre><code>/wf ship-plan edit</code></pre>
 
 <div class="related">
 <h3>Where next</h3>

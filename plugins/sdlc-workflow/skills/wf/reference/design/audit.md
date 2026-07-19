@@ -2,7 +2,7 @@ Run systematic **technical** quality checks and generate a comprehensive report.
 
 This is a code-level audit, not a design critique. Check what is measurable and verifiable in the implementation.
 
-**Accessibility lives here.** Not in the general design laws, not in shape or craft. Models over-cautious themselves into safe, underdesigned output when reminded about accessibility at design time. The audit command is the dedicated place for that check.
+**Accessibility lives here.** Not in the general design laws, not in the brief or the contract step. Models over-cautious themselves into safe, underdesigned output when reminded about accessibility at design time. The audit command is the dedicated place for that check.
 
 ## Diagnostic Scan
 
@@ -22,7 +22,7 @@ Score: 0=Inaccessible (fails WCAG A), 1=Major gaps, 2=Partial (some effort, sign
 ### 2. Performance
 
 - **Layout thrashing**: Reading/writing layout properties in loops
-- **Expensive animations**: Layout-property animation, unbounded blur/filter/shadow, visible frame drops
+- **Expensive animations**: Layout-property animation (`width`/`height`/`top`/`left`/`margin`), `transition: all`, unbounded blur/filter/shadow, Framer Motion `x`/`y`/`scale` shorthands running on the main thread, visible frame drops
 - **Missing optimization**: Images without lazy loading, unoptimized assets, missing will-change
 - **Bundle size**: Unnecessary imports, unused dependencies
 - **Render performance**: Unnecessary re-renders, missing memoization
@@ -62,6 +62,9 @@ Score: 0=AI slop gallery (5+ tells), 1=Heavy AI aesthetic (3–4 tells), 2=Some 
 Format as a structured report:
 
 ```
+## The Design Audit
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This design audit implements…" openings. 1–4 short paragraphs. -->
+
 ## Design Audit Report
 
 **Overall score**: X/20
@@ -147,4 +150,4 @@ violations:
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a live component preview, an annotated mock, a token swatch board, or a before/after comparison. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

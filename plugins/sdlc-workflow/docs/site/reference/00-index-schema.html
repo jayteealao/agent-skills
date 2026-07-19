@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -113,7 +111,7 @@
 <tr><td><code>stage-number</code></td><td>integer</td><td>Integer &#8805; 0.</td></tr>
 <tr><td><code>created-at</code></td><td>ISO 8601</td><td>Timestamp set at intake; never changed.</td></tr>
 <tr><td><code>updated-at</code></td><td>ISO 8601</td><td>Real timestamp from <code>date -u</code>.</td></tr>
-<tr><td><code>selected-slice</code></td><td>string</td><td>Currently active slice slug. (Readers also accept the legacy <code>selected-slice-or-focus</code> as a fallback.)</td></tr>
+<tr><td><code>selected-slice</code></td><td>string</td><td>Currently active slice slug. Its alias <code>selected-slice-or-focus</code> (used when a focus target rather than a formal slice is in play) is <em>preferred</em> by the skill references and the session-start hook; those readers fall back to <code>selected-slice</code> only when the alias is absent.</td></tr>
 <tr><td><code>open-questions</code></td><td>array</td><td>Unanswered questions blocking progress.</td></tr>
 <tr><td><code>next-command</code></td><td>string</td><td>Command name (e.g., <code>wf-shape</code>).</td></tr>
 <tr><td><code>next-invocation</code></td><td>string</td><td>Full slash command, ready to copy.</td></tr>
@@ -135,21 +133,38 @@
 
 <table>
 <tr><th><code>slices</code></th><td>Array of per-slice summary objects (<code>slug</code>, <code>status</code>, <code>complexity</code>, <code>depends-on</code>). Written once slices are defined.</td></tr>
-<tr><th><code>augmentations</code></th><td>Array of <code>{ type, artifact, status, created-at }</code> objects (benchmark adds <code>mode</code>; design transforms add <code>files-modified</code>). Appended by <code>/wf instrument</code>, <code>experiment</code>, <code>benchmark</code>, and <code>/wf design</code> operators. "Add-ons" (<a href="../reference/glossary.html">glossary</a>) are the actions that append to this array.</td></tr>
-<tr><th><code>workflow-type</code></th><td>Schema enum: <code>feature</code>, <code>fix</code> (legacy: <code>quick</code>), <code>rca</code>, <code>investigate</code>, <code>rf</code>, <code>refactor</code>, <code>hotfix</code>, <code>dep-update</code>, <code>update-deps</code>, <code>docs</code>, <code>discover</code>, <code>standard</code>.</td></tr>
+<tr><th><code>augmentations</code></th><td>Array of <code>{ type, artifact, status, created-at }</code> objects (benchmark adds <code>mode</code>; design transforms add <code>files-modified</code>). Appended when <code>plan</code>/<code>implement</code> apply a shape-decided augmentation (<code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, <code>profile</code>) or a <code>/wf design</code> operator runs. These are <a href="../reference/glossary.html">augmentations</a>, not <code>/wf</code> keys — <code>shape</code> decides them (<code>augmentations-needed</code>).</td></tr>
+<tr><th><code>workflow-type</code></th><td>Schema enum: <code>feature</code>, <code>fix</code> (legacy: <code>quick</code>), <code>rca</code>, <code>investigate</code>, <code>rf</code>, <code>refactor</code>, <code>hotfix</code>, <code>dep-update</code>, <code>update-deps</code>, <code>docs</code>, <code>discover</code>, <code>standard</code>, <code>adopt</code>.</td></tr>
+<tr><th><code>provenance</code> <span class="badge">v9.118</span></th><td><code>authored</code> (default; do not stamp explicitly) or <code>adopted</code>. <code>adopted</code> means the artifact was reverse-engineered from an already-existing diff by <code>/wf intake adopt</code>; downstream stages and any pattern-mining over <code>04-plan</code>/<code>05-implement</code> (retro learnings, reuse analysis) must treat it as reconstruction, not forethought.</td></tr>
 
-<tr><th><code>runtime-evidence-deferrals</code> <span class="badge">v9.14</span></th><td>Array of <code>{ slice, reason, deferred-at, cleared-by }</code> objects. Appended by <code>/wf verify</code> when a slice's user-observable acceptance criterion is annotated with <code>interactive-verification: deferred</code>. <code>/wf ship</code> Step 6.5 hard-blocks while any entry has <code>cleared-by: null</code>. Cleared by a <code>/wf probe</code> run whose captured evidence satisfies the deferred criterion (sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or by a verify re-run in a capable environment.</td></tr>
+<tr><th><code>runtime-evidence-deferrals</code> <span class="badge">v9.14</span></th><td>Array of deferral objects (see the expanded shape below). Appended by <code>/wf verify</code> when a slice's user-observable acceptance criterion is annotated with <code>interactive-verification: deferred</code>. <code>/wf ship</code> Step 6.5 hard-blocks while any entry has <code>cleared-by: null</code>. Cleared by a <code>/wf probe</code> run whose captured evidence satisfies the deferred criterion (sets <code>cleared-by: probe-&lt;descriptor&gt;</code>) or by a verify re-run in a capable environment.</td></tr>
+
+<tr><th><code>intent-risks</code> <span class="badge">v9.126</span></th><td>The intent-risk (RIM) ledger. Array of <code>{ id, risk, severity, status, adjudicated-by, decision, po-ratified }</code>. Intake distils the "Risks if Misunderstood" prose into tracked entries; <code>shape</code> MUST adjudicate every one (set <code>status</code> to <code>adjudicated</code> or <code>carried</code>, plus a <code>decision</code>, and PO-ratify when it touches a PO directive) before it can complete. <code>/wf handoff</code> and <code>/wf ship</code> hard-block on any <code>status: open</code>; <code>carried</code> entries are legal but surfaced in the PR body and Reviewer Focus Areas.</td></tr>
+<tr><th><code>charter</code> <span class="badge">v9.130</span></th><td>The intake's 3–7 falsifiable positive commitments as first-class spec. Array of <code>{ id, commitment, source, status }</code> where <code>status</code> is <code>honored</code> / <code>at-risk</code> / <code>broken</code>. Deliberately few — a charter that restates the whole intake is boilerplate. Set by verify runs, the <code>intent-fidelity</code> review, and yolo checkpoints; a broken commitment is a yolo stop. Absent on compressed lifecycles (<code>fix</code>/<code>hotfix</code>/<code>refactor</code>/<code>update-deps</code>/<code>adopt</code>).</td></tr>
+<tr><th><code>evidence-quality</code> <span class="badge">v9.128</span></th><td>Slug-level evidence-rung rollup — a map of rung → count, aggregated from the <code>06-verify</code> AC status tables. The dashboard renders it as a chip; a slug with zero live-rung evidence on charter-cited ACs cannot ship without recorded PO acceptance.</td></tr>
+<tr><th><code>unproven-integrations</code> <span class="badge">v9.128</span></th><td>External integrations whose real behaviour has not been observed live in this workflow. Array of <code>{ name, introduced-by, first-light }</code>. While <code>first-light</code> is <code>null</code>, ACs depending on the integration cap at partial (mock/emulator rungs are proxies, never a pass). Any live observation stamps <code>first-light</code>.</td></tr>
+<tr><th><code>steering-honored</code> <span class="badge">v9.120</span></th><td>Base field shared with the handoff and ship-run artifacts — records that the active <code>steer.md</code> standing instructions were applied to this stage's work.</td></tr>
 </table>
 
-<h2>v9.14 runtime-evidence-deferrals shape</h2>
+<h2>runtime-evidence-deferrals shape <span class="badge">v9.14</span> <span class="badge">expanded v9.126</span></h2>
 
 <pre><code>runtime-evidence-deferrals:
   - slice: &lt;slice-slug&gt;             # the slice whose verify deferred a user-observable AC
     reason: &lt;one-line explanation&gt;  # mirrors interactive-verification-defer-reason from the verify artifact
     deferred-at: &lt;ISO 8601&gt;          # when verify wrote the deferral
-    cleared-by: null                 # null until cleared; probe-&lt;descriptor&gt; when probe satisfies it</code></pre>
+    cleared-by: null                 # null until truly evidenced; probe-&lt;descriptor&gt; when a probe/re-verify produces matching runtime evidence
+    cleared-acs: [&lt;ac-id&gt;, ...]      # for a multi-AC deferral, the AC ids evidenced so far while cleared-by stays null
+    absorbed-by: [&lt;slice-slug&gt;, ...] # slices that inherited this deferral; a THIRD absorption is a stop, not an absorption
+    needed-by: &lt;slice-slug&gt;          # slice by which the clearing evidence is due (set at plan time); status escalates past it
+    probe: &lt;capability-probe cmd + output tail&gt;  # the literal attempt-before-declare probe, carried into the ship-block hand-back
+    ship-override-authorization:     # explicit PO risk-acceptance that lets ship proceed past an un-evidenced deferral
+      by: &lt;who&gt;
+      at: &lt;ISO 8601&gt;
+      reason: &lt;one line&gt;</code></pre>
 
-<p>An entry never moves out of the array — clearing is recorded by mutating <code>cleared-by</code> from <code>null</code> to the clearing artifact's identifier. This preserves the audit trail: a future reader can see which slices once had open deferrals and how each was eventually closed. The <code>/wf-meta status</code> Runtime column derives its display from this field (count of <code>cleared-by: null</code> entries → <code>deferrals: N</code>).</p>
+<p>Only <code>slice</code> is required; the rest are filled in as the deferral progresses. An entry never moves out of the array — clearing is recorded by mutating <code>cleared-by</code> from <code>null</code> to the clearing artifact's identifier. This preserves the audit trail: a future reader can see which slices once had open deferrals and how each was eventually closed. The <code>/wf status</code> Runtime column derives its display from this field (count of <code>cleared-by: null</code> entries → <code>deferrals: N</code>).</p>
+
+<p><code>cleared-by</code> must be an <em>evidence</em> descriptor — a probe or re-verify run that produced matching runtime evidence — never a prose risk-acceptance string. PO risk-acceptance rides <code>ship-override-authorization</code> instead: an explicit override surfaced in the ship summary, distinct from evidence. <code>needed-by</code> (set at plan time) escalates a deferral's status once the named slice completes with <code>cleared-by</code> still <code>null</code>, and a charter-critical prerequisite past its <code>needed-by</code> boundary is a yolo stop.</p>
 
 <h2>v9.5.0 PR-readiness config keys</h2>
 

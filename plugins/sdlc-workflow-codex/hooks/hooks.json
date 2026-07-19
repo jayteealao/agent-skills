@@ -11,6 +11,26 @@
             "commandWindows": "node \"${PLUGIN_ROOT}\\hooks\\session-start.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
             "timeout": 30,
             "statusMessage": "Activating SDLC workflow runtime"
+          },
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/runtime/dist/seed-memory.mjs\"",
+            "commandWindows": "node \"${PLUGIN_ROOT}\\runtime\\dist\\seed-memory.mjs\"",
+            "timeout": 10,
+            "statusMessage": "Seeding /wf memory rules"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/subagent-start.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
+            "commandWindows": "node \"${PLUGIN_ROOT}\\hooks\\subagent-start.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
+            "timeout": 10,
+            "statusMessage": "Injecting workflow context into subagent"
           }
         ]
       }
@@ -25,6 +45,19 @@
             "commandWindows": "node \"${PLUGIN_ROOT}\\hooks\\pre-tool-use.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
             "timeout": 5,
             "statusMessage": "Validating managed artifact write"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/permission-request.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
+            "commandWindows": "node \"${PLUGIN_ROOT}\\hooks\\permission-request.mjs\" --plugin-root \"${PLUGIN_ROOT}\" --plugin-data \"${PLUGIN_DATA}\"",
+            "timeout": 5,
+            "statusMessage": "Checking runtime-invocation allowlist"
           }
         ]
       }

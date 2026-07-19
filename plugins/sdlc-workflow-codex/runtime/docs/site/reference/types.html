@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -124,12 +122,13 @@
 <tr><td><code>verify-index</code></td><td><code>/wf verify</code></td><td><code>06-verify.md</code></td><td>verify-index.mjs</td><td>—</td></tr>
 <tr><td><code>verify</code></td><td><code>/wf verify</code></td><td><code>06-verify-&lt;slice&gt;.md</code></td><td>verify.mjs</td><td>—</td></tr>
 <tr><td><code>review</code></td><td><code>/wf review</code></td><td><code>07-review.md</code></td><td>review.mjs</td><td>yes</td></tr>
-<tr><td><code>review-command</code></td><td><code>/review &lt;dimension&gt;</code></td><td><code>07-review-&lt;dim&gt;.md</code> or <code>07-review/&lt;dim&gt;.md</code></td><td>review-dimension.mjs <small>(review-command.mjs aliases it)</small></td><td>yes</td></tr>
+<tr><td><code>review-command</code></td><td><code>/wf review &lt;dimension&gt;</code></td><td><code>07-review-&lt;dim&gt;.md</code> or <code>07-review/&lt;dim&gt;.md</code></td><td>review-dimension.mjs <small>(review-command.mjs aliases it)</small></td><td>yes</td></tr>
 <tr><td><code>handoff</code></td><td><code>/wf handoff</code></td><td><code>08-handoff.md</code></td><td>handoff.mjs</td><td>—</td></tr>
 <tr><td><code>ship-run</code></td><td><code>/wf ship</code></td><td><code>09-ship-run-&lt;run-id&gt;.md</code></td><td>ship-run.mjs</td><td>yes</td></tr>
 <tr><td><code>ship-runs-index</code></td><td><code>/wf ship</code></td><td><code>09-ship-runs.md</code></td><td>ship-runs-index.mjs</td><td>—</td></tr>
+<tr><td><code>ship-rollback</code></td><td><code>/wf ship &lt;slug&gt; rollback</code></td><td><code>09-rollback-&lt;run-id&gt;.md</code></td><td>ship-rollback.mjs</td><td>—</td></tr>
 <tr><td><code>retro</code></td><td><code>/wf retro</code></td><td><code>10-retro.md</code></td><td>retro.mjs</td><td>—</td></tr>
-<tr><td><code>announce</code></td><td><code>/wf-meta announce</code></td><td><code>announce.md</code></td><td>announce.mjs</td><td>—</td></tr>
+<tr><td><code>announce</code></td><td><code>/wf ship &lt;slug&gt; announce</code></td><td><code>announce.md</code></td><td>announce.mjs</td><td>—</td></tr>
 <tr><td><code>risk-register</code></td><td><code>/wf</code> (risk register)</td><td><code>risk-register.md</code></td><td>risk-register.mjs</td><td>—</td></tr>
 <tr><td><code>estimate</code></td><td><code>/wf</code> (estimate)</td><td><code>estimate.md</code></td><td>estimate.mjs</td><td>—</td></tr>
 </tbody>
@@ -152,7 +151,7 @@
 
 <h2>Add-on &amp; off-pipeline types</h2>
 
-<p>Add-ons attach to a workflow slice; profile / rca / simplify-run live in their own off-pipeline roots. The four <code>docs-*</code> intermediate artifacts are the per-step record of a <code>/wf-docs</code> run; each now has a bespoke step page (the walker discovers all <code>.md</code> under <code>.ai/docs/&lt;run-id&gt;/</code>, not just the index).</p>
+<p>Add-ons attach to a workflow slice; profile / rca / simplify-run live in their own off-pipeline roots. The four <code>docs-*</code> intermediate artifacts are the per-step record of a <code>/wf docs</code> run; each now has a bespoke step page (the walker discovers all <code>.md</code> under <code>.ai/docs/&lt;run-id&gt;/</code>, not just the index).</p>
 
 <table>
 <thead><tr><th>type</th><th>producer</th><th>storage path</th><th>renderer</th><th>fragment?</th></tr></thead>
@@ -164,24 +163,24 @@
 <tr><td><code>profile</code></td><td><code>/wf profile</code></td><td><code>.ai/profiles/&lt;run-id&gt;/01-profile.md</code></td><td>profile.mjs</td><td>yes</td></tr>
 <tr><td><code>rca</code></td><td><code>/wf intake rca</code></td><td><code>01-rca.md</code> (under the run slug)</td><td>rca.mjs</td><td>yes</td></tr>
 <tr><td><code>simplify-run</code></td><td><code>/wf simplify</code> (standalone)</td><td><code>.ai/workflows/&lt;slug&gt;/01-simplify.md</code> (new) · <code>.ai/simplify/&lt;run-id&gt;.md</code> (legacy)</td><td>simplify-run.mjs</td><td>yes</td></tr>
-<tr><td><code>docs-index</code></td><td><code>/wf-docs</code></td><td><code>.ai/docs/&lt;run-id&gt;/08b-docs-index.md</code></td><td>docs-index.mjs</td><td>yes</td></tr>
-<tr><td><code>docs-discover</code></td><td><code>/wf-docs</code> (step 1)</td><td><code>.ai/docs/&lt;run-id&gt;/discover.md</code></td><td>docs-discover.mjs</td><td>—</td></tr>
-<tr><td><code>docs-audit</code></td><td><code>/wf-docs</code> (step 2)</td><td><code>.ai/docs/&lt;run-id&gt;/audit.md</code></td><td>docs-audit.mjs</td><td>—</td></tr>
-<tr><td><code>docs-plan</code></td><td><code>/wf-docs</code> (step 3)</td><td><code>.ai/docs/&lt;run-id&gt;/plan.md</code></td><td>docs-plan.mjs</td><td>—</td></tr>
-<tr><td><code>docs-generate</code></td><td><code>/wf-docs</code> (step 4)</td><td><code>.ai/docs/&lt;run-id&gt;/generate.md</code></td><td>docs-generate.mjs</td><td>—</td></tr>
+<tr><td><code>docs-index</code></td><td><code>/wf docs</code></td><td><code>.ai/docs/&lt;run-id&gt;/08b-docs-index.md</code></td><td>docs-index.mjs</td><td>yes</td></tr>
+<tr><td><code>docs-discover</code></td><td><code>/wf docs</code> (step 1)</td><td><code>.ai/docs/&lt;run-id&gt;/discover.md</code></td><td>docs-discover.mjs</td><td>—</td></tr>
+<tr><td><code>docs-audit</code></td><td><code>/wf docs</code> (step 2)</td><td><code>.ai/docs/&lt;run-id&gt;/audit.md</code></td><td>docs-audit.mjs</td><td>—</td></tr>
+<tr><td><code>docs-plan</code></td><td><code>/wf docs</code> (step 3)</td><td><code>.ai/docs/&lt;run-id&gt;/plan.md</code></td><td>docs-plan.mjs</td><td>—</td></tr>
+<tr><td><code>docs-generate</code></td><td><code>/wf docs</code> (step 4)</td><td><code>.ai/docs/&lt;run-id&gt;/generate.md</code></td><td>docs-generate.mjs</td><td>—</td></tr>
 </tbody>
 </table>
 
-<h2>Change-mode lanes &amp; the <code>/wf-meta close</code> record</h2>
+<h2>Change-mode lanes &amp; the <code>/wf close</code> record</h2>
 
-<p>As of v9.86.0 the <code>/wf intake</code> change-modes (<code>fix</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>) are <strong>compressed standard lifecycles</strong>: they run every stage single-pass and write the <em>standard</em> types (<code>intake</code>, <code>shape</code>, <code>slice-index</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>) under <code>.ai/workflows/&lt;slug&gt;/</code> — the lead is <code>01-&lt;mode&gt;.md</code> with <code>type: intake</code>. The <code>discover</code> / <code>investigate</code> lead artifacts and the <code>/wf-meta close</code> record remain as below.</p>
+<p>As of v9.86.0 the <code>/wf intake</code> change-modes (<code>fix</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>) are <strong>compressed standard lifecycles</strong>: they run every stage single-pass and write the <em>standard</em> types (<code>intake</code>, <code>shape</code>, <code>slice-index</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>) under <code>.ai/workflows/&lt;slug&gt;/</code> — the lead is <code>01-&lt;mode&gt;.md</code> with <code>type: intake</code>. The <code>discover</code> / <code>investigate</code> lead artifacts and the <code>/wf close</code> record remain as below.</p>
 
 <table>
 <thead><tr><th>type</th><th>producer</th><th>storage path</th><th>renderer</th><th>fragment?</th></tr></thead>
 <tbody>
 <tr><td><code>discover</code></td><td><code>/wf intake discover</code></td><td><code>01-discover.md</code></td><td>discover.mjs</td><td>—</td></tr>
 <tr><td><code>investigate</code></td><td><code>/wf intake investigate</code></td><td><code>01-investigate.md</code></td><td>investigate.mjs</td><td>—</td></tr>
-<tr><td><code>close-record</code></td><td><code>/wf-meta close</code></td><td><code>99-close.md</code></td><td>close-record.mjs</td><td>—</td></tr>
+<tr><td><code>close-record</code></td><td><code>/wf close &lt;slug&gt; &lt;reason&gt;</code></td><td><code>99-close.md</code></td><td>close-record.mjs</td><td>—</td></tr>
 </tbody>
 </table>
 
@@ -211,25 +210,30 @@
 <thead><tr><th>type</th><th>producer</th><th>storage path</th><th>renderer</th><th>fragment?</th></tr></thead>
 <tbody>
 <tr><td><code>project-context</code></td><td>Authored (or generated)</td><td><code>PRODUCT.md</code>, <code>DESIGN.md</code></td><td>project-context.mjs</td><td>—</td></tr>
-<tr><td><code>ship-plan</code></td><td><code>/wf-meta init-ship-plan</code></td><td><code>.ai/ship-plan.md</code></td><td>ship-plan.mjs</td><td>—</td></tr>
+<tr><td><code>ship-plan</code></td><td><code>/wf ship-plan init</code></td><td><code>.ai/ship-plan.md</code></td><td>ship-plan.mjs</td><td>—</td></tr>
+<tr><td><code>observability-plan</code></td><td><code>/wf observability init</code></td><td><code>.ai/observability.md</code></td><td>fallbackRender</td><td>—</td></tr>
+<tr><td><code>observability-build</code></td><td><code>/wf observability build</code></td><td><code>.ai/observability-build.md</code></td><td>fallbackRender</td><td>—</td></tr>
+<tr><td><code>solution</code></td><td><code>/wf retro</code></td><td><code>.ai/solutions/&lt;category&gt;/&lt;slug&gt;.md</code></td><td>solution.mjs</td><td>—</td></tr>
 </tbody>
 </table>
+
+<p>The <code>/wf observability audit</code> ledger at <code>.ai/observability-audit.md</code> is an <em>accumulating</em> plain-markdown ledger keyed by <code>kind: observability-audit</code> — <strong>not</strong> an admitted schema <code>type</code>, so it is not one of the <code>oneOf</code> branches (the same reason the <code>ship-plan</code> audit ledger and <code>po-answers.md</code>/<code>steer.md</code> are outside the type system). It carries its own <code>runs[]</code>/<code>findings[]</code> frontmatter and takes no sibling <code>.yaml</code>.</p>
 
 <h2>Meta / navigation types</h2>
 
 <table>
 <thead><tr><th>type</th><th>producer</th><th>storage path</th><th>renderer</th><th>fragment?</th></tr></thead>
 <tbody>
-<tr><td><code>resume</code></td><td><code>/wf-meta resume</code></td><td><code>RESUME.md</code></td><td>resume.mjs</td><td>—</td></tr>
-<tr><td><code>sync-report</code></td><td><code>/wf-meta sync</code></td><td><code>00-sync.md</code></td><td>sync-report.mjs</td><td>—</td></tr>
+<tr><td><code>resume</code></td><td><code>/wf recap &lt;slug&gt;</code></td><td><code>RESUME.md</code></td><td>resume.mjs</td><td>—</td></tr>
+<tr><td><code>sync-report</code></td><td><code>/wf status</code></td><td><code>00-sync.md</code></td><td>sync-report.mjs</td><td>—</td></tr>
 <tr><td><code>skip-record</code></td><td>Stage skip</td><td><code>skips/&lt;stage&gt;.md</code></td><td>skip-record.mjs</td><td>—</td></tr>
-<tr><td><code>shape-amendment</code></td><td><code>/wf-meta amend</code></td><td><code>amendments/&lt;n&gt;-shape.md</code></td><td>shape-amendment.mjs</td><td>—</td></tr>
-<tr><td><code>slice-amendment</code></td><td><code>/wf-meta amend</code></td><td><code>amendments/&lt;n&gt;-slice.md</code></td><td>slice-amendment.mjs</td><td>—</td></tr>
-<tr><td><code>workflow-index</code></td><td><code>/wf intake</code>, <code>/wf-meta</code> lanes</td><td><code>00-index.md</code></td><td>workflow-index.mjs</td><td>—</td></tr>
+<tr><td><code>shape-amendment</code></td><td>retired (no active producer)</td><td><code>amendments/&lt;n&gt;-shape.md</code></td><td>shape-amendment.mjs</td><td>—</td></tr>
+<tr><td><code>slice-amendment</code></td><td>retired (no active producer)</td><td><code>amendments/&lt;n&gt;-slice.md</code></td><td>slice-amendment.mjs</td><td>—</td></tr>
+<tr><td><code>workflow-index</code></td><td><code>/wf intake</code>, navigation keys</td><td><code>00-index.md</code></td><td>workflow-index.mjs</td><td>—</td></tr>
 </tbody>
 </table>
 
-<p>Two artifact kinds intentionally have no bespoke page. <code>routing</code> (<code>90-next.md</code>) is a regenerable point-in-time snapshot that duplicates the slug overview's next-command, so it renders via the generic fallback by choice. The <code>how-*</code> research-note family (<code>/wf-meta how</code>, in <code>.ai/research/</code> and <code>90-how-*.md</code>) carries no <code>schema: sdlc/v1</code> and is not projected at all. Everything else the plugin writes now has a dedicated renderer.</p>
+<p>Two artifact kinds intentionally have no bespoke page. <code>routing</code> (<code>90-next.md</code>) is a regenerable point-in-time snapshot that duplicates the slug overview's next-command, so it renders via the generic fallback by choice. The <code>how-*</code> research-note family (<code>/wf recap &lt;slug&gt; &lt;focus&gt;</code>, in <code>.ai/research/</code> and <code>90-how-*.md</code>) carries no <code>schema: sdlc/v1</code> and is not projected at all. Everything else the plugin writes now has a dedicated renderer.</p>
 
 <h2>Schema version</h2>
 

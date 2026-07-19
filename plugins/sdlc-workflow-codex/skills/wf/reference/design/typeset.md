@@ -89,6 +89,21 @@ letter-spacing: 0 to 0.02em; /* can open slightly */
 
 **On dark backgrounds**: add 0.05–0.1 to line-height. Light type appears lighter weight and needs more breathing room.
 
+## Rendering details
+
+Small CSS properties that prevent the most common typographic blemishes:
+
+### Text wrapping
+- **Headings / short titles** → `text-wrap: balance` (`text-balance`): even line lengths, no orphans. Works only on short blocks (≤6 lines in Chromium), so it's ideal for headings and silently ignored — wasted intent — on long paragraphs.
+- **Short-to-medium body** (paragraphs, descriptions, captions, list items) → `text-wrap: pretty` (`text-pretty`): prevents a single word dangling on the last line.
+- **Long text (10+ lines), code, `pre`** → neither; default wrapping is fine and avoids the layout cost.
+
+### Tabular numbers
+Any number that updates dynamically — counters, prices, timers, table columns, scoreboards — needs `font-variant-numeric: tabular-nums` (Tailwind `tabular-nums`) so digits are equal-width and the layout doesn't shift as values change. Don't apply it to static numbers, phone numbers, zip codes, or version strings. (Caveat: some faces — Inter notably — redraw the numerals under this property, widening and centring the `1`; that's expected and usually desirable for alignment, but eyeball it in your actual font.)
+
+### Font smoothing (macOS)
+Apply `-webkit-font-smoothing: antialiased` (Tailwind `antialiased`) once at the root layout — not per element (per-element smoothing is inconsistent, leaving headings lighter than body). It only affects macOS rendering; other platforms ignore it, so it's safe to apply universally.
+
 ## Common problems and fixes
 
 **Flat hierarchy**: increase size ratio between heading and body. Add weight contrast.
@@ -106,3 +121,7 @@ letter-spacing: 0 to 0.02em; /* can open slightly */
 - Justified alignment in body text (uneven word spacing)
 - `font-weight: 100` (Thin) at small sizes — unreadable at normal viewport resolutions
 - Using Fraunces or Cormorant for a new brand's display face without a strong register reason
+
+---
+
+> *The text-wrapping, tabular-numbers, and font-smoothing guidance here is adapted from Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)), used under MIT license.*

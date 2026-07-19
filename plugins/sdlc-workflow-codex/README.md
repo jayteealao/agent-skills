@@ -12,18 +12,16 @@ resumes cleanly in the other.
 
 ## What it provides
 
-**Four router skills** (router-name parity with the Claude plugin — explicit invocation):
+**Two router skills** (router-name parity with the Claude plugin — explicit invocation):
 
 | Skill | Purpose |
 |---|---|
-| `$wf` | Run one canonical SDLC stage (intake → … → retro), a perf/observability augmentation, or the compressed design workflow (`$wf design`). `$wf intake` dispatches compressed entry modes (fix, rca, investigate, discover, hotfix, refactor, update-deps, ideate). `$wf probe` is runtime-truth verification; `$wf simplify` is read-only triage. `$wf auto` is the end-to-end lifecycle driver (slug mode drives all slices through the final review and stops before handoff; slice mode drives one slice and routes to the next). 18 sub-commands total. |
-| `$wf-meta` | Navigate existing workflows: status, next, resume, sync, amend, extend, skip, close, how, announce, init-ship-plan, build-pipeline. |
-| `$wf-docs` | Diátaxis documentation: tutorial, how-to, reference, explanation, readme, plan, review. |
-| `$review` | Code review across 31 dimensions + 7 aggregates (`$review sweep <aggregate>`). |
+| `$wf` | The single SDLC entry point. Run one canonical stage (intake → … → retro), a perf/observability augmentation, or the compressed design workflow (`$wf design`). `$wf intake` dispatches compressed entry modes (fix, rca, investigate, discover, hotfix, refactor, update-deps, ideate). `$wf probe` is runtime-truth verification; `$wf simplify` is read-only triage. `$wf auto` is the end-to-end lifecycle driver. Navigation and lifecycle are keys too — `$wf status` (dashboard; absorbs the old next/sync), `$wf recap` (resume/explain), `$wf close` (skip/close), `$wf ship-plan` (init/build/edit) — and documentation is `$wf docs` (Diátaxis: tutorial, how-to, reference, explanation, readme, plan, review). The former `$wf-meta` and `$wf-docs` routers are retired, folded into these keys. 19 sub-commands total. |
+| `$wf review` | Code review across 33 dimensions + 7 aggregates — the `review` key of `$wf`, run as a workflow stage (`$wf review <slug>`) or ad-hoc with no slug (`$wf review <dimension>` / `$wf review sweep <aggregate>`). Not a standalone command. |
 
-**Five independent skills** — `error-analysis`, `refactoring-patterns`, `test-patterns`,
-`wide-event-observability`, `setup-wide-logging`. (No `imagegen` — Codex provides a
-system one.)
+**Four independent skills** — `consult`, `imagery`, `uiproto`, `diataxis`.
+(No `imagegen` — Codex provides a system one.) The former `setup-wide-logging`
+skill is dissolved into the `$wf observability` router (`init`/`build`/`audit`).
 
 Every router sub-command is a handwritten Codex-native reference under
 `skills/<router>/reference/<key>.md`. No skill reads or translates Claude prompt prose,

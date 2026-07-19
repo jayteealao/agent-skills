@@ -74,6 +74,48 @@ export const DEFAULT_SDLC_CONFIG = Object.freeze({
     // (see SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs). Set
     // false to disable while other type schemas are still being reconciled.
     validateSiblingYaml: true,
+    // When true, post-write-verify HARD-BLOCKS a `verify` artifact whose
+    // frontmatter contradicts a passing result: `result: pass` with
+    // metric-acceptance-met < metric-acceptance-total, or `result: pass` with
+    // interactive-verification: deferred. These are false-positive-free
+    // cross-field checks (a true pass meets every AC and defers none). Set false
+    // to disable the result gate (AC-VERIFIABILITY recommendations R7).
+    verifyResultGate: true,
+    // When true, post-write-verify WARNS (non-blocking) on shadow-deferral
+    // vocabulary in a `verify` body that co-occurs with `result: pass`
+    // ("deferred to user/manual", "UNVERIFIED-INTERACTIVE", "will be verified
+    // during <slice>", "decidable by static reasoning"). Heuristic, so it warns
+    // rather than blocks. Set false to silence the prose-deferral lint.
+    verifyDeferralLint: true,
+  },
+  // Semantic leak guards (HOOKS-SEMANTIC Phase 1): scan outward-facing text —
+  // git commit/tag messages, gh pr/release titles+bodies, public-doc writes —
+  // for internal workflow vocabulary, using the lexicon derived from
+  // skills/wf/reference/_output-boundary.md. Default OFF and advisory-first:
+  // 'advisory' emits a systemMessage, 'enforce' denies the tool call. Promote
+  // to enforce only after the advisory false-positive rate proves ~0 across
+  // real workflows (the graduation gate).
+  semantic: {
+    enabled: false,
+    mode: 'advisory',
+  },
+  // Agent memory-file seeding (MEMORY-SEED-PLAN): when seedRules is true
+  // (default), each SessionStart in an sdlc-engaged repo (one with .ai/workflows/)
+  // ensures a small, versioned, fenced `/wf` rules block in AGENTS.md (canonical;
+  // read by Codex natively and by Claude via an `@AGENTS.md` import added to
+  // CLAUDE.md). The plugin owns only the fenced region and never edits outside it.
+  // Set false to disable seeding entirely.
+  memory: {
+    seedRules: true,
+  },
+  // Knowledge-compounding corpus (INTENT-FIDELITY W12 meta-loop). `.ai/solutions/`
+  // is the per-repo corpus (feedback-loops W1). `globalDir` optionally points plan's
+  // reuse scan at a USER-LEVEL corpus read alongside it, and gives retro a place to
+  // promote a repo lesson (always user-confirmed) + append about-the-workflow lessons
+  // to a `plugin-feedback.md`. null = disabled (no global corpus); the dir stays local,
+  // never synced by the plugin (repo lessons can carry project specifics).
+  solutions: {
+    globalDir: null,
   },
 });
 

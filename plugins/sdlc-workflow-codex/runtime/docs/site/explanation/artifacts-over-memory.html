@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -120,7 +118,7 @@
 
 <p>First, each stage has to commit to its output before the next stage begins. The shape artifact captures the spec before any code is written. The plan artifact captures the approach before implementation starts. If those were merged into a single file written after the fact, the spec would just reflect what got built, not what was asked for.</p>
 
-<p>Second, resuming work is cheap. You can stop after any stage, come back weeks later, and run <code>/wf-meta resume</code>. The command reads the artifact trail and tells you exactly where things stand.</p>
+<p>Second, resuming work is cheap. You can stop after any stage, come back weeks later, and run <code>/wf recap</code>. The command reads the artifact trail and tells you exactly where things stand.</p>
 
 <p>Third, answering "why did we do X?" becomes mechanical. The artifacts are committed files. You can open <code>.ai/workflows/</code>, find the <a href="../reference/glossary.html">slug</a> (the short identifier for this unit of work), and read the relevant stage's notes directly. No AI recall needed.</p>
 

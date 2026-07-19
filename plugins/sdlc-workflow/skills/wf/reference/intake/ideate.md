@@ -27,6 +27,16 @@ This command does NOT start or advance any workflow. It discovers improvement op
 | Produces | A `type: workflow-index` slug workflow: `.ai/workflows/<slug>/01-ideate.md` (`type: ideation` — ranked ideas + adversarial filter log) + a lightweight `00-index.md` (`type: workflow-index`). (Legacy off-pipeline `.ai/ideation/<focus>-<timestamp>.md` runs still render via the retained ideation discovery.) |
 | Next | `/wf intake <idea-title>` — kick off a workflow for any chosen idea |
 
+> **Auto second opinion (objective triggers).** At the terminus, once the ideas are ranked
+> (before Step 6 writes the artifact), **auto-invoke** `/consult codex <widen this idea set and
+> flag blind spots — what did this analysis miss?>` (pinning `codex`/`claude` keeps it free) when
+> ANY of: (a) the ranked list will feed a build decision the user signalled they intend to act on
+> now; (b) any surviving idea is `impact: critical` or category `security`; (c) the adversarial
+> filter culled more than half the raw candidates (a high cull rate means the lens set may be
+> systematically narrow — divergent breadth is exactly the cure). Fold distinct additions in
+> through the same adversarial filter before ranking. Skip only when none of the triggers hold;
+> the user may invoke it explicitly with any provider.
+
 # CRITICAL — execution discipline
 You are an **opportunity discoverer and adversarial filter**, not a problem solver.
 - Do NOT start implementing, planning, or designing anything.
@@ -239,7 +249,7 @@ Evidence: <file:line or file range from sub-agent findings>
 Description: <2–3 sentences — what's wrong, what fixing it looks like, why now>
 Effort: xs | s | m | l | xl
 Impact: low | medium | high | critical
-Entry: /wf intake <slug-suggestion> | /wf-meta extend <existing-slug>
+Entry: /wf intake <slug-suggestion> | /wf intake <existing-slug> <scope> (extension)
 ```
 
 ---
@@ -381,6 +391,9 @@ culled:
 
 # Ideation: <focus-area or "Codebase-Wide">
 
+## The Ideation
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This ideation implements…" openings. 1–4 short paragraphs. -->
+
 *Generated: <date> | Lenses: <list> | Raw: <N> → Filtered: <N> → Showing: <N>*
 
 ## Ranked Ideas
@@ -425,8 +438,7 @@ If you want to re-run ideation with a different focus or count:
 Author free narrative fragments for this artifact as described in the narrative-fragment tier of `_intake-context.md` — `<stem>.<NN-label>.html.fragment` siblings of unrestricted raw HTML, as many as the story needs, ordered with an `NN-` prefix, rendered raw-inline below the page.
 
 # Chat return contract
-Return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead in the artifact's `## The Ideation` story voice, then this receipt:
 - `wrote: .ai/workflows/<slug>/01-ideate.md + 00-index.md`
 - `ideas: <N> survivors from <M> raw candidates`
 - The ranked list (Step 5 format)

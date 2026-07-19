@@ -62,7 +62,7 @@ reason — even an autonomous driver refuses to cross these).
 | Gate | Auto-resolve | **HARD-STOP** |
 |---|---|---|
 | `plan` scope fork (`awaiting-input`) | Implementation-detail forks: pick the option best satisfying the slice AC at least cost; **record the assumption** (`decision`/`rationale`). | A fork that changes **user-observable scope or contract** — that is a product decision, not a best-interest call. |
-| `verify` failing check / unmet AC | Auto-fix: spawn fix sub-agent, re-run affected checks once. Up to **N = 2** rounds. | Still failing after 2 rounds (`convergence: escalated`), or `result: blocked-runtime-evidence-missing` (cannot fabricate runtime proof). |
+| `verify` failing check / unmet AC | Auto-fix: spawn fix sub-agent, re-run affected checks once. Up to **N = 2** rounds. A user-observable AC the environment **genuinely cannot** evidence is **deferred** (verify's `interactive-verification: deferred` hatch → `00-index.md` `runtime-evidence-deferrals`); the run continues at `result: partial` (ship later blocks on it). | A **substantive** failure still unresolved after 2 rounds (`convergence: escalated`), or a bare `result: blocked-runtime-evidence-missing` — un-producible AND *not* deferred. Never fabricate runtime proof. |
 | `review` triage | **Fix** every BLOCKER + HIGH + **MEDIUM (always)**. **Fix** LOW/nit when *necessary* = in-scope (touches this slice's diff) ∧ localized ∧ safe; else **defer-and-record**. Never silently dismiss. | `verdict: dont-ship`, or an unfixable **security / data-loss** blocker after the fix loop. |
 | `branch` posture | If `yolo` created/owns the branch, switch to it. | A switch would clobber uncommitted work (never stash/force). |
 | `intake` / `shape` (PO alignment) | **Never autonomous** — these own product-owner alignment. | `01-intake.md` / `02-shape.md` missing or `awaiting-input` → stop, route to `/wf intake`. |
@@ -83,6 +83,22 @@ reason — even an autonomous driver refuses to cross these).
 > recorded with its reason. An unfixable finding is recorded `could-not-fix`, and
 > only escalates to a HARD-STOP if it is a BLOCKER that is security/data-loss or
 > the verdict is `dont-ship`.
+
+> **Deferring un-verifiable AC, precisely.** A user-observable AC sometimes needs
+> runtime proof this environment cannot produce (no emulator/device/display, an
+> unreachable external service or API key, a bootstrap that won't come up). `yolo`
+> does not cancel the run over a check it *cannot* perform — it defers that one
+> criterion via verify's sanctioned `interactive-verification: deferred` hatch,
+> registers it in `00-index.md` `runtime-evidence-deferrals` (`cleared-by: null`),
+> writes `result: partial`, and drives on. This is **not** gate-weakening: `/wf ship`
+> HARD-BLOCKS until each deferral clears (via `/wf probe` or a re-verify in a capable
+> env), and `yolo` stops before handoff regardless — so deferred work can't reach
+> production. The boundary is strict: defer **only** *un-producible* evidence (a
+> driven-and-wrong AC is a substantive `fail` and still HARD-STOPs); an AC with
+> neither evidence nor a deferral (`blocked-runtime-evidence-missing`) still
+> HARD-STOPs. `yolo` never silently drops a criterion. The orchestrator's
+> `verifyClean()` is the single rule both `driveVerify` and `evaluateGate` apply:
+> pass, or a deferral-only partial with no substantive residual.
 
 ---
 
@@ -238,11 +254,12 @@ await driveChain(
 
 0. **Hook-firing probe** — ✅ **DONE / GREEN (2026-06-21).** See *Phase 0 result* below.
 1. **Policy ratified** — ✅ this doc's §3 table, agreed.
-2. **MVP: both modes, both scopes** — ✅ **BUILT (2026-06-22).** Sequential
+2. **MVP: both modes, both scopes** — ✅ **BUILT + LIVE-VALIDATED (2026-06-22).** Sequential
    `plan→implement→verify[→review]` per slice, autonomous policy gates, branch policy,
    verify 2-round fix loop, artifact-gated resume (orient reports per-slice terminal
-   state → done stages skipped). *Live-validation gate STILL OPEN: run against a real
-   slug, diff artifacts vs. a manual `auto` run.*
+   state → done stages skipped). *BOTH MODES PROVEN END-TO-END (2026-06-22) — slice mode
+   and slug mode incl. the slug-wide review (verdict ship, autonomous 3-fix/3-defer
+   triage). See "Live validation result" below.*
 3. **Review fan-out** — ✅ **BUILT, opt-in (`args.reviewFanout`, default off).** Parallel
    dimension scouts → adversarial-verify each finding (refute, default-refuted) → a
    wrapped `review.md` writer given the survivors (review.md keeps ownership of the
@@ -274,6 +291,53 @@ by default rather than on — the plan's own §8 "validate the narrower form fir
 to the wrap-vs-fork hazard in review fan-out and the shared-`00-index.md` race in plan
 fan-out. The sequential core honors the §2 governing principle ("serialize anything that
 writes code") literally.
+
+### Live validation result (2026-06-22)
+
+Venue: throwaway repo `yolo-live-test`, with the committed plugin installed via
+`git archive HEAD:plugins/sdlc-workflow` (exact committed bytes). A 2-slice, slug-wide,
+standard workflow (`string-utils`: slices `slugify`, `truncate`) was hand-authored
+through the slice stage (all 6 bootstrap artifacts schema-valid) so yolo drove from
+`plan` onward. Runs invoked via the Workflow tool with absolute `scriptPath`/`projectRoot`/
+`referenceRoot`.
+
+- **Slice mode (`/wf yolo string-utils slugify`) — PASSED end-to-end.** Drove
+  `plan→implement→verify` autonomously, **correctly stopped before review** (slug-wide
+  scope), routed to the next slice. `plan` recorded 5 implementation-detail assumptions
+  (stack inference, slug regex idiom, `String()` coercion, test placement, test count);
+  `implement` wrote the code, ran `node --test` (3/3), committed `aa0173f`; `verify`
+  proceeded past the stack-unconfirmed `AskUserQuestion` gate by policy →
+  `convergence: not-needed, result: pass`. A second invocation proved **resume-skip**
+  (`ran: []`) and **next-slice routing** (`/wf yolo string-utils truncate`).
+- **Slug mode (`/wf yolo string-utils`) — PASSED end-to-end.** Resume-skipped `slugify`,
+  drove `truncate` `plan→implement→verify` (committed `b30ee32`), then ran the single
+  **slug-wide review** over the branch diff → `verdict: ship`, 0 open blockers, endpoint
+  reached, routed to `/wf handoff`. The review exercised the **fix-as-much-as-possible
+  policy live**: 6 findings across 6 dimensions → **3 fixed** (two edge-case tests + a
+  JSDoc, all in-scope ∧ localized ∧ safe; fix commit `46bde88`, 12/12 tests pass) and
+  **3 deferred with recorded reasons** (most notably `CR-1`, a `truncate` negative-`max`
+  guard, deferred because it "changes behaviour beyond AC scope — cannot fix autonomously
+  without spec clarification" — the policy's scope boundary holding). Nothing dismissed
+  silently. (Note: a sustained Anthropic 529 overload interrupted this leg ~5× before it
+  landed; every interruption was a clean resumable hard-stop — the resume model is what
+  made eventual completion a one-command retry.)
+- **Artifact quality:** all **14** yolo-written artifacts pass the real Ajv `sdlc/v1`
+  validator; both rich-tier `plan` artifacts carry their mandatory sibling `.yaml` +
+  `.html.fragment`; the autonomous commits are leak-free product language
+  (`add slugify helper` / `add truncate helper`) — the **External Output Boundary held**
+  in fresh-context subagents.
+- **Bugs found + fixed live (3 follow-up commits on master):** stringified-`args`
+  tolerance (`787cdc1`); `orient` returns the full roster so slice-mode routing finds the
+  next slice (`9c09b84`); transient-subagent-death vs. genuine-failure messaging
+  (`5c46265`). All three were surfaced *because* of the live run.
+
+**Net:** BOTH MODES PROVEN END-TO-END. The autonomous policy engine (including the
+review fix/defer triage and its scope boundary), resume (across ~5 infra interruptions,
+zero corruption), the rich-tier fragment contract, and the External Output Boundary are
+all proven live. All yolo-written artifacts schema-valid; all autonomous commits
+(`aa0173f`, `b30ee32`, `46bde88`) leak-free; final tests 12/12. The only caveat was an
+external Anthropic 529 overload that interrupted the heavy stages several times — which
+incidentally stress-tested resume and graceful degradation for free.
 
 ### Phase 0 result — workflow-subagent writes are first-class (2026-06-21)
 
@@ -322,3 +386,12 @@ main-session Write.
    real in-flight slug, or scaffold a tiny throwaway slug (e.g. in the existing
    `yolo-hook-probe` repo) and diff `/wf yolo` artifacts vs. a manual `/wf auto` run.
    *(open — the one remaining gate before flipping any fan-out flag on)*
+6. ~~**Un-verifiable AC posture**~~ — **RESOLVED 2026-06-23: defer, don't cancel.**
+   A user-observable AC the environment genuinely cannot evidence is deferred via
+   verify's `interactive-verification: deferred` hatch (recorded in `00-index.md`
+   `runtime-evidence-deferrals`) and the run continues at `result: partial`, instead
+   of HARD-STOPping the whole workflow. Safe because `/wf ship` already HARD-BLOCKS on
+   uncleared deferrals and `yolo` stops before handoff. A *substantive* fail, or a
+   bare `blocked-runtime-evidence-missing` (un-deferred), still HARD-STOPs. Implemented
+   as `verifyClean()` + the rewritten `verify` policy + `outcome.runtimeEvidenceDeferrals`
+   surfacing. *(see §3)*

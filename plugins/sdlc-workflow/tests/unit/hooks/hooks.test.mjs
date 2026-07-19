@@ -241,6 +241,35 @@ function validDesignCritique(overrides = {}) {
   };
 }
 
+function validVerify(overrides = {}) {
+  // A clean passing per-slice verify artifact: every AC met, no deferral.
+  // verify is NOT a rich-tier fragment type, so no sibling .yaml is required.
+  return {
+    schema: 'sdlc/v1',
+    type: 'verify',
+    slug: 'demo',
+    'slice-slug': 'core',
+    status: 'complete',
+    'stage-number': 6,
+    'created-at': '2026-06-30T12:00:00Z',
+    'updated-at': '2026-06-30T12:05:00Z',
+    result: 'pass',
+    'metric-checks-run': 3,
+    'metric-checks-passed': 3,
+    'metric-acceptance-met': 2,
+    'metric-acceptance-total': 2,
+    'metric-interactive-checks-run': 1,
+    'metric-interactive-checks-passed': 1,
+    'metric-issues-found': 0,
+    'evidence-dir': '.ai/workflows/demo/verify-evidence/core/',
+    tags: [],
+    refs: {},
+    'next-command': '/wf review demo core',
+    'next-invocation': 'review',
+    ...overrides,
+  };
+}
+
 test('pre-write-validate skips missing and non-workflow file paths', () => {
   const tmp = tempDir();
   try {
@@ -295,6 +324,30 @@ test('pre-write-validate blocks bad filename, missing frontmatter, bad schema, a
       equal(result.status, 2, result.stderr);
       match(result.stderr, testCase.pattern);
     }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('pre-write-validate normalizes a Grok/Cursor camelCase payload (toolInput → tool_input)', () => {
+  // Claude-compatible hosts (Grok Build, Cursor) load this plugin's hooks.json
+  // but deliver the event on camelCase keys. The lib/stdin.mjs shim aliases
+  // toolInput → tool_input so the guard still fires; without it the hook reads
+  // undefined, early-returns exit 0, and — since PreToolUse fails OPEN on those
+  // hosts — the validation gate would silently pass. This asserts the block.
+  const tmp = tempDir();
+  try {
+    const result = runHook(HOOKS.preWriteValidate, {
+      cwd: tmp,
+      hookEventName: 'pre_tool_use',
+      toolName: 'search_replace',
+      toolInput: {
+        file_path: '.ai/workflows/demo/not-numbered.md',
+        content: md({ schema: 'sdlc/v1', type: 'intake', slug: 'demo' }),
+      },
+    }, tmp);
+    equal(result.status, 2, result.stderr);
+    match(result.stderr, /Filename 'not-numbered\.md'/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -369,6 +422,31 @@ test('post-write-verify validates written workflow artifacts with Ajv', () => {
   }
 });
 
+test('post-write-verify mock-evidence gate blocks result: pass with a user-observable mock AC', () => {
+  const tmp = tempDir();
+  try {
+    // A passing verify whose evidence for a user-observable AC bottoms out at a mock rung.
+    const p = join(tmp, '.ai', 'workflows', 'demo', '06-verify-core.md');
+    writeFile(p, md(validVerify({ 'metric-acceptance-mock-rung': 1 })));
+    const blocked = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/06-verify-core.md' },
+    }, tmp);
+    equal(blocked.status, 2, blocked.stderr);
+    match(blocked.stderr, /metric-acceptance-mock-rung/);
+
+    // rung 0 (all AC on real rungs) passes clean.
+    writeFile(p, md(validVerify({ 'metric-acceptance-mock-rung': 0 })));
+    const ok = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/06-verify-core.md' },
+    }, tmp);
+    equal(ok.status, 0, ok.stderr);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('post-write-verify skips po-answers.md prose log instead of schema-validating it', () => {
   const tmp = tempDir();
   try {
@@ -384,6 +462,48 @@ test('post-write-verify skips po-answers.md prose log instead of schema-validati
     const result = runHook(HOOKS.postWriteVerify, {
       cwd: tmp,
       tool_input: { file_path: '.ai/workflows/demo/po-answers.md' },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('pre-write-validate allows steer.md standing-steering prose without frontmatter', () => {
+  const tmp = tempDir();
+  try {
+    // steer.md is the user-owned standing-steering file — frontmatter-less free
+    // prose by design (W6). Like po-answers.md it must clear BOTH gates: the
+    // NN-stagename filename convention and the mandatory-frontmatter check.
+    const result = runHook(HOOKS.preWriteValidate, {
+      cwd: tmp,
+      tool_input: {
+        file_path: '.ai/workflows/demo/steer.md',
+        content: '# Steering\n\n- Never touch `config/loader.ts` — being rewritten next week.\n- Prefer the queue approach.\n',
+      },
+    }, tmp);
+
+    equal(result.status, 0, result.stderr);
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify skips steer.md standing-steering prose instead of schema-validating it', () => {
+  const tmp = tempDir();
+  try {
+    // steer.md has no sdlc/v1 schema type. Even with an accidental type field it
+    // must be skipped entirely (path-based exemption, matching pre-write-validate).
+    const steer = join(tmp, '.ai', 'workflows', 'demo', 'steer.md');
+    writeFile(steer, '# Steering\n\n- Never touch `config/loader.ts`.\n- Prefer the queue approach.\n');
+
+    const result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/demo/steer.md' },
     }, tmp);
 
     equal(result.status, 0, result.stderr);
@@ -712,6 +832,140 @@ test('post-write-verify stays silent for a profile artifact that has its sibling
   }
 });
 
+/* ───────────────────────── R7: verify result gate (AC-VERIFIABILITY) ───────────────────────── */
+
+test('post-write-verify BLOCKS a false-pass verify: result pass with metric-acceptance-met < total (R7 G1)', () => {
+  const tmp = tempDir();
+  try {
+    // The kanban phone-responsive false pass: result: pass with met:0 / total:2.
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({ result: 'pass', 'metric-acceptance-met': 0, 'metric-acceptance-total': 2 })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 2, result.stderr);
+    match(result.stderr, /verify result gate BLOCKED/);
+    match(result.stderr, /metric-acceptance-met \(0\) < metric-acceptance-total \(2\)/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify BLOCKS result: pass with interactive-verification: deferred (R7 G2)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({
+      result: 'pass',
+      'interactive-verification': 'deferred',
+      'interactive-verification-defer-reason': 'no device',
+    })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 2, result.stderr);
+    match(result.stderr, /interactive-verification: deferred/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify allows a clean passing verify (met == total, no deferral) (R7)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify()));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify allows result: partial with a deferral (the honest path) (R7)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({
+      result: 'partial',
+      'metric-acceptance-met': 1,
+      'metric-acceptance-total': 2,
+      'interactive-verification': 'deferred',
+      'interactive-verification-defer-reason': 'Robolectric covers logic (9/9); AVD boot failed (HAXM); residual = live multi-touch',
+    })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 0, result.stderr);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify rejects the forbidden metric-acceptance-unverified-interactive shadow field (R7 schema)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({ 'metric-acceptance-unverified-interactive': 2 })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 2, result.stderr);
+    match(result.stderr, /frontmatter validation FAILED/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify accepts result: blocked-runtime-evidence-missing (R7 enum fix)', () => {
+  const tmp = tempDir();
+  try {
+    // The schema previously rejected this contract-valid result state.
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({
+      result: 'blocked-runtime-evidence-missing',
+      'metric-acceptance-met': 0,
+      'metric-acceptance-total': 2,
+    })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 0, result.stderr);   // valid state; not `pass`, so the result gate does not fire
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify WARNS (non-blocking) on a prose-only deferral with result: pass (R7 lint)', () => {
+  const tmp = tempDir();
+  try {
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(
+      validVerify(),
+      '# Verify: core\n\nThe 375px responsive layout was deferred to user verification.\n',
+    ));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 0, result.stderr);   // heuristic → warn, never block
+    const parsed = JSON.parse(result.stdout);
+    match(parsed.systemMessage, /possible prose-only deferral/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify honours the hooks.verifyResultGate:false opt-out (R7)', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), JSON.stringify({ hooks: { verifyResultGate: false } }));
+    const rel = '.ai/workflows/demo/06-verify-core.md';
+    writeFile(join(tmp, rel), md(validVerify({ result: 'pass', 'metric-acceptance-met': 0, 'metric-acceptance-total': 2 })));
+
+    const result = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: rel } }, tmp);
+    equal(result.status, 0, result.stderr);   // gate disabled → no block
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('project context hooks allow plain markdown and validate typed frontmatter when present', () => {
   const tmp = tempDir();
   try {
@@ -742,22 +996,16 @@ test('project context hooks allow plain markdown and validate typed frontmatter 
   }
 });
 
-test('session-start-orient emits compact JSON for active workflows only', () => {
+test('session-start-orient emits no orientation message (stripped)', () => {
   const tmp = tempDir();
   try {
+    // Even with an active workflow present, the hook no longer surfaces an
+    // orientation systemMessage — the /wf commands re-read 00-index.md themselves.
     writeFile(join(tmp, '.ai', 'workflows', 'demo', '00-index.md'), md(minimalIndex()));
-    writeFile(join(tmp, '.ai', 'workflows', 'done', '00-index.md'), md(minimalIndex({
-      slug: 'done',
-      status: 'complete',
-      title: 'Done workflow',
-    })));
 
     const result = runHook(HOOKS.sessionStartOrient, { cwd: tmp }, tmp, { SDLC_DISABLE_BOOTSTRAP: '1', SDLC_DISABLE_TRAY_HEAL: '1' });
     equal(result.status, 0, result.stderr);
-    const parsed = JSON.parse(result.stdout);
-    match(parsed.systemMessage, /Active workflow: demo - Demo workflow/);
-    match(parsed.systemMessage, /Stage: implement/);
-    ok(!parsed.systemMessage.includes('Done workflow'));
+    equal(result.stdout.trim(), '', 'session-start-orient emits nothing to stdout');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -888,9 +1136,8 @@ test('session-start-orient (hub dispatch) enqueues a bootstrap render request', 
     equal(records[0].kind, 'bootstrap');
     equal(records[0].bucket, '__bootstrap__');
 
-    // orientation still emits the active-workflow summary
-    const parsed = JSON.parse(result.stdout);
-    match(parsed.systemMessage, /Active workflow: demo/);
+    // orientation message is stripped — the hook emits nothing to stdout
+    equal(result.stdout.trim(), '', 'session-start-orient emits nothing to stdout');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -1004,6 +1251,259 @@ test('skip-record prefix filename clears pre-write, and ship-plan needs only pro
     writeFile(join(tmp, planRel), planContent);
     r = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: planRel } }, tmp);
     equal(r.status, 0, `post-write blocked ship-plan.md: ${r.stderr}`);
+
+    // observability-plan (.ai/observability.md): project-root artifact, valid frontmatter → allowed (v9.132.0).
+    const obsPlanRel = '.ai/observability.md';
+    const obsPlanContent = md({ schema: 'sdlc/v1', type: 'observability-plan', slug: 'demo', 'plan-version': 1 });
+    writeFile(join(tmp, obsPlanRel), obsPlanContent);
+    r = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: obsPlanRel, content: obsPlanContent } }, tmp);
+    equal(r.status, 0, `pre-write blocked observability.md: ${r.stderr}`);
+    r = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: obsPlanRel } }, tmp);
+    equal(r.status, 0, `post-write blocked observability.md: ${r.stderr}`);
+
+    // observability-build (.ai/observability-build.md): the build run record carries NO slug — must still validate.
+    const obsBuildRel = '.ai/observability-build.md';
+    const obsBuildContent = md({ schema: 'sdlc/v1', type: 'observability-build', backend: 'grafana-cloud' });
+    writeFile(join(tmp, obsBuildRel), obsBuildContent);
+    r = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: obsBuildRel } }, tmp);
+    equal(r.status, 0, `post-write blocked observability-build.md: ${r.stderr}`);
+
+    // Enforcement is live: a wrong type on the observability path is hard-blocked pre-write.
+    const obsWrongContent = md({ schema: 'sdlc/v1', type: 'ship-plan', slug: 'demo', 'project-name': 'demo', 'plan-version': 1 });
+    r = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: obsPlanRel, content: obsWrongContent } }, tmp);
+    equal(r.status, 2, `pre-write should block a wrong type on .ai/observability.md, got ${r.status}`);
+
+    // The audit ledger is kind-keyed (kind: observability-audit, no sdlc/v1 type) — must stay EXEMPT, never schema-gated.
+    const obsAuditRel = '.ai/observability-audit.md';
+    const obsAuditContent = md({ kind: 'observability-audit', 'last-run': 1, verdict: 'sound' });
+    writeFile(join(tmp, obsAuditRel), obsAuditContent);
+    r = runHook(HOOKS.preWriteValidate, { cwd: tmp, tool_input: { file_path: obsAuditRel, content: obsAuditContent } }, tmp);
+    equal(r.status, 0, `pre-write blocked the exempt observability-audit.md ledger: ${r.stderr}`);
+    r = runHook(HOOKS.postWriteVerify, { cwd: tmp, tool_input: { file_path: obsAuditRel } }, tmp);
+    equal(r.status, 0, `post-write blocked the exempt observability-audit.md ledger: ${r.stderr}`);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// --- W1 solutions corpus (v9.100.0): .ai/solutions/ validation scope ---------
+
+test('post-write-verify validates .ai/solutions/ category files against the solution schema', () => {
+  const tmp = tempDir();
+  try {
+    const goodRel = '.ai/solutions/testing/emulator-seed-harness.md';
+    writeFile(join(tmp, goodRel), md({
+      schema: 'sdlc/v1',
+      type: 'solution',
+      category: 'testing',
+      'source-workflow': 'demo',
+      'created-at': '2026-07-06T00:00:00Z',
+      tags: ['emulator', 'auth'],
+      status: 'active',
+    }, '# Emulator seed harness\n\n**Problem:** auth wall.\n\n**Learning:** seed the emulator.\n\n**How to apply:** run the seed script.\n'));
+
+    let result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: goodRel },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    equal(result.stderr, '');
+
+    // A category outside the closed set must fail schema validation — the
+    // closed category set is the corpus contract (misc is the overflow).
+    const badRel = '.ai/solutions/randomcat/misfiled.md';
+    writeFile(join(tmp, badRel), md({
+      schema: 'sdlc/v1',
+      type: 'solution',
+      category: 'randomcat',
+      'source-workflow': 'demo',
+      'created-at': '2026-07-06T00:00:00Z',
+      tags: [],
+      status: 'active',
+    }));
+    result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: badRel },
+    }, tmp);
+    equal(result.status, 2);
+    match(result.stderr, /frontmatter validation FAILED/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('post-write-verify skips .ai/solutions/INDEX.md and never demands sibling fragments for solutions', () => {
+  const tmp = tempDir();
+  try {
+    // INDEX.md is a frontmatter-less registry line-index (same convention as
+    // .ai/workflows/INDEX.md) — the category-subdir path predicate keeps it
+    // out of schema validation entirely.
+    writeFile(join(tmp, '.ai/solutions/INDEX.md'), '# Solutions\n\n- [Emulator seed harness](testing/emulator-seed-harness.md) — auth-wall harness\n');
+    let result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/solutions/INDEX.md' },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    equal(result.stderr, '');
+
+    // solution is NOT a rich-tier type: a valid solution file with no sibling
+    // .yaml / .html.fragment must produce neither a block nor a nudge.
+    const rel = '.ai/solutions/gotcha/build-cache-poisoning.md';
+    writeFile(join(tmp, rel), md({
+      schema: 'sdlc/v1',
+      type: 'solution',
+      category: 'gotcha',
+      'source-workflow': 'demo',
+      'created-at': '2026-07-06T00:00:00Z',
+      tags: ['build'],
+      status: 'active',
+    }, '**Problem:** stale cache.\n\n**Learning:** key the cache on buildId.\n\n**How to apply:** include buildId in the cache key.\n'));
+    result = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: rel },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// --- W3.2 leak guards (v9.101.0): advisory-first EOB enforcement -------------
+
+const LEAK_HOOKS = {
+  bash: join(PLUGIN_ROOT, 'hooks', 'leak-guard-bash.mjs'),
+  write: join(PLUGIN_ROOT, 'hooks', 'leak-guard-write.mjs'),
+};
+const semanticConfig = (mode) =>
+  JSON.stringify({ semantic: { enabled: true, mode } });
+
+test('leak-guard-bash is silent by default (semantic.enabled: false)', () => {
+  const tmp = tempDir();
+  try {
+    const result = runHook(LEAK_HOOKS.bash, {
+      cwd: tmp,
+      tool_input: { command: 'git commit -m "fix: update .ai/workflows/demo/06-verify-core.md"' },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    equal(result.stdout, '');
+    equal(result.stderr, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('leak-guard-bash advises on internal vocabulary in commit messages when enabled', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), semanticConfig('advisory'));
+    const result = runHook(LEAK_HOOKS.bash, {
+      cwd: tmp,
+      tool_input: { command: 'git commit -m "fix: verified via /wf verify demo, see .ai/workflows/demo/06-verify-core.md"' },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    const parsed = JSON.parse(result.stdout);
+    match(parsed.systemMessage, /External Output Boundary/);
+    match(parsed.systemMessage, /wf-command|internal-path/);
+
+    // Clean product-language message → no output at all.
+    const clean = runHook(LEAK_HOOKS.bash, {
+      cwd: tmp,
+      tool_input: { command: 'git commit -m "fix: restore preview rendering for long links"' },
+    }, tmp);
+    equal(clean.status, 0, clean.stderr);
+    equal(clean.stdout, '');
+
+    // Non-publishing commands are never scanned, even with internal paths.
+    const nonPublish = runHook(LEAK_HOOKS.bash, {
+      cwd: tmp,
+      tool_input: { command: 'cat .ai/workflows/demo/06-verify-core.md' },
+    }, tmp);
+    equal(nonPublish.status, 0, nonPublish.stderr);
+    equal(nonPublish.stdout, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('leak-guard-bash denies (exit 2) in enforce mode and respects the dispatch sentinel', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), semanticConfig('enforce'));
+    const input = {
+      cwd: tmp,
+      tool_input: { command: 'gh release create v1.2.3 --notes "shipped via /wf ship demo"' },
+    };
+    const denied = runHook(LEAK_HOOKS.bash, input, tmp);
+    equal(denied.status, 2);
+    match(denied.stderr, /External Output Boundary/);
+
+    // Inside external-model dispatch the guard must never fire.
+    const dispatched = runHook(LEAK_HOOKS.bash, input, tmp, { SDLC_DISPATCH_ACTIVE: '1' });
+    equal(dispatched.status, 0, dispatched.stderr);
+    equal(dispatched.stdout, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('leak-guard-write advises on public-doc writes and skips internal paths', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), semanticConfig('advisory'));
+    const leakyReadme = runHook(LEAK_HOOKS.write, {
+      cwd: tmp,
+      tool_input: {
+        file_path: 'README.md',
+        content: '## Changes\nVerified with /wf verify demo (see .ai/workflows/demo/).\n',
+      },
+    }, tmp);
+    equal(leakyReadme.status, 0, leakyReadme.stderr);
+    match(JSON.parse(leakyReadme.stdout).systemMessage, /External Output Boundary/);
+
+    // Internal-root writes are never scanned — workflow vocabulary belongs there.
+    const internal = runHook(LEAK_HOOKS.write, {
+      cwd: tmp,
+      tool_input: {
+        file_path: '.ai/workflows/demo/06-verify-core.md',
+        content: 'run /wf verify demo per 04-plan-core.md',
+      },
+    }, tmp);
+    equal(internal.status, 0, internal.stderr);
+    equal(internal.stdout, '');
+
+    // Clean public docs pass silently.
+    const clean = runHook(LEAK_HOOKS.write, {
+      cwd: tmp,
+      tool_input: {
+        file_path: 'docs/how-to/setup.md',
+        content: 'Run the installer and review the settings page.\n',
+      },
+    }, tmp);
+    equal(clean.status, 0, clean.stderr);
+    equal(clean.stdout, '');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('leak-guard-write scans MultiEdit edits[] against public-doc paths', () => {
+  const tmp = tempDir();
+  try {
+    writeFile(join(tmp, '.ai', 'sdlc-config.json'), semanticConfig('advisory'));
+    const result = runHook(LEAK_HOOKS.write, {
+      cwd: tmp,
+      tool_input: {
+        file_path: 'CHANGELOG.md',
+        edits: [
+          { old_string: 'a', new_string: 'Improved link previews.' },
+          { old_string: 'b', new_string: 'Verified via /wf verify demo.' },
+        ],
+      },
+    }, tmp);
+    equal(result.status, 0, result.stderr);
+    match(JSON.parse(result.stdout).systemMessage, /External Output Boundary/);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

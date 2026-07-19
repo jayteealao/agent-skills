@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -97,20 +95,17 @@
 
 <p class="lede">This page is for when you need to understand how the plugin commands are implemented — for example to debug unexpected behavior or trace why a command ran differently than expected.</p>
 
-<p>The plugin ships nine <strong>skills</strong> — self-contained instruction files the model reads and executes. Four of them are <strong>commands</strong> (also called routers): each accepts a sub-command and dispatches to the matching reference file. The other five are <strong>support skills</strong> the model draws on for focused tasks like debugging, testing, or refactoring. (Design is no longer its own command-skill — it now lives under <code>/wf</code> as the <code>/wf design</code> sub-command. The former <code>/wf-quick</code> command is retired; its flows are now intake modes or top-level <code>/wf</code> keys.)</p>
+<p>The plugin's behavior lives in a small set of <strong>skills</strong> — self-contained instruction files the model reads and executes. One of them is the <strong>command</strong> (also called a router): <code>/wf</code>, which accepts a key that dispatches to the matching reference file (code review is the <code>/wf review</code> key). The rest are <strong>support skills</strong> the model draws on for focused tasks — <code>consult</code>, <code>imagery</code>, <code>uiproto</code>, <code>diataxis</code>, and <code>study-sources</code>. (Design is no longer its own command-skill — it now lives under <code>/wf</code> as the <code>/wf design</code> sub-command. The former <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, and standalone <code>/review</code> commands are retired; their flows are now <code>/wf</code> keys.)</p>
 
-<p>Every command can be run explicitly with a slash — <code>/wf</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, and <code>/review</code>. Skills are also how the model auto-invokes behavior without you typing a slash command; which skills can auto-invoke is covered in <a href="#auto-invoke">Auto-invocation</a> below.</p>
+<p>The command is run explicitly with a slash — <code>/wf &lt;key&gt;</code>. Support skills are how the model auto-invokes behavior without you typing a slash command; which skills can auto-invoke is covered in <a href="#auto-invoke">Auto-invocation</a> below.</p>
 
-<h2>The four commands</h2>
+<h2>The command and its review key</h2>
 
 <table>
-<thead><tr><th>Command</th><th>What it covers</th><th>Typical use</th></tr></thead>
+<thead><tr><th>Invocation</th><th>What it covers</th><th>Typical use</th></tr></thead>
 <tbody>
-<tr><td><code>/wf</code></td><td>18 sub-commands: 10 lifecycle stages · 4 add-on types · design · probe · simplify · auto</td><td>Run explicitly: <code>/wf &lt;stage&gt; &lt;slug&gt;</code>.</td></tr>
-
-<tr><td><code>/wf-meta</code></td><td>12 navigation and management sub-commands</td><td>Run explicitly. <code>init-ship-plan</code> and <code>status</code> are the most common.</td></tr>
-<tr><td><code>/wf-docs</code></td><td>Doc pipeline plus 7 Diátaxis primitives</td><td>Run explicitly, or auto-triggered when the model detects a documentation gap.</td></tr>
-<tr><td><code>/review</code></td><td>31 review dimensions across 7 named sweeps</td><td>Can auto-invoke; the model selects dimensions based on change context.</td></tr>
+<tr><td><code>/wf</code></td><td>21 keys: 10 lifecycle stages · design · probe · simplify · auto · yolo drivers · status · recap · close · ship-plan, docs &amp; observability routers (flag-gating/perf work rides the stages as shape-decided augmentations, not keys)</td><td>Run explicitly: <code>/wf &lt;key&gt; &lt;slug&gt;</code>.</td></tr>
+<tr><td><code>/wf review</code></td><td>34 review dimensions across 7 named sweeps</td><td>Explicit only: <code>/wf review &lt;slug&gt;</code> (stage) or <code>/wf review &lt;dimension&gt;</code> (ad-hoc).</td></tr>
 </tbody>
 </table>
 
@@ -129,7 +124,7 @@
 
 <h2 id="auto-invoke">Auto-invocation</h2>
 
-<p>Most commands never auto-invoke — you must run them explicitly. The exception is <code>/review</code>, which the model can trigger on its own when it detects a change worth reviewing. Two of the support skills — <code>error-analysis</code> and <code>wide-event-observability</code> — also auto-invoke on their own triggering conditions. The other three (<code>imagegen</code>, <code>refactoring-patterns</code>, <code>test-patterns</code>) are internal helpers: they are loaded by commands like <code>/wf design</code> or <code>/wf verify</code>, not triggered autonomously.</p>
+<p>The <code>/wf</code> command never auto-invokes — you must run it explicitly (its skill is marked <code>disable-model-invocation</code>), and that includes the <code>/wf review</code> key. Auto-invocation is a property of the <strong>support skills</strong>: the model may run <code>consult</code> autonomously when a second opinion adds material value, and <code>diataxis</code> auto-invokes on documentation-writing or docs-review requests. The read-only <code>study-sources</code> can also auto-invoke when a task depends on how a real dependency or upstream source actually behaves. The remaining two (<code>imagery</code>, <code>uiproto</code>) are internal helpers: they are loaded by <code>/wf design</code>, not triggered autonomously.</p>
 
 <h2>Support skills</h2>
 
@@ -138,18 +133,18 @@
 <table>
 <thead><tr><th>Skill</th><th>What it does</th></tr></thead>
 <tbody>
-<tr><td><code>error-analysis</code></td><td>Root-cause analysis of errors, stack traces, and logs. Auto-invokes on debugging, incident-response, or "why is this failing" requests.</td></tr>
-<tr><td><code>test-patterns</code></td><td>Patterns for generating and organizing tests — unit, integration, data factories, coverage — across languages and frameworks.</td></tr>
-<tr><td><code>refactoring-patterns</code></td><td>Safe behavior-preserving refactoring — extract, rename, move, simplify — with test-baseline and rollback guidance.</td></tr>
-<tr><td><code>wide-event-observability</code></td><td>Designing and implementing wide-event logging with tail sampling for context-rich, queryable observability.</td></tr>
-<tr><td><code>imagegen</code></td><td>Generates an image from a text prompt with automatic fallback. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
+<tr><td><code>diataxis</code></td><td>Writes or reviews documentation under the Diátaxis framework — routes a request to the right quadrant (tutorial, how-to, reference, explanation), plus README, doc-planning, and docs-review references. The standalone counterpart to <code>/wf docs</code>.</td></tr>
+<tr><td><code>consult</code></td><td>Read-only multi-model second opinion — plan critique, code review, design analysis, diagnosis. Fans out to all available providers; never edits the repo.</td></tr>
+<tr><td><code>imagery</code></td><td>Generates images from a text prompt, fanning out to all available providers. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
+<tr><td><code>uiproto</code></td><td>Prototypes a UI component or screen as a self-contained, sandboxed HTML fragment. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
+<tr><td><code>study-sources</code></td><td>Read-only: fetches and reads real upstream and dependency source (installed caches first — <code>node_modules</code>, <code>~/.m2</code>, Gradle/Android/Go/Rust/.NET/Ruby/PHP/Swift/Dart — else clones into a gitignored <code>.scratch/</code>) so knowledge comes from actual code. Never enters the repo's git history; wired lifecycle-wide.</td></tr>
 </tbody>
 </table>
 
 <details>
 <summary><strong>Advanced toggles</strong></summary>
 
-<p>Three of the four commands set <code>disable-model-invocation: true</code> in their skill frontmatter: <code>wf</code>, <code>wf-meta</code>, and <code>wf-docs</code>. This flag prevents the model from calling these commands without an explicit slash. The <code>review</code> command omits this flag, which is why it can auto-invoke.</p>
+<p>The <code>wf</code> command sets <code>disable-model-invocation: true</code> in its skill frontmatter. This flag prevents the model from calling the command without an explicit slash. The <code>review</code> command omits this flag, which is why it can auto-invoke.</p>
 
 <p>If you are troubleshooting a command that ran when you did not expect it to, check its <code>SKILL.md</code> frontmatter for this key. If you are troubleshooting a command that did not run when you expected auto-invocation, the same key — or the triggering <code>description</code> field — is where to look.</p>
 </details>
@@ -163,7 +158,7 @@
 </ul>
 </div>
 
-<div class="pager"><a class="prev" href="../reference/review.html"><span>← Previous</span>/review</a><a class="next" href="../reference/artifacts.html"><span>Next →</span>Artifacts</a></div></main>
+<div class="pager"><a class="prev" href="../reference/review.html"><span>← Previous</span>/wf review</a><a class="next" href="../reference/artifacts.html"><span>Next →</span>Artifacts</a></div></main>
 </div>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";

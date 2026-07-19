@@ -2,30 +2,30 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  resolveActiveRuntimeRootSync
+} from "./chunk-5K66NEIW.mjs";
+import {
   ensureHubEnabled,
   spawnHubEnsure
-} from "./chunk-L6EQJGVG.mjs";
-import {
-  resolveProjectRoot
-} from "./chunk-UTP6CBAZ.mjs";
+} from "./chunk-62ZCQV76.mjs";
 import {
   spawnDetachedNode
 } from "./chunk-K6PBZI5W.mjs";
 import {
-  configPathFor
-} from "./chunk-ZMYLXAL2.mjs";
-import {
-  resolveActiveRuntimeRootSync
-} from "./chunk-IEXKPLNM.mjs";
-import {
   enqueue,
   queueDir,
   resolveEntrypoint
-} from "./chunk-DVISHXT5.mjs";
+} from "./chunk-U4OUM73W.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
+import {
+  resolveProjectRoot
+} from "./chunk-UTP6CBAZ.mjs";
+import {
+  configPathFor
+} from "./chunk-D55RRO3F.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // hooks/render-on-artifact-write.mjs
@@ -121,6 +121,7 @@ function legacyInlineDispatch(cwd, viewRoot, buckets) {
 }
 async function main() {
   if (process.env.CLAUDE_PLUGIN_INSTALL === "1") exitClean();
+  if (process.env.SDLC_DISPATCH_ACTIVE === "1") exitClean();
   const input = readInput();
   if (!input) exitClean();
   const cwd = resolveProjectRoot(input.cwd ?? process.cwd());
@@ -153,7 +154,7 @@ async function main() {
       kind,
       bucket,
       paths,
-      enqueuedBy: { host: "claude", pid: process.pid }
+      enqueuedBy: { host: process.env.SDLC_HOST || "claude", pid: process.pid }
     }, { maxPending: view.renderQueue?.maxPending });
   }
   ensureHubBestEffort(cwd, viewRoot, view);

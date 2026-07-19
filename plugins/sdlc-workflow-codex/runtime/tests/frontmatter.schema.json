@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anthropic.com/plugins/sdlc-workflow/frontmatter.schema.json",
+  "$id": "https://github.com/jayteealao/agent-skills/schemas/sdlc-workflow/frontmatter.schema.json",
   "title": "SDLC Workflow Artifact Frontmatter",
   "description": "JSON Schema for the YAML frontmatter of every artifact produced by the sdlc-workflow plugin. Each artifact is a markdown file under .ai/workflows/<slug>/ (or .ai/simplify/, .ai/profiles/ for off-pipeline outputs). The frontmatter block (between the leading `---` markers) is parsed as YAML and validated against the matching branch of `oneOf` selected by the `type` field.",
 
@@ -24,6 +24,21 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "revisionLedger": {
+      "type": "array",
+      "description": "Reason-centric revision ledger written by the additive-write contract (single source: skills/wf/reference/_additive-write.md). One entry per re-invocation that actually changed the artifact; the body is a living document (rewritten in place), the ledger records WHY each revision happened. Distinct from the on-disk history/ snapshots, which hold verbatim prior wording. Replaced the old in-body `## Revision N` append pattern in v9.105.0.",
+      "items": {
+        "type": "object",
+        "required": ["rev", "at", "trigger"],
+        "properties": {
+          "rev":     { "type": "integer", "minimum": 1 },
+          "at":      { "$ref": "#/$defs/iso8601" },
+          "trigger": { "enum": ["review-feedback", "ci-fix", "new-slice", "new-slug-joined", "scope-change", "answers-returned", "resume", "manual"] },
+          "because": { "type": "string" },
+          "changed": { "type": "string" }
+        }
+      }
+    },
     "base": {
       "description": "Fields shared by every workflow artifact.",
       "type": "object",
@@ -34,6 +49,15 @@
         "regenerable": {
           "type": "boolean",
           "description": "When true, the renderer treats this artifact as a view over other state. Sub-commands may overwrite freely; the calm-reader surfaces a `regenerable` badge. Added in v9.20.0 as part of the additive-write contract."
+        },
+        "provenance": {
+          "enum": ["authored", "adopted"],
+          "description": "How the artifact's content was produced. Absent or `authored` = written forward by its stage (the default; do not stamp it explicitly). `adopted` = reverse-engineered from an already-existing diff by `/wf intake adopt`. Downstream stages and any pattern-mining over 04-plan/05-implement (retro learnings, reuse analysis) MUST treat `adopted` artifacts as reconstruction, not forethought. Added in v9.118.0."
+        },
+        "steering-honored": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "What standing-steering entries (from the workflow's user-owned `steer.md`) this stage honored, e.g. [\"avoided config/loader.ts\", \"used the queue approach\"]. Present only when `steer.md` exists; omit the field entirely otherwise. See `reference/_steering.md` (the W6 standing-steering contract). Added in v9.120.0."
         }
       },
       "required": ["schema", "type"]
@@ -116,7 +140,7 @@
           "enum": [
             "feature", "fix", "quick", "rca", "investigate",
             "rf", "refactor", "hotfix", "dep-update", "update-deps",
-            "docs", "discover", "standard"
+            "docs", "discover", "standard", "adopt"
           ]
         },
         "public-surface": {},
@@ -169,6 +193,132 @@
         "recommended-next-stage": {
           "type": "string",
           "description": "Optional stage recommendation written by stage reference files to guide the next /wf invocation."
+        },
+        "runtime-evidence-deferrals": {
+          "type": "array",
+          "description": "Open/cleared runtime-evidence deferrals (RUNTIME-PROBE-PLAN §2.4). /wf ship HARD-BLOCKS while any entry has cleared-by: null. cleared-by must be an EVIDENCE descriptor (a probe/re-verify run that produced matching runtime evidence), never a prose risk-acceptance string — PO risk-acceptance uses ship-override-authorization instead.",
+          "items": {
+            "type": "object",
+            "required": ["slice"],
+            "properties": {
+              "slice": { "type": "string" },
+              "reason": { "type": "string" },
+              "deferred-at": { "$ref": "#/$defs/iso8601" },
+              "cleared-by": {
+                "type": ["string", "null"],
+                "description": "null until truly evidenced; set to a probe/evidence descriptor when a /wf probe (or re-verify) run produces matching runtime evidence. NOT a place for risk-acceptance prose."
+              },
+              "cleared-acs": {
+                "$ref": "#/$defs/stringArray",
+                "description": "For a multi-AC deferral, the subset of AC ids evidenced so far (partial progress) while cleared-by stays null."
+              },
+              "absorbed-by": {
+                "$ref": "#/$defs/stringArray",
+                "description": "Slices that inherited this deferral (INTENT-FIDELITY W5.3). Absorbing the same deferral into a THIRD slice is a stop, not an absorption — verify surfaces it as an inheritance-breadth decision (provision the clearing event now, or PO-accept explicitly)."
+              },
+              "needed-by": {
+                "type": "string",
+                "description": "The slice by which this deferral's clearing evidence is due (INTENT-FIDELITY W9.2, set at plan time). status escalates when the needed-by slice is complete while cleared-by is still null; yolo stops on a charter-critical prerequisite past its needed-by boundary."
+              },
+              "probe": {
+                "type": "string",
+                "description": "The literal capability-probe command + one-line output tail executed the run this deferral was written (YOLO F1/F2 attempt-before-declare). Carried into the ship-block hand-back so /wf ship shows receipted deferrals."
+              },
+              "ship-override-authorization": {
+                "type": "object",
+                "required": ["by", "at", "reason"],
+                "description": "Explicit PO risk-acceptance that lets ship proceed past an un-evidenced deferral (e.g. deploy-time-circular config). Distinct from cleared-by: it is an OVERRIDE surfaced in the ship summary, not evidence.",
+                "properties": {
+                  "by": { "type": "string" },
+                  "at": { "$ref": "#/$defs/iso8601" },
+                  "reason": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "charter": {
+          "description": "Charter — the intake's 3-7 POSITIVE commitments as first-class spec (INTENT-FIDELITY W8.1). Deliberately few; a charter that restates the whole intake is boilerplate. Commitments must be falsifiable by code. RIM adjudications name the charter ids they protect; the intent-fidelity dimension checks question 1 per-id; the charter scenario (shape) exercises the core loop end-to-end. Compressed lifecycles (fix/hotfix/refactor/update-deps/adopt) carry no charter. INTAKE-SHAPE-HARDENING W2.1: a default-mode intake with genuinely zero commitments writes the explicit string 'none-declared' (with a one-line reason in the artifact body) — an absent key is the illegal silent form.",
+          "anyOf": [
+            { "const": "none-declared" },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "commitment", "status"],
+                "properties": {
+                  "id": { "type": "string", "description": "Stable id C1..n." },
+                  "commitment": { "type": "string", "description": "One falsifiable positive commitment, e.g. 'the model decides whether and what to probe in the interview'." },
+                  "source": { "type": "string", "description": "Where in the intake it was committed, e.g. 01-intake.md#restated-request step 2." },
+                  "status": { "enum": ["honored", "at-risk", "broken"], "description": "Set by verify runs + the intent-fidelity review + yolo checkpoints. A broken commitment is a yolo stop." },
+                  "po-ratified": {
+                    "anyOf": [{ "type": "boolean" }, { "type": "null" }],
+                    "description": "true once intake Step 6b's charter-confirmation AskUserQuestion lands (INTAKE-SHAPE-HARDENING W2.4); false only with an explicit PO-declined note; null/absent = legacy unratified charter (inferred authority only)."
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "evidence-quality": {
+          "type": "object",
+          "description": "Slug-level evidence-rung rollup (INTENT-FIDELITY W9.1 + YOLO F5). Counts of user-observable AC evidence by highest rung, aggregated from the 06-verify AC status tables. The dashboard renders it as a chip; a slug with zero live-rung evidence on charter-cited ACs cannot ship without recorded PO acceptance.",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "unproven-integrations": {
+          "type": "array",
+          "description": "External integrations whose real behaviour has not been observed live in this workflow (INTENT-FIDELITY W5.2). While first-light is null, ACs depending on the integration cap at partial (mock/emulator rungs are proxies, never pass). Any live observation (tagged smoke, /wf probe, live e2e) stamps first-light.",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": { "type": "string" },
+              "introduced-by": { "type": "string", "description": "The slice that introduced the integration." },
+              "first-light": { "type": ["string", "null"], "description": "ISO-8601 of first live observation; null until observed. Set by verify." }
+            }
+          }
+        },
+        "intent-risks": {
+          "description": "Intent-Risk (RIM) ledger (INTENT-FIDELITY W1). Intake distils the 'Risks if Misunderstood' prose into tracked entries; shape MUST adjudicate every open one (set status + decision, PO-ratify when it touches a PO directive) before it can complete; handoff/ship HARD-BLOCK on any status: open, and surface carried ones. Mirrors the runtime-evidence-deferrals machinery. INTAKE-SHAPE-HARDENING W2.1: a default-mode intake with genuinely zero risks writes the explicit string 'none-declared' (with a one-line reason in the artifact body) — an absent key is the illegal silent form, and shape's Step 9a backfills it.",
+          "anyOf": [
+            { "const": "none-declared" },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "risk", "severity", "status"],
+                "properties": {
+                  "id": { "type": "string", "description": "Stable id RIM-1..n." },
+                  "risk": { "type": "string", "description": "One-line statement of the intake risk." },
+                  "severity": { "enum": ["high", "medium", "low"] },
+                  "status": {
+                    "enum": ["open", "adjudicated", "carried"],
+                    "description": "open = not yet decided (illegal after shape completes); adjudicated = shape named the choice; carried = genuinely cannot resolve at shape, receiving stage named in Open Questions."
+                  },
+                  "adjudicated-by": {
+                    "type": "string",
+                    "description": "Artifact + section that adjudicated it, e.g. 02-shape.md#desired-behavior. Empty until adjudicated."
+                  },
+                  "decision": {
+                    "type": "string",
+                    "description": "One line: what was chosen and why (the tradeoff). Restating the risk without a decision is illegal."
+                  },
+                  "po-ratified": {
+                    "anyOf": [{ "type": "boolean" }, { "const": "not-required" }, { "type": "null" }],
+                    "description": "true | false | 'not-required' | null (unset). When the risk touches a PO directive, must be true (cite the po-answers.md entry) or an explicit PO-declined false; not-required only when the decision alters no PO directive."
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "appetite": {
+          "enum": ["small", "medium", "large"],
+          "description": "The PO's Batch A appetite answer, machine-readable (INTAKE-SHAPE-HARDENING W2.3). Consumers: shape scales its pre-mortem horizon by it; slice reads it for slice-count expectations; plan's consult trigger keys off it. Absent on pre-v9.136.0 workflows."
+        },
+        "review-scope-confirmed": {
+          "type": "boolean",
+          "description": "false = review-scope is the provisional intake default (per-slice), not yet PO-confirmed; slice asks once the roster is known (plan asks on the skip-to-plan path) and flips this to true (INTAKE-SHAPE-HARDENING W3.2). Absent on pre-v9.136.0 workflows (treated as confirmed — they were asked at intake)."
         }
       }
     },
@@ -186,6 +336,7 @@
         "stage-number": { "const": 1 },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" },
         "next-command": { "type": "string" },
@@ -204,6 +355,10 @@
         "type": { "const": "shape" },
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 2 },
+        "charter-scenario": {
+          "type": "string",
+          "description": "REQUIRED on standard-lifecycle shapes from v9.136.0 (INTAKE-SHAPE-HARDENING W2.2): 'authored' when the ## Charter Scenario section exists, or 'none — <reason>' when the work genuinely has no core interaction loop. Skipping is a declaration, never a silence. Compressed intake modes omit the key. Not schema-required (pre-v9.136.0 shapes lack it); shape.md Step 5b is the enforcement."
+        },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "docs-needed": { "type": "boolean" },
@@ -216,6 +371,7 @@
             ]
           }
         },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
       }
@@ -294,6 +450,7 @@
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "total-slices": { "type": "integer", "minimum": 0 },
         "best-first-slice": { "type": "string" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "slices": {
           "type": "array",
@@ -329,6 +486,7 @@
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "complexity": { "enum": ["xs", "s", "m", "l", "xl"] },
         "depends-on": { "$ref": "#/$defs/stringArray" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
       }
@@ -375,6 +533,7 @@
         "metric-step-count":     { "type": "integer", "minimum": 0 },
         "has-blockers":          { "type": "boolean" },
         "revision-count":        { "type": "integer", "minimum": 0 },
+        "revisions":             { "$ref": "#/$defs/revisionLedger" },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "tags": { "$ref": "#/$defs/stringArray" },
@@ -469,7 +628,7 @@
         "slice-slug": { "type": "string" },
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 6 },
-        "result": { "enum": ["pass", "fail", "partial"] },
+        "result": { "enum": ["pass", "fail", "partial", "blocked-runtime-evidence-missing"] },
         "metric-checks-run":                { "type": "integer", "minimum": 0 },
         "metric-checks-passed":             { "type": "integer", "minimum": 0 },
         "metric-acceptance-met":            { "type": "integer", "minimum": 0 },
@@ -477,15 +636,45 @@
         "metric-interactive-checks-run":    { "type": "integer", "minimum": 0 },
         "metric-interactive-checks-passed": { "type": "integer", "minimum": 0 },
         "metric-issues-found":              { "type": "integer", "minimum": 0 },
+        "metric-acceptance-mock-rung": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of USER-OBSERVABLE AC whose highest evidence-rung is cited-mock / uncited-mock / static (the machine-readable projection of the per-AC evidence-rung labels in the ## Acceptance Criteria Status body). The post-write-verify mockEvidenceGate HARD-BLOCKS result: pass while this is > 0 (INTENT-FIDELITY W5.2/W9.1 + YOLO F5). Absent/0 on a slice with no user-observable-mock AC."
+        },
+        "skipped-gating-specs": {
+          "type": "array",
+          "description": "Specs designated as the evidence for a specific AC that were SKIPPED (guard exit, .skip/.todo, missing env/secret, filtered out) while the rest of the suite ran (YOLO F4). A skipped gating spec is a missing-evidence event for its AC — that AC cannot inherit the suite's green. Empty when no skipped spec gates an AC.",
+          "items": {
+            "type": "object",
+            "required": ["spec", "ac"],
+            "properties": {
+              "spec": { "type": "string" },
+              "ac": { "type": "string" },
+              "precondition": { "type": "string", "description": "The unmet precondition, e.g. 'set BETTER_AUTH_SECRET and re-run'." }
+            }
+          }
+        },
         "evidence-dir": { "type": "string" },
         "convergence": {
           "enum": ["not-needed", "converged", "escalated"],
           "description": "Whether verify results converged, escalated, or were not applicable. Written by /wf verify to 06-verify-<slice>.md."
         },
+        "interactive-verification": {
+          "enum": ["required", "deferred", "not-applicable"],
+          "description": "Set by /wf verify. `deferred` means at least one user-observable AC could not be evidenced in this environment; the result MUST then be `partial` (never `pass`) and a matching 00-index runtime-evidence-deferrals entry is required. The post-write-verify result gate blocks `result: pass` while this is `deferred`."
+        },
+        "interactive-verification-defer-reason": {
+          "type": "string",
+          "description": "Required when interactive-verification == deferred. Must enumerate the constraint-resolution-ladder rungs tried and the residual that survives them — not a bare 'no device'."
+        },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
+      },
+      "not": {
+        "required": ["metric-acceptance-unverified-interactive"],
+        "$comment": "Forbids the invented `metric-acceptance-unverified-interactive` field. The only sanctioned way to record an unverified user-observable AC is `interactive-verification: deferred` + a 00-index runtime-evidence-deferrals entry (see post-write-verify result gate and the AC-VERIFIABILITY recommendations R7)."
       }
     },
 
@@ -579,6 +768,30 @@
         "handoff-mode": { "enum": ["aggregate", "single-slice"] },
         "status": { "enum": ["complete", "awaiting-input"] },
         "stage-number": { "const": 8 },
+        "handoff-scope": {
+          "enum": ["slug", "branch"],
+          "description": "How this handoff was invoked. `slug` = the classic per-slug handoff. `branch` = a branch/PR-scoped batch run that aggregates every slug whose 00-index.md shares this branch (v9.105.0). Absent → treat as `slug`."
+        },
+        "handoff-fingerprint": {
+          "type": "string",
+          "description": "No-op guard for the additive-write contract: a stable hash of the inputs this handoff was packaged from (commit range + slice statuses + review verdicts). A re-run whose recomputed fingerprint matches this value changed nothing and is skipped (no snapshot, no ledger entry)."
+        },
+        "handoff-lead": {
+          "type": "string",
+          "description": "In a branch-scoped batch handoff, the single slug that OWNS the branch-level PR-readiness block (CI watch, triage, rebase, verdict). Recorded on first batch run and stable across re-runs. On the lead's own artifact, equals its slug."
+        },
+        "readiness-via": {
+          "type": "string",
+          "description": "Follower-slug pointer to the lead slug's handoff artifact that carries the authoritative branch-level readiness block (e.g. `<lead-slug>/08-handoff.md`). Present only on non-lead slugs in a batch handoff; when set, this artifact's own readiness fields are advisory and the PR-level verdict lives on the lead."
+        },
+        "branch-slugs": {
+          "$ref": "#/$defs/stringArray",
+          "description": "Every workflow slug whose 00-index.md shares this branch and was in scope for the batch handoff (the roster). Present only when handoff-scope is `branch`."
+        },
+        "pr-readiness-verdict": {
+          "enum": ["ready", "blocked", "awaiting-input"],
+          "description": "Branch/PR-level readiness = AND across every slug on the branch. Distinct from the per-slug `readiness-verdict`: a slug can be individually ready while the PR is not (a sibling slug's commits are unreviewed). Ship gates on this, not on the per-slug field. Written on the lead slug."
+        },
         "pr-title": { "type": "string" },
         "pr-url": { "type": "string" },
         "pr-number": { "type": ["integer", "null"] },
@@ -594,6 +807,10 @@
           "enum": ["none", "regenerated", "drift-without-regen", "skipped"]
         },
         "docs-mirror-status": { "enum": ["up-to-date", "regenerated", "skipped"] },
+        "ship-plan-readiness": {
+          "enum": ["ok", "missing", "drift", "acknowledged", "not-applicable", "skipped"],
+          "description": "Verdict of the shared ship-plan readiness pre-check (handoff step 6.7 / ship step 0.4, in _ship-plan-readiness.md). `ok` = plan present + drift-clean; `acknowledged` = drift found but the user recorded an explicit per-run reason to proceed; `not-applicable` = handoff only, shipping handled outside /wf ship. `missing`/`drift` cause a STOP (handoff writes status: awaiting-input), so a completed artifact never carries them. Absent on artifacts predating the pre-check → treat as `skipped`."
+        },
         "rebase-status": {
           "enum": ["fast-forward", "rebased-clean", "conflicts",
                    "lease-failure", "skipped"]
@@ -616,6 +833,7 @@
         "triage-deferred-thread-ids": { "$ref": "#/$defs/stringArray" },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
         "refs": { "$ref": "#/$defs/refs" }
       }
@@ -641,6 +859,10 @@
         "prior-version": { "type": "string" },
         "go-nogo": { "enum": ["go", "conditional-go", "no-go"] },
         "merge-strategy": { "enum": ["rebase", "squash", "merge", "none"] },
+        "ship-plan-readiness": {
+          "enum": ["ok", "acknowledged", "skipped"],
+          "description": "Verdict of the shared ship-plan readiness pre-check at ship step 0.4 (_ship-plan-readiness.md). A written ship run only ever carries `ok` or `acknowledged` — a `missing`/`drift`/cancel outcome STOPs before the 13-step sequence, so no run artifact is written. Absent on runs predating the pre-check → treat as `skipped`."
+        },
         "pre-flight-status": { "enum": ["pass", "warn", "fail"] },
         "publish-dry-run-passed": {
           "oneOf": [
@@ -674,6 +896,18 @@
         "rollback-sha": { "type": "string" },
         "rollback-reason": { "type": "string" },
         "announcements-sent": { "$ref": "#/$defs/stringArray" },
+        "ship-scope": {
+          "enum": ["slug", "branch"],
+          "description": "How this ship was invoked. `slug` = classic single-slug ship. `branch` = a branch/PR-scoped batch ship where every slug on the branch merges atomically as one run (v9.105.0). Absent → `slug`."
+        },
+        "branch-slugs": {
+          "$ref": "#/$defs/stringArray",
+          "description": "Every workflow slug on the branch that this single ship run released together. Present only when ship-scope is `branch`; the run artifact lives on the lead slug and followers carry a pointer."
+        },
+        "shipped-via": {
+          "type": "string",
+          "description": "Follower-slug pointer to the lead slug's ship-run artifact that actually executed the merge/tag/release for this branch (e.g. `<lead-slug>/09-ship-run-<run-id>.md`). Present only on non-lead slugs in a batch ship; their own 00-index advances to shipped without a duplicate run artifact."
+        },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
         "tags": { "$ref": "#/$defs/stringArray" },
@@ -698,6 +932,10 @@
               "environment": { "type": "string" },
               "status": { "type": "string" },
               "go-nogo": { "enum": ["go", "conditional-go", "no-go"] },
+              "shipped-via": {
+                "type": "string",
+                "description": "For a follower slug in a batch ship: the lead slug's ship-run artifact this row points to. Lets a follower's run index record the release without a duplicate run artifact."
+              },
               "notes": { "type": "string", "maxLength": 80 }
             }
           }
@@ -724,13 +962,76 @@
         "metric-stages-skipped":    { "type": "integer", "minimum": 0 },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "shipRollbackFrontmatter": {
+      "type": "object",
+      "description": "Runbook-driven reversal record (09-rollback-<run-id>.md) written by the rollback phase of /wf ship (reference/ship/rollback.md). run-id names the ship run being REVERSED; the original run gains rolled-back: true + rollback-artifact. Added in v9.100.0 (feedback-loops W4).",
+      "required": ["schema", "type", "slug", "run-id", "status", "go-nogo", "created-at", "updated-at", "refs"],
+      "properties": {
+        "type": { "const": "ship-rollback" },
+        "run-id": { "type": "string" },
+        "status": { "enum": ["complete", "awaiting-input", "failed", "aborted"] },
+        "go-nogo": { "enum": ["go", "no-go"] },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "reason": { "type": "string" },
+        "steps-executed": { "type": "integer", "minimum": 0 },
+        "steps-irreversible": { "type": "integer", "minimum": 0 },
+        "rollback-verify-result": { "enum": ["pass", "fail", "skipped"] },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "solutionFrontmatter": {
+      "type": "object",
+      "description": "Durable cross-workflow learning under .ai/solutions/<category>/<slug>.md, distilled by /wf retro (producer) and read by /wf plan's learnings scan (consumer). Added in v9.100.0 (feedback-loops W1). Body is Problem / Learning / How to apply, <= ~30 lines.",
+      "required": ["schema", "type", "category", "source-workflow", "created-at", "tags", "status"],
+      "properties": {
+        "type": { "const": "solution" },
+        "category": { "enum": ["architecture", "testing", "build-tooling", "process", "domain", "gotcha", "misc"] },
+        "source-workflow": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/$defs/stringArray" }
+          ],
+          "description": "Originating workflow slug; becomes a list when later workflows refresh the learning (dedupe-on-write)."
+        },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "tags": { "$ref": "#/$defs/stringArray" },
+        "status": { "enum": ["active", "superseded"] }
+      }
+    },
+
+    "recapFrontmatter": {
+      "type": "object",
+      "description": "Plain-language catch-up / explain artifact written by /wf recap (formerly resume). scope: workflow (whole run), slice (one slice), or explain (a focus artifact). focus is the explained artifact when scope=explain.",
+      "required": [
+        "schema", "type", "slug", "scope", "generated-at",
+        "current-stage", "stage-number", "status", "refs"
+      ],
+      "properties": {
+        "type": { "const": "recap" },
+        "scope": { "enum": ["workflow", "slice", "explain"] },
+        "slice": { "type": "string" },
+        "focus": { "type": "string" },
+        "generated-at": { "$ref": "#/$defs/iso8601" },
+        "stage-number": { "type": "integer", "minimum": 0 },
+        "current-stage": { "type": "string" },
+        "status": { "type": "string" },
         "refs": { "$ref": "#/$defs/refs" }
       }
     },
 
     "resumeFrontmatter": {
       "type": "object",
+      "description": "DEPRECATED alias of recap (renamed 2026-07). Retained one release so a legacy 90-resume.md still validates; new writes use type:recap.",
       "required": [
         "schema", "type", "slug", "generated-at",
         "current-stage", "stage-number", "status",
@@ -774,47 +1075,6 @@
         },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "refs": { "$ref": "#/$defs/stringArray" }
-      }
-    },
-
-    "shapeAmendmentFrontmatter": {
-      "type": "object",
-      "required": [
-        "schema", "type", "slug", "amendment-number", "created-at",
-        "amends", "source", "source-ref", "affected-slices", "tags", "refs"
-      ],
-      "properties": {
-        "type": { "const": "shape-amendment" },
-        "amendment-number": { "type": "integer", "minimum": 1 },
-        "amends": { "type": "string" },
-        "source": { "enum": ["from-review", "from-retro", "manual"] },
-        "source-ref": { "type": "string" },
-        "affected-slices": { "$ref": "#/$defs/stringArray" },
-        "created-at": { "$ref": "#/$defs/iso8601" },
-        "tags": { "$ref": "#/$defs/stringArray" },
-        "refs": { "$ref": "#/$defs/refs" }
-      }
-    },
-
-    "sliceAmendmentFrontmatter": {
-      "type": "object",
-      "required": [
-        "schema", "type", "slug", "slice-slug", "amendment-number",
-        "created-at", "amends", "source", "source-ref",
-        "original-status", "plan-needs-update", "tags", "refs"
-      ],
-      "properties": {
-        "type": { "const": "slice-amendment" },
-        "slice-slug": { "type": "string" },
-        "amendment-number": { "type": "integer", "minimum": 1 },
-        "amends": { "type": "string" },
-        "source": { "enum": ["from-review", "from-retro", "manual"] },
-        "source-ref": { "type": "string" },
-        "original-status": { "type": "string" },
-        "plan-needs-update": { "type": "boolean" },
-        "created-at": { "$ref": "#/$defs/iso8601" },
-        "tags": { "$ref": "#/$defs/stringArray" },
-        "refs": { "$ref": "#/$defs/refs" }
       }
     },
 
@@ -1099,6 +1359,51 @@
           "type": "object",
           "description": "Discovery output (not a block): { monorepo, tool, workspaces[] }. Biases dependency-automation ecosystems, lint-staged scoping, and CI matrix."
         },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "observabilityPlanFrontmatter": {
+      "type": "object",
+      "description": ".ai/observability.md — the project-level observability contract authored by `/wf observability init` and read by `/wf observability build`, `/wf observability audit`, and the per-slice `instrument` augmentation. Language-agnostic: a canonical wide-event schema, sampling, redaction, emit layer, pipeline, backend, and dashboards. Like `.ai/ship-plan.md` this is a project-root `.ai/` artifact, not a per-slug workflow file. The branch stays open (no additionalProperties:false) — the rich block content (schema-core, schema-domain, emit[], additional-contracts[]) is documented here but its inner shapes live in the observability/init reference. Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).",
+      "required": ["schema", "type", "slug", "plan-version"],
+      "properties": {
+        "type": { "const": "observability-plan" },
+        "slug": { "$ref": "#/$defs/slug" },
+        "plan-version": { "type": "integer", "minimum": 1, "description": "Bumped on each material re-author; `build` stamps `plan-version-at-run` and `audit` stamps `audited-plan-version` from it." },
+        "project-name": { "type": "string" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "ship-plan-read": { "type": "boolean", "description": "Whether `.ai/ship-plan.md` informed the backend choice." },
+        "schema-core": { "type": "object", "description": "Block A — canonical correlation/service/outcome/actor/error field vocabulary." },
+        "schema-domain": { "type": "array", "description": "Block A — project-specific fields ({ key, type, unit })." },
+        "key-normalization": { "type": "string" },
+        "emit": { "type": "array", "description": "Block B — per-unit emit layer ({ unit, language, mechanism, builder-location })." },
+        "additional-contracts": { "type": "array", "description": "Typed, open extension content for project-specific shape (Block extensions)." },
+        "refs": { "$ref": "#/$defs/refs" }
+      }
+    },
+
+    "observabilityBuildFrontmatter": {
+      "type": "object",
+      "description": ".ai/observability-build.md — the run record written by `/wf observability build` when it realizes the contract (emit adapters, collection-pipeline config, backend/IaC, dashboards-as-code). Records which output classes were made compliant, what was created/patched, and the gated provisioning outcome. Project-root `.ai/` artifact; open branch (no additionalProperties:false). Added in v9.132.0.",
+      "required": ["schema", "type"],
+      "properties": {
+        "type": { "const": "observability-build" },
+        "slug": { "$ref": "#/$defs/slug" },
+        "created-at": { "$ref": "#/$defs/iso8601" },
+        "updated-at": { "$ref": "#/$defs/iso8601" },
+        "plan-version-at-run": { "type": "integer", "minimum": 1, "description": "The `plan-version` of `.ai/observability.md` this run realized." },
+        "backend": { "type": "string" },
+        "provisioning-ceiling": { "type": "string" },
+        "files-created": { "$ref": "#/$defs/stringArray" },
+        "files-patched": { "$ref": "#/$defs/stringArray" },
+        "audits": { "type": "object", "description": "Per output-class verdict: A-emit-layer / B-pipeline / C-backend / D-dashboards → compliant | fixed | missing | skipped." },
+        "backend-applied": { "type": "string", "description": "yes | printed | skipped | failed | n/a." },
+        "dashboards-published": { "type": "string", "description": "yes | printed | skipped | failed | n/a." },
+        "deps-to-install": { "type": "array" },
+        "credentials-to-set-manually": { "type": "array" },
+        "validation": { "type": "object" },
         "refs": { "$ref": "#/$defs/refs" }
       }
     },
@@ -1419,11 +1724,12 @@
         { "$ref": "#/$defs/shipRunFrontmatter" },
         { "$ref": "#/$defs/shipRunsIndexFrontmatter" },
         { "$ref": "#/$defs/retroFrontmatter" },
+        { "$ref": "#/$defs/shipRollbackFrontmatter" },
+        { "$ref": "#/$defs/solutionFrontmatter" },
+        { "$ref": "#/$defs/recapFrontmatter" },
         { "$ref": "#/$defs/resumeFrontmatter" },
         { "$ref": "#/$defs/skipRecordFrontmatter" },
         { "$ref": "#/$defs/syncReportFrontmatter" },
-        { "$ref": "#/$defs/shapeAmendmentFrontmatter" },
-        { "$ref": "#/$defs/sliceAmendmentFrontmatter" },
         { "$ref": "#/$defs/simplifyRunFrontmatter" },
         { "$ref": "#/$defs/augmentationFrontmatter" },
         { "$ref": "#/$defs/rcaFrontmatter" },
@@ -1434,6 +1740,8 @@
         { "$ref": "#/$defs/designAuditFrontmatter" },
         { "$ref": "#/$defs/projectContextFrontmatter" },
         { "$ref": "#/$defs/shipPlanFrontmatter" },
+        { "$ref": "#/$defs/observabilityPlanFrontmatter" },
+        { "$ref": "#/$defs/observabilityBuildFrontmatter" },
         { "$ref": "#/$defs/announceFrontmatter" },
         { "$ref": "#/$defs/riskRegisterFrontmatter" },
         { "$ref": "#/$defs/estimateFrontmatter" },
@@ -1495,6 +1803,7 @@
               "confidence": { "enum": ["high", "med", "low"] },
               "action":     { "enum": ["accept", "defer", "reject"] },
               "status":       { "type": "string", "description": "Accumulating-ledger lifecycle: open | deferred | dismissed | fixed | could-not-fix | resolved. Permissive string for back-compat; the merge protocol in review.md owns the vocabulary." },
+              "pre-existing": { "type": "boolean", "description": "true iff the defect exists on the base branch untouched by this workflow's diff (diff test; git blame tiebreaker). Pre-existing findings never count toward the verdict or blocker gate — they surface in the Pre-existing Debt bucket. Added in v9.99.0 (optional, additive)." },
               "surfaced-at":  { "$ref": "#/$defs/iso8601" },
               "last-seen-at": { "$ref": "#/$defs/iso8601" },
               "resolved-at":  { "$ref": "#/$defs/iso8601" },
@@ -1564,6 +1873,7 @@
               "action":     { "enum": ["accept", "defer", "reject"] },
               "triage":     { "type": "string" },
               "status":     { "type": "string", "description": "Accumulating-ledger lifecycle: open | deferred | dismissed | fixed | could-not-fix | resolved. Permissive string for back-compat; review.md owns the vocabulary." },
+              "pre-existing": { "type": "boolean", "description": "true iff the defect exists on the base branch untouched by this workflow's diff (diff test; git blame tiebreaker). Pre-existing findings never count toward the verdict or blocker gate — they surface in the Pre-existing Debt bucket. Added in v9.99.0 (optional, additive)." },
               "surfaced-at":  { "$ref": "#/$defs/iso8601" },
               "last-seen-at": { "$ref": "#/$defs/iso8601" },
               "resolved-at":  { "$ref": "#/$defs/iso8601" },

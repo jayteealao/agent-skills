@@ -69,6 +69,38 @@ export function renderHistoryBlock(history) {
   </details>`;
 }
 
+/**
+ * Render the revision *ledger* — the reason-centric timeline written into
+ * frontmatter (`revisions:`) by the additive-write contract. This is distinct
+ * from renderHistoryBlock, which lists the verbatim on-disk snapshots. The
+ * ledger says *why* each revision happened in one line; the snapshots hold the
+ * exact prior wording. Renderers that show both put the ledger above the body
+ * and the snapshot disclosure below it.
+ *
+ * Accepts either the frontmatter object or a sibling-YAML object; reads
+ * whichever carries a non-empty `revisions` array (sibling YAML wins).
+ */
+export function renderRevisionLedger(fm, sy) {
+  const revs = (Array.isArray(sy?.revisions) && sy.revisions.length ? sy.revisions
+              : Array.isArray(fm?.revisions) ? fm.revisions : null);
+  if (!revs || !revs.length) return '';
+  // Newest first — the ledger is provenance-at-a-glance, most recent on top.
+  const ordered = [...revs].sort((a, b) => (Number(b?.rev) || 0) - (Number(a?.rev) || 0));
+  const items = ordered.map((r) => {
+    if (typeof r !== 'object' || r === null) {
+      return `<li><span class="rev-why">${escape(String(r))}</span></li>`;
+    }
+    const rev = r.rev != null ? `<span class="rev-n">rev ${escape(r.rev)}</span>` : '';
+    const when = r.at ?? r.when ?? '';
+    const trigger = r.trigger ? `<span class="rev-trigger">${escape(r.trigger)}</span>` : '';
+    const why = r.because ?? r.summary ?? r.note ?? r.what ?? '';
+    const changed = r.changed ? ` — ${escape(r.changed)}` : '';
+    return `<li>${rev}${trigger}${when ? `<span class="rev-when">${escape(when)}</span>` : ''}`
+         + `<span class="rev-why">${escape(why)}${changed}</span></li>`;
+  }).join('');
+  return `<details class="revisions rev-ledger" open><summary>Revision ledger (${revs.length})</summary><ol class="rev-timeline">${items}</ol></details>`;
+}
+
 function escape(s) {
   return String(s ?? '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;')

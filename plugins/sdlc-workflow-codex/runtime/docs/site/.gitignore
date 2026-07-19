@@ -1,0 +1,3 @@
+# Rendered sunflower-view output for this doc-site (rebuilt on render; never committed).
+# The root .gitignore rule `.ai/_view/` is repo-root-anchored and does not reach this nested path.
+.ai/_view/

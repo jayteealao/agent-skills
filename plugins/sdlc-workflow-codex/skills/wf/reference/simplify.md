@@ -1,20 +1,21 @@
 ---
-description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream skill ($wf intake fix, $wf intake refactor, $wf intake, $wf-meta amend, $wf-docs, etc.). NEVER writes code directly. Adapted from the Codex bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
+description: Review-and-route triage utility. Dispatches three parallel sub-agents (Code Reuse, Code Quality, Efficiency) across one of four scopes — branch (default), commit, plan, or codebase — classifies findings, and routes each to the appropriate downstream skill ($wf intake fix, $wf intake refactor, $wf intake, $wf docs, etc.). NEVER writes code directly. Adapted from the Codex bundled `simplify` skill but realigned to sdlc-workflow's orchestrator discipline.
 argument-hint: "[branch [<base>] | commit <sha-or-range> | plan <slug> <slice> | codebase [<path>]]"
 ---
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.ai/simplify/...`, `.codex/...`), stage names or numbers, skill names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `$wf simplify`, a **review-and-route triage utility**. Three parallel sub-agents (Reuse, Quality, Efficiency) review one of four scopes and you classify each finding, then route it to the appropriate downstream skill. Not a lifecycle stage; not a workflow; not a fixer. A triage report that fans out.
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+
+You are running `$wf simplify`, a **review-and-route triage utility**. Three parallel sub-agents (Reuse, Quality, Efficiency) review one of four scopes; you classify each finding and route it to the appropriate downstream skill. Not a lifecycle stage, not a workflow, not a fixer — a triage report that fans out.
 
 # Slug-mode (read before proceeding)
 
-If the dispatcher selected **slug-mode** (the first token after `simplify` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `reference/_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (`type: slice`, `slice-type: simplify`, `compressed: true`, `origin: simplify`); no new workflow, no new branch, no standalone `.ai/simplify/<run-id>.md`, no new top-level `00-index.md`; additive index updates only; chat return `simplify → compressed slice <slice-slug> on <slug>` plus routing summary and top assignments scoped with `<slug>` (e.g., `$wf intake refactor <slug> <target>`, `$wf-meta amend <slug>`).
+If the dispatcher selected **slug-mode** (the first token after `simplify` matched a non-closed slug in `.ai/workflows/INDEX.md`), follow `reference/_compressed-slice.md` — it OVERRIDES the standalone instructions below. In short: write one `.ai/workflows/<slug>/03-slice-simplify-<descriptor>.md` (`type: slice`, `slice-type: simplify`, `compressed: true`, `origin: simplify`); no new workflow, no new branch, no standalone `.ai/simplify/<run-id>.md`, no new top-level `00-index.md`; additive index updates only; chat return `simplify → compressed slice <slice-slug> on <slug>` plus routing summary and top assignments scoped with `<slug>` (e.g., `$wf intake refactor <slug> <target>`, `$wf intake <slug> <correction>`).
 
 If slug-mode was not selected, ignore this section and proceed standalone per the instructions below.
 
@@ -24,27 +25,29 @@ If slug-mode was not selected, ignore this section and proceed standalone per th
 | | Detail |
 |---|---|
 | Requires | Nothing for `branch` / `commit` / `codebase`. For `plan` scope: `.ai/workflows/<slug>/04-plan-<slice>.md` (or `04-plan.md` for compressed workflows) must exist. |
-| Produces | A `type: workflow-index` slug workflow: `.ai/workflows/<slug>/01-simplify.md` (`type: simplify-run` — findings + per-finding routing assignments) + a lightweight `00-index.md`. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render via the retained simplify discovery.) |
-| Next | One or more downstream skills the user runs based on the routing assignments (see the routing matrix in Step 4). |
+| Produces | `.ai/workflows/<slug>/01-simplify.md` (`type: simplify-run` — findings + routing assignments) + lightweight `00-index.md` in a `type: workflow-index` slug workflow. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render.) |
+| Next | One or more downstream skills the user runs based on the routing assignments (routing matrix in Step 4). |
 | Does NOT | Write code, edit files outside its own artifact, commit, push, or open PRs. |
-| Idempotent | Re-running with the same scope+target on an already-cleaned input is safe — agents will report "no findings" and the run artifact records that. |
+| Idempotent | Re-running the same scope+target on an already-cleaned input is safe — agents report "no findings" and the artifact records that. |
+
+> **Optional second opinion.** After the routing matrix assigns each finding, offer `$consult <are any of these findings systematically misrouted — e.g. a route-fix that masks an architectural problem?>` (or `$consult <provider> …`) — a read-only multi-model panel that lightly QCs the router's output (routing is otherwise deterministic from the matrix). Self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — execution discipline (orchestrator-not-fixer)
-You are a **router**, not a problem-solver. This rule is the load-bearing constraint of the plugin and simplify obeys it like every other stage.
+You are a **router**, not a problem-solver.
 - Do NOT write code. Not one line. Not even a trivial typo fix.
 - Do NOT commit, stage, push, or open PRs.
 - Do NOT mutate any artifact file other than the ones you're authoring (`.ai/workflows/<slug>/01-simplify.md` + its `00-index.md`).
 - Do NOT edit the workflow plan (plan scope) — write proposed deltas to your run artifact only.
-- Do NOT touch files outside the scope's diff/path set when *reading* (branch scope = branch diff, commit scope = commit diff, plan scope = the named plan file only, codebase scope = the named path subtree only).
-- Your only output is the run artifact and a compact chat summary listing the recommended downstream skills the user can invoke.
-- If you catch yourself about to make a code edit, STOP. The finding routes to a downstream skill; you do not execute that skill yourself.
+- Do NOT read files outside the scope's diff/path set (branch = branch diff, commit = commit diff, plan = the named plan file only, codebase = the named path subtree only).
+- Your only output is the run artifact and a compact chat summary of recommended downstream skills.
+- If you catch yourself about to make a code edit, STOP. Route the finding; do not execute it yourself.
 - Follow the numbered steps below exactly in order.
 
 ---
 
 # Step 0 — Resolve scope
 
-Parse `$ARGUMENTS`. The first token (if present) names the scope. Otherwise default to `branch`.
+Parse `$ARGUMENTS`. The first token names the scope; default `branch`.
 
 | Token | Mode | Trailing args |
 |---|---|---|
@@ -54,19 +57,16 @@ Parse `$ARGUMENTS`. The first token (if present) names the scope. Otherwise defa
 | `codebase` | codebase | optional `<path>` (defaults to repo root) |
 
 Validation:
-- `branch` — confirm we're on a branch (`git symbolic-ref --short HEAD`), not detached HEAD.
-- `commit` — confirm the sha resolves (`git rev-parse --verify <sha>`).
-- `plan` — confirm the plan file exists at the resolved path. If missing, STOP with: *"No plan found at `<path>`. Run `$wf plan <slug> <slice>` first or check the slug/slice arguments."*
+- `branch` — confirm on a branch (`git symbolic-ref --short HEAD`), not detached HEAD.
+- `commit` — confirm sha resolves (`git rev-parse --verify <sha>`).
+- `plan` — confirm the plan file exists. If missing, STOP: *"No plan found at `<path>`. Run `$wf plan <slug> <slice>` first or check the slug/slice arguments."*
 - `codebase` — confirm path exists.
 
-Record:
-- `run-id`: `date -u +"%Y%m%dT%H%MZ"` (UTC compact ISO-8601 — same shape as ship runs).
-- `scope`: one of `branch | commit | plan | codebase`.
-- `target`: the resolved target string (for the artifact's frontmatter).
+Record: `run-id` (UTC compact ISO-8601 `<yyyymmdd>T<hhmm>Z`, real time per [_timestamp.md](_timestamp.md)), `scope` (`branch | commit | plan | codebase`), and `target` (resolved target string for the artifact frontmatter).
 
 ---
 
-# Step 1 — Assemble the input the agents will read
+# Step 1 — Assemble input
 
 Per scope:
 
@@ -75,35 +75,48 @@ Per scope:
 BASE="${1:-$(git merge-base HEAD origin/$(git symbolic-ref --short refs/remotes/origin/HEAD | sed 's|origin/||'))}"
 git diff "$BASE...HEAD"
 ```
-Capture the diff as `INPUT_DIFF`. Note: use three-dot (`A...B`) so we get only what's new on HEAD relative to base.
+Capture as `INPUT_DIFF`. Three-dot (`A...B`) = only what's new on HEAD relative to base.
 
 ### commit
 ```bash
-# Single sha:
-git show <sha>
-# OR range:
-git diff <range>
+git show <sha>        # single sha
+git diff <range>      # range
 ```
 Capture as `INPUT_DIFF`.
 
 ### plan
-Read the plan file in full. The "diff" the agents review is the plan's prose + structure, not a git diff. Capture as `INPUT_PLAN_TEXT`.
+Read the plan file in full. Agents review the plan's prose + structure, not a git diff. Capture as `INPUT_PLAN_TEXT`.
 
 ### codebase
-Walk the path subtree. Build a file list excluding `.git/`, `node_modules/`, `dist/`, `build/`, `.venv/`, and other generator output. Cap at ~500 files for the agents' sake; if larger, ask the user to narrow.
+Walk the path subtree. Exclude `.git/`, `node_modules/`, `dist/`, `build/`, `.venv/`, and other generator output. Cap at ~500 files; if larger, ask the user to narrow. Agents read by-need rather than from a single blob.
 
-Capture the file list + sampled content. For codebase scope the agents read by-need rather than from a single blob.
+---
+
+# Step 1b — Harvest `sdlc-debt:` markers (the debt sweep)
+
+Independent of the three agents, scan the scope for `sdlc-debt:` markers and fold them into the findings as **pre-classified** debt. These shortcuts were flagged with a ceiling + upgrade path (written by `$wf implement`), needing *routing* not *discovery* — agents find new issues; this step collects the ones already declared.
+
+- **branch / commit:** grep `INPUT_DIFF` for `sdlc-debt:` — only markers added in the diff.
+- **codebase:** grep the path subtree (`grep -rnE 'sdlc-debt:' <path>`, excluding `.git/`, `node_modules/`, `dist/`, `build/`) — the **repo-wide sweep** of the full debt backlog.
+- **plan:** skip — plans carry no code markers.
+
+For each marker, emit one finding in the **same `findings:` schema the agents use** (Step 2 output contract):
+- `id: debt-<n>`
+- `severity:` from the ceiling's blast radius — `high` (correctness/security ceiling), `med` (default), `low` (cosmetic or marker that names no ceiling/upgrade-path → also note it is malformed).
+- `location: <file:line>`
+- `issue:` the ceiling named in the marker.
+- `suggestion:` the upgrade path named in the marker.
+- `rationale:` "Author-flagged `sdlc-debt:` marker harvested for routing."
+
+Debt findings join the aggregate in **Step 3** and route through the **Step 4** matrix exactly like agent findings — typically `route-fix` (one-file ceiling), `route-refactor` (cross-file), or `route-intake` (architectural). In the sibling-YAML projection they carry **`category: quality`**; the run body notes which `quality` findings originated from a marker, and the chat summary reports the harvested count (e.g., `debt-markers-swept: <N>`). If the scope has no markers, record "No `sdlc-debt:` markers in scope" and continue.
 
 ---
 
 # Step 2 — Dispatch three sub-agents in parallel
 
-**MANDATORY**: issue a single message containing all three agent tool calls. Sequential dispatch defeats the purpose and is forbidden. Use parallel subagents only when working in parallel mode; otherwise cover all three rubrics in turn yourself.
+**MANDATORY**: issue a single message containing all three agent tool calls. Sequential dispatch is forbidden — the three rubrics run as parallel read-only `explorer` children per [_subagents.md](_subagents.md).
 
-Each agent receives:
-- The scope token + target.
-- The input from Step 1 (`INPUT_DIFF`, `INPUT_PLAN_TEXT`, or codebase file list).
-- The rubric below (verbatim, plus the scope-specific adaptations).
+Each agent receives the scope token + target, the Step 1 input (`INPUT_DIFF`, `INPUT_PLAN_TEXT`, or codebase file list), and the rubric below.
 
 Output contract: each agent returns a structured findings list:
 
@@ -121,31 +134,31 @@ findings:
 
 For each change in scope:
 
-1. **Search for existing utilities and helpers** that could replace newly written code. Look for similar patterns elsewhere in the codebase — common locations: utility directories, shared modules, files adjacent to the changed ones, `lib/`, `utils/`, `helpers/`.
+1. **Search for existing utilities and helpers** that could replace newly written code — `lib/`, `utils/`, `helpers/`, shared modules, files adjacent to the changed ones.
 2. **Flag any new function that duplicates existing functionality.** Suggest the existing function to use instead.
 3. **Flag any inline logic that could use an existing utility** — hand-rolled string manipulation, manual path handling, custom environment checks, ad-hoc type guards, custom retry loops, hand-written debounce/throttle.
 
 ### Plan-scope adaptation
-For `plan` scope: instead of "new function vs existing function", flag plan steps that propose new code where the plan's reuse-scan should have surfaced an existing helper. Quote the plan section verbatim in `location` and the existing helper path in `suggestion`.
+For `plan` scope: flag plan steps that propose new code where a reuse-scan should have surfaced an existing helper. Quote the plan section verbatim in `location` and the existing helper path in `suggestion`.
 
 ## Agent 2 — Code Quality Review
 
 Review for hacky patterns:
 
-1. **Redundant state**: state that duplicates existing state, cached values that could be derived, observers/effects that could be direct calls.
-2. **Parameter sprawl**: adding new parameters to a function instead of generalizing or restructuring existing ones.
+1. **Redundant state**: duplicates existing state, cached values that could be derived, observers/effects that could be direct calls.
+2. **Parameter sprawl**: new parameters added instead of generalizing or restructuring existing ones.
 3. **Copy-paste with slight variation**: near-duplicate code blocks that should be unified with a shared abstraction.
-4. **Leaky abstractions**: exposing internal details that should be encapsulated, or breaking existing abstraction boundaries.
-5. **Stringly-typed code**: using raw strings where constants, enums (string unions), or branded types already exist in the codebase.
-6. **Unnecessary JSX/template nesting**: wrapper Boxes/Views/divs/elements that add no layout value — check if inner component props already provide the needed behavior.
-7. **Unnecessary comments**: comments explaining WHAT the code does (well-named identifiers already do that), narrating the change, or referencing the task/caller — delete; keep only non-obvious WHY (hidden constraints, subtle invariants, workarounds).
+4. **Leaky abstractions**: internal details exposed that should be encapsulated, or existing abstraction boundaries broken.
+5. **Stringly-typed code**: raw strings used where constants, enums (string unions), or branded types already exist.
+6. **Unnecessary JSX/template nesting**: wrapper Boxes/Views/divs/elements with no layout value — check if inner component props already provide the needed behavior.
+7. **Unnecessary comments**: comments explaining WHAT (well-named identifiers do that), narrating the change, or referencing the task/caller — delete; keep only non-obvious WHY (hidden constraints, subtle invariants, workarounds).
 
 ### Plan-scope adaptation
-For `plan` scope: re-purpose the rubric for plan prose:
+For `plan` scope: re-purpose:
 1. Steps that re-derive what an earlier step already established.
 2. Over-detailed parameter lists where the plan should pick one shape.
 3. Repeated checklist items that should be one abstraction.
-4. Leaky steps that mention internals the plan should hide behind a single abstraction.
+4. Leaky steps that expose internals the plan should hide behind a single abstraction.
 5. Magic strings/literals where the plan should reference a constant or convention.
 6. (n/a for plan)
 7. Plan prose that narrates the change rather than describing intent.
@@ -155,30 +168,30 @@ For `plan` scope: re-purpose the rubric for plan prose:
 Review for efficiency:
 
 1. **Unnecessary work**: redundant computations, repeated file reads, duplicate network/API calls, N+1 patterns.
-2. **Missed concurrency**: independent operations run sequentially when they could run in parallel.
-3. **Hot-path bloat**: new blocking work added to startup or per-request/per-render hot paths.
-4. **Recurring no-op updates**: state/store updates inside polling loops, intervals, or event handlers that fire unconditionally — add a change-detection guard so downstream consumers aren't notified when nothing changed. Also: if a wrapper function takes an updater/reducer callback, verify it honors same-reference returns — otherwise callers' early-return no-ops are silently defeated.
+2. **Missed concurrency**: independent operations run sequentially when they could be parallel.
+3. **Hot-path bloat**: new blocking work in startup or per-request/per-render hot paths.
+4. **Recurring no-op updates**: unconditional state/store updates in polling loops, intervals, or event handlers — add a change-detection guard. Also: verify that wrapper functions taking an updater/reducer callback honor same-reference returns — otherwise callers' early-return no-ops are silently defeated.
 5. **Unnecessary existence checks**: pre-checking file/resource existence before operating (TOCTOU anti-pattern) — operate directly and handle the error.
 6. **Memory**: unbounded data structures, missing cleanup, event listener leaks.
 7. **Overly broad operations**: reading entire files when only a portion is needed, loading all items when filtering for one.
 
 ### Plan-scope adaptation
 For `plan` scope: re-purpose:
-1. Plan steps that re-do work an earlier step already accomplished.
-2. Plan steps marked sequential when they could be parallel (and the workflow supports it).
-3. Plan steps that add blocking work to hot paths the plan claims to optimise.
-4. Plan steps that update state every iteration without change-detection.
-5. Plan steps that pre-check before acting where the underlying API already handles the error.
-6. Plan steps that load/process more than they need (e.g., "read the entire file" when the step only uses one section).
+1. Steps that re-do work an earlier step already accomplished.
+2. Steps marked sequential when they could be parallel (and the workflow supports it).
+3. Steps that add blocking work to hot paths the plan claims to optimise.
+4. Steps that update state every iteration without change-detection.
+5. Steps that pre-check before acting where the underlying API already handles the error.
+6. Steps that load/process more than needed (e.g., "read the entire file" when only one section is used).
 7. (covered by #6)
 
 ---
 
 # Step 3 — Aggregate + triage
 
-Wait for all three agents. Build a combined findings list grouped by severity, then by agent.
+Wait for all three agents. Build a combined findings list, grouped by severity then by agent.
 
-Present the table to the user in chat (multi-select, presented as a numbered list):
+Present the table to the user as a numbered list:
 
 ```
 | ID | Severity | Agent | Location | Issue | Action |
@@ -187,21 +200,17 @@ Present the table to the user in chat (multi-select, presented as a numbered lis
 | ... |
 ```
 
-**Default behaviour by severity** (the user can override):
-- `high` — accept
-- `med` — accept
-- `low` — accept
-- `nit` — skip
+**Default by severity** (user can override): `high / med / low` — accept; `nit` — skip.
 
-For each finding, present `accept / skip / defer` options. `accept` means "include this finding in the routing assignments"; it does NOT mean "fix it now". `defer` records the finding but does not assign a downstream skill.
+Offer `accept / skip / defer` per finding. `accept` means include in routing assignments, not "fix it now". `defer` records the finding without assigning a downstream skill.
 
-False-positive handling: if a finding is wrong, mark it `skip` and add a one-line reason in the artifact. **Do not argue with the finding — skip it and move on.**
+False-positive handling: mark `skip` and add a one-line reason in the artifact. **Do not argue — skip and move on.**
 
 ---
 
 # Step 4 — Classify + route
 
-For each `accept` finding, assign a `route` based on what shape of follow-up work it deserves. This is the load-bearing step — simplify's value is in the routing, not the finding.
+For each `accept` finding, assign a `route` based on what shape of follow-up work it deserves.
 
 ## Routing matrix
 
@@ -210,24 +219,24 @@ For each `accept` finding, assign a `route` based on what shape of follow-up wor
 | `route-fix` | `$wf intake fix "<short description>"` | Trivial mechanical cleanup, ≤1 file, no behaviour change. Typos, dead code, unnecessary comments, missing reuse of a tiny helper. |
 | `route-refactor` | `$wf intake refactor "<area>"` | Behaviour-preserving restructure across multiple files. Copy-paste consolidation, abstraction extraction, leaky boundary fixup. |
 | `route-intake` | `$wf intake "<feature description>"` | Substantive change with possible behaviour impact, or an architectural problem. New abstraction, API simplification, performance work that crosses tripwires. |
-| `route-amend-plan` | `$wf-meta amend <slug> <slice>` | Plan-scope only. Finding flags an issue in the plan prose; apply the proposed delta via amend. |
-| `route-amend-shape` | `$wf-meta amend <slug>` | Finding implicates the workflow's shaped spec (acceptance criteria, scope). Rare from simplify; arises when a plan-scope finding cascades up. |
+| `route-amend-plan` | `$wf intake <slug> <slice>` | Plan-scope only. Finding flags an issue in the plan prose; add the correction as a new slice. |
+| `route-amend-shape` | `$wf intake <slug> <correction>` | Finding implicates the workflow's shaped spec (acceptance criteria, scope). Rare from simplify; arises when a plan-scope finding cascades up. |
 | `route-verify` | `$wf verify <slug> <slice>` | Missing or inadequate test coverage for the change. Verify re-runs acceptance criteria and may surface deeper gaps. |
 | `route-add-test` | `$wf intake fix "add test for <X>"` | Specific missing test you can add as a one-file fix. |
-| `route-docs` | `$wf-docs <primitive>` or noted for handoff | Doc gap. Handoff's Diátaxis docs-plan handling usually picks this up; explicit route is for standalone doc gaps. |
+| `route-docs` | `$wf docs <primitive>` or noted for handoff | Doc gap. Handoff's Diátaxis docs-plan handling usually picks this up; explicit route is for standalone doc gaps. |
 | `route-handoff-config` | Edit `00-index.md` `public-surface:` / `docs-mirror:` / `review-bots:` keys | Finding flags drift in surfaces handoff's T3.6/T3.7/T5.1 cares about. The fix is project-level config, not code. |
 | `route-noop` | — | Informational; recorded but no action. Some findings are useful to know but not worth acting on. |
 
 ## Classification rules
 
-For each accepted finding, pick the **smallest scope that fully addresses it**. Bias toward `route-fix` over `route-refactor` over `route-intake` — never escalate a finding to a bigger process than it deserves.
+Pick the **smallest scope that fully addresses** each accepted finding. Bias toward `route-fix` over `route-refactor` over `route-intake` — never escalate beyond what the finding deserves.
 
 Tie-breakers:
-- If a finding is mechanical AND ≤1 file → `route-fix`.
-- If a finding spans multiple files AND is behaviour-preserving → `route-refactor`.
-- If a finding could break behaviour or change a public API → `route-intake` (gets a full shape + plan + review).
-- If a finding is plan-scope → `route-amend-plan` is the only correct route (plans are versioned via amend, never via direct edit).
-- If a finding is "this code needs a test" — and the test is straightforward → `route-add-test`. If the gap is deeper → `route-verify`.
+- Mechanical AND ≤1 file → `route-fix`.
+- Spans multiple files AND behaviour-preserving → `route-refactor`.
+- Could break behaviour or change a public API → `route-intake` (full shape + plan + review).
+- Plan-scope → `route-amend-plan` only (plans versioned via amend, never direct edit).
+- "This code needs a test" → `route-add-test` (straightforward) or `route-verify` (deeper gap).
 
 ## What to record per accepted finding
 
@@ -257,7 +266,7 @@ routing-assignments:
 
 ## Plan scope — the proposed-deltas block stays
 
-For `plan` scope specifically: every accepted finding gets `route: route-amend-plan` AND also records a `proposed-delta` block (the actual textual change the user should apply via amend). This is the existing plan-scope contract — kept intact.
+For `plan` scope: every accepted finding gets `route: route-amend-plan` AND records a `proposed-delta` block (the textual change the user applies via amend).
 
 ```yaml
 proposed-deltas:
@@ -273,18 +282,18 @@ proposed-deltas:
 
 ## What you do NOT do
 
-- Do not run `$wf intake fix` yourself. You print the suggested invocation; the user runs it.
+- Do not run `$wf intake fix` yourself — print the invocation; the user runs it.
 - Do not stage or commit anything.
-- Do not edit code files even to "fix" a trivial typo a finding flagged.
-- Do not collapse multiple findings into one route just because they share a file. Each finding is independently classified.
+- Do not edit code files even to fix a trivial typo a finding flagged.
+- Do not collapse multiple findings into one route because they share a file — each is classified independently.
 
 ---
 
 # Step 5 — Write the run artifact + print routing suggestions
 
-Standalone simplify is a **terminal analysis mode** — it roots a `type: workflow-index` slug workflow whose only artifact is the `01-simplify.md` lead. Derive a slug `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), then write **two** files under `.ai/workflows/<slug>/` and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](default.md) Step 10. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render via the retained simplify discovery.)
+Standalone simplify is a **terminal analysis mode** rooting a `type: workflow-index` slug workflow. Derive `simplify-<scope>-<YYYYMMDD>` (append `-2`/`-3` on collision), write **two** files under `.ai/workflows/<slug>/`, and register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](default.md) Step 10. (Legacy off-pipeline `.ai/simplify/<run-id>.md` runs still render.)
 
-First write **`00-index.md` — `type: workflow-index`** (lightweight; analysis modes do not get the heavy 22-field `type: index`):
+First write **`00-index.md` — `type: workflow-index`** (lightweight; not the heavy 22-field `type: index`):
 ```yaml
 ---
 schema: sdlc/v1
@@ -304,7 +313,7 @@ created-at: "<ISO 8601>"
 ---
 ```
 
-Then write **`01-simplify.md` — `type: simplify-run`** (the lead carries a `slug` for the in-slug path; `run-id` stays for continuity):
+Then write **`01-simplify.md` — `type: simplify-run`** (`slug` for the in-slug path; `run-id` stays for continuity):
 
 ```yaml
 ---
@@ -329,7 +338,7 @@ findings-accepted: <N>
 findings-skipped: <N>
 findings-deferred: <N>
 
-# Routing summary — how many findings went to each downstream skill
+# Routing summary — findings per downstream skill
 routing-summary:
   route-fix: <N>
   route-refactor: <N>
@@ -342,13 +351,13 @@ routing-summary:
   route-handoff-config: <N>
   route-noop: <N>
 
-# Per-finding routing assignments (the main deliverable)
+# Per-finding routing assignments
 routing-assignments: []   # populated per Step 4
 
-# For plan scope — proposed deltas accompany route-amend-plan entries
+# plan scope only — proposed deltas accompany route-amend-plan entries
 proposed-deltas: []
 
-# When scope = plan, link back to the workflow
+# plan scope only — link back to the workflow
 refs:
   workflow: <slug>                       # only present for plan scope
   plan-file: 04-plan-<slice>.md          # only present for plan scope
@@ -356,8 +365,11 @@ refs:
 
 # Simplify — <scope> <target> @ <run-id>
 
+## The Triage
+<!-- STORY SECTION — first and self-sufficient. Covers what was produced, load-bearing decisions and counts, top risk. Structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This triage implements…" openings. 1–4 short paragraphs. -->
+
 ## Input
-<one paragraph: what was reviewed, how it was assembled>
+<what was reviewed and how it was assembled>
 
 ## Findings — Reuse
 | ID | Severity | Location | Issue | Suggestion | Triage |
@@ -382,7 +394,7 @@ refs:
 ### route-intake (`$wf intake`)
 ...
 
-### route-amend-plan (`$wf-meta amend ...`)
+### route-amend-plan (`$wf intake <slug> <slice>`)
 ...
 
 ### Other routes
@@ -398,39 +410,35 @@ refs:
 <list of (finding-id, reason)>
 
 ## Recommended next skills
-<a copy-pasteable list of the suggested invocations, sorted by route priority:
- route-intake first (biggest process), then route-refactor, then route-amend-*,
- then route-verify / route-add-test, then route-fix, then route-handoff-config,
- then route-docs>
+<copy-pasteable invocations sorted by priority: route-intake → route-refactor → route-amend-* → route-verify / route-add-test → route-fix → route-handoff-config → route-docs>
 ```
 
-After writing, print the **Recommended next skills** list to chat — that's the user's queue.
+After writing, print the **Recommended next skills** list to chat.
 
 ---
 
 # Resume semantics
 
-Re-running `$wf simplify <scope> <target>` with the same arguments offers to resume the most recent matching run if its `status` is `awaiting-input` (the user stepped away during triage). Resume picks up the accept/skip/defer cycle from the first un-triaged finding.
+Re-running with the same arguments offers to resume the most recent matching run if its `status` is `awaiting-input`. Resume picks up from the first un-triaged finding.
 
-There is no "fixes-pending" state because simplify never applies fixes. The run artifact's `recommended-next` list is the persistent queue — the user works through it across as many sessions as they need by re-reading the artifact. Simplify's own work is done as soon as Step 5 writes.
+There is no "fixes-pending" state — simplify never applies fixes. The `recommended-next` list is the persistent queue; the user works through it across sessions. Simplify's work is done as soon as Step 5 writes.
 
-If a `route-amend-plan` delta has not yet been applied, the simplify artifact reflects the *moment of triage*, not the *current state of the plan*. Re-run simplify on the plan scope to refresh the deltas after the plan changes — the new run gets a new `run-id`.
+If a `route-amend-plan` delta has not yet been applied, the artifact reflects the *moment of triage*, not the current plan state. Re-run on the plan scope to refresh deltas — the new run gets a new `run-id`.
 
 ---
 
 # Chat return contract
 
-After writing the run artifact, return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+Return per [_chat-return.md](_chat-return.md) — narrative lead (what was produced, key decisions and counts, top risk), then this receipt:
 - `scope: <scope>`
 - `target: <target>`
 - `run-id: <run-id>`
 - `wrote: .ai/workflows/<slug>/01-simplify.md + 00-index.md`
 - `findings: <N total>; accepted: <N>; skipped: <N>; deferred: <N>`
 - `routes:` — one-line counts per route (`route-fix: N · route-refactor: N · route-intake: N · ...`)
-- `recommended-next:` — the queue of suggested invocations, ordered by route priority (intake first, fix last). Each is copy-pasteable.
+- `recommended-next:` — copy-pasteable invocations ordered by priority (intake first, fix last).
 
-The user picks which to run. You do not run them yourself.
+The user picks which to run.
 
 ---
 
@@ -445,56 +453,39 @@ This sub-command **adapts** the Codex bundled `simplify` skill but **diverges de
 | Action after findings | **Applies fixes directly** | **Routes findings to downstream skills; never writes code** |
 | Output | Ephemeral chat summary | `.ai/workflows/<slug>/01-simplify.md` artifact (`type: simplify-run`) in a `type: workflow-index` slug workflow |
 
-The divergence on action is intentional: every skill in this plugin operates as an **orchestrator, not a problem-solver**. Plan plans; implement implements; review reviews. Simplify routes. If a finding deserves code action, the user invokes the appropriate downstream skill (`$wf intake fix`, `$wf intake refactor`, `$wf intake`, etc.) — each of which runs its own discipline. That separation keeps the artifact trail clean and prevents simplify from becoming a back-door "I'll just write code" path that bypasses review, verify, or planning.
+The divergence is intentional: every skill in this plugin operates as an **orchestrator, not a problem-solver**. Plan plans; implement implements; review reviews; simplify routes. The user invokes the appropriate downstream skill for code action — each runs its own discipline, keeping the artifact trail clean and preventing simplify from becoming a back-door code-write path that bypasses review, verify, or planning.
 
-The agent rubrics are stable across the two implementations — if the upstream rubric evolves in Codex, update the rubric blocks above to match and bump the plugin's CHANGELOG.
+If the upstream rubric evolves in Codex, update the rubric blocks above to match and bump the CHANGELOG.
 
 ---
 
 ## Additive-write contract — no rewrites; one slug workflow per run
 
-Since the compressed-lifecycle migration (v9.86.0) a standalone `simplify-run`
-**roots its own `type: workflow-index` slug workflow** — each invocation creates
-a fresh `.ai/workflows/<slug>/` (`slug` = `simplify-<scope>-<YYYYMMDD>`) holding
-`01-simplify.md` + `00-index.md`. There is no in-place rewrite scenario:
+Since v9.86.0 a standalone `simplify-run` **roots its own `type: workflow-index` slug workflow** — each invocation creates a fresh `.ai/workflows/<slug>/` (`slug` = `simplify-<scope>-<YYYYMMDD>`) holding `01-simplify.md` + `00-index.md`. No in-place rewrite scenario exists:
 
-1. **Never overwrite an existing slug.** If the derived slug collides, append
-   `-2`/`-3` and retry. Keep `run-id` in the lead frontmatter for continuity.
-2. **Do not carry `revision-count`** in the simplify-run frontmatter. The lead
-   is immutable at write time; subsequent runs author *new* slug workflows.
-3. **Set `regenerable: false`** explicitly. The renderer treats simplify-run
-   artifacts as historical evidence, not view-over-state.
-4. **Cross-run linking is by `refs:`**, not by appending to prior files. If
-   this run was triggered by a finding in an earlier run, the new run's
-   `refs.prior-run` points to the earlier lead. The renderer surfaces this
-   lineage as a backlink, not as a `## Revision <n>` chain.
+1. **Never overwrite an existing slug.** On collision, append `-2`/`-3`. Keep `run-id` in the lead frontmatter.
+2. **Do not carry `revision-count`** in the simplify-run frontmatter. The lead is immutable; subsequent runs author *new* slug workflows.
+3. **Set `regenerable: false`** explicitly — the renderer treats simplify-run artifacts as historical evidence.
+4. **Cross-run linking is by `refs:`**, not by appending to prior files. Set `refs.prior-run` to the earlier lead when this run was triggered by one. The renderer surfaces lineage as a backlink, not a `## Revision <n>` chain.
 
-The renderer emits each in-slug simplify-run at `.ai/_view/<slug>/simplify/INDEX.html`
-(via the `01-simplify` path row). **Legacy** off-pipeline runs at
-`.ai/simplify/<run-id>.md` still render at `.ai/_view/simplify/<run-id>/INDEX.html`
-via the retained simplify discovery — old URLs stay stable.
+The renderer emits each in-slug simplify-run at `.ai/_view/<slug>/simplify/INDEX.html`. **Legacy** off-pipeline runs at `.ai/simplify/<run-id>.md` still render at `.ai/_view/simplify/<run-id>/INDEX.html` — old URLs stay stable.
 
 ---
 
 ## Step — Sibling YAML `simplify-run` (v9.22.0+, Phase 3)
 
-When standalone-mode writes `.ai/workflows/<slug>/01-simplify.md`, write a sibling
-`.ai/workflows/<slug>/01-simplify.yaml` next to it with `artifact: simplify-run`.
-The view-layer renderer projects this YAML as a finding-table page — categorical
-chips (reuse/quality/efficiency) instead of severity, optional code-deltas summary,
-no verdict block. Without this YAML the page falls back to a plain frontmatter card.
-(Legacy off-pipeline runs wrote the sibling at `.ai/simplify/<run-id>.yaml`.)
+When standalone-mode writes `.ai/workflows/<slug>/01-simplify.md`, also write
+`.ai/workflows/<slug>/01-simplify.yaml` with `artifact: simplify-run`. The renderer
+projects this YAML as a finding-table page — categorical chips (reuse/quality/efficiency),
+optional code-deltas summary, no verdict block. Without it the page falls back to a plain
+frontmatter card. (Legacy off-pipeline runs wrote the sibling at `.ai/simplify/<run-id>.yaml`.)
 
 **Required whenever you write the `simplify-run` sibling YAML:** also write the
-sibling `.html.fragment` next to it. First load
-`../../wf/reference/_fragment-authoring.md` and follow
-its wrapper, snippet, and verifier rules. The fragment must stay deterministic
-from the sibling YAML (same YAML → byte-identical HTML) and pass
-`scripts/verify-fragment.mjs` (Check 7) clean.
+sibling `.html.fragment`. Load `../../wf/reference/_fragment-authoring.md` and follow
+its wrapper, snippet, and verifier rules. The fragment must be deterministic from the
+YAML (same YAML → byte-identical HTML) and pass `scripts/verify-fragment.mjs` (Check 7).
 
-This step is **standalone-mode only.** In slug-mode the simplify findings
-are written into a compressed slice (`type: slice`), which renders via
-the slice template and does NOT consume a `simplify-run` sibling YAML.
+**Standalone-mode only.** In slug-mode the findings live in a compressed slice (`type: slice`), which renders via the slice template and does NOT consume a `simplify-run` sibling YAML.
 
 Shape:
 
@@ -534,15 +525,10 @@ deltas:
 ```
 
 Authoring rules:
-- One YAML per `.ai/simplify/<run-id>.md`. The MD's `id` / `category` /
-  `action` per-finding stays the same as the YAML's — the body is a
-  human-readable mirror, the YAML is the structured projection.
-- `deltas[]` is optional. Include it when the run identified concrete
-  file-level changes the downstream skills will likely make. Skip when
-  the findings are advisory rather than transformational.
-- `counts` is the authoritative tally — the renderer reads it directly
-  rather than recomputing from `findings[]`. Keep them in sync.
+- One YAML per `.ai/simplify/<run-id>.md`. Per-finding `id` / `category` / `action` mirrors the MD body.
+- `deltas[]` is optional. Include when the run identified concrete file-level changes downstream skills will make.
+- `counts` is authoritative — renderer reads it directly, not recomputed from `findings[]`. Keep them in sync.
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

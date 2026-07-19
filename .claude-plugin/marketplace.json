@@ -1,39 +1,18 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agent-skills-marketplace",
-  "version": "1.116.0",
+  "version": "1.164.0",
   "description": "A curated collection of Claude Code skills and plugins for developers",
   "owner": {
     "name": "jayte"
   },
   "plugins": [
     {
-      "name": "daily-carry",
-      "description": "Essential daily-use skills: Portainer deployment management and Tech Research Enforcer for verified coding answers",
-      "source": "./plugins/daily-carry",
-      "category": "deployment",
-      "version": "1.2.0"
-    },
-    {
-      "name": "release-automation",
-      "description": "Automated release workflow for any project type with version bumping, changelog generation, documentation sync, and git operations. Supports Node.js, Python, Rust, Go, Java, generic projects, monorepos, and Claude Code plugins.",
-      "source": "./plugins/release-automation",
-      "category": "automation",
-      "version": "2.0.0"
-    },
-    {
-      "name": "daily-tags",
-      "description": "DailyTags plugin",
-      "source": "./plugins/daily-tags",
+      "name": "sdlc-workflow",
+      "description": "One command — `/wf`, the single SDLC entry point — driving a 10-stage lifecycle from intake through retro, with per-slice artifacts, runtime-truth verification, and PO-confirmed stack fingerprinting. 21 keys: the stages, standalone/drivers (design, probe, simplify, auto, yolo), navigation (status, recap), lifecycle (close), and routers (ship-plan, docs, observability). Code review is the `/wf review` key; design is `/wf design`; observability foundation is `/wf observability`; quick/standalone flows are `/wf intake` modes plus the `/wf probe` and `/wf simplify` keys.",
+      "source": "./plugins/sdlc-workflow",
       "category": "productivity",
-      "version": "0.1.0"
-    },
-    {
-      "name": "diataxis",
-      "description": "Documentation writing and review skills based on the Diátaxis framework. Seven skills covering all four documentation quadrants (tutorial, how-to, reference, explanation), plus README landing pages, a doc planner, and a docs reviewer.",
-      "source": "./plugins/diataxis",
-      "category": "documentation",
-      "version": "1.0.0"
+      "version": "9.136.0"
     },
     {
       "name": "hermes-tweet",
@@ -41,13 +20,6 @@
       "source": "./plugins/hermes-tweet",
       "category": "productivity",
       "version": "1.0.0"
-    },
-    {
-      "name": "sdlc-workflow",
-      "description": "Four skill-mode routers (`/wf`, `/wf-meta`, `/wf-docs`, `/review`) driving a 10-stage SDLC lifecycle from intake through retro — with per-slice artifacts, runtime-truth verification, and PO-confirmed stack fingerprinting. Design folds into `/wf design`; quick/standalone flows are `/wf intake` modes plus the `/wf probe` and `/wf simplify` keys.",
-      "source": "./plugins/sdlc-workflow",
-      "category": "productivity",
-      "version": "9.90.0"
     }
   ]
 }

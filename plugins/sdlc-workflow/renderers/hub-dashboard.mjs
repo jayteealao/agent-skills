@@ -91,6 +91,9 @@ export function inboxItems(entries = [], now = Date.now()) {
       if (stale) reasons.push({ key: 'stale', label: `idle ${humanRelative(e.lastRenderedAt, now)}`, tone: 'idle' });
       // Branch liveness (§4.3/§4.4): a still-active workflow whose branch is
       // merged or gone needs closing — surfaced as a fourth attention reason.
+      // 'planned' (declared, implement hasn't cut it yet) is expected and
+      // deliberately NOT a reason: pre-implement workflows would otherwise
+      // sit in the inbox for their whole shaping life.
       const bs = low(sm.branchState);
       if (bs === 'merged') reasons.push({ key: 'merged', label: 'merged', tone: 'ok' });
       else if (bs === 'gone') reasons.push({ key: 'gone', label: 'branch gone', tone: 'idle' });
@@ -300,12 +303,14 @@ function slugLinkHtml(sm, idEnc) {
     </a></li>`;
 }
 
-// Soft liveness badge (D2): merged / branch-gone. Never implies deletion — it's
-// a nudge to close the workflow. `live` / `unknown` render nothing.
+// Soft liveness badge (D2): merged / branch-gone / branch-planned. Never
+// implies deletion — merged/gone nudge toward closing; planned just says the
+// declared branch hasn't been cut yet. `live` / `unknown` render nothing.
 function livenessBadge(sm) {
   const st = low(sm.branchState);
   if (st === 'merged') return '<span class="lq merged">merged</span>';
   if (st === 'gone') return '<span class="lq gone">branch gone</span>';
+  if (st === 'planned') return '<span class="lq planned">branch planned</span>';
   return '';
 }
 
@@ -391,6 +396,7 @@ const STYLE = `
   .lq { font-size:10px; border-radius:999px; padding:1px 7px; margin-left:6px; border:1px solid var(--hair); white-space:nowrap; }
   .lq.merged { color:var(--ok); border-color:var(--ok); }
   .lq.gone { color:var(--idle); border-color:var(--idle); }
+  .lq.planned { color:var(--idle); border-color:var(--hair); }
   /* Narrow screens — the hub is the landing page on phones too; keep the
      inbox rows readable (stack reasons under the slug) and reclaim padding. */
   @media (max-width: 720px) {

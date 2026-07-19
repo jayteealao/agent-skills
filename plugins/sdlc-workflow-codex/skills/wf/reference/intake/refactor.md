@@ -39,7 +39,7 @@ You are a **refactoring orchestrator**. The singular goal is identical external 
    - If the argument matches an existing `.ai/workflows/<slug>/00-index.md` with `workflow-type: refactor` → **resume mode**. Read the index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `rf-*.md` — re-author as the standard set if continuing.)
    - Otherwise → **new refactor**. Derive a slug: `refactor-<short-description>` (kebab-case, max 5 words, e.g., `refactor-auth-service-layer`).
 2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `refactor` → WARN and ask for a different description.
-3. **Branch check:** Refactors SHOULD use a dedicated branch — `AskUserQuestion { options: ["Create dedicated branch", "Use current branch"] }`. If dedicated: `git checkout -b refactor/<slug>` from the current branch.
+3. **Branch check:** Refactors SHOULD use a dedicated branch — ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)), options: `Create dedicated branch (recommended)` / `Use current branch`. If dedicated: `git checkout -b refactor/<slug>` from the current branch.
 4. **Single slice.** The refactor is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). The refactor units are the plan's steps. Downstream stages write **un-suffixed** files.
 
 # Step 1 — Brief → `01-refactor.md` (`type: intake`)
@@ -69,12 +69,12 @@ next-command: wf-shape
 next-invocation: "$wf shape <slug>"
 ---
 ```
-Body: `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
+Body: open with `## The Refactor` — the story section (1–2 short paragraphs in the voice of `../_narrative-voice.md`: relevance first, tradeoffs plain, no "This refactor implements…" opening) — then `## Target` (what), `## Why` (the structural problem), `## Frozen` (must-not-change APIs/behaviors), `## Target Structure`.
 
 # Step 2 — Baseline → `02-shape.md` (the most important step)
 The baseline captures ground truth before any code change — it IS the shape. Launch parallel sub-agents.
 
-**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call — both do bounded inventorying with structured output.
+**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every spawn — both do bounded inventorying with structured output.
 
 ### Explore sub-agent 1 — Code State Snapshot
 Prompt with ALL of: read every target file (line count, exported names, implicit contracts — events emitted, global state, files written); read every caller (grep imports across the repo); document the current **public API surface** (exported signatures with param/return types, class methods, REST routes, component props); note code intentionally NOT changing.
@@ -105,7 +105,7 @@ next-invocation: "$wf slice <slug>"
 ```
 Body (this is the baseline — preserve it richly): `## Public API Surface` (every exported name with signature, exactly as it currently exists — the verify acceptance contract), `## Test Coverage Map` (behavior → test file), `## Coverage Gaps` (uncovered behaviors = refactor risk), `## Baseline Test Result` (pass/fail/skip counts before any change), `## Callers` (count + key sites), `## In Scope` / `## Out of Scope` (the frozen surface).
 
-**If coverage gaps are significant:** `AskUserQuestion` — "Coverage gaps found in: <list>. Refactoring without tests covering these areas is risky. Add tests first?" Options: `Add tests first (recommended)` / `Proceed with gaps noted as risk` / `Abort`.
+**If coverage gaps are significant:** ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) — "Coverage gaps found in: <list>. Refactoring without tests covering these areas is risky. Add tests first?" Options: `Add tests first (recommended)` / `Proceed with gaps noted as risk` / `Abort`.
 
 # Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
 ```yaml
@@ -232,6 +232,6 @@ Next: $wf implement <slug>  →  $wf verify  →  $wf review <slug> refactor-saf
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Never leave canonical results only in chat.
-- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
+- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — get the current UTC time per [_timestamp.md](../_timestamp.md).
 - The baseline in `02-shape.md` is the ground truth. Any deviation at verify is a failure unless it was an explicitly planned API change. Never modify test assertions to make a refactor pass — that destroys the baseline.
 - Review is not skipped — it defaults to the **refactor-safety** rubric. Write each artifact atomically (temp → rename).

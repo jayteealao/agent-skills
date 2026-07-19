@@ -31,6 +31,50 @@ const STAGE_NAV = {
   retro:     { types: ['retro'],                                        dir: 'retro' },
 };
 
+// Intent-Risk (RIM) ledger chip (INTENT-FIDELITY W1.3) — sits beside the status/
+// stage chips. Renders nothing when the ledger is absent (older workflows), so
+// existing pages are byte-stable. Any `status: open` entry dominates as a warning
+// tone (shape should have adjudicated it); otherwise it summarises adjudicated /
+// carried counts. Reuses the same at-a-glance role the deferral pressure has.
+function intentRisksChip(risks) {
+  if (!Array.isArray(risks) || !risks.length) return '';
+  const by = { open: 0, adjudicated: 0, carried: 0 };
+  for (const r of risks) {
+    const s = String(r?.status ?? '').trim().toLowerCase();
+    if (s in by) by[s]++;
+  }
+  const total = by.open + by.adjudicated + by.carried;
+  if (!total) return '';
+  if (by.open > 0) {
+    return `<span class="badge is-warn" title="unadjudicated intent-risks — shape should resolve these">⚠ ${by.open} intent-risk${by.open === 1 ? '' : 's'} open</span>`;
+  }
+  const parts = [];
+  if (by.adjudicated) parts.push(`${by.adjudicated} adjudicated`);
+  if (by.carried) parts.push(`${by.carried} carried`);
+  return `<span class="badge" title="intent-risk (RIM) ledger">⚑ risks · ${escapeHtml(parts.join(' · '))}</span>`;
+}
+
+// Charter chip (INTENT-FIDELITY W8.1) — the intake's positive commitments, beside the RIM
+// chip. Renders nothing when absent (compressed lifecycles carry no charter), so old pages
+// stay byte-stable. A `broken` commitment dominates as a warning; `at-risk` as a caution;
+// else it shows the honored count.
+function charterChip(charter) {
+  if (!Array.isArray(charter) || !charter.length) return '';
+  const by = { honored: 0, 'at-risk': 0, broken: 0 };
+  for (const c of charter) {
+    const s = String(c?.status ?? 'honored').trim().toLowerCase();
+    if (s in by) by[s]++;
+  }
+  const total = charter.length;
+  if (by.broken > 0) {
+    return `<span class="badge is-warn" title="a charter commitment is broken — the build departed from intake">⚑ ${by.broken}/${total} charter broken</span>`;
+  }
+  if (by['at-risk'] > 0) {
+    return `<span class="badge" title="a charter commitment is at risk">⚑ charter · ${by['at-risk']}/${total} at-risk</span>`;
+  }
+  return `<span class="badge" title="intake charter (positive commitments)">⚑ charter · ${total}</span>`;
+}
+
 export function render(artifact, ctx) {
   const fm = artifact.frontmatter ?? {};
   const current = fm['current-stage'] ?? 'intake';
@@ -47,6 +91,8 @@ export function render(artifact, ctx) {
       ${fm.branch ? `<span class="badge">⎇ ${escapeHtml(fm.branch)}</span>` : ''}
       ${statusBadge(fm.status)}
       ${stageBadge(current)}
+      ${intentRisksChip(fm['intent-risks'])}
+      ${charterChip(fm['charter'])}
       ${fm['pr-number'] ? `<span class="meta">PR #${escapeHtml(fm['pr-number'])}</span>` : ''}
       ${fm['updated-at'] ? `<span class="meta">updated ${escapeHtml(fm['updated-at'])}</span>` : ''}
     </aside>

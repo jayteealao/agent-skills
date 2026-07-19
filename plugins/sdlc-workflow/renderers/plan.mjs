@@ -5,7 +5,7 @@
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
 import { callout } from './_icons.mjs';
-import { renderHistoryBlock } from './_history.mjs';
+import { renderHistoryBlock, renderRevisionLedger } from './_history.mjs';
 import { figureCanvas } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
 
@@ -367,17 +367,12 @@ function riskCallouts(risks) {
   }).join('');
 }
 
-// D5.12 — prior revisions disclosure from an explicit revisions list (git
-// history is rendered separately by renderHistoryBlock).
+// D5.12 — prior revisions disclosure from the explicit `revisions:` ledger
+// (git-snapshot history is rendered separately by renderHistoryBlock). Delegates
+// to the shared ledger renderer so every artifact type renders revisions
+// identically (trigger + reason timeline).
 function revisionsBlock(fm, sy) {
-  const revs = sy?.revisions ?? fm.revisions;
-  if (!Array.isArray(revs) || !revs.length) return '';
-  const items = revs.map((r) => {
-    const when = typeof r === 'object' ? (r.when ?? r.at ?? '') : '';
-    const what = typeof r === 'object' ? (r.summary ?? r.note ?? r.what ?? '') : String(r);
-    return `<li>${when ? `<span class="when">${escapeHtml(when)}</span> ` : ''}${escapeHtml(what)}</li>`;
-  }).join('');
-  return `<details class="revisions"><summary>Prior revisions (${revs.length})</summary><ol>${items}</ol></details>`;
+  return renderRevisionLedger(fm, sy);
 }
 
 // D5.1 — placeholder topology shown when no sibling YAML declares files.

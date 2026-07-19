@@ -25,6 +25,20 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Next | `$wf plan <slug>` (default — non-trivial fixes), `$wf intake fix <slug>` (small fixes), `$wf intake hotfix <slug>` (active production incidents). The artifact recommends one based on the diagnosis. |
 | Escalate | If root cause is genuinely uncertain (confidence: low) AND blast radius is high → surface `human triage required` and stop without recommending a routing path. |
 
+> **Auto second opinion (diagnosis).** Once the root-cause hypothesis is written
+> (before the terminus recommendation), **auto-invoke** `$consult codex <is this
+> root-cause sound? what else could explain the symptom?>` (pin `codex`/`claude`)
+> unless the cause is already proven — a read-only panel whose repo-aware oracles
+> check the hypothesis against the real code before you commit to a fix.
+
+> **Read the real source (diagnosis).** When the symptom trail leads *out of the
+> repo* — a stack frame inside `node_modules`/`site-packages`/a cached JAR, an error
+> string absent from the tree, version-specific behavior — invoke the `study-sources`
+> skill to read that dependency/framework/SDK's **actual installed source** before
+> settling on a hypothesis. A root cause grounded in the real implementation beats one
+> grounded in recalled API behavior, which is exactly where plausible-but-wrong RCAs
+> come from. Reads land in gitignored `.scratch/` — no repo mutation, no fix.
+
 # CRITICAL — investigation discipline
 You are a **diagnostician**, not a fixer.
 - The **only** acceptable output is the RCA artifact, the synthesized shape, and the index. Do NOT edit application code. Do NOT propose a patch. Do NOT run code that would mutate state (DB writes, deployments, git commits).
@@ -37,7 +51,7 @@ You are a **diagnostician**, not a fixer.
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: rca` → **resume mode**. Read that index. If `01-rca.md` is complete, the user likely meant to run the recommended next skill — tell them and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new RCA**. Derive a slug: `rca-<short-symptom>` (kebab-case, max 5 words, e.g., `rca-checkout-double-charge`). This is an ordinary `.ai/workflows/<slug>/` directory — there is no synthetic `__rca__` slug. The renderer discovers it via the standard workflow walk and projects `01-rca.md` through the `01-rca` → rca route, so no special-casing is needed in the view layer.
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `rca` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf-meta resume <slug>` to continue the existing workflow." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `rca` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf recap <slug>` to review the existing workflow." Stop.
 3. **Branch posture (do NOT switch branches):**
    - Investigation is read-only — do not create or switch branches.
    - Record the current branch in the index as `branch` and `base-branch` so the eventual fix workflow knows where the diagnosis was performed.
@@ -58,7 +72,7 @@ If the user provided a stack trace or error message in `$ARGUMENTS`, treat it as
 Do NOT write the artifact yet. Hold the answers in working memory and proceed to Step 2.
 
 # Step 2 — Parallel root-cause investigation
-Launch parallel sub-agents to identify the root cause. Do not proceed to synthesis until all complete. Work sequentially unless the user explicitly requested parallel execution.
+Launch parallel read-only `explorer` sub-agents per [_subagents.md](../_subagents.md) to identify the root cause. Do not proceed to synthesis until all complete.
 
 ### Explore sub-agent 1 — Code path investigation
 
@@ -119,11 +133,14 @@ root-cause-confidence: <high|medium|low>
 blast-radius: <low|medium|high|skipped>
 recommended-next: <$wf plan|$wf intake fix|$wf intake hotfix|human-triage>
 status: ready-for-fix-routing
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
 **Body sections (in order):**
+
+## The RCA
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This RCA implements…" openings. 1–4 short paragraphs. -->
 
 ## 1. Symptom
 
@@ -442,10 +459,10 @@ Authoring rules:
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # What this skill is NOT
 
 - **Not a fixer** — `wf-rca` produces an RCA artifact and a routing recommendation. It does not edit application code. It does not run mutating commands. It does not commit, push, or open a PR.
-- **Not a hotfix** — `$wf-hotfix` is what you run *after* `wf-rca` recommends it. `wf-rca` decides whether the situation warrants the hotfix path.
-- **Not a how/explain** — `$wf-docs how` is for explaining existing code or artifacts on demand. `wf-rca` is for *finding* a cause that is not yet explained.
+- **Not a hotfix** — `$wf intake hotfix` is what you run *after* `wf-rca` recommends it. `wf-rca` decides whether the situation warrants the hotfix path.
+- **Not a how/explain** — `$wf recap <slug> <focus>` or `$deep-research` is for explaining existing code or artifacts on demand. `wf-rca` is for *finding* a cause that is not yet explained.

@@ -59,12 +59,19 @@ async function main() {
   // Register the repo so the hub drains its queue. Best-effort + idempotent; it
   // POSTs to a live hub (→ live entries, drained on the next reconcile tick) or
   // drops a registry.d/ shard the hub folds in at its startup catch-up.
-  try { await upsertRegistryEntry({ projectRoot, viewDir }); } catch { /* never throws to the caller anyway */ }
+  // A skipped-not-git result is surfaced through .status.json's lastError (it
+  // outranks 'hub unreachable' — it's the more actionable failure): the hub can
+  // be perfectly healthy and still never drain an unregisterable repo.
+  let registerError = null;
+  try {
+    const r = await upsertRegistryEntry({ projectRoot, viewDir });
+    if (r?.action === 'skipped-not-git') registerError = 'not a git repo — run git init to register with the hub';
+  } catch { /* never throws to the caller anyway */ }
 
   try {
     writeStatus(viewDir, {
       pendingCount: countPending(viewDir),
-      lastError: hubUp || skipEnsure ? null : 'hub unreachable',
+      lastError: registerError ?? (hubUp || skipEnsure ? null : 'hub unreachable'),
       hubLastSeenAt: hubUp ? new Date().toISOString() : null,
     });
   } catch { /* best-effort */ }

@@ -1,6 +1,0 @@
-interface:
-  display_name: "Setup Wide-Event Logging"
-  short_description: "Implement wide-event logging with tail sampling — auto-detects Express/Koa/Fastify/Next.js and Pino/Winston/Bunyan"
-  default_prompt: "Set up wide-event logging with tail sampling for this Node.js project"
-policy:
-  allow_implicit_invocation: true

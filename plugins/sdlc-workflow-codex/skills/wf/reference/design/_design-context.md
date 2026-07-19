@@ -7,6 +7,14 @@ design knowledge — `slice`, `plan`, `implement`, `verify`, `review` — each p
 slice relevant to its job, gated behind `stack.ui ≠ ∅`. Edit the laws, bans, and register
 rules in exactly one place: here.
 
+**Consumer contract** — each lifecycle stage loads only its slice; this asymmetry is intentional, not drift:
+- `slice` — Register + Absolute bans (structures against the floor; never redesigns).
+- `plan` / `implement` — Register + shared design laws + Absolute bans + the Motion & interface-detail summary below, **then** the specific craft home (`animate.md` / `polish.md` / `typeset.md`) for what the feature touches.
+- `verify` — Accessibility law + Absolute bans (measures the floor).
+- `review` — Absolute bans (audits against the same canon).
+
+The `$wf design` dispatcher loads the whole file (preflight, image gate, mutation lock included); lifecycle stages never touch those command-only sections.
+
 > Load with: `design/_design-context.md`
 
 ---
@@ -71,6 +79,12 @@ Never converge on the same choices across projects. Vary.
 - Focus rings visible, meeting 3:1 contrast ratio against adjacent background.
 - Color is never the only indicator for any state.
 
+### Motion & interface detail
+- Motion craft lives in `animate.md`: the frequency framework (match motion to how often it's seen; never animate keyboard / 100+-per-day actions), strong custom easing (never `ease-in` on an entrance), sub-300ms product UI, origin-aware popovers, never `scale(0)`, interruptible transitions/springs, GPU-only (`transform`/`opacity`), `bounce: 0` for product.
+- Interface-detail craft lives in `polish.md`: concentric radius (`outer = inner + padding`), optical alignment, shadows-over-borders for elevation, pure-black/white image outlines, ≥40–44px hit areas.
+- These two files are the single source of truth for craft — the summary above is a pointer, not the canon itself. `plan`, `implement`, and every design transform that touches motion or component detail MUST load the relevant home (`animate.md` / `polish.md`) for the full rules before deciding; the visual contract (`02c-craft.md`, authored at `plan`) draws from them too.
+- Building a *reusable* component (a design-system primitive or library, not a one-off screen)? See `_component-craft.md` — DX-first API, excellent defaults, memorable naming, a touchable example.
+
 ## Absolute bans (both registers)
 
 - `border-left` or `border-right` > 1px as a decorative colored accent stripe — use full hairline border, background tint, or leading glyph instead.
@@ -86,19 +100,24 @@ Never converge on the same choices across projects. Vary.
 ## Image gate (mutation lock)
 
 `image_gate` is the lock that prevents code mutation before visual direction is confirmed.
-It lives in the design artifact frontmatter and is resolved by the **producer** (`$wf design`)
-at its brief or contract step (both part of the `craft` Producer).
+It lives in the design artifact frontmatter as `image-gate` (values `pass` or `skipped:<reason>`
+only — an *unwritten* gate is the "pending" state; there is no `pending` value). `shape` authors
+the brief (`02b-design.md`) leaving `image-gate` unset; **`plan` resolves it** when it authors the
+visual contract (`02c-craft.md`, following `design/contract.md`) — generating the north-star probes
+and confirming direction, then writing the resolved `image-gate`. A standalone transform resolves
+it in its own focused-contract step.
 
 - `image_gate=pending` — **blocks all code mutation.** Visual direction is not yet confirmed.
-- `image_gate=pass` — required visual probes were generated via the `imagegen` skill; visual
+- `image_gate=pass` — required visual probes were generated via the `imagery` skill; visual
   direction is confirmed and code mutation may open.
-- `image_gate=skipped:<reason>` — direction confirmed without imagegen, with a recorded reason.
+- `image_gate=skipped:<reason>` — direction confirmed without an image probe, with a recorded reason.
   An empty or generic reason is **INVALID** — name *why* no probe was needed (e.g.
   "text-only fallback: no image backend available", "token-only transform, no new surface").
 
-The `imagegen` skill (`the imagegen skill`) is invoked internally
-and resolves the best available image backend at runtime; the caller records the result and
-sets the gate.
+The `imagery` skill is invoked internally and fans out to the best available image
+backends at runtime (built-in `image_gen` always; the gpt-image-2 / nano-banana API
+backends when `externalDispatch.enabled`); the caller records the `IMAGEGEN_RESULT`
+and sets the gate. (Supersedes the former `imagegen` skill, D14.)
 
 ## Preflight gates (run before any design work that edits files)
 
@@ -109,8 +128,8 @@ Skipping these produces generic output that ignores the project.
 | Context | PRODUCT.md exists and is valid (≥200 chars, no `[TODO]` markers) | If the command is `setup` or `teach` → proceed (these create/update PRODUCT.md). Otherwise STOP: *"Design context is missing. Run `$wf design setup` to create PRODUCT.md first."* |
 | Register | `brand` or `product` is determined for this task | Read PRODUCT.md `## Register`; infer from task cue if missing. Suggest `$wf design teach` to add it explicitly. |
 | Codebase | Codebase inspection sub-agents have run | Run the 4 parallel inspection sub-agents (below). Skip if their output is already in this session, or reuse the `stack` fingerprint from `00-index.md` where possible. |
-| Brief | For `craft` only: design brief authored and explicitly confirmed by the user | `craft` authors the brief inline as its first step (`craft.md` Step 0, following `shape.md`); confirm it before the contract. There is no separate `shape` command. |
-| Image gate | Required visual probes generated, or skipped with a recorded reason | Resolve in the brief or contract step before proceeding to code. |
+| Brief | Design brief `02b-design.md` authored (at `shape`, following `design/shape.md`) and its direction confirmed by the user at contract time | The brief is authored by the `shape` lifecycle stage; `plan` confirms its direction (`shape=pass`) before writing the contract (`design/contract.md`). A standalone transform, having no full brief, confirms only its focused contract's direction. |
+| Image gate | Required visual probes generated, or skipped with a recorded reason | Resolve at the contract step (`plan`, or a transform's focused contract) before proceeding to code. |
 | Mutation | All gates above pass; mutation type matches the command | Do not edit project files until mutation is open. |
 
 **Codebase gate is relaxed for**: `audit`, `critique`, `extract`, `setup`, `teach` — these are read-only or context-authoring.
@@ -128,8 +147,8 @@ fingerprint from `00-index.md` for framework/library facts where it already answ
 
 ## Mutation types
 
-- **Code** — transformation commands + freestanding `craft`/build span. Requires `image_gate` resolved AND the stage's build gate.
-- **Artifact** — workflow-context `craft` (writes `02c-craft.md`), `audit`, `critique`. No code touched.
+- **Code** — transformation commands + the lifecycle build span (`implement`). Requires `image_gate` resolved AND the stage's build gate.
+- **Artifact** — contract authoring at `plan` (writes `02c-craft.md`) or a transform's focused contract, plus `audit`, `critique`. No code touched.
 - **Context** — `setup`, `teach`. PRODUCT.md / DESIGN.md only; allowed unconditionally.
 - **Read-only** — `extract`. Produces a report; no project files modified.
 

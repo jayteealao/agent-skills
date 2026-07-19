@@ -4,11 +4,12 @@ argument-hint: <slug> [focus area]
 ---
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
+
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `wf-shape`, **stage 2 of 10** in the SDLC lifecycle.
 
@@ -18,216 +19,370 @@ You are running `wf-shape`, **stage 2 of 10** in the SDLC lifecycle.
 | | Detail |
 |---|---|
 | Requires | `01-intake.md` |
-| Produces | `02-shape.md` |
+| Produces | `02-shape.md` + (when `stack.ui ≠ ∅` and the work has visual surface) `02b-design.md` — the **design brief** |
 | Next | `/wf slice <slug>` (default) |
 | Skip-to | `/wf plan <slug>` if the shaped spec is a single coherent unit that does not benefit from slicing |
 
+> **Design brief ownership (moved here).** When the work has UI surface, `02b-design.md` is authored *here*, as part of shape — not by a separate design command. `plan` later resolves the visual-direction gates and authors `02c-craft.md`; `implement` builds against it. See Step 5a below.
+
+> **Auto second opinion.** Once the mini-spec is drafted (before writing `02-shape.md`), **auto-invoke** `/consult codex <critique these acceptance criteria, edge cases, and scope>` (pinning `codex`/`claude` keeps it free) whenever a spec error would be expensive to unwind downstream: a new capability or externally-observable surface, more than one slice, or any `intent-risk` (RIM) carried in from intake. Fire it rather than offering it in next-steps; skip only a single-slice, internal, low-risk tweak. The user may invoke it explicitly with any provider.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
-- Do NOT start designing, architecting, implementing, or coding the solution.
-- Do NOT jump ahead to slicing, planning, or implementation.
+- Do NOT design, architect, implement, or code the solution.
 - Your job is to produce a **mini-spec with acceptance criteria** — not to build anything.
 - Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
-- If you catch yourself about to start solving the problem, STOP and return to the next unfinished workflow step.
+- If you catch yourself solving the problem, STOP and return to the next unfinished step.
+
+# Workflow rules (standing — these are not sequenced steps)
+- Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter; the markdown body is human-readable narrative only.
+- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Never guess or use `T00:00:00Z`.
+- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
+- Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
+- `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
+- **Use AskUserQuestion** for multiple-choice PO questions (risk tolerance, appetite, structured decisions). Use freeform chat for open-ended questions (behavior, acceptance criteria, non-goals). Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
+- Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
+- Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
+- Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`.
+1. **Resolve the slug** from `$ARGUMENTS`. If none, infer from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, `appetite`.
 3. **Check prerequisites:**
-   - `01-intake.md` must exist. If missing → STOP. Tell the user: "Run `/wf intake` first."
-   - If `01-intake.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve the open intake questions first.
-   - If `current-stage` in the index is already past shape → WARN: "Stage 2 (shape) has already been completed. Running it again will overwrite `02-shape.md`. Proceed?" Use AskUserQuestion if available, otherwise ask in chat.
-4. **Read** `01-intake.md` and `po-answers.md`.
-5. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
+   - `01-intake.md` must exist. If missing → STOP: "Run `/wf intake` first."
+   - If `01-intake.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve open intake questions first.
+   - If `current-stage` is already past shape → WARN: "Stage 2 (shape) is complete. Running again will overwrite `02-shape.md`. Proceed?" Use AskUserQuestion if available, otherwise ask in chat.
+4. Read `01-intake.md` and `po-answers.md`.
+5. Carry forward `selected-slice-or-focus` and `open-questions` from the index.
 
-# Parallel research
-Always launch Explore sub-agent 1 and Explore sub-agent 2. Launch additional sub-agents for cross-domain work.
+# Step 1 — Launch research agents (MANDATORY — launch before the interview so results are back by Step 3)
 
-**Sub-agent 2 (web search) skip criteria — skip ONLY if ALL of the following are true:**
-- The feature introduces zero new external dependencies
-- The feature makes no changes to existing dependency usage (no new API surface, no version changes)
-- The affected area is not security-sensitive (auth, tokens, crypto, CORS, CSP, input sanitization)
-- No browser/platform APIs involved (Web APIs, mobile OS APIs, CSS features)
-- No external API integrations (no REST, GraphQL, OAuth, webhooks, third-party SDKs)
+**Sub-agent 1 (codebase) launches ALWAYS.** **Sub-agent 2 (web search) launches unless ALL of the
+following skip criteria hold** — this is the single place the skip criteria are stated:
+- Zero new external dependencies; no new API surface, no version changes
+- Not security-sensitive (auth, tokens, crypto, CORS, CSP, input sanitization)
+- No browser/platform APIs (Web APIs, mobile OS APIs, CSS features)
+- No external API integrations (REST, GraphQL, OAuth, webhooks, third-party SDKs)
 
-**When in doubt: always launch sub-agent 2.** Web search is fast and frequently surfaces breaking changes, CVEs, and better patterns that change the spec before implementation begins.
+**When in doubt: launch sub-agent 2.** Web search is fast and frequently surfaces breaking changes,
+CVEs, and better patterns before implementation begins. Add more agents for cross-domain work.
 
 ### Explore sub-agent 1 — Codebase Architecture & Integration Surface
 
-Prompt the agent with ALL of the following. It must report findings for each section:
+Prompt the agent with ALL of the following; it must report findings for each section:
+
+**Start from intake's map — do not re-derive.** If `01-intake.md` carries an `## Affected Areas
+(preliminary)` section (intake's bounded Explore pass), open the sub-agent prompt with it verbatim
+and the instruction: *"Start from this preliminary map; verify and deepen it — do not re-derive
+what it already establishes."*
 
 **Directory & module structure:**
 - Map the top-level directory structure and identify the organizational pattern (monorepo, feature folders, layer-based, domain-driven)
-- Identify the entry points (main/index/app/server files) and trace how the request reaches the area this work will touch
-- List the key modules/packages/namespaces involved and their public API surfaces (exports, exposed functions, classes, types)
+- Identify entry points (main/index/app/server files) and trace how the request reaches the area this work will touch
+- List key modules/packages/namespaces and their public API surfaces (exports, exposed functions, classes, types)
 
 **Existing patterns & conventions:**
-- Identify naming conventions (files, functions, variables, CSS classes, DB columns) — look at 3-5 representative files in the affected area
-- Identify error handling patterns (try/catch style, Result types, error middleware, custom error classes)
-- Identify dependency injection or service location patterns (constructors, providers, containers, global singletons)
-- Identify configuration patterns (env vars, config files, feature flags, secrets management)
-- Identify logging/observability patterns (structured logging, log levels, tracing, metrics)
+- Naming conventions (files, functions, variables, CSS classes, DB columns) — look at 3-5 representative files in the affected area
+- Error handling patterns (try/catch style, Result types, error middleware, custom error classes)
+- Dependency injection or service location patterns (constructors, providers, containers, global singletons)
+- Configuration patterns (env vars, config files, feature flags, secrets management)
+- Logging/observability patterns (structured logging, log levels, tracing, metrics)
 
 **Integration surfaces:**
-- What code **calls into** the affected area? (callers, consumers, dependents — use grep for imports/requires of affected modules)
-- What does the affected area **call out to**? (downstream dependencies, external services, databases, message queues, caches)
+- What code **calls into** the affected area? (callers, consumers — grep imports/requires of affected modules)
+- What does the affected area **call out to**? (external services, databases, message queues, caches)
 - What events, hooks, callbacks, or pub/sub channels does the affected area participate in?
 - What middleware, interceptors, or decorators wrap the affected code path?
 
 **Data flow:**
 - Trace the primary data flow: input source → validation → transformation → persistence → response
-- Identify data models/schemas/types involved (DB schemas, API request/response types, domain models)
-- Identify serialization boundaries (JSON parse/stringify, protobuf, ORM hydration)
+- Data models/schemas/types involved (DB schemas, API request/response types, domain models)
+- Serialization boundaries (JSON parse/stringify, protobuf, ORM hydration)
 
 **Test structure:**
-- What test framework is in use? (Jest, Vitest, pytest, Go testing, etc.)
-- Where do tests live relative to source? (co-located `__tests__/`, centralized `tests/`, `*_test.go` beside source)
-- What test helpers, factories, fixtures, and mocks exist? (list file paths)
-- What is the testing convention? (unit per module? integration per feature? E2E per user flow?)
-- What areas have thin or missing test coverage relevant to this work?
+- Test framework in use (Jest, Vitest, pytest, Go testing, etc.)
+- Where tests live relative to source (`__tests__/`, centralized `tests/`, `*_test.go`, etc.)
+- Test helpers, factories, fixtures, and mocks — list file paths
+- Testing convention (unit per module? integration per feature? E2E per user flow?)
+- Areas with thin or missing coverage relevant to this work
 
-**Interactive & visual verification tooling:**
+**Interactive & visual verification tooling (REPORTING ONLY — the PO question belongs to the orchestrator, Step 3):**
 
-Drive this block from the `stack:` fingerprint in `00-index.md` (written by intake Step 0.5 and confirmed in Batch B) and the runtime-adapter registry at [runtime-adapters.md](runtime-adapters.md). The job is to **describe what's available and let the PO pick**, not to default to one tool. Stay descriptive.
+Drive this block from the `stack:` fingerprint in `00-index.md` and [runtime-adapters.md](runtime-adapters.md). The sub-agent's job is to **report what's available** — adapters, drivers, candidates with fit rationale. It does NOT pick a tool and it does NOT ask the PO anything (sub-agents cannot reach the PO; the orchestrator relays in Step 3).
 
-1. **Re-read `stack:`** from `00-index.md`. If the block is missing or `user-confirmed: false`, note it as an open question and propose re-running intake; do NOT silently re-detect.
-2. **Match `stack.platforms` to runtime adapters.** For each platform present, surface the matched adapter (web, android, ios, cli, desktop, service, notebook) and its detected drivers — already-installed ones first, additions-to-install last. Examples (do **not** treat as exhaustive; the adapter registry is the source of truth):
-   - `platforms: [web]` → existing in-repo Playwright/Cypress > Chrome MCP if session-available > `dev-browser` if installed > propose `dev-browser` install only if the PO wants a richer interactive driver
-   - `platforms: [android]` → in-repo Maestro flows > adb input > Espresso/UI Automator if configured. Cross-reference companion session skills from `stack.available-skills` (e.g., `android-cli`, `lazylogcat`, `perfetto-trace-analysis`, `adaptive`) and list them as opt-in helpers.
-   - `platforms: [ios]` → existing XCUITest / Detox > Maestro (1.30+ supports iOS) > simctl fallbacks
-   - `platforms: [service]` → existing integration test suites > curl/httpie ad-hoc drives
-3. **Cross-reference the session catalog.** From `stack.available-skills` and `stack.available-mcp`, list anything that maps to this task (e.g., a Compose UI change → `adaptive`, `migrate-xml-views-to-jetpack-compose`, `styles`; a Postgres change → `postgresql-mcp`; a docs deliverable → `diataxis`). Present them as **candidates** with a one-line "why this fits," not selections.
+1. **Re-read `stack:`** from `00-index.md`. If missing or `user-confirmed: false`, note it as an open question and propose re-running intake; do NOT silently re-detect.
+2. **Match `stack.platforms` to runtime adapters.** Report each matched adapter and detected drivers — installed ones first, additions-to-install last. Examples (adapter registry is the source of truth):
+   - `platforms: [web]` → in-repo Playwright/Cypress > Chrome MCP if session-available > `dev-browser` if installed
+   - `platforms: [android]` → in-repo Maestro flows > adb input > Espresso/UI Automator. Cross-reference `stack.available-skills` (e.g., `android-cli`, `lazylogcat`, `perfetto-trace-analysis`, `adaptive`) as opt-in helpers.
+   - `platforms: [ios]` → XCUITest/Detox > Maestro (1.30+) > simctl fallbacks
+   - `platforms: [service]` → existing integration test suites > curl/httpie ad-hoc
+3. **Cross-reference the session catalog.** From `stack.available-skills` and `stack.available-mcp`, list anything mapping to this task (e.g., Compose UI → `adaptive`, `migrate-xml-views-to-jetpack-compose`, `styles`; Postgres → `postgresql-mcp`; docs → `diataxis`). Report as **candidates** with a one-line "why this fits," not selections.
 4. **What's already wired in.** Note dev servers, emulator AVDs, simulator configs, screenshot/regression tools (Percy, Chromatic, `adb shell screencap`), and manual smoke scripts under `docs/`, `scripts/`, `testing/`, `QA/`.
-5. **Surface a tooling question for the PO.** End the section by recording a single concrete question for `02-shape.md` along the lines of: *"For verification, the available drivers are A, B, C. Companion skills that look relevant: X, Y. Any preference, or any of these off-limits?"* Capture the answer in `po-answers.md`. The shaped spec's acceptance criteria must reference *whatever the PO chose* — not a baked-in default.
-
-Anti-pattern to avoid: writing "use dev-browser" or "use Maestro" into the spec because the workflow defaults there. The workflow's job is to map the design space; the PO picks the point in it.
 
 ### Explore sub-agent 2 — External Dependencies & Freshness
 
 Prompt the agent with ALL of the following:
 
+**Start from intake's freshness pass — verify and extend, do not repeat.** If `01-intake.md`
+carries `## Freshness Research` entries, open the sub-agent prompt with their takeaways verbatim
+and the instruction: *"These are intake's freshness findings; verify they still hold and extend
+into what they did not cover — do not re-research what they already establish."*
+
 **Dependency versions & compatibility:**
-- Check the project's package manifest (package.json, requirements.txt, go.mod, Cargo.toml, etc.) for the versions of dependencies this work touches
-- Web search for the **latest stable version** of each relevant dependency — note if the project is behind and whether upgrading is needed or risky
+- Check the package manifest (package.json, requirements.txt, go.mod, Cargo.toml, etc.) for versions of dependencies this work touches
+- Web search for the **latest stable version** of each — note if the project is behind and whether upgrading is needed or risky
 - Check for **deprecation notices** or **breaking changes** between the project's version and the latest
 
 **Library documentation & patterns:**
-- Web search for the official documentation of each dependency/API this work interacts with
-- Verify that the patterns currently used in the codebase match the library's **recommended approach** for the project's version
-- Check for **migration guides** if the work involves upgrading or if the current version is approaching EOL
+- Web search official documentation for each dependency/API this work interacts with
+- Verify patterns in the codebase match the library's **recommended approach** for the project's version
+- Check for **migration guides** if the work involves upgrading or the current version is approaching EOL
 
 **Security advisories:**
 - Web search for recent CVEs or security advisories affecting the dependencies this work touches
-- Check GitHub issues/security advisories for the relevant repositories
+- Check GitHub security advisories for relevant repositories
 - Note any advisories that affect the approach or require specific mitigations
 
 **Ecosystem context:**
-- Check GitHub issues and PRs on the relevant dependency repos for known bugs that could affect this work
-- Check if there are community-recommended alternatives or complementary libraries that the shaped spec should consider
+- Check GitHub issues and PRs on relevant dependency repos for known bugs that could affect this work
+- Check for community-recommended alternatives or complementary libraries the shaped spec should consider
 - Search for relevant blog posts, release announcements, or RFC documents that affect architectural decisions
 
 **Implementation best practices:**
-- Web search for established patterns and community consensus on how to implement this type of feature correctly — look at official guides, framework docs, and opinionated style guides
-- Search for known anti-patterns and common mistakes for this kind of feature — especially on official docs, web.dev, engineering blogs, and dev community posts (dev.to, css-tricks, Stack Overflow)
+- Web search for established patterns and community consensus on implementing this feature type — official guides, framework docs, opinionated style guides
+- Search for known anti-patterns and common mistakes — official docs, web.dev, engineering blogs, dev community posts (dev.to, css-tricks, Stack Overflow)
 - Note any RFCs, W3C specs, platform guidelines, or accessibility standards that prescribe behavior for this feature type
-- Identify whether the approach the shaped spec is heading toward is considered idiomatic, legacy, or controversial in the current ecosystem
+- Identify whether the approach is considered idiomatic, legacy, or controversial in the current ecosystem
 
 **Known gotchas & performance pitfalls:**
-- Web search for common performance traps specific to this feature type (e.g., unnecessary re-renders, N+1 queries, layout thrash, bundle size impact, memory leaks, cold-start latency)
-- Search for community "lessons learned", "what I wish I knew", or postmortems involving this kind of feature — these surface the non-obvious failure modes
-- Note any known limitations, quirks, or required workarounds the spec should explicitly account for before acceptance criteria are written
+- Web search for common performance traps for this feature type (unnecessary re-renders, N+1 queries, layout thrash, bundle size, memory leaks, cold-start latency)
+- Search for community "lessons learned", "what I wish I knew", or postmortems — these surface non-obvious failure modes
+- Note known limitations, quirks, or required workarounds the spec should account for before acceptance criteria are written
 
-Merge all sub-agent findings into the stage file under `## Affected Areas`, `## Dependencies / Sequencing Notes`, and `## Freshness Research`. Best practices and gotcha findings should directly inform acceptance criteria and edge cases in the spec — surface them to the synthesizer.
+Merge all sub-agent findings into the stage file under `## Affected Areas`, `## Dependencies / Sequencing Notes`, and `## Freshness Research`. Best practices and gotcha findings must directly inform acceptance criteria and edge cases — surface them to the synthesizer.
 
-# Purpose
-Turn the intake brief into a compact implementable mini-spec with explicit acceptance criteria and edge cases.
+# Step 2 — Discovery interview (MANDATORY — ambiguity inventory first, then the rounds)
 
-# Workflow rules
-- Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
-- If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
-- Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
-- `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Use AskUserQuestion** for multiple-choice PO questions (risk tolerance, appetite, structured decisions). Use freeform chat for open-ended questions (behavior, acceptance criteria, non-goals). Append every answer to `po-answers.md` with timestamp and stage.
-- Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel Explore/subagents for multi-domain research. Do not spin up subagents for trivial work.
-- Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
+Before writing the mini-spec, interview the user to surface decisions, assumptions, and unknowns
+the intake brief left ambiguous: **20 baseline questions — a floor, not a ceiling** — extended
+while unresolved decision points remain (see the extension rule below). The interview exists to be
+**properly exhaustive of the ambiguity space**: every ambiguity or un-spelled-out piece of context
+gets its chance to be fully clarified here, where clarification is cheapest.
+
+## Step 2.1 — Author the Ambiguity Inventory (before Round 1)
+
+Harvest every ambiguity, unstated assumption, and unclear-context item from `01-intake.md`,
+`po-answers.md`, intake's `## Affected Areas (preliminary)` (if present), and any research findings
+already returned. Write them into the artifact-in-progress as `## Ambiguity Inventory` — one line
+per item, each with a stable id and a source pointer:
+
+```
+- **AMB-1** — <one-line ambiguity or assumption statement> — source: 01-intake.md#<section>
+- **AMB-2** — ...
+```
+
+The inventory is the interview's coverage instrument. It is a living list: add entries as later
+rounds or late-arriving research surface new ambiguities.
+
+## Step 2.2 — Interview rules
+
+- Ask 20 baseline questions across 5 rounds of 4 using AskUserQuestion. 20 is a floor, not a ceiling — after Round 5, apply the extension rule below.
+- **Question accountability:** every question names (in the artifact's `## Questions Asked This Stage` record) the `AMB-n` item(s) it closes or confirms. **Assumption-confirmation questions are first-class closers** — pre-fill your understanding and ask the PO to confirm or revise; a confirmed assumption closes its inventory item.
+- When genuine open ambiguities are fewer than the remaining budget, spend the remaining questions confirming assumptions and probing the consequences of earlier answers ("you chose X in Round 2 — that implies Y in the empty state; confirm?") — **never invented decoys**. Padding = a question that closes or confirms no inventory item; the floor is satisfied by closing and confirming, not inventing.
+- Every question must be about *this specific feature* — reference it by name, use concrete details from the intake brief. No generic process questions.
+- Questions must be impartial — options should represent genuinely different directions, not a "right answer" with decoys.
+- Options should be feature-specific where possible; fall back to general options only when the context doesn't suggest concrete alternatives.
+- If a question was already answered in intake, pre-fill your understanding and ask the user to confirm or revise.
+- Wait for each round's answers before generating the next — later questions should build on earlier answers.
+
+## Step 2.3 — The rounds
+
+Round 1 — **What does the feature do?** Core interaction: what action the user takes, what they provide as input, what they get back, and what triggers them to use it.
+
+Round 2 — **How does the feature behave?** Dynamics: what happens after the main action, whether it's reversible, timing model (sync/async/real-time), how it connects to other parts of the product.
+
+Round 3 — **What does the feature look like?** Surface area: where it lives (page, modal, inline, CLI), how much data it handles, what distinct states the user sees (empty, loading, error, success), whether it follows or breaks existing patterns.
+
+Round 3b — **Visual direction (CONDITIONAL — only when `stack.ui ≠ ∅` AND the work has visual surface).** The budgeted design round: 4 questions covering **register** (utilitarian / expressive / editorial — what should this feel like?), **color strategy** (inherit the product's palette, or a distinct treatment?), **reference points and anti-goals** (what existing product/screen is this like — and what must it NOT look like?), and **state inventory** (which of empty / loading / error / first-run states carry design weight?). These are precisely the inputs `02b-design.md` needs (Step 5a); they ride ON TOP of the 20-question floor so design never eats the general clarification budget. Skip entirely for non-UI work.
+
+Round 4 — **What can go wrong?** Failure modes: worst-case impact of bugs, how invalid input is handled, what happens when dependencies fail, who has access/permissions.
+
+Round 5 — **Where are the boundaries?** Define edges, leading with scope restraint: which parts of the brief does v1 *actually* need versus speculative gold-plating, premature generality, or "while we're here" scope that can be deferred — present these as trim options the PO chooses, never a unilateral cut (the question is "do you actually need X, or does Y cover it?", not a refusal to build). Then: what's explicitly out of scope, how to transition from old to new behavior, what existing code/data is touched. This round is rung 1 of the lifecycle ("does this need to exist?") — a criterion trimmed here is a slice never created, a plan never written, code never implemented, so it is the highest-leverage place to apply restraint. Restraint is bounded: never trim what the user explicitly asked for, and never trade away a non-functional requirement (security, accessibility, data integrity) for a smaller scope.
+
+**How to construct each question:**
+- Follow the legibility contract in [_question-craft.md](_question-craft.md) — outcome-first framing, glossed jargon, consequence-stating options, reversibility, a marked recommendation, an "if unsure" default. The PO must be able to answer without reading the code.
+- `question`: Specific to the feature — reference it by name. E.g., "What should the export modal show when the user has no reports yet?" not "What happens in the empty state?"
+- `header`: Short label (max 12 chars) for the chip display.
+- `options`: 2–4 options describing concrete directions specific to the feature. The user can always pick "Other" for freeform input.
+- `multiSelect`: true when multiple options can coexist, false when mutually exclusive.
+
+## Step 2.4 — Extension rule (extend while ambiguity blocks, never pad)
+
+After Round 5, inventory what is still unresolved. A decision point qualifies for an extension round only if leaving it open would block slicing, make an acceptance criterion unverifiable, or force plan/implement to guess a direction the PO should choose. If any qualify, run up to 2 additional rounds (up to 4 questions each) targeting ONLY those decision points — say in each extension round's lead-in which unresolved point each question closes. Stop the moment nothing qualifying remains; never fill a round for symmetry. Anything still unresolved after 2 extension rounds goes to `## Unknowns / Open Questions` (and `status: awaiting-input` if it blocks the spec), not more rounds.
+
+## Step 2.5 — Coverage gate (the exhaustiveness check — MANDATORY before leaving Step 2)
+
+Walk the `## Ambiguity Inventory`. Every `AMB-n` item must now be in exactly one of three states:
+- **closed** — an interview answer resolved it (name the question/answer);
+- **extension-targeted** — an extension round closed it (same);
+- **parked** — it appears in `## Unknowns / Open Questions` with the receiving stage named (and `status: awaiting-input` if it blocks the spec).
+
+An inventory item in none of those states is ILLEGAL — the interview may not end while the
+ambiguity space has an uncovered corner. This gate is what turns "20 questions happened" into
+"the ambiguity space was exhausted or explicitly parked."
+
+After completing all rounds (5 baseline + Round 3b when triggered + any extension rounds), append every answer to `po-answers.md` with timestamp and `stage: shape`.
+
+# Step 3 — Collect research; relay the tooling question to the PO
+
+1. **Collect the sub-agent results.** If they have not returned, WAIT — the findings are a hard
+   input to `## Verification Strategy` and the tooling question below regardless.
+2. **Relay the tooling question (the orchestrator owns it — never a sub-agent).** From sub-agent
+   1's interactive-tooling report, ask the PO one `AskUserQuestion` built from the **actual
+   findings**: *"For verification, the available drivers are A, B, C. Companion skills: X, Y. Any
+   preference, or any off-limits?"* Construct it per [_question-craft.md](_question-craft.md);
+   capture the answer in `po-answers.md`. Acceptance criteria must reference *whatever the PO
+   chose*, not a baked-in default.
+   - Anti-pattern: writing "use dev-browser" or "use Maestro" because the workflow defaults there.
+     The sub-agent maps the design space; the PO picks the point; this question is where that
+     happens.
+3. **Fold late findings into the inventory.** If research surfaced new ambiguities, add them as
+   `AMB-n` entries; if any qualify under the extension rule (Step 2.4), run the extension round(s)
+   now — the coverage gate (Step 2.5) applies to them too.
+
+# Step 4 — Synthesize the mini-spec
+
+Synthesize discovery answers into a behavior-focused mini-spec (the artifact body sections below).
+Best-practices and gotcha findings from Step 1 must directly inform acceptance criteria and edge cases.
+
+# Step 5a — Author the design brief (when `stack.ui ≠ ∅` and the work has visual surface)
+
+If `00-index.md` shows a UI/frontend layer **and** this work introduces meaningful visual surface (new screens, components, states, or a redesign), author `02b-design.md` now per [design/shape.md](design/shape.md) — Round 3b gathered the visual-direction inputs (register, color strategy, references/anti-goals, state inventory); fold them in and ask only what Round 3b didn't cover. Write it as **plain discovery**: register, color strategy, scene sentence, anti-goals, state inventory, recommended references. Do **NOT** generate image probes and do **NOT** run a visual-direction confirm gate here — those are `plan`'s (it resolves the image gate and authors `02c-craft.md`). Do not write a resolved `image-gate` to `02b-design.md` — leaving it unset marks the gate unresolved for `plan` (the field only accepts `pass`/`skipped:*`). If `stack.ui` is empty or no visual surface, skip this step. See `design/_design-context.md` for register determination and shared design laws.
+
+# Step 5b — Author the Charter Scenario (when the work has a core interaction loop)
+
+If the work has a **core interaction loop** — numbered in the intake's Restated Request, **or
+derivable from its prose** (the intake template asks for numbered steps, but an unnumbered loop
+does not exempt shape: derive it) — author the `## Charter Scenario` section: the loop as ONE
+scripted end-to-end scenario, each step carrying an **observable checkpoint** a human or tool could
+confirm — e.g. "goal entered → probe question shown that references the stated goal → answer
+captured → …". This is the executable spine `slice` carries as a standing AC (progressive coverage)
+and `verify` runs as interactive verification.
+
+**Skipping is a declaration, never a silence.** If the work genuinely has no core loop (pure
+library change, internal refactor, no user-facing flow), set frontmatter
+`charter-scenario: "none — <reason>"` and omit the section. If a scenario is authored, set
+`charter-scenario: authored`. The key is REQUIRED either way (compressed intake modes excepted —
+they skip both the key and the section).
+
+# Step 6a — Documentation plan (Diátaxis)
+
+Classify what documentation this feature needs:
+- New API surface or config? → **reference** docs
+- User-facing behavior? → **how-to guide**
+- Major new capability for new users? → **tutorial**
+- Architectural decisions or trade-offs? → **explanation** page
+- Significantly changes project capabilities? → **README update**
+- Write the classification into `## Documentation Plan`. For each identified doc: type, target audience, what it must cover, what it must NOT cover.
+- If no user-facing docs are needed (pure internal refactor, test-only change), write "None required" with reasoning.
+
+# Step 6b — Augmentation plan (perf / observability / rollout)
+
+Shape decides augmentation; downstream stages apply it. Classify whether this work needs any of the four, and record the decision so `plan`/`implement`/`verify` honor it:
+- **instrument** (observability) — new flow that could fail silently, or whose adoption/latency matters? → dark-path detection + signal design; artifact `04b-instrument.md`.
+- **experiment** (rollout scaffolding) — risky enough to want A/B, feature flag, or canary with metrics + rollback? → artifact `04c-experiment.md`.
+- **benchmark** (perf baseline+compare) — hot path, data-structure change, or rendering loop warranting before/after measurement? → baseline before implement, compare after; artifact `05c-benchmark.md`; regression tripwires >10% CPU / >25% memory.
+- **profile** (ad-hoc hotspot) — specific known hotspot worth profiling? → flag the area so `plan` can schedule it, or reach for it later via `/wf probe`.
+- Fold **1–2 questions** into the discovery interview (Step 2): *"Is any part of this perf-sensitive? Is the rollout risky enough for a flag/canary? Is there a behavior change worth instrumenting in production?"* Ask only what the discovery interview didn't answer.
+- Write the result into `## Augmentation Plan` and set `augmentations-needed:` in frontmatter. **REQUIRED even when the answer is none** (write `augmentations-needed: []` and a one-line reason).
+
+# Step 7 — Evaluate adaptive routing
+
+Evaluate the adaptive-routing options (see "Adaptive routing" below) and write ALL viable options into `## Recommended Next Stage`.
+
+# Step 8 — Update the index
+
+Update `00-index.md` with the recommended default option.
+
+# Step 9 — Adversarial pre-mortem (the RIM generator — a BLIND sub-agent, run BEFORE 9a)
+
+Before adjudicating the ledger, run one adversarial pre-mortem pass — **in a fresh sub-agent whose
+inputs are `01-intake.md` + `po-answers.md` ONLY. Do NOT give it the draft `02-shape.md` or any of
+this run's decisions.** The generator's independence is the point: it derives its *own* expectation
+of what the product should be and writes post-mortems against that, so it cannot rationalize
+decisions it never saw. Prompt it: *"It is N weeks later and the shipped product betrayed its
+intake; write the two most likely post-mortems."* Scale N to the appetite (`00-index.md`
+`appetite:` — a week for small, a quarter for large). Each post-mortem must name a **specific** way
+the build could drift from what the PO asked — a narrowed capability, an inverted control authority
+(deterministic code owning what the intake assigned the model/agent), a deferred wall that never
+cleared — not a generic "it was buggy".
+
+**Adjudicate the returns (the orchestrator, who DOES know the draft shape):** a risk the draft
+already handles is dismissed *with the citation* (the artifact section that handles it); a risk it
+does not handle **converts to a RIM entry** on `00-index.md` `intent-risks` (`status: open`,
+`severity` by blast radius). A pre-mortem that surfaces an already-ledgered risk just confirms it.
+The pre-mortem is the RIM **generator**; Step 9a is its adjudicator and the ledger its tracker — so
+9a adjudicates intake-authored and pre-mortem-authored RIMs alike.
+
+**Consult pre-mortem (objective auto-trigger — consult is always available, no config gate).**
+Auto-dispatch the same blind pre-mortem prompt to `/consult codex …` (pinning `codex`/`claude`
+keeps it free) when ANY of: a `severity: high` RIM exists on the ledger; more than one slice is
+expected; or the Step "Auto second opinion" trigger already fired this run (batch the two consults
+into one panel call when so). Fold the panel's distinct risks in through the same adjudication.
+
+# Step 9a — Adjudicate the intent-risk (RIM) ledger (MANDATORY GATE — mirrors the force-scope rule)
+
+Read `00-index.md` `intent-risks` (authored by intake from "Risks if Misunderstood", extended by
+Step 9). For EVERY entry with `status: open`, set exactly one of:
+- `status: adjudicated` — with `decision:` (the named choice AND its tradeoff, not a restatement) and `adjudicated-by: 02-shape.md#<section>`. If the risk touches a **PO directive** (anything in intake's Known Constraints or a recorded PO answer), `po-ratified` must be `true` — a PO question was asked THIS stage; cite the `po-answers.md` entry. `false` is legal only with an explicit PO-declined note; `not-required` only when the decision alters no PO directive.
+- `status: carried` — the risk genuinely cannot be resolved at shape; it MUST then appear in `## Unknowns / Open Questions` with the receiving stage named.
+
+A shape that leaves ANY RIM `open` may NOT write `status: complete`. Adjudication prose that merely restates the risk without a decision ("we will keep this in mind") is ILLEGAL — the tell is the same as the force-scope rule's. Write the updated `intent-risks` entries back into `00-index.md`.
+
+**Missing-ledger branch (the no-op is for compressed modes ONLY).** Compressed intake modes may
+carry no RIMs — then this step is a no-op. But a **standard-lifecycle** slug whose index has
+neither `intent-risks` entries nor an explicit `intent-risks: none-declared` marker means intake
+under-delivered its ledger — do NOT wave it through. STOP, **backfill**: re-derive candidate RIMs
+from `01-intake.md` (Known Constraints + Restated Request + Risks-if-Misunderstood prose), write
+them into `00-index.md` `intent-risks` (`status: open`), then adjudicate each per this step.
+
+# Step 9b — Author the `## Intake Fidelity` table (MANDATORY section)
+
+One row per intake **Known Constraint / directive** and each numbered item of the Restated Request: `directive | disposition (honored / narrowed / dropped) | how | authority`. A `narrowed` row REQUIRES `authority` = a quoted PO answer whose **scope covers the requirement** (per [_question-craft.md](_question-craft.md)'s scope-of-authority rule) or a this-stage PO ratification. A **`dropped` row REQUIRES a this-stage `AskUserQuestion` ratification** — a scope-covering quote from an earlier answer suffices for a narrowing, but dropping a directive is always a fresh decision the PO confirms in the moment; cite the new `po-answers.md` entry. "Consequence of another answer" is NOT authority — an over-read narrowing (a vendor answer silently becoming a requirement cut) is exactly what this table exposes; owe the PO one more question rather than write an unauthorised narrowing.
+
+# Step 10 — Write the artifacts
+
+Write `.ai/workflows/<slug>/02-shape.md` (and, if Step 5a applied, `.ai/workflows/<slug>/02b-design.md` — its structure, sibling `.yaml`, and fragment contract are defined in [design/shape.md](design/shape.md)).
 
 # Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Shape` story voice, then this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
+- `fidelity:` — REQUIRED. The Intake Fidelity + RIM outcome in one line: `<n> honored · <m> narrowed (each: directive → authority) · <k> dropped (each: directive → authority) · RIMs: <a> adjudicated, <b> carried` — all-clear form: `fidelity: all directives honored; all RIMs adjudicated`. This is the line that puts a reframing where the PO actually reads, not 300 lines deep in an artifact.
 - `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
-**Mandatory discovery phase — 20 impartial questions about the feature.**
-
-Before writing the mini-spec, interview the user with 20 questions about the feature being built. The goal is to surface decisions, assumptions, and unknowns that the intake brief left ambiguous.
-
-**Rules:**
-- Ask exactly 20 questions across 5 rounds of 4 using AskUserQuestion.
-- Every question must be about *this specific feature* — reference it by name, use concrete details from the intake brief. No generic process questions.
-- Questions must be impartial — do not lead toward a particular answer. Options should represent genuinely different directions, not a "right answer" with decoys.
-- Options should be specific to the feature where possible. Fall back to general options only when the feature context doesn't suggest concrete alternatives.
-- If a question was already clearly answered in intake, pre-fill your understanding and ask the user to confirm or revise instead of asking from scratch.
-- Wait for each round's answers before generating the next round — later questions should build on earlier answers.
-
-**What to ask about (5 rounds):**
-
-Round 1 — **What does the feature do?** Nail down the core interaction: what action the user takes, what they provide as input, what they get back, and what triggers them to use it in the first place.
-
-Round 2 — **How does the feature behave?** Explore the dynamics: what happens after the main action, whether it's reversible, timing model (sync/async/real-time), and how it connects to other parts of the product.
-
-Round 3 — **What does the feature look like?** Clarify the surface area: where it lives in the product (page, modal, inline, CLI), how much data it handles, what distinct states the user sees (empty, loading, error, success), and whether it follows or breaks existing patterns.
-
-Round 4 — **What can go wrong?** Probe failure modes: worst-case impact of bugs, how invalid input is handled, what happens when dependencies fail, and who has access/permissions.
-
-Round 5 — **Where are the boundaries?** Define the edges, leading with scope restraint: which parts of the brief does v1 *actually* need versus what is speculative gold-plating, premature generality, or "while we're here" scope that can be deferred — present these as trim options the PO chooses, never a unilateral cut (the question is "do you actually need X, or does Y cover it?", not a refusal to build). Then: what's explicitly out of scope, how to transition from old to new behavior, and what existing code/data is touched. This round is the lifecycle's rung 1 ("does this need to exist?") — a criterion trimmed here is a slice never created, a plan never written, and code never implemented, so it is the highest-leverage place to apply restraint. Restraint here is bounded: never trim what the user explicitly asked for, and never trade away a non-functional requirement (security, accessibility, data integrity) for a smaller scope.
-
-**How to construct each question:**
-- `question`: A specific question about the feature. Reference the feature by name. E.g., "What should the export modal show when the user has no reports yet?" not "What happens in the empty state?"
-- `header`: Short label (max 12 chars) for the chip display.
-- `options`: 2–4 options. Each option should describe a concrete direction specific to the feature. The user can always pick "Other" for freeform input.
-- `multiSelect`: true when multiple options can coexist, false when they're mutually exclusive.
-
-After completing all 5 rounds, append every answer to `po-answers.md` with timestamp and `stage: shape`. Then proceed to the remaining steps.
-3. **Run all 5 discovery rounds.** Do not skip rounds. Do not compress multiple rounds into one. Wait for each round's answers before proceeding to the next — use earlier answers to sharpen later questions.
-4. Run freshness research via Explore sub-agent 2 (see skip criteria above) for external dependencies, patterns, APIs, standards, and known issues that could change the spec.
-5. Synthesize discovery answers into a small behavior-focused mini-spec.
-6. **Documentation plan (Diátaxis):** Using the shaped spec, classify what documentation this feature needs. Apply the Diátaxis model:
-   - Does this introduce new API surface or config? → needs **reference** docs
-   - Does this add user-facing behavior? → needs a **how-to guide**
-   - Is this a major new capability for new users? → needs a **tutorial**
-   - Does this involve architectural decisions or trade-offs? → needs an **explanation** page
-   - Does this significantly change the project's capabilities? → needs a **README update**
-   - Write the classification into `## Documentation Plan` in the shape file. For each identified doc, note: type, target audience, what it must cover, what it must NOT cover (boundary discipline).
-   - If no user-facing docs are needed (pure internal refactor, test-only change), write "None required" with reasoning.
-7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
-8. Update `00-index.md` with the recommended default option.
-9. Write `.ai/workflows/<slug>/02-shape.md`.
-
 # Adaptive routing — evaluate what's actually next
-After completing this stage, do NOT blindly recommend `/wf slice`. Evaluate the shaped spec and present the user with ALL viable options:
+After completing this stage, do NOT blindly recommend `/wf slice`. Present the user with ALL viable options:
 
 **Option A (default): Slice** → `/wf slice <slug>`
-Use when: The spec covers multiple distinct areas, has more than one acceptance criterion cluster, or would benefit from incremental delivery.
+Use when: Spec covers multiple distinct areas, has more than one AC cluster, or would benefit from incremental delivery.
 
 **Option B: Skip to Plan** → `/wf plan <slug>`
-Use when: The shaped spec is a single coherent unit — one clear scope, one acceptance path, no meaningful way to split it further. Criteria: single concern, ≤5 files likely touched, one delivery unit.
+Use when: Single coherent unit — one clear scope, one acceptance path, ≤5 files likely touched, no meaningful way to split. (Note: `review-scope` confirmation normally happens at slice; on this path `plan` asks it instead.)
 
 **Option C: Revisit Intake** → `/wf intake <slug>`
-Use when: Shaping revealed that the intake brief is wrong, missing key constraints, or fundamentally misunderstands the problem.
+Use when: Shaping revealed the intake brief is wrong, missing key constraints, or misunderstands the problem.
 
 **Option D: Blocked — re-run shape** → `/wf shape <slug>`
 Use when: Required PO answers are still missing.
 
-**Option E: Design first** → `/wf design <slug> craft`
-Use when: the `00-index.md` `stack:` fingerprint shows a UI/frontend layer (`stack.ui ≠ ∅`) AND the work has meaningful visual surface — new screens, components, states, or a redesign. `/wf design` authors the design brief + visual contract and then drives the compressed build (slice→plan→implement→verify) itself. Recommend this **alongside** Option A (not instead of it) so the PO can choose whether design leads; `shape` itself does NOT author the brief/contract — it only routes to the producer. If `stack.ui` is empty, omit this option.
+**Option E: (design is already in the pipeline)** — no separate design command.
+When `stack.ui ≠ ∅` and the work has visual surface, shape has **already authored** `02b-design.md` (Step 5a). `plan` authors `02c-craft.md` and resolves the direction gates; `implement` builds against them — design is woven through the normal `slice → plan → implement → verify` flow, so Option A or B carries it forward. There is no `/wf design <slug> craft` hand-off. (Standalone design transforms — `colorize`, `typeset`, `animate`, … — remain available ad-hoc via `/wf design <slug> <transform>`; they are not part of the default flow.) If `stack.ui` is empty, ignore this note.
 
-Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
+Write ALL viable options into `## Recommended Next Stage` so the user can choose.
 
 Write `02-shape.md` with this structure:
 
@@ -242,6 +397,8 @@ created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
 docs-needed: <true|false>
 docs-types: [<reference|how-to|tutorial|explanation|readme>]
+augmentations-needed: [<instrument|experiment|benchmark|profile>]   # shape-decided; [] when none. plan/implement/verify honor this.
+charter-scenario: <authored | "none — <reason>">   # REQUIRED (Step 5b). Skipping is a declaration, never a silence. Compressed modes omit.
 tags: []
 refs:
   index: 00-index.md
@@ -254,11 +411,34 @@ next-invocation: "/wf slice <slug>"
 
 # Shape
 
+## The Shape
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions, and the top risk; structured sections below are drill-down. Voice per `_narrative-voice.md` — no "This shape implements…" openings. 1–4 short paragraphs. The story MUST name the highest-severity intent-risk (RIM) carried from intake and how shape disposed of it (the choice made, or what it was carried to) — this keeps the load-bearing adjudication legible to a PO who reads only the prose. -->
+
+
 ## Problem Statement
 
 ## Primary Actor / User
 
 ## Desired Behavior
+
+## Ambiguity Inventory
+<!-- REQUIRED (Step 2.1) — the interview's coverage instrument. One AMB-n line per ambiguity /
+unstated assumption / unclear-context item harvested from intake, po-answers, the preliminary code
+map, and research. The coverage gate (Step 2.5): every item must end this stage closed (name the
+answer), extension-targeted, or parked in Unknowns — an item in none of those states is ILLEGAL. -->
+- **AMB-1** — <statement> — source: <artifact#section> — state: closed (<round/question>) | parked (<Unknowns entry>)
+- ...
+
+## Charter Scenario
+<!-- Authored when the work has a core interaction loop — numbered in intake's Restated Request or
+derived from its prose (Step 5b); if genuinely no loop exists, omit the section and set frontmatter
+`charter-scenario: "none — <reason>"`. The core loop as ONE scripted end-to-end scenario — every step
+carries an OBSERVABLE checkpoint a human or tool could confirm, not just an intent. `slice` carries
+this scenario as a standing AC (progressive coverage — the visible-milestone slice through step N,
+the final slice through all steps); `verify` runs it as interactive verification subject to
+first-light. Compressed intake modes: skip. -->
+1. <step> → <observable checkpoint>
+2. ...
 
 ## Acceptance Criteria
 - Given ... When ... Then ...
@@ -267,8 +447,15 @@ next-invocation: "/wf slice <slug>"
   - `interactive` — requires running the app and verifying visually or through device interaction (browser, emulator, device)
   - `manual` — requires human judgement or external system check
 - Interactive criteria MUST specify: what tool/method to use (Playwright, Maestro, adb, browser automation, etc.), what to look for, and how to capture evidence (screenshot, recording, console output)
+- **Named-mechanism rule (a test may not name a machine the design does not own).** Any architectural mechanism named in an AC, its verification method, or a test-plan line — a state machine, scheduler, queue, cache, pipeline, orchestrator, a controlling regex — MUST exist as a **named decision in this artifact's body**: one sentence stating the mechanism, what it replaces, and why. A mechanism that enters only through a test method (an AC verified by "interview state-machine unit tests" with no body decision naming the FSM) is a control-authority decision smuggled past adjudication — name it in the body (and, if it touches a RIM or PO directive, adjudicate it per Step 9a) or drop it from the AC.
 
 ## Non-Functional Requirements
+<!-- Constraint precedence (W8.3): any NFR that COULD conflict with a charter commitment (`00-index.md`
+`charter:`) MUST carry an explicit ranking against it — `yields-to: C<n>` (the commitment wins) or
+`outranks: C<n> (PO-ratified)` (the NFR wins, and a PO answer THIS stage authorizes it; cite the
+`po-answers.md` entry). An UNRANKED NFR-vs-charter conflict is an open question routed to the PO, never an
+author's silent call. `plan` QUOTES this ranking when it cites the NFR as a mechanism rationale — an
+unranked NFR cited against a commitment is the tell of an intent-bearing decision. -->
 - ...
 
 ## Edge Cases / Failure Modes
@@ -281,37 +468,53 @@ next-invocation: "/wf slice <slug>"
 - ...
 
 ## Questions Asked This Stage
+<!-- Each question names the AMB-n item(s) it closed or confirmed (Step 2.2 question accountability). -->
 - ...
 
 ## Answers Captured This Stage
 - ...
 
 ## Out of Scope
-<!-- Include capabilities deferred by the Round 5 scope-restraint pass: speculative generality, gold-plating, and "while we're here" additions the core ask does not require. Record each with a one-line rationale so the deferral is a logged decision the PO agreed to, not a silent drop. -->
+<!-- Capabilities deferred by the Round 5 scope-restraint pass: speculative generality, gold-plating, "while we're here" additions the core ask does not require. Record each with a one-line rationale — a logged decision the PO agreed to, not a silent drop. -->
 - ...
+
+## Intake Fidelity
+<!-- REQUIRED (Step 9b). One row per intake Known Constraint / directive AND each numbered Restated-Request item. A `narrowed` row's `authority` must be a quoted PO answer whose SCOPE covers the requirement (not the consequence of a differently-scoped answer) or a this-stage ratification; a `dropped` row's `authority` must be a THIS-STAGE AskUserQuestion ratification. This table is where an over-read narrowing — a vendor answer silently becoming a requirement cut — becomes visibly illegal. It is a named input to the intent-fidelity review dimension downstream, and its dispositions surface in the chat return's `fidelity:` line. -->
+| Intake directive | Disposition | How | Authority |
+|---|---|---|---|
+| ... | honored / narrowed / dropped | ... | quoted PO answer (scope-covering) / this-stage ratification / — |
 
 ## Definition of Done
 - ...
 
 ## Verification Strategy
-Classify how each acceptance criterion and edge case will be verified:
 
-**Automated checks** (CI/test suite can run these):
+**Target verification environment (record this first — it is the fact most often missed).** State the concrete environment verification will run in: host OS, whether an Android device/emulator or iOS simulator is available, which browser/driver is present or installable (Playwright / Cypress / dev-browser / Chrome MCP), and whether live or staging credentials exist. Surfacing this **here**, before any AC is finalized, lets `slice` author each AC with a verification path that fits — instead of `verify` discovering the wall and rationalizing past it. Source it from Explore sub-agent 1's interactive-tooling findings and the PO's tooling answer (Step 3).
+
+**Observation Model (per headline outcome).** For each acceptance criterion, state *how* a human or tool would observe success *and in what environment* — e.g., "carousel is single-column at 375px → observed by driving a 375px-viewport browser and reading the rendered layout," not merely "carousel is single-column." If you cannot name how an outcome would be observed in the target environment, re-scope it to something observable, or flag the constraint now so `slice` and `plan` inherit it.
+
+**Force-scope rule (constraints get engineered, not documented).** When the Observation Model or target-environment statement names an environment dependency on a headline outcome's critical path — credentials, a device, an external service, an inbound callback, infrastructure that does not yet exist (a TURN relay, a staging deploy) — shape MUST route it into scope, not prose. Exactly one of: flag it as a **candidate prerequisite slice or harness** for `slice` to scope; state the **proxy observation** the plan will hold pre-deploy plus the **named event that clears the residual** ("cleared by the first `-rc.N` prerelease CI run"); or record **explicit PO risk-acceptance** in `po-answers.md`. Writing "known limitation — document at handoff" while an AC depends on that limitation is ILLEGAL — the phrase is the tell that a constraint is being deferred to documentation instead of scope. `plan` enforces this per-AC (its `constraint-resolution:` gate); naming the wall honestly here keeps that gate cheap.
+
+**Outcome-metric criteria need a pre-deploy proxy.** A live outcome metric criterion ("rich-preview rate ≥ 75% over the live corpus") must be paired with a pre-deploy proxy observation (e.g., a fixture-corpus assertion over the top-N recorded failure pages) so verification holds *something* before ship; the live metric becomes the clearing event for the residual deferral.
+
+Then classify how each AC and edge case will be verified:
+
+**Automated checks** (CI/test suite):
 - ...
 
 **Interactive verification** (requires running the app and observing behavior):
 - Platform: web / Android / iOS / desktop / CLI
 - Tool: Playwright / Maestro / adb / browser automation / dev-server + manual / other
-- What to verify: describe the user flow and expected visual/behavioral outcome
+- What to verify: user flow and expected visual/behavioral outcome
 - Evidence capture: screenshot / screen recording / console output / network trace
 
 **Human-in-the-loop checks** (requires human judgement):
 - ...
 
-If purely backend/library with no UI: "Automated only — no interactive verification needed. [reason]"
+If purely backend/library with no UI: "Automated only — no interactive verification needed. [reason]."
 
 ## Documentation Plan
-Classify using Diátaxis. For each doc needed, specify:
+Classify using Diátaxis. For each doc needed:
 - **Type**: tutorial / how-to / reference / explanation / readme-update
 - **Audience**: beginner / competent user / maintainer
 - **Must cover**: ...
@@ -319,6 +522,15 @@ Classify using Diátaxis. For each doc needed, specify:
 - **Target location**: where in the repo this doc should live
 
 If no docs needed: "None required — [reason]"
+
+## Augmentation Plan
+Which augmentations this work needs — decided here, applied by `plan`/`implement`/`verify`. **Required section** (write it even when the answer is none). For each augmentation flagged in `augmentations-needed`:
+- **instrument** → what signals/events matter, which dark paths need visibility. `plan` folds signal design in; `implement` wires it; artifact `04b-instrument.md`.
+- **experiment** → hypothesis, mechanism (A/B / flag / canary), metrics + rollback. `plan` designs it; `implement` wires the flag; artifact `04c-experiment.md`.
+- **benchmark** → what to measure and the perf budget. `plan` adds a baseline step; `implement` captures it; `verify` compares against tripwires (>10% CPU / >25% memory); artifact `05c-benchmark.md`.
+- **profile** → specific hotspot/area to profile (usually ad-hoc; may be run later via `/wf probe`).
+
+If none: "None required — [reason]" and `augmentations-needed: []`.
 
 ## Freshness Research
 - Source:
@@ -334,45 +546,15 @@ If no docs needed: "None required — [reason]"
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell. Follow [_fragment-authoring.md](_fragment-authoring.md) **Step F2** (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 ---
 
 ## Additive-write contract (v9.20.1+)
 
-`02-shape.md` is a revisable artifact. When `/wf shape` is re-invoked on a
-slug that already has one, **do not overwrite the body**. Instead:
+`02-shape.md` is a revisable artifact. When `/wf shape` is re-invoked on a slug that already has one, follow [_additive-write.md](_additive-write.md) — snapshot, **rewrite the body to current truth** (do not stack `## Revision N` sections), and add one ledger entry:
 
-1. **Snapshot the current file** to
-   `.ai/workflows/<slug>/history/02-shape-<rev>.md` where `<rev>` is the
-   current `revision-count` (before this run's increment). Use a verbatim
-   byte-copy — do not re-emit, do not reformat.
-2. **Bump `revision-count`** in frontmatter by 1. Refresh `updated-at` to
-   the current ISO timestamp.
-3. **Append** a new section to the body rather than rewriting earlier
-   content:
-   ```
-   ## Revision <new-revision-count> — <ISO timestamp>
+- Snapshot: `.ai/workflows/<slug>/history/02-shape-<rev>.md` (sibling `02-shape.yaml` per the shared YAML rule).
+- **Ledger entry**: `trigger: scope-change` (or `answers-returned` when the reshape resolves open questions), `because:` naming what prompted the reshape, `changed:` naming what moved in the spec.
 
-   What changed and why:
-   - …
-
-   <new shape content here>
-   ```
-   Earlier `## Initial` / `## Revision N` blocks stay intact. Readers can
-   diff history snapshots when they need the exact prior wording, but the
-   live document narrates the evolution in-place.
-4. **`02-shape.yaml` sibling** (when present) follows the same rule:
-   top-level scalars update in place; array fields append rather than
-   replace. On structurally incompatible rewrites, snapshot the YAML
-   alongside the MD as `history/02-shape-<rev>.yaml`.
-
-**Exception**: if frontmatter declares `regenerable: true`, overwrite
-freely. The shape artifact does not normally carry this flag — it would
-only apply if `/wf shape` is wrapping an auto-derived shape (e.g.,
-post-amendment regeneration).
-
-The renderer surfaces prior revisions as a collapsible `<details class="history">`
-at the bottom of the page. The history view paths are stable
-(`<slug>/shape/history/<rev>/INDEX.html`) — old revisions remain linkable
-from PRs and docs forever.
+`regenerable: true` applies only if `/wf shape` is wrapping an auto-derived shape (e.g., post-amendment regeneration) — it does not normally carry the flag, and when it does there is no ledger entry. History view paths are stable (`<slug>/shape/history/<rev>/INDEX.html`).

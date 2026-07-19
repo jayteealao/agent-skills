@@ -4,11 +4,11 @@ argument-hint: <slug> [slice-slug|reviews]
 ---
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.codex/...`, `.ai/dep-updates/...`), stage names or numbers, skill names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output this operation produces: translate workflow context to product language and leak-check before publishing.
+
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `$wf implement`, **stage 5 of 10** in the SDLC lifecycle.
 
@@ -17,44 +17,69 @@ You are running `$wf implement`, **stage 5 of 10** in the SDLC lifecycle.
 
 | | Detail |
 |---|---|
-| Requires | One of: (a) standard mode — `02-shape.md` + `04-plan-<slice-slug>.md` (or `04-plan.md` for single-scope); (b) compressed mode (`workflow-type: quick`) — `01-quick.md`; (c) forwarded mode (`workflow-type: rca` / `investigate`) — `02-shape.md` (synthesized) + optional `04-plan.md`; (d) change-mode (`workflow-type: fix` / `hotfix` / `refactor`) — the compressed-lifecycle's **un-suffixed single-slice** standard files (`04-plan.md`). `update-deps` self-authors its own `05`/`06` and redirects here; `docs` uses its own implement command. |
+| Requires | One of: (a) standard mode — `02-shape.md` + `04-plan-<slice-slug>.md` (or `04-plan.md` for single-scope); (b) compressed mode (`workflow-type: quick`) — `01-quick.md`; (c) forwarded mode (`workflow-type: rca`) — `02-shape.md` (synthesized) + optional `04-plan.md`; (d) change-mode (`workflow-type: fix` / `hotfix` / `refactor`) — the compressed-lifecycle's **un-suffixed single-slice** standard files (`04-plan.md`). `update-deps` self-authors its own `05`/`06` and redirects here; `docs` uses its own implement command. |
 | Conditional inputs (mandatory when present) | `02b-design.md` (design brief — register, color strategy, anti-goals MUST be honored), `02c-craft.md` (visual contract — mock fidelity inventory items MUST be honored as acceptance criteria), `04b-instrument.md` (instrumentation signals MUST be added to the code), `04c-experiment.md` (feature flag/cohort wiring MUST be added), `05c-benchmark.md` (baseline — implementation MUST NOT regress), `augmentations:` list in `00-index.md` (every entry MUST be consumed per type — see Step 0.7) |
 | Produces | `05-implement-<slice-slug>.md` + updates `05-implement.md` master |
 | Next | `$wf verify <slug> <slice-slug>` (default) |
 | Skip-to | `$wf review <slug> <slice-slug>` if verification is trivial |
 | Special | `$wf implement <slug> reviews` — fix review findings one by one |
 
+> **Optional second opinion.** Offer `$consult <question>` (or `$consult <provider> …`) — a read-only multi-model panel — in **reviews mode** (sanity-check a sub-agent's fix before merging) or when **plan drift is significant** (pressure-test the adapted approach before writing code). Skip for routine implementation. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise offer it.
+
+> **Read the source before you code against it.** When you're about to write code
+> that calls a dependency/framework/SDK whose exact API, types, or edge-case behavior
+> matter — and the answer isn't already in the repo — invoke the `study-sources` skill
+> to read its **installed source** (`node_modules`, `~/.m2`, the Go/Rust/NuGet caches,
+> Android SDK `sources/`, …) rather than guessing signatures. Match the version the
+> project resolved. Reads land in gitignored `.scratch/` and never enter the change.
+
+> **A limitation claim carries its evidence.** Any code comment or deviation asserting a
+> dependency capability DOES NOT EXIST — not exposed, removed, broke, "the API can't do
+> X" — must carry evidence at the site or in the record: a `study-sources` read of the
+> **installed** source (name the `node_modules/` or vendored path actually opened), a
+> failing minimal repro, or an upstream issue link.
+> 1. **Comments are hypotheses.** An existing in-repo comment claiming a limitation is
+>    NEVER sufficient authority to replicate its workaround in new code — re-verify the
+>    premise first (one `study-sources` read; the skill exists for exactly this).
+> 2. **Recalled API shapes never justify `as any` / `@ts-ignore` alone.** The suppression
+>    must cite the type actually read from the installed package, or the mismatch repro —
+>    a remembered signature is not authority.
+> A warn-only hook (`limitationClaimLint`) flags an uncited limitation comment at write
+> time; the citation markers it looks for are `source:` / `node_modules/` / `repro:` /
+> `issue:` / a URL within ±3 lines.
+
 # CRITICAL — execution discipline
 You are a **workflow orchestrator** running the implementation stage.
-- Do NOT skip reading the prior workflow artifacts (index, shape, slice, plan). Read them FIRST.
+- Read prior workflow artifacts (index, shape, slice, plan) FIRST — do not skip.
 - Do NOT verify, review, or ship — those are later stages.
 - Implement **only** the selected slice as described in the plan. Do not broaden scope.
 - Follow the numbered steps below **exactly in order**.
 - Your only output is the code changes, the workflow artifacts, and the compact chat summary defined below.
-- If you catch yourself about to skip ahead to verification or review, STOP and return to the next unfinished workflow step.
+- If you catch yourself about to skip ahead to verification or review, STOP and return to the next unfinished step.
 
 # Step 0 — Orient (MANDATORY — do this before all other steps)
-1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice-slug**. If no slug is given, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
-2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse the YAML frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`workflow-type`**.
-3. **Check for reviews mode:** If the second argument is literally `reviews` → this is a **review-fix** invocation. See "Reviews Mode" section below. Skip the rest of Step 0 and go directly to that section.
+1. **Resolve the slug** from `$ARGUMENTS` (first argument). Second argument, if present, is the **slice-slug**. If no slug, infer the most recent active workflow from `.ai/workflows/*/00-index.md`. If ambiguous, ask the user.
+2. **Read `00-index.md`** at `.ai/workflows/<slug>/00-index.md`. Parse frontmatter for `current-stage`, `status`, `selected-slice`, `open-questions`, **`workflow-type`**.
+3. **Check for reviews mode:** If the second argument is literally `reviews` → **review-fix** invocation. See "Reviews Mode" below. Skip the rest of Step 0 and go directly to that section.
 4. **Determine workflow source mode** from `workflow-type`:
-   - `workflow-type: quick` → **compressed mode**. Source artifact is `01-quick.md` (contains brief, shape, design, slice, and plan in a single document). No `02-shape.md` / `03-slice-*.md` / `04-plan-*.md` files exist; do not require them.
-   - `workflow-type: rca` or `workflow-type: investigate` → **forwarded mode**. The source artifacts (`01-rca.md` / `01-investigate.md`) hold the rich context. A synthesized `02-shape.md` exists; planning may have been added later via `$wf plan` (full mode) or this may be a quick-style continuation.
-   - `workflow-type: fix` / `hotfix` / `refactor` (legacy `rf`) → **change-mode (compressed standard lifecycle).** The mode authored the planning half as STANDARD, single-slice, **un-suffixed** files: `01-<mode>.md` (`type: intake`; `01-fix.md` / `01-hotfix.md` / `01-refactor.md`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`. There is exactly **one** slice and `selected-slice` on the index is its slug. Implement exactly as **standard mode** with one substitution: every per-slice file is **un-suffixed** — read `04-plan.md` and write `05-implement.md` (NOT the `-<slice-slug>`-suffixed files of multi-slice standard mode, and NOT the single `01-quick.md` of compressed mode). Wherever a step below names a `-<slice-slug>`-suffixed file, use the un-suffixed name for change-mode. (hotfix's `07-review` defaults to `security`; refactor's to `refactor-safety`. **refactor**: implement one atomic green step per plan step — never combine; commit per step; if a step's verify fails, fix the refactor, not the test.)
-   - `workflow-type: update-deps` → **self-managed change-mode.** update-deps self-authors `05-implement.md` / `06-verify.md` (tier-ordered execution) inside its own flow, then routes to `$wf review`. It should NOT use `$wf implement`. STOP and direct the user back to `$wf intake update-deps <slug>`.
-   - `workflow-type: docs` → **alternate workflow**. It has its own implement stage and should NOT be using `$wf implement`. STOP and direct the user to the workflow's own implement command.
+   - `workflow-type: quick` → **compressed mode**. Source artifact is `01-quick.md` (brief, shape, design, slice, and plan in one document). No `02-shape.md` / `03-slice-*.md` / `04-plan-*.md` files exist; do not require them.
+   - `workflow-type: rca` → **forwarded mode**. The rich context lives in `01-rca.md`; a synthesized `02-shape.md` exists (the RCA writes it as a forwarding contract). Planning may have been added via `$wf plan`, or this may be a quick-style continuation.
+   - `workflow-type: investigate` → **terminal analysis — not built in place.** `$wf intake investigate` produces option sketches and **no `02-shape.md`** (and no plan); a chosen option is re-intaked via `$wf intake <option>` as a NEW workflow that does its own shape pass. A bare `investigate` slug therefore has no plan, so the plan-prerequisite in Step 0.6 already STOPs; if you reach here, direct the user to `$wf intake <option>`.
+   - `workflow-type: fix` / `hotfix` / `refactor` (legacy `rf`) → **change-mode (compressed standard lifecycle).** Authored as STANDARD, single-slice, **un-suffixed** files: `01-<mode>.md` (`type: intake`; `01-fix.md` / `01-hotfix.md` / `01-refactor.md`), `02-shape.md`, `03-slice.md` (`type: slice-index`, one slice), `04-plan.md`. Exactly **one** slice; `selected-slice` on the index is its slug. Implement as **standard mode** with one substitution: every per-slice file is **un-suffixed** — read `04-plan.md` and write `05-implement.md` (NOT the `-<slice-slug>`-suffixed files of multi-slice standard mode). Wherever a step below names a suffixed file, use the un-suffixed name. (hotfix's `07-review` defaults to `security`; refactor's to `refactor-safety`. **refactor**: one atomic green step per plan step — never combine; commit per step; if verify fails, fix the refactor, not the test.)
+   - `workflow-type: update-deps` → **self-managed change-mode.** Self-authors `05-implement.md` / `06-verify.md` inside its own flow, then routes to `$wf review`. Should NOT use `$wf implement`. STOP and direct the user back to `$wf intake update-deps <slug>`.
+   - `workflow-type: docs` → **alternate workflow** with its own implement stage. STOP and direct the user to that workflow's implement command.
    - `workflow-type: feature` (default for `$wf intake`) or unset → **standard mode**. Use the canonical pipeline files.
-5. **Resolve the slice-slug**: If a slice-slug was passed, use it. If not, use `selected-slice-or-focus` from the index. In compressed mode, slice-slug may be empty — `01-fix.md` (or legacy `01-quick.md` for pre-v9.18.0 slugs) covers a single intentional change.
+5. **Resolve the slice-slug**: If passed, use it. Otherwise use `selected-slice-or-focus` from the index. In compressed mode, slice-slug may be empty — `01-fix.md` (or legacy `01-quick.md` for pre-v9.18.0 slugs) covers a single intentional change.
 6. **Check prerequisites by mode:**
-   - **Compressed mode**: `01-fix.md` must exist (or legacy `01-quick.md` for pre-v9.18.0 slugs — check both paths). If missing → STOP. "Run `$wf intake fix <slug>` first or use a different workflow type."
-   - **Standard / forwarded / change-mode**: A plan must exist for this slice: either `04-plan-<slice-slug>.md` or `04-plan.md` (change-mode always uses the un-suffixed `04-plan.md`). If missing → STOP. Tell the user: "Run `$wf plan <slug> <slice-slug>` first."
+   - **Compressed mode**: `01-fix.md` must exist (or legacy `01-quick.md` for pre-v9.18.0 slugs — check both). If missing → STOP. "Run `$wf intake fix <slug>` first or use a different workflow type."
+   - **Standard / forwarded / change-mode**: A plan must exist: either `04-plan-<slice-slug>.md` or `04-plan.md` (change-mode always uses un-suffixed). If missing → STOP. "Run `$wf plan <slug> <slice-slug>` first."
    - If the source plan/quick artifact shows `Status: Awaiting input` → STOP.
    - Check if `05-implement-<slice-slug>.md` (or `05-implement.md` in compressed mode) already exists → WARN: "This has already been implemented. Running again will overwrite. Proceed?"
 7. **Read the source context by mode:**
    - **Compressed mode**:
      - `01-quick.md` — single source for brief, shape, slice, and plan. Read end-to-end.
    - **Forwarded mode**:
-     - `01-rca.md` or `01-investigate.md` — the rich source artifact (read for context beyond the synthesized shape).
+     - `01-rca.md` — rich source artifact (read for context beyond the synthesized shape).
      - `02-shape.md` — synthesized shape forwarding contract.
      - `04-plan.md` (if `$wf plan` was run after the forward) — full plan.
    - **Standard mode**:
@@ -62,61 +87,59 @@ You are a **workflow orchestrator** running the implementation stage.
      - `04-plan-<slice-slug>.md` — implementation plan
      - `02-shape.md` — shaped spec for overall context
    - **Change-mode** (`fix` / `hotfix` / `refactor`): same as standard but **un-suffixed**, plus the lead:
-     - `01-<mode>.md` (`type: intake`; `01-fix.md` / `01-hotfix.md` / `01-refactor.md`) — the compressed brief + acceptance criteria (hotfix's lead also carries the `## Diagnosis`; refactor's `02-shape.md` carries the API-surface baseline)
+     - `01-<mode>.md` (`type: intake`; `01-fix.md` / `01-hotfix.md` / `01-refactor.md`) — compressed brief + acceptance criteria (hotfix's lead also carries `## Diagnosis`; refactor's `02-shape.md` carries the API-surface baseline)
      - `03-slice.md` (`type: slice-index`) — the one-slice roster
      - `04-plan.md` — implementation plan · `02-shape.md` — shaped spec
    - All modes also read `po-answers.md` if it exists.
 8. **Read augmentation context (optional — workflow may have any combination):**
-   Read the `augmentations:` list in `00-index.md` if present. For each entry, read the referenced artifact and apply the type-specific behavior:
+   Read the `augmentations:` list in `00-index.md` if present. For each entry, read the artifact and apply the type-specific behavior:
 
    | Type | Artifact | What `$wf implement` must do |
    |---|---|---|
-   | `design-<sub>` (e.g., `design-harden`, `design-colorize`) | `design-notes/<sub>-<timestamp>.md` | Note that design code was already applied during a prior implement pass. Do NOT undo the documented changes. |
-   | `design-audit` | `07-design-audit.md` | Note the audit findings — implementation should resolve any "critical" or "high" findings flagged. |
-   | `design-critique` | `07-design-critique.md` | Note the critique recommendations — apply where they conflict with default choices. |
+   | `design-<sub>` (e.g., `design-harden`, `design-colorize`) | `design-notes/<sub>-<timestamp>.md` | Design code was already applied in a prior pass. Do NOT undo the documented changes. |
+   | `design-audit` | `07-design-audit.md` | Resolve any "critical" or "high" findings flagged. |
+   | `design-critique` | `07-design-critique.md` | Apply critique recommendations where they conflict with default choices. |
    | `instrument` | `04b-instrument.md` | **Implement the instrumentation signals defined in the plan.** Each dark-path entry has a designed signal — add the log/metric/trace call to the code being implemented. Use the framework named in the artifact. |
    | `experiment` | `04c-experiment.md` | **Wire up the experiment.** Add the feature flag, cohort split logic, and metric instrumentation defined in the artifact. The implementation must include both the variant and control paths. |
-   | `benchmark` (status: baseline) | `05c-benchmark.md` | Note the baseline numbers — implementation must not regress. After implement completes, `$wf benchmark <slug>` should be re-run in compare mode (handled by wf-verify). |
+   | `benchmark` (status: baseline) | `05c-benchmark.md` | Note baseline numbers — implementation must not regress. `verify` re-runs the compare (loads `augment/benchmark.md` in compare mode). Benchmark is a shape-decided augmentation authored by `plan`, not a standalone skill. |
 
    **Read design planning artifacts** (separate from augmentations):
    - `02b-design.md` — design brief if present. Carry forward register (brand/product), color strategy, and anti-goals.
-   - **Recommended references** (whenever `02b-design.md` OR `02c-craft.md` is present): build the reference set as the **union** of `recommended-references:` in `02b-design.md`'s frontmatter (e.g., `[colorize, typeset, harden]`) AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each entry by stripping a trailing `.md` (the two fields differ in convention — `02b` omits the extension, `02c` may include it) before de-duplicating, then read `design/<name>.md` for each unique name. These files are the canonical design rationale behind the brief — `colorize.md` explains what the chosen color strategy means in code, `typeset.md` defines typographic hierarchy rules, `harden.md` defines required accessibility checks, etc. The union is load-bearing: references that craft introduced during the contract step live only in `02c`, so reading `02b` alone would silently drop them. Treat the loaded references as **read-only context for implementation judgment** — they help disambiguate the visual contract when a token choice or motion spec is open to interpretation. They do NOT expand scope: do not implement features described in the references that are not in the contract, and do not re-do design work. If an entry doesn't resolve to an existing file under `design/`, log a one-line warning to chat naming the missing reference and continue. If neither file declares any reference field, skip this step silently.
+   - **Baseline design canon (when `stack.ui ≠ ∅` and neither `02b`/`02c` exists).** Read `design/_design-context.md` for the register, shared design laws, absolute bans, and the motion/interface-detail summary — the design floor for any UI code. When code touches motion, interface detail, or typography, also load the specific home (`animate.md` / `polish.md` / `typeset.md`). `_design-context.md`'s preflight/image/mutation sections govern `$wf design`, not implement — skip those.
+   - **Recommended references** (whenever `02b-design.md` OR `02c-craft.md` is present): build the reference set as the **union** of `recommended-references:` in `02b-design.md`'s frontmatter AND `references-loaded:` in `02c-craft.md`'s frontmatter. Normalize each entry by stripping a trailing `.md` before de-duplicating, then read `design/<name>.md` for each unique name. The union is load-bearing: references craft introduced live only in `02c`, so reading `02b` alone silently drops them. Treat loaded references as **read-only judgment context** — they disambiguate the visual contract but do NOT expand scope (do not implement features from the references that are not in the contract). If an entry doesn't resolve to an existing file, log a one-line warning and continue. If neither file declares any reference field, skip silently.
    - `02c-craft.md` — **visual contract. Mandatory when present: if the file exists you MUST read it.** The `## Mock fidelity inventory` items are **additional acceptance criteria** for this implementation — every inventory item must be honored in code. The `## Implementation contract` section names specific token choices, component decisions, and motion specs to follow.
-   - **Applying design transforms (deepest design consumer — when `stack.ui ≠ ∅`).** The references above are *read-only judgment context* for a normal implement pass. But when this implement pass is the implement step of a `$wf design` transform (the dispatcher drives slice→plan→**implement**→verify), `implement` *applies* the design: read the transform's playbook from `design/<name>.md` and apply it during the build, then **register it as a `design-<sub>` augmentation** in `00-index.md` and write the `design-notes/<sub>-<timestamp>.md` artifact (contract in `design.md` Step 5). A transform no longer needs pre-existing code — it either creates the surface or modifies the slug's existing implementation, both here. Gate: if `stack.ui` is empty, there is no design transform to apply — skip.
-9. **Read sibling implementations:** Check for any existing `05-implement-<other-slice>.md` files. Note what has already been implemented so you don't duplicate work or create conflicts.
+   - **Applying design transforms (when `stack.ui ≠ ∅`).** When this implement pass is the implement step of a `$wf design` transform (dispatcher drives slice→plan→**implement**→verify), `implement` *applies* the design: read the transform's playbook from `design/<name>.md`, apply it during the build, then **register it as a `design-<sub>` augmentation** in `00-index.md` and write `design-notes/<sub>-<timestamp>.md` (contract in `design.md` Step 5). A transform may create the surface or modify existing implementation. Gate: if `stack.ui` is empty, skip.
+9. **Read sibling implementations:** Check for any existing `05-implement-<other-slice>.md` files to avoid duplicating work or creating conflicts.
 10. **Carry forward** `open-questions` from the index.
 11. **Branch check (MANDATORY if `branch-strategy: dedicated`):**
    - Read `branch-strategy`, `branch`, and `base-branch` from `00-index.md` frontmatter.
-   - If `branch-strategy` is `dedicated`:
-     a. Check current git branch with `git branch --show-current`.
-     b. If the current branch is NOT the workflow branch (`branch` field):
-        - Check if the branch already exists: `git branch --list <branch>`.
-        - If it does NOT exist → **create it**: `git checkout -b <branch>` from `<base-branch>`.
-        - If it DOES exist → **switch to it**: `git checkout <branch>`.
-     c. Confirm you are now on the correct branch before proceeding.
-   - If `branch-strategy` is `shared` → note that commits go to the current branch (do not create or switch branches).
-   - If `branch-strategy` is `none` → skip all branch management.
+   - If `dedicated`: run `git branch --show-current`. If not on the workflow branch:
+     - Branch missing → `git checkout -b <branch>` from `<base-branch>`.
+     - Branch exists → `git checkout <branch>`.
+     - Confirm correct branch before proceeding.
+   - If `shared` → commits go to the current branch (do not create or switch).
+   - If `none` → skip all branch management.
 
 # Parallel research
-Before implementing, launch parallel sub-agents to verify the plan is still accurate. Do not spin up sub-agents for trivial single-file changes.
+Before implementing, launch parallel sub-agents to verify the plan is still accurate. Skip for trivial single-file changes.
 
 ### Explore sub-agent 1 — Pre-Implementation Codebase Verification
 
-Prompt the agent with ALL of the following. It must report findings for each section:
+Prompt with ALL of the following. Agent must report findings for each section:
 
 **Plan drift detection:**
-- For each file listed in `04-plan-<slice-slug>.md` → `## Likely Files / Areas to Touch`, read the current version and compare against the plan's assumptions
-- Check `git log --oneline --since="<plan-created-at>"` on each affected file — has it been modified since the plan was written?
-- If sibling slices were implemented between plan and now, read their `05-implement-<other>.md` to understand what changed
+- For each file in `04-plan-<slice-slug>.md` → `## Likely Files / Areas to Touch`, read the current version and compare against plan assumptions
+- Check `git log --oneline --since="<plan-created-at>"` on each affected file for changes since planning
+- If sibling slices were implemented since planning, read their `05-implement-<other>.md` to understand what changed
 - Flag any file that has moved, been renamed, deleted, or significantly refactored since planning
 
 **Current state of the implementation target:**
-- Read each file that will be modified. Report: current line count, key functions/classes, any TODO/FIXME/HACK comments in the affected area
-- Check for merge conflicts or uncommitted changes in the affected files (`git status`, `git diff` on those paths)
-- Verify that imports, types, and interfaces the plan depends on still exist and have the same signatures
+- Read each file to be modified. Report: line count, key functions/classes, any TODO/FIXME/HACK in the affected area
+- Check for merge conflicts or uncommitted changes (`git status`, `git diff` on those paths)
+- Verify imports, types, and interfaces the plan depends on still exist with the same signatures
 
 **Convention verification:**
-- Read 2–3 recently modified files in the same module/directory to confirm the coding conventions the plan assumed (naming, error handling, logging patterns) haven't changed
+- Read 2–3 recently modified files in the same module/directory to confirm coding conventions (naming, error handling, logging) haven't changed
 - Check for new linting rules, config changes, or dependency updates that affect the implementation approach
 
 ### Explore sub-agent 2 — Dependency & API Freshness (only if external dependencies are involved)
@@ -125,53 +148,84 @@ Launch ONLY if the plan involves external APIs, third-party libraries, or cross-
 
 **Dependency state:**
 - Check if any dependency versions in the manifest changed since planning
-- Web search for breaking changes, deprecations, or security advisories published since the plan was written
-- Verify that API endpoints, SDK methods, or library functions the plan references still exist and have the same signatures in the project's version
+- Web search for breaking changes, deprecations, or security advisories since the plan was written
+- Verify API endpoints, SDK methods, or library functions the plan references still exist with the same signatures
 
 **Cross-service state:**
 - If the slice communicates with another service (API, queue, database), check that service's current schema/contract hasn't changed
 - Check for new environment variables, config keys, or feature flags that affect the integration
 
-Merge findings. If the codebase has diverged significantly, note specific deviations in the implementation record and adapt the plan steps before implementing.
+Merge findings. If the codebase has diverged significantly, note deviations in the implementation record and adapt plan steps before implementing.
 
 # Purpose
 Implement one selected planned slice with the smallest coherent diff that fits the repo and current best practices. Write a per-slice implementation record with cross-links.
 
 # Build discipline — climb the ladder before writing each step
-Shape settled *what* to build (its Round 5 scope-restraint pass) and plan settled *which strategy* (its build-avoidance ladder, rungs 1–4). Your job is the **fewest lines that satisfy the plan and the acceptance criteria** — minimal because it is sufficient, not golfed. Before writing each plan step's code:
+Shape settled *what* to build and plan settled *which strategy* (build-avoidance ladder, rungs 1–4). Your job: **fewest lines that satisfy the plan and acceptance criteria** — minimal because sufficient, not golfed. Before writing each plan step's code:
 
 - **Honor the plan's ladder decisions.** If the plan landed a capability on rung 1/2/3 (stdlib, native-platform, reuse), do not reintroduce a dependency or hand-roll it. If the plan says "native `<input type="date">`, no library," keep it that way.
 - **Climb once more at the code level.** Prefer a stdlib/native call over a hand-rolled helper, a direct call over a wrapper, a literal over a config knob, one line over a block, deletion over addition. Do **not** introduce an abstraction the plan did not ask for — an interface, factory, strategy, generic, or options-object with a single implementation or call site. This restraint is about *code structure only* — never trim an acceptance criterion; shape and plan own what exists.
 
-**Lazy ≠ negligent — NON-NEGOTIABLE, never trimmed for brevity:** trust-boundary input validation, error handling that prevents data loss, security, accessibility, the calibration real hardware needs, and anything an acceptance criterion explicitly requires. Minimal code missing its safety check is *unfinished*, not lazy — and the security / accessibility / correctness review dimensions and the verify gate will bounce it as a BLOCKER downstream, so the shortcut only defers rework. Non-trivial logic still leaves its verification behind; trivial one-liners do not.
+**Lazy ≠ negligent — NON-NEGOTIABLE, never trimmed for brevity:** trust-boundary input validation, error handling that prevents data loss, security, accessibility, real-hardware calibration, and anything an acceptance criterion requires. Minimal code missing a safety check is *unfinished*, not lazy — review/verify gates bounce it as a BLOCKER, so the shortcut only defers rework. Non-trivial logic leaves its verification behind; trivial one-liners do not.
 
-**Mark deliberate shortcuts.** When you take an intentional simplification with a known ceiling (a global lock, an O(n²) scan, a naive heuristic, a hard-coded value that should be configurable), leave a one-line `sdlc-debt:` comment at the site naming the ceiling **and** the upgrade path, and record it in `## Anything Deferred` (if it is a deferral) or `## Known Risks / Caveats` (if the ceiling is live in shipped code). The marker keeps the shortcut visible and harvestable — `$wf simplify codebase` can later collect `sdlc-debt:` markers and route them — instead of hidden.
+**Mark deliberate shortcuts.** When you take an intentional simplification with a known ceiling (global lock, O(n²) scan, naive heuristic, hard-coded value), leave a one-line `sdlc-debt:` comment at the site naming the ceiling and upgrade path, and record it in `## Anything Deferred` (deferral) or `## Known Risks / Caveats` (ceiling is live in shipped code). The marker keeps the shortcut visible and harvestable by `$wf simplify codebase`.
+
+**Every new type/lint suppression is debt — mark it.** Any suppression you introduce — `as any`, `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, or a language equivalent (`# type: ignore`, `@Suppress`, `#[allow(...)]`, `// nolint`) — must carry an `sdlc-debt:` marker with a reason at the site. This adds no new lifecycle: the existing debt machinery inherits the class — verify validates the marker, retro reconciles it, `$wf simplify` sweeps it. A warn-only hook (`suppressionDebtLint`) flags an unmarked suppression at write time; it looks for `sdlc-debt:` within ±2 lines.
+
+**A build decision that touches a `carried` intent-risk is intent-bearing — never auto-resolve it.** If a decision during the build would resolve an intent-risk (RIM) that `00-index.md`'s `intent-risks` still marks `status: carried` (one shape could not settle and deferred to a named later stage), it is by definition intent-bearing: ask the PO (human-gated run), never settle it by an autonomous policy. On an autonomous run it is a **stop condition**, not an assumption to fill. The carried-RIM case is one instance of the general boundary in [_decision-classes.md](_decision-classes.md) — apply that taxonomy to classify every autonomous-vs-ask fork. A recorded autonomous decision carries a mandatory `class: implementation-detail` stamp; an autonomous record may NEVER carry `class: intent-bearing` (writing one is the tell that the policy overstepped).
+
+**Build for verifiability — the planned verification seams are part of *done*.** The plan's `## Verification Strategy` names what must be built to make each user-observable AC observable: a seeded fixture, a deterministic clock, a `data-testid` / accessibility id, an emulator or test config, an exported test hook. Build those seams as part of this slice. A seam the plan named but implement skipped becomes a verify-time wall that gets papered over with a deferral or a static-reasoning `pass`. Record each seam built in `## Verification Seams Built`; if you could not build one the plan named, say so there and in `## Deviations from Plan`.
+
+# Design build discipline (when `stack.ui ≠ ∅` and a contract or design canon applies)
+When this slice builds UI — whether against a `02c-craft.md` visual contract, a design transform playbook (Step 0.8), or just the baseline design canon — the build is held to the design floor in [design/_design-context.md](design/_design-context.md). Apply it; do not restate its rules.
+
+**Implementation principles:**
+- Use codebase design tokens, not hard-coded values.
+- Follow the existing component vocabulary (don't introduce a new button style if one exists).
+- Every interactive component must have: default, hover, focus, active, disabled states.
+- Loading states: skeletons not spinners for content areas.
+- `@media (prefers-reduced-motion: reduce)` for all animations — but design for motion first.
+- OKLCH for any new color values; never `#000` or `#fff`.
+- If the deliverable is a **reusable component** (a design-system primitive or shared widget, not a one-off screen), apply [design/_component-craft.md](design/_component-craft.md) — DX-first API, excellent defaults, memorable naming, a touchable example.
+
+**Absolute bans** are in `design/_design-context.md` → *Absolute bans*. Introducing one is a defect the review/verify gates bounce.
+
+## Critique-and-fix pass (mandatory when `02c-craft.md` was present)
+After building against a visual contract, run at least one critique-and-fix pass before writing the implementation record:
+
+1. Check against the contract's `## Mock fidelity inventory` — what was lost?
+2. Check against anti-goals in `02b-design.md` and `## Anti-patterns to avoid` — what should not be there?
+3. Check against the relevant register reference (`brand.md` or `product.md`) — any violations?
+4. Slop test: would someone say "AI made this"? Fix the generic moves.
+5. Component states: all required states from the contract implemented?
+6. Responsive behavior at the contract's breakpoints.
+
+Apply fixes. Repeat until no material defects remain. Record what the pass caught in `## Visual Contract Honored`.
 
 # Workflow rules
-- Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
-- **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
+- Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave canonical results only in chat — write the stage file first.
+- **Every artifact file MUST have YAML frontmatter** (between `---` markers) first. All machine-readable state goes in frontmatter; the markdown body is human-readable narrative only.
+- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Ask the user directly in chat** for multiple-choice PO questions (structured decisions, confirmations), presenting options as a short numbered list. Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
+- **Ask the user directly in chat** for multiple-choice PO questions (structured decisions, confirmations) as a short numbered list; use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
-- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
+- **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read and honor it — silent omission is a contract violation.
 
 # Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Implementation` story voice, then this receipt:
 - `slug: <slug>`
 - `wrote: <paths>` (per-slice file + master update)
 - `options:` (list all viable next options — see Adaptive Routing below)
 - ≤3 short blocker bullets if needed
 
 Do this in order:
-1. **Ensure correct branch** (see Step 0.9 — branch check must have been completed by now).
+1. **Ensure correct branch** (branch check must have been completed in Step 0.11).
 2. **Create a work-tracking plan from the plan steps.** Read `04-plan-<slice-slug>.md` → `## Step-by-Step Plan`. Track progress sequentially — complete each step fully before moving to the next. Work sequentially unless the user explicitly asked for parallel execution.
-3. Re-check the current code before editing (using Explore sub-agents if needed). Pay special attention to files that sibling slice implementations may have changed.
-4. If the implementation depends on evolving external APIs, libraries, or patterns, run a freshness pass immediately before editing.
+3. Re-check the current code before editing (Explore sub-agents if needed). Pay attention to files sibling slice implementations may have changed.
+4. If the implementation depends on evolving external APIs, libraries, or patterns, run a freshness pass before editing.
 5. **Implement the selected slice.** Work through each plan step using your native file-editing tools. For each step:
    a. Do the work for that step.
    b. Verify the change before moving to the next step.
@@ -180,12 +234,12 @@ Do this in order:
 7. Summarize the exact change set.
 8. **Write `05-implement-<slice-slug>.md`** (per-slice file, see template below).
 9. **Write/update `05-implement.md`** (master index, see template below).
-10. **Update cross-links** in the slice definition (`03-slice-<slice-slug>.md`) and plan (`04-plan-<slice-slug>.md`) to point to the new implementation file.
+10. **Update cross-links** in `03-slice-<slice-slug>.md` and `04-plan-<slice-slug>.md` to point to the new implementation file.
 11. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
-12. Update `00-index.md` accordingly and add files to `workflow-files`.
+12. Update `00-index.md` and add files to `workflow-files`.
 13. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):**
     - Stage ALL changed files (code changes + workflow artifacts) with `git add`.
-    - Commit with a descriptive message: `feat(<slug>): implement <slice-slug>` — include a brief summary of what the slice does.
+    - Commit: `feat(<slug>): implement <slice-slug>` — include a brief summary of what the slice does.
     - Do NOT push. Pushing happens at handoff.
     - Record the commit SHA in the per-slice frontmatter (`commit-sha` field).
     - If `branch-strategy` is `none`, skip this step.
@@ -195,7 +249,7 @@ After completing, evaluate and present ALL viable options:
 
 **Option A (default): Verify** → `$wf verify <slug> <slice-slug>`
 Use when: The implementation touches testable behavior.
-**Compact recommended before proceeding** — implementation details (debugging, file exploration, error resolution) are noise for verification. Tell the user: "Consider running `/compact` before `$wf verify` — workflow state lives in the artifact files on disk and the SessionStart hook re-reads it automatically after compaction."
+**Compact recommended** — tell the user: "Consider compacting the session before `$wf verify` — workflow state lives in artifact files on disk and the SessionStart hook re-reads it after compaction."
 
 **Option B: Skip to Review** → `$wf review <slug> <slice-slug>`
 Use when: Purely declarative change with no testable behavior.
@@ -207,16 +261,14 @@ Use when: The plan was wrong — missed files, wrong assumptions.
 **Option D: Blocked** → explain what's blocking.
 
 # Reviews Mode — fix review findings one by one
-Triggered when: second argument is literally `reviews`.
+Triggered when: second argument is literally `reviews`. Example: `$wf implement my-slug reviews`
 
-Example: `$wf implement my-slug reviews`
-
-This mode reads the review findings from `07-review-<slice-slug>.md`, extracts all BLOCKER and HIGH findings (and optionally MED if the user requests), then fixes them **one at a time, sequentially**.
+Reads findings from `07-review-<slice-slug>.md`, extracts all BLOCKER and HIGH findings (and optionally MED if the user requests), then fixes them **one at a time, sequentially**.
 
 Do this in order for reviews mode:
-1. **Resolve the slice-slug.** If a slice-slug was passed as a third argument (e.g., `$wf implement my-slug auth-flow reviews`), use it. Otherwise use `selected-slice-or-focus` from `00-index.md`. If neither is set, ask the user which slice's review findings to fix.
-2. **Read `07-review-<slice-slug>.md`** and all `07-review-<slice-slug>-<command>.md` files for that slice. Other slices' review files are out of scope for this fix pass.
-3. **Extract the findings list.** Build an ordered list of findings to fix, sorted by severity (BLOCKER first, then HIGH, then MED if requested). Each finding has: ID, severity, file:line, issue description, suggested fix.
+1. **Resolve the slice-slug.** If a slice-slug was passed as a third argument (e.g., `$wf implement my-slug auth-flow reviews`), use it. Otherwise use `selected-slice-or-focus` from `00-index.md`. If neither is set, ask the user.
+2. **Read `07-review-<slice-slug>.md`** and all `07-review-<slice-slug>-<command>.md` for that slice. Other slices' review files are out of scope.
+3. **Extract the findings list.** Build an ordered list sorted by severity (BLOCKER first, then HIGH, then MED if requested). Each finding has: ID, severity, file:line, issue description, suggested fix.
 4. **Present the findings list** to the user before starting:
    ```
    ## Review Findings to Fix ({N} total)
@@ -236,27 +288,24 @@ Do this in order for reviews mode:
       Issue: {issue description}
       Suggested Fix: {fix suggestion}
 
-      Read the file(s) at the specified location. Understand the issue.
-      Apply the minimal fix that resolves the issue without introducing
-      new problems. Do NOT change anything beyond what is needed for this
-      specific finding.
+      Read the file(s) at the specified location. Apply the minimal fix that resolves the issue without introducing new problems. Do NOT change anything beyond what is needed for this finding.
 
-      After fixing, verify your change is correct:
+      After fixing, verify:
       - The fix addresses the specific issue described
-      - No new lint/type/test failures are introduced
-      - The surrounding code still makes sense
+      - No new lint/type/test failures introduced
+      - Surrounding code still makes sense
 
       Return a brief summary of what you changed and whether the fix is confirmed correct.
       ```
    b. **Wait for the sub-agent to complete.**
-   c. **Verify the fix:** Read the changed file(s). Confirm the fix addresses the finding. Check for obvious regressions.
+   c. **Verify the fix:** Read the changed file(s). Confirm the fix addresses the finding and check for regressions.
    d. If the fix failed or was partial, note the outcome before moving to the next finding.
-   e. **Move to the next finding.** Do NOT proceed to the next finding until the current one is verified.
+   e. Do NOT proceed to the next finding until the current one is verified.
 
 6. **After all findings are processed:**
-   a. Write/update `05-implement-<slice-slug>.md` with a `## Review Fixes Applied` section listing all findings and their resolution status.
+   a. Write/update `05-implement-<slice-slug>.md` with a `## Review Fixes Applied` section listing all findings and resolution status.
    b. Update `05-implement.md` master index.
-   c. **Update `07-review-<slice-slug>.md` (accumulating ledger — edit in place, do not overwrite):** Set each fixed finding's `status` (`fixed` / `could-not-fix`) + `fixed-at` on the finding in `## All Findings`, `## Findings (Detailed)`, and the sibling `.yaml`, and update its row in the accumulating `## Fix Status` ledger (one row per finding ever fixed, keyed by ID — update in place, never start a new round table):
+   c. **Update `07-review-<slice-slug>.md` (accumulating ledger — edit in place, do not overwrite):** Set each finding's `status` (`fixed` / `could-not-fix`) + `fixed-at` in `## All Findings`, `## Findings (Detailed)`, and the sibling `.yaml`. Update its row in the `## Fix Status` ledger (one row per finding, keyed by ID — update in place, never start a new round table):
       ```
       ## Fix Status
       | ID | Sev | Source | Status | Fixed-at | Commit | Notes |
@@ -264,13 +313,13 @@ Do this in order for reviews mode:
       | {ID} | {sev} | {command} | fixed / could-not-fix | {fixed-at} | {SHA or —} | {notes} |
       ```
    d. Update `00-index.md`.
-   e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** Stage all changed files and commit with message: `fix(<slug>): review fixes for <slice-slug>`. Record commit SHA. Do NOT push. If `branch-strategy` is `none`, skip.
+   e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** Stage all changed files and commit: `fix(<slug>): review fixes for <slice-slug>`. Record commit SHA. Do NOT push. If `branch-strategy` is `none`, skip.
 
 7. **Evaluate adaptive routing:**
 
 **Option A (default): Re-verify** → `$wf verify <slug> <slice-slug>`
-Use when: Fixes were applied. Need to confirm everything still passes.
-**Compact recommended** — review fix context (finding details, sub-agent output) is noise for re-verification.
+Use when: Fixes were applied.
+**Compact recommended** — review fix context is noise for re-verification.
 
 **Option B: Re-review** → `$wf review <slug> <slice-slug>`
 Use when: Some findings could not be fixed and need re-assessment.
@@ -348,6 +397,9 @@ next-invocation: "$wf verify <slug> <slice-slug>"
 
 # Implement: <slice-name>
 
+## The Implementation
+<!-- STORY SECTION — first, self-sufficient. A reader who reads only this understands what was produced, the load-bearing decisions and counts, and the top risk; structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This implementation implements…" openings. 1–4 short paragraphs. -->
+
 ## Summary of Changes
 - ...
 
@@ -360,20 +412,28 @@ next-invocation: "$wf verify <slug> <slice-slug>"
 ## Notes on Design Choices
 - ...
 
+## Verification Seams Built
+<!-- Seams the plan's `## Verification Strategy` named to make each user-observable AC observable: seeded fixtures, deterministic clocks, `data-testid` / a11y ids, emulator / test config, exported test hooks, authorized tool install. `verify` relies on these; list each. If none needed: "None needed — [reason]." -->
+- <AC id / text> → <seam built> at <file:line> (enables <tool / method> to observe it)
+
 ## Visual Contract Honored (only if `02c-craft.md` was present)
 For each item in `02c-craft.md` → `## Mock fidelity inventory`, confirm honored or note deviation:
 - <inventory item> — honored at <file:line> | deviation: <what differs and why>
 - ...
 
 ## Deviations from Plan
+<!-- A deviation of kind "planned API not found" (the plan assumed a capability the
+     installed source does not expose) MUST NAME the source file read that established
+     the absence — the `node_modules/` or vendored path, the failing repro, or the
+     upstream issue. A bare "the API didn't work" is not a recorded deviation. -->
 - ...
 
 ## Anything Deferred
-<!-- Includes capabilities deferred by shape's Round 5 restraint pass or the plan's ladder, plus any `sdlc-debt:` shortcut taken during this slice — each with its ceiling and upgrade path. -->
+<!-- Capabilities deferred by shape's Round 5 restraint or the plan's ladder, plus any `sdlc-debt:` shortcut — each with its ceiling and upgrade path. -->
 - ...
 
 ## Known Risks / Caveats
-<!-- Includes any `sdlc-debt:` shortcut whose ceiling is live in the shipped code (global lock, O(n²) scan, naive heuristic, hard-coded value). -->
+<!-- Any `sdlc-debt:` shortcut whose ceiling is live in shipped code (global lock, O(n²) scan, naive heuristic, hard-coded value). -->
 - ...
 
 ## Freshness Research
@@ -386,4 +446,4 @@ For each item in `02c-craft.md` → `## Mock fidelity inventory`, confirm honore
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell. Follow [_fragment-authoring.md](_fragment-authoring.md) **Step F2** for rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

@@ -71,6 +71,10 @@ DevTools → Network tab → check:
 .animated-element { will-change: transform; }
 ```
 
+**Transition only what changes.** Never `transition: all` (or Tailwind's bare `transition`, which maps to `transition-property: all`) — it forces the browser to watch every property, animates ones you never intended (colors, padding, shadows), and blocks optimization. Name them: `transition-property: transform, opacity`. (Tailwind's `transition-transform` already covers `transform, translate, scale, rotate`; for an arbitrary set use `transition-[transform,opacity]`.)
+
+**Keep animation off the main thread under load** — Framer Motion `x`/`y`/`scale` shorthands (not hardware-accelerated), JS-vs-CSS under load, WAAPI, and the parent-CSS-variable recalc trap are the usual janky-under-load culprits. These motion-performance rules are single-sourced in `animate.md` (Performance) — load it for the full treatment rather than duplicating it here.
+
 ## Step 3: Loading performance
 
 **Images**:
@@ -128,3 +132,7 @@ elements.forEach((el, i) => { el.style.height = heights[i] + 'px'; });
 ### Remaining opportunities
 [Lower-priority items for future optimization]
 ```
+
+---
+
+> *The animation-performance guidance here — GPU-composited properties, `will-change` discipline, transition specificity, and the main-thread rules pointed to above — is adapted from Emil Kowalski's design-engineering philosophy ([animations.dev](https://animations.dev/)) and Jakub Krehel's "Details that make interfaces feel better" ([jakub.kr](https://jakub.kr/writing/details-that-make-interfaces-feel-better)); the full craft lives in `animate.md` / `polish.md`. Used under MIT license.*

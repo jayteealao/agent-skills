@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -93,45 +91,38 @@
 </aside><main>
 <div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; How-to &rsaquo; Amend or extend</div>
 <span class="quadrant howto">how-to</span>
-<h1>Amend or extend a workflow</h1>
+<h1>Correct or extend a workflow</h1>
 
-<p class="lede">Two things can go wrong after you start building. Either the spec you agreed to turns out to be wrong — the acceptance criteria, scope, or approach needs correcting — or new scope appears mid-work that belongs in the same effort. These are different problems and they use different commands.</p>
+<p class="lede">Two things can go wrong after you start building. Either the spec you agreed to turns out to be wrong — the acceptance criteria, scope, or approach needs correcting — or new scope appears mid-work that belongs in the same effort. Both are handled the same way now: you add a new slice. There is no <code>amend</code> — corrections are tracked as fresh work, never as an in-place mutation of a completed artifact, which keeps the provenance clean by construction.</p>
 
 <div class="summary">
 <table>
 <tr><th>Situation</th><th>Command</th></tr>
-<tr><th>The spec was wrong</th><td><code>/wf-meta amend</code> — correct the definition without touching completed work.</td></tr>
-<tr><th>New scope appeared</th><td><code>/wf-meta extend</code> — add new slices to the existing workflow.</td></tr>
-<tr><th>The spec is right but the code is buggy</th><td><code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code> — fix the implementation. Do not reach for amend.</td></tr>
+<tr><th>The spec was wrong</th><td><code>/wf intake &lt;slug&gt; &lt;scope&gt;</code> — add a corrective slice describing the fix.</td></tr>
+<tr><th>New scope appeared</th><td><code>/wf intake &lt;slug&gt; &lt;scope&gt;</code> — add a slice for the new work.</td></tr>
+<tr><th>A ship-plan block was wrong</th><td><code>/wf ship-plan edit</code> — correct one block of <code>.ai/ship-plan.md</code>.</td></tr>
+<tr><th>The spec is right but the code is buggy</th><td><code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code> — fix the implementation.</td></tr>
 </table>
 </div>
 
-<h2>Amend — when the spec was wrong</h2>
+<h2>Correct or extend — add a new slice</h2>
 
 <p>A <strong>slug</strong> (<a href="../reference/glossary.html">glossary</a>) is the short identifier for a workflow, like <code>auth-refresh</code> or <code>payment-retry</code>. Each workflow stores its definition in a set of <strong>artifacts</strong> (<a href="../reference/glossary.html">glossary</a>) — the markdown files in <code>.ai/</code> that record the shape, plan, and implementation notes for that slug.</p>
 
-<p>When a review or retro reveals that an acceptance criterion was incorrect, or that the approach relied on something that does not exist, use <code>/wf-meta amend</code>. It writes versioned amendment files alongside the originals — for example, <code>02-shape-amend-1.md</code> and <code>03-slice-&lt;slice-slug&gt;-amend-1.md</code> (where <code>&lt;slice-slug&gt;</code> is the individual slice identifier, not the workflow slug) — and never overwrites artifacts that were already completed.</p>
+<p>When a review or retro reveals that an acceptance criterion was incorrect, that the approach relied on something that does not exist, or that a piece you agreed on is missing, add a new slice to the existing workflow with <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code>. Passing an existing slug plus a free-text scope auto-routes to an extension: it registers a new slice alongside the ones already there and never touches completed work. This single path replaces the former <code>amend</code> and <code>extend</code> sub-commands.</p>
 
-<pre><code>/wf-meta amend auth-refresh from-review    # seeds the correction from 07-review findings
-/wf-meta amend auth-refresh from-retro     # seeds from 10-retro.md
-/wf-meta amend auth-refresh                # describe the correction manually
-/wf-meta amend ship-plan                   # edit one block of .ai/ship-plan.md</code></pre>
+<pre><code>/wf intake auth-refresh "correct the token-expiry AC — refresh at 90%, not on expiry"
+/wf intake auth-refresh "add the missing logout-everywhere endpoint"</code></pre>
 
-<p>After amend writes the corrected artifacts, re-run <code>/wf plan auth-refresh &lt;slice&gt;</code> to update the plan, then <code>/wf implement auth-refresh &lt;slice&gt;</code> to implement the correction.</p>
+<p>After the new slice is registered, run <code>/wf plan auth-refresh &lt;slice&gt;</code> and then <code>/wf implement auth-refresh &lt;slice&gt;</code> as normal. To seed the correction from prior findings, describe it in the scope text — e.g. reference the <code>07-review</code> blocker or the <code>10-retro</code> note you are acting on.</p>
 
-<h2>Extend — when new scope appeared</h2>
+<h2>Ship-plan corrections — edit the block</h2>
 
-<p>Sometimes a review or retro surfaces scope that genuinely belongs in this workflow but does not exist as a slice yet. Use <code>/wf-meta extend</code>. It adds new slices to the existing workflow without touching the slices that are already there.</p>
-
-<pre><code>/wf-meta extend auth-refresh from-review
-/wf-meta extend auth-refresh from-retro
-/wf-meta extend auth-refresh</code></pre>
-
-<p>After extend registers the new slices, run <code>/wf plan</code> and then <code>/wf implement</code> for each new slice as normal.</p>
+<p>The project ship plan (<code>.ai/ship-plan.md</code>) is not a workflow artifact, so it is corrected in place rather than by a new slice. Use <code>/wf ship-plan edit</code> to update a single block — for example, adding a newly discovered failure mode to the recovery-playbooks block.</p>
 
 <h2>Implement (reviews mode) — when the code is buggy</h2>
 
-<p>If the spec is correct but the implementation has a bug, do not amend. The spec does not need correcting — only the code does.</p>
+<p>If the spec is correct but the implementation has a bug, you do not need a new slice. The spec does not need correcting — only the code does.</p>
 
 <pre><code>/wf implement auth-refresh login-flow reviews</code></pre>
 
@@ -142,10 +133,10 @@
 <table>
 <thead><tr><th>What you found</th><th>Use</th></tr></thead>
 <tbody>
-<tr><td>"Acceptance criterion is contradictory"</td><td>amend</td></tr>
-<tr><td>"The approach assumed X but X does not exist"</td><td>amend</td></tr>
-<tr><td>"This slice should have been two slices"</td><td>amend (split) + extend (new slice)</td></tr>
-<tr><td>"This feature is missing a piece we agreed on"</td><td>extend</td></tr>
+<tr><td>"Acceptance criterion is contradictory"</td><td>new slice — <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code></td></tr>
+<tr><td>"The approach assumed X but X does not exist"</td><td>new slice — <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code></td></tr>
+<tr><td>"This feature is missing a piece we agreed on"</td><td>new slice — <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code></td></tr>
+<tr><td>"A ship-plan block is wrong"</td><td><code>/wf ship-plan edit</code></td></tr>
 <tr><td>"The code returns 500 when it should return 400"</td><td>implement reviews</td></tr>
 <tr><td>"The test does not cover the edge case"</td><td>implement reviews</td></tr>
 </tbody>
@@ -154,8 +145,8 @@
 <div class="related">
 <h3>Where next</h3>
 <ul>
-  <li><a href="../reference/wf-meta.html#amend">See the full /wf-meta amend argument list →</a></li>
-  <li><a href="triage-pr-comments.html">Handle PR comments that route to amend or extend →</a></li>
+  <li><a href="../reference/wf.html">See the full /wf intake argument list →</a></li>
+  <li><a href="triage-pr-comments.html">Handle PR comments that route to a new slice or a fix →</a></li>
   <li><a href="../reference/glossary.html">Look up slug, artifact, slice, and other terms →</a></li>
 </ul>
 </div>

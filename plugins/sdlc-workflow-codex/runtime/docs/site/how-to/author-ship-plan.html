@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -99,7 +97,7 @@
 
 <div class="summary">
 <table>
-<tr><th>Pre-conditions</th><td>Plugin v9.42.0+ (for full A–K plan including inbound pipeline; v9.12.0+ for outbound Blocks A–G only). A repo open in Claude Code. No existing <code>.ai/ship-plan.md</code> — if one exists, run <code>/wf-meta amend ship-plan</code> instead.</td></tr>
+<tr><th>Pre-conditions</th><td>Plugin v9.42.0+ (for full A–K plan including inbound pipeline; v9.12.0+ for outbound Blocks A–G only). A repo open in Claude Code. No existing <code>.ai/ship-plan.md</code> — if one exists, run <code>/wf ship-plan edit</code> instead.</td></tr>
 <tr><th>Goal</th><td>Write <code>.ai/ship-plan.md</code> covering the eleven release concerns (Blocks A–K) so that <code>/wf ship</code> has everything it needs.</td></tr>
 <tr><th>Time</th><td>15–30 minutes the first time. Future releases reuse the plan — no re-authoring needed.</td></tr>
 </table>
@@ -111,12 +109,14 @@
 
 <p>The <a href="../reference/ship-plan-schema.html">ship plan</a> (a Markdown file with a YAML front-matter block) stores eleven "release concerns" — things like branch protection rules, the version-bump command, and rollback steps. Once committed, every <code>/wf ship</code> run reads the file directly.</p>
 
+<p>Both <code>/wf handoff</code> and <code>/wf ship</code> now run a shared ship-plan-readiness pre-check first. If <code>.ai/ship-plan.md</code> is missing or has drifted from the repo, they route you back here to <code>/wf ship-plan init</code> or <code>/wf ship-plan edit</code> rather than editing the plan themselves.</p>
+
 <h2>Step 1 — Run the init command</h2>
 
-<p>The <code>init-ship-plan</code> <a href="../reference/glossary.html">stage</a> (a single automated step in a workflow) reads your repo before asking any questions.</p>
+<p><code>/wf ship-plan init</code> is a router sub-command — not a pipeline stage. It reads your repo before asking any questions.</p>
 
-<pre><code>/wf-meta init-ship-plan                              # reads the repo; no seed
-/wf-meta init-ship-plan --from-template npm-public   # biases toward npm-public defaults</code></pre>
+<pre><code>/wf ship-plan init                              # reads the repo; no seed
+/wf ship-plan init --from-template npm-public   # biases toward npm-public defaults</code></pre>
 
 <p>The command scans CI workflow YAML, infrastructure files (Dockerfile, helm, fly.toml), package manifests (package.json, pyproject.toml, Cargo.toml), release tooling (release-please, goreleaser, changesets), and any runbook directories it finds.</p>
 
@@ -150,7 +150,7 @@ actually we publish to a private registry, not GHCR</code></pre>
 <dd>Default rollout strategy (immediate / staged / canary / blue-green / feature-flag). The rollback command. Whether database migrations are reversible.</dd>
 
 <dt><strong>F — Recovery playbooks</strong></dt>
-<dd>Step-by-step remediation for known failure modes. Pre-filled from any runbook files Claude found. Grows over time — add entries later with <code>/wf-meta amend ship-plan</code>.</dd>
+<dd>Step-by-step remediation for known failure modes. Pre-filled from any runbook files Claude found. Grows over time — add entries later with <code>/wf ship-plan edit</code>.</dd>
 
 <dt><strong>G — Announcements</strong></dt>
 <dd>Where release notes go (#releases Slack channel, mailing list). An optional message template path.</dd>
@@ -192,9 +192,21 @@ git commit -m "chore: author ship plan"</code></pre>
 
 <p>When CI/CD changes, secrets rotate, or you want to add a recovery playbook after an incident, run:</p>
 
-<pre><code>/wf-meta amend ship-plan</code></pre>
+<pre><code>/wf ship-plan edit</code></pre>
 
-<p>Pick the block (A–K) or additional-contract id to edit. The amend flow re-runs only that block's confirmation loop — discovery is skipped because the existing plan is the source of truth. <code>plan-version</code> increments by 1. Amending Block H or C also re-derives the pre-merge check lists. After changing an inbound block (H–K), run <code>/wf-meta build-pipeline</code> to bring the repo and remote settings back into compliance.</p>
+<p>Pick the block (A–K) or additional-contract id to edit. The edit flow re-runs only that block's confirmation loop — discovery is skipped because the existing plan is the source of truth. <code>plan-version</code> increments by 1. Editing Block H or C also re-derives the pre-merge check lists. After changing an inbound block (H–K), run <code>/wf ship-plan build</code> to bring the repo and remote settings back into compliance.</p>
+
+<h2>Auditing the plan for soundness</h2>
+
+<p><code>/wf ship-plan build</code> checks whether the repo <em>matches</em> the plan — it trusts the plan and closes the gap. The handoff/ship readiness pre-check catches <em>mechanical drift</em> (a version file moved, a secret went unplanned). Neither asks the harder question: <strong>is the plan itself correct?</strong> That is what <code>audit</code> is for.</p>
+
+<pre><code>/wf ship-plan audit            # full fan-out across all seven lenses
+/wf ship-plan audit release-safety   # re-check just one lens after a fix
+/wf ship-plan audit triage     # revisit findings you previously acknowledged</code></pre>
+
+<p>It is <strong>read-only</strong> — it never edits the plan, never touches a workflow, never ships. It fans out one adversarial reviewer per lens — <code>plan-soundness</code>, <code>release-safety</code>, <code>ci-correctness</code>, <code>secrets-and-permissions</code>, <code>supply-chain</code>, <code>rollback-realism</code>, <code>version-integrity</code> — each of which tries to <em>break</em> the plan, the built pipeline, and the release-relevant codebase on paper before a real release breaks in production. The canonical catch: a plan whose release fires <code>tag-on-main</code> but whose version bump runs <em>inside</em> that tag-triggered workflow, so every tag ships the pre-bump version. Valid YAML, compliant with the plan, and wrong — invisible to drift detection, exactly what audit exists to find.</p>
+
+<p>Findings accumulate in <code>.ai/ship-plan-audit.md</code>: re-runs dedupe and merge in place, findings you fixed are marked <code>resolved</code>, and each open finding is <strong>routed</strong> to the command that can fix it — <code>/wf ship-plan edit &lt;block&gt;</code> for a plan defect, <code>/wf ship-plan build</code> for a pipeline gap, <code>/wf intake fix</code> for a codebase issue. The verdict is <code>sound</code>, <code>ship-with-caveats</code>, or <code>unsound</code>. Run it after your first <code>build</code>, and again before a first real release.</p>
 
 <details>
 <summary>Technical detail — templates as hypothesis seeds</summary>

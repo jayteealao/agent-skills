@@ -113,7 +113,7 @@ Inline `<style>` and `<script>` blocks only. Every fragment dispatches
 `window.dispatchEvent(new CustomEvent('sdlc:fragment-ready', { detail: {…} }))`
 on settle.
 
-Eleven fragment-bearing artifact types ship across three phases:
+Fourteen fragment-bearing (rich-tier) artifact types ship across four phases:
 
 | Phase | Type | Sibling YAML `artifact:` | Page |
 |---|---|---|---|
@@ -128,6 +128,9 @@ Eleven fragment-bearing artifact types ship across three phases:
 | 3 (v9.22.0) | `augmentation` (benchmark) | `benchmark` | benchmark comparison table |
 | 3 (v9.22.0) | `augmentation` (experiment) | `experiment` | arm-allocation bar + guardrails |
 | 3 (v9.22.0) | `augmentation` (instrument) | `instrument` | signal table + dark paths |
+| 4 (v9.71.0) | `design-contract` | `design-contract` | visual-contract coverage-grid page |
+| 4 (v9.82.0) | `design-audit` | `design-audit` | design-review audit page |
+| 4 (v9.82.0) | `design-critique` | `design-critique` | design-review critique page |
 
 Each type's authoring contract — when to emit the sibling YAML, what
 shape it takes, and what gets surfaced visually — lives in the
@@ -287,8 +290,8 @@ PR comments paste any of these and reviewers land on the exact artifact.
 
 Edit `assets/sdlc.css`. The top of the file is a token block (`--paper`,
 `--ink`, `--accent`, severity pairs) — most palette tweaks live there. The
-shared class catalogue is documented in the
-[SUNFLOWER-VIEW-PLAN](../../SUNFLOWER-VIEW-PLAN.md) §"CSS design system".
+shared class catalogue is documented inline in `assets/sdlc.css` itself, at
+the top of the file above the component rules.
 
 Re-render with `node dist/render-sunflower.mjs --clean` to pick up CSS
 changes everywhere; for incremental work, the version cache-bust query string
@@ -298,7 +301,7 @@ changes everywhere; for incremental work, the version cache-bust query string
 
 | Symptom | Likely cause |
 |---|---|
-| Page renders without styles | View tree served at a path other than `/sdlc` — pass `--path /your-path` to the serve wrapper, or override `--asset-base` on the renderer. |
+| Page renders without styles | View tree served from the wrong directory. Point the serve wrapper at the right tree with `--view <path>` (run `node dist/render-sunflower-serve.mjs --help` for the full flag list — there is no `--path` or `--asset-base` flag), then re-render with `node dist/render-sunflower.mjs --clean`. |
 | `Cannot find package 'ajv'` (or `markdown-it`/`js-yaml`) | You're running a **source** script (`scripts/…`) without the dev toolchain. Run the committed bundle instead (`node dist/…` — deps inlined), or, if developing, `npm install` then `npm run build`. End users never hit this — the hooks run from `dist/`. |
 | Hook fires but view stays stale | Check `.ai/_view/.render-errors.log`. Or `.render-suppress` is set. |
 | Session start does not refresh the view | Check `.ai/_view/.bootstrap.log` and `.ai/_view/.bootstrap.pid`. Run `node dist/render-sunflower.mjs --bootstrap --dry-run` for the planned jobs. |

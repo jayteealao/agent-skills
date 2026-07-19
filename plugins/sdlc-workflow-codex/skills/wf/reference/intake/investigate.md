@@ -25,6 +25,25 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Next | User picks an option, then: `$wf intake fix <option-description>` (small option, ≤3 files / ≤5 steps / no new dependency) or `$wf intake <option-description>` (medium+). |
 | Escalate | If sub-agents agree no viable option exists within the current architecture → surface `architecture-blocking` and recommend a design pass via `$wf intake` with the problem framed as an architecture question. |
 
+> **Auto second opinion (objective triggers).** At the terminus, once the option set is
+> synthesized (before Step 4 writes the index), **auto-invoke** `$consult codex <critique these
+> candidate approaches and name what this analysis missed>` (pinning `codex`/`claude` keeps it
+> free) when ANY of: (a) any tripwire fired (`single-viable-option` especially — a second model
+> is the cheapest test of whether the option space is genuinely that narrow); (b) any option is
+> `effort: large` or requires a schema change or an architecture violation; (c) the options span
+> security, auth, data migration, or money/billing. Fold distinct options or refutations into the
+> artifact (an option the panel kills moves to "considered and rejected" with the reason). Skip
+> only when none of the triggers hold; the user may invoke it explicitly with any provider.
+
+> **Ground options in real source.** When a candidate approach hinges on what a
+> library, framework, or SDK *actually* supports — an extension point, a config
+> surface, a limit, whether an API even exists in the installed version — invoke the
+> `study-sources` skill to read its installed source (or clone it into `.scratch/`)
+> before characterizing feasibility, effort, and risk. An option's tradeoffs are only
+> as sound as the API facts behind them; reading the real source keeps a sketch from
+> resting on an API that doesn't exist. Read-only — reads land in `.scratch/`, no repo
+> or application-code changes.
+
 # CRITICAL — sketching discipline
 You are an **options sketcher**, not a chooser, planner, or implementer.
 - The **only** acceptable output is the investigate artifact and index. Do NOT edit application code. Do NOT write a plan. Do NOT pick a winning option (the user picks).
@@ -38,7 +57,7 @@ You are an **options sketcher**, not a chooser, planner, or implementer.
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: investigate` → **resume mode**. Read that index. If `01-investigate.md` is complete, tell the user and stop. If incomplete, pick up from the missing section.
    - Otherwise → **new investigate**. Derive a slug: `investigate-<short-problem>` (kebab-case, max 5 words, e.g., `investigate-checkout-latency`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf-meta resume <slug>` to continue it." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `investigate` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf recap <slug>` to review it." Stop.
 3. **Branch posture (do NOT switch branches):**
    - This is read-only — do not create or switch branches.
    - Record the current branch in the index.
@@ -58,7 +77,7 @@ If `$ARGUMENTS` contains enough to answer all three, skip to Step 2.
 Do NOT write the artifact yet. Hold answers in working memory and proceed.
 
 # Step 2 — Parallel map-and-sketch
-Launch all three sub-agents simultaneously. Do not proceed to synthesis until all three complete. Work sequentially unless the user explicitly requested parallel execution.
+Launch all three sub-agents simultaneously as parallel read-only `explorer` children per [_subagents.md](../_subagents.md). Do not proceed to synthesis until all three complete.
 
 ### Explore sub-agent 1 — Architecture cartographer
 
@@ -126,11 +145,14 @@ option-ids: [A, B, C]   # only those present
 constraints: [<from-question-3>]
 recommended-next: user-picks   # this skill never picks
 status: ready-for-routing
-created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+created-at: <real UTC timestamp per _timestamp.md>
 ---
 ```
 
 **Body sections (in order):**
+
+## The Investigation
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This investigation implements…" openings. 1–4 short paragraphs. -->
 
 ## 1. Problem & constraints
 
@@ -193,7 +215,7 @@ This skill does not pick a winner. Pick the option you want and route accordingl
 |---|---|
 | An option with `effort: small`, mechanism is clear, scope is ≤3 files | `$wf intake fix <option-label> — <one-line option description>` |
 | An option with `effort: medium` or `large`, OR `requires_schema_change: yes`, OR `requires_new_dependency: yes` with non-trivial integration | `$wf intake <option-label> — <one-line option description>` |
-| You're not sure which option to pick | Stop and think. If the tradeoff matrix in section 4 doesn't disambiguate, ask a human or run `$wf-docs how <area>` to deepen understanding of the area before choosing. |
+| You're not sure which option to pick | Stop and think. If the tradeoff matrix in section 4 doesn't disambiguate, ask a human or run `$wf recap <slug> <focus>` / `$deep-research` to deepen understanding of the area before choosing. |
 
 ## 6. Tripwire warnings (only if any fired)
 
@@ -211,7 +233,7 @@ For each fired tripwire: `[tripwire-name]: <what specifically tripped it>`. Clos
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # Step 4 — Write `00-index.md`
 
@@ -273,5 +295,5 @@ If `architecture-blocking` tripped, prefix with:
 - **Not a chooser** — this skill sketches options; the user picks. If you want a single recommended approach with acceptance criteria, that is `$wf shape <slug>` after `$wf intake`.
 - **Not a problem validator** — this skill assumes the problem is real and worth solving. If you're not sure whether the problem is genuine, that requires runtime data, telemetry, or user signal that this skill doesn't gather. Run a measurement step first.
 - **Not a diagnostician** — if there is a specific symptom (error, crash, slow request) and you want to know *why*, that is `$wf intake rca <symptom>`. Investigate proposes *how to solve*; rca finds *why it's broken*.
-- **Not an explainer** — if you want to understand how the area works before forming options yourself, that is `$wf-docs how <area>`. Investigate already does a light architecture map, but it is in service of options, not as a standalone explanation.
+- **Not an explainer** — if you want to understand how the area works before forming options yourself, that is `$wf recap <slug> <focus>` or `$deep-research`. Investigate already does a light architecture map, but it is in service of options, not as a standalone explanation.
 - **Not a substitute for `$wf shape`** — `$wf shape` produces a chosen design with acceptance criteria, attached to a workflow. `investigate` produces an option set with no chosen winner, attached to nothing yet. After you pick, `$wf intake` → `$wf shape` deepens the chosen option into an implementable spec.

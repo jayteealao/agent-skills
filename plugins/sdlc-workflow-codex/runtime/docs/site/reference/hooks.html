@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -95,7 +93,7 @@
 <span class="quadrant reference">reference</span>
 <h1>Hooks reference</h1>
 
-<p class="lede">Hooks are what make the plugin active during normal Claude Code use — they fire automatically when you write files, start sessions, and run commands. Two of the five hooks act as <strong>guards</strong>: they catch malformed artifact files before they are saved, so broken frontmatter never silently corrupts your workflow history.</p>
+<p class="lede">Hooks are what make the plugin active during normal Claude Code use — they fire automatically when you write files, start sessions, and run commands. Two of the eight hooks act as <strong>guards</strong>: they catch malformed artifact files before they are saved, so broken frontmatter never silently corrupts your workflow history.</p>
 
 <h2>What the hooks do for you</h2>
 
@@ -108,28 +106,39 @@
   <li><strong>post-write-verify</strong> — runs <em>after</em> a write. It performs a deeper schema check and, for the 14 <a href="../reference/glossary.html#fragment">rich-tier</a> artifact types, also checks that the required companion <code>.yaml</code> fragment file exists. If either check fails it exits with an error and prompts Claude to repair the file.</li>
 </ul>
 
-<p>The other three hooks handle automation:</p>
+<p>The other four hooks handle automation:</p>
 
 <ul>
   <li><strong>post-write-auto-stage</strong> — automatically runs <code>git add</code> on changed code files during the implement <a href="../reference/glossary.html#stage">stage</a> (one step of the full workflow lifecycle), so you do not have to stage files manually.</li>
   <li><strong>post-write-render</strong> — refreshes the local <a href="../reference/glossary.html#dashboard">dashboard</a> (the Sunflower HTML view) after any artifact changes. It never blocks a write; it is best-effort.</li>
-  <li><strong>session-start-orient</strong> — runs once when a session opens (and again after context compaction). It reads the <code>00-index.md</code> registry files for every active workflow and surfaces their state as context, so Claude always knows where each piece of work stands.</li>
+  <li><strong>session-start-orient</strong> — runs once when a session opens (and again after context compaction). It starts background rendering of the dashboard view and self-heals the tray. It surfaces no session context of its own — the <code>/wf</code> commands re-read each workflow&#39;s <code>00-index.md</code> when they run.</li>
+  <li><strong>seed-memory</strong> — a second SessionStart hook. When the repo has an <code>.ai/workflows/</code> directory, it seeds a versioned, fenced <code>/wf</code> rules block into <code>AGENTS.md</code> (and an <code>@AGENTS.md</code> import into <code>CLAUDE.md</code>) so the workflow conventions survive across sessions. Never blocks; opt out with <code>memory.seedRules</code>.</li>
 </ul>
 
-<h2>All five hooks at a glance</h2>
+<p>Two optional <strong>leak guards</strong> ship <em>off by default</em> (enable them via the <code>semantic</code> config block below):</p>
+
+<ul>
+  <li><strong>leak-guard-bash</strong> — before a publishing command runs (<code>git commit</code>/<code>git tag</code> messages, <code>gh pr create</code> titles and bodies, <code>gh release</code> notes), it scans the outward-facing text for internal workflow vocabulary — artifact paths, command strings, stage-file names — and advises you to translate to product language before publishing.</li>
+  <li><strong>leak-guard-write</strong> — the same scan for writes to public documentation paths (<code>README</code>, <code>CHANGELOG</code>, <code>CONTRIBUTING</code>, <code>docs/</code> outside the internal roots). Internal paths are never scanned — workflow vocabulary belongs there.</li>
+</ul>
+
+<h2>All eight hooks at a glance</h2>
 
 <table>
 <thead><tr><th>Hook</th><th>Fires</th><th>Timeout</th><th>Blocks?</th></tr></thead>
 <tbody>
 <tr><td><code>session-start-orient</code></td><td>Session opens / after compaction</td><td>30 s</td><td>No</td></tr>
+<tr><td><code>seed-memory</code></td><td>Session opens / after compaction</td><td>10 s</td><td>No — seeds the <code>/wf</code> rules kernel into AGENTS.md + CLAUDE.md</td></tr>
 <tr><td><code>pre-write-validate</code></td><td>Before a <code>Write</code></td><td>5 s</td><td>Yes — exits 2 on invalid filename or frontmatter</td></tr>
+<tr><td><code>leak-guard-write</code></td><td>Before Write / Edit / MultiEdit</td><td>5 s</td><td>Off by default; advisory when enabled — exits 2 only in <code>enforce</code> mode</td></tr>
+<tr><td><code>leak-guard-bash</code></td><td>Before a <code>Bash</code> command</td><td>5 s</td><td>Off by default; advisory when enabled — exits 2 only in <code>enforce</code> mode</td></tr>
 <tr><td><code>post-write-auto-stage</code></td><td>After Write / Edit / MultiEdit / NotebookEdit</td><td>5 s</td><td>No</td></tr>
 <tr><td><code>post-write-verify</code></td><td>After Write / Edit / MultiEdit / NotebookEdit</td><td>15 s</td><td>Yes — exits 2 on schema failure or missing fragment</td></tr>
 <tr><td><code>post-write-render</code></td><td>After Write / Edit / MultiEdit / NotebookEdit</td><td>30 s</td><td>No</td></tr>
 </tbody>
 </table>
 
-<p>All five are wired via <code>hooks/hooks.json</code> and run from committed <strong>esbuild bundles under <code>dist/</code></strong>, not the <code>hooks/*.mjs</code> source files. This means they run with no <code>npm install</code> on a fresh install — all dependencies are inlined.</p>
+<p>All eight are wired via <code>hooks/hooks.json</code> and run from committed <strong>esbuild bundles under <code>dist/</code></strong>, not the <code>hooks/*.mjs</code> source files. This means they run with no <code>npm install</code> on a fresh install — all dependencies are inlined. The hooks are not Claude-Code-only: a shared <code>normalizeHookPayload</code> (in <code>lib/stdin.mjs</code>) aliases the camelCase hook payload keys emitted by Grok and Cursor to the snake_case fields the hooks expect, so the same bundles run across those hosts.</p>
 
 <h2>What each hook validates</h2>
 
@@ -137,7 +146,7 @@
 
 <p>Fires before any write to a workflow artifact path (<code>*/.ai/workflows/&lt;slug&gt;/*.md</code>). Blocks writes that violate:</p>
 <ul>
-  <li><strong>Filename convention</strong> — files must match <code>NN-stagename.md</code> or <code>NNa-stagename.md</code> (for sub-stages like <code>02b-design.md</code>), plus the allowlisted names <code>risk-register.md</code>, <code>estimate.md</code>, <code>announce.md</code>, <code>skip-&lt;name&gt;.md</code> (wf-meta skip records), <code>po-answers.md</code>, and anything under <code>design-notes/</code>.</li>
+  <li><strong>Filename convention</strong> — files must match <code>NN-stagename.md</code> or <code>NNa-stagename.md</code> (for sub-stages like <code>02b-design.md</code>), plus the allowlisted names <code>risk-register.md</code>, <code>estimate.md</code>, <code>announce.md</code>, <code>skip-&lt;name&gt;.md</code> (close/skip records), <code>po-answers.md</code>, and anything under <code>design-notes/</code>.</li>
   <li><strong>YAML frontmatter</strong> — must be present between <code>---</code> markers and contain <code>schema</code>, <code>type</code>, and <code>slug</code> fields. (The <code>po-answers.md</code> prose log is exempt.)</li>
   <li><strong>Schema version</strong> — <code>schema: sdlc/v1</code>.</li>
   <li><strong>Slug stability</strong> — the frontmatter <code>slug</code> must match the directory name.</li>
@@ -147,7 +156,7 @@
 
 <h3>post-write-verify <span class="badge">PostToolUse: Write / Edit / MultiEdit / NotebookEdit</span></h3>
 
-<p>Fires after the write and reads the file from disk. Runs deep Ajv validation of the frontmatter <code>type</code> and required fields against <code>tests/frontmatter.schema.json</code> for artifacts under <code>.ai/workflows/</code>, <code>.ai/simplify/</code>, <code>.ai/profiles/</code>, and <code>.ai/docs/</code>. The <code>po-answers.md</code> prose log is exempt. Exits 2 with diagnostics on failure so Claude can repair the frontmatter in place.</p>
+<p>Fires after the write and reads the file from disk. Runs deep Ajv validation of the frontmatter <code>type</code> and required fields against <code>tests/frontmatter.schema.json</code> for artifacts under <code>.ai/workflows/</code>, <code>.ai/simplify/</code>, <code>.ai/profiles/</code>, <code>.ai/docs/</code>, and the solutions corpus (<code>.ai/solutions/&lt;category&gt;/*.md</code>, frontmatter <code>type: solution</code> — the corpus <code>INDEX.md</code> is a frontmatter-less registry and is exempt, as is the <code>po-answers.md</code> prose log). Exits 2 with diagnostics on failure so Claude can repair the frontmatter in place.</p>
 
 <h4>Sibling-fragment hard block <span class="badge">v9.47</span></h4>
 
@@ -173,11 +182,23 @@
 
 <h3>session-start-orient <span class="badge">SessionStart</span></h3>
 
-<p>Fires once per session and re-fires after a context compaction (<code>source: compact</code>). Reads <code>.ai/workflows/*/00-index.md</code>, surfaces active workflows as session context, and kicks off background rendering of the dashboard view. Re-reading workflow state from disk after compaction is what re-orients Claude once the conversation is compressed — this hook is the mechanism behind that.</p>
+<p>Fires once per session and re-fires after a context compaction (<code>source: compact</code>). It enqueues a whole-repo render of the dashboard view (drained by the hub) and self-heals the tray — re-pointing an enabled autostart launcher at the current version and reconciling a stale running tray. It runs entirely in the background and surfaces <strong>no</strong> session context of its own. Resume after a compaction is driven by the <code>/wf</code> commands instead: each re-reads its workflow&#39;s <code>00-index.md</code> on invocation (and the <code>auto</code>/<code>yolo</code> drivers run their own branch-posture check), so orientation is pulled just-in-time rather than pushed into context here.</p>
+
+<h3>seed-memory <span class="badge">SessionStart</span> <span class="badge">v9.125</span></h3>
+
+<p>A second SessionStart hook, separate from <code>session-start-orient</code> and shipped as its own bundle (<code>dist/seed-memory.mjs</code>, logic in <code>lib/memory-seed.mjs</code>). It runs only when the repo already has an <code>.ai/workflows/</code> directory. When it does, it seeds a <strong>versioned, fenced <code>/wf</code> rules block</strong> into <code>AGENTS.md</code> and adds an <code>@AGENTS.md</code> import into <code>CLAUDE.md</code>, so the workflow conventions are re-supplied to the model each session (the <code>@import</code> line is Claude-only; Codex reads <code>AGENTS.md</code> natively). It owns only the fenced region — hand-written prose around the fence is left untouched — and rewrites it only when the plugin&#39;s rules version advances. It never blocks a write (10 s timeout, fail-open). Opt out by setting <code>memory.seedRules</code> to <code>false</code> in <code>.ai/sdlc-config.json</code>.</p>
+
+<h3>leak-guard-bash <span class="badge">PreToolUse: Bash · off by default</span></h3>
+
+<p>Fires before a Bash command, but only acts on <strong>publishing commands</strong> — <code>git commit</code>, <code>git tag</code>, <code>gh pr create</code>, <code>gh release create|edit</code> — and scans only their message-bearing arguments (never the whole command, so reading an internal file with <code>cat</code> is never flagged). The scan uses a lexicon derived from the plugin&#39;s single-source output-boundary rule: internal paths (<code>.ai/…</code>, <code>.claude/…</code>), workflow command strings, stage-artifact filenames, and the artifact schema tag. Plain English words that happen to be stage names (&quot;plan&quot;, &quot;review&quot;, &quot;ship&quot;) are deliberately not matched. In <code>advisory</code> mode it emits a note naming the matches; in <code>enforce</code> mode it blocks the command with the same message.</p>
+
+<h3>leak-guard-write <span class="badge">PreToolUse: Write / Edit / MultiEdit · off by default</span></h3>
+
+<p>The same lexicon scan for writes whose target is a <strong>public documentation path</strong>: <code>README*</code>, <code>CHANGELOG*</code>, <code>CONTRIBUTING*</code>, or anything under a <code>docs/</code> directory outside the internal roots. Writes under <code>.ai/</code> or <code>.claude/</code> are never scanned — workflow vocabulary belongs there. Both guards sit out entirely during external-model dispatch and fail open on internal errors: advisory infrastructure never breaks a tool call.</p>
 
 <h2>Configuration</h2>
 
-<p>All five toggles live in the <code>hooks</code> block of <code>.ai/sdlc-config.json</code>. All default to <code>true</code>.</p>
+<p>The five <code>hooks</code>-block toggles live in <code>.ai/sdlc-config.json</code> and default to <code>true</code>; the two leak guards are controlled by the separate <code>semantic</code> block, which defaults to <em>off</em>.</p>
 
 <table>
 <thead><tr><th>Key</th><th>Default</th><th>Controls</th></tr></thead>
@@ -187,6 +208,8 @@
 <tr><td><code>verifyOnWrite</code></td><td>true</td><td>Whether post-write-verify runs deep Ajv validation.</td></tr>
 <tr><td><code>remindMissingFragments</code></td><td>true</td><td>Whether post-write-verify enforces the sibling-fragment hard block. Set <code>false</code> to disable both the block and the reminder.</td></tr>
 <tr><td><code>validateSiblingYaml</code></td><td>true</td><td>Whether post-write-verify validates a present sibling <code>.yaml</code> against its schema and blocks on violations. Only applies to types with a reconciled schema (<code>plan</code>, <code>review</code>, <code>design</code>, <code>simplify-run</code>, <code>ship-run</code>).</td></tr>
+<tr><td><code>semantic.enabled</code></td><td><strong>false</strong></td><td>Master switch for both leak guards. Off by default — the guards exit silently.</td></tr>
+<tr><td><code>semantic.mode</code></td><td><code>advisory</code></td><td><code>advisory</code> emits a non-blocking note naming the matched vocabulary; <code>enforce</code> blocks the tool call with the same message. Promote to enforce only after the advisory false-positive rate proves ~0 on real work.</td></tr>
 </tbody>
 </table>
 
@@ -204,13 +227,15 @@
 │   ├── post-write-verify.mjs       # source
 │   ├── post-write-auto-stage.mjs   # source
 │   ├── post-write-render.mjs       # source
-│   └── session-start-orient.mjs    # source
+│   ├── session-start-orient.mjs    # source
+│   └── seed-memory.mjs             # source
 └── dist/                           # committed bundles — what actually runs
     ├── pre-write-validate.mjs
     ├── post-write-verify.mjs
     ├── post-write-auto-stage.mjs
     ├── post-write-render.mjs
-    └── session-start-orient.mjs</code></pre>
+    ├── session-start-orient.mjs
+    └── seed-memory.mjs</code></pre>
 
 <p>Earlier releases shipped shell and Python equivalents under <code>hooks/scripts/</code>; those were retired in v9.34.3–v9.34.5. The no-op PreCompact hook was removed in v9.41.0. Validation, verification, staging, rendering, and orientation are now entirely native Node.</p>
 </details>

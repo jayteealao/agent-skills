@@ -30,14 +30,14 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 You are a **compressed-planning orchestrator**, not an incident responder and not a feature shaper.
 - This command skips *ceremony*, not *stages* and not *thinking*. Every stage artifact must be real and schema-conformant.
 - Ask at most **2 questions** in chat for planning. No separate `po-answers.md` — answers go inline into `01-fix.md`.
-- Do NOT auto-include design. If the change visibly touches UI and `--design` was not passed, note in `02-shape.md` a one-line recommendation to run `$wf design <slug> craft` as a follow-up. Do not block.
+- Do NOT auto-include design. If the change visibly touches UI and `--design` was not passed, note in `02-shape.md` a one-line recommendation to author a design brief (`02b-design.md`) at shape and a visual contract at plan — or run a focused `$wf design <slug> <transform>` — as a follow-up. Do not block.
 - Follow the steps below exactly in order. The compression happens *within* a step, not by removing steps.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: fix` (new) OR `workflow-type: quick` (legacy — slugs created before v9.18.0) → **resume mode**. Read that index and the lead (`01-fix.md` new, or legacy `01-quick.md` / `01-fix.md` `type: fix-plan` pre-migration — check both). Pick up from the first unwritten planning artifact. If planning is complete, the user likely meant `$wf implement` — tell them and stop.
    - Otherwise → **new `$wf intake fix` workflow**. Derive a slug: `fix-<short-description>` (kebab-case, max 5 words, e.g., `fix-checkout-button-spacing`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is neither `fix` nor `quick` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf-meta resume <slug>`." Stop.
+2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is neither `fix` nor `quick` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf recap <slug>`." Stop.
 3. **Branch check:**
    - Default `branch-strategy: dedicated`, branch `fix/<slug>`. Create off the current base if absent: `git checkout -b fix/<slug>`.
    - If the user passed `branch-strategy: none` or is mid-task on a branch they want to keep → record `branch-strategy: none`; do not switch branches.
@@ -51,7 +51,7 @@ Use parallel Explore sub-agents to gather what is needed before writing — do n
 ### Parallel research (use sub-agents)
 Launch in parallel before writing. Skip if the change is a one-line fix in a file the user has explicitly named.
 
-**Model for every dispatched agent:** `haiku`. REQUIRED on every `Task` call — both agents do bounded targeted reads with structured-output extraction.
+**Effort tier for every dispatched agent:** **low** (per [_subagents.md](../_subagents.md)). REQUIRED on every spawn — both agents do bounded targeted reads with structured-output extraction.
 
 #### Explore sub-agent 1 — Codebase grounding
 Prompt with ALL of the following:
@@ -65,7 +65,7 @@ Return structured text: `files_in_scope`, `nearby_patterns` (1-3), `reuse_candid
 #### Explore sub-agent 2 — Web freshness (skip if pure internal change)
 Skip if the change is purely internal (no new external dependency, no API integration, no platform/browser API, no security surface). Otherwise: search the relevant library/API docs for latest-stable syntax + known gotchas/deprecations in the last 12 months; return 2-3 source URLs, a 1-line takeaway each, and a **go/no-go** on whether the approach is current.
 
-### Then write all four planning artifacts, each schema-conformant. Use real timestamps — run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash.
+### Then write all four planning artifacts, each schema-conformant. Use real timestamps per [_timestamp.md](../_timestamp.md).
 
 **`01-fix.md` — `type: intake` (the compressed brief, replaces standalone intake):**
 ```yaml
@@ -86,7 +86,7 @@ next-command: wf-shape
 next-invocation: "$wf shape <slug>"
 ---
 ```
-Body (tight): `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
+Body (tight): open with `## The Fix` — the story section (1–2 short paragraphs in the voice of `../_narrative-voice.md`: relevance first, tradeoffs plain, no "This fix implements…" opening) — then `## Restated Request` (what the user wants + why), `## Acceptance Criteria` (≤3, each objectively verifiable; embed any inline question answers as italic notes), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
 
 **`02-shape.md` — `type: shape`:**
 ```yaml
@@ -109,7 +109,7 @@ next-command: wf-slice
 next-invocation: "$wf slice <slug>"
 ---
 ```
-Body (tight): `## In Scope` (1-3 bullets), `## Out of Scope` (1-3), `## Known Unknowns` (0-2). If the change touches UI surface and `--design` was not passed, add one line: "**UI touched — design skipped:** consider `$wf design <slug> craft` follow-up." If `--design` was passed, add 3-5 design-note bullets here instead.
+Body (tight): `## In Scope` (1-3 bullets), `## Out of Scope` (1-3), `## Known Unknowns` (0-2). If the change touches UI surface and `--design` was not passed, add one line: "**UI touched — design skipped:** consider a design brief at shape + contract at plan, or a focused `$wf design <slug> <transform>`, as follow-up." If `--design` was passed, add 3-5 design-note bullets here instead.
 
 **`03-slice.md` — `type: slice-index` (one slice — the lifecycle never skips slicing):**
 ```yaml
@@ -226,7 +226,7 @@ progress:
 
 # Step 3 — Gate before implement (MANDATORY unless auto-proceeding)
 
-Apply the **compressed-lifecycle gate** from `_intake-context.md`: `AskUserQuestion` (Proceed / Adjust / Escalate). You MAY auto-proceed without pausing if the change is clearly low-risk (≤3 files, no tripwires, no open questions) — record the decision in `01-fix.md`'s body either way. On **Adjust**, revise the relevant planning artifact and re-gate. On **Escalate**, recommend `$wf intake <description>` and stop.
+Apply the **compressed-lifecycle gate** from `_intake-context.md`: ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) — Proceed / Adjust / Escalate. You MAY auto-proceed without pausing if the change is clearly low-risk (≤3 files, no tripwires, no open questions) — record the decision in `01-fix.md`'s body either way. On **Adjust**, revise the relevant planning artifact and re-gate. On **Escalate**, recommend `$wf intake <description>` and stop.
 
 # Step 4 — Hand off
 

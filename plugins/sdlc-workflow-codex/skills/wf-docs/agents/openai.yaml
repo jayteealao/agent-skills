@@ -1,6 +1,0 @@
-interface:
-  display_name: "SDLC Documentation"
-  short_description: "Documentation router — orchestrator pipeline or single Diátaxis primitive"
-  default_prompt: "Run a full documentation audit and generate any missing docs for the current project."
-policy:
-  allow_implicit_invocation: false

@@ -17,7 +17,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 // Bump only on a real change to the Codex hook stdin/matcher/output contract.
@@ -28,15 +28,47 @@ export const HUB_NAME = 'sdlc-workflow-hub';
 
 // ── stdin / argv ──────────────────────────────────────────────────────────────
 
+/**
+ * F4 (FRESH-REPO-REGISTRATION-FIX-PLAN): opt-in raw-payload capture. Codex
+ * rollout JSONL never records hook executions, so when event delivery breaks
+ * (the Desktop PostToolUse gap) there is nothing on disk to diagnose. With
+ * SDLC_HOOK_DEBUG=1 in the env — or a `hook-debug` flag file in PLUGIN_DATA —
+ * every readEvent() appends one line to PLUGIN_DATA/hook-debug.jsonl: which
+ * hook script ran, how many stdin bytes arrived, the parsed top-level keys,
+ * and the raw payload. Best-effort and off the critical path: a capture
+ * failure never affects the hook, and with neither switch set the cost is one
+ * existsSync.
+ */
+function captureHookDebug(rawText, parsed) {
+  try {
+    const { pluginData } = resolveLayout(parseHookArgs());
+    if (process.env.SDLC_HOOK_DEBUG !== '1' && !existsSync(join(pluginData, 'hook-debug'))) return;
+    mkdirSync(pluginData, { recursive: true });
+    const line = JSON.stringify({
+      ts: new Date().toISOString(),
+      hookScript: process.argv[1] ?? null,
+      rawStdinLength: rawText == null ? null : rawText.length,
+      parsedKeys: parsed && typeof parsed === 'object' ? Object.keys(parsed) : null,
+      hook_event_name: parsed?.hook_event_name ?? null,
+      tool_name: parsed?.tool_name ?? null,
+      raw: rawText ?? null,
+    });
+    appendFileSync(join(pluginData, 'hook-debug.jsonl'), `${line}\n`, 'utf-8');
+  } catch { /* never on the critical path */ }
+}
+
 /** Read + parse the single JSON event Codex writes to the hook's stdin. */
 export function readEvent() {
+  let text = null;
+  let parsed = null;
   try {
-    const text = readFileSync(0, 'utf-8');
-    if (!text || !text.trim()) return null;
-    return JSON.parse(text);
+    text = readFileSync(0, 'utf-8');
+    if (text && text.trim()) parsed = JSON.parse(text);
   } catch {
-    return null;
+    parsed = null;
   }
+  captureHookDebug(text, parsed);
+  return parsed;
 }
 
 /** Parse `--plugin-root` / `--plugin-data` (substituted by Codex in hooks.json). */
@@ -72,6 +104,20 @@ export function bundledEntry(runtimeRoot, name) {
 }
 
 /**
+ * Env for every shared-runtime spawn from a Codex hook: provenance the shared
+ * runtime derives host identity from (`SDLC_HOST` for render-queue/enqueuedBy,
+ * `SDLC_HUB_STARTED_BY` for hub launch records). Explicit caller values win so
+ * tests and escape hatches can override.
+ */
+export function codexHostEnv(base = process.env) {
+  return {
+    ...base,
+    SDLC_HOST: base.SDLC_HOST || 'codex',
+    SDLC_HUB_STARTED_BY: base.SDLC_HUB_STARTED_BY || 'codex',
+  };
+}
+
+/**
  * Spawn a bundled shared-runtime policy entrypoint with `stdin` (an object,
  * JSON-encoded) on its stdin. Synchronous so the serialized dispatcher stays
  * sequential. Returns `{ status, stdout, stderr, timedOut }`. Never throws.
@@ -83,6 +129,7 @@ export function runBundled(runtimeRoot, name, stdin, { cwd, timeoutMs = 12000 } 
     encoding: 'utf-8',
     timeout: timeoutMs,
     windowsHide: true,
+    env: codexHostEnv(),
   });
   return {
     status: typeof r.status === 'number' ? r.status : (r.signal ? 1 : 0),
@@ -312,6 +359,27 @@ export function emitStopBlock(reason) {
   process.stdout.write(`${JSON.stringify({ decision: 'block', reason })}\n`);
 }
 
+/**
+ * Modern PreToolUse permission envelope (hooks GA). `decision` is
+ * "deny" | "allow"; "ask" is NOT supported by Codex. Callers pairing this with
+ * exit 2 + stderr keep the legacy path as fallback for older CLIs.
+ */
+export function emitPermissionDecision(decision, reason) {
+  const out = { hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: decision } };
+  if (reason) out.hookSpecificOutput.permissionDecisionReason = reason;
+  process.stdout.write(`${JSON.stringify(out)}\n`);
+}
+
+/**
+ * PermissionRequest resolution envelope: programmatically resolve an approval
+ * prompt. Any deny wins across hooks; absence of output = no opinion.
+ */
+export function emitPermissionRequestDecision(behavior, message) {
+  const decision = { behavior };
+  if (message) decision.message = message;
+  process.stdout.write(`${JSON.stringify({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision } })}\n`);
+}
+
 // ── small host-native path helpers ──────────────────────────────────────────────
 
 /**
@@ -346,6 +414,9 @@ export function isManagedArtifactPath(path) {
     /(?:^|\/)\.ai\/simplify\/.+\.md$/.test(n) ||
     /(?:^|\/)\.ai\/profiles\/.+\/.+\.md$/.test(n) ||
     /(?:^|\/)\.ai\/docs\/[^/]+\/.+\.md$/.test(n) ||
+    // Solutions corpus category files (type: solution); the category-subdir
+    // requirement keeps the frontmatter-less .ai/solutions/INDEX.md exempt.
+    /(?:^|\/)\.ai\/solutions\/[^/]+\/.+\.md$/.test(n) ||
     /(?:^|\/)(PRODUCT|DESIGN)\.md$/.test(n) ||
     /(?:^|\/)\.ai\/ship-plan\.md$/.test(n)
   );

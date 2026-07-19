@@ -64,9 +64,22 @@ Would someone say "AI made this"?
 - Purple-blue gradients, glassmorphism, hero metric cards, Fraunces + IBM Plex combinations, generic card grids, gradient text — name them explicitly if present.
 - Brand register: does it have a POV? Can you name the aesthetic lane?
 
+### 8. Motion & interaction feel
+
+When the surface has motion in scope:
+- Does each animation earn its place? Frequently-seen and keyboard-triggered actions shouldn't animate; occasional and first-time moments can.
+- Does it *feel* responsive — `ease-out` or strong custom curves on entrances (never `ease-in`), under ~300ms for product UI, popovers scaling from their trigger not center, nothing appearing from `scale(0)`?
+- Is rapidly-triggered or gesture motion interruptible (transitions/springs, not keyframes that restart)?
+- Does the motion cohere with the component's personality, or does it feel borrowed?
+
+Motion bugs hide at full speed — review animations in slow motion or frame-by-frame, and with fresh eyes the next day, before judging them. The full rubric is `animate.md` (and the `motion` review dimension).
+
 ## Output Format
 
 ```
+## The Design Critique
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This design critique implements…" openings. 1–4 short paragraphs. -->
+
 ## Design Critique
 
 ### What's working
@@ -143,4 +156,4 @@ findings:
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a live component preview, an annotated mock, a token swatch board, or a before/after comparison. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

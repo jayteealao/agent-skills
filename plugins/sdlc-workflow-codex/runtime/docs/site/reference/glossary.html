@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -101,64 +99,67 @@ Plain-language definitions for every term the plugin uses. Each entry gives you 
 
 <dl>
 
-<dt><strong>Add-on</strong> (augmentation)</dt>
+<dt id="add-on"><strong>Add-on</strong> (augmentation)</dt>
 <dd>An optional extra pass you bolt onto a slice — performance measurement, observability instrumentation, A/B experiment setup, or root-cause analysis — without interrupting the main workflow. The four augmentation-types are <code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, and <code>rca</code>, all sharing <code>type: augmentation</code> with an <code>augmentation-type</code> discriminator. <code>profile</code> is a freestanding variant with <code>type: profile</code>, not tied to a workflow slice. All are recorded on <code>00-index.md</code>'s <code>augmentations:</code> array.</dd>
 
-<dt><strong>Artifact</strong> (workflow note)</dt>
+<dt id="artifact"><strong>Artifact</strong> (workflow note)</dt>
 <dd>A small markdown file the plugin writes next to your code that records what it decided and why. Each stage of the lifecycle writes one. They live under <code>.ai/workflows/&lt;slug&gt;/</code> (or <code>.ai/ship-plan.md</code> at the repo root). Committed to git alongside your code — the decisions are in file history, not just conversation logs.</dd>
 
-<dt><strong>Base branch</strong></dt>
+<dt id="base-branch"><strong>Base branch</strong></dt>
 <dd>The branch the feature branch will eventually merge back into (e.g. <code>main</code>). Set at intake, captured in <code>00-index.md</code>.</dd>
 
-<dt><strong>Branch strategy</strong></dt>
+<dt id="branch-strategy"><strong>Branch strategy</strong></dt>
 <dd>How this workflow relates to git branches. Three options: <code>dedicated</code> (its own feature branch and PR), <code>shared</code> (commits to an existing collaborative branch), <code>none</code> (no branch operations — just commits).</dd>
 
-<dt><strong>Command</strong> (router)</dt>
-<dd>One of the things you type: <code>/wf</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, <code>/review</code>. (The former <code>/wf-quick</code> router is retired — its flows are now intake modes or top-level <code>/wf</code> keys.) Internally called a <em>router</em> — it dispatches to sub-commands — but "command" is the user-facing term. (Design was once a sixth, <code>/wf-design</code>; it is now the <code>/wf design</code> sub-command.) See <a href="commands.html">Commands reference →</a></dd>
+<dt id="command"><strong>Command</strong> (router)</dt>
+<dd>The one thing you type: <code>/wf</code>. (The former <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, and standalone <code>/review</code> routers/skills are retired — their flows are now <code>/wf</code> keys, and review is <code>/wf review</code>.) Internally called a <em>router</em> — it dispatches to sub-commands — but "command" is the user-facing term. (Design was once a separate <code>/wf-design</code>; it is now the <code>/wf design</code> sub-command.) See <a href="commands.html">Commands reference →</a></dd>
 
-<dt><strong>Conditional input</strong></dt>
+<dt id="conditional-input"><strong>Conditional input</strong></dt>
 <dd>An artifact that a stage will consume <em>if it exists</em> but does not require. Each stage's preamble lists its conditional inputs.</dd>
 
-<dt><strong>Dashboard</strong> (Sunflower view)</dt>
+<dt id="dashboard"><strong>Dashboard</strong> (Sunflower view)</dt>
 <dd>A local web page that shows all your workflows at a glance — status, branch, slug, and a card per workflow. Start with <code>npm run hub</code>; open <code>http://localhost:4173</code>. See <a href="serve.html">Serve daemon &amp; hub →</a></dd>
 
-<dt><strong>External Output Boundary</strong></dt>
+<dt id="external-output-boundary"><strong>External Output Boundary</strong></dt>
 <dd>The rule that internal workflow details — artifact file paths, stage names, slash-command invocations — must never appear in outputs a user or external system sees (commit messages, PR bodies, release notes, docs).</dd>
 
-<dt><strong>Fragment</strong></dt>
+<dt id="fragment"><strong>Fragment</strong></dt>
 <dd>An <code>.html.fragment</code> file that sits next to a rich-tier artifact <code>.md</code> and provides the interactive dashboard layer. It is driven by a sibling <code>.yaml</code> file that carries the structured data the renderer reads. 14 artifact types require a sibling fragment. Opt out per-file with <code>fragment: none</code> frontmatter.</dd>
 
-<dt><strong>Freshness pass</strong></dt>
+<dt id="freshness-pass"><strong>Freshness pass</strong></dt>
 <dd>A web-research sub-agent step that gathers current external information — vendor advisories, platform status, recent CVEs — before a stage finalises its output.</dd>
 
-<dt><strong>Frontmatter</strong></dt>
+<dt id="frontmatter"><strong>Frontmatter</strong></dt>
 <dd>The YAML block between <code>---</code> markers at the top of every artifact file. Contains all machine-readable state. The markdown body below is for human-readable narrative.</dd>
 
-<dt><strong>Plan-version</strong></dt>
-<dd>An integer counter on <code>.ai/ship-plan.md</code> that increments on every amend. Each ship run stamps the counter value it ran against as <code>plan-version-at-run</code>.</dd>
+<dt id="handoff"><strong>Handoff</strong></dt>
+<dd>Stage 8 of the lifecycle: <code>/wf handoff</code> aggregates the completed slices into a PR, runs the <a href="#readiness-check">readiness check</a>, and writes <code>08-handoff.md</code> with the <code>readiness-verdict</code> that <code>/wf ship</code> gates on. A <code>pr#N</code>/branch argument runs batch mode across every slug on the branch.</dd>
 
-<dt><strong>Quick command</strong> (compressed flow)</dt>
-<dd>A compressed intake mode or standalone <code>/wf</code> key for small, well-defined changes that don't need the full 10-stage lifecycle. Eight intake modes (invoked as <code>/wf intake &lt;mode&gt;</code>): <code>fix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>. Plus two standalone keys: <code>/wf probe</code>, <code>/wf simplify</code>. The former <code>/wf-quick</code> router is retired. Produces 2–4 artifact files instead of up to 10.</dd>
+<dt id="plan-version"><strong>Plan-version</strong></dt>
+<dd>An integer counter on <code>.ai/ship-plan.md</code> that increments on every edit (via <code>/wf ship-plan edit</code>). Each ship run stamps the counter value it ran against as <code>plan-version-at-run</code>.</dd>
 
-<dt><strong>Readiness check</strong> (readiness verdict)</dt>
+<dt id="quick-command"><strong>Quick command</strong> (compressed flow)</dt>
+<dd>A compressed intake mode or standalone <code>/wf</code> key for small, well-defined changes that don't need the full 10-stage lifecycle. Nine intake modes (invoked as <code>/wf intake &lt;mode&gt;</code>): <code>fix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, and <code>adopt</code> (the reverse-entry mode that adopts an already-made working-tree diff, landing at verify). Plus two standalone keys: <code>/wf probe</code>, <code>/wf simplify</code>. The former <code>/wf-quick</code> router is retired. Produces 2–4 artifact files instead of up to 10.</dd>
+
+<dt id="readiness-check"><strong>Readiness check</strong> (readiness verdict)</dt>
 <dd>The set of gates that must all say "ready" before the plugin will open or progress a PR. Runs inside <code>/wf handoff</code>. The verdict — <code>ready</code>, <code>awaiting-input</code>, or <code>blocked</code> — is written to <code>08-handoff.md</code> and gates <code>/wf ship</code>. See <a href="../explanation/the-readiness-gate.html">The readiness gate →</a></dd>
 
-<dt><strong>Run-id</strong></dt>
+<dt id="run-id"><strong>Run-id</strong></dt>
 <dd>A compact UTC timestamp (<code>YYYYMMDDTHHMMZ</code>) that identifies a single ship run. Used as a suffix on ship-run artifact filenames: <code>09-ship-run-&lt;run-id&gt;.md</code>.</dd>
 
-<dt><strong>Slice</strong></dt>
+<dt id="slice"><strong>Slice</strong></dt>
 <dd>A thin, independently shippable piece of the overall shaped work. Each slice gets its own plan, implement, verify, and review artifacts.</dd>
 
-<dt><strong>Slug</strong></dt>
+<dt id="slug"><strong>Slug</strong></dt>
 <dd>The short, stable name for one piece of work. Example: <code>add-health-endpoint</code>. Set at intake, never changes. Matches the directory name under <code>.ai/workflows/</code>. Used in every subsequent command: <code>/wf shape add-health-endpoint</code>.</dd>
 
-<dt><strong>Stage</strong></dt>
+<dt id="stage"><strong>Stage</strong></dt>
 <dd>One step of the full <code>/wf</code> lifecycle. The 10 stages in order: <em>intake</em>, <em>shape</em>, <em>slice</em>, <em>plan</em>, <em>implement</em>, <em>verify</em>, <em>review</em>, <em>handoff</em>, <em>ship</em>, <em>retro</em>. Each reads what previous stages wrote and writes its own artifact.</dd>
 
-<dt><strong>Sub-command</strong></dt>
-<dd>An option under a command. Example: <code>/wf design colorize</code> — where <code>colorize</code> is the design sub-command. <code>/wf</code> (including intake modes) has many, <code>/wf design</code> has 21, <code>/review</code> has 31 dimensions plus a <code>sweep</code> mode.</dd>
+<dt id="sub-command"><strong>Sub-command</strong></dt>
+<dd>An option under a command. Example: <code>/wf design colorize</code> — where <code>colorize</code> is the design sub-command. <code>/wf</code> (including intake modes) has many, <code>/wf design</code> has 20, <code>/wf review</code> has 34 dimensions plus a <code>sweep</code> mode.</dd>
 
-<dt><strong>Triage loop</strong> (T5.1)</dt>
+<dt id="triage-loop"><strong>Triage loop</strong> (T5.1)</dt>
 <dd>The bounded step inside <code>/wf handoff</code> that processes PR review comments. Fetches unresolved threads, classifies them (blocker / non-blocker / question), fixes blockers via <code>/wf implement reviews</code>, and resolves threads after fixes commit. Runs up to 5 iterations.</dd>
 
 </dl>

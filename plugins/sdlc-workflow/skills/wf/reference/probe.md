@@ -4,24 +4,25 @@ argument-hint: <slug> [target]
 ---
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.claude/...`, `.ai/dep-updates/...`), stage names or numbers, slash-command names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
 
-You are running `/wf probe`, a **runtime-truth verification workflow** that drives the running artifact and reports findings, without writing a fix.
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
+
+You are running `/wf probe`: drive the running artifact, capture evidence, report findings. No fixes.
 
 # Slug-mode contract (read before proceeding)
 
-`probe` is **slug-mode only.** It always operates on an existing slug from `.ai/workflows/INDEX.md`. There is no fresh-workflow form — runtime-truth verification only makes sense against work that has already been implemented.
+`probe` is **slug-mode only** — it always operates on an existing slug from `.ai/workflows/INDEX.md`; runtime-truth verification only makes sense against already-implemented work.
 
-The `/wf` dispatcher (`wf/SKILL.md`) routes `/wf probe`; **probe is slug-only, so a compressed slice is always the output** — follow `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` for the exact slice frontmatter and index bookkeeping.
+The `/wf` dispatcher routes `/wf probe`; **probe is slug-only, so a compressed slice is always the output** — follow `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` for exact slice frontmatter and index bookkeeping.
 
-- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-probe-<descriptor>.md` (collision suffix `-2`, `-3` if needed). Frontmatter shape is below; full template later in this file.
-- **Same content discipline** (research depth, evidence quality, recommendation logic) — only the output destination is a compressed slice rather than a fresh workflow.
+- **One artifact, in the existing workflow.** Write `.ai/workflows/<slug>/03-slice-probe-<descriptor>.md` (collision suffix `-2`, `-3` if needed).
+- **Same content discipline** (research depth, evidence quality, recommendation logic) — only the output destination changes.
 - **No new workflow, no new branch, no `01-probe.md`, no new top-level `00-index.md`.** The slug already owns those.
-- **Index updates** follow the shared compressed-slice contract (workflow-files, compressed-slices, INDEX.md row touch) — see `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md` for the exact bookkeeping.
+- **Index updates** follow the shared compressed-slice contract — see `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md`.
 
 # Position among the /wf runtime commands
 
@@ -32,13 +33,13 @@ The `/wf` dispatcher (`wf/SKILL.md`) routes `/wf probe`; **probe is slug-only, s
 | **Static** | lint/types/tests in `/wf verify` | `rca` (read-only static diagnosis of a reported symptom) |
 | **Runtime** | interactive sub-agent in `/wf verify` (gated, refuses pass without runtime evidence) | **`probe` (this command — runtime detection of reported or unreported symptoms)** |
 
-`probe` is to `rca` what runtime is to static. `rca` reads code and git history; `probe` runs the artifact and observes it. Where `rca` is a diagnostician, `probe` is an observer.
+`probe` is to `rca` what runtime is to static: `rca` reads code and git history; `probe` runs the artifact and observes it.
 
 # CRITICAL — execution discipline
 You are a **runtime observer**, not a fixer.
-- The **only** acceptable output is the compressed probe slice artifact and the index bookkeeping. Do NOT edit application code. Do NOT propose a patch. Do NOT run mutating commands beyond what the adapter's bootstrap section authorizes (start dev server, boot emulator, build + install, etc. — these are authorized side effects).
+- Output: the compressed probe slice and index bookkeeping only. Do NOT edit application code, propose a patch, or run mutating commands beyond what the adapter's bootstrap section authorizes (start dev server, boot emulator, build + install — these are authorized).
 - You may drive the running artifact (clicks, taps, HTTP requests, CLI invocations). You may NOT edit source files.
-- The "Suggested fix shape" section in the slice body is **direction, not a plan** — 1 to 3 lines naming the area and approach.
+- "Suggested fix shape" in the slice body is **direction, not a plan** — 1 to 3 lines naming the area and approach.
 - Follow the steps below exactly in order. Do not skip, reorder, or combine steps.
 
 # Argument grammar
@@ -50,24 +51,26 @@ The dispatcher has consumed the first positional argument (the slug). What remai
 | `(empty)` | Slug-wide sweep — probe every AC across every slice in the slug. |
 | `<target>` (single positional) | Focused probe on the target string (see Step 2 — Target resolution). |
 
-There are no flags — probe takes a slug and an optional target string. It always surfaces incidental defects it observes (focus behavior) and drives every adapter the repo matches (intersected with the confirmed stack).
+No flags — probe takes a slug and an optional target string. It always surfaces incidental defects observed during navigation and drives every adapter the repo matches (intersected with the confirmed stack).
+
+> **Optional second opinion.** After observing (before synthesizing), you may offer `/consult <give an independent read of this runtime evidence against the AC>` (or `/consult <provider> …`) — a read-only multi-model panel. Self-run when clearly valuable (pin `codex`/`claude`); otherwise offer it.
 
 # Step 0 — Orient (MANDATORY)
 
-1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), and the **`stack:` block** (written by `/wf intake` Step 0.5 and confirmed in Batch B). The `stack:` block — when `user-confirmed: true` — narrows adapter selection in Step 3 and tooling choice during drive/observe.
-2. **Read the slice index `03-slice.md`** (or the compressed-mode equivalent — `01-quick.md` for `workflow-type: quick`). Note every slice slug and the slug's source-mode (standard / compressed / forwarded / change-mode). The compressed-lifecycle change-modes (`workflow-type: fix` / `hotfix` / `refactor` / `update-deps`) write a STANDARD `03-slice.md` (`type: slice-index`, usually one slice), so this step is unchanged for them — but their lead is `01-<mode>.md` (`01-fix.md` / `01-hotfix.md` / `01-refactor.md` / `01-update-deps.md`), not `01-quick.md`.
-3. **Read every per-slice file** referenced from the slice index. These carry the AC that the slug-wide sweep partitions against. For compressed and forwarded modes, the AC lives in the single source artifact (`01-quick.md`, `01-rca.md`, `01-investigate.md`). For change-mode the AC lives in the lead `01-<mode>.md` plus the standard `03-slice.md` / `04-plan.md`.
-4. **Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md`** for the adapter registry — bootstrap, drive, observe, teardown recipes per platform.
-5. **Stack awareness (advisory — probe is observational by nature).** Probe's job is to drive the running artifact, so it cannot refuse to run when `stack:` is missing. But it MUST be honest about provenance:
-   - **If `stack:` is missing entirely** → emit a one-line chat warning: *"`stack:` is not set on `<slug>`. Probe will run adapter detection cold; consider running `/wf intake <slug>` to capture stack so future runs respect PO intent."* Set `stack-source: probe-detected-from-repo` in the slice frontmatter. Proceed.
-   - **If `stack.user-confirmed: false`** → emit the same warning text but referencing unconfirmed-auto-detect; set `stack-source: unconfirmed-auto-detect` in the slice frontmatter. Proceed.
-   - **If `stack.user-confirmed: true`** → set `stack-source: confirmed` in the slice frontmatter. Step 3 below will intersect probe's matched adapters with `stack.platforms` and surface any divergence as an artifact-level signal (not a stop).
-   - In all cases, record the `stack:` block (verbatim or just the keys consulted) under `## Stack context` in the probe slice body so a reader can reconcile what probe saw against what intake confirmed.
+1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
+2. **Read the slice index `03-slice.md`** (or `01-quick.md` for `workflow-type: quick`). Note every slice slug and source-mode (standard / compressed / forwarded / change-mode). Change-modes (`workflow-type: fix` / `hotfix` / `refactor` / `update-deps`) write a STANDARD `03-slice.md` (one slice), so this step is unchanged — but their lead is `01-<mode>.md`, not `01-quick.md`.
+3. **Read every per-slice file** referenced from the slice index. For compressed and forwarded modes, AC lives in the single source artifact (`01-quick.md`, `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. (`investigate` is terminal — no build, so nothing to probe in place.)
+4. **Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md`** for bootstrap, drive, observe, teardown recipes per platform.
+5. **Stack awareness (advisory).** Probe cannot refuse to run when `stack:` is missing, but MUST be honest about provenance:
+   - **If `stack:` is missing entirely** → emit: *"`stack:` is not set on `<slug>`. Probe will run adapter detection cold; consider running `/wf intake <slug>` to capture stack so future runs respect PO intent."* Set `stack-source: probe-detected-from-repo`. Proceed.
+   - **If `stack.user-confirmed: false`** → emit the same warning referencing unconfirmed-auto-detect; set `stack-source: unconfirmed-auto-detect`. Proceed.
+   - **If `stack.user-confirmed: true`** → set `stack-source: confirmed`. Step 3 intersects matched adapters with `stack.platforms` and surfaces any divergence as an artifact-level signal (not a stop).
+   - In all cases, record the `stack:` block under `## Stack context` in the probe slice body so a reader can reconcile what probe saw against what intake confirmed.
 6. **Capture the target** from `$ARGUMENTS` per the argument grammar above: `target` = the single positional target string, or `slug-wide` if none was given.
 
 # Step 1 — Branch posture (MANDATORY before bootstrap)
 
-`probe` is the one `/wf` runtime command that intentionally breaks the "one-line invocation" ergonomic when the working tree is not on the slug's branch. Probe runs cold more often than verify does — the user may have moved branches days ago and forgotten — and silently switching can clobber uncommitted work.
+`probe` intentionally breaks the "one-line invocation" ergonomic when the working tree is not on the slug's branch. Probe runs cold more often than verify — the user may have moved branches and forgotten — and silently switching can clobber uncommitted work.
 
 1. Run `git branch --show-current`. Call the result `current-branch`.
 2. Compare against `00-index.md.branch`. Call that `slug-branch`.
@@ -84,17 +87,15 @@ options:
 multiSelect: false
 ```
 
-If the user chose **switch**: attempt `git switch <slug-branch>`. If git refuses due to uncommitted changes, surface the git error and stop — do not try to stash or force-switch.
+**switch**: attempt `git switch <slug-branch>`. If git refuses due to uncommitted changes, surface the error and stop — do not stash or force-switch.
 
-If the user chose **run-and-record**: proceed to Step 2 with `probed-on-branch: <current-branch>` reserved for frontmatter.
+**run-and-record**: proceed to Step 2 with `probed-on-branch: <current-branch>` reserved for frontmatter.
 
-If the user chose **abort**: write no artifact; emit a single chat line: `wf probe aborted: branch mismatch (<slug> on <slug-branch>, working tree on <current-branch>).`
+**abort**: write no artifact; emit: `wf probe aborted: branch mismatch (<slug> on <slug-branch>, working tree on <current-branch>).`
 
 # Step 2 — Target resolution (four layers, all run)
 
-When `probe` receives a target string (a single positional, or default `slug-wide`), it does NOT pick a single interpretation. All four layers run; their results compose into the `target-resolution` block of the slice frontmatter.
-
-For `slug-wide` invocations, layer 1 expands to "every AC in every slice file" — the other three layers do not apply.
+All four layers always run; their results compose into the `target-resolution` block of the slice frontmatter. For `slug-wide` invocations, layer 1 expands to "every AC in every slice file" — the other three layers do not apply.
 
 For the non-empty target string `T`:
 
@@ -102,15 +103,13 @@ For the non-empty target string `T`:
 
 Fuzzy-match `T` against the AC text of every `03-slice-*.md` (or compressed equivalent) read in Step 0. Use token-level overlap, ignoring case and stopwords. Threshold: at least 50% of `T`'s content words appear in the AC text.
 
-- For every match, record `{slice: <slice-slug>, ac-id-or-quote: <text>, score: <0..1>}` in `target-resolution.matched-ac`.
-- Observation phase will compare the captured runtime evidence to each matched AC's exact text.
+- Record each match as `{slice: <slice-slug>, ac-id-or-quote: <text>, score: <0..1>}` in `target-resolution.matched-ac`. Observation compares runtime evidence to each matched AC's exact text.
 
 ### Layer 2 — Slice match
 
-Match `T` against slice slugs and slice titles. Case-insensitive substring match.
+Match `T` against slice slugs and slice titles (case-insensitive substring).
 
-- For every match, record the slice slug in `target-resolution.matched-slices`.
-- Observation phase will scope the drive plan to only those slices' surfaces.
+- Record each match's slug in `target-resolution.matched-slices`. Observation scopes the drive plan to those slices' surfaces.
 
 ### Layer 3 — Surface inference
 
@@ -121,7 +120,7 @@ Extract surface hints from `T` using these heuristics:
 - **Command hints** — words preceded by a CLI prompt indicator (`$ `, `> `, `> npm`, `cargo run`, etc.) or bare command names that match `package.json` `bin` keys. Record as `inferred-surfaces[].kind: command`.
 - **Endpoint hints** — `GET /...`, `POST /...`, `<METHOD> /<path>`. Record as `inferred-surfaces[].kind: endpoint`.
 
-Each inferred surface narrows which adapter entry points to drive in Step 4. A route hint points the `web` adapter at that route; a screen hint points `android`/`ios` adapters at a navigation flow targeting that screen; etc.
+Each inferred surface narrows adapter entry points in Step 4 (route hint → `web` adapter; screen hint → `android`/`ios` navigation flow; etc.).
 
 ### Layer 4 — Ad-hoc criterion
 
@@ -130,16 +129,16 @@ If Layers 1–3 produced no usable results (no matched AC, no matched slice, no 
 - Set `target-resolution.ad-hoc: true`.
 - The criterion text used for comparison during observation is `T` verbatim.
 
-Ad-hoc targets are not failures — they are data. The slice records them and the user can decide later whether to promote an ad-hoc target to a formal AC on the original slice (via `/wf-meta amend`).
+Ad-hoc targets are not failures — they are data. The user can promote one to a formal AC via `/wf plan <slug> <slice>` (unbuilt slice) or `/wf intake <slug> <scope>` (new slice); there is no in-place amend.
 
 # Step 3 — Adapter selection
 
-1. **Match adapters.** Run every adapter's detection signal (from `runtime-adapters.md`) against the repo. Collect every match into `matched-adapters: [<key>, ...]`.
-2. **Stack intersection (when `stack-source: confirmed`).** If Step 0 set `stack-source: confirmed`, compute `stack-intersected-adapters = matched-adapters ∩ stack.platforms` from `00-index.md`.
-   - **Divergence handling** — record both sets in the slice frontmatter as `matched-adapters` and `stack-intersected-adapters`. If they differ, set `stack-adapter-divergence: true` and add a `## Stack divergence` note to the slice body listing which adapters were excluded and why. Divergence is a signal, not a stop — the PO may want probe to surface unexpected platforms (e.g., an Android repo that has accidentally grown a web admin tool).
-   - **Default behavior on divergence** — probe drives `stack-intersected-adapters` (the PO's confirmed surfaces). If the intersection is empty (detection found platforms but none are in `stack.platforms`), drive `matched-adapters` anyway and set `stack-adapter-divergence-mode: full-bypass` — probe must not refuse to observe, but the artifact records that the run bypassed the confirmed stack.
-   - **When `stack-source: unconfirmed-auto-detect` or `probe-detected-from-repo`** → skip intersection entirely. `adapters-used` defaults to `matched-adapters`. The artifact's `stack-source` already records that no intersection was authoritative.
-3. **Run the appropriate set.** `adapters-used = stack-intersected-adapters` (when stack is confirmed and the intersection is non-empty), else `adapters-used = matched-adapters`. Probe always drives every adapter in that set.
+1. **Match adapters.** Run every adapter's detection signal (from `runtime-adapters.md`) against the repo. Collect matches into `matched-adapters: [<key>, ...]`.
+2. **Stack intersection (when `stack-source: confirmed`).** Compute `stack-intersected-adapters = matched-adapters ∩ stack.platforms` from `00-index.md`.
+   - **Divergence** — record both sets in the slice frontmatter. If they differ, set `stack-adapter-divergence: true` and add `## Stack divergence` listing excluded adapters. Divergence is a signal, not a stop (the PO may want probe to surface unexpected platforms).
+   - **Default on divergence** — probe drives `stack-intersected-adapters`. If the intersection is empty, drive `matched-adapters` and set `stack-adapter-divergence-mode: full-bypass`; the artifact records the bypass.
+   - **When `stack-source: unconfirmed-auto-detect` or `probe-detected-from-repo`** → skip intersection. `adapters-used` defaults to `matched-adapters`.
+3. **Run the appropriate set.** `adapters-used = stack-intersected-adapters` (confirmed stack, non-empty intersection), else `matched-adapters`. Probe drives every adapter in that set.
 4. **No matches → ad-hoc adapter unavailable.** If `matched-adapters` is empty, write a probe slice with `status: awaiting-environment`, `bootstrap-failure: { step: adapter-detection, remediation: "No runtime adapter matched this repo. Add detection signals for a new platform to runtime-adapters.md, or run probe in a directory containing a recognized project." }`. Skip Steps 4 and 5.
 
 # Step 4 — Two-phase bootstrap
@@ -155,7 +154,7 @@ For each bootstrap step in order:
 3. If failure → consult the adapter's `Resolution attempts before failing` line (if present) and attempt the documented resolution. Retry the original step once.
 4. If still failure → enter Phase 2 for this adapter.
 
-Bootstrap steps may take meaningful time (emulator boot, dev server warm-up). Allow each step its documented timeout before declaring failure.
+Allow each step its documented timeout before declaring failure.
 
 ### Phase 2 — Graceful fail with awaiting-environment slice
 
@@ -166,8 +165,8 @@ When any adapter's bootstrap fails after resolution attempts:
    - `exit-code` — the failing command's exit code (or `null` for timeouts)
    - `output-tail` — the last 20 lines of stderr/stdout from the failing step
    - `remediation` — the one-line hint from the adapter's `Remediation hints` section matched to this `step`
-2. **If `adapters-used` has only one entry** OR **all adapters in `adapters-used` failed bootstrap** → write the probe slice with `status: awaiting-environment` and the full `bootstrap-failure` block. Skip Step 5. Re-running probe after the user fixes the environment will retry bootstrap and proceed.
-3. **If `adapters-used` has multiple entries and only some failed** → record the failures under `partial-bootstrap-failures` but proceed to Step 5 with the adapters that did boot. The slice will carry both findings (from the booted adapters) and the partial bootstrap failures (so the user knows some surfaces were not driven).
+2. **If only one adapter or all adapters failed bootstrap** → write the probe slice with `status: awaiting-environment` and the full `bootstrap-failure` block. Skip Step 5. Re-running after the user fixes the environment retries bootstrap.
+3. **If multiple adapters and only some failed** → record failures under `partial-bootstrap-failures` and proceed to Step 5 with the booted adapters. The slice carries both findings and partial bootstrap failures.
 
 The artifact in case of full bootstrap failure looks like:
 
@@ -204,23 +203,23 @@ Generated by `/wf probe` on <iso-date>. Bootstrap could not complete.
 
 ## Why this matters
 
-This artifact records that a probe was attempted. Re-running picks up where it left off. The slug's history captures that a runtime check was attempted on <date> even though it could not complete — the gap is visible rather than silent.
+Records that a probe was attempted on <date>. Re-running picks up where it left off; the gap is visible rather than silent.
 ```
 
 # Step 5 — Drive and observe (Phase 1 succeeded)
 
 For each adapter in `adapters-used` whose bootstrap completed:
 
-1. **For each entry in `target-resolution`** (or every AC across the slug when `target == slug-wide`):
-   a. Follow the adapter's `Drive` section to perform the user actions implied by the target/AC text.
+1. **For each entry in `target-resolution`** (or every AC when `target == slug-wide`):
+   a. Follow the adapter's `Drive` section to perform the user actions implied by the target/AC.
    b. Follow the adapter's `Observe` section to capture observable output (screenshot, stdout, response body, log lines).
-   c. Write the evidence to `.ai/workflows/<slug>/probe-evidence/<descriptor>/<target-or-ac-slug>.<ext>` per the adapter's `Evidence layout`.
+   c. Write evidence to `.ai/workflows/<slug>/probe-evidence/<descriptor>/<target-or-ac-slug>.<ext>` per the adapter's `Evidence layout`.
    d. **Read the evidence** (multimodal for visuals, parsed for textual) and compare to the target/AC text.
    e. Record `{target-or-ac, adapter, evidence-path, observation, result: pass | fail | partial}`.
 
-2. **Incidental observations.** The agent may notice defects not directly tied to the current target/AC but observed during navigation — a console error during a click, a crash on a screen visited en route, an HTTP 500 from a background request. Record them in the main `## Findings` section with a `severity: incidental` tag; they count toward `findings-count`. A runtime probe that walked past an obvious crash and stayed silent would be dishonest.
+2. **Incidental observations.** Record any defects noticed during navigation (console errors, crashes, HTTP 500s) in `## Findings` with `severity: incidental`; they count toward `findings-count`.
 
-3. **Tear down.** For each adapter, run its `Tear down` section. Idempotent — re-runs of probe must not leave the environment dirtier each pass.
+3. **Tear down.** Run each adapter's `Tear down` section. Idempotent — re-runs must not leave the environment dirtier each pass.
 
 # Step 6 — Synthesize and write the compressed probe slice
 
@@ -273,7 +272,7 @@ findings-severity:
   low: <N>
   incidental: <N>                       # defects noticed off-target during navigation
 
-recommended-next: "/wf plan <slug> probe-<descriptor>" | "/wf intake fix <slug> probe-<descriptor>" | "/wf-meta status <slug>" | "<re-run instruction>"
+recommended-next: "/wf plan <slug> probe-<descriptor>" | "/wf intake fix <slug> probe-<descriptor>" | "/wf status <slug>" | "<re-run instruction>"
 
 depends-on: []
 tags: [probe]
@@ -290,6 +289,9 @@ refs:
 # Compressed Slice: probe
 
 Generated by `/wf probe` on <iso-date> against slug `<slug>`.
+
+## The Probe
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This {NOUN} implements…" openings. 1–4 short paragraphs. -->
 
 ## 1. What was probed
 
@@ -330,10 +332,10 @@ If `findings-count == 0`: write "No findings. The probed surface(s) match the de
 ## 6. Tripwires (only if any fired)
 
 Tripwires for probe:
-- **Multi-adapter divergence** — adapters disagree about whether the same AC is met (e.g., service test passes, web UI shows broken state).
-- **Same-pattern-elsewhere** — a defect found on one target appears to repeat in surfaces not in the current probe scope.
+- **Multi-adapter divergence** — adapters disagree on whether the same AC is met (e.g., service test passes, web UI shows broken state).
+- **Same-pattern-elsewhere** — a defect on one target appears to repeat in surfaces outside the current scope.
 - **Bootstrap partial-failure** — at least one adapter could not boot but others did.
-- **Ad-hoc-target-not-in-AC** — the user probed something that no existing AC describes. The user may want to amend the slice that owns the surface to add this AC formally.
+- **Ad-hoc-target-not-in-AC** — the user probed something no existing AC describes; consider adding this AC formally.
 
 For each fired tripwire, write one line: `[tripwire-name]: <what specifically tripped it>`.
 
@@ -343,28 +345,28 @@ Routing logic:
 
 | Condition | Recommendation |
 |---|---|
-| `findings-count: 0` AND no tripwires fired | `/wf-meta status <slug>` — slug is genuinely ready; status will surface "runtime-evidence-status: clean" |
+| `findings-count: 0` AND no tripwires fired | `/wf status <slug>` — slug is genuinely ready; status will surface "runtime-evidence-status: clean" |
 | Findings exist, severity ≤ high, fits in ≤3 files | `/wf intake fix <slug> probe-<descriptor>` |
 | Findings exist, severity ≥ high OR cross-cutting OR multi-adapter divergence | `/wf plan <slug> probe-<descriptor>` |
 | `status: awaiting-environment` | Re-run probe after applying the remediation hint. |
-| `interactive-verification: deferred` on the original slice was the trigger | Recommend the appropriate fix command per above; additionally instruct that clearing the deferral happens when the new fix slice's verify produces matching evidence — the `00-index.md` `runtime-evidence-deferrals[].cleared-by` field is updated by verify, not by probe. |
+| `interactive-verification: deferred` on the original slice was the trigger | Recommend the appropriate fix command per above; note that `runtime-evidence-deferrals[].cleared-by` is updated by verify, not by probe. |
 
-State the recommendation with one sentence of justification. List alternates in priority order. User makes the final call.
+State the recommendation with one sentence of justification. List alternates in priority order.
 ```
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../reference/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # Step 7 — Clear deferrals (when applicable)
 
 If `runtime-evidence-deferrals` in `00-index.md` contains entries whose `cleared-by: null` and whose `slice` appears in `target-resolution.matched-slices`:
 
 - For each matched deferral, check whether the probe produced evidence that satisfies the deferred user-observable AC.
-- If yes, update `cleared-by: probe-<descriptor>` in `00-index.md.runtime-evidence-deferrals`. The deferral is now cleared.
-- If no (probe ran but the AC still has no positive evidence), leave `cleared-by: null` and surface this in the slice's `## Tripwires` section.
+- If yes, set `cleared-by: probe-<descriptor>` in `00-index.md.runtime-evidence-deferrals`.
+- If no, leave `cleared-by: null` and surface this in the slice's `## Tripwires` section.
 
-This is the one mutation `probe` makes to `00-index.md` beyond the standard slug-mode bookkeeping (workflow-files, compressed-slices, updated-at). The mutation is additive — clearing a deferral does not remove the entry, only updates its status.
+This is the one mutation `probe` makes to `00-index.md` beyond standard bookkeeping. The mutation is additive — clearing a deferral updates its status; it does not remove the entry.
 
 # Step 8 — Index bookkeeping (per the shared compressed-slice contract)
 
@@ -376,11 +378,11 @@ Per `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_compressed-slice.md`:
 4. If `03-slice.md` exists, append `{slug: probe-<descriptor>, status: defined, slice-type: probe, compressed: true}` to `slices`, bump `total-slices`, update `updated-at`.
 5. Rewrite the `updated-at` column on `<slug>`'s row in `.ai/workflows/INDEX.md`.
 
-Do NOT modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress` on `00-index.md`. The probe slice is additive — it does not advance the main lifecycle.
+Do NOT modify `current-stage`, `selected-slice`, `status`, `branch`, or `progress` on `00-index.md`. Probe slices are additive and do not advance the main lifecycle.
 
 # Step 9 — Hand off to user
 
-Lead with a short **narrative** paragraph (prose, no bullets) telling the story — what was found, built, or measured, and what it means for the user — then the structured anchors below.
+Lead with a short **narrative** paragraph (prose, no bullets) telling what was found and what it means, then the structured anchors below.
 
 Emit a compact chat summary:
 
@@ -407,14 +409,14 @@ Re-run after applying the remediation.
 
 # Routing notes (read carefully)
 
-- **`/wf plan <slug> probe-<descriptor>` is the default downstream path** when findings exist and are non-trivial. The probe slice acts as the input artifact for planning, exactly as an `rca` slice does.
-- **`/wf intake fix <slug> probe-<descriptor>`** for small fixes that fit ≤3 files. Same slug-mode pattern as routing from `rca`.
-- **Deferral clearing** happens at verify time, not at probe time — probe writes evidence, verify reads the evidence and updates `cleared-by`. The exception is Step 7 above, where probe directly clears a deferral whose matched AC was successfully observed during this run.
-- **No auto-fix.** Probe reports; downstream commands fix. This matches the discipline `rca` already enforces.
+- **`/wf plan <slug> probe-<descriptor>`** is the default downstream path for non-trivial findings. The probe slice is the input artifact for planning, exactly as an `rca` slice is.
+- **`/wf intake fix <slug> probe-<descriptor>`** for small fixes that fit ≤3 files.
+- **Deferral clearing** happens at verify time (verify reads evidence and updates `cleared-by`), except for Step 7 where probe directly clears a deferral whose matched AC was successfully observed.
+- **No auto-fix.** Probe reports; downstream commands fix.
 
 # What this command is NOT
 
-- **Not a fixer** — probe writes observations and findings, not patches.
-- **Not a static analyzer** — that's `rca`. The two are siblings on different axes.
-- **Not a forward-path gate** — that's `/wf verify`'s interactive sub-agent 3, which now refuses `result: pass` without runtime evidence. Probe is the backward re-entry counterpart for already-done slugs.
-- **Not platform-specific** — every platform-specific recipe lives in `runtime-adapters.md`. Probe stays platform-agnostic at this level.
+- **Not a fixer** — writes observations and findings, not patches.
+- **Not a static analyzer** — that's `rca` (siblings on different axes).
+- **Not a forward-path gate** — that's `/wf verify`'s interactive sub-agent 3. Probe is the backward re-entry counterpart for already-done slugs.
+- **Not platform-specific** — every platform-specific recipe lives in `runtime-adapters.md`; probe stays platform-agnostic.

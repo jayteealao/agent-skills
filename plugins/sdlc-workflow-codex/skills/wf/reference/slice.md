@@ -4,11 +4,12 @@ argument-hint: <slug> [focus area]
 ---
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.codex/...`, `.ai/dep-updates/...`), stage names or numbers, skill names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
+
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `$wf slice`, **stage 3 of 10** in the SDLC lifecycle.
 
@@ -22,6 +23,12 @@ You are running `$wf slice`, **stage 3 of 10** in the SDLC lifecycle.
 | Produces | `03-slice.md` (master index) + `03-slice-<slice-slug>.md` per slice |
 | Next | `$wf plan <slug> <best-first-slice>` (default) |
 | Alt | `$wf plan <slug> all` to plan all slices in parallel |
+
+> **Optional second opinion.** Once `03-slice.md` is drafted (before adaptive
+> routing), you may offer `$consult <critique this slice decomposition —
+> independence, ordering, any risky slice buried mid-sequence>` (or `$consult
+> <provider> …`) — a read-only multi-model panel that pressure-tests the
+> decomposition before rework gets expensive. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
 
 # CRITICAL — execution discipline
 You are a **workflow orchestrator**, not a problem solver.
@@ -46,7 +53,7 @@ You are a **workflow orchestrator**, not a problem solver.
 5. **Read design artifacts — mandatory when present** (file existence is optional; consumption is required):
    - `02b-design.md` — **mandatory when present.** If the file exists, you MUST read it and slice boundaries MUST reflect its content. Extract the content inventory, state list (empty/error/loading/first-run), and visual direction. State transitions (e.g., empty state vs populated state) and visual surface boundaries (e.g., main view vs settings drawer) MUST inform slice boundaries — either each distinct state/surface gets its own slice, or the master `03-slice.md` `## Slice Strategy` MUST justify the grouping with one sentence per state/surface.
    - `02c-craft.md` — **mandatory when present.** If the file exists, you MUST read it and the resulting slice boundaries MUST honor it. Extract the `## Mock fidelity inventory` and any per-surface notes. Distinct visual surfaces (e.g., card vs detail vs drawer) and signature interactions MUST be reflected as slice boundaries — either each surface gets its own slice, or the master `03-slice.md` `## Slice Strategy` MUST explicitly justify (with one sentence per surface) why surfaces were grouped into a shared slice. Do NOT re-decompose around token choices, motion specs, or implementation details — those belong to plan/implement. If 02c-craft introduces surfaces or states not present in the shape or 02b-design, surface that as an open question on the master index rather than silently expanding scope.
-   - **State-completeness knowledge (design consumer — when `stack.ui ≠ ∅`).** `slice` *structures around* the design: the brief's state inventory (empty / error / loading / first-run) and the contract's mock-fidelity inventory are candidate slice boundaries — a state or visual surface that carries its own acceptance criteria usually earns its own thin slice. To recognize which states are substantive enough to slice (rather than fold in), load `design/onboard.md` (empty / first-run states) and `design/polish.md` (the 7-state completeness checklist). This is structuring, not redesigning — never re-do design work here. Gate: if the `00-index.md` `stack:` block shows no UI layer (`stack.ui` empty), skip the design-knowledge load entirely; non-UI work is unaffected.
+   - **State-completeness knowledge (design consumer — when `stack.ui ≠ ∅`).** `slice` *structures around* the design: the brief's state inventory (empty / error / loading / first-run) and the contract's mock-fidelity inventory are candidate slice boundaries — a state or visual surface that carries its own acceptance criteria usually earns its own thin slice. To recognize which states are substantive enough to slice (rather than fold in), load `design/onboard.md` (empty / first-run states) and `design/polish.md` (the 7-state completeness checklist); also load `design/_design-context.md` for the register and absolute bans — the design floor that holds even when no `02b`/`02c` design artifact exists (a UI feature sliced without `$wf design`). This is structuring, not redesigning — never re-do design work here. Gate: if the `00-index.md` `stack:` block shows no UI layer (`stack.ui` empty), skip the design-knowledge load entirely; non-UI work is unaffected.
    - If neither file exists, skip this step and proceed normally.
 6. **Carry forward** `selected-slice-or-focus` and `open-questions` from the index.
 
@@ -56,19 +63,18 @@ Break a shaped work item into thin, independently verifiable vertical slices. Wr
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave the canonical result only in chat — write the stage file first.
 - **Every artifact file MUST have YAML frontmatter** (between `---` markers) as the first thing in the file. All machine-readable state goes in frontmatter. The markdown body is for human-readable narrative only.
-- **Timestamps must be real:** For `created-at` and `updated-at`, run `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash to get the actual current time. Never guess or use `T00:00:00Z`.
+- **Timestamps must be real:** For `created-at` and `updated-at`, get the current UTC time per [_timestamp.md](_timestamp.md). Never guess or use `T00:00:00Z`.
 - If the stage cannot finish, set `status: awaiting-input` in frontmatter and list unanswered questions.
 - Keep `po-answers.md` as cumulative product-owner log. Keep the slug stable after intake.
 - `00-index.md` must always have: title, slug, current-stage, stage-status, updated-at, selected-slice-or-focus, open-questions, recommended-next-stage, recommended-next-command, recommended-next-invocation, workflow-files.
-- **Ask the user directly in chat** for multiple-choice PO questions (structured decisions, confirmations), presenting options as a short numbered list. Use freeform chat for open-ended questions. Append every answer to `po-answers.md` with timestamp and stage.
+- **Ask the user directly in chat** for multiple-choice PO questions (structured decisions, confirmations), presenting options as a short numbered list. Use freeform chat for open-ended questions. Construct every question per [_question-craft.md](_question-craft.md). Append every answer to `po-answers.md` with timestamp and stage.
 - Run a freshness pass (web search → official docs) before finalizing any stage where external knowledge matters. Record under `## Freshness Research` with source, relevance, takeaway.
-- Use parallel subagents for multi-domain research. Do not spin up subagents for trivial work.
+- Use parallel subagents for multi-domain research per [_subagents.md](_subagents.md). Do not spin up subagents for trivial work.
 - Reuse earlier workflow files. Do not silently broaden scope. Do not collapse stages unless the user asks.
-- **Conditional inputs are mandatory when present.** If any file listed in the *Conditional inputs* row of this command's preamble exists on disk, you MUST read it and the stage's output MUST honor it as described. Existence is what's optional; consumption is required. Silent omission of a present artifact is a workflow contract violation, not a permitted shortcut.
+- **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read it and honor it in the output — existence is optional, consumption is required; silent omission is a contract violation.
 
 # Chat return contract
-After writing files, return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Slices` story voice, then this receipt:
 - `slug: <slug>`
 - `wrote: <paths>` (list all slice files written)
 - `options:` (list all viable next options — see Adaptive Routing below)
@@ -87,6 +93,7 @@ Do this in order:
    - Every question must be about *how to decompose this specific feature* — reference concrete parts of the shaped spec, not abstract slicing theory.
    - Questions must be impartial — present genuinely different decomposition strategies without favoring one.
    - Skip questions already answered in the shape or intake artifacts.
+   - Construct each question per [_question-craft.md](_question-craft.md) — decomposition tradeoffs (thin slices vs. chunked, rollout coupling) are technical; describe options by what the PO experiences (more PRs and faster feedback vs. fewer review passes), not by mechanism.
 
    **What to ask about:**
    - **Delivery order preferences** — Does the user want the riskiest part first or the most visible part first? Is there a demo date, milestone, or dependency that should drive which slice ships earliest?
@@ -101,6 +108,21 @@ Do this in order:
 4. Assign each slice a **slice-slug** (lowercase kebab-case).
 5. Put risk-reduction and uncertainty-reduction early.
 6. Identify the best first slice.
+6b. **Charter-scenario coverage (when `02-shape.md` carries a `## Charter Scenario`).** The **visible-milestone slice** (the first slice at which a user can see the core loop working end-to-end) and the **final slice** each carry a standing acceptance criterion: `charter scenario executes through step N` — progressive coverage, where the milestone slice proves the steps built so far and the final slice proves ALL steps. Tag it `observable: true` (verify runs it interactively, same ladder as any user-observable AC) and attach a `verify:` stub like any other. Skip when the shape authored no Charter Scenario (compressed modes / non-loop features).
+6c. **Confirm review scope (the roster is now known — intake deliberately did not ask this).**
+   `00-index.md` carries the provisional default `review-scope: per-slice` with
+   `review-scope-confirmed: false` (v9.136.0 — the PO cannot judge review layout before slicing
+   exists, so intake stopped asking). Now that the slice count is known, ask ONE chat question
+   (options as a numbered list) with the recommendation informed by the roster:
+   - **Roster has 1 slice** → recommend `Slug-wide`: "One 07-review.md against the cumulative
+     branch diff — the natural fit for a single slice."
+   - **Roster has >1 slice** → recommend `Per slice (Recommended)`: "Each slice gets its own
+     07-review-<slice>.md; handoff aggregates per-slice verdicts."
+   Offer both options either way (per [_question-craft.md](_question-craft.md) — consequence-stating,
+   marked recommendation). Record the answer in `po-answers.md` (`stage: slice`), set
+   `review-scope:` to the choice and `review-scope-confirmed: true` in `00-index.md` (Step 10's
+   index update carries it). Skip ONLY if `review-scope-confirmed` is already `true` (a re-run, or
+   a pre-v9.136.0 workflow that was asked at intake).
 7. **Write one `03-slice-<slice-slug>.md` per slice** (see template below).
 8. **Write the master `03-slice.md`** (see template below) with links to every per-slice file.
 9. **Evaluate adaptive routing** (see below) and write ALL viable options into the master file's `## Recommended Next Stage`.
@@ -119,6 +141,32 @@ Use when: Slices are independent enough that planning them all upfront is effici
 Use when: Slicing revealed that the spec is too vague, contradictory, or missing key information to decompose properly.
 
 Write ALL viable options (not just the default) into `## Recommended Next Stage` so the user can choose.
+
+---
+
+# AC verifiability discipline (author the verification path WITH the AC — MANDATORY)
+
+A user-observable acceptance criterion is not finished being authored until you can name *how* it will be observed. This is the highest-leverage place to prevent the "verified but actually broken" leak: an AC born without a verification path becomes a verify-time wall the model rationalizes past with a static-reasoning `pass` or a bare "no emulator" deferral. Decide verifiability **here**, where re-scoping an AC is cheap — not at verify, where the only exits are a false pass or an honest stall.
+
+For **every** acceptance criterion you write into a per-slice file:
+
+1. **Partition it — `observable:` is a justified feasibility decision, not a bare label.** Tag each criterion `<!-- observable: true -->` or `<!-- observable: false -->` immediately after its text. `verify` reads this tag and it MUST be set here at authoring time, never discovered at verify. `observable: true` = a user would see or experience the outcome (a rendered surface, a navigation, a command's output). `observable: false` = the outcome is fully provable by an automated assertion with no live runtime (e.g., "the util handles null input"). When you mark an AC `observable: true`, **name the tool that will observe it** in one line. When you mark it `observable: false`, you are claiming an existing or cheap automated test fully covers it — be honest, because `false` suppresses the runtime gate downstream.
+
+2. **Attach a verification-plan stub to every `observable: true` AC.** Inline, right under the criterion:
+   ```
+   - Given a phone viewport When the board loads Then the carousel is single-column with a tap action sheet at 375px
+     <!-- observable: true -->
+     verify: { method: playwright, env: 375x812 viewport (install-playwright if absent), fixture: seeded-board, rung: web-1 }
+   ```
+   `method` = the tool/technique that observes it; `env` = the target environment and whether anything must be installed or booted (this is what `plan` turns into an authorized bootstrap step, so a missing tool is surfaced now, not at verify); `fixture` = the seed data or deterministic state the AC needs to be observable; `rung` = the constraint-resolution-ladder rung you expect to land on (see [runtime-adapters.md](runtime-adapters.md) → *Constraint-resolution ladder*). The stub is a sketch, not the final plan — `plan`'s `## Verification Strategy` engineers it — but writing it now forces the feasibility question while the AC can still be re-scoped cheaply.
+
+3. **Ban un-plannable user-observable ACs.** If you cannot name any method/tool/env that would observe an `observable: true` AC in the target environment, do **one** of these — never author it and "decide later":
+   - **re-scope** the AC to an observable proxy that *can* be verified in the target environment, or
+   - **pre-register the deferral now** — state the constraint at birth (e.g., "operator session required: prod OAuth credentials"), so it is a logged decision the PO agreed to, not a verify-time surprise papered over with a `pass`.
+
+4. **Name every architectural mechanism in the artifact body.** Any architectural mechanism named in an AC, a verification method, or a `verify:` test-plan line — a state machine, scheduler, queue, cache, pipeline, orchestrator, or controlling regex — MUST exist as a named decision in this slice's body: one sentence stating the mechanism, what it replaces, and why. A mechanism that enters only through a test method is a design decision smuggled past review; name it in the body or drop it from the AC. (Mirrors shape's AC-authoring rule.)
+
+This discipline is what `plan` (`## Verification Strategy`) and `verify` (the user-observable AC gate) both build on. Getting it right here is cheaper than every downstream stage that inherits a bad AC.
 
 ---
 
@@ -154,6 +202,9 @@ next-invocation: "$wf plan <slug> <best-first-slice>"
 ```
 
 # Slice Index
+
+## The Slices
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This slice breakdown implements…" openings. 1–4 short paragraphs. -->
 
 ## Slice Strategy
 
@@ -208,6 +259,9 @@ refs:
 
 # Slice: <slice-name>
 
+## The Slice
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This slice implements…" openings. 1–4 short paragraphs. -->
+
 ## Goal
 
 ## Why This Slice Exists
@@ -217,7 +271,10 @@ refs:
 - what's out (handled by other slices)
 
 ## Acceptance Criteria
+<!-- Author each AC WITH its verification path — see "AC verifiability discipline" above. Tag every criterion `observable:` (a justified feasibility decision), and attach a `verify:` stub to every `observable: true` one. A user-observable AC with no nameable verification method is re-scoped or pre-registered as a deferral here — never authored to "decide later". The visible-milestone slice and the final slice ALSO carry the standing charter-scenario AC (Step 6b) when `02-shape.md` has a `## Charter Scenario`: `charter scenario executes through step N`, `observable: true`. -->
 - Given ... When ... Then ...
+  <!-- observable: true|false — one-line justification of the partition -->
+  verify: { method: <tool/technique>, env: <target env / what must be installed or booted>, fixture: <seed data / deterministic state>, rung: <constraint-ladder rung> }   ← only for observable: true
 
 ## Dependencies on Other Slices
 - `<other-slice-slug>`: what this slice needs from it
@@ -229,43 +286,36 @@ refs:
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 ---
 
 ## Additive-write contract (v9.20.1+)
 
 Both `03-slice-index.md` and per-slice `03-slices/<slice-slug>.md` are
-revisable. When `$wf slice` is re-invoked on an existing slug:
+revisable. When `$wf slice` is re-invoked on an existing slug, follow the
+shared additive-write contract in [_additive-write.md](_additive-write.md)
+for every file that will be rewritten — snapshot, **rewrite the body to current
+truth**, add one ledger entry:
 
-1. **Snapshot existing slice files** that will be rewritten to
-   `.ai/workflows/<slug>/history/`:
-   - `03-slice-index-<rev>.md` for the index file.
-   - `slices/<slice-slug>/history/03-slice-<rev>.md` for per-slice detail
-     files, where `<rev>` is the current `revision-count`.
-2. **Bump `revision-count`** on each rewritten file by 1. Refresh
-   `updated-at`.
-3. **Append**, don't overwrite:
-   ```
-   ## Revision <new-revision-count> — <ISO timestamp>
+- Snapshots in `.ai/workflows/<slug>/history/`: `03-slice-index-<rev>.md` for
+  the index; `slices/<slice-slug>/history/03-slice-<rev>.md` for per-slice
+  detail files.
+- **Ledger entry** per rewritten file: `trigger: scope-change` (default) or
+  `new-slice` when slices were added, `because:` naming why the slicing changed,
+  `changed:` naming what moved.
 
-   Why this slice changed:
-   - …
+Stage-specific additions:
 
-   <updated slice content here>
-   ```
-4. **New slices added in this run** start fresh — they have no prior
-   revision and no history snapshot. Their `revision-count` begins at 1.
-5. **Removed slices** stay in storage. Mark their frontmatter
+1. **New slices added in this run** start fresh — they have no prior revision
+   and no history snapshot. Their `revision-count` begins at 1 (no ledger yet).
+2. **Removed slices** stay in storage. Mark their frontmatter
    `status: dropped` with a `dropped-reason:` field and append a final
-   `## Dropped — <ISO>` section to the body. Removal of a slice file
-   from disk is reserved for explicit `$wf-meta` operations that the
+   `## Dropped — <ISO>` section to the body. Removal of a slice file from
+   disk is reserved for explicit `$wf status` reconcile operations that the
    renderer surfaces with a tombstone view.
-
-**Exception**: if frontmatter carries `regenerable: true`, overwrite
-freely. The slice index does NOT normally carry this flag.
 
 The renderer aggregates per-slice history into the slug overview's
 prior-revisions block. The slice-grid figure-canvas reflects the current
-slice status across the whole slug, including dropped slices (rendered
-in `--blocker` with a strikethrough).
+slice status across the whole slug, including dropped slices (rendered in
+`--blocker` with a strikethrough).

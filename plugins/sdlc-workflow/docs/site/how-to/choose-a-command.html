@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -150,6 +148,11 @@ You know what you want to do. This page maps your situation to the exact command
   <td>Produces a ranked list written to <code>.ai/workflows/&lt;slug&gt;/01-ideate.md</code>. Good for planning sessions.</td>
 </tr>
 <tr>
+  <td>Adopt a change you already made into the lifecycle</td>
+  <td><code>/wf intake adopt</code></td>
+  <td>Reverse entry: reads the current working-tree diff, reconstructs the record backward (each artifact stamped <code>provenance: adopted</code>), and lands at <code>/wf verify</code> so the standard quality tail runs over the adopted change. Confirms the inferred shape before writing; never touches your code.</td>
+</tr>
+<tr>
   <td>Triage whether something is worth fixing at all</td>
   <td><code>/wf simplify</code></td>
   <td>3-agent review (reuse / quality / efficiency) across your branch. Never writes code — produces a routing report pointing to the right downstream command for each finding.</td>
@@ -162,14 +165,16 @@ You know what you want to do. This page maps your situation to the exact command
 <table>
 <thead><tr><th>I want to…</th><th>Command</th></tr></thead>
 <tbody>
-<tr><td>See all my in-progress workflows</td><td><code>/wf-meta status</code></td></tr>
-<tr><td>Pick up a workflow I walked away from</td><td><code>/wf-meta resume &lt;slug&gt;</code></td></tr>
-<tr><td>See what stage a workflow is at</td><td><code>/wf-meta next &lt;slug&gt;</code></td></tr>
-<tr><td>Add scope to an in-progress workflow</td><td><code>/wf-meta amend &lt;slug&gt;</code></td></tr>
-<tr><td>Mark a workflow done without shipping</td><td><code>/wf-meta close &lt;slug&gt;</code></td></tr>
-<tr><td>Sync the workflow registry after manual file changes</td><td><code>/wf-meta sync</code></td></tr>
-<tr><td>Set up how this repo releases (once per repo)</td><td><code>/wf-meta init-ship-plan</code></td></tr>
-<tr><td>Audit CI/CD against the ship plan</td><td><code>/wf-meta build-pipeline</code></td></tr>
+<tr><td>See all my in-progress workflows</td><td><code>/wf status</code></td></tr>
+<tr><td>Pick up a workflow I walked away from</td><td><code>/wf recap &lt;slug&gt;</code></td></tr>
+<tr><td>See what stage a workflow is at</td><td><code>/wf status &lt;slug&gt;</code></td></tr>
+<tr><td>Add scope to an in-progress workflow</td><td><code>/wf intake &lt;slug&gt; &lt;scope&gt;</code></td></tr>
+<tr><td>Mark a workflow done without shipping</td><td><code>/wf close &lt;slug&gt;</code></td></tr>
+<tr><td>Sync the workflow registry after manual file changes</td><td><code>/wf status</code></td></tr>
+<tr><td>Set up how this repo releases (once per repo)</td><td><code>/wf ship-plan init</code></td></tr>
+<tr><td>Bring CI/CD into compliance with the ship plan</td><td><code>/wf ship-plan build</code></td></tr>
+<tr><td>Audit the ship plan for soundness (read-only)</td><td><code>/wf ship-plan audit</code></td></tr>
+<tr><td>Set up structured logging / telemetry for this repo</td><td><code>/wf observability init</code></td></tr>
 </tbody>
 </table>
 
@@ -180,8 +185,8 @@ You know what you want to do. This page maps your situation to the exact command
 <tbody>
 <tr>
   <td>Generate a design brief for a screen</td>
-  <td><code>/wf design &lt;slug&gt; craft</code></td>
-  <td>Produces the brief + visual contract, then drives the build. With a slug it runs compressed in-workflow; with no slug it spins up a full lifecycle.</td>
+  <td><code>/wf shape &lt;slug&gt;</code></td>
+  <td>When the work has UI surface, shape authors the design brief (<code>02b-design.md</code>); <code>/wf plan</code> then authors the visual contract (<code>02c-craft.md</code>) and <code>/wf implement</code> builds against it. For a focused, single-move change use a transform: <code>/wf design &lt;slug&gt; &lt;transform&gt;</code>.</td>
 </tr>
 <tr>
   <td>Recolor a design to match a palette</td>
@@ -205,8 +210,8 @@ You know what you want to do. This page maps your situation to the exact command
 </tr>
 <tr>
   <td>Generate or update documentation</td>
-  <td><code>/wf-docs &lt;sub-command&gt;</code></td>
-  <td>Generates site pages, API docs, or reference content. Run <code>/wf-docs</code> with no sub-command for the list.</td>
+  <td><code>/wf docs &lt;sub-command&gt;</code></td>
+  <td>Generates site pages, API docs, or reference content. Run <code>/wf docs</code> with no sub-command for the list.</td>
 </tr>
 </tbody>
 </table>
@@ -218,17 +223,17 @@ You know what you want to do. This page maps your situation to the exact command
 <tbody>
 <tr>
   <td>Review a specific dimension of my code (e.g. security)</td>
-  <td><code>/review &lt;dimension&gt;</code></td>
-  <td>Runs one rubric inline. Available dimensions: correctness, security, performance, architecture, accessibility, supply-chain, and 25 more. See <a href="../reference/review.html">the review reference →</a></td>
+  <td><code>/wf review &lt;dimension&gt;</code></td>
+  <td>Runs one rubric inline. Available dimensions: correctness, security, performance, architecture, accessibility, supply-chain, and 28 more. See <a href="../reference/review.html">the review reference →</a></td>
 </tr>
 <tr>
-  <td>Run a full 31-dimension review and get a verdict</td>
-  <td><code>/review sweep</code></td>
+  <td>Run a full 34-dimension review and get a verdict</td>
+  <td><code>/wf review sweep</code></td>
   <td>Fans out one agent per dimension in parallel. Slower but comprehensive.</td>
 </tr>
 <tr>
   <td>Review a specific GitHub PR</td>
-  <td><code>/review &lt;dimension&gt; PR#&lt;number&gt;</code></td>
+  <td><code>/wf review &lt;dimension&gt; PR#&lt;number&gt;</code></td>
   <td></td>
 </tr>
 </tbody>

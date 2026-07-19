@@ -59,22 +59,30 @@ export function isWorkflowMarkdownPath(filePath) {
   return /(?:^|\/)\.ai\/workflows\/[^/]+\/.+\.md$/.test(normalized);
 }
 
-// po-answers.md is the cumulative product-owner Q/A log: frontmatter-less prose
-// that stage references create and append to across a workflow's life. It has no
-// sdlc/v1 schema type and is NOT a validated artifact, so every enforcement point
-// must exempt it — the pre-write filename + frontmatter gates AND the post-write
-// schema verifier. Centralised here so the carve-out can't drift between the two
-// hooks (that exact drift shipped a broken post-write check in 9.34.1).
+// po-answers.md is the cumulative product-owner Q/A log and steer.md is the
+// user-owned standing-steering file: both are frontmatter-less prose that live
+// beside a workflow's artifacts. Neither has an sdlc/v1 schema type, so every
+// enforcement point must exempt them — the pre-write filename + frontmatter gates
+// AND the post-write schema verifier. Centralised here so the carve-out can't
+// drift between the two hooks (that exact drift shipped a broken post-write check
+// in 9.34.1). steer.md added in 9.120.0 (W6 standing-steering contract).
 export function isProseLogPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
-  return /(?:^|\/)\.ai\/workflows\/[^/]+\/po-answers\.md$/.test(normalized);
+  return /(?:^|\/)\.ai\/workflows\/[^/]+\/(?:po-answers|steer)\.md$/.test(normalized);
 }
 
 export function isProjectContextMarkdownPath(filePath) {
   const normalized = normalizePathForMatch(filePath);
   return (
     /(?:^|\/)(PRODUCT|DESIGN)\.md$/.test(normalized) ||
-    /(?:^|\/)\.ai\/ship-plan\.md$/.test(normalized)
+    /(?:^|\/)\.ai\/ship-plan\.md$/.test(normalized) ||
+    // Project-root observability artifacts: .ai/observability.md (type:
+    // observability-plan) and .ai/observability-build.md (type:
+    // observability-build), authored/realized by /wf observability. The optional
+    // -build keeps .ai/observability-audit.md OUT — that ledger is kind-keyed
+    // (kind: observability-audit, no sdlc/v1 type) and must not be schema-gated.
+    // Added in v9.132.0 (OBSERVABILITY-ROUTER-PLAN).
+    /(?:^|\/)\.ai\/observability(?:-build)?\.md$/.test(normalized)
   );
 }
 
@@ -94,6 +102,12 @@ export function projectContextPathInfo(filePath) {
   if (/(?:^|\/)\.ai\/ship-plan\.md$/.test(normalized)) {
     return { filename: 'ship-plan.md', expectedType: 'ship-plan' };
   }
+  if (/(?:^|\/)\.ai\/observability\.md$/.test(normalized)) {
+    return { filename: 'observability.md', expectedType: 'observability-plan' };
+  }
+  if (/(?:^|\/)\.ai\/observability-build\.md$/.test(normalized)) {
+    return { filename: 'observability-build.md', expectedType: 'observability-build' };
+  }
   return null;
 }
 
@@ -104,6 +118,10 @@ export function isManagedArtifactMarkdownPath(filePath) {
     /(?:^|\/)\.ai\/simplify\/.+\.md$/.test(normalized) ||
     /(?:^|\/)\.ai\/profiles\/.+\/.+\.md$/.test(normalized) ||
     /(?:^|\/)\.ai\/docs\/[^/]+\/.+\.md$/.test(normalized) ||
+    // Solutions corpus: category files only (type: solution). The category
+    // subdir requirement keeps the frontmatter-less .ai/solutions/INDEX.md
+    // exempt, same as the workflows registry INDEX.md.
+    /(?:^|\/)\.ai\/solutions\/[^/]+\/.+\.md$/.test(normalized) ||
     isProjectContextMarkdownPath(normalized)
   );
 }
@@ -118,25 +136,6 @@ export function hasFrontmatterFence(content) {
 
 export function formatList(items) {
   return items.map((item, index) => `  ${index + 1}. ${item}`).join('\n');
-}
-
-export function stringifyField(value) {
-  if (value === null || value === undefined) return '';
-  if (Array.isArray(value)) return value.join('; ');
-  if (typeof value === 'object') return Object.entries(value).map(([key, val]) => `${key}: ${val}`).join(', ');
-  return String(value);
-}
-
-export async function currentGitBranch(projectRoot) {
-  try {
-    const { stdout } = await execFileAsync('git', ['-C', projectRoot, 'branch', '--show-current'], {
-      windowsHide: true,
-      timeout: 2000,
-    });
-    return stdout.trim();
-  } catch {
-    return '';
-  }
 }
 
 export async function gitAdd(projectRoot, filePath) {

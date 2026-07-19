@@ -1,0 +1,6 @@
+interface:
+  display_name: "Consult External Models"
+  short_description: "Read-only oracle panel — plan critique, code review, diagnosis, second opinion across Codex/Claude/Gemini/OpenAI"
+  default_prompt: "Get a second opinion on the current plan from the available external models."
+policy:
+  allow_implicit_invocation: true

@@ -2,9 +2,6 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
-  resolveProjectRoot
-} from "./chunk-UTP6CBAZ.mjs";
-import {
   hostAllowed,
   renderCodeBrowserPage,
   resolveRequestPath
@@ -18,21 +15,24 @@ import {
   serveCodeBrowser,
   serveCodeBrowserAsset,
   staleRenderConfigFromEnv
-} from "./chunk-SBPANAAT.mjs";
+} from "./chunk-J2RO6O56.mjs";
 import {
   readRenderedIdentity,
   renderIdentityMatches,
   runtimeIdentity
-} from "./chunk-IEXKPLNM.mjs";
+} from "./chunk-5K66NEIW.mjs";
 import {
   createRenderQueueDrainer,
   removePidFile,
   writePidFile
-} from "./chunk-DVISHXT5.mjs";
+} from "./chunk-U4OUM73W.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
+import {
+  resolveProjectRoot
+} from "./chunk-UTP6CBAZ.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/render-sunflower-serve.mjs

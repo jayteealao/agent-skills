@@ -27,6 +27,16 @@ This skill does NOT start or advance any workflow. It discovers improvement oppo
 | Produces | A `type: workflow-index` slug workflow: `.ai/workflows/<slug>/01-ideate.md` (`type: ideation` — ranked ideas + adversarial filter log) + a lightweight `00-index.md` (`type: workflow-index`). (Legacy off-pipeline `.ai/ideation/<focus>-<timestamp>.md` runs still render via the retained ideation discovery.) |
 | Next | `$wf intake <idea-title>` — kick off a workflow for any chosen idea |
 
+> **Auto second opinion (objective triggers).** At the terminus, once the ideas are ranked
+> (before Step 6 writes the artifact), **auto-invoke** `$consult codex <widen this idea set and
+> flag blind spots — what did this analysis miss?>` (pinning `codex`/`claude` keeps it free) when
+> ANY of: (a) the ranked list will feed a build decision the user signalled they intend to act on
+> now; (b) any surviving idea is `impact: critical` or category `security`; (c) the adversarial
+> filter culled more than half the raw candidates (a high cull rate means the lens set may be
+> systematically narrow — divergent breadth is exactly the cure). Fold distinct additions in
+> through the same adversarial filter before ranking. Skip only when none of the triggers hold;
+> the user may invoke it explicitly with any provider.
+
 # CRITICAL — execution discipline
 You are an **opportunity discoverer and adversarial filter**, not a problem solver.
 - Do NOT start implementing, planning, or designing anything.
@@ -56,7 +66,7 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 
 # Step 1 — Parallel Codebase Exploration
 
-Launch exploration sub-agents in parallel. Each sub-agent gets a specific lens and must return **structured findings** — not generic advice, but specific evidence from this codebase. Launch only the lenses relevant to the focus area (or all six if no focus). Work sequentially unless the user explicitly requested parallel execution.
+Launch exploration sub-agents in parallel — read-only `explorer` children per [_subagents.md](../_subagents.md), in waves of ≤6. Each sub-agent gets a specific lens and must return **structured findings** — not generic advice, but specific evidence from this codebase. Launch only the lenses relevant to the focus area (or all six if no focus).
 
 ---
 
@@ -237,7 +247,7 @@ Evidence: <file:line or file range from sub-agent findings>
 Description: <2–3 sentences — what's wrong, what fixing it looks like, why now>
 Effort: xs | s | m | l | xl
 Impact: low | medium | high | critical
-Entry: $wf intake <slug-suggestion> | $wf-meta extend <existing-slug>
+Entry: $wf intake <slug-suggestion> | $wf intake <existing-slug> <new scope>
 ```
 
 ---
@@ -316,7 +326,7 @@ Ready to start:
 
 The terminal analysis modes root in a `type: workflow-index` slug workflow (the lead is the only artifact). Write **two** files under `.ai/workflows/<slug>/` (the slug derived in Step 0 sub-step 2b), then register the slug in `.ai/workflows/INDEX.md` per [intake/default.md](default.md) Step 10.
 
-Generate a timestamp: `date -u +"%Y%m%dT%H%M%SZ"` via Bash.
+Generate a timestamp (UTC compact `<yyyymmdd>T<hhmmss>Z`) per [_timestamp.md](../_timestamp.md).
 
 **`00-index.md` — `type: workflow-index`** (lightweight; analysis modes do not get the heavy 22-field `type: index`):
 ```yaml
@@ -357,7 +367,7 @@ ideas:
     impact: <critical|high|medium|low>
     effort: <xs|s|m|l|xl>
     score: <float>
-    entry: "<$wf-intake slug-suggestion>"
+    entry: "<$wf intake slug-suggestion>"
   - ...
 culled:
   - id: IDEA-NNN
@@ -368,6 +378,9 @@ culled:
 ```
 
 # Ideation: <focus-area or "Codebase-Wide">
+
+## The Ideation
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This ideation implements…" openings. 1–4 short paragraphs. -->
 
 *Generated: <date> | Lenses: <list> | Raw: <N> → Filtered: <N> → Showing: <N>*
 
@@ -410,11 +423,10 @@ $wf intake ideate dx 20             # DX lens, top 20
 
 ## Step — Write free narrative fragments
 
-Beyond the structured page, this artifact ships one or more **free narrative fragments**: `<stem>.<NN-label>.html.fragment` siblings of **unrestricted raw HTML** that tell a story the rendered page can't on its own — a bespoke diagram, a before/after flow, a state machine, an annotated mock, or an interactive widget. Author **as many as the story needs**; there is **no contract, no scoping, and no sibling `.yaml`** for these. Prefix the label with `NN-` (`01-`, `02-`, …) to order them; they inject raw-inline below the page body. See [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) Step F2 and [narrative-fragments.md](../../../references/narrative-fragments.md).
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
 
 # Chat return contract
-Return — lead with the substance first, then the receipt:
-- **narrative:** a short prose paragraph (not bullets) telling the story of what this stage produced — what it *is* and how, the key decisions and counts, and the top risk or caveat. The router leads the chat summary with this paragraph; the fields below are the receipt beneath it.
+After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead in the artifact's `## The Ideation` story voice, then this receipt:
 - `wrote: .ai/workflows/<slug>/01-ideate.md + 00-index.md`
 - `ideas: <N> survivors from <M> raw candidates`
 - The ranked list (Step 5 format)

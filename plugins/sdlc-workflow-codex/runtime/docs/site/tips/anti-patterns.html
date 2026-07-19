@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -144,7 +142,7 @@
 
 <p><strong>Why it happens.</strong> Intake modes are shorter. Under pressure, "shorter" looks like "faster." For a change that genuinely fits an intake mode — a single-file fix, a copy edit, a config tweak — it is faster. For a larger change, intake modes write a single-pass, lightweight plan (shape, slice, and plan in one compressed session), which increases the chance of implementation surprises for genuinely large or high-risk work.</p>
 
-<p><strong>Fix.</strong> Run <code>/wf-meta close &lt;slug&gt; superseded</code> to close the old workflow, then restart with <code>/wf intake</code>. The intake modes are for changes that fit the compressed shape, not for changes you're hoping will fit it.</p>
+<p><strong>Fix.</strong> Run <code>/wf close &lt;slug&gt; superseded</code> to close the old workflow, then restart with <code>/wf intake</code>. The intake modes are for changes that fit the compressed shape, not for changes you're hoping will fit it.</p>
 
 <div class="related">
 <h3>Where next</h3>

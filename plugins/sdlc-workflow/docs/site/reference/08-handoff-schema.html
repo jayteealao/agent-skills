@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -152,6 +150,27 @@ next-invocation: "/wf ship &lt;slug&gt;"</code></pre>
 <tr><td><code>live-checks-failing</code></td><td>array of check names</td><td>T5.3</td></tr>
 <tr><td><code>live-checks-pending</code></td><td>array of check names</td><td>T5.3</td></tr>
 <tr><td><code>readiness-verdict</code></td><td><strong>ready | awaiting-input | blocked</strong></td><td>computed</td></tr>
+<tr><td><code>ship-plan-readiness</code> <span class="badge">v9.119</span></td><td>ok | missing | drift | acknowledged | not-applicable | skipped</td><td>step 6.7</td></tr>
+<tr><td><code>steering-honored</code> <span class="badge">v9.120</span></td><td>array of honored <code>steer.md</code> entries (present only when <code>steer.md</code> exists)</td><td>Step 0</td></tr>
+</tbody>
+</table>
+
+<p><code>ship-plan-readiness</code> is the verdict of the shared ship-plan-readiness pre-check (handoff step 6.7 / ship step 0.4). <code>ok</code> = plan present + drift-clean; <code>acknowledged</code> = drift found but the user recorded an explicit per-run reason to proceed; <code>not-applicable</code> = shipping handled outside <code>/wf ship</code>. <code>missing</code>/<code>drift</code> cause a STOP (handoff writes <code>readiness-verdict: awaiting-input</code>), so a completed artifact never carries them; absent on artifacts predating the check → treat as <code>skipped</code>.</p>
+
+<h2>Branch-scoped batch handoff <span class="badge">v9.105</span></h2>
+
+<p>Set only when handoff is invoked over a <code>pr#N</code>/branch (batch mode), which aggregates every slug whose <code>00-index.md</code> shares the branch.</p>
+
+<table>
+<thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>handoff-scope</code></td><td><code>slug</code> (classic per-slug handoff) or <code>branch</code> (batch run). Absent → <code>slug</code>.</td></tr>
+<tr><td><code>handoff-lead</code></td><td>The single slug that OWNS the branch-level PR-readiness block (CI watch, triage, rebase, verdict). Stable across re-runs; on the lead's own artifact it equals its slug.</td></tr>
+<tr><td><code>readiness-via</code></td><td>Follower-slug pointer to the lead's handoff artifact carrying the authoritative readiness block (e.g. <code>&lt;lead-slug&gt;/08-handoff.md</code>). Present only on non-lead slugs; when set, this artifact's own readiness fields are advisory.</td></tr>
+<tr><td><code>branch-slugs</code></td><td>Every slug on the branch in scope for the batch (the roster). Present only when <code>handoff-scope</code> is <code>branch</code>.</td></tr>
+<tr><td><code>pr-readiness-verdict</code></td><td><code>ready | blocked | awaiting-input</code> — the branch/PR-level verdict = logical AND across every slug on the branch. Ship gates on this, not on the per-slug <code>readiness-verdict</code>. Written on the lead slug.</td></tr>
+<tr><td><code>handoff-fingerprint</code></td><td>Stable hash of the packaged inputs (commit range + slice statuses + review verdicts). A re-run whose fingerprint matches changed nothing and is skipped (no snapshot, no ledger entry).</td></tr>
+<tr><td><code>revisions</code></td><td>Reason-centric ledger (<code>{rev, at, trigger, because, changed}</code>) recording why this revisable artifact was rewritten across re-runs.</td></tr>
 </tbody>
 </table>
 
@@ -165,7 +184,10 @@ next-invocation: "/wf ship &lt;slug&gt;"</code></pre>
   <li><code>public-surface-drift</code> ≠ <code>drift-without-regen</code></li>
   <li><code>rebase-status</code> ∈ {<code>fast-forward</code>, <code>rebased-clean</code>, <code>skipped</code>}</li>
   <li><code>has-deferred-comments</code> = false</li>
+  <li>the slug's <code>intent-risks</code> (RIM) ledger in <code>00-index.md</code> has <strong>no</strong> entry with <code>status: open</code></li>
 </ul>
+
+<p>The last condition is the <strong>intent-risk gate</strong>: an unadjudicated intent-risk means <code>shape</code> never resolved a load-bearing ambiguity, so handoff marks the slug not-ready and routes to <code>/wf shape &lt;slug&gt;</code> to adjudicate it (set the entry to <code>adjudicated</code> or <code>carried</code>) — handoff detects and routes, it never adjudicates. <code>carried</code> RIMs are legal (consciously deferred to a named stage) but must be surfaced in the PR body and the handoff summary's <code>## Reviewer Focus Areas</code>.</p>
 
 <p><code>blocked</code> is set when any hard-fail condition above is true. <code>awaiting-input</code> is set for soft fails: pending checks, deferred review suggestions, or required reviewers who have not yet responded.</p>
 

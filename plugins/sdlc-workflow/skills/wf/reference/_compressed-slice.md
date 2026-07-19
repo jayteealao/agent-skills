@@ -73,7 +73,7 @@ section headings. Do not write a separate standalone artifact.
    used in step 4. Do NOT change `status`, `workflow-type`, or `branch` — slug-mode is additive,
    the parent workflow's lifecycle position is unchanged. If the row is missing (registry drift),
    append a new row using the values just read from `00-index.md`
-   (`<slug>\t<status>\t<workflow-type>\t<branch>\t<updated-at>`); the next `/wf-meta sync`
+   (`<slug>\t<status>\t<workflow-type>\t<branch>\t<updated-at>`); the next `/wf status`
    reconciles sort order.
 
 ## Slice-index update (conditional)

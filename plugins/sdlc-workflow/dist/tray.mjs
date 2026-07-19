@@ -2,8 +2,24 @@
 import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
+  ensureHubOnLaunch,
+  getHealth,
+  openConfig,
+  openDashboard,
+  openLogs,
+  openRepo,
+  perRepoServeEnabled,
+  refreshRegistry,
+  restartHub,
+  stopHubAction,
+  togglePerRepoServe
+} from "./chunk-ZFSP34IX.mjs";
+import {
+  clearTrayHeartbeat,
   writeTrayHeartbeat
-} from "./chunk-KV5OLBXR.mjs";
+} from "./chunk-SU4XJL2X.mjs";
+import "./chunk-ISU3EULN.mjs";
+import "./chunk-J2RO6O56.mjs";
 import {
   disableAutostart,
   enableAutostart,
@@ -11,32 +27,23 @@ import {
   refreshAutostart
 } from "./chunk-ERHYJB4B.mjs";
 import {
-  ensureHubLifecycle,
-  hubConfigPath,
-  readHubConfig,
-  stopHub,
-  writeHubConfig
-} from "./chunk-ZKEWZO5H.mjs";
-import "./chunk-K6PBZI5W.mjs";
-import "./chunk-ZMYLXAL2.mjs";
-import "./chunk-SBPANAAT.mjs";
-import {
   runtimeIdentity
-} from "./chunk-IEXKPLNM.mjs";
+} from "./chunk-5K66NEIW.mjs";
+import "./chunk-K6PBZI5W.mjs";
 import {
-  hubPidPath,
-  readPidFile,
   sdlcHomeDir
-} from "./chunk-DVISHXT5.mjs";
+} from "./chunk-U4OUM73W.mjs";
 import "./chunk-NTSUEAI6.mjs";
 import "./chunk-5U76735W.mjs";
-import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-LFGT2BKG.mjs";
+import "./chunk-D55RRO3F.mjs";
+import "./chunk-FZ2GR6GF.mjs";
 import "./chunk-SGA7NFMW.mjs";
 
 // scripts/tray.mjs
-import { existsSync as existsSync2, readFileSync, mkdirSync, copyFileSync, statSync, chmodSync } from "node:fs";
-import { dirname, join as join2, resolve } from "node:path";
+import { existsSync, readFileSync, mkdirSync, copyFileSync, statSync, chmodSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // lib/tray-protocol.mjs
@@ -62,6 +69,27 @@ function buildWire(items, ctx) {
     return out;
   });
 }
+function shapeOf(items) {
+  return items.map((it) => {
+    const kind = it.title === SEPARATOR.title ? "s" : "i";
+    return Array.isArray(it.items) ? `${kind}[${shapeOf(it.items)}]` : kind;
+  }).join("");
+}
+function diffWire(prev, next, out = []) {
+  for (let i = 0; i < next.length; i++) {
+    const a = prev[i];
+    const b = next[i];
+    if (b.title !== SEPARATOR.title && (a.title !== b.title || a.tooltip !== b.tooltip || a.checked !== b.checked || a.enabled !== b.enabled || a.hidden !== b.hidden || (a.icon ?? "") !== (b.icon ?? "") || (a.isTemplateIcon ?? false) !== (b.isTemplateIcon ?? false))) out.push(b);
+    if (Array.isArray(b.items)) diffWire(a.items, b.items, out);
+  }
+  return out;
+}
+function firstRealItem(items) {
+  for (const it of items) {
+    if (it.title !== SEPARATOR.title) return it;
+  }
+  return null;
+}
 function applyLinuxChecks(items, platform) {
   if (platform !== "linux") return;
   for (const item of items) {
@@ -79,23 +107,45 @@ var Tray = class {
    *   menu = { icon, title, tooltip, isTemplateIcon, items:[{title,tooltip,checked,
    *            enabled,hidden,icon,items,onClick}] } — icon is a base64 string.
    */
-  constructor({ binPath, menu, debug = false, platform = process.platform }) {
+  constructor({ binPath, menu, debug = false, platform = process.platform, spawn: spawnFn = spawn }) {
     this.binPath = binPath;
     this.menu = menu;
     this.debug = debug;
     this.platform = platform;
+    this._spawn = spawnFn;
     this.map = /* @__PURE__ */ new Map();
     this.proc = null;
     this.rl = null;
+    this._pending = null;
+    this._lastWire = null;
+    this._lastChrome = null;
     this._exitCbs = [];
     this._errorCbs = [];
   }
   /** Spawn the helper and send the menu once it reports ready. Resolves then. */
   start() {
+    return this._track(this._spawnAndWait());
+  }
+  // Publish an in-flight spawn on `_pending` and clear it on settle. While a
+  // spawn is pending, restart() piggybacks on it and update() defers — the ready
+  // handler reads `this.menu` at send time, so the freshest menu always wins.
+  _track(promise) {
+    this._pending = promise.finally(() => {
+      this._pending = null;
+    });
+    return this._pending;
+  }
+  // Spawn one helper process, wire its stdio, and resolve when it reports ready.
+  // Shared by start() and restart(); the latter tears down the previous process
+  // first. Each process carries its own readline on `_rl` so a restart can close
+  // the old reader without leaking it, and a `_replacing` flag so a process we are
+  // deliberately swapping out does NOT fire the driver-level exit callbacks (which
+  // call process.exit — that would take the whole tray down on every restart).
+  _spawnAndWait() {
     return new Promise((resolve2, reject) => {
       let proc;
       try {
-        proc = spawn(this.binPath, [], { windowsHide: true });
+        proc = this._spawn(this.binPath, [], { windowsHide: true });
       } catch (err) {
         reject(err);
         return;
@@ -104,6 +154,7 @@ var Tray = class {
       proc.stderr?.resume();
       let settled = false;
       proc.on("error", (err) => {
+        if (proc._replacing) return;
         this._errorCbs.forEach((cb) => cb(err));
         if (!settled) {
           settled = true;
@@ -111,14 +162,16 @@ var Tray = class {
         }
       });
       proc.on("exit", (code) => {
+        if (proc._replacing) return;
         this._exitCbs.forEach((cb) => cb(code));
         if (!settled) {
           settled = true;
           reject(new Error(`tray helper exited (code ${code}) before becoming ready`));
         }
       });
-      this.rl = createInterface({ input: proc.stdout });
-      this.rl.on("line", (line) => {
+      proc._rl = createInterface({ input: proc.stdout });
+      this.rl = proc._rl;
+      proc._rl.on("line", (line) => {
         const wasReady = this._onLine(line);
         if (wasReady && !settled) {
           settled = true;
@@ -127,17 +180,62 @@ var Tray = class {
       });
     });
   }
-  _menuObject() {
-    this.map = /* @__PURE__ */ new Map();
-    const items = buildWire(this.menu.items, { counter: 1, map: this.map });
+  /**
+   * Replace the running helper with a fresh process and render `menu` on it. The
+   * native helper's `update-menu` path is unreliable for large structural changes
+   * (notably the down→up transition, where the item count grows) — a clean
+   * respawn always renders correctly. Tears the old process down WITHOUT firing
+   * the driver's exit handlers, so the tray keeps running. Resolves once the new
+   * helper is ready; rejects if it never comes up (caller can fall back to update).
+   */
+  async restart(menu) {
+    if (menu) this.menu = menu;
+    if (this._pending) {
+      return this._pending.then((res) => {
+        this.update();
+        return res;
+      });
+    }
+    const old = this.proc;
+    if (old) {
+      old._replacing = true;
+      try {
+        old._rl?.close();
+      } catch {
+      }
+      try {
+        old.stdin?.writable && old.stdin.write(`${JSON.stringify({ type: "exit" })}
+`);
+      } catch {
+      }
+      setTimeout(() => {
+        try {
+          old.kill();
+        } catch {
+        }
+      }, 250).unref?.();
+    }
+    return this._track(this._spawnAndWait());
+  }
+  // Build the wire tree for this.menu into `map` (click routing). Kept separate
+  // from _menuObject so update() can build into a THROWAWAY map and only commit
+  // it when the render actually happens in place.
+  _buildItems(map) {
+    const items = buildWire(this.menu.items, { counter: 1, map });
     applyLinuxChecks(items, this.platform);
+    return items;
+  }
+  _chromeObject() {
     return {
       icon: this.menu.icon ?? "",
       title: this.menu.title ?? "",
       tooltip: this.menu.tooltip ?? "",
-      isTemplateIcon: this.menu.isTemplateIcon ?? false,
-      items
+      isTemplateIcon: this.menu.isTemplateIcon ?? false
     };
+  }
+  _menuObject() {
+    this.map = /* @__PURE__ */ new Map();
+    return { ...this._chromeObject(), items: this._buildItems(this.map) };
   }
   _write(obj) {
     if (!this.proc || !this.proc.stdin?.writable) return;
@@ -158,7 +256,10 @@ var Tray = class {
     }
     if (this.debug) console.error("[tray\u2190]", line.slice(0, 160));
     if (action.type === "ready") {
-      this._write(this._menuObject());
+      const m = this._menuObject();
+      this._write(m);
+      this._lastWire = m.items;
+      this._lastChrome = { icon: m.icon, title: m.title, tooltip: m.tooltip, isTemplateIcon: m.isTemplateIcon };
       return true;
     }
     if (action.type === "clicked") {
@@ -173,10 +274,44 @@ var Tray = class {
     }
     return false;
   }
-  /** Re-render the tray (icon + all items). Pass a new menu or mutate `this.menu`. */
+  /**
+   * Re-render the tray IN PLACE via per-item diffs — the only mutation the
+   * helper supports (see the wire-protocol note atop this file; the old
+   * whole-menu `update-menu` message was silently ignored by the binary, which
+   * is why nothing ever updated dynamically). Diffs the new menu against the
+   * last-rendered wire tree and sends `update-item` per changed node; a tray
+   * chrome change (icon/tooltip/title) rides the first one as
+   * `update-item-and-menu`. Returns TRUE when handled (including no-ops and
+   * deferrals onto an in-flight spawn) and FALSE when the menu SHAPE changed —
+   * items cannot be added/removed in place, the caller must restart() instead.
+   */
   update(menu) {
     if (menu) this.menu = menu;
-    this._write({ type: "update-menu", menu: this._menuObject() });
+    if (this._pending) {
+      this._pending.then(() => {
+        this.update();
+      }).catch(() => {
+      });
+      return true;
+    }
+    if (!this._lastWire) return false;
+    const map = /* @__PURE__ */ new Map();
+    const items = this._buildItems(map);
+    if (shapeOf(items) !== shapeOf(this._lastWire)) return false;
+    const updates = diffWire(this._lastWire, items);
+    const chrome = this._chromeObject();
+    const chromeDirty = !this._lastChrome || JSON.stringify(chrome) !== JSON.stringify(this._lastChrome);
+    this.map = map;
+    this._lastWire = items;
+    if (updates.length || chromeDirty) {
+      if (chromeDirty) {
+        const carrier = updates.shift() ?? firstRealItem(items);
+        if (carrier) this._write({ type: "update-item-and-menu", seq_id: -1, item: carrier, menu: chrome });
+        this._lastChrome = chrome;
+      }
+      for (const node of updates) this._write({ type: "update-item", seq_id: -1, item: node });
+    }
+    return true;
   }
   onExit(cb) {
     this._exitCbs.push(cb);
@@ -192,7 +327,7 @@ var Tray = class {
         this.proc?.kill();
       } catch {
       }
-    }, 250);
+    }, 250).unref?.();
   }
 };
 
@@ -316,160 +451,6 @@ function buildRepoItems(entries, now) {
   });
 }
 
-// lib/tray-actions.mjs
-import { spawn as spawn2 } from "node:child_process";
-import { existsSync } from "node:fs";
-import { request } from "node:http";
-import { join } from "node:path";
-async function hubEndpoint() {
-  const rec = await readPidFile(hubPidPath());
-  if (rec && rec.port) {
-    const host = rec.host && rec.host !== "0.0.0.0" ? rec.host : "127.0.0.1";
-    return { host, port: Number(rec.port), token: rec.token ?? "", pid: rec.pid ?? null };
-  }
-  let port = 4173;
-  try {
-    port = Number(readHubConfig({ create: false }).port) || 4173;
-  } catch {
-  }
-  return { host: "127.0.0.1", port, token: "", pid: null };
-}
-async function getHealth({ timeoutMs = 1200 } = {}) {
-  const endpoint = await hubEndpoint();
-  const probe = await httpGetJson({ host: endpoint.host, port: endpoint.port, path: "/__sdlc/health", timeoutMs });
-  return { reachable: probe.ok, payload: probe.json, endpoint };
-}
-async function refreshRegistry({ timeoutMs = 1500 } = {}) {
-  const endpoint = await hubEndpoint();
-  return httpRequestJson({
-    host: endpoint.host,
-    port: endpoint.port,
-    path: "/__sdlc/registry/refresh",
-    method: "POST",
-    token: endpoint.token,
-    timeoutMs
-  });
-}
-async function restartHub({ pluginRoot, log: log2 = () => {
-} } = {}) {
-  await stopHub({ log: log2 });
-  return ensureHubLifecycle({ pluginRoot, log: log2 });
-}
-async function stopHubAction({ log: log2 = () => {
-} } = {}) {
-  return stopHub({ log: log2 });
-}
-async function ensureHubOnLaunch({ pluginRoot, log: log2 = () => {
-} } = {}) {
-  return ensureHubLifecycle({ pluginRoot, log: log2 });
-}
-function togglePerRepoServe() {
-  const cfg = readHubConfig({ create: true });
-  const next = cfg.perRepoServe !== true;
-  cfg.perRepoServe = next;
-  writeHubConfig(cfg);
-  return next;
-}
-function perRepoServeEnabled() {
-  try {
-    return readHubConfig({ create: false }).perRepoServe === true;
-  } catch {
-    return false;
-  }
-}
-function openerCommand(platform, target) {
-  const t = String(target);
-  if (platform === "win32") return { command: "cmd", args: ["/c", "start", "", t] };
-  if (platform === "darwin") return { command: "open", args: [t] };
-  return { command: "xdg-open", args: [t] };
-}
-function defaultOpener(command, args) {
-  const child = spawn2(command, args, { stdio: "ignore", windowsHide: true });
-  child.unref();
-}
-function openTarget(target, { opener = defaultOpener, platform = process.platform } = {}) {
-  const { command, args } = openerCommand(platform, target);
-  opener(command, args);
-  return { command, args };
-}
-async function openDashboard({ opener, platform } = {}) {
-  const endpoint = await hubEndpoint();
-  return openTarget(`http://${endpoint.host}:${endpoint.port}/`, { opener, platform });
-}
-async function openRepo(href, { opener, platform } = {}) {
-  const endpoint = await hubEndpoint();
-  return openTarget(`http://${endpoint.host}:${endpoint.port}${href}`, { opener, platform });
-}
-function openConfig({ opener, platform } = {}) {
-  return openTarget(hubConfigPath(), { opener, platform });
-}
-function resolveLogTarget({ cwd = process.cwd(), homeDir = sdlcHomeDir(), exists = existsSync } = {}) {
-  const cwdLog = join(cwd, ".ai", "_view", ".bootstrap.log");
-  if (exists(cwdLog)) return cwdLog;
-  const pruneLog = join(homeDir, "registry.prune.log");
-  if (exists(pruneLog)) return pruneLog;
-  return homeDir;
-}
-function openLogs({ opener, platform, cwd, homeDir, exists } = {}) {
-  return openTarget(resolveLogTarget({ cwd, homeDir, exists }), { opener, platform });
-}
-function httpGetJson({ host, port, path, timeoutMs }) {
-  return new Promise((resolve2) => {
-    const req = request({ hostname: host, port, path, method: "GET", timeout: timeoutMs }, (res) => {
-      if (res.statusCode !== 200) {
-        res.resume();
-        resolve2({ ok: false, json: null, status: res.statusCode });
-        return;
-      }
-      let buf = "";
-      res.setEncoding("utf-8");
-      res.on("data", (c) => {
-        if (buf.length < 262144) buf += c;
-      });
-      res.on("end", () => {
-        try {
-          resolve2({ ok: true, json: JSON.parse(buf), status: 200 });
-        } catch {
-          resolve2({ ok: false, json: null, status: 200 });
-        }
-      });
-    });
-    req.on("timeout", () => {
-      req.destroy();
-      resolve2({ ok: false, json: null, status: 0 });
-    });
-    req.on("error", () => resolve2({ ok: false, json: null, status: 0 }));
-    req.end();
-  });
-}
-function httpRequestJson({ host, port, path, method, token, timeoutMs }) {
-  return new Promise((resolve2) => {
-    const headers = {};
-    if (token) headers["x-sdlc-token"] = token;
-    const req = request({ hostname: host, port, path, method, timeout: timeoutMs, headers }, (res) => {
-      let buf = "";
-      res.setEncoding("utf-8");
-      res.on("data", (c) => {
-        if (buf.length < 262144) buf += c;
-      });
-      res.on("end", () => {
-        let json = null;
-        try {
-          json = JSON.parse(buf);
-        } catch {
-        }
-        resolve2({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode, json });
-      });
-    });
-    req.on("timeout", () => {
-      req.destroy();
-      resolve2({ ok: false, status: 0, json: null });
-    });
-    req.on("error", () => resolve2({ ok: false, status: 0, json: null }));
-    req.end();
-  });
-}
-
 // scripts/tray.mjs
 var __dirname = dirname(fileURLToPath(import.meta.url));
 var PLUGIN_ROOT = resolve(__dirname, "..");
@@ -481,7 +462,10 @@ var TRAY_BIN_NAMES = {
   linux: "tray_linux_release"
 };
 var POLL_MS = 5e3;
+var INITIAL_PROBE_RETRIES = 6;
+var INITIAL_PROBE_DELAY_MS = 500;
 var log = (...a) => console.log("[tray]", ...a);
+var delay = (ms) => new Promise((r) => setTimeout(r, ms));
 function iconBase64(state) {
   const ext = process.platform === "win32" ? "ico" : "png";
   const suffix = state === "down" ? "-down" : state === "stale" ? "-stale" : "";
@@ -495,20 +479,21 @@ function ensureRuntimeBinary() {
   const name = TRAY_BIN_NAMES[process.platform];
   if (!name) throw new Error(`tray: unsupported platform ${process.platform}`);
   const vendored = resolve(PLUGIN_ROOT, "bin", "tray", name);
-  if (!existsSync2(vendored)) throw new Error(`tray: vendored helper missing at ${vendored}`);
-  const dir = join2(sdlcHomeDir(), "bin");
+  if (!existsSync(vendored)) throw new Error(`tray: vendored helper missing at ${vendored}`);
+  const dir = join(sdlcHomeDir(), "bin");
   mkdirSync(dir, { recursive: true });
-  const runtime = join2(dir, name);
+  const runtime = join(dir, name);
+  const fileHash = (p) => createHash("sha256").update(readFileSync(p)).digest("hex");
   let stale = true;
   try {
-    stale = !existsSync2(runtime) || statSync(runtime).size !== statSync(vendored).size;
+    stale = !existsSync(runtime) || statSync(runtime).size !== statSync(vendored).size || fileHash(runtime) !== fileHash(vendored);
   } catch {
   }
   if (stale) {
     try {
       copyFileSync(vendored, runtime);
     } catch (err) {
-      if (!existsSync2(runtime)) throw new Error(`tray: failed to copy helper to ${runtime}: ${err.message}`);
+      if (!existsSync(runtime)) throw new Error(`tray: failed to copy helper to ${runtime}: ${err.message}`);
     }
   }
   if (process.platform !== "win32") {
@@ -521,6 +506,7 @@ function ensureRuntimeBinary() {
 }
 var tray = null;
 var lastSig = "";
+var lastIconState = "";
 var refreshTimer = null;
 function signatureOf(h) {
   return JSON.stringify({
@@ -599,6 +585,7 @@ function onToggleAutostart() {
 }
 function quit() {
   if (refreshTimer) clearInterval(refreshTimer);
+  clearTrayHeartbeat();
   try {
     tray?.kill();
   } catch {
@@ -610,18 +597,36 @@ async function currentHealth() {
   return formatHealth({ reachable: probe.reachable, payload: probe.payload, pluginVersion: PLUGIN_VERSION }, Date.now());
 }
 async function refresh() {
-  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE });
   const h = await currentHealth();
+  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE, iconState: h.iconState, summary: h.summary });
   const sig = signatureOf(h);
   if (sig === lastSig && tray) return;
   lastSig = sig;
-  if (tray) tray.update(buildMenu(h));
+  const iconChanged = h.iconState !== lastIconState;
+  lastIconState = h.iconState;
+  if (!tray) return;
+  if (iconChanged) {
+    tray.restart(buildMenu(h)).catch((err) => {
+      log("helper respawn on transition failed:", err.message);
+      setTimeout(() => {
+        tray.restart(buildMenu(h)).catch((err2) => {
+          log("helper respawn retry failed:", err2.message, "\u2014 exiting so the heal can revive");
+          process.exit(1);
+        });
+      }, 1e3);
+    });
+  } else if (!tray.update(buildMenu(h))) {
+    tray.restart(buildMenu(h)).catch((err) => {
+      log("helper respawn on menu-shape change failed:", err.message);
+      lastSig = "";
+    });
+  }
 }
-function refreshSoon(delay = 700) {
+function refreshSoon(ms = 700) {
   setTimeout(() => {
     refresh().catch(() => {
     });
-  }, delay);
+  }, ms);
 }
 var lastTickAt = Date.now();
 function pollTick() {
@@ -634,7 +639,7 @@ function pollTick() {
 async function selfcheck() {
   const name = TRAY_BIN_NAMES[process.platform] ?? TRAY_BIN_NAMES.linux;
   const vendored = resolve(PLUGIN_ROOT, "bin", "tray", name);
-  const hasBin = existsSync2(vendored);
+  const hasBin = existsSync(vendored);
   const icon = iconBase64("up");
   const sample = formatHealth({ reachable: false, payload: null, pluginVersion: PLUGIN_VERSION });
   log(`selfcheck: binary=${hasBin} icon=${icon.length > 0} summary="${sample.summary}"`);
@@ -655,8 +660,14 @@ async function main() {
     });
   }
   writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE });
-  const h = await currentHealth();
+  let h = await currentHealth();
+  for (let i = 0; i < INITIAL_PROBE_RETRIES && h.iconState === "down"; i++) {
+    await delay(INITIAL_PROBE_DELAY_MS);
+    h = await currentHealth();
+  }
+  writeTrayHeartbeat({ pid: process.pid, bundle: TRAY_BUNDLE, iconState: h.iconState, summary: h.summary });
   lastSig = signatureOf(h);
+  lastIconState = h.iconState;
   tray = new Tray({ binPath, menu: buildMenu(h) });
   tray.onError((err) => log("helper error:", err.message));
   tray.onExit(() => process.exit(0));

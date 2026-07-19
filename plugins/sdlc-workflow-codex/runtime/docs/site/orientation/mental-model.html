@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -109,32 +107,32 @@ Before you type your first command, this page gives you the map. One read and yo
 <tr>
   <td><code>/wf</code></td>
   <td>You have a real feature, fix, or refactor to ship</td>
-  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. Sub-commands: <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code>, <code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code> (end-to-end lifecycle driver — new in v9.88.0), <code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, <code>profile</code></td>
+  <td>Runs the full 10-stage lifecycle. One stage at a time, each building on the last. 21 keys: the 10 stages (<code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>handoff</code>, <code>ship</code>, <code>retro</code>), the standalone/drivers <code>design</code>, <code>probe</code>, <code>simplify</code>, <code>auto</code>, <code>yolo</code>, the navigation keys <code>status</code>, <code>recap</code>, lifecycle <code>close</code>, and the routers <code>ship-plan</code>, <code>docs</code>, <code>observability</code>. In-workflow instrument, experiment, benchmark, and profile are <em>augmentations</em> that <code>shape</code> decides, not keys you type; project-wide observability has its own <code>/wf observability</code> router key.</td>
 </tr>
 <tr>
   <td><code>/wf intake &lt;mode&gt;</code></td>
   <td>You want a faster path for small, well-defined changes</td>
-  <td>Eight compressed intake modes — <code>fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code> — plus <code>/wf probe</code> and <code>/wf simplify</code> as top-level keys. The former <code>/wf-quick</code> router is retired.</td>
+  <td>Nine compressed intake modes — <code>fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code>, and <code>adopt</code> (reverse-entry: adopt an already-made diff) — plus <code>/wf probe</code> and <code>/wf simplify</code> as top-level keys. The former <code>/wf-quick</code> router is retired.</td>
 </tr>
 <tr>
-  <td><code>/wf-meta</code></td>
+  <td><code>/wf status</code> · <code>/wf recap</code></td>
   <td>You want to look up, navigate, or manage your workflows</td>
-  <td>Status, resume, next, sync, amend, extend, skip, close, how, announce — everything for working <em>with</em> workflows that already exist. Sub-commands: <code>status</code>, <code>resume</code>, <code>next</code>, <code>sync</code>, <code>amend</code>, <code>extend</code>, <code>skip</code>, <code>close</code>, <code>how</code>, <code>announce</code>, <code>init-ship-plan</code>, <code>build-pipeline</code></td>
+  <td>Navigation and lifecycle — everything for working <em>with</em> workflows that already exist. Keys: <code>/wf status</code> (dashboard/detail; absorbs the old <code>next</code> and <code>sync</code>), <code>/wf recap</code> (the old <code>resume</code>/<code>how</code>), <code>/wf close</code> (the old <code>skip</code>/<code>close</code>), <code>/wf ship-plan</code> (init/build/edit), and <code>/wf ship &lt;slug&gt; announce</code>. Add scope with <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code>. The former <code>/wf-meta</code> router is retired.</td>
 </tr>
 <tr>
   <td><code>/wf design</code></td>
   <td>You want design work on a screen, component, or visual artifact</td>
-  <td>21 design sub-commands — craft, colorize, polish, audit, critique, and more. A <code>/wf</code> sub-command: <code>/wf design &lt;slug&gt; &lt;cmd&gt;</code> builds in-workflow (compressed); <code>/wf design &lt;cmd&gt;</code> runs the full lifecycle</td>
+  <td>20 design sub-commands — colorize, polish, audit, critique, the transforms, and more. The design brief (<code>02b-design.md</code>) and visual contract (<code>02c-craft.md</code>) are authored by the normal lifecycle (<code>shape</code> and <code>plan</code>); this key hosts the ad-hoc transforms + analysis operators. <code>/wf design &lt;slug&gt; &lt;transform&gt;</code> builds in-workflow (compressed); <code>/wf design &lt;cmd&gt;</code> runs the full lifecycle</td>
 </tr>
 <tr>
-  <td><code>/wf-docs</code></td>
+  <td><code>/wf docs</code></td>
   <td>You want to generate or update documentation</td>
-  <td>Generates site pages, API docs, or reference content from your code and artifacts. Integrates with the doc site generator</td>
+  <td>Generates site pages, API docs, or reference content from your code and artifacts, using the Diátaxis structure. The former <code>/wf-docs</code> router is retired — it is now the <code>/wf docs</code> key</td>
 </tr>
 <tr>
-  <td><code>/review</code></td>
+  <td><code>/wf review</code></td>
   <td>You want a structured code review on a PR or a diff</td>
-  <td>31-dimension code review. Sub-commands: a single dimension inline (<code>/review correctness</code>), or a full sweep (<code>/review sweep</code>) that fans out one agent per dimension</td>
+  <td>34-dimension code review — the single review surface. <code>/wf review &lt;slug&gt;</code> runs the workflow stage; ad-hoc (no slug), run a single dimension inline (<code>/wf review correctness</code>) or a full sweep (<code>/wf review sweep</code>) that fans out one agent per dimension. The former standalone <code>/review</code> skill is folded into this key.</td>
 </tr>
 </tbody>
 </table>
@@ -190,7 +188,7 @@ flowchart LR
 <div class="diagram">
 <pre class="mermaid">
 flowchart TD
-  you["You type a command"] --> cmd["/wf, /wf-meta, /wf-docs, /review, etc."]
+  you["You type a command"] --> cmd["/wf, /wf review, etc."]
   cmd --> stages["Claude runs one or more stages"]
   stages --> artifacts["Writes artifacts to .ai/workflows/&lt;slug&gt;/"]
   artifacts --> next["Next stage reads previous artifacts"]

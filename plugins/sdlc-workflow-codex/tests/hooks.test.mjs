@@ -18,6 +18,7 @@ import {
   REPAIR_CEILING,
   bumpRepairAttempt,
   clearLedger,
+  codexHostEnv,
   computeBaseline,
   findProjectRoot,
   hookDefinitionHash,
@@ -31,6 +32,7 @@ import {
   synthSingleStdin,
   touchedFromEvent,
 } from '../hooks/_adapter.mjs';
+import { commandFromEvent, isAllowedRuntimeInvocation } from '../hooks/permission-request.mjs';
 
 const PKG_ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const HOOKS = join(PKG_ROOT, 'hooks');
@@ -227,19 +229,116 @@ test('stop-verify clears the ledger when artifacts are valid (no managed touched
 
 const DEMO_INDEX = '---\nschema: sdlc/v1\ntype: index\nslug: demo\ntitle: Demo Feature\ncurrent-stage: plan\nstatus: active\nrecommended-next-invocation: /wf-meta plan demo\n---\n# demo\n';
 
-test('session-start emits orientation but records NO activation without a confirmed hub', () => {
+test('session-start emits NO orientation and records NO activation without a confirmed hub', () => {
   const { repo, pluginData, cleanup } = mkRepo();
   try {
+    // An ACTIVE workflow is present on disk — the strongest case for the
+    // orientation strip: even with something to orient about, the hook stays
+    // silent (pure background maintenance; the wf skills re-read 00-index.md
+    // themselves on invocation).
     writeFileSync(join(repo, '.ai', 'workflows', 'demo', '00-index.md'), DEMO_INDEX);
     // Hub ensure disabled → no hub confirmed → activation must NOT be recorded
     // (the native-interop contract records activation only after a confirmed hub).
     const env = { SDLC_DISABLE_HUB_ENSURE: '1' };
     const res = runHook('session-start.mjs', { cwd: repo, hook_event_name: 'SessionStart', source: 'startup', session_id: 's1' }, { repo, pluginData, env });
     assert.equal(res.status, 0, `stderr=${res.stderr}`);
-    const ctx = JSON.parse(res.stdout).hookSpecificOutput.additionalContext;
-    assert.match(ctx, /demo/);
-    assert.match(ctx, /\$wf-meta plan demo/, 'maps legacy /wf-meta to native $wf-meta');
+    assert.equal(res.stdout.trim(), '', 'no orientation payload — the hook is background-maintenance only');
     assert.ok(!existsSync(join(pluginData, 'activation.json')), 'no activation record without a confirmed hub');
+  } finally {
+    cleanup();
+  }
+});
+
+test('codexHostEnv threads codex provenance, caller values win', () => {
+  const env = codexHostEnv({ PATH: '/x' });
+  assert.equal(env.SDLC_HOST, 'codex');
+  assert.equal(env.SDLC_HUB_STARTED_BY, 'codex');
+  assert.equal(env.PATH, '/x');
+  const overridden = codexHostEnv({ SDLC_HOST: 'test-host', SDLC_HUB_STARTED_BY: 'x' });
+  assert.equal(overridden.SDLC_HOST, 'test-host');
+  assert.equal(overridden.SDLC_HUB_STARTED_BY, 'x');
+});
+
+test('pre-tool-use DENY emits the modern permissionDecision envelope + legacy exit 2', () => {
+  const { repo, pluginData, cleanup } = mkRepo();
+  try {
+    const rel = '.ai/workflows/demo/01-intake.md';
+    const event = {
+      session_id: 'sPre', cwd: repo, hook_event_name: 'PreToolUse', tool_name: 'Write',
+      tool_input: { file_path: rel, content: '---\nschema: bogus/v1\ntype: intake\nslug: demo\n---\n# intake\n' },
+    };
+    const res = runHook('pre-tool-use.mjs', event, { repo, pluginData });
+    assert.equal(res.status, 2, `expected legacy deny exit; stderr=${res.stderr}`);
+    const out = JSON.parse(res.stdout);
+    assert.equal(out.hookSpecificOutput.hookEventName, 'PreToolUse');
+    assert.equal(out.hookSpecificOutput.permissionDecision, 'deny');
+    assert.ok(out.hookSpecificOutput.permissionDecisionReason, 'deny carries a reason');
+  } finally {
+    cleanup();
+  }
+});
+
+test('subagent-start injects active-slug + boundary context; silent with no workflows', () => {
+  const { repo, pluginData, cleanup } = mkRepo();
+  try {
+    // No INDEX.md yet → silent.
+    let res = runHook('subagent-start.mjs', { cwd: repo, hook_event_name: 'SubagentStart', agent_type: 'explorer' }, { repo, pluginData });
+    assert.equal(res.status, 0);
+    assert.equal(res.stdout.trim(), '', 'silent when nothing is active');
+
+    writeFileSync(join(repo, '.ai', 'workflows', 'demo', '00-index.md'), DEMO_INDEX);
+    writeFileSync(join(repo, '.ai', 'workflows', 'INDEX.md'), 'demo\tactive\tfeature\tmain\t2026-07-08T00:00:00Z\nother\tclosed\tfix\tmain\t2026-07-01T00:00:00Z\n');
+    res = runHook('subagent-start.mjs', { cwd: repo, hook_event_name: 'SubagentStart', agent_type: 'explorer' }, { repo, pluginData });
+    assert.equal(res.status, 0, `stderr=${res.stderr}`);
+    const out = JSON.parse(res.stdout);
+    assert.equal(out.hookSpecificOutput.hookEventName, 'SubagentStart');
+    const ctx = out.hookSpecificOutput.additionalContext;
+    assert.match(ctx, /`demo` \(stage: plan\)/, 'names the active slug + stage');
+    assert.doesNotMatch(ctx, /other/, 'closed workflows excluded');
+    assert.match(ctx, /External Output Boundary/, 'carries the boundary reminder');
+    assert.match(ctx, /do NOT\s+write workflow artifacts/, 'children read, parent writes');
+  } finally {
+    cleanup();
+  }
+});
+
+test('permission-request allowlist: plugin runtime invocations only', () => {
+  const layout = resolveLayout({ pluginRoot: PKG_ROOT });
+  const distScript = join(layout.runtimeRoot, 'dist', 'hub-ensure.mjs');
+  const roots = [join(layout.runtimeRoot, 'dist')];
+  assert.ok(isAllowedRuntimeInvocation(['node', distScript, '--confirm'], roots));
+  assert.ok(isAllowedRuntimeInvocation([process.execPath, distScript], roots));
+  assert.ok(!isAllowedRuntimeInvocation(['node', join(PKG_ROOT, 'evil.mjs')], roots), 'outside runtime dist');
+  assert.ok(!isAllowedRuntimeInvocation(['node', 'hub-ensure.mjs'], roots), 'bare relative script');
+  assert.ok(!isAllowedRuntimeInvocation(['python', distScript], roots), 'non-node executable');
+  assert.ok(!isAllowedRuntimeInvocation(['rm', '-rf', '/'], roots));
+  // command extraction: string and argv forms
+  assert.deepEqual(commandFromEvent({ tool_input: { command: `node "${distScript}" --confirm` } }), ['node', distScript, '--confirm']);
+  assert.deepEqual(commandFromEvent({ tool_input: { command: ['node', distScript] } }), ['node', distScript]);
+  assert.equal(commandFromEvent({ tool_input: {} }), null);
+});
+
+test('permission-request hook: emits allow for runtime dist, silent otherwise, logs the allow', () => {
+  const { repo, pluginData, cleanup } = mkRepo();
+  try {
+    const layout = resolveLayout({ pluginRoot: PKG_ROOT });
+    const distScript = join(layout.runtimeRoot, 'dist', 'post-write-render.mjs');
+    let res = runHook('permission-request.mjs', {
+      cwd: repo, hook_event_name: 'PermissionRequest', tool_name: 'shell',
+      tool_input: { command: `node "${distScript}"` },
+    }, { repo, pluginData });
+    assert.equal(res.status, 0, `stderr=${res.stderr}`);
+    const out = JSON.parse(res.stdout);
+    assert.equal(out.hookSpecificOutput.hookEventName, 'PermissionRequest');
+    assert.equal(out.hookSpecificOutput.decision.behavior, 'allow');
+    assert.match(readFileSync(join(pluginData, 'permission-auto-allow.log'), 'utf-8'), /post-write-render\.mjs/);
+
+    res = runHook('permission-request.mjs', {
+      cwd: repo, hook_event_name: 'PermissionRequest', tool_name: 'shell',
+      tool_input: { command: 'rm -rf node_modules' },
+    }, { repo, pluginData });
+    assert.equal(res.status, 0);
+    assert.equal(res.stdout.trim(), '', 'no opinion on non-runtime commands');
   } finally {
     cleanup();
   }
@@ -254,7 +353,7 @@ test('session-start writes activation once after the hub is confirmed', () => {
     const env = { SDLC_ASSUME_HUB_READY: '1' };
     const res = runHook('session-start.mjs', { cwd: repo, hook_event_name: 'SessionStart', source: 'startup', session_id: 's1' }, { repo, pluginData, env });
     assert.equal(res.status, 0, `stderr=${res.stderr}`);
-    assert.match(JSON.parse(res.stdout).hookSpecificOutput.additionalContext, /\$wf-meta plan demo/, 'maps legacy /wf-meta to native $wf-meta');
+    assert.equal(res.stdout.trim(), '', 'no orientation payload even on the activation path');
 
     const actPath = join(pluginData, 'activation.json');
     assert.ok(existsSync(actPath), 'activation recorded after a confirmed hub');

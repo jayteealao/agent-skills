@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://anthropic.com/plugins/sdlc-workflow/sdlc-config.schema.json",
+  "$id": "https://github.com/jayteealao/agent-skills/schemas/sdlc-workflow/sdlc-config.schema.json",
   "title": "SDLC Workflow Local Configuration",
   "description": "Optional per-project configuration for sdlc-workflow view rendering, bootstrap, serve, and hook behavior. Store at .ai/sdlc-config.json.",
   "type": "object",
@@ -122,6 +122,82 @@
           "type": "boolean",
           "default": true,
           "description": "When true (default), the post-write-verify hook validates a present sibling .yaml against siblingYamlSchemas.<type> and BLOCKS (exit 2) on a schema violation — but only for types whose schema has been reconciled to the live authoring convention (SIBLING_YAML_VALIDATED_TYPES in hooks/post-write-verify.mjs; currently plan, review, design, simplify-run, ship-run — keyed by the .md's type:, so review-dimension (authored as type: review-command) is not reachable here, and the types with no real sibling corpus stay unvalidated). Set false to disable while other type schemas are still being reconciled."
+        },
+        "verifyResultGate": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook HARD-BLOCKS (exit 2) a `verify` artifact whose frontmatter contradicts a passing result: `result: pass` with metric-acceptance-met < metric-acceptance-total, or `result: pass` with interactive-verification: deferred. False-positive-free cross-field checks (a true pass meets every AC and defers none). Set false to disable the result gate. See the AC-VERIFIABILITY recommendations R7."
+        },
+        "verifyDeferralLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook WARNS (non-blocking systemMessage) when shadow-deferral vocabulary in a `verify` body co-occurs with `result: pass` (e.g. 'deferred to user/manual', 'UNVERIFIED-INTERACTIVE', 'will be verified during <slice>', 'decidable by static reasoning'). Heuristic, so it warns rather than blocks. Set false to silence the prose-deferral lint."
+        },
+        "mockEvidenceGate": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook HARD-BLOCKS (exit 2) a `verify` artifact with `result: pass` while metric-acceptance-mock-rung > 0 — i.e. at least one user-observable AC's highest evidence-rung is cited-mock / uncited-mock / static (INTENT-FIDELITY W5.2/W9.1 + YOLO F5). A user-observable AC evidenced only by a mock or static analysis is not met — climb the ladder or defer. WARNS additionally when an unproven-integration (first-light: null) co-occurs with a passing dependent AC. Set false to disable. See EVIDENCE-SCHEMA-CONTRACT.md §5."
+        },
+        "limitationClaimLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the pre-write-validate (code files) and post-write-verify (artifacts) hooks WARN (non-blocking) when an added/modified comment claims a dependency capability does not exist / is not exposed / was removed (the limitation lexicon) with no citation marker within ±3 lines (source:, node_modules/, repro:, issue:, a URL). INTENT-FIDELITY W3.2 — a comment is a hypothesis, not authority. Set false to silence."
+        },
+        "suppressionDebtLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the hooks WARN (non-blocking) when a new type/lint suppression (`as any`, `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, language equivalents) is added without an `sdlc-debt:` marker within ±2 lines. INTENT-FIDELITY W9.3 — the existing debt lifecycle (verify validates, retro reconciles, simplify sweeps) then inherits the class. Set false to silence."
+        },
+        "namedMechanismLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a mechanism-suggesting noun (state machine, scheduler, queue, cache, pipeline, orchestrator, regex) appears in a shape/slice AC or verification line but in no decision section of the artifact body. INTENT-FIDELITY W7 — a test may not name a machine the design does not own. Heuristic, so it warns. Set false to silence."
+        },
+        "intakeLedgerLint": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), the post-write-verify hook WARNS (non-blocking) when a default-mode intake artifact (01-intake.md, type: intake) lands with neither RIM/charter ledger entries on the sibling 00-index.md nor the explicit `intent-risks: none-declared` / `charter: none-declared` escape. INTAKE-SHAPE-HARDENING W2.1 — a default intake may not be silently ledger-less; shape's Step 9a backfill is the hard consequence. Set false to silence."
+        }
+      }
+    },
+    "semantic": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Semantic leak guards (HOOKS-SEMANTIC Phase 1): the leak-guard-bash and leak-guard-write hooks scan outward-facing text (git commit/tag messages, gh pr/release titles+bodies, README/CHANGELOG/docs writes) for internal workflow vocabulary, using the lexicon derived from skills/wf/reference/_output-boundary.md. Default OFF and advisory-first; promote mode to 'enforce' only after the advisory false-positive rate proves ~0 across real workflows.",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Master switch for both leak guards. Default false (the hooks exit silently)."
+        },
+        "mode": {
+          "enum": ["advisory", "enforce"],
+          "default": "advisory",
+          "description": "'advisory' emits a non-blocking systemMessage naming the matched vocabulary; 'enforce' denies the tool call (exit 2) with the same message."
+        }
+      }
+    },
+    "solutions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Knowledge-compounding corpus (INTENT-FIDELITY W12 meta-loop). `.ai/solutions/` is always the per-repo corpus; globalDir optionally adds a user-level one.",
+      "properties": {
+        "globalDir": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Absolute path to a USER-LEVEL solutions corpus read by plan's reuse scan alongside the repo's .ai/solutions/, and the target for retro's user-confirmed lesson promotion + the about-the-workflow plugin-feedback.md channel. null (default) disables it. The dir stays local — never synced by the plugin, since repo lessons can contain project specifics (privacy)."
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Agent memory-file seeding (MEMORY-SEED-PLAN). Governs whether the SessionStart hook seeds a minimal, versioned `/wf` rules kernel into the repo's agent memory files. The kernel lives literally in AGENTS.md (canonical; read by Codex natively and by Claude via an `@AGENTS.md` import the seeder adds to CLAUDE.md). The plugin owns EXACTLY the fenced region and never touches a byte outside it; seeding only runs in sdlc-engaged repos (those with .ai/workflows/).",
+      "properties": {
+        "seedRules": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true (default), each SessionStart ensures the fenced `/wf` rules block in AGENTS.md and the `@AGENTS.md` import in CLAUDE.md, replacing an older kernel version in place and never re-announcing after the first insert. Set false to disable seeding entirely (existing seeded blocks are left untouched)."
         }
       }
     }

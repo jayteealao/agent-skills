@@ -1,0 +1,308 @@
+---
+description: Experiment design augmentation for an existing workflow. Extracts the hypothesis from the workflow's shape, designs a controlled experiment (feature flag, A/B test, or canary rollout) with explicit success metrics and rollback criteria, and writes the design as 04c-experiment.md into the existing workflow directory. Does NOT implement flag infrastructure. Registers itself in the workflow's 00-index.md augmentations list so wf-implement can build the rollout scaffolding to spec.
+argument-hint: <slug>
+---
+
+# External Output Boundary (MANDATORY)
+Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
+
+You are running `wf-experiment`, an **experiment design augmentation** that designs a controlled rollout for an existing workflow's change.
+
+> **Loaded as a sub-procedure (not a standalone key).** Augmentation is now *shape-decided* (`augmentations-needed` in `02-shape.md`) and applied by the lifecycle: `plan` loads this file to author its artifact, `implement` wires it, `verify` re-checks it. There is no `/wf experiment` command anymore. Run only the mode the calling stage requests.
+
+# Shape
+This is an **augmentation**, not an entry point. It writes into an existing workflow directory.
+
+```
+existing-workflow/
+  00-index.md          ← updated (augmentations registry)
+  02-shape.md          ← read (hypothesis source)
+  04b-instrument.md    ← read if present (metrics source)
+  04c-experiment.md    ← written by this command
+```
+
+| | Detail |
+|---|---|
+| Requires | An existing workflow at `.ai/workflows/<slug>/` with `02-shape.md` present. |
+| Produces | `04c-experiment.md` — experiment design with hypothesis, metrics, cohorts, and rollback criteria |
+| Updates | `00-index.md` — adds entry to `augmentations:` list |
+| Does NOT | Implement flag infrastructure, modify the plan, or advance the workflow stage. |
+| When to run | After `/wf shape` (which decides both augmentations) and ideally with the **instrument** augmentation authored first (observability is needed to measure outcomes). Before `/wf implement` so the flag scaffolding is planned before coding begins. |
+| Warning | If `04b-instrument.md` is NOT present, surface a warning — experiments are hard to evaluate without observable signals. Do NOT block. |
+
+> **Optional second opinion.** After the design sub-agent returns (before writing
+> `04c-experiment.md`), you may offer `/consult <critique this hypothesis and
+> metric choice — primary metric, guardrails, stopping rules>` (or `/consult
+> <provider> …`) — a read-only multi-model panel that checks the design before the
+> experiment goes live and misjudged metrics compound silently. Model may self-run when clearly valuable (pin `codex`/`claude`); otherwise just offer it.
+
+# CRITICAL — scope discipline
+You are an **experiment designer**, not an implementer.
+- Do NOT write application code. Do NOT write feature flag code. Do NOT modify `02-shape.md`, `04-plan-*.md`, or any existing artifact.
+- Your output is the experiment *design*. `wf-implement` builds the flag scaffold and rollout code.
+- Be specific enough to implement (name flag keys, cohort logic, metric names) but do not write the implementation itself.
+- Follow the steps below exactly in order.
+
+# Step 0 — Orient (MANDATORY)
+1. **Resolve slug** from `$ARGUMENTS`. Must match an existing workflow directory.
+   - If `.ai/workflows/<slug>/` does not exist → STOP: "No workflow `<slug>` found. Start one with `/wf intake <description>`."
+   - If `02-shape.md` does not exist → STOP: "Workflow `<slug>` has no shape yet. Run `/wf shape <slug>` first."
+2. **Check for existing experiment:**
+   - If `04c-experiment.md` already exists → WARN: "An experiment design already exists for `<slug>`. Running again will overwrite it. Proceed? (yes to continue)"
+3. **Check for instrumentation:**
+   - If `04b-instrument.md` does NOT exist → surface this warning in the handoff: "No instrumentation plan found (`04b-instrument.md`). It is strongly recommended to include the **instrument** augmentation (shape decides it; plan writes `04b-instrument.md`) before or alongside this experiment — you need observable signals to measure experimental outcomes."
+   - Do NOT block. Proceed regardless.
+4. **Read the workflow context:**
+   - Read `02-shape.md` in full — the hypothesis lives here.
+   - Read `04b-instrument.md` if present — this names the metrics available for the experiment.
+   - Read `00-index.md` frontmatter — check `current-stage`, `status`, existing `augmentations:`, and `tags`.
+
+# Step 1 — Hypothesis extraction & experiment design
+Launch the sub-agent to design the experiment. Do not skip to writing the artifact before the sub-agent returns.
+
+### Explore sub-agent — Experiment design
+
+Prompt with ALL of the following:
+- Read `02-shape.md` in full. Extract:
+  - The implicit or explicit hypothesis: "We believe that [change] will [outcome] for [users]."
+  - The change being made (treatment).
+  - What the existing behavior is (control).
+  - Any acceptance criteria — these become candidate success metrics.
+- If `04b-instrument.md` is present, read it and note the signals that could serve as experiment metrics (prefer already-planned signals over net-new ones).
+- Check the codebase for existing feature flag infrastructure:
+  - Search for: `LaunchDarkly`, `Unleash`, `Growthbook`, `Flagsmith`, `Split.io`, custom flag files (`featureFlags.ts`, `flags.go`, `flags.py`)
+  - If found: note the framework, the existing flag structure, and the naming conventions used for existing flags
+  - If not found: note "no feature flag framework detected" and recommend a simple boolean environment variable as fallback
+
+Design the experiment:
+1. **Hypothesis** — state it as: "We believe that [treatment] will [metric movement] for [cohort] compared to [control]. We'll know this worked when [primary metric] improves by [threshold] without [guardrail metric] degrading."
+2. **Experiment type** — choose ONE:
+   - `feature-flag`: boolean on/off, rolled out by cohort or percentage
+   - `a-b-test`: two distinct variants shown to split cohorts (UI-facing changes)
+   - `canary`: new behavior rolled out to increasing % of traffic (infra/backend changes)
+   - `shadow`: new path runs in parallel but results are discarded (for validation without user impact)
+3. **Cohort design** — who gets treatment vs control:
+   - Split dimension: user ID hash, region, account tier, new vs existing users, percentage of traffic
+   - Split ratio: 50/50 for low-risk changes, 10/90 for high-risk (new feature tries 10% first)
+   - Exclusions: any cohorts that must NEVER get the treatment (e.g., enterprise accounts on SLA, accounts in migration)
+4. **Metrics**:
+   - Primary: one metric that proves the hypothesis (conversion rate, latency p99, error rate, retention)
+   - Secondary: 2-3 correlated signals to watch
+   - Guardrails: metrics that must NOT regress (e.g., checkout error rate, session duration, revenue per user)
+5. **Duration & stopping rules**:
+   - Minimum runtime: enough for statistical significance (use rough heuristic: ≥1000 users in each cohort, ≥7 days)
+   - Early stop — WIN: primary metric moves by threshold with p<0.05 (or practical significance)
+   - Early stop — LOSS: guardrail metric regresses by >X% — rollback immediately
+6. **Flag design**: name, type, and default value for the feature flag (or env var)
+
+Return as structured text: full experiment design covering all 6 elements above, plus `flag_infrastructure_found: true|false` and `flag_framework` if found.
+
+# Step 2 — Write `04c-experiment.md`
+
+**`04c-experiment.md` frontmatter:**
+```yaml
+---
+schema: sdlc/v1
+type: augmentation
+augmentation-type: experiment
+slug: <slug>
+parent-workflow: <slug>
+experiment-type: feature-flag | a-b-test | canary | shadow
+hypothesis: <one-line>
+split: <e.g., "50/50 by user_id hash">
+flag-name: <e.g., "enable_new_checkout_flow">
+flag-framework: <e.g., "LaunchDarkly" | "env-var-fallback" | "none detected">
+requires-instrument: <true|false>
+status: ready
+created-at: <run `date -u +"%Y-%m-%dT%H:%M:%SZ"` to get the real timestamp>
+---
+```
+
+**Body sections (in order):**
+
+## The Experiment
+<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions and counts, and the top risk; the structured sections below are drill-down, not a substitute. Voice per `../_narrative-voice.md` — no "This {NOUN} implements…" openings. 1–4 short paragraphs. -->
+
+## 1. Hypothesis
+
+State the hypothesis in the standard form:
+
+> We believe that **[treatment: description of the change]** will **[direction + metric]** for **[cohort]** compared to **[control: existing behavior]**. We'll know this worked when **[primary metric]** improves by **[threshold]** without **[guardrail metric]** degrading.
+
+Also state the null hypothesis (what it means if the experiment shows no effect).
+
+## 2. Experiment design
+
+| Dimension | Value |
+|---|---|
+| **Type** | feature-flag / a-b-test / canary / shadow |
+| **Control** | description of existing behavior |
+| **Treatment** | description of new behavior |
+| **Split dimension** | user_id hash / region / account_tier / traffic % |
+| **Split ratio** | 50/50 / 10/90 / 5/95 (with one-line justification) |
+| **Exclusions** | cohorts excluded from the experiment (or "none") |
+| **Flag name** | `enable_<slug>` or framework-specific key |
+| **Flag default** | `false` (off by default for safety) |
+
+## 3. Metrics
+
+**Primary metric:** `<metric_name>` — one sentence explaining what it measures and why it's the right signal.
+
+**Secondary metrics:**
+- `<metric_name>` — one-line description
+- `<metric_name>` — one-line description
+
+**Guardrail metrics (must not regress):**
+- `<metric_name>` — regression threshold: if this drops by more than X%, trigger early stop
+- `<metric_name>` — regression threshold
+
+**Data source:** where these metrics come from (the `04b-instrument.md` signals if present, or existing analytics platform).
+
+## 4. Duration & stopping rules
+
+| Rule | Condition | Action |
+|------|-----------|--------|
+| **Minimum runtime** | `<N>` days, `<M>` users per cohort | Do not evaluate before this |
+| **Early stop — WIN** | Primary metric improves by `<threshold>` with `p < 0.05` | Mark success, roll out to 100% |
+| **Early stop — LOSS** | Guardrail regresses by more than `<threshold>` | Rollback immediately, post-mortem |
+| **Maximum runtime** | `<N>` days | Force a decision — no indefinite experiments |
+
+## 5. Rollback criteria
+
+Explicit conditions that require immediate rollback:
+- `<guardrail-metric>` drops below `<threshold>` — rollback in ≤30 minutes
+- Error rate increases by more than `<N>%` — rollback in ≤15 minutes
+- Any data integrity issue detected — rollback immediately and page on-call
+
+Rollback procedure: set `<flag-name>` to `false` (or remove treatment code path if no flag infrastructure). No deployment needed if using a flag.
+
+## 6. Implementation notes
+
+Guidance for `wf-implement` on what to build for the flag scaffold:
+
+- **Flag registration**: where to register the new flag (`<file:line>` pattern from existing flags)
+- **Flag check**: where in the code to check the flag (cite the specific function and file from `02-shape.md`)
+- **Cohort logic**: how to evaluate which cohort a user is in (hash function, lookup, or framework call)
+- **Metric instrumentation**: which signals from `04b-instrument.md` already cover the primary and guardrail metrics (or which new ones are needed)
+- **Framework**: if `flag_infrastructure_found: false`, recommend using an environment variable as a simple fallback: `ENABLE_<SLUG_UPPERCASE>=false`
+
+## 7. Open questions
+
+List any design decisions that require human input before the experiment can go live:
+- Minimum sample size: "Is 1000 users per cohort enough, or do we need statistical power calculation?"
+- Guardrail thresholds: "What is the acceptable regression threshold for `<metric>`?"
+- Rollout timeline: "How long do we want to run this before forcing a decision?"
+
+If all decisions are made: write "None — experiment design is complete."
+
+# Step 3 — Update `00-index.md` augmentations registry
+
+Read `00-index.md`, then add or update the `augmentations:` field in its YAML frontmatter:
+
+```yaml
+augmentations:
+  - type: experiment
+    artifact: 04c-experiment.md
+    status: complete
+    created-at: <timestamp>
+```
+
+If `augmentations:` already exists (from a prior augmentation), append to the list. Do not overwrite existing entries.
+
+Also update `updated-at` to the current timestamp.
+
+# Step 4 — Hand off to user
+
+Return per [_chat-return.md](../_chat-return.md) — narrative lead (what was found, built, or measured, and what it means for the user), then the structured anchors below.
+
+Emit a compact chat summary:
+
+```
+wf-experiment complete: <slug>
+Hypothesis: <one-line>
+Type: <feature-flag|a-b-test|canary|shadow>
+Flag: <flag-name> (default: false)
+Split: <ratio> by <dimension>
+Primary metric: <name>
+Guardrails: <comma-separated list>
+Flag framework: <detected | "none — env var recommended">
+Instrumentation: <present | "MISSING — author the instrument augmentation (shape/plan) before shipping">
+Next: /wf implement <slug> — build the flag scaffold per §6
+Artifact: .ai/workflows/<slug>/04c-experiment.md
+```
+
+If `04b-instrument.md` was not found, prefix with:
+
+> ⚠ No instrumentation plan found. The experiment metrics may not be observable. Ensure the **instrument** augmentation is authored (shape/plan) before or alongside implement.
+
+# What this command is NOT
+
+- **Not a flag infrastructure builder** — `wf-experiment` designs the experiment. `wf-implement` builds the flag scaffold and rollout code.
+- **Not a stats engine** — sample size and significance calculations are directional guidelines, not rigorous statistical analysis. For high-stakes experiments, run a proper power calculation.
+- **Not a rollout orchestrator** — it does not flip flags, monitor rollouts, or trigger rollbacks automatically. Those are operational tasks.
+- **Not a substitute for product judgment** — it designs the experiment framework; deciding whether the hypothesis is worth testing, and what constitutes a meaningful result, requires human judgment.
+
+---
+
+## Step — Sibling YAML `experiment` (v9.22.0+, Phase 3)
+
+After writing the experiment MD (`.ai/workflows/<slug>/04c-experiment.md`
+or, when invoked as an augmentation under a slug,
+`.ai/workflows/<slug>/augmentations/<exp-id>.md`), write a sibling
+`.yaml` next to it with `artifact: experiment`. The view-layer renderer
+projects this as an arm-allocation figure (horizontal bar split by
+`allocated_pct`) plus a guardrail-threshold table.
+
+**Required whenever you write the `experiment` sibling YAML:** also write the
+sibling `.html.fragment` next to it. First load
+`${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_fragment-authoring.md` and follow
+its wrapper, snippet, and verifier rules. The fragment must stay deterministic
+from the sibling YAML (same YAML → byte-identical HTML) and pass
+`scripts/verify-fragment.mjs` (Check 7) clean.
+
+Shape:
+
+```yaml
+# 04c-experiment.yaml — or augmentations/<exp-id>.yaml
+artifact:        experiment
+experiment_type: a-b-test          # feature-flag | a-b-test | canary | shadow
+flag:            "checkout.board-virtualization"
+framework:       "growthbook"
+hypothesis:      "Virtualizing the board cuts initial-render time by ≥30% with no change to interaction error rate."
+split:           "50/50 by user-id hash"
+status:          ready             # ready | running | completed | abandoned
+arms:
+  - id:            control
+    description:   "Existing render path (DOM-virtualised list only)."
+    allocated_pct: 50
+  - id:            treatment
+    description:   "Full virtual-scroller for boards >200 cards."
+    allocated_pct: 50
+guardrails:
+  - name:      "p95_render_ms"
+    threshold: 250
+    direction: lower-is-better
+    unit:      ms
+  - name:      "drag_error_rate"
+    threshold: 0.005
+    direction: lower-is-better
+  - name:      "board_engagement_min_per_session"
+    threshold: 4.2
+    direction: higher-is-better
+    unit:      min
+```
+
+Authoring rules:
+- `arms[]` must have at least 2 entries. Sum of `allocated_pct` should
+  be 100; the renderer does not enforce but the arm bar visually
+  expects it.
+- `guardrails[]` is optional but strongly recommended — without it the
+  experiment page documents the hypothesis but gives no shape to the
+  decision criteria.
+- `flag:` is required for `experiment_type: feature-flag | canary | shadow`
+  and recommended for `a-b-test` when implemented via a flag library.
+
+## Step — Write free narrative fragments
+
+Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).

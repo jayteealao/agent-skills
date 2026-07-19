@@ -15,7 +15,7 @@
 <div class="layout">
 
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,10 +51,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -97,7 +95,7 @@
 <div class="breadcrumb"><a href="../index.html">Home</a> › Tutorials › Install</div>
 <span class="quadrant tutorial">tutorial</span>
 <h1>Install the plugin</h1>
-<p class="lede">By the end of this page, you'll have the plugin loaded in Claude Code, all skills discovered, and a working <code>/wf-meta status</code> command. About five minutes.</p>
+<p class="lede">By the end of this page, you'll have the plugin loaded in Claude Code, all skills discovered, and a working <code>/wf status</code> command. About five minutes.</p>
 
 <div class="summary">
 <table>
@@ -128,17 +126,17 @@ Since v9.45.0 the hooks, renderer, and serve daemon run from committed <code>dis
 
 <h2>Step 2 — Confirm the skills loaded</h2>
 
-<p>The plugin's behaviour is bundled into six commands. Confirm Claude can see them:</p>
+<p>The plugin's behaviour is bundled into a small set of skills. Confirm Claude can see them:</p>
 
 <pre><code>/skills</code></pre>
 
-<p>You should see at least: <code>wf</code>, <code>wf-meta</code>, <code>wf-docs</code>, <code>review</code>, <code>error-analysis</code>, <code>wide-event-observability</code>. Each dispatches across many sub-commands (design is now <code>/wf design</code>, not a separate skill) — see <a href="../reference/skills.html">Skills reference</a>.</p>
+<p>You should see at least: <code>wf</code>, <code>consult</code>, <code>diataxis</code>, <code>imagery</code>, <code>study-sources</code>, <code>uiproto</code>. The <code>wf</code> skill dispatches across many sub-commands (design is <code>/wf design</code>, review is <code>/wf review</code>, navigation and lifecycle are <code>/wf</code> keys) — see <a href="../reference/skills.html">Skills reference</a>.</p>
 
-<h2>Step 3 — Verify a meta command works</h2>
+<h2>Step 3 — Verify a navigation command works</h2>
 
 <p>Open a session at the root of any git repo and run:</p>
 
-<pre><code>/wf-meta status</code></pre>
+<pre><code>/wf status</code></pre>
 
 <p>You should see one of two outcomes:</p>
 
@@ -183,7 +181,7 @@ Since v9.45.0 the hooks, renderer, and serve daemon run from committed <code>dis
 <h2>Troubleshooting</h2>
 
 <dl>
-<dt><strong><code>/wf-meta status</code> says "command not found"</strong></dt>
+<dt><strong><code>/wf status</code> says "command not found"</strong></dt>
 <dd>The command didn't load. Run <code>/plugin list</code> to confirm sdlc-workflow is installed and enabled. If it's missing, re-run step 1.</dd>
 
 <dt><strong>The hook isn't blocking invalid writes</strong></dt>

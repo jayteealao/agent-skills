@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -50,10 +50,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -114,25 +112,25 @@
 
 <p>The review stage still runs — it defaults to <code>/wf review &lt;slug&gt; security</code> (auth, tokens, crypto, permissions) — keeping the audit trail complete while staying fast.</p>
 
-<h2>Skip a single stage mid-workflow</h2>
+<h2>Skip a slice mid-workflow</h2>
 
-<p>You are part-way through a workflow and one stage is not worth running. Use the <code>skip</code> sub-command (a sub-command is one of the named actions you pass after the main command) of <code>/wf-meta</code>:</p>
+<p>You are part-way through a multi-slice workflow and one slice is not worth running. Use <code>/wf close</code> with the slice name — it absorbs the former <code>skip</code> sub-command, now scoped to a slice rather than a single pipeline stage:</p>
 
-<pre><code>/wf-meta skip my-slug verify</code></pre>
+<pre><code>/wf close my-slug &lt;slice&gt;</code></pre>
 
-<p>This writes a stub artifact for that stage so the next stage does not reject the workflow. The skip is recorded in <code>00-index.md</code> — you stay accountable for it.</p>
+<p>This marks the slice terminated so downstream prerequisites are satisfied, and writes a slice skip record. The skip is recorded — you stay accountable for it.</p>
 
 <h2>Walk away and resume later</h2>
 
 <p>Artifacts are written to disk as they are produced. If you need to stop mid-workflow, just stop. Nothing is lost. Resume when ready:</p>
 
-<pre><code>/wf-meta resume my-slug</code></pre>
+<pre><code>/wf recap my-slug</code></pre>
 
 <h2>Abandon a workflow that went the wrong direction</h2>
 
 <p>You started a workflow and the approach turned out to be wrong. Do not delete the directory — that breaks the audit trail. Close it with a reason instead:</p>
 
-<pre><code>/wf-meta close my-slug cancelled</code></pre>
+<pre><code>/wf close my-slug cancelled</code></pre>
 
 <p>The workflow stops appearing as active. The artifacts remain for reference.</p>
 
@@ -160,8 +158,8 @@
 <h2>What is not a valid escape hatch</h2>
 
 <ul>
-  <li><strong>Do not hand-edit artifact frontmatter to fix a stage status.</strong> Use <code>/wf-meta sync</code> — it reads disk state and rebuilds the index from reality.</li>
-  <li><strong>Do not delete the workflow directory to start over.</strong> Close it first (<code>/wf-meta close my-slug cancelled</code>), then start a fresh workflow. The closed record belongs in the trail.</li>
+  <li><strong>Do not hand-edit artifact frontmatter to fix a stage status.</strong> Use <code>/wf status</code> — it reconciles the index against disk reality automatically.</li>
+  <li><strong>Do not delete the workflow directory to start over.</strong> Close it first (<code>/wf close my-slug cancelled</code>), then start a fresh workflow. The closed record belongs in the trail.</li>
   <li><strong>Do not edit <code>readiness-verdict: blocked</code> to <code>ready</code> by hand.</strong> The verdict is computed from real signals. Overwriting it hides the problem, not the risk.</li>
 </ul>
 

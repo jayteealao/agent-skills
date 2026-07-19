@@ -15,7 +15,7 @@
 <div class="layout">
 
 <aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.90.0</small></a>
+<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.136.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -51,10 +51,8 @@
     <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-meta.html" data-href="reference/wf-meta.html">↳ /wf-meta</a></li>
     <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-docs.html" data-href="reference/wf-docs.html">↳ /wf-docs</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /review</a></li>
+    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
     <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
     <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
     <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
@@ -178,7 +176,7 @@ sequenceDiagram
 
 <p>Confirm:</p>
 
-<pre><code>/wf-meta status add-health-endpoint</code></pre>
+<pre><code>/wf status add-health-endpoint</code></pre>
 
 <p>You should see <code>current-stage: intake</code>, <code>status: complete</code>, and one of the recommended-next options is <code>/wf shape add-health-endpoint</code>.</p>
 
@@ -200,7 +198,7 @@ sequenceDiagram
 
 <div class="callout note">
 <strong>Why so many questions?</strong>
-Shape is where the AI commits to <em>understanding</em> rather than guessing. The questions you answer here become the artifact every later stage reads. Two hours of vague chat collapses into a 20-question structured interview (five rounds of four).
+Shape is where the AI commits to <em>understanding</em> rather than guessing. The questions you answer here become the artifact every later stage reads. Two hours of vague chat collapses into a structured interview — a 20-question baseline (five rounds of four) that extends only while blocking ambiguity remains.
 </div>
 
 <h2 id="slice">Stage 3 — Slice</h2>
@@ -280,7 +278,7 @@ Shape is where the AI commits to <em>understanding</em> rather than guessing. Th
 
 <pre><code>/wf review add-health-endpoint route</code></pre>
 
-<p>Review is a <strong>dispatch orchestrator</strong>: Claude reads shape and slice, decides which of the 31 review dimensions apply (probably <code>correctness</code>, <code>api-contracts</code>, <code>reliability</code>, <code>testing</code>), and runs each as a parallel sub-agent. The sub-agents write findings to <code>07-review-route-&lt;dimension&gt;.md</code> files. The orchestrator then aggregates, de-duplicates, and triages with you.</p>
+<p>Review is a <strong>dispatch orchestrator</strong>: Claude reads shape and slice, decides which of the 34 review dimensions apply (probably <code>correctness</code>, <code>api-contracts</code>, <code>reliability</code>, <code>testing</code>), and runs each as a parallel sub-agent. The sub-agents write findings to <code>07-review-route-&lt;dimension&gt;.md</code> files. The orchestrator then aggregates, de-duplicates, and triages with you.</p>
 
 <p>Findings carry one of three severities:</p>
 
@@ -332,7 +330,7 @@ Shape is where the AI commits to <em>understanding</em> rather than guessing. Th
 
 <h2 id="stopping">Stopping here (Ship + Retro)</h2>
 
-<p>For this tutorial we stop at handoff. Why? Because <strong>ship is plan-driven</strong> — it requires <code>.ai/ship-plan.md</code> at the repo root, which you author once per project with <code>/wf-meta init-ship-plan</code>. The two pages that take you the rest of the way:</p>
+<p>For this tutorial we stop at handoff. Why? Because <strong>ship is plan-driven</strong> — it requires <code>.ai/ship-plan.md</code> at the repo root, which you author once per project with <code>/wf ship-plan init</code>. The two pages that take you the rest of the way:</p>
 
 <div class="tile-grid">
 <a class="tile" href="../how-to/author-ship-plan.html">
@@ -355,7 +353,7 @@ Shape is where the AI commits to <em>understanding</em> rather than guessing. Th
   <li><strong>Each stage produces a permanent artifact</strong> under <code>.ai/workflows/&lt;slug&gt;/</code>. Commit them. Three weeks later, future-you can still read why a decision was made.</li>
   <li><strong>Stages don't bleed.</strong> Plan describes intent; implement describes what was done; review finds gaps; handoff packages. Each artifact has one shape.</li>
   <li><strong>You drive.</strong> Every stage offers Options A/B/C/D for the next step — the default is sequential, but you can skip-to, loop back, or branch.</li>
-  <li><strong>You can stop and resume.</strong> Walk away after stage 4. Come back next week. <code>/wf-meta resume add-health-endpoint</code> picks up where you left off — the artifacts hold the state.</li>
+  <li><strong>You can stop and resume.</strong> Walk away after stage 4. Come back next week. <code>/wf recap add-health-endpoint</code> picks up where you left off — the artifacts hold the state.</li>
 </ul>
 
 <div class="related">

@@ -4,11 +4,12 @@ argument-hint: <slug> [<slice>]
 ---
 
 # External Output Boundary (MANDATORY)
-Workflow artifacts and command internals are private implementation context. Never expose them in external-facing outputs.
-- Internal context includes workflow artifact paths (`.ai/workflows/...`, `.codex/...`, `.ai/dep-updates/...`), stage names or numbers, skill names, task/sub-agent names, prompt/tooling details, control-file metadata, and private chain-of-thought or reasoning traces.
-- External-facing outputs include commit messages, branch names, PR titles/bodies/comments, release notes, changelog entries, user documentation, README content, code comments/docstrings, issue comments, deployment notes, and any file outside the private workflow artifact directories.
-- When producing external-facing output, translate workflow context into product/project language: user-visible change, rationale, affected areas, verification, risks, migration notes, and follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
-- Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing anything, perform a leak check and remove internal workflow references unless the user explicitly asks for a private/internal artifact.
+Apply the boundary rule in [_output-boundary.md](_output-boundary.md) to every external-facing output
+this operation produces: translate workflow context to product language and leak-check before publishing.
+
+> **Standing steering (steer.md).** Before Step 0 work, read the active workflow's `steer.md` if it
+> exists and apply the contract in [_steering.md](_steering.md): honor the user's standing instructions, never
+> above a MANDATORY gate, and inject the relevant entries into every sub-agent prompt you dispatch.
 
 You are running `$wf auto`, the **end-to-end lifecycle driver**. Your job is to sequence the existing `$wf` stages on an already-started workflow so the user gets a one-command run, **without** weakening any of sdlc's quality gates and **without** opening a PR or releasing on its own.
 
@@ -57,7 +58,7 @@ There are no flags. `auto` always stops at the review; `handoff`, `ship`, and `r
    - **Multi-slice standard** (roster with per-slice `03-slice-<slice>.md` files) → **suffixed**: `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md`.
    - **Change-mode** (`workflow-type: fix | hotfix | refactor`) and **single-scope standard** (one slice, only a `04-plan.md` master, no per-slice plan files) → **un-suffixed**: `04-plan.md`, `05-implement.md`, `06-verify.md`, `07-review.md`. (Note: `05-implement.md`/`06-verify.md` also serve as *master indices* in suffixed mode — in suffixed mode always key off the suffixed per-slice files, never the master.)
    - **`workflow-type: update-deps`** → implement and verify are self-managed by the mode; `auto` does NOT drive them. If the slug is not yet past verify, PAUSE and route the user to `$wf intake update-deps <slug>`.
-5. **Branch posture.** Run `git branch --show-current`. If it differs from `00-index.md.branch` (and `branch` is non-empty), ask the user with the platform's blocking question tool (`AskUserQuestion` in Claude Code, `request_user_input` in Codex, `ask_user` in Gemini):
+5. **Branch posture.** Run `git branch --show-current`. If it differs from `00-index.md.branch` (and `branch` is non-empty), ask the user per the gate-question ladder ([_gate-question.md](_gate-question.md)):
 
 ```yaml
 question: "Working tree is on `<current-branch>`, but workflow `<slug>` is on `<slug-branch>`. `$wf auto` will run implement/verify against the checked-out tree. How should it proceed?"
@@ -126,8 +127,10 @@ After each stage, read the named keys from the just-written artifact (or `00-ind
 Notes that bind the table:
 
 - **The stage already asked.** When a stage PAUSEs because it set `awaiting-input` / `escalated`, that state is the *result of the stage's own user interaction*, not something `auto` decides. `auto` reads the recorded verdict and stops — it does not re-prompt and never overrides the stage's own gate.
+- **Intent-bearing decisions are asked at the gate.** A delegated stage under `auto` ASKS an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) at its gate — the human is present — rather than batching it into the stage's autonomous block; only implementation-detail decisions are auto-resolved and recorded.
 - **One fix pass per stage, then hand back.** `verify` enforces a single fix round per invocation by design; `review` accumulates findings across runs and runs its fix loop once per invocation. `auto` does **not** auto-re-invoke either for another pass — that is a deliberate user decision. When a stage PAUSEs (verify `escalated`, or `review` leaving open blockers), `auto` PAUSEs and recommends the re-invocation in the summary.
 - **A clean `review` is the endpoint, not a PROCEED into handoff.** `auto` stops there and recommends `$wf handoff <slug>`.
+- **Mid-build discover checkpoint.** When the workflow carries a `severity: high` RIM (risk/assumption/mitigation recorded in `00-index.md`) and the **visible-milestone** slice — the one whose completion first makes that risk observable — lands a clean `verify`, `auto` does not silently drive on. Because the human is present, it **ASKS** in chat whether to run a read-only `$wf discover <hypothesis derived from the RIM>` to interrogate the high-severity risk before more is built on it — offering *run discover now* / *skip and continue*. Discover is analysis the user acts on, not a build step, so `auto` never runs it unattended; it just surfaces the investigation the risk has been asking for at the first slice where the evidence to run it exists — rather than letting it land days late.
 
 # Step 2 — Residual durability (on PAUSE or at the endpoint)
 
@@ -179,3 +182,4 @@ Rules:
 - **Not a PR opener or releaser** — it always stops at the review; `handoff`, `ship`, and `retro` are run with their own commands.
 - **Not a CI auto-fixer** — CI is never in its scope; that stays handoff's diagnose-then-ask job, on a separate run.
 - **Not a gate remover** — every delegated stage's own user gate still fires; `auto` only removes the friction of typing each stage command by hand.
+- **Consults at the designated gates (free CLI, by objective trigger)** — `$consult` is model-invocable, so at the plan, review, and diagnosis gates `auto` drives, the model **auto-invokes** `$consult codex …` (pinned to free `codex`/`claude`) whenever that stage's objective trigger fires — a carried intent-risk, a ship-with-caveats verdict, an inferred-not-observed AC, a risk-bearing surface (see each stage). A stage with no trigger present adds no consult and no round-trip, so the low-friction sequencing `auto` exists for is preserved; the "sparing" limit scopes to the paid REST oracles, which are never fanned out unattended.
