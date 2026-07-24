@@ -473,6 +473,17 @@ Deferral is a **last resort**: it is honest only after the constraint-resolution
 
 **The defer-reason MUST enumerate the rungs tried — a defer-reason that names no attempted rung is rejected.** Replace "no Android emulator/device" with "Robolectric covers the state machine (9/9); Roborazzi golden covers the visual; AVD boot attempted (failed: HAXM unavailable); residual = live multi-touch pointer routing." Bare phrases — "no emulator", "no creds", "deferred to user", "decidable by static reasoning" — are not acceptable defer-reasons; each must show the ladder was climbed first.
 
+**Classify the wall before deferring it (`wall-ownership` — MANDATORY).** Every deferral records
+`wall-ownership: code-owned | environment-negotiable | external`, decided by the ladder's triage
+question (runtime-adapters.md → *Classify the wall before you climb it*): **would a change to code in
+THIS repo dissolve this wall?** A hard-coded host/port/endpoint in a debug source set, a fixture uid
+production rules reject, a harness reading exactly one env-var name — those are `code-owned` walls
+wearing environmental costumes, and the deferral hatch is **unavailable** to them until the
+repo-change option has been surfaced as a decision: scoped in this slice, scoped as a prerequisite
+slice/harness, or declined on the record (`harness-declined: <reason>`). "The port is held" is a
+symptom; `const PORT = 8080` in your own debug build is the wall. Deferring the symptom re-pays it
+every slice while the cure sits unwritten.
+
 **Attempt before declare (positive-evidence capability probes).** "The environment cannot produce X" may be written ONLY after *executing* a capability probe and recording its literal command + output tail — `firebase projects:list` / `gcloud auth application-default print-access-token` for deploy credentials, `adb devices` for devices, an env-var check for keyed services, one spec run past the guard for credential-gated suites. A defer-reason with no recorded probe is invalid. Read-only introspection probes are always allowed unprompted; quota-consuming or traffic-sending probes follow the ladder's pre-authorization rule.
 
 **Provision-before-declare, and provisioning must persist.** Before declaring an environment wall, check whether the repo (or the plan's `## Verification Strategy`) already ships provisioning for exactly this capability — a `scripts/create-*-avd.ps1`, an emulator bootstrap, a seed script — and RUN it; a wall whose cure sits unexecuted in the repo is not a wall (one slug deferred device evidence for days while the plan's own AVD-creation script sat unrun). Capability provisioned *inside this run* counts only if it persists beyond the run: invoke the repo's script, or write one and record its path in the evidence — an emulator "provisioned" only inside a subagent's ephemeral context does not exist afterward, and its false wall re-stands for every later stage. Environment claims are also **subagent-untrusted**: when a delegated verify reports "no device / port held / no emulator", the orchestrating context re-executes that probe itself once before accepting the deferral — stale relayed environment facts once calcified into a days-long false wall that human pushback dissolved in minutes (and the real device evidence then exposed 4 defects the all-green mocked verifies had missed).
@@ -485,7 +496,8 @@ To proceed without a hard fail once the residual is genuinely environment-bound,
 
 ```yaml
 interactive-verification: deferred
-interactive-verification-defer-reason: "<rungs tried + the residual that survives them — not a bare 'no device'>"
+interactive-verification-defer-reason: "<rungs tried + env-remediation attempted + the residual that survives them — not a bare 'no device'>"
+interactive-verification-wall-ownership: code-owned | environment-negotiable | external
 ```
 
 When this annotation is present on a slice:
@@ -493,6 +505,19 @@ When this annotation is present on a slice:
 - The deferral is appended to `00-index.md` under `runtime-evidence-deferrals` (see schema below).
 - `/wf review` and `/wf handoff` proceed with a soft warning; `/wf ship` HARD-BLOCKS until every deferral is cleared by a subsequent `/wf probe` run that produces matching evidence, or by re-running verify in a capable environment.
 - **Clearing evidence must match the AC's direction.** A prove-fail-closed AC (a gate/guard/health-check catching a failure — see shape.md's direction rule) is cleared only by evidence of the *failure branch firing*: an induced fault caught, a bad input rejected, a forced timeout falling back. A green happy-path run clears only the prove-pass half. Refusing the mismatch here is the whole point — one "unhealthy revision caught" AC was cleared by a perfectly healthy release, recording the gate as proven when it had never once fired. When the mismatch is detected, say what evidence *would* qualify (the fault to inject) instead of clearing.
+
+**A clearing event names an actor, not a hope (MANDATORY).** `cleared-by` must target a
+*provisionable* event — something a person or a run can **cause**: "after `<slice>` lands the
+configurable-port change, run `/wf probe <slug>` with the emulator on any free port", "cleared by the
+`-rc.N` prerelease CI run", "cleared once `scripts/create-verify-avd.ps1` has been run on this host."
+Passive waits are **not** clearing events: "once host port 8080 frees", "when a device becomes
+available", "when the environment allows" pin the deferral to state nobody in the loop controls, so
+it is indefinite by construction — and it will read as progress in `/wf status` while nothing can
+ever move it. When the only honest clearing event is passive, that is itself the finding: either
+provision the capability (which nearly always means the wall was `code-owned` or
+`environment-negotiable` all along — re-run the ownership triage), or record an explicit PO
+acceptance that this AC waits on an uncontrolled event. A `code-owned` wall can never have a passive
+clearing event: its clearing event is a change you are able to write.
 
 **Decision (recorded in plan §2.4):** No silent skip. Every deferral is named, dated, and surfaces in progress view and dashboard. The block bites at ship, not earlier — in-flight work waiting on an environment is not stalled mid-pipeline.
 
@@ -505,6 +530,8 @@ runtime-evidence-deferrals:
   - slice: <slice-slug>
     reason: "<verbatim defer-reason>"
     deferred-at: "<iso-8601>"
+    wall-ownership: code-owned | environment-negotiable | external   # ladder triage verdict
+    clearing-event: "<the provisionable act that clears this — never a passive wait>"
     cleared-by: null    # set to <probe-descriptor> when a probe run clears the deferral
     repeat-of: <slice-slug>   # ONLY when this deferral's constraint matches an earlier entry — see below
     absorbed-by: [<slice-slug>, ...]   # slices that inherit this open deferral instead of clearing it
@@ -513,7 +540,7 @@ runtime-evidence-deferrals:
 
 **Repeat-deferral marker.** Before appending, scan existing `runtime-evidence-deferrals` for an entry naming the *same environment dependency* (fuzzy match — same credential gate, device class, or missing service). On a match, append `repeat-of: <slice-slug of the first occurrence>`: the accumulation becomes visible in the artifact, `/wf status`, and dashboard. A wall paid twice is plan's tripwire — the next plan for this slug MUST scope the harness that retires it or record `harness-declined: <reason>` (see plan.md's repeat-deferral tripwire).
 
-**Deferral stacking is a stop, not an absorption.** When a later slice would inherit an open deferral rather than clear it, append its slug to `absorbed-by`. Absorbing a deferral into a **third** slice is a **STOP**: verify surfaces it as a decision — *"foundation gap: N slices now stack on unproven `<X>` — provision the clearing event now, or PO-accept explicitly"* — and records the resolution in `po-answers.md`. Do not silently let the stack grow.
+**Deferral stacking is a stop, not an absorption.** When a later slice would inherit an open deferral rather than clear it, append its slug to `absorbed-by`. Absorbing a deferral into a **third** slice is a **STOP**: verify surfaces it as a decision — *"foundation gap: N slices now stack on unproven `<X>` — provision the clearing event now, or PO-accept explicitly"* — and records the resolution in `po-answers.md`. Do not silently let the stack grow. **Re-run the ownership triage at the STOP, do not inherit the original verdict**: a wall first classified `external` under time pressure is exactly the kind that turns out `code-owned` on a second look, and a stack of three is the loudest signal available that the first classification deserves re-examination. "Provision the clearing event" is the *default* branch here, not a co-equal option — PO-accept is for walls genuinely outside the team's reach.
 
 **`needed-by` escalation.** External prerequisites and deferrals carry `needed-by: <slice>` (the consuming slice, set at plan time). When the `needed-by` slice reaches `complete` while the prerequisite is still unmet (`cleared-by: null`), the deferral's status **escalates** — a completed consumer standing on an unmet prerequisite is a surfaced decision, not a quiet carry-forward.
 

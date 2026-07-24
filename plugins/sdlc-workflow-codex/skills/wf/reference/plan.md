@@ -180,6 +180,8 @@ Pick the highest rung that meets the acceptance criteria; never trade an edge-ca
 
 **Repeat-deferral tripwire (scan the slug's runtime-evidence-deferrals):**
 - Read `00-index.md` → `runtime-evidence-deferrals`. If an existing entry's defer-reason fuzzy-matches an environment dependency this slice's `## Verification Strategy` will also name (same credential wall, device class, missing service), the slug is about to pay the same wall twice.
+- **Re-classify the wall first — never inherit the prior entry's verdict.** Ask the ladder's triage question ([runtime-adapters.md](runtime-adapters.md) → *Classify the wall before you climb it*): **would a change to code in THIS repo dissolve it?** Record `wall-ownership: code-owned | environment-negotiable | external`. A `code-owned` wall (hard-coded host/port/endpoint in a debug source set, a fixture uid production rules reject, a harness pinned to one env-var name) is **not** eligible for `harness-declined` on grounds of environment — it is scoped, or declined as a deliberate refusal to fix reachable code. The classification comes first because it decides which of the options below is even honest.
+- **Cost the wall before choosing (MANDATORY line once the tripwire fires).** Write, under the AC's row: `wall-cost: retire ≈ <effort> | carry = <N> deferred AC across <M> slice(s) riding "<clearing event>"`. The comparison usually decides itself the moment it exists — a ten-line debug-config change against ten deferred criteria stacked over five slices is not a close call, and stacks like that accumulate only because nobody was ever required to put the two numbers side by side. `harness-declined:` is lawful only *after* this line is written.
 - The plan MUST then either **scope the harness that retires the wall** (the force-scope rule's prerequisite-slice/harness option) or record an explicit PO decision not to (`harness-declined: <reason>` under the AC's row). Silence is non-compliant — repeated walls are amortized into infrastructure or declined on the record, never re-paid by default.
 
 **Integration surfaces:**
@@ -586,9 +588,20 @@ the Verification Strategy table (keyed by AC id):
 2. `constraint-resolution: proxy+deferral: <named clearing event>` — a lower-rung proxy AC that
    verify CAN evidence now, plus a deferral authored *in advance* with a named clearing event
    ("cleared by the `-rc.N` prerelease CI run"). The clearing event becomes the deferral's
-   `cleared-by` target.
+   `cleared-by` target. **The clearing event must be provisionable — an act someone can perform,
+   not a state someone must await.** "Once host port 8080 frees", "when a device becomes available",
+   "when the environment allows" are rejected: a deferral pinned to uncontrolled state is indefinite
+   by construction. Write the actor and the act ("after slice `X` lands the configurable-port change,
+   run `$wf probe <slug>` against any free port").
 3. `constraint-resolution: po-accepted: <reason>` — explicit PO risk-acceptance, recorded here
    and appended to `po-answers.md`.
+
+Each `constraint-resolution:` line carries the ladder's ownership verdict —
+`wall-ownership: code-owned | environment-negotiable | external` — because it decides which options
+are honest. **Option 2 is unavailable to a `code-owned` wall**: when the repo's own source pins the
+constraint (a hard-coded port/host/endpoint in a debug source set, a fixture uid production rules
+reject), the wall is dissolved by option 1 or refused on the record via option 3, never parked behind
+a clearing event that only a code change you are already able to write could trigger.
 
 "Known limitation — document at handoff" is ILLEGAL wording when an AC depends on the limitation.
 **Hard gate:** if any user-observable AC's named dependency has none of the three, the plan is NOT

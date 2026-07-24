@@ -1,10 +1,10 @@
 {
   "name": "@sdlc-workflow/codex-native",
-  "version": "9.139.0",
+  "version": "9.140.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node scripts/verify-claudisms.mjs && node --test tests/runtime-parity.test.mjs tests/hooks.test.mjs",
+    "test": "node scripts/verify-claudisms.mjs && node tests/run-all.mjs",
     "verify:claudisms": "node scripts/verify-claudisms.mjs",
     "verify:deployment": "node scripts/verify-deployment.mjs",
     "verify:runtime": "node runtime/dist/verify-runtime.mjs",

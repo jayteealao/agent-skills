@@ -5,7 +5,7 @@ import {
   loadArtifact,
   loadHistory,
   md2html
-} from "./chunk-KMFSJQMO.mjs";
+} from "./chunk-UXQM6CG6.mjs";
 import {
   PLUGIN_VERSION,
   breadcrumbFromView,
@@ -13,7 +13,7 @@ import {
   renderShell,
   resolveViewPath,
   siblingPaths
-} from "./chunk-6B3GTUT5.mjs";
+} from "./chunk-MPP6TV4P.mjs";
 import {
   renderWarnBanner,
   validateFrontmatter
