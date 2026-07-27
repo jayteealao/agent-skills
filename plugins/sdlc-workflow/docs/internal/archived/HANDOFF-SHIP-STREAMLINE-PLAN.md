@@ -1,6 +1,22 @@
 # Handoff/Ship Streamlining Plan
 
-Status: PROPOSED — not started
+Status: **BUILT in full as v9.141.0 (2026-07-27, `9bd278d1`)** — W0.1 and W1–W7 all
+landed across both trees, guarded by `tests/unit/skills/handoff-ship-streamline.test.mjs`
+(26 drift tests). Three PO decisions were taken at build time: W1 auto-detects and
+*proposes once* rather than running unannounced (opt-out was declined); W4.1's inline
+`ship-plan edit` was authorized, scoped to the drifted blocks with a mandatory clean
+re-check; W3.1 got an explicit `converges:` field rather than inferring from `class`.
+
+Two corrections to this document, found while building it:
+- **W6.2 was NOT already fixed.** The `""`-vs-`empty` confusion was not a stale plugin
+  install — `ship.md`'s own frontmatter template literally offered the word `empty` as an
+  enum value. That template was the cause. Fixed, plus a `notes` cap that read 80 where
+  the schema enforces 160.
+- **W7.4's premise was wrong.** Consult on Windows is not environmentally walled. A live
+  repro showed codex's temp-dir line is a non-fatal `WARNING: proceeding` and claude
+  reports `Not logged in` on stdout with an empty stderr; both CLIs simply need a login.
+  The real defect was the dispatcher reading only stderr on a non-zero exit and so
+  reporting the wrong cause — which is how two audits recorded it wrongly.
 Source: 2026-07-24 three-project transcript audit of `/wf handoff` + `/wf ship`
 (Playster, Waypoint, Isometric; the post-v9.136.0 sessions 2026-07-19 → 07-24).
 Predecessor: [HANDOFF-SHIP-HARDENING-PLAN.md](HANDOFF-SHIP-HARDENING-PLAN.md)

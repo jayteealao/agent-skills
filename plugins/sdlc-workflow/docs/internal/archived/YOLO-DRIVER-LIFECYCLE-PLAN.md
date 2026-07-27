@@ -1,7 +1,20 @@
 # Yolo Driver Lifecycle & Aggregation-Truth Plan
 
-Status: **BUILT 2026-07-26 — W1–W9 all landed, awaiting a release (version bump + dist
-rebuild + runtime sync not yet done; see "Build record" at the foot of this file).**
+Status: **SHIPPED as v9.141.0 (2026-07-27, `9bd278d1`, pushed)** — W1–W9 all landed
+(W0 was already closed before the build); version bump, dist rebuild and runtime sync
+are done and `origin/master` carries it. See "Build record" at the foot of this file.
+
+Built in one session while HANDOFF-SHIP-STREAMLINE was built in another against the same
+working tree; the two collided once on `yolo.js` and split cleanly afterwards. Guarded by
+the extended `tests/unit/skills/yolo-gates.test.mjs` and `shared-reference-drift.test.mjs`.
+
+One design change from what this document proposed: **W1.1's heartbeat rides the
+subagents, not the script.** The Workflow runtime denies the script both a clock and a
+filesystem (deliberately — it is what keeps runs resumable), so the journal is appended by
+each dispatched agent at start and end, to `.ai/workflows/<slug>/.driver-journal.jsonl`.
+That is better than the proposed agent-completion counter: the entries carry real
+wall-clock timestamps, so W1.2's staleness rule has an actual cadence to measure silence
+against rather than an ordinal.
 Source: 2026-07-18 five-project `/wf yolo` transcript audit (Waypoint, Trails,
 Isometric, Playster, bot-backend — 15 sessions, 2026-07-12 → 07-18; field
 versions 9.108–9.136), consolidated 2026-07-25.
