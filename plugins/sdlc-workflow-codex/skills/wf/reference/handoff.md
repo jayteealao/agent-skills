@@ -69,7 +69,11 @@ You are a **workflow orchestrator**, not a problem solver.
 
 4. **Resolve per-slug handoff scope** — for each roster slug, determine which of its slice artifacts this handoff covers:
    - **Explicit slice mode**: a slice-slug passed as the second argument (single-slug only) → scope to that one slice. Skip to the prerequisite check with that single slice.
-   - **Aggregate mode** (default): Read the slug's `03-slice.md`. Collect every slice entry with `status: complete` or `status: in-progress`. If a slug has none → it is **not handoff-ready**; record it in the roster report as "no implemented slices" and skip packaging it (do not STOP the whole batch).
+   - **Aggregate mode** (default): Read the slug's `03-slice.md`. Collect every slice entry with `status: complete` or `status: in-progress`.
+
+     **Reconcile a stale roster before concluding "none" (do not blame the operator).** A roster entry still at `status: defined` is not proof the slice was never built — until the write-back rule landed (`implement.md` step 12, `verify.md` step 10), *nothing* moved that field, so complete work routinely sat at `defined`. Before reporting a slug as having no implemented slices, check each `defined` entry against disk: if `05-implement-<slice>.md` exists **and** `06-verify-<slice>.md` exists with `result: pass`, the roster is wrong — **reconcile it** (set `complete`, or `in-progress` when implement exists but verify does not yet pass), include the slice in scope, and **emit a warning naming the stage that should have written it** ("slice `<x>`'s roster status was `defined` despite a passing verify — reconciled here; `$wf verify` should have promoted it"). Never silently skip the slug, and never silently fix it either: a reconciliation the user does not see is a bug that stays hidden.
+
+     If a slug genuinely has none after reconciliation → it is **not handoff-ready**; record it in the roster report as "no implemented slices" and skip packaging it (do not STOP the whole batch).
 
 5. **Check prerequisites for each roster slug** (branches on `review-scope`). A slug that fails any check is marked **not-ready** with the reason and excluded from packaging; it does not abort the run. In **single-slug** mode a not-ready result STOPs with the reason. In **batch** mode not-ready slugs are reported in the roster and skipped while ready siblings proceed.
 
@@ -101,7 +105,7 @@ You are a **workflow orchestrator**, not a problem solver.
 
    In single-slug mode the roster is one row. In batch mode it is the whole branch.
 
-6.7. **Ship-plan readiness pre-check (gate).** Load [_ship-plan-readiness.md](_ship-plan-readiness.md) and follow it verbatim (caller = `handoff`, commit range = `git merge-base HEAD origin/<base-branch>`..`HEAD`). Handoff produces a PR that `$wf ship` will consume, so it verifies now that the release contract exists and still matches the repo — catching a missing or drifted `.ai/ship-plan.md` *before* the PR is declared ship-ready rather than at the ship gate. This stage **gates**: a missing plan or unacknowledged drift STOPs the run before packaging and routes to `$wf ship-plan init` / `$wf ship-plan edit` via the slug's `00-index.md` `recommended-next-*` (no partial `08-handoff.md` is written — resume handoff after the plan is fixed). `ok`, `acknowledged`, and `not-applicable` (shipping handled externally) proceed. Handoff never edits the plan — it detects and routes. Stamp the returned `ship-plan-readiness` into `08-handoff.md` frontmatter (in batch mode the lead owns the single project-level check). Skip only when a prior run this session already resolved it to `ok`/`not-applicable` and nothing in Group 2's change surface moved since.
+6.7. **Ship-plan readiness pre-check (gate).** Load [_ship-plan-readiness.md](_ship-plan-readiness.md) and follow it verbatim (caller = `handoff`, commit range = `git merge-base HEAD origin/<base-branch>`..`HEAD`). Handoff produces a PR that `$wf ship` will consume, so it verifies now that the release contract exists and still matches the repo — catching a missing or drifted `.ai/ship-plan.md` *before* the PR is declared ship-ready rather than at the ship gate. This stage **gates**: a missing plan or unacknowledged drift STOPs the run before packaging and routes to `$wf ship-plan init` / `$wf ship-plan edit` via the slug's `00-index.md` `recommended-next-*` (no partial `08-handoff.md` is written — but `resume-orientation` **is**, per the pre-check's Step R3.5, so the resumed run skips re-deriving the roster and prerequisites). `ok`, `acknowledged`, `amended-inline`, and `not-applicable` (shipping handled externally) proceed. Handoff never authors the plan itself; when the user chooses *Amend now and continue*, the pre-check invokes `ship-plan edit` scoped to the drifted blocks, re-verifies, and only a clean re-check continues into packaging. Stamp the returned `ship-plan-readiness` into `08-handoff.md` frontmatter (in batch mode the lead owns the single project-level check). Skip only when a prior run this session already resolved it to `ok`/`not-applicable` and nothing in Group 2's change surface moved since.
 
 7. **Read full context** (for each slug being packaged):
    - `02-shape.md` — overall spec and docs plan
@@ -164,6 +168,7 @@ Do this in order:
    - T3.5: Commitlint pass.
    - T3.6: Public-surface drift check.
    - T3.7: Doc-mirror regen.
+   - T3.8: Local pre-push gate — the repo's own PR gates, run **locally before the push** (step 5e). Dropped when the gate resolves to nothing to run.
    - T4: Push branch to remote.
    - T5: Create or update pull request.
    - T5.0: Watch CI to green + settle reviews.
@@ -217,6 +222,28 @@ Do this in order:
       - No diff → `docs-mirror-status: up-to-date`
       - Diff present → stage the changed mirror paths and commit `docs: regenerate doc mirrors` → `docs-mirror-status: regenerated`
 
+5e. **T3.8 — Local pre-push gate.** Skip entirely (`pre-push-checks-status: skipped`) when `branch-strategy` is `none` — there is no push to gate.
+
+   **Why this step exists.** Until it did, handoff's *only* local gate before `git push` was commitlint, and everything else was discovered through CI at roughly one round per CI cycle. One PR with **zero product regressions** cost 29 hours and four fix rounds; at least four of its seven root causes were reproducible locally in seconds — a formatter failing on files the branch itself added, three suites that run in the unit lane, a lint violation a fix agent introduced and pushed unlinted. CI is a slow oracle for a question the working tree can answer. This step asks it locally first.
+
+   a. **Resolve the check list.**
+      - `pre-push-checks:` **present** → use its `checks:` verbatim. No detection, no prompt. An empty `checks: []` (the recorded decline) → `pre-push-checks-status: not-configured`, continue.
+      - `pre-push-checks:` **absent** → **auto-detect, then propose once.** Read the PR-gate workflow(s) under `.github/workflows/` and extract `run:` steps from jobs that are either (a) a required check per the ship plan's Block J, or (b) named `format` / `lint` / `test` / `build`. Detection is **conservative** — skip any step that references `secrets.`, a service container, an emulator or device, or a matrix `runs-on` this host is not. Then ask ONCE in chat and wait, presenting the derived list *and the skipped steps with their reasons*, as a short numbered list: **1. Run them and remember** (run now, persist the list to `00-index.md` so later runs are silent) / **2. Run once, don't persist** / **3. Skip the gate** (records `pre-push-checks: { checks: [], declined-reason }` so this never re-asks).
+
+        **Record what detection skipped and why**, in the question and in `## Reviewer Focus Areas`. A silently truncated list reads as coverage it does not have. Detecting nothing runnable is a legitimate outcome: say so, set `not-configured`, and continue — do not invent commands.
+
+   b. **Run each check** in list order, bounded by `timeout-minutes` (default 15) per command. Capture exit status and the failing output tail (not the full log). A check that exceeds its bound is `timed-out` — report it, and treat it as non-blocking, because a local bound is a convenience limit, not a verdict about the code.
+
+   c. **On a blocking failure**, route into the **existing** diagnose→ask→fix-subagent path (`## Fix-subagent contract` in [_pr-ci-handoff.md](_pr-ci-handoff.md)) — not a new mechanism. A local red and a CI red must feel identical to the user; the only difference is that this one costs seconds. Honor `on-fail`: `diagnose` (default) enters that path; `stop` records the failure, sets `readiness-verdict: awaiting-input`, and STOPs before the push.
+
+      **Local fix rounds do NOT consume `ci-watch.max-fix-rounds`.** That budget exists to bound expensive post-push cycles; a local round is strictly cheaper and bounding it the same way would push work into CI to conserve a counter. Count them separately in `pre-push-fix-rounds`.
+
+   d. **Do not push on an unresolved blocking failure.** That is the whole point of the step. Non-blocking (`blocking: false`) failures are recorded and surfaced in `## Reviewer Focus Areas`, and the push proceeds.
+
+   e. **Workflow-file static validation** (cheap; runs whenever the packaged diff touches `.github/workflows/**`, independent of whether any check list was resolved). For each changed workflow file: parse it as YAML — a syntax error is a blocking failure — and validate that every `actions/setup-*` version string actually resolves against its manifest (`setup-java` → the Adoptium manifest, `setup-node` / `setup-python` → theirs). A `java-version: '21.0.9+10'` that the manifest serves only as `21.0.9+10.0.LTS` is a ten-second lookup that once cost a full CI round. Record as `workflow-validation: <ok | findings | skipped>`.
+
+   f. Record `pre-push-checks-status: <pass | fixed | fail | timed-out | skipped | not-configured>` and `pre-push-fix-rounds: <N>` in handoff frontmatter.
+
 6. If release behavior depends on current external platform guidance or vendor changes, run a targeted freshness pass.
 7. **Push and create-or-update PR (if `branch-strategy` is `dedicated`):**
    a. Confirm you are on the workflow branch (`branch` field). If not, `git checkout <branch>`.
@@ -248,17 +275,41 @@ Do this in order:
       - **red** (one or more checks terminal-failed) → go to step 7a.c.
 
    c. **On CI red — diagnose-only subagent, then ask (do NOT auto-fix).** Per the configured policy, the orchestrator never patches code itself.
-      1. **Dispatch ONE read-only diagnosis subagent**. Prompt it with the failing check names and these instructions: pull the failing logs (`gh pr checks <pr-number>`, `gh run view <run-id> --log-failed`), read the implicated source, and return a structured diagnosis ONLY — **apply no edits, run no fixes, create no commits**. Required return fields: `root-cause` (one paragraph), `proposed-fix` (file:line + the change), `confidence` (high/med/low), and `class` (`product-bug` | `flaky-or-infra` | `preexisting-unrelated`). The subagent keeps the full log dump out of the orchestrator context — only its compact diagnosis returns.
-      2. **Surface the diagnosis to the user** asking in chat presenting a short numbered list:
-         "CI failed: <check names>. The diagnosis subagent proposes <one-line>. How should we proceed?
-         1. Apply proposed fix — Route the fix to a fix subagent, push, and re-watch CI.
-         2. Treat as flaky — re-run — Re-run the failed checks and re-watch. Use only if class is flaky-or-infra.
-         3. Stop — block handoff — Record the failure; set readiness-verdict: blocked and STOP."
-      3. **Apply proposed fix** → dispatch ONE **fix subagent** per the `## Fix-subagent contract` (in `_pr-ci-handoff.md`), passing the diagnosis's `proposed-fix`. It applies the minimal fix, commits `fix(<slug>): resolve CI failure — <short>`, and returns the commit SHA. Then `git push origin <branch>` and **re-run the CI watch procedure** (step 7a.b). Increment `ci-watch-fix-rounds`. Bound the apply→push→re-watch loop by `ci-watch.max-fix-rounds` (default 2); on exceeding it, set `readiness-verdict: awaiting-input` and STOP.
-      4. **Re-run** → `gh run rerun <run-id> --failed`, then re-run the watch procedure (does not count against `max-fix-rounds`; cap re-runs at 2 to avoid masking a real failure).
+      1. **Dispatch ONE read-only diagnosis subagent**. Prompt it with the failing check names and these instructions: pull the failing logs (`gh pr checks <pr-number>`, `gh run view <run-id> --log-failed`), read the implicated source, and return a structured diagnosis ONLY — **apply no edits, run no fixes, create no commits**. Required return fields:
+         - `root-cause` (one paragraph)
+         - `proposed-fix` (file:line + the change, and **the method** — if the right cure is "regenerate", say so and say what must not be hand-patched)
+         - `confidence` (high/med/low)
+         - `class` (`product-bug` | `flaky-or-infra` | `preexisting-unrelated`)
+         - **`converges` (`yes` | `no` | `unknown`)** — *does repeating this fix finish?* Answer `no` when the failure's own structure means one application resolves only part of it: a first-mismatch abort inside a matrix loop fixes one variant per round; a gate reading a database that changes between runs cannot be converged by patching the repo. `converges: no` is not a harder version of `flaky-or-infra` — the Roborazzi golden loop was **both**, and they needed opposite answers (re-running would never finish; the structural answer was a re-record path).
+
+         The subagent keeps the full log dump out of the orchestrator context — only its compact diagnosis returns.
+
+      2. **Route by class before offering a round.** The diagnosis has classed the red accurately in the field; the failure was that nothing downstream consumed it, so `max-fix-rounds: 2` counted a formatter miss, a CVE database that published between runs, and a structurally non-convergent golden loop as the same event.
+
+         - **`converges: no`** — do **not** offer another patch round at all. Repeating provably does not finish ("the token sheet alone could take ~14 more rounds"). Go straight to the structural options: re-record / regenerate path, tolerance or threshold change, scope reduction, or accepting the check as non-required with a recorded justification.
+         - **`flaky-or-infra` with an externally-moving gate** (an advisory feed, a live registry, a time-dependent check) — do not spend a patch round chasing a moving target. Offer the structural options directly: severity floor, tolerance, pinning, or suppression with justification. One project's `dependency-audit` reached the right answer — a CVSS ≥ 7.0 gate — only after three patch rounds chasing a database that was changing underneath them.
+         - **`flaky-or-infra`, self-contained** — the re-run path is legitimate.
+         - **`product-bug`** — the normal apply→push→re-watch path. With the local pre-push gate (step 5e) in place these should be rare on the first CI round. When one appears anyway, **note in the artifact whether a local gate would have caught it** — that note is the feedback loop that tunes `pre-push-checks`, and it costs one sentence.
+         - **`preexisting-unrelated`** — surface it as a caveat; it is not this PR's round to spend.
+
+      3. **Surface the diagnosis to the user** asking in chat, presenting a short numbered list built from the routing above — omit "Apply proposed fix" when `converges: no`, and lead with the structural option when the class calls for it:
+         "CI failed: <check names> (class: <class>, converges: <yes|no|unknown>). The diagnosis proposes <one-line>. How should we proceed?
+         1. Apply proposed fix — Route the fix to a fix subagent, push, and re-watch CI. (Omitted when converges: no.)
+         2. Structural fix — <the named structural option: re-record path / severity floor / tolerance / justified suppression>. Does not consume a fix round.
+         3. Treat as flaky — re-run — Re-run the failed checks and re-watch. Only for a self-contained flaky-or-infra red.
+         4. Stop — block handoff — Record the failure; set readiness-verdict: blocked and STOP."
+      4. **Apply proposed fix** → dispatch ONE **fix subagent** per the `## Fix-subagent contract` (in `_pr-ci-handoff.md`), passing the diagnosis's `proposed-fix` **and its prohibitions verbatim**. It applies the minimal fix, commits `fix(<slug>): resolve CI failure — <short>`, and returns its `Method:` line plus the commit SHA. Check the method before pushing (`_fix-loop.md` rule 5). Then `git push origin <branch>` and **re-run the CI watch procedure** (step 7a.b).
+      5. **Budget by class, not by count.** `ci-watch.max-fix-rounds` bounds **`product-bug` rounds only**. A `flaky-or-infra` red, a `converges: no` red, and a `preexisting-unrelated` red do not consume the budget — they consume a *decision*, and a counter that treats them alike pushes the user to spend rounds on things rounds cannot fix. Local pre-push rounds (step 5e) do not consume it either. Increment `ci-watch-fix-rounds` for every round and additionally record `ci-fix-rounds-by-class:` so the artifact shows where the time actually went.
+      6. **Re-run** → `gh run rerun <run-id> --failed`, then re-run the watch procedure (does not count against `max-fix-rounds`; cap re-runs at 2 to avoid masking a real failure).
+
+      6a. **Before proposing "dispatch workflow X", check it exists on the base branch.** GitHub only dispatches `workflow_dispatch` workflows that are registered on the **default branch**, so a recovery workflow this PR itself added cannot be dispatched by this PR — `gh workflow run` returns `HTTP 404: workflow not found on the default branch`. Verify first with `git show origin/<base-branch>:.github/workflows/<file>`. Absent → do **not** dispatch into a 404. Present the default-branch-landing options instead: land the workflow on the base branch first (its own small PR), reproduce its effect locally, or take the throwaway-commit path — and say plainly that the branch's own recovery hatch is not available to it yet.
+
+      6b. **On exceeding the budget, name what it cost.** The `awaiting-input` message states **which classes remain open** and **what the structural fix would be** for each — not merely "the fix-round bound was reached". An authorization ask that carries the decision is worth answering; one that asks for another round of the same thing is how three rounds got spent on a moving database.
       5. **Stop — block** → record `ci-watch-conclusion: red`, `live-checks-failing: [<names>]`, set `readiness-verdict: blocked`, and proceed to steps 8–10 (write artifact). Recommend `$wf implement <slug> <slice>` in the routing options.
 
    d. **Settle reviews (bounded — bots only, never block on humans).** Once CI is green, loop on `review-settle.poll-interval-seconds` until every login in the effective `review-bots` list (default list in `_pr-ci-handoff.md`) has posted at least one review/thread OR `review-settle.settle-minutes` elapses — whichever comes first. Record `bot-reviews-landed: [<logins that posted>]` and `review-settle-elapsed-seconds: <N>`. **Do not wait on human reviewers** — a missing required human approval is handled as `awaiting-input` in T5.3.
+
+      **Distinguish "slow" from "declined".** A configured bot that posts a skip/limit notice — "this PR exceeds the N-file limit", "review skipped", a rate-limit or quota message — has **declined**, not lagged, and waiting out the settle window on it learns nothing. Scan the PR's comments for such a notice from each configured bot and record `bot-review-status:` per login (`landed` | `declined: <reason>` | `absent`). A `declined` bot is a readiness **caveat**, surfaced in `## Reviewer Focus Areas` and in the PR body — never counted as a settled review. A large PR silently losing its automated reviewer is exactly the case where a human reviewer most needs to know they are the only one looking; one 100+-file PR was skipped entirely and nothing in the run said so.
 
 7b. **T5.1 — PR comment triage loop.** Run the `## PR comment triage (T5.1)` loop in [_pr-ci-handoff.md](_pr-ci-handoff.md). Record the loop's outcome in handoff frontmatter (`triage-iterations`, `triage-fixes-applied`, `triage-fixes-skipped`, `triage-deferred-thread-ids`, `has-deferred-comments`). Skip this step entirely if `branch-strategy` is not `dedicated` or no `pr-number` was recorded.
 
@@ -282,7 +333,7 @@ Do this in order:
       - `live-merge-state`: from `.mergeStateStatus` (`CLEAN` | `UNSTABLE` | `BLOCKED` | `DIRTY` | `BEHIND` | …) and `live-mergeable`: from `.mergeable` (`MERGEABLE` | `CONFLICTING` | `UNKNOWN`). These are GitHub's OWN merge gate — the verdict must consume them, not just the check rollup. A PR can be all-green on required checks and still `BLOCKED` (e.g. `required_conversation_resolution` with unresolved review threads — the exact state a prior handoff certified `ready` on).
       - When `live-merge-state` is `BLOCKED` and the checks/approvals are otherwise green, the usual cause is **unresolved review threads**. Re-run the T5.1 unresolved-threads query (`_pr-ci-handoff.md` §PR comment triage) once: any thread whose fix landed gets resolved via `resolveReviewThread`; threads that are genuinely open stay open and keep the verdict out of `ready` (never resolve a thread to launder the merge state).
    c. Compute the per-slug `readiness-verdict`:
-      - `ready` — `live-review-decision` ∈ {`APPROVED`, `null` if no reviewers required}, `live-checks-failing` is empty, `live-merge-state` ∈ {`CLEAN`, `UNSTABLE`}, `live-mergeable` ≠ `CONFLICTING`, `commitlint-status` ≠ `fail`, `public-surface-drift` ≠ `drift-without-regen`, `rebase-status` ∈ {`fast-forward`, `rebased-clean`, `skipped`}, `has-deferred-comments` is `false`. (`UNSTABLE` = only non-required checks failing — allowed, but record the failing non-required check names in `live-checks-failing-nonrequired` so ship sees them.)
+      - `ready` — `live-review-decision` ∈ {`APPROVED`, `null` if no reviewers required}, `live-checks-failing` is empty, `live-merge-state` ∈ {`CLEAN`, `UNSTABLE`}, `live-mergeable` ≠ `CONFLICTING`, `commitlint-status` ≠ `fail`, `pre-push-checks-status` ≠ `fail`, `public-surface-drift` ≠ `drift-without-regen`, `rebase-status` ∈ {`fast-forward`, `rebased-clean`, `skipped`}, `has-deferred-comments` is `false`. (`UNSTABLE` = only non-required checks failing — allowed, but record the failing non-required check names in `live-checks-failing-nonrequired` so ship sees them.)
       - `awaiting-input` — pending checks remain, there are deferred comments, a required human reviewer hasn't responded (`REVIEW_REQUIRED`), OR `live-merge-state` is `BLOCKED` after the thread re-check (record the blocking cause). **No-hang path**: handoff records the missing approval as `awaiting-input` and returns control rather than blocking the session.
       - `blocked` — anything that hard-fails the criteria above (failing checks after re-watch, `CHANGES_REQUESTED` review, `live-mergeable: CONFLICTING`, drift without regen, rebase conflicts, deferred 🔴 blockers).
    c2. **Compute `pr-readiness-verdict` (the branch/PR-level verdict — this is what ship gates on).** It is the **logical AND** over the whole roster: it is `ready` only if the PR-level `readiness-verdict` above is `ready` AND **every** slug on the branch is itself package-ready (none `not-ready`). Write `pr-readiness-verdict` and `handoff-lead` onto the **lead's** `08-handoff.md`; each follower sets `readiness-via: <lead>/08-handoff.md` and copies `pr-readiness-verdict`.
@@ -301,7 +352,7 @@ Use when: `pr-readiness-verdict: ready`, the PR is created, all complete slices 
 Use when: Shipping is handled entirely outside this workflow (e.g., CI/CD auto-deploys on merge, or shipping is someone else's responsibility). The handoff document IS the final deliverable.
 
 **Option C: Package remaining slugs/slices first** → `$wf handoff pr#N` re-run, or `$wf plan|implement <slug> <next-slice>`
-Use when: the roster shows `not-ready` slugs on the branch, or `03-slice.md` shows slices still in `status: defined` that belong on this branch. Bring them to ready, then re-run `$wf handoff pr#N` — the fingerprint guard skips the already-current slugs and the PR body converges. Do NOT ship until `pr-readiness-verdict: ready`.
+Use when: the roster shows `not-ready` slugs on the branch, or `03-slice.md` shows slices still in `status: defined` **that have no implement/verify artifacts on disk** — genuinely un-built work that belongs on this branch. (A `defined` entry that *does* have a passing verify is a bookkeeping fault, not un-built work: step 4 already reconciled it and warned. Do not route the user to re-implement something that is finished.) Bring the genuinely un-built slices to ready, then re-run `$wf handoff pr#N` — the fingerprint guard skips the already-current slugs and the PR body converges. Do NOT ship until `pr-readiness-verdict: ready`.
 
 **Option D: Fix** → `$wf implement <slug> <selected-slice>`
 Use when: While writing the handoff, you realised something is wrong or missing in a specific slice's implementation.
@@ -335,7 +386,9 @@ pr-url: "<url or empty if branch-strategy is not dedicated>"
 pr-number: <N or 0>
 branch: "<branch name>"
 base-branch: "<target branch>"
-ship-plan-readiness: <ok | acknowledged | not-applicable>   # ship-plan pre-check (step 6.7); missing/drift STOP at awaiting-input
+ship-plan-readiness: <ok | acknowledged | amended-inline | not-applicable>   # ship-plan pre-check (step 6.7); missing/drift STOP at awaiting-input
+ship-plan-amended-blocks: [<letter>, ...]   # amended-inline only — which blocks the scoped inline edit touched
+ship-plan-version-before-after: "<N>→<M>"   # amended-inline only
 has-migration: <true|false>
 has-config-change: <true|false>
 has-docs-changes: <true|false>
@@ -343,6 +396,9 @@ docs-generated: [<list of doc paths written or updated>]
 
 # PR-readiness block (added by T3.5–T5.3; absent fields default to "skipped")
 commitlint-status: <pass | warn | fail | skipped>
+pre-push-checks-status: <pass | fixed | fail | timed-out | skipped | not-configured>   # T3.8 local gate
+pre-push-fix-rounds: <N>            # local fix rounds; does NOT consume ci-watch.max-fix-rounds
+workflow-validation: <ok | findings | skipped>   # setup-* pin + YAML parse check on changed .github/workflows/**
 public-surface-drift: <none | regenerated | drift-without-regen | skipped>
 docs-mirror-status: <up-to-date | regenerated | skipped>
 triage-iterations: <N>
@@ -356,8 +412,15 @@ rebase-onto-sha: "<sha of origin/<base-branch> at rebase time>"
 # CI-watch + review-settle block (added by T5.0/T5.3; absent → step was skipped)
 ci-watch-conclusion: <green | red | timed-out | skipped>   # terminal state of the final CI watch
 ci-watch-rounds: <N>                # total poll iterations across all watches this run
-ci-watch-fix-rounds: <N>            # apply-fix → push → re-watch loops run on CI red
+ci-watch-fix-rounds: <N>            # apply-fix → push → re-watch loops run on CI red (all classes)
+ci-fix-rounds-by-class:             # where the rounds actually went; only product-bug consumes max-fix-rounds
+  product-bug: <N>
+  flaky-or-infra: <N>
+  non-convergent: <N>               # diagnosis returned converges: no — never spend a patch round here
+  preexisting-unrelated: <N>
 bot-reviews-landed: [<login>, ...]  # review-bots that posted within the settle window
+bot-review-status:                  # per configured bot — a declined bot is a caveat, never a settled review
+  <login>: <landed | declined: <reason> | absent>
 review-settle-elapsed-seconds: <N>  # seconds spent in the bot-review settle window
 
 live-review-decision: <APPROVED | CHANGES_REQUESTED | REVIEW_REQUIRED | null>
@@ -381,7 +444,7 @@ next-invocation: "$wf ship <slug>"
 - **Single-slug scope** — run the procedure above exactly as written for the one slug.
 - **Branch scope (batch)** — split into two layers:
   1. **Per-slug packaging** (T1–T3.7: read artifacts, write handoff summary + Diátaxis docs, commitlint/public-surface/doc-mirror checks) runs **once per slug in the roster whose action is `package`**. Each writes its own `08-handoff.md` (additive-write + ledger + fingerprint). Skip slugs marked `skip-unchanged` or `not-ready`.
-  2. **Branch machinery** (T4–T5.3: push, create/update the ONE PR, watch CI, triage, rebase, final readiness) runs **exactly once**, owned by the lead slug. The PR description is generated from the **union** of every packaged slug's summary and names any `not-ready` slug on the branch explicitly. The branch-level readiness block is written to the **lead's** `08-handoff.md`; followers set `readiness-via: <lead>/08-handoff.md` and copy the `pr-readiness-verdict`.
+  2. **Branch machinery** (T3.8–T5.3: local pre-push gate, push, create/update the ONE PR, watch CI, triage, rebase, final readiness) runs **exactly once**, owned by the lead slug (the pre-push gate runs against the whole working tree, not per slug). The PR description is generated from the **union** of every packaged slug's summary and names any `not-ready` slug on the branch explicitly. The branch-level readiness block is written to the **lead's** `08-handoff.md`; followers set `readiness-via: <lead>/08-handoff.md` and copy the `pr-readiness-verdict`.
   3. **`pr-readiness-verdict` = logical AND across the whole roster.** A per-slug `readiness-verdict: ready` never means the PR is ready while a sibling slug on the branch is `not-ready`.
 
 # Project-level handoff config (read from `00-index.md` frontmatter)
@@ -416,12 +479,28 @@ review-bots:
 ci-watch:
   poll-interval-seconds: 30      # how often to re-read statusCheckRollup
   max-wait-minutes: 30           # bound; on exceed → readiness-verdict: awaiting-input (resumable)
-  max-fix-rounds: 2              # apply-fix → push → re-watch loops before giving up (per CI-red policy)
+  max-fix-rounds: 2              # bounds PRODUCT-BUG rounds only. flaky-or-infra, converges:no, and
+                                 # preexisting-unrelated reds consume a DECISION, not this budget;
+                                 # local pre-push rounds (T3.8) never consume it either.
 
 # Optional. Drives T5.0 — bot-review settle window. Absent → the defaults shown.
 review-settle:
   settle-minutes: 5              # max time to wait for review-bots to post after CI goes green
   poll-interval-seconds: 30      # how often to re-read PR reviews/threads
+
+# Optional. Drives T3.8 — the LOCAL pre-push gate (step 5e).
+# ABSENT → auto-detect from the repo's own PR-gate workflows, propose the derived
+# list to the user ONCE, and persist their answer here (see step 5e.a).
+# Present → run exactly these, no detection, no prompt.
+pre-push-checks:
+  checks:
+    - { name: format, cmd: "pnpm exec prettier --check .",            blocking: true }
+    - { name: lint,   cmd: "cd android && ./gradlew detekt ktlintCheck", blocking: true }
+    - { name: unit,   cmd: "pnpm -r run test:unit",                    blocking: true }
+  timeout-minutes: 15            # per-command bound; a check that exceeds it is `timed-out`, not `fail`
+  on-fail: diagnose              # diagnose (route into the fix path) | stop (record and STOP)
+# To decline the gate permanently in a repo where it cannot be useful:
+#   pre-push-checks: { checks: [], declined-at: "<iso>", declined-reason: "<why>" }
 ```
 
 # PR/CI machinery — load on demand
@@ -486,6 +565,9 @@ Summary of T3.5–T5.3 outcomes (also recorded in frontmatter for machine consum
 - **Commitlint:** <pass | warn | fail | skipped> — <one-line note; list breaking commits if warn>
 - **Public-surface drift:** <none | regenerated | drift-without-regen | skipped> — <one-line note>
 - **Doc-mirror:** <up-to-date | regenerated | skipped> — <one-line note>
+- **Local pre-push gate:** <pass | fixed | fail | timed-out | skipped | not-configured> — <checks run, `pre-push-fix-rounds` local rounds if any, and what auto-detect skipped and why>
+- **Workflow validation:** <ok | findings | skipped> — <one-line note; name any unresolvable `actions/setup-*` pin>
+- **Bot reviews declined:** <list with reasons, or "none"> — a configured reviewer that skipped this PR (size/quota limit); the PR carries less automated coverage than it appears to
 - **Rebase onto base:** <fast-forward | rebased-clean | conflicts | lease-failure | skipped> — <one-line note; cite `rebase-onto-sha` if rebased>
 - **CI watch:** <green | red | timed-out | skipped> — <N rounds polled; `ci-watch-fix-rounds` fix loops if any>
 - **Bot reviews landed:** <list or "none"> — settled in <review-settle-elapsed-seconds>s of the <settle-minutes>m window

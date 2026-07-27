@@ -16,6 +16,17 @@ You are running `/wf ship-plan edit`, the **block-editor for the project-level `
 1. Verify `.ai/ship-plan.md` exists. If not, STOP: *"No ship plan exists. Run `/wf ship-plan init` first."*
 2. Read the plan in full. Capture the current `plan-version` integer.
 
+## Step S0.5 — Scoped invocation (when called as a sub-step, not by the user)
+
+The readiness pre-check ([_ship-plan-readiness.md](../_ship-plan-readiness.md), Drift gate → *Amend now and continue*) may invoke this editor **as a sub-step of a running `/wf handoff` or `/wf ship`**, passing the block letters its drift findings named. When it does:
+
+- **Skip Step S1 entirely** — the blocks are given, not chosen. Amending anything outside them is out of scope; a drift about an unplanned secret does not license rewriting the rollback contract.
+- Run Step S2 onward for **each** named block, in letter order.
+- Bump `plan-version` **once** for the whole scoped amendment, not once per block.
+- Return the touched block letters and the before→after `plan-version` to the caller, which records them in its artifact and then **re-runs drift detection** — this editor does not decide that the amendment worked.
+
+A user-typed `/wf ship-plan edit` has no scope restriction and proceeds through Step S1 as normal.
+
 ## Step S1 — Identify which block to amend
 
 Use AskUserQuestion:

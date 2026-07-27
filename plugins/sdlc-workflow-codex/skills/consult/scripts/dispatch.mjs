@@ -194,6 +194,92 @@ export function parseCodexOutput(stdout) {
   return { text: raw.trim(), costUsd: null };
 }
 
+/**
+ * Extract the REAL failure reason from a non-zero CLI exit — and classify it.
+ *
+ * WHY THIS EXISTS. Both free CLIs report their actual failure on **stdout**, in
+ * structured form, while exiting non-zero. The old non-zero path read only
+ * `stderr`, so both failures were reported wrongly for months, and two separate
+ * audits recorded the wrong cause from those reports:
+ *
+ *   - `claude` writes `{"is_error":true,"result":"Not logged in · Please run /login"}`
+ *     to stdout and NOTHING to stderr. The reported error was the useless
+ *     "claude exited 1", which got written up as a workspace-trust dialog.
+ *   - `codex` LEADS stderr with a non-fatal line — `WARNING: proceeding, even
+ *     though we could not create PATH aliases: Refusing to create helper
+ *     binaries under temporary dir …`. It says "proceeding". Truncating stderr
+ *     to 500 chars therefore reported the temp dir as the cause, while the real
+ *     one (`turn.failed` → an expired/reused refresh token) sat unread in the
+ *     stdout NDJSON.
+ *
+ * A dispatcher that misnames why it failed is worse than one that fails: it
+ * sends the next person to fix the wrong thing. Both of those walls turned out
+ * to be **credentials** — no repo change dissolves them — but neither report
+ * said so.
+ *
+ * @returns {{reason: string, kind: 'auth'|'sandbox'|'not-found'|'unknown', remedy: string|null}}
+ */
+export function extractCliFailure(provider, stdout, stderr, code) {
+  const structured = provider === 'claude'
+    ? claudeFailureText(stdout)
+    : codexFailureText(stdout);
+  const reason = structured || meaningfulStderr(stderr) || `${provider} exited ${code} with no diagnostic output`;
+  const kind = classifyFailure(reason);
+  return { reason, kind, remedy: remedyFor(provider, kind) };
+}
+
+/** claude --output-format json signals failure in-band: {is_error:true, result:"…"}. */
+function claudeFailureText(stdout) {
+  try {
+    const obj = JSON.parse(String(stdout || ''));
+    if (obj && obj.is_error && typeof obj.result === 'string' && obj.result.trim()) return obj.result.trim();
+  } catch { /* not JSON — fall through */ }
+  return null;
+}
+
+/** codex exec --json ends a failed run with turn.failed / {type:'error'} on stdout. */
+function codexFailureText(stdout) {
+  const lines = String(stdout || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let evt;
+    try { evt = JSON.parse(lines[i]); } catch { continue; }
+    if (!evt || typeof evt !== 'object') continue;
+    const msg = evt.error?.message ?? (evt.type === 'error' ? evt.message : null);
+    if (typeof msg === 'string' && msg.trim()) return msg.trim();
+  }
+  return null;
+}
+
+/**
+ * stderr with the known-benign noise removed. A line that literally says
+ * "proceeding" is not the reason the run failed, and must never be reported as
+ * one — that single line is what sent two audits after a temp-dir fix.
+ */
+export function meaningfulStderr(stderr) {
+  const kept = String(stderr || '')
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .filter((l) => !/^WARNING: proceeding\b/i.test(l))
+    .filter((l) => !/^Reading prompt from stdin/i.test(l));
+  return kept.length ? kept.join(' | ').slice(0, 500) : null;
+}
+
+function classifyFailure(reason) {
+  const r = String(reason || '');
+  if (/not logged in|please run \/login|refresh.?token|token_expired|token was already used|\b401\b|unauthorized|authentication token is expired/i.test(r)) return 'auth';
+  if (/sandbox|permission denied|refusing to|not permitted|EACCES/i.test(r)) return 'sandbox';
+  if (/not found on PATH|ENOENT|is not recognized as an internal/i.test(r)) return 'not-found';
+  return 'unknown';
+}
+
+function remedyFor(provider, kind) {
+  if (kind !== 'auth') return null;
+  return provider === 'codex'
+    ? 'run `codex login` (the CLI session expired or its refresh token was consumed)'
+    : 'run `claude` and use `/login` (the CLI session is not authenticated)';
+}
+
 function extractCodexText(evt) {
   if (!evt || typeof evt !== 'object') return null;
   // Common shapes across codex versions: {msg:{text}}, {text}, {message:{content}},
@@ -322,11 +408,20 @@ function runCli(provider, prompt, repoRoot) {
     });
     child.on('close', (code) => {
       cleanup();
-      if (code === 0) {
+      // A zero exit can still be an in-band failure (claude reports is_error on
+      // stdout while exiting 0 in some versions), so classify both paths.
+      const inBand = provider === 'claude' ? claudeFailureText(stdout) : null;
+      if (code === 0 && !inBand) {
         const { text, costUsd } = parse(stdout);
         resolve({ provider, ok: Boolean(text), text, costUsd, evidenceScope: evScope, error: text ? null : `empty output${stderr ? `: ${stderr.trim()}` : ''}` });
       } else {
-        resolve({ provider, ok: false, text: '', costUsd: null, evidenceScope: evScope, error: `${provider} exited ${code}${stderr ? `: ${stderr.trim().slice(0, 500)}` : ''}` });
+        const { reason, kind, remedy } = extractCliFailure(provider, stdout, stderr, code);
+        resolve({
+          provider, ok: false, text: '', costUsd: null, evidenceScope: evScope,
+          error: `${provider} unavailable (${kind}): ${reason}${remedy ? ` — ${remedy}` : ''}`,
+          errorKind: kind,
+          remedy,
+        });
       }
     });
 

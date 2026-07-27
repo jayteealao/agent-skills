@@ -45,7 +45,13 @@ function extractFn(src, name) {
 // evaluateGate calls verifyClean, so build them together in one scope and hand them back.
 // probeGaps (F2), reChallengeClause + deferralPressure (F3) are also pure top-level fns, so
 // they extract by the same brace-matching — testing the SHIPPED code with no drift-prone copy.
-const { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest, acKey } = new Function(
+const {
+  verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure,
+  decisionDigest, acKey,
+  // YOLO-DRIVER-LIFECYCLE W3/W4 — the aggregation-truth and tripwire rollups.
+  classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals,
+  collectSubstantiveFailures, collectSubagentErrors, clearingTripwire,
+} = new Function(
   [
     extractFn(yoloSrc, 'acKey'),
     extractFn(yoloSrc, 'verifyClean'),
@@ -55,7 +61,13 @@ const { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClaus
     extractFn(yoloSrc, 'reChallengeClause'),
     extractFn(yoloSrc, 'deferralPressure'),
     extractFn(yoloSrc, 'decisionDigest'),
-    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest, acKey };',
+    extractFn(yoloSrc, 'classificationIndex'),
+    extractFn(yoloSrc, 'isRuntimeEvidenceClass'),
+    extractFn(yoloSrc, 'reconcileDeferrals'),
+    extractFn(yoloSrc, 'collectSubstantiveFailures'),
+    extractFn(yoloSrc, 'collectSubagentErrors'),
+    extractFn(yoloSrc, 'clearingTripwire'),
+    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest, acKey, classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals, collectSubstantiveFailures, collectSubagentErrors, clearingTripwire };',
   ].join('\n')
 )();
 
@@ -308,8 +320,13 @@ test('decisionDigest: groups by class across slug-mode chains and surfaces inten
   const d = decisionDigest(outcome);
   assert.equal(d.total, 4);
   assert.equal(d.byClass['implementation-detail'], 2);
-  assert.equal(d.byClass['unclassified'], 1);
   assert.equal(d.byClass['intent-bearing'], 1);
+  // W3.3 — `unclassified` is a GAP, not a class: it never lands in byClass (which
+  // would make it look like a third, understood kind of decision) and it is counted
+  // separately so the headline guarantee can be qualified.
+  assert.equal(d.byClass['unclassified'], undefined);
+  assert.equal(d.unclassified.length, 1);
+  assert.match(d.unclassified[0].decision, /no class stamp/);
   // an intent-bearing stamp on an autonomous record is surfaced (it should have been a stop)
   assert.equal(d.intentBearing.length, 1);
   assert.match(d.intentBearing[0].decision, /control authority/);
@@ -320,6 +337,43 @@ test('decisionDigest: works in slice-mode (outcome.ran) too', () => {
   assert.equal(d.total, 1);
   assert.deepEqual(d.byClass, { 'implementation-detail': 1 });
   assert.deepEqual(d.intentBearing, []);
+});
+
+// ---------------------------------------------------------------------------
+// W3.3 (YOLO-DRIVER-LIFECYCLE) — the guarantee carries its own qualifier.
+// "intent-bearing escapes: 0" out of 173 decisions is worthless if 40 of them were
+// never classified. Every run measured leaked ~25% unclassified into that zero.
+// ---------------------------------------------------------------------------
+
+test('decisionDigest: a fully classified run reports an EXACT intent-bearing guarantee', () => {
+  const d = decisionDigest({
+    ran: [{ stage: 'plan', decisions: [{ class: 'implementation-detail' }, { class: 'implementation-detail' }] }],
+  });
+  assert.equal(d.intentBearingGuarantee, 'exact');
+  assert.deepEqual(d.unclassified, []);
+});
+
+test('decisionDigest: ONE unstamped decision downgrades the whole guarantee to SUSPECT', () => {
+  const d = decisionDigest({
+    ran: [{ stage: 'implement', slice: 's1', decisions: [
+      { class: 'implementation-detail', decision: 'named the helper parseGoal' },
+      { decision: 'switched the retry path to the queue' },   // no stamp
+    ] }],
+  });
+  // zero intent-bearing stamps, but the run may NOT claim zero escapes
+  assert.deepEqual(d.intentBearing, []);
+  assert.equal(d.intentBearingGuarantee, 'suspect');
+  assert.equal(d.unclassified.length, 1);
+  // provenance survives so the user can go read the one that was not checked
+  assert.equal(d.unclassified[0].stage, 'implement');
+  assert.equal(d.unclassified[0].slice, 's1');
+});
+
+test('decisionDigest: a whitespace-only class stamp counts as unclassified, not as a class', () => {
+  const d = decisionDigest({ ran: [{ stage: 'plan', decisions: [{ class: '   ', decision: 'x' }] }] });
+  assert.equal(d.intentBearingGuarantee, 'suspect');
+  assert.deepEqual(d.byClass, {});
+  assert.equal(d.unclassified.length, 1);
 });
 
 // ---------------------------------------------------------------------------
@@ -382,4 +436,189 @@ test('reChallengeClause: PO-authorized deferrals are excluded from the re-challe
 
 test('reChallengeClause: all-authorized prior deferrals ⇒ no clause at all', () => {
   assert.equal(reChallengeClause([{ slice: 's1', reason: 'accepted wall', authorized: true }]), '');
+});
+
+// ---------------------------------------------------------------------------
+// YOLO-DRIVER-LIFECYCLE W3.2 — the aggregate may not contradict its inputs.
+//
+// Field failure: a run's own recorded decision said "AC-NC1 stays a
+// build-capability deferral, NOT runtime-evidence", and the outcome listed AC-NC1
+// under runtimeEvidenceDeferrals anyway — steering the user into a /wf probe that
+// could never help. The driver's re-derivation must never beat a recorded
+// classification; where they disagree the recorded answer wins and the
+// disagreement is REPORTED, never silently applied.
+// ---------------------------------------------------------------------------
+
+test('isRuntimeEvidenceClass: an absent classification is no disagreement (leave the entry alone)', () => {
+  assert.equal(isRuntimeEvidenceClass(undefined), true);
+  assert.equal(isRuntimeEvidenceClass(''), true);
+  assert.equal(isRuntimeEvidenceClass('   '), true);
+});
+
+test('isRuntimeEvidenceClass: the runtime-evidence family agrees with the driver', () => {
+  assert.equal(isRuntimeEvidenceClass('runtime-evidence'), true);
+  assert.equal(isRuntimeEvidenceClass('environment-negotiable'), true);   // wall-ownership vocabulary
+  assert.equal(isRuntimeEvidenceClass('external'), true);
+  assert.equal(isRuntimeEvidenceClass('RUNTIME-EVIDENCE'), true);         // case-insensitive
+});
+
+test('isRuntimeEvidenceClass: anything else is a disagreement to reconcile', () => {
+  assert.equal(isRuntimeEvidenceClass('build-capability'), false);
+  assert.equal(isRuntimeEvidenceClass('scope'), false);
+  assert.equal(isRuntimeEvidenceClass('code-owned'), false);
+});
+
+test('classificationIndex: a recorded DECISION outranks the index ledger for the same AC', () => {
+  const outcome = {
+    ran: [{ stage: 'verify', slice: 's1', decisions: [{ class: 'implementation-detail', ac: 'AC-NC1', classification: 'build-capability' }] }],
+  };
+  const map = classificationIndex(outcome, [{ slice: 's1', ac: 'AC-NC1', wallOwnership: 'external' }]);
+  const rec = map.get(acKey('AC-NC1'));
+  assert.equal(rec.classification, 'build-capability');
+  assert.equal(rec.source, 'recorded-decision');
+});
+
+test('classificationIndex: the index ledger supplies a classification when no decision does', () => {
+  const map = classificationIndex({ ran: [] }, [{ slice: 's1', ac: 'AC4', wallOwnership: 'code-owned' }]);
+  assert.equal(map.get(acKey('AC4')).source, 'index-ledger');
+});
+
+test('reconcileDeferrals: the exact incident — a decision reclassifies AC-NC1 out of the ship-block list', () => {
+  const outcome = {
+    ran: [{
+      stage: 'verify', slice: 'notif',
+      decisions: [{ class: 'implementation-detail', ac: 'AC-NC1', classification: 'build-capability', decision: 'AC-NC1 stays a build-capability deferral, NOT runtime-evidence' }],
+    }],
+  };
+  const collected = [
+    { slice: 'notif', ac: 'AC-NC1', reason: 'release build unavailable' },
+    { slice: 'notif', ac: 'AC-NC2', reason: 'no device attached', probe: 'adb devices -> (empty)' },
+  ];
+  const { deferrals, reconciled } = reconcileDeferrals(outcome, collected, []);
+  // the reclassified AC leaves the list /wf ship blocks on ...
+  assert.deepEqual(deferrals.map(d => d.ac), ['AC-NC2']);
+  // ... and is REPORTED rather than dropped, carrying who said so and why
+  assert.equal(reconciled.length, 1);
+  assert.equal(reconciled[0].ac, 'AC-NC1');
+  assert.equal(reconciled[0].recordedClassification, 'build-capability');
+  assert.equal(reconciled[0].source, 'recorded-decision');
+  assert.match(reconciled[0].note, /canonical/);
+});
+
+test('reconcileDeferrals: label variance does not defeat reconciliation (acKey-normalized)', () => {
+  const outcome = { ran: [{ stage: 'verify', decisions: [{ ac: 'AC2', classification: 'build-capability' }] }] };
+  const { deferrals, reconciled } = reconcileDeferrals(outcome, [{ slice: 's1', ac: 'AC2 — three consecutive turns are heard' }], []);
+  assert.equal(deferrals.length, 0);
+  assert.equal(reconciled.length, 1);
+});
+
+test('reconcileDeferrals: agreement is silent — nothing is moved and nothing is reported', () => {
+  const outcome = { ran: [{ stage: 'verify', decisions: [{ ac: 'AC2', classification: 'runtime-evidence' }] }] };
+  const collected = [{ slice: 's1', ac: 'AC2', reason: 'no emulator', probe: 'adb devices' }];
+  const { deferrals, reconciled } = reconcileDeferrals(outcome, collected, []);
+  assert.deepEqual(deferrals, collected);
+  assert.deepEqual(reconciled, []);
+});
+
+test('reconcileDeferrals: no recorded classifications at all ⇒ pass-through untouched', () => {
+  const collected = [{ slice: 's1', ac: 'AC1', reason: 'x' }];
+  const { deferrals, reconciled } = reconcileDeferrals({ ran: [] }, collected, []);
+  assert.equal(deferrals, collected);   // same array, no copy
+  assert.deepEqual(reconciled, []);
+});
+
+// ---------------------------------------------------------------------------
+// W3.2 (second half) — a FAIL survives into the outcome as a fail.
+// The v9.134-era conflation ran the other way: verify recorded two ACs as
+// substantive fails with ZERO deferrals, and the run report listed them as
+// deferrals — telling the user to go collect evidence for a defect.
+// ---------------------------------------------------------------------------
+
+test('collectSubstantiveFailures: a verify result fail is reported as a failure, not a deferral', () => {
+  const f = collectSubstantiveFailures({
+    ran: [{ stage: 'verify', slice: 's1', artifactPath: '/x/06-verify-s1.md', terminal: { result: 'fail', substantiveResidual: true, deferrals: [] } }],
+  });
+  assert.equal(f.length, 1);
+  assert.equal(f[0].slice, 's1');
+  assert.equal(f[0].result, 'fail');
+  assert.equal(f[0].substantiveResidual, true);
+});
+
+test('collectSubstantiveFailures: a substantive residual counts even when result is partial', () => {
+  const f = collectSubstantiveFailures({
+    ran: [{ stage: 'verify', slice: 's2', terminal: { result: 'partial', substantiveResidual: true } }],
+  });
+  assert.equal(f.length, 1);
+});
+
+test('collectSubstantiveFailures: a deferral-only partial is NOT a failure', () => {
+  const f = collectSubstantiveFailures({
+    ran: [{ stage: 'verify', slice: 's3', terminal: { result: 'partial', substantiveResidual: false, deferrals: [{ ac: 'AC1', probe: 'adb devices' }] } }],
+  });
+  assert.deepEqual(f, []);
+});
+
+test('collectSubstantiveFailures: non-verify stages are never scanned', () => {
+  assert.deepEqual(collectSubstantiveFailures({ ran: [{ stage: 'review', terminal: { verdict: 'dont-ship' } }] }), []);
+});
+
+// ---------------------------------------------------------------------------
+// W3.4 — honest error accounting. One run reported "0 errors" while 6 of 15
+// subagents had recovered from rejected writes and schema retries.
+// ---------------------------------------------------------------------------
+
+test('collectSubagentErrors: null when nothing errored (no noise on a clean run)', () => {
+  assert.equal(collectSubagentErrors({ ran: [{ stage: 'plan', errors: [] }, { stage: 'verify' }] }), null);
+});
+
+test('collectSubagentErrors: recovered errors are counted and attributed per agent', () => {
+  const e = collectSubagentErrors({
+    results: [
+      { ran: [{ stage: 'implement', slice: 's1', errors: [{ what: 'write rejected by post-write-verify', recovered: true }] }] },
+      { ran: [{ stage: 'verify', slice: 's2', errors: [{ what: 'schema retry' }, { what: 'tool timeout' }] }] },
+    ],
+  });
+  assert.equal(e.recovered, 3);
+  assert.equal(e.fatal, 0);
+  assert.equal(e.agents.length, 2);
+  assert.equal(e.agents[0].agent, 'implement:s1');
+  assert.match(e.agents[1].what.join(' '), /schema retry/);
+});
+
+test('collectSubagentErrors: a null stage return is a FATAL error the driver observed itself', () => {
+  const e = collectSubagentErrors({ ran: [null, { stage: 'plan', errors: [] }] });
+  assert.equal(e.fatal, 1);
+  assert.equal(e.recovered, 0);
+  assert.match(e.agents[0].agent, /returned nothing/);
+});
+
+test('collectSubagentErrors: the slug-wide review is scanned too (it lives outside results[].ran)', () => {
+  const e = collectSubagentErrors({ results: [], slugWide: { stage: 'review', errors: [{ what: 'ledger merge retry' }] } });
+  assert.equal(e.recovered, 1);
+  assert.equal(e.agents[0].agent, 'review');
+});
+
+// ---------------------------------------------------------------------------
+// W4 — clearing-event tripwire. An AC shipped uncleared while its clearing event
+// ("device available for AC6") came true on-screen in the same session.
+// ---------------------------------------------------------------------------
+
+test('clearingTripwire: null when no probe reported a hit', () => {
+  assert.equal(clearingTripwire([{ slice: 's1', ac: 'AC6', clearingProbe: 'adb devices', clearingProbeHit: false }]), null);
+  assert.equal(clearingTripwire([]), null);
+  assert.equal(clearingTripwire(undefined), null);
+});
+
+test('clearingTripwire: a satisfied clearing event is surfaced with what would clear it', () => {
+  const hits = clearingTripwire([
+    { slice: 'nav', ac: 'AC6', clearingEvent: 'device available for the AC6 run', clearingProbe: 'adb devices | grep -q emulator', clearingProbeHit: true },
+    { slice: 'nav', ac: 'AC7', clearingProbe: 'curl -sf localhost:8080/health', clearingProbeHit: false },
+  ]);
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].ac, 'AC6');
+  assert.match(hits[0].clearingEvent, /device available/);
+});
+
+test('clearingTripwire: a PO-authorized deferral is settled — no tripwire noise for it', () => {
+  assert.equal(clearingTripwire([{ slice: 's1', ac: 'AC1', clearingProbeHit: true, authorized: true }]), null);
 });

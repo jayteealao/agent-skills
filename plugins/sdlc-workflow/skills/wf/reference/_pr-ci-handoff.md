@@ -40,21 +40,43 @@ Every code fix in handoff is delegated to a subagent so the orchestrator context
   Location: <file:line-range>
   Problem:  <root cause / thread body>
   Proposed fix: <the change to make>
+  Prohibitions in the proposed fix: <verbatim any "do not …" / "regenerate,
+    don't patch" clause the diagnosis stated — or "none">
 
   Read the file(s) at the location. Apply the MINIMAL change that resolves
   the problem — do not refactor, reformat, or touch anything unrelated.
   Do not broaden scope beyond this one item.
 
-  After editing, sanity-check: no new lint/type errors, surrounding code
-  still coherent, the specific problem is resolved.
+  The proposed fix names a METHOD, not just an outcome. Follow the method.
+  If you conclude the prescribed method is wrong or impossible, you may
+  deviate — but you must SAY SO FIRST, in the required field below. A
+  deviation disclosed at the bottom of a report that opens with "confirmed"
+  is a deviation that will be missed.
+
+  Self-check before returning — run this command and report its exit status:
+    <the narrowest gate the orchestrator passed in; see "Self-check" below>
+  A non-zero exit means you did not finish. Fix it, or return COULD NOT FIX.
 
   Then commit ONLY the files you changed:
     git commit -m "<the commit message the orchestrator gave you>"
 
-  Return ONLY: the commit SHA (`git rev-parse HEAD`), the list of files
-  changed, and one line on whether the fix is confirmed. Do NOT paste diffs
-  or full file contents back.
+  Return ONLY, and in this order — the first line is mandatory:
+    Method: as-prescribed | deviated
+    (if deviated) What the proposed fix said / what you did instead / why.
+    Self-check: <command> → exit <N>
+    Commit: <sha from `git rev-parse HEAD`>
+    Files: <list>
+    Confirmed: yes | no
+  Do NOT paste diffs or full file contents back.
   ```
+
+**Self-check is a command, not a promise.** "No new lint/type errors" is unenforceable as prose — a fix agent once introduced a detekt `ReturnCount` violation while satisfying it, and the violation went out in the push. So the orchestrator passes a real command:
+
+- When `pre-push-checks:` is configured (`handoff.md` `## Project-level handoff config`), pass the check(s) whose scope covers the fix's files.
+- Absent that config, pass the narrowest gate the fix's own file type implies — the repo's formatter for a formatting fix, its linter for the language of the edited file, the single test file for a test fix.
+- If nothing narrow exists, say so explicitly in the prompt (`Self-check: none available — state what you verified by hand`) rather than leaving the line to be answered decoratively.
+
+**`Method: deviated` is never auto-accepted.** The orchestrator surfaces it to the user *before* the push, quoting the diagnosis's own words next to what the subagent actually did (see rule 5 in [_fix-loop.md](_fix-loop.md)). When the diagnosis carried an explicit prohibition and the deviation touches it, that is a **hard stop** — one round-1 diagnosis said verbatim "do not hand-add the 3 missing hashes — regenerate so nothing else is missed", the subagent hand-added 13 lines, disclosed it in a trailing note, opened with "Fix confirmed: yes", and round 2 hit exactly the predicted next trio.
 
 The subagent commits but does **not** push — the orchestrator pushes once after a batch (7b step 7) so a single CI run covers all fixes in the iteration. After the subagents return, the orchestrator re-runs the `## CI watch procedure` to confirm the fixes are green (in T5.3).
 

@@ -8,9 +8,33 @@ description: Shared single-source procedure — the ship-plan readiness pre-chec
 
 This file is loaded and followed verbatim by `ship.md` and `handoff.md`. It is the ONLY place the pre-check procedure lives — do not inline it elsewhere; cite it.
 
-## Boundary — this check routes, it never edits
+## Boundary — this check never authors the plan itself
 
-The plan is a contract authored by `/wf ship-plan init` and amended, one block at a time, by `/wf ship-plan edit` (which bumps `plan-version`). This pre-check **detects and routes**; it does not open, rewrite, or bump the plan. When a fix is needed it **STOPs with the exact `/wf ship-plan …` command** (route + stop) and the caller resumes after the user has run it. The one non-route outcome is an explicit **acknowledgement** to proceed with known drift — recorded, never silent.
+The plan is a contract authored by `/wf ship-plan init` and amended, one block at a time, by `/wf ship-plan edit` (which bumps `plan-version`). This pre-check **detects and routes**; it never opens, rewrites, or bumps the plan **by hand**. Three outcomes are available when a fix is needed:
+
+- **Route + STOP** — print the exact `/wf ship-plan …` command; the caller resumes after the user has run it.
+- **Route + run inline** — with the user's explicit choice, invoke `ship-plan edit` as a sub-step **scoped to the drifted blocks**, then re-verify and continue the same run (see the Drift gate's *Amend now and continue*). The editor still does the authoring; this check only decides that it should run and confirms afterwards that it worked. A re-check that is not clean falls back to STOP.
+- **Acknowledge** — proceed with known drift, recorded, never silent.
+
+What stays absolutely out of bounds either way: this file never hand-edits `.ai/ship-plan.md`, never bumps `plan-version` itself, and never continues on an amendment it has not re-verified.
+
+## Shell portability — the commands below are POSIX sketches, not literals
+
+Every command in this file is written in POSIX shell for readability. On Windows the caller may be in PowerShell, where several of them are wrong or silently different. Translate before running; a gate whose own prescribed command produces unusable output makes the operator re-run everything by hand and distrust the gate (one run reported "the `tee` trick produced whitespace noise — let me re-run each check cleanly").
+
+| Written here | PowerShell equivalent |
+|---|---|
+| `test -f <path>` | `Test-Path <path>` |
+| `cmd 2>/dev/null` | `cmd 2>$null` |
+| `` VAR=`cmd` `` | `$VAR = cmd` |
+| `a && b` | `a; if ($?) { b }` (PowerShell 7 supports `&&`) |
+| `cmd \| grep -q X` | `cmd \| Select-String -Quiet X` |
+
+Three standing rules regardless of shell:
+
+1. **One command, one purpose.** Do not chain a check through `tee`, a pager, or a formatter to "capture it too". Run it, read the exit status, run the next. Output-capture pipelines are where whitespace noise and swallowed exit codes come from.
+2. **Never let a pipeline mask an exit code.** In POSIX shells a pipeline reports the *last* command's status, so `cmd | tee log` succeeds when `cmd` fails. If output must be captured, redirect (`cmd > log 2>&1`) and test the status directly.
+3. **Quote paths.** Windows paths contain spaces far more often than the examples suggest.
 
 ## Inputs the caller passes in
 
@@ -123,7 +147,7 @@ Infer a `--from-template <kind>` suggestion from the ecosystem (npm→`npm-publi
 
 ## Drift gate
 
-**Answered-but-unexecuted amend (re-fire guard).** If the ledger carries `pending-amend` and the plan's `plan-version` is unchanged since it was recorded, the user already chose "Amend the plan" for these signals and the amendment never happened — do NOT re-ask the identical question as if it were new (one drift once consumed three STOP rounds this way, one of them a verbatim re-fire). Present a reminder instead: "You chose *Amend the plan* at <at> for <signals>, but plan-version is unchanged — run `/wf ship-plan edit` (blocks <blocks>) now, or acknowledge the drift to proceed." Options: **Amend now** (STOP, route as below; keep `pending-amend`) / **Acknowledge and proceed** (as below; clears `pending-amend`) / **Cancel**.
+**Answered-but-unexecuted amend (re-fire guard).** If the ledger carries `pending-amend` and the plan's `plan-version` is unchanged since it was recorded, the user already chose "Amend the plan" for these signals and the amendment never happened — do NOT re-ask the identical question as if it were new (one drift once consumed three STOP rounds this way, one of them a verbatim re-fire). Present a reminder instead: "You chose *Amend the plan* at <at> for <signals>, but plan-version is unchanged — amend now, or acknowledge the drift to proceed." Options: **Amend now and continue** (run the scoped inline amendment per the first bullet below; clears `pending-amend` on a clean re-check) / **Amend separately — stop here** (STOP, route as below; keep `pending-amend`) / **Acknowledge and proceed** (as below; clears `pending-amend`) / **Cancel**. A run that already chose to amend and did not is the case the inline path exists for — prefer it here.
 
 Otherwise print the `drift-findings[]` as a short table (signal · detail · block to amend), then:
 
@@ -131,23 +155,54 @@ Otherwise print the `drift-findings[]` as a short table (signal · detail · blo
 question: "The ship plan drifted from the repo (<N> finding(s)). Amend it before continuing?"
 header: "Plan drift"
 options:
-  - { label: "Amend the plan (Recommended)", description: "STOP; run /wf ship-plan edit and amend block(s) <blocks>, then re-run." }
-  - { label: "Acknowledge and proceed",       description: "The drift is known/intentional. Record a reason and continue on the current plan." }
-  - { label: "Cancel",                        description: "Abort; leave everything unchanged." }
+  - { label: "Amend now and continue (Recommended)", description: "Amend block(s) <blocks> here, re-check drift, and carry on in THIS run — no restart." }
+  - { label: "Amend separately — stop here",         description: "STOP; run /wf ship-plan edit yourself, then re-run this stage." }
+  - { label: "Acknowledge and proceed",              description: "The drift is known/intentional. Record a reason and continue on the current plan." }
+  - { label: "Cancel",                               description: "Abort; leave everything unchanged." }
 multiSelect: false
 ```
 
-- **Amend the plan** → STOP. Print `/wf ship-plan edit` and the specific block letters from the findings' `suggested-block`. Set `ship-plan-readiness: drift` and record `pending-amend: { signals, at }` in `.ai/ship-plan-acks.yaml` (so the next run reminds instead of re-asking — see the re-fire guard above). For `handoff`, point the slug's `00-index.md` `recommended-next-*` at `/wf ship-plan edit` and resume after the amendment (no partial package); for `ship`, do not start the run.
+- **Amend now and continue** → the user's answer *is* the authorization; a second invocation adds ceremony, not consent. Run `/wf ship-plan edit` as a **sub-step of this stage**, then re-verify. Four rules keep it honest:
+  1. **Scoped.** The inline amendment may touch **only** the block letters named by the findings' `suggested-block`. It is not an open editing session — a drift about a missing secret does not license rewriting the rollback contract.
+  2. **The editor still owns authoring.** Load `ship-plan/edit.md` and follow it for the named blocks (it re-runs those blocks' questions pre-filled with current values, and bumps `plan-version`). This pre-check still never writes the plan itself — the boundary at the top of this file is unchanged; it now *invokes* the sanctioned editor rather than only printing its name.
+  3. **Re-check, don't assume.** After the edit, re-run Step R2 against the plan's new `updated-at`/`plan-version`. Only a **clean** re-run continues the caller into its next step. Note that the `plan-version` bump invalidates the whole ack ledger (R2.5) by design — every finding must re-earn its verdict, including ones acknowledged earlier in this same run.
+  4. **Still dirty → fall back to STOP.** If the re-check still reports findings, or if the amendment needs judgment the repo cannot supply (a block whose correct content is not derivable from the code — an org's signing policy, a human approval chain), do **not** continue on an unverified amendment. Fall through to the STOP path below, carrying what the inline attempt learned.
+
+  On a clean re-check: set `ship-plan-readiness: ok`, clear any `pending-amend`, record the amendment (blocks touched, old→new `plan-version`) in the caller's artifact, and return to the caller to continue. This is exactly the sequence one project performed by hand across two sessions and a context compaction — the gate was right both times; only the restart was waste.
+
+- **Amend separately — stop here** → STOP. Print `/wf ship-plan edit` and the specific block letters from the findings' `suggested-block`. Set `ship-plan-readiness: drift` and record `pending-amend: { signals, at }` in `.ai/ship-plan-acks.yaml` (so the next run reminds instead of re-asking — see the re-fire guard above). For `handoff`, point the slug's `00-index.md` `recommended-next-*` at `/wf ship-plan edit` and resume after the amendment (no partial package); for `ship`, do not start the run. **Before stopping, preserve the orientation work** so the resumed run is cheap — see `## Preserving orientation across a STOP` below.
 - **Acknowledge and proceed** → capture a freeform reason. Append it to `po-answers.md` with `stage: <handoff|ship>` and the finding signals, AND append a ledger entry to `.ai/ship-plan-acks.yaml` (`{ signals, fingerprint, plan-version, stage, at, reason }` per finding, fingerprinted per Step R2.5; clear any `pending-amend` covering these signals). Set `ship-plan-readiness: acknowledged` and record the reason + finding signals in the artifact (handoff: `## Risks / Caveats`; ship: `## Pre-flight`). Return to the caller and continue. The acknowledgement **persists via the ledger** at the current `plan-version` — the same finding never re-gates, while new drift and a bumped plan always do (R2.5).
 - **Cancel** → STOP.
 
+# Step R3.5 — Preserving orientation across a STOP
+
+Every STOP path above throws away work the run already did correctly. This gate fires **after** the caller has resolved its roster, run every prerequisite check, and computed its commit range — and a resumed run re-derives all of it from scratch, sometimes in a later session across a context compaction. The fingerprint guard already proves this idea works for *packaging*; this extends it to *orientation*.
+
+Before returning a STOP verdict, write into the slug's `00-index.md` (or, for `ship`, the run's own scratch state):
+
+```yaml
+resume-orientation:                     # cheap re-entry state; safe to ignore, safe to delete
+  at: "<iso-8601>"
+  stage: <handoff | ship>
+  roster: [<slug>, ...]                 # the resolved roster (batch) or the single slug
+  prereq-results:                       # per slug: what the prerequisite pass already decided
+    <slug>: { ready: <true|false>, reason: "<why not, if not>" }
+  commit-range: "<merge-base>..<head-sha>"
+  blocked-on: ship-plan-<missing|drift>
+  blocked-signals: [<signal>, ...]
+```
+
+A resumed run **may trust these only while the inputs have not moved**: if `HEAD` still matches the recorded range's head and no roster slug's `00-index.md` has a newer `updated-at`, skip re-deriving the roster and prereqs and go straight to the gate. Anything moved → discard the block and re-derive. Stale re-entry state that is silently trusted is worse than none; the head-SHA check is what makes it safe to keep.
+
 # Step R4 — Record the outcome
 
-Whatever the path, stamp `ship-plan-readiness: <ok | missing | drift | acknowledged | not-applicable>` into the calling stage's artifact frontmatter (`08-handoff.md` / `09-ship-run-<run-id>.md`) and, on the lead slug in batch mode, once for the branch (the plan is project-level — one check per repo per run, not per slug). Older artifacts without the field predate this pre-check; treat an absent field as `skipped`.
+Whatever the path, stamp `ship-plan-readiness: <ok | missing | drift | acknowledged | amended-inline | not-applicable>` into the calling stage's artifact frontmatter (`08-handoff.md` / `09-ship-run-<run-id>.md`) and, on the lead slug in batch mode, once for the branch (the plan is project-level — one check per repo per run, not per slug). Older artifacts without the field predate this pre-check; treat an absent field as `skipped`.
 
 ---
 
 # Caller integration (quick reference)
 
-- **`/wf ship`** — run this pre-check inside Step 0 immediately after reading `.ai/ship-plan.md`. `missing`/`drift`/`cancel` all STOP before the 13-step sequence. Only `ok`, `acknowledged`, or (never for ship) proceed.
-- **`/wf handoff`** — run this pre-check once the roster and commit range are known (after the fingerprint/roster report, before packaging). `missing`/`drift` STOP and route via `00-index.md` `recommended-next-*` (no partial package written); `ok`, `acknowledged`, and `not-applicable` proceed to packaging. In batch mode the lead owns the single check.
+- **`/wf ship`** — run this pre-check inside Step 0 immediately after reading `.ai/ship-plan.md`. `missing`/`drift`/`cancel` all STOP before the 13-step sequence. `ok`, `acknowledged`, and `amended-inline` proceed.
+- **`/wf handoff`** — run this pre-check once the roster and commit range are known (after the fingerprint/roster report, before packaging). `missing`/`drift` STOP and route via `00-index.md` `recommended-next-*` (no partial package written, but `resume-orientation` **is** written per R3.5 so the resumed run skips re-deriving the roster and prereqs); `ok`, `acknowledged`, `amended-inline`, and `not-applicable` proceed to packaging. In batch mode the lead owns the single check.
+
+**On `amended-inline`:** the caller records, in its artifact, which blocks were amended and the `plan-version` before→after — the amendment happened inside a stage run, so the artifact is the only place a reader will find it.

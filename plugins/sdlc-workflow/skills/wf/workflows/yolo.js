@@ -66,6 +66,99 @@ const EOB =
   `verification, risk) and leak-check before any commit or push.`
 
 // ---------------------------------------------------------------------------
+// W1 — DRIVER LIVENESS. The single hardest failure in the field was not a wrong
+// decision, it was SILENCE: a slug-mode driver died ~17 min into a run, the
+// harness task registry lost the task entirely ("Task not found"), and the user
+// came back two hours later to nothing. A resuming session then asserted the dead
+// driver was "still running" from the mere EXISTENCE of its trail — and the user
+// made a stop/continue call on that fiction.
+//
+// The fix is a heartbeat with a real clock. This SCRIPT has neither filesystem
+// access nor Date.now() (the Workflow runtime withholds both so runs stay
+// resumable) — but its subagents have both. So the heartbeat rides the subagents:
+// every dispatched agent appends one line when it starts and one when it ends, to
+// a per-slug append-only journal. That gives any later reader two things nothing
+// else provides: a real timestamp, and an observable CADENCE (the gaps between
+// entries) to judge silence against. A driver between agents is a driver making
+// progress; a driver silent for longer than its own longest gap is presumed dead.
+//
+// Diagnostic, never a gate: a failed append never fails a stage.
+// ---------------------------------------------------------------------------
+const JOURNAL_PATH = `${projectRoot}/.ai/workflows/${slug}/.driver-journal.jsonl`
+
+// runId is minted by orient (the first subagent — it has the clock this script
+// lacks) and threaded into every later heartbeat so one run's entries are
+// separable from a previous run's in the same file.
+let RUN_ID = ''
+let AGENT_SEQ = 0
+
+function heartbeatClause(label, phaseName, stageName, sliceArg) {
+  const seq = ++AGENT_SEQ
+  return `\n\nDRIVER HEARTBEAT (MANDATORY — do this FIRST and LAST). A background driver that dies leaves no ` +
+    `signal; this journal is the only way a human or a later session can tell a live driver from a dead one. ` +
+    `Append (never rewrite, never truncate) to ${JOURNAL_PATH}, creating it if absent:\n` +
+    `  • BEFORE any other work, one line: ` +
+    `{"at":"<ISO-8601 UTC now, from the system clock>","run":"${RUN_ID}","seq":${seq},"event":"agent-start",` +
+    `"agent":"${label}","phase":"${phaseName}"${stageName ? `,"stage":"${stageName}"` : ''}` +
+    `${sliceArg ? `,"slice":"${sliceArg}"` : ''}}\n` +
+    `  • IMMEDIATELY BEFORE you return, one line of the same shape with "event":"agent-end", plus ` +
+    `"status":"<the status you are returning>" and "errors":<the number of tool errors / rejected writes / ` +
+    `schema retries you RECOVERED from this agent, 0 if none>.\n` +
+    `Never read the journal back into your answer, and never let an append failure change what you do — the ` +
+    `heartbeat is diagnostic, never a gate.`
+}
+
+// W1.3 / W5.1 — CONTROL-FILE OWNERSHIP. While a driver is live, that slug's
+// 00-index.md and the global INDEX.md are DRIVER-OWNED. Two writers mutating them
+// blind produced repeated "File has been modified since read" clusters — and once,
+// a DEAD driver's last write ambushed a foreground read two hours later. The rule
+// is the same in both directions: re-read immediately before writing, and treat a
+// rejection as "the other writer moved", not as a stale-string puzzle to force.
+const CONTROL_FILE_RULE =
+  `\n\nCONTROL-FILE DISCIPLINE (MANDATORY). ${projectRoot}/.ai/workflows/${slug}/00-index.md and ` +
+  `${projectRoot}/.ai/workflows/INDEX.md are shared control files that another session may also be editing. ` +
+  `Re-read the file IMMEDIATELY before every edit — never edit from a copy you read earlier in this agent. If an ` +
+  `edit is rejected as modified-since-read, that means the other writer moved: re-read, re-derive your change ` +
+  `against the NEW content, and retry ONCE. Never force a stale string through, and never rewrite the whole file ` +
+  `to dodge the conflict.`
+
+function deadDriverClause(priorRun) {
+  if (!priorRun || priorRun.presumedDead !== true) return ''
+  return `\n\nDEAD-DRIVER RECONCILIATION. A previous driver for this slug is PRESUMED DEAD (its journal went ` +
+    `silent at ${priorRun.lastEntryAt || 'an unknown time'}, mid-${priorRun.lastStage || 'stage'}` +
+    `${priorRun.lastSlice ? ` on slice '${priorRun.lastSlice}'` : ''}). Treat every artifact and control-file ` +
+    `write it may have made as SUSPECT and possibly half-finished: re-read each file you touch fresh from disk ` +
+    `before editing it, and if what you find contradicts what the index claims, trust the artifact on disk and ` +
+    `correct the index. Do not assume the previous run left a consistent state.`
+}
+
+// W3.3 — `class` IS REQUIRED ON EVERY RECORDED DECISION. The driver's headline
+// guarantee to the user is "intent-bearing escapes: 0". That number is only worth
+// the classification behind it, and in every run measured ~25% of recorded
+// decisions came back with no class at all (11/43, 4/15, 5/10, 40/173) — silently
+// defaulted to 'unclassified' and then folded into the reassuring zero. An
+// unclassified decision is a GAP in the guarantee, not a third class.
+//
+// W3.4 — RECOVERED ERRORS ARE REPORTED, NOT SWALLOWED. One run's outcome said
+// "0 errors" while 6 of 15 subagents had hit rejected writes and schema retries
+// they recovered from. The script cannot see a subagent's tool history, so the
+// subagent reports its own: honest self-accounting beats a confident zero.
+const DECISION_CONTRACT =
+  `\n\nDECISION RECORDING CONTRACT (MANDATORY).\n` +
+  `- EVERY decision you record carries a \`class\` stamp per ${referenceRoot}/_decision-classes.md. There are ` +
+  `exactly two values: \`implementation-detail\` (yours to settle autonomously) and \`intent-bearing\` (never ` +
+  `yours — it is a STOP). Omitting the stamp is not a neutral act: it silently weakens the run's ` +
+  `"intent-bearing escapes: 0" report into a number nobody can trust. If a decision is genuinely hard to ` +
+  `classify, stamp it \`intent-bearing\` and STOP — that is the safe direction.\n` +
+  `- Return each decision as an object carrying at least { class, decision } and, where it resolves a specific ` +
+  `acceptance criterion, { ac, classification } naming what you concluded that AC is (e.g. ` +
+  `classification: 'build-capability' vs 'runtime-evidence'). The run report treats YOUR recorded ` +
+  `classification as canonical — it will not re-derive a different one behind your back.\n` +
+  `- Report \`errors\`: [{ what, recovered }] for every tool error, rejected write, or schema retry you hit ` +
+  `and recovered from this stage (empty list if none). A recovered error is not a failure and will not stop ` +
+  `the run — but a run that reports "0 errors" while its agents were quietly retrying is lying to the user.`
+
+// ---------------------------------------------------------------------------
 // The Autonomous Decision Policy, per stage. This is the override that replaces
 // each reference's interactive gate. Quoted field/enum values come from the
 // live references (plan.md / verify.md / review.md) so the subagent writes
@@ -138,6 +231,16 @@ const POLICY = {
     `convergence: escalated for SUBSTANTIVE unresolved issues — a slice whose only residual is deferred-evidence ` +
     `AC (all checks pass, all code-only AC met, all producible user-observable AC evidenced) is ` +
     `convergence: converged (or not-needed if no fix was required), NOT escalated.\n\n` +
+    `ONE WRITER PER FACT (deferral emission). A deferral is recorded EXACTLY ONCE, in terminal.deferrals[], ` +
+    `complete with its probe receipt. Do NOT also copy it into residual[] — residual[] carries only what is ` +
+    `NOT a deferral (could-not-fix notes, out-of-scope observations). Emitting the same AC twice, receipted in ` +
+    `one array and bare in the other, is what made a compliant slice look non-compliant and cost two whole runs ` +
+    `to a false stop. If you are unsure whether an entry is a deferral, it belongs in deferrals[] with a probe ` +
+    `or it is not a deferral at all.\n\n` +
+    `FAIL IS NOT A DEFERRAL, AND SURVIVES INTO THE RUN REPORT. If you drove an AC and the behavior was wrong, ` +
+    `that AC is result: fail (substantive) — record it as a FAILURE, never in deferrals[], never in the index's ` +
+    `runtime-evidence-deferrals. The driver reports your recorded fail/deferral split verbatim; an AC you call a ` +
+    `fail will never be re-labeled a deferral downstream, and the reverse must be equally true.\n\n` +
     `Set the terminal state HONESTLY: convergence: not-needed | converged | escalated; result: pass | fail | ` +
     `partial | blocked-runtime-evidence-missing. Report deferrals: [{ac, reason, probe}, ...] for EVERY AC you ` +
     `deferred (empty list if none) — where 'probe' is the literal capability-probe command + one-line output ` +
@@ -175,7 +278,9 @@ const POLICY = {
     `prior run's defer-reason (re-probe it fresh); and a skipped/guard-exited spec is not evidence for the AC it ` +
     `gates (an all-skipped sweep is blocked-runtime-evidence-missing, never a deferral). For a lawfully deferred ` +
     `AC record it in 00-index.md runtime-evidence-deferrals, write result: partial (NOT ` +
-    `blocked-runtime-evidence-missing), keep substantiveResidual false. STOP after 06-verify.md — do NOT route to ` +
+    `blocked-runtime-evidence-missing), keep substantiveResidual false. Record each deferral EXACTLY ONCE, in ` +
+    `terminal.deferrals[] with its probe — never a second bare copy in residual[] (residual[] carries blocked/held ` +
+    `packages, which are not deferrals). STOP after 06-verify.md — do NOT route to ` +
     `/wf review or /wf handoff (yolo runs the slug-wide review itself). Return the verify terminal state ` +
     `(convergence, result, deferrals [{ac, reason, probe}], substantiveResidual) so yolo gates on it exactly like ` +
     `a standard verify.`,
@@ -202,6 +307,29 @@ const ORIENT_RESULT = {
     // honored default review rubric — an rca whose recommended-next is hotfix → 'security'; empty = standard
     // dimension selection. Threaded into the review stage so yolo respects the RCA's recommended build flavor.
     reviewDimension: { type: 'string' },
+    // W1 — the run's own identity, minted by orient because it holds the clock this
+    // script does not. Every later heartbeat carries it, so one run's journal entries
+    // stay separable from a prior run's in the same append-only file.
+    runId: { type: 'string' },
+    // W1.2/W1.3 — what the journal says about the PREVIOUS driver for this slug.
+    // Liveness is judged against the run's OWN observed cadence, never against file
+    // existence: a journal silent for longer than its longest inter-agent gap is
+    // presumed dead, and its partial writes are treated as suspect from there on.
+    priorRun: {
+      type: 'object',
+      properties: {
+        present: { type: 'boolean' },          // a journal exists with at least one parseable entry
+        runId: { type: 'string' },
+        lastEntryAt: { type: 'string' },       // iso-8601 of the newest entry
+        lastEvent: { type: 'string' },         // agent-start | agent-end
+        lastStage: { type: 'string' },
+        lastSlice: { type: 'string' },
+        minutesSinceLastEntry: { type: 'number' },
+        longestGapMinutes: { type: 'number' }, // the run's own cadence — the yardstick
+        presumedDead: { type: 'boolean' },
+        completed: { type: 'boolean' },        // the prior run reached a terminal hand-back (not dead — done)
+      },
+    },
     // F3 — open runtime-evidence-deferrals read verbatim from 00-index.md (cleared-by: null only).
     // driveVerify appends a RE-CHALLENGE clause from these so a prior run's wall is re-PROBED, never
     // inherited as fact; the hand-back rolls them into deferralPressure. Visibility, not a new gate.
@@ -220,6 +348,19 @@ const ORIENT_RESULT = {
           // yolo). An authorized deferral is settled: no re-challenge, no probe-
           // receipt escalation, and a partial verify walled only by it counts done.
           authorized: { type: 'boolean' },
+          // W3.2 — the LEDGER's own classification of this wall. The index is the
+          // authoritative record of what a deferral IS; when the driver's end-of-run
+          // re-derivation disagrees, the ledger wins and the disagreement is reported
+          // as `reconciled`, never silently re-labeled.
+          ac: { type: 'string' },              // the AC the entry names, when it names one
+          wallOwnership: { type: 'string' },   // code-owned | environment-negotiable | external
+          // W4 — the one-line, side-effect-free command that answers "has the
+          // clearing event happened yet?". Run at the cheap moments (orientation,
+          // /wf status) purely as a TRIPWIRE — a hit routes to /wf probe, it never
+          // clears the deferral itself (the probe stage still owns evidence).
+          clearingEvent: { type: 'string' },
+          clearingProbe: { type: 'string' },
+          clearingProbeHit: { type: 'boolean' },   // true = the event appears satisfied → route to /wf probe
         },
       },
     },
@@ -269,6 +410,13 @@ const ORIENT_RESULT = {
           // driving them into a HARD-STOP (Waypoint 2026-07-14: a 6.7-h run
           // died on an already-skipped slice with a conforming skip record).
           status: { type: 'string' },
+          // W2 — WHY this slice still has work. The distinction decides scheduling:
+          // 'new-work' (a stage was never run, or is not terminal) is the work a run
+          // exists for; 'deferral-rechallenge' (every stage terminal-clean, the only
+          // residue an open un-authorized deferral) is BOOKKEEPING. A driver launched
+          // for a slug-wide review once spent its whole life on the second kind and
+          // died before starting the first, so the two are scheduled separately.
+          reverifyReason: { type: 'string' },   // new-work | deferral-rechallenge | none
           stages: {
             type: 'object',
             // each ∈ 'done' (present + terminal-clean on disk) | 'todo' | 'n-a'
@@ -327,8 +475,27 @@ const STAGE_RESULT = {
         substantiveResidual: { type: 'boolean' },
       },
     },
-    decisions: { type: 'array', items: { type: 'object' } },   // recorded autonomous calls
-    residual: { type: 'array', items: { type: 'object' } },    // deferred / could-not-fix
+    // Recorded autonomous calls. W3.3: every entry MUST carry a `class` stamp
+    // (implementation-detail | intent-bearing) per _decision-classes.md; an entry
+    // that resolves a specific AC also carries { ac, classification }, and THAT
+    // classification is canonical over anything the driver would re-derive (W3.2).
+    decisions: { type: 'array', items: { type: 'object' } },
+    // W3.1 — deferred / could-not-fix notes that are NOT deferrals. A deferral lives
+    // in terminal.deferrals[] once, with its probe; duplicating it here is what the
+    // one-writer-per-fact rule now forbids (the driver still tolerates the old shape
+    // when it appears, so a stale subagent can't false-stop a compliant slice).
+    residual: { type: 'array', items: { type: 'object' } },
+    // W3.4 — errors this subagent hit AND RECOVERED FROM (tool errors, rejected
+    // writes, schema retries). Self-reported because the script cannot see a
+    // subagent's tool history. A run that says "0 errors" while its agents were
+    // quietly retrying is lying, and this is the field that stops it.
+    errors: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: { what: { type: 'string' }, recovered: { type: 'boolean' } },
+      },
+    },
     hardStopReason: { type: 'string' },
   },
 }
@@ -378,9 +545,28 @@ async function orient() {
     `whose \`cleared-by\` is null/absent (STILL OPEN) into priorDeferrals as ` +
     `{ slice, reason (verbatim), deferredAt (= deferred-at), clearedBy (= cleared-by, null if open), repeatOf ` +
     `(= repeat-of, omit if absent), authorized (true iff the entry carries ship-override-authorization — the PO ` +
-    `risk-acceptance stamp; omit otherwise) }. Omit already-cleared entries. Empty/absent list → priorDeferrals: [].\n` +
+    `risk-acceptance stamp; omit otherwise), ac (the acceptance criterion the entry names, when its reason names ` +
+    `one), wallOwnership (= wall-ownership), clearingEvent (= clearing-event), clearingProbe (= clearing-probe) }. ` +
+    `Omit already-cleared entries. Empty/absent list → priorDeferrals: [].\n` +
     `   ALSO parse the \`charter\` list (if present) into charter as { id, commitment (verbatim), status }. ` +
     `Empty/absent (e.g. a compressed lifecycle) → charter: [].\n` +
+    `1b. DRIVER LIVENESS — read the tail of ${JOURNAL_PATH} if it exists (append-only JSONL; each line is one ` +
+    `heartbeat: at, run, seq, event, agent, phase, stage, slice). Report priorRun:\n` +
+    `   - present: true iff the file exists with at least one parseable line (absent/empty → ` +
+    `{ present: false } and nothing else).\n` +
+    `   - runId, lastEntryAt, lastEvent, lastStage, lastSlice from the NEWEST entry.\n` +
+    `   - longestGapMinutes: over the entries of that newest run only, the LARGEST gap in minutes between ` +
+    `consecutive \`at\` timestamps (0 when there is only one entry). This is the run's own observed cadence.\n` +
+    `   - minutesSinceLastEntry: system-clock now minus lastEntryAt, in minutes.\n` +
+    `   - completed: true iff the newest entry is an agent-end whose agent was a terminal step (the slug-wide ` +
+    `review, or the last stage of the last roster slice) — that run finished, it did not die.\n` +
+    `   - presumedDead: true iff NOT completed AND minutesSinceLastEntry exceeds BOTH longestGapMinutes and a ` +
+    `20-minute floor (the floor keeps a run with one slow first agent from being called dead). NEVER infer ` +
+    `"still running" from the file merely EXISTING — a resuming session once told the user a dead driver was ` +
+    `"currently re-verifying older slices" on exactly that reasoning, and the user made a stop/continue ` +
+    `decision on the fiction.\n` +
+    `1c. Mint runId for THIS run: the current UTC timestamp in ISO-8601 basic form plus the slug — e.g. ` +
+    `'20260726T143005Z-${slug}'. Report it as runId. (This script has no clock; you are the only step that does.)\n` +
     `2. Read ${projectRoot}/.ai/workflows/${slug}/03-slice.md (the roster). Capture EVERY slice slug in roster ` +
     `order, and record each entry's roster status from 00-index.md slices[] (defined | in-progress | complete | ` +
     `skipped) as slices[].status — capture 'skipped' entries too (the driver skips them itself; dropping them here ` +
@@ -458,14 +644,38 @@ async function orient() {
     `'todo' so the next verify re-challenges the wall)\n` +
     `   - review: artifact present AND verdict ∈ {ship, ship-with-caveats} AND metric-findings-blocker == 0\n` +
     `   In slug-wide review scope, mark every per-slice 'review' as 'n-a' (review runs once at slug level, not per slice).\n` +
+    `6b. For each slice, also classify WHY it still has work, as slices[].reverifyReason — this decides ` +
+    `scheduling, so be precise:\n` +
+    `   - 'new-work' — any of plan/implement/review is 'todo', OR verify is 'todo' because it was never run, ` +
+    `is not converged, or has a SUBSTANTIVE residual (an AC failing for a code reason). This is real work.\n` +
+    `   - 'deferral-rechallenge' — every stage is otherwise terminal-clean and the ONLY reason verify is 'todo' ` +
+    `is that its result: partial carries an open UN-authorized runtime-evidence deferral. This is bookkeeping: ` +
+    `the code is built and reviewed; what is missing is fresh proof about an environment wall.\n` +
+    `   - 'none' — every stage is 'done' or 'n-a'.\n` +
     `7. Branch posture (READ-ONLY — report, never switch or create): run ` +
     `\`git -C ${projectRoot} branch --show-current\`. Report branch.current, branch.target (= 00-index.md branch), ` +
     `branch.base (= base-branch), branch.strategy (= branch-strategy: dedicated | shared | none), branch.match ` +
     `(current === target, or target empty), and branch.exists — true iff branch.target resolves as a local ref ` +
     `(\`git -C ${projectRoot} rev-parse --verify --quiet refs/heads/<target>\`) OR an already-fetched ` +
     `remote-tracking ref (refs/remotes/origin/<target>); do NOT run \`git fetch\` or \`git ls-remote\` (no network). ` +
-    `For strategy shared/none, or an empty target, set exists=false — yolo will not switch in those modes.\n\n` +
-    `Return the structured orientation. Set ok=true only when the readiness gate passes.`,
+    `For strategy shared/none, or an empty target, set exists=false — yolo will not switch in those modes.\n` +
+    `8. CLEARING-EVENT TRIPWIRE (W4). For every open entry in priorDeferrals that carries a \`clearing-probe\`, ` +
+    `EXECUTE that one command now (they are contracted to be single, side-effect-free, and fast — e.g. ` +
+    `\`adb devices\`, \`curl -sf localhost:8080/health\`). Give each a short timeout and never run more than the ` +
+    `one recorded command. Set that entry's clearingProbeHit to true when the command's exit status/output says ` +
+    `the clearing event HAS occurred, false when it has not, and omit it when the probe could not be run at all. ` +
+    `Do NOT clear the deferral, do NOT edit 00-index.md, and do NOT treat a hit as evidence — this is a ` +
+    `TRIPWIRE only. A deferral whose clearing event has quietly come true is the failure it exists to catch: one ` +
+    `slug's "device available for AC6" event was satisfied on-screen in the same session — emulator booted, app ` +
+    `installed — and the AC still shipped uncleared because nobody was watching for it.\n\n` +
+    `Return the structured orientation. Set ok=true only when the readiness gate passes.` +
+    // orient mints RUN_ID, so it writes its own heartbeat with the id it just made.
+    `\n\nDRIVER HEARTBEAT (MANDATORY). Using the runId you minted in step 1c, append two lines to ` +
+    `${JOURNAL_PATH} (create it if absent, append only, never rewrite): one BEFORE you start reading ` +
+    `— {"at":"<ISO-8601 UTC now>","run":"<runId>","seq":0,"event":"agent-start","agent":"orient","phase":"Orient"} ` +
+    `— and one immediately before you return, the same shape with "event":"agent-end", "status":"<ok|blocked>" ` +
+    `and "errors":<count of errors you recovered from>. This journal is how a human tells a live driver from a ` +
+    `dead one; an append failure never changes what you do.`,
     { schema: ORIENT_RESULT, label: 'orient', phase: 'Orient' }
   )
 }
@@ -506,7 +716,8 @@ async function ensureBranch(idx) {
     `5. If git REFUSES because uncommitted changes would be overwritten → DO NOT stash, force, or commit. Return ` +
     `{ ok: false, reason: 'switching/creating ${target} would clobber uncommitted work on ${idx.branch.current}' }.\n` +
     baseStep +
-    `Report the action you took.`,
+    `Report the action you took.` +
+    heartbeatClause('branch', 'Orient', 'branch', null),
     {
       schema: {
         type: 'object',
@@ -608,15 +819,62 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `## Verify-Owned Fixes, per the reference) so this run is exactly as auditable as a human-gated one. Nothing ` +
     `dies silently inside an artifact.\n` +
     `- When the policy says STOP, still finish the artifact in its honest terminal state, then return ` +
-    `status:'hard-stop' with hardStopReason.\n\n` +
+    `status:'hard-stop' with hardStopReason.` +
+    CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT + `\n\n` +
     `Return the terminal state: stage, slice, status ('complete' when the gate is clean, 'hard-stop' when the ` +
     `policy stopped you), the primary artifactPath, and terminal fields — plan/implement: statusField; verify: ` +
     `convergence + result + deferrals ([{ac, reason, probe}] — ACs deferred for un-producible runtime evidence, ` +
     `each with the literal capability-probe command + output tail you ran THIS round to establish the wall; [] if ` +
     `none) + substantiveResidual (true iff an AC fails/partials for a CODE reason); review: verdict + blockerCount ` +
-    `(= metric-findings-blocker, OPEN) — plus the decisions you recorded and any residual ` +
-    `(deferred / could-not-fix) findings.`,
+    `(= metric-findings-blocker, OPEN) — plus the class-stamped decisions you recorded, any residual ` +
+    `(could-not-fix) notes, and your recovered-error list.` +
+    heartbeatClause(`${stage}${sliceArg ? ':' + sliceArg : ''}`, 'Drive', stage, sliceArg),
     { schema: STAGE_RESULT, label: `${stage}${sliceArg ? ':' + sliceArg : ''}`, phase: 'Drive' }
+  )
+}
+
+// W5.2 — SLICE-COMPLETE WRITE-BACK. Completed slices routinely left `03-slice.md`
+// at `status: defined` and the index `progress` block stale, so the next run's
+// orientation had to cross-check artifacts instead of trusting the index — and a
+// later handoff had to self-repair what the drive should have recorded. The
+// mechanism belongs to the streamline plan's write-back work; what belongs HERE is
+// that yolo's slice-complete step is a WRITER: the fix lands at drive time, when
+// the fact is fresh, not two stages later when someone notices the drift.
+//
+// Deliberately its own tiny agent rather than a clause on the last stage: the
+// stage subagent's mandate is scoped to its own artifact ("do NOT claim completion
+// of other slices"), and widening that mandate is exactly how a stage starts
+// editing state it does not own.
+async function writeBackSliceStatus(sliceArg, idx, stagesRun) {
+  return await agent(
+    `SLICE-COMPLETE BOOKKEEPING for slug '${slug}', slice '${sliceArg}'. The autonomous driver just drove this ` +
+    `slice through ${stagesRun.join(' → ')} and every gate cleared. Record that fact in the control files so the ` +
+    `index tells the truth without anyone re-deriving it from artifacts.\n\n` +
+    `${EOB}\n\n` +
+    `1. In ${projectRoot}/.ai/workflows/${slug}/00-index.md, set this slice's entry in \`slices[]\` to ` +
+    `status: complete, and refresh the \`progress\` block (completed/total counts) to match the roster's actual ` +
+    `state. Refresh \`updated-at\`.\n` +
+    `2. In the roster file (${projectRoot}/.ai/workflows/${slug}/03-slice.md, or the per-slice ` +
+    `03-slice-${sliceArg}.md when the workflow uses the suffixed convention), set this slice's ` +
+    `\`status:\` to complete. If the roster records no per-slice status field, leave it alone and say so.\n` +
+    `3. Change NOTHING else. Do not touch stage artifacts, do not advance \`current-stage\` past this slice, do ` +
+    `not edit another slice's entry, and never mark the WORKFLOW complete — the driver stops before handoff and ` +
+    `the workflow is not done.` +
+    CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + `\n\n` +
+    `Return { ok, wrote: [<the files you actually changed>], note }.` +
+    heartbeatClause(`writeback:${sliceArg}`, 'Drive', 'writeback', sliceArg),
+    {
+      schema: {
+        type: 'object',
+        required: ['ok'],
+        properties: {
+          ok: { type: 'boolean' },
+          wrote: { type: 'array', items: { type: 'string' } },
+          note: { type: 'string' },
+        },
+      },
+      label: `writeback:${sliceArg}`, phase: 'Drive',
+    }
   )
 }
 
@@ -761,6 +1019,135 @@ async function driveVerify(sliceArg, idx) {
   return last
 }
 
+// ---------------------------------------------------------------------------
+// W2.2 — BOUNDED RE-VERIFY. The re-challenge law is right: a wall recorded by an
+// earlier run is a claim, not a fact, and must be re-probed. But it was running as
+// a FULL verify dispatch over slices that were already built, verified, and
+// reviewed — so a driver launched to do a slug-wide review spent its entire life
+// re-verifying terminal-clean slices and died before starting the work it existed
+// for. The cost was never the probing; it was re-running the whole stage to do it.
+//
+// So a terminal-clean slice whose only residue is an open deferral gets a WALL
+// PROBE: re-execute the recorded capability probes, nothing else. If a wall fell,
+// the evidence is now producible and a full verify is warranted — with a reason the
+// driver can name. If the walls still stand, the deferrals carry a fresh receipt and
+// the slice needs no further work this run.
+// ---------------------------------------------------------------------------
+const WALL_PROBE_RESULT = {
+  type: 'object',
+  required: ['walls'],
+  properties: {
+    walls: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['ac', 'stands'],
+        properties: {
+          ac: { type: 'string' },
+          stands: { type: 'boolean' },   // false = the wall fell; the evidence is producible now
+          probe: { type: 'string' },     // literal command + one-line output tail, run THIS round
+          note: { type: 'string' },
+        },
+      },
+    },
+    // The driver escalates to a full re-verify only for a reason it can NAME. A
+    // subagent that finds the artifacts contradict the index says so here.
+    escalateReason: { type: 'string' },
+  },
+}
+
+async function driveWallProbe(sliceArg, idx) {
+  const open = (idx.priorDeferrals || []).filter(d => d && d.slice === sliceArg && d.authorized !== true)
+  const lines = open.map(d => `    • ${d.ac ? `${d.ac} — ` : ''}${d.reason || '(no reason recorded)'}` +
+    `${d.clearingEvent ? ` [clearing event: ${d.clearingEvent}]` : ''}` +
+    `${d.clearingProbe ? ` [clearing probe: ${d.clearingProbe}]` : ''}`).join('\n')
+  return await agent(
+    `WALL RE-CHALLENGE for slug '${slug}', slice '${sliceArg}'. This slice is already built, verified, and (where ` +
+    `applicable) reviewed — its ONLY residue is open runtime-evidence deferral(s). Your job is NOT to re-verify ` +
+    `the slice. It is to answer one question per wall: **does this wall still stand?**\n\n` +
+    `${EOB}\n\n` +
+    `Open deferrals recorded for this slice in ${projectRoot}/.ai/workflows/${slug}/00-index.md:\n${lines || '    (none)'}\n\n` +
+    `For EACH, re-execute its capability probe FRESH now (the recorded clearing-probe when one exists, otherwise ` +
+    `the probe named in the defer-reason) and record the literal command plus a one-line output tail. Report ` +
+    `stands: true when the wall is still there, stands: false when it has fallen. Read-only: run the probes, ` +
+    `write NOTHING — no artifacts, no index edits, no commits.\n\n` +
+    `Set escalateReason ONLY if you find something that genuinely warrants re-running the whole verify stage — ` +
+    `the artifacts contradict the index, or a wall fell and its acceptance criterion now needs real evidence ` +
+    `collected. Name it in one line; the driver records your reason as a decision so a later audit can see why ` +
+    `the run chose bookkeeping over new work. If every wall still stands, leave escalateReason empty.` +
+    heartbeatClause(`wall-probe:${sliceArg}`, 'Drive', 'wall-probe', sliceArg),
+    { schema: WALL_PROBE_RESULT, label: `wall-probe:${sliceArg}`, phase: 'Drive' }
+  )
+}
+
+// ---------------------------------------------------------------------------
+// W3.3 — CORRECTIVE CLASSIFICATION ROUND. A decision with no `class` stamp is a
+// hole in the run's headline guarantee ("intent-bearing escapes: 0"), and ~25% of
+// recorded decisions arrived that way in every run measured. The probe-receipt
+// pattern applies — one corrective round, then report honestly — but the corrective
+// round is deliberately NOT a re-run of the stage: re-running `implement` to fetch a
+// missing label would rebuild code for a bookkeeping gap. Instead a cheap read-only
+// agent reads the artifact the stage already wrote and classifies what it left bare.
+// Anything it still cannot classify stays `unclassified` and is reported as SUSPECT.
+// ---------------------------------------------------------------------------
+async function classifyDecisions(res, idx) {
+  const bare = (res.decisions || []).filter(d => d && !(d.class && String(d.class).trim()))
+  if (!bare.length) return res
+  const listed = bare.map((d, i) => `    ${i + 1}. ${d.decision || d.what || d.summary || JSON.stringify(d)}`).join('\n')
+  const out = await agent(
+    `DECISION CLASSIFICATION (read-only) for slug '${slug}', stage '${res.stage}'` +
+    `${res.slice ? `, slice '${res.slice}'` : ''}. The stage recorded these decisions WITHOUT the mandatory ` +
+    `\`class\` stamp:\n${listed}\n\n` +
+    `Read ${referenceRoot}/_decision-classes.md IN FULL, then read the stage artifact at ` +
+    `${res.artifactPath || `${projectRoot}/.ai/workflows/${slug}/`} for the context each decision was made in. ` +
+    `Classify EACH as 'implementation-detail' or 'intent-bearing' by that file's five tests. Write nothing.\n\n` +
+    `Two rules that decide this round's worth:\n` +
+    `- When a decision could plausibly be intent-bearing, classify it 'intent-bearing'. The cost of a false ` +
+    `intent-bearing flag is the user reading one extra line; the cost of a false implementation-detail is an ` +
+    `intent-bearing decision an autonomous run made silently, which is the exact escape this taxonomy exists ` +
+    `to prevent.\n` +
+    `- If you genuinely cannot tell from the artifact, return class 'unclassified' with a reason. Do NOT guess ` +
+    `to fill the field — a guessed label is worse than an admitted gap, because it looks like knowledge.\n\n` +
+    `Return { classified: [{ index (1-based, from the list above), class, why }] }.` +
+    heartbeatClause(`classify:${res.stage}${res.slice ? ':' + res.slice : ''}`, 'Drive', 'classify', res.slice),
+    {
+      schema: {
+        type: 'object',
+        required: ['classified'],
+        properties: {
+          classified: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['index', 'class'],
+              properties: {
+                index: { type: 'number' },
+                class: { type: 'string' },
+                why: { type: 'string' },
+              },
+            },
+          },
+        },
+      },
+      label: `classify:${res.stage}${res.slice ? ':' + res.slice : ''}`, phase: 'Drive',
+    }
+  )
+  if (!out || !Array.isArray(out.classified)) return res
+  for (const c of out.classified) {
+    const target = bare[(c && c.index || 0) - 1]
+    if (!target || !c.class) continue
+    const cls = String(c.class).trim()
+    if (cls && cls !== 'unclassified') {
+      target.class = cls
+      target.classifiedBy = 'corrective-round'   // provenance: not the stage's own stamp
+      if (c.why) target.classReason = c.why
+    }
+  }
+  const still = (res.decisions || []).filter(d => d && !(d.class && String(d.class).trim())).length
+  log(`decision classes: ${bare.length} unstamped in ${res.stage}${res.slice ? ':' + res.slice : ''} → ${bare.length - still} classified, ${still} still unclassifiable (reported as suspect, never folded into the zero)`)
+  return res
+}
+
 // driveReview() — default: wrap review.md in ONE subagent (it fans out the
 // dimensions internally per the reference, and produces the accumulating
 // ledger). Opt-in (args.reviewFanout): hoist the dimension scan to the workflow
@@ -805,7 +1192,9 @@ async function driveReview(sliceArg, idx) {
     `discard the scan): ${JSON.stringify(verified)}.\n\n` +
     `Apply the autonomous triage policy: ${POLICY.review}\n\n` +
     `Project root ${projectRoot} is ABSOLUTE; resolve paths under it and run \`git -C ${projectRoot} …\`. Write ` +
-    `schema-complete frontmatter. Return the terminal state (verdict + blockerCount, decisions, residual).`,
+    `schema-complete frontmatter. Return the terminal state (verdict + blockerCount, decisions, residual).` +
+    CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT +
+    heartbeatClause(`review${sliceArg ? ':' + sliceArg : ''}`, 'Review', 'review', sliceArg),
     { schema: STAGE_RESULT, label: `review${sliceArg ? ':' + sliceArg : ''}`, phase: 'Review' }
   )
 }
@@ -844,7 +1233,9 @@ async function runUpdateDepsExec(idx) {
     `('complete' when 06 is convergence ∈ {not-needed, converged} with result pass or a deferral-only partial; ` +
     `'hard-stop' when the policy stopped you), artifactPath = the 06-verify.md path, and terminal ` +
     `{ convergence, result, deferrals ([] if none), substantiveResidual } — plus the decisions you recorded and ` +
-    `any residual (blocked / held packages).`,
+    `any residual (blocked / held packages).` +
+    CONTROL_FILE_RULE + deadDriverClause(idx.priorRun) + DECISION_CONTRACT +
+    heartbeatClause('update-deps:exec', 'Drive', 'update-deps-exec', null),
     { schema: STAGE_RESULT, label: 'update-deps:exec', phase: 'Drive' }
   )
 }
@@ -864,7 +1255,9 @@ async function driveUpdateDeps(idx) {
     log(`skip update-deps exec (05/06 already terminal-clean)`)
   } else {
     log(`yolo → update-deps self-managed exec ${slug} (self-authors 05/06)`)
-    const exec = await runUpdateDepsExec(idx)
+    let exec = await runUpdateDepsExec(idx)
+    // W3.3 — same corrective classification round the per-slice chain runs.
+    if (exec && Array.isArray(exec.decisions) && exec.decisions.length) exec = await classifyDecisions(exec, idx)
     ran.push(exec)
     if (!exec || exec.status === 'hard-stop') {
       return { ok: false, mode: 'update-deps', stopped: true, stoppedAt: 'exec', reason: (exec && exec.hardStopReason) || 'update-deps self-managed exec stopped', ran, route: `address the exec blocker, then re-run /wf yolo ${slug}` }
@@ -883,7 +1276,8 @@ async function driveUpdateDeps(idx) {
   }
   // slug-wide review over the branch diff — same endpoint as the standard slug-wide path.
   log(`yolo → review ${slug} (slug-wide, update-deps)`)
-  const rev = await driveReview(null, idx)
+  let rev = await driveReview(null, idx)
+  if (rev && Array.isArray(rev.decisions) && rev.decisions.length) rev = await classifyDecisions(rev, idx)
   ran.push(rev)
   const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
   const probeGapsField = execProbeGaps.length ? { probeGaps: execProbeGaps } : {}
@@ -908,24 +1302,83 @@ function evaluateGate(stage, res) {
 // driveChain() — run stages sequentially for one slice, skipping any already
 // terminal-clean on disk (free resume), gating each per policy, HARD-STOPping
 // (and returning the trail) when the policy says so.
-async function driveChain(stages, sliceArg, idx) {
+//
+// W2.2: `bounded` marks a slice scheduled as a re-challenge sweep rather than as
+// new work. Its verify runs as a cheap WALL PROBE first, and only escalates to a
+// full verify dispatch for a reason the driver can name and records as a decision.
+// W3.3: each stage's decisions pass through one corrective classification round.
+// W5.2: a chain that completes writes the slice's status back to the control files.
+async function driveChain(stages, sliceArg, idx, opts = {}) {
   const entry = idx.slices.find(s => s.slice === sliceArg)
   const done = (entry && entry.stages) || {}
   const ran = []
+  const ranStages = []
   for (const stage of stages) {
     if (done[stage] === 'done') { log(`skip ${stage}:${sliceArg} (already terminal-clean)`); continue }
+
+    // ---- W2.2 bounded re-verify -------------------------------------------
+    // Only for a slice whose sole residue is an open deferral (reverifyReason
+    // 'deferral-rechallenge'). Everything else drives normally.
+    if (opts.bounded === true && stage === 'verify') {
+      log(`yolo → wall-probe ${slug} ${sliceArg} (bounded re-challenge: slice is terminal-clean except its open deferral(s))`)
+      const wp = await driveWallProbe(sliceArg, idx)
+      if (wp) {
+        const fell = (wp.walls || []).filter(w => w && w.stands === false)
+        const stands = (wp.walls || []).filter(w => w && w.stands === true)
+        // A named reason — or a wall that fell, so the evidence is producible now —
+        // earns the full stage. Recorded as a decision so a later audit can see WHY
+        // the driver chose to spend a verify here instead of moving on.
+        const reason = wp.escalateReason && String(wp.escalateReason).trim()
+          ? String(wp.escalateReason).trim()
+          : (fell.length ? `${fell.length} wall(s) fell (${fell.map(w => w.ac).join(', ')}) — the evidence those AC need is producible now` : '')
+        if (!reason) {
+          log(`wall-probe:${sliceArg} — all ${stands.length} wall(s) still stand (fresh receipts attached); no full re-verify this run`)
+          ran.push({
+            stage: 'wall-probe', slice: sliceArg, status: 'complete', artifactPath: '', terminal: {},
+            walls: wp.walls || [],
+            decisions: [{
+              class: 'implementation-detail',
+              decision: `bounded re-challenge only: every recorded wall on '${sliceArg}' still stands under a fresh probe, so the slice was not re-verified this run`,
+            }],
+          })
+          ranStages.push('wall-probe')
+          continue
+        }
+        log(`wall-probe:${sliceArg} → escalating to a full verify: ${reason}`)
+        ran.push({
+          stage: 'wall-probe', slice: sliceArg, status: 'complete', artifactPath: '', terminal: {},
+          walls: wp.walls || [],
+          decisions: [{ class: 'implementation-detail', decision: `escalated '${sliceArg}' from bounded re-challenge to a full verify — ${reason}` }],
+        })
+        ranStages.push('wall-probe')
+      }
+      // fall through to the full verify dispatch below
+    }
+
     log(`yolo → ${stage} ${slug} ${sliceArg}`)
-    const res =
+    let res =
       stage === 'verify' ? await driveVerify(sliceArg, idx)
       : stage === 'review' ? await driveReview(sliceArg, idx)
       : await runStage(stage, sliceArg, idx)
+    // W3.3 — one corrective classification round for decisions the stage left
+    // unstamped. Read-only and cheap; never re-runs the stage itself.
+    if (res && Array.isArray(res.decisions) && res.decisions.length) res = await classifyDecisions(res, idx)
     ran.push(res)
+    ranStages.push(stage)
     if (!res || res.status === 'hard-stop') {
       return { stopped: true, at: stage, slice: sliceArg, ran, reason: (res && res.hardStopReason) || `${stage} stopped` }
     }
     if (evaluateGate(stage, res) === 'hard-stop') {
       return { stopped: true, at: stage, slice: sliceArg, ran, reason: `${stage} terminal state did not clear the gate: ${JSON.stringify(res.terminal || {})}` }
     }
+  }
+  // W5.2 — the chain cleared every gate: record the slice as complete at DRIVE
+  // time. Only when this run actually drove something (a chain that skipped every
+  // stage as already-done has nothing new to write back).
+  if (ranStages.length) {
+    const wb = await writeBackSliceStatus(sliceArg, idx, ranStages)
+    if (wb && wb.ok) log(`slice '${sliceArg}' complete → wrote status back to ${(wb.wrote || ['(nothing)']).join(', ')}`)
+    else log(`slice '${sliceArg}' complete but the status write-back did not confirm${wb && wb.note ? `: ${wb.note}` : ''} — /wf handoff will self-repair the index`)
   }
   return { stopped: false, slice: sliceArg, ran }
 }
@@ -967,6 +1420,131 @@ function collectDeferrals(o) {
   return out
 }
 
+// ---------------------------------------------------------------------------
+// W3.2 — THE AGGREGATE MAY NOT CONTRADICT ITS INPUTS.
+//
+// The run report is a re-derivation: collectDeferrals walks the stage returns and
+// decides what counts as a runtime-evidence deferral. When that re-derivation
+// disagreed with what was actually RECORDED, the re-derivation won silently — and
+// once told the user that an AC was a runtime-evidence deferral while the run's own
+// recorded decision said the opposite ("stays a build-capability deferral, NOT
+// runtime-evidence"). The user was steered into a `/wf probe` that could not
+// possibly help.
+//
+// The rule is precedence, not cleverness: a classification RECORDED by a stage
+// decision, or carried by the index's deferral ledger, is canonical over anything
+// the driver re-derives. Where they disagree the ledger's answer is reported,
+// annotated `reconciled` — never a silent re-label. Where they agree, nothing
+// happens and nothing is reported.
+//
+// `runtimeEvidence` is the only classification that belongs in
+// outcome.runtimeEvidenceDeferrals (that list is what /wf ship blocks on). Anything
+// a decision classified otherwise — build-capability, scope, external-dependency —
+// moves out of it and into `reconciled`, where it is still visible but no longer
+// pointing the user at the wrong command.
+// ---------------------------------------------------------------------------
+function classificationIndex(o, priorDeferrals) {
+  const map = new Map()   // acKey → { classification, source }
+  // Lower precedence: the index ledger read at orientation.
+  for (const d of (priorDeferrals || [])) {
+    if (!d || !d.ac) continue
+    const cls = d.classification || d.wallOwnership
+    if (cls) map.set(acKey(d.ac), { classification: String(cls), source: 'index-ledger' })
+  }
+  // Higher precedence: a classification this run's own stage decisions recorded.
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  for (const c of chains) {
+    for (const r of (c && c.ran) || []) {
+      for (const d of (r && r.decisions) || []) {
+        if (!d || !d.ac || !d.classification) continue
+        map.set(acKey(d.ac), { classification: String(d.classification), source: 'recorded-decision' })
+      }
+    }
+  }
+  return map
+}
+
+// A classification counts as "this is a runtime-evidence deferral" only when it
+// says so. Absent classification = no disagreement = leave the entry alone.
+function isRuntimeEvidenceClass(cls) {
+  const s = String(cls || '').trim().toLowerCase()
+  if (!s) return true
+  return s === 'runtime-evidence' || s === 'environment-negotiable' || s === 'external'
+}
+
+function reconcileDeferrals(o, deferrals, priorDeferrals) {
+  const map = classificationIndex(o, priorDeferrals)
+  if (!map.size) return { deferrals, reconciled: [] }
+  const kept = []
+  const reconciled = []
+  for (const d of deferrals) {
+    const rec = map.get(acKey(d && d.ac))
+    if (!rec || isRuntimeEvidenceClass(rec.classification)) { kept.push(d); continue }
+    reconciled.push({
+      ...d,
+      driverDerived: 'runtime-evidence',
+      recordedClassification: rec.classification,
+      source: rec.source,
+      note: `the run's ${rec.source === 'recorded-decision' ? 'own recorded decision' : 'index deferral ledger'} classifies this as '${rec.classification}', not a runtime-evidence deferral — the recorded classification is canonical and this entry is NOT in the /wf ship block list`,
+    })
+  }
+  return { deferrals: kept, reconciled }
+}
+
+// ---------------------------------------------------------------------------
+// W3.2 (second half) — A FAIL SURVIVES INTO THE OUTCOME.
+// The v9.134-era conflation ran the other way: verify recorded two ACs as
+// substantive FAILS with zero deferrals, and the driver's outcome listed them as
+// deferrals. A deferral is a promise that evidence is missing; a fail is a
+// statement that the behavior is wrong. Reporting the second as the first tells the
+// user to go collect evidence for a defect. So the run report carries verify's
+// recorded fail semantics explicitly, beside the deferrals, never merged into them.
+// ---------------------------------------------------------------------------
+function collectSubstantiveFailures(o) {
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  const out = []
+  for (const c of chains) {
+    for (const r of (c && c.ran) || []) {
+      if (!r || r.stage !== 'verify') continue
+      const t = r.terminal || {}
+      if (t.result === 'fail' || t.substantiveResidual === true) {
+        out.push({ slice: r.slice || null, result: t.result || null, substantiveResidual: t.substantiveResidual === true, artifactPath: r.artifactPath || null })
+      }
+    }
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// W3.4 — HONEST ERROR ACCOUNTING. One run reported "0 errors" while 6 of 15
+// subagents had hit recovered tool errors, including schema rejections refilled
+// with ""/"n-a" junk. Two sources, both available to this script:
+//   • self-reported: each subagent returns the errors it recovered from (the
+//     script cannot see a subagent's tool history, so it asks).
+//   • driver-observed: an agent() that returns null died or was skipped — that is
+//     a FATAL error for that step, and the run already knows it.
+// The count alone is this plan's scope. The junk-value schema refills are the
+// EVIDENCE-SCHEMA-CONTRACT's surface (stage-conditional required fields) and are
+// cited there, not redefined here.
+// ---------------------------------------------------------------------------
+function collectSubagentErrors(o) {
+  const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
+  const agents = []
+  let recovered = 0
+  let fatal = 0
+  const consider = (r) => {
+    if (!r) { fatal++; agents.push({ agent: '(a subagent returned nothing — skipped or died after retries)', fatal: true }); return }
+    const errs = Array.isArray(r.errors) ? r.errors : []
+    if (!errs.length) return
+    recovered += errs.length
+    agents.push({ agent: `${r.stage || '?'}${r.slice ? ':' + r.slice : ''}`, recovered: errs.length, what: errs.map(e => (e && e.what) || '').filter(Boolean) })
+  }
+  for (const c of chains) for (const r of (c && c.ran) || []) consider(r)
+  if (o && o.slugWide) consider(o.slugWide)
+  if (!recovered && !fatal) return null
+  return { recovered, fatal, agents }
+}
+
 // deferralPressure() — F3 hand-back rollup. Combines the OPEN prior deferrals orient read
 // from 00-index (recorded by earlier runs) with THIS run's new deferrals into one pressure
 // headline: { open, oldestDeferredAt, repeatWalls }. It makes the standing pile visible in
@@ -999,24 +1577,44 @@ function deferralPressure(priorDeferrals, runDeferrals) {
 // human's post-run inspection is one structured section, not twelve artifacts. An
 // intent-bearing stamp on an autonomous record is the tell that the policy overstepped —
 // surfaced under `intentBearing` so it can't hide. Pure + extractable like the other rollups.
+// W3.3 — `unclassified` IS A GAP, NOT A CLASS. The old shape defaulted a missing
+// stamp to 'unclassified', counted it as just another bucket, and let the headline
+// "intent-bearing: 0" absorb it. But an unclassified decision is precisely a
+// decision nobody has checked for intent — folding it into the zero inverts what
+// the number means. So it is counted separately, it never lands in `byClass`, and
+// the guarantee it qualifies is stated: 'exact' when everything is classified,
+// 'suspect' when anything is not.
 function decisionDigest(o) {
   const chains = Array.isArray(o && o.results) ? o.results : (o && o.ran ? [{ ran: o.ran }] : [])
   const groups = {}
   let total = 0
   const intentBearing = []
+  const unclassified = []
   for (const c of chains) {
     for (const r of (c && c.ran) || []) {
       for (const d of (r && r.decisions) || []) {
         if (!d) continue
         total++
-        const cls = (d.class && String(d.class).trim()) || 'unclassified'
+        const cls = d.class && String(d.class).trim()
+        if (!cls) {
+          unclassified.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
+          continue
+        }
         groups[cls] = (groups[cls] || 0) + 1
         if (cls === 'intent-bearing') intentBearing.push({ slice: r.slice, stage: r.stage, decision: d.decision || d.what || d.summary || '' })
       }
     }
   }
   if (!total) return null
-  return { total, byClass: groups, intentBearing }
+  return {
+    total,
+    byClass: groups,
+    intentBearing,
+    unclassified,
+    // The load-bearing qualifier. 'suspect' means the run cannot honestly claim
+    // zero intent-bearing escapes — some decisions were never checked.
+    intentBearingGuarantee: unclassified.length ? 'suspect' : 'exact',
+  }
 }
 
 // CHECKPOINT_RESULT — the charter fidelity checkpoint's structured return (W11.1).
@@ -1053,9 +1651,28 @@ async function charterCheckpoint(idx, throughSlice) {
     `code they touched. For EACH commitment, judge whether the build so far is still ADVANCING it: 'honored' ` +
     `(the code visibly serves it), 'at-risk' (drifting — a decision has weakened it), or 'broken' (the code ` +
     `now contradicts it — e.g. the intake said the model owns a decision and the code hard-codes it). Return ` +
-    `{ commitments: [{id, status, note}], summary }. Judge against the CODE, not the artifacts' claims.`,
+    `{ commitments: [{id, status, note}], summary }. Judge against the CODE, not the artifacts' claims.` +
+    heartbeatClause(`checkpoint:${throughSlice}`, 'Drive', 'charter-checkpoint', throughSlice),
     { schema: CHECKPOINT_RESULT, label: `checkpoint:${throughSlice}`, phase: 'Drive' }
   )
+}
+
+// clearingTripwire() — W4.2 rollup. orient ran each open deferral's recorded
+// `clearing-probe` (one bounded command apiece) and reported whether the event
+// looks satisfied. This turns the hits into a hand-back line. It is a TRIPWIRE and
+// nothing more: no deferral is cleared, no index is edited, no gate moves. The
+// probe stage still owns evidence — this only ensures that an event which has
+// quietly come true gets NOTICED, instead of an AC shipping uncleared while its
+// emulator sat booted on the same screen.
+function clearingTripwire(priorDeferrals) {
+  const hits = (priorDeferrals || []).filter(d => d && d.clearingProbeHit === true && d.authorized !== true)
+  if (!hits.length) return null
+  return hits.map(d => ({
+    slice: d.slice || null,
+    ac: d.ac || null,
+    clearingEvent: d.clearingEvent || null,
+    clearingProbe: d.clearingProbe || null,
+  }))
 }
 
 // ===========================================================================
@@ -1070,8 +1687,20 @@ if (!idx) {
   // so the route is simply to re-run.
   return { ok: false, stopped: true, transient: true, reason: 'orient did not return (subagent skipped or hit a transient API error) — re-run to retry; resume skips completed stages', route: `/wf yolo ${slug}${slice ? ' ' + slice : ''}` }
 }
+// W1 — adopt the runId orient minted (this script has no clock of its own) so every
+// later heartbeat is attributable to THIS run.
+RUN_ID = (idx.runId && String(idx.runId).trim()) || `run-${slug}`
+// W1.2/W1.3 — say what the PREVIOUS driver's journal shows, before anything else.
+// Silence is the finding: a driver that died leaves a journal that simply stops, and
+// the whole point is that this is now stated rather than inferred away.
+const priorDriver = idx.priorRun && idx.priorRun.present === true ? idx.priorRun : null
+if (priorDriver && priorDriver.presumedDead === true) {
+  log(`prior driver PRESUMED DEAD — journal silent since ${priorDriver.lastEntryAt} (${Math.round(priorDriver.minutesSinceLastEntry || 0)} min; its own longest gap was ${Math.round(priorDriver.longestGapMinutes || 0)} min), last seen at ${priorDriver.lastStage || 'an unknown stage'}${priorDriver.lastSlice ? ` on '${priorDriver.lastSlice}'` : ''}. Its partial writes are treated as suspect: every stage re-reads control files fresh before editing.`)
+} else if (priorDriver && priorDriver.completed === true) {
+  log(`prior driver for this slug completed at ${priorDriver.lastEntryAt} — resuming from its recorded state`)
+}
 if (!idx.ok) {
-  return { ok: false, stopped: true, mode: idx.mode, reason: idx.blockReason || 'workflow not ready (intake/shape/slice/plan incomplete, or a terminal-analysis type with no decided build)', route: idx.route }
+  return { ok: false, stopped: true, mode: idx.mode, reason: idx.blockReason || 'workflow not ready (intake/shape/slice/plan incomplete, or a terminal-analysis type with no decided build)', route: idx.route, ...(priorDriver ? { priorDriver } : {}) }
 }
 // Branch posture — DEDICATED only. Land the tree on the slug branch (create it from
 // base-branch if it does not exist yet) BEFORE driving any stage, so the whole run —
@@ -1133,47 +1762,72 @@ if (idx.workflowType === 'update-deps') {
   const results = []
   const CHECKPOINT_EVERY = 3   // W11.1 default K
   const charterCheckpoints = []
-  let brokenCharter = null
-  for (let si = 0; si < idx.slices.length; si++) {
-    const s = idx.slices[si]
-    // An already-skipped roster entry (00-index slices[].status: skipped, with its
-    // skip record) has nothing to drive — walking it into verify HARD-STOPs the
-    // whole run at a slice a human already retired. Skip it, keep it countable.
-    if (s.status === 'skipped') {
-      log(`slice '${s.slice}' is status: skipped in the roster — skipping (a skip record retires it; nothing to drive)`)
-      results.push({ slice: s.slice, skipped: true, ran: [], stopped: false })
-      continue
-    }
-    const chain = await driveChain(perSliceStages, s.slice, idx)
-    results.push(chain)
-    if (chain.stopped) {
-      outcome = { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: chain.at, stoppedSlice: s.slice, reason: chain.reason, results, route: `address the gate at '${chain.at}' on slice '${s.slice}', then re-run /wf yolo ${slug}` }
-      break
-    }
-    // W11.1 — charter fidelity checkpoint every K slices (not after the last, which the
-    // slug-wide review + final scenario cover). A `broken` commitment stops the run.
-    const isLast = si === idx.slices.length - 1
-    if ((idx.charter || []).length && !isLast && (si + 1) % CHECKPOINT_EVERY === 0) {
-      const cp = await charterCheckpoint(idx, s.slice)
-      if (cp) {
-        charterCheckpoints.push({ throughSlice: s.slice, ...cp })
-        const broken = (cp.commitments || []).filter(c => c && c.status === 'broken')
-        const atRisk = (cp.commitments || []).filter(c => c && c.status === 'at-risk')
-        if (atRisk.length) log(`charter checkpoint after '${s.slice}': ${atRisk.length} commitment(s) at-risk — ${atRisk.map(c => c.id).join(', ')}`)
-        if (broken.length) {
-          brokenCharter = { throughSlice: s.slice, broken }
-          outcome = { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: 'charter-checkpoint', stoppedSlice: s.slice, reason: `charter commitment(s) BROKEN after '${s.slice}': ${broken.map(c => `${c.id} (${c.note || 'no note'})`).join('; ')} — the build has departed from what the intake committed to; a human must re-decide before continuing`, results, charterCheckpoints, route: `read the broken commitment(s), decide whether to re-shape or accept, then re-run /wf yolo ${slug}` }
-          break
+
+  // ---- W2.1 — THE WORK THIS RUN EXISTS FOR GOES FIRST. -------------------
+  // The re-challenge law (a stale wall must be re-probed) is correct, but it was
+  // running as a PREFIX of the roster walk. So a driver launched for a slug-wide
+  // review spent its whole life re-verifying already terminal-clean slices — its
+  // own orientation had even predicted "the substantive work this run is the
+  // slug-wide review" — and then died before starting it. Nothing was wrong with
+  // the re-challenge; it was scheduled ahead of the target.
+  //
+  // Partition, then order: real work → the run's target (the slug-wide review) →
+  // the bookkeeping sweep, all in the SAME run. Re-challenging a wall changes what
+  // is proven about a slice, never what the slice's diff contains, so the review
+  // reads the same code whichever side of it the sweep runs on.
+  const isSweep = (s) => s && s.reverifyReason === 'deferral-rechallenge'
+  const primary = idx.slices.filter(s => !isSweep(s))
+  const sweep = idx.slices.filter(isSweep)
+  if (sweep.length) {
+    log(`work ordering: ${primary.filter(s => s.status !== 'skipped').length} slice(s) with real work run first; ${sweep.length} terminal-clean slice(s) whose only residue is an open deferral are re-challenged AFTER the target, as a bounded wall probe rather than a full re-verify`)
+  }
+
+  // driveRoster() — walk one partition. Returns a stop-outcome, or null when the
+  // whole list cleared. `bounded` marks the re-challenge sweep (W2.2).
+  async function driveRoster(list, bounded) {
+    for (let si = 0; si < list.length; si++) {
+      const s = list[si]
+      // An already-skipped roster entry (00-index slices[].status: skipped, with its
+      // skip record) has nothing to drive — walking it into verify HARD-STOPs the
+      // whole run at a slice a human already retired. Skip it, keep it countable.
+      if (s.status === 'skipped') {
+        log(`slice '${s.slice}' is status: skipped in the roster — skipping (a skip record retires it; nothing to drive)`)
+        results.push({ slice: s.slice, skipped: true, ran: [], stopped: false })
+        continue
+      }
+      const chain = await driveChain(perSliceStages, s.slice, idx, { bounded })
+      results.push(chain)
+      if (chain.stopped) {
+        return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: chain.at, stoppedSlice: s.slice, reason: chain.reason, results, route: `address the gate at '${chain.at}' on slice '${s.slice}', then re-run /wf yolo ${slug}` }
+      }
+      // W11.1 — charter fidelity checkpoint every K slices (not after the last, which the
+      // slug-wide review + final scenario cover). A `broken` commitment stops the run.
+      // Only on the primary pass: the sweep builds nothing, so it cannot drift a charter.
+      const isLast = si === list.length - 1
+      if (!bounded && (idx.charter || []).length && !isLast && (si + 1) % CHECKPOINT_EVERY === 0) {
+        const cp = await charterCheckpoint(idx, s.slice)
+        if (cp) {
+          charterCheckpoints.push({ throughSlice: s.slice, ...cp })
+          const broken = (cp.commitments || []).filter(c => c && c.status === 'broken')
+          const atRisk = (cp.commitments || []).filter(c => c && c.status === 'at-risk')
+          if (atRisk.length) log(`charter checkpoint after '${s.slice}': ${atRisk.length} commitment(s) at-risk — ${atRisk.map(c => c.id).join(', ')}`)
+          if (broken.length) {
+            return { ok: false, mode: 'slug', reviewScope: idx.reviewScope, stopped: true, stoppedAt: 'charter-checkpoint', stoppedSlice: s.slice, reason: `charter commitment(s) BROKEN after '${s.slice}': ${broken.map(c => `${c.id} (${c.note || 'no note'})`).join('; ')} — the build has departed from what the intake committed to; a human must re-decide before continuing`, results, charterCheckpoints, route: `read the broken commitment(s), decide whether to re-shape or accept, then re-run /wf yolo ${slug}` }
+          }
         }
       }
     }
+    return null
   }
+
+  outcome = await driveRoster(primary, false)
   if (!outcome) {
     if (reviewPer) {
       // Endpoint: every per-slice review clean. Stop before handoff.
       outcome = { ok: true, mode: 'slug', reviewScope: 'per-slice', stopped: false, results, route: `/wf handoff ${slug}` }
     } else {
       // slug-wide: every slice verified → ONE slug-wide review over the branch diff.
+      // This is the run's TARGET, so it runs before the re-challenge sweep.
       log(`yolo → review ${slug} (slug-wide)`)
       const rev = await driveReview(null, idx)
       const stopped = !rev || rev.status === 'hard-stop' || evaluateGate('review', rev) === 'hard-stop'
@@ -1182,15 +1836,58 @@ if (idx.workflowType === 'update-deps') {
         : { ok: true, mode: 'slug', reviewScope: 'slug-wide', stopped: false, results, slugWide: rev, route: `/wf handoff ${slug}` }
     }
   }
+  // The bounded re-challenge sweep, last — after the target, in the same run. A
+  // stop here is real (a wall that fell now needs evidence the slice cannot yet
+  // produce), but it can no longer starve the work the run was launched for.
+  if (!outcome.stopped && sweep.length) {
+    const swept = await driveRoster(sweep, true)
+    if (swept) outcome = { ...swept, sweptAfterTarget: true }
+  }
   // W11.1 — surface the charter checkpoints on the slug hand-back (both the stop and the endpoint).
   if (charterCheckpoints.length && !outcome.charterCheckpoints) outcome.charterCheckpoints = charterCheckpoints
 }
 
-const deferrals = collectDeferrals(outcome)
+// W3.2 — collect, then RECONCILE against what was actually recorded. The driver's
+// re-derivation never overrides a classification a stage decision or the index
+// ledger already made; where they disagree the recorded answer is reported and the
+// disagreement is named, so the aggregate can no longer contradict its own inputs.
+const collected = collectDeferrals(outcome)
+const { deferrals, reconciled } = reconcileDeferrals(outcome, collected, idx.priorDeferrals)
 if (deferrals.length) {
   outcome.runtimeEvidenceDeferrals = deferrals
   log(`runtime-evidence deferrals on this run: ${deferrals.length} — review/handoff proceed; /wf ship blocks until each is cleared by /wf probe or a re-verify in a capable environment`)
 }
+if (reconciled.length) {
+  outcome.reconciled = reconciled
+  log(`reconciled ${reconciled.length} deferral classification(s) against the recorded ledger: ${reconciled.map(r => `${r.ac} is '${r.recordedClassification}' per the ${r.source}, not a runtime-evidence deferral`).join('; ')} — reported, never silently re-labeled`)
+}
+// W3.2 — verify's recorded FAIL semantics survive into the outcome, beside the
+// deferrals and never merged into them. A fail says the behavior is wrong; a
+// deferral says evidence is missing. Reporting the first as the second sends the
+// user to collect evidence for a defect.
+const failures = collectSubstantiveFailures(outcome)
+if (failures.length) {
+  outcome.substantiveFailures = failures
+  log(`substantive verify failures this run: ${failures.length} (${failures.map(f => f.slice || 'slug').join(', ')}) — these are DEFECTS, not deferrals, and no /wf probe will clear them`)
+}
+// W3.4 — honest error accounting. "0 errors" may no longer coexist with subagents
+// that hit rejected writes or schema retries and recovered.
+const subagentErrors = collectSubagentErrors(outcome)
+if (subagentErrors) {
+  outcome.subagentErrors = subagentErrors
+  log(`subagent errors this run: ${subagentErrors.recovered} recovered, ${subagentErrors.fatal} fatal across ${subagentErrors.agents.length} agent(s) — recovered errors did not change any verdict, but the run does not claim zero`)
+}
+// W4 — clearing-event tripwire: an event that already came true gets NOTICED.
+const tripwire = clearingTripwire(idx.priorDeferrals)
+if (tripwire) {
+  outcome.clearingEventsSatisfied = tripwire
+  log(`clearing-event tripwire: ${tripwire.length} open deferral(s) appear ALREADY CLEARED by their recorded clearing-probe (${tripwire.map(t => `${t.slice || '?'}/${t.ac || '?'}`).join(', ')}) — run /wf probe ${slug} to capture the evidence; nothing was cleared automatically`)
+}
+// W1 — the previous driver's fate rides on the hand-back, so a resuming session
+// never has to guess (and never gets to guess wrong).
+if (priorDriver) outcome.priorDriver = priorDriver
+if (RUN_ID) outcome.runId = RUN_ID
+outcome.journal = JOURNAL_PATH
 // F3 rollup — standing deferral pressure across prior (index) + this run, made visible here.
 const pressure = deferralPressure(idx.priorDeferrals, deferrals)
 if (pressure && pressure.open > 0) {
@@ -1206,8 +1903,13 @@ if (branchAction) outcome.branch = branchAction   // surface the up-front create
 const digest = decisionDigest(outcome)
 if (digest) {
   outcome.decisionDigest = digest
-  const parts = Object.entries(digest.byClass).map(([k, n]) => `${n} ${k}`).join(', ')
-  log(`autonomous decisions this run: ${digest.total} (${parts})${digest.intentBearing.length ? ` — ${digest.intentBearing.length} stamped intent-bearing (should have been a stop; inspect)` : ''}`)
+  const parts = Object.entries(digest.byClass).map(([k, n]) => `${n} ${k}`).join(', ') || 'none classified'
+  // W3.3 — the guarantee is stated with its qualifier attached. "0 intent-bearing
+  // escapes" out of 173 decisions means nothing if 40 of them were never checked.
+  const guarantee = digest.unclassified.length
+    ? `intent-bearing escapes: ${digest.intentBearing.length} — SUSPECT: ${digest.unclassified.length} decision(s) could not be classified and are NOT covered by that number; review them`
+    : `intent-bearing escapes: ${digest.intentBearing.length} (every decision classified)`
+  log(`autonomous decisions this run: ${digest.total} (${parts}) — ${guarantee}`)
 }
 log(outcome.stopped ? `yolo HARD-STOP at ${outcome.stoppedAt || 'orient'}: ${outcome.reason}` : `yolo reached the endpoint — next: ${outcome.route}`)
 return outcome

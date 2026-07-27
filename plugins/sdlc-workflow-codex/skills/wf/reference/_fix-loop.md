@@ -22,13 +22,28 @@ this file instead of restating them.
    configuration (see [_subagents.md](_subagents.md) effort tiering).
    Stage-specific flags (e.g. verify's isolated-worktree requirement) are
    additive requirements defined in the stage file.
-4. **Minimal patch.** The sub-agent prompt always requires: apply the minimal
-   fix for this one issue; do NOT refactor, reformat, or broaden scope;
-   self-check the result (no new lint/type errors, surrounding code coherent)
-   before returning a brief summary — never diffs or full file dumps.
-5. **Orchestrator sanity check.** The orchestrator inspects each returned patch
-   before accepting it (does it address the issue; does it obviously break
-   sibling code). A wrong patch is discarded — never "improved" inline.
+4. **Minimal patch, self-checked by command.** The sub-agent prompt always
+   requires: apply the minimal fix for this one issue; do NOT refactor,
+   reformat, or broaden scope; then **run a real check command the
+   orchestrator passes in** and report its exit status before returning a
+   brief summary — never diffs or full file dumps. "Self-check for no new
+   lint/type errors" as prose is unenforceable and was satisfied by a fix
+   agent that introduced a lint violation and pushed it; the stage passes the
+   narrowest gate the fix's file type implies (or its configured pre-push
+   check) so the claim has an exit code behind it.
+5. **Orchestrator sanity check — issue AND method.** The orchestrator inspects
+   each returned patch against **both** the issue (does it address it; does it
+   obviously break sibling code) and the **method the proposed fix
+   prescribed**. A diagnosis names *how*, not only *what*, and a patch that
+   reaches the right file by the forbidden route is not a fix — it is the next
+   round's bug. Every fix sub-agent therefore **leads** its return with
+   `Method: as-prescribed | deviated` (a deviation disclosed in a trailing
+   note is a deviation that gets missed). `Method: deviated` is **never
+   auto-accepted**: surface it to the user with the diagnosis's own words
+   alongside, before any push. When the diagnosis carried an explicit
+   prohibition ("do not hand-add…", "regenerate, don't patch"), a deviation
+   touching that prohibition is a **hard stop**, not a judgment call. A wrong
+   patch is discarded — never "improved" inline.
 6. **`COULD NOT FIX` stays visible.** A fix the sub-agent could not land is
    recorded with its reason and remains open in the stage's artifact/ledger; it
    never silently disappears, and it feeds the stage's escalation state

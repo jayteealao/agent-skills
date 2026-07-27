@@ -41,6 +41,16 @@ const SHARED = [
     fingerprint: 'is worse than no plan at all',
     citation: /\[_ship-plan-readiness\.md\]\(([^)]+)\)/,
   },
+  {
+    // YOLO-DRIVER-LIFECYCLE W1/W5 — who may write 00-index.md / INDEX.md while a
+    // driver is live, and the staleness rule that decides whether one still is.
+    // Both rules are read from several places (yolo, status, chat-return, the
+    // intake maintenance modes), which is exactly how the EOB drifted into 21
+    // divergent copies — so they get a single source and a guard from day one.
+    file: '_control-file-ownership.md',
+    fingerprint: 'presumed dead since',
+    citation: /\[_control-file-ownership\.md\]\(([^)]+)\)/,
+  },
 ];
 
 function* walk(dir, exts) {

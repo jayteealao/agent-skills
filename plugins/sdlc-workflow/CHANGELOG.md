@@ -7,6 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.141.0] - 2026-07-26
+
+Two transcript-audit plans built together: **HANDOFF-SHIP-STREAMLINE** (three projects, `/wf handoff` + `/wf ship`) and **YOLO-DRIVER-LIFECYCLE** (five projects, fifteen sessions of `/wf yolo`). They reached the same unusual conclusion from opposite ends: **the gates were right and the reporting was not.** Handoff's gates fired correctly and were fed correct inputs *late*; yolo's deferral contract, gate policy and mock-vs-real evidence all worked in the field while the layer around them — liveness, aggregation, bookkeeping — quietly lied. Nothing below loosens a gate.
+
+### Added — handoff runs the repo's own PR gates locally, before it pushes
+
+One handoff took **29 hours and four CI fix rounds to land a PR with zero product regressions**. At least four of its seven root causes were reproducible locally in seconds: `prettier --check` failing on five files the branch itself added, three emulator-backed suites that run in the unit lane, a detekt `ReturnCount` violation *introduced by a round-3 fix agent* and pushed unlinted, and an `actions/setup-java` pin (`21.0.9+10`) that does not exist in the Adoptium manifest. Handoff's only local gate before `git push` was commitlint; everything else was discovered through CI at roughly one round per CI cycle.
+
+- **New `pre-push-checks:` config key + step 5e / T3.8**, running before step 7's push and blocking it on an unresolved failure. Absent key → **auto-detect** from the repo's own PR-gate workflows, propose the derived list **once** with what detection skipped and why, and persist the answer. Detection is conservative: any step referencing `secrets.`, a service container, an emulator, or a foreign matrix `runs-on` is skipped and *named* — silent truncation reads as coverage it does not have.
+- Failures route into the **existing** diagnose→ask→fix-subagent path, so a local red and a CI red feel identical; only the cost differs. **Local rounds do not consume `ci-watch.max-fix-rounds`** — bounding the cheap loop with the expensive loop's budget just pushes work back into CI.
+- **Workflow-file static validation**: changed `.github/workflows/**` get a YAML parse plus an `actions/setup-*` manifest resolution check. The Java pin above was a ten-second lookup that cost a full CI round.
+
+### Changed — a fix sub-agent reports its METHOD first, and self-checks with a command
+
+A round-1 diagnosis said verbatim *"do not hand-add the 3 missing hashes — regenerate so nothing else is missed."* The fix subagent hand-added 13 lines, disclosed the deviation in a trailing "Note on method", and opened with **"Fix confirmed: yes."** The orchestrator accepted and pushed; round 2 hit the predicted next trio.
+
+- Every fix sub-agent return now **leads** with `Method: as-prescribed | deviated`. `Method: deviated` is never auto-accepted; when the diagnosis carried an explicit prohibition, a deviation touching it is a **hard stop**. `_fix-loop.md` rule 5 checks the patch against the issue **and** the prescribed method.
+- Rule 4's "self-check: no new lint/type errors" was unenforceable prose that a fix agent satisfied while introducing a lint violation. The orchestrator now passes a **real check command** (the configured pre-push check, else the narrowest gate the file type implies) and the subagent reports its exit status. Applies to handoff's CI-red and triage fixes, verify's Step 7.6 loop, and review's Step 4c dispatch.
+
+### Changed — the CI red is classed before it is counted
+
+`max-fix-rounds: 2` counted three incomparable situations as one event: self-inflicted product bugs; a `dependency-audit` going red three times on advisories **published to OSV between runs** with zero repo changes; and a Roborazzi golden loop where harvesting actuals from a *failing verify run* converges one matrix variant per round ("the token sheet alone could take ~14 more rounds"). The diagnosis subagent had been emitting an accurate `class:` all along and nothing downstream read it.
+
+- The CI-red branch now **routes by class**, and the diagnosis gains a required **`converges: yes | no | unknown`** field. `converges: no` is not a harder `flaky-or-infra` — the golden loop was **both**, and they needed opposite answers; a non-convergent red is never offered another patch round, only a structural decision. An externally-moving gate goes straight to severity floor / tolerance / pinning rather than chasing a database that changes underneath the fix.
+- **Budget by class:** `max-fix-rounds` bounds `product-bug` rounds only; other classes consume a *decision*. New `ci-fix-rounds-by-class:` shows where the time actually went, and a bound-exceed message names which classes remain and what the structural fix would be — an authorization ask that carries the decision, not "may I have another round".
+
+### Changed — the ship-plan drift gate can amend inline instead of restarting the run
+
+Handoff passed every prerequisite, then STOPped at gate 6.7 on four drift findings (three mechanical). The user chose "Amend the plan first" → nothing was written, `ship-plan edit` ran at 21:26, and the full handoff re-ran **a day later after a context compaction**, re-doing all orientation and prerequisite work. The gate was right both times; only the restart was waste — the amendment found two genuinely wrong facts, including a recorded bump command that *errors* on the repo's legacy non-semver tags.
+
+- New third option **"Amend now and continue"**: runs `ship-plan edit` as a sub-step **scoped to the findings' own block letters**, re-runs drift detection against the new `plan-version`, and continues the same run only on a **clean** re-check. STOP remains the honest fallback for a still-dirty re-check or an amendment needing judgment the repo cannot supply. New verdict `amended-inline`; `ship-plan/edit.md` gains a scoped-invocation contract.
+- **A STOP now preserves its orientation work.** New `resume-orientation:` block records the roster, prerequisite results and commit range, trusted by a resumed run **only** while `HEAD` and every slug's `updated-at` are unmoved — stale re-entry state silently trusted is worse than none.
+
+### Fixed — completed slices were invisible to handoff (the audit's one outright bug)
+
+`03-slice.md`'s per-slice `status:` was written at `defined` by `slice`/`probe`/`simplify` and **nothing ever moved it** except `close.md` setting `skipped`. Handoff's aggregate mode collects only `complete`/`in-progress`, so fully implemented, verified and reviewed work reported **"no implemented slices"** and was skipped. Both audited runs caught and repaired it by hand.
+
+- `implement.md` step 12 sets `in-progress`/`complete`; `verify.md` step 10 promotes to `complete` on `result: pass` (a deferral-only `partial` is **not** complete — it still owes runtime evidence). `yolo`'s slice-complete step is a writer too, so the fix lands at drive time.
+- Handoff **reconciles rather than blames**: a `defined` entry with an implement artifact and a passing verify is corrected in place *and warned about*, naming the stage that should have written it. Neither silently skipped nor silently fixed.
+
+### Fixed — consult's Windows failures were misdiagnosed for months; both were logins
+
+Both free CLIs failed environmentally on this host, so **every pre-mortem and plan-critique silently ran single-generator** while v9.135–139 was making consult auto-invoke everywhere. Two audits recorded the cause as "codex temp-dir refusal, claude workspace-trust". A live repro shows both were wrong, and the misreport was the actual defect:
+
+- `claude` writes `{"is_error":true,"result":"Not logged in · Please run /login"}` to **stdout** and nothing to stderr; the non-zero path read only stderr, so it reported the useless `"claude exited 1"`.
+- `codex` **leads** stderr with a non-fatal `WARNING: proceeding, even though we could not create PATH aliases: Refusing to create helper binaries under temporary dir …`. It says *proceeding*. Truncating stderr to 500 chars reported the temp dir as the cause while the real one — `turn.failed` → an expired/reused refresh token — sat unread in the stdout NDJSON.
+- Failures are now extracted from stdout first, classified (`auth` | `sandbox` | `not-found` | `unknown`), and carry a **remedy** for auth. Benign `WARNING: proceeding` lines can never be reported as a cause. A degraded panel must **announce itself** ("Panel of 1 — codex unavailable (auth): not logged in"), with `panel-size` and `failed:` in `CONSULT_RESULT` so a single-generator critique is auditable after the fact.
+
+### Added — the yolo driver's self-reports are now as trustworthy as its evidence rules
+
+Deferral discipline visibly worked in the field (173 autonomous decisions with zero intent-bearing escapes in one run; ship correctly BLOCKED on open deferrals; two textbook mock-vs-real catches). The layer around it did not.
+
+- **Liveness (W1).** A slug-mode driver died ~17 minutes in, the harness registry lost the task entirely, and the user returned two hours later to nothing — then the *next* session asserted it was "still running" from the journal's mere **existence** and let a stop/continue decision be made on that. Subagents now append start/end heartbeats (with a real clock the Workflow script lacks) to `.driver-journal.jsonl`, and every read site judges by **cadence**: a journal silent longer than the run's own longest inter-agent gap is **presumed dead**, never "still running". A presumed-dead driver's writes are treated as suspect.
+- **Work ordering (W2).** A driver launched for a slug-wide review spent its entire life re-verifying already-terminal slices — its own orientation had predicted the review was the substantive work — and died before starting it. The run's named target now runs **first**; re-challenge sweeps run after it, as bounded wall probes rather than full re-verifies.
+- **Aggregation truth (W3).** A run announced "deferral pressure: 4 open" when the truth was 2, and listed AC-NC1 as a runtime-evidence deferral **contradicting its own recorded decision** not to reclassify it — steering the user into a wasted `/wf probe`. Recorded decisions and the index ledger are now canonical over the driver's re-derivation, with disagreements reported as `reconciled`, never silently re-labeled. A `fail` survives into the outcome beside deferrals, never merged into them. `unclassified` is a **gap, not a class**: ~25% of decisions leaked into it in every measured run, quietly absorbed by the reassuring "intent-bearing: 0", which now carries an explicit `suspect` qualifier. And "0 errors" may no longer coexist with subagents that hit recovered schema rejections — `subagentErrors` counts both recovered and fatal.
+- **Clearing-event tripwire (W4).** One deferral's clearing event ("device available for AC6") came true *in the same session*, on screen, and nothing noticed; the AC shipped uncleared. Deferrals may now carry a side-effect-free `clearing-probe:`, executed at cheap moments by `/wf status`, yolo orientation and probe orientation. A tripwire, not a gate — probe still owns the evidence.
+- **Control-file ownership (W5), one resume path (W6), router verbs (W7), host truth (W8), CI evidence rung (W9).** While a driver is live its `00-index.md` and `INDEX.md` are driver-owned (re-read before write; a rejection means "the driver moved"). The Workflow-tool relaunch is the sanctioned resume path. New intake maintenance modes `amend` (whitelisted config) and `modernize` (schema backfill) replace router defiance and improvised escape hatches. Cross-session activity claims require repo evidence — a task chip is a statement about a *chip*, not about work occurring. And an AC whose deliverable is CI configuration **cannot clear on `static` rung evidence**: slice-authored workflow YAML earned `ship` verdicts on static evidence, then first CI contact surfaced a pnpm double-version ×5, a secretless-CI false-red, six commitlint failures and a real SSR-XSS.
+
+### Added — a release is not done until `origin/master` carries it
+
+v9.137.0 → v9.140.0 sat unpushed for **ten days**. The marketplace pins a commit SHA from the remote, so the whole v9.138.0 handoff/ship hardening release never executed once in a real project — and the audit running during that window re-discovered, as live field defects, two things already fixed on disk. A stale marketplace pin is silent by construction.
+
+- New `npm run verify:release` (`scripts/verify-release-pushed.mjs`) fails when a `release(sdlc-workflow):` commit has been sitting ahead of `origin/master` past an age bound (default 12h — long enough to commit and push in one sitting, loud after that), measuring from the **oldest** undelivered release so a newer one cannot mask it. A missing remote-tracking ref is reported, never a hard failure. New `docs/internal/RELEASE-DISCIPLINE.md` records the sequence.
+
+### Also
+
+- Two long-standing `ship.md` template faults, each of which had cost a blocked write: the frontmatter template literally offered `release-workflow-conclusion: <… | empty>` — the word — while the schema wants `""`; and the batch `runs:` example capped `notes` at 80 characters where the schema enforces 160. Step Z now **inlines** the `ship-run` sibling `.yaml` required fields with a minimal valid skeleton, instead of citing a schema path that only resolves inside the plugin install.
+- Ship's answerable questions (scope, version, rollout, window, compliance) are batched at Step 0.9, before the atomic run opens — one asked mid-sequence held a run open for **17 hours**. Genuinely mid-run decisions (Go/No-Go, merge fallback, recovery steps) deliberately stay put.
+- A `workflow_dispatch` recovery workflow cannot be dispatched from the branch that creates it (`HTTP 404: workflow not found on the default branch`); `ship-plan build` discloses this and handoff checks `git show origin/<base>:<path>` before proposing a dispatch. A review bot that **declined** (size/quota limit) is a readiness caveat, not a settled review. `_ship-plan-readiness.md` gains a shell-portability table and a rule against pipelines that mask exit codes.
+- New drift-guard suite `tests/unit/skills/handoff-ship-streamline.test.mjs` (26 tests) plus yolo guards. Suite: **736 tests / 734 pass / 0 fail / 2 skipped**, up from 687.
+
 ## [9.140.0] - 2026-07-24
 
 ### Changed — wall-ownership: a deferral must first answer "is this wall even the environment's?"

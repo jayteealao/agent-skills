@@ -69,7 +69,21 @@ JSON object `{ results, skipped, bare }`. Exit `0` ok · `2` usage.
 
 Present a panel: per provider, its **evidence-scope** badge (`repo-aware` vs
 `prompt-only`), one-line verdict, and key points; name every skipped/errored
-provider. Add a consensus/divergence line, **weighting `repo-aware` opinions more
+provider.
+
+**A degraded panel must announce itself.** When fewer providers returned than were
+requested, **lead** with the degradation — do not bury it in a trailing note:
+*"**Panel of 1** — `codex` unavailable (auth): not logged in. Treat this as one
+opinion, not a consensus."* The whole value of a panel is independent judgment; a
+silently single-generator "panel" reads with the confidence of agreement it never
+earned. Every plan critique and pre-mortem on one host ran single-generator for
+weeks because the degradation surfaced, at best, as a residual note.
+
+Each failed result carries `errorKind` (`auth` | `sandbox` | `not-found` |
+`unknown`) and, for `auth`, a `remedy` — **print the remedy**. An `auth` failure is
+fixed by one command and will otherwise recur on every future consult on that host.
+Do not describe an `auth` failure as an environmental wall to plan around: it is a
+login, and the dispatcher now says which one. Add a consensus/divergence line, **weighting `repo-aware` opinions more
 heavily** — a `prompt-only` oracle's "disagreement" may be missing context, not
 real dissent. When consulting ON a workflow artifact `<stem>.md`, write the panel
 as a free fragment `<stem>.NN-consult.html.fragment` next to it (raw-inline,
@@ -81,10 +95,17 @@ as a free fragment `<stem>.NN-consult.html.fragment` next to it (raw-inline,
 CONSULT_RESULT:
   providers: <providers that returned an opinion>
   skipped: <provider (reason), … | none>
+  failed: <provider (kind: reason), … | none>   # ok:false — kind ∈ auth|sandbox|not-found|unknown
+  panel-size: <N of M requested>                # N < M ⇒ degraded; say so in the narrative too
+  remedies: <provider: command, … | none>       # actionable fixes for auth failures
   verdict: <one-line synthesis — consensus or the material divergence>
   fragment: <path | none>
   cost: <per-token note>
 ```
+
+`panel-size` is what makes a degraded run auditable after the fact: a reader
+scanning recorded consults can see which critiques were actually panels and which
+were one model with a panel's framing.
 
 **Cost.** A bare fan-out hits every provider; the subscription CLIs (`codex`,
 `claude`) are free per call, the REST oracles (`gemini`, `openai`, gateway) bill

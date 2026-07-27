@@ -491,15 +491,25 @@ For each finding triaged `Fix`, sequentially (one at a time):
    new problems. Do NOT change anything beyond what is needed for this
    specific finding. Do NOT refactor. Do NOT broaden scope.
 
+   The suggested fix names a METHOD, not only an outcome. Follow it. You
+   may deviate if it is wrong or impossible — but disclose that FIRST,
+   not in a closing note.
+
    After fixing, verify your change is correct:
    - The fix addresses the specific issue described
-   - No new lint/type/test failures are introduced in the affected files
+   - Run the narrowest real check for the files you touched (the repo's
+     formatter/linter for that language, or the covering test) and report
+     its exit status — do not assert "no new failures" without running one
    - The surrounding code still makes sense
 
-   Return a brief summary of what you changed and whether the fix is confirmed correct.
+   Return, in this order:
+     Method: as-prescribed | deviated
+     (if deviated) what was suggested / what you did instead / why
+     Self-check: <command> → exit <N>
+     A brief summary of what you changed and whether the fix is confirmed.
    ```
 2. Wait for the sub-agent to complete.
-3. Read the changed file(s) and sanity-check the patch addresses the finding without breaking sibling code.
+3. Read the changed file(s) and sanity-check the patch against **both** the finding and the suggested fix's method ([_fix-loop.md](../_fix-loop.md) rule 5) — `Method: deviated` is never accepted on the subagent's own word; re-read it against what was suggested, and discard a deviation that crosses an explicit prohibition.
 4. **Record the outcome ON the finding** — set `status` and `fixed-at = now` in `## All Findings`, `## Findings (Detailed)`, `## Fix Status`, and the sibling `.yaml`:
    - fixed → `status: fixed` (drops out of OPEN counts and verdict).
    - could not fix → `status: could-not-fix` (stays OPEN; still counts against verdict) + note reason.

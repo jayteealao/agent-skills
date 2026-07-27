@@ -51,7 +51,7 @@ You are a **workflow orchestrator**, not a problem solver.
    Run: $wf ship-plan init [--from-template <kind>]
    ```
 3. **Resolve environment** (optional second positional, e.g. `staging`, `production`). Overrides the plan's default; otherwise use the first entry in `ship-plan.ship-environments[]`.
-4. **Read `.ai/ship-plan.md` and run the ship-plan readiness pre-check.** Load [_ship-plan-readiness.md](_ship-plan-readiness.md) and follow it verbatim (caller = `ship`, commit range = the release HEAD). It resolves the **missing-plan** gate and the **plan-drift** gate before the run proceeds — a missing plan, unacknowledged drift, or a cancel all STOP here, before the 13-step sequence. Only `ok` or `acknowledged` continue. Stamp the returned `ship-plan-readiness` into the run artifact (Step 13). On `ok`/`acknowledged`, parse all blocks (A–G) into in-memory state and continue.
+4. **Read `.ai/ship-plan.md` and run the ship-plan readiness pre-check.** Load [_ship-plan-readiness.md](_ship-plan-readiness.md) and follow it verbatim (caller = `ship`, commit range = the release HEAD). It resolves the **missing-plan** gate and the **plan-drift** gate before the run proceeds — a missing plan, unacknowledged drift, or a cancel all STOP here, before the 13-step sequence. Only `ok`, `acknowledged`, or `amended-inline` continue. Stamp the returned `ship-plan-readiness` into the run artifact (Step 13). On a continuing verdict, parse all blocks (A–G) into in-memory state and continue — on `amended-inline`, parse the **post-amendment** plan (its `plan-version` was bumped by the scoped edit).
 5. **Read `00-index.md`** for **each roster slug** — parse `current-stage`, `status`, `branch-strategy`, `branch`, `base-branch`, `pr-url`, `pr-number`, `augmentations:`, and `handoff-lead:`. In batch mode the PR/branch fields must agree across the roster (they share one branch/PR); if they disagree, STOP and report the inconsistency.
 6. **Readiness gate — all-or-nothing across the roster.** Ship is atomic per PR: you cannot merge some slugs on a branch and not others. So **every** roster slug must be shippable, or none ship.
    - **Single-slug**: read `08-handoff.md`, parse `readiness-verdict`. If missing or `≠ ready`, STOP: "Handoff readiness-verdict is `<verdict>`. Ship requires `ready`. Run: `$wf handoff <slug>`."
@@ -93,6 +93,22 @@ You are a **workflow orchestrator**, not a problem solver.
    2. Start fresh — Generate a new run-id; the prior run stays paused.
    3. Mark prior as failed and start fresh — Set the prior run status: failed."
    If **resume**: load that run's frontmatter and skip to the first step with an empty evidence field.
+
+9. **Batch the load-bearing questions — ask them HERE, before the sequence starts.** A ship run is atomic: once step 1 begins, the run holds open until it finishes or is explicitly paused. A question asked mid-sequence therefore stops a *release* while it waits, not just a step. One run asked its scope question at 22:57 and got its answer at 15:47 the next day — **17 hours with an atomic run held open** — for something knowable before the first step.
+
+   Everything below is derivable now, from the plan and the diff. Ask them together, in one round:
+
+   | Question | Where the default comes from | Which step consumes it |
+   |---|---|---|
+   | **Scope** — which slugs/PR ship in this run | the resolved roster (step 0.1) | the whole run |
+   | **Version** — the computed bump, confirmed | `plan.version-bump-rule` + the commit log | Step 1.2 |
+   | **Rollout strategy** | `plan.rollout-strategy` | Step 3.1 |
+   | **Release window** — timing, blackout, on-call | freeform | Step 3.2 |
+   | **Stakeholder/compliance overrides** | `plan`'s sign-off list | Step 3.3 |
+
+   Present the derived default for each and ask only for confirmation or override — a batched round of five confirmations is one interruption, not five. Record every answer in `po-answers.md` (`stage: ship`, with the `run-id`) and stamp them into the run's frontmatter as `prefetched-answers:`. Steps 1.2 and 3.1–3.3 then **consume** those answers instead of re-asking; their idempotency guards already skip a field that is set.
+
+   **What deliberately stays where it is.** A question whose answer genuinely depends on a mid-run outcome cannot be pre-fetched and must not be: the **Go/No-Go** after pre-flight and CI, a **merge-path fallback** after a failed merge, and any **recovery-playbook step** offered on a step-8 failure. Those are decisions about something that has happened; asking them early would be asking the user to guess. This step is only about the ones that were answerable at minute zero.
    If **start fresh**: leave the prior run untouched (or set `failed`); generate a new `run-id`.
 9. **Generate `run-id`** (UTC compact ISO-8601 `<yyyymmdd>T<hhmm>Z`, real time per [_timestamp.md](_timestamp.md)). Use as the filename suffix and the `run-id` field. In batch mode there is ONE run-id for the whole branch.
 10. **Carry forward** `open-questions` from the index (union across roster slugs in batch mode).
@@ -189,7 +205,9 @@ If the plan has no `publish-dry-run-cmd`, set `publish-dry-run-passed: skipped` 
 
 Idempotency: skip if `go-nogo`, `rollout-strategy`, and `merge-strategy` are already set.
 
-3.1 **Confirm rollout-strategy.** Default is `plan.rollout-strategy`. Ask the user directly in chat presenting the plan default plus "Override" as a short numbered list.
+**3.1–3.3 consume Step 0.9's batched answers.** These three were asked before the sequence started, when the run was not yet holding anything open. Read them from `prefetched-answers:` and proceed. Ask here **only** when Step 0.9 did not run (a run resumed from before it existed) or when a pre-flight outcome materially invalidated an answer — say which outcome, and re-ask just that one.
+
+3.1 **Rollout-strategy.** Default is `plan.rollout-strategy`. Fallback: ask the user directly in chat presenting the plan default plus "Override" as a short numbered list.
 
 3.2 **Confirm release window** (freeform): timing, blackout windows, on-call coverage.
 
@@ -365,7 +383,15 @@ version: "<chosen version>"
 prior-version: "<last release tag, or 'none'>"
 go-nogo: <go | conditional-go | no-go | pending>   # pending = paused before the step-5 gate (status: awaiting-input)
 merge-strategy: <rebase | squash | merge | none>
-ship-plan-readiness: <ok | acknowledged>   # ship-plan pre-check verdict (Step 0.4); missing/drift STOP before a run is written
+ship-plan-readiness: <ok | acknowledged | amended-inline>   # ship-plan pre-check verdict (Step 0.4); missing/drift STOP before a run is written
+ship-plan-amended-blocks: [<letter>, ...]   # amended-inline only — blocks the scoped inline edit touched
+ship-plan-version-before-after: "<N>→<M>"   # amended-inline only
+prefetched-answers:                 # Step 0.9 — asked BEFORE the atomic sequence opened; consumed by 1.2 / 3.1–3.3
+  scope: "<slug|branch — the roster this run ships>"
+  version: "<confirmed version>"
+  rollout-strategy: "<confirmed strategy>"
+  release-window: "<timing / blackout / on-call>"
+  compliance-overrides: "<sign-off beyond the plan's list, or none>"
 
 # Per-run evidence (set as steps complete; absent fields = not yet run)
 head-sha-at-start: "<sha>"
@@ -374,7 +400,7 @@ publish-dry-run-passed: <true | false | skipped>
 merge-sha: "<sha or empty>"
 release-tag: "<vX.Y.Z or empty>"
 release-workflow-run-id: "<gh run id or empty>"
-release-workflow-conclusion: <success | failure | cancelled | empty>
+release-workflow-conclusion: <success | failure | cancelled | "">   # not-reached is the EMPTY STRING "" — never the literal word `empty`
 post-publish-checks:
   - { kind: <kind>, status: <pass|fail|skip|pending>, observed-at: "<iso>", evidence: "<short>" }   # skip = did not run / not applicable — never recorded as pass
 post-release-bump-sha: "<sha or empty>"
@@ -478,7 +504,7 @@ type: ship-runs-index
 slug: <slug>
 updated-at: "<iso>"
 runs:
-  - { run-id: <id>, version: <ver>, environment: <env>, status: <status>, go-nogo: <decision>, notes: "<≤80 chars>" }
+  - { run-id: <id>, version: <ver>, environment: <env>, status: <status>, go-nogo: <decision>, notes: "<short — max 160 chars; the schema enforces the cap>" }
   # follower slug in a batch ship — a pointer row, no local run artifact:
   - { run-id: <id>, version: <ver>, environment: <env>, status: <status>, go-nogo: <decision>, shipped-via: "<lead>/09-ship-run-<id>.md", notes: "shipped with <lead>" }
 ---
@@ -529,7 +555,7 @@ Write ALL viable options into `## Recommended Next Stage` so the user can choose
 
 # When the plan is missing or drifted
 
-Ship is plan-driven; the plan captures org knowledge (signing key format, registry token sources, recovery playbooks) that cannot be inferred from the workflow alone. The missing-plan and plan-drift gates both live in [_ship-plan-readiness.md](_ship-plan-readiness.md) — ship detects and routes, it never edits the plan (that is `$wf ship-plan init` / `$wf ship-plan edit`). A missing plan STOPs; detected drift STOPs unless the user records an explicit per-run acknowledgement. If the user hits the missing-plan gate, suggest the `--from-template` shortcut:
+Ship is plan-driven; the plan captures org knowledge (signing key format, registry token sources, recovery playbooks) that cannot be inferred from the workflow alone. The missing-plan and plan-drift gates both live in [_ship-plan-readiness.md](_ship-plan-readiness.md) — ship detects and routes, it never authors the plan by hand (that is `$wf ship-plan init` / `$wf ship-plan edit`). A missing plan STOPs. Detected drift STOPs unless the user either records an explicit per-run acknowledgement **or** chooses *Amend now and continue* — which runs `ship-plan edit` scoped to the drifted blocks as a sub-step, re-checks, and continues only when the re-check is clean. If the user hits the missing-plan gate, suggest the `--from-template` shortcut:
 
 ```
 $wf ship-plan init --from-template kotlin-maven-central
@@ -559,10 +585,49 @@ For the `09-ship-run-<run-id>.md` you just wrote (files are **flat** in the slug
 `09-ship-run-<run-id>.{yaml,html.fragment}`, where `<run-id>` is the run timestamp,
 not a `ship/<run-id>/` subtree):
 
-1. Write the sibling **`09-ship-run-<run-id>.yaml`** — the structured data: `release:`,
-   `run_at:`, `stages:` (name, status, started_at, ended_at), `checks:` (name, kind,
-   results per env → {status, duration}), `rollback:` (window_minutes, target_release,
-   approvers). Schema: `siblingYamlSchemas['ship-run']` in `tests/frontmatter.schema.json`.
+1. Write the sibling **`09-ship-run-<run-id>.yaml`** — the structured data. The schema is
+   validated at write time (`post-write-verify` blocks the write on a violation), so the
+   required shape is stated here in full rather than cited: guessing it costs a blocked
+   write, and the canonical file (`siblingYamlSchemas['ship-run']` in
+   `tests/frontmatter.schema.json`) lives **inside the plugin install**, not in your project
+   repo — an author who goes looking for it mid-run will not find it where they look first.
+
+   **Required top-level keys:** `release`, `run_at`, `stages`, `checks`, `rollback`.
+
+   | Key | Shape | Notes |
+   |---|---|---|
+   | `artifact` | `ship-run` | optional, but write it |
+   | `release` | string | the release identity, e.g. `v3.2.0` |
+   | `run_at` | ISO-8601 | a real timestamp, per [_timestamp.md](_timestamp.md) — never a guessed or `T00:00:00Z` value |
+   | `stages[]` | requires `name`, `status`; optional `started_at`, `ended_at` | the deploy timeline |
+   | `checks[]` | **at least one entry**; each requires `name`, `kind`, `results` | the check matrix |
+   | `checks[].results` | map of env-name → `{ status, duration_s? }` | `status` ∈ `pass \| fail \| flake \| skip \| running \| pending`; `duration_s` is a number or `null` |
+   | `checks[].logs` | map of env-name → string | optional; feeds the click-to-reveal log panel |
+   | `rollback` | requires `window_minutes` (integer ≥ 0), `target_release`; optional `approvers[]` | the rollback panel |
+
+   Minimal valid skeleton — a run with one stage and one check validates:
+
+   ```yaml
+   artifact: ship-run
+   release: "v3.2.0"
+   run_at: "2026-07-26T14:03:11Z"
+   stages:
+     - { name: build, status: pass, started_at: "2026-07-26T14:03:11Z", ended_at: "2026-07-26T14:07:02Z" }
+   checks:
+     - name: unit
+       kind: test
+       results:
+         ci: { status: pass, duration_s: 84 }
+   rollback:
+     window_minutes: 60
+     target_release: "v3.1.0"
+     approvers: []
+   ```
+
+   Two field-shape traps that have each cost a blocked write: `release-workflow-conclusion`
+   in the `.md` frontmatter takes an **empty string `""`**, not the word `empty`; and `notes`
+   is capped at **160 characters** (the cap is also stated where `notes` is defined — respect
+   it there, not by trial and error here).
 2. Write the sibling **`09-ship-run-<run-id>.html.fragment`** — the body-only interactive
    layer described next.
 

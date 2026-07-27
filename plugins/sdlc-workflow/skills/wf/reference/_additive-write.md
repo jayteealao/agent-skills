@@ -79,3 +79,16 @@ of current state). The revisable stage artifacts do not normally carry this flag
 The two are complementary: the ledger says *why each revision happened* in one
 line; the snapshots hold *the exact prior wording* for anyone who needs to diff.
 Neither lives in the body.
+
+## Control files are a different question
+
+This contract governs how a **revisable artifact** is rewritten. It says nothing
+about *who may write* the shared **control files** (`00-index.md`, the global
+`INDEX.md`) or what to do when two writers collide there — a background driver and
+a foreground session mutating the same index produced repeated
+"File has been modified since read" clusters, and once a *dead* driver's last write
+ambushed a session two hours later. That rule lives in
+[_control-file-ownership.md](_control-file-ownership.md): re-read immediately
+before every edit, treat a rejection as "the other writer moved" (re-read,
+re-derive, retry once), and treat a presumed-dead driver's writes as suspect until
+reconciled. Apply both — this file for the artifact body, that one for the index.

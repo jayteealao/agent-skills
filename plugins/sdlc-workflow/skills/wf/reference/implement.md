@@ -242,7 +242,11 @@ Do this in order:
 9. **Write/update `05-implement.md`** (master index, see template below).
 10. **Update cross-links** in `03-slice-<slice-slug>.md` and `04-plan-<slice-slug>.md` to point to the new implementation file.
 11. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
-12. Update `00-index.md` and add files to `workflow-files`.
+12. Update `00-index.md` and add files to `workflow-files`. **Then write the slice's status back to the roster** — `03-slice.md`'s `slices:` entry for `<slice-slug>` gets `status: in-progress` (or `status: complete` when this implement record itself is `status: complete` and the slice needs no further build pass). Set only this slice's entry; do not touch siblings and do not renumber (same discipline as `close.md` Step S3, which is the only other writer of this field).
+
+    **Why this step exists.** `03-slice.md` is written at `defined` by `slice`/`probe`/`simplify` and, before this rule, nothing but a skip ever moved it. Handoff's aggregate mode collects only `complete`/`in-progress` entries, so a fully built, verified and reviewed slug reported **"no implemented slices"** and was skipped — real work made invisible by one un-updated bookkeeping field. The roster is the index handoff trusts; the stage that changes the truth is the stage that records it.
+
+    **Change-modes** (`fix` / `hotfix` / `refactor` and any single-scope workflow) write an un-suffixed one-slice `03-slice.md` — the same rule applies to its single entry. A workflow with no `03-slice.md` at all (a forwarded `rca`) has no roster to update; skip silently.
 13. Mark "Atomic commit" task `in_progress`. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):**
     - Stage ALL changed files (code changes + workflow artifacts) with `git add`.
     - Commit: `feat(<slug>): implement <slice-slug>` — include a brief summary of what the slice does.

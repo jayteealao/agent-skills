@@ -382,7 +382,9 @@ Do this in order:
 7.6. **Single-round verify-owned fix loop** (see "Verify-owned fix loop" section below). Snapshot the issue list as `metric-issues-found-initial`. Triage each failing check and each unmet user-observable AC in chat, presenting options as a short numbered list. For every `Fix` decision, spawn a sub-agent that applies the minimal patch. Re-run only the affected checks once. Record `fix-rounds-run`, `convergence`, and the resulting `metric-issues-found-final`. ONE round only — if anything still fails, finalize with `convergence: escalated` and route the user to re-invoke verify (or to `$wf implement` as a manual escape).
 8. **Write `06-verify-<slice-slug>.md`** (per-slice file, see template below).
 9. **Write/update `06-verify.md`** (master index with links to all per-slice verify files).
-10. Update `00-index.md` accordingly and add files to `workflow-files`.
+10. Update `00-index.md` accordingly and add files to `workflow-files`. **Then promote the slice's roster status** — in `03-slice.md`'s `slices:` entry for this slice, `result: pass` sets `status: complete`; any other result (`fail`, `partial`, `blocked-runtime-evidence-missing`) leaves it at `status: in-progress`. A deferral-only `partial` is **not** complete — the AC still owes runtime evidence, and `/wf ship` blocks on it. Set only this slice's entry; do not touch siblings, do not renumber, and never move an entry that `close.md` set to `skipped`.
+
+    This is the second half of the write-back `implement.md` step 12 starts. Handoff's aggregate mode collects only `complete`/`in-progress` roster entries, so a slice left at `defined` is invisible to packaging no matter how much of it was actually built and verified.
 
 # Adaptive routing — evaluate what's actually next
 
@@ -445,6 +447,19 @@ For each `user-observable` AC, look in the sub-agent 3 results for a matching `i
 - **Not matched** → AC has no runtime evidence. The gate refuses `result: pass` for the slice.
 
 **User-observable mock is not met (the generalized integration-blindspot guard).** Regardless of a sub-agent's local pass, a user-observable AC whose `evidence-rung` is `cited-mock`, `uncited-mock`, or `static` is **not met** — the evidence proves code shape, not user-visible behavior. Climb the ladder (`runtime-adapters.md`) to a real rung (`live`/`headless`/`emulator-or-container`) or take the deferral path. A skipped gating spec (see `skipped-gating-specs`) that no other rung evidenced routes the same way.
+
+**CI/pipeline configuration cannot clear on `static` evidence.** An AC whose deliverable is *the pipeline itself* — a `.github/workflows/*.yml`, a CI job definition, a release or deploy workflow, a commit-hygiene or lint gate, a container build spec — is a program whose runtime is the CI runner. Reading it and finding it plausible is exactly the `static` rung, and `static` does not evidence a program's behavior here any more than it does anywhere else. The failure this closes: a slice authored its own workflow YAML, a `/health` end-to-end job, and commit-hygiene gates, earned a `ship` verdict on read-it-and-reason evidence, and **first contact with a real CI run** surfaced a doubled pnpm version across five files, a secretless-CI false-red, six commitlint failures, and a real SSR-XSS.
+
+So such an AC records `evidence-rung` no lower than the **free static battery**, and that battery is **not optional**:
+
+- run the repo's own formatter/linter over the changed config (`actionlint`, `yamllint`, `prettier --check`, whatever the repo already ships);
+- **check every version literal against the repo's own declarations** — the package manager version in the workflow vs `packageManager`/lockfile, the language runtime vs `.nvmrc`/`.tool-versions`/`go.mod`, the action refs vs what the repo pins elsewhere. Version drift between a workflow and its repo is the single most common shape of this defect;
+- **lint the graph** — job `needs` references resolve, no cycles, referenced jobs and reusable workflows exist, matrix keys are consumed;
+- name which steps depend on secrets and state explicitly what a secretless run does (a job that silently red-lights without a secret is a false failure the team learns to ignore).
+
+This is the same battery `$wf ship-plan build` already runs against pipeline outputs; a slice that authors CI does not get to skip it merely because it arrived through the slice door.
+
+A **real-executor** probe — `act`, a draft-PR smoke run, a scratch branch push — stays **recommended, not required**: its cost/benefit is the project's call. But when one is run, it is the rung that actually clears the AC, and the deferral path applies unchanged when it cannot be: probe the incapability, name the rung, record the receipt.
 
 ## Result writeback
 
@@ -513,6 +528,10 @@ provision the capability (which nearly always means the wall was `code-owned` or
 acceptance that this AC waits on an uncontrolled event. A `code-owned` wall can never have a passive
 clearing event: its clearing event is a change you are able to write.
 
+**One writer per fact — a deferral is recorded ONCE.** The deferral lives in exactly one place per surface: the frontmatter annotation on the slice, the `runtime-evidence-deferrals` entry in `00-index.md`, and — when a driver is orchestrating — the structured `deferrals[]` return, each carrying the probe receipt. Do **not** additionally park a bare copy in the sibling "residual / could-not-fix" list; that list carries only what is **not** a deferral. Two copies of one deferral, receipted in one place and bare in the other, read to any consumer as two different ACs — one of them apparently un-probed. That exact asymmetry false-stopped a fully compliant slice and cost two whole autonomous runs before the consumer was taught to normalize it. Normalizing at the consumer is a patch; emitting once is the fix.
+
+**A fail is not a deferral, in either direction.** A deferral says *evidence could not be produced*; a `fail` says *the behavior is wrong*. An AC you actually drove and found broken is `result: fail` and is recorded as a failure — never in `deferrals[]`, never in the index ledger. The reverse is equally binding on consumers: a run report may not re-label a recorded fail as a deferral, because that tells the user to go collect evidence for a defect. One verify recorded two ACs as fails with zero deferrals and the driver's summary listed both as deferrals.
+
 **Decision (recorded in plan §2.4):** No silent skip. Every deferral is named, dated, and surfaces in the slug's progress view and dashboard. The block bites at ship, not earlier, so work legitimately waiting on an environment is not stalled mid-pipeline.
 
 ## 00-index.md additions for deferrals
@@ -526,11 +545,16 @@ runtime-evidence-deferrals:
     deferred-at: "<iso-8601>"
     wall-ownership: code-owned | environment-negotiable | external   # ladder triage verdict
     clearing-event: "<the provisionable act that clears this — never a passive wait>"
+    clearing-probe: "<ONE side-effect-free command answering 'has that act happened yet?'>"
     cleared-by: null    # set to <probe-descriptor> when a probe run clears the deferral
     repeat-of: <slice-slug>   # ONLY when this deferral's constraint matches an earlier entry — see below
     absorbed-by: [<slice-slug>, ...]   # slices that inherit this open deferral instead of clearing it
     needed-by: <slice-slug>   # the slice that consumes this prerequisite; set at plan time
 ```
+
+**`clearing-probe` — how anyone finds out the event happened (STRONGLY EXPECTED).** A clearing event that names a provisionable act is only half the job; something has to *notice* when the act occurs. So a deferral whose clearing event is provisionable should also carry a **one-line, side-effect-free command that answers "has it happened yet?"** — `adb devices | grep -q emulator`, `curl -sf localhost:8080/health`, `test -f .env.e2e`, `gh run list --workflow release -L1 --json conclusion`. The ownership triage already forced the author to know what would clear the wall, so writing the check costs one line.
+
+`$wf status <slug>`, the autonomous driver's orientation, and `$wf probe` orientation **execute** these at their cheap moments (one command each, short timeout) and flag hits — *"deferral AC6's clearing event appears satisfied — run `$wf probe <slug>` now."* It is a **tripwire, not a gate**: nothing is cleared automatically, and the probe stage still owns evidence. This exists because one AC's clearing event ("device available for the AC6 run") was satisfied **in the same session** — emulator booted, branch app installed, on screen — and nothing noticed; the retro recorded "AC6 shipped uncleared." Omit the field only when no single command can answer the question (a human judgement, a third-party release); an omitted probe is a silent "nobody is watching this one".
 
 **Repeat-deferral marker.** Before appending, scan `runtime-evidence-deferrals` for an entry naming the *same environment dependency* (fuzzy match — same credential gate, device class, missing service). On a match, append `repeat-of: <slice-slug of the first occurrence>`: the accumulation becomes visible in the artifact, `$wf status`, and the dashboard instead of hidden across per-slice records. A wall hit a second time is plan's tripwire — the next plan for this slug MUST either scope the harness that retires it or record `harness-declined: <reason>` (see plan.md's repeat-deferral tripwire).
 
@@ -592,10 +616,17 @@ For each issue triaged `Fix`, sequentially (one at a time):
    Never weaken, delete, or skip an existing test to make a check
    pass — that is the one forbidden test edit.
 
-   Return a brief summary of what you changed, including the regression
-   test path (or the one-line exemption reason).
+   The suggested fix names a METHOD, not only an outcome. Follow it. If
+   you conclude it is wrong or impossible you may deviate — but say so
+   in the FIRST line of your return, not in a closing note.
+
+   Return, in this order:
+     Method: as-prescribed | deviated
+     (if deviated) what was suggested / what you did instead / why
+     A brief summary of what you changed, including the regression test
+     path (or the one-line exemption reason).
    ```
-2. When the sub-agent returns: read the changed file(s); sanity-check the patch addresses the issue without obviously breaking sibling code. If correct, accept. If wrong, discard and record `COULD NOT FIX`.
+2. When the sub-agent returns: read the changed file(s); sanity-check the patch against **both** the issue and the suggested fix's method ([_fix-loop.md](_fix-loop.md) rule 5). A `Method: deviated` return is never accepted on the subagent's own say-so — re-read the patch against what was suggested and decide deliberately; when the suggestion carried an explicit prohibition, a deviation touching it is discarded, not accepted. If correct, accept. If wrong, discard and record `COULD NOT FIX`.
 
 ## Re-check (single round)
 

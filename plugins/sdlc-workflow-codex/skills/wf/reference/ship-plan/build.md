@@ -641,6 +641,8 @@ Substitute template variables in `check.cmd`:
 
 Skip if `plan.rollback-mechanism` ∈ {`feature-flag-off`, `git-revert`}.
 
+> **A `workflow_dispatch` workflow cannot be dispatched from the branch that creates it.** GitHub only exposes `workflow_dispatch` for workflows registered on the **default branch**. A recovery workflow added by a PR returns `HTTP 404: workflow not found on the default branch` until that PR merges — so the escape hatch is unavailable to the very PR that builds it. This is not a bug to work around; it is a property to disclose. Whenever this step (or any step here) generates a `workflow_dispatch` workflow, **state in the plan and in the PR body that it becomes usable only after the first merge**, and name the pre-merge fallback for the failure it recovers from (a local command, a temporary record-mode commit, an admin-run job). One branch added a purpose-built golden-recovery workflow specifically to recover from golden drift, then could not dispatch it, and resolved the drift with a throwaway commit instead.
+
 If `.github/workflows/rollback.yml` does not exist, create it:
 
 ```yaml

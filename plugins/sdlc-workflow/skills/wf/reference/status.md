@@ -227,6 +227,16 @@ If any workflow has `branch-strategy: dedicated`, add a branch summary:
 - Strategy: <branch-strategy> | Branch: <branch> (base <base-branch>) | PR: <pr-url or "not created">
 - Current branch: <git branch --show-current> <warning if mismatched>
 
+## Driver
+- <omit the whole section when no .driver-journal.jsonl exists>
+- Driver: running — last seen at <stage>/<slice>, <n> min ago (cadence: <longest gap> min)
+        | **presumed dead** at <stage>/<slice> since <timestamp> — its partial writes are suspect
+        | completed at <timestamp>
+
+## Open Deferrals (when any are open)
+- <slice>/<ac> — <reason> · clearing event: <clearing-event>
+- ⚠ **clearing event appears SATISFIED** for <slice>/<ac> — run `/wf probe <slug>` to capture the evidence
+
 ## Next
 - **Default:** `<recommended-next-invocation>` — <one-line reason>
 - **Options:** (every option from the current stage file's `## Recommended Next Stage` — present ALL, do not pick silently)
@@ -240,6 +250,23 @@ If any workflow has `branch-strategy: dedicated`, add a branch summary:
    `07-review-<slice>-<command>.md` sub-reviews), `08-handoff.md`. Mark: `✓` complete · `→`
    in-progress/awaiting-input · `✗` failed · `·` pending.
 7. For **branch info**, `git branch --show-current` vs the workflow's `branch` field; warn if mismatched.
+
+8. **Driver liveness** — read the tail of `.ai/workflows/<slug>/.driver-journal.jsonl` if it exists
+   (append-only JSONL heartbeats written by every `/wf yolo` subagent) and apply the staleness rule
+   single-sourced in [_control-file-ownership.md](_control-file-ownership.md), rendering the
+   `## Driver` row from its three states. **Never report a driver as running because the journal
+   exists**; a session once told a user a dead driver was "currently re-verifying older slices" on
+   exactly that reasoning. No journal → omit the section entirely (silence is honest; a fabricated
+   "no driver running" is not, since a driver from before this feature leaves no trail).
+
+9. **Clearing-event tripwire** — for each open `runtime-evidence-deferrals` entry (`cleared-by: null`)
+   that carries a `clearing-probe`, **execute that one command** with a short timeout. Render every hit
+   as the ⚠ line above, routing to `/wf probe <slug>`. Rules: one recorded command per deferral, never
+   an improvised one; **never clear the deferral or edit `00-index.md`** — this is a tripwire, not a
+   gate, and the probe stage still owns evidence. Skip PO-authorized entries (settled) and entries with
+   no recorded probe (nothing to run — not a finding). Cost is milliseconds per open deferral, and it
+   catches the case this exists for: an AC shipped uncleared while its clearing event ("device
+   available for the AC6 run") had been satisfied on-screen in the same session.
 
 # Deep Mode (`/wf status <slug> deep`) — reality-drift check
 

@@ -23,6 +23,24 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. It does what `/
 - **It resolves gates; it does not remove them.** Each stage's quality gate still runs — `verify` still enforces the user-observable AC gate, `review` still computes its verdict from open findings. `yolo` does not weaken any of them; it supplies the **answer** the user would otherwise give, by the policy below, and **records every decision into the artifact** so the run is exactly as auditable as a human-gated one. Where it genuinely *cannot* produce the runtime proof a criterion needs, it **defers** that criterion through verify's own `interactive-verification: deferred` escape hatch — recorded, ship-blocking, and visible — rather than cancelling the run or pretending the check passed.
 - **It stops before handoff — always.** `yolo` ends at the **review**, identical to `auto`. It never opens a PR or runs `handoff`, `ship`, or `retro`. CI is never in its scope. The autonomy is bounded to *building and reviewing*, never *publishing*.
 - **Resume is free.** The durable record is the on-disk artifact trail (`00-index.md` + numbered files). A killed run resumes on re-invocation: orientation re-reads which stages are already terminal-clean and skips them. No separate state file.
+- **A dead driver looks dead.** Every subagent the driver dispatches appends a heartbeat line to `.ai/workflows/<slug>/.driver-journal.jsonl` when it starts and when it finishes. That journal is the *only* signal that distinguishes a driver working a long verify from one that died two hours ago — the harness task registry can lose the task entirely, and the artifact trail simply stops. Read it by the staleness rule below; never by its existence.
+
+# Driver liveness — a journal that stops is a driver that stopped (MANDATORY)
+
+A background driver died ~17 minutes into a slug-mode run. There was no notification; `TaskGet` answered *"Task not found"*; the user came back two hours later to nothing. Worse, the next session **asserted the driver was still running** — "currently re-verifying older slices" — from the mere *existence* of its trail, never checking when it was last written, and the user made a stop-or-continue decision on that fiction. Everything below exists to make that specific lie impossible.
+
+**The heartbeat.** The driver script itself has no clock and no filesystem (the Workflow runtime withholds both so runs stay resumable), but its subagents have both. So each dispatched agent appends one JSONL line before it starts and one before it returns:
+
+```json
+{"at":"2026-07-26T14:31:07Z","run":"20260726T142950Z-<slug>","seq":4,"event":"agent-start","agent":"verify:auth","phase":"Drive","stage":"verify","slice":"auth"}
+{"at":"2026-07-26T14:58:22Z","run":"20260726T142950Z-<slug>","seq":4,"event":"agent-end","agent":"verify:auth","status":"complete","errors":0}
+```
+
+It is **diagnostic, never a gate**: a failed append never changes what a stage does.
+
+**Judging it.** The staleness rule — recency against the run's own cadence, never file existence — is single-sourced in [_control-file-ownership.md](_control-file-ownership.md). Apply it verbatim at every read site: orientation, the hand-back, and `/wf status <slug>`. Never infer liveness from a file existing, a task id being known, or a chip saying "running independently".
+
+**Reconciling a dead driver.** Once a driver is presumed dead, its last writes are **suspect and possibly half-finished** — a dead driver's final write once ambushed a foreground session two hours later with three consecutive "File has been modified since read" failures. So: re-read every control file fresh from disk immediately before editing it; where an artifact on disk contradicts what `00-index.md` claims, **trust the artifact and correct the index**; and report what the journal shows the run completed versus abandoned rather than assuming its state was consistent. `/wf status <slug>` surfaces the same thing as a `Driver:` row.
 
 # Slug-mode contract (read before proceeding)
 
@@ -34,6 +52,33 @@ You are running `/wf yolo`, the **autonomous lifecycle driver**. It does what `/
 - **RCA (forwarded, single-scope)** — `workflow-type: rca`. An RCA's diagnosis (`01-rca.md`, `type: rca`) **is** its intake, and it synthesizes `02-shape.md` — so intake and shape are complete and `yolo` drives it from `plan` onward over its single scope (the `plan`/`implement`/`verify`/`review` references each have a "forwarded mode" path for `workflow-type: rca`). It has no `03-slice.md`; orientation synthesizes a one-entry roster from `selected-slice`. `yolo` **honors the RCA's `recommended-next`** as the build flavor without re-running intake: `hotfix` → the review stage defaults to the `security` rubric; `plan`/`fix` → standard review. The one refusal is **`recommended-next: human-triage`** (low root-cause confidence ∧ high blast radius) — a genuine product stop; orientation blocks and routes you to read `01-rca.md` and choose the build route by hand. `yolo` never mints a new branch or changes the base for an RCA — it drives on the tree the RCA recorded.
 - **Self-managed build** — `update-deps`. Unlike a standard build it does **not** decompose into `/wf implement` + `/wf verify` (those redirect back to intake); its intake reference self-authors `05-implement.md` + `06-verify.md` in tier order (P0 security → P1 major+migration → P2 safe batch), then routes to `/wf review`. `yolo` **drives** this via a *self-managed exec* path: it wraps `intake/update-deps.md` Steps 6–9 in one subagent — the Step 6 scope gate resolved by the autonomous policy (see the policy table) — which self-authors `05`/`06`, then `yolo` runs the standard **slug-wide review**. Like every class, `yolo` drives from the **plan gate onward**: readiness requires `01-update-deps.md` (`type: intake`, complete), `02-shape.md`, `03-slice.md`, and `04-plan.md` all `status: complete` — the human's own `/wf intake update-deps` run authors those. If any of `01`–`04` is missing or incomplete, orientation blocks with `route='/wf intake update-deps <slug>'` (or `/wf plan <slug>` when `04-plan` is the only gap).
 - **Terminal-analysis, no decided build** — `investigate`, `discover`, `ideate` (their `00-index.md` is `type: workflow-index`). Unlike RCA, these deliberately do **not** converge on a single build: `investigate` emits 2–3 unpicked option sketches and writes no `02-shape.md`; `discover` emits a yes/no verdict whose only follow-up is more analysis (`/wf intake rca`), not a build; `ideate` emits a ranked menu whose ideas each become their own new workflow. The missing ingredient is a human product decision (pick an option / act on the verdict / choose an idea) — exactly the intake+shape alignment `yolo` must not make. So `yolo` drives **nothing**, and never routes them to `/wf slice` *or* to `/wf plan <slug>` (they are never continued in place — each **seeds a new `/wf intake` workflow**). Orientation blocks and hands back the mode's own recorded next step: `ideate` → its `/wf intake <chosen-idea>`; `investigate` → pick an option in `01-investigate.md`, then `/wf intake fix <option>`; `discover` → act on the verdict in `01-discover.md`. Once that new workflow is intaked+shaped, `/wf yolo` drives it.
+
+# Work ordering — the run's target goes first
+
+The re-challenge law is right: a wall recorded by an earlier run is a *claim* to re-probe, never a fact to inherit. But it was running as a **prefix** of the roster walk, and that ordering cost a whole run. A driver launched to do a slug-wide review spent its entire life re-verifying already terminal-clean slices — its own orientation had even predicted *"the substantive work this run is the slug-wide review"* — and died before starting it. Nothing was wrong with the re-challenge. It was scheduled ahead of the target.
+
+So orientation classifies every slice by **why** it still has work, and the driver runs the classes in order:
+
+- **`new-work`** — a stage was never run, is not converged, or has a substantive residual. This is the work the run exists for; it goes first, in roster order.
+- **`deferral-rechallenge`** — every stage is terminal-clean and the only residue is an open, un-authorized runtime-evidence deferral. This is **bookkeeping**: the code is built and reviewed, and what is missing is fresh proof about an environment wall. It runs **after** the target, in the same run.
+
+The target itself — the slug-wide review in slug-wide scope, the named slice in slice mode — sits between them. Re-challenging a wall changes what is *proven* about a slice, never what the slice's *diff contains*, so the review reads the same code whichever side of it the sweep runs on.
+
+**Bounded re-verify.** A re-challenge is a **wall probe**, not a verify. The driver dispatches a cheap read-only agent that re-executes the recorded capability probes for that slice's open deferrals and answers one question per wall — *does this wall still stand?* — writing nothing. If every wall stands, the deferrals carry fresh receipts and the slice is done for this run. The driver escalates to a **full** verify only for a reason it can name — a wall fell so the evidence is producible now, or the artifacts contradict the index — and that reason is **recorded as a decision**, so a later audit can see why the run chose bookkeeping over new work.
+
+# Control files while a driver is live (MANDATORY)
+
+While a driver is running for a slug — **or is presumed-dead and not yet reconciled** — that slug's `00-index.md` and the global `.ai/workflows/INDEX.md` are **driver-owned**. This is not a lock; it is a discipline that turns a recurring surprise into the designed path, after repeated "File has been modified since read" clusters from a background driver and a foreground session mutating the same files blind.
+
+Any writer, foreground or delegated:
+
+1. **Re-reads immediately before every edit.** Never edit from a copy read earlier in the same agent.
+2. **Treats an edit rejection as "the other writer moved"** — re-read, re-derive the change against the new content, retry **once**. Never force a stale string through, and never rewrite the whole file to dodge the conflict.
+3. **Never runs a second driver** (`auto` or another `yolo`) for the same slug while one is live.
+
+The full contract, shared with every other stage, is [_control-file-ownership.md](_control-file-ownership.md).
+
+**Slice-complete write-back.** When a slice clears every gate, the driver *writes that fact down* — the roster entry's `status: complete` and the index `progress` block — at drive time, while the fact is fresh. Completed slices routinely sat at `status: defined` with a stale `progress` block, so the next run's orientation had to cross-check artifacts instead of trusting the index, and a later handoff had to self-repair what the drive should have recorded. The write-back mechanism itself is owned by the handoff/ship streamline work; what `yolo` adds is that **the driver is one of its writers**.
 
 # Two modes
 
@@ -107,6 +152,30 @@ The workflow runs in the background and returns immediately with a task id; a co
 
 > **Iteration / prototype note.** The same script can be invoked directly during development by passing `scriptPath` to the dev checkout's `…/skills/wf/workflows/yolo.js`. No plugin rebuild is needed — skills and this script are read from source, not from `dist/`.
 
+# Resuming — one sanctioned path
+
+**When the model resumes a `yolo` run, it relaunches this script through the Workflow tool. It does not invoke `/wf`.**
+
+That is the de-facto path already, and naming it closes a contradiction that cost a user their explicit instruction: `Skill(sdlc-workflow:wf)` is guarded by `disable-model-invocation`, so a model asked to "resume /wf yolo" hit the guard and told the user to invoke it themselves — while sibling sessions were launching `yolo.js` directly through the Workflow tool the whole time. Two doors, one bolted, and the model kept walking into the bolted one.
+
+The rule, in both directions:
+
+- **Slash-command `/wf` stays user-only.** The guard is correct: a human typing `/wf yolo <slug>` is the explicit opt-in that authorizes an unattended run.
+- **Relaunching the *script* is not a new opt-in** — it is the continuation of the run the user already authorized. After a hand-back is answered (a PO answer recorded, a gate resolved, a branch fixed), resume with the **Step 1 Workflow call**, same args. Resume is free: orientation skips every stage already terminal-clean, so re-running costs an orient, not a rebuild.
+- Say what you are doing: *"resuming the driver from `<slice>`"* — not *"run `/wf yolo <slug>` yourself"*, which is now wrong.
+
+# Hot-patching the driver mid-run
+
+Sometimes a session must patch the driver to make progress. When that happens, the patch needs a **durable home** — a fix that lives only in a session scratchpad is a fix that will be re-debugged from scratch. One `probeGaps` dedup bug was correctly diagnosed and hot-patched in a scratchpad, the patch evaporated with the session, and the same defect was independently re-diagnosed by a *different* project before it was finally fixed properly.
+
+The sanctioned pattern:
+
+1. **Never patch the plugin cache.** A hot-patch applied to the installed copy under the marketplace cache is invisible to the dev tree and is erased by the next plugin update. (Instinct here has been good — protect it.)
+2. **Write the patch down** at `.ai/patches/<date>-<symbol>.md` in the repo being worked on (gitignored alongside the rest of `.ai/` scratch): the diff, the symptom that provoked it, and the file + symbol it targets.
+3. **Record it against the plugin dev tree** — a task, an issue, or a note the next plugin session will see. The patch file is the evidence; the task is what gets it fixed at the source.
+
+A patch that exists in exactly one session's memory is not a fix. It is a rediscovery scheduled for later.
+
 # Step 2 — Hand back to the user (MANDATORY)
 
 When the workflow completes, read its returned `outcome` and emit a chat summary. Lead with a short **narrative** paragraph (prose, no bullets) telling the story: which stages ran, the load-bearing decisions/counts each produced, **the autonomous calls the driver made** (assumptions recorded, findings fixed vs deferred, acceptance criteria deferred for un-producible runtime evidence), and why the run ended — reached the endpoint, or HARD-STOPped at which gate and why. Then the anchors:
@@ -117,14 +186,19 @@ wf yolo complete: <slug> [<slice>]  (mode: <slug|slice> — <endpoint reached | 
 <Narrative paragraph — the stages driven this run, the key decisions/counts, the autonomous
  resolutions and any residual deferred/could-not-fix findings, and the reason the run ended.>
 
+Prior driver: <omit when absent | from outcome.priorDriver, worded per the three states of the staleness rule in _control-file-ownership.md — never "still running" unless the journal's recency actually supports it>
 Branch: <from outcome.branch — "created <target> from <base>" | "switched to <target>"; omit the line when yolo did not move the branch (already on it, or shared/none)>
 Stages run: <the per-slice sequence actually executed>
 Autonomous decisions: <count + one-line gist, or "none recorded">
 Charter: <omit when no checkpoint ran | from outcome.charterCheckpoints: all commitments honored | N at-risk (name them) | HARD-STOP on a broken commitment (name it)>
-Decisions: <from outcome.decisionDigest: N total, grouped by class (e.g. "4 impl-detail, 1 scope-fork"); flag intentBearing>0 as should-have-been-a-stop escapes to audit>
+Decisions: <from outcome.decisionDigest: N total, grouped by class (e.g. "4 impl-detail, 1 scope-fork"). State the intent-bearing count WITH its qualifier from intentBearingGuarantee: "exact" → "intent-bearing escapes: 0"; "suspect" → "intent-bearing escapes: 0 (SUSPECT — M decisions unclassifiable; review them)". Flag intentBearing>0 as should-have-been-a-stop escapes to audit>
 Discover checkpoint: <omit when none | from the run report: recommended `/wf discover <hypothesis>` for the high-severity RIM whose milestone slice landed>
 Residual findings: <none | N deferred/could-not-fix recorded in <artifact>>
 Runtime-evidence deferrals: <none | from outcome.runtimeEvidenceDeferrals: N — slice/AC + reason (+ probe receipt), recorded in 00-index.md; /wf ship is BLOCKED until each is cleared by /wf probe or a re-verify in a capable environment>
+Substantive failures: <omit when absent | from outcome.substantiveFailures: N — slice + result. These are DEFECTS, not deferrals; no /wf probe clears them>
+Reconciled: <omit when absent | from outcome.reconciled: N deferral classification(s) the run's recorded decisions or the index ledger classify differently than the driver derived — name each and say which source is canonical>
+Clearing events satisfied: <omit when absent | from outcome.clearingEventsSatisfied: N open deferral(s) whose recorded clearing-probe now reports the event HAS happened — run /wf probe <slug> to capture the evidence; nothing was cleared automatically>
+Subagent errors: <omit when absent | from outcome.subagentErrors: N recovered, M fatal — recovered errors changed no verdict, but the run does not claim zero>
 Deferral pressure: <omit when absent | from outcome.deferralPressure: N open, oldest since <date>, M repeat-of wall(s) — the standing pile across prior runs + this one; plan's repeat-deferral tripwire governs retiring it>
 Next: <outcome.route — the routing command>
 ```
@@ -141,6 +215,9 @@ Rules:
 - **Flag ship-blocking deferrals.** If `outcome.runtimeEvidenceDeferrals` is non-empty, call them out explicitly: the slug passed verify only because runtime evidence for those acceptance criteria was deferred, and `/wf ship` will refuse until each is cleared by `/wf probe` (or a re-verify in a capable environment). This is the one residual with a downstream hard gate — do not bury it.
 - **Internal audience.** `.ai/` paths are allowed in this chat block; the External Output Boundary still governs anything written to a PR, commit, or other external surface.
 - **Honesty.** Report what actually ran. If `yolo` drove two slices then HARD-STOPped at verify on the third, say so — do not imply the workflow is further along than the artifacts show.
+- **Never re-label an input.** The run report is a *rollup* of what the stages recorded, not a re-derivation that outranks them. A verify that recorded an AC as a substantive **fail** is reported as a fail (`Substantive failures:`) — never moved into the deferral list, which would send the user to collect evidence for a defect. Where the driver's own derivation disagrees with a recorded decision or the index ledger, the **recorded** classification wins and the disagreement is named on the `Reconciled:` line. An aggregate that contradicts its inputs once steered a user into a `/wf probe` for an AC the run had explicitly decided was *not* a runtime-evidence deferral.
+- **Qualify the guarantee.** "Intent-bearing escapes: 0" is only worth its classification coverage. When `decisionDigest.intentBearingGuarantee` is `suspect`, say so in the same breath as the zero — a run that leaves a quarter of its decisions unclassified has not earned the unqualified claim.
+- **State the previous driver's fate, don't infer it.** If `outcome.priorDriver` says presumed-dead, say presumed-dead and when. Never report a driver as running because a file or a task id exists.
 
 # What this command is NOT
 

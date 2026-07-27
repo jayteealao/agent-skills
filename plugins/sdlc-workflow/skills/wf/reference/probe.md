@@ -73,6 +73,7 @@ No flags — probe takes a slug and an optional target string. It always surface
    - **If `stack.user-confirmed: true`** → set `stack-source: confirmed`. Step 3 intersects matched adapters with `stack.platforms` and surfaces any divergence as an artifact-level signal (not a stop).
    - In all cases, record the `stack:` block under `## Stack context` in the probe slice body so a reader can reconcile what probe saw against what intake confirmed.
 6. **Capture the target** from `$ARGUMENTS` per the argument grammar above: `target` = the single positional target string, or `slug-wide` if none was given.
+7. **Run the clearing-event tripwire.** For every open deferral (`cleared-by: null`) carrying a `clearing-probe`, execute that **one** recorded side-effect-free command with a short timeout. A hit means the event this deferral is waiting on has *already happened* — say so up front and prioritise that deferral in this run, because probe is the actor most clearing events name. Never improvise a substitute command, never edit `00-index.md` here (Step 7 owns the clearing mutation), and treat a miss as ordinary state, not a finding. An entry with no recorded probe is simply un-watched — note it in `## Tripwires` so the next verify can add one.
 
 # Step 1 — Branch posture (MANDATORY before bootstrap)
 
@@ -374,6 +375,7 @@ If `runtime-evidence-deferrals` in `00-index.md` contains entries whose `cleared
 - **Re-run the ownership triage on every wall that survives.** A deferral recorded `external` by an earlier run is a claim, not a fact. If the wall is `code-owned` (the repo's own hard-coded port/host/endpoint or fixture pins it), say so in `## Tripwires` and name the change that would dissolve it — a probe that reports "still blocked" over a constant in our own tree has found a scoping decision, not an environment.
 - If yes, set `cleared-by: probe-<descriptor>` in `00-index.md.runtime-evidence-deferrals`.
 - If no, leave `cleared-by: null` and surface this in the slice's `## Tripwires` section — with the wall's current `wall-ownership` verdict and, when the recorded `clearing-event` turned out to be a passive wait ("once the port frees"), the provisionable event that should replace it.
+- **Leave a `clearing-probe` behind on every deferral that survives.** A deferral nobody can *check* is a deferral nobody will notice clearing — one AC shipped uncleared while its "device available" event was satisfied on-screen in the same session. Before writing the entry back, make sure it carries a one-line, side-effect-free command that answers "has the clearing event happened yet?" (verify.md's `clearing-probe` field). You just probed this wall, so you are the best-placed writer of that command in the whole lifecycle: record the check you would run next time.
 
 This is the one mutation `probe` makes to `00-index.md` beyond standard bookkeeping. The mutation is additive — clearing a deferral updates its status; it does not remove the entry.
 
