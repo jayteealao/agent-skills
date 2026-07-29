@@ -1,203 +1,305 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Glossary · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
-<body>
-<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
-  <span class="open-icon" aria-hidden="true">&#9776;</span>
-  <span class="close-icon" aria-hidden="true">&times;</span>
-</button>
-<div class="nav-backdrop" aria-hidden="true"></div>
-<div class="layout">
-<aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.143.0</small></a>
-<nav aria-label="Site navigation">
-  <h4>Orientation</h4>
-  <ul>
-    <li><a href="../index.html" data-href="index.html">Home</a></li>
-    <li><a href="../orientation/is-this-for-me.html" data-href="orientation/is-this-for-me.html">Is this for me?</a></li>
-    <li><a href="../orientation/mental-model.html" data-href="orientation/mental-model.html">How it works</a></li>
-    <li><a href="../orientation/first-10-minutes.html" data-href="orientation/first-10-minutes.html">First 10 minutes</a></li>
-  </ul>
-  <h4>Tutorials</h4>
-  <ul>
-    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
-    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">Full feature walkthrough</a></li>
-    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
-  </ul>
-  <h4>How to&hellip;</h4>
-  <ul>
-    <li><a href="../how-to/choose-a-command.html" data-href="how-to/choose-a-command.html">Choose a command</a></li>
-    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
-    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
-    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
-    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use add-ons</a></li>
-    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use design</a></li>
-    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
-    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
-    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
-    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
-    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
-  </ul>
-  <h4>Reference</h4>
-  <ul>
-    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
-    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
-    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
-    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
-    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
-    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
-    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
-    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
-    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
-    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
-    <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
-  </ul>
-  <h4>Explanation</h4>
-  <ul>
-    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
-    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
-    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
-    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
-    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
-    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
-    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
-    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
-    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
-    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
-  </ul>
-  <h4>Tips</h4>
-  <ul>
-    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
-    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
-    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
-    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
-  </ul>
-  <h4>Changelog</h4>
-  <ul>
-    <li><a href="../whats-new.html" data-href="whats-new.html">What&#8217;s new</a></li>
-  </ul>
-</nav>
-</aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Glossary</div>
-<span class="quadrant reference">reference</span>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
 <h1>Glossary</h1>
-
-<p class="lede">
-Plain-language definitions for every term the plugin uses. Each entry gives you the plain meaning first, then the precise internal name in parentheses where they differ.
-</p>
+<p class="lede">This page defines every term of art the plugin uses, alphabetically and in
+plain language, and maps older internal names to their current ones. Come here when a command
+or artifact says "wall-ownership" or "clears-on" and you want the one-paragraph version.</p>
 
 <dl>
+<dt>acceptance criterion (AC)</dt>
+<dd>One testable statement of what the finished work must do, written at shape and numbered.
+Verify gates on the ACs: each AC must be proven met, recorded as failed, or explicitly
+deferred. No AC is ever silently skipped.</dd>
 
-<dt id="add-on"><strong>Add-on</strong> (augmentation)</dt>
-<dd>An optional extra pass you bolt onto a slice — performance measurement, observability instrumentation, A/B experiment setup, or root-cause analysis — without interrupting the main workflow. The four augmentation-types are <code>instrument</code>, <code>experiment</code>, <code>benchmark</code>, and <code>rca</code>, all sharing <code>type: augmentation</code> with an <code>augmentation-type</code> discriminator. <code>profile</code> is a freestanding variant with <code>type: profile</code>, not tied to a workflow slice. All are recorded on <code>00-index.md</code>'s <code>augmentations:</code> array.</dd>
+<dt>accumulating ledger</dt>
+<dd>A file that only grows. A re-run of the command that owns the ledger merges new entries
+in, deduplicates against prior entries, and marks cleared entries resolved. A re-run never
+overwrites or deletes. The review artifact and the ship-plan audit are the main examples.</dd>
 
-<dt id="artifact"><strong>Artifact</strong> (workflow note)</dt>
-<dd>A small markdown file the plugin writes next to your code that records what it decided and why. Each stage of the lifecycle writes one. They live under <code>.ai/workflows/&lt;slug&gt;/</code> (or <code>.ai/ship-plan.md</code> at the repo root). Committed to git alongside your code — the decisions are in file history, not just conversation logs.</dd>
+<dt>add-on (formerly "augmentation")</dt>
+<dd>Optional extra work a workflow can carry alongside its slices: telemetry instrumentation,
+an experiment, a benchmark. Add-ons are decided at shape, recorded in the
+<code>augmentations:</code> frontmatter block, and materialized as the
+<code>04b</code>/<code>04c</code>/<code>05c</code> artifacts.</dd>
 
-<dt id="base-branch"><strong>Base branch</strong></dt>
-<dd>The branch the feature branch will eventually merge back into (e.g. <code>main</code>). Set at intake, captured in <code>00-index.md</code>.</dd>
+<dt>adjudicated / carried / open</dt>
+<dd>The three states of an intent-risk entry. An entry starts <code>open</code> at intake.
+Shape either resolves the entry with the product owner (<code>adjudicated</code>) or
+deliberately carries the entry forward as a known risk (<code>carried</code>). Handoff and
+ship refuse to run while any entry is still open.</dd>
 
-<dt id="branch-strategy"><strong>Branch strategy</strong></dt>
-<dd>How this workflow relates to git branches. Three options: <code>dedicated</code> (its own feature branch and PR), <code>shared</code> (commits to an existing collaborative branch), <code>none</code> (no branch operations — just commits).</dd>
+<dt>aggregate / sweep</dt>
+<dd>A named bundle of review dimensions run together (<code>all</code>,
+<code>pre-merge</code>, <code>security</code>, <code>ux</code>, and so on), invoked as
+<code>/wf review sweep &lt;aggregate&gt;</code>. This is distinct from a probe sweep, which
+drives the running app; see surface-defect taxonomy.</dd>
 
-<dt id="command"><strong>Command</strong> (router)</dt>
-<dd>The one thing you type: <code>/wf</code>. (The former <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, and standalone <code>/review</code> routers/skills are retired — their flows are now <code>/wf</code> keys, and review is <code>/wf review</code>.) Internally called a <em>router</em> — it dispatches to sub-commands — but "command" is the user-facing term. (Design was once a separate <code>/wf-design</code>; it is now the <code>/wf design</code> sub-command.) See <a href="commands.html">Commands reference →</a></dd>
+<dt>appetite</dt>
+<dd>How much the work is worth to you: small, medium, or large. You answer once at intake,
+and the answer is recorded in the control file. Later stages read the appetite to calibrate
+how many slices to expect, how far pre-mortems look, and when to seek a second opinion.</dd>
 
-<dt id="conditional-input"><strong>Conditional input</strong></dt>
-<dd>An artifact that a stage will consume <em>if it exists</em> but does not require. Each stage's preamble lists its conditional inputs.</dd>
+<dt>charter</dt>
+<dd>The 3–7 positive commitments the build must honor, distilled from your request at intake
+and ratified by you before they are written. Each commitment must be falsifiable by code. The
+commitments live in <code>00-index.md</code> and outlast any single slice. Review and probe
+check work against them.</dd>
 
-<dt id="dashboard"><strong>Dashboard</strong> (Sunflower view)</dt>
-<dd>A local web page that shows all your workflows at a glance — status, branch, slug, and a card per workflow. Start with <code>npm run hub</code>; open <code>http://localhost:4173</code>. See <a href="serve.html">Serve daemon &amp; hub →</a></dd>
+<dt>charter scenario</dt>
+<dd>The executable end-to-end spine of the feature: the numbered "user does A, gets B, then C"
+loop restated at intake. Shape turns the loop into the one scenario that must demonstrably
+run.</dd>
 
-<dt id="external-output-boundary"><strong>External Output Boundary</strong></dt>
-<dd>The rule that internal workflow details — artifact file paths, stage names, slash-command invocations — must never appear in outputs a user or external system sees (commit messages, PR bodies, release notes, docs).</dd>
+<dt>clearing event</dt>
+<dd>The named act that resolves a runtime-evidence deferral. A clearing event is always
+something an actor does ("provision the staging device", "merge the credentials PR"), never a
+passive wait. Every deferral must carry one.</dd>
 
-<dt id="fragment"><strong>Fragment</strong></dt>
-<dd>An <code>.html.fragment</code> file that sits next to a rich-tier artifact <code>.md</code> and provides the interactive dashboard layer. It is driven by a sibling <code>.yaml</code> file that carries the structured data the renderer reads. 14 artifact types require a sibling fragment. Opt out per-file with <code>fragment: none</code> frontmatter.</dd>
+<dt>clearing probe / tripwire</dt>
+<dd>A one-line, side-effect-free command that answers whether the clearing event happened
+yet, for example <code>curl -sf localhost:8080/health</code>. Status, probe, and the drivers
+execute clearing probes opportunistically and flag hits. A clearing probe is a tripwire, not
+a gate: it tells you that evidence can now be collected, and it never clears anything by
+itself.</dd>
 
-<dt id="freshness-pass"><strong>Freshness pass</strong></dt>
-<dd>A web-research sub-agent step that gathers current external information — vendor advisories, platform status, recent CVEs — before a stage finalises its output.</dd>
+<dt>compressed slice</dt>
+<dd>The file-format name for a quick-lane slice: the single slice a
+fix/hotfix/refactor/update-deps entry (or probe/simplify) attaches to a workflow. The slice
+is authored in one run rather than through the full slice stage.</dd>
 
-<dt id="frontmatter"><strong>Frontmatter</strong></dt>
-<dd>The YAML block between <code>---</code> markers at the top of every artifact file. Contains all machine-readable state. The markdown body below is for human-readable narrative.</dd>
+<dt>decidability</dt>
+<dd>The boundary probe respects between what watching a running app can prove and what it
+cannot prove. A visible defect is decidable by observation. An absence property ("there is no
+injection here") is not decidable, and is routed to review instead of being claimed from a
+probe run.</dd>
 
-<dt id="handoff"><strong>Handoff</strong></dt>
-<dd>Stage 8 of the lifecycle: <code>/wf handoff</code> aggregates the completed slices into a PR, runs the <a href="#readiness-check">readiness check</a>, and writes <code>08-handoff.md</code> with the <code>readiness-verdict</code> that <code>/wf ship</code> gates on. A <code>pr#N</code>/branch argument runs batch mode across every slug on the branch.</dd>
+<dt>decisionDigest</dt>
+<dd>The structured summary an autonomous driver returns of every decision it made on your
+behalf. The intent-bearing decisions are called out as stop-worthy escapes for you to
+inspect.</dd>
 
-<dt id="plan-version"><strong>Plan-version</strong></dt>
-<dd>An integer counter on <code>.ai/ship-plan.md</code> that increments on every edit (via <code>/wf ship-plan edit</code>). Each ship run stamps the counter value it ran against as <code>plan-version-at-run</code>.</dd>
+<dt>dimension</dt>
+<dd>One reviewer specialty: correctness, security, performance, intent-fidelity, and about
+thirty more. A review run selects dimensions, fans each dimension out to its own sub-agent,
+and merges the findings into the ledger. See
+<a href="review-dimensions.html">Review dimensions</a>.</dd>
 
-<dt id="quick-command"><strong>Quick command</strong> (compressed flow)</dt>
-<dd>A compressed intake mode or standalone <code>/wf</code> key for small, well-defined changes that don't need the full 10-stage lifecycle. Nine intake modes (invoked as <code>/wf intake &lt;mode&gt;</code>): <code>fix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>update-deps</code>, <code>refactor</code>, <code>ideate</code>, and <code>adopt</code> (the reverse-entry mode that adopts an already-made working-tree diff, landing at verify). Plus two standalone keys: <code>/wf probe</code>, <code>/wf simplify</code>. The former <code>/wf-quick</code> router is retired. Produces 2–4 artifact files instead of up to 10.</dd>
+<dt>Documentation Plan</dt>
+<dd>The section of the shape artifact that decides, up front, what documentation this work
+owes and in which Diátaxis form. <code>/wf docs</code> in workflow mode exists to fulfill
+the Documentation Plan.</dd>
 
-<dt id="readiness-check"><strong>Readiness check</strong> (readiness verdict)</dt>
-<dd>The set of gates that must all say "ready" before the plugin will open or progress a PR. Runs inside <code>/wf handoff</code>. The verdict — <code>ready</code>, <code>awaiting-input</code>, or <code>blocked</code> — is written to <code>08-handoff.md</code> and gates <code>/wf ship</code>. See <a href="../explanation/the-readiness-gate.html">The readiness gate →</a></dd>
+<dt>drift finding / clears-on</dt>
+<dd>A drift finding is a detected mismatch between the ship plan and what the repo or branch
+actually does. Each finding is tagged <code>clears-on: amend | repo | merge</code>, the event
+that genuinely resolves the finding. The tag makes an acknowledgement or amendment clear
+exactly the findings it should, and no others.</dd>
 
-<dt id="run-id"><strong>Run-id</strong></dt>
-<dd>A compact UTC timestamp (<code>YYYYMMDDTHHMMZ</code>) that identifies a single ship run. Used as a suffix on ship-run artifact filenames: <code>09-ship-run-&lt;run-id&gt;.md</code>.</dd>
+<dt>driver</dt>
+<dd>A command that runs other stages for you instead of doing stage work itself.
+<code>/wf auto</code> pauses at every gate for you. <code>/wf yolo</code> resolves gates
+autonomously by a written policy. Both drivers stop before handoff.</dd>
 
-<dt id="slice"><strong>Slice</strong></dt>
-<dd>A thin, independently shippable piece of the overall shaped work. Each slice gets its own plan, implement, verify, and review artifacts.</dd>
+<dt>driver journal</dt>
+<dd>The append-only heartbeat file (<code>.driver-journal.jsonl</code>) an autonomous driver
+writes as it works. A stalled or interrupted run can be diagnosed and resumed from the record
+rather than from memory.</dd>
 
-<dt id="slug"><strong>Slug</strong></dt>
-<dd>The short, stable name for one piece of work. Example: <code>add-health-endpoint</code>. Set at intake, never changes. Matches the directory name under <code>.ai/workflows/</code>. Used in every subsequent command: <code>/wf shape add-health-endpoint</code>.</dd>
+<dt>environment-class</dt>
+<dd>Where a probe's evidence actually came from: <code>production</code>,
+<code>staging</code>, <code>local-emulated</code>, or <code>mocked</code>. The class is
+recorded in the probe artifact, so nobody mistakes evidence from a mock for evidence from the
+real thing.</dd>
 
-<dt id="stage"><strong>Stage</strong></dt>
-<dd>One step of the full <code>/wf</code> lifecycle. The 10 stages in order: <em>intake</em>, <em>shape</em>, <em>slice</em>, <em>plan</em>, <em>implement</em>, <em>verify</em>, <em>review</em>, <em>handoff</em>, <em>ship</em>, <em>retro</em>. Each reads what previous stages wrote and writes its own artifact.</dd>
+<dt>evidence ladder / env-remediation rung</dt>
+<dd>The ordered set of ways to produce runtime evidence, from cheapest to most real. The
+env-remediation rung is the step people skip: before you declare the environment unusable,
+try to fix the environment (boot the emulator, start the service). Only after the ladder is
+exhausted may an AC become a deferral.</dd>
 
-<dt id="sub-command"><strong>Sub-command</strong></dt>
-<dd>An option under a command. Example: <code>/wf design colorize</code> — where <code>colorize</code> is the design sub-command. <code>/wf</code> (including intake modes) has many, <code>/wf design</code> has 20, <code>/wf review</code> has 34 dimensions plus a <code>sweep</code> mode.</dd>
+<dt>External Output Boundary</dt>
+<dd>The rule that anything leaving the repo (PR bodies, commit messages, announcements)
+speaks product language. Outward text never mentions <code>.ai/</code> paths, slugs, or other
+internal workflow machinery.</dd>
 
-<dt id="triage-loop"><strong>Triage loop</strong> (T5.1)</dt>
-<dd>The bounded step inside <code>/wf handoff</code> that processes PR review comments. Fetches unresolved threads, classifies them (blocker / non-blocker / question), fixes blockers via <code>/wf implement reviews</code>, and resolves threads after fixes commit. Runs up to 5 iterations.</dd>
+<dt>fingerprint-scope</dt>
+<dd>What a ship-plan acknowledgement is a claim about. <code>plan</code>-scoped entries die
+when the plan version bumps; an amended plan must re-earn them. <code>branch</code>-scoped
+entries assert a fact about the branch, survive amendments, and die at merge.</dd>
 
+<dt>gate</dt>
+<dd>Any point where a stage stops and requires something before the stage proceeds: a
+product-owner answer, passing checks, a clean readiness check. Gates belong to the stages
+themselves. The drivers differ only in who answers the gates.</dd>
+
+<dt>hub</dt>
+<dd>The one machine-wide background service (a local Node daemon on
+<code>127.0.0.1:4173</code>). The hub serves every registered repo's workflow view, the code
+browser, and this documentation, and drains the render queue. The hub starts automatically at
+session start.</dd>
+
+<dt>implementation-detail vs intent-bearing decision</dt>
+<dd>The two classes of decision an autonomous run can make. Implementation-detail choices
+(variable names, an internal helper's shape) are safely made alone. Intent-bearing choices
+change what the product does or means, and a driver must surface them to you rather than
+absorb them.</dd>
+
+<dt>intent-risk (RIM) ledger</dt>
+<dd>The <code>intent-risks:</code> block in the control file: an explicit list of the ways
+your request could plausibly be misunderstood. The list is written at intake and adjudicated
+with you at shape. Its job is to make misreadings a tracked object instead of a silent drift.
+RIM stands for "risk-if-misunderstood".</dd>
+
+<dt>narrative fragment</dt>
+<dd>A free-form HTML file (<code>&lt;stem&gt;.&lt;NN-label&gt;.html.fragment</code>) placed
+next to any artifact to add a custom diagram or widget to the artifact's rendered page. The
+fragment is unrestricted raw HTML, injected below the page body in label order.</dd>
+
+<dt>perturbation</dt>
+<dd>Probe's controlled break: disable exactly one dependency, observe how the app behaves,
+restore the dependency. Perturbation is how dependency-collapse and branch-gap defects are
+found on purpose rather than by luck. It is never done to a shared or production backend
+without authorization.</dd>
+
+<dt>PO (product owner)</dt>
+<dd>You. The stages interview the PO, gate on PO decisions, and log every answer in
+<code>po-answers.md</code>. The plugin never invents a PO answer.</dd>
+
+<dt>quick lane</dt>
+<dd>The shortened path for small, well-understood work: the fix, hotfix, refactor, and
+update-deps intake modes. These modes author stages 1–4 in a single run and stop at the
+pre-implement gate. Formerly called the "compressed flow".</dd>
+
+<dt>quick-lane slice</dt>
+<dd>See compressed slice: the single-slice attachment a quick-lane entry (or probe/simplify)
+adds to a workflow.</dd>
+
+<dt>readiness check</dt>
+<dd>The pre-flight that handoff and ship run before they act. It asks: is the ship plan
+present and current, is CI green, is the tree clean, are the ledgers clear? Formerly called
+the "readiness gate" or "readiness verdict".</dd>
+
+<dt>registry</dt>
+<dd>Two files answer to this name. The workflow registry is
+<code>.ai/workflows/INDEX.md</code>: one tab-separated row per workflow, reconciled by every
+<code>/wf status</code> run. The workflow registry is what lets commands recognize a bare
+slug. The hub registry (<code>~/.sdlc/registry.json</code>) is the machine-wide list of repos
+the hub serves.</dd>
+
+<dt>render queue</dt>
+<dd>The durable on-disk queue (<code>.ai/_view/.render-queue/</code>) that artifact writes
+enqueue render jobs into. The hub daemon drains the queue, so views stay current without any
+command blocking on rendering.</dd>
+
+<dt>review scope</dt>
+<dd>Whether review keeps one ledger per slice (<code>per-slice</code>) or one ledger for the
+whole workflow (<code>slug-wide</code>). The scope is recorded in the control file and
+confirmed with you once at the slice stage, when the slice count is known.</dd>
+
+<dt>router</dt>
+<dd>The old internal name for what the documentation now simply calls the command:
+<code>/wf</code> reads its first argument and dispatches to the matching reference. If you
+see "skill router" in older material, read it as "the <code>/wf</code> command".</dd>
+
+<dt>run-id</dt>
+<dd>The identifier of one release attempt. Each <code>/wf ship</code> run gets a run-id,
+names its <code>09-ship-run-&lt;run-id&gt;.md</code> record with the run-id, and can be
+replayed or rolled back by the run-id.</dd>
+
+<dt>runtime-evidence deferral</dt>
+<dd>A recorded, ship-blocking IOU: an acceptance criterion whose runtime proof could not be
+produced yet. A deferral requires a wall-ownership verdict, a named clearing event, and
+(strongly expected) a clearing probe. Ship refuses to run while a deferral is open. A
+deferral means "evidence missing". A criterion that was driven and found broken is a fail,
+never a deferral.</dd>
+
+<dt>sdlc-debt marker</dt>
+<dd>A structured <code>sdlc-debt:</code> comment left in code where a deliberate shortcut was
+taken. <code>/wf simplify</code> harvests the markers repo-wide, so the debt is findable
+instead of folkloric.</dd>
+
+<dt>slice</dt>
+<dd>One thin, independently verifiable vertical piece of a work item. A slice is small enough
+to plan, build, and prove on its own, end to end. The slice stage decomposes a shaped feature
+into slices.</dd>
+
+<dt>slice-slug</dt>
+<dd>The short identifier of one slice within a workflow. It appears in filenames
+(<code>04-plan-&lt;slice-slug&gt;.md</code>) and as the positional argument to plan,
+implement, verify, and review.</dd>
+
+<dt>slug</dt>
+<dd>The short kebab-case name of a whole workflow: the directory name under
+<code>.ai/workflows/</code>, the frontmatter <code>slug:</code> field, and the argument every
+command takes. The slug is chosen at intake and never changes.</dd>
+
+<dt>stack fingerprint</dt>
+<dd>The <code>stack:</code> block intake detects and asks you to confirm: platforms,
+languages, UI toolkit, build tools, testing tools, observability, integrations. Downstream
+stages base tooling decisions on the fingerprint and treat an unconfirmed fingerprint as
+advisory.</dd>
+
+<dt>steering (steer.md)</dt>
+<dd>Your standing instructions for a workflow, kept in <code>steer.md</code> in the
+workflow's directory. Every stage, and every sub-agent a stage dispatches, reads and honors
+them. Steering shapes work beneath the gates but never overrides a mandatory gate.</dd>
+
+<dt>sunflower</dt>
+<dd>The internal code name for the workflow view: the rendered dashboard the hub serves from
+<code>.ai/_view/</code>. If you see "sunflower" in source or older notes, read it as the
+dashboard.</dd>
+
+<dt>surface-coverage / enumeration method</dt>
+<dd>The record, in a probe sweep, of how the artifact's surfaces were enumerated (screens,
+routes, commands). The record lets a reader tell what the sweep actually covered and what the
+sweep never visited, rather than assume that "swept" means "everything".</dd>
+
+<dt>surface-defect taxonomy</dt>
+<dd>The eight classes of defect a probe sweep looks for at the running surface:
+dead-affordance, error-surface-leak, terminal-wait, fabricated-value, dependency-collapse,
+branch-gap, boundary-overflow, and env-interference. The taxonomy needs no domain knowledge.
+Anything domain-specific comes from the charter instead.</dd>
+
+<dt>verdict</dt>
+<dd>Review's bottom line for the scope it examined: <code>ship</code>,
+<code>ship-with-caveats</code>, or <code>dont-ship</code>. Handoff aggregates verdicts across
+slices.</dd>
+
+<dt>wall</dt>
+<dd>Anything that stops evidence from being produced or work from proceeding: a missing
+device, an unprovisioned credential, a hard-coded port. To name the wall precisely is the
+first step. To triage who owns the wall is the second step.</dd>
+
+<dt>wall-ownership</dt>
+<dd>The mandatory triage of a wall before the wall may justify a deferral:
+<code>code-owned</code> (the code itself causes the wall; it must be fixed, never deferred),
+<code>environment-negotiable</code> (the environment could be fixed from here), or
+<code>external</code> (genuinely outside the team's reach).</dd>
+
+<dt>workflow view</dt>
+<dd>The rendered HTML dashboard of a repo's workflows, generated into <code>.ai/_view/</code>
+by the render pipeline and served by the hub. The view is read-only: it is regenerated from
+the artifacts and never hand-edited.</dd>
 </dl>
 
 <div class="related">
-<h3>Where next</h3>
-<ul>
-  <li><a href="../orientation/mental-model.html">See how all the concepts fit together →</a></li>
-  <li><a href="commands.html">Full commands reference (every argument and sub-command) →</a></li>
-  <li><a href="artifacts.html">Artifact types reference →</a></li>
-</ul>
+  <h2>Related</h2>
+  <ul>
+    <li><a href="artifacts.html">Artifact files</a> — where each of these terms lives on disk.</li>
+    <li><a href="../concepts/evidence-and-gates.html">Evidence and gates</a> — walls, deferrals, and clearing events explained at length.</li>
+    <li><a href="commands.html">Commands</a> — every <code>/wf</code> key and its arguments.</li>
+  </ul>
 </div>
-<div class="pager"><a class="prev" href="../how-to/close-workflows.html"><span>← Previous</span>Close workflows</a><a class="next" href="../reference/pipeline.html"><span>Next →</span>Pipeline</a></div></main>
-</div>
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
-
-  // Mark active sidebar link based on current path
-  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
-  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
-    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
-      a.classList.add("active");
-    }
-  });
-
-  // Mobile drawer toggle
-  const toggle = document.querySelector(".menu-toggle");
-  const backdrop = document.querySelector(".nav-backdrop");
-  const setOpen = (open) => {
-    document.body.classList.toggle("nav-open", open);
-    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
-  };
-  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
-  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
-  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
-</script>
+</main>
+<script src="../nav.js"></script>
 </body>
 </html>

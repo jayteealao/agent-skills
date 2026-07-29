@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review dimensions · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Review dimensions</h1>
+<p class="lede">This page lists all 34 review dimensions, the 7 sweep aggregates that bundle them, and the rules for ad-hoc invocation. Use this page to pick the right rubric for the review you want.</p>
+
+<h2 id="invocation">Invocation and scope</h2>
+<p>Review has two modes, and the first token tells them apart. <code>/wf review &lt;slug&gt;</code> is the workflow stage: it dispatches one reviewer per selected dimension and merges findings into the accumulating ledger (<code>07-review[-&lt;slice&gt;].md</code> plus one file per dimension). Without a slug, <code>/wf review &lt;dimension&gt;</code> runs one rubric inline, and <code>/wf review sweep &lt;aggregate&gt;</code> fans out one reviewer per bundled dimension. These slug-less runs are the ad-hoc path. Ad-hoc runs write <strong>no artifact</strong>. Findings return inline in chat, with a verdict and severity counts.</p>
+<p>Ad-hoc review runs over one of five scopes, parsed from the remaining tokens:</p>
+<table>
+<thead><tr><th>Scope</th><th>Target</th></tr></thead>
+<tbody>
+<tr><td><code>pr</code></td><td>a PR URL or number</td></tr>
+<tr><td><code>worktree</code></td><td>the uncommitted working-tree changes</td></tr>
+<tr><td><code>diff</code></td><td>a commit range</td></tr>
+<tr><td><code>file</code></td><td>a file path</td></tr>
+<tr><td><code>repo</code></td><td>the whole repository (also the bare default)</td></tr>
+</tbody>
+</table>
+<p>To reach a dimension whose name is also a real workflow slug, invoke <code>/wf review sweep &lt;name&gt;</code>, or run the dimension in a repo without that slug.</p>
+<div class="note">When a dimension name is also a real workflow slug, the slug wins and the stage runs.</div>
+
+<h2 id="dimensions">The 34 dimensions</h2>
+<p>Each dimension is one rubric file that the reviewer follows. Each entry below describes one rubric:</p>
+<dl class="cmd-grid">
+<dt><code>accessibility</code></dt><dd>Reviews UI changes for keyboard and assistive-technology usability, and for ARIA misuse.</dd>
+<dt><code>api-contracts</code></dt><dd>Reviews API contracts for stability, correctness, and usability for consumers.</dd>
+<dt><code>architecture</code></dt><dd>Reviews for architectural issues: boundaries, dependencies, and layering.</dd>
+<dt><code>backend-concurrency</code></dt><dd>Reviews backend code for race conditions, atomicity violations, locking issues, and idempotency bugs.</dd>
+<dt><code>ci</code></dt><dd>Reviews CI/CD pipelines for security, correctness, and deployment safety.</dd>
+<dt><code>code-simplification</code></dt><dd>Reviews through the three simplification lenses: missed reuse, quality issues, and inefficiencies.</dd>
+<dt><code>correctness</code></dt><dd>Reviews for logic flaws, broken invariants, and edge-case failures.</dd>
+<dt><code>cost</code></dt><dd>Reviews for changes that increase cloud infrastructure costs.</dd>
+<dt><code>data-integrity</code></dt><dd>Reviews whether stored data stays correct over time, across failures, retries, and concurrent writes.</dd>
+<dt><code>docs</code></dt><dd>Reviews documentation completeness and accuracy for behavior, config, and API changes.</dd>
+<dt><code>dx</code></dt><dd>Reviews developer experience: whether the project is easy to build, run, debug, and contribute to.</dd>
+<dt><code>frontend-accessibility</code></dt><dd>Reviews for accessibility issues specific to modern SPAs (React, Vue, Angular).</dd>
+<dt><code>frontend-performance</code></dt><dd>Reviews bundle size, rendering efficiency, and user-perceived latency in frontend changes.</dd>
+<dt><code>infra</code></dt><dd>Reviews infrastructure and deployment config for safety, least privilege, and operational clarity.</dd>
+<dt><code>infra-security</code></dt><dd>Reviews infrastructure code for security issues: IAM, networking, secrets, and configuration.</dd>
+<dt><code>intent-fidelity</code></dt><dd>Reviews whether the diff advances the intake's product or a simplified imitation of it. This code-to-intake fidelity is the thing every other dimension misses.</dd>
+<dt><code>interface-craft</code></dt><dd>Reviews the static visual detail that makes interfaces feel polished: radii, optical alignment, shadows, tabular numbers, text wrapping, and hit areas.</dd>
+<dt><code>logging</code></dt><dd>Reviews logging for secrets exposure, PII leaks, wide-event patterns, and query-optimized observability.</dd>
+<dt><code>maintainability</code></dt><dd>Reviews for long-term readability, ease of change, and reduced change amplification.</dd>
+<dt><code>migrations</code></dt><dd>Reviews database migrations for safety, compatibility, and operability in production.</dd>
+<dt><code>motion</code></dt><dd>Reviews animation and motion code against a high craft bar: easing, timing, interruptibility, GPU performance, and whether the motion should exist at all.</dd>
+<dt><code>observability</code></dt><dd>Reviews observability completeness: logs, metrics, tracing, error reporting, alertability, and runbook hooks.</dd>
+<dt><code>overengineering</code></dt><dd>Reviews for unnecessary complexity, abstractions, and YAGNI violations.</dd>
+<dt><code>performance</code></dt><dd>Reviews for algorithmic and system-level performance issues.</dd>
+<dt><code>privacy</code></dt><dd>Reviews data handling: PII collection, storage, transmission, and privacy compliance.</dd>
+<dt><code>refactor-safety</code></dt><dd>Reviews refactors for semantic drift: behavior equivalence and the subtle bugs that break it.</dd>
+<dt><code>release</code></dt><dd>Reviews for safe shipping: clear versioning, rollout, migration, and rollback plans.</dd>
+<dt><code>reliability</code></dt><dd>Reviews failure modes and operational safety under partial outages.</dd>
+<dt><code>scalability</code></dt><dd>Reviews behavior under higher load, larger datasets, and more tenants.</dd>
+<dt><code>security</code></dt><dd>Reviews for vulnerabilities, insecure defaults, and missing security controls.</dd>
+<dt><code>style-consistency</code></dt><dd>Reviews consistency with existing codebase style and language idioms.</dd>
+<dt><code>supply-chain</code></dt><dd>Reviews dependency and build integrity: lockfiles, build scripts, and artifact provenance.</dd>
+<dt><code>testing</code></dt><dd>Reviews test quality, coverage, and reliability.</dd>
+<dt><code>ux-copy</code></dt><dd>Reviews user-facing text for clarity, consistency, actionability, and helpful error recovery.</dd>
+</dl>
+
+<h2 id="sweeps">The 7 sweep aggregates</h2>
+<p>A sweep dispatches one reviewer sub-agent per bundled dimension, in parallel. The sweep then dedupes the findings and synthesizes them into a single verdict. Invoke a sweep with <code>/wf review sweep &lt;aggregate&gt;</code>:</p>
+<table>
+<thead><tr><th>Aggregate</th><th>Dimensions bundled</th></tr></thead>
+<tbody>
+<tr><td><code>all</code></td><td>every dimension (34 reviewers — the broadest and most expensive)</td></tr>
+<tr><td><code>architecture</code></td><td>architecture, performance, scalability, api-contracts</td></tr>
+<tr><td><code>infra</code></td><td>infra, ci, release, migrations, logging, observability</td></tr>
+<tr><td><code>pre-merge</code></td><td>correctness, testing, security, refactor-safety, maintainability</td></tr>
+<tr><td><code>quick</code></td><td>correctness, style-consistency, dx, ux-copy, overengineering</td></tr>
+<tr><td><code>security</code></td><td>security, privacy, infra-security, data-integrity, supply-chain</td></tr>
+<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy</td></tr>
+</tbody>
+</table>
+<p><strong>Bare name vs sweep.</strong> Three names exist as both a dimension and an aggregate: <code>architecture</code>, <code>infra</code>, and <code>security</code>. A bare <code>/wf review architecture</code> runs the single dimension. <code>/wf review sweep architecture</code> runs the four-reviewer aggregate. The same rule holds for the other two names.</p>
+
+<h2 id="artifacts">What gets written</h2>
+<p>Remember one distinction. Ad-hoc runs (a dimension or a sweep, with no slug) write no artifact. Their findings, severity counts, and verdict return inline, and they are gone when the chat is gone. Stage runs (<code>/wf review &lt;slug&gt;</code>) write the accumulating review ledger. Re-runs merge and dedupe in place, preserve finding IDs and surfaced-at stamps, and mark findings that a re-run no longer surfaces as <code>resolved</code>. Nothing is ever overwritten or deleted.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="commands.html">Commands</a> — the full <code>/wf review</code> grammar in the 21-key catalog.</li>
+    <li><a href="../concepts/evidence-and-gates.html">Evidence and gates</a> — how review verdicts gate handoff and ship.</li>
+    <li><a href="artifacts.html">Artifacts</a> — the review ledger's file layout and frontmatter.</li>
+    <li><a href="../guides/the-standard-lifecycle.html">The standard lifecycle</a> — where the review stage sits in the flow.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

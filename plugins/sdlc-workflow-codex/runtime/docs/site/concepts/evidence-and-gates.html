@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evidence and gates · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Evidence and gates</h1>
+<p class="lede">Read this to understand how the plugin defends itself against its own optimism.
+Acceptance criteria, risk ledgers, runtime evidence, deferrals, and readiness checks stop "looks
+done" from being treated as "is done".</p>
+
+<p>An AI agent that grades its own work has a structural bias: the agent wants to report success,
+and the agent is very good at writing a plausible pass. The plugin's answer is not "try harder to
+be honest". The answer is a set of mechanical checkpoints where recorded evidence must back every
+claim. Each known failure shape has a named, enforced countermeasure. Examples of these failure
+shapes are the recalled API, the silently skipped test, and the risk that everyone forgot.</p>
+
+<h2>Two layers of "what done means"</h2>
+
+<p>The plugin defines correctness at two altitudes. Each slice carries its own <strong>acceptance
+criteria</strong>: concrete, user-observable statements of what that slice must do. The workflow
+records the criteria when it cuts the slice, and the workflow checks the criteria when it
+verifies the slice. Above the criteria sits the <strong>charter</strong> in
+<code>00-index.md</code>. The charter holds durable, PO-ratified constraints that apply to every
+slice of the workflow, whatever the current slice is about.</p>
+
+<p>The distinction matters because the two layers fail differently. A slice can satisfy all of its
+own criteria and still violate a cross-cutting commitment from three slices ago. For this reason,
+the sweep mode of <code>/wf probe</code> compares the running artifact against the acceptance
+criteria and also against the charter. When a non-functional requirement could conflict with a
+charter commitment, shape requires an explicit ranking between the two. An unranked conflict is an
+open question for the PO. The agent never resolves an unranked conflict alone.</p>
+
+<h2>The intent-risk (RIM) ledger: ambiguity gets a paper trail</h2>
+
+<p>The most expensive failures are not bugs. The most expensive failures happen when the work is
+built confidently on the wrong understanding of the request. The intent-risk ledger (RIM) makes
+sure that this failure mode cannot happen silently. At intake, each "risk if misunderstood"
+becomes an entry in <code>00-index.md</code> under <code>intent-risks</code>, and each entry
+starts as <code>status: open</code>.</p>
+
+<p>Shape then runs an adversarial pre-mortem in a blind sub-agent. The sub-agent sees the goal but
+not the draft shape, so the sub-agent cannot rationalize toward the existing answer. Any risk that
+the draft does not already handle becomes another open entry.</p>
+
+<p>Shape must then <strong>adjudicate</strong> every entry. Either shape records a real decision
+(<code>adjudicated</code>, with the named choice and its tradeoff), or shape consciously defers
+the risk to a named later stage (<code>carried</code>). Prose that only restates the risk is
+explicitly illegal as an adjudication. A shape that leaves any RIM open may not declare itself
+complete.</p>
+
+<p>The ledger also has force downstream. Handoff's readiness check treats any open RIM as
+not-ready. An open intent-risk means that shape never resolved a load-bearing ambiguity, and the
+only route forward is back through <code>/wf shape</code>. Carried RIMs are legal at handoff, but
+handoff must surface them to the PR's reviewers.</p>
+
+<h2>Runtime evidence, and the walls it hits</h2>
+
+<p><code>/wf verify</code> makes one core demand: <em>observed runtime behavior</em> must clear
+each user-observable acceptance criterion. The artifact must actually run, and verify must drive
+it and watch it. To read the code and conclude that the code should work is not evidence.
+Sometimes the environment cannot produce runtime evidence: no display, no device, or a credential
+that nobody has. Verify calls these obstacles <strong>walls</strong>. Before a wall can excuse
+anything, verify must triage the wall for <strong>wall-ownership</strong>:</p>
+
+<table>
+<tr><th>Ownership</th><th>Meaning</th><th>Can it be deferred?</th></tr>
+<tr><td><code>code-owned</code></td><td>The wall is a defect in the workflow's own code or configuration. A change that you can write would remove the wall.</td><td>No. The fix is in scope. The deferral hatch stays closed until the wall is removed.</td></tr>
+<tr><td><code>environment-negotiable</code></td><td>The wall belongs to the environment, and remediation is possible: start a service, set a variable, or install a capability.</td><td>Yes, after verify climbs the remediation ladder and records the residual.</td></tr>
+<tr><td><code>external</code></td><td>The wall belongs to an outside party or system that nobody in the loop controls directly.</td><td>Yes, with a clearing event that names who acts.</td></tr>
+</table>
+
+<p>The <code>code-owned</code> rule is the sharp edge. A hard-coded port, a missing headless mode,
+or a test that only runs on one machine is a defect in an environmental costume. Verify refuses to
+file these defects as environmental bad luck. Deferral is a last resort in general. Verify first
+climbs a constraint-resolution ladder of alternative evidence routes and records the outcome of
+each rung. Only the residual that no rung can reach may be deferred.</p>
+
+<p>A test suite where every spec exits through a credential guard is not a wall at all. It is a
+procedural failure (<code>blocked-runtime-evidence-missing</code>) with the unmet precondition
+named. It is never a deferral.</p>
+
+<h2>Deferrals are IOUs with a named debtor</h2>
+
+<p>When a deferral is lawful, verify records the deferral in <code>00-index.md</code> under
+<code>runtime-evidence-deferrals</code>. The schema keeps the deferral from quietly becoming
+permanent. Every entry carries three things:</p>
+
+<ul>
+<li><strong>The wall-ownership verdict</strong> from the triage above.</li>
+<li><strong>A clearing event that names an actor.</strong> The event is a specific act by a
+specific party, and the act makes the evidence producible. Passive waits, for example "once the
+port frees up" or "when a device becomes available", are not clearing events. A passive wait pins
+the deferral to state that nobody controls, so nobody is responsible for movement.</li>
+<li><strong>A clearing probe.</strong> The probe is a side-effect-free command that tests whether
+the wall is gone. The probe is the tripwire: <code>/wf status</code> and <code>/wf probe</code>
+re-run the probe. The moment the wall falls, the system notices, and the debt comes due.</li>
+</ul>
+
+<p>The consequences depend on the stage. Review and handoff proceed past an open deferral with a
+warning, because in-flight work that waits on an environment should not stall mid-pipeline. But
+<code>/wf ship</code> hard-blocks until every deferral is cleared. A probe run that produces the
+matching evidence clears a deferral. A verify re-run in an environment that can produce the
+evidence also clears a deferral. A deferral is a ship-blocking IOU, and the block bites exactly
+where irreversibility begins.</p>
+
+<h2>The pass claim is checked by a machine</h2>
+
+<p>All of the above still depends on verify writing an honest artifact. So a mechanism that
+optimism cannot persuade audits the artifact itself. A PostToolUse hook inspects every verify
+artifact during the write. When the artifact claims <code>result: pass</code> while its own
+recorded criteria are unmet, the hook hard-blocks the write. The agent can be wrong about many
+things, but the agent cannot write "pass" over a body of evidence that says otherwise. The write
+simply fails.</p>
+
+<p>The same principle runs through the whole system: the judgment and the enforcement live in
+different places. Verify routes, hooks block, and ledgers remember.</p>
+
+<h2>Readiness checks at handoff and ship</h2>
+
+<p>The last line of defense is the <strong>readiness check</strong>. Handoff makes work external
+with a PR, and ship makes work external with a release. At that point, the stage stops and
+evaluates whether the whole accumulated record supports the step. A readiness check is not a
+re-review. A readiness check is an aggregation.</p>
+
+<p>Handoff's readiness check walks every slug in scope and confirms four things:</p>
+
+<ul>
+<li>An implementation artifact exists for every slice.</li>
+<li>No RIM is open.</li>
+<li>No review verdict is <code>dont-ship</code>.</li>
+<li>No blocker finding remains open.</li>
+</ul>
+
+<p>The check then watches CI to a terminal state. To snapshot "pending" and declare victory is a
+contract violation. Last, the check computes a readiness verdict: <code>ready</code>,
+<code>awaiting-input</code>, or <code>blocked</code>. In batch mode, the verdict is a logical AND
+across every slug on the branch. One slug's <code>ready</code> never makes the PR ready while a
+sibling slug is blocked.</p>
+
+<p>Both handoff and ship also run the shared ship-plan readiness pre-check. The pre-check asks
+two questions. Does <code>.ai/ship-plan.md</code> exist? Does the plan still describe how the
+code actually ships? A stale release contract is worse than none. A stale contract lends false
+authority at the exact moment that authority becomes irreversible: merge, tag, publish.</p>
+
+<p>Each drift finding carries a tag that states what clears the finding: <code>amend</code> the
+plan, change the <code>repo</code>, or <code>merge</code> the branch. The check only offers
+remedies that can genuinely clear the finding. A plan amendment offered for drift that only a
+merge can end only costs a plan-version bump, and it returns you to the same question. The check
+itself never edits the plan. Like every gate in this system, the check detects and routes, and the
+sanctioned editor does the fixing.</p>
+
+<div class="note">
+<p>One pattern runs through every gate on this page: the stage that detects a problem is never the
+stage that fixes the problem. Verify routes failures to implement. Handoff routes open RIMs to
+shape. The ship-plan check routes drift to <code>ship-plan edit</code>. This separation of
+detection and remedy keeps each record trustworthy.</p>
+</div>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="why-artifacts.html">Why everything is a file</a> — the additive-ledger philosophy these gates are built on.</li>
+    <li><a href="../guides/the-standard-lifecycle.html">The standard lifecycle</a> — where verify, review, handoff, and ship sit in the flow.</li>
+    <li><a href="../guides/releasing.html">Releasing</a> — the ship plan, the ship sequence, and what the pre-check protects.</li>
+    <li><a href="../reference/hooks.html">Hooks reference</a> — the full list of what blocks and what warns, including the verify result gate.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

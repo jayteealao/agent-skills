@@ -78,7 +78,6 @@ var MIME = {
   ".webp": "image/webp"
 };
 var CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'";
-var DOCS_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'";
 var DOCS_ROOT = (() => {
   try {
     return fileURLToPath(new URL("../docs/site", import.meta.url));
@@ -503,7 +502,7 @@ function createHubServer({
       "content-type": type,
       "content-length": stats.size,
       "cache-control": "no-cache",
-      "content-security-policy": DOCS_CSP
+      "content-security-policy": CSP
     });
     if (req.method === "HEAD") {
       res.end();

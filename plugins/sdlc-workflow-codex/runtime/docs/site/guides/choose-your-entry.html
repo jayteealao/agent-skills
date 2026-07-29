@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choose your entry · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Choose your entry</h1>
+<p class="lede">This page tells you which single command starts the work in front of you. Read the page top to bottom once; after that, the situation headings are enough.</p>
+
+<p>Everything enters through <code>/wf</code>, and almost everything enters through one key:
+<code>/wf intake</code>. Intake is the front door of the lifecycle, and intake has <em>modes</em>:
+alternative ways a piece of work comes in. You do not need to memorize the modes, because the
+plain form works everywhere. Describe the task, and intake either runs the default flow or
+proposes a better mode and asks before it switches. The situations below save you a round-trip.
+A few kinds of work (visual polish, runtime checks, cleanup triage) have their own keys.</p>
+
+<h2>You are building something new</h2>
+
+<p>This is the default entry. When you have a feature, an improvement, or any work with real
+scope, start the full lifecycle:</p>
+
+<pre><code>/wf intake add CSV export to the reports page</code></pre>
+
+<p>Default intake interviews you with product-owner questions, fingerprints the project's stack,
+and writes the workflow's index and intake brief. From there the nine remaining stages run in order: shape,
+slice, plan, implement, verify, review, handoff, ship, retro. Each stage is its own command, and
+each stage leaves an artifact behind. If you are new to the plugin, walk through this path once
+in <a href="../start/your-first-workflow.html">Your first workflow</a> before you try the other
+entries.</p>
+
+<div class="note">
+<p>If your description begins with a word that intake treats as a mode keyword ("fix the
+typo…"), intake routes to that mode. That route is almost always the route you meant.</p>
+</div>
+
+<p>To force the default flow instead, quote the whole description as one token:
+<code>/wf intake "fix is a strong word for this"</code>.</p>
+
+<h2>Something is broken</h2>
+
+<p>Three situations map to three modes. Pick by urgency and by how much you already know.</p>
+
+<p><strong>You can see the defect, and the correction is obvious.</strong> Examples are a wrong
+label, an off-by-one error, or a misaligned button:</p>
+
+<pre><code>/wf intake fix the export button label says "Exprot"</code></pre>
+
+<p><code>fix</code> is a quick lane. It authors the whole planning half of the lifecycle in one
+run: brief, shape, slice, and plan. It works on a <code>fix/&lt;slug&gt;</code> branch, and it
+stops at a gate before implementation. No stage is skipped. The ceremony is compressed; the
+thinking is not.</p>
+
+<p><strong>Production is on fire.</strong> Examples are an outage, a live data problem, or users
+who are blocked right now:</p>
+
+<pre><code>/wf intake hotfix checkout returns 500 for all users</code></pre>
+
+<p><code>hotfix</code> is the incident lane. It branches off the <em>production</em> branch. It
+diagnoses the root cause and the blast radius with parallel investigation. It locks scope hard:
+the only acceptable output is the minimum change that stops the incident. Review afterwards
+defaults to the security dimension.</p>
+
+<p><strong>Something broke, and you do not know why.</strong> When the cause is the question,
+do not start a fix mode. Diagnose first:</p>
+
+<pre><code>/wf intake rca the dashboard went blank after Tuesday's deploy</code></pre>
+
+<p><code>rca</code> is terminal: it produces a root-cause analysis and a forwarding shape, then
+stops. It recommends where to go next. The usual routes are <code>fix</code>, <code>hotfix</code>,
+or a full intake, now supported by a diagnosis. The dividing line between <code>fix</code> and
+<code>rca</code> is this: run <code>fix</code> when the correction is self-evident and localized;
+run <code>rca</code> when you must find the cause first.</p>
+
+<h2>The code needs restructuring, not new behavior</h2>
+
+<pre><code>/wf intake refactor untangle the auth service from the session store</code></pre>
+
+<p><code>refactor</code> is the behavior-preserving lane. Before it touches anything, it captures
+a baseline: the public API surface, what the tests actually cover, and where the gaps are. It
+plans the work as atomic steps that each leave the build green. Identical external behavior is
+the only acceptance criterion, and review defaults to the refactor-safety dimension. The lane
+offers the dedicated <code>refactor/&lt;slug&gt;</code> branch; it does not force the branch.</p>
+
+<h2>Dependencies are due an update</h2>
+
+<pre><code>/wf intake update-deps</code></pre>
+
+<p><code>update-deps</code> scans every manifest and researches each outdated package against the
+package's own changelog. It sorts the work into risk tiers: security fixes first, then majors
+with migrations one at a time, then safe minor and patch updates as one batch. It is the one lane
+that also executes and verifies itself in the same run, so it goes straight to review afterwards.
+Pass a package name to focus on one dependency. Pass <code>--security-only</code> to update only
+CVE-affected packages. Pass <code>--audit-only</code> to get the plan and stop. The details of
+all four quick lanes are in <a href="quick-lanes.html">Quick lanes</a>.</p>
+
+<h2>You have a question, not a task</h2>
+
+<p>Three analysis modes are available. All three are terminal: they end in an artifact and a
+recommendation, never in code:</p>
+
+<dl class="cmd-grid">
+<dt><code>/wf intake investigate &lt;question&gt;</code></dt>
+<dd>Use this mode for an open design or approach question, for example "how should we…" or "what
+are the options for…". It produces option sketches with none pre-picked. You choose an option,
+then start the intake for the chosen approach.</dd>
+<dt><code>/wf intake discover &lt;question&gt;</code></dt>
+<dd>Use this mode for a yes/no truth question about the system, for example "does X actually…"
+or "is it feasible to…". It produces a feasibility verdict.</dd>
+<dt><code>/wf intake ideate &lt;area&gt;</code></dt>
+<dd>Use this mode for open-ended brainstorming with no specific defect or decision in view, for
+example "ideas for improving onboarding". It produces a ranked idea catalog. Each idea you pick
+seeds its own fresh intake.</dd>
+</dl>
+
+<p>The three modes are near neighbors. <code>investigate</code> sketches approaches to a
+<em>stated</em> problem. <code>ideate</code> hunts for problems worth having.
+<code>discover</code> answers one sharp question. When your description spans two of these modes,
+intake falls back to the default flow rather than guess.
+<a href="investigation.html">Investigation</a> covers all three in depth.</p>
+
+<h2>The work is already done and sits uncommitted in your tree</h2>
+
+<pre><code>/wf intake adopt</code></pre>
+
+<p><code>adopt</code> is the reverse entry. Instead of planning work ahead of you, it reads the
+working-tree diff you already made and reconstructs the lifecycle behind the diff: brief, shape,
+slice, plan, and the implementation record. It then lands you at verify, where the standard chain
+takes over. It always roots a <em>new</em> workflow; it never attaches to an existing workflow.
+It records the branch you are on rather than create a branch. Intake never proposes adopt on its
+own; to adopt a diff is a decision you state.</p>
+
+<h2>You already have a workflow, and the new work belongs to it</h2>
+
+<p>Two forms exist, distinguished only by what follows the slug. There are no flags anywhere.</p>
+
+<p><strong>An existing slug plus a mode keyword</strong> attaches the run as a single quick-lane
+slice on that workflow:</p>
+
+<pre><code>/wf intake reports-export fix date column renders as epoch millis</code></pre>
+
+<p>The run creates no new workflow and no new branch. It adds one slice file to the workflow you
+named. This form fits the small defect or diagnosis you find mid-flight.</p>
+
+<p><strong>An existing slug plus free scope text</strong> is an extension. An extension grows the
+workflow with full new slices:</p>
+
+<pre><code>/wf intake reports-export also support XLSX output</code></pre>
+
+<p>Scope corrections and follow-on work land here. Already-built work is never re-specified in
+place; a correction is always a new slice. Two maintenance modes complete the set.
+<code>/wf intake &lt;slug&gt; amend</code> edits a workflow's recorded configuration (branch
+strategy, base branch, review scope, title, tags) against a strict whitelist.
+<code>/wf intake &lt;slug&gt; modernize</code> backfills an older workflow's artifacts to the
+current schema without a rewrite of any decision.</p>
+
+<div class="note">
+<p>Intake resolves these forms in a fixed order, and the slug checks come first. A slug plus
+<code>amend</code> or <code>modernize</code> is maintenance. A slug plus a mode keyword is an
+attached slice. A slug plus anything else is an extension. A bare mode keyword is a standalone
+mode. Any other input runs default intake, which may suggest a mode and always asks before it
+switches. In practice: when you name an existing slug first, intake always acts on that
+workflow.</p>
+</div>
+
+<h2>The work is visual</h2>
+
+<pre><code>/wf design polish tighten the settings page hierarchy</code></pre>
+
+<p>UI and visual work has its own key. <code>/wf design</code> carries twenty commands. Fifteen
+are transformation verbs (<code>polish</code>, <code>clarify</code>, <code>animate</code>,
+<code>layout</code>, and more) that produce real code through a focused span. The rest are
+<code>audit</code>, <code>critique</code>, the read-only <code>extract</code>, and the
+<code>setup</code>/<code>teach</code> pair that authors your project's PRODUCT.md and DESIGN.md.
+See <a href="design.html">Design</a>.</p>
+
+<h2>You want to check what actually runs</h2>
+
+<pre><code>/wf probe &lt;slug&gt;</code></pre>
+
+<p><code>/wf probe</code> drives the <em>running</em> artifact: the real app, not the code. It
+compares what it observes against the workflow's acceptance criteria. <code>probe &lt;slug&gt;
+sweep</code> widens the check to the whole user-facing surface, and a slug-less <code>/wf probe
+sweep</code> runs against any repo with no workflow at all. Probe reports findings; probe never
+writes code.</p>
+
+<h2>You want cleanup candidates, not cleanup</h2>
+
+<pre><code>/wf simplify branch</code></pre>
+
+<p><code>/wf simplify</code> sends three parallel reviewers over a scope you pick: a branch, a
+commit, a plan, or a directory of the codebase. The reviewers cover reuse, quality, and
+efficiency. The command classifies what the reviewers find and routes each finding to the
+correct downstream home. Like probe, simplify never fixes anything itself.</p>
+
+<h2>You want the stages driven for you</h2>
+
+<p>When a workflow exists, two drivers run the stages for you:</p>
+
+<dl class="cmd-grid">
+<dt><code>/wf auto &lt;slug&gt;</code></dt>
+<dd>Human-gated: it drives stage after stage, pauses at each stage's own decision points, and
+stops before handoff.</dd>
+<dt><code>/wf yolo &lt;slug&gt;</code></dt>
+<dd>Autonomous: it resolves each gate by a written decision policy, records every decision it
+makes, and also stops before handoff. Handoff and ship always remain yours.</dd>
+</dl>
+
+<p><a href="autonomous-drivers.html">Autonomous drivers</a> covers both.</p>
+
+<h2>If you remember one thing</h2>
+
+<p>When in doubt, type <code>/wf intake</code> followed by a plain description of what you want.
+The worst case is a one-question detour. The default flow handles everything the specialized
+entries handle, only with more ceremony. Run <code>/wf status</code> to see where you are and
+what to run next. When several workflows are open, run <code>/wf status advise</code>.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="the-standard-lifecycle.html">The standard lifecycle</a> — what the ten stages do after you enter.</li>
+    <li><a href="quick-lanes.html">Quick lanes</a> — fix, hotfix, refactor, and update-deps in depth.</li>
+    <li><a href="investigation.html">Investigation</a> — rca, investigate, discover, and ideate as thinking tools.</li>
+    <li><a href="staying-oriented.html">Staying oriented</a> — status, recap, and how to find your footing mid-workflow.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

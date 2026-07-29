@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Everyday fixes · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Everyday fixes</h1>
+<p class="lede">This tutorial shows the flow that you will use most often: a small bug fix through the quick lane. The quick lane compresses the four planning stages into a single run, then hands you to the standard execution chain.</p>
+
+<h2>The running example</h2>
+<p>The <code>export</code> command of our CLI has a bug. When the output directory does not exist, the command fails silently: no error, no file, exit code zero. The bug is small and well understood, with one obvious place to fix it. The full stage-by-stage lifecycle from <a href="your-first-workflow.html">the first tutorial</a> is more ceremony than the change deserves. But you still want the recorded artifacts, the resumability, and the quality checks. The quick lane exists for exactly this case.</p>
+
+<h2>One command authors the whole plan</h2>
+<p>Describe the bug to the fix mode of intake:</p>
+<pre><code>/wf intake fix export fails silently when the output directory is missing</code></pre>
+<p>The important thing to understand about this mode: it compresses <em>ceremony</em>, never <em>stages</em>. Every stage of the lifecycle still happens and still writes its real artifact. The fix lane simply authors the four planning stages in one pass instead of four separate conversations. The fix lane asks you at most two questions along the way. Before it writes anything, it sends research sub-agents into the codebase to ground the plan. The sub-agents find which files the fix touches and what patterns the surrounding code uses. They also check whether a helper already exists for this task, and whether the area churned recently.</p>
+<p>From your description, the fix lane derives a slug, here <code>fix-export-missing-dir</code>. It creates a branch <code>fix/fix-export-missing-dir</code> and writes five files into <code>.ai/workflows/fix-export-missing-dir/</code>:</p>
+<table>
+<thead><tr><th>File</th><th>What it holds</th></tr></thead>
+<tbody>
+<tr><td><code>01-fix.md</code></td><td>The brief: the restated bug, up to three objectively checkable acceptance criteria, assumptions, open questions.</td></tr>
+<tr><td><code>02-shape.md</code></td><td>A tight scope: what is in, what is out, and known unknowns.</td></tr>
+<tr><td><code>03-slice.md</code></td><td>A single slice. A fix is one slice by definition, and the lifecycle never skips slicing.</td></tr>
+<tr><td><code>04-plan.md</code></td><td>At most five numbered steps, each naming its files and its verification, plus the exact test commands and manual checks to run.</td></tr>
+<tr><td><code>00-index.md</code></td><td>The control file: the same full index that a standard workflow gets, with all four planning stages marked complete.</td></tr>
+</tbody>
+</table>
+<p>For our bug, the plan might be three steps: add a directory-existence check before the write, surface a clear error with a non-zero exit code, and add a regression test for the missing-directory path.</p>
+
+<h2>The gate before implement</h2>
+<p>The fix lane stops before it writes any code. It shows you the plan and asks you to choose: <em>Proceed</em>, <em>Adjust</em>, or <em>Escalate</em>. <em>Adjust</em> revises a planning artifact and asks again. <em>Escalate</em> restarts the change as a full <code>/wf intake</code> workflow, because the change turned out bigger than a fix. For a clearly low-risk change (three files or fewer, no open questions), the lane may proceed on its own. It records that decision either way.</p>
+<div class="note">The lane watches its own envelope while it plans. The fix can grow: more than three files, more than five steps, a new dependency, or an architectural change. The lane does not refuse; it records the breach in the plan and recommends the <em>Escalate</em> option at the gate. You always get a valid plan, sometimes with a record that the fix outgrew the lane.</div>
+
+<h2>The standard chain takes over</h2>
+<p>From here, the flow is the same execution chain as any workflow, one command per stage. Implement the plan:</p>
+<pre><code>/wf implement fix-export-missing-dir</code></pre>
+<p>Because a fix is a single-slice lifecycle, you never pass a slice name. Implement writes <code>05-implement.md</code>, un-suffixed. Then check the fix against the acceptance criteria:</p>
+<pre><code>/wf verify fix-export-missing-dir</code></pre>
+<p>Verify runs the tests and the plan's manual checks against observed behavior. It runs the export into a missing directory, and confirms that the error appears and that the exit code is non-zero. Verify writes <code>06-verify.md</code>. If something fails, verify triages the failures with you in a single fix round. Then run the review:</p>
+<pre><code>/wf review fix-export-missing-dir</code></pre>
+<p>Review picks the dimensions that matter for a change like this. It writes its findings and verdict to <code>07-review.md</code>. The quick lane never skips review: the compression was all in planning, and the quality checks run in full. Finally, package the fix for a pull request:</p>
+<pre><code>/wf handoff fix-export-missing-dir</code></pre>
+<p>Handoff writes <code>08-handoff.md</code>, pushes the branch, opens the PR, and waits for CI before it declares the work ready. This is the same as any workflow.</p>
+
+<h2>Attaching a fix to an existing workflow</h2>
+<p>A second form is worth knowing. Sometimes the bug belongs to a workflow that already exists. For example, you find a date-formatting bug in the <code>export-json-flag</code> feature from the first tutorial. In that case, put the slug before the mode:</p>
+<pre><code>/wf intake export-json-flag fix date fields lose the timezone in json output</code></pre>
+<p>Instead of a new workflow and a new branch, this form attaches one quick-lane slice to the existing workflow. It writes a single file, <code>03-slice-fix-date-fields-timezone.md</code>, that contains the same researched fix plan. It updates the parent's index additively. It creates no new branch, and the parent workflow's lifecycle position does not move. The fix simply becomes one more slice of work under the slug that owns it.</p>
+
+<h2>When not to use the fix lane</h2>
+<p>Two neighboring modes exist for cases that look like fixes but are not. A production incident belongs in <code>/wf intake hotfix</code>, which branches off the production branch and runs diagnosis sub-agents. Code improvement that does not change behavior belongs in <code>/wf intake refactor</code>, which establishes a test baseline first. When the plan genuinely outgrows the fix envelope, take the gate's <em>Escalate</em> option. Do not force the change through the lane. The full lifecycle exists for exactly that case.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../guides/quick-lanes.html">Quick lanes</a> — fix, hotfix, refactor, and update-deps side by side, and how to pick.</li>
+    <li><a href="../guides/choose-your-entry.html">Choose your entry</a> — every way into the lifecycle and when each is the right door.</li>
+    <li><a href="../reference/intake-modes.html">Intake modes</a> — the full reference for every mode, including the analysis-only ones.</li>
+    <li><a href="your-first-workflow.html">Your first workflow</a> — the full standard lifecycle the quick lane compresses.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

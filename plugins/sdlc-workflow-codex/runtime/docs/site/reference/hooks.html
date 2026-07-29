@@ -1,280 +1,230 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Hooks reference · sdlc-workflow</title>
+<title>Hooks · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
-<body>
-<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
-  <span class="open-icon" aria-hidden="true">&#9776;</span>
-  <span class="close-icon" aria-hidden="true">&times;</span>
-</button>
-<div class="nav-backdrop" aria-hidden="true"></div>
-<div class="layout">
-<aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.143.0</small></a>
-<nav aria-label="Site navigation">
-  <h4>Orientation</h4>
-  <ul>
-    <li><a href="../index.html" data-href="index.html">Home</a></li>
-    <li><a href="../orientation/is-this-for-me.html" data-href="orientation/is-this-for-me.html">Is this for me?</a></li>
-    <li><a href="../orientation/mental-model.html" data-href="orientation/mental-model.html">How it works</a></li>
-    <li><a href="../orientation/first-10-minutes.html" data-href="orientation/first-10-minutes.html">First 10 minutes</a></li>
-  </ul>
-  <h4>Tutorials</h4>
-  <ul>
-    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
-    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">Full feature walkthrough</a></li>
-    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
-  </ul>
-  <h4>How to&hellip;</h4>
-  <ul>
-    <li><a href="../how-to/choose-a-command.html" data-href="how-to/choose-a-command.html">Choose a command</a></li>
-    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
-    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
-    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
-    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use add-ons</a></li>
-    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use design</a></li>
-    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
-    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
-    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
-    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
-    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
-  </ul>
-  <h4>Reference</h4>
-  <ul>
-    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
-    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
-    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
-    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
-    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
-    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
-    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
-    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
-    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
-    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
-    <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
-  </ul>
-  <h4>Explanation</h4>
-  <ul>
-    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
-    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
-    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
-    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
-    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
-    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
-    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
-    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
-    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
-    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
-  </ul>
-  <h4>Tips</h4>
-  <ul>
-    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
-    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
-    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
-    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
-  </ul>
-  <h4>Changelog</h4>
-  <ul>
-    <li><a href="../whats-new.html" data-href="whats-new.html">What&#8217;s new</a></li>
-  </ul>
-</nav>
-</aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Hooks</div>
-<span class="quadrant reference">reference</span>
-<h1>Hooks reference</h1>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Hooks</h1>
+<p class="lede">This page is the lookup reference for the eight hooks the plugin installs. For each hook, the page lists the event the hook fires on, what the hook does, whether the hook blocks or only warns, and the switch that turns the hook off.</p>
 
-<p class="lede">Hooks are what make the plugin active during normal Claude Code use — they fire automatically when you write files, start sessions, and run commands. Two of the eight hooks act as <strong>guards</strong>: they catch malformed artifact files before they are saved, so broken frontmatter never silently corrupts your workflow history.</p>
+<p>Hooks are how the plugin enforces its contracts automatically, so neither you nor the model
+has to remember them. Two hooks run at session start. Three hooks run
+before a tool call — two before a write, one before a shell command — and can block the
+tool call. Three hooks run after a write: they validate, stage, and render the written
+files. All hooks are fail-open by design: an
+internal error in a hook never breaks your session. No hook fires during plugin installation
+or inside a dispatched read-only sub-agent.</p>
 
-<h2>What the hooks do for you</h2>
-
-<p>A <strong>hook</strong> is a small script that Claude Code calls at a specific moment — before a file write, after a file write, or when a session starts. You do not call hooks yourself; they run in the background automatically once the plugin is installed.</p>
-
-<p>The two guard hooks are the most important:</p>
-
-<ul>
-  <li><strong>pre-write-validate</strong> — runs <em>before</em> any artifact file is saved. If the filename or <a href="../reference/glossary.html#frontmatter">frontmatter</a> (the YAML block at the top of every artifact) would be invalid, it blocks the write and tells Claude what to fix. You never end up with a broken file on disk.</li>
-  <li><strong>post-write-verify</strong> — runs <em>after</em> a write. It performs a deeper schema check and, for the 14 <a href="../reference/glossary.html#fragment">rich-tier</a> artifact types, also checks that the required companion <code>.yaml</code> fragment file exists. If either check fails it exits with an error and prompts Claude to repair the file.</li>
-</ul>
-
-<p>The other four hooks handle automation:</p>
-
-<ul>
-  <li><strong>post-write-auto-stage</strong> — automatically runs <code>git add</code> on changed code files during the implement <a href="../reference/glossary.html#stage">stage</a> (one step of the full workflow lifecycle), so you do not have to stage files manually.</li>
-  <li><strong>post-write-render</strong> — refreshes the local <a href="../reference/glossary.html#dashboard">dashboard</a> (the Sunflower HTML view) after any artifact changes. It never blocks a write; it is best-effort.</li>
-  <li><strong>session-start-orient</strong> — runs once when a session opens (and again after context compaction). It starts background rendering of the dashboard view and self-heals the tray. It surfaces no session context of its own — the <code>/wf</code> commands re-read each workflow&#39;s <code>00-index.md</code> when they run.</li>
-  <li><strong>seed-memory</strong> — a second SessionStart hook. When the repo has an <code>.ai/workflows/</code> directory, it seeds a versioned, fenced <code>/wf</code> rules block into <code>AGENTS.md</code> (and an <code>@AGENTS.md</code> import into <code>CLAUDE.md</code>) so the workflow conventions survive across sessions. Never blocks; opt out with <code>memory.seedRules</code>.</li>
-</ul>
-
-<p>Two optional <strong>leak guards</strong> ship <em>off by default</em> (enable them via the <code>semantic</code> config block below):</p>
-
-<ul>
-  <li><strong>leak-guard-bash</strong> — before a publishing command runs (<code>git commit</code>/<code>git tag</code> messages, <code>gh pr create</code> titles and bodies, <code>gh release</code> notes), it scans the outward-facing text for internal workflow vocabulary — artifact paths, command strings, stage-file names — and advises you to translate to product language before publishing.</li>
-  <li><strong>leak-guard-write</strong> — the same scan for writes to public documentation paths (<code>README</code>, <code>CHANGELOG</code>, <code>CONTRIBUTING</code>, <code>docs/</code> outside the internal roots). Internal paths are never scanned — workflow vocabulary belongs there.</li>
-</ul>
-
-<h2>All eight hooks at a glance</h2>
+<h2 id="overview">At a glance</h2>
 
 <table>
-<thead><tr><th>Hook</th><th>Fires</th><th>Timeout</th><th>Blocks?</th></tr></thead>
+<thead><tr><th>Hook</th><th>Event · matcher</th><th>Blocks?</th><th>Disable with</th></tr></thead>
 <tbody>
-<tr><td><code>session-start-orient</code></td><td>Session opens / after compaction</td><td>30 s</td><td>No</td></tr>
-<tr><td><code>seed-memory</code></td><td>Session opens / after compaction</td><td>10 s</td><td>No — seeds the <code>/wf</code> rules kernel into AGENTS.md + CLAUDE.md</td></tr>
-<tr><td><code>pre-write-validate</code></td><td>Before a <code>Write</code></td><td>5 s</td><td>Yes — exits 2 on invalid filename or frontmatter</td></tr>
-<tr><td><code>leak-guard-write</code></td><td>Before Write / Edit / MultiEdit</td><td>5 s</td><td>Off by default; advisory when enabled — exits 2 only in <code>enforce</code> mode</td></tr>
-<tr><td><code>leak-guard-bash</code></td><td>Before a <code>Bash</code> command</td><td>5 s</td><td>Off by default; advisory when enabled — exits 2 only in <code>enforce</code> mode</td></tr>
-<tr><td><code>post-write-auto-stage</code></td><td>After Write / Edit / MultiEdit / NotebookEdit</td><td>5 s</td><td>No</td></tr>
-<tr><td><code>post-write-verify</code></td><td>After Write / Edit / MultiEdit / NotebookEdit</td><td>15 s</td><td>Yes — exits 2 on schema failure or missing fragment</td></tr>
-<tr><td><code>post-write-render</code></td><td>After Write / Edit / MultiEdit / NotebookEdit</td><td>30 s</td><td>No</td></tr>
+<tr><td><a href="#session-start-orient"><code>session-start-orient</code></a></td><td>SessionStart</td><td>Never</td><td><code>view.bootstrap.enabled: false</code>, <code>SDLC_DISABLE_BOOTSTRAP=1</code>, <code>SDLC_DISABLE_TRAY_HEAL=1</code></td></tr>
+<tr><td><a href="#seed-memory"><code>seed-memory</code></a></td><td>SessionStart</td><td>Never</td><td><code>memory.seedRules: false</code> or <code>SDLC_DISABLE_MEMORY_SEED=1</code></td></tr>
+<tr><td><a href="#pre-write-validate"><code>pre-write-validate</code></a></td><td>PreToolUse · <code>Write</code></td><td><strong>Blocks</strong> on violations</td><td><code>hooks.validateOnWrite: false</code></td></tr>
+<tr><td><a href="#leak-guard-write"><code>leak-guard-write</code></a></td><td>PreToolUse · <code>Write|Edit|MultiEdit</code></td><td>Off by default; warns (advisory) or blocks (enforce)</td><td><code>semantic.enabled: false</code> (the default)</td></tr>
+<tr><td><a href="#leak-guard-bash"><code>leak-guard-bash</code></a></td><td>PreToolUse · <code>Bash</code></td><td>Off by default; warns (advisory) or blocks (enforce)</td><td><code>semantic.enabled: false</code> (the default)</td></tr>
+<tr><td><a href="#post-write-auto-stage"><code>post-write-auto-stage</code></a></td><td>PostToolUse · <code>Write|Edit|MultiEdit|NotebookEdit</code></td><td>Never</td><td><code>hooks.autoStage: false</code> or a <code>.ai/.no-auto-stage</code> marker file</td></tr>
+<tr><td><a href="#post-write-verify"><code>post-write-verify</code></a></td><td>PostToolUse · <code>Write|Edit|MultiEdit|NotebookEdit</code></td><td><strong>Blocks</strong> on some checks, warns on others</td><td><code>hooks.verifyOnWrite: false</code> plus per-check keys</td></tr>
+<tr><td><a href="#post-write-render"><code>post-write-render</code></a></td><td>PostToolUse · <code>Write|Edit|MultiEdit|NotebookEdit</code></td><td>Never</td><td><code>view.renderDispatch</code> / a <code>.ai/_view/.render-suppress</code> marker file</td></tr>
 </tbody>
 </table>
 
-<p>All eight are wired via <code>hooks/hooks.json</code> and run from committed <strong>esbuild bundles under <code>dist/</code></strong>, not the <code>hooks/*.mjs</code> source files. This means they run with no <code>npm install</code> on a fresh install — all dependencies are inlined. The hooks are not Claude-Code-only: a shared <code>normalizeHookPayload</code> (in <code>lib/stdin.mjs</code>) aliases the camelCase hook payload keys emitted by Grok and Cursor to the snake_case fields the hooks expect, so the same bundles run across those hosts.</p>
+<h2 id="session-start-orient">session-start-orient</h2>
 
-<h2>What each hook validates</h2>
+<p><strong>SessionStart.</strong> This hook is pure background maintenance. It produces no
+chat output and never blocks. When a session starts in a registered repo, the hook starts
+three detached jobs:</p>
 
-<h3>pre-write-validate <span class="badge">PreToolUse: Write</span></h3>
-
-<p>Fires before any write to a workflow artifact path (<code>*/.ai/workflows/&lt;slug&gt;/*.md</code>). Blocks writes that violate:</p>
 <ul>
-  <li><strong>Filename convention</strong> — files must match <code>NN-stagename.md</code> or <code>NNa-stagename.md</code> (for sub-stages like <code>02b-design.md</code>), plus the allowlisted names <code>risk-register.md</code>, <code>estimate.md</code>, <code>announce.md</code>, <code>skip-&lt;name&gt;.md</code> (close/skip records), <code>po-answers.md</code>, and anything under <code>design-notes/</code>.</li>
-  <li><strong>YAML frontmatter</strong> — must be present between <code>---</code> markers and contain <code>schema</code>, <code>type</code>, and <code>slug</code> fields. (The <code>po-answers.md</code> prose log is exempt.)</li>
-  <li><strong>Schema version</strong> — <code>schema: sdlc/v1</code>.</li>
-  <li><strong>Slug stability</strong> — the frontmatter <code>slug</code> must match the directory name.</li>
+<li><strong>Render bootstrap.</strong> A background pass renders workflow-view pages that are
+missing or stale, so the dashboard is current when you open it. The
+<code>view.bootstrap.*</code> config keys govern the pass. Under
+<code>SDLC_DISABLE_BOOTSTRAP=1</code>, the pass is skipped entirely.</li>
+<li><strong>Hub ensure.</strong> If the machine-wide hub is not already running, the hook
+starts the hub. The hook then registers the repo with the hub, unless the repo opted out with
+<code>view.hub.enabled: false</code>.</li>
+<li><strong>Tray reconcile (Windows).</strong> The hook re-stamps the tray autostart launcher
+to point at the current plugin version. After an upgrade, the hook also reconciles a tray that
+is already running on a prior version's code. The hook never creates a launcher and never
+relaunches a tray you did not opt into. Under <code>SDLC_DISABLE_TRAY_HEAL=1</code>, the
+running-tray reconcile is skipped.</li>
 </ul>
 
-<p>Note: <code>.ai/workflows/INDEX.md</code> (the registry) and <code>.ai/ship-plan.md</code> are handled separately — the per-slug path pattern does not match them.</p>
+<p>Everything here is fail-open: session orientation must never break on a rendering or tray
+problem.</p>
 
-<h3>post-write-verify <span class="badge">PostToolUse: Write / Edit / MultiEdit / NotebookEdit</span></h3>
+<h2 id="seed-memory">seed-memory</h2>
 
-<p>Fires after the write and reads the file from disk. Runs deep Ajv validation of the frontmatter <code>type</code> and required fields against <code>tests/frontmatter.schema.json</code> for artifacts under <code>.ai/workflows/</code>, <code>.ai/simplify/</code>, <code>.ai/profiles/</code>, <code>.ai/docs/</code>, and the solutions corpus (<code>.ai/solutions/&lt;category&gt;/*.md</code>, frontmatter <code>type: solution</code> — the corpus <code>INDEX.md</code> is a frontmatter-less registry and is exempt, as is the <code>po-answers.md</code> prose log). Exits 2 with diagnostics on failure so Claude can repair the frontmatter in place.</p>
+<p><strong>SessionStart.</strong> This hook makes sure that a small, versioned, fenced
+<code>/wf</code> rules block exists in the repo's <code>AGENTS.md</code>. It also makes sure
+that an <code>@AGENTS.md</code> import line exists in <code>CLAUDE.md</code>, so both hosts
+read the same kernel. The plugin owns exactly the fenced region: it replaces an older kernel
+version in place and never touches a byte outside the fence. Seeding runs only in
+sdlc-engaged repos (repos with a <code>.ai/workflows/</code> directory). The hook announces
+itself once, on the first insert, then runs silently. It never blocks.</p>
 
-<h4>Sibling-fragment hard block <span class="badge">v9.47</span></h4>
+<p>To disable this hook per repo, set <code>memory.seedRules: false</code> in
+<code>.ai/sdlc-config.json</code>. To disable it per machine or session, set
+<code>SDLC_DISABLE_MEMORY_SEED=1</code>. Existing seeded blocks are left untouched either
+way.</p>
 
-<p>Rich-tier artifact types need a companion <code>.yaml</code> fragment file — a small structured file the dashboard reads to render workflow cards. If you write one of the 14 gated types without its companion, post-write-verify <strong>exits 2 and blocks the write</strong>.</p>
+<h2 id="pre-write-validate">pre-write-validate</h2>
 
-<p>The 14 gated types are: <code>review</code>, <code>plan</code>, <code>design</code>, <code>ship-run</code>, <code>rca</code>, <code>benchmark</code>, <code>experiment</code>, <code>instrument</code>, <code>profile</code>, <code>simplify-run</code>, <code>review-command</code>, <code>design-audit</code>, <code>design-critique</code>, and <code>design-contract</code>.</p>
+<p><strong>PreToolUse, matcher <code>Write</code>.</strong> This hook is the gatekeeper for
+workflow artifacts. It inspects any Write that targets markdown under
+<code>.ai/workflows/</code> <em>before</em> the file lands. When the content violates the
+artifact contract, the hook <strong>blocks the write</strong> (exit 2, with the reason on
+stderr). The hook enforces:</p>
 
-<p>Two escape hatches let you opt out:</p>
 <ul>
-  <li>Add <code>fragment: none</code> (also accepts <code>skip</code> or <code>n/a</code>) to the artifact's frontmatter to exempt a single file.</li>
-  <li>Set <code>hooks.remindMissingFragments: false</code> in <code>.ai/sdlc-config.json</code> to disable the check project-wide.</li>
+<li>The filename convention: <code>NN-name.md</code> / <code>NNx-name.md</code> (for example
+<code>01-intake.md</code>, <code>02b-design.md</code>), plus the named exceptions
+<code>risk-register.md</code>, <code>estimate.md</code>, <code>announce.md</code>, and
+<code>skip-*.md</code> records.</li>
+<li>YAML frontmatter with <code>schema</code>, <code>type</code>, and <code>slug</code> keys,
+and <code>schema: sdlc/v1</code> exactly.</li>
+<li>That the frontmatter <code>slug</code> matches the
+<code>.ai/workflows/&lt;slug&gt;/</code> directory that receives the file.</li>
 </ul>
 
-<p>The types <code>sync-report</code> and <code>docs-index</code> are intentionally excluded from gating — a hard block would wedge their automated regenerators.</p>
+<p>The free-form <code>po-answers.md</code> decision log is exempt. That log is prose, not a
+managed artifact. A missing registry (<code>.ai/workflows/INDEX.md</code>), or a missing slug
+row in the registry, produces a warning, not a block. To disable this hook, set
+<code>hooks.validateOnWrite: false</code>.</p>
 
-<h3>post-write-auto-stage <span class="badge">PostToolUse</span></h3>
+<h2 id="leak-guard-write">leak-guard-write</h2>
 
-<p>Auto-stages changed code files with <code>git add</code> when an active workflow is in the implement stage and the branch strategy is <code>dedicated</code> or <code>shared</code>. To disable auto-staging for a repo without touching config, create the file <code>.ai/.no-auto-stage</code>.</p>
+<p><strong>PreToolUse, matcher <code>Write|Edit|MultiEdit</code>.</strong> This hook is the
+External Output Boundary guard for documentation. When a write targets a <em>public</em>
+documentation path (<code>README*</code>, <code>CHANGELOG*</code>, <code>CONTRIBUTING*</code>,
+or anything under a <code>docs/</code> directory outside the internal roots), the hook scans
+the written content against a lexicon of internal workflow vocabulary. Internal paths
+(<code>.ai/**</code>, <code>.claude/**</code>) are never scanned. Workflow vocabulary belongs
+there.</p>
 
-<h3>post-write-render <span class="badge">PostToolUse</span></h3>
+<p>This guard is <strong>off by default</strong> (<code>semantic.enabled: false</code>). When
+the guard is enabled, <code>semantic.mode</code> decides the consequence.
+<code>"advisory"</code> (the default mode) emits a non-blocking message that names the
+matched vocabulary. <code>"enforce"</code> denies the write. Run advisory first. Promote to
+enforce only when the false-positive rate in your repo proves near zero.</p>
 
-<p>Re-renders the affected part of the dashboard HTML view under <code>.ai/_view/</code> after an artifact changes. Never blocks the write; runs best-effort in the background.</p>
+<h2 id="leak-guard-bash">leak-guard-bash</h2>
 
-<h3>session-start-orient <span class="badge">SessionStart</span></h3>
+<p><strong>PreToolUse, matcher <code>Bash</code>.</strong> This hook is the same boundary
+guard, aimed at publishing commands. It scans only the <em>outward-facing text
+arguments</em>: <code>git commit</code> and <code>git tag</code> messages, and
+<code>gh pr create</code> / <code>gh release create|edit</code> titles, bodies, and notes
+(including heredoc bodies). The hook never scans the whole command line, so reading internal
+files with <code>cat</code> or <code>grep</code> can never trigger the guard. The
+configuration is the same as the write guard: off by default via
+<code>semantic.enabled</code>, advisory or enforce via <code>semantic.mode</code>. Body-file
+flags (<code>-F</code>, <code>--body-file</code>) are not read. Only the path itself is
+scanned as text.</p>
 
-<p>Fires once per session and re-fires after a context compaction (<code>source: compact</code>). It enqueues a whole-repo render of the dashboard view (drained by the hub) and self-heals the tray — re-pointing an enabled autostart launcher at the current version and reconciling a stale running tray. It runs entirely in the background and surfaces <strong>no</strong> session context of its own. Resume after a compaction is driven by the <code>/wf</code> commands instead: each re-reads its workflow&#39;s <code>00-index.md</code> on invocation (and the <code>auto</code>/<code>yolo</code> drivers run their own branch-posture check), so orientation is pulled just-in-time rather than pushed into context here.</p>
+<h2 id="post-write-auto-stage">post-write-auto-stage</h2>
 
-<h3>seed-memory <span class="badge">SessionStart</span> <span class="badge">v9.125</span></h3>
+<p><strong>PostToolUse, matcher <code>Write|Edit|MultiEdit|NotebookEdit</code>.</strong> This
+hook keeps implementation work staged as it happens. When an active workflow is in the
+implement stage with a <code>dedicated</code> or <code>shared</code> branch strategy, the hook
+runs <code>git add</code> on each written implementation file. Workflow artifact files are
+deliberately skipped: the implement stage's own commits own those files. The hook always
+exits 0 and never blocks anything.</p>
 
-<p>A second SessionStart hook, separate from <code>session-start-orient</code> and shipped as its own bundle (<code>dist/seed-memory.mjs</code>, logic in <code>lib/memory-seed.mjs</code>). It runs only when the repo already has an <code>.ai/workflows/</code> directory. When it does, it seeds a <strong>versioned, fenced <code>/wf</code> rules block</strong> into <code>AGENTS.md</code> and adds an <code>@AGENTS.md</code> import into <code>CLAUDE.md</code>, so the workflow conventions are re-supplied to the model each session (the <code>@import</code> line is Claude-only; Codex reads <code>AGENTS.md</code> natively). It owns only the fenced region — hand-written prose around the fence is left untouched — and rewrites it only when the plugin&#39;s rules version advances. It never blocks a write (10 s timeout, fail-open). Opt out by setting <code>memory.seedRules</code> to <code>false</code> in <code>.ai/sdlc-config.json</code>.</p>
+<p>To disable this hook, set <code>hooks.autoStage: false</code>. For an ad-hoc pause without
+a config change, drop a <code>.ai/.no-auto-stage</code> marker file.</p>
 
-<h3>leak-guard-bash <span class="badge">PreToolUse: Bash · off by default</span></h3>
+<h2 id="post-write-verify">post-write-verify</h2>
 
-<p>Fires before a Bash command, but only acts on <strong>publishing commands</strong> — <code>git commit</code>, <code>git tag</code>, <code>gh pr create</code>, <code>gh release create|edit</code> — and scans only their message-bearing arguments (never the whole command, so reading an internal file with <code>cat</code> is never flagged). The scan uses a lexicon derived from the plugin&#39;s single-source output-boundary rule: internal paths (<code>.ai/…</code>, <code>.claude/…</code>), workflow command strings, stage-artifact filenames, and the artifact schema tag. Plain English words that happen to be stage names (&quot;plan&quot;, &quot;review&quot;, &quot;ship&quot;) are deliberately not matched. In <code>advisory</code> mode it emits a note naming the matches; in <code>enforce</code> mode it blocks the command with the same message.</p>
+<p><strong>PostToolUse, matcher <code>Write|Edit|MultiEdit|NotebookEdit</code>.</strong> This
+hook is the deep validator. It runs after a workflow artifact lands (markdown under
+<code>.ai/workflows/</code>, <code>.ai/simplify/</code>, and <code>.ai/profiles/</code>;
+<code>po-answers.md</code> is exempt) and carries most of the plugin's integrity checks. Some
+checks <strong>hard-block</strong> (exit 2; the model must fix the artifact before it
+proceeds). The rest warn without blocking. To disable this hook, set the master switch
+<code>hooks.verifyOnWrite: false</code>. Each check also has its own key, and all keys
+default to on (see the <a href="configuration.html#repo-hooks">configuration
+reference</a>).</p>
 
-<h3>leak-guard-write <span class="badge">PreToolUse: Write / Edit / MultiEdit · off by default</span></h3>
+<p>The blocking checks:</p>
 
-<p>The same lexicon scan for writes whose target is a <strong>public documentation path</strong>: <code>README*</code>, <code>CHANGELOG*</code>, <code>CONTRIBUTING*</code>, or anything under a <code>docs/</code> directory outside the internal roots. Writes under <code>.ai/</code> or <code>.claude/</code> are never scanned — workflow vocabulary belongs there. Both guards sit out entirely during external-model dispatch and fail open on internal errors: advisory infrastructure never breaks a tool call.</p>
+<ul>
+<li><strong>Deep frontmatter schema validation</strong> against the artifact schema: the full
+check beyond what the pre-write gate enforced.</li>
+<li><strong>Sibling-fragment enforcement</strong> (<code>hooks.remindMissingFragments</code>):
+a rich-tier artifact <code>.md</code> written without its mandatory sibling <code>.yaml</code>
+blocks. A missing <code>.html.fragment</code> only nudges. Without the sibling, the workflow
+view renders that page as plain prose. The per-artifact opt-out is <code>fragment: none</code>
+in frontmatter.</li>
+<li><strong>Sibling-YAML schema validation</strong> (<code>hooks.validateSiblingYaml</code>):
+a present sibling <code>.yaml</code> is validated against its per-type schema, for the
+reconciled types (plan, review, design, simplify-run, ship-run).</li>
+<li><strong>The verify result gate</strong> (<code>hooks.verifyResultGate</code>): a verify
+artifact that claims <code>result: pass</code> while acceptance criteria are unmet, or while
+interactive verification is deferred, is a contradiction and blocks.</li>
+<li><strong>The mock-evidence gate</strong> (<code>hooks.mockEvidenceGate</code>):
+<code>result: pass</code> while a user-observable acceptance criterion's best evidence is a
+mock or static analysis blocks. Such a criterion is not met. Produce runtime evidence or
+record a deferral.</li>
+</ul>
 
-<h2>Configuration</h2>
+<p>The warning-only lints are heuristic and never block:</p>
 
-<p>The five <code>hooks</code>-block toggles live in <code>.ai/sdlc-config.json</code> and default to <code>true</code>; the two leak guards are controlled by the separate <code>semantic</code> block, which defaults to <em>off</em>.</p>
+<ul>
+<li>The <strong>deferral lint</strong> warns when shadow-deferral vocabulary co-occurs with a
+passing verify result.</li>
+<li>The <strong>limitation-claim lint</strong> warns when a comment asserts a dependency
+limitation with no citation nearby.</li>
+<li>The <strong>suppression-debt lint</strong> warns when a new type/lint suppression has no
+<code>sdlc-debt:</code> marker.</li>
+<li>The <strong>named-mechanism lint</strong> warns when an acceptance criterion names a
+mechanism the design never decided on.</li>
+<li>The <strong>intake-ledger lint</strong> warns when a default-mode intake lands with
+neither ledger entries nor the explicit <code>none-declared</code> escapes.</li>
+</ul>
 
-<table>
-<thead><tr><th>Key</th><th>Default</th><th>Controls</th></tr></thead>
-<tbody>
-<tr><td><code>autoStage</code></td><td>true</td><td>Whether post-write-auto-stage runs <code>git add</code>.</td></tr>
-<tr><td><code>validateOnWrite</code></td><td>true</td><td>Whether pre-write-validate runs filename and frontmatter checks.</td></tr>
-<tr><td><code>verifyOnWrite</code></td><td>true</td><td>Whether post-write-verify runs deep Ajv validation.</td></tr>
-<tr><td><code>remindMissingFragments</code></td><td>true</td><td>Whether post-write-verify enforces the sibling-fragment hard block. Set <code>false</code> to disable both the block and the reminder.</td></tr>
-<tr><td><code>validateSiblingYaml</code></td><td>true</td><td>Whether post-write-verify validates a present sibling <code>.yaml</code> against its schema and blocks on violations. Only applies to types with a reconciled schema (<code>plan</code>, <code>review</code>, <code>design</code>, <code>simplify-run</code>, <code>ship-run</code>).</td></tr>
-<tr><td><code>semantic.enabled</code></td><td><strong>false</strong></td><td>Master switch for both leak guards. Off by default — the guards exit silently.</td></tr>
-<tr><td><code>semantic.mode</code></td><td><code>advisory</code></td><td><code>advisory</code> emits a non-blocking note naming the matched vocabulary; <code>enforce</code> blocks the tool call with the same message. Promote to enforce only after the advisory false-positive rate proves ~0 on real work.</td></tr>
-</tbody>
-</table>
+<h2 id="post-write-render">post-write-render</h2>
 
-<details>
-<summary>Technical details — the build model and file layout</summary>
+<p><strong>PostToolUse, matcher <code>Write|Edit|MultiEdit|NotebookEdit</code>.</strong> This
+hook is the bridge from artifact writes to the rendered workflow view. It filters to managed
+artifact paths (<code>.ai/workflows/</code>, <code>.ai/simplify/</code>,
+<code>.ai/profiles/</code>, <code>.ai/dep-updates/</code>, <code>.ai/ideation/</code>,
+docs-run indexes, <code>PRODUCT.md</code> / <code>DESIGN.md</code>, and
+<code>.ai/ship-plan.md</code>). It debounces bursts of writes with a two-second touch file.
+It then dispatches a render according to <code>view.renderDispatch</code>:</p>
 
-<p>Hooks run from <code>dist/*.mjs</code>: committed esbuild bundles with all third-party dependencies inlined. That is what lets a fresh install run with no runtime <code>npm install</code>. The source lives in <code>hooks/</code>. After editing any hook (or anything under <code>lib/</code>, <code>renderers/</code>, or <code>components/</code>) you must run <code>npm run build</code> to refresh <code>dist/</code>, or the CI freshness gate fails and production runs stale code. See <a href="../explanation/build-and-dist.html">Build &amp; dist model →</a></p>
+<ul>
+<li><code>"hub"</code> (the default): the change is enqueued to the durable per-repo render
+queue (<code>.ai/_view/.render-queue/</code>), and the hub daemon drains and renders it. If no
+daemon answers and <code>view.ensureHubOnWrite</code> is on, the hook makes a best-effort
+detached attempt to start the hub.</li>
+<li><code>"inline"</code>: the legacy path. The hook spawns the renderer itself.</li>
+</ul>
 
-<p>Note: <code>hooks/render-on-artifact-write.mjs</code> exists in source as a helper module but is <strong>not</strong> a wired hook — the rendering hook is <code>post-write-render.mjs</code>.</p>
+<p>Render errors land in <code>.ai/_view/.render-errors.log</code>. The hook always exits 0,
+so a stale view can never block a command. The hook suppresses itself in three cases: when
+the touched path is inside <code>.ai/_view/</code> (this avoids render-write loops), when a
+<code>.ai/_view/.render-suppress</code> marker file exists (a per-project pause), and during
+plugin installation.</p>
 
-<pre><code>plugins/sdlc-workflow/
-├── hooks/
-│   ├── hooks.json                  # wiring — points every entry at dist/
-│   ├── pre-write-validate.mjs      # source
-│   ├── post-write-verify.mjs       # source
-│   ├── post-write-auto-stage.mjs   # source
-│   ├── post-write-render.mjs       # source
-│   ├── session-start-orient.mjs    # source
-│   └── seed-memory.mjs             # source
-└── dist/                           # committed bundles — what actually runs
-    ├── pre-write-validate.mjs
-    ├── post-write-verify.mjs
-    ├── post-write-auto-stage.mjs
-    ├── post-write-render.mjs
-    ├── session-start-orient.mjs
-    └── seed-memory.mjs</code></pre>
-
-<p>Earlier releases shipped shell and Python equivalents under <code>hooks/scripts/</code>; those were retired in v9.34.3–v9.34.5. The no-op PreCompact hook was removed in v9.41.0. Validation, verification, staging, rendering, and orientation are now entirely native Node.</p>
-</details>
+<div class="note"><p>The rendered output under <code>.ai/_view/</code> is machine-owned; hand edits are lost on the next render. When a view looks stale, the hub's self-heal usually catches the drift. When the self-heal does not catch the drift, the render error log above holds the first clue.</p></div>
 
 <div class="related">
-<h3>Where next</h3>
-<ul>
-  <li><a href="../reference/glossary.html">Look up any term used on this page →</a></li>
-  <li><a href="../reference/artifacts.html">See the full list of artifact types and which ones require a fragment →</a></li>
-  <li><a href="../explanation/build-and-dist.html">Understand the build and dist model so you can edit hooks safely →</a></li>
-</ul>
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../reference/configuration.html">Configuration</a> — the full key matrix behind every switch named here.</li>
+    <li><a href="../concepts/the-machinery.html">The machinery</a> — the hub and render pipeline these hooks feed.</li>
+    <li><a href="../concepts/evidence-and-gates.html">Evidence and gates</a> — why the verify result and mock-evidence gates exist.</li>
+    <li><a href="../reference/artifacts.html">Artifacts</a> — the frontmatter contract and sibling files the validators enforce.</li>
+  </ul>
 </div>
-
-<div class="pager"><a class="prev" href="../reference/09-ship-run-schema.html"><span>← Previous</span>Ship-run schema</a><a class="next" href="../reference/serve.html"><span>Next →</span>Serve daemon &amp; hub</a></div></main>
-</div>
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
-
-  // Mark active sidebar link based on current path
-  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
-  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
-    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
-      a.classList.add("active");
-    }
-  });
-
-  // Mobile drawer toggle
-  const toggle = document.querySelector(".menu-toggle");
-  const backdrop = document.querySelector(".nav-backdrop");
-  const setOpen = (open) => {
-    document.body.classList.toggle("nav-open", open);
-    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
-  };
-  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
-  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
-  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
-</script>
+</main>
+<script src="../nav.js"></script>
 </body>
 </html>

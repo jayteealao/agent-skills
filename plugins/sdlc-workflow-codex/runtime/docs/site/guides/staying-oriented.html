@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Staying oriented · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Staying oriented</h1>
+<p class="lede">Read this page when you come back to a repo cold, after a weekend, a context switch, or another person's session. This page shows where everything stands, what to do next, and how to steer the work without re-typing yourself into every stage.</p>
+
+<h2>/wf status — the state of everything</h2>
+
+<p>Bare <code>/wf status</code> is the dashboard: one table of every workflow in the repo, grouped into active, blocked, and completed. Each row shows the current stage, the selected slice, any open runtime-evidence deferrals, and, most usefully, the exact next command to run. Before the dashboard renders, every status run reconciles the global registry (<code>.ai/workflows/INDEX.md</code>) against what is actually on disk. The view self-heals instead of warning about drift. Status never advances a workflow; that reconcile is its only routine write.</p>
+
+<p>The argument narrows the view:</p>
+
+<dl class="cmd-grid">
+<dt><code>/wf status &lt;slug&gt;</code></dt>
+<dd>Detail view for one workflow: a stage-by-stage progress table, a per-slice matrix, open questions, branch info, any open deferrals, and every viable next command from the current stage, not one command picked silently. If you are checked out on the wrong branch, the branch info includes a warning. If an autonomous driver ever ran here, a Driver row reports the driver as running, presumed dead, or completed, judged by the recency of its heartbeat journal.</dd>
+<dt><code>/wf status &lt;slug&gt; deep</code></dt>
+<dd>The reality-drift check. Deep mode inventories every file, test, git ref, and dependency that the artifacts mention, and it checks each one against the actual repo. It flags code that moved after the stage that referenced it, branches that vanished, and dependencies that drifted. It writes the findings to a <code>00-sync.md</code> report with a health rating and recommended actions. When a workflow sat idle mid-flight and you suspect that the world moved underneath it, run deep mode.</dd>
+<dt><code>/wf status pr#N</code> (or a branch name)</dt>
+<dd>The read-only roster: every slug on that branch, which slugs are handoff-ready, which slugs are ship-ready, and the single batch action that is available right now. The roster triggers nothing.</dd>
+<dt><code>/wf status advise [fast]</code></dt>
+<dd>Cross-workflow sequencing. The dashboard shows each workflow alone; advise reasons <em>across</em> workflows. It builds the dependency and collision graph between open workflows, then renders a ranked plan: do this next, in this order, stop doing that. The plan can recommend <code>/wf close</code> for work that should end. Advise is read-only and ephemeral; it writes no artifact. The <code>fast</code> keyword skips the deeper artifact reads and sorts from frontmatter alone.</dd>
+</dl>
+
+<h2>/wf recap — the story in plain language</h2>
+
+<p>Status tells you the state; recap tells you the story. <code>/wf recap &lt;slug&gt;</code> reads the whole trail and retells it the way you would catch up a colleague who was away for two weeks. The recap covers the problem this work solves, the decisions and their reasons, the parts that are built and checked, and the constraints that the next person must respect. It writes the result to <code>90-recap.md</code> and advances nothing.</p>
+
+<p>A second argument scopes the recap. A slice name recaps just that slice's journey. A focus keyword (<code>plan</code>, <code>shape</code>, <code>slice</code>, <code>review</code>, or <code>findings</code>) switches to <strong>explain mode</strong>. Explain mode does not recap the journey. It explains that one artifact in plain language: what the artifact says, what it commits to, and what it implies. Use explain mode for "help me understand my own plan" and "walk me through these review findings". Like the other lifecycle-adjacent commands, <code>/wf recap pr#N</code> is a batch form. It recaps every slug on the branch and composes the combined narrative: what the branch as a whole does, how the slugs relate, and the single most useful next command.</p>
+
+<h2>/wf close — ending work deliberately</h2>
+
+<p>Not every workflow reaches retro. <code>/wf close &lt;slug&gt; [reason]</code> archives a workflow at whatever stage it reached. It writes a closure record (<code>99-close.md</code>) that lists what was completed and what was not. For deferred or superseded work, the record also explains how to revive the workflow. Then close marks the workflow <code>closed</code>. The reasons are a small fixed set: <code>cancelled</code>, <code>superseded</code>, <code>deferred</code>, <code>completed-externally</code>, <code>merged-into</code>. The narrower form <code>/wf close &lt;slug&gt; &lt;slice&gt;</code> terminates one slice instead. It writes a skip record, so downstream prerequisites are satisfied without the pretense that the slice was built.</p>
+
+<p>Close never deletes anything. Artifacts remain on disk for audit or revival. Branches are only cleaned up with your explicit confirmation. An open PR is surfaced for you to close manually; close never closes a PR automatically.</p>
+
+<h2>steer.md — standing instructions</h2>
+
+<p>Steering is how you direct the work without being present at every gate. <code>.ai/workflows/&lt;slug&gt;/steer.md</code> is an optional, user-owned file of free prose, with no frontmatter and no schema. The file holds your standing constraints and preferences, for example: "do not touch <code>config/loader.ts</code>, it is being rewritten", "prefer the queue approach", "no new runtime deps". Every stage reads the file before it starts work and records what it honored. Any stage that dispatches subagents injects the relevant entries into the subagent prompts, because a subagent never re-reads the workflow directory on its own.</p>
+
+<p>The precedence is simple. What you say live in the session outranks <code>steer.md</code>, and <code>steer.md</code> outranks the stage defaults. Steering never overrides a mandatory gate. The real power of steering shows in autonomous runs, where the interactive gates that you would normally speak through are absent. There, a steering veto outranks every policy default. A run that cannot honor an entry stops and surfaces the entry; it does not override you. Stages never author or edit the file. If you dictate an entry in chat ("add to steering: …"), the stage transcribes the entry verbatim, nothing more.</p>
+
+<h2>The dashboard and the tray — ambient orientation</h2>
+
+<p>Everything above runs in chat. For the ambient view, the plugin runs a small local daemon that serves a browser dashboard at:</p>
+
+<pre><code>http://127.0.0.1:4173</code></pre>
+
+<p>The dashboard hosts a rendered workflow view for every registered repo on the machine. Each artifact appears as a readable page, updated live as stages write. An in-browser code browser and this documentation site sit alongside the workflow view. Artifact writes are rendered in the background automatically; you never regenerate the view by hand.</p>
+
+<p>On the desktop, a notification-area tray icon rounds out the ambient view. The icon and tooltip reflect the daemon's health at a glance. The menu opens the dashboard, jumps to a specific repo's view, and restarts or stops the daemon. Together, the dashboard and the tray make the state of every workflow on the machine something you glance at, not something you query.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../concepts/the-machinery.html">The machinery</a> — what the daemon, the render pipeline, and the tray actually do under the hood.</li>
+    <li><a href="../guides/autonomous-drivers.html">Autonomous drivers</a> — the driver journal that status's Driver row reads, and how steering governs unattended runs.</li>
+    <li><a href="../guides/releasing.html">Releasing</a> — the batch <code>pr#N</code> forms of handoff, ship, and retro that the status roster feeds into.</li>
+    <li><a href="../concepts/why-artifacts.html">Why artifacts</a> — why the on-disk trail is what makes coming back cold cheap.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

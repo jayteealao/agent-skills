@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Investigation · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Investigation</h1>
+<p class="lede">Read this page when you need an answer, not a build: a diagnosis, an option map, a theory verdict, an idea catalog, or runtime truth. Six commands cover that ground, and none of them writes a line of application code.</p>
+
+<h2 id="the-discipline">The shared discipline: report and route</h2>
+
+<p>Every investigation command in the plugin follows the same rule: <strong>investigators report and route, they do not act</strong>. An RCA names a root cause but writes no patch. An option sketch characterizes tradeoffs but picks no winner. A probe records what the running product did but fixes nothing. A simplify run classifies findings and hands each finding a downstream command to run; it never executes the commands itself.</p>
+
+<p>This separation is deliberate. Each investigation ends with an artifact and a recommendation. The fix, when there is one, goes through its own lifecycle with its own planning, verification, and review. That keeps the evidence trail honest: the diagnosis is never contaminated by pressure to make the fix look easy, and no code change slips through a side door that bypasses review.</p>
+
+<p>Four of these commands are intake modes: <code>rca</code>, <code>investigate</code>, <code>discover</code>, and <code>ideate</code>. The four modes are <em>terminal</em>: they end in an artifact and a routing decision rather than flow into a build. They create no branch. The other two commands, <code>probe</code> and <code>simplify</code>, are standalone keys with the same read-only posture. All six can also attach to an existing workflow: pass a slug first, and the result lands as a quick-lane slice inside that workflow's directory instead of a new workflow.</p>
+
+<h2 id="rca">rca — find out why it broke</h2>
+
+<p>When something is broken and you do not yet know why, start the diagnosis:</p>
+
+<pre><code>/wf intake rca checkout returns 500 after the discount migration</code></pre>
+
+<p>The command asks up to three questions: what is broken, what is the impact, and what changed recently. Then it launches parallel sub-agents that investigate the code path, correlate recent changes, and map the blast radius, including whether the same flawed pattern exists elsewhere in the codebase. The result is <code>01-rca.md</code>: the root cause stated as a mechanism with cited <code>file:line</code> evidence, a confidence rating, contributing factors, and a "suggested fix shape". The suggested fix shape is deliberately a direction, not a plan: one to three lines that name the area and the approach, never enumerated steps.</p>
+
+<p>rca is the one investigation mode that also writes a synthesized <code>02-shape.md</code>, so the workflow directory is immediately consumable by planning. Its closing section recommends exactly one downstream route:</p>
+
+<ul>
+  <li><code>/wf plan &lt;slug&gt;</code>: the default for non-trivial fixes. Plan reads the synthesized shape without modification.</li>
+  <li><code>/wf intake fix &lt;slug&gt;</code>: for a fix that fits in roughly three files with no architectural change.</li>
+  <li><code>/wf intake hotfix &lt;slug&gt;</code>: for an active production incident where confidence is at least medium and the fix is small.</li>
+  <li><strong>Human triage</strong>: when confidence is low <em>and</em> blast radius is high, the command refuses to auto-route and asks you to decide.</li>
+</ul>
+
+<p>Uncertainty is treated as data. If the sub-agents disagree, or if multiple plausible causes survive, the RCA records the disagreement rather than pick a tidy story. Tripwire warnings (low confidence, high blast radius, a concurrent PR that touches the same code) travel with the artifact, so the fix workflow inherits them.</p>
+
+<h2 id="investigate">investigate — sketch the options, pick none</h2>
+
+<p>investigate answers a different question: not "why is it broken" but "how could we solve this?" You give it a code-level problem, for example "checkout p99 latency is 2s" or "auth flow is brittle". It enumerates <em>every genuinely distinct engineering approach</em> grounded in the actual architecture, then characterizes each approach on effort, blast radius, reversibility, risk, and operational fit.</p>
+
+<p>Three sub-agents run in two waves. An architecture cartographer and an option generator work in parallel; a tradeoff characterizer runs after both return and judges every option against the mapped constraints. Distinctness is enforced: "cache at layer X" versus "cache at layer Y" is one option, not two, and padding with near-duplicates is itself a flagged condition. Up to three options are presented as full cards. If more options survive, the surplus is recorded as compressed entries, and a tripwire tells you the option space was wider than the cards. The comparison table always leads with a <strong>status-quo column</strong>: the do-nothing baseline, with the cost of the unsolved problem as its top risk. Every option then reads relative to the choice to leave things alone.</p>
+
+<p>Crucially, <strong>nothing is pre-picked</strong>. The artifact ends with a routing table, and you choose: a small option routes to <code>/wf intake fix</code>, and a medium or large option routes to <code>/wf intake</code>. If only one viable option exists, the command says so plainly rather than invent alternatives. If every option would violate the architecture, the command recommends a design pass instead of a choice among bad options.</p>
+
+<h2 id="discover">discover — test a theory against the code</h2>
+
+<p>discover takes a <em>falsifiable claim</em>, for example "the rate-limiter is a token bucket in <code>middleware/</code>" or "feature A is implemented via Y", and adjudicates the claim. Three sub-agents argue the case: one builds the strongest evidence <em>for</em> the claim, one actively tries to falsify the claim, and one proposes counter-hypotheses that fit the same observable behavior. The verdict is convergent, exactly one of <strong>holds</strong>, <strong>partial</strong>, <strong>fails</strong>, or <strong>inconclusive</strong>, with confidence and cited evidence on both sides.</p>
+
+<p>A partial verdict states precisely which part of the claim holds and which part fails. That is often the most useful outcome: a refined hypothesis you can carry forward. <code>inconclusive</code> is also a legitimate answer. When static code reading cannot settle the claim, the artifact lists exactly which runtime signal would settle it (a test run, a profile, a log line) rather than guess. A failed hypothesis about a bad behavior routes to <code>rca</code>. A confirmed hypothesis requires nothing further; proceed with whatever you intended.</p>
+
+<h2 id="ideate">ideate — find out what is worth doing next</h2>
+
+<p>ideate inverts the usual pattern: instead of a problem you bring, it scans the codebase for problems you did not think to ask about. Six lenses run in parallel: code quality and technical debt, performance and scalability, security and privacy, developer experience, feature completeness, and architecture. The lenses generate thirty or more raw candidates, each grounded in specific <code>file:line</code> evidence.</p>
+
+<p>Then comes the adversarial filter, which is mandatory. Every candidate must survive five challenges: is it real, is it already in progress, is the effort justified, is it specific enough to act on right now, and is it a root cause or just a symptom? Culled ideas are recorded with reasons. Survivors are scored by impact and effort and presented as a ranked catalog, and the catalog is the point of the whole exercise: <strong>each surviving idea maps directly to a <code>/wf intake</code> command</strong>. ideate does not start any of them. It hands you a menu, and every item you pick seeds its own future intake. To narrow the scan, add a focus area and a count:</p>
+
+<pre><code>/wf intake ideate security 5</code></pre>
+
+<h2 id="probe">probe — drive the running product against its promises</h2>
+
+<p>Everything above reads code. probe is the runtime counterpart: it <strong>boots and drives the actual running artifact</strong>. It clicks, taps, sends requests, and invokes the CLI. It captures observable evidence (screenshots, stdout, response bodies) and compares what it saw against what was promised. probe is to rca what runtime is to static analysis: rca reads code and history; probe runs the product and watches.</p>
+
+<p>probe operates on an existing workflow. When you give probe a target, it fuzzy-matches the target against the workflow's acceptance criteria, slices, and surfaces. When you give probe nothing, it probes every acceptance criterion in the workflow:</p>
+
+<pre><code>/wf probe &lt;slug&gt; checkout applies the discount before tax
+/wf probe &lt;slug&gt;</code></pre>
+
+<p>Findings land as a quick-lane slice, <code>03-slice-probe-&lt;descriptor&gt;.md</code>, with evidence files alongside. A probe can also clear a recorded runtime-evidence deferral, the IOU a workflow carries when verification could not produce runtime proof, when the probe's observation satisfies the deferred criterion. If the environment does not even boot, probe records that failure too, as an <code>awaiting-environment</code> slice with the failing step and a remediation hint. The gap is then visible rather than silent.</p>
+
+<h3 id="probe-sweep">Sweep mode and the surface-defect taxonomy</h3>
+
+<p><code>sweep</code> is a reserved word that widens the comparison basis. <code>/wf probe &lt;slug&gt; sweep</code> enumerates the <em>whole user surface</em> and checks it against three things at once: every acceptance criterion, every charter constraint, and a shared taxonomy of eight defect classes. A charter constraint is a durable, cross-slice promise the product owner ratified; criteria expire per slice, the charter does not. Each defect class carries a detection question, and the probe asks that question of every enumerated surface:</p>
+
+<table>
+<thead><tr><th>Class</th><th>The question it asks</th></tr></thead>
+<tbody>
+<tr><td><code>dead-affordance</code></td><td>Is there an interactive control whose handler does nothing?</td></tr>
+<tr><td><code>error-surface-leak</code></td><td>Is any upstream or internal error rendered as user-facing content?</td></tr>
+<tr><td><code>terminal-wait</code></td><td>Can this loading state be entered and never left?</td></tr>
+<tr><td><code>fabricated-value</code></td><td>Is any displayed figure derived from a constant or placeholder rather than data?</td></tr>
+<tr><td><code>dependency-collapse</code></td><td>Does one unavailable source take down surface that does not depend on it?</td></tr>
+<tr><td><code>branch-gap</code></td><td>Is a guarantee present only in the happy branch?</td></tr>
+<tr><td><code>boundary-overflow</code></td><td>Does layout or output exceed the real target dimension?</td></tr>
+<tr><td><code>env-interference</code></td><td>Could ambient state — not the artifact — have produced what was observed?</td></tr>
+</tbody>
+</table>
+
+<p>A sweep's report leads with the coverage claim, not the finding count: how many surfaces were enumerated, how many were driven, and which were unreached and why. "I found no bugs" is not a result. "I enumerated six surfaces, drove six, and here are the two I could not reach" is a result. Where authorized, a sweep also <em>perturbs</em>: it deliberately breaks one dependency, re-observes, and restores the dependency. Perturbation is the only way to find <code>dependency-collapse</code> and <code>branch-gap</code> on purpose rather than by luck. Any non-trivial finding from a single observation must be re-observed from a clean state before it is recorded, precisely because of <code>env-interference</code>.</p>
+
+<p>The sweep also runs <strong>without a slug</strong>: <code>/wf probe sweep [path]</code> needs no workflow at all. With no acceptance criteria and no charter to compare against, the taxonomy alone is the basis, and the report lands at the project level as <code>.ai/surface-sweep-&lt;utc-date&gt;.md</code>. The slug-less sweep is the cheapest way to point the eight questions at any repo you just inherited.</p>
+
+<div class="note">In every mode, probe may start dev servers, boot emulators, and build and install; bootstrap is authorized. probe may never edit a source file. probe observes; downstream commands fix.</div>
+
+<h2 id="simplify">simplify — three reviewers, findings routed, nothing fixed</h2>
+
+<p>simplify is triage for code quality. It dispatches three reviewers in parallel. <strong>Reuse</strong> asks whether new code duplicates an existing helper. <strong>Quality</strong> looks for redundant state, copy-paste variation, leaky abstractions, and stringly-typed code. <strong>Efficiency</strong> looks for redundant work, missed concurrency, hot-path bloat, and memory leaks. The reviewers run across one of four scopes:</p>
+
+<pre><code>/wf simplify                      # the current branch's diff (default)
+/wf simplify commit &lt;sha&gt;         # one commit or a range
+/wf simplify plan &lt;slug&gt; &lt;slice&gt;  # a plan's prose, not a diff
+/wf simplify codebase [path]      # a whole subtree</code></pre>
+
+<p>Independently of the reviewers, simplify harvests <code>sdlc-debt:</code> markers, the shortcuts that implementation flagged with a ceiling and an upgrade path, and folds them in as pre-classified findings. Markers exist for routing, not rediscovery. simplify's codebase scope is the repo-wide sweep of that declared debt backlog.</p>
+
+<p>You triage each finding: accept, skip, or defer. Every accepted finding gets a route from a fixed matrix:</p>
+
+<ul>
+  <li>A one-file mechanical cleanup routes to <code>/wf intake fix</code>.</li>
+  <li>A behavior-preserving multi-file restructure routes to <code>/wf intake refactor</code>.</li>
+  <li>Anything with behavior or architectural impact routes to a full <code>/wf intake</code>.</li>
+  <li>Missing tests route to a verify or an add-a-test fix.</li>
+  <li>Plan problems route to a directed plan correction.</li>
+</ul>
+
+<p>The rule is always the <em>smallest scope that fully addresses the finding</em>; never escalate beyond what the finding deserves. simplify then prints the invocations and stops. It does not write code, not even the trivial typo it just flagged. The moment a triage tool starts to fix things, it becomes a back-door write path that bypasses planning, verification, and review.</p>
+
+<h2 id="choosing">Which one do I want?</h2>
+
+<dl class="cmd-grid">
+  <dt><code>/wf intake rca</code></dt><dd>Something is broken, and you need to know <em>why</em>. rca starts from a symptom.</dd>
+  <dt><code>/wf intake investigate</code></dt><dd>You know the problem and need to see the <em>solution space</em>. investigate starts from a problem; you pick the approach.</dd>
+  <dt><code>/wf intake discover</code></dt><dd>You have a <em>theory</em> about the code and need a verdict. discover starts from a falsifiable claim.</dd>
+  <dt><code>/wf intake ideate</code></dt><dd>You do not have a question yet; you want to know what is <em>worth doing</em>. ideate starts from nothing.</dd>
+  <dt><code>/wf probe</code></dt><dd>You need to know what the <em>running product actually does</em>, versus what was promised.</dd>
+  <dt><code>/wf simplify</code></dt><dd>You want the code reviewed for reuse, quality, and efficiency, with each finding sent to the correct fix lane.</dd>
+</dl>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../guides/choose-your-entry.html">Choose your entry</a> — how investigation modes fit among all the ways into the plugin.</li>
+    <li><a href="../reference/intake-modes.html">Intake modes</a> — the full mode grammar, including how a slug turns any of these into a compressed slice.</li>
+    <li><a href="../guides/quick-lanes.html">Quick lanes</a> — where rca's and investigate's routing recommendations usually land.</li>
+    <li><a href="../concepts/evidence-and-gates.html">Evidence and gates</a> — how probe evidence and runtime-evidence deferrals feed the lifecycle's checks.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

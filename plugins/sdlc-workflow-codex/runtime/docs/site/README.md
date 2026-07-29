@@ -1,89 +1,55 @@
 # sdlc-workflow documentation site
 
-A multi-page static HTML site that documents the sdlc-workflow plugin in the Diátaxis four-quadrant style (tutorials, how-to, reference, explanation) plus tips and FAQ.
-
-## Local preview
-
-The site is plain HTML — open `index.html` directly in a browser, or serve it locally to make Mermaid diagrams render reliably:
-
-```bash
-cd plugins/sdlc-workflow/docs/site
-python3 -m http.server 8000
-# open http://localhost:8000
-```
-
-Or `npx serve .` if you prefer Node.
+A hand-authored static HTML site documenting the sdlc-workflow plugin. Four sections:
+`start/` (learning), `guides/` (tasks), `concepts/` (understanding), `reference/`
+(lookup). There is **no generator** — every page is a plain HTML file you edit
+directly.
 
 ## Layout
 
 ```
 docs/site/
-├── _build_pages.py          # Page generator — SIDEBAR + PAGES are the source of truth
-├── index.html               # Landing (hand-authored body; sidebar patched by the generator)
-├── style.css                # Shared stylesheet (system fonts, dark mode, print)
-├── nav.html                 # Standalone sidebar — GENERATED from SIDEBAR (do not hand-edit)
-├── README.md                # This file
-├── sunflower-view.md        # Sunflower view-layer notes (markdown; not part of the HTML nav)
-├── tutorials/               # Learning-oriented (Diátaxis: tutorial)
-├── how-to/                  # Task-oriented (Diátaxis: how-to)
-├── reference/               # Information-oriented (Diátaxis: reference)
-├── explanation/             # Understanding-oriented (Diátaxis: explanation)
-└── tips/                    # Power-user notes, FAQ, anti-patterns
+├── index.html      # Landing page
+├── style.css       # Shared stylesheet (system fonts, dark mode, print)
+├── nav.html        # Sidebar fragment — THE single source of nav + version brand
+├── nav.js          # Fetches nav.html into each page's <aside id="sidebar">
+├── README.md       # This file
+├── start/          # Learning-oriented tutorials
+├── guides/         # Task-oriented walkthroughs
+├── concepts/       # Understanding-oriented explanations
+└── reference/      # Lookup-oriented listings
 ```
 
-## Diagrams
+## Serving
 
-Diagrams use [Mermaid](https://mermaid.js.org/) loaded via CDN:
+The hub daemon serves this tree at `http://127.0.0.1:4173/docs/`. It also works from
+any static file server. Over bare `file://` the fetched sidebar is unavailable
+(browsers block fetch); pages fall back to a "Contents" link — use a server for the
+full experience.
 
-```
-https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs
-```
+## Authoring rules
 
-When the CDN is unreachable (offline, blocked), each diagram block keeps its source as readable text inside the `<pre class="mermaid">` element — you still see the structure, just not the rendered graphic.
+- Copy an existing page as the skeleton. Every page: `<p class="lede">` opening
+  (the job the page does for the reader), body, `<div class="related">` closing block.
+- Pages in subdirectories set `<body data-root="../">`; `index.html` uses `data-root=""`.
+- No version numbers in page bodies. The brand lives **only** in `nav.html`
+  (`plugin docs · vX.Y.Z`). A release bumps that one line.
+- Adding a page = write the file + add one `<li>` to `nav.html`. Nothing else.
+- No external CDNs. Diagrams are inline HTML/CSS or inline SVG.
+- Controlled vocabulary (CI-enforced by `scripts/verify-doc-legibility.mjs`): say
+  "command" not "router", "the dashboard" not "sunflower", "readiness check" not
+  "readiness gate", "quick lane" not "compressed flow", "add-on" not "augmentation"
+  (each with narrow page exemptions — see the guard).
+- Accuracy source of truth is `skills/wf/reference/*.md`, never the root README.
 
-## Updating the sidebar
+## CI guards
 
-The **`SIDEBAR` constant in `_build_pages.py` is the single source of truth** for the sidebar — its structure, its link order, and the version brand. To add, rename, or reorder a nav entry, edit `SIDEBAR` and re-run:
+- `npm run verify:docs` (`scripts/verify-doc-site.mjs`): nav brand matches
+  `plugin.json`, every nav link resolves to a file on disk, every page on disk is
+  reachable from the nav, every page carries the sidebar mount + nav.js include.
+- `npm run verify:legibility` (`scripts/verify-doc-legibility.mjs`): lede + related
+  blocks present, banned vocabulary absent, no placeholder tokens in `start/` pages.
 
-```bash
-cd plugins/sdlc-workflow/docs/site
-python3 _build_pages.py
-```
+## After a version bump
 
-The generator then propagates that one definition everywhere:
-
-- inlines the sidebar into all 21 generated pages,
-- writes `nav.html` (the canonical standalone copy — **generated, do not hand-edit**),
-- patches the inlined `<aside id="sidebar">…</aside>` block in the hand-authored pages (`index.html`, `tutorials/installation.html`, `tutorials/first-workflow.html`, `reference/serve.html`, `reference/types.html`),
-- derives every page's Previous/Next pager from the `SIDEBAR` link order, so reading order can't drift when a page is inserted.
-
-There is no separate nav to keep in sync, and no per-page version literal to bump — see *Versioning*.
-
-## Hosting
-
-The site works as-is over `file://`. For a public host:
-
-- **GitHub Pages** — set Source to `/plugins/sdlc-workflow/docs/site/`.
-- **Netlify / Cloudflare Pages / Vercel** — point the static-site root at the same directory; no build command.
-
-## Versioning
-
-The sidebar brand version is read from `.claude-plugin/plugin.json` by `_build_pages.py` at generate time — there are **no hard-coded version literals** in the pages. After a plugin version bump, re-run `python3 _build_pages.py` to restamp every page (including the hand-authored ones).
-
-`scripts/verify-doc-site.mjs` (run via `npm run verify` or `npm run verify:docs`) is a CI guard that fails if any page's brand ≠ `plugin.json`, or if any pager link departs from `nav.html` order. Old versions of the docs live in git history; no version selector is maintained.
-
-## Authoring conventions
-
-- Each page declares its Diátaxis quadrant in a colored badge near the top (`<span class="quadrant tutorial">` etc.).
-- Each page opens with a one-paragraph statement of what the reader will get from it.
-- How-to and tutorial pages open with **Pre-conditions** before the first numbered step.
-- Reference pages are alphabetised within sections. No narrative ordering.
-- Explanation pages close with a **Related** block linking to the relevant how-to + reference pages.
-- Code blocks containing commands a reader should run are introduced by an imperative sentence ending with a colon.
-- Diagrams are not decorative. If a diagram doesn't answer a "what do I learn from this?" within 10 seconds, it gets cut or rewritten.
-
-## What's NOT in the site
-
-- Marketing material — no testimonials, no IDE screenshots, no comparison tables with other tools.
-- A Claude Code tutorial — readers are assumed to have Claude Code installed.
-- Auto-extracted docs — page *content* is authored deliberately, never scraped from code. The plugin's reference files (`skills/*/reference/*.md`) are the input a human distils into prose, not a build target. (Page *scaffolding* — sidebar, version brand, pagers — is generated by `_build_pages.py`; the page bodies live as literals in its `PAGES` table. See *Updating the sidebar*.)
+Update the one brand line in `nav.html`. `verify:docs` fails until you do.

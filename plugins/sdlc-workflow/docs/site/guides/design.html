@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Design</h1>
+<p class="lede">This page shows how to use <code>/wf design</code>, one command that hosts twenty design operations, from "make this bolder" to a full accessibility audit. Design work attaches to a workflow that you already have, or it roots a whole new lifecycle.</p>
+
+<h2 id="grammar">The grammar</h2>
+
+<p>Everything runs through a single shape:</p>
+
+<pre><code>/wf design [slug] &lt;command&gt; [instructions]</code></pre>
+
+<p>The first token after <code>design</code> is an <em>optional</em> slug. The command resolves the token with an <strong>exact existence check, never with fuzzy matching</strong>. If <code>.ai/workflows/&lt;token&gt;/00-index.md</code> exists, the token is a slug, and the next token is the design command. If that file does not exist, the first token <em>is</em> the design command. A wrong slug guess would send the work down the wrong flow entirely. For that reason, design deliberately skips the fuzzy slug suggestion that other stages use. Everything after the command is free-text instruction for the command.</p>
+
+<p>The twenty design commands are arguments to this one key. No design command is its own <code>/wf</code> key. The commands fall into four categories, and the category decides how far the run travels.</p>
+
+<h2 id="transforms">The 15 transformation verbs</h2>
+
+<p>Transformations are the commands that produce or modify code. Each transformation is a verb that names one design move:</p>
+
+<table>
+<thead><tr><th>Verb</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>animate</code></td><td>Purposeful motion and micro-interactions</td></tr>
+<tr><td><code>bolder</code></td><td>Increase visual presence and hierarchy</td></tr>
+<tr><td><code>clarify</code></td><td>Reduce cognitive load and improve scannability</td></tr>
+<tr><td><code>colorize</code></td><td>Strategic use of color</td></tr>
+<tr><td><code>delight</code></td><td>Moments of joy and personality</td></tr>
+<tr><td><code>distill</code></td><td>Remove complexity down to the essential core</td></tr>
+<tr><td><code>harden</code></td><td>Accessibility and robustness</td></tr>
+<tr><td><code>layout</code></td><td>Spatial structure, grid, and alignment</td></tr>
+<tr><td><code>onboard</code></td><td>Empty states and the first-run experience</td></tr>
+<tr><td><code>optimize</code></td><td>Performance, with profiling before optimizing</td></tr>
+<tr><td><code>overdrive</code></td><td>Technically extraordinary visual effects</td></tr>
+<tr><td><code>polish</code></td><td>Finishing details and state completeness</td></tr>
+<tr><td><code>quieter</code></td><td>Reduce noise and visual complexity</td></tr>
+<tr><td><code>typeset</code></td><td>Typography quality and hierarchy</td></tr>
+<tr><td><code>adapt</code></td><td>Context adaptation: responsive, platform, theme, print</td></tr>
+</tbody>
+</table>
+
+<h3 id="transform-run">What a transform run actually produces</h3>
+
+<p>A transform is not a one-shot code edit. It runs a condensed but complete span of the normal lifecycle. It emits every numbered artifact along the way, so the rendered views and downstream checks see an ordinary workflow:</p>
+
+<ol>
+  <li><strong>A focused visual contract</strong> (<code>02c-craft.md</code>), scoped to the transform's one move. For <code>colorize</code>, that move is the color strategy. For <code>typeset</code>, it is the type scale. The contract step resolves the image gate before any code changes.</li>
+  <li><strong>slice</strong> — a single thin slice, unless the surface inventory clearly demands more.</li>
+  <li><strong>plan</strong> — a per-slice plan that cites the design references as concrete step pointers.</li>
+  <li><strong>implement</strong> — the transform itself is the implement step. Each applied design reference is registered as a design add-on in <code>00-index.md</code>. A <code>design-notes/&lt;verb&gt;-&lt;timestamp&gt;.md</code> record documents what changed, why it changed, and which reference guided the change.</li>
+  <li><strong>verify</strong> — the measurable design floor: accessibility, performance, and responsive checks, plus a re-check of each applied add-on.</li>
+</ol>
+
+<p>A transform <em>owns</em> this whole span. It does not write the contract and then hand back. The flow builds code at its own implement step, so you can run a transform against a surface that does not exist yet. The transform either creates the surface or modifies the workflow's existing implementation. "There is nothing to transform" is not a blocker.</p>
+
+<h2 id="audit-critique">audit and critique</h2>
+
+<p>Two commands review the work instead of building it. Neither command runs a slice, plan, or implement span:</p>
+
+<ul>
+  <li><code>audit</code> writes <code>07-design-audit.md</code>, a technical quality scan with 0–4 scoring. The scan covers accessibility, performance, theming, responsive behavior, and anti-patterns. When the workflow already has verification results, audit consumes the measurements from <code>06-verify-*.md</code> and does not measure again. Audit measures for itself only on an ad-hoc run where no verification exists.</li>
+  <li><code>critique</code> writes <code>07-design-critique.md</code>, prescriptive design feedback. The stance of the feedback forks on the Register (see below): brand work is judged on distinctiveness, and product work is judged on earned familiarity.</li>
+</ul>
+
+<p>Both commands are also available as dimensions inside the fan-out of <code>/wf review</code>. A standalone run here uses the same logic. Both commands register themselves as add-ons in <code>00-index.md</code>, so later stages can see that a design review happened.</p>
+
+<h2 id="extract">extract</h2>
+
+<p><code>extract</code> is the read-only command. It reverse-engineers the design tokens that are already implicit in existing code. It writes <code>design-notes/extract-&lt;timestamp&gt;.md</code> plus <code>design-notes/tokens-extracted.css</code>. It changes nothing and needs no prior context; that trait defines it. That trait also makes it the right first command on a codebase whose visual language was never written down.</p>
+
+<h2 id="setup-teach">setup and teach — the project's design memory</h2>
+
+<p><code>setup</code> authors two files at the <strong>project root</strong>, not inside any workflow: <code>PRODUCT.md</code> (what the product is and who it serves) and <code>DESIGN.md</code> (the visual language). <code>teach</code> updates and improves those same files as the project's design understanding deepens. The two commands behave identically with or without a slug, because the two files are shared across every feature. Every later design run reads the two files as context. Both commands preserve the <code>[TODO]</code> and <code>&lt;!-- intentionally omitted --&gt;</code> conventions, so gaps are explicit, not silently absent.</p>
+
+<h2 id="register-gate">The Register line and the image gate</h2>
+
+<p>Every design run reports two lines in its closing summary. These two lines are the load-bearing signals of the whole system.</p>
+
+<p><strong>Register: brand | product.</strong> The register says which of two design modes the work is in. <em>Brand</em> work is a surface where distinctiveness wins, for example a marketing page or a hero moment. Brand work is judged on how memorable it is. <em>Product</em> work is a surface that people use daily. Product work is judged on earned familiarity and restraint. The same critique and the same transform land differently in each register. For that reason, the register forks the stance of critique, and the register is stamped on every transform's artifact record.</p>
+
+<p><strong>Image gate: pass | skipped:&lt;reason&gt; | n/a.</strong> The image gate is a mutation lock. The gate stays pending, and it blocks any code change, until the contract step resolves it to <code>pass</code> or to an explicitly reasoned skip. Commands that do not mutate code (<code>audit</code>, <code>critique</code>, <code>extract</code>, <code>setup</code>, <code>teach</code>) report <code>n/a</code>. The point is that no transform rewrites your UI before the visual intent is pinned down and checked.</p>
+
+<h2 id="attach-or-root">Attaching to a workflow vs. rooting a lifecycle</h2>
+
+<p>The optional slug decides how big the run is.</p>
+
+<p><strong>With a slug</strong>, design work attaches to the existing workflow. Use it to improve a surface that an in-flight workflow owns, with extra instruction if you want it:</p>
+
+<pre><code>/wf design &lt;slug&gt; typeset tighten the dashboard's heading scale</code></pre>
+
+<p>A transform runs the condensed span described above inside that workflow's directory: focused contract, slice, plan, implement, verify. It advances the workflow's own bookkeeping as it goes. audit and critique write their reports into the same workflow. The notes from extract land in the workflow's <code>design-notes/</code>.</p>
+
+<p><strong>Without a slug</strong>, a transform has no workflow to attach to, so it creates one. It then runs the <em>full</em> lifecycle, from intake through shape, slice, plan, implement, verify, review, handoff, ship, and retro, seeded by the design intent. In that flow, the shape stage authors the design brief (<code>02b-design.md</code>), and the plan stage authors the full visual contract (<code>02c-craft.md</code>), exactly as for any visually-surfaced feature. The interview starts from the transform's intent. The review and analysis commands, run without a slug, produce standalone one-shot reports instead.</p>
+
+<div class="note">The design brief and the full visual contract are always authored by the normal lifecycle: shape writes the brief, and plan writes the contract. A transform authors only a <em>focused</em> contract scoped to its single move. There is no separate "author me a design brief" command here. UI work that needs the full brief-plus-contract treatment flows through shape and plan like everything else.</div>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../guides/the-standard-lifecycle.html">The standard lifecycle</a> — where <code>02b-design.md</code> and <code>02c-craft.md</code> are authored when design rides the normal flow.</li>
+    <li><a href="../reference/review-dimensions.html">Review dimensions</a> — audit and critique also run as dimensions inside <code>/wf review</code>.</li>
+    <li><a href="../reference/commands.html">Commands</a> — the full <code>/wf</code> key list, including where <code>design</code> sits among the standalone keys.</li>
+    <li><a href="../reference/artifacts.html">Artifacts</a> — the numbered files a design span emits, and what lives in <code>design-notes/</code>.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

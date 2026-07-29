@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Installation · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Installation</h1>
+<p class="lede">This page shows how to install the sdlc-workflow plugin into Claude Code and what happens in your first session. Two quick checks confirm that the plugin runs.</p>
+
+<h2>What you need first</h2>
+<p>The plugin runs inside Claude Code. Its background work (the hub daemon, the render pipeline, and the hooks) uses Node.js. Claude Code already requires Node.js, so there is nothing extra to install. The one real precondition is <strong>git</strong>: the plugin registers each project by its git identity, and workflow branches live in git. If you run <code>/wf</code> in a directory that is not a git repository, the command stops and explains why. The command then offers to run <code>git init</code> for you. The plugin never initializes a repository without asking.</p>
+
+<h2>Install the plugin</h2>
+<p>The plugin is distributed through a marketplace hosted in the <code>jayteealao/agent-skills</code> GitHub repository. Inside Claude Code, add the marketplace:</p>
+<pre><code>/plugin marketplace add jayteealao/agent-skills</code></pre>
+<p>Then install the plugin from it:</p>
+<pre><code>/plugin install sdlc-workflow@agent-skills-marketplace</code></pre>
+<p>When the install completes, start a fresh session in the project where you want to use the plugin. In that first session, the plugin configures itself.</p>
+
+<h2>What happens on the first session</h2>
+<p>The plugin ships hooks that Claude Code runs automatically at the start of every session. All hooks run in the background. None of them injects anything into your conversation. On a healthy install, none of them needs your attention. Three things happen:</p>
+<p><strong>The hub starts.</strong> The hub is a single machine-wide daemon on <code>127.0.0.1:4173</code>, and it registers your repository. The hub serves a rendered, browsable HTML view of every workflow artifact the plugin writes. Each repository gets a dashboard, and the dashboard reloads live as artifacts change. One hub serves every registered repository on your machine. When you install into a second project, the plugin registers that project with the same hub.</p>
+<p><strong>The render bootstrap runs.</strong> The session-start hook enqueues a whole-repo render of the dashboard, and the hub drains that queue in the background. From then on, the hub renders every workflow artifact that a session writes.</p>
+<p><strong>Your instruction files get a rules block.</strong> The plugin seeds a small fenced block of <code>/wf</code> usage rules into <code>AGENTS.md</code> at your project root. It also seeds an <code>@AGENTS.md</code> import into <code>CLAUDE.md</code>. The working conventions then travel with the repository. The plugin owns only its own fenced block. The rest of both files is yours. The seeding is fail-open: if anything goes wrong, the plugin does nothing rather than break your session.</p>
+<div class="note">You can turn off individual pieces of this behavior. <code>SDLC_DISABLE_BOOTSTRAP=1</code> skips the render bootstrap, and <code>SDLC_DISABLE_MEMORY_SEED=1</code> skips the rules seeding. The full list of switches is in <a href="../reference/configuration.html">Configuration</a>.</div>
+
+<h2>Confirm that the plugin runs</h2>
+<p>Make two checks: one inside Claude Code and one in your browser. First, run the command with no arguments:</p>
+<pre><code>/wf</code></pre>
+<p>The command must show a menu of all 21 keys: the ten lifecycle stages plus the standalone commands. The command then asks which key you want. If you see that menu, the plugin is installed and dispatches correctly.</p>
+<p>Second, open the hub in your browser:</p>
+<pre><code>http://127.0.0.1:4173</code></pre>
+<p>The dashboard must list your registered repository. The hub also exposes a plain health endpoint at <code>http://127.0.0.1:4173/__sdlc/health</code>. The endpoint is useful for scripts, or for a quick check from the terminal that the hub is up.</p>
+<div class="warn">A brand-new project shows an empty dashboard, because there are no workflows to render yet. That is normal. The dashboard fills in when your first <code>/wf intake</code> writes its artifacts.</div>
+
+<h2>Optional: the tray app</h2>
+<p>On desktop machines, you can run a small notification-area app that watches the hub for you. The icon and tooltip of the tray app show hub health. The tray app polls the hub every five seconds. The tray menu opens the dashboard, opens per-repository views, and restarts or stops the hub. The tray menu also offers a start-at-login toggle, so the tray app starts again after a reboot.</p>
+<p>You launch the tray app yourself, outside Claude Code. From the plugin's installed directory, start the tray app with:</p>
+<pre><code>npm run tray</code></pre>
+<p>That command runs <code>node dist/tray.mjs</code>, so you can also invoke the file directly. When you enable <em>Start at login</em> from the tray menu, you never need to launch the tray app by hand again. On Windows, the session-start hook also keeps an enabled autostart entry pointed at the current plugin version across upgrades.</p>
+
+<h2>Where to go next</h2>
+<p>When the plugin runs, the natural next step is to run a workflow end to end. The first tutorial builds a small real feature through all the stages. The second tutorial shows the shorter path that you will use most days for bug fixes.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="your-first-workflow.html">Your first workflow</a> — build a small feature through the full lifecycle, stage by stage.</li>
+    <li><a href="everyday-fixes.html">Everyday fixes</a> — the quick lane for bugs, the flow you will use most often.</li>
+    <li><a href="../concepts/the-machinery.html">The machinery</a> — what the hub, the render pipeline, and the hooks do.</li>
+    <li><a href="../reference/configuration.html">Configuration</a> — every per-repo and machine-wide knob, including the opt-out switches.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

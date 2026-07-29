@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Why everything is a file · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Why everything is a file</h1>
+<p class="lede">Read this to understand the design bets behind the plugin. Decisions live in
+committed files instead of chat memory, commands only ever add to those files, and the shape of
+a command's arguments carries the meaning that flags would otherwise carry.</p>
+
+<h2>Decisions live in files, not in the conversation</h2>
+
+<p>A chat session is a bad place to store a decision. The session ends, the session compacts, and
+the summary loses detail. The next session then starts cold, with no record of the decision. The
+plugin's answer is strict: nothing that matters may exist only in conversation. Every stage of a
+workflow writes a numbered Markdown artifact into <code>.ai/workflows/&lt;slug&gt;/</code>.</p>
+
+<p>These artifacts include the intake interview, the shaped scope, the slice breakdown, the plans,
+the verification evidence, and the review findings. When the product owner answers a question, the
+answer lands in <code>po-answers.md</code>. When you want to give standing instructions to every
+future stage, write the instructions in <code>steer.md</code>.</p>
+
+<p>The payoff is that any session can pick up a workflow cold: your session tomorrow, a teammate's
+session, or an autonomous driver's session. Nobody needs to explain the history again, because
+each stage reads each decision from the artifact that recorded the decision.
+<code>/wf recap</code> exists because the files are the memory. The command reads the files back
+to you in plain language.</p>
+
+<h2>Numbered artifacts are the contract between stages</h2>
+
+<p>The numbers are not decoration. <code>01-intake.md</code> feeds <code>02-shape.md</code>, which
+feeds <code>03-slice.md</code>, and so on through verify, review, handoff, and ship. Each stage
+declares which upstream artifacts it consumes, and each stage refuses to run meaningfully without
+them. Handoff, for example, checks that an implementation artifact exists for every slice in scope
+before it packages anything.</p>
+
+<p>The contract is a set of files with known names and known frontmatter. Every artifact carries
+<code>schema: sdlc/v1</code>, a <code>type</code>, and a <code>slug</code> that matches its
+directory. Because the contract is mechanical, a hook can validate a write before the write
+happens, and the plugin can build the rendered workflow view from the same files. The
+<code>00-index.md</code> control file at the top of each workflow holds the durable cross-cutting
+state: the charter, the risk ledgers, and the branch configuration. Every stage reads this state,
+and only specific stages may update it.</p>
+
+<h2>Ledgers are additive-only</h2>
+
+<p>Commands never overwrite or delete artifacts. When you re-run a stage, the stage appends a new
+revision to the same file. When you close a workflow, <code>/wf close</code> archives the workflow
+with <code>99-close.md</code>. The command never deletes files, branches, or PRs.</p>
+
+<p>The record-keeping structures that grow over time follow the same rule with more force. These
+structures include the review ledger, the intent-risk ledger, the runtime-evidence deferrals, and
+the ship-plan audit. Re-runs merge and dedupe entries, keep the IDs and timestamps of existing
+entries, and mark cleared findings <code>resolved</code> instead of erasing them. A finding that
+was raised once stays visible forever, together with its outcome.</p>
+
+<p>This rule is what makes the files trustworthy as a record. If commands could rewrite history,
+the artifacts would only tell you the current story. Because commands cannot rewrite history, the
+artifacts tell you the whole story, including the parts where the first answer was wrong.</p>
+
+<h2>Reviewers route findings; they never write code</h2>
+
+<p>The plugin draws a hard line between commands that observe and commands that change things.
+<code>/wf review</code>, <code>/wf simplify</code>, <code>/wf probe</code>,
+<code>/wf status</code>, and the audit modes of <code>ship-plan</code> and
+<code>observability</code> are all orchestrators. Each one investigates, classifies what it finds,
+and routes each finding to the command that may fix it. That command is usually
+<code>/wf implement &lt;slug&gt; &lt;slice&gt; reviews</code>. The orchestrators do not patch code
+themselves, even when the fix looks small.</p>
+
+<p>The reason is accountability. A reviewer that fixes as it goes produces changes that no stage
+planned, verified, or recorded. A reviewer that only routes produces a ledger entry that an
+accountable stage must consume. The same discipline applies inside the machinery: the external
+oracles behind <code>/consult</code> can read the repository, but they cannot write to it.</p>
+
+<h2>Convention over flags</h2>
+
+<p>No <code>/wf</code> command takes a <code>--flag</code>. The shape of the arguments is the
+signal. A first token that matches an existing workflow slug means you address that workflow. A
+bare mode keyword means you start something standalone. An existing slug followed by free text
+means <em>extension</em>: intake reads "slug plus new scope" as a request to add full new slices
+to that workflow, with no keyword required.</p>
+
+<p>The intake reference states this directly: the scope is the signal. Intake resolves the
+arguments in a fixed order:</p>
+
+<ul>
+<li>a maintenance keyword,</li>
+<li>then a quick-lane mode,</li>
+<li>then an extension,</li>
+<li>then a standalone mode,</li>
+<li>then a plain description.</li>
+</ul>
+
+<p>Because the order is deterministic, the same words always mean the same thing.</p>
+
+<p>The bet is that a small set of positional conventions, applied everywhere, is easier to hold in
+your head than a large set of per-command options. Where a convention could surprise you, the
+command states what it inferred before it acts. Intake confirms a suggested mode instead of
+routing silently, and a quoted description forces the default path.</p>
+
+<h2>The External Output Boundary</h2>
+
+<p>Everything above describes a rich private record, and that record must stay private. The
+plugin's most repeated rule is the External Output Boundary. Everything under <code>.ai/</code>
+or <code>.claude/</code> is internal implementation context. The workflow vocabulary is also
+internal: stage names, command names, and artifact paths. Commit messages, branch names, PR titles
+and bodies, release notes, changelogs, code comments, and user documentation are external.
+Internal context never crosses into external text.</p>
+
+<p>The rule is "translate, do not cite". When a stage produces a PR body or an announcement, the
+stage restates the workflow context in product language: what changed for users, why it changed,
+how it was verified, and what the risks are. The external text never mentions that an SDLC
+workflow produced it, and the external text never points at private artifact files. Every stage
+performs a leak check before it publishes anything, and an optional hook can guard commits and PR
+text mechanically.</p>
+
+<p>There is one sanctioned exception: the chat summary at the end of a command run. You are an
+internal audience, so <code>.ai/</code> paths may appear there. The boundary governs what leaves
+the session, not what you see inside the session.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="evidence-and-gates.html">Evidence and gates</a> — how the same files become checkpoints that resist optimistic self-assessment.</li>
+    <li><a href="../reference/artifacts.html">Artifact reference</a> — the full file layout, frontmatter contract, and ledger schemas.</li>
+    <li><a href="../guides/the-standard-lifecycle.html">The standard lifecycle</a> — the ten stages that read and write these artifacts in order.</li>
+    <li><a href="../guides/staying-oriented.html">Staying oriented</a> — status and recap, the commands built on the files-as-memory bet.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

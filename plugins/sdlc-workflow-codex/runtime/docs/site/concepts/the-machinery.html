@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The machinery · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>The machinery</h1>
+<p class="lede">Read this to understand what the plugin actually runs on your machine. A hub
+daemon serves the dashboard, and a render pipeline turns Markdown artifacts into a browsable
+workflow view. A tray icon watches the machinery, and hooks enforce the rules.</p>
+
+<p>Most of the plugin is instructions that the model follows. But four pieces are real software on
+your machine: a local web server, a render pipeline that feeds the server, a small tray app that
+watches the server, and a handful of hooks wired into Claude Code's tool calls. When you know
+these four pieces, you can explain most of what you will ever observe.</p>
+
+<h2>The hub daemon</h2>
+
+<p>The hub is one long-lived, machine-wide Node process, and it listens on
+<code>127.0.0.1:4173</code>. It reads a registry of every registered repository
+(<code>~/.sdlc/registry.json</code>), and it serves each repo's rendered workflow view at
+<code>/r/&lt;id&gt;/</code>. The view is the HTML under that repo's <code>.ai/_view/</code>.</p>
+
+<p>One process and one port serve every repo on the machine: no per-repo sub-processes, no reverse
+proxy, no port for each repo. The hub starts automatically at session start. You can also start
+the hub yourself with <code>npm run hub</code> or from the tray menu.</p>
+
+<p>Beyond the workflow views, the hub serves a few more things:</p>
+
+<ul>
+<li>A landing page at the root. The landing page is the dashboard across all registered repos, and
+live reload refreshes the page when any repo re-renders.</li>
+<li>An in-browser code browser for each repo at <code>/r/&lt;id&gt;/__code/</code>.</li>
+<li>This documentation site at <code>/docs/</code>.</li>
+<li>A health endpoint at <code>/__sdlc/health</code>. The tray polls the same endpoint.</li>
+<li>Live reload through server-sent events. An open workflow view refreshes the moment its
+artifacts re-render.</li>
+</ul>
+
+<p>Because the hub binds only to loopback, the hub exposes nothing to the network by default. Its
+security posture is deliberately strict for a local tool. The hub checks every request's Host
+header against an allowlist, which defeats DNS-rebinding. The few write and refresh endpoints
+under <code>/__sdlc/</code> require a token. Each repo's requests are contained to that repo's own
+view directory, so a path traversal that escapes one repo's view cannot reach another repo's
+files. The hub also validates the registry entry on every read instead of trusting the entry.</p>
+
+<h2>The render pipeline</h2>
+
+<p>The plugin generates the workflow view, and nobody hand-edits the view. The pipeline from
+Markdown to HTML runs in three steps:</p>
+
+<ol>
+<li><strong>A stage writes an artifact.</strong> A PostToolUse hook notices the write and enqueues
+a render job into a durable on-disk queue under <code>.ai/_view/</code>. The durable queue
+matters: if nothing listens right now, the job waits instead of getting lost.</li>
+<li><strong>The hub drains the queue.</strong> The daemon picks up pending jobs and runs the
+render engine. The render engine walks <code>.ai/workflows/</code>, dispatches each artifact to a
+renderer for its <code>type</code>, and emits the HTML site under <code>.ai/_view/</code>. A
+review renders differently from a plan or a ship run. The default mode is additive: the render
+engine only re-renders an artifact whose sources are newer than its rendered counterpart.</li>
+<li><strong>The browser reloads.</strong> The SSE live-reload channel tells any open view to
+refresh.</li>
+</ol>
+
+<p>Rendered output can also go stale in a subtler way: the render engine itself changes, so an
+older engine version produced the old HTML. The hub detects this drift. The hub compares the
+identity stamped into rendered output against its own identity, and the hub self-heals with a
+bounded clean re-render. You never need to delete <code>.ai/_view/</code> by hand.</p>
+
+<h2>The tray icon</h2>
+
+<p>On the desktop, a small sunflower icon in the notification area is the human-facing face of the
+hub. The tray app is deliberately thin: it displays state, it calls existing endpoints, and it has
+no other logic. You launch the tray app yourself, outside Claude entirely, with
+<code>npm run tray</code>. The tray app polls the hub's health endpoint every five seconds and
+shows the result in its icon and tooltip. A glance tells you whether the machinery is up.</p>
+
+<p>The tray menu can:</p>
+
+<ul>
+<li>open the dashboard and individual repo views,</li>
+<li>refresh the registry,</li>
+<li>restart or stop the hub,</li>
+<li>open the hub's config and logs,</li>
+<li>toggle per-repo serving,</li>
+<li>register the tray app to start at login.</li>
+</ul>
+
+<h2>The hooks: the enforcement layer</h2>
+
+<p>The rules on these concept pages would be suggestions if nothing enforced them. The enforcement
+layer is a small set of hooks that the plugin registers with Claude Code, and the hooks run
+automatically around tool calls. The table below states what each hook does, and whether the hook
+blocks or acts in the background.</p>
+
+<table>
+<tr><th>When it runs</th><th>What it does</th><th>Blocks?</th></tr>
+<tr><td>Session start</td><td>Background maintenance: bootstraps rendering, starts and registers the hub, and reconciles the tray on Windows.</td><td>No</td></tr>
+<tr><td>Session start</td><td>Seeds a fenced block of <code>/wf</code> rules into <code>AGENTS.md</code> and an import into <code>CLAUDE.md</code>. The hook owns only its own fence, and the hook fails open.</td><td>No</td></tr>
+<tr><td>Before a Write</td><td>Validates workflow artifacts: filename shape, required frontmatter, and a slug that matches the directory. The hook rejects a malformed artifact before the artifact touches disk.</td><td><strong>Yes</strong></td></tr>
+<tr><td>Before Write/Edit and Bash</td><td>The optional leak guard: watches public docs, commit messages, and PR text for internal workflow references that cross the External Output Boundary. The guard is off by default, and it is advisory when on.</td><td>No (advisory)</td></tr>
+<tr><td>After a write</td><td>Auto-stages artifact writes in git; validates the structured sibling YAML that rich artifact types must ship; and hard-blocks a verify artifact that claims a pass while its own criteria are unmet.</td><td><strong>Yes</strong> (the verify result gate)</td></tr>
+<tr><td>After a write</td><td>Render dispatch: enqueues the render job that the hub will drain.</td><td>No</td></tr>
+</table>
+
+<p>Notice the pattern: the hooks that block are exactly the hooks that guard the integrity of the
+record. They block an artifact that would be malformed, and they block a pass claim that the
+evidence contradicts. Everything else is background convenience that degrades gracefully. The full
+per-hook detail, including the config keys that tune each hook, lives in the
+<a href="../reference/hooks.html">hooks reference</a>.</p>
+
+<div class="note">
+<p>You can turn off or relocate every piece on this page. Per-repo settings live in
+<code>.ai/sdlc-config.json</code>, and machine-wide settings live in
+<code>~/.sdlc/hub-config.json</code>. Environment variables, for example
+<code>SDLC_DISABLE_BOOTSTRAP=1</code> and <code>SDLC_DISABLE_TRAY_HEAL=1</code>, disable
+individual pieces. The <a href="../reference/configuration.html">configuration reference</a>
+describes each setting.</p>
+</div>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../reference/hooks.html">Hooks reference</a> — every hook, what triggers it, and the config key that governs it.</li>
+    <li><a href="../reference/configuration.html">Configuration reference</a> — the per-repo and machine-wide config files in full.</li>
+    <li><a href="why-artifacts.html">Why everything is a file</a> — the artifact model this machinery renders and protects.</li>
+    <li><a href="../guides/staying-oriented.html">Staying oriented</a> — the dashboard and status commands built on top of the hub.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

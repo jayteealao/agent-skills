@@ -1,263 +1,152 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Routers reference · sdlc-workflow</title>
+<title>Commands · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
-<body>
-<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
-  <span class="open-icon" aria-hidden="true">&#9776;</span>
-  <span class="close-icon" aria-hidden="true">&times;</span>
-</button>
-<div class="nav-backdrop" aria-hidden="true"></div>
-<div class="layout">
-<aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.143.0</small></a>
-<nav aria-label="Site navigation">
-  <h4>Orientation</h4>
-  <ul>
-    <li><a href="../index.html" data-href="index.html">Home</a></li>
-    <li><a href="../orientation/is-this-for-me.html" data-href="orientation/is-this-for-me.html">Is this for me?</a></li>
-    <li><a href="../orientation/mental-model.html" data-href="orientation/mental-model.html">How it works</a></li>
-    <li><a href="../orientation/first-10-minutes.html" data-href="orientation/first-10-minutes.html">First 10 minutes</a></li>
-  </ul>
-  <h4>Tutorials</h4>
-  <ul>
-    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
-    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">Full feature walkthrough</a></li>
-    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
-  </ul>
-  <h4>How to&hellip;</h4>
-  <ul>
-    <li><a href="../how-to/choose-a-command.html" data-href="how-to/choose-a-command.html">Choose a command</a></li>
-    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
-    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
-    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
-    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use add-ons</a></li>
-    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use design</a></li>
-    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
-    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
-    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
-    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
-    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
-  </ul>
-  <h4>Reference</h4>
-  <ul>
-    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
-    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
-    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
-    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
-    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
-    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
-    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
-    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
-    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
-    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
-    <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
-  </ul>
-  <h4>Explanation</h4>
-  <ul>
-    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
-    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
-    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
-    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
-    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
-    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
-    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
-    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
-    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
-    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
-  </ul>
-  <h4>Tips</h4>
-  <ul>
-    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
-    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
-    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
-    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
-  </ul>
-  <h4>Changelog</h4>
-  <ul>
-    <li><a href="../whats-new.html" data-href="whats-new.html">What&#8217;s new</a></li>
-  </ul>
-</nav>
-</aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Routers</div>
-<span class="quadrant reference">reference</span>
-<h1>Routers reference</h1>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Commands</h1>
+<p class="lede">This page lists every <code>/wf</code> key: its exact invocation grammar, what it does, and what it writes. Use this page as a lookup table. The guides explain when to use each command.</p>
 
-<p class="lede">Every command at a glance — what each does and when to reach for it. There is one top-level command, <code>/wf</code>, the single SDLC entry point; code review is its <code>/wf review</code> key and design is <code>/wf design</code>. Pick the right key here, then follow the per-command link for full argument detail.</p>
+<h2 id="dispatcher">The dispatcher</h2>
+<p>All plugin operations run through one command: <code>/wf &lt;key&gt; [args…]</code>. The first token must be one of the 21 keys on this page. Everything after the first token passes verbatim to that key. The dispatcher itself has this behavior:</p>
+<ul>
+  <li><strong>Empty invocation.</strong> <code>/wf</code> with no arguments renders the key menu and asks which operation you want.</li>
+  <li><strong>Unknown key.</strong> A first token that is not a known key is an error. The dispatcher never silently treats the token as a slug. The dispatcher lists the 21 valid keys. For a retired command name, the dispatcher names the replacement invocation.</li>
+  <li><strong>Fuzzy slug suggestion.</strong> Exactly six keys have this behavior: <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, and <code>close</code>. For these keys, a slug that matches no row in <code>.ai/workflows/INDEX.md</code> triggers an advisory typo suggestion ("Did you mean <code>&lt;best-match&gt;</code>?"). The suggestion never auto-corrects; you re-invoke with the suggested slug. Every other key resolves its own first token, which can be a PR number, a branch name, a dimension, a mode, or a sub-key. For those keys the suggestion does not fire.</li>
+  <li><strong>Git precondition.</strong> Before dispatch, <code>/wf</code> confirms that the project is a git repository. If the project is not a git repository, the dispatcher asks whether to run <code>git init</code>. Artifacts still write without git, but the workflow view does not render until the repo is initialized.</li>
+  <li><strong>Chat summary.</strong> Every run ends with a compact summary: a verb-first status line, a short narrative paragraph, an <code>Artifacts:</code> line that lists the paths written (or <code>none</code>), and a concrete <code>Next:</code> command.</li>
+</ul>
 
-<p>A <strong>command</strong> (sometimes called a "router" in older docs) is a slash command the plugin exposes. The plugin exposes exactly one — <code>/wf</code> — which dispatches to a key based on the first argument you pass it; code review is the <code>/wf review</code> key (the former standalone <code>/review</code> skill is folded into it). Design, once the standalone <code>/wf-design</code> router, is now the <code>/wf design</code> sub-command. The former <code>/wf-quick</code>, <code>/wf-meta</code>, and <code>/wf-docs</code> routers have all been retired: quick flows are now intake modes (<code>/wf intake &lt;mode&gt;</code>) or top-level keys (<code>/wf probe</code>, <code>/wf simplify</code>), navigation/lifecycle are <code>/wf</code> keys (<code>/wf status</code>, <code>/wf recap</code>, <code>/wf close</code>, <code>/wf ship-plan</code>), documentation is the <code>/wf docs</code> key, and project-wide observability is the <code>/wf observability</code> router (which subsumes the retired <code>setup-wide-logging</code> command).</p>
+<h2 id="stages">The ten lifecycle stages</h2>
+<p>In lifecycle order: intake → shape → slice → plan → implement → verify → review → handoff → ship → retro. All ten write artifacts into <code>.ai/workflows/&lt;slug&gt;/</code>.</p>
 
-<h2>Commands</h2>
+<h3 id="intake"><code>/wf intake</code></h3>
+<pre><code>/wf intake [slug] [mode] &lt;description&gt;</code></pre>
+<p>Intake is the entry point for the whole lifecycle. A plain description runs the default flow: a product-owner interview, a stack fingerprint, and the creation of the workflow. A mode keyword (<code>fix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code>, <code>adopt</code>) routes to an alternative entry flow. An existing slug plus a mode keyword attaches the run as a compressed slice. An existing slug plus free text routes to extension, which adds net-new slices. <code>amend</code> and <code>modernize</code> are maintenance modes that require a slug. The full mode catalog, the resolution order, and the branch conventions are on <a href="intake-modes.html">Intake modes</a>.</p>
+<p><strong>Writes:</strong> in the default mode, <code>00-index.md</code> and <code>01-intake.md</code>; each other mode has its own artifact set (see the modes page).</p>
 
-<table>
-<thead><tr><th>Command</th><th>One-line purpose</th><th>When to reach for it</th></tr></thead>
-<tbody>
-<tr>
-  <td><a href="wf.html"><code>/wf</code></a></td>
-  <td>Run a lifecycle stage — intake, shape, slice, plan, implement, verify, review, handoff, ship, retro — plus add-ons.</td>
-  <td>Normal feature or bug work that needs a tracked workflow.</td>
-</tr>
-<tr>
-  <td><a href="wf-quick.html">Quick &amp; standalone</a></td>
-  <td>The former <code>/wf-quick</code> router is retired. Its flows now live under <code>/wf</code>: nine intake modes (<code>/wf intake fix</code>, <code>hotfix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code>, <code>adopt</code>) plus two top-level keys (<code>/wf probe</code>, <code>/wf simplify</code>).</td>
-  <td>Trivial changes or one-off analyses where a full tracked workflow would be overkill. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td>
-</tr>
-<tr>
-  <td><a href="wf.html">Navigation &amp; lifecycle</a></td>
-  <td>The former <code>/wf-meta</code> router is retired. Its members are now <code>/wf</code> keys: <code>/wf status</code> (status, next, sync), <code>/wf recap</code> (resume/explain), <code>/wf close</code>, <code>/wf ship-plan</code>, and <code>/wf intake &lt;slug&gt; &lt;scope&gt;</code> (extend).</td>
-  <td>Any time you need to inspect or correct a workflow without running a stage.</td>
-</tr>
-<tr>
-  <td><a href="wf-design.html"><code>/wf design</code></a></td>
-  <td>Design — 20 sub-commands, run as a compressed <code>/wf</code> sub-command. Two shapes: with a slug it builds in-workflow; with no slug it runs the full lifecycle.</td>
-  <td>UI/UX work, design briefs, component specs, visual transformations.</td>
-</tr>
-<tr>
-  <td><a href="wf.html">Documentation</a></td>
-  <td>The former <code>/wf-docs</code> router is retired. It is now the <code>/wf docs</code> key — same pipeline (discover, audit, plan, generate, review) using the Diátaxis structure.</td>
-  <td>Writing or auditing tutorials, how-tos, reference pages, or explanations.</td>
-</tr>
-<tr>
-  <td><a href="review.html"><code>/wf review</code></a></td>
-  <td>Code review across 34 dimensions and 7 named sweeps via parallel sub-agent dispatch.</td>
-  <td>Pre-merge review, security audit, or targeted quality check on a diff or file.</td>
-</tr>
-</tbody>
-</table>
+<h3 id="shape"><code>/wf shape</code></h3>
+<pre><code>/wf shape &lt;slug&gt; [focus area]</code></pre>
+<p>Shape turns the intake brief into a compact, implementable mini-spec through product-owner questions. The spec records explicit acceptance criteria, edge cases, and the decisions that downstream stages honor. Shape authors the Documentation Plan and the <code>augmentations-needed</code> decision, which <code>plan</code>, <code>implement</code>, and <code>verify</code> later apply. Shape also adjudicates open entries in the intent-risk (RIM) ledger. When the work has a visual surface, a budgeted design round also produces a design brief.</p>
+<p><strong>Writes:</strong> <code>02-shape.md</code>, plus <code>02b-design.md</code> (the design brief) when the work has UI surface.</p>
 
-<div class="callout note">
-<strong>Looking for full argument detail?</strong> This page is the overview. Drill into the per-command pages (linked in the table above) for argument hints, what each command reads, what it writes, and when NOT to use it.
-</div>
+<h3 id="slice"><code>/wf slice</code></h3>
+<pre><code>/wf slice &lt;slug&gt;</code></pre>
+<p>Slice decomposes the shaped spec into thin, independently verifiable vertical slices. When a design brief or a visual contract exists, slice boundaries must reflect its states and surfaces, or the master index must justify the grouping. This stage also confirms the workflow's review scope, per-slice or slug-wide, one time, so <code>review</code> does not ask again.</p>
+<p><strong>Writes:</strong> <code>03-slice.md</code> (master index) plus one <code>03-slice-&lt;slice-slug&gt;.md</code> per slice.</p>
 
-<h2>/wf — the lifecycle command</h2>
+<h3 id="plan"><code>/wf plan</code></h3>
+<pre><code>/wf plan &lt;slug&gt; [slice-slug|all] [review/fix instructions]</code></pre>
+<p>Plan creates the per-slice implementation plan with a parallel reuse scan. When you re-invoke plan on an existing plan, the run switches to review-and-fix. With no extra text, the run reviews the plan against the current codebase. With explicit feedback, the run applies a directed fix. With <code>all</code>, the run reviews every existing plan in parallel. Plan also applies shape's augmentation decisions and authors the corresponding add-on artifacts. When a design brief exists without a visual contract, plan authors the visual contract.</p>
+<p><strong>Writes:</strong> <code>04-plan.md</code> (master) plus <code>04-plan-&lt;slice-slug&gt;.md</code> per planned slice; conditionally <code>02c-craft.md</code> (visual contract), <code>04b-instrument.md</code>, <code>04c-experiment.md</code>, <code>05c-benchmark.md</code>.</p>
 
-<p>Dispatches across 10 lifecycle <strong>stages</strong> (the named steps a workflow moves through, from intake to retro) plus 4 <strong>add-ons</strong> (<a href="glossary.html">add-ons</a> are optional add-on stages that layer observability, experiments, or performance benchmarks onto a slice). The stage sub-commands all take a <strong>slug</strong> (the short identifier for a workflow, e.g. <code>my-feature-abc1</code>); per-slice sub-commands additionally take a slice slug.</p>
+<h3 id="implement"><code>/wf implement</code></h3>
+<pre><code>/wf implement &lt;slug&gt; [slice-slug|reviews]</code></pre>
+<p>Implement codes one planned slice, wires the augmentations that shape decided, and records what was built. The record cross-links to the slice definition and the plan. The second argument <code>reviews</code> runs fix-blockers mode instead: the run works through the open blocker findings from <code>review</code>.</p>
+<p><strong>Writes:</strong> <code>05-implement-&lt;slice-slug&gt;.md</code> plus updates to the <code>05-implement.md</code> master.</p>
 
-<table>
-<thead><tr><th>Sub-command</th><th>Args</th><th>Stage</th><th>Notes</th></tr></thead>
-<tbody>
-<tr><td><code>/wf intake</code></td><td><code>"description"</code></td><td>1</td><td>Entry point. Creates the workflow directory and slug.</td></tr>
-<tr><td><code>/wf shape</code></td><td><code>&lt;slug&gt;</code></td><td>2</td><td>Deep interview and parallel web research.</td></tr>
-<tr><td><code>/wf slice</code></td><td><code>&lt;slug&gt;</code></td><td>3</td><td>Decompose into vertical slices.</td></tr>
-<tr><td><code>/wf plan</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>4</td><td>Repo-aware plan with reuse <em>and</em> learnings scans — it reads the <code>.ai/solutions/</code> corpus that retro distills and reports what it applies under <code>## Applied Learnings</code>. Its verification strategy resolves every environment wall up front: each user-observable criterion that needs credentials, a device, or missing infrastructure must carry a <code>constraint-resolution:</code> entry (prerequisite harness, proxy + named clearing event, or recorded risk-acceptance) before the plan completes. Slice is optional — defaults to the selected slice.</td></tr>
-<tr><td><code>/wf implement</code></td><td><code>&lt;slug&gt; [slice|reviews]</code></td><td>5</td><td><code>reviews</code> mode applies review-finding fixes. Slice defaults to the workflow&#39;s selected slice when omitted.</td></tr>
-<tr><td><code>/wf verify</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>6</td><td>Exercises acceptance criteria and captures evidence. User-gated single-round fix loop.</td></tr>
-<tr><td><code>/wf review</code></td><td><code>&lt;slug&gt; [slice|triage]</code></td><td>7</td><td>Multi-domain parallel review with a per-finding fix loop.</td></tr>
-<tr><td><code>/wf handoff</code></td><td><code>&lt;slug&gt; [slice]</code></td><td>8</td><td>Aggregates complete slices and runs a PR-readiness block.</td></tr>
-<tr><td><code>/wf ship</code></td><td><code>&lt;slug&gt; [env|announce|rollback]</code></td><td>9</td><td>Plan-driven, replayable release. <code>/wf ship &lt;slug&gt; announce</code> re-runs the post-publish comms phase only; <code>/wf ship &lt;slug&gt; rollback [&lt;run-id&gt;]</code> reverses a prior completed run via an authored runbook — every step marked reversible or irreversible (irreversible ones surface as mitigations), gated on an explicit Go/No-Go, verified with the ship plan&#39;s rollback checks, and recorded as <code>09-rollback-&lt;run-id&gt;.md</code>.</td></tr>
-<tr><td><code>/wf retro</code></td><td><code>&lt;slug&gt;</code></td><td>10</td><td>Extracts concrete improvement actions, and distills 0–3 durable learnings into the <code>.ai/solutions/</code> corpus (each must recur, be non-obvious, and be actionable — zero is a legitimate outcome) so future plans start from what this workflow learned.</td></tr>
-<tr><td><code>instrument</code></td><td><em>not typed</em></td><td>augmentation</td><td>Observability augmentation — <strong>not</strong> a <code>/wf</code> command. <code>shape</code> decides it (<code>augmentations-needed</code>); <code>plan</code>/<code>implement</code>/<code>verify</code> apply it. Writes <code>04b-instrument.md</code>. (For <em>project-wide</em> observability, use the <code>/wf observability</code> router instead.)</td></tr>
-<tr><td><code>experiment</code></td><td><em>not typed</em></td><td>augmentation</td><td>Feature-flag and cohort-design augmentation — <strong>not</strong> a <code>/wf</code> command. Decided by <code>shape</code>, applied by <code>plan</code>/<code>implement</code>/<code>verify</code>. Writes <code>04c-experiment.md</code>.</td></tr>
-<tr><td><code>benchmark</code></td><td><em>not typed</em></td><td>augmentation</td><td>Performance baseline-and-compare augmentation — <strong>not</strong> a <code>/wf</code> command. Decided by <code>shape</code>, applied by <code>plan</code>/<code>implement</code>/<code>verify</code>. Writes <code>05c-benchmark.md</code>.</td></tr>
-<tr><td><code>profile</code></td><td><em>not typed</em></td><td>augmentation</td><td>Hotspot-profiling augmentation — <strong>not</strong> a <code>/wf</code> command. <code>shape</code> flags it for <code>plan</code> to schedule; for a freestanding profiling pass with no active slice, use <code>/wf probe</code>.</td></tr>
-<tr><td><code>/wf probe</code></td><td><code>&lt;slug&gt; [target]</code></td><td>add-on</td><td>Runtime-truth verification. Slug-mode only. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td></tr>
-<tr><td><code>/wf simplify</code></td><td><code>[branch|commit &lt;sha&gt;|plan &lt;slug&gt; &lt;slice&gt;|codebase [&lt;path&gt;]]</code></td><td>add-on</td><td>3-agent review and route triage. Never writes code. See <a href="wf-quick.html">Quick &amp; standalone flows</a>.</td></tr>
-<tr><td><code>/wf auto</code></td><td><code>&lt;slug&gt; [&lt;slice&gt;]</code></td><td>driver</td><td>End-to-end lifecycle driver. Drives every slice &rarr; final review and stops before handoff; with a slice arg it drives that one slice then routes to the next. Writes no artifact of its own; never opens a PR.</td></tr>
-</tbody>
-</table>
+<h3 id="verify"><code>/wf verify</code></h3>
+<pre><code>/wf verify &lt;slug&gt; [slice]</code></pre>
+<p>Verify runs tests, lints, and typechecks. It then applies the acceptance-criteria gate: each criterion is checked against user-observable behavior, with captured evidence. Verify owns a single-round, user-gated fix loop and re-checks augmentations, for example a benchmark comparison. Evidence from prior runs is snapshotted, not overwritten, so reviewers can compare runs.</p>
+<p><strong>Writes:</strong> <code>06-verify-&lt;slice-slug&gt;.md</code> plus updates to the <code>06-verify.md</code> master; evidence files under <code>verify-evidence/&lt;slice-slug&gt;/</code>.</p>
 
-<h2>Quick &amp; standalone flows (retired /wf-quick)</h2>
+<h3 id="review"><code>/wf review</code></h3>
+<pre><code>/wf review &lt;slug&gt; [slice | triage]     # workflow stage
+/wf review &lt;dimension&gt;                 # ad-hoc, one rubric
+/wf review sweep &lt;aggregate&gt;           # ad-hoc, parallel fan-out</code></pre>
+<p>Review is the single review surface. With a slug, review runs stage 7: one reviewer sub-agent runs per selected dimension, and the findings merge into an accumulating ledger. Re-runs dedupe and merge in place, mark cleared findings <code>resolved</code>, and never overwrite. The stage ends in a verdict of <code>ship</code>, <code>ship-with-caveats</code>, or <code>dont-ship</code>. <code>triage</code> re-triages open and deferred findings. Without a slug, a dimension name or a sweep name runs an ad-hoc review over a chosen scope and returns findings inline. All 34 dimensions, the 7 sweep aggregates, and the disambiguation rules are on <a href="review-dimensions.html">Review dimensions</a>.</p>
+<p><strong>Writes:</strong> in stage mode, <code>07-review.md</code> (slug-wide) or <code>07-review-&lt;slice-slug&gt;.md</code> (per-slice) plus one <code>07-review[-&lt;slice&gt;]-&lt;dimension&gt;.md</code> per dimension run. Ad-hoc runs write nothing.</p>
 
-<p>The standalone <code>/wf-quick</code> router has been retired. Its ten flows are now distributed across <code>/wf</code>. Eight become <strong>intake modes</strong> invoked as <code>/wf intake &lt;mode&gt;</code>; two become their own top-level <code>/wf</code> keys. See <a href="wf-quick.html">Quick &amp; standalone flows</a> for the full argument grammar.</p>
+<h3 id="handoff"><code>/wf handoff</code></h3>
+<pre><code>/wf handoff &lt;slug|pr#N|branch&gt; [slice-slug]</code></pre>
+<p>Handoff aggregates all complete slices of a slug into a PR-ready package with reviewer and QA context. A <code>pr#N</code> or branch-name first argument runs batch mode: the run assesses every slug on the branch, packages ready slugs into the single shared PR, and records the branch-level readiness check on the lead slug. Handoff refuses a slug when a required review has unresolved blockers. Handoff hard-blocks on any open intent-risk (RIM) entry. Handoff also runs the ship-plan readiness pre-check, so a missing or drifted <code>.ai/ship-plan.md</code> surfaces before the PR is declared ship-ready.</p>
+<p><strong>Writes:</strong> <code>08-handoff.md</code> per slug (batch mode: one per slug, with the readiness block on the lead).</p>
 
-<table>
-<thead><tr><th>Old form</th><th>New form</th><th>For</th></tr></thead>
-<tbody>
-<tr><td><code>/wf-quick fix</code></td><td><code>/wf intake fix</code></td><td>Trivial, one-file change.</td></tr>
-<tr><td><code>/wf-quick hotfix</code></td><td><code>/wf intake hotfix</code></td><td>Production incident — scope-locked compressed lifecycle; review still runs (defaults to the security rubric).</td></tr>
-<tr><td><code>/wf-quick rca</code></td><td><code>/wf intake rca</code></td><td>Root-cause analysis — static diagnosis by reading code and git history.</td></tr>
-<tr><td><code>/wf-quick probe</code> <span class="badge">v9.14</span></td><td><code>/wf probe</code></td><td>Runtime-truth verification — drives the running artifact. Slug-mode only.</td></tr>
-<tr><td><code>/wf-quick investigate</code></td><td><code>/wf intake investigate</code></td><td>Solution-options sketcher — every distinct engineering approach found, with tradeoffs (up to 3 presented as full cards).</td></tr>
-<tr><td><code>/wf-quick discover</code></td><td><code>/wf intake discover</code></td><td>Hypothesis test — adjudicates a code-level theory.</td></tr>
-<tr><td><code>/wf-quick update-deps</code></td><td><code>/wf intake update-deps</code></td><td>Tiered dependency updates.</td></tr>
-<tr><td><code>/wf-quick refactor</code></td><td><code>/wf intake refactor</code></td><td>Behaviour-preserving refactor.</td></tr>
-<tr><td><code>/wf-quick ideate</code></td><td><code>/wf intake ideate</code></td><td>Rank improvement candidates.</td></tr>
-<tr><td><code>/wf-quick simplify</code></td><td><code>/wf simplify</code></td><td>3-agent review and route triage. Never writes code.</td></tr>
-</tbody>
-</table>
+<h3 id="ship"><code>/wf ship</code></h3>
+<pre><code>/wf ship &lt;slug|pr#N|branch&gt; [environment|announce|rollback] [&lt;run-id&gt;]</code></pre>
+<p>Ship runs a release through the project's <code>.ai/ship-plan.md</code>: a 13-step, idempotent, replayable sequence, from pre-flight through merge, tag, workflow watch, and post-release bookkeeping, under a fresh run-id. When you re-run after a partial failure, the run resumes at the failed step. The run refuses to start unless readiness is <code>ready</code>. Batch mode ships every slug on the branch atomically as one run. <code>announce</code> re-runs only the stakeholder-comms phase. <code>rollback</code> runs a runbook-driven, Go/No-Go-gated reversal of a completed run.</p>
+<p><strong>Writes:</strong> <code>09-ship-run-&lt;run-id&gt;.md</code> on the lead slug plus a refreshed <code>09-ship-runs.md</code> per roster slug; <code>rollback</code> writes <code>09-rollback-&lt;run-id&gt;.md</code>.</p>
 
-<h2>/wf navigation &amp; lifecycle keys</h2>
+<h3 id="retro"><code>/wf retro</code></h3>
+<pre><code>/wf retro &lt;slug|pr#N|branch&gt;</code></pre>
+<p>Retro is the post-mortem stage. It extracts reusable lessons and turns them into concrete improvements to prompts, hooks, repo instructions, tests, and automation. Batch mode retrospects every slug on the branch, one retro each, and skips slugs with nothing to retro. Batch mode also synthesizes the cross-slug lessons that span the whole branch.</p>
+<p><strong>Writes:</strong> <code>10-retro.md</code> (one per slug in batch mode).</p>
 
-<p>The former <code>/wf-meta</code> router is retired; its members are <code>/wf</code> keys now.</p>
+<h2 id="other">The other eleven keys</h2>
+<p>The keys below are in alphabetical order. They are standalone commands, drivers, navigation, lifecycle control, and routers.</p>
 
-<table>
-<thead><tr><th>Key</th><th>Args</th><th>What it does</th></tr></thead>
-<tbody>
-<tr><td><code>/wf status</code></td><td><code>[slug] [deep]</code></td><td>One workflow or all at a glance. The single-workflow view ends with the next recommended command and reconciles <code>00-index.md</code> against disk (absorbs the former <code>next</code> and <code>sync</code>). <code>deep</code> adds a reality-drift report.</td></tr>
-<tr><td><code>/wf recap</code></td><td><code>&lt;slug&gt; [focus]</code></td><td>Re-reads the trail and proposes a concrete next invocation (the renamed <code>resume</code>). With a focus (<code>plan</code>|<code>shape</code>|<code>slice</code>|<code>review</code>|<code>findings</code>) it explains that artifact.</td></tr>
-<tr><td><code>/wf intake</code></td><td><code>&lt;slug&gt; &lt;scope&gt;</code></td><td>On an existing slug with new scope, adds a slice — this replaces the former <code>amend</code> and <code>extend</code>. There is no <code>amend</code>.</td></tr>
-<tr><td><code>/wf close</code></td><td><code>&lt;slug&gt; [&lt;slice&gt; | &lt;reason&gt;]</code></td><td>With a slice, terminates just that slice so downstream prerequisites are satisfied (absorbs the former <code>skip</code>, now slice-scoped). With a reason (shipped / abandoned / superseded / archived / stuck), archives the whole workflow.</td></tr>
-<tr><td><code>/wf ship</code></td><td><code>&lt;slug&gt; announce</code></td><td>Generates a Diátaxis announcement for a completed workflow.</td></tr>
-<tr><td><code>/wf ship-plan</code></td><td><code>init | build | edit | audit</code></td><td><code>init</code> authors <code>.ai/ship-plan.md</code> (the pipeline contract — release Blocks A–G and developer-experience Blocks H–K); <code>build</code> audits the repo against it and builds the CI/CD + DX pipeline (nothing overwritten without confirmation); <code>edit</code> corrects a block; <code>audit</code> runs a read-only soundness audit of the plan and accumulates findings in <code>.ai/ship-plan-audit.md</code> (never edits the plan).</td></tr>
-<tr><td><code>/wf observability</code></td><td><code>init | build | audit</code></td><td>Project-wide observability router (subsumes the retired <code>setup-wide-logging</code> command). <code>init</code> inventories the codebase and authors <code>.ai/observability.md</code> (language-agnostic, consultative); <code>build</code> realizes that plan in the codebase; <code>audit</code> reviews observability coverage and writes <code>.ai/observability-audit.md</code>.</td></tr>
-</tbody>
-</table>
+<h3 id="auto"><code>/wf auto</code></h3>
+<pre><code>/wf auto &lt;slug&gt; [&lt;slice&gt;]</code></pre>
+<p>Auto is the human-gated end-to-end driver. It runs each stage of an already-started workflow in-process. It proceeds on clean terminal states and pauses whenever a stage's own gate fires: an unmet acceptance criterion, an unresolved review blocker, or a pending question. With a slice, auto drives that slice to its end. Without a slice, auto drives every slice and the final review. Auto always stops before handoff. Auto never opens a PR and never fixes CI.</p>
+<p><strong>Writes:</strong> nothing of its own. The stages it drives write their normal artifacts.</p>
 
-<p>For a code question, codebase exploration, or web research (the former <code>/wf-meta how</code>), use the <code>deep-research</code> skill.</p>
+<h3 id="close"><code>/wf close</code></h3>
+<pre><code>/wf close &lt;slug&gt; [&lt;slice&gt; | reason]</code></pre>
+<p>Close terminates a lifecycle. With a reason, or with nothing, close archives the whole workflow at whatever stage the workflow reached and sets status <code>closed</code>. With a slice slug, close closes only that slice, so downstream prerequisites are satisfied. Close never deletes artifacts, PRs, or branches. Close never edits application code.</p>
+<p><strong>Writes:</strong> <code>99-close.md</code> for a workflow close; <code>skip-slice-&lt;slice&gt;.md</code> for a slice close.</p>
 
-<h2>/wf design — design pipeline</h2>
+<h3 id="design"><code>/wf design</code></h3>
+<pre><code>/wf design [slug] &lt;command&gt; [instructions]</code></pre>
+<p>Design is the design surface. Its 20 commands are arguments, never keys of their own. Fifteen transformation verbs (<code>animate</code>, <code>bolder</code>, <code>clarify</code>, <code>colorize</code>, <code>delight</code>, <code>distill</code>, <code>harden</code>, <code>layout</code>, <code>onboard</code>, <code>optimize</code>, <code>overdrive</code>, <code>polish</code>, <code>quieter</code>, <code>typeset</code>, <code>adapt</code>) author a focused visual contract and then drive slice → plan → implement → verify themselves. <code>audit</code> and <code>critique</code> write a one-shot design review. <code>extract</code> is a read-only token and style extraction. <code>setup</code> and <code>teach</code> author the project-root context files. Slug resolution is exact-match only. Every design run reports a register (brand or product) and an image-gate line.</p>
+<p><strong>Writes:</strong> transforms write a focused <code>02c-craft.md</code>, the build-span artifacts, and a <code>design-notes/&lt;command&gt;-&lt;timestamp&gt;.md</code> change record; <code>audit</code>/<code>critique</code> write <code>07-design-audit.md</code>/<code>07-design-critique.md</code>; <code>extract</code> writes <code>design-notes/extract-&lt;timestamp&gt;.md</code> + <code>design-notes/tokens-extracted.css</code>; <code>setup</code>/<code>teach</code> write <code>PRODUCT.md</code>/<code>DESIGN.md</code> at the project root.</p>
 
-<p>20 sub-commands, run as a compressed <code>/wf</code> sub-command. The design brief (<code>02b-design.md</code>) and visual contract (<code>02c-craft.md</code>) are authored by the normal lifecycle — <code>/wf shape</code> and <code>/wf plan</code> — not by a command here. Two invocation shapes: <strong>in-workflow</strong> (<code>/wf design &lt;slug&gt; &lt;transform&gt;</code>) authors a focused contract and then drives <code>slice → plan → implement → verify</code> itself, compressed; <strong>no slug</strong> (<code>/wf design &lt;sub&gt;</code>) creates a new workflow and runs the full lifecycle, seeded by the design intent. The review sub-commands are <code>audit</code> and <code>critique</code>. Fifteen transformation sub-commands handle targeted visual work: <code>colorize</code>, <code>typeset</code>, <code>animate</code>, <code>harden</code>, <code>quieter</code>, <code>bolder</code>, <code>delight</code>, <code>distill</code>, <code>clarify</code>, <code>adapt</code>, <code>layout</code>, <code>optimize</code>, <code>polish</code>, <code>overdrive</code>, <code>onboard</code>. Three setup and extract sub-commands complete the catalog: <code>setup</code>, <code>teach</code>, <code>extract</code>.</p>
+<h3 id="docs"><code>/wf docs</code></h3>
+<pre><code>/wf docs [&lt;primitive&gt; | &lt;slug&gt; | --audit-only | &lt;path&gt;]</code></pre>
+<p>Docs is the documentation router. Orchestrator mode (no argument, a slug, a path, or <code>--audit-only</code>) runs the full pipeline: discover existing docs, audit them, plan, generate, and review. Slug mode fulfills the shape's Documentation Plan. Primitive mode (<code>plan</code>, <code>tutorial</code>, <code>how-to</code>, <code>reference</code>, <code>explanation</code>, <code>readme</code>, <code>review</code>) writes a single Diátaxis document in place.</p>
+<p><strong>Writes:</strong> documentation output at project doc paths; pipeline artifacts under <code>.ai/docs/&lt;run-id&gt;/</code>.</p>
 
-<p>See <a href="wf-design.html">/wf design in depth</a> for the full sub-command catalog and argument matrix.</p>
+<h3 id="observability"><code>/wf observability</code></h3>
+<pre><code>/wf observability &lt;init|build|audit&gt; [args]</code></pre>
+<p>Observability is the project observability router. <code>init</code> inventories the codebase's current logging, telemetry, and analytics, reads the ship plan, and consultatively authors the project contract. The contract covers schema, sampling, redaction, pipeline, backend, and dashboards, and is language-agnostic. <code>build</code> realizes the contract: emit-layer adapters, collector and pipeline config, backend IaC, and dashboards-as-code. <code>build</code> gates every remote or billable step. <code>audit</code> is a read-only soundness sweep across seven lenses. <code>audit</code> routes findings and fixes nothing. There is no <code>edit</code> sub-key. To change the contract, amend the contract file by hand.</p>
+<p><strong>Writes:</strong> <code>init</code> writes <code>.ai/observability.md</code>; <code>build</code> writes the config and code it emits; <code>audit</code> writes only its accumulating ledger <code>.ai/observability-audit.md</code>.</p>
 
-<h2>/wf docs — documentation pipeline</h2>
+<h3 id="probe"><code>/wf probe</code></h3>
+<pre><code>/wf probe &lt;slug&gt; [target|sweep]
+/wf probe sweep [path]</code></pre>
+<p>Probe verifies already-built work against runtime truth. It drives the running artifact, captures observable output, and compares the output against the record. Target mode compares the output against acceptance-criteria text. <code>sweep</code> enumerates the whole user surface and compares the surface against the acceptance criteria, the charter's constraints, and the shared eight-class surface-defect taxonomy. <code>sweep</code> as the <em>first</em> token runs slug-less against any repo. Probe never writes code and never writes fixes.</p>
+<p><strong>Writes:</strong> a compressed slice <code>03-slice-probe-&lt;descriptor&gt;.md</code> in the workflow; a slug-less sweep writes the project-level <code>.ai/surface-sweep-&lt;utc-date&gt;.md</code> instead.</p>
 
-<p>The former <code>/wf-docs</code> router is the <code>/wf docs</code> key now. Runs the full pipeline (<code>discover</code> → <code>audit</code> → <code>plan</code> → <code>generate</code> → <code>review</code>) or invokes a single Diátaxis primitive directly (<code>plan</code>, <code>tutorial</code>, <code>how-to</code>, <code>reference</code>, <code>explanation</code>, <code>readme</code>, <code>review</code>).</p>
+<h3 id="recap"><code>/wf recap</code></h3>
+<pre><code>/wf recap &lt;slug|pr#N|branch&gt; [slice-slug | plan|shape|slice|review|findings]</code></pre>
+<p>Recap is a plain-language catch-up. Give recap a slug to hear the story of the whole workflow: what was decided, what was built, what was checked, and where the workflow stands. Give recap a slice to recap only that slice. Give recap a focus token to have one artifact explained. Batch mode recaps every slug on a branch and tells the combined story. Recap never advances the workflow.</p>
+<p><strong>Writes:</strong> <code>90-recap.md</code>.</p>
 
-<p>See <a href="wf.html">/wf docs in depth</a> for the full sub-command list and pipeline flow.</p>
+<h3 id="ship-plan"><code>/wf ship-plan</code></h3>
+<pre><code>/wf ship-plan &lt;init|build|edit|audit&gt; [args]</code></pre>
+<p>Ship-plan is the project release-pipeline router. <code>init</code> authors <code>.ai/ship-plan.md</code>, optionally seeded from a template (<code>kotlin-maven-central</code>, <code>npm-public</code>, <code>pypi</code>, <code>container-image</code>, <code>server-deploy</code>, <code>library-internal</code>). <code>build</code> brings the repo and CI into compliance with the plan and supports <code>--dry-run</code>. <code>edit</code> makes block-level amendments and bumps the plan version. <code>audit</code> is a read-only adversarial soundness review across seven lenses (plan-soundness, release-safety, ci-correctness, secrets-and-permissions, supply-chain, rollback-realism, version-integrity). <code>audit</code> routes each finding to its fixer and fixes nothing itself.</p>
+<p><strong>Writes:</strong> <code>init</code>/<code>edit</code> write <code>.ai/ship-plan.md</code>; <code>build</code> writes the repo/CI files it emits; <code>audit</code> writes only its accumulating ledger <code>.ai/ship-plan-audit.md</code>.</p>
 
-<h2>/wf review — code review</h2>
+<h3 id="simplify"><code>/wf simplify</code></h3>
+<pre><code>/wf simplify [branch [&lt;base&gt;] | commit &lt;sha-or-range&gt; | plan &lt;slug&gt; &lt;slice&gt; | codebase [&lt;path&gt;]]</code></pre>
+<p>Simplify is review-and-route triage. Three parallel reviewers (Code Reuse, Code Quality, Efficiency) sweep one of four scopes; the branch diff is the default scope. The reviewers classify what they find and route each finding to the right downstream command. Simplify also harvests <code>sdlc-debt:</code> markers repo-wide. Simplify never writes code directly.</p>
+<p><strong>Writes:</strong> nothing. Findings are routed, not recorded as an artifact.</p>
 
-<p>Per-dimension or named-sweep review across 34 dimensions and 7 sweeps via parallel sub-agent dispatch. Pass the change context and the command selects which dimensions apply. Run it ad-hoc with no slug (<code>/wf review &lt;dimension&gt;</code> or <code>/wf review sweep &lt;aggregate&gt;</code>), or as the workflow review stage (<code>/wf review &lt;slug&gt;</code>). Like every <code>/wf</code> key it is invoked explicitly — it does not auto-invoke.</p>
+<h3 id="status"><code>/wf status</code></h3>
+<pre><code>/wf status [slug|pr#N|branch] [deep]
+/wf status advise [branch|pr#N|fast]</code></pre>
+<p>Status is the dashboard and the registry keeper. With no argument, status renders the cross-workflow status table. With a slug, status shows the detail view and the exact next command. With a PR number or a branch, status shows a read-only roster of every slug on that branch. <code>deep</code> runs a reality-drift check against code, git, and dependencies. <code>advise</code> reasons across all open workflows and renders a ranked cross-slug sequencing plan; the plan is read-only and ephemeral. Every status run first reconciles the registry <code>.ai/workflows/INDEX.md</code> against disk.</p>
+<p><strong>Writes:</strong> normally nothing beyond the <code>INDEX.md</code> reconciliation; <code>deep</code> writes a <code>00-sync.md</code> drift report.</p>
 
-<p>See <a href="review.html">/wf review in depth</a> for the full dimension list and sweep catalog.</p>
+<h3 id="yolo"><code>/wf yolo</code></h3>
+<pre><code>/wf yolo &lt;slug&gt; [&lt;slice&gt;]</code></pre>
+<p>Yolo is the autonomous sibling of <code>auto</code> (Claude-only, not in the Codex build). Where <code>auto</code> pauses at gates, yolo resolves each gate by a written decision policy and records every decision in the artifact trail. Each decision is classified as implementation-detail or intent-bearing. By policy, an intent-bearing auto-resolution is an escape that should have been a stop, and the closing decision digest names each one explicitly for audit. Sub-agents append heartbeats to <code>.driver-journal.jsonl</code>, so a dead driver is distinguishable from a slow driver. Yolo drives plan → implement → verify → review, stops before handoff, and refuses terminal-analysis workflows.</p>
+<p><strong>Writes:</strong> nothing of its own. The stages it drives write their artifacts; heartbeats go to <code>.ai/workflows/&lt;slug&gt;/.driver-journal.jsonl</code>.</p>
 
 <div class="related">
-<h3>Where next</h3>
-<ul>
-  <li><a href="../tutorials/first-workflow.html">Run your first tracked workflow with <code>/wf</code> →</a></li>
-  <li><a href="../tutorials/quick-fix-workflow.html">See what a quick intake mode looks like in practice →</a></li>
-  <li><a href="glossary.html">Look up any term used on this page →</a></li>
-</ul>
+  <h2>Related</h2>
+  <ul>
+    <li><a href="intake-modes.html">Intake modes</a> — the full catalog of entry flows behind <code>/wf intake</code>.</li>
+    <li><a href="review-dimensions.html">Review dimensions</a> — all 34 dimensions and 7 sweeps behind <code>/wf review</code>.</li>
+    <li><a href="artifacts.html">Artifacts</a> — where every file named on this page lives and what it contains.</li>
+    <li><a href="../guides/choose-your-entry.html">Choose your entry</a> — which command fits which situation.</li>
+  </ul>
 </div>
-
-<div class="pager"><a class="prev" href="../reference/pipeline.html"><span>← Previous</span>Pipeline</a><a class="next" href="../reference/wf.html"><span>Next →</span>/wf</a></div></main>
-</div>
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
-
-  // Mark active sidebar link based on current path
-  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
-  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
-    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
-      a.classList.add("active");
-    }
-  });
-
-  // Mobile drawer toggle
-  const toggle = document.querySelector(".menu-toggle");
-  const backdrop = document.querySelector(".nav-backdrop");
-  const setOpen = (open) => {
-    document.body.classList.toggle("nav-open", open);
-    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
-  };
-  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
-  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
-  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
-</script>
+</main>
+<script src="../nav.js"></script>
 </body>
 </html>

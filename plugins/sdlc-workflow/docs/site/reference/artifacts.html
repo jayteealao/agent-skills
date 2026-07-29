@@ -1,211 +1,255 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Artifacts reference · sdlc-workflow</title>
+<title>Artifact files · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
-<body>
-<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
-  <span class="open-icon" aria-hidden="true">&#9776;</span>
-  <span class="close-icon" aria-hidden="true">&times;</span>
-</button>
-<div class="nav-backdrop" aria-hidden="true"></div>
-<div class="layout">
-<aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.143.0</small></a>
-<nav aria-label="Site navigation">
-  <h4>Orientation</h4>
-  <ul>
-    <li><a href="../index.html" data-href="index.html">Home</a></li>
-    <li><a href="../orientation/is-this-for-me.html" data-href="orientation/is-this-for-me.html">Is this for me?</a></li>
-    <li><a href="../orientation/mental-model.html" data-href="orientation/mental-model.html">How it works</a></li>
-    <li><a href="../orientation/first-10-minutes.html" data-href="orientation/first-10-minutes.html">First 10 minutes</a></li>
-  </ul>
-  <h4>Tutorials</h4>
-  <ul>
-    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
-    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">Full feature walkthrough</a></li>
-    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
-  </ul>
-  <h4>How to&hellip;</h4>
-  <ul>
-    <li><a href="../how-to/choose-a-command.html" data-href="how-to/choose-a-command.html">Choose a command</a></li>
-    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
-    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
-    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
-    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use add-ons</a></li>
-    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use design</a></li>
-    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
-    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
-    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
-    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
-    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
-  </ul>
-  <h4>Reference</h4>
-  <ul>
-    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
-    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
-    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
-    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
-    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
-    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
-    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
-    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
-    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
-    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
-    <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
-  </ul>
-  <h4>Explanation</h4>
-  <ul>
-    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
-    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
-    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
-    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
-    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
-    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
-    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
-    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
-    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
-    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
-  </ul>
-  <h4>Tips</h4>
-  <ul>
-    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
-    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
-    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
-    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
-  </ul>
-  <h4>Changelog</h4>
-  <ul>
-    <li><a href="../whats-new.html" data-href="whats-new.html">What&#8217;s new</a></li>
-  </ul>
-</nav>
-</aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Artifacts</div>
-<span class="quadrant reference">reference</span>
-<h1>Artifacts reference</h1>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Artifact files</h1>
+<p class="lede">This page maps every file that <code>/wf</code> writes into a repository.
+Use it to identify a file in <code>.ai/</code>, find the command that wrote the file, and
+learn whether you can touch the file.</p>
 
-<p class="lede">This page is for when you need to understand the exact format of the files the plugin writes. An <strong>artifact</strong> — a small markdown file the plugin writes next to your code that records what it decided and why — is the plugin's unit of persistent memory. Every command that makes a decision writes one.</p>
+<p>The plugin writes to three places: the per-workflow directory
+<code>.ai/workflows/&lt;slug&gt;/</code>, some project-level files directly under
+<code>.ai/</code>, and three optional context files at the repo root. Artifacts are plain
+Markdown files with YAML frontmatter. Artifacts are the record of the work. Commands treat
+artifacts as additive: a command never overwrites or deletes an artifact.</p>
 
-<p>Artifacts live under <code>.ai/</code> in your repository root. Each workflow gets its own subdirectory named after its <strong>slug</strong> (the short identifier you chose at intake, e.g. <code>add-login</code>). Files inside are numbered by <strong>stage</strong> (the plugin's name for a step in the workflow, e.g. intake → shape → plan → implement).</p>
+<h2>The workflow directory: <code>.ai/workflows/&lt;slug&gt;/</code></h2>
 
-<h2>Workflow directory tree</h2>
-
-<pre><code>.ai/
-├── ship-plan.md                         # Project-level. Authored once via /wf ship-plan init.
-├── ship-plan-audit.md                    # Project-level. Read-only soundness audit — /wf ship-plan audit.
-├── observability.md                      # Project-level. Observability plan — /wf observability init.
-├── observability-audit.md                # Project-level. Coverage audit — /wf observability audit.
-├── workflows/&lt;slug&gt;/
-│   ├── 00-index.md                      # Control file (pure YAML frontmatter, no body)
-│   ├── 00-sync.md                       # Written by /wf status if run
-│   ├── 01-intake.md                     # Initial requirements
-│   ├── 02-shape.md                      # Deep spec + docs plan
-│   ├── 02b-design.md                    # Design brief (UX register, anti-goals) — /wf shape
-│   ├── 02c-craft.md                     # Visual contract (NOT code) — /wf plan
-│   ├── 02-shape-amend-N.md              # Legacy amendment record (retired type)
-│   ├── 03-slice.md                      # Master slice index
-│   ├── 03-slice-&lt;slug&gt;.md               # Per-slice definition
-│   ├── 03-slice-&lt;slug&gt;-amend-N.md       # Per-slice amendment
-│   ├── 04-plan.md                       # Plan master index (multi-slice workflows)
-│   ├── 04-plan-&lt;slug&gt;.md                # Per-slice plan
-│   ├── 04b-instrument.md                # Optional — observability add-on (workflow-scoped)
-│   ├── 04c-experiment.md                # Optional — experiment add-on (workflow-scoped)
-│   ├── 05-implement.md                  # Master index
-│   ├── 05-implement-&lt;slug&gt;.md           # Per-slice implement record
-│   ├── 05c-benchmark.md                 # Optional — perf add-on (workflow-scoped)
-│   ├── 06-verify.md                     # Master index
-│   ├── 06-verify-&lt;slug&gt;.md              # Per-slice verification
-│   ├── 07-review-&lt;slug&gt;.md              # Per-slice master review
-│   ├── 07-review-&lt;slug&gt;-&lt;cmd&gt;.md        # Per-slice per-dimension findings
-│   ├── 07-design-audit.md               # /wf design &lt;slug&gt; audit — accessibility/perf/theming/responsive
-│   ├── 07-design-critique.md            # /wf design &lt;slug&gt; critique — UX critique
-│   ├── 08-handoff.md                    # Aggregated handoff + PR-readiness block
-│   ├── 09-ship-run-&lt;run-id&gt;.md          # Per-release artifact
-│   ├── 09-ship-runs.md                  # Per-workflow run index
-│   ├── 09-rollback-&lt;run-id&gt;.md          # Written by /wf ship &lt;slug&gt; rollback
-│   ├── 10-retro.md                      # Lessons learned
-│   ├── 99-close.md                      # Written by /wf close &lt;slug&gt; &lt;reason&gt;
-│   ├── 90-next.md / 90-resume.md        # Optional helpers
-│   ├── 90-how-&lt;topic&gt;.md                # Written by /wf recap &lt;slug&gt; &lt;focus&gt;
-│   ├── design-notes/                    # /wf design transformation + extract operators
-│   │   ├── animate-&lt;ts&gt;.md              # one file per transformation (animate, bolder, clarify, …)
-│   │   ├── extract-&lt;ts&gt;.md              # read-only inspection / token + component extraction
-│   │   └── &lt;sub&gt;-&lt;ts&gt;.md                # 15 transformation operators total
-│   └── po-answers.md                    # Cumulative product-owner answers log
-├── ideation/&lt;focus&gt;-&lt;ts&gt;.md             # (legacy — old /wf-quick ideate runs only; current runs write to workflows/&lt;slug&gt;/)
-├── research/&lt;topic&gt;-&lt;ts&gt;.md             # /wf recap &lt;slug&gt; &lt;focus&gt; (research mode)
-├── simplify/&lt;run-id&gt;.md                 # (legacy — pre-v9.86.0 runs only; current runs write to workflows/&lt;slug&gt;/01-simplify.md)
-├── dep-updates/&lt;run-id&gt;/                # (legacy — old /wf-quick update-deps runs only; current runs write to workflows/&lt;slug&gt;/)
-├── docs/&lt;run-id&gt;/                       # /wf docs pipeline tree
-└── solutions/&lt;category&gt;/&lt;slug&gt;.md        # Durable cross-workflow learnings — written by /wf retro
-
-# Project-level design context (authored by /wf design setup)
-PRODUCT.md                               # Product/brand context (audience, voice, register)
-DESIGN.md                                # Design system context (tokens, components, patterns)
-</code></pre>
-
-<h2>Add-on artifacts</h2>
-
-<p>Some files above are marked "Optional — … add-on." An <strong>add-on</strong> (the plugin's term for an optional capability you layer onto a stage) writes its own artifact alongside the stage it extends. The three add-ons that appear in the tree are <code>instrument</code> (adds observability hooks), <code>experiment</code> (adds A/B scaffolding), and <code>benchmark</code> (adds performance measurement). They are activated by running the corresponding sub-command at plan or implement time.</p>
-
-<h2>Shared frontmatter contract</h2>
-
-<p>Every artifact file's first lines are YAML frontmatter between <code>---</code> markers. This frontmatter is what the plugin reads to understand the file's role and status. Every artifact contains at minimum:</p>
+<p>Each workflow gets one directory, named by the workflow's slug. Files inside the directory
+follow a numbered convention: a two-digit stage prefix, an optional letter for a stage add-on,
+then a hyphenated name (for example <code>01-intake.md</code>, <code>02b-design.md</code>,
+<code>04-plan-api.md</code>). A blocking write hook enforces the convention, so a stray
+filename never lands. The numbers run in lifecycle order:</p>
 
 <table>
-<tr><th><code>schema</code></th><td>Always <code>sdlc/v1</code>. Identifies the file as belonging to this plugin.</td></tr>
-<tr><th><code>type</code></th><td>Active types include: <code>index</code>, <code>workflow-index</code>, <code>intake</code>, <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, <code>review</code>, <code>review-command</code>, <code>handoff</code>, <code>ship-run</code>, <code>ship-runs-index</code>, <code>ship-rollback</code>, <code>ship-plan</code>, <code>retro</code>, <code>solution</code>, <code>design</code>, <code>design-contract</code>, <code>design-critique</code>, <code>design-audit</code>, <code>design-augmentation</code>, <code>augmentation</code>, <code>profile</code>, <code>rca</code>, <code>ideation</code>, <code>simplify-run</code>, <code>sync-report</code>, <code>resume</code>, <code>skip-record</code>, <code>shape-amendment</code>, <code>slice-amendment</code>, <code>slice-index</code>, <code>plan-index</code>, <code>implement-index</code>, <code>verify-index</code>, <code>docs-index</code>, <code>project-context</code>, <code>announce</code>, <code>risk-register</code>, <code>estimate</code>. Legacy (back-compat only): <code>fix-plan</code>. See <a href="../reference/types.html">Artifact types</a> for the complete list.</td></tr>
-<tr><th><code>slug</code></th><td>Must match the directory name. The plugin enforces this (called the slug stability invariant) so artifacts can never drift from the workflow they belong to.</td></tr>
+<thead><tr><th>File</th><th>Written by</th><th>What it is</th></tr></thead>
+<tbody>
+<tr><td><code>00-index.md</code></td><td>intake; updated by every stage</td><td>The control file. Its frontmatter is the workflow's machine-readable state. See the next section.</td></tr>
+<tr><td><code>01-intake.md</code> / <code>01-&lt;mode&gt;.md</code></td><td>intake</td><td>The entry record. Default mode writes <code>01-intake.md</code>. Other modes write their own variant: <code>01-fix.md</code>, <code>01-hotfix.md</code>, <code>01-refactor.md</code>, <code>01-update-deps.md</code>, <code>01-rca.md</code>, <code>01-investigate.md</code>, <code>01-discover.md</code>, <code>01-ideate.md</code>.</td></tr>
+<tr><td><code>02-shape.md</code></td><td>shape (synthesized by rca)</td><td>Discovery: goals, acceptance criteria, the Documentation Plan, the add-on plan.</td></tr>
+<tr><td><code>02b-design.md</code></td><td>shape</td><td>The design brief, written when the work has a visual surface.</td></tr>
+<tr><td><code>02c-craft.md</code></td><td>plan (or <code>/wf design</code>)</td><td>The visual contract the implementation builds against.</td></tr>
+<tr><td><code>03-slice.md</code> + <code>03-slice-&lt;slice&gt;.md</code></td><td>slice</td><td>The slice index plus one detailed file per slice. Quick-lane entries and <code>/wf probe</code> also append slices here (<code>03-slice-probe-&lt;descriptor&gt;.md</code>).</td></tr>
+<tr><td><code>04-plan.md</code> + <code>04-plan-&lt;slice&gt;.md</code></td><td>plan</td><td>Per-slice implementation plans plus the master.</td></tr>
+<tr><td><code>04b-instrument.md</code>, <code>04c-experiment.md</code></td><td>plan</td><td>Add-on plans (telemetry instrumentation, experiment design), written only when shape decided the work needs them.</td></tr>
+<tr><td><code>05-implement.md</code> + <code>05-implement-&lt;slice&gt;.md</code></td><td>implement</td><td>The implementation record per slice plus the master.</td></tr>
+<tr><td><code>05c-benchmark.md</code></td><td>implement</td><td>Benchmark add-on results, written when shape called for them.</td></tr>
+<tr><td><code>06-verify.md</code> + <code>06-verify-&lt;slice&gt;.md</code></td><td>verify</td><td>Checks, the acceptance-criteria gate, and any runtime-evidence deferrals. Raw evidence lands in the free-form <code>verify-evidence/</code> and <code>probe-evidence/</code> subdirectories.</td></tr>
+<tr><td><code>07-review.md</code> or <code>07-review-&lt;slice&gt;.md</code></td><td>review</td><td>The accumulating review ledger: one master file per workflow (slug-wide scope) or one per slice (per-slice scope), plus one <code>07-review[-&lt;slice&gt;]-&lt;dimension&gt;.md</code> file for each dimension run. <code>/wf design audit</code> and <code>critique</code> write <code>07-design-audit.md</code> / <code>07-design-critique.md</code> in the same band.</td></tr>
+<tr><td><code>08-handoff.md</code></td><td>handoff</td><td>The PR package: what was aggregated, the readiness check, the PR link.</td></tr>
+<tr><td><code>08b-docs-index.md</code></td><td>docs</td><td>The index of documentation produced for this workflow.</td></tr>
+<tr><td><code>09-ship-run-&lt;run-id&gt;.md</code> + <code>09-ship-runs.md</code></td><td>ship</td><td>One record per release attempt plus the run index. A rollback writes <code>09-rollback-&lt;run-id&gt;.md</code>.</td></tr>
+<tr><td><code>10-retro.md</code></td><td>retro</td><td>The post-mortem.</td></tr>
+<tr><td><code>90-recap.md</code></td><td>recap</td><td>The plain-language catch-up.</td></tr>
+<tr><td><code>99-close.md</code></td><td>close</td><td>The archive record. Closing sets the workflow's status to closed and deletes nothing.</td></tr>
+</tbody>
 </table>
 
-<p>Stage artifacts additionally carry <code>stage-number</code>, <code>status</code>, <code>created-at</code>, and <code>updated-at</code>. Each artifact type's full field set is described on the per-schema reference pages.</p>
+<p>A few files in the directory deliberately sit outside the numbered convention:</p>
 
-<p>Below the frontmatter, every artifact now opens with a narrative <code>## The &lt;Stage&gt;</code> story section (added in v9.92) — a short prose framing of what this stage decided and why — before the structured detail that follows.</p>
+<ul>
+<li><code>po-answers.md</code> — the cumulative product-owner decision log. It is free-form
+prose with no frontmatter. Every stage appends the questions it asked and the answers it
+received.</li>
+<li><code>steer.md</code> — your standing instructions for this workflow. You own this file.
+Stages read it and never write it.</li>
+<li><code>skip-slice-&lt;slice&gt;.md</code> — written by <code>/wf close</code> when you
+close a single slice rather than the whole workflow.</li>
+<li><code>design-notes/</code> — per-run artifacts from <code>/wf design</code> transformation
+commands and read-only extraction (for example <code>extract.md</code>,
+<code>animate-&lt;ts&gt;.md</code>). These files are named by operation, not by stage
+number.</li>
+</ul>
+
+<h2>The control file: <code>00-index.md</code></h2>
+
+<p>The control file is almost all frontmatter. It has no meaningful Markdown body. Every stage
+reads the control file on entry and updates it on exit. The basic identity and progress fields
+are <code>title</code>, <code>status</code>, <code>current-stage</code>, <code>branch</code>,
+and a per-stage <code>progress:</code> map. Beyond those, some frontmatter blocks carry durable
+state that later stages and the drivers depend on:</p>
+
+<dl>
+<dt><code>workflow-type:</code></dt>
+<dd>The discriminator that tells every downstream command what kind of workflow this is:
+<code>standard</code>, <code>fix</code>, <code>hotfix</code>, <code>refactor</code>,
+<code>update-deps</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>,
+and so on. Routing and stage behavior key off this field.</dd>
+
+<dt><code>review-scope:</code></dt>
+<dd>Either <code>per-slice</code> or <code>slug-wide</code>. This field decides whether review
+writes one ledger per slice or one ledger for the whole workflow. Intake records a provisional
+default. The slice stage confirms the value with you when the slice count is known
+(<code>review-scope-confirmed:</code> flips to <code>true</code>). Handoff gating also reads
+this field.</dd>
+
+<dt>the slice roster (<code>slices:</code>)</dt>
+<dd>One entry per slice with the slice's status, complexity, and dependencies. Drivers and
+<code>/wf status</code> use the roster to tell a finished slice from a live or skipped
+one.</dd>
+
+<dt><code>charter:</code></dt>
+<dd>The 3–7 positive commitments the build must honor. Intake distills the commitments and you
+ratify them (entries carry <code>po-ratified: true</code>). Each commitment must be falsifiable
+by code. When a workflow genuinely has no commitments, the control file records
+<code>charter: none-declared</code> plus a one-line reason. Silence is not allowed. Review's
+intent-fidelity dimension and <code>/wf probe sweep</code> read the charter as a comparison
+basis.</dd>
+
+<dt><code>intent-risks:</code></dt>
+<dd>The intent-risk (RIM) ledger: the ways the request could plausibly be misread. Intake
+writes each entry as <code>open</code>. Shape adjudicates each entry: the entry becomes
+<code>adjudicated</code> or <code>carried</code>. While any entry is still open, handoff and
+ship hard-block. An empty ledger must be declared explicitly, like the charter
+(<code>intent-risks: none-declared</code>).</dd>
+
+<dt><code>runtime-evidence-deferrals:</code></dt>
+<dd>The ship-blocking IOU list: acceptance criteria whose runtime proof could not be produced
+at verify time. Each entry records the reason, a <code>wall-ownership</code> triage verdict, a
+<code>clearing-event</code>, and a <code>clearing-probe</code>. A <code>code-owned</code> wall
+may not be deferred at all. The clearing event names the act that clears the entry. The
+clearing probe is a side-effect-free command that <code>/wf status</code>, probe, and the
+drivers run as a tripwire. While any entry has <code>cleared-by: null</code>,
+<code>/wf ship</code> refuses to start.</dd>
+
+<dt><code>augmentations:</code></dt>
+<dd>The add-on plan decided at shape: which of instrument, experiment, and benchmark this
+workflow carries. This field is what makes the <code>04b</code>/<code>04c</code>/<code>05c</code>
+files appear later, or not appear.</dd>
+
+<dt><code>stack:</code></dt>
+<dd>The stack fingerprint intake detected (platforms, languages, UI toolkit, build, testing,
+observability). The <code>user-confirmed:</code> field records whether you signed off on the
+fingerprint. Downstream stages treat an unconfirmed fingerprint as advisory only.</dd>
+</dl>
+
+<h2>The registry: <code>.ai/workflows/INDEX.md</code></h2>
+
+<p>One file above the workflow directories indexes them all. The file is one header comment
+line followed by one tab-separated row per workflow, sorted alphabetically by slug:</p>
+
+<pre><code>&lt;slug&gt;	&lt;status&gt;	&lt;workflow-type&gt;	&lt;branch&gt;	&lt;updated-at&gt;</code></pre>
+
+<p>Each column comes from that workflow's <code>00-index.md</code> frontmatter.
+<code>status</code> is the lifecycle state (<code>defined</code>, <code>shaped</code>,
+<code>implementing</code>, <code>shipped</code>, <code>closed</code>, and so on).
+<code>workflow-type</code> is the discriminator described above. <code>branch</code> is
+informational. <code>updated-at</code> is ISO&nbsp;8601 UTC. Every <code>/wf status</code> run
+reconciles the registry against the directories on disk before it does anything else. Closed
+workflows stay listed. The registry is what lets commands recognize a bare slug argument, so a
+missing or stale row degrades slug detection. To heal the registry, run
+<code>/wf status</code> once.</p>
+
+<h2>Project-level files under <code>.ai/</code></h2>
+
+<table>
+<thead><tr><th>Path</th><th>What it is</th></tr></thead>
+<tbody>
+<tr><td><code>.ai/ship-plan.md</code></td><td>The project's release pipeline, authored by <code>/wf ship-plan init</code> and edited only through <code>ship-plan edit</code>. <code>/wf ship</code> executes it.</td></tr>
+<tr><td><code>.ai/ship-plan-acks.yaml</code></td><td>The ledger of acknowledged ship-plan drift findings. See the ledger section below.</td></tr>
+<tr><td><code>.ai/ship-plan-audit.md</code></td><td>The accumulating read-only audit ledger written by <code>/wf ship-plan audit</code>.</td></tr>
+<tr><td><code>.ai/observability.md</code> (+ audit sibling)</td><td>The telemetry foundation document from <code>/wf observability</code>.</td></tr>
+<tr><td><code>.ai/docs/&lt;run-id&gt;/</code></td><td>Artifacts of a <code>/wf docs</code> orchestrator run (discover → audit → plan → generate → review).</td></tr>
+<tr><td><code>.ai/surface-sweep-&lt;date&gt;.md</code></td><td>The report from a slug-less <code>/wf probe sweep</code>.</td></tr>
+<tr><td><code>.ai/solutions/</code></td><td>Reusable solution write-ups harvested from past workflows.</td></tr>
+<tr><td><code>.ai/design-probes/</code></td><td>Sandboxed UI prototypes produced during design work.</td></tr>
+<tr><td><code>.ai/_view/</code></td><td>The rendered HTML workflow view, produced by the render pipeline. Do not edit this directory by hand. The render pipeline regenerates it from the artifacts.</td></tr>
+<tr><td><code>.ai/sdlc-config.json</code></td><td>Per-repo configuration. See <a href="configuration.html">Configuration</a>.</td></tr>
+</tbody>
+</table>
+
+<h2>Root-level context files</h2>
+
+<p>Three files can live at the repo root, outside <code>.ai/</code>. <code>PRODUCT.md</code>
+and <code>DESIGN.md</code> are the product and design context. <code>/wf design setup</code>
+and <code>teach</code> author them, and the lifecycle stages read them. <code>AGENTS.md</code>
+carries a fenced block of <code>/wf</code> ground rules. A session-start hook seeds and
+maintains the fenced block, with a matching <code>@AGENTS.md</code> import in
+<code>CLAUDE.md</code>. The hook owns only its fence. The rest of the file is yours.</p>
+
+<h2>The frontmatter contract</h2>
+
+<p>Every workflow artifact must open with YAML frontmatter that carries at minimum three
+fields. A PreToolUse hook blocks any write that violates them:</p>
+
+<ul>
+<li><code>schema: sdlc/v1</code>. The value must be exactly this.</li>
+<li><code>type:</code> — the artifact type (<code>index</code>, <code>intake</code>,
+<code>shape</code>, <code>plan</code>, <code>review</code>, <code>ship-run</code>, and so
+on).</li>
+<li><code>slug:</code> — the value must equal the workflow directory name, and it stays stable
+for the life of the workflow.</li>
+</ul>
+
+<p>The same hook enforces the numbered-filename convention. The exemptions are deliberate and
+few: <code>po-answers.md</code> (a frontmatter-less prose log), files under
+<code>probe-evidence/</code> (free-form evidence), and <code>design-notes/</code>
+(operation-named files that carry the design add-on type instead). All machine-readable state
+belongs in frontmatter. The Markdown body is for human narrative.</p>
+
+<h2>Sibling YAML and fragments</h2>
+
+<p>Rich artifact types must ship a sibling <code>&lt;stem&gt;.yaml</code> file next to the
+Markdown file. The rich types are review, plan, design, ship-run, rca, simplify-run,
+benchmark, experiment, instrument, and the design audit/critique/contract family. The sibling
+file holds the structured data that the rendered workflow view builds its figures and tables
+from. A PostToolUse hook hard-blocks a rich artifact written without a sibling file. A rich
+artifact with genuinely no structured data may opt out. To opt out, declare
+<code>fragment: none</code> in the artifact's frontmatter.</p>
+
+<p>Two kinds of HTML fragment can also sit beside an artifact. The <em>typed</em> fragment
+(<code>&lt;stem&gt;.html.fragment</code>) is the contract-bound interactive layer projected
+from the sibling YAML. An artifact can carry at most one typed fragment, and only rich types
+can carry one. A typed fragment is one scoped <code>&lt;section&gt;</code> with inline assets
+only. <em>Free narrative fragments</em>
+(<code>&lt;stem&gt;.&lt;NN-label&gt;.html.fragment</code>) are unrestricted raw HTML, injected
+below the rendered page body in label order. Any artifact can carry any number of them. Use a
+free narrative fragment for a bespoke diagram or widget that the structured page cannot tell.
+The <code>NN-</code> prefix on the label controls the order.</p>
+
+<h2>Ledger discipline: additive only</h2>
+
+<p>Several files are ledgers, and a ledger only grows. The review ledger
+(<code>07-review[-&lt;slice&gt;].md</code> + its sibling YAML) is the strictest case. A re-run
+<em>merges</em>: new findings are deduplicated and appended, and prior finding IDs and
+<code>surfaced-at</code> stamps are preserved. A finding that a re-run no longer surfaces is
+marked <code>resolved</code>, not removed. Nothing is ever overwritten or deleted. The sibling
+YAML mirrors the open findings for the rendered view.</p>
+
+<p>The ship-plan acks ledger (<code>.ai/ship-plan-acks.yaml</code>) records the drift findings
+you acknowledged, so the same settled question is not asked again. Each entry is scoped.
+Entries with <code>fingerprint-scope: plan</code> are claims about the plan, and they die when
+the plan version bumps. Entries with <code>fingerprint-scope: branch</code> are facts about
+the branch: they survive amendments and die only when the branch merges. Each finding also
+carries a <code>clears-on</code> tag (<code>amend</code>, <code>repo</code>, or
+<code>merge</code>) that names the event that actually resolves the finding. The intent-risk
+ledger and the runtime-evidence deferral list in <code>00-index.md</code> follow the same
+rule: entries change state (<code>open</code> to <code>adjudicated</code>,
+<code>cleared-by</code> set), but entries are never erased.</p>
+
+<div class="note">
+<p>Whether <code>.ai/</code> is committed or gitignored is a per-project policy, recorded as
+<code>artifactTracking</code> in <code>.ai/sdlc-config.json</code>. Ship's clean-tree check
+reads the policy. While the policy is unset, <code>/wf status</code> nudges you once.</p>
+</div>
 
 <div class="related">
-<h3>Where next</h3>
-<ul>
-  <li><a href="../reference/00-index-schema.html">See every field the control file (00-index.md) can hold →</a></li>
-  <li><a href="../reference/glossary.html">Look up slug, stage, add-on, and other terms in the glossary →</a></li>
-  <li><a href="../reference/wf-design.html">Understand the design artifacts (02b-design, 02c-craft, design-notes/) in context →</a></li>
-</ul>
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../concepts/why-artifacts.html">Why artifacts</a> — the reasoning behind writing everything to disk.</li>
+    <li><a href="glossary.html">Glossary</a> — the terms used above (slice, charter, deferral, ledger, and more) defined one by one.</li>
+    <li><a href="configuration.html">Configuration</a> — every key in <code>.ai/sdlc-config.json</code> and the machine-wide config.</li>
+    <li><a href="hooks.html">Hooks</a> — the validators and render dispatch that enforce this layout.</li>
+  </ul>
 </div>
-
-<div class="pager"><a class="prev" href="../reference/skills.html"><span>← Previous</span>Skills</a><a class="next" href="../reference/00-index-schema.html"><span>Next →</span>00-index schema</a></div></main>
-</div>
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
-
-  // Mark active sidebar link based on current path
-  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
-  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
-    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
-      a.classList.add("active");
-    }
-  });
-
-  // Mobile drawer toggle
-  const toggle = document.querySelector(".menu-toggle");
-  const backdrop = document.querySelector(".nav-backdrop");
-  const setOpen = (open) => {
-    document.body.classList.toggle("nav-open", open);
-    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
-  };
-  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
-  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
-  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
-</script>
+</main>
+<script src="../nav.js"></script>
 </body>
 </html>

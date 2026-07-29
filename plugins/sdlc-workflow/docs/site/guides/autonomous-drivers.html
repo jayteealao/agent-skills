@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autonomous drivers · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Autonomous drivers</h1>
+<p class="lede">This page shows how to run a whole workflow with one command. Use <code>/wf auto</code> to answer every gate yourself, or <code>/wf yolo</code> for an autonomous run that reports its decisions back for audit.</p>
+
+<p>After intake and shape, the remaining stages are plan, implement, verify, and review. Those stages mostly run in order, and each stage surfaces its own issues. The two drivers automate that sequencing. Neither driver is a stage: a driver writes no artifact of its own. Every file in <code>.ai/workflows/&lt;slug&gt;/</code> is written by the stage that the driver delegated to, exactly as if you typed the stage command yourself. The only difference between the two drivers is <em>who answers the gates</em>.</p>
+
+<h2>/wf auto — the human-gated driver</h2>
+
+<p>Start the driver with a slug:</p>
+
+<pre><code>/wf auto &lt;slug&gt;</code></pre>
+
+<p><code>auto</code> reads the workflow's control file, determines which stage runs next, and executes that stage in-process. It follows the stage's own reference verbatim. When the stage finishes cleanly, <code>auto</code> reads the artifact that the stage just wrote and moves on to the next stage. When a stage's own gate fires, <code>auto</code> pauses the chain and hands control back to you. A gate fires when verify escalates a failing check, when review leaves an open blocker, or when a stage records a pending product-owner question. The hand-back summarizes what ran, why the run stopped, and the command that resumes the run.</p>
+
+<p><code>auto</code> does <em>not</em> answer those gates for you. Each delegated stage keeps its own user interaction: verify still runs its fix/skip/escalate loop with you, and review still asks you to fix, defer, or dismiss its findings. <code>auto</code> removes the friction of typing each stage command by hand. It never removes, suppresses, or pre-answers a gate. Because the human is present, a delegated stage asks any intent-bearing decision at its gate and does not resolve it silently. Only implementation-detail decisions are auto-resolved, and those decisions are recorded.</p>
+
+<p>The driver has two modes, chosen by whether you name a slice:</p>
+
+<dl class="cmd-grid">
+<dt><code>/wf auto &lt;slug&gt;</code></dt>
+<dd>Slug mode. The driver moves every slice in the roster forward, then runs the final review, then stops. With per-slice review scope, each slice runs plan → implement → verify → review. With slug-wide scope, each slice runs plan → implement → verify, and one review of the whole branch diff runs at the end.</dd>
+<dt><code>/wf auto &lt;slug&gt; &lt;slice&gt;</code></dt>
+<dd>Slice mode. The driver moves just that one slice to its endpoint, then routes you to the next slice in the roster.</dd>
+</dl>
+
+<p>Resume is free. Every stage updates the control file and writes its own artifact, so the artifact trail <em>is</em> the run log. If a run is interrupted, run <code>/wf auto &lt;slug&gt;</code> again. The driver continues from the point where the artifacts show that the run stopped. There is no separate state file to lose.</p>
+
+<h2>/wf yolo — the autonomous driver</h2>
+
+<p><code>/wf yolo &lt;slug&gt;</code> does what <code>auto</code> does, with one difference. Where <code>auto</code> pauses at a gate, <code>yolo</code> resolves the gate itself by a written decision policy, records the decision into the artifact, and drives on. When you type the command, you explicitly opt in to an unattended run. The same two modes apply: slug mode drives everything to the review, and slice mode drives one slice.</p>
+
+<p>The policy has two tiers, by design. Most gates have an <strong>auto-resolve</strong> rule:</p>
+
+<ul>
+<li>At a plan fork, the driver picks the option that best satisfies the slice's acceptance criteria at the least cost, and it records the assumption.</li>
+<li>At a failing verify, the driver applies the minimal fix and allows up to two rounds.</li>
+<li>At review triage, the driver fixes every blocker, high, and medium finding. It defers a low-severity finding only when the fix would reach outside the slice, and it always records the reason.</li>
+</ul>
+
+<p>Some gates are <strong>hard stops</strong>, even for an autonomous driver:</p>
+
+<ul>
+<li>a fork that would change user-observable scope or a public contract</li>
+<li>a substantive failure that is still unresolved after the fix rounds</li>
+<li>a <code>dont-ship</code> review verdict</li>
+<li>an unfixable security or data-loss blocker</li>
+<li>a standing-steering veto in the workflow's <code>steer.md</code></li>
+</ul>
+
+<p>These gates end the run with the artifact trail and a stated reason, because they are product decisions, not best-interest calls.</p>
+
+<p>Three mechanisms keep an unattended run honest:</p>
+
+<ul>
+<li><strong>Decision classification.</strong> Every autonomous decision is classified as implementation-detail or intent-bearing. An intent-bearing decision is never lawfully autonomous; by policy, an intent-bearing decision must be a stop. At the end of the run, the <code>decisionDigest</code> in the hand-back groups every decision by class. The digest explicitly names any intent-bearing decision that resolved itself, so a mis-classified auto-resolve cannot hide inside the artifact trail. Audit those decisions first.</li>
+<li><strong>The driver journal.</strong> Every subagent that the driver dispatches appends a heartbeat line to <code>.ai/workflows/&lt;slug&gt;/.driver-journal.jsonl</code> when the subagent starts and when it finishes. A journal that stops growing is the signal that the driver stopped. <code>/wf status &lt;slug&gt;</code> reads the journal and reports the driver as running, presumed dead, or completed. The report is judged by the recency of the heartbeat lines, not by the existence of the file.</li>
+<li><strong>Deferral, never fabrication.</strong> Sometimes an acceptance criterion needs runtime proof that the environment genuinely cannot produce, and the incapability was probed, not assumed. In that case, <code>yolo</code> defers that one criterion through verify's own sanctioned escape hatch. The deferral is recorded in the control file, blocks ship downstream, and carries the probe's output as a receipt. A criterion that the driver actually exercised and found wrong is a failure, never a deferral.</li>
+</ul>
+
+<p><code>yolo</code> refuses terminal-analysis workflows: <code>investigate</code>, <code>discover</code>, and <code>ideate</code>. Those workflows deliberately end in a human product decision: pick an option, act on a verdict, or choose an idea. That decision is exactly the intake-and-shape alignment that an autonomous driver must not perform. <code>yolo</code> hands back the recorded next step instead. <code>yolo</code> also never runs intake or shape itself: it drives an already-shaped slug from plan onward.</p>
+
+<div class="note"><code>/wf yolo</code> exists only in the Claude build of the plugin. It is built on a background-workflow tool that the Codex runtime does not have. <code>/wf auto</code> is available in both builds.</div>
+
+<h2>When to use which</h2>
+
+<p>Use <code>auto</code> when you want to stay in the loop: you are at the keyboard, the work is unfamiliar or risky, and you want to see each verify result and review finding as it lands. Use <code>yolo</code> when the slug is well-shaped and the decisions ahead are mostly implementation detail. In that case, you inspect a recorded pile of decisions afterward instead of answering each one live. A useful middle path exists: before the run, put your standing constraints and preferences into the workflow's <code>steer.md</code>. Both drivers read that file. In an unattended run, <code>steer.md</code> is the only user voice present, so a steering veto outranks every auto-resolve default.</p>
+
+<h2>What neither driver will ever do</h2>
+
+<p>Both drivers always stop <strong>before handoff</strong>. Neither driver opens a pull request. Neither driver runs <code>/wf handoff</code>, <code>/wf ship</code>, or <code>/wf retro</code>; those are deliberate, separately invoked steps. Neither driver fixes CI; that stays handoff's diagnose-then-ask job. Neither driver removes a gate: every stage's quality gate still runs under both drivers. <code>auto</code> waits for your answer. <code>yolo</code> supplies the answer that the policy allows and records that answer. The gates themselves are untouched, which is why a driver run is exactly as auditable as a hand-driven run.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../guides/the-standard-lifecycle.html">The standard lifecycle</a> — the ten stages the drivers sequence.</li>
+    <li><a href="../concepts/evidence-and-gates.html">Evidence and gates</a> — what the gates check and why deferrals are ship-blocking.</li>
+    <li><a href="../guides/releasing.html">Releasing</a> — handoff, ship, and retro, the stages the drivers deliberately stop before.</li>
+    <li><a href="../guides/staying-oriented.html">Staying oriented</a> — how <code>/wf status</code> reports a live or dead driver.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Your first workflow · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Your first workflow</h1>
+<p class="lede">This tutorial takes one small, real feature through the standard lifecycle, from intake to handoff. You see what each stage asks, what each stage writes, and how each stage passes work to the next.</p>
+
+<h2>The running example</h2>
+<p>We add a <code>--json</code> flag to the <code>export</code> command of a CLI tool. The flag makes the command emit machine-readable output alongside its existing table format. The example is deliberately small. It is big enough to exercise every stage, and small enough that you can follow the whole arc in one sitting. Everything below uses the slug <code>export-json-flag</code>. The slug is the stable, kebab-case name that the workflow gets at intake and keeps forever. Every artifact the lifecycle writes lands under <code>.ai/workflows/export-json-flag/</code> in your repository, numbered by stage.</p>
+<div class="note">Each stage ends by telling you the exact next command to run, and <code>/wf status</code> tells you where you are at any point. You never have to memorize the sequence, but it helps to see the sequence once. That is the purpose of this page.</div>
+
+<h2>Stage 1 — Intake</h2>
+<p>To start the workflow, describe what you want:</p>
+<pre><code>/wf intake add a --json flag to the export command</code></pre>
+<p>Intake is deliberately not a coding step. It refuses to start solving the problem. Its job is to turn your rough sentence into a recorded brief. Intake derives the slug (<code>export-json-flag</code>) and checks the workflow registry for a name collision. It also fingerprints your repository: which languages, build tools, test frameworks, and platforms it detects. It writes the fingerprint down as observed fact, not guesses. Then intake interviews you with a short round of product-owner questions. For example: what the output must contain, who consumes it, and how you know that it works. Intake also asks you to confirm or correct the detected stack.</p>
+<p>When the interview completes, intake writes two files. <code>00-index.md</code> is the workflow's control file. It carries the slug, the stage tracker, and the confirmed stack fingerprint. <code>01-intake.md</code> is the brief itself, with your restated request and your answers. Your answers also accumulate in <code>po-answers.md</code>, a running decision log that the later stages read. Finally, intake registers the slug in <code>.ai/workflows/INDEX.md</code>, the registry that every other command consults.</p>
+
+<h2>Stage 2 — Shape</h2>
+<p>Turn the brief into a mini-spec:</p>
+<pre><code>/wf shape export-json-flag</code></pre>
+<p>Shape launches research before it asks you anything. A sub-agent maps the part of the codebase that the work touches: the entry point of the export command, its callers, the existing output formatting, and the location of tests. When the work involves external APIs or dependencies, a second sub-agent checks the current state of the outside world. With that grounding, shape interviews you again, this time about scope. What is in, and what is out? Which edge cases matter? For example: what must <code>--json</code> do when the export is empty, or when you combine it with an existing <code>--output</code> flag? What are the acceptance criteria? Shape writes each criterion so that a later stage can check it objectively.</p>
+<p>Shape writes <code>02-shape.md</code>: in-scope and out-of-scope lists, acceptance criteria, and edge cases. It also writes two forward-looking plans that the later stages honor. The Documentation Plan records what docs this work owes. The add-on plan covers add-ons such as instrumentation or benchmarks. Our flag needs none of those, so shape records that decision and moves on. If the work has a visual surface, shape also authors a design brief as <code>02b-design.md</code>. A CLI flag has no visual surface, so shape does not author one here.</p>
+
+<h2>Stage 3 — Slice</h2>
+<p>Break the shaped spec into independently shippable pieces:</p>
+<pre><code>/wf slice export-json-flag</code></pre>
+<p>Slice decomposes the spec into thin vertical slices. Each slice is a change that you can implement, verify, and review on its own. For our feature, the natural cut is two slices. The <code>json-output</code> slice holds the serializer and the flag wiring that makes <code>export --json</code> emit JSON. The <code>edge-cases-and-help</code> slice holds the empty-export behavior, the flag-combination rules, and the help text. Slice also asks you once to confirm the review scope: one review per slice in stage 7, or a single review across the whole workflow. For something this small, one slug-wide review is the sensible answer.</p>
+<p>Slice writes a master index, <code>03-slice.md</code>, that names every slice and the recommended first slice. It also writes one definition file per slice: <code>03-slice-json-output.md</code> and <code>03-slice-edge-cases-and-help.md</code>. Each definition file carries that slice's own acceptance criteria.</p>
+
+<h2>Stage 4 — Plan</h2>
+<p>Plan the first slice:</p>
+<pre><code>/wf plan export-json-flag json-output</code></pre>
+<p>Plan produces the concrete implementation plan for one slice: the files to touch, the ordered steps, and the verification for each step. Before it writes the plan, plan runs a reuse scan. For example, the scan asks whether the codebase already has a JSON serialization helper that the new code can call. When a step depends on a library, plan reads the library's installed source. It does not trust a remembered API. For anything non-trivial, plan also gets a free second opinion from an external model and files the critique next to the plan.</p>
+<p>Plan writes <code>04-plan-json-output.md</code> plus the <code>04-plan.md</code> master. If you pass <code>all</code> instead of a slice name, plan plans every slice in parallel. Here we take the slices one at a time.</p>
+
+<h2>Stage 5 — Implement</h2>
+<p>Now write the code:</p>
+<pre><code>/wf implement export-json-flag json-output</code></pre>
+<p>Implement executes the plan. It adds the flag to the argument parser, wires the serializer, and keeps the change consistent with the conventions that the shape research mapped. This stage asks you little. The earlier stages asked the questions on purpose. Besides the diff itself, implement produces <code>05-implement-json-output.md</code>. That artifact records what implement built, and where implement deviated from the plan and why. It also cross-links back to the slice definition and the plan.</p>
+
+<h2>Stage 6 — Verify</h2>
+<p>Check the slice against its acceptance criteria:</p>
+<pre><code>/wf verify export-json-flag json-output</code></pre>
+<p>Verify runs the project's tests, lints, and typechecks. Then verify does something stricter: it checks each acceptance criterion against <em>observed</em> behavior. It runs <code>export --json</code> and examines the output. It does not infer from the diff that the flag probably works. Captured output lands in a <code>verify-evidence/</code> directory alongside the artifacts. If anything fails, verify owns exactly one fix round. Verify triages each failure with you: fix the failure now, skip the failure, or escalate back to implement. Verify applies the fixes that you approve, and re-runs only the affected checks once. Verify never loops silently.</p>
+<p>Verify writes <code>06-verify-json-output.md</code> with a pass/fail result per criterion. Then repeat the plan → implement → verify span for the second slice, <code>edge-cases-and-help</code>, in the same way.</p>
+
+<h2>Stage 7 — Review</h2>
+<p>With both slices verified, run the review:</p>
+<pre><code>/wf review export-json-flag</code></pre>
+<p>Review selects the quality dimensions relevant to this change, for example correctness, testing, and maintainability, from a much larger catalog. It dispatches one reviewer per dimension over the workflow's diff and artifacts. The findings land in <code>07-review.md</code> as an accumulating ledger with an overall verdict: <em>ship</em>, <em>ship-with-caveats</em>, or <em>dont-ship</em>. The ledger is durable. If you fix findings and re-run review, the ledger merges in the new run, marks cleared findings resolved, and never discards history. If there are blockers, <code>/wf implement export-json-flag reviews</code> works through the blockers one by one.</p>
+
+<h2>Stage 8 — Handoff</h2>
+<p>Package the work for a pull request:</p>
+<pre><code>/wf handoff export-json-flag</code></pre>
+<p>Handoff aggregates every complete slice into a reviewer-friendly package: what changed and why, in product language rather than workflow jargon. Then handoff pushes the branch, opens the PR, and waits for CI to reach a terminal state before it declares the work ready. Handoff refuses to hand off work with unresolved review blockers. It also runs a readiness check against the project's release plan, so it never declares the PR ready against a stale release contract. It writes <code>08-handoff.md</code> with the package and the readiness result.</p>
+
+<h2>What comes after</h2>
+<p>Two stages remain. <code>/wf ship</code> releases the merged work through the project's recorded release plan. <code>/wf retro</code> is the post-mortem that closes the loop. Shipping has enough machinery of its own (the release plan, run records, and rollback) that it gets its own guide: <a href="../guides/releasing.html">Releasing</a>.</p>
+<p>You saw the whole standard arc once. In day-to-day use, you will not always need all of it. Most small changes take the quick lane instead, which is the next tutorial.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="everyday-fixes.html">Everyday fixes</a> — the quick lane that compresses stages 1–4 into one run for small bugs.</li>
+    <li><a href="../guides/the-standard-lifecycle.html">The standard lifecycle</a> — the same ten stages in full depth, including the parts this tutorial skipped.</li>
+    <li><a href="../guides/releasing.html">Releasing</a> — ship plans, ship runs, announce, and rollback.</li>
+    <li><a href="../guides/staying-oriented.html">Staying oriented</a> — <code>/wf status</code> and <code>/wf recap</code> for finding your place mid-workflow.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

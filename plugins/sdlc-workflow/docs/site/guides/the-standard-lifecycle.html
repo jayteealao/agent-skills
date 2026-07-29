@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The standard lifecycle · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>The standard lifecycle</h1>
+<p class="lede">Read this page when you are about to run a serious feature end to end. It walks
+all ten stages in order and shows what each stage is for, what it asks, what it writes, and
+where its gate can stop you.</p>
+
+<p>The standard lifecycle is ten stages. You run the stages one at a time, each as its own
+<code>/wf</code> invocation:</p>
+
+<pre><code>intake → shape → slice → plan → implement → verify → review → handoff → ship → retro</code></pre>
+
+<p>Every stage writes its result as a numbered artifact under
+<code>.ai/workflows/&lt;slug&gt;/</code> before it says anything in chat. The file is the
+record; the chat summary is the courtesy copy. Stages build strictly on their predecessors:
+each stage starts with a read of the control file <code>00-index.md</code> and the earlier
+artifacts. When a prerequisite is missing or still marked awaiting input, the stage stops with
+a clear message. You are the product owner (PO) throughout. The early stages interview you, the
+later stages gate on your decisions, and every answer you give accumulates in
+<code>po-answers.md</code>.</p>
+
+<div class="note">
+<p><strong>Standing instructions travel with the workflow.</strong> When a
+<code>steer.md</code> file exists in the workflow directory, every stage reads the file before
+it does anything else and honors your standing instructions, both in the stage's own work and
+in every sub-agent the stage dispatches. Steering never overrides a mandatory gate, but
+steering shapes everything beneath a gate. One written line, such as "always run the mobile
+viewport too" or "never touch the legacy auth module", applies at every stage without
+repetition.</p>
+</div>
+
+<h2>Stage 1 — intake</h2>
+<p>Intake is the front door. Run it with a plain description of what you want:</p>
+<pre><code>/wf intake add offline support to the notes editor</code></pre>
+<p>The default flow interviews you as the product owner: what problem the work solves, who the
+work is for, what is out of scope, and how big your appetite is. It also fingerprints the
+repository's stack (languages, platforms, tooling) and asks you to confirm the fingerprint,
+because later stages make tooling decisions from the fingerprint rather than re-detect the
+stack. Intake writes two files: the control file <code>00-index.md</code>, which every later
+stage reads first, and <code>01-intake.md</code>, the brief. Intake also starts the intent-risk
+ledger, a record of load-bearing ambiguities in what you asked for. Shape must resolve each
+recorded ambiguity, and handoff and ship refuse to ignore an open one.</p>
+<p>Intake also has mode keywords (<code>fix</code>, <code>hotfix</code>, <code>rca</code>,
+<code>investigate</code>, and others) that route quicker or standalone entries. For a serious
+feature, use the default flow. The other entries are described in
+<a href="choose-your-entry.html">Choose your entry</a> and
+<a href="quick-lanes.html">Quick lanes</a>.</p>
+
+<h2>Stage 2 — shape</h2>
+<p>Shape turns the brief into a compact, implementable mini-spec with explicit acceptance
+criteria and edge cases:</p>
+<pre><code>/wf shape &lt;slug&gt;</code></pre>
+<p>Shape is the most question-heavy stage. It launches research sub-agents into the codebase,
+and into the web when external knowledge matters, while it interviews you. It asks structured
+PO questions for decisions such as risk tolerance and appetite, and freeform questions for
+behavior, acceptance criteria, and non-goals. Shape also adjudicates the intent-risk ledger:
+you must resolve every open ambiguity that intake recorded, or consciously carry the ambiguity
+to a named later stage. Shape writes <code>02-shape.md</code>.</p>
+<p>Two kinds of optional work attach at shape. First, when the feature has a visual surface,
+shape authors the <strong>design brief</strong>, <code>02b-design.md</code>: content inventory,
+states (empty, error, loading, first-run), and visual direction. Slice and plan then treat the
+design brief as mandatory input. Second, shape decides which <strong>add-ons</strong> the work
+needs (instrumentation, an experiment, a performance benchmark) and records the decision in the
+shape artifact's <code>augmentations-needed</code> frontmatter. Shape decides; plan authors.
+You never invoke the add-ons directly.</p>
+<p>Some spec errors are expensive downstream: a new capability, multiple slices, or a carried
+intent-risk. In those cases, shape automatically gets a second opinion on its draft acceptance
+criteria from an external model before it writes the file.</p>
+
+<h2>Stage 3 — slice</h2>
+<p>Slice decomposes the shaped spec into thin, independently verifiable vertical slices:</p>
+<pre><code>/wf slice &lt;slug&gt;</code></pre>
+<p>Before slice cuts, it interviews you briefly about decomposition strategy: genuinely
+different ways to split the work. Each way is described by what you experience, for example
+more PRs and faster feedback versus fewer review passes, not by mechanism. If a design brief
+exists, its states and surfaces must inform the slice boundaries. A distinct state or visual
+surface either gets its own slice, or the master index justifies the grouping in one
+sentence.</p>
+<p>Slice is also where you answer the <strong>review-scope question</strong>, exactly once per
+workflow: review each slice separately (one review artifact per slice), or review the whole
+slug against its cumulative diff (one artifact). Slice records the answer in
+<code>00-index.md</code>, and review and handoff trust the answer from then on. Slice writes
+the master index <code>03-slice.md</code> plus one <code>03-slice-&lt;slice&gt;.md</code> per
+slice. Each per-slice file carries that slice's acceptance criteria.</p>
+
+<h2>Stage 4 — plan</h2>
+<p>Plan produces an execution-ready implementation plan for one slice (or all of them in
+parallel):</p>
+<pre><code>/wf plan &lt;slug&gt; &lt;slice&gt;</code></pre>
+<p>Plan inspects the repo, runs a reuse scan, and writes concrete steps with a verification
+strategy per acceptance criterion. When a criterion needs a special environment (credentials,
+a device, an external service), the plan states explicitly how that evidence will be produced.
+That forethought matters later: verify refuses to quietly pass a criterion whose evidence path
+was never engineered.</p>
+<p>Plan is where the optional layers become concrete. If a design brief exists but no
+<strong>visual contract</strong> exists yet, plan authors <code>02c-craft.md</code>: the mock
+fidelity inventory and the implementation contract that implement builds against and verify
+re-checks. For each add-on that shape decided, plan authors the matching artifact:
+<code>04b-instrument.md</code> (signal design), <code>04c-experiment.md</code> (flag, cohorts,
+metrics), or <code>05c-benchmark.md</code> (baseline numbers). Plan records each add-on in the
+<code>augmentations:</code> list in <code>00-index.md</code>, so implement and verify consume
+the add-ons without being told. Plan writes <code>04-plan.md</code> plus
+<code>04-plan-&lt;slice&gt;.md</code> per planned slice. By default, plan gets an external
+second opinion on any plan that touches risk: concurrency, auth, migrations, money, external
+APIs, or open unknowns.</p>
+
+<h2>Stage 5 — implement</h2>
+<p>Implement writes the code for one selected slice, exactly as planned:</p>
+<pre><code>/wf implement &lt;slug&gt; &lt;slice&gt;</code></pre>
+<p>Implement reads the slice definition, the plan, the shape, and every add-on artifact before
+it touches code. It deliberately does not verify, review, or broaden scope. It treats the
+visual contract's inventory items as acceptance criteria. Instrumentation signals must actually
+be added, and experiment wiring must actually exist. When the code calls a dependency whose
+exact behavior matters, implement reads the installed source rather than guess at a remembered
+API. Any claim that a library cannot do something must carry evidence. Implement writes
+<code>05-implement-&lt;slice&gt;.md</code>. The artifact records what was built, what deviated
+from the plan and why, and anything deferred.</p>
+<p>Later, after review, the same command returns in a second role:
+<code>/wf implement &lt;slug&gt; reviews</code> fixes the findings that review triaged as
+must-fix, one by one.</p>
+
+<h2>Stage 6 — verify</h2>
+<p>Verify checks that the slice actually meets its acceptance criteria:</p>
+<pre><code>/wf verify &lt;slug&gt; &lt;slice&gt;</code></pre>
+<p>Verify runs the mechanical checks (tests, lint, typecheck, build) and then the
+<strong>acceptance-criteria gate</strong>: direct observation must confirm every
+user-observable criterion. Direct observation means a run of the artifact and a look at the
+output, not inference from the code. Each add-on gets a type-specific re-check: instrumentation
+signals must demonstrably fire, experiment flags and cohort splits must work, and the benchmark
+re-runs against its baseline and flags regressions.</p>
+<p>When something fails, verify owns a <strong>single, user-gated fix loop</strong>. It triages
+every failure with you (fix, skip, or escalate), dispatches sub-agents to apply the minimal
+patches you approved, re-runs only the affected checks once, and finalizes. There is one round
+only. If anything still fails after that round, the artifact records the escalation and routes
+you to re-run verify or to return to implement. Verify never loops silently until green. Verify
+writes <code>06-verify-&lt;slice&gt;.md</code> with the evidence, and a write-time hook
+hard-blocks any verify artifact that claims a pass while criteria are unmet. When evidence
+genuinely cannot be produced in this environment, verify records a deferral in
+<code>00-index.md</code>: a ship-blocking IOU, not a forgotten footnote.</p>
+
+<h2>Stage 7 — review</h2>
+<p>Review is the quality gate before the work leaves your machine:</p>
+<pre><code>/wf review &lt;slug&gt;</code></pre>
+<p>Review reads the workflow artifacts and the diff, selects the review dimensions relevant to
+the change, and dispatches one reviewer sub-agent per dimension in parallel. Findings land in
+an <strong>accumulating ledger</strong>: <code>07-review.md</code>, or one ledger per slice,
+per your review-scope answer. Re-runs merge into the ledger: duplicates are deduplicated,
+cleared findings are marked resolved, prior triage decisions persist, and the file is never
+overwritten.</p>
+<p>Review triages every blocker- and high-severity finding <strong>with you</strong>: fix,
+defer, or dismiss. Fix decisions run a fix loop on the spot. The verdict then derives from what
+remains open: <strong>ship</strong> (no open blockers or highs),
+<strong>ship-with-caveats</strong> (open highs only), or <strong>dont-ship</strong> (any open
+blocker). Pre-existing defects on the base branch are surfaced as debt and routed to their own
+fix workflows; they never count against this change's verdict. Deferred findings are not lost:
+<code>/wf review &lt;slug&gt; triage</code> revisits them later without a re-run of the whole
+review.</p>
+
+<h2>Stage 8 — handoff</h2>
+<p>Handoff packages the completed slices into a PR with reviewer and QA context:</p>
+<pre><code>/wf handoff &lt;slug&gt;</code></pre>
+<p>Before handoff packages anything, it runs a <strong>readiness check</strong> across every
+prerequisite: implementation records exist for every slice in scope, the required review
+artifacts exist, no review verdict is <code>dont-ship</code>, and no open blockers remain. One
+more check is a hard block: <strong>no intent-risk ledger entry may still be open</strong>. An
+open entry means that shape never resolved a load-bearing ambiguity, so handoff routes you back
+to <code>/wf shape</code> to adjudicate the entry rather than package around it. Consciously
+carried risks are legal, but the PR body surfaces them so the human reviewer sees them. Handoff
+also pre-checks the project's ship plan (<code>.ai/ship-plan.md</code>), the release contract.
+If the ship plan is missing or drifted from the repo, the run stops and routes to
+<code>/wf ship-plan</code> before any PR is declared ship-ready.</p>
+<p>Then handoff pushes the branch, opens the PR, and waits for CI to reach a terminal state; a
+pending snapshot is not an answer. It writes <code>08-handoff.md</code> with the result of the
+readiness check. When several workflows share one branch, <code>/wf handoff pr#N</code> covers
+all of them in one batch run with a branch-level readiness check.</p>
+
+<h2>Stage 9 — ship</h2>
+<p>Ship runs the release, with the project's ship plan as a contract:</p>
+<pre><code>/wf ship &lt;slug&gt;</code></pre>
+<p>Ship refuses to start unless handoff's readiness check came back <code>ready</code>, and it
+re-checks the two hard blocks at the door: any still-open runtime-evidence deferral and any
+still-open intent-risk entry stop the run. Earlier stages warn about these blocks; ship is
+where the block fires. Ship then asks every load-bearing question up front (scope, version,
+rollout) and walks a 13-step idempotent sequence: pre-flight through dry-run, go/no-go, merge,
+tag, and post-publish checks. It writes <code>09-ship-run-&lt;run-id&gt;.md</code> as it goes.
+The sequence is replayable: a failure mid-run pauses at the failed step, and a re-run resumes
+there instead of repeating side effects. <code>/wf ship &lt;slug&gt; rollback</code> reverses a
+completed run. Batch mode ships every slug on a branch atomically, all or nothing.</p>
+
+<h2>Stage 10 — retro</h2>
+<p>Retro closes the loop:</p>
+<pre><code>/wf retro &lt;slug&gt;</code></pre>
+<p>Retro reads the entire artifact trail, including the design artifacts and add-on outcomes,
+and extracts what actually happened: where the plan drifted, what verification caught late, and
+which questions came too late. It proposes concrete, copy-paste-ready improvements to prompts,
+tests, and automation without applying them, and it distills durable lessons for future
+workflows. It writes <code>10-retro.md</code>, and the workflow is complete.</p>
+
+<h2>The stages at a glance</h2>
+<table>
+<thead><tr><th>Stage</th><th>Writes</th><th>Its gate stops on</th></tr></thead>
+<tbody>
+<tr><td>intake</td><td><code>00-index.md</code>, <code>01-intake.md</code></td><td>Unanswered PO questions (status: awaiting-input)</td></tr>
+<tr><td>shape</td><td><code>02-shape.md</code> (+ <code>02b-design.md</code>)</td><td>Missing intake; open shape questions</td></tr>
+<tr><td>slice</td><td><code>03-slice.md</code> + per-slice files</td><td>Missing or unconfirmed stack fingerprint</td></tr>
+<tr><td>plan</td><td><code>04-plan*.md</code> (+ <code>02c-craft.md</code>, <code>04b</code>/<code>04c</code>/<code>05c</code>)</td><td>Missing shape; unconfirmed stack</td></tr>
+<tr><td>implement</td><td><code>05-implement-&lt;slice&gt;.md</code></td><td>Missing plan</td></tr>
+<tr><td>verify</td><td><code>06-verify-&lt;slice&gt;.md</code></td><td>Unmet acceptance criteria; one fix round, then escalate</td></tr>
+<tr><td>review</td><td><code>07-review*.md</code> ledger</td><td>Open blockers → <code>dont-ship</code> verdict</td></tr>
+<tr><td>handoff</td><td><code>08-handoff.md</code> + the PR</td><td>Readiness check; open intent-risk entries; missing/drifted ship plan</td></tr>
+<tr><td>ship</td><td><code>09-ship-run-&lt;run-id&gt;.md</code></td><td>Readiness ≠ ready; open deferrals or intent-risks</td></tr>
+<tr><td>retro</td><td><code>10-retro.md</code></td><td>Nothing built yet to retrospect</td></tr>
+</tbody>
+</table>
+
+<p>If ten commands by hand feel heavy, <code>/wf auto</code> drives the same stages end to end
+and pauses at each stage's own gate: same lifecycle, one driver. See
+<a href="autonomous-drivers.html">Autonomous drivers</a>.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="choose-your-entry.html">Choose your entry</a> — not every piece of work deserves all ten stages; pick the right entry first.</li>
+    <li><a href="quick-lanes.html">Quick lanes</a> — fixes, hotfixes, refactors, and dependency updates run a compressed version of this same lifecycle.</li>
+    <li><a href="../concepts/evidence-and-gates.html">Evidence and gates</a> — why the gates in this page block on evidence, and what a deferral really is.</li>
+    <li><a href="releasing.html">Releasing</a> — the ship plan, the 13-step sequence, and rollback in depth.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

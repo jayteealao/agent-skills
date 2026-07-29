@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quick lanes · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Quick lanes</h1>
+<p class="lede">Four intake modes (<code>fix</code>, <code>hotfix</code>, <code>refactor</code>, and <code>update-deps</code>) run the planning half of the standard lifecycle in a single pass. This page explains what each lane authors, where it stops, and what you run next.</p>
+
+<h2>The shared model</h2>
+
+<p>A quick lane is not a shortcut around the lifecycle; it is the same lifecycle with the
+ceremony compressed. One run of <code>/wf intake &lt;mode&gt; &lt;description&gt;</code> authors
+real, schema-conformant artifacts for stages 1 through 4, all under
+<code>.ai/workflows/&lt;slug&gt;/</code>. The artifacts are the intake brief, the shape, a
+single-slice slice index, the plan, and the workflow's index file. No stage is skipped; each
+stage is written single-pass instead of interactively. Every lane is a single-slice workflow:
+the workflow slug doubles as the one slice's name, and the downstream stages write un-suffixed
+files (<code>05-implement.md</code>, not <code>05-implement-&lt;slice&gt;.md</code>).</p>
+
+<p>Then each lane stops at a gate before implementation and asks you to choose:
+<strong>Proceed</strong>, <strong>Adjust</strong> (revise a planning artifact, then the lane
+asks again), or <strong>Escalate</strong> (the work outgrew the lane; restart it as a full
+<code>/wf intake</code>). A clearly low-risk change may proceed through the gate without a
+pause, but the lane records the decision either way. Escalation is offered, never forced. If
+planning reveals that the work is bigger than the lane's envelope, the lane records the breach
+and keeps the plan valid; it does not refuse.</p>
+
+<p>Past the gate, the standard chain takes over: <code>/wf implement</code>, <code>/wf
+verify</code>, <code>/wf review</code>, and onward to handoff and ship. The compression is in
+planning ceremony, never in stages or quality gates. One lane, <code>update-deps</code>, is the
+exception; its section below explains the difference.</p>
+
+<h2><code>fix</code> — small intentional changes</h2>
+
+<pre><code>/wf intake fix the export button label says "Exprot"</code></pre>
+
+<p><code>fix</code> is the general-purpose small-change lane. It asks at most two planning
+questions and grounds itself with a targeted read of the files likely in scope. It writes a
+plan of at most five steps; each step names the files it touches and states how to verify the
+step. The lane works on a dedicated <code>fix/&lt;slug&gt;</code> branch by default (you can
+decline and stay on your current branch). Design work is never auto-included. If the change
+touches UI, the shape notes a follow-up recommendation instead of a block.</p>
+
+<p>The fix lane watches its own envelope with tripwires: more than 3 files, more than 5 steps,
+a new external dependency, an architectural change, or too many unanswerable questions. A
+tripped wire does not stop the run. The lane records the tripped wire in the plan, and the
+gate's Escalate option is the suggested exit.</p>
+
+<p>The lane stops at the gate, with planning complete. Next, run
+<code>/wf implement &lt;slug&gt;</code>.</p>
+
+<h2><code>hotfix</code> — production incidents</h2>
+
+<pre><code>/wf intake hotfix checkout returns 500 for all users</code></pre>
+
+<p><code>hotfix</code> is the incident lane. Three differences from <code>fix</code> matter:</p>
+
+<p><strong>It branches off production.</strong> The branch is always
+<code>hotfix/&lt;slug&gt;</code>, created from the production/default branch, not from whatever
+you have checked out. The fix can then ship without unreleased work attached.</p>
+
+<p><strong>It diagnoses before it plans.</strong> The brief asks at most three questions: what
+is broken, what is the impact, and what changed recently. Then parallel investigators trace the
+root cause to specific files and lines and map the blast radius: callers, sibling components
+that share the bug, and data that may be corrupted. The diagnosis becomes the shape.</p>
+
+<p><strong>Scope is locked.</strong> The only acceptable output is the minimum change that
+stops the incident: no refactoring, no cleanup, nothing outside the identified root cause. The
+plan is capped at five steps across at most three files, and the plan must include an exact
+rollback. For anything bigger, take the gate's Escalate option.</p>
+
+<p>The lane stops at the gate. Next, run <code>/wf implement &lt;slug&gt;</code>, then verify.
+Then run <code>/wf review &lt;slug&gt; security</code>; review defaults to the security
+dimension for hotfixes. Then run <code>/wf ship</code>.</p>
+
+<h2><code>refactor</code> — restructuring without behavior change</h2>
+
+<pre><code>/wf intake refactor untangle the auth service from the session store</code></pre>
+
+<p><code>refactor</code> is the behavior-preserving lane. Its defining move is the
+<strong>baseline</strong>. Before any code changes, the lane snapshots the public API surface
+exactly as it exists, maps which behaviors the tests actually cover, names the coverage gaps,
+and records the current test results. That baseline <em>is</em> the shape, and the baseline
+becomes the acceptance contract. At verify, every exported name must still exist with the same
+signature, and the suite must match the baseline counts. If the gaps are significant, the lane
+asks whether to add tests first, before it touches anything.</p>
+
+<p>The plan is a sequence of atomic steps that each leave the build working and the tests
+green, following a named refactoring pattern. Hard rules apply: no new functionality, and no
+public API changes unless the stated goal is to simplify the API. Never skip or rewrite a
+failing test. A test that fails after your change is a regression in the refactor, not in the
+test.</p>
+
+<p>The dedicated branch is opt-in rather than the default: the lane asks whether to create
+<code>refactor/&lt;slug&gt;</code> or stay on the current branch.</p>
+
+<p>The lane stops at the gate. Next, run <code>/wf implement &lt;slug&gt;</code>: one green
+step per plan step, each committed individually. Then verify against the baseline. Then run
+<code>/wf review &lt;slug&gt; refactor-safety</code>.</p>
+
+<h2><code>update-deps</code> — dependency maintenance</h2>
+
+<pre><code>/wf intake update-deps</code></pre>
+
+<p><code>update-deps</code> is the exception among the four. The other lanes hand execution to
+the standard chain. <code>update-deps</code> authors its own implementation and verification
+records in the same run, because tier-ordered dependency execution is specialized work that the
+generic implement stage should not improvise. <code>/wf implement</code> and
+<code>/wf verify</code> redirect an update-deps workflow back to the lane. The first standard
+command that accepts the workflow is <code>/wf review</code>.</p>
+
+<p>The run scans every package manifest in the project, researches each outdated package, and
+sorts the work into tiers:</p>
+
+<table>
+<thead><tr><th>Tier</th><th>What is in the tier</th><th>How the tier is executed</th></tr></thead>
+<tbody>
+<tr><td>P0 — security</td><td>Packages with an active CVE and a fix version</td><td>First, one package per commit</td></tr>
+<tr><td>P1 — major + migration</td><td>Major bumps with breaking changes</td><td>One at a time, migration applied, each its own commit</td></tr>
+<tr><td>P2 — safe batch</td><td>Minor and patch updates</td><td>One batch (up to 10), full suite after</td></tr>
+<tr><td>Hold</td><td>Incompatible, peer-blocked, or unverifiable</td><td>Not updated; reason and revisit condition recorded</td></tr>
+</tbody>
+</table>
+
+<p>The research is grounded, not guessed. Each package's breaking changes and migration steps
+must cite the package's own changelog or release notes, and the research reads every
+intermediate major between the current and target versions. A P1 package whose changelog
+cannot be verified does not get an optimistic plan; the package drops to Hold. When a package's
+update breaks tests in a non-trivial way, the lane marks the package blocked and leaves it at
+its old version rather than bend application code. A verify result of <em>partial</em> (some
+packages updated, some blocked) is a legitimate outcome. The lane touches lockfiles only
+through the package manager's own commands.</p>
+
+<p>Arguments narrow the run. A package name focuses the run on one dependency.
+<code>--security-only</code> updates only CVE-affected packages. <code>--audit-only</code>
+produces the scan, the research, and the plan, then stops at the gate without implementation.
+The gate itself is tier-aware: you can proceed with the full plan, proceed with P0 security
+updates only, save the plan as an audit, or adjust.</p>
+
+<p>The lane stops after its own verify. Next, run <code>/wf review &lt;slug&gt;</code>, then
+handoff and ship.</p>
+
+<h2>Branches at a glance</h2>
+
+<table>
+<thead><tr><th>Lane</th><th>Branch</th><th>Base</th><th>Dedicated branch is…</th></tr></thead>
+<tbody>
+<tr><td><code>fix</code></td><td><code>fix/&lt;slug&gt;</code></td><td>current branch</td><td>the default; opt out to stay put</td></tr>
+<tr><td><code>hotfix</code></td><td><code>hotfix/&lt;slug&gt;</code></td><td>the production/default branch</td><td>mandatory</td></tr>
+<tr><td><code>refactor</code></td><td><code>refactor/&lt;slug&gt;</code></td><td>current branch</td><td>opt-in; the lane asks</td></tr>
+<tr><td><code>update-deps</code></td><td><code>deps/&lt;slug&gt;</code></td><td>current branch</td><td>the default</td></tr>
+</tbody>
+</table>
+
+<h2>Attached to a workflow vs standalone</h2>
+
+<p>Everything above describes a <em>standalone</em> run: a new workflow, its own slug, its own
+branch. But every lane can also attach to a workflow you already have. Name the existing slug
+before the mode:</p>
+
+<pre><code>/wf intake reports-export fix date column renders as epoch millis</code></pre>
+
+<p>An attached run keeps the lane's full analysis discipline but reroutes the output. Instead
+of a new workflow, it writes <strong>one quick-lane slice</strong>,
+<code>03-slice-fix-&lt;descriptor&gt;.md</code>, in the named workflow's directory. The slice
+carries the same content the standalone artifacts would hold. The run creates no new workflow
+and no new branch (the lane's branch step is suppressed), and the parent workflow's lifecycle
+position does not move; the slice is purely additive bookkeeping on the existing index. Use the
+attached form when the small work belongs to a feature already in flight. Use the standalone
+form when the work deserves its own history and its own branch.</p>
+
+<div class="note">
+<p>Attachment is one form of intake's slug-first convention. The neighboring form, an existing
+slug followed by free scope text instead of a mode keyword, is an extension. An extension adds
+full new slices rather than a quick-lane slice. <a href="choose-your-entry.html">Choose your
+entry</a> covers the resolution order.</p>
+</div>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../start/everyday-fixes.html">Everyday fixes</a> — a worked first run through the fix lane.</li>
+    <li><a href="choose-your-entry.html">Choose your entry</a> — which entry fits which situation, including the non-lane modes.</li>
+    <li><a href="the-standard-lifecycle.html">The standard lifecycle</a> — the implement → verify → review chain every lane hands off to.</li>
+    <li><a href="../reference/intake-modes.html">Intake modes reference</a> — the full mode table with arguments and artifacts.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Releasing · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Releasing</h1>
+<p class="lede">This page walks the road from finished, reviewed code to a shipped release. Handoff packages the work into a PR, the ship plan defines how releases happen, ship executes one release, and retro closes the loop.</p>
+
+<h2>Handoff — from complete slices to a reviewable PR</h2>
+
+<p>When a slug's slices are implemented, verified, and review-clean, handoff turns the slices into something a reviewer can consume. Run handoff with the slug:</p>
+
+<pre><code>/wf handoff &lt;slug&gt;</code></pre>
+
+<p>By default, handoff aggregates <em>all</em> of the slug's complete slices into one package. It reads the whole artifact trail. It writes a reviewer-friendly summary (<code>08-handoff.md</code>) that covers the problem, the solution, verification evidence, risks, and follow-ups. It generates any documentation that the shape stage planned. It pushes the branch, and it creates or updates the pull request.</p>
+
+<p>Then handoff waits. It watches CI to a terminal state, gives bot reviewers a bounded settle window, triages PR comments, and rebases the branch onto its base. After the wait, handoff computes a final readiness check from what actually landed: the CI conclusion, the review decision, GitHub's own merge state, and the triage outcome. Handoff is an orchestrator, not a fixer. When CI goes red, handoff dispatches a read-only diagnosis subagent, brings you the diagnosis, and asks how to proceed. It does not patch code itself.</p>
+
+<p>The first argument is polymorphic. When you pass <code>pr#N</code> or a branch name instead of a slug, handoff switches to <strong>batch mode</strong>. Batch mode gathers every slug whose recorded branch matches into a roster. Each ready slug gets its own handoff package. One lead slug owns the single shared PR and the branch-level readiness check.</p>
+
+<p>The roster report is printed before any packaging, and it answers the question "which slugs on this branch are handoff-ready". A slug that is not ready (missing reviews, an open blocker, a <code>dont-ship</code> verdict) is reported and skipped, and it does not block its siblings. The branch-level result is a logical AND across the roster: while the PR carries any slug's unreviewed commits, the PR is not ready.</p>
+
+<p>One check is a hard block: the intent-risk ledger. If the workflow's control file still carries an intent-risk entry with <code>status: open</code>, handoff refuses. An unadjudicated entry means that shape never resolved a load-bearing ambiguity. To fix the entry, run <code>/wf shape &lt;slug&gt;</code>, so that the entry becomes <code>adjudicated</code> or consciously <code>carried</code>. Carried risks are legal, but they are surfaced in the PR body, so the reviewer sees them.</p>
+
+<h2>The ship plan — the project's release contract</h2>
+
+<p>Ship does not improvise a release. Ship executes <code>.ai/ship-plan.md</code>, a project-level document that records how this codebase ships. One plan exists per repository, and every workflow shares it. The plan records where the version lives, what secrets the pipeline needs, what a dry-run looks like, what to check after publishing, and what to do when things go wrong. Four sub-commands manage the plan:</p>
+
+<dl class="cmd-grid">
+<dt><code>/wf ship-plan init</code></dt>
+<dd>Author the plan, once per repo. Templates seed sensible defaults for common shapes: <code>kotlin-maven-central</code>, <code>npm-public</code>, <code>pypi</code>, <code>container-image</code>, <code>server-deploy</code>, <code>library-internal</code>.</dd>
+<dt><code>/wf ship-plan build</code></dt>
+<dd>Bring the repo's actual pipeline into compliance with the plan: create missing files, and patch non-compliant files. The command supports <code>--dry-run</code>.</dd>
+<dt><code>/wf ship-plan edit</code></dt>
+<dd>Amend one block of the plan at a time. Every edit bumps the plan's version.</dd>
+<dt><code>/wf ship-plan audit</code></dt>
+<dd>A read-only soundness review of the plan, the built pipeline, and the release-relevant codebase. Findings accumulate in <code>.ai/ship-plan-audit.md</code>. Each finding is routed to the command that can fix it; the audit itself fixes nothing.</dd>
+</dl>
+
+<p>Both handoff and ship run the same readiness check against the plan before they proceed. A plan that no longer describes how the code ships lends false authority at exactly the moment when authority matters. The check detects a missing plan, and it detects <strong>drift</strong>: a version file that the plan no longer covers, a secret that a workflow uses but the plan does not list, or a new CI workflow that the plan predates.</p>
+
+<p>Each drift finding is classified by what actually ends it. <code>clears-on: amend</code> means the plan is wrong about the repo, and an edit to the named block clears the finding. <code>clears-on: repo</code> means the repo is behind the plan. <code>clears-on: merge</code> means the finding is a true statement about the open branch, for example "this branch edits the release pipeline", and no plan edit can make the statement false before the branch lands. The gate only offers remedies that can actually clear the finding in front of you.</p>
+
+<p>Findings that you consciously accept are recorded in an acknowledgement ledger, <code>.ai/ship-plan-acks.yaml</code>, so a settled question stays settled. An acknowledged finding is reported as one advisory line on later runs, and the gate does not ask about it again. Genuinely new drift always still gates. Acknowledgements are scoped: some die when the plan version bumps, and others live with the branch until the branch merges.</p>
+
+<h2>Ship — executing the release</h2>
+
+<p>When the PR is ready and the plan is current, run the release:</p>
+
+<pre><code>/wf ship &lt;slug&gt;</code></pre>
+
+<p>Ship refuses to start unless the handoff's readiness check came back <code>ready</code>. Ship also enforces two hard blocks of its own across every slug in scope: any open runtime-evidence deferral (a slice that passed verify only because runtime proof was deferred), and any open intent-risk entry. To clear a deferral, capture the evidence with <code>/wf probe</code> or with a re-verify in a capable environment, or record an explicit product-owner override. Ship never accepts a prose "we accept the risk" in the evidence field.</p>
+
+<p>Each run gets a <strong>run-id</strong>, a compact UTC timestamp, and walks a 13-step sequence:</p>
+
+<ul>
+<li>pre-flight: clean tree, version bump, secrets, changelog</li>
+<li>publish dry-run</li>
+<li>rollout questions</li>
+<li>a freshness delta against the last successful run</li>
+<li>an explicit go/no-go decision</li>
+<li>merge</li>
+<li>tag and release</li>
+<li>a watch on the release workflow</li>
+<li>a post-publish polling loop</li>
+<li>the post-release version bump</li>
+<li>index updates</li>
+<li>the run artifact itself: <code>09-ship-run-&lt;run-id&gt;.md</code>, indexed in <code>09-ship-runs.md</code></li>
+</ul>
+
+<p>Every step is <strong>idempotent</strong>: the step detects its already-done state before it performs the side effect. A re-run of a completed step is a no-op with a note, never a duplicate merge or a second tag. Idempotent steps make the sequence <strong>replayable</strong>. When a run stalls, the run records <code>status: awaiting-input</code> with what blocked it. The next <code>/wf ship &lt;slug&gt;</code> offers to resume from the failed step instead of starting over. Questions that are answerable up front (scope, version, rollout strategy, release window) are batched into one round before the sequence opens, so an atomic run is never held open to wait for something that was knowable at minute zero.</p>
+
+<p>Batch ship mirrors batch handoff. <code>/wf ship pr#N</code> ships every slug on the branch as one run, and the run is <strong>all-or-nothing</strong>: merge is atomic per PR, so either every slug on the branch is shippable or no slug ships. The lead slug owns the single run artifact, and each sibling's run index gets a pointer to it.</p>
+
+<p>Two follow-up forms reuse a run without a second ship. Announce regenerates the release communications from the run artifact:</p>
+
+<pre><code>/wf ship &lt;slug&gt; announce</code></pre>
+
+<p>Rollback reverses a shipped run. It authors a reversal runbook and marks each step reversible or irreversible. It gates on its own go/no-go decision, executes the runbook, verifies the prior state, and writes <code>09-rollback-&lt;run-id&gt;.md</code>:</p>
+
+<pre><code>/wf ship &lt;slug&gt; rollback [&lt;run-id&gt;]</code></pre>
+
+<h2>Retro — closing the loop</h2>
+
+<p>The last stage extracts what the workflow taught. <code>/wf retro &lt;slug&gt;</code> reads the entire trail: every stage file, the review findings, the product-owner answers, and the design artifacts. It writes <code>10-retro.md</code>: what went well, what hurt, root causes, and concrete, copy-paste-ready improvements to prompts, tests, repo instructions, and automation. Retro documents improvements; it never applies them.</p>
+
+<p>The batch form, <code>/wf retro pr#N</code>, retrospects every slug on the branch, with one retro each. Then the batch form does the thing that no single-slug retro can do: it synthesizes the cross-slug lessons. Those lessons include friction that recurred across slugs, a shared root cause, and a plan assumption that broke the same way twice. The batch form distills the durable lessons into the repo's solutions corpus.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../guides/the-standard-lifecycle.html">The standard lifecycle</a> — the seven stages that come before handoff.</li>
+    <li><a href="../concepts/evidence-and-gates.html">Evidence and gates</a> — why deferrals and intent-risks hard-block a release.</li>
+    <li><a href="../guides/autonomous-drivers.html">Autonomous drivers</a> — drive the build stages automatically; both drivers stop before handoff.</li>
+    <li><a href="../reference/artifacts.html">Artifacts</a> — the file layout behind <code>08-handoff.md</code>, ship runs, and the ledgers.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

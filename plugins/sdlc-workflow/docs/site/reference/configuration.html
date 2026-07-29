@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configuration · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Configuration</h1>
+<p class="lede">This page lists every configuration key the plugin honors: the per-repo <code>.ai/sdlc-config.json</code>, the machine-wide <code>~/.sdlc/hub-config.json</code>, and the environment variables. Look up a key here when you want to change a default or find where a behavior is controlled.</p>
+
+<h2 id="split">Two files, zero shared fields</h2>
+
+<p>Configuration is split across exactly two files, and the split follows the git model.
+Repo-local choices live in the repository (like <code>.git/config</code>). Machine identity
+and global behavior live in your home directory (like <code>~/.gitconfig</code>).</p>
+
+<ul>
+<li><strong><code>.ai/sdlc-config.json</code></strong> (per repo, committable) governs how <em>this repository's</em> artifacts render, how its hooks behave, and its policy choices: artifact tracking, leak guards, memory seeding.</li>
+<li><strong><code>~/.sdlc/hub-config.json</code></strong> (per machine, never committed) governs <em>serving and egress</em>: how the one machine-wide hub binds, remote exposure, the code browser, and the consent gate for sending prompts to external AI services.</li>
+</ul>
+
+<p>The two files share <strong>zero fields</strong>, so there are no precedence rules to reason
+about. A repo cannot set serve settings: the per-repo schema rejects <code>view.serve</code>.
+The only hub-related key a repo carries is <code>view.hub.enabled</code>. That key decides
+whether the repo <em>participates</em> in the hub, not how the hub runs. Both files are
+entirely optional. Every key has a sane default, and an absent file means all defaults.</p>
+
+<h2 id="repo">Per-repo: <code>.ai/sdlc-config.json</code></h2>
+
+<p>All keys are optional. The file is validated against a JSON schema
+(<code>schemas/sdlc-config.schema.json</code>) that rejects unknown properties. A key with a
+typo fails loudly instead of silently doing nothing.</p>
+
+<h3 id="repo-view">The <code>view</code> block — rendering and the workflow view</h3>
+
+<table>
+<thead><tr><th>Key</th><th>Default</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>view.render.concurrency</code></td><td><code>4</code></td><td>The number of artifacts that render in parallel (1–32).</td></tr>
+<tr><td><code>view.render.debounceMs</code></td><td><code>2000</code></td><td>The debounce window before a burst of artifact writes triggers a render (0–60000&nbsp;ms).</td></tr>
+<tr><td><code>view.bootstrap.enabled</code></td><td><code>true</code></td><td>The master switch for the background render bootstrap that runs at session start.</td></tr>
+<tr><td><code>view.bootstrap.renderMissing</code></td><td><code>true</code></td><td>When <code>true</code>, the bootstrap renders artifacts that have no rendered page yet.</td></tr>
+<tr><td><code>view.bootstrap.renderStale</code></td><td><code>true</code></td><td>When <code>true</code>, the bootstrap re-renders pages older than their source artifact.</td></tr>
+<tr><td><code>view.hub.enabled</code></td><td><code>true</code></td><td>When <code>true</code>, this repo participates in the machine-wide hub: the repo registers with the hub and is willing to start or use the hub. This is the <em>only</em> per-repo hub field. Every singleton hub setting lives in the machine-wide file. Set <code>false</code> to opt out.</td></tr>
+<tr><td><code>view.narrativeFragments</code></td><td><code>true</code></td><td>When <code>true</code>, free narrative fragments (<code>&lt;stem&gt;.&lt;label&gt;.html.fragment</code> siblings of raw HTML) are injected below a rendered page. Set <code>false</code> to suppress them repo-wide, for example while a fragment's CSS breaks a page.</td></tr>
+<tr><td><code>view.scopeNarrativeCss</code></td><td><code>true</code></td><td>When <code>true</code>, each free fragment's <code>&lt;style&gt;</code> rules are wrapped in an <code>@scope</code> block, so a global selector cannot bleed into the page or a sibling fragment. Set <code>false</code> to inject styles verbatim.</td></tr>
+<tr><td><code>view.renderDispatch</code></td><td><code>"hub"</code></td><td>Where an artifact write gets rendered. <code>"hub"</code>: the write hook enqueues the change to a durable per-repo render queue (<code>.ai/_view/.render-queue/</code>), and the hub daemon drains and renders it. <code>"inline"</code>: the legacy path, where the hook spawns the renderer itself after the debounce. This key is the rollback switch.</td></tr>
+<tr><td><code>view.ensureHubOnWrite</code></td><td><code>true</code></td><td>When hub dispatch is active and no daemon answers, the write hook makes a best-effort detached attempt to start the hub. Set <code>false</code> to never auto-start a daemon from a write hook. Queued changes then wait for a daemon started another way.</td></tr>
+<tr><td><code>view.renderQueue.maxPending</code></td><td><code>500</code></td><td>The hard backstop on pending render requests per repo. Beyond this limit, the oldest requests are evicted with a logged warning. Coalescing normally keeps the queue far below this limit.</td></tr>
+</tbody>
+</table>
+
+<h3 id="repo-hooks">The <code>hooks</code> block — write-time enforcement</h3>
+
+<p>Each key here switches one behavior of the installed hooks. The
+<a href="hooks.html">hooks reference</a> describes what each hook checks and whether the hook
+blocks or warns. All keys default to <code>true</code>.</p>
+
+<table>
+<thead><tr><th>Key</th><th>Default</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>hooks.autoStage</code></td><td><code>true</code></td><td>When <code>true</code>, the hook auto-stages (<code>git add</code>) implementation files written while an active workflow is in the implement stage.</td></tr>
+<tr><td><code>hooks.validateOnWrite</code></td><td><code>true</code></td><td>When <code>true</code>, workflow artifacts are validated before the write lands (filename convention, frontmatter, slug match). This check blocks.</td></tr>
+<tr><td><code>hooks.verifyOnWrite</code></td><td><code>true</code></td><td>When <code>true</code>, workflow artifacts get a deep schema validation after the write lands. This check blocks.</td></tr>
+<tr><td><code>hooks.remindMissingFragments</code></td><td><code>true</code></td><td>When <code>true</code>, the hook blocks a rich-tier artifact <code>.md</code> written without its mandatory sibling <code>.yaml</code>, and nudges softly when only the <code>.html.fragment</code> is missing. A single artifact can opt out with <code>fragment: none</code> in its frontmatter.</td></tr>
+<tr><td><code>hooks.validateSiblingYaml</code></td><td><code>true</code></td><td>When <code>true</code>, the hook validates a present sibling <code>.yaml</code> against its per-type schema and blocks on a violation. This check runs only for the types whose schema is reconciled to the live authoring convention (currently plan, review, design, simplify-run, ship-run).</td></tr>
+<tr><td><code>hooks.verifyResultGate</code></td><td><code>true</code></td><td>When <code>true</code>, the hook hard-blocks a verify artifact whose frontmatter contradicts a passing result: <code>result: pass</code> with unmet metric acceptance, or with <code>interactive-verification: deferred</code>.</td></tr>
+<tr><td><code>hooks.verifyDeferralLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when shadow-deferral vocabulary in a verify body ("deferred to user", "will be verified during …") co-occurs with <code>result: pass</code>. The check is a heuristic, so it warns rather than blocks.</td></tr>
+<tr><td><code>hooks.mockEvidenceGate</code></td><td><code>true</code></td><td>When <code>true</code>, the hook hard-blocks a verify artifact that claims <code>result: pass</code> while at least one user-observable acceptance criterion's highest evidence rung is a mock or static analysis. Such an AC is not met. Climb the ladder or defer.</td></tr>
+<tr><td><code>hooks.limitationClaimLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when an added comment claims a dependency capability does not exist or was removed, with no citation marker nearby. A comment is a hypothesis, not authority.</td></tr>
+<tr><td><code>hooks.suppressionDebtLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when a new type/lint suppression (<code>as any</code>, <code>@ts-ignore</code>, <code>eslint-disable</code>, language equivalents) is added without an <code>sdlc-debt:</code> marker within two lines.</td></tr>
+<tr><td><code>hooks.namedMechanismLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when a mechanism-suggesting noun (state machine, scheduler, queue, cache, and so on) appears in a shape or slice acceptance criterion but in no decision section of the artifact. A test may not name a machine the design does not own.</td></tr>
+<tr><td><code>hooks.intakeLedgerLint</code></td><td><code>true</code></td><td>When <code>true</code>, the hook warns (non-blocking) when a default-mode intake artifact lands with neither intent-risk/charter ledger entries on the sibling <code>00-index.md</code> nor the explicit <code>none-declared</code> escapes.</td></tr>
+</tbody>
+</table>
+
+<h3 id="repo-other">Policy and behavior keys</h3>
+
+<table>
+<thead><tr><th>Key</th><th>Default</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>artifactTracking</code></td><td><em>unset</em></td><td><code>"tracked"</code> means the <code>.ai/</code> artifact tree is committed. <code>"ignored"</code> means the tree is gitignored except <code>ship-plan.md</code> and <code>sdlc-config.json</code>. <code>/wf ship-plan init</code> records the value once, so handoff and ship read a policy instead of deciding ad hoc mid-release. While the key is unset, status surfaces a one-time advisory and ship asks per run.</td></tr>
+<tr><td><code>semantic.enabled</code></td><td><code>false</code></td><td>The master switch for the two leak guards that scan outward-facing text (commit and PR messages, public-doc writes) for internal workflow vocabulary. The default is off.</td></tr>
+<tr><td><code>semantic.mode</code></td><td><code>"advisory"</code></td><td><code>"advisory"</code> emits a non-blocking message that names the matched vocabulary. <code>"enforce"</code> denies the tool call with the same message. Promote to enforce only after the advisory false-positive rate in your repo proves near zero.</td></tr>
+<tr><td><code>memory.seedRules</code></td><td><code>true</code></td><td>When <code>true</code>, each session start seeds the fenced <code>/wf</code> rules block into <code>AGENTS.md</code>, plus an <code>@AGENTS.md</code> import in <code>CLAUDE.md</code>. The plugin owns exactly the fenced region and never edits outside it. Seeding runs only in repos that have <code>.ai/workflows/</code>. Set <code>false</code> to disable seeding. Existing seeded blocks are left untouched.</td></tr>
+<tr><td><code>solutions.globalDir</code></td><td><code>null</code></td><td>The absolute path to a user-level solutions corpus. Plan's reuse scan reads the corpus alongside the repo's own <code>.ai/solutions/</code>, and retro uses the corpus for user-confirmed lesson promotion. <code>null</code> disables it. The directory stays local. The plugin never syncs the directory, because repo lessons can contain project specifics.</td></tr>
+</tbody>
+</table>
+
+<h2 id="machine">Machine-wide: <code>~/.sdlc/hub-config.json</code></h2>
+
+<p>The hub is a single machine-wide process. Every singleton setting that governs how the hub
+binds (host, port, resource caps, remote exposure) lives here, per developer machine. The hub
+creates the file with defaults on its first start. A malformed file falls back to defaults. A
+sparse or older file is deep-merged over the defaults, so missing keys are always filled
+in.</p>
+
+<table>
+<thead><tr><th>Key</th><th>Default</th><th>What it does</th></tr></thead>
+<tbody>
+<tr><td><code>version</code></td><td><code>1</code></td><td>The config format version, stamped on every write.</td></tr>
+<tr><td><code>host</code></td><td><code>"127.0.0.1"</code></td><td>The bind address for the hub.</td></tr>
+<tr><td><code>port</code></td><td><code>4173</code></td><td>The canonical SDLC port. The standalone per-repo daemon falls back to 4174 only when it is forced to run alongside a live hub.</td></tr>
+<tr><td><code>perRepoServe</code></td><td><code>false</code></td><td>When <code>false</code> (the default), the hub is the sole server on the machine: any running per-repo daemon is reaped, none is spawned, and even a repo's own settings are overridden. Set <code>true</code> to allow the standalone per-repo daemon.</td></tr>
+<tr><td><code>liveReload</code></td><td><code>true</code></td><td>Live-reload for the standalone per-repo daemon. The hub itself always live-reloads.</td></tr>
+<tr><td><code>maxSseClients</code></td><td><code>200</code></td><td>The cap on live-reload SSE clients, aggregate across repos.</td></tr>
+<tr><td><code>maxWatchedRepos</code></td><td><code>50</code></td><td>Beyond this many registered repos, the hub polls for changes instead of using filesystem watchers.</td></tr>
+<tr><td><code>tailscale.enabled</code></td><td><code>false</code></td><td>Opt-in remote access to the hub via Tailscale.</td></tr>
+<tr><td><code>tailscale.mode</code></td><td><code>"serve"</code></td><td>The Tailscale exposure mode.</td></tr>
+<tr><td><code>tailscale.path</code></td><td><code>"/"</code></td><td>The path prefix exposed through Tailscale.</td></tr>
+<tr><td><code>tailscale.https</code></td><td><code>true</code></td><td>When <code>true</code>, the hub serves over HTTPS through Tailscale.</td></tr>
+<tr><td><code>tailscale.acknowledgedPublic</code></td><td><code>false</code></td><td>A one-time, per-machine acknowledgement that a public binding exposes <em>every</em> registered repo at once. This is deliberately not a committable per-repo flag.</td></tr>
+<tr><td><code>codeBrowser.enabled</code></td><td><code>true</code></td><td>The in-browser source browser served at <code>/r/&lt;id&gt;/__code/</code>.</td></tr>
+<tr><td><code>codeBrowser.maxBlobBytes</code></td><td><code>524288</code></td><td>The text cap per file response (512&nbsp;KiB).</td></tr>
+<tr><td><code>codeBrowser.maxTreeEntries</code></td><td><code>5000</code></td><td>The per-listing truncation guard.</td></tr>
+<tr><td><code>codeBrowser.lazyTree</code></td><td><code>true</code></td><td>When <code>true</code>, the code browser lists one folder per request instead of eagerly walking the tree. Listings show <code>node_modules</code>, so the default never walks the tree eagerly.</td></tr>
+<tr><td><code>codeBrowser.showIgnoredBadge</code></td><td><code>true</code></td><td>When <code>true</code>, gitignored nodes get a badge in listings (presentation only).</td></tr>
+<tr><td><code>codeBrowser.serveSecrets</code></td><td><code>false</code></td><td>When <code>true</code>, the secret denylist is dropped, so <code>.env</code> files and keys become servable. Keep this key <code>false</code> whenever the host is anything but <code>127.0.0.1</code>.</td></tr>
+<tr><td><code>codeBrowser.denyGlobs</code></td><td><code>[]</code></td><td>Extra deny patterns appended to the built-in denylist.</td></tr>
+<tr><td><code>staleRender.heal</code></td><td><code>true</code></td><td>When a served view's rendered version drifts from the running plugin (an upgrade left content behind), the hub daemon spawns a bounded background clean re-render off the request path. Set <code>false</code> to detect and flag only.</td></tr>
+<tr><td><code>staleRender.maxConcurrent</code></td><td><code>1</code></td><td>The number of simultaneous heal renders across all repos.</td></tr>
+<tr><td><code>staleRender.cooldownMs</code></td><td><code>60000</code></td><td>The per-repo minimum interval between heal attempts.</td></tr>
+<tr><td><code>staleRender.maxAttempts</code></td><td><code>3</code></td><td>After this many attempts per drift episode, the hub gives up and surfaces <code>failed</code>.</td></tr>
+<tr><td><code>externalDispatch.enabled</code></td><td><code>false</code></td><td>The single machine-wide consent gate for the <code>imagery</code> and <code>uiproto</code> skills, which send prompt content to third-party AI services. The default is off: egress stays dark until a developer explicitly opts this machine in. The skill runner scripts re-check the flag themselves, so a direct script invocation cannot bypass consent. <code>/consult</code> is not behind this gate.</td></tr>
+</tbody>
+</table>
+
+<div class="warn"><p>Do not change <code>tailscale.acknowledgedPublic</code> or <code>codeBrowser.serveSecrets</code> without the consequences in view. A public binding exposes every registered repo at once. <code>codeBrowser.serveSecrets: true</code> drops the denylist that keeps <code>.env</code> files unservable. Both keys default to the safe value.</p></div>
+
+<h2 id="env">Environment variables</h2>
+
+<p>Some environment variables adjust behavior outside either config file. The first three are
+kill switches for the session-start hooks. The rest supply machine state or credentials.</p>
+
+<dl class="cmd-grid">
+<dt><code>SDLC_DISABLE_BOOTSTRAP=1</code></dt>
+<dd>Skips the detached background render bootstrap that the session-start hook launches.
+Rendering still happens on artifact writes. Only the catch-up pass at session start is
+suppressed.</dd>
+<dt><code>SDLC_DISABLE_MEMORY_SEED=1</code></dt>
+<dd>Skips the memory-seeding session-start hook entirely (the fenced <code>/wf</code> rules
+block in <code>AGENTS.md</code>). The per-repo equivalent is
+<code>memory.seedRules: false</code>.</dd>
+<dt><code>SDLC_DISABLE_TRAY_HEAL=1</code></dt>
+<dd>Skips the Windows-only reconcile of an already-running tray app after a plugin upgrade.
+That step would restart a tray that still executes a prior version's code.</dd>
+<dt><code>SDLC_HOME</code></dt>
+<dd>Relocates the entire machine-wide state directory to the given path: the registry, the hub
+config, and the rest of what normally lives under <code>~/.sdlc/</code>.</dd>
+<dt><code>SDLC_HUB_TOKEN</code></dt>
+<dd>The hub's write token. The hub supervisor sets the token on the hub daemon's environment
+when the supervisor spawns the daemon. The token travels via env rather than argv, so it never
+appears in process listings. You normally never set this variable yourself.</dd>
+<dt><code>STITCH_API_KEY</code>, <code>STITCH_PROJECT_ID</code></dt>
+<dd>Credentials for the Google Stitch engine used by the internal <code>uiproto</code> skill.
+The project must be pre-created in the Stitch UI; the SDK cannot create one. When either
+variable is missing, uiproto's Stitch engine skips and the LLM engine is used instead, subject
+to the <code>externalDispatch.enabled</code> consent gate.</dd>
+</dl>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../reference/hooks.html">Hooks</a> — what each <code>hooks.*</code> key switches, and which hooks block versus warn.</li>
+    <li><a href="../concepts/the-machinery.html">The machinery</a> — the hub, the render pipeline, and the tray app that these settings govern.</li>
+    <li><a href="../reference/skills.html">Standalone skills</a> — the skills behind the <code>externalDispatch.enabled</code> gate.</li>
+    <li><a href="../guides/staying-oriented.html">Staying oriented</a> — the dashboard and status surfaces that rendering feeds.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

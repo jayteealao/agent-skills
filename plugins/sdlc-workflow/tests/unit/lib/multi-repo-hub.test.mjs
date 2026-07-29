@@ -1145,7 +1145,7 @@ test('hub: brand→hub rewrite + live reload apply to non-INDEX project pages to
 
 /* ───────────────────────── plugin docs site (/docs/) ───────────────────────── */
 
-test('hub: serves the plugin docs site under /docs/ with a docs-scoped CSP', async () => {
+test('hub: serves the plugin docs site under /docs/ with the strict same-origin CSP', async () => {
   setHome();
   const server = createHubServer({ token: 'tok', liveReload: false });
   const port = await listen(server);
@@ -1162,13 +1162,15 @@ test('hub: serves the plugin docs site under /docs/ with a docs-scoped CSP', asy
     equal(index.status, 200);
     match(index.body, /plugin docs/, 'docs index served at /docs/');
     match(String(index.headers['content-type']), /text\/html/);
-    // The docs-scoped CSP admits the inline nav script + the Mermaid CDN that the
-    // strict repo CSP (script-src 'self') would block; repo views are unaffected.
-    match(String(index.headers['content-security-policy']), /cdn\.jsdelivr\.net/);
-    match(String(index.headers['content-security-policy']), /'unsafe-inline'/);
+    // Since the 2026-07 docs rebuild the site is fully same-origin (external
+    // nav.js, no inline scripts, no CDN), so docs get the same strict CSP as
+    // every other route — script-src 'self', and no jsDelivr allowance.
+    match(String(index.headers['content-security-policy']), /script-src 'self'(;|$)/);
+    ok(!/cdn\.jsdelivr\.net/.test(String(index.headers['content-security-policy'])),
+      'docs CSP no longer admits the Mermaid CDN');
 
     // A real sub-page resolves (explicit .html under a nested dir).
-    const sub = await httpReq(port, '/docs/reference/serve.html');
+    const sub = await httpReq(port, '/docs/reference/commands.html');
     equal(sub.status, 200);
 
     // A static asset streams with the right MIME.

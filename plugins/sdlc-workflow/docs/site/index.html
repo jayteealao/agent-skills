@@ -1,219 +1,98 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sdlc-workflow — plugin docs</title>
+<title>sdlc-workflow · plugin docs</title>
 <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
-  <span class="open-icon" aria-hidden="true">&#9776;</span>
-  <span class="close-icon" aria-hidden="true">&times;</span>
-</button>
-<div class="nav-backdrop" aria-hidden="true"></div>
-<div class="layout">
-
-<aside id="sidebar">
-<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.143.0</small></a>
-<nav aria-label="Site navigation">
-  <h4>Orientation</h4>
-  <ul>
-    <li><a href="index.html" data-href="index.html">Home</a></li>
-    <li><a href="orientation/is-this-for-me.html" data-href="orientation/is-this-for-me.html">Is this for me?</a></li>
-    <li><a href="orientation/mental-model.html" data-href="orientation/mental-model.html">How it works</a></li>
-    <li><a href="orientation/first-10-minutes.html" data-href="orientation/first-10-minutes.html">First 10 minutes</a></li>
-  </ul>
-  <h4>Tutorials</h4>
-  <ul>
-    <li><a href="tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
-    <li><a href="tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">Full feature walkthrough</a></li>
-    <li><a href="tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
-  </ul>
-  <h4>How to&hellip;</h4>
-  <ul>
-    <li><a href="how-to/choose-a-command.html" data-href="how-to/choose-a-command.html">Choose a command</a></li>
-    <li><a href="how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
-    <li><a href="how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
-    <li><a href="how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
-    <li><a href="how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use add-ons</a></li>
-    <li><a href="how-to/use-design.html" data-href="how-to/use-design.html">Use design</a></li>
-    <li><a href="how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
-    <li><a href="how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
-    <li><a href="how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
-    <li><a href="how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
-    <li><a href="how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
-  </ul>
-  <h4>Reference</h4>
-  <ul>
-    <li><a href="reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
-    <li><a href="reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="reference/commands.html" data-href="reference/commands.html">Commands</a></li>
-    <li style="padding-left: 0.7em;"><a href="reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
-    <li><a href="reference/skills.html" data-href="reference/skills.html">Skills</a></li>
-    <li><a href="reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
-    <li><a href="reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
-    <li><a href="reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
-    <li><a href="reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
-    <li><a href="reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
-    <li><a href="reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
-    <li><a href="reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
-    <li><a href="reference/types.html" data-href="reference/types.html">Artifact types</a></li>
-  </ul>
-  <h4>Explanation</h4>
-  <ul>
-    <li><a href="explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
-    <li><a href="explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
-    <li><a href="explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
-    <li><a href="explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
-    <li><a href="explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
-    <li><a href="explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
-    <li><a href="explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
-    <li><a href="explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
-    <li><a href="explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
-    <li><a href="explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
-  </ul>
-  <h4>Tips</h4>
-  <ul>
-    <li><a href="tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
-    <li><a href="tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
-    <li><a href="tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
-    <li><a href="tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
-  </ul>
-  <h4>Changelog</h4>
-  <ul>
-    <li><a href="whats-new.html" data-href="whats-new.html">What&#8217;s new</a></li>
-  </ul>
-</nav>
-</aside>
-
+<body data-root="">
+<aside id="sidebar"><p class="nav-fallback"><a href="index.html">Contents</a></p></aside>
 <main>
-
 <h1>sdlc-workflow</h1>
+<p class="lede">A Claude Code plugin that runs software work as a disciplined lifecycle.
+Each stage asks the right questions, writes its decisions to durable artifacts in your
+repo, and gates progress on evidence instead of optimism.</p>
 
-<p class="lede">
-A Claude Code / Codex plugin that gives your AI-assisted work a memory — so the next session picks up exactly where you left off, with every decision still on record.
-</p>
+<p>You drive everything through one command, <code>/wf</code>. A feature moves through
+ten stages. Each stage writes a numbered artifact under <code>.ai/workflows/&lt;slug&gt;/</code>.
+The next stage, a colleague, or a future session can continue from that artifact alone:</p>
 
-<a href="orientation/is-this-for-me.html" style="display:inline-block;margin:1.2rem 0 1.8rem;padding:0.75rem 1.5rem;background:var(--link);color:white;border-radius:6px;text-decoration:none;font-weight:600;font-size:1.05rem;">
-  Start the 5-minute tour &rarr;
-</a>
-
-<p style="margin:0 0 1.6rem;padding:0.7rem 1rem;border-left:4px solid var(--link);background:rgba(127,127,127,0.08);border-radius:0 6px 6px 0;">
-<strong>Reading these docs from Codex?</strong> Commands are written in Claude Code's slash syntax — read <code>/wf …</code> as <code>$wf …</code> (the Codex skill invocation) throughout. The lifecycle, artifacts, hub, and views are identical on both hosts; only the invocation prefix differs.
-</p>
-
-<h2>Is this for you?</h2>
-
-<ul>
-  <li>You use Claude for real work — features, bugs, refactors — not just one-liners</li>
-  <li>You've re-explained the same context to Claude across sessions and it's frustrating</li>
-  <li>You want a paper trail of decisions, not just code changes</li>
+<ul class="stages">
+  <li>intake</li>
+  <li>shape</li>
+  <li>slice</li>
+  <li>plan</li>
+  <li>implement</li>
+  <li>verify</li>
+  <li>review</li>
+  <li>handoff</li>
+  <li>ship</li>
+  <li>retro</li>
 </ul>
 
-<p>If none of those resonate, <a href="orientation/is-this-for-me.html">the "Is this for me?" page</a> will tell you honestly when to skip it.</p>
+<p>Small work takes a shortcut. <code>/wf intake fix</code> compresses the early stages
+into one run and starts you at implementation. Investigation modes answer questions
+without building anything. Two drivers, <code>auto</code> and <code>yolo</code>, sequence
+the stages for you. Everything you produce renders into a live dashboard served on
+your machine.</p>
 
-<hr>
-
-<h2>Where to go next</h2>
-
-<div class="tile-grid">
-  <a class="tile" href="orientation/is-this-for-me.html">
-    <span class="quadrant explanation">orientation</span>
-    <strong>Is this for me?</strong>
-    <small>The honest with/without. When not to use it.</small>
-  </a>
-  <a class="tile" href="orientation/mental-model.html">
-    <span class="quadrant explanation">orientation</span>
-    <strong>How it works</strong>
-    <small>The commands. What artifacts are. How it all fits.</small>
-  </a>
-  <a class="tile" href="orientation/first-10-minutes.html">
-    <span class="quadrant tutorial">tutorial</span>
-    <strong>First 10 minutes</strong>
-    <small>A real change, end to end, right now.</small>
-  </a>
-  <a class="tile" href="how-to/choose-a-command.html">
-    <span class="quadrant howto">how-to</span>
-    <strong>Choose a command</strong>
-    <small>Map your situation to the exact command to type.</small>
-  </a>
-  <a class="tile" href="tutorials/installation.html">
-    <span class="quadrant tutorial">tutorial</span>
-    <strong>Install</strong>
-    <small>Get the plugin wired up. Five minutes.</small>
-  </a>
-  <a class="tile" href="reference/glossary.html">
-    <span class="quadrant reference">reference</span>
-    <strong>Glossary</strong>
-    <small>Plain-language definitions for every term the plugin uses.</small>
-  </a>
+<h2>Where to go</h2>
+<div class="doc-map">
+  <div class="card">
+    <h2>Start</h2>
+    <p>Install the plugin and run real work through it.</p>
+    <ul>
+      <li><a href="start/installation.html">Installation</a></li>
+      <li><a href="start/your-first-workflow.html">Your first workflow</a></li>
+      <li><a href="start/everyday-fixes.html">Everyday fixes</a></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Guides</h2>
+    <p>Task-oriented walkthroughs of each part of the lifecycle.</p>
+    <ul>
+      <li><a href="guides/choose-your-entry.html">Choose your entry</a></li>
+      <li><a href="guides/the-standard-lifecycle.html">The standard lifecycle</a></li>
+      <li><a href="guides/quick-lanes.html">Quick lanes</a></li>
+      <li><a href="guides/investigation.html">Investigation</a></li>
+      <li><a href="guides/design.html">Design work</a></li>
+      <li><a href="guides/autonomous-drivers.html">Autonomous drivers</a></li>
+      <li><a href="guides/releasing.html">Releasing</a></li>
+      <li><a href="guides/staying-oriented.html">Staying oriented</a></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Concepts</h2>
+    <p>Why the plugin works the way it does.</p>
+    <ul>
+      <li><a href="concepts/why-artifacts.html">Why artifacts</a></li>
+      <li><a href="concepts/evidence-and-gates.html">Evidence and gates</a></li>
+      <li><a href="concepts/the-machinery.html">The machinery</a></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Reference</h2>
+    <p>Complete, lookup-oriented listings.</p>
+    <ul>
+      <li><a href="reference/commands.html">Commands</a></li>
+      <li><a href="reference/intake-modes.html">Intake modes</a></li>
+      <li><a href="reference/review-dimensions.html">Review dimensions</a></li>
+      <li><a href="reference/skills.html">Skills</a></li>
+      <li><a href="reference/artifacts.html">Artifacts</a></li>
+      <li><a href="reference/configuration.html">Configuration</a></li>
+      <li><a href="reference/hooks.html">Hooks</a></li>
+      <li><a href="reference/glossary.html">Glossary</a></li>
+    </ul>
+  </div>
 </div>
 
-<details style="margin-top:2.5rem;">
-<summary style="cursor:pointer;color:var(--fg-muted);font-size:0.93rem;">More pages (tutorials, reference, explanation, tips)</summary>
-
-<div class="tile-grid" style="margin-top:1rem;">
-  <a class="tile" href="tutorials/first-workflow.html">
-    <span class="quadrant tutorial">tutorial</span>
-    <strong>Full feature walkthrough</strong>
-    <small>All 10 stages on a tiny endpoint, step by step.</small>
-  </a>
-  <a class="tile" href="how-to/start-workflow.html">
-    <span class="quadrant howto">how-to</span>
-    <strong>Pick an entry point</strong>
-    <small>Decision tree for which <code>/wf</code> sub-command fits your change.</small>
-  </a>
-  <a class="tile" href="reference/commands.html">
-    <span class="quadrant reference">reference</span>
-    <strong>All commands</strong>
-    <small>Every command, argument, and sub-command.</small>
-  </a>
-  <a class="tile" href="explanation/why-this-exists.html">
-    <span class="quadrant explanation">explanation</span>
-    <strong>Why this exists</strong>
-    <small>Artifacts over memory. Orchestrator discipline. The deeper why.</small>
-  </a>
-  <a class="tile" href="tips/escape-hatches.html">
-    <span class="quadrant tips">tips</span>
-    <strong>Escape hatches</strong>
-    <small>When the workflow is overkill and how to bypass it safely.</small>
-  </a>
-  <a class="tile" href="whats-new.html">
-    <span class="quadrant reference">changelog</span>
-    <strong>What's new</strong>
-    <small>User-readable highlights since v9.11.</small>
-  </a>
-</div>
-</details>
-
-<div class="pager">
-<a class="next" href="orientation/is-this-for-me.html"><span>Start here →</span>Is this for me?</a>
-</div>
-
+<h2>If you only read one page</h2>
+<p>Read <a href="guides/choose-your-entry.html">Choose your entry</a>. The plugin has
+a large surface, but the daily decision is small. You decide what kind of work is in
+front of you, and which single command starts that work. Everything else follows from
+there. Each stage tells you what comes next.</p>
 </main>
-</div>
-
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
-
-  // Mobile drawer toggle
-  const toggle = document.querySelector(".menu-toggle");
-  const backdrop = document.querySelector(".nav-backdrop");
-  const setOpen = (open) => {
-    document.body.classList.toggle("nav-open", open);
-    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
-  };
-  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
-  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
-  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
-</script>
+<script src="nav.js"></script>
 </body>
 </html>

@@ -88,15 +88,14 @@ const MIME = {
 
 const CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'";
 
-// The plugin's own documentation site (docs/site) is FIRST-PARTY content we
-// author — unlike a repo's `.html.fragment` output, which is semi-trusted and
-// gets the strict `script-src 'self'` CSP above. The docs pages use an inline
-// module script (the mobile-nav drawer) and import Mermaid from the jsDelivr
-// CDN, both of which the strict CSP would block. This relaxed policy — scoped to
-// the `/docs/` route ONLY — admits inline scripts and jsDelivr while still
-// pinning everything else to same-origin. Repo views and the landing page keep
-// CSP unchanged.
-const DOCS_CSP = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' data: https://cdn.jsdelivr.net; connect-src 'self' https://cdn.jsdelivr.net; worker-src 'self' blob:; object-src 'none'; base-uri 'self'";
+// The plugin's own documentation site (docs/site) is fully same-origin since
+// the 2026-07 hand-authored rebuild: its only script is the external nav.js,
+// the sidebar loads via a same-origin fetch (covered by default-src), and
+// there are no inline scripts, CDN imports, fonts, or workers. It therefore
+// shares the strict CSP above — no docs-scoped relaxation exists anymore.
+// (The pre-rebuild site needed 'unsafe-inline' + cdn.jsdelivr.net for an
+// inline nav script and Mermaid; if a future page reintroduces third-party
+// assets, scope any relaxation to /docs/ only, as before.)
 
 // Absolute path to the committed docs site. Resolved off this module's own URL
 // so it works identically from source (scripts/hub-serve.mjs) and the bundle
@@ -548,8 +547,8 @@ export function createHubServer({
   // containment kernel as the repo routes — rooted at DOCS_ROOT with the
   // lowercase index basename — so a traversal can never escape the docs tree.
   // No meta/brand/livereload injection (these are static authored pages, not
-  // rendered artifacts); the relaxed DOCS_CSP lets their inline nav script and
-  // Mermaid CDN import run.
+  // rendered artifacts). The docs are fully same-origin, so they get the same
+  // strict CSP as every other route.
   function serveDocsFile({ req, res, rest }) {
     if (!DOCS_ROOT || !existsSync(DOCS_ROOT)) { res.writeHead(404).end('docs not available'); return; }
     const resolved = resolveRequestPath(DOCS_ROOT, rest, { indexFile: 'index.html' });
@@ -564,7 +563,7 @@ export function createHubServer({
       'content-type': type,
       'content-length': stats.size,
       'cache-control': 'no-cache',
-      'content-security-policy': DOCS_CSP,
+      'content-security-policy': CSP,
     });
     if (req.method === 'HEAD') { res.end(); return; }
     createReadStream(resolved.path).pipe(res);

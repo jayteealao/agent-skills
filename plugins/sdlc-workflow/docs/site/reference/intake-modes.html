@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intake modes · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Intake modes</h1>
+<p class="lede">This page lists the thirteen ways work can enter the lifecycle through <code>/wf intake</code>: each mode, how the arguments resolve, what each mode authors, its branch convention, and where each mode ends.</p>
+
+<h2 id="resolution">How the arguments resolve</h2>
+<p>Intake resolves its tokens in a fixed order, and the order is user-visible. The same words mean different things when the first token names an existing workflow. The checks run in exactly this sequence:</p>
+<ol>
+  <li><strong>Existing slug + <code>amend</code> or <code>modernize</code> → maintenance.</strong> The two maintenance modes are claimed first. Otherwise <code>amend</code> would read as free scope text and <code>modernize</code> would read as a bare keyword. Without a real slug, both modes stop with an error; neither mode means anything standalone.</li>
+  <li><strong>Existing slug + a mode keyword → compressed slice.</strong> The run attaches as one compressed slice on that workflow. The slice file is the sole output, branch creation is suppressed, and no companion directories are written. <code>adopt</code> is the exception: <code>adopt</code> can never attach to a slug and stops here. For a closed workflow, intake asks "append a compressed slice anyway?" before it proceeds.</li>
+  <li><strong>Existing slug + free text (or nothing) → extension.</strong> No keyword is needed: an existing slug followed by new scope <em>is</em> the signal. The run adds full net-new slices to that workflow (see <a href="#extension">extension</a> below). While intake reads the index, intake also notes whether the workflow predates the current schema. If the workflow predates the current schema, intake offers <code>modernize</code> as a first-class option before it extends.</li>
+  <li><strong>Bare mode keyword → standalone.</strong> The mode runs on its own and creates whatever workflow the mode defines. This matches the natural reading of a description that begins with a mode word ("fix the typo…").</li>
+  <li><strong>Anything else → the default flow.</strong> One twist applies: when the description strongly matches exactly one mode pattern, intake proposes that mode one time and asks. For example, a regression with an unknown cause reads as <code>rca</code>, and a dependency bump reads as <code>update-deps</code>. If you accept, the mode runs standalone. If you decline, the default flow runs. <code>adopt</code>, <code>amend</code>, and <code>modernize</code> are never auto-proposed.</li>
+</ol>
+<p>To force the default flow when your description legitimately begins with a slug or a mode word, quote the description as one token: <code>/wf intake "rca dashboard refresh"</code> never matches a slug or a keyword.</p>
+<div class="note">An empty invocation renders the mode menu and asks.</div>
+
+<h2 id="modes">The modes</h2>
+
+<h3 id="default">default</h3>
+<pre><code>/wf intake &lt;description&gt;</code></pre>
+<p>The default flow is the canonical stage 1 of 10 and the only mode with no keyword of its own. It converts a rough request into a clear intake brief through a product-owner interview. It fingerprints the stack, establishes the canonical slug, and creates the workflow. The default flow is always standalone; it is never slug-attached.</p>
+<p><strong>Authors:</strong> <code>00-index.md</code> + <code>01-intake.md</code>. <strong>Terminus:</strong> recommends <code>/wf shape &lt;slug&gt;</code>.</p>
+
+<h3 id="fix">fix</h3>
+<pre><code>/wf intake fix &lt;description&gt;
+/wf intake &lt;slug&gt; fix &lt;description&gt;</code></pre>
+<p><code>fix</code> is the quick lane for small, intentional changes with an obvious correction. Standalone, it authors the entire planning half of a standard lifecycle in one run: intake, shape, slice, and plan on a full overview index. It then stops at the pre-implement gate. The standard chain takes over from there, with the same quality gates as any other workflow. When the run is slug-attached, it becomes one compressed slice on the named workflow.</p>
+<p><strong>Authors:</strong> <code>01-fix.md</code> → <code>02-shape.md</code> → <code>03-slice.md</code> → <code>04-plan.md</code>. <strong>Branch:</strong> <code>fix/&lt;slug&gt;</code> (suppressed when slug-attached). <strong>Terminus:</strong> gates, then <code>/wf implement &lt;slug&gt;</code>.</p>
+
+<h3 id="hotfix">hotfix</h3>
+<pre><code>/wf intake hotfix &lt;description&gt;
+/wf intake &lt;slug&gt; hotfix &lt;description&gt;</code></pre>
+<p><code>hotfix</code> is the incident-response quick lane for active production emergencies. It has the same single-pass planning shape as <code>fix</code>, plus a hard scope lock, a diagnosis-oriented shape, and a base on the production branch. Its review stage defaults to the <code>security</code> dimension. When the run is slug-attached, it becomes one compressed slice on the named workflow.</p>
+<p><strong>Authors:</strong> <code>01-hotfix.md</code> → <code>02-shape.md</code> → <code>03-slice.md</code> → <code>04-plan.md</code>. <strong>Branch:</strong> <code>hotfix/&lt;slug&gt;</code> off the production branch (suppressed when slug-attached). <strong>Terminus:</strong> gates, then <code>/wf implement &lt;slug&gt;</code>.</p>
+
+<h3 id="refactor">refactor</h3>
+<pre><code>/wf intake refactor &lt;description&gt;
+/wf intake &lt;slug&gt; refactor &lt;description&gt;</code></pre>
+<p><code>refactor</code> is the behavior-preserving quick lane. It captures a behavior baseline as the shape before any code moves. It plans incremental green steps and expects identical behavior after the change. Its review stage defaults to the <code>refactor-safety</code> dimension. When the run is slug-attached, it becomes one compressed slice on the named workflow.</p>
+<p><strong>Authors:</strong> <code>01-refactor.md</code> → <code>02-shape.md</code> → <code>03-slice.md</code> → <code>04-plan.md</code>. <strong>Branch:</strong> <code>refactor/&lt;slug&gt;</code> (opt-in; suppressed when slug-attached). <strong>Terminus:</strong> gates, then <code>/wf implement &lt;slug&gt;</code>.</p>
+
+<h3 id="update-deps">update-deps</h3>
+<pre><code>/wf intake update-deps [description]
+/wf intake &lt;slug&gt; update-deps [description]</code></pre>
+<p><code>update-deps</code> is the dependency-maintenance quick lane. It scans the manifests, researches each dependency, and prioritizes updates into risk tiers. Unlike the other quick lanes, it also self-authors the implement and verify stages, because its tier-ordered execution is specialized. It then routes straight to review and skips <code>/wf implement</code> and <code>/wf verify</code>. When the run is slug-attached, it becomes one compressed slice only.</p>
+<p><strong>Authors:</strong> <code>01-update-deps.md</code> → <code>02-shape.md</code> → <code>03-slice.md</code> → <code>04-plan.md</code> → self-authored <code>05-implement.md</code> / <code>06-verify.md</code>. <strong>Branch:</strong> <code>deps/&lt;slug&gt;</code>. <strong>Terminus:</strong> <code>/wf review &lt;slug&gt;</code>.</p>
+
+<h3 id="rca">rca</h3>
+<pre><code>/wf intake rca &lt;symptom description&gt;
+/wf intake &lt;slug&gt; rca &lt;symptom description&gt;</code></pre>
+<p><code>rca</code> is root-cause analysis for a reported failure whose cause is unknown. Parallel diagnosis sub-agents investigate. The result is a structured RCA with confidence, blast radius, and a suggested fix shape. The result also includes a synthesized minimal shape, so <code>/wf plan</code> can consume the workflow directly. <code>rca</code> never writes a fix. When the run is slug-attached, it becomes one compressed slice without the synthesized shape.</p>
+<p><strong>Authors:</strong> <code>01-rca.md</code> + synthesized <code>02-shape.md</code> + <code>00-index.md</code>. <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — recommends <code>/wf plan</code>, <code>/wf intake fix</code>, <code>/wf intake hotfix</code>, or human triage.</p>
+
+<h3 id="investigate">investigate</h3>
+<pre><code>/wf intake investigate &lt;problem&gt;
+/wf intake &lt;slug&gt; investigate &lt;problem&gt;</code></pre>
+<p><code>investigate</code> sketches solution options for an open design question. It enumerates every genuinely distinct candidate approach grounded in the existing architecture. Up to three approaches are presented as full cards with tradeoffs: scope, blast radius, effort, risk, and reversibility. Further distinct options are recorded compactly. The mode deliberately does not pick a winner; you pick the winner. The mode is read-only: it writes no application code and does no bug diagnosis.</p>
+<p><strong>Authors:</strong> <code>01-investigate.md</code> + <code>00-index.md</code>. <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — you pick an option, then <code>/wf intake</code> or <code>/wf intake fix</code> carries it forward.</p>
+
+<h3 id="discover">discover</h3>
+<pre><code>/wf intake discover &lt;hypothesis&gt;
+/wf intake &lt;slug&gt; discover &lt;hypothesis&gt;</code></pre>
+<p><code>discover</code> tests a hypothesis against the codebase: "is X actually the case?" Parallel sub-agents argue for the hypothesis, argue against the hypothesis, and propose counter-hypotheses. The result is a verdict of <code>holds</code>, <code>partial</code>, <code>fails</code>, or <code>inconclusive</code>, with confidence and cited evidence. The mode is read-only.</p>
+<p><strong>Authors:</strong> <code>01-discover.md</code> + <code>00-index.md</code>. <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — the next step depends on the verdict.</p>
+
+<h3 id="ideate">ideate</h3>
+<pre><code>/wf intake ideate [area]
+/wf intake &lt;slug&gt; ideate [area]</code></pre>
+<p><code>ideate</code> is proactive codebase ideation. It inverts the usual direction and surfaces work you might not have thought to ask for. Parallel sub-agents scan across six lenses: quality, performance, security, DX, feature gaps, and architecture. The sub-agents generate a large candidate pool, adversarially cull the weak ideas, and rank the survivors by impact and effort. Each idea you pick seeds its own new <code>/wf intake</code>.</p>
+<p><strong>Authors:</strong> a lightweight workflow with the <code>01-ideate.md</code> lead only (no build stages). <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — pick ideas, then <code>/wf intake &lt;idea&gt;</code>.</p>
+
+<h3 id="adopt">adopt</h3>
+<pre><code>/wf intake adopt</code></pre>
+<p><code>adopt</code> is the reverse entry. Every other mode assumes the change lies ahead. Adopt reads the change you already made in the working tree and reconstructs the planning-and-execution artifacts from what the code does. It stamps each artifact <code>provenance: adopted</code>, behind a confirm-before-write gate. The workflow lands at verify, so the quality tail (verify, review, handoff) runs over work done outside the pipeline. Adopt is standalone only: it can never attach to a slug, and it is never auto-proposed. It records the current branch and never creates a branch.</p>
+<p><strong>Authors:</strong> <code>01-adopt.md</code> → <code>02-shape.md</code> → <code>03-slice.md</code> → <code>04-plan.md</code> → <code>05-implement.md</code>, all reconstructed. <strong>Branch:</strong> records the current one; never creates one. <strong>Terminus:</strong> <code>/wf verify &lt;slug&gt;</code>.</p>
+
+<h3 id="extension">extension (keywordless)</h3>
+<pre><code>/wf intake &lt;existing-slug&gt; &lt;new scope&gt;
+/wf intake &lt;existing-slug&gt; from-review
+/wf intake &lt;existing-slug&gt; from-retro</code></pre>
+<p>Extension is the one route with no keyword at all: an existing slug followed by free scope text is the signal. Extension adds net-new slices to that workflow, as full per-slice files, never as a compressed slice. Extension never modifies completed work. Scope corrections and follow-on work land here, because built work is never re-specified in place. The <code>from-review</code> and <code>from-retro</code> seeds pull the new scope from findings instead of free text. Extending a closed workflow is valid.</p>
+<p><strong>Authors:</strong> full net-new <code>03-slice-&lt;new&gt;.md</code> file(s) plus a non-destructive master-index update. <strong>Branch:</strong> the workflow's existing one. <strong>Terminus:</strong> <code>/wf plan &lt;slug&gt; &lt;new-slice&gt;</code>.</p>
+
+<h3 id="amend">amend</h3>
+<pre><code>/wf intake &lt;existing-slug&gt; amend &lt;what to change&gt;</code></pre>
+<p><code>amend</code> is a maintenance mode and requires a slug. Amend edits a workflow's recorded <em>configuration</em> in place, against a strict whitelist: branch strategy, branch, base branch, review scope, title, and tags. Amend edits nothing else. Anything outside the whitelist routes elsewhere: new scope is an extension, and wrong behavior is a fix slice. Amend writes no numbered artifact, writes no slice, and never touches built work.</p>
+<p><strong>Authors:</strong> edits to <code>00-index.md</code> and the registry row only. <strong>Branch:</strong> n/a. <strong>Terminus:</strong> whatever the workflow was already doing.</p>
+
+<h3 id="modernize">modernize</h3>
+<pre><code>/wf intake &lt;existing-slug&gt; modernize</code></pre>
+<p><code>modernize</code> is a maintenance mode and requires a slug. Modernize backfills an older workflow's artifacts to the schema the installed plugin now expects: charter, intent-risk ledger, wall-ownership and clearing-event fields on deferrals, and revision ledgers. Modernize is strictly additive: it fills absent fields from what the artifacts already say, and it never rewrites a recorded decision, verdict, or acceptance criterion. Intake also detects schema drift automatically when you extend an old workflow, and it offers modernize then.</p>
+<p><strong>Authors:</strong> additive field backfill across the workflow's existing artifacts. <strong>Branch:</strong> n/a. <strong>Terminus:</strong> the command that resolves the largest remaining gap.</p>
+
+<div class="note">Runtime verification (<code>/wf probe</code>) and read-only triage (<code>/wf simplify</code>) are not intake modes. They act on already-built or existing code, so they are top-level keys of their own.</div>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="commands.html">Commands</a> — the full 21-key catalog that <code>intake</code> belongs to.</li>
+    <li><a href="../guides/choose-your-entry.html">Choose your entry</a> — which mode fits which situation, in prose.</li>
+    <li><a href="../guides/quick-lanes.html">Quick lanes</a> — how fix, hotfix, refactor, and update-deps compress the lifecycle.</li>
+    <li><a href="artifacts.html">Artifacts</a> — what each file these modes author actually contains.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

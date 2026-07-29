@@ -1,189 +1,122 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Skills reference · sdlc-workflow</title>
+<title>Standalone skills · sdlc-workflow</title>
 <link rel="stylesheet" href="../style.css">
 </head>
-<body>
-<button class="menu-toggle" aria-label="Toggle navigation" aria-controls="sidebar" aria-expanded="false">
-  <span class="open-icon" aria-hidden="true">&#9776;</span>
-  <span class="close-icon" aria-hidden="true">&times;</span>
-</button>
-<div class="nav-backdrop" aria-hidden="true"></div>
-<div class="layout">
-<aside id="sidebar">
-<a class="brand" href="../index.html">sdlc-workflow<small>plugin docs · v9.143.0</small></a>
-<nav aria-label="Site navigation">
-  <h4>Orientation</h4>
-  <ul>
-    <li><a href="../index.html" data-href="index.html">Home</a></li>
-    <li><a href="../orientation/is-this-for-me.html" data-href="orientation/is-this-for-me.html">Is this for me?</a></li>
-    <li><a href="../orientation/mental-model.html" data-href="orientation/mental-model.html">How it works</a></li>
-    <li><a href="../orientation/first-10-minutes.html" data-href="orientation/first-10-minutes.html">First 10 minutes</a></li>
-  </ul>
-  <h4>Tutorials</h4>
-  <ul>
-    <li><a href="../tutorials/installation.html" data-href="tutorials/installation.html">Install</a></li>
-    <li><a href="../tutorials/first-workflow.html" data-href="tutorials/first-workflow.html">Full feature walkthrough</a></li>
-    <li><a href="../tutorials/quick-fix-workflow.html" data-href="tutorials/quick-fix-workflow.html">Quick-fix walkthrough</a></li>
-  </ul>
-  <h4>How to&hellip;</h4>
-  <ul>
-    <li><a href="../how-to/choose-a-command.html" data-href="how-to/choose-a-command.html">Choose a command</a></li>
-    <li><a href="../how-to/start-workflow.html" data-href="how-to/start-workflow.html">Pick an entry point</a></li>
-    <li><a href="../how-to/navigate-workflows.html" data-href="how-to/navigate-workflows.html">Navigate workflows</a></li>
-    <li><a href="../how-to/amend-or-extend.html" data-href="how-to/amend-or-extend.html">Amend or extend</a></li>
-    <li><a href="../how-to/use-augmentations.html" data-href="how-to/use-augmentations.html">Use add-ons</a></li>
-    <li><a href="../how-to/use-design.html" data-href="how-to/use-design.html">Use design</a></li>
-    <li><a href="../how-to/triage-pr-comments.html" data-href="how-to/triage-pr-comments.html">Triage PR comments</a></li>
-    <li><a href="../how-to/author-ship-plan.html" data-href="how-to/author-ship-plan.html">Author a ship plan</a></li>
-    <li><a href="../how-to/run-a-release.html" data-href="how-to/run-a-release.html">Run a release</a></li>
-    <li><a href="../how-to/resume-paused-work.html" data-href="how-to/resume-paused-work.html">Resume paused work</a></li>
-    <li><a href="../how-to/close-workflows.html" data-href="how-to/close-workflows.html">Close workflows</a></li>
-  </ul>
-  <h4>Reference</h4>
-  <ul>
-    <li><a href="../reference/glossary.html" data-href="reference/glossary.html">Glossary</a></li>
-    <li><a href="../reference/pipeline.html" data-href="reference/pipeline.html">Pipeline (10 stages)</a></li>
-    <li><a href="../reference/commands.html" data-href="reference/commands.html">Commands</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf.html" data-href="reference/wf.html">↳ /wf</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-quick.html" data-href="reference/wf-quick.html">↳ Quick &amp; standalone</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/wf-design.html" data-href="reference/wf-design.html">↳ /wf design</a></li>
-    <li style="padding-left: 0.7em;"><a href="../reference/review.html" data-href="reference/review.html">↳ /wf review</a></li>
-    <li><a href="../reference/skills.html" data-href="reference/skills.html">Skills</a></li>
-    <li><a href="../reference/artifacts.html" data-href="reference/artifacts.html">Artifacts</a></li>
-    <li><a href="../reference/00-index-schema.html" data-href="reference/00-index-schema.html">00-index schema</a></li>
-    <li><a href="../reference/ship-plan-schema.html" data-href="reference/ship-plan-schema.html">Ship-plan schema</a></li>
-    <li><a href="../reference/08-handoff-schema.html" data-href="reference/08-handoff-schema.html">Handoff schema</a></li>
-    <li><a href="../reference/09-ship-run-schema.html" data-href="reference/09-ship-run-schema.html">Ship-run schema</a></li>
-    <li><a href="../reference/hooks.html" data-href="reference/hooks.html">Hooks</a></li>
-    <li><a href="../reference/serve.html" data-href="reference/serve.html">Serve daemon &amp; hub</a></li>
-    <li><a href="../reference/tray.html" data-href="reference/tray.html">Tray app</a></li>
-    <li><a href="../reference/types.html" data-href="reference/types.html">Artifact types</a></li>
-  </ul>
-  <h4>Explanation</h4>
-  <ul>
-    <li><a href="../explanation/why-this-exists.html" data-href="explanation/why-this-exists.html">Why this exists</a></li>
-    <li><a href="../explanation/artifacts-over-memory.html" data-href="explanation/artifacts-over-memory.html">Artifacts over memory</a></li>
-    <li><a href="../explanation/orchestrator-discipline.html" data-href="explanation/orchestrator-discipline.html">Orchestrator discipline</a></li>
-    <li><a href="../explanation/diataxis-integration.html" data-href="explanation/diataxis-integration.html">Diátaxis integration</a></li>
-    <li><a href="../explanation/branch-strategy.html" data-href="explanation/branch-strategy.html">Branch strategy</a></li>
-    <li><a href="../explanation/adaptive-routing.html" data-href="explanation/adaptive-routing.html">Adaptive routing</a></li>
-    <li><a href="../explanation/augmentations-model.html" data-href="explanation/augmentations-model.html">Augmentations model</a></li>
-    <li><a href="../explanation/idempotency-in-ship.html" data-href="explanation/idempotency-in-ship.html">Idempotency in ship</a></li>
-    <li><a href="../explanation/the-readiness-gate.html" data-href="explanation/the-readiness-gate.html">The readiness gate</a></li>
-    <li><a href="../explanation/build-and-dist.html" data-href="explanation/build-and-dist.html">Build &amp; dist model</a></li>
-  </ul>
-  <h4>Tips</h4>
-  <ul>
-    <li><a href="../tips/escape-hatches.html" data-href="tips/escape-hatches.html">Escape hatches</a></li>
-    <li><a href="../tips/tricks.html" data-href="tips/tricks.html">Tricks</a></li>
-    <li><a href="../tips/anti-patterns.html" data-href="tips/anti-patterns.html">Anti-patterns</a></li>
-    <li><a href="../tips/faq.html" data-href="tips/faq.html">FAQ</a></li>
-  </ul>
-  <h4>Changelog</h4>
-  <ul>
-    <li><a href="../whats-new.html" data-href="whats-new.html">What&#8217;s new</a></li>
-  </ul>
-</nav>
-</aside><main>
-<div class="breadcrumb"><a href="../index.html">Home</a> &rsaquo; Reference &rsaquo; Skills</div>
-<span class="quadrant reference">reference</span>
-<h1>Skills reference</h1>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Standalone skills</h1>
+<p class="lede">This page is the lookup reference for the plugin's skills outside <code>/wf</code>: <code>/consult</code>, <code>/diataxis</code>, and <code>/study-sources</code>. It also covers the two internal skills that design runs mention but that you cannot invoke yourself.</p>
 
-<p class="lede">This page is for when you need to understand how the plugin commands are implemented — for example to debug unexpected behavior or trace why a command ran differently than expected.</p>
+<p>The three user-invocable skills share a family resemblance with the <code>/wf</code> commands: positional arguments, no flags, and a keyword in first position when you want to narrow the run. None of the three belongs to a workflow. You can use any of them in any repository, at any point, with or without an active workflow.</p>
 
-<p>The plugin's behavior lives in a small set of <strong>skills</strong> — self-contained instruction files the model reads and executes. One of them is the <strong>command</strong> (also called a router): <code>/wf</code>, which accepts a key that dispatches to the matching reference file (code review is the <code>/wf review</code> key). The rest are <strong>support skills</strong> the model draws on for focused tasks — <code>consult</code>, <code>imagery</code>, <code>uiproto</code>, <code>diataxis</code>, and <code>study-sources</code>. (Design is no longer its own command-skill — it now lives under <code>/wf</code> as the <code>/wf design</code> sub-command. The former <code>/wf-quick</code>, <code>/wf-meta</code>, <code>/wf-docs</code>, and standalone <code>/review</code> commands are retired; their flows are now <code>/wf</code> keys.)</p>
+<h2 id="consult">/consult — a read-only panel of external models</h2>
 
-<p>The command is run explicitly with a slash — <code>/wf &lt;key&gt;</code>. Support skills are how the model auto-invokes behavior without you typing a slash command; which skills can auto-invoke is covered in <a href="#auto-invoke">Auto-invocation</a> below.</p>
+<p><code>/consult</code> sends a question to one or more external AI models that act as read-only oracles. It brings back their written opinions: a plan critique, a code or implementation review, a design trade-off analysis, a diagnosis, or a second opinion. Ask for one:</p>
 
-<h2>The command and its review key</h2>
+<pre><code>/consult &lt;question&gt;
+/consult codex &lt;question&gt;
+/consult anthropic/claude-opus-4-8 &lt;question&gt;</code></pre>
+
+<h3 id="consult-providers">Provider resolution</h3>
+
+<p>The first token of the arguments decides who answers. A provider keyword (<code>codex</code>, <code>claude</code>, <code>gemini</code>, or <code>openai</code>) pins that provider, and the rest of the line is the question. A <code>&lt;provider&gt;/&lt;model&gt;</code> token (any token that contains a <code>/</code>, such as <code>openai/gpt-5.5</code>) also pins that provider, routed through the Vercel AI Gateway. Otherwise the whole line is the question, and the run fans out to every available provider in parallel. The fan-out is the default.</p>
+
+<p>The providers fall into two classes, and the difference matters when you read the answers:</p>
 
 <table>
-<thead><tr><th>Invocation</th><th>What it covers</th><th>Typical use</th></tr></thead>
+<thead><tr><th>Class</th><th>Providers</th><th>Evidence scope</th><th>Cost</th></tr></thead>
 <tbody>
-<tr><td><code>/wf</code></td><td>21 keys: 10 lifecycle stages · design · probe · simplify · auto · yolo drivers · status · recap · close · ship-plan, docs &amp; observability routers (flag-gating/perf work rides the stages as shape-decided augmentations, not keys)</td><td>Run explicitly: <code>/wf &lt;key&gt; &lt;slug&gt;</code>.</td></tr>
-<tr><td><code>/wf review</code></td><td>34 review dimensions across 7 named sweeps</td><td>Explicit only: <code>/wf review &lt;slug&gt;</code> (stage) or <code>/wf review &lt;dimension&gt;</code> (ad-hoc).</td></tr>
+<tr><td>CLI oracles</td><td><code>codex</code>, <code>claude</code></td><td><em>repo-aware</em>: they run with the repo as working directory and read the live tree themselves</td><td>Free (subscription CLIs, no per-call charge)</td></tr>
+<tr><td>REST oracles</td><td><code>gemini</code>, <code>openai</code>, gateway <code>&lt;provider&gt;/&lt;model&gt;</code></td><td><em>prompt-only</em>: they see nothing but the prompt, so relevant file or diff content is inlined for them</td><td>Billed per-token to your API key on every invocation</td></tr>
 </tbody>
 </table>
 
-<h2>How a command works internally</h2>
+<p>To stay free, pin a subscription CLI: <code>/consult codex &lt;question&gt;</code> or <code>/consult claude &lt;question&gt;</code>.</p>
+<div class="note"><p>A bare fan-out hits <strong>every</strong> available provider, including the paid ones.</p></div>
 
-<p>When you are seeing unexpected output from a command, the dispatch chain is the first place to look. Every command follows the same two-step structure:</p>
+<h3 id="consult-readonly">The read-only guarantee</h3>
 
-<ol>
-  <li>A <code>SKILL.md</code> file at <code>skills/&lt;name&gt;/SKILL.md</code> — the dispatcher. It reads your arguments and decides which sub-command was requested.</li>
-  <li>A <code>reference/</code> directory with one file per sub-command. The dispatcher loads the matching file and the model executes its instructions.</li>
-</ol>
+<p>Consult is advisory only. The dispatched sub-agents can read the repository (Read, Glob, Grep) but cannot edit, write, or run shell commands. The runner spawns the CLI oracles isolated and read-only. The runner script itself enforces this restriction, not only the skill's prose. A consult never writes code and never proposes a patch that it could apply. A consult run produces only its own ephemeral prompt files under <code>.ai/consult/</code>. When the question targets a workflow artifact, the run can also write an optional narrative fragment that embeds the panel beside that artifact.</p>
 
-<p>Example: <code>/wf ship my-feature</code> resolves like this — <code>skills/wf/SKILL.md</code> reads <code>$ARGUMENTS</code>, identifies <code>ship</code>, loads <code>skills/wf/reference/ship.md</code>, and the model follows its 13 steps.</p>
+<h3 id="consult-panel">The panel</h3>
 
-<p>If a command runs the wrong sub-command, check <code>SKILL.md</code> for argument-matching logic. If a step behaves unexpectedly, check the matching reference file under <code>reference/</code>.</p>
+<p>The result is presented as a panel. For each provider that answered, the panel shows its evidence-scope badge (<em>repo-aware</em> or <em>prompt-only</em>), a one-line verdict, and the key points. A one-line consensus-or-divergence read across the panel follows. Providers that were skipped or that failed are named with their reasons. A degraded panel announces itself up front ("Panel of 1 — treat this as one opinion, not a consensus") instead of reading with the confidence of an agreement it never earned. When a prompt-only oracle disagrees with a repo-aware oracle on a repo-specific claim, the synthesis weights the repo-aware opinion more heavily. The synthesis also says when a divergence looks like missing context rather than real dissent. Every run ends with a machine-readable <code>CONSULT_RESULT</code> block that records the providers, the panel size, the verdict, and the cost note.</p>
 
-<h2 id="auto-invoke">Auto-invocation</h2>
+<h3 id="consult-auto">Auto-invocation</h3>
 
-<p>The <code>/wf</code> command never auto-invokes — you must run it explicitly (its skill is marked <code>disable-model-invocation</code>), and that includes the <code>/wf review</code> key. Auto-invocation is a property of the <strong>support skills</strong>: the model may run <code>consult</code> autonomously when a second opinion adds material value, and <code>diataxis</code> auto-invokes on documentation-writing or docs-review requests. The read-only <code>study-sources</code> can also auto-invoke when a task depends on how a real dependency or upstream source actually behaves. The remaining two (<code>imagery</code>, <code>uiproto</code>) are internal helpers: they are loaded by <code>/wf design</code>, not triggered autonomously.</p>
+<p>You do not have to type <code>/consult</code> for it to run. The model auto-invokes the skill at the judgment points that the lifecycle stages call out: plan, shape, design, review, verify, and handoff, and their equivalents inside the <code>/wf auto</code> and <code>/wf yolo</code> drivers. The skill runs whenever a stage's <em>objective</em> trigger fires: a carried intent-risk, a ship-with-caveats verdict, an acceptance criterion that was inferred rather than observed, or a risk-bearing surface. These triggers are written into the stages themselves. A second opinion at those gates is a default action, not a rare one. Every model-initiated run pins a free subscription CLI (<code>codex</code> or <code>claude</code>), so autonomous consults never touch the paid REST oracles. The "use sparingly" caution applies to provider choice, not to frequency. Consult is never triggered by a hook or by page serving. Only a deliberate model or user decision starts a consult.</p>
 
-<h2>Support skills</h2>
+<h2 id="diataxis">/diataxis — standalone documentation work</h2>
 
-<p>Five skills under <code>skills/</code> are not commands. They are focused capabilities the model invokes directly — either on its own, or when a command loads them internally:</p>
+<p><code>/diataxis</code> writes or reviews documentation under the Diátaxis framework. The framework splits documentation into four modes that serve four distinct needs, plus two supporting activities (a planner and a reviewer). Invoke the skill with an optional mode keyword:</p>
+
+<pre><code>/diataxis [tutorial|how-to|reference|explanation|readme|plan|review] &lt;what to document&gt;</code></pre>
+
+<p>The four quadrants, at a glance:</p>
 
 <table>
-<thead><tr><th>Skill</th><th>What it does</th></tr></thead>
+<thead><tr><th></th><th>Practical steps</th><th>Theoretical knowledge</th></tr></thead>
 <tbody>
-<tr><td><code>diataxis</code></td><td>Writes or reviews documentation under the Diátaxis framework — routes a request to the right quadrant (tutorial, how-to, reference, explanation), plus README, doc-planning, and docs-review references. The standalone counterpart to <code>/wf docs</code>.</td></tr>
-<tr><td><code>consult</code></td><td>Read-only multi-model second opinion — plan critique, code review, design analysis, diagnosis. Fans out to all available providers; never edits the repo.</td></tr>
-<tr><td><code>imagery</code></td><td>Generates images from a text prompt, fanning out to all available providers. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
-<tr><td><code>uiproto</code></td><td>Prototypes a UI component or screen as a self-contained, sandboxed HTML fragment. Used internally by <code>/wf design</code>; not directly invocable.</td></tr>
-<tr><td><code>study-sources</code></td><td>Read-only: fetches and reads real upstream and dependency source (installed caches first — <code>node_modules</code>, <code>~/.m2</code>, Gradle/Android/Go/Rust/.NET/Ruby/PHP/Swift/Dart — else clones into a gitignored <code>.scratch/</code>) so knowledge comes from actual code. Never enters the repo's git history; wired lifecycle-wide.</td></tr>
+<tr><td><strong>Serving study</strong> (acquiring skill)</td><td>Tutorial — learning-oriented</td><td>Explanation — understanding-oriented</td></tr>
+<tr><td><strong>Serving work</strong> (applying skill)</td><td>How-to — task-oriented</td><td>Reference — information-oriented</td></tr>
 </tbody>
 </table>
 
-<details>
-<summary><strong>Advanced toggles</strong></summary>
+<p>The one rule the skill enforces is <strong>boundary discipline</strong>: each page serves exactly one mode. The most common documentation failure is a mixed page, for example a tutorial mixed with reference tables, or a how-to padded with conceptual background. The skill therefore classifies the request first, then writes to that mode. If your request opens with an explicit mode keyword, the classification is skipped. If your request is ambiguous or spans a whole docs set, the request routes through the planner first. Beyond the four quadrants, <code>readme</code> handles front-door pages, <code>plan</code> maps a docs structure, and <code>review</code> audits existing docs against the framework.</p>
 
-<p>The <code>wf</code> command sets <code>disable-model-invocation: true</code> in its skill frontmatter. This flag prevents the model from calling the command without an explicit slash. The <code>review</code> command omits this flag, which is why it can auto-invoke.</p>
+<div class="note"><p><strong>When to use <code>/wf docs</code> instead.</strong> This skill is the general-purpose, standalone documentation surface: any repo, any docs request, outside a workflow. <code>/wf docs</code> is the lifecycle-bound counterpart. It writes documentation as <code>.ai/</code> workflow artifacts with frontmatter and index bookkeeping, and in workflow mode it fulfills the shape stage's Documentation Plan. The Diátaxis discipline is the same; the home is different. A request to document a slug or a shipped feature inside an active workflow belongs to <code>/wf docs</code>. Every other documentation request belongs to <code>/diataxis</code>.</p></div>
 
-<p>If you are troubleshooting a command that ran when you did not expect it to, check its <code>SKILL.md</code> frontmatter for this key. If you are troubleshooting a command that did not run when you expected auto-invocation, the same key — or the triggering <code>description</code> field — is where to look.</p>
-</details>
+<h2 id="study-sources">/study-sources — read real upstream source</h2>
+
+<p><code>/study-sources</code> grounds your work in real upstream source code rather than recalled API shapes. Some tasks turn on how a library, framework, or SDK actually behaves: an exact function signature, an edge case, an error string, or a version-specific change. For those tasks, this skill fetches the source so the source can be read instead of guessed at. The skill accepts three source forms:</p>
+
+<dl class="cmd-grid">
+<dt><code>/study-sources &lt;git-url&gt; &lt;what to learn&gt;</code></dt>
+<dd>A Git host URL (GitHub, GitLab, Bitbucket, and so on) is treated as a clone request. The clone is shallow (<code>--depth 1</code>), sparse for large monorepos, and at the tag that matches the version the project resolved.</dd>
+<dt><code>/study-sources &lt;package&gt;@&lt;version&gt; &lt;what to learn&gt;</code></dt>
+<dd>A package coordinate routes to that ecosystem's fetch path (source JARs, <code>pip download</code>, <code>npm pack</code>, <code>cargo vendor</code>, and so on).</dd>
+<dt><code>/study-sources &lt;ecosystem&gt; &lt;what to learn&gt;</code></dt>
+<dd>An ecosystem keyword routes to that ecosystem's reference directly. With no keyword at all, the skill infers the ecosystem from the project's manifests.</dd>
+</dl>
+
+<p>Two habits make the skill reliable. First, the skill <strong>reads what is installed before it clones</strong>. Most ecosystems already cache decompressed source locally: <code>node_modules/</code>, <code>~/.m2</code>, the Gradle, Cargo, NuGet, and Go module caches, Python <code>site-packages</code>, and the Android SDK's <code>sources/</code>. To read the version the project actually resolved is faster and more correct than to clone an upstream <code>main</code> that may be ahead of the pinned release. The network is a fallback, used only when the source is not already on disk.</p>
+
+<p>Second, <strong>everything fetched lands in <code>.scratch/</code></strong>, a gitignored directory, with one sub-folder per source (for example <code>.scratch/sources/&lt;ecosystem&gt;/&lt;name&gt;@&lt;version&gt;/</code>). Cloned repos and unpacked archives therefore never pollute the working tree, <code>git status</code>, or the project's history. If <code>.scratch/</code> is not yet ignored, the skill adds it to <code>.gitignore</code> before it fetches.</p>
+
+<p>The skill is <strong>read-only</strong>: it fetches source to study, never to build, install, run, or execute. To pull a dependency down in order to run it is a dependency-adoption task, not a study task, and is out of scope. The skill is available at any lifecycle stage or with no workflow at all.</p>
+
+<h2 id="internal">The two internal skills</h2>
+
+<p>Two more skills ship with the plugin but are not user-invocable. You will see them named in <code>/wf design</code> output, and that is the only place they run:</p>
+
+<dl class="cmd-grid">
+<dt><code>imagery</code></dt>
+<dd>Generates images from a text prompt. It fans out to the available providers (the built-in <code>image_gen</code> tool, gpt-image-2, nano-banana) to produce a variant set, or produces a single image when a provider is pinned. Generated images land in <code>.ai/design-probes/</code> and are embedded as data-URI fragments beside the design artifact. <code>/wf design</code> uses imagery for visual-contract mocks. The imagery result sets the image-gate line that every design run reports.</dd>
+<dt><code>uiproto</code></dt>
+<dd>Prototypes a UI component or screen from a prompt. It fans out to Google Stitch and an LLM HTML generator side by side, or to one of the two when a provider is pinned. The result is a self-contained HTML fragment embedded in a sandboxed <code>&lt;iframe srcdoc&gt;</code> next to the design artifact, so a full generated screen's CSS cannot leak into the page. The Stitch engine needs <code>STITCH_API_KEY</code> and <code>STITCH_PROJECT_ID</code> in the environment.</dd>
+</dl>
+
+<h3 id="external-dispatch">The consent gate: <code>externalDispatch.enabled</code></h3>
+
+<p>Both internal skills send your prompt to third-party services. Both are therefore gated behind a single machine-wide consent flag: <code>externalDispatch.enabled</code> in <code>~/.sdlc/hub-config.json</code>. The flag is <strong>off by default</strong>. Until you turn the flag on, imagery falls back to its no-egress paths (the built-in <code>image_gen</code> tool and a text-only fallback). Until you turn the flag on, uiproto stops with a one-line opt-in notice, because uiproto has no no-egress fallback. The skill runner scripts re-check the flag themselves, so a direct script invocation cannot bypass the flag.</p>
+
+<p><code>/consult</code> is deliberately <em>not</em> behind this gate. Consult runs on demand, and its cost discipline is the free-CLI pinning rule described above, not a consent flag. The read-only sandbox around consult's sub-agents is independent of consent and always applies.</p>
 
 <div class="related">
-<h3>Where next</h3>
-<ul>
-  <li><a href="commands.html">See all command surfaces and sub-commands →</a></li>
-  <li><a href="glossary.html">Look up any term used on this page →</a></li>
-  <li><a href="../tutorials/first-workflow.html">Run your first workflow end-to-end →</a></li>
-</ul>
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../reference/commands.html">Commands</a> — the full <code>/wf</code> key reference, including <code>/wf docs</code> and <code>/wf design</code>.</li>
+    <li><a href="../reference/configuration.html">Configuration</a> — where <code>externalDispatch.enabled</code> lives, and every other knob.</li>
+    <li><a href="../guides/design.html">Design</a> — how <code>/wf design</code> uses imagery and uiproto in practice.</li>
+    <li><a href="../concepts/evidence-and-gates.html">Evidence and gates</a> — the judgment points where consult auto-invocation fires.</li>
+  </ul>
 </div>
-
-<div class="pager"><a class="prev" href="../reference/review.html"><span>← Previous</span>/wf review</a><a class="next" href="../reference/artifacts.html"><span>Next →</span>Artifacts</a></div></main>
-</div>
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-  mermaid.initialize({ startOnLoad: true, theme: dark ? "dark" : "default" });
-
-  // Mark active sidebar link based on current path
-  const here = location.pathname.split("/").slice(-2).join("/").replace(/^\//, "");
-  document.querySelectorAll("#sidebar a[data-href]").forEach(a => {
-    if (a.dataset.href === here || (here === "" && a.dataset.href === "index.html")) {
-      a.classList.add("active");
-    }
-  });
-
-  // Mobile drawer toggle
-  const toggle = document.querySelector(".menu-toggle");
-  const backdrop = document.querySelector(".nav-backdrop");
-  const setOpen = (open) => {
-    document.body.classList.toggle("nav-open", open);
-    if (toggle) toggle.setAttribute("aria-expanded", open ? "true" : "false");
-  };
-  if (toggle) toggle.addEventListener("click", () => setOpen(!document.body.classList.contains("nav-open")));
-  if (backdrop) backdrop.addEventListener("click", () => setOpen(false));
-  document.querySelectorAll("#sidebar a").forEach(a => a.addEventListener("click", () => setOpen(false)));
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setOpen(false); });
-</script>
+</main>
+<script src="../nav.js"></script>
 </body>
 </html>
