@@ -187,6 +187,56 @@ applies, and the deploy target is recorded in the verify artifact.
 
 Both `wf-verify` (per-slice gate) and `$wf probe` (slug-wide sweep) climb this ladder. `plan`'s `## Verification Strategy` records, per AC, the rung it expects to reach and what must be built to get there; `verify` executes against that plan and records the rung actually reached.
 
+## Surface enumeration ladder (climb before driving)
+
+A sweep's coverage claim needs a **denominator**: what surface exists, not only
+what was reached. A per-adapter `Enumerate` recipe is the top rung, not the only
+one — an adapter with no recipe is **NOT unsupported**. Climb down and RECORD
+the rung reached, exactly as the constraint-resolution ladder does for
+environment walls. Silent degradation is the failure to prevent: an unqualified
+`enumerated: 5` from a run that merely reached five things is a claim the method
+cannot support.
+
+| Rung | `enumeration-method` | Method | Denominator quality |
+|---|---|---|---|
+| 1 | `recipe` | The adapter's `Enumerate` section | Authoritative — from a declared source |
+| 2 | `static` | Read the app's navigation/route model in source with no recipe | Authoritative if the model is centralized; misses dynamic destinations |
+| 3 | `traversal` | Bounded breadth-first drive from the entry point, recording distinct states | **A FLOOR, not a total** — cannot know what it never found a door to |
+| 4 | `named` | The caller supplies the surface list | As good as the list |
+
+Rungs 2-3 need no per-platform authoring, so **every adapter in this registry
+can be swept from day one** at a declared, lower-confidence denominator. A
+`traversal` run states that its count is a floor **wherever the count is
+rendered** — in the artifact and in the chat return, not only one of them.
+
+Two independent axes, kept separate because they have different cures: *can the
+surface be driven* (bootstrap, `bootstrap-failure`) versus *is its correctness
+decidable by watching* (`_surface-defects.md` → Decidability boundary). A
+missing `Enumerate` recipe is a tooling gap that degrades a number; a continuous
+real-time surface is a method gap that invalidates the answer.
+
+## Perturbation protocol (shared across all adapters)
+
+Some defect classes cannot be found by driving a healthy system —
+`dependency-collapse` and `branch-gap` in particular. Perturbation induces the
+failure branch instead of waiting for it. It is the runtime generalization of
+the direction rule for prove-fail-closed criteria: a green happy path does not
+exercise a guard.
+
+Bounded by **authority, not effort** — the same boundary as the env-remediation
+rung above, which this cites rather than restates:
+
+- **One dependency at a time.** Two simultaneous faults produce an unattributable
+  observation.
+- **Always reversible, always restored** before teardown. Record the
+  perturbation AND the restore in evidence.
+- **Never state the run does not own.** Do not stop a process the run did not
+  start, mutate host configuration, or edit product code to induce a fault.
+- **Never against a shared or production backend without explicit
+  authorization.** Inducing a failure is a different act from observing one.
+  Absent authorization, perturb only harness-owned dependencies and record what
+  was skipped.
+
 ## Evidence protocol (shared across all adapters)
 
 1. For each criterion or probe target, produce: a screenshot or output capture, a pass/fail determination, and a brief explanation of what was observed.
@@ -216,6 +266,13 @@ Both `wf-verify` (per-slice gate) and `$wf probe` (slug-wide sweep) climb this l
 1. **Probe for a running dev server** — `curl -sI http://localhost:<port>` against the project's documented port (read from config or `README.md`). If the server already responds, skip to drive.
 2. **Start the dev server** — run `npm run dev` / `yarn dev` / `pnpm dev` (or the equivalent from `package.json scripts`) in the background. Wait for the server to bind (poll the port up to 30 seconds).
 3. **Resolution attempts before failing:** if the start command exits non-zero, try `npm install` (or yarn/pnpm equivalent) once and retry the start. If that still fails, surface `bootstrap-failure: { step: dev-server-start, ... }`.
+
+## Enumerate
+Inventory routes **before** driving (see the enumeration ladder above).
+1. **Recipe rung** — read the router manifest: Next.js `app/`/`pages/` tree, React Router route config, Vue/Nuxt routes, Rails `routes.rb`, Django `urls.py`, or a generated `sitemap.xml`.
+2. **Static rung** — no central manifest: grep for route-registration calls and collect their path literals.
+3. **Traversal rung** — bounded breadth-first crawl from the entry URL, same-origin only, recording distinct rendered routes. The count is a FLOOR.
+Record dynamic segments once per template (`/post/:id`), not once per instance.
 
 ## Drive — candidate tools
 
@@ -276,6 +333,13 @@ If configured in the project, run existing Playwright test suites or write inlin
 ## Cross-browser sweep (MANDATORY for web adapter — Gap 7 fix)
 After verifying all criteria in the primary browser, re-drive each criterion in at least one additional browser. Playwright supports Chromium, Firefox, and WebKit natively — switch engines via the driver's browser-selection mechanism. If using a different driver (dev-browser, Cypress, WebdriverIO), use its equivalent cross-browser capability. Compare the secondary browser's screenshots against the primary for each criterion. Report any divergence — layout breakage, missing elements, different rendering, different interaction behaviour — under `## Cross-Browser Delta`. Divergences are HIGH issues. If a third browser is available, add a third pass. Record which browsers were used under `adapters-used`.
 
+## Perturb
+Break exactly one dependency, re-observe, restore (see the perturbation protocol above).
+- **Offline** — CDP `Network.emulateNetworkConditions` offline, or Playwright `context.setOffline(true)`.
+- **One route failing** — intercept a single XHR/fetch route and return 500, or an empty body, leaving the rest healthy.
+- **Slow dependency** — throttle one request to expose a missing timeout.
+Watch for `dependency-collapse` (unrelated surface blanking) and `branch-gap` (a guarantee that only rendered on success).
+
 ## Tear down
 - If this run started the dev server (i.e., it was not already running at bootstrap), terminate the background process.
 - Stop all video recordings before teardown — Playwright finalizes video files on context close (`await context.close()`).
@@ -326,6 +390,13 @@ Surface these only if they appear in `stack.available-skills` / `stack.available
 3. **Build and install the app** — `./gradlew installDebug` (or the project's equivalent). Resolution attempt before failing: if `installDebug` fails on signing or stale dex, try `./gradlew clean installDebug` once.
 4. **Launch the app** — `adb shell am start -n <package>/<launcher-activity>` (read package + activity from `AndroidManifest.xml`).
 
+## Enumerate
+Inventory destinations **before** driving (see the enumeration ladder above).
+1. **Recipe rung** — read the navigation model: `NavHost` composable destinations, the route enum / sealed class, the bottom-nav or drawer roster, and `AndroidManifest.xml` exported activities plus deep-link intent filters.
+2. **Static rung** — no central graph: grep for `composable(` / `startActivity(` targets and collect destination literals.
+3. **Traversal rung** — drive from launcher, `adb shell uiautomator dump` at each state, and record distinct screens reached. The count is a FLOOR.
+Note whether a destination is a tab root or a detail route — a tab that maps to another tab's root is a product observation, not a defect.
+
 ## Drive
 
 **Climb the Android ladder — device-free rungs first.** Before booting an emulator or driving Maestro, cover what the device-free rungs can: **Robolectric** for unit + Compose-interaction ACs (gesture dispatch, callback wiring, state machines) and **Roborazzi** for device-free screenshot goldens (visual fidelity, layout, theming). Climb to an AVD + Maestro / instrumented run only for what those cannot reach (live pointer routing, multi-touch, wall-clock timing), and to a real device for hardware-specific behavior. "No emulator/device available" *caps* the climb — it is not a license to skip the device-free rungs that **do** run on this host.
@@ -343,6 +414,13 @@ Surface these only if they appear in `stack.available-skills` / `stack.available
 - **Logcat** — `adb logcat -d *:E` filtered to the app's package (`--pid=$(adb shell pidof <package>)`). Capture errors only by default; capture full output (`*:V`) when investigating a crash.
 - **Maestro test reports** — Maestro writes to `~/.maestro/tests/` by default; copy the relevant run report into evidence.
 - **Maestro assertions** — `assertVisible`, `assertNotVisible`, `assertText` produce structured pass/fail in the test output; capture and quote them.
+
+## Perturb
+Break exactly one dependency, re-observe, restore (see the perturbation protocol above).
+- **Offline** — `adb shell cmd connectivity airplane-mode enable`, re-observe, then `... disable`. Always restore.
+- **One collection unreadable** — where the harness owns the backing rules/fixtures, deny a single collection and leave the rest readable. Never mutate rules the run does not own.
+- **Backing service down** — stop a harness-started local emulator/service, not a process the run did not start.
+The canonical catch: a screen whose local-only state dies with an unrelated remote read.
 
 ## Tear down
 - If this run booted the emulator (i.e., none was running at bootstrap), shut it down: `adb emu kill`.
@@ -394,6 +472,13 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 2. **Boot a simulator (runtime boots without a window)** — list available with `xcrun simctl list devices available`. Boot the first iPhone device: `xcrun simctl boot "<device-name>"`. This boots the simulator **runtime** — it does not need a display, and `xcrun simctl io booted screenshot` reads its framebuffer directly. `open -a Simulator` only opens the *visible window* onto that runtime; run it **only** when a display is attached and you want a live window (skip it in a background subagent / headless host — the boot above is sufficient to build, install, drive via `simctl`, and screenshot). "No display" therefore never blocks this adapter; a missing simulator *runtime* does.
 3. **Build and install** — `xcodebuild` or `flutter run --debug` or `react-native run-ios`. Resolution attempt before failing: if `xcodebuild` fails on missing pods, try `cd ios && pod install && cd ..` once.
 
+## Enumerate
+Inventory destinations **before** driving (see the enumeration ladder above).
+1. **Recipe rung** — read the navigation model: SwiftUI `navigationDestination` / `NavigationLink` targets, `UITabBarController` items, storyboard segues, and `Info.plist` URL schemes.
+2. **Static rung** — grep for pushed/presented view-controller types and collect them.
+3. **Traversal rung** — drive from launch via XCUITest or Maestro, screenshot each state, record distinct screens. The count is a FLOOR.
+`ios` ships no recipe-rung automation beyond reading source; rungs 2-3 are the normal path and are fully supported.
+
 ## Drive
 - **Preferred — existing XCUITest or Detox flows.** Run with `xcodebuild test -scheme <scheme>` or `detox test`.
 - **Fallback — simctl interactions.** Limited compared to Android adb:
@@ -405,6 +490,12 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 - **Screenshots** — `xcrun simctl io booted screenshot <evidence-dir>/<slug>.png`. **Read the screenshot** to confirm the expected state.
 - **Console logs** — `xcrun simctl spawn booted log stream --predicate 'process == "<app-name>"'` (run as a background capture, terminate after the criterion completes).
 - **Crash reports** — `~/Library/Logs/DiagnosticReports/` for the host; `xcrun simctl get_app_container booted <bundle-id>` to locate app container logs.
+
+## Perturb
+Break exactly one dependency, re-observe, restore (see the perturbation protocol above).
+- **Offline** — Network Link Conditioner's 100% Loss profile, or stop the harness-started backing service.
+- **One route failing** — a local stub server returning 500 for a single path.
+Restore before teardown and record both the perturbation and the restore.
 
 ## Tear down
 - If this run booted the simulator, shut it down: `xcrun simctl shutdown booted`.
@@ -439,6 +530,13 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 2. **Locate the executable** — record the path so observe can invoke it directly (`./target/debug/<name>`, `./<name>` after `go build`, `node_modules/.bin/<name>`, etc.).
 3. **Resolution attempt before failing:** if the build fails, run `<tool> --version` to confirm the toolchain is installed; surface a clear error if not.
 
+## Enumerate
+Inventory the command tree **before** driving (see the enumeration ladder above).
+1. **Recipe rung** — read the declared command registry: `package.json` `bin`, a Click/Typer/Cobra/clap command tree, or a generated completion script.
+2. **Static rung** — recursive `--help` walk: parse subcommands out of the top-level help, then recurse into each. Bound the depth and record it.
+3. **Traversal rung** — same walk when help output is unstructured, recording every subcommand that responds. The count is a FLOOR.
+Enumerate **flags per command** as well as commands — `dead-affordance` on a CLI is usually a flag, not a subcommand.
+
 ## Drive
 - Run the binary with the inputs implied by the criterion or probe target.
 - For interactive CLIs, use `expect` or pipe stdin: `echo "<input>" | <binary> <args>`.
@@ -449,6 +547,13 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 - **Exit code** — non-zero is a strong signal but not the only signal; some CLIs return zero and emit errors on stderr.
 - **Output format** — for criteria that declare output structure (e.g., JSON, table format), parse and validate the structure, not just substring presence.
 - **Error cases (when probe target asks)** — test wrong arguments, missing files, permission errors. Capture each.
+
+## Perturb
+Break exactly one dependency, re-observe, restore (see the perturbation protocol above).
+- **Missing optional config** — move a config file aside, run, move it back. An *optional* source that aborts the command is `dependency-collapse`.
+- **Unset a required env var** — check the error is a message, not a traceback (`error-surface-leak`).
+- **No network** — run with the network dependency unreachable; check for a timeout, not a hang (`terminal-wait`).
+- **Non-tty** — pipe stdout to a file; check `--json` and exit codes still hold (`branch-gap`).
 
 ## Tear down
 - Delete any temporary input fixtures created under `<evidence-dir>/inputs/`.
@@ -484,6 +589,12 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 3. **Headless host (no display)** — a GUI app started from a background subagent, SSH, or CI has no display to draw into. On **Linux**, wrap the launch and the whole drive in a virtual framebuffer: `xvfb-run -a <launch/test command>` (Electron + Playwright-for-Electron run cleanly under Xvfb, and `page.screenshot()` reads the offscreen surface). On **macOS / Windows**, a native GUI app genuinely needs an interactive desktop session — that (not a missing display flag) is the real wall, so if none is available, defer with the recorded launch failure after climbing any device-free rungs (unit/component tests) first. Do NOT record "no display" as the residual until `xvfb-run` (Linux) has been attempted.
 4. **Resolution attempt before failing:** retry once after `npm install` / `cargo build` if the launch fails.
 
+## Enumerate
+Inventory windows and menus **before** driving (see the enumeration ladder above).
+1. **Recipe rung** — read the menu template (Electron `Menu.buildFromTemplate`, Tauri menu builder) and the window/route registry.
+2. **Static rung** — grep for window-creation calls and renderer route literals.
+3. **Traversal rung** — walk the menu tree in the running app, recording each reachable window and dialog. The count is a FLOOR.
+
 ## Drive
 - **Electron** — Playwright for Electron exposes the same Page API as web. Use it for click/type/screenshot.
 - **Tauri** — drive via the webview side using a Playwright connection if the app exposes one; otherwise fall back to OS-level automation (PyAutoGUI, Robot Framework with imagebased keywords).
@@ -492,6 +603,12 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 ## Observe
 - **Screenshots** — Playwright `page.screenshot()` for Electron; OS-level screen capture (`screencapture` on macOS, `gnome-screenshot` on Linux, `Snipping Tool` programmatic on Windows) for native.
 - **Logs** — application log file location varies; check `~/Library/Logs/<app>/` (macOS), `%APPDATA%\<app>\logs\` (Windows), `~/.config/<app>/logs/` (Linux).
+
+## Perturb
+Break exactly one dependency, re-observe, restore (see the perturbation protocol above).
+- **Offline** — disconnect the app's backing service (harness-owned only).
+- **Missing config / first-run state** — launch against a fresh profile directory.
+Restore the original profile before teardown.
 
 ## Tear down
 - Quit the application: `osascript -e 'quit app "<name>"'` (macOS), equivalent on other OSes.
@@ -524,6 +641,13 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 3. **Wait for readiness** — poll the health endpoint up to 60 seconds.
 4. **Resolution attempt before failing:** if start fails, check that required environment variables are set; surface them in the failure hint.
 
+## Enumerate
+Inventory routes **before** driving (see the enumeration ladder above).
+1. **Recipe rung** — read `openapi.yaml` / `openapi.json` paths, or the framework route table (`app.get(...)`, FastAPI decorators, Spring mappings, Rails routes).
+2. **Static rung** — grep for handler registrations and collect method+path literals.
+3. **Traversal rung** — a documented discovery endpoint if one exists (`/__routes`, a gateway listing). The count is a FLOOR.
+Record method+path pairs, not paths alone — `GET /x` and `DELETE /x` are separate surfaces.
+
 ## Drive
 
 **Verify the layer the AC is about (integration-blindspot guard).** When a user-observable AC asserts live integration behavior — a real query, a rules / permission check, an index-backed lookup — a mock-backed unit test is necessary but **not sufficient**, and `convergence: converged` on green mocks is a false pass. Climb to the local emulator suite (Firebase / Firestore emulator) or testcontainers so the **real query path** runs; that is the rung that catches the missing composite index, the swallowed exception, and the rules regression mocks hide. Defer the live path only when it is genuinely creds-gated (prod OAuth, a real third-party session) — and name that residual.
@@ -537,6 +661,13 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 - **Response status codes** — record per request.
 - **Response headers** — capture for security-sensitive criteria (CORS, CSP, cache-control).
 - **Service logs** — tail the application log during the drive phase; capture log lines emitted in the relevant time window.
+
+## Perturb
+Break exactly one dependency, re-observe, restore (see the perturbation protocol above).
+- **One dependency down** — stop a harness-started dependency container (never a process the run did not start); check the blast radius is scoped to routes that need it.
+- **One dependency slow** — introduce latency to expose a missing downstream timeout.
+- **Malformed input** — a single bad field; check the error names the field without leaking internals.
+Watch for `dependency-collapse` (every route 500s) and `branch-gap` (headers only on 200).
 
 ## Tear down
 - If this run started the service, stop it: `docker compose down`, kill the background process, etc.
@@ -567,6 +698,12 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 1. **Ensure the kernel is installed** — `jupyter kernelspec list`.
 2. **For papermill execution (preferred):** `pip install papermill` if not present.
 
+## Enumerate
+Inventory the executable surface **before** driving (see the enumeration ladder above).
+1. **Recipe rung** — read the cell graph and the papermill parameter cell: every parameter is a surface dimension.
+2. **Static rung** — collect cell boundaries and their declared inputs/outputs.
+3. **Traversal rung** — execute end-to-end and record which cells produced output. The count is a FLOOR.
+
 ## Drive
 - **Execute notebooks programmatically** — `papermill <notebook>.ipynb <output>.ipynb -p <param> <value>` to parameterize and run.
 - **Validate notebook contents** — `jupyter nbconvert --to script <notebook>.ipynb` and inspect output cells.
@@ -575,6 +712,11 @@ The matching rule: a hint is *relevant* if (a) the skill name appears in `stack.
 - **Output cells** — read the executed notebook's cell outputs; flag any cell with errors.
 - **Plots** — image outputs are embedded in the executed notebook; extract for visual inspection.
 - **Runtime** — record execution time per cell when the criterion is performance-related.
+
+## Perturb
+Break exactly one dependency, re-observe, restore (see the perturbation protocol above).
+- **Missing input dataset** — point a parameter at an absent path; check the failure is diagnosable, not a bare traceback deep in a cell.
+- **Empty input** — a zero-row frame; check downstream cells degrade rather than emitting `fabricated-value` defaults.
 
 ## Tear down
 - Delete intermediate executed notebooks under `<evidence-dir>/` after capturing the relevant outputs.

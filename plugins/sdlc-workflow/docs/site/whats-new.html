@@ -14,7 +14,7 @@
 <div class="nav-backdrop" aria-hidden="true"></div>
 <div class="layout">
 <aside id="sidebar">
-<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.141.0</small></a>
+<a class="brand" href="index.html">sdlc-workflow<small>plugin docs · v9.142.0</small></a>
 <nav aria-label="Site navigation">
   <h4>Orientation</h4>
   <ul>
@@ -94,11 +94,8 @@
 <h1>What's new</h1>
 
 <p class="lede">
-User-facing highlights since v9.11, up to v9.138. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
+User-facing highlights since v9.11, up to v9.132. Each entry links to the relevant reference page for details. The full technical changelog is in <a href="https://github.com/jayteealao/agent-skills/blob/master/plugins/sdlc-workflow/CHANGELOG.md">CHANGELOG.md</a>.
 </p>
-
-<h2>v9.138.0 — Handoff/ship hardening: fix what feeds the gates</h2>
-<p>A five-project audit of real handoff/ship runs showed the gates fire correctly — the failures live upstream. This release makes handoff's readiness verdict consume GitHub's own merge gate (<code>mergeStateStatus</code>) and catch already-released version identities; persists ship-plan drift acknowledgements in a fingerprinted ledger so an answered question never re-fires verbatim; teaches ship's clean-tree gate to classify dirty paths (seeded files, bookkeeping per a recorded <code>artifactTracking</code> policy, unreviewed build output) instead of blanket-stopping; makes <code>ship-plan build</code> validate version-literal consistency, graph integrity, and provisioning — scaffolding unprovisioned gates inert so the next release stays green — and route its outputs through review; fixes yolo's false HARD-STOPs (AC-key normalization, skipped-slice filtering, PO-authorized deferrals); and adds evidence-direction rules (a fail-closed AC is never cleared by a green run; a skipped check records <code>skip</code>, never <code>pass</code>). See <a href="reference/wf.html">&#47;wf reference →</a></p>
 
 <h2>v9.132.0 — <code>/wf observability</code>: a project-level observability router</h2>
 <p>Observability graduates from an in-workflow augmentation to its own key. <code>/wf observability init</code> inventories the repo's current logging, metrics, and analytics, reads the ship plan, and consultatively authors <code>.ai/observability.md</code> (schema, sampling, redaction, pipeline, backend, dashboards — language-agnostic); <code>build</code> realizes it (emit-layer adapters, collector and pipeline config, backend IaC, dashboards-as-code — every remote or billable step gated); <code>audit</code> runs a read-only soundness sweep into <code>.ai/observability-audit.md</code>. The retired <code>setup-wide-logging</code> command is dissolved into <code>/wf observability build</code>. See <a href="reference/commands.html">Commands →</a></p>

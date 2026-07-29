@@ -3,7 +3,7 @@ const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
   renderHistoryBlock
-} from "../chunk-M6CLINUL.mjs";
+} from "../chunk-6NGD2NSW.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,7 +13,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-MTP3SXLH.mjs";
+} from "../chunk-HIXBGEPZ.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";

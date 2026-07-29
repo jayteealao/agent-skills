@@ -1,6 +1,15 @@
 # Surface Sweep Plan — a defect-taxonomy mode for `/wf probe`
 
-Status: PROPOSED — not started
+Status: **BUILT 2026-07-29 — W1–W6 all landed, unreleased.** 761 tests green in
+the main tree (was 736; `tests/unit/skills/surface-sweep.test.mjs` adds 25),
+23/23 in the codex tree including `verify-claudisms`. Both trees carry the
+change. **No version bump yet** — a release is a shared act and a concurrent
+session was committing in this tree during the build.
+Built: new `skills/wf/reference/_surface-defects.md` (both trees) · `probe.md`
++46 lines (both) · `runtime-adapters.md` +142/+143 lines, 7 `Enumerate` and 7
+`Perturb` sections plus the shared enumeration ladder and perturbation protocol
+(both) · `SKILL.md` probe row (both) · taxonomy cited from `review/reliability`,
+`review/correctness`, `review/ux-copy` and `verify.md` (both).
 Source: the 2026-07-24 Playster `/wf probe editorial-reader-redesign` transcript
 (session `640d82d2`, 18:23 → 20:46 UTC, ~198 assistant actions, 12 findings,
 51 evidence files) — a free-text "drive the entire app surface" probe run on a

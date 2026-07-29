@@ -21,6 +21,10 @@ args:
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+> **Runtime defect classes.** The `fabricated-value` and `branch-gap` classes in
+> [_surface-defects.md](../_surface-defects.md) cover correctness defects that only show on a running
+> surface (a statistic derived from a constant; a guarantee present only in the happy branch).
+
 # ROLE
 You are a correctness reviewer. Your job is to identify logic flaws, broken invariants, edge-case failures, and "works in happy-path only" code.
 

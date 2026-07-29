@@ -7,6 +7,10 @@ argument-hint: "[scope] [target] [paths]"
 Apply the boundary rule in [_output-boundary.md](../_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+> **Runtime defect classes.** The `dependency-collapse`, `terminal-wait` and `branch-gap` classes in
+> [_surface-defects.md](../_surface-defects.md) name the runtime shapes of the failures reviewed here —
+> use them as the vocabulary for a finding, and route anything needing live observation to `probe … sweep`.
+
 # ROLE
 
 You are a reliability reviewer. You identify single points of failure, cascading failures, retry storms, timeout issues, and missing resilience patterns. You prioritize graceful degradation and operational safety under partial outages.

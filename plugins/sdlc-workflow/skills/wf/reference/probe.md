@@ -1,6 +1,6 @@
 ---
-description: Runtime-truth verification — drives a running artifact through acceptance criteria (or a free-form target), captures observable output, reads it, compares against AC text, and writes findings as a compressed slice. Slug-mode only. Sibling of rca (static diagnosis); probe is runtime detection. Does NOT write a fix.
-argument-hint: <slug> [target]
+description: Runtime-truth verification — drives a running artifact through acceptance criteria (or a free-form target), captures observable output, reads it, compares against AC text, and writes findings as a compressed slice. Two modes: TARGET (compare to AC text) and `sweep` (exhaustive surface fan-out compared to AC + charter constraints + the shared defect taxonomy; runs with or without a slug). Sibling of rca (static diagnosis); probe is runtime detection. Does NOT write a fix.
+argument-hint: <slug> [target|sweep] | sweep [path]
 ---
 
 # External Output Boundary (MANDATORY)
@@ -50,6 +50,9 @@ The dispatcher has consumed the first positional argument (the slug). What remai
 |---|---|
 | `(empty)` | Slug-wide sweep — probe every AC across every slice in the slug. |
 | `<target>` (single positional) | Focused probe on the target string (see Step 2 — Target resolution). |
+| `sweep` (reserved keyword) | **Sweep mode** — enumerate the whole user surface and compare it against AC + charter constraints + the defect taxonomy. Not a target string. |
+
+Probe owns its own **first-token resolution**: if the first token is the reserved word `sweep`, the run is **slug-less** (`/wf probe sweep [path]`) — no workflow required, output is a project-level `.ai/surface-sweep-<utc-date>.md`, no `00-index.md` mutation and no workflow bookkeeping (same shape as `.ai/ship-plan-audit.md`). Otherwise the first token is a slug and `sweep` may appear as the second token. `sweep` is reserved in both positions; every other string is a target.
 
 No flags — probe takes a slug and an optional target string. It always surfaces incidental defects observed during navigation and drives every adapter the repo matches (intersected with the confirmed stack).
 
@@ -63,7 +66,7 @@ No flags — probe takes a slug and an optional target string. It always surface
 
 # Step 0 — Orient (MANDATORY)
 
-1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
+1. **Read `.ai/workflows/<slug>/00-index.md`.** Parse `branch`, `selected-slice`, `current-stage`, `status`, `workflow-files`, `runtime-evidence-deferrals` (if present), `compressed-slices` (if present), the **`charter:` block** (the PO-ratified constraints — see Step 5's comparison basis; ACs are per-slice and expire, constraints are durable and cross-slice, so a runtime observer that reads only AC is checking the receipts and ignoring the contract), and the **`stack:` block** (written by `/wf intake` Step 0.5, confirmed in Batch B). When `user-confirmed: true`, it narrows adapter selection in Step 3 and tooling choice during drive/observe.
 2. **Read the slice index `03-slice.md`** (or `01-quick.md` for `workflow-type: quick`). Note every slice slug and source-mode (standard / compressed / forwarded / change-mode). Change-modes (`workflow-type: fix` / `hotfix` / `refactor` / `update-deps`) write a STANDARD `03-slice.md` (one slice), so this step is unchanged — but their lead is `01-<mode>.md`, not `01-quick.md`.
 3. **Read every per-slice file** referenced from the slice index. For compressed and forwarded modes, AC lives in the single source artifact (`01-quick.md`, `01-rca.md`). For change-mode, AC lives in the lead `01-<mode>.md` plus `03-slice.md` / `04-plan.md`. (`investigate` is terminal — no build, so nothing to probe in place.)
 4. **Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/runtime-adapters.md`** for bootstrap, drive, observe, teardown recipes per platform.
@@ -74,6 +77,9 @@ No flags — probe takes a slug and an optional target string. It always surface
    - In all cases, record the `stack:` block under `## Stack context` in the probe slice body so a reader can reconcile what probe saw against what intake confirmed.
 6. **Capture the target** from `$ARGUMENTS` per the argument grammar above: `target` = the single positional target string, or `slug-wide` if none was given.
 7. **Run the clearing-event tripwire.** For every open deferral (`cleared-by: null`) carrying a `clearing-probe`, execute that **one** recorded side-effect-free command with a short timeout. A hit means the event this deferral is waiting on has *already happened* — say so up front and prioritise that deferral in this run, because probe is the actor most clearing events name. Never improvise a substitute command, never edit `00-index.md` here (Step 7 owns the clearing mutation), and treat a miss as ordinary state, not a finding. An entry with no recorded probe is simply un-watched — note it in `## Tripwires` so the next verify can add one.
+
+8. **Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_surface-defects.md`.** MANDATORY in `sweep` mode, advisory in target mode (its classes are what Step 5.2 records incidentals against). It supplies the defect classes, the severity discipline, and the decidability boundary.
+9. **Declare decidability BEFORE driving (MANDATORY in `sweep` mode).** Using the standing not-observable set in `_surface-defects.md`, state which classes of correctness this artifact makes observable and which it does not, and where each unobservable class routes. Record it as the `decidability:` frontmatter block. When the artifact's **primary** correctness class is not observable (a ranking/generative system, a long-horizon pipeline), say so FIRST — at the top of the artifact and in the chat return, before any finding — so a clean wrapper report never reads as a verdict on the thing the wrapper wraps.
 
 # Step 1 — Branch posture (MANDATORY before bootstrap)
 
@@ -101,6 +107,8 @@ multiSelect: false
 **abort**: write no artifact; emit: `wf probe aborted: branch mismatch (<slug> on <slug-branch>, working tree on <current-branch>).`
 
 # Step 2 — Target resolution (four layers, all run)
+
+**`sweep` mode skips this step entirely** — it has no target to resolve. Set `target-resolution: {sweep: true}` and go to Step 3; the comparison basis is AC + charter + taxonomy (Step 5), not a resolved target. Slug-less sweeps have no AC and no charter, so their `comparison-basis` is `[taxonomy]` and the artifact says so.
 
 All four layers always run; their results compose into the `target-resolution` block of the slice frontmatter. For `slug-wide` invocations, layer 1 expands to "every AC in every slice file" — the other three layers do not apply.
 
@@ -147,6 +155,8 @@ Ad-hoc targets are not failures — they are data. The user can promote one to a
    - **When `stack-source: unconfirmed-auto-detect` or `probe-detected-from-repo`** → skip intersection. `adapters-used` defaults to `matched-adapters`.
 3. **Run the appropriate set.** `adapters-used = stack-intersected-adapters` (confirmed stack, non-empty intersection), else `matched-adapters`. Probe drives every adapter in that set.
 4. **No matches → ad-hoc adapter unavailable.** If `matched-adapters` is empty, write a probe slice with `status: awaiting-environment`, `bootstrap-failure: { step: adapter-detection, remediation: "No runtime adapter matched this repo. Add detection signals for a new platform to runtime-adapters.md, or run probe in a directory containing a recognized project." }`. Skip Steps 4 and 5.
+
+5. **Enumerate the surface (MANDATORY in `sweep` mode, after bootstrap).** Climb the **surface enumeration ladder** in `runtime-adapters.md` — `recipe` (the adapter's `Enumerate` section) → `static` (read the nav/route model in source) → `traversal` (bounded breadth-first drive) → `named` (caller supplies the list). Record the rung reached as `surface-coverage.enumeration-method`. **An adapter with no `Enumerate` recipe is NOT unsupported** — it sweeps at rung 2 or 3 at a declared, lower-confidence denominator. A `traversal` count is a FLOOR, not a total, and must be described as such **wherever it is rendered** (artifact AND chat return).
 
 # Step 4 — Two-phase bootstrap
 
@@ -224,6 +234,16 @@ For each adapter in `adapters-used` whose bootstrap completed:
    d. **Read the evidence** (multimodal for visuals, parsed for textual) and compare to the target/AC text.
    e. Record `{target-or-ac, adapter, evidence-path, observation, result: pass | fail | partial}`.
 
+1a. **Comparison basis (MANDATORY).** Every observation is compared against, in order:
+   a. the matched **AC text** (target mode) or every AC in the slug (`sweep`);
+   b. every **charter constraint** whose subject the observation touches — a violation is a finding at the constraint's own weight whether or not any AC covers it. Record the constraint id (e.g. `C4`) on the finding;
+   c. every **defect class** in `_surface-defects.md` (`sweep` mode; advisory in target mode). Ask the class's detection question of each enumerated surface.
+   Record which bases ran as `comparison-basis: [ac, charter, taxonomy]`.
+
+1b. **Perturb (MANDATORY in `sweep` mode where authorized).** After the happy path is observed, follow the adapter's `Perturb` section and the shared perturbation protocol: break exactly one dependency, re-observe, restore. This is the only way to find `dependency-collapse` and `branch-gap` on purpose rather than by luck. Never perturb a shared or production backend without explicit authorization — record what was skipped and why.
+
+1c. **Re-observe before recording (MANDATORY).** Any finding above `low` whose evidence is a **single observation on an interactive surface** MUST be re-observed from a clean state (fresh launch, dismissed system UI, known route) before it is recorded. On divergence, downgrade or drop it and record the divergence under `retracted-findings`. Corroboration by two tools does NOT satisfy this — both tools observe the same corrupted state; only a clean-state re-observation does. See `env-interference` in `_surface-defects.md`.
+
 2. **Incidental observations.** Record any defects noticed during navigation (console errors, crashes, HTTP 500s) in `## Findings` with `severity: incidental`; they count toward `findings-count`.
 
 3. **Tear down.** Run each adapter's `Tear down` section. Idempotent — re-runs must not leave the environment dirtier each pass.
@@ -270,6 +290,23 @@ partial-bootstrap-failures: []          # list of {adapter, step, remediation} w
 probed-on-branch: <branch-name>         # only set when user chose run-and-record at Step 1
 evidence-dir: ".ai/workflows/<slug>/probe-evidence/<descriptor>/"
 bootstrap-failure: <object|null>        # set when status == awaiting-environment
+
+comparison-basis: [ac, charter, taxonomy]   # which bases ran; [taxonomy] alone when slug-less
+environment-class: production | staging | local-emulated | mocked
+surface-coverage:
+  enumeration-method: recipe | static | traversal | named
+  enumerated: <N>                       # a FLOOR when enumeration-method is `traversal`
+  driven: <N>
+  unreached:
+    - { surface: "<name>", reason: "<why>", class: blocked | out-of-authority | not-decidable }
+decidability:
+  observable: [<defect classes this surface can be driven for>]
+  not-observable:
+    - { class: <kind of truth>, why: "<reason>", covered-by: "<other surface>" }
+perturbations:                          # [] when none were authorized
+  - { dependency: "<what was broken>", observed: "<what happened>", restored: true }
+retracted-findings:                     # withdrawn after clean-state re-observation
+  - { claim: "<what was first recorded>", why-withdrawn: "<what interfered>", evidence: "<path>" }
 
 findings-count: <N>
 findings-severity:
@@ -334,7 +371,7 @@ For each finding, render:
 - **Evidence**: path to captured evidence
 - **Suggested fix shape**: 1-3 lines naming the area and approach. NOT a plan.
 
-If `findings-count == 0`: write "No findings. The probed surface(s) match the declared promises."
+If `findings-count == 0`: write "No findings. The probed surface(s) match the declared promises." **In `sweep` mode that alone is insufficient** — a zero-finding sweep MUST also render the coverage table (enumerated / driven / unreached with reasons) and one line per defect class. Per `_surface-defects.md`, a class that produced no finding gets **one line**, never a paragraph of reassurance. "I found no bugs" is not a result; "I enumerated 6 surfaces, drove 6, and here are the 2 I could not reach and why" is.
 
 ## 6. Tripwires (only if any fired)
 
@@ -401,10 +438,18 @@ Emit a compact chat summary:
 wf probe complete: <slug>
 Target: <probe-target>
 Adapters: <adapters-used>
+Coverage: <driven>/<enumerated> surfaces (<enumeration-method>) — unreached: <none | list>
 Findings: <findings-count> (critical: <N>, high: <N>, medium: <N>, low: <N>)
 Tripwires: <none | comma-separated list>
 Deferrals cleared: <N>
 Recommended next: <command> — <one-sentence justification>
+```
+
+In `sweep` mode the chat return **leads with the coverage claim**, not the finding count — and when `enumeration-method: traversal`, it states that the denominator is a floor. When a primary correctness class is not observable (Step 0.9), that statement comes before both.
+
+Slug-less sweeps replace the artifact line with `.ai/surface-sweep-<utc-date>.md` and recommend `/wf intake fix <description>` or `/wf intake rca <description>` — a slug-less sweep creates no slug of its own.
+
+```
 Probe slice: .ai/workflows/<slug>/03-slice-probe-<descriptor>.md
 ```
 

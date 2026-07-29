@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.142.0] - 2026-07-29
+
+One transcript, one number. A `/wf probe` run drove an Android app's entire user surface against **production** Firebase and returned twelve findings — and exactly **one** of them came from an acceptance criterion. Three came from the slug's `charter:` constraints, a block sitting in the same `00-index.md` that probe Step 0 already parsed six other keys out of and walked straight past. The remaining eight came from a defect taxonomy that existed only in the model's head that day. This release makes all three sources structural: the charter is read, the taxonomy is written down, and coverage becomes a number a reader can audit instead of a claim they have to trust.
+
+### Added — `/wf probe <slug> sweep`, and `/wf probe sweep` with no slug at all
+
+`sweep` is a reserved keyword in **both** token positions on the existing `probe` key — not a new router key. Probe's bootstrap, evidence protocol, slice contract and deferral clearing were already comparison-basis-agnostic; only Steps 2 and 5 were AC-specific, so that was the whole surface area of the change.
+
+- **Slug mode** compares every observation against AC **∪ charter constraints ∪ the defect taxonomy**. A constraint violation is a finding at the constraint's own weight whether or not any AC covers it, and carries the constraint id (`C4`).
+- **Slug-less mode** (`sweep` as the first token) runs against any repo with no workflow at all, writes a project-level `.ai/surface-sweep-<date>.md`, mutates no index, and routes findings out through `/wf intake fix|rca`. Same precedent as `.ai/ship-plan-audit.md`.
+- New shared **`reference/_surface-defects.md`**: eight classes — `dead-affordance`, `error-surface-leak`, `terminal-wait`, `fabricated-value`, `dependency-collapse`, `branch-gap`, `boundary-overflow`, `env-interference` — each with a detection question, a severity anchor, and manifestations per platform. Every class was derived from a real finding; the growth rule forbids speculative additions. Cited by `review/reliability`, `review/correctness`, `review/ux-copy` and verify's runtime leg, so four surfaces now share one vocabulary.
+
+### Added — a coverage denominator, and a ladder for when there is no recipe
+
+"I found no bugs" is not a result. "I enumerated 6 surfaces, drove 6, and here are the 2 I could not reach and why" is. All seven adapters gained an **`Enumerate`** section (placed before `Drive` — you inventory before you drive), and the artifact gained `surface-coverage` with `enumerated` / `driven` / `unreached[].class`, where `out-of-authority` is a first-class, non-shameful outcome.
+
+- **An adapter with no `Enumerate` recipe is NOT unsupported.** Enumeration is a four-rung ladder — `recipe` → `static` (read the nav model in source) → `traversal` (bounded breadth-first drive) → `named` — and the rung reached is recorded as `enumeration-method`. Rungs 2–3 need no per-platform authoring, so `ios`, `desktop` and `notebook` sweep from day one at a declared, lower-confidence denominator. A `traversal` count is a **floor, not a total**, and says so wherever it is rendered — artifact *and* chat return, because a caveat that appears only in the file is a caveat nobody reads.
+- **`environment-class: production | staging | local-emulated | mocked`.** The audited run's two critical findings — undeployed rules, an undeployed callable — were structurally invisible to every prior emulator probe, because an emulator loads rules from disk and runs functions locally. No AC in that slug asserted deployment state, which is how it reached handoff.
+
+### Added — the method declares its own boundary before it drives
+
+The failure mode to design against is not missing firmware. It is a sweep run against a ranking system that reports three findings and a clean coverage table, from which a reader concludes the model is fine.
+
+- A **`decidability:`** block is declared in **Step 0, before driving** — ordering is the contract, and the test suite asserts it. It names what this artifact makes observable and what it does not.
+- A **standing not-observable set**: statistical/generative correctness, long-horizon behavior, concurrency and load, absence properties, library/SDK correctness, embedded and real-time surfaces, perceptual accessibility, and anything needing credentials the run may not hold. Each row **routes** — to a `review` dimension, to `/wf observability`, to `/security-review` — because the sweep's job at its edges is to name the neighbouring cell, not annex it.
+- Two axes stay separate on purpose: *can the surface be driven* (`bootstrap-failure`) versus *is watching it a valid way to know* (`decidability`). A missing recipe is a tooling gap that degrades a number; a continuous real-time surface is a method gap that invalidates the answer.
+
+### Added — perturbation, because the best finding in that run was an accident
+
+The audited run's strongest finding — one unavailable per-user read collapsing four screens, two of which had no remote dependency — was reframed from "consequence of a deployment gap" to "no tolerance for any brief unavailability" **only** because composite-index building happened to produce a six-minute outage mid-run. Luck is not a method.
+
+- All seven adapters gained a **`Perturb`** section, plus a shared protocol: **one dependency at a time**, always reversible, always restored, never state the run does not own — the same authority boundary as v9.140.0's env-remediation rung, which it **cites rather than restates**. Perturbing a shared or production backend needs explicit authorization; what was skipped is recorded.
+- This is the runtime generalization of the existing direction rule for prove-fail-closed criteria: a green happy path does not exercise a guard.
+
+### Added — corroboration by two tools is not a second observation
+
+That run also reported a HIGH finding — dead bottom-nav tap targets — reproduced with raw `adb input`, reproduced again with the repo's own Maestro harness, and grounded in source. It was wrong. A notification shade had stolen focus, and both tools faithfully observed the same corrupted state.
+
+- Any finding above `low` whose evidence is a **single observation on an interactive surface** must be re-observed from a clean state before it is recorded. On divergence it is downgraded or dropped.
+- Retractions become structural: **`retracted-findings:`** in frontmatter records the claim, what interfered, and the evidence — so the honesty survives the session instead of living in one chat message.
+
+### Notes
+
+Reference markdown only — no `lib/`, `dist/` or `buildId` semantics changed by the waves themselves. Both trees carry every change; the codex mirror passes `verify-claudisms`. Main-tree suite **762 tests** (was 736 — `tests/unit/skills/surface-sweep.test.mjs` adds 26, including ordering guards for Enumerate-before-Drive, Perturb-before-Tear-down and decidability-before-Step-5). Plan of record: `docs/internal/SURFACE-SWEEP-PLAN.md`.
+
 ## [9.141.0] - 2026-07-26
 
 Two transcript-audit plans built together: **HANDOFF-SHIP-STREAMLINE** (three projects, `/wf handoff` + `/wf ship`) and **YOLO-DRIVER-LIFECYCLE** (five projects, fifteen sessions of `/wf yolo`). They reached the same unusual conclusion from opposite ends: **the gates were right and the reporting was not.** Handoff's gates fired correctly and were fed correct inputs *late*; yolo's deferral contract, gate policy and mock-vs-real evidence all worked in the field while the layer around them — liveness, aggregation, bookkeeping — quietly lied. Nothing below loosens a gate.
