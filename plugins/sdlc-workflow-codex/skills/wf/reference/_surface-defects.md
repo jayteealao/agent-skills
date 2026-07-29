@@ -5,8 +5,8 @@ surface, plus the decidability boundary that says when observing is a valid way
 to know at all.
 
 Read by `$wf probe` (target mode and `sweep` mode), by `$wf verify`'s runtime
-sub-agent, and cited by the `reliability`, `correctness` and `ux-copy` review
-dimensions. Adapters supply *how to reach* a surface (`runtime-adapters.md`);
+sub-agent, and cited by the `reliability`, `correctness`, `ux-copy` and
+`ste-compliance` review dimensions. Adapters supply *how to reach* a surface (`runtime-adapters.md`);
 this file supplies *what to ask once you are looking at it*.
 
 The questions below are **surface-shaped, not app-shaped** — "is there a control
@@ -46,6 +46,30 @@ frames, credentials) is disclosed; `medium` when it is merely unhandled.
 | cli | a language traceback on stdout where a message belonged |
 | service | an internal path or driver error echoed in the response body |
 | notebook | a raw exception left as the cell's presented output |
+
+### `ambiguous-copy`
+**Question:** can a reader act wrongly on this surface's visible text — one
+concept under two names, a reference with two possible referents, or an
+instruction readable two ways?
+**Anchor:** `medium`; `high` when the ambiguity sits on a destructive or
+irreversible control, or when a charter constraint names the wording.
+
+The check method is the word-discipline section (section 1) of
+[_ste-procedural.md](_ste-procedural.md) — cite the W-rule on every finding.
+This is the runtime counterpart of the `ste-compliance` review dimension:
+that dimension audits text at rest; this class records what an observer catches
+on the live surface.
+
+> Provenance: this row was seeded by the adoption of the controlled-language
+> contract (PO-directed), not by a real run — a deliberate exception to the
+> growth rule below. If sweeps consistently fail to produce it, strike the row.
+
+| Platform | Manifestation |
+|---|---|
+| android / ios / web | a dialog whose confirm/cancel labels don't answer the question asked; the same feature named differently on two screens |
+| cli | `--force` help text that doesn't say what is forced; an error naming a flag that the usage text calls something else |
+| service | an error body whose remedy refers to "the token" when the request carried two |
+| desktop | a menu item and its confirmation dialog using different names for the same action |
 
 ### `terminal-wait`
 **Question:** can this loading state be entered and never left?

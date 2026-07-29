@@ -7,7 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.143.0] - 2026-07-29
+## [9.144.0] - 2026-07-29
+
+The plugin has always known *where* text goes — the story section first, the structured sections beneath, the boundary between internal and external. It has never said how the sentences themselves must behave, and it showed: the same command named two ways in one runbook, a pronoun pointing at two nouns in a destructive step, an instruction hiding inside a NOTE. This release adopts a controlled language. ASD-STE100 Issue 9 (Simplified Technical English), distilled to the 22 rules a reviewer can mechanically check, becomes one shared contract that every writing surface cites and three audit surfaces enforce.
+
+### Added
+
+- `skills/wf/reference/_ste-procedural.md` — the controlled-language contract, single source. Three sections: word discipline (W1–W8), instruction rules (I1–I9), warnings and document structure (S1–S5). Each rule keeps its ASD-STE100 number for traceability; the wording and examples are original and in-domain. Scope is by kind of text, not by artifact: procedural and external-facing text follows this contract; artifact story sections still follow `_narrative-voice.md`, which wins where they conflict.
+- `skills/wf/reference/review/ste-compliance.md` — the 35th review dimension. Audits text at rest against the contract; every finding cites the W/I/S rule it violates and carries the rewrite. Severity is keyed to reader consequence: ambiguity that can change what a reader does (two-referent pronouns in steps, conditions after commands, instructions hidden in notes) is HIGH; register mechanics are batched LOW. Joins the `ux` and `all` aggregates.
+- `ambiguous-copy` — a ninth surface-defect class in `_surface-defects.md`: the runtime counterpart of `ste-compliance`, recording what an observer catches on a live surface (one concept under two names, an instruction readable two ways). The row carries an explicit provenance note: it was seeded by this adoption rather than by a real run — a flagged, deliberate exception to the taxonomy's growth rule, with its own retirement condition.
+
+### Changed
+
+- Nine writing surfaces now cite the contract at their single-source hook, so no per-command wiring exists anywhere: the `/wf docs` dispatcher (all modes, all quadrants), the standalone diataxis skill router, `_narrative-voice.md` (the structured sections of every workflow artifact), `_chat-return.md` (receipt fields and any command a return gives the user), `_fragment-authoring.md` and `narrative-fragments.md` (reader-visible text in both fragment tiers), `_question-craft.md` (PO question batches), `review/ux-copy.md` (W-rule citations for copy findings), and `_output-boundary.md` (translated external output is written under the contract).
+- The `/wf docs` orchestrator audit gained a controlled-language check alongside accuracy, quadrant, completeness, and freshness: sub-agents return STE violations with rule IDs, `audit.md` counts them in frontmatter, and the plan step routes them to P4 polish — except the reader-behavior-changing classes (W7/I4/I8), which ride P2.
+- `verify.md`'s incidental-defect class list includes `ambiguous-copy`.
 
 Twelve minutes. That is how long it took for `/wf handoff` to ask the identical question twice: *"The ship plan drifted from the repo (2 findings, block C). Amend it before continuing?"* — with a correct, complete, exactly-as-instructed amendment of block C sitting in between. Nothing malfunctioned. The gate offered a remedy that could not possibly work, the user performed it, and the act of performing it destroyed the record that would have stopped the question coming back. This release makes a finding say what actually ends it, and makes the gate offer only those things.
 

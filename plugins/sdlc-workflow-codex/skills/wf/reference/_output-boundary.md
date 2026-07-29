@@ -24,6 +24,9 @@ Workflow artifacts and command internals are private implementation context. Nev
 - When producing external-facing output, translate workflow context into product/project language:
   user-visible change, rationale, affected areas, verification, risks, migration notes, and
   follow-up work. Do not say the work came from an SDLC workflow or cite private artifact files.
+- Write the translated output under the controlled-language rules in
+  [_ste-procedural.md](_ste-procedural.md): section 1 (word discipline) throughout, sections 2–3
+  for any instructions or warnings the output carries.
 
 **Leak check before publishing:**
 - Before writing, committing, pushing, opening a PR, updating docs/comments, or publishing

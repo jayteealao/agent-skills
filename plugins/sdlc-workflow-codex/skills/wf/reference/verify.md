@@ -266,7 +266,7 @@ Prompt the agent with ALL of the following:
 
 The `runtime-adapters.md` `Evidence protocol` and `Accessibility checks` sections apply across all platforms; do not duplicate them here.
 
-**Incidental defects observed while driving** are recorded against the shared classes in `_surface-defects.md` (`dead-affordance`, `error-surface-leak`, `terminal-wait`, `fabricated-value`, `dependency-collapse`, `branch-gap`, `boundary-overflow`) so verify, probe and review speak one vocabulary. Verify does not run the full sweep — an exhaustive surface pass is `probe … sweep`.
+**Incidental defects observed while driving** are recorded against the shared classes in `_surface-defects.md` (`dead-affordance`, `error-surface-leak`, `ambiguous-copy`, `terminal-wait`, `fabricated-value`, `dependency-collapse`, `branch-gap`, `boundary-overflow`) so verify, probe and review speak one vocabulary. Verify does not run the full sweep — an exhaustive surface pass is `probe … sweep`.
 
 **Accessibility gate (MANDATORY for all UI adapters — web, android, ios, desktop):**
 

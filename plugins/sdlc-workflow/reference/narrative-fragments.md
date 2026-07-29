@@ -26,6 +26,12 @@ plugin makes **no demands** on the markup: no required wrapper, no scoped CSS, n
 `sdlc:fragment-ready` dispatch, no sibling `.yaml`, no determinism rule. You
 write HTML; the page renders it verbatim.
 
+The markup is unrestricted; the words in it are not. Reader-visible text (labels,
+captions, annotations, legend entries) follows the word-discipline rules
+(section 1) in
+[_ste-procedural.md](../skills/wf/reference/_ste-procedural.md) — above all, the
+same term for the same concept as the artifact body the fragment sits under.
+
 Author **as many as the story needs** (including zero). They are not limited to
 the rich-tier artifacts — *any* markdown artifact produced by *any* subcommand
 (`/wf`, `/wf-docs`, `/wf-meta`, `/review`, …) can

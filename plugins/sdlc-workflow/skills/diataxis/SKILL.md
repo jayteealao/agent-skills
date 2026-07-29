@@ -47,6 +47,11 @@ If `$ARGUMENTS` opens with an explicit mode keyword (`tutorial`, `how-to`, `refe
 infer the mode from the request, and when a request obviously bundles several
 deliverables (e.g. "a README and a full docs set"), route through the planner first.
 
+Whatever the mode, the writing follows the controlled-language contract in
+[_ste-procedural.md](../wf/reference/_ste-procedural.md): section 1 (word discipline) in
+all documentation text, sections 2–3 for step sequences, section 3 S4 for descriptive
+prose.
+
 ## The four quadrants at a glance
 
 | | Practical steps | Theoretical knowledge |

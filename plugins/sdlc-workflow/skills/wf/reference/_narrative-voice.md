@@ -11,6 +11,8 @@ Every artifact this plugin writes opens with one prose section that **tells the 
 
 The structured sections that follow *should stay terse and technical* — a files-touched table has no business telling a story, and the story has no business being a table. Separating the two jobs is the whole point: the reader gets a narrative they enjoy **and** scannable reference data, instead of a compromise that's bad at both.
 
+The two halves follow two contracts. The story section follows this file. Every structured section beneath it follows the controlled-language rules in [_ste-procedural.md](_ste-procedural.md): section 1 (word discipline) in all structured text, and sections 2–3 wherever a section gives steps, commands, or warnings (next-steps lists, verification instructions, runbook excerpts). This split is by *kind of text*, not by artifact — one document holds both voices without conflict.
+
 ## The voice — Sebastian Raschka
 
 We write these in the voice of [Sebastian Raschka](https://magazine.sebastianraschka.com/)'s technical essays. It is warm, precise, and pedagogical — a senior engineer explaining a decision to a colleague they respect. The calibration signatures, each anchored to a real line of his:

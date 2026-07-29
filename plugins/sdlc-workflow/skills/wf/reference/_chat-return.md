@@ -28,6 +28,12 @@ content spec.
   Nothing new is computed — the line only surfaces what shape/verify already recorded.
   When there is nothing to report, the line reads `Deltas: none` (one word). A stage
   with no fidelity/mechanism/decision surface (e.g. a pure status read) omits the line.
+- **Two contracts, same split as artifacts.** The narrative paragraph follows
+  [_narrative-voice.md](_narrative-voice.md); everything below it — the `Deltas:`
+  line, receipt fields, `Artifacts:` / `Next:` anchors — follows the
+  word-discipline rules (section 1) in [_ste-procedural.md](_ste-procedural.md),
+  and any command or instruction the return gives the user follows section 2:
+  imperative, one instruction per sentence, condition before command.
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed in the
   chat return — this is the internal summary, not external-facing copy. Outside
   it, the External Output Boundary ([_output-boundary.md](_output-boundary.md))

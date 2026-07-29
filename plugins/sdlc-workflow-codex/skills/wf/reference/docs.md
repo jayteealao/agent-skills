@@ -16,6 +16,12 @@ Two modes of operation:
 
 > **Narrative fragments.** Any docs artifact may ship free narrative fragments whenever a bespoke diagram, flow, comparison, or interactive example tells the story better than prose. Rules: [_fragment-authoring.md](_fragment-authoring.md) Step F2.
 
+> **Controlled language (MANDATORY for every document either mode writes).** Apply
+> [_ste-procedural.md](_ste-procedural.md): section 1 (word discipline) to all documentation text;
+> sections 2–3 (instruction and warning rules) to every step sequence in tutorials, how-tos, and
+> runbooks; section 3 S4 (paragraph structure) to descriptive prose in reference, explanation, and
+> readme documents.
+
 > **Auto second opinion (objective triggers).** After the audit (and again after generate),
 > **auto-invoke** `$consult codex <completeness blind spots in this doc plan>` / `$consult codex
 > <accuracy pass on this reference doc>` (pinning `codex`/`claude` keeps it free) when ANY of:
@@ -111,7 +117,12 @@ For the assigned documentation file(s):
 - When was this doc last meaningfully updated (`git log -5 --format="%ai %s" -- <file>`)? When was the related code last changed?
 - Is the gap between doc age and code age more than 30 days?
 
-Each sub-agent returns: file path, accuracy issues (list), quadrant violations (list), gaps (list), last-updated, freshness-risk (low/medium/high).
+**Controlled-language check:**
+- Grade the doc against [_ste-procedural.md](_ste-procedural.md): section 1 (word discipline) throughout; sections 2–3 for step sequences and warnings; S4 for descriptive prose
+- Report each violation with its rule ID (W1–W8, I1–I9, S1–S5). Prioritize the ones that can change what a reader does: two-referent pronouns in steps (W7), conditions after commands (I4), instructions hidden in notes (I8), terminology drift for one concept (W1)
+- Batch register-level mechanics (contractions, Latin abbreviations, sentence-cap overruns) into one entry per file
+
+Each sub-agent returns: file path, accuracy issues (list), quadrant violations (list), gaps (list), ste violations (list, with rule IDs), last-updated, freshness-risk (low/medium/high).
 
 Write `audit.md` aggregating all sub-agent findings.
 
@@ -125,6 +136,7 @@ files-audited: <count>
 accuracy-issues: <count>
 quadrant-violations: <count>
 gaps-found: <count>
+ste-violations: <count>
 high-freshness-risk: <count>
 status: complete
 created-at: <real timestamp>
@@ -138,6 +150,7 @@ created-at: <real timestamp>
 - Accuracy issues: <list or "none">
 - Quadrant violations: <list or "none">
 - Gaps: <list or "none">
+- STE violations: <list with rule IDs, or "none">
 - Freshness risk: <low|medium|high>
 - Action needed: <update|rewrite|split|create|delete|none>
 ```
@@ -153,7 +166,7 @@ Synthesize the audit into a prioritized action plan. Write `plan.md`.
 | **P1 — Missing** | Gaps — public APIs or user behaviors with no docs at all |
 | **P2 — Wrong quadrant** | Quadrant violations that actively mislead readers |
 | **P3 — Stale** | High freshness risk — code changed significantly since last doc update |
-| **P4 — Enhancement** | Low-priority improvements, polish, structural improvements |
+| **P4 — Enhancement** | Low-priority improvements, polish, structural improvements, controlled-language (STE) cleanups — except an STE violation that can change what a reader does (W7/I4/I8-class), which rides P2 |
 
 For each action:
 - Action type: `create` | `update` | `rewrite` | `split` | `delete`
