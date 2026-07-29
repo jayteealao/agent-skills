@@ -7,7 +7,7 @@
 > Provenance: the user asked whether a *minimal set of rules around `/wf`* could be **force-inserted into the
 > Claude/Codex memory files if not present** — e.g. "use `study-sources` to ground facts." Today nothing the
 > plugin ships lands in a memory file; the closest concept is per-workflow `steer.md`, and
-> [`_steering.md:41`](../../skills/wf/reference/_steering.md) *already names the slot this plan fills*:
+> [`_steering.md:41`](../../../skills/wf/reference/_steering.md) *already names the slot this plan fills*:
 > *"Project-level standing conventions… belong in `CLAUDE.md` or `sdlc-config.json`, not here."*
 > This plan automates the population of that slot. Baseline: v9.124.0 (`faf72c7`). Codex mirror:
 > `plugins/sdlc-workflow-codex/`.
@@ -18,7 +18,7 @@ Four forks were weighed with the user; all are settled, and the plan assumes the
 
 1. **Durable write, not ephemeral inject.** The kernel is written *once* into the memory files behind a
    versioned fence — not re-asserted into context every session. This is deliberate: v9.97.0 **stripped the
-   SessionStart orientation `systemMessage`** ([`session-start-orient.mjs`](../../hooks/session-start-orient.mjs)
+   SessionStart orientation `systemMessage`** ([`session-start-orient.mjs`](../../../hooks/session-start-orient.mjs)
    emits none today) precisely because always-on context injection read as noise. A durable memory block costs
    nothing per session beyond what any memory line already costs, and it is user-visible and user-editable —
    the opposite posture from the one that was rejected.
@@ -70,7 +70,7 @@ one contract: **the plugin owns exactly one fenced region per file and never tou
 
 | Scope | Served by | What it does |
 |---|---|---|
-| **Per-workflow standing constraints** | [`steer.md`](../../skills/wf/reference/_steering.md) | User-owned free prose, one workflow slug; stages read it, never author it. |
+| **Per-workflow standing constraints** | [`steer.md`](../../../skills/wf/reference/_steering.md) | User-owned free prose, one workflow slug; stages read it, never author it. |
 | **Project-level durable `/wf` invariants** | *nothing* | The 3–5 always-loaded rules that make the model reach for the right tool by default — grounding, artifact locations, generated-output discipline. |
 
 `steer.md` (per-workflow, user-authored) and this kernel (project-level, plugin-authored) are complementary;
@@ -128,7 +128,7 @@ One idempotent writer per file, governed by:
    permission error, locked file → silently skip. Orientation is sacred.
 
 5. **Opt-out via config, on by default.** `sdlc-config.json` → `memory.seedRules: false` disables it entirely,
-   read through [`loadConfig`](../../lib/config.mjs). Convention over flags: no new CLI surface. Default-on is
+   read through [`loadConfig`](../../../lib/config.mjs). Convention over flags: no new CLI surface. Default-on is
    the point — the feature is inert if it only fires when asked.
 
 ## The kernel content (keep it a kernel, not a manifesto)
@@ -181,7 +181,7 @@ insert" is detected exactly once and never re-announced.
 
 ## Where it hooks
 
-[`session-start-orient.mjs`](../../hooks/session-start-orient.mjs) is the seam — it already resolves
+[`session-start-orient.mjs`](../../../hooks/session-start-orient.mjs) is the seam — it already resolves
 `projectRoot`, loads config, and is rigorously fail-open. Add one call in `main()` beside the existing heals:
 
 ```js

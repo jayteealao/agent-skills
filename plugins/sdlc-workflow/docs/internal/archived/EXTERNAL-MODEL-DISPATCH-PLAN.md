@@ -663,8 +663,8 @@ SKILL.md flow:
 3. **Embed** each via `embed-img.mjs` (data-URI, sniffed MIME); a fan-out set renders as a comparison strip.
 4. **Output — MUST stay contract-compatible with the `imagegen` caller (A2).** The `/wf design`
    shape/craft steps branch on `method=text-only` and consume `scene_sentence`, and the caller sets
-   `image_gate` from the result ([shape.md:112](../../skills/wf/reference/design/shape.md),
-   [_design-context.md:93](../../skills/wf/reference/design/_design-context.md)). So `imagery`
+   `image_gate` from the result ([shape.md:112](../../../skills/wf/reference/design/shape.md),
+   [_design-context.md:93](../../../skills/wf/reference/design/_design-context.md)). So `imagery`
    **keeps the `IMAGEGEN_RESULT` block name and its `method` / `file` / `prompt` / `scene_sentence` /
    `skip_reason` / `to_generate_later` fields** (with `method` carrying the provider id). Renaming
    the block to `IMAGERY_RESULT` or the field to `provider`, or dropping `scene_sentence`, is NOT a

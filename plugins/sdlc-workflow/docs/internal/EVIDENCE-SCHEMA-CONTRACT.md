@@ -2,8 +2,8 @@
 
 > Status: **FROZEN 2026-07-12** (reconciliation Step 0). This is the single canonical
 > definition of the frontmatter fields, enums, gate rules, and hook lints that
-> [INTENT-FIDELITY-HARDENING-PLAN.md](INTENT-FIDELITY-HARDENING-PLAN.md) (W5/W9.1) and
-> [YOLO-EVIDENCE-INTEGRITY-PLAN.md](YOLO-EVIDENCE-INTEGRITY-PLAN.md) (F4/F5) **both**
+> [INTENT-FIDELITY-HARDENING-PLAN.md](archived/INTENT-FIDELITY-HARDENING-PLAN.md) (W5/W9.1) and
+> [YOLO-EVIDENCE-INTEGRITY-PLAN.md](archived/YOLO-EVIDENCE-INTEGRITY-PLAN.md) (F4/F5) **both**
 > write. Neither plan may redefine these — cite this file. Any change here is a contract
 > revision that both plans inherit.
 

@@ -1,6 +1,10 @@
 # `/wf observability` — project-level observability router (Implementation Plan)
 
-> Status: **PROPOSED** (drafted 2026-07-12; revised 2026-07-12 after scope feedback).
+> Status: **BUILT — waves W1–W5 shipped in full as v9.132.0.** (Drafted 2026-07-12;
+> revised 2026-07-12 after scope feedback. The "PROPOSED" this header carried until
+> 2026-07-27 was stale for fifteen releases — see the v9.132.0 CHANGELOG entry,
+> "Full build of `docs/internal/OBSERVABILITY-ROUTER-PLAN.md` (waves W1–W5) in one
+> release".)
 > Provenance: a review of the orphaned `setup-wide-logging` surface. It exists **four times** across the
 > two trees, is Node/TS-only, and sits *outside* the `/wf` dispatcher — the standalone command is even
 > `disable-model-invocation: true`, so the model can't reach it. Meanwhile the *knowledge* it embodies was
@@ -64,7 +68,7 @@ posture and moves it forward, consultatively, whatever the language or stack**:
 ### Current surfaces (all verified) — and the JS-centrism to design against
 
 1. [`commands/setup-wide-logging.md`](../commands/setup-wide-logging.md) — standalone, `disable-model-invocation: true`, **Node/TS-only** (express/koa/fastify/nextjs × pino/winston/bunyan). **To dissolve.**
-2. [`skills/setup-wide-logging/SKILL.md`](../../sdlc-workflow-codex/skills/setup-wide-logging/SKILL.md) (Codex) — model-invocable mirror of #1. **To dissolve.**
+2. [`skills/setup-wide-logging/SKILL.md`](../../../sdlc-workflow-codex/skills/setup-wide-logging/SKILL.md) (Codex) — model-invocable mirror of #1. **To dissolve.**
 3. [`augment/wide-event-observability.md`](../skills/wf/reference/augment/wide-event-observability.md) — the folded-in doctrine; Express + React examples. **Keep as shared knowledge base — but de-center JS (see W5.4).**
 4. [`augment/instrument.md`](../skills/wf/reference/augment/instrument.md) — the per-change augmentation. **Keep; wire the boundary.**
 5. `review/logging.md` + `review/observability.md` — review dimensions. **Untouched.**
