@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.143.0] - 2026-07-29
+
+Twelve minutes. That is how long it took for `/wf handoff` to ask the identical question twice: *"The ship plan drifted from the repo (2 findings, block C). Amend it before continuing?"* — with a correct, complete, exactly-as-instructed amendment of block C sitting in between. Nothing malfunctioned. The gate offered a remedy that could not possibly work, the user performed it, and the act of performing it destroyed the record that would have stopped the question coming back. This release makes a finding say what actually ends it, and makes the gate offer only those things.
+
+### Fixed — the gate no longer offers an amendment for drift no amendment can clear
+
+Drift findings now carry **`clears-on: amend | repo | merge`**, and the remedy menu is built from that tag rather than from the assumption that every finding is a plan defect.
+
+- **`amend`** — the plan is wrong about the repo. A vanished version-source path, an unplanned secret, a new workflow file, a missing rollback playbook, a stale plan. Editing the named block ends it.
+- **`repo`** — the plan is right and the repo is behind. `version-already-released` needs a version bump; `compliance-stale` needs `/wf ship-plan build --dry-run`. Amending the plan does nothing for either.
+- **`merge`** — `release-surface-touched` and `dependencies-changed` are statements about the *packaged diff*. They are true, they stay true while the branch is open, and no edit to any block falsifies them. **When every surviving finding is `merge`- or `repo`-class the gate never offers an amendment at all** — it offers acknowledge, the actual repo action, or cancel, because an amend option there costs a `plan-version` bump, buys nothing, and guarantees the question returns.
+
+`clears-on` and fingerprint scope are deliberately separate axes: `migration-without-rollback` fingerprints on the branch yet clears on an amendment. Neither is derivable from the other, so both are declared.
+
+### Fixed — a `plan-version` bump no longer wipes the acknowledgements that outlive it
+
+The ledger rule was "a bump invalidates everything." That is right for claims *about the plan* and wrong for claims about the branch — and the difference is the second half of the reported loop. Invalidation is now scoped by `fingerprint-scope`:
+
+- **`plan`**-scoped entries still die on a bump. An amended plan must re-earn what was asserted about it.
+- **`branch`**-scoped entries **survive**. "This branch edits `.github/workflows/`" is not made false by amending the plan — and is very often the thing the amendment was made *in response to*. They are invalidated when the branch changes and die with it at merge.
+- `/wf ship-plan edit` is now explicitly forbidden from touching `.ai/ship-plan-acks.yaml`. The ledger belongs to the pre-check; an editor that clears it wholesale re-opens every question the user already settled.
+
+### Added — Guard 2: the amendment landed
+
+The pre-check had one re-fire guard, for *answered but unexecuted* — the user chose amend and never did it. The reported case is the opposite and had no guard: the user chose amend and **did** it. `pending-amend` now stamps the `plan-version` it expects to move, so the gate can tell the two apart. When the version has risen, the findings that amendment covered are re-partitioned by `clears-on`:
+
+- `amend`-class and gone — expected, silent.
+- `amend`-class and still present — the amendment did not land it. That is new information; gate and say so plainly.
+- `merge`/`repo`-class and still present — **do not gate.** Record a ledger entry with `via: amendment`, report one advisory line, continue. If nothing gating survives, the verdict is `ok` and there is no prompt at all.
+
+The inline *Amend now and continue* path gained the same rule as its fourth: **bank what the amendment bought** — write the branch-scoped entries for the untouchable findings before the re-check, or that re-check re-raises them inside the same run. And a STOP now states which findings the amendment will *not* clear, so a user who returns to the same gate was told to expect it.
+
+### Fixed — advisories no longer inflate the count
+
+`<N>` counts gating findings only. `secret-orphaned` and `compliance-stale` are documented as never-the-sole-blocker but were being folded into the ask — the reported "2 findings" was one gating finding and one advisory. They are printed beneath the table and carried forward; a run whose only findings are advisory is now verdict `ok`.
+
 ## [9.142.0] - 2026-07-29
 
 One transcript, one number. A `/wf probe` run drove an Android app's entire user surface against **production** Firebase and returned twelve findings — and exactly **one** of them came from an acceptance criterion. Three came from the slug's `charter:` constraints, a block sitting in the same `00-index.md` that probe Step 0 already parsed six other keys out of and walked straight past. The remaining eight came from a defect taxonomy that existed only in the model's head that day. This release makes all three sources structural: the charter is read, the taxonomy is written down, and coverage becomes a number a reader can audit instead of a claim they have to trust.

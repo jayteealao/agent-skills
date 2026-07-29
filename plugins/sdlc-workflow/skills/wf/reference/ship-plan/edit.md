@@ -24,8 +24,9 @@ The readiness pre-check ([_ship-plan-readiness.md](../_ship-plan-readiness.md), 
 - Run Step S2 onward for **each** named block, in letter order.
 - Bump `plan-version` **once** for the whole scoped amendment, not once per block.
 - Return the touched block letters and the before→after `plan-version` to the caller, which records them in its artifact and then **re-runs drift detection** — this editor does not decide that the amendment worked.
+- **Do not touch `.ai/ship-plan-acks.yaml`.** The ledger is the pre-check's; invalidating it on a `plan-version` bump is *scoped* (plan-scoped entries die, branch-scoped ones survive — see that file's Step R2.5), and an editor that clears it wholesale re-opens every question the user already settled.
 
-A user-typed `/wf ship-plan edit` has no scope restriction and proceeds through Step S1 as normal.
+A user-typed `/wf ship-plan edit` has no scope restriction and proceeds through Step S1 as normal — including one run after a readiness gate STOPped and told the user to amend. The ledger rule above holds either way.
 
 ## Step S1 — Identify which block to amend
 

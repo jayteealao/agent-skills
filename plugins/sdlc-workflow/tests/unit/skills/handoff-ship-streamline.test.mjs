@@ -153,7 +153,9 @@ test('W4.1 — the drift gate can amend inline, scoped to the drifted blocks', (
   for (const { name, root } of trees) {
     const src = ref(root, '_ship-plan-readiness.md');
     assert.match(src, /Amend now and continue/, `${name}: the inline-amend option is gone`);
-    assert.match(src, /only\*\* the block letters named by the findings/,
+    // v9.143.0 narrowed this from "the findings" to "the *amendable* findings" —
+    // a merge-class finding riding along must not drag its block into the edit.
+    assert.match(src, /only\*\* the block letters named by the \*amendable\* findings/,
       `${name}: the inline amendment lost its scope restriction`);
     assert.match(src, /Re-check, don't assume/,
       `${name}: the inline amendment no longer re-verifies before continuing`);
