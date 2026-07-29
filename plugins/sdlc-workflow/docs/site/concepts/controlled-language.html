@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Controlled language · sdlc-workflow</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body data-root="../">
+<aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
+<main>
+<h1>Controlled language</h1>
+<p class="lede">Read this to understand the writing contract behind the plugin's text. Procedural
+and external-facing text follows 22 rules distilled from ASD-STE100 (Simplified Technical
+English). One shared file holds the rules, every writing surface cites that file, and three audit
+surfaces enforce it.</p>
+
+<h2>Why the plugin controls its language</h2>
+
+<p>Ambiguous text causes wrong actions. A step that names one command two ways makes the reader
+guess whether the two names are one command. A pronoun that can point at two nouns makes the
+reader guess which noun to act on. An instruction hidden inside a note is easy to miss. Each of
+these failures costs more than it appears to cost, because the reader acts on the guess.</p>
+
+<p>A controlled language removes the guesswork. Each word keeps one meaning. Each instruction
+gets its own sentence. Each warning comes before the step that it protects. The result is text
+that means the same thing to every reader — human or agent — on the first read.</p>
+
+<div class="note">
+<p>Controlled text also helps the agents that run the plugin. The same ambiguity that confuses a
+human reader causes an agent to misread an instruction. One meaning per word and one instruction
+per sentence remove that failure mode at the source.</p>
+</div>
+
+<h2>The contract</h2>
+
+<p>The contract lives in one file: <code>skills/wf/reference/_ste-procedural.md</code>. It
+distills Part 1 of ASD-STE100 Issue 9 into 22 rules that a reviewer can check mechanically. Each
+rule keeps its ASD-STE100 number for traceability. The rules divide into three sections:</p>
+
+<dl class="cmd-grid">
+<dt><code>W1–W8</code></dt><dd>Word discipline. One term per concept, one meaning per term, verbs
+instead of nominalizations, no phrasal verbs, no contractions, no Latin abbreviations, pronouns
+with exactly one referent, and concrete conditions instead of abstract statements.</dd>
+<dt><code>I1–I9</code></dt><dd>Instruction rules. Imperative mood, one instruction per sentence,
+sentence caps (20 words procedural, 25 descriptive), condition before command, active voice,
+simple tenses, vertical lists for sequences, notes that inform and never instruct, and limits
+that stay with their action.</dd>
+<dt><code>S1–S5</code></dt><dd>Warnings and structure. A graded risk word first, the warning
+before the step that it protects, the consequence stated, one topic per paragraph, and identical
+wording for identical operations.</dd>
+</dl>
+
+<h2>Where the contract applies</h2>
+
+<p>The scope divides by kind of text, not by artifact. The contract governs text that a reader
+executes or that leaves the workflow: every document that <code>/wf docs</code> or the diataxis
+skill writes, the structured sections of every workflow artifact, reader-visible text in view
+fragments, chat-return receipt fields, product copy, and external-facing outputs such as release
+notes and PR bodies.</p>
+
+<p>The contract does not govern artifact story sections. Those follow the narrative-voice
+contract, which wins wherever the two conflict. One document can hold both voices: the story
+section reads as prose for a human, and the structured sections beneath it stay terse and
+controlled. The two contracts declare this split in the same place, so no stage has to choose
+between them.</p>
+
+<h2>How the contract is enforced</h2>
+
+<p>Three audit surfaces check the same rules from three directions:</p>
+
+<ul>
+<li>The <code>ste-compliance</code> review dimension audits text at rest. Every finding cites the
+rule that it violates (W1–W8, I1–I9, S1–S5) and carries the corrected sentence. Severity follows
+reader consequence: ambiguity that can change what a reader does is HIGH, and register mechanics
+are batched LOW.</li>
+<li>The <code>/wf docs</code> orchestrator audit grades each document against the contract
+alongside its accuracy, quadrant, completeness, and freshness checks.</li>
+<li>The <code>ambiguous-copy</code> surface-defect class records the same failures when a live
+surface shows them — the same feature named differently on two screens, or a dialog whose
+buttons do not answer the question that the dialog asks.</li>
+</ul>
+
+<h2>Provenance</h2>
+
+<p>ASD-STE100 is the controlled-language specification that the aerospace industry uses for
+maintenance documentation. The specification is copyrighted by ASD, so the plugin does not embed
+it. The contract file paraphrases the transferable rules in the plugin's own words, with examples
+from the plugin's own domain, and drops the rules that depend on the specification's controlled
+dictionary.</p>
+
+<div class="related">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="../reference/review-dimensions.html">Review dimensions</a> — the full dimension list, including <code>ste-compliance</code> and the sweep aggregates that bundle it.</li>
+    <li><a href="why-artifacts.html">Why artifacts</a> — the design bet that decisions live in files, which this contract extends to the sentences inside those files.</li>
+    <li><a href="evidence-and-gates.html">Evidence and gates</a> — how findings and severities flow through the review ledger.</li>
+  </ul>
+</div>
+</main>
+<script src="../nav.js"></script>
+</body>
+</html>

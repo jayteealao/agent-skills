@@ -10,7 +10,7 @@
 <aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
 <main>
 <h1>Review dimensions</h1>
-<p class="lede">This page lists all 34 review dimensions, the 7 sweep aggregates that bundle them, and the rules for ad-hoc invocation. Use this page to pick the right rubric for the review you want.</p>
+<p class="lede">This page lists all 35 review dimensions, the 7 sweep aggregates that bundle them, and the rules for ad-hoc invocation. Use this page to pick the right rubric for the review you want.</p>
 
 <h2 id="invocation">Invocation and scope</h2>
 <p>Review has two modes, and the first token tells them apart. <code>/wf review &lt;slug&gt;</code> is the workflow stage: it dispatches one reviewer per selected dimension and merges findings into the accumulating ledger (<code>07-review[-&lt;slice&gt;].md</code> plus one file per dimension). Without a slug, <code>/wf review &lt;dimension&gt;</code> runs one rubric inline, and <code>/wf review sweep &lt;aggregate&gt;</code> fans out one reviewer per bundled dimension. These slug-less runs are the ad-hoc path. Ad-hoc runs write <strong>no artifact</strong>. Findings return inline in chat, with a verdict and severity counts.</p>
@@ -28,7 +28,7 @@
 <p>To reach a dimension whose name is also a real workflow slug, invoke <code>/wf review sweep &lt;name&gt;</code>, or run the dimension in a repo without that slug.</p>
 <div class="note">When a dimension name is also a real workflow slug, the slug wins and the stage runs.</div>
 
-<h2 id="dimensions">The 34 dimensions</h2>
+<h2 id="dimensions">The 35 dimensions</h2>
 <p>Each dimension is one rubric file that the reviewer follows. Each entry below describes one rubric:</p>
 <dl class="cmd-grid">
 <dt><code>accessibility</code></dt><dd>Reviews UI changes for keyboard and assistive-technology usability, and for ARIA misuse.</dd>
@@ -61,6 +61,7 @@
 <dt><code>reliability</code></dt><dd>Reviews failure modes and operational safety under partial outages.</dd>
 <dt><code>scalability</code></dt><dd>Reviews behavior under higher load, larger datasets, and more tenants.</dd>
 <dt><code>security</code></dt><dd>Reviews for vulnerabilities, insecure defaults, and missing security controls.</dd>
+<dt><code>ste-compliance</code></dt><dd>Audits procedural and external-facing text against the controlled-language contract: terminology drift, ambiguous references, non-imperative instructions, and misplaced warnings.</dd>
 <dt><code>style-consistency</code></dt><dd>Reviews consistency with existing codebase style and language idioms.</dd>
 <dt><code>supply-chain</code></dt><dd>Reviews dependency and build integrity: lockfiles, build scripts, and artifact provenance.</dd>
 <dt><code>testing</code></dt><dd>Reviews test quality, coverage, and reliability.</dd>
@@ -72,13 +73,13 @@
 <table>
 <thead><tr><th>Aggregate</th><th>Dimensions bundled</th></tr></thead>
 <tbody>
-<tr><td><code>all</code></td><td>every dimension (34 reviewers — the broadest and most expensive)</td></tr>
+<tr><td><code>all</code></td><td>every dimension (35 reviewers — the broadest and most expensive)</td></tr>
 <tr><td><code>architecture</code></td><td>architecture, performance, scalability, api-contracts</td></tr>
 <tr><td><code>infra</code></td><td>infra, ci, release, migrations, logging, observability</td></tr>
 <tr><td><code>pre-merge</code></td><td>correctness, testing, security, refactor-safety, maintainability</td></tr>
 <tr><td><code>quick</code></td><td>correctness, style-consistency, dx, ux-copy, overengineering</td></tr>
 <tr><td><code>security</code></td><td>security, privacy, infra-security, data-integrity, supply-chain</td></tr>
-<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy</td></tr>
+<tr><td><code>ux</code></td><td>accessibility, frontend-accessibility, frontend-performance, interface-craft, motion, ux-copy, ste-compliance</td></tr>
 </tbody>
 </table>
 <p><strong>Bare name vs sweep.</strong> Three names exist as both a dimension and an aggregate: <code>architecture</code>, <code>infra</code>, and <code>security</code>. A bare <code>/wf review architecture</code> runs the single dimension. <code>/wf review sweep architecture</code> runs the four-reviewer aggregate. The same rule holds for the other two names.</p>
