@@ -89,7 +89,11 @@ Resolve in this exact order (the order matters — the slug checks come FIRST):
    title, tags), which extension never had a home for.
    - **Schema-era check (W7.2).** While reading `00-index.md` for this branch, note whether the
      workflow predates the current schema — no `charter:`, no `intent-risks:`, or open
-     `runtime-evidence-deferrals` entries missing `wall-ownership` / `clearing-event`. When it does,
+     `runtime-evidence-deferrals` entries missing `wall-ownership` / `clearing-event`.
+     **Nag suppression:** when the index carries a `schema-modernized-at:` stamp, skip the offer
+     for any field listed in its `schema-absent-fields:` — a modernize run already adjudicated
+     those as honestly unanswerable; only markers outside that list (a later era's additions)
+     still fire. When drift does fire,
      say so in one line **before** running the extension and offer `modernize` as a first-class
      option: *"`<slug>` was authored before `<the missing block>`, so `<the stage that reads it>`
      silently gets nothing. Extend now, or run `/wf intake `<slug>` modernize` first?"* Do not
@@ -118,6 +122,12 @@ or render the mode menu and ask which entry the user wants.
 **Quote-escape.** A quoted multi-word first token (`/wf intake "rca dashboard refresh"`) never
 matches a slug or a bare keyword, so it routes to branch 4 (default) — the escape hatch for a
 description that legitimately begins with a slug or mode word.
+
+**Trailing tokens (mode-owned, consumed from the END of `$ARGUMENTS`):** `from <slug>` is the
+provenance token every provenance-aware mode strips per `intake/_intake-provenance.md`; a trailing
+`design` token on `fix` opts the fix into design notes; a trailing `dry-run` on `amend`/`modernize`
+previews without writing. These are positional conventions, not flags — the dispatcher passes them
+through with the mode's instructions and the mode reference consumes them.
 
 ## Auto-route classification (branch 4 only)
 
@@ -182,13 +192,13 @@ mode→span map (a future mode is one new row):
 |---|---|---|---|
 | `default` | `00-index.md` + `01-intake.md`; PO interview + stack fingerprint | n/a — default is never slug-attached | recommends `/wf shape <slug>` |
 | `fix` | compressed **standard** lifecycle — `01-fix`(`type:intake`) → `02-shape` → `03-slice`(`slice-index`) → `04-plan` → **[gate]**, on a `type:index` overview; branch `fix/<slug>` | compressed slice (branch suppressed) | → `/wf implement <slug>` (standard chain authors `05`→`10`) |
-| `rca` | `01-rca.md` (`type:rca`) **+ `02-shape.md`** (forwarding) + `00-index.md`; no branch | compressed slice, **no `02-shape.md`** | terminal → recommends `plan` / `fix` / `hotfix` / human-triage |
+| `rca` | `01-rca.md` (`type:rca`) **+ `02-shape.md`** (forwarding) + `00-index.md`; no branch | compressed slice, **no `02-shape.md`** | terminal → route recorded via `rca <slug> <route>` (`plan` continues the slug; `fix`/`hotfix` close it and forward `from <slug>`; `human-triage` after the ladder) |
 | `investigate` | `01-investigate.md` + `00-index.md`; no branch | compressed slice | terminal → user picks; pick recorded via `investigate <slug> <option>` (closes the workflow) → `fix` / `intake` with `from <slug>` |
-| `discover` | `01-discover.md` + `00-index.md`; no branch | compressed slice | terminal → verdict-dependent |
+| `discover` | `01-discover.md` + `00-index.md`; no branch | compressed slice | terminal → **closes at write time** (`close-reason: verdict-recorded`); verdict-dependent routes forward `from <slug>` |
 | `hotfix` | compressed **standard** lifecycle — `01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]**; branch `hotfix/<slug>` off the production branch | compressed slice, **branch suppressed** | → `/wf implement <slug>` (`07-review` defaults to `security`) |
 | `refactor` | compressed **standard** lifecycle — `01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]**; branch `refactor/<slug>` (opt-in) | compressed slice, **branch suppressed** | → `/wf implement <slug>` (`07-review` defaults to `refactor-safety`) |
-| `update-deps` | compressed **standard** lifecycle in-slug — `01-update-deps`(intake) → `02-shape` → `03-slice` → `04-plan` → **[gate]** → **self-authored** `05-implement`/`06-verify`; branch `deps/<slug>` | compressed slice **only** (companion dir suppressed) | → `/wf review <slug>` (self-authors `05`/`06`; skips `/wf implement`+`/wf verify`) |
-| `ideate` | **terminal analysis** — roots a `type:workflow-index` slug with the `01-ideate` lead only (no build stages) | compressed slice | terminal → user picks → `/wf intake <idea>` |
+| `update-deps` | compressed **standard** lifecycle in-slug — `01-update-deps`(intake) → `02-shape` → `03-slice` → `04-plan` → **[gate]** → **self-authored** `05-implement`/`06-verify`; branch `deps/<slug>` | compressed slice **only** (companion dir suppressed) | → `/wf review <slug>` (self-authors `05`/`06`; skips `/wf implement`+`/wf verify`); audit-only → `/wf close <slug> deferred`; a bare existing run-slug resumes |
+| `ideate` | **terminal analysis** — roots a `type:workflow-index` slug with the `01-ideate` lead only (no build stages) | compressed slice | terminal → user picks; pick recorded via `ideate <slug> <idea-id>` (closes the workflow) → successor `from <slug>` |
 | `adopt` | **reverse-entry** — reconstructs `01-adopt`(intake) → `02-shape` → `03-slice` → `04-plan` → **`05-implement`** from the working-tree diff (all `provenance: adopted`), confirm-before-write gate; records the current branch, never creates one | n/a — adopt is standalone-only (never slug-attachable) | → `/wf verify <slug>` (the standard verification chain takes over from stage 6) |
 | `extend` | n/a — extension always attaches to an existing slug | **adds full net-new `03-slice-<new>.md` file(s)** to the named workflow; never a compressed slice; never touches completed work | → `/wf plan <slug> <new-slice>` |
 | `amend` | n/a — slug-required | **maintenance**: edits whitelisted config on `00-index.md` (branch-strategy, branch, base-branch, review-scope, title, tags) + the registry row. No numbered artifact, no slice, never touches built work | → whatever the workflow was already doing |

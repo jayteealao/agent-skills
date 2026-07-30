@@ -1,6 +1,6 @@
 ---
 description: "Extension mode of intake — add net-new slices to an existing workflow (in-progress, complete, or closed) without modifying completed work. Auto-routed when `$wf intake <existing-slug> <new scope>` names a real on-disk slug followed by free scope text (no mode keyword). Two seeds: general (describe new scope) or from-review/from-retro (seed from findings). Writes full per-slice files and updates the master index non-destructively, then routes to `$wf plan` for the new slices."
-argument-hint: <existing-slug> [from-review | from-retro | <new scope description>]
+argument-hint: <existing-slug> [from-review | from-retro | from-probe | from-simplify | <new scope description>]
 ---
 
 You are running **intake in extension mode** — the auto-routed path when `$wf intake <existing-slug>`
@@ -50,9 +50,24 @@ You are a **scope expander**, not a problem solver.
    - `from-review` — extract new scope from `07-review-*.md` findings (every per-slice review file is
      read; missing capability typically spans slices).
    - `from-retro` — extract new scope from `10-retro.md` findings.
+   - `from-probe` — extract new scope from the workflow's probe slices (`03-slice-probe-*.md`):
+     findings whose remediation is net-new capability rather than a fix of built work.
+   - `from-simplify` — extract new scope from `$wf simplify` findings routed here (the finding
+     entry — id, files, rationale, severity — travels in the invocation text).
    - **Free scope text** (or nothing) — general extension; the user describes the new scope (the free
      text after the slug is your starting description; if empty, the Step 2 interview elicits it).
-3. **Read `00-index.md`** — parse `title`, `slug`, `current-stage`, `status`, `selected-slice-or-focus`, `workflow-files`.
+3. **Read `00-index.md`** — parse `title`, `slug`, `current-stage`, `status`, `selected-slice-or-focus`, `workflow-files`, `workflow-type`.
+3b. **Shape pre-flight (entry guard).** Extension requires a slice roster, and the dispatcher's
+   branch 2 routes ANY on-disk slug here — including workflows that cannot have one. Check before
+   reading further:
+   - **Terminal analysis parent** (`workflow-type: rca` / `discover` / `investigate` / `ideate`) —
+     there is no roster and never will be. STOP: *"`<slug>` is a `<type>` analysis workflow — it has
+     no slice roster to extend. Route its decision instead: record the pick/route (`$wf intake
+     <type> <slug> …`) or start the follow-on work with `$wf intake "<scope>" from <slug>`."*
+   - **Pre-slice standard parent** (no `03-slice.md` on disk yet) — the workflow has not reached
+     slicing. STOP: *"`<slug>` has no slice roster yet (stage: `<current-stage>`). Fold the new
+     scope into the normal path instead: run `$wf shape <slug>` / `$wf slice <slug>` (its
+     `next-invocation`), which absorbs the scope without an extension round."*
 4. **Read `03-slice.md`** — parse the `slices:` array. For each entry, note its `slug`, `status`, and `depends-on`. This is the existing slice inventory — it must not be broken.
 5. **Read all `03-slice-<slug>.md` files** referenced in `workflow-files`. Note which are `status: complete`, `status: in-progress`, `status: defined`.
 6. **Read source artifacts** based on seed:
@@ -95,7 +110,7 @@ Extract qualifying extension candidates. Group related findings into candidate s
 - Why it can't be addressed in an existing slice fix
 - Rough complexity estimate (xs/s/m/l/xl)
 
-If no qualifying findings exist, STOP and tell the user: "Review findings are all implementation bugs — no new scope identified. Use `$wf implement <slug> <slice-slug>` to fix them."
+If no qualifying findings exist, do not STOP — say so and fall back to the general interview: "Review findings are all implementation bugs — no new scope emerged from them (fix those via `$wf implement <slug> <slice-slug>`). Describe the new scope you want to add, or reply `cancel`." On `cancel`, stop; otherwise proceed with the general seed.
 
 ## `from-retro` seed
 
@@ -123,7 +138,7 @@ Rules:
 - Reference actual findings/retro items when asking about from-review/from-retro candidates
 - Confirm proposed slice slugs with the user (propose readable kebab-case names)
 - Ask about dependencies on existing slices explicitly — the user knows whether implementation ordering matters
-- Append every answer to `po-answers.md` with timestamp and `stage: extend`
+- Append every answer to `po-answers.md` with timestamp and `stage: extend` (create the file with its standard header if the workflow predates it — a compressed-mode parent has none)
 
 ---
 
@@ -148,19 +163,21 @@ New scope enters the lifecycle here without passing through `intake default` or 
 step is where the intent-fidelity machinery covers it (v9.136.0 — before this, extended scope
 carried zero RIM/charter tracking):
 
+This step **computes** the deltas and holds them; **Step 6 is the single index writer** — nothing
+here touches `00-index.md`:
+
 1. **RIM delta.** For the confirmed new slices, ask: *what are the most likely ways this new scope
    could be misread?* (the same misreading pass `intake/default.md` Step 6a runs). Each distinct
-   risk becomes an `intent-risks` entry appended to `00-index.md` — extension has no downstream
-   shape run to adjudicate, so author each entry **adjudicated in place**: the Step 2 interview IS
-   the adjudication forum (`status: adjudicated`, `decision:` from the interview answer,
+   risk becomes a drafted `intent-risks` entry — extension has no downstream shape run to
+   adjudicate, so author each entry **adjudicated in place**: the Step 2 interview IS the
+   adjudication forum (`status: adjudicated`, `decision:` from the interview answer,
    `adjudicated-by: 03-slice-<new-slug>.md#risks`, `po-ratified: true` citing the `po-answers.md`
    entry). Leave an entry `open` ONLY when the interview genuinely could not resolve it — it must
-   then appear in the new slice's `## Risks` and the index `open-questions`, and it will correctly
-   hard-block handoff/ship until cleared.
+   then appear in the new slice's `## Risks` and the drafted `open-questions` addition, and it will
+   correctly hard-block handoff/ship until cleared.
 2. **Charter delta.** If the new scope adds a load-bearing commitment the existing charter does not
-   cover, append it to the `00-index.md` `charter` ledger (`C<next>`, `source:` the new slice file,
-   `po-ratified: true` — the Step 3 confirm gate is the ratification). Do NOT rewrite or renumber
-   existing commitments.
+   cover, draft the ledger addition (`C<next>`, `source:` the new slice file, `po-ratified: true` —
+   the Step 3 confirm gate is the ratification). Do NOT rewrite or renumber existing commitments.
 3. **Zero-delta escape.** If the new scope genuinely adds no misreading risk and no new commitment
    (a purely mechanical extension), state that in one line in the Extension Round section of
    `03-slice.md` — an explicit declaration, never a silent skip.
@@ -181,7 +198,7 @@ created-at: "<ISO 8601>"
 updated-at: "<ISO 8601>"
 complexity: <xs|s|m|l|xl>
 depends-on: [<existing-slice-slug-if-any>, ...]
-source: <from-review | from-retro | extension>
+source: <from-review | from-retro | from-probe | from-simplify | extension>
 source-ref: <07-review-<slice-slug>.md | 10-retro.md | "user description">
 extension-round: <N>  # 1 for the first extension on this workflow, 2 for the second, etc.
 tags: []
@@ -231,7 +248,7 @@ Read the current `03-slice.md`. Update it by:
      status: defined
      complexity: <xs|s|m|l|xl>
      depends-on: [<if-any>]
-     source: <from-review | from-retro | extension>
+     source: <from-review | from-retro | from-probe | from-simplify | extension>
      extension-round: <N>
    ```
 3. **Updating `updated-at`** to the current ISO 8601 timestamp.
@@ -239,7 +256,7 @@ Read the current `03-slice.md`. Update it by:
 
 ```markdown
 ## Extension Round <N> — <ISO date>
-Source: <from-review | from-retro | user request>
+Source: <from-review | from-retro | from-probe | from-simplify | user request>
 
 ### New Slices Added
 | Slice | Goal | Complexity | Depends On |
@@ -259,13 +276,27 @@ Do NOT modify any existing slice entries in the `slices:` array. Do NOT change `
 
 ---
 
-# Step 6 — Update Index
+# Step 6 — Update Index (the single authoritative index write)
 
-Read `00-index.md` frontmatter. Update ONLY:
-- `updated-at` → current ISO 8601 timestamp
-- Add all new `03-slice-<new-slug>.md` files to `workflow-files`
+This is the ONE step that writes `00-index.md` — everything earlier only computed. Read the
+frontmatter and apply, additively:
 
-Do NOT change `current-stage`, `status`, `selected-slice-or-focus`, or any other field.
+1. `updated-at` → current ISO 8601 timestamp.
+2. Append all new `03-slice-<new-slug>.md` files to `workflow-files`.
+3. Append the Step 3b **RIM delta** entries to `intent-risks` and the **charter delta** entries to
+   the `charter` ledger (never rewrite or renumber existing entries); append any `open` risk to
+   `open-questions`.
+4. **Re-point the forward pointers at the new work:** set `next-command: wf-plan` and
+   `next-invocation: "$wf plan <slug> <first-new-slice-slug>"`; if `03-slice.md` carries
+   `best-first-slice` and every prior slice is complete/skipped, set it to the first new slice.
+   Without this, `$wf status` and resume point at an already-done slice.
+5. **Revive a complete/closed parent:** extension means the workflow has live work again. If
+   `status` is `complete` or `closed`, set `status: active` and `current-stage: slice` (leave
+   `close-reason`/`closed-at` in place as history — the revival is visible, not erased).
+6. **Registry row:** update the slug's row in `.ai/workflows/INDEX.md` (`status`, `updated-at`) to
+   match.
+
+Do NOT change `selected-slice-or-focus` or any field not listed above.
 
 ---
 

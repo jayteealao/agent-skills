@@ -53,7 +53,9 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 1. **Resolve focus area** from `$ARGUMENTS` (first argument, optional). If provided (e.g., `security`, `performance`, `dx`, `architecture`, `testing`), narrow exploration lenses to that domain. If omitted, run all six lenses.
 2. **Resolve count** from `$ARGUMENTS` (second argument, optional). If provided (e.g., `5`, `20`), this is the maximum number of ranked survivors to return. Default: **10**.
 2b. **Derive the workflow slug:** `ideate-<focus-slug>-<YYYYMMDD>` (focus-slug = the focus area, or `all`; date via `date +"%Y%m%d"`). This roots the terminal analysis workflow. If that slug already exists, append `-2`/`-3`.
+2c. **Pick / resume split:** if the first token matches an existing `workflow-type: ideate` slug: a following token that matches an idea id (`IDEA-NNN`) or an idea title → **pick mode**, jump to `# Pick — decision closure` below (trailing prose is the decision note; if the index is already closed, WARN and stop). No idea token and `01-ideate.md` complete → tell the user how to record a pick — `$wf intake ideate <slug> <idea-id> [reason]` — and stop. Incomplete → resume from the missing step.
 3. **Discover existing workflows** — list `.ai/workflows/*/00-index.md`. Note which are active or recently completed. Ideas that duplicate in-flight or just-shipped work should be flagged as such during adversarial filtering.
+3b. **Seed from recorded history** — the repo already wrote down what needs doing; the lenses must not re-derive it blind. Cheap reads, skip whatever is absent: retro action items (`.ai/workflows/*/10-retro.md`, the action-item section), `.ai/solutions/` entries, deferred review findings (review ledger entries marked deferred), and `sdlc-debt:` markers (`grep -rn 'sdlc-debt:' --include='*.{js,ts,py,go,rs,java,kt,md}'` or the repo's equivalent). Pass the harvest to every lens prompt as prior context, tagged `recorded-history` — a candidate that matches a recorded item cites it as evidence and skips Challenge 1.
 4. **Announce plan to chat:**
    ```
    Scanning codebase for improvement opportunities.
@@ -259,7 +261,7 @@ Entry: $wf intake <slug-suggestion> | $wf intake <existing-slug> <new scope>
 For each candidate, run it through the following challenges. If it fails any challenge, cull it — record the ID, title, and reason, but do not include it in the survivor list.
 
 **Challenge 1 — Is it real?**
-Is this problem actually present in the codebase, or is it inferred from a generic pattern? If the sub-agent finding was speculative ("this might be a problem if…") rather than specific ("this file:line shows…"), cull it.
+Is this problem actually present in the codebase, or is it inferred from a generic pattern? If the sub-agent finding was speculative ("this might be a problem if…") rather than specific ("this file:line shows…"), do not silently cull a candidate whose *impact would be high if true* — route it to the cheapest check instead: record it under the filter log as `needs-verification` with the named check (`$wf intake discover "<the falsifiable claim>"` for a static truth, `$wf probe <slug> "<the runtime question>"` once a workflow exists for a runtime one). Low-impact speculation is culled outright.
 
 **Challenge 2 — Is it already in progress?**
 Check the active workflows discovered in Step 0. If this idea is already being worked on or was just shipped, cull it and note the workflow slug.
@@ -311,14 +313,15 @@ Raw candidates: <N>  |  Culled by filter: <N>  |  Survivors: <N>  |  Showing: <N
 ### #2 — ...
 ```
 
-Then ask the user directly in chat, presenting the options as a short numbered list, which ideas to pursue. Present each idea with its number and entry skill. Offer "None — save list and decide later" as the last option.
+Then ask the user directly in chat, presenting the ranked ideas as a short numbered list — "Reply with the numbers of the ideas to act on (e.g. `1 3`), or `none` to save the list and decide later." Offer "None — save list and decide later" as the last option.
 
-For each selected idea, offer the exact intake skill to run:
+**Persist the selection** — the answer is a decision, not chat exhaust: record the selected idea ids in `01-ideate.md` frontmatter as `selected: [IDEA-NNN, …]` (empty list for "none") and append a one-line `## Selection` note to the body (who picks later when "none"). For each selected idea, offer the exact entry invocation to run (new-workflow ideas as `$wf intake <slug-suggestion> from <slug>`; extension-shaped ideas — those that grow an existing workflow — as `$wf intake <existing-slug> <scope>`, never forced into a new-workflow form):
 ```
 Ready to start:
-  $wf intake <slug-suggestion-1>   # Idea #N — <Title>
-  $wf intake <slug-suggestion-2>   # Idea #N — <Title>
+  $wf intake <slug-suggestion-1> from <slug>   # Idea #N — <Title>
+  $wf intake <existing-slug> <scope>           # Idea #M — <Title> (extension)
 ```
+A single selected idea is the pick: apply `# Pick — decision closure` for it. Multiple selections keep the workflow open (`## Selection` records them; the first routed successor's provenance link-back applies the implicit pick per `_intake-provenance.md`).
 
 ---
 
@@ -328,27 +331,28 @@ The terminal analysis modes root in a `type: workflow-index` slug workflow (the 
 
 Generate a timestamp (UTC compact `<yyyymmdd>T<hhmmss>Z`) per [_timestamp.md](../_timestamp.md).
 
-**`00-index.md` — `type: workflow-index`** (lightweight; analysis modes do not get the heavy 22-field `type: index`):
+**`00-index.md` — `type: workflow-index`** (lightweight; analysis modes do not get the heavy 22-field `type: index`). The workflow stays **open until the pick** — `status: ready`, `next-command: user-picks`, never `complete`-and-parked:
 ```yaml
 ---
 schema: sdlc/v1
 type: workflow-index
 slug: <slug>
+title: "Ideate: <focus-area or codebase-wide> <YYYY-MM-DD>"
 workflow-type: ideate
-current-stage: ideate
-status: complete
-selected-slice: ""
+current-stage: routing
+status: ready
 branch-strategy: none
 open-questions: []
-next-command: wf-intake
-next-invocation: "$wf intake <chosen-idea-slug>"
+next-command: user-picks
+next-invocation: "user-picks — record via $wf intake ideate <slug> <idea-id>; see 01-ideate.md"
 progress:
-  - ideate: complete
+  ideate: complete
 created-at: "<ISO 8601>"
+updated-at: "<ISO 8601>"
 ---
 ```
 
-**`01-ideate.md` — `type: ideation`** (the lead carries a `slug` for the in-slug path; `focus` stays the schema key):
+**`01-ideate.md` — `type: ideation`** (the lead carries a `slug` for the in-slug path; `focus` stays the schema key). The roster keeps the per-idea `file:line` evidence the lenses were required to gather — dropping it strips the successor's seed:
 ```yaml
 ---
 schema: sdlc/v1
@@ -360,6 +364,7 @@ raw-candidates: <N>
 culled-count: <N>
 survivor-count: <N>
 shown-count: <N>
+selected: []          # idea ids the user selected in Step 5; stamped again at pick time
 ideas:
   - id: IDEA-001
     title: "<title>"
@@ -367,12 +372,13 @@ ideas:
     impact: <critical|high|medium|low>
     effort: <xs|s|m|l|xl>
     score: <float>
-    entry: "<$wf intake slug-suggestion>"
+    evidence: ["<file:line>", "..."]   # the lens findings this idea is grounded in
+    entry: "<the entry invocation — new-workflow or extension form>"
   - ...
 culled:
   - id: IDEA-NNN
     title: "<title>"
-    reason: "<adversarial filter reason>"
+    reason: "<adversarial filter reason, or needs-verification: <the named cheap check>>"
   - ...
 ---
 ```
@@ -424,6 +430,29 @@ $wf intake ideate dx 20             # DX lens, top 20
 ## Step — Write free narrative fragments
 
 Author **free narrative fragments** for any beat the structured page can't tell — as many as the story needs. Follow [_fragment-authoring.md](../../wf/reference/_fragment-authoring.md) **Step F2** for the rules (unrestricted raw HTML, no contract or sibling `.yaml`, `NN-` label ordering).
+
+# Pick — decision closure
+
+Runs only from Step 0 pick mode (`$wf intake ideate <slug> <idea-id-or-title> [one-line reason]`),
+or from Step 5 when exactly one idea is selected. The pick is the workflow's terminus: it records
+the decision and closes the workflow. It never starts the successor — it prints the invocation
+and stops.
+
+1. **Stamp the artifact.** In `01-ideate.md` frontmatter set `selected: [<idea-id>]`, add
+   `chosen-idea: <id> — <title>`, `chosen-at:` set to the real UTC timestamp (per
+   [_timestamp.md](../_timestamp.md)), and `decision-note: <the trailing prose>` if the
+   user supplied any (omit the key otherwise).
+2. **Append a `## Decision` section** to the artifact body: which idea was picked; why (the
+   user's reason verbatim, else "user picked without a stated reason"); the sibling ideas it
+   beat and the one-line reason each lost (the culled-sibling rationale a successor's
+   out-of-scope list is seeded from).
+3. **Close the workflow.** Update `00-index.md`: `status: closed`, `close-reason: idea-picked`,
+   `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`,
+   `next-invocation: "none — decision recorded"`. Update the slug's row in
+   `.ai/workflows/INDEX.md` to `closed`. The successor's link-back (`_intake-provenance.md`)
+   corrects `superseded-by: pending`.
+4. **Print the next invocation** with provenance — the idea's `entry:` value, with
+   `from <slug>` appended when it is a new-workflow form — and stop. Do not run it.
 
 # Chat return contract
 After writing files, return per [_chat-return.md](../_chat-return.md) — narrative lead in the artifact's `## The Ideation` story voice, then this receipt:

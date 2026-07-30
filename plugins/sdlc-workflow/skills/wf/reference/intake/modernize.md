@@ -3,12 +3,13 @@ description: "Modernize mode of intake — backfill an older workflow's artifact
 argument-hint: <existing-slug> modernize [dry-run]
 ---
 
+# Output boundary & shared context
+The External Output Boundary, the narrative-fragment tier, and the workflow-registry/slug
+semantics come from `_intake-context.md`, which the `intake` dispatcher loaded before this
+reference — apply them; do not restate or fork those rules here.
+
 You are running **intake in modernize mode** — bringing a workflow that was authored under an older
 plugin schema up to what the installed references now read.
-
-> The External Output Boundary, the narrative-fragment tier, and the workflow-registry/slug
-> semantics come from `_intake-context.md`, which the `intake` dispatcher loaded before this
-> reference. Do not restate or fork those rules here.
 
 # Why this mode exists
 
@@ -27,7 +28,10 @@ it the same way each time is the entire point of making it a mode.
 Modernize **fills absent fields from what the artifacts already say.** It never:
 
 - rewrites or re-words a recorded decision, verdict, acceptance criterion, or defer-reason;
-- changes a `status`, `result`, `convergence`, or `verdict`;
+- changes a **recorded** `status`, `result`, `convergence`, or `verdict` — filling an **absent**
+  `slices[].status` from the per-slice artifact's own terminal state is additive backfill, not a
+  status change (the mapping is fixed: per-slice artifact `complete` → `complete`, `skipped` →
+  `skipped`, `in-progress` → `in-progress`, anything else or no artifact → `defined`);
 - invents a charter commitment, a risk, or a wall classification that the artifacts do not support;
 - clears a deferral, or narrows one.
 
@@ -50,8 +54,12 @@ plugin wrote them, and marker presence is what the consuming references actually
 | `clearing-event:` on each open deferral | the deferral is indefinite by construction and reads as progress forever | the defer-reason when it names a provisionable act; otherwise leave absent and list it |
 | `clearing-probe:` on each open deferral | nobody notices when the clearing event happens | only when the artifacts already contain the probe command; never invent one |
 | `revisions:` / `revision-count` on revisable artifacts | provenance of past edits is unrecoverable | seed a single `rev: 1` entry with `trigger: manual`, `because: "pre-ledger artifact"` — do **not** reconstruct a history that was never recorded |
-| `slices[].status` on the index | drivers cannot tell a skipped slice from a live one | the per-slice artifacts' own terminal state on disk |
+| `slices[].status` on the index | drivers cannot tell a skipped slice from a live one | the per-slice artifacts' own terminal state on disk (the fixed mapping in the cardinal rule) |
 | `evidence-rung:` on user-observable AC rows | the mock-evidence gate cannot fire | the verify artifact's recorded evidence, when it is explicit; otherwise leave absent |
+| `review-scope-confirmed:` / `appetite:` / `stack:` on the index (v9.136 era) | plan reads an absent `review-scope-confirmed` as already-asked and silently skips the confirm; shape/slice/plan lose their appetite scaling; verify STOPs on the missing stack block | `review-scope-confirmed: false` (the honest value — nobody asked); `appetite` from the intake artifact's recorded appetite answer, else leave absent; `stack:` re-detected cheaply per `_change-mode-tail.md`'s stack policy with `user-confirmed: false` (detection is observational — running it now invents nothing) |
+| the slug's row in `.ai/workflows/INDEX.md` | `/wf status` reconcile and the registry-driven modes never see the workflow | append the row from the index's own `slug`/`status`/`workflow-type`/`branch`/`updated-at` (additive bootstrap per `_intake-context.md`) |
+| `needed-by:` / `absorbed-by:` on open deferrals | the deferral never escalates when its due slice completes; inheritance breadth is untracked | the deferral's own recorded prose when it names a due slice or an inheriting slice; otherwise leave absent and list it |
+| decision-lifecycle fields on a terminal analysis index (`chosen-option`/`chosen-route`/`chosen-idea`, closure) — **report-only** | the workflow parks in Active forever with its decision unrecorded | **never backfilled** — a decision nobody recorded is exactly what modernize must not invent. Report the row and name the recording command: `/wf intake investigate <slug> <option>` / `/wf intake rca <slug> <route>` / `/wf intake ideate <slug> <idea-id>` (or `/wf close <slug> <reason>`) |
 
 # Step 1 — Report before writing (MANDATORY)
 
@@ -75,6 +83,12 @@ Show the user, before touching anything:
 4. Leave every non-backfillable field **absent**. Do not write a placeholder, an empty string, or an
    `n-a` — a junk value is indistinguishable from a real one to the gates that read it, and that
    ambiguity is exactly what the evidence-schema contract exists to eliminate.
+5. **Stamp the run** on `00-index.md`: `schema-modernized-at: <timestamp>` and
+   `schema-absent-fields: [<the fields left absent on purpose>]`. The stamp is what makes the run
+   idempotent — the dispatcher's schema-era check (intake.md W7.2) suppresses its nag for any field
+   listed in `schema-absent-fields`, so an honestly-unanswerable field stops re-firing the offer on
+   every extension forever. A LATER plugin era's new markers still fire (they will not be in the
+   stamped list).
 
 # Step 3 — Chat return
 

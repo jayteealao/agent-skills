@@ -1,6 +1,6 @@
 ---
 description: Dependency update STANDARD lifecycle. Scans manifests, researches each dependency, prioritizes by risk into P0/P1/P2 tiers, then drives the full SDLC sequence in-slug (01-update-deps → 02-shape research → 03-slice → 04-plan → gate → self-authored 05-implement/06-verify tiered exec → review) on a full type:index overview. Unlike the other change-modes, update-deps SELF-AUTHORS 05/06 (its tier-ordered execution is specialized) then routes to $wf review.
-argument-hint: [package-name|--security-only|--audit-only]
+argument-hint: "[package-name|--security-only|--audit-only|<existing-run-slug to resume>]"
 ---
 
 # Output boundary & shared context
@@ -15,7 +15,7 @@ If the dispatcher selected **slug-mode** (the first token after `intake` matched
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline
-`01-update-deps`(intake, scan) → `02-shape` (research + prioritize) → `03-slice` → `04-plan` (tiered commands) → **[gate]** → **self-authored** `05-implement` + `06-verify` (tier-ordered) → `$wf review` → `$wf handoff` → `$wf ship`
+`01-update-deps`(intake, scan) → `02-shape` (research + prioritize) → `03-slice` → `04-plan` (tiered commands) → **[gate]** → **self-authored** `05-implement` + `06-verify` (tier-ordered) → `$wf review` → `$wf handoff` → `$wf ship` → `$wf retro`
 
 | | Detail |
 |---|---|
@@ -24,8 +24,9 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | Slug | `update-deps-<YYYYMMDD>` (e.g. `update-deps-20260619`). Keep a `run-id` field on the lead for continuity with legacy `.ai/dep-updates/` runs. |
 | No argument | Scan and update all dependencies. |
 | `<package-name>` | Focus on a single named package. |
+| `<existing-run-slug>` | **Resume** — a bare token that exactly matches an existing `workflow-type: update-deps` slug (e.g. `update-deps-20260619`) resumes that run from its first unwritten artifact. Any other bare token is a package name. |
 | `--security-only` | Prioritize and update only CVE-affected packages. |
-| `--audit-only` | Run scan + research + plan only — STOP at the gate after `04-plan`, do not implement. |
+| `--audit-only` | Run scan + research + plan only — STOP at the gate after `04-plan`, do not implement. The lawful terminus is `$wf close <slug> deferred` (see Step 6). |
 | Exception | update-deps is the one change-mode that **self-authors `05`/`06`** (tier-ordered exec is specialized). `$wf implement` and `$wf verify` redirect it back here; only `$wf review` accepts it. |
 
 # CRITICAL — execution discipline
@@ -37,11 +38,13 @@ You are a **dependency update orchestrator**.
 - The lifecycle skips no *stage* — each is single-pass. Follow the steps exactly in order.
 
 # Step 0 — Orient (MANDATORY)
-1. **Parse arguments** from `$ARGUMENTS`: no arg → `mode: all`; package name → `mode: single`, `target-package`; `--security-only` → `mode: security-only`; `--audit-only` → `mode: audit-only` (stop at the gate after `04-plan`).
-2. **Resolve slug / resume:** new run → slug `update-deps-<YYYYMMDD>` (`date +"%Y%m%d"`). If `.ai/workflows/<slug>/00-index.md` exists with `workflow-type: update-deps` → resume from the first unwritten artifact. (Legacy `.ai/dep-updates/<run-id>/` runs still validate + render via fallback; new runs are in-slug.)
-3. **Identify package manager(s):** read the project root for manifests; a project may have several (Node frontend + Python backend). List all.
-4. **Branch:** default `branch-strategy: dedicated`, branch `deps/<slug>`. Create off the current base if absent.
-5. **Single slice.** The whole update is one slice (`slice-slug` = `<slug>`); the P0/P1/P2 tiers are organized *within* the slice/plan/implement bodies (so the un-suffixed single `05-implement.md`/`06-verify.md` capture the tiered execution).
+1. **Parse arguments** from `$ARGUMENTS`: no arg → `mode: all`; a bare token that exactly matches an existing `workflow-type: update-deps` slug on disk → **resume that run** (this check runs before the package-name reading — a slug is not a package); any other bare token → `mode: single`, `target-package`; `--security-only` → `mode: security-only`; `--audit-only` → `mode: audit-only` (stop at the gate after `04-plan`).
+2. **Resolve slug / resume:** new run → slug `update-deps-<YYYYMMDD>` (`date +"%Y%m%d"`). If `.ai/workflows/<slug>/00-index.md` exists with `workflow-type: update-deps` → resume from the first unwritten artifact. (Legacy `.ai/dep-updates/<run-id>/` runs still validate + render via fallback; new runs are in-slug.) Apply the collision check in `_change-mode-tail.md` if the slug exists with a different type.
+3. **Prior-run provenance:** apply `reference/intake/_intake-provenance.md` (update-deps row). Scan `.ai/workflows/INDEX.md` for the most recent prior `workflow-type: update-deps` run; when one exists, read its `02-shape.md` Hold tier and `05-implement.md` Blocked list and seed this run's Step 2 research from them — re-check each recorded revisit condition instead of cold-re-deriving last month's Hold research. Record `origin-update-deps: <prior-slug>` on the index when consumed.
+4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false` (update-deps asks no planning questions; its self-authored verify carries the caveat).
+5. **Identify package manager(s):** read the project root for manifests; a project may have several (Node frontend + Python backend). List all.
+6. **Branch:** default `branch-strategy: dedicated`, branch `deps/<slug>`. Create off the current base if absent.
+7. **Single slice.** The whole update is one slice (`slice-slug` = `<slug>`); the P0/P1/P2 tiers are organized *within* the slice/plan/implement bodies (so the un-suffixed single `05-implement.md`/`06-verify.md` capture the tiered execution).
 
 # Step 1 — Scan → `01-update-deps.md` (`type: intake`)
 Read all manifests and produce a complete inventory. For each: read the manifest, run the package manager's outdated/audit command (Node `npm outdated --json` + `npm audit --json`; Python `pip list --outdated` + `pip-audit`/`safety check`; Go `go list -u -m all` + `govulncheck ./...`; Rust `cargo outdated` + `cargo audit`; Java `mvn versions:display-dependency-updates` / `gradle dependencyUpdates`). For `mode: single`, filter to the target; for `security-only`, identify CVE packages.
@@ -156,67 +159,20 @@ refs:
   index: 00-index.md
   slice: 03-slice.md
   next: 05-implement.md
-next-command: wf-implement
-next-invocation: "$wf review <slug>"   # update-deps self-authors 05/06, then reviews
+next-command: wf-review               # update-deps self-authors 05/06 next; resume a mid-run via $wf intake update-deps <slug>
+next-invocation: "$wf review <slug>"
 ---
 ```
-Body: `## P0 — Security` / `## P1 — Major+migration` / `## P2 — Safe batch` / `## Hold` — each package with the exact update command, test command, what to verify, and rollback command (Hold: reason + revisit condition).
+Body: `## P0 — Security` / `## P1 — Major+migration` / `## P2 — Safe batch` / `## Hold` — each package with the exact update command, test command, what to verify, and rollback command (Hold: reason + revisit condition). Then `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`; the update-deps tripwires are: a P1 migration without a cited changelog · a Hold entry without a revisit condition · mixed tiers forced into one commit by tooling).
 
 ## Step — Write free narrative fragments
 Author free narrative fragments for any artifact per the narrative-fragment tier of `_intake-context.md` (a per-tier update table or a CVE-burndown chart tells a deps story well).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)
-Write the full 22-field `type: index` overview using the template from [intake/default.md](default.md):
-```yaml
----
-schema: sdlc/v1
-type: index
-slug: <slug>
-title: "Dependency update <YYYY-MM-DD>"
-workflow-type: update-deps
-status: active
-current-stage: plan
-stage-number: 4
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-selected-slice: <slug>
-branch-strategy: dedicated
-branch: "deps/<slug>"
-base-branch: "<main|master>"
-review-scope: slug-wide
-pr-url: ""
-pr-number: 0
-open-questions: []
-tags: [deps]
-next-command: wf-review
-next-invocation: "$wf review <slug>"
-workflow-files:
-  - 00-index.md
-  - 01-update-deps.md
-  - 02-shape.md
-  - 03-slice.md
-  - 04-plan.md
-slices:
-  - slug: <slug>
-    status: defined
-    complexity: <s|m|l>
-progress:
-  intake: complete
-  shape: complete
-  slice: complete
-  plan: complete
-  implement: not-started
-  verify: not-started
-  review: not-started
-  handoff: not-started
-  ship: not-started
-  retro: not-started
----
-```
-Then **register the slug in `.ai/workflows/INDEX.md`** per `intake/default.md` Step 10.
+Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `update-deps` column values (`mode: <all|single|security-only|audit-only>` mirrored onto the index frontmatter as an extra key; `origin-update-deps` when Step 0 consumed a prior run; `stack.user-confirmed: false`). Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
 # Step 6 — Gate before implement (MANDATORY)
-Apply the **compressed-lifecycle gate** from `_intake-context.md` — ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) with the tier-aware options:
+Apply the gate per `_intake-context.md` and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — for update-deps ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) with the tier-aware options:
 ```
 question: "Dependency update plan ready. P0: <N> security · P1: <N> major · P2: <N> safe · Hold: <N>. Proceed?"
 options:
@@ -225,7 +181,10 @@ options:
     - Audit-only — save plan, do not implement
     - Adjust plan (describe changes)
 ```
-**If `mode: audit-only`** (or the user picks Audit-only) → STOP here. The plan is saved; do not implement. Record the decision in `01-update-deps.md`.
+**Record the gate decision in `01-update-deps.md` on every branch** (full plan / P0-only / audit-only / adjusted), per the tail. **If `mode: audit-only`** (or the user picks Audit-only) → the run ends lawfully, not in a deadlock:
+1. Push every Hold-tier entry onto the index's `open-questions` as `"revisit <package>: <condition>"` — the research survives as machine-readable revisit triggers.
+2. Self-report to `00-index.md`: `updated-at`, `mode: audit-only`, `next-command: wf-close`, `next-invocation: "$wf close <slug> deferred"`. Touch the registry row's `updated-at`.
+3. STOP, printing: *"Audit saved. Close the run with `$wf close <slug> deferred` — the plan stays revivable; a future run seeds from its Hold list via provenance."* Do NOT point at `$wf review` (it refuses without `05-implement.md`) and do NOT leave `next-command` pointing at implementation that will never run.
 
 # Step 7 — Self-author `05-implement.md` (tier-ordered execution)
 Execute the plan in tier order. **Never mix tiers in a single commit.**
@@ -255,11 +214,13 @@ refs:
   index: 00-index.md
   plan: 04-plan.md
   next: 06-verify.md
-next-command: wf-verify
+next-command: wf-review               # 06-verify.md is self-authored next; $wf verify would redirect back here
 next-invocation: "$wf review <slug>"
 ---
 ```
-Body: `## Updated` (package@version per tier with commit SHA), `## Blocked` (package — reason), `## Held`.
+Body: `## Updated` (package@version per tier with commit SHA), `## Blocked` (package — reason **+ revisit condition**), `## Held`.
+
+**Then self-report to `00-index.md`** — the stage completed, so the index must say so: set `current-stage: implement`, `stage-number: 5`, `progress.implement: complete`, append `05-implement.md` to `workflow-files`, refresh `updated-at`, and touch the registry row's `updated-at`. A self-authored stage that skips this leaves the dashboard reading "unimplemented" forever.
 
 # Step 8 — Self-author `06-verify.md`
 Run the full suite against the updated state: complete test suite (not just targeted), the build (`npm run build` / `go build ./...` / `cargo build`), integration/E2E if present; confirm no blocked package left an inconsistent lockfile. Write `06-verify.md` (un-suffixed) — satisfies the **verify** required set:
@@ -291,10 +252,12 @@ next-command: wf-review
 next-invocation: "$wf review <slug>"
 ---
 ```
-Body: `## Test Result` (pass/fail/skip), `## Build`, `## Blocked packages` (remaining at old version + why). `result: partial` is valid when some packages updated and some are blocked.
+Body: `## Test Result` (pass/fail/skip), `## Build`, `## Blocked packages` (remaining at old version + why **+ revisit condition**). `result: partial` is valid when some packages updated and some are blocked.
+
+**Then self-report to `00-index.md`** again: `current-stage: verify`, `stage-number: 6`, `progress.verify: complete`, append `06-verify.md` to `workflow-files`, refresh `updated-at`, `next-command: wf-review`, `next-invocation: "$wf review <slug>"`, and touch the registry row. Blocked packages also land on the index's `open-questions` as `"revisit <package>: <condition>"` so the next run's provenance seed finds them without re-reading stage bodies.
 
 # Step 9 — Route to review
-On a `pass`/`partial` verify, route to **`$wf review <slug>`** (review recognizes `workflow-type: update-deps` and reviews the un-suffixed `05`/`06` against `01-update-deps.md` + `03-slice.md`). Then `$wf handoff` → `$wf ship`.
+On a `pass`/`partial` verify, route to **`$wf review <slug>`** (review recognizes `workflow-type: update-deps` and reviews the un-suffixed `05`/`06` against `01-update-deps.md` + `03-slice.md`). Then `$wf handoff` → `$wf ship` → `$wf retro`.
 
 Lead with a short **narrative** paragraph (what was scanned, the tier counts, what updated vs blocked, the verify result), then:
 ```
@@ -302,11 +265,8 @@ wf intake update-deps complete: <slug>
 Branch: deps/<slug>
 Tiers: P0 <n> · P1 <n> · P2 <n> · Hold <n>
 Updated: <n> · Blocked: <n> · Verify: <pass|partial|fail>
-Next: $wf review <slug>  →  $wf handoff  →  $wf ship
+Next: $wf review <slug>  →  $wf handoff  →  $wf ship  →  $wf retro
 ```
 
 # Workflow rules
-- Store artifacts **in-slug** under `.ai/workflows/<slug>/` (legacy `.ai/dep-updates/<run-id>/` runs still validate + render via fallback, but new runs are in-slug).
-- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — get the current UTC time per [_timestamp.md](../_timestamp.md).
-- Always use the package manager's own commands — never edit lockfiles directly. Never mix security updates with major migrations in one commit. Web-search every package being updated — don't rely solely on `npm outdated`.
-- Review is not skipped — update-deps self-verifies (`06-verify.md`) then routes to `$wf review`.
+Apply the shared workflow rules in [_change-mode-tail.md](_change-mode-tail.md). Update-deps-specific: store artifacts **in-slug** (legacy `.ai/dep-updates/<run-id>/` runs still validate + render via fallback); always use the package manager's own commands — never edit lockfiles directly; never mix security updates with major migrations in one commit; web-search every package being updated — don't rely solely on `npm outdated`; review is not skipped — update-deps self-verifies (`06-verify.md`) then routes to `$wf review`.

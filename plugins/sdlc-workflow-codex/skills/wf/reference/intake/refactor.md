@@ -15,7 +15,7 @@ If the dispatcher selected **slug-mode** (the first token after `intake` matched
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline
-`01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]** → `$wf implement` (→`05`) → `$wf verify` (→`06`) → `$wf review refactor-safety` (→`07`) → `$wf handoff` → `$wf ship`
+`01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]** → `$wf implement` (→`05`) → `$wf verify` (→`06`) → `$wf review refactor-safety` (→`07`) → `$wf handoff` → `$wf ship` → `$wf retro`
 
 | | Detail |
 |---|---|
@@ -38,17 +38,20 @@ You are a **refactoring orchestrator**. The singular goal is identical external 
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/<slug>/00-index.md` with `workflow-type: refactor` → **resume mode**. Read the index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `rf-*.md` — re-author as the standard set if continuing.)
    - Otherwise → **new refactor**. Derive a slug: `refactor-<short-description>` (kebab-case, max 5 words, e.g., `refactor-auth-service-layer`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` exists and `workflow-type` is NOT `refactor` → WARN and ask for a different description.
-3. **Branch check:** Refactors SHOULD use a dedicated branch — ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)), options: `Create dedicated branch (recommended)` / `Use current branch`. If dedicated: `git checkout -b refactor/<slug>` from the current branch.
-4. **Single slice.** The refactor is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). The refactor units are the plan's steps. Downstream stages write **un-suffixed** files.
+2. **Collision check:** apply the collision check in `reference/intake/_change-mode-tail.md` (legacy alias for refactor: `rf-*` artifacts).
+3. **Provenance check:** apply `reference/intake/_intake-provenance.md`. The common source is a `$wf simplify` finding routed here — its entry (id, files, rationale, severity) travels in the invocation text and seeds `## Target` / `## Why` directly. An explicit `from <source-slug>` token (an investigate option, an escalated change-mode) consumes its Consume-table row. No match → continue.
+4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply; the one-line confirm rides the Step 1 question round and sets `stack.user-confirmed: true`.
+5. **Branch check:** Refactors SHOULD use a dedicated branch — ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)), options: `Create dedicated branch (recommended)` / `Use current branch`. If dedicated: `git checkout -b refactor/<slug>` from the current branch; record the choice so the index's `branch-strategy`/`branch` reflect it (empty `branch` when the user kept the current branch).
+6. **Single slice.** The refactor is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). The refactor units are the plan's steps. Downstream stages write **un-suffixed** files.
 
 # Step 1 — Brief → `01-refactor.md` (`type: intake`)
-Ask 3–5 targeted questions (not the 5-round PO interview):
+Ask 3–6 targeted questions (not the 5-round PO interview):
 1. **What is being refactored?** — files/modules/classes/components, specifically.
 2. **Why?** — the structural problem (one class doing three things; copy-paste across N files; nested conditionals; wrong abstraction; perf bottleneck).
 3. **What must not change?** — behaviors/APIs/interfaces/outputs explicitly frozen.
 4. **Is there test coverage?** — covered areas + test files; if none, add tests first?
 5. **Target structure?** — what the code should look like after (extract service; strategy pattern; early returns).
+6. **Stack confirm** — the one-line confirm from Step 0's fingerprint (per the `_change-mode-tail.md` stack policy).
 
 Write `01-refactor.md`:
 ```yaml
@@ -103,9 +106,9 @@ next-command: wf-slice
 next-invocation: "$wf slice <slug>"
 ---
 ```
-Body (this is the baseline — preserve it richly): `## Public API Surface` (every exported name with signature, exactly as it currently exists — the verify acceptance contract), `## Test Coverage Map` (behavior → test file), `## Coverage Gaps` (uncovered behaviors = refactor risk), `## Baseline Test Result` (pass/fail/skip counts before any change), `## Callers` (count + key sites), `## In Scope` / `## Out of Scope` (the frozen surface).
+Body (this is the baseline — preserve it richly): `## Public API Surface` (every exported name with signature, exactly as it currently exists — the verify acceptance contract), `## Test Coverage Map` (behavior → test file), `## Coverage Gaps` (uncovered behaviors = refactor risk), `## Baseline Command` (the exact test command sub-agent 2 ran — verify re-runs this literal command and diffs its counts), `## Baseline Test Result` (pass/fail/skip counts before any change), `## Callers` (count + key sites), `## In Scope` / `## Out of Scope` (the frozen surface), `## Coverage Decision` (written after the question below — which option the user chose and why).
 
-**If coverage gaps are significant:** ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) — "Coverage gaps found in: <list>. Refactoring without tests covering these areas is risky. Add tests first?" Options: `Add tests first (recommended)` / `Proceed with gaps noted as risk` / `Abort`.
+**If coverage gaps are significant:** ask per the gate-question ladder ([_gate-question.md](../_gate-question.md)) — "Coverage gaps found in: <list>. Refactoring without tests covering these areas is risky. Add tests first?" Options: `Add tests first (recommended)` / `Proceed with gaps noted as risk` / `Abort`. Record the answer in `## Coverage Decision` — the choice is a durable gate decision, not chat. **Add tests first** has a concrete mechanism: the plan's Step 1 becomes "author characterization tests for `<the gaps>`" (a real plan step that runs before any restructuring, committed on its own so the baseline grows before the refactor starts). **Proceed with gaps** records each gap as a `## Tripwire breaches` entry per `_change-mode-tail.md`. **Abort** closes the slug per the tail's Abort rule (`close-reason: cancelled`).
 
 # Step 3 — Slice → `03-slice.md` (`type: slice-index`, one slice)
 ```yaml
@@ -135,7 +138,9 @@ next-invocation: "$wf plan <slug>"
 Body (one line): "Single-slice refactor — the units are the plan's atomic green steps."
 
 # Step 4 — Plan → `04-plan.md`
-Plan the refactor as a sequence of **atomic, independently-green steps** — each leaves the codebase passing (tests green, build passing), is a single logical change, and changes only internal structure (never external behavior). First launch one sub-agent to research the target pattern (web search: established patterns + common pitfalls + safe incremental approaches, e.g. strangler-fig, parallel-change/expand-contract, replace-conditional-with-polymorphism).
+Plan the refactor as a sequence of **atomic, independently-green steps** — each leaves the codebase passing (tests green, build passing), is a single logical change, and changes only internal structure (never external behavior). First launch one sub-agent to research the target pattern (web search: established patterns + common pitfalls + safe incremental approaches, e.g. strangler-fig, parallel-change/expand-contract, replace-conditional-with-polymorphism). **Effort tier for that agent:** **low** (per [_subagents.md](../_subagents.md)) — bounded search-and-extract work.
+
+The refactor tripwires are: a step that cannot be made independently green · an API surface delta without API simplification as the explicit stated goal · a coverage gap accepted at Step 2. Record breaches per the tripwire-breach mechanism in [_change-mode-tail.md](_change-mode-tail.md).
 ```yaml
 ---
 schema: sdlc/v1
@@ -165,60 +170,13 @@ Body `## Steps` — each step: **What changes** (specific files), **What does NO
 Author free narrative fragments for any artifact per the narrative-fragment tier of `_intake-context.md` (a before/after structure diagram or a call-graph tells a refactor story well).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)
-Write the full 22-field `type: index` overview using the template from [intake/default.md](default.md):
-```yaml
----
-schema: sdlc/v1
-type: index
-slug: <slug>
-title: "Refactor: <target>"
-workflow-type: refactor
-status: active
-current-stage: plan
-stage-number: 4
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-selected-slice: <slug>
-branch-strategy: <dedicated|none>
-branch: "refactor/<slug>"
-base-branch: "<main|master>"
-review-scope: slug-wide
-pr-url: ""
-pr-number: 0
-open-questions: []
-tags: [refactor]
-next-command: wf-implement
-next-invocation: "$wf implement <slug>"
-workflow-files:
-  - 00-index.md
-  - 01-refactor.md
-  - 02-shape.md
-  - 03-slice.md
-  - 04-plan.md
-slices:
-  - slug: <slug>
-    status: defined
-    complexity: <s|m|l>
-progress:
-  intake: complete
-  shape: complete
-  slice: complete
-  plan: complete
-  implement: not-started
-  verify: not-started
-  review: not-started
-  handoff: not-started
-  ship: not-started
-  retro: not-started
----
-```
-Then **register the slug in `.ai/workflows/INDEX.md`** per `intake/default.md` Step 10.
+Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `refactor` column values (`branch` empty when the user kept the current branch; `stack.user-confirmed: true` after the Step 1 confirm). Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
 # Step 6 — Gate before implement (MANDATORY)
-Apply the **compressed-lifecycle gate** from `_intake-context.md` (Proceed / Adjust / Escalate). On **Escalate** (the refactor needs real multi-slicing), recommend `$wf intake <description>` and stop. Record the decision in `01-refactor.md`.
+Apply the gate per `_intake-context.md` and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-refactor.md` on every branch. On **Escalate** (the refactor needs real multi-slicing), the tail closes this slug and prints `$wf intake "<description>" from <slug>` — the successor inherits the API-surface and coverage baseline via `_intake-provenance.md` (escalated change-mode row) instead of discarding two sub-agents of work.
 
 # Step 7 — Hand off to the standard chain
-On proceed, route to `$wf implement <slug>` (one atomic green step per plan step — never combine; commit per step `refactor(<slug>): step N — <desc>`; if a step's verify fails, STOP and fix the *refactor*, not the test) → `$wf verify <slug>` (full baseline comparison: re-run the Step-2 suite, compare pass counts, check every `## Public API Surface` name still exists with the same signature, verify all callers still work) → **`$wf review <slug> refactor-safety`** (checks unintended behavior changes, subtle semantic differences, coverage completeness) → `$wf ship`.
+On proceed, route to `$wf implement <slug>` (one atomic green step per plan step — never combine; commit per step `refactor(<slug>): step N — <desc>`; if a step's verify fails, STOP and fix the *refactor*, not the test; if two fix attempts on the same step fail, do not keep guessing — `$wf probe <slug> "<the behavior question the failure raises>"`, or `$consult` a second model on the diff, or surface to the user) → `$wf verify <slug>` (full baseline comparison: re-run the literal `## Baseline Command`, diff its pass/fail/skip counts against `## Baseline Test Result`, check every `## Public API Surface` name still exists with the same signature, verify all callers still work — any unplanned delta fails verify) → **`$wf review <slug> refactor-safety`** (checks unintended behavior changes, subtle semantic differences, coverage completeness) → `$wf handoff` → `$wf ship` → `$wf retro`.
 
 Lead with a short **narrative** paragraph (target, why, baseline counts, the pattern, gate decision), then:
 ```
@@ -227,11 +185,8 @@ Branch: refactor/<slug>
 Baseline: <pass>/<fail>/<skip> tests · Coverage gaps: <count>
 Plan: <N> atomic green steps · Pattern: <name> · API delta: <none | planned changes>
 Gate: <proceeded | adjusted | escalated>
-Next: $wf implement <slug>  →  $wf verify  →  $wf review <slug> refactor-safety
+Next: $wf implement <slug>  →  $wf verify  →  $wf review <slug> refactor-safety  →  $wf handoff  →  $wf ship  →  $wf retro
 ```
 
 # Workflow rules
-- Store artifacts under `.ai/workflows/<slug>/`. Never leave canonical results only in chat.
-- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — get the current UTC time per [_timestamp.md](../_timestamp.md).
-- The baseline in `02-shape.md` is the ground truth. Any deviation at verify is a failure unless it was an explicitly planned API change. Never modify test assertions to make a refactor pass — that destroys the baseline.
-- Review is not skipped — it defaults to the **refactor-safety** rubric. Write each artifact atomically (temp → rename).
+Apply the shared workflow rules in [_change-mode-tail.md](_change-mode-tail.md). Refactor-specific: the baseline in `02-shape.md` is the ground truth — any deviation at verify is a failure unless it was an explicitly planned API change, and never modify test assertions to make a refactor pass (that destroys the baseline). Review defaults to the **refactor-safety** rubric.

@@ -34,17 +34,27 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
 - Ask at most **2 questions** in chat during reconstruction, plus the mandatory confirmation gate. No separate `po-answers.md` — answers go inline into `01-adopt.md`.
 - Follow the steps below exactly in order.
 
-# Step A0 — Gather the adoptable surface (MANDATORY — before anything else)
+# Step 0 — Orient (MANDATORY — before anything else)
+
+1. **Derive the slug:** `adopt-<short-description>` (kebab-case, max 5 words) from the optional `[description]` argument; with no argument, derive it from the dominant concern of the diff after Step A0 collects it (defer the final slug until then, but resolve the collision check before any write).
+2. **Collision check:** apply the collision check in `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_change-mode-tail.md`.
+3. **Same-branch active-workflow scan:** read `.ai/workflows/INDEX.md`; if any **active** workflow records `branch:` equal to the current branch, the diff on this branch probably belongs to that workflow — STOP and recommend the extension path (`/wf intake <that-slug> <scope>`) or that workflow's own next command. Adopting another workflow's in-flight branch work as a new workflow forks the record.
+4. **Provenance check:** apply `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-provenance.md` — the investigated-then-patched path is adopt's most common lineage. On an explicit `from <source-slug>` token (or an exact investigate/ideate label match), consume the Consume-table row: the chosen option card seeds `## Restated Intent` and the AC derivation, and the link-back records `origin-<type>` here and `superseded-by` on the source. No match → continue.
+5. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false` (adopt rides verify's caveat path; its two questions are spent on reconstruction).
+
+# Step A0 — Gather the adoptable surface (MANDATORY)
 
 1. **Resolve the base branch.** Use the same resolution the review stage uses: the tracked upstream of the current branch if set, else the repo default (`main`/`master`). Record it as `<base>`.
-2. **Collect the surface** via Bash (use real output, never guess):
-   - `git status --porcelain` — uncommitted (staged + unstaged + untracked) changes.
-   - `git log <base>..HEAD --oneline` — commits ahead of base on this branch.
-   - `git diff <base>...HEAD` **and** `git diff` (unstaged) **and** `git diff --cached` (staged) — the full adoptable diff. Include untracked files' contents (`git status` lists them; read the notable ones).
-3. **Refuse when there is nothing to adopt.** If the tree is clean (`git status --porcelain` empty) **AND** there are zero commits ahead of `<base>` → STOP with:
+2. **Collect the surface** via Bash (use real output, never guess). The adoptable surface is one defined union:
+   - committed-ahead: `git diff <base>...HEAD`;
+   - staged: `git diff --cached`;
+   - unstaged: `git diff`;
+   - untracked: every path from `git status --porcelain` (`??` rows), each **enumerated explicitly and read in full** — never summarized as "notable ones".
+   Exclusions: paths under `.ai/**` and `.scratch/**` are NEVER part of the adoptable surface — workflow artifacts and scratch reads are records *about* work, not product changes (and may belong to another session).
+3. **Refuse when there is nothing to adopt.** If the surface union is empty (clean tree AND zero commits ahead of `<base>`) → STOP with:
    > *"Nothing to adopt — the working tree matches `<base>` and no unmerged commits are ahead. Use `/wf intake <description>` to start new work, or make the change first and re-run adopt."*
-4. **Refuse fully-published work.** If every commit ahead is already merged into `<base>` on the remote (no unpushed commits AND no local diff) → STOP: adoption's quality tail has nothing to gate; recommend `/wf intake <slug> <scope>` extension or a fresh workflow instead.
-5. **Record the surface** — the changed-file list with per-file insertion/deletion counts (`git diff --stat`), the commit SHAs ahead of base, and the current branch name. This becomes the *provenance evidence* embedded in `01-adopt.md` and referenced by every reconstructed artifact.
+4. **Refuse fully-published work — decidably.** `git fetch <remote>` first (skip on network failure with a one-line note), then check every commit ahead of `<base>` with `git branch -r --contains <sha>`: if **every** ahead-SHA is contained in the remote base branch AND the local diff (staged + unstaged + untracked) is empty → STOP: adoption's quality tail has nothing to gate; recommend `/wf intake <slug> <scope>` extension or a fresh workflow instead.
+5. **Record the surface** — the changed-file list with per-file insertion/deletion counts (`git diff --stat`), the enumerated untracked list, the commit SHAs ahead of base, and the current branch name. This becomes the *provenance evidence* embedded in `01-adopt.md` and referenced by every reconstructed artifact.
 
 # Step A1 — Reconstruct the shape (parallel grounding, then infer)
 
@@ -156,7 +166,7 @@ total-slices: 1
 best-first-slice: <slug>
 slices:
   - slug: <slug>
-    status: implemented
+    status: complete
     complexity: <xs|s|m>
 tags: []
 refs:
@@ -167,7 +177,7 @@ next-command: wf-plan
 next-invocation: "/wf plan <slug>"
 ---
 ```
-Body (one line): "Single-slice adoption — the whole adopted change is one slice." (Or, if separable concerns were confirmed at the gate: one `slices[]` entry per concern, each mapped to its file group, and `total-slices` / `best-first-slice` set accordingly. Slice status is `implemented`, not `defined` — the code already exists.)
+Body (one line): "Single-slice adoption — the whole adopted change is one slice." (Or, if separable concerns were confirmed at the gate: one `slices[]` entry per concern, each mapped to its file group, and `total-slices` / `best-first-slice` set accordingly. Slice status is `complete`, not `defined` — the code already exists; the schema enum has no `implemented` value, and the adoption fact is carried by `provenance: adopted` plus the index's `progress` map, never by inventing an enum value the write-hook rejects.)
 
 **`04-plan.md` — `type: plan` (retrospective observation + FORWARD verification):**
 ```yaml
@@ -197,7 +207,7 @@ next-invocation: "/wf implement <slug>"
 Body:
 - `## What Was Done` — the reconstructed steps, retrospective: each names the file(s) it touched and the change in 1–2 lines. This is observation, not instruction.
 - `## Simplicity Ladder (observed)` — for each capability the change introduced, the rung it *actually* took (stdlib / native / reuse / new-code) as an observation, flagging any place a lower rung was clearly available but not taken (a note for review, not a blocker).
-- `## Verification Strategy` — **the forward deliverable.** Per AC: the concrete check verify will run (test command / manual flow / observable), and a `constraint-resolution:` line for any AC with an environment dependency (`prerequisite-slice: <slug>` | `proxy+deferral: <clearing event>` | `po-accepted: <reason>`) per W2d. This section is what makes an adopted workflow verifiable rather than a rubber stamp.
+- `## Verification Strategy` — **the forward deliverable.** Per AC: the concrete check verify will run (test command / manual flow / observable), and a `constraint-resolution:` line for any AC with an environment dependency (`prerequisite-slice: <slug>` | `proxy+deferral: <clearing event>` | `po-accepted: <reason>`) per W2d. Every `proxy+deferral` resolution ALSO lands as a real entry in the index's `runtime-evidence-deferrals` (`slice`, `reason`, `deferred-at`, `cleared-by: null`, the named clearing event) — a deferral recorded only in plan prose is invisible to the ship gate that enforces it. This section is what makes an adopted workflow verifiable rather than a rubber stamp.
 
 **`05-implement.md` — `type: implement` (synthesized from the diff):**
 ```yaml
@@ -229,6 +239,7 @@ next-invocation: "/wf verify <slug>"
 Body:
 - `## What Landed` — the change as it exists in the tree, synthesized from the diff (files, key functions/behaviors added or altered).
 - `## Deviations from Plan` — "n/a — adopted (the plan is a reconstruction of this code, not a spec it was built against)."
+- `## Verification Seams Built` — the concrete seams verify can drive: test commands that exercise the adopted paths, fixtures or repro scripts present in the diff, observable endpoints/log signatures. When the adopted change built no seam for an AC, say so explicitly — that absence is the top risk the hand-off narrative names.
 - `## Anything Deferred` / `## Known Risks / Caveats` — harvest `sdlc-debt:` markers from the diff (`git diff <base>..HEAD | grep -nE 'sdlc-debt:'`) and any TODO/FIXME the change introduced; record them so verify/retro see them.
 - If the adopted change is **uncommitted**, note it: `commit-sha` is empty and verify will observe a dirty tree — that is expected for adoption.
 
@@ -257,10 +268,26 @@ branch-strategy: none         # adopt never creates/switches a branch; it record
 branch: "<current branch name>"
 base-branch: "<base>"
 review-scope: slug-wide       # single slice → one 07-review.md
+review-scope-confirmed: false # plan/verify read absence as already-asked; say false explicitly
+appetite: small               # adoption is small-appetite by construction
 pr-url: ""
 pr-number: 0
 open-questions: []
 tags: []
+stack:                        # Step 0 fingerprint per the _change-mode-tail.md stack policy
+  detected-at: "<iso-8601>"
+  platforms: []
+  languages: []
+  ui: []
+  build: []
+  package-managers: []
+  testing: []
+  observability: []
+  integrations: []
+  available-skills: []
+  available-mcp: []
+  user-confirmed: false
+runtime-evidence-deferrals: []  # W2d proxy+deferral resolutions from 04-plan land here as real entries
 next-command: wf-verify
 next-invocation: "/wf verify <slug>"
 workflow-files:
@@ -272,7 +299,7 @@ workflow-files:
   - 05-implement.md
 slices:
   - slug: <slug>
-    status: implemented
+    status: complete
     complexity: <xs|s|m>
 progress:
   intake: complete

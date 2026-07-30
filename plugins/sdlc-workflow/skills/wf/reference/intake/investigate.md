@@ -20,7 +20,7 @@ If slug-mode was not selected, ignore this section and proceed standalone below.
 | | Detail |
 |---|---|
 | Requires | Nothing — starts fresh. Pass a problem statement or an existing slug to resume; pass `<slug> <option>` to record a pick. |
-| Produces | `01-investigate.md` (problem + architecture map + every distinct option sketched with tradeoffs — ≤3 full cards, surplus as compressed entries — plus a status-quo baseline), `00-index.md`. **No `02-shape.md`** — the user chooses an option first; the downstream command (`/wf intake` or `/wf intake fix`) does the shape pass on the chosen option, seeded from this artifact via `_investigate-provenance.md`. |
+| Produces | `01-investigate.md` (problem + architecture map + every distinct option sketched with tradeoffs — ≤3 full cards, surplus as compressed entries — plus a status-quo baseline), `00-index.md`. **No `02-shape.md`** — the user chooses an option first; the downstream command (`/wf intake` or `/wf intake fix`) does the shape pass on the chosen option, seeded from this artifact via `_intake-provenance.md`. |
 | Skips | No fix, no plan, no implementation, no recommendation. The option set *is* the output. |
 | Next | User picks an option → record it (`/wf intake investigate <slug> <option> [reason]`), then `/wf intake fix "<option> — <one-line>" from <slug>` (`effort: small` per the effort rubric below) or `/wf intake "<option> — <one-line>" from <slug>` (medium+). |
 | Escalate | If sub-agents agree no viable option exists within the current architecture → surface `architecture-blocking` and recommend a design pass via `/wf intake` with the problem framed as an architecture question. |
@@ -248,7 +248,7 @@ This command does not pick a winner. Pick the option you want, record the pick, 
 | Are not sure which option to pick | Resolve the cheapest **Decisive unknown** among the candidate cards first: a truth question about the system → `/wf intake <slug> discover <the unknown>` (the answer lands as a compressed slice on this workflow); an API fact about a dependency → the `study-sources` skill, with the finding noted in this artifact; a product or policy call → the human who owns it (see the `problem-not-engineering` tripwire). Then pick. If the stall is comprehension rather than evidence, `/wf recap <slug> <focus>` still applies. |
 
 Routing directly (`… from <slug>`) without recording a pick also works — the downstream mode
-records the pick implicitly and closes this workflow (see `_investigate-provenance.md`).
+records the pick implicitly and closes this workflow (see `_intake-provenance.md`).
 
 ## 6. Tripwire warnings (only if any fired)
 
@@ -276,10 +276,10 @@ Author free narrative fragments for this artifact as described in the narrative-
 schema: sdlc/v1
 type: workflow-index
 slug: <slug>
+title: "Investigate: <one-line problem>"
 workflow-type: investigate
 current-stage: routing
 status: ready
-selected-slice: <slug>
 branch-strategy: none
 branch: <current-branch>
 base-branch: <current-branch>
@@ -292,15 +292,16 @@ demoted-labels: []   # labels demoted by the presentation cap; empty if none
 open-questions: []
 augmentations: []
 progress:
-  - investigate: complete
+  investigate: complete
 created-at: <timestamp>
+updated-at: <timestamp>
 ---
 ```
 
 Body: one-line description of the problem + pointer to `01-investigate.md` and the option labels.
 
 The workflow stays open until the user picks. The pick (`# Pick — decision closure` below, or the
-implicit pick in `_investigate-provenance.md`) later flips this index to `closed` with
+implicit pick in `_intake-provenance.md`) later flips this index to `closed` with
 `chosen-option` provenance and `superseded-by` pointing at the successor workflow.
 
 # Step 5 — Hand off to user
@@ -348,7 +349,7 @@ starts the successor — it prints the invocation and stops.
    `superseded-by: pending`, `closed-at: <timestamp>`, `next-command: none`,
    `next-invocation: "none — decision recorded"`. Update the slug's row in `.ai/workflows/INDEX.md`
    to `closed`. `superseded-by: pending` is corrected to the successor slug by the downstream
-   mode's link-back (`_investigate-provenance.md`); updating that one field on a closed index is
+   mode's link-back (`_intake-provenance.md`); updating that one field on a closed index is
    additive and safe.
 4. **Print the next invocation** with provenance, per the effort routing in artifact section 5 —
    `/wf intake fix "<label> — <one-line mechanism>" from <slug>` (small) or

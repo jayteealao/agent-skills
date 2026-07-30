@@ -44,8 +44,9 @@ exception; its section below explains the difference.</p>
 questions and grounds itself with a targeted read of the files likely in scope. It writes a
 plan of at most five steps; each step names the files it touches and states how to verify the
 step. The lane works on a dedicated <code>fix/&lt;slug&gt;</code> branch by default (you can
-decline and stay on your current branch). Design work is never auto-included. If the change
-touches UI, the shape notes a follow-up recommendation instead of a block.</p>
+decline and stay on your current branch). Design work is never auto-included; end the invocation with the trailing token
+<code>design</code> to opt in. If the change touches UI without it, the shape notes a
+follow-up recommendation instead of a block.</p>
 
 <p>The fix lane watches its own envelope with tripwires: more than 3 files, more than 5 steps,
 a new external dependency, an architectural change, or too many unanswerable questions. A
@@ -66,18 +67,24 @@ gate's Escalate option is the suggested exit.</p>
 you have checked out. The fix can then ship without unreleased work attached.</p>
 
 <p><strong>It diagnoses before it plans.</strong> The brief asks at most three questions: what
-is broken, what is the impact, and what changed recently. Then parallel investigators trace the
-root cause to specific files and lines and map the blast radius: callers, sibling components
-that share the bug, and data that may be corrupted. The diagnosis becomes the shape.</p>
+is broken, what is the impact, and what changed recently — and records up to two acceptance
+criteria, so verify and review gate on observable incident-over conditions. Then parallel
+investigators trace the root cause to specific files and lines and map the blast radius:
+callers, sibling components that share the bug, and data that may be corrupted. When confidence
+stays low after a third investigator, the lane does not write a guessed root cause — it climbs
+to a runtime probe, a second model, or human triage. The diagnosis becomes the shape.</p>
 
 <p><strong>Scope is locked.</strong> The only acceptable output is the minimum change that
 stops the incident: no refactoring, no cleanup, nothing outside the identified root cause. The
-plan is capped at five steps across at most three files, and the plan must include an exact
-rollback. For anything bigger, take the gate's Escalate option.</p>
+plan aims for five steps across three files and must include an exact rollback; a genuinely
+bigger plan trips a recorded tripwire rather than a refusal, and the gate's Escalate option is
+the exit — it closes the hotfix slug and restarts as a full intake carrying the diagnosis.</p>
 
 <p>The lane stops at the gate. Next, run <code>/wf implement &lt;slug&gt;</code>, then verify.
 Then run <code>/wf review &lt;slug&gt; security</code>; review defaults to the security
-dimension for hotfixes. Then run <code>/wf ship</code>.</p>
+dimension for hotfixes. Then handoff, ship, and retro — the full tail runs even for an
+incident: ship refuses without a ready handoff verdict, and retro's incident consult exists
+exactly for hotfixes.</p>
 
 <h2><code>refactor</code> — restructuring without behavior change</h2>
 
@@ -139,12 +146,16 @@ through the package manager's own commands.</p>
 
 <p>Arguments narrow the run. A package name focuses the run on one dependency.
 <code>--security-only</code> updates only CVE-affected packages. <code>--audit-only</code>
-produces the scan, the research, and the plan, then stops at the gate without implementation.
+produces the scan, the research, and the plan, then stops at the gate without implementation —
+the run then ends lawfully with <code>/wf close &lt;slug&gt; deferred</code>, and every Hold entry
+becomes a recorded revisit trigger the next run seeds from. A bare token that matches an
+existing run slug resumes that run.
 The gate itself is tier-aware: you can proceed with the full plan, proceed with P0 security
 updates only, save the plan as an audit, or adjust.</p>
 
-<p>The lane stops after its own verify. Next, run <code>/wf review &lt;slug&gt;</code>, then
-handoff and ship.</p>
+<p>The lane stops after its own verify, and its self-authored stages report back to the
+workflow index, so the dashboard shows the work as done. Next, run
+<code>/wf review &lt;slug&gt;</code>, then handoff, ship, and retro.</p>
 
 <h2>Branches at a glance</h2>
 

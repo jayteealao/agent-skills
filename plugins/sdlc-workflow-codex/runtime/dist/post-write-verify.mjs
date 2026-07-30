@@ -368,7 +368,11 @@ async function validateSiblingYamls(paths, config, schemaPath) {
     if (!type || !SIBLING_YAML_VALIDATED_TYPES.has(type)) continue;
     const yamlPath = `${path.absolute.replace(/\.md$/, "")}.yaml`;
     if (!existsSync(yamlPath)) continue;
-    const result = await validateSiblingYamlFile(yamlPath, { schemaPath, artifact: type });
+    let schemaName = type;
+    if (type === "rca" && /^status:\s*ready-for-fix-routing\s*$/m.test(text ?? "")) {
+      schemaName = "rca-diagnosis";
+    }
+    const result = await validateSiblingYamlFile(yamlPath, { schemaPath, artifact: schemaName });
     if (!result.valid) {
       failures.push({ rel: `${path.original.replace(/\.md$/, "")}.yaml`, result });
     }

@@ -95,7 +95,8 @@ package's own changelog. It sorts the work into risk tiers: security fixes first
 with migrations one at a time, then safe minor and patch updates as one batch. It is the one lane
 that also executes and verifies itself in the same run, so it goes straight to review afterwards.
 Pass a package name to focus on one dependency. Pass <code>--security-only</code> to update only
-CVE-affected packages. Pass <code>--audit-only</code> to get the plan and stop. The details of
+CVE-affected packages. Pass <code>--audit-only</code> to get the plan and stop — the run closes as deferred, and the
+next run seeds from its Hold list. The details of
 all four quick lanes are in <a href="quick-lanes.html">Quick lanes</a>.</p>
 
 <h2>You have a question, not a task</h2>

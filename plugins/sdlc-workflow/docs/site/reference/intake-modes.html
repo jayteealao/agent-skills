@@ -40,8 +40,8 @@
 <h3 id="hotfix">hotfix</h3>
 <pre><code>/wf intake hotfix &lt;description&gt;
 /wf intake &lt;slug&gt; hotfix &lt;description&gt;</code></pre>
-<p><code>hotfix</code> is the incident-response quick lane for active production emergencies. It has the same single-pass planning shape as <code>fix</code>, plus a hard scope lock, a diagnosis-oriented shape, and a base on the production branch. Its review stage defaults to the <code>security</code> dimension. When the run is slug-attached, it becomes one compressed slice on the named workflow.</p>
-<p><strong>Authors:</strong> <code>01-hotfix.md</code> → <code>02-shape.md</code> → <code>03-slice.md</code> → <code>04-plan.md</code>. <strong>Branch:</strong> <code>hotfix/&lt;slug&gt;</code> off the production branch (suppressed when slug-attached). <strong>Terminus:</strong> gates, then <code>/wf implement &lt;slug&gt;</code>.</p>
+<p><code>hotfix</code> is the incident-response quick lane for active production emergencies. It has the same single-pass planning shape as <code>fix</code>, plus a hard scope lock, a diagnosis-oriented shape, and a base on the production branch. Its review stage defaults to the <code>security</code> dimension. The incident brief carries up to two acceptance criteria, so verify and review have something real to gate on, and the pipeline runs the full tail — handoff, ship, and retro (retro's incident consult fires exactly for hotfixes). When the run is slug-attached, it becomes one compressed slice on the named workflow.</p>
+<p><strong>Authors:</strong> <code>01-hotfix.md</code> → <code>02-shape.md</code> → <code>03-slice.md</code> → <code>04-plan.md</code>. <strong>Branch:</strong> <code>hotfix/&lt;slug&gt;</code> off the production branch (suppressed when slug-attached). <strong>Terminus:</strong> gates, then <code>/wf implement &lt;slug&gt;</code> through the full chain to <code>/wf retro</code>.</p>
 
 <h3 id="refactor">refactor</h3>
 <pre><code>/wf intake refactor &lt;description&gt;
@@ -52,14 +52,14 @@
 <h3 id="update-deps">update-deps</h3>
 <pre><code>/wf intake update-deps [description]
 /wf intake &lt;slug&gt; update-deps [description]</code></pre>
-<p><code>update-deps</code> is the dependency-maintenance quick lane. It scans the manifests, researches each dependency, and prioritizes updates into risk tiers. Unlike the other quick lanes, it also self-authors the implement and verify stages, because its tier-ordered execution is specialized. It then routes straight to review and skips <code>/wf implement</code> and <code>/wf verify</code>. When the run is slug-attached, it becomes one compressed slice only.</p>
+<p><code>update-deps</code> is the dependency-maintenance quick lane. It scans the manifests, researches each dependency, and prioritizes updates into risk tiers. Unlike the other quick lanes, it also self-authors the implement and verify stages, because its tier-ordered execution is specialized. It then routes straight to review and skips <code>/wf implement</code> and <code>/wf verify</code>. An audit-only run (plan saved, nothing implemented) ends lawfully with <code>/wf close &lt;slug&gt; deferred</code>, with every Hold entry recorded as a machine-readable revisit trigger; the next run seeds its research from the prior run's Hold and Blocked lists instead of cold-rescanning. A bare token that matches an existing run slug resumes that run. When the run is slug-attached, it becomes one compressed slice only.</p>
 <p><strong>Authors:</strong> <code>01-update-deps.md</code> → <code>02-shape.md</code> → <code>03-slice.md</code> → <code>04-plan.md</code> → self-authored <code>05-implement.md</code> / <code>06-verify.md</code>. <strong>Branch:</strong> <code>deps/&lt;slug&gt;</code>. <strong>Terminus:</strong> <code>/wf review &lt;slug&gt;</code>.</p>
 
 <h3 id="rca">rca</h3>
 <pre><code>/wf intake rca &lt;symptom description&gt;
 /wf intake &lt;slug&gt; rca &lt;symptom description&gt;</code></pre>
 <p><code>rca</code> is root-cause analysis for a reported failure whose cause is unknown. Parallel diagnosis sub-agents investigate. The result is a structured RCA with confidence, blast radius, and a suggested fix shape. The result also includes a synthesized minimal shape, so <code>/wf plan</code> can consume the workflow directly. <code>rca</code> never writes a fix. When the run is slug-attached, it becomes one compressed slice without the synthesized shape.</p>
-<p><strong>Authors:</strong> <code>01-rca.md</code> + synthesized <code>02-shape.md</code> + <code>00-index.md</code>. <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — recommends <code>/wf plan</code>, <code>/wf intake fix</code>, <code>/wf intake hotfix</code>, or human triage.</p>
+<p><strong>Authors:</strong> <code>01-rca.md</code> + synthesized <code>02-shape.md</code> + <code>00-index.md</code>. <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — the routing decision is recorded via <code>rca &lt;slug&gt; &lt;route&gt;</code>. The <code>plan</code> route continues the same slug into <code>/wf plan</code>; the <code>fix</code> and <code>hotfix</code> routes close this workflow and forward the diagnosis with <code>from &lt;slug&gt;</code>, so the successor inherits the root cause, blast radius, and verification criteria instead of re-deriving them. Human triage is the last rung of an escalation ladder (probe, study-sources, consult), not the only one.</p>
 
 <h3 id="investigate">investigate</h3>
 <pre><code>/wf intake investigate &lt;problem&gt;
@@ -71,13 +71,13 @@
 <pre><code>/wf intake discover &lt;hypothesis&gt;
 /wf intake &lt;slug&gt; discover &lt;hypothesis&gt;</code></pre>
 <p><code>discover</code> tests a hypothesis against the codebase: "is X actually the case?" Parallel sub-agents argue for the hypothesis, argue against the hypothesis, and propose counter-hypotheses. The result is a verdict of <code>holds</code>, <code>partial</code>, <code>fails</code>, or <code>inconclusive</code>, with confidence and cited evidence. The mode is read-only.</p>
-<p><strong>Authors:</strong> <code>01-discover.md</code> + <code>00-index.md</code>. <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — the next step depends on the verdict.</p>
+<p><strong>Authors:</strong> <code>01-discover.md</code> + <code>00-index.md</code>. <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — the workflow closes at write time (<code>verdict-recorded</code>); a verdict leaves nothing to pick. The artifact records what decision rode on the verdict, and the verdict-dependent routes carry <code>from &lt;slug&gt;</code> — on <code>fails</code>, the ranked counter-hypotheses travel into the follow-on rca as candidate root causes.</p>
 
 <h3 id="ideate">ideate</h3>
 <pre><code>/wf intake ideate [area]
 /wf intake &lt;slug&gt; ideate [area]</code></pre>
-<p><code>ideate</code> is proactive codebase ideation. It inverts the usual direction and surfaces work you might not have thought to ask for. Parallel sub-agents scan across six lenses: quality, performance, security, DX, feature gaps, and architecture. The sub-agents generate a large candidate pool, adversarially cull the weak ideas, and rank the survivors by impact and effort. Each idea you pick seeds its own new <code>/wf intake</code>.</p>
-<p><strong>Authors:</strong> a lightweight workflow with the <code>01-ideate.md</code> lead only (no build stages). <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — pick ideas, then <code>/wf intake &lt;idea&gt;</code>.</p>
+<p><code>ideate</code> is proactive codebase ideation. It inverts the usual direction and surfaces work you might not have thought to ask for. Parallel sub-agents scan across six lenses: quality, performance, security, DX, feature gaps, and architecture. The sub-agents generate a large candidate pool, adversarially cull the weak ideas, and rank the survivors by impact and effort. Each idea keeps its file-and-line evidence on the machine-readable roster, and the idea you pick is recorded via <code>ideate &lt;slug&gt; &lt;idea-id&gt;</code>, which closes the workflow and prints the seeded successor invocation.</p>
+<p><strong>Authors:</strong> a lightweight workflow with the <code>01-ideate.md</code> lead only (no build stages). <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — pick ideas (recorded via <code>ideate &lt;slug&gt; &lt;idea-id&gt;</code>, which closes the workflow), then the printed successor invocation with <code>from &lt;slug&gt;</code>.</p>
 
 <h3 id="adopt">adopt</h3>
 <pre><code>/wf intake adopt</code></pre>
@@ -88,7 +88,7 @@
 <pre><code>/wf intake &lt;existing-slug&gt; &lt;new scope&gt;
 /wf intake &lt;existing-slug&gt; from-review
 /wf intake &lt;existing-slug&gt; from-retro</code></pre>
-<p>Extension is the one route with no keyword at all: an existing slug followed by free scope text is the signal. Extension adds net-new slices to that workflow, as full per-slice files, never as a compressed slice. Extension never modifies completed work. Scope corrections and follow-on work land here, because built work is never re-specified in place. The <code>from-review</code> and <code>from-retro</code> seeds pull the new scope from findings instead of free text. Extending a closed workflow is valid.</p>
+<p>Extension is the one route with no keyword at all: an existing slug followed by free scope text is the signal. Extension adds net-new slices to that workflow, as full per-slice files, never as a compressed slice. Extension never modifies completed work. Scope corrections and follow-on work land here, because built work is never re-specified in place. The <code>from-review</code>, <code>from-retro</code>, <code>from-probe</code>, and <code>from-simplify</code> seeds pull the new scope from findings instead of free text. Extending a closed workflow is valid and revives it. A workflow with no slice roster yet — one that has not reached slicing, or a terminal analysis mode — is guarded at the entry: extension routes you to the workflow's own next stage or to the analysis mode's decision recording instead of failing on a missing roster.</p>
 <p><strong>Authors:</strong> full net-new <code>03-slice-&lt;new&gt;.md</code> file(s) plus a non-destructive master-index update. <strong>Branch:</strong> the workflow's existing one. <strong>Terminus:</strong> <code>/wf plan &lt;slug&gt; &lt;new-slice&gt;</code>.</p>
 
 <h3 id="amend">amend</h3>

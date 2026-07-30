@@ -1,14 +1,15 @@
 ---
 description: "Amend mode of intake — edit a workflow's RECORDED CONFIGURATION (branch strategy, branch, base branch, review scope, title, tags) in place, without adding scope or touching built work. Slug-REQUIRED: `/wf intake <existing-slug> amend <what to change>`. Strictly whitelisted: anything outside the amendable field list routes to extension (new scope) or a fix slice (wrong behaviour). Writes only 00-index.md and the registry row."
-argument-hint: <existing-slug> amend <what to change>
+argument-hint: "<existing-slug> amend <what to change> [dry-run]"
 ---
+
+# Output boundary & shared context
+The External Output Boundary, the narrative-fragment tier, and the workflow-registry/slug
+semantics come from `_intake-context.md`, which the `intake` dispatcher loaded before this
+reference — apply them; do not restate or fork those rules here.
 
 You are running **intake in amend mode** — the narrow path for correcting a workflow's *recorded
 configuration* when the config itself was set wrong or has to change mid-flight.
-
-> The External Output Boundary, the narrative-fragment tier, and the workflow-registry/slug
-> semantics come from `_intake-context.md`, which the `intake` dispatcher loaded before this
-> reference. Do not restate or fork those rules here.
 
 # Why this mode exists
 
@@ -30,7 +31,7 @@ fields that describe *how this workflow runs*, and it refuses everything else ou
 | `branch-strategy` | `dedicated` \| `shared` \| `none` | Changing **to** `dedicated` does **not** create or switch a branch — record the intent; the next `implement`/`yolo` lands the tree per its own branch step |
 | `branch` | the workflow's branch name | Refuse when a branch by the OLD name already has commits **and** the new name does not exist — that is a git rename, not a config edit (tell the user the `git branch -m` to run, then re-amend) |
 | `base-branch` | what the branch merges into | Refuse when a PR is already open against the old base (`pr-url` set) — changing the base of an open PR is a GitHub action, not a record edit |
-| `review-scope` | `per-slice` \| `slug-wide` | Refuse when review artifacts **already exist** under the current convention — the file layout differs (`07-review-<slice>.md` vs `07-review.md`) and silently switching orphans them. Say which files would be orphaned |
+| `review-scope` | `per-slice` \| `slug-wide` | Refuse when review artifacts **already exist** under the current convention — the file layout differs (`07-review-<slice>.md` vs `07-review.md`) and silently switching orphans them. Say which files would be orphaned. Amending this field ALSO sets `review-scope-confirmed: true` — the PO just decided it, and leaving the flag `false` lets the next slice/plan ask silently overwrite the amendment |
 | `title` | the human-facing workflow title | none |
 | `tags` | the workflow's tags | none |
 
@@ -52,9 +53,14 @@ Nothing else. In particular:
 # Step 0 — Resolve the amendment
 
 1. The dispatcher consumed `<slug>` and the `amend` keyword. What remains is the user's request in
-   free text (`"base should be develop, not main"`, `"switch to slug-wide review"`).
-2. Read `.ai/workflows/<slug>/00-index.md`. Map the request onto the whitelist above. Record, for
-   each field you intend to change: current value → proposed value.
+   free text (`"base should be develop, not main"`, `"switch to slug-wide review"`). A trailing
+   `dry-run` token (same grammar as modernize) means: resolve and present the Step 1 diff, then
+   STOP without writing.
+2. Read `.ai/workflows/<slug>/00-index.md`. If `status: closed`, WARN and confirm before
+   proceeding: *"`<slug>` is closed (close-reason: `<reason>`). Amend its recorded config anyway?"*
+   — amending a closed record is legitimate (fixing history's metadata) but never silent. Map the
+   request onto the whitelist above. Record, for each field you intend to change: current value →
+   proposed value.
 3. **If the request maps onto nothing in the whitelist**, STOP and route — do not improvise a wider
    edit and do not silently fall through to extension:
    - new/changed scope → *"That is new scope, not config. Run `/wf intake `<slug>` `<the scope>`` — it
@@ -83,10 +89,14 @@ and "quietly repoint a workflow at the wrong trunk."
 3. Follow [_control-file-ownership.md](../_control-file-ownership.md): re-read immediately before
    the edit, and on a modified-since-read rejection re-read, re-derive, retry once. A driver may be
    running on this slug.
-4. Record the amendment in the index's `revisions:` ledger per
-   [_additive-write.md](../_additive-write.md) with `trigger: manual` and a one-phrase `because` — the
-   *why* is the whole value of a config change ("PR target moved to the release train").
-5. Write **nothing else**. No stage artifact, no slice file, no new numbered file. Amend produces no
+4. Record the amendment in the index's `revisions:` ledger with `trigger: manual` and a one-phrase
+   `because` — the *why* is the whole value of a config change ("PR target moved to the release
+   train"). The entry shape is the `revisions:` shape from [_additive-write.md](../_additive-write.md)
+   (that contract's *scope* covers stage artifacts; the index borrows only the entry shape, which
+   the index schema declares and the overview renders as the revision-ledger strip).
+5. If the amended field was `review-scope`, also set `review-scope-confirmed: true` (see the
+   whitelist guard).
+6. Write **nothing else**. No stage artifact, no slice file, no new numbered file. Amend produces no
    artifact of its own.
 
 # Step 3 — Chat return

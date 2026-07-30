@@ -5,6 +5,59 @@
   "description": "JSON Schema for the YAML frontmatter of every artifact produced by the sdlc-workflow plugin. Each artifact is a markdown file under .ai/workflows/<slug>/ (or .ai/simplify/, .ai/profiles/ for off-pipeline outputs). The frontmatter block (between the leading `---` markers) is parsed as YAML and validated against the matching branch of `oneOf` selected by the `type` field.",
 
   "$defs": {
+    "rcaMetrics": {
+      "type": "object",
+      "properties": {
+        "duration":           { "type": "string" },
+        "time_to_detect":     { "type": "string" },
+        "time_to_mitigate":   { "type": "string" },
+        "user_failures":      { "type": "integer", "minimum": 0 },
+        "revenue_impact_usd": { "type": "number", "minimum": 0 }
+      }
+    },
+    "rcaTimeline": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["id", "at", "kind", "title"],
+        "properties": {
+          "id":    { "type": "string" },
+          "at":    { "type": "string" },
+          "kind":  { "enum": ["alert", "escalation", "deploy", "mitigation", "resolution"] },
+          "title": { "type": "string" },
+          "body":  { "type": "string" },
+          "who":   { "type": "string" }
+        }
+      }
+    },
+    "rcaChain": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": ["step", "body"],
+        "properties": {
+          "step": { "enum": ["TRIGGER", "CHANGE", "CASCADE", "ROOT_CAUSE"] },
+          "body": { "type": "string" }
+        }
+      }
+    },
+    "rcaHeatmap": {
+      "type": "object",
+      "required": ["buckets", "systems"],
+      "properties": {
+        "buckets": { "type": "array", "items": { "type": "string" } },
+        "systems": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 0 }
+          }
+        }
+      }
+    },
     "iso8601": {
       "type": "string",
       "description": "ISO-8601 timestamp. Templates emit values like '2026-05-11T14:30:00Z'.",
@@ -129,6 +182,7 @@
         "tags": { "$ref": "#/$defs/stringArray" },
         "next-command": { "type": "string" },
         "next-invocation": { "type": "string" },
+        "revisions": { "$ref": "#/$defs/revisionLedger" },
         "workflow-files": { "$ref": "#/$defs/stringArray" },
         "progress": {
           "type": "object",
@@ -1903,59 +1957,10 @@
         "title":       { "type": "string" },
         "started_at":  { "$ref": "#/$defs/iso8601" },
         "resolved_at": { "$ref": "#/$defs/iso8601" },
-        "metrics": {
-          "type": "object",
-          "properties": {
-            "duration":           { "type": "string" },
-            "time_to_detect":     { "type": "string" },
-            "time_to_mitigate":   { "type": "string" },
-            "user_failures":      { "type": "integer", "minimum": 0 },
-            "revenue_impact_usd": { "type": "number", "minimum": 0 }
-          }
-        },
-        "timeline": {
-          "type": "array",
-          "minItems": 2,
-          "items": {
-            "type": "object",
-            "required": ["id", "at", "kind", "title"],
-            "properties": {
-              "id":    { "type": "string" },
-              "at":    { "type": "string" },
-              "kind":  { "enum": ["alert", "escalation", "deploy", "mitigation", "resolution"] },
-              "title": { "type": "string" },
-              "body":  { "type": "string" },
-              "who":   { "type": "string" }
-            }
-          }
-        },
-        "chain": {
-          "type": "array",
-          "minItems": 4,
-          "maxItems": 4,
-          "items": {
-            "type": "object",
-            "required": ["step", "body"],
-            "properties": {
-              "step": { "enum": ["TRIGGER", "CHANGE", "CASCADE", "ROOT_CAUSE"] },
-              "body": { "type": "string" }
-            }
-          }
-        },
-        "heatmap": {
-          "type": "object",
-          "required": ["buckets", "systems"],
-          "properties": {
-            "buckets": { "type": "array", "items": { "type": "string" } },
-            "systems": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "array",
-                "items": { "type": "integer", "minimum": 0 }
-              }
-            }
-          }
-        },
+        "metrics":  { "$ref": "#/$defs/rcaMetrics" },
+        "timeline": { "$ref": "#/$defs/rcaTimeline" },
+        "chain":    { "$ref": "#/$defs/rcaChain" },
+        "heatmap":  { "$ref": "#/$defs/rcaHeatmap" },
         "contributing_causes": {
           "type": "array",
           "items": {
@@ -1996,6 +2001,23 @@
             }
           }
         }
+      }
+    },
+
+    "rca-diagnosis": {
+      "type": "object",
+      "description": "Pre-fix variant of the rca sibling contract (INTAKE-MODES-REPAIR D5). Selected by the write hook — never by the author — when the RCA artifact's frontmatter is status: ready-for-fix-routing: a diagnosis that has not been fixed yet cannot honestly carry resolved_at, time_to_mitigate, resolution timeline events, or a severity heatmap, and forcing them made the hook block every lawful pre-fix RCA write. The required core is the diagnosis set; every resolution-set key stays legal (same shapes as siblingYamlSchemas.rca) so the SAME file grows into the full post-incident contract, which post-fix statuses re-require.",
+      "required": ["artifact", "incident", "title", "started_at", "chain", "timeline"],
+      "properties": {
+        "artifact":    { "const": "rca" },
+        "incident":    { "type": "string" },
+        "title":       { "type": "string" },
+        "started_at":  { "$ref": "#/$defs/iso8601" },
+        "resolved_at": { "$ref": "#/$defs/iso8601" },
+        "metrics":     { "$ref": "#/$defs/rcaMetrics" },
+        "timeline":    { "$ref": "#/$defs/rcaTimeline" },
+        "chain":       { "$ref": "#/$defs/rcaChain" },
+        "heatmap":     { "$ref": "#/$defs/rcaHeatmap" }
       }
     },
 

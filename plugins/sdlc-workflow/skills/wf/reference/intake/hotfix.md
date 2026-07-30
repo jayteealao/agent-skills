@@ -15,35 +15,37 @@ If the dispatcher selected **slug-mode** (the first token after `intake` matched
 If slug-mode was not selected, ignore this section and proceed standalone below.
 
 # Pipeline
-`01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review security` (→`07`) → `/wf ship`
+`01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]** → `/wf implement` (→`05`) → `/wf verify` (→`06`) → `/wf review security` (→`07`) → `/wf handoff` → `/wf ship` → `/wf retro`
 
 | | Detail |
 |---|---|
 | Requires | Nothing — starts fresh. Pass a description or an existing slug to resume. |
-| Produces (this command) | `01-hotfix.md` (`type: intake` — incident brief + diagnosis), `02-shape.md` (root cause + blast radius + scope), `03-slice.md` (`type: slice-index`, one slice), `04-plan.md` (minimal plan + rollback), conformant `00-index.md` (`type: index`). |
-| Compression | Each stage single-pass — **no stage is skipped**, but the lifecycle is expedited under incident pressure. One slice. |
-| Gate | Stop-and-prompt before `05-implement` (Proceed / Adjust / Escalate). |
+| Produces (this command) | `01-hotfix.md` (`type: intake` — incident brief + acceptance criteria + diagnosis), `02-shape.md` (root cause + blast radius + scope), `03-slice.md` (`type: slice-index`, one slice), `04-plan.md` (minimal plan + rollback), conformant `00-index.md` (`type: index`). |
+| Compression | Each stage single-pass — **no stage is skipped**, but the lifecycle is expedited under incident pressure. One slice. Handoff and retro stay in the chain: ship STOPs without a ready handoff verdict, and retro auto-triggers its incident consult exactly for hotfixes. |
+| Gate | Stop-and-prompt before `05-implement` (Proceed / Adjust / Escalate; family rules per `_change-mode-tail.md`). |
 | Next | `/wf implement <slug>` — standard execution; `07-review` defaults to **`security`**. |
-| Escalate | If the fix needs >3 files / >~50 lines / architectural change → the gate's *Escalate* option restarts as `/wf intake <description>`. |
+| Escalate | If the fix needs >3 files / >~50 lines / architectural change, the tripwire fires — record it per `_change-mode-tail.md` and offer the gate's *Escalate*, which closes this slug and restarts as `/wf intake "<description>" from <slug>`. |
 
 # CRITICAL — scope lock
 You are a **hotfix orchestrator**. This is not a feature workflow.
 - The **only** acceptable output is the minimum change that stops the incident.
 - **ZERO tolerance for scope creep.** Do NOT refactor, clean up, or improve code that is not the direct cause. Do not touch anything outside the identified root cause without explicit user approval.
 - Ask at most **3 questions**. No separate `po-answers.md` — answers go inline into `01-hotfix.md`.
-- The lifecycle skips no *stage* — but each is single-pass and incident-scoped. If the fix needs >3 files, >~50 lines, or any architectural change → use the gate's *Escalate*.
+- The lifecycle skips no *stage* — but each is single-pass and incident-scoped. The hotfix tripwires are: >3 files · >~50 lines · any architectural change. A breach is recorded per `_change-mode-tail.md` (never a refusal) and surfaces the gate's *Escalate*.
 - Follow the steps below exactly in order.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: hotfix` → **resume mode**. Read that index and pick up from the first unwritten planning artifact. (Legacy slugs may carry `hf-*.md` files — re-author them as the standard set if continuing.)
    - Otherwise → **new hotfix**. Derive a slug: `hotfix-<short-description>` (kebab-case, max 5 words, e.g., `hotfix-auth-token-expiry`).
-2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is NOT `hotfix` → WARN and ask the user to adjust the description.
-3. **Branch check (MANDATORY):**
+2. **Collision check:** apply the collision check in `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_change-mode-tail.md`.
+3. **Provenance check:** apply `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/intake/_intake-provenance.md` — an rca frequently routes its critical cases here. On an explicit `from <rca-slug>` token, consume the rca Consume-table row (root cause seeds `## Diagnosis`, section 8 verification seeds the acceptance criteria, blast radius seeds scope — Step 2's sub-agents then re-verify instead of re-deriving) and link back. No match → continue.
+4. **Stack fingerprint:** apply the stack policy in `_change-mode-tail.md` — detect cheaply, write the block with `user-confirmed: false`, and spend no question on it (verify's caveat path carries it).
+5. **Branch check (MANDATORY):**
    - Check current branch: `git branch --show-current`.
-   - Identify the production/default branch: `git remote show origin | grep 'HEAD branch'`.
+   - Identify the production/default branch **offline first**: `git symbolic-ref refs/remotes/origin/HEAD` (no network — mid-incident the network may be part of the incident). If unset, fall back to `git remote show origin | grep 'HEAD branch'`, then to `main`/`master` whichever exists locally.
    - A hotfix ALWAYS branches from the production/default branch: `git checkout -b hotfix/<slug> <production-branch>`.
-4. **Single slice.** The whole hotfix is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). Downstream stages write **un-suffixed** files.
+6. **Single slice.** The whole hotfix is one slice — the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, `best-first-slice`). Downstream stages write **un-suffixed** files.
 
 # Step 1 — Brief → `01-hotfix.md` (`type: intake`)
 Ask at most **3 questions** — stop as soon as you have enough:
@@ -70,7 +72,7 @@ next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 ---
 ```
-Body: open with `## The Hotfix` — the story section (MUST follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This hotfix implements…" opening) — then `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Recent Changes` (or "none known"). The `## Diagnosis` section is appended after Step 2.
+Body: open with `## The Hotfix` — the story section (MUST follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This hotfix implements…" opening) — then `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Acceptance Criteria` (≤2, each objectively verifiable; embed any inline question answers as italic notes — verify and review read the criteria from this lead, so a hotfix without them cannot pass its own quality tail; the incident is over when these are observably true, e.g. "checkout returns 200 for the repro request" + "no new occurrences of the error signature for 30 minutes"), `## Recent Changes` (or "none known"). The `## Diagnosis` section is appended after Step 2.
 
 # Step 2 — Diagnose → `02-shape.md`
 Launch parallel sub-agents to identify root cause. Do not proceed until both complete.
@@ -83,7 +85,7 @@ Prompt with ALL of: read the areas most likely to contain the bug; `git log --on
 ### Explore sub-agent 2 — Impact & Scope
 Prompt with ALL of: find every caller/consumer/dependent of the broken path (grep imports/references); check whether related components share the bug via shared code; identify any data that may have been corrupted during the active period; check whether the bug is on the production branch or only unreleased code. Report the complete affected file/path/service list, data risk (none/possible/confirmed), blast-radius summary.
 
-Wait for both. If root-cause confidence is low, launch a focused third agent on the most likely hypothesis. Then **append `## Diagnosis`** (root cause + `file:line` evidence + scope) to `01-hotfix.md`, and write `02-shape.md` carrying the diagnosis-as-scope:
+Wait for both. If root-cause confidence is low, launch a focused third agent on the most likely hypothesis. **Confidence floor:** if confidence is still low after the third agent, do NOT write a guessed `## Root Cause` — climb the ladder instead: reproduce the symptom at runtime via `/wf probe <slug> "<the runtime question the diagnosis hinges on>"` (the finding lands as a compressed slice on this slug), or `/consult` a second model on the hypothesis, or hand to human triage. A hotfix built on a guess ships a second incident. Then **append `## Diagnosis`** (root cause + `file:line` evidence + scope) to `01-hotfix.md`, and write `02-shape.md` carrying the diagnosis-as-scope:
 ```yaml
 ---
 schema: sdlc/v1
@@ -134,7 +136,7 @@ next-invocation: "/wf plan <slug>"
 Body (one line): "Single-slice incident fix."
 
 # Step 4 — Plan → `04-plan.md`
-A **minimal execution-ready plan** with hard constraints: **≤5 steps**; every step directly addresses the root cause (no cleanup/refactor/improvement); include a **rollback** (exact revert command/steps); if data was corrupted, include a separate data-remediation step.
+A **minimal execution-ready plan**: aim for ≤5 steps and ≤3 files; every step directly addresses the root cause (no cleanup/refactor/improvement); include a **rollback** (exact revert command/steps); if data was corrupted, include a separate data-remediation step. When the plan genuinely needs more, that is a tripwire breach, not a schema violation — record it per `_change-mode-tail.md` and let the gate adjudicate.
 ```yaml
 ---
 schema: sdlc/v1
@@ -145,8 +147,8 @@ status: complete
 stage-number: 4
 created-at: "<iso-8601>"
 updated-at: "<iso-8601>"
-metric-files-to-touch: <int, ≤ 3>
-metric-step-count: <int, ≤ 5>
+metric-files-to-touch: <int>
+metric-step-count: <int>
 has-blockers: false
 revision-count: 0
 tags: [incident]
@@ -158,66 +160,19 @@ next-command: wf-implement
 next-invocation: "/wf implement <slug>"
 ---
 ```
-Body: `## Steps` (≤5, each names file(s)+change+verification), `## Rollback` (exact revert), `## Data remediation` (if needed), `## Verification` (reproduce the symptom; regression suite; adjacent-path spot-check).
+Body: `## Steps` (each names file(s)+change+verification), `## Rollback` (exact revert), `## Data remediation` (if needed), `## Verification` (reproduce the symptom; regression suite; adjacent-path spot-check), `## Tripwire breaches` (only if any fired — per `_change-mode-tail.md`).
 
 ## Step — Write free narrative fragments
 Author free narrative fragments for any artifact per the narrative-fragment tier of `_intake-context.md` (a root-cause flow or a before/after diagram tells an incident story well).
 
 # Step 5 — Write `00-index.md` (conformant `type: index`)
-Write the full 22-field `type: index` overview using the template from [intake/default.md](default.md) with the hotfix specifics:
-```yaml
----
-schema: sdlc/v1
-type: index
-slug: <slug>
-title: "Hotfix: <symptom>"
-workflow-type: hotfix
-status: active
-current-stage: plan
-stage-number: 4
-created-at: "<iso-8601>"
-updated-at: "<iso-8601>"
-selected-slice: <slug>
-branch-strategy: dedicated
-branch: "hotfix/<slug>"
-base-branch: "<production-branch>"
-review-scope: slug-wide
-pr-url: ""
-pr-number: 0
-open-questions: []
-tags: [incident]
-next-command: wf-implement
-next-invocation: "/wf implement <slug>"
-workflow-files:
-  - 00-index.md
-  - 01-hotfix.md
-  - 02-shape.md
-  - 03-slice.md
-  - 04-plan.md
-slices:
-  - slug: <slug>
-    status: defined
-    complexity: <xs|s>
-progress:
-  intake: complete
-  shape: complete
-  slice: complete
-  plan: complete
-  implement: not-started
-  verify: not-started
-  review: not-started
-  handoff: not-started
-  ship: not-started
-  retro: not-started
----
-```
-Then **register the slug in `.ai/workflows/INDEX.md`** per `intake/default.md` Step 10.
+Write the shared change-mode index template from [_change-mode-tail.md](_change-mode-tail.md) with the `hotfix` column values (branch `hotfix/<slug>` off the production branch; `stack.user-confirmed: false` per the stack policy). **Seed `intent-risks` from `## Impact`:** write two entries (`id: RIM-1`/`RIM-2`, `severity` from the incident severity, `status: open`) — one for the incident's user/data impact, one for the blast-radius or data-remediation risk — so handoff/ship must adjudicate the incident severity instead of inheriting a hardcoded-empty list. Then register the slug in `.ai/workflows/INDEX.md` per the tail.
 
 # Step 6 — Gate before implement (MANDATORY)
-Apply the **compressed-lifecycle gate** from `_intake-context.md` (Proceed / Adjust / Escalate). Given incident pressure you MAY auto-proceed when the fix is clearly minimal (≤3 files, root cause confidence high, no data risk) — record the decision in `01-hotfix.md`. On **Escalate**, recommend `/wf intake <description>` and stop.
+Apply the gate per `_intake-context.md` and the family gate rules in [_change-mode-tail.md](_change-mode-tail.md) — decision recorded in `01-hotfix.md` on every branch; Escalate closes this slug and prints `/wf intake "<description>" from <slug>`. Given incident pressure you MAY auto-proceed when the fix is clearly minimal (≤3 files, root cause confidence high, no data risk).
 
 # Step 7 — Hand off to the standard chain
-On proceed, route to `/wf implement <slug>` → `/wf verify <slug>` → **`/wf review <slug> security`** (review defaults to the security rubric for hotfixes; always safe to run quickly) → `/wf ship <slug>`.
+On proceed, route to `/wf implement <slug>` → `/wf verify <slug>` → **`/wf review <slug> security`** (review defaults to the security rubric for hotfixes; always safe to run quickly) → `/wf handoff <slug>` (ship STOPs without its `readiness-verdict: ready` — an incident does not get to skip it) → `/wf ship <slug>` → `/wf retro <slug>` (retro auto-triggers its incident consult exactly for hotfixes — dropping it drops the incident learning).
 
 Lead with a short **narrative** paragraph (the symptom, root cause, the minimal fix, the gate decision), then:
 ```
@@ -226,11 +181,8 @@ Branch: hotfix/<slug> (off <production-branch>)
 Root cause: <file:line>
 Plan: <N> steps · Files: <M> (≤3) · Data remediation: <yes|no>
 Gate: <proceeded | adjusted | escalated | auto-proceeded (minimal)>
-Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug> security  →  /wf ship
+Next: /wf implement <slug>  →  /wf verify  →  /wf review <slug> security  →  /wf handoff  →  /wf ship  →  /wf retro
 ```
 
 # Workflow rules
-- Store artifacts under `.ai/workflows/<slug>/`. Never leave canonical results only in chat.
-- **Every artifact MUST have YAML frontmatter** with `schema: sdlc/v1`. **Timestamps must be real** — run `date -u +"%Y-%m-%dT%H:%M:%SZ"`.
-- Review is not skipped — but for a hotfix it defaults to the **security** rubric (auth, tokens, crypto, permissions). `/wf review <slug> security` is always safe to run quickly; widen only if the change warrants it.
-- Write each artifact atomically (temp → rename) so a crash never leaves a half-written workflow.
+Apply the shared workflow rules in [_change-mode-tail.md](_change-mode-tail.md). Hotfix-specific: review defaults to the **security** rubric (auth, tokens, crypto, permissions) — `/wf review <slug> security` is always safe to run quickly; widen only if the change warrants it.

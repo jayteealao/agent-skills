@@ -210,7 +210,16 @@ async function validateSiblingYamls(paths, config, schemaPath) {
     if (!type || !SIBLING_YAML_VALIDATED_TYPES.has(type)) continue;
     const yamlPath = `${path.absolute.replace(/\.md$/, '')}.yaml`;
     if (!existsSync(yamlPath)) continue;   // absence is enforceSiblingFragments' job
-    const result = await validateSiblingYamlFile(yamlPath, { schemaPath, artifact: type });
+    // INTAKE-MODES-REPAIR D5: a pre-fix RCA (artifact status: ready-for-fix-routing)
+    // validates against the diagnosis-shaped variant — the resolution set
+    // (resolved_at, mitigation timeline, heatmap) has not happened yet and must
+    // not be fabricated to satisfy the post-incident schema. Keyed on the md
+    // frontmatter, never on anything the sibling YAML's author writes.
+    let schemaName = type;
+    if (type === 'rca' && /^status:\s*ready-for-fix-routing\s*$/m.test(text ?? '')) {
+      schemaName = 'rca-diagnosis';
+    }
+    const result = await validateSiblingYamlFile(yamlPath, { schemaPath, artifact: schemaName });
     if (!result.valid) {
       failures.push({ rel: `${path.original.replace(/\.md$/, '')}.yaml`, result });
     }

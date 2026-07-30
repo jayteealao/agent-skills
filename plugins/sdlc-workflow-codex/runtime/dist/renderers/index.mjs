@@ -2,8 +2,9 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   md2html,
-  renderHistoryBlock
-} from "../chunk-245EJ2VL.mjs";
+  renderHistoryBlock,
+  renderRevisionLedger
+} from "../chunk-PX3UM4TL.mjs";
 import {
   evenX,
   figureCanvas
@@ -13,7 +14,7 @@ import {
   pageHref,
   stageBadge,
   statusBadge
-} from "../chunk-QSMKFKMI.mjs";
+} from "../chunk-F2GQFQ2C.mjs";
 import {
   escapeHtml
 } from "../chunk-4WRIEOIP.mjs";
@@ -139,6 +140,7 @@ function render(artifact, ctx) {
     ${stagesGridHtml}
     ${slicesHtml}
     ${plansHtml}
+    ${renderRevisionLedger(fm, artifact.siblingYaml)}
     ${renderHistoryBlock(artifact.history)}
   `;
   return { headerHtml, bodyHtml, links: [], children: [] };

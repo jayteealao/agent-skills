@@ -5,7 +5,7 @@
 
 import { md2html } from './_markdown.mjs';
 import { artifactHeader, statusBadge, stageBadge, metricRow } from './_shell.mjs';
-import { renderHistoryBlock } from './_history.mjs';
+import { renderHistoryBlock, renderRevisionLedger } from './_history.mjs';
 import { figureCanvas, evenX } from './_figure.mjs';
 import { escapeHtml } from './_validator.mjs';
 import { pageHref } from './_paths.mjs';
@@ -149,6 +149,7 @@ export function render(artifact, ctx) {
     ${stagesGridHtml}
     ${slicesHtml}
     ${plansHtml}
+    ${renderRevisionLedger(fm, artifact.siblingYaml)}
     ${renderHistoryBlock(artifact.history)}
   `;
 
