@@ -379,7 +379,7 @@ additional-contracts:
 # Observability Plan — <project-name>
 
 ## The Observability Posture
-<Story section — arc per ../_story-arc.md: where the project is today (the honest gaps), the
+<Story section — MUST follow ../_story-arc.md: where the project is today (the honest gaps), the
 path chosen and why, and the one decision that most shapes cost or debuggability. Not a checklist. STE
 language throughout.>
 

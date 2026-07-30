@@ -184,7 +184,7 @@ findings:
 ---
 
 ## The Audit
-<Story section — arc per ../_story-arc.md (heading `## The Audit`): the state audited, then the
+<Story section — MUST follow ../_story-arc.md (heading `## The Audit`): the state audited, then the
 verdict and the finding that most threatens a real release, then the route forward. Name what a release would
 actually get wrong, not a checklist. STE language throughout.>
 

@@ -70,7 +70,7 @@ next-command: wf-shape
 next-invocation: "$wf shape <slug>"
 ---
 ```
-Body: open with `## The Hotfix` — the story section (arc per `../_story-arc.md`, 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This hotfix implements…" opening) — then `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Recent Changes` (or "none known"). The `## Diagnosis` section is appended after Step 2.
+Body: open with `## The Hotfix` — the story section (MUST follow `../_story-arc.md`; 1–2 short paragraphs — the problem inherited, the decisions with reasons, the top open risk; no "This hotfix implements…" opening) — then `## Symptom` (what/where/whom), `## Impact` (severity, affected scope, data risk), `## Recent Changes` (or "none known"). The `## Diagnosis` section is appended after Step 2.
 
 # Step 2 — Diagnose → `02-shape.md`
 Launch parallel sub-agents to identify root cause. Do not proceed until both complete.

@@ -115,7 +115,7 @@ next-command: wf-shape
 next-invocation: "/wf shape <slug>"
 ---
 ```
-Body (tight): open with `## The Adoption` — the story section (arc per `../_story-arc.md`, 1–2 short paragraphs — the already-built change inherited and why it enters the pipeline now, the decisions taken, the top open risk; no "This adoption implements…" opening) — then `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, verbatim), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their W2d resolution as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
+Body (tight): open with `## The Adoption` — the story section (MUST follow `../_story-arc.md`; 1–2 short paragraphs — the already-built change inherited and why it enters the pipeline now, the decisions taken, the top open risk; no "This adoption implements…" opening) — then `## Adopted Surface` (the changed-file roster with per-file +/- counts, the commit SHAs ahead of `<base>`, and the branch — the Step A0 evidence, verbatim), `## Restated Intent` (the inferred goal + any user correction from the gate), `## Acceptance Criteria` (each objectively verifiable; environment-dependent ACs carry their W2d resolution as an italic note), `## Assumptions`, `## Open Questions` (if any → set `status: awaiting-input`).
 
 **`02-shape.md` — `type: shape`:**
 ```yaml

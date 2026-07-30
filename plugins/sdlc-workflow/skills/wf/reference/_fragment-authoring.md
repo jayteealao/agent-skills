@@ -44,10 +44,10 @@ amendments, …) skips Step F1 entirely and uses **only** Step F2 when a custom
 visual would help.
 
 **Text copy in any fragment, either tier** — labels, captions, headings, legend
-entries, annotations, tooltip text — follows the word-discipline rules
+entries, annotations, tooltip text — MUST follow the word-discipline rules
 (section 1) in [_ste-procedural.md](_ste-procedural.md). In particular W1: a
 fragment must use the same term for a concept as the artifact body it sits
-under. Instructional copy inside a fragment also follows section 2.
+under. Instructional copy inside a fragment MUST also follow section 2.
 
 ## Required shape (typed fragment only)
 

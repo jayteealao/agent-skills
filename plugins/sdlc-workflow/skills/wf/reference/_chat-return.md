@@ -9,8 +9,8 @@ A leaf's own section contributes ONLY its receipt fields and any stage-specific
 content spec.
 
 - **Substance first, then the receipt.** Lead with the **narrative** — a short
-  prose paragraph (2–5 sentences, no bullets, no field labels) per
-  [_story-arc.md](_story-arc.md) rule A6: the same three
+  prose paragraph (2–5 sentences, no bullets, no field labels) that MUST
+  follow [_story-arc.md](_story-arc.md) rule A6: the same three
   beats as the artifact's story section — the state inherited, the decisions
   with reasons, then what comes next plus the top risk — never a "This <stage>
   implements…" opening. The router leads the chat summary with this paragraph;
@@ -29,11 +29,12 @@ content spec.
   Nothing new is computed — the line only surfaces what shape/verify already recorded.
   When there is nothing to report, the line reads `Deltas: none` (one word). A stage
   with no fidelity/mechanism/decision surface (e.g. a pure status read) omits the line.
-- **Arc above, receipt below.** The narrative paragraph follows rule A6 of
+- **Arc above, receipt below.** The narrative paragraph MUST follow rule A6 of
   [_story-arc.md](_story-arc.md); everything
   below it — the `Deltas:` line, receipt fields, `Artifacts:` / `Next:`
-  anchors — follows the word-discipline rules (section 1), and any command or
-  instruction the return gives the user follows section 2: imperative, one
+  anchors — MUST follow the word-discipline rules (section 1) in
+  [_ste-procedural.md](_ste-procedural.md), and any command or instruction the
+  return gives the user MUST follow section 2: imperative, one
   instruction per sentence, condition before command.
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed in the
   chat return — this is the internal summary, not external-facing copy. Outside

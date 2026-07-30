@@ -7,6 +7,14 @@ argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|re
 # External Output Boundary (MANDATORY)
 Apply the boundary rule in [_output-boundary.md](reference/_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
+# Controlled Language (MANDATORY)
+Every piece of text this skill writes — artifact sections, chat summaries, PO questions, fragment
+copy, commit and PR text, product copy — MUST follow the controlled-language contract in
+[reference/_ste-procedural.md](reference/_ste-procedural.md). Artifact story sections and
+chat-summary narratives MUST also follow the structure contract in
+[reference/_story-arc.md](reference/_story-arc.md). This rule binds every sub-command and every
+sub-agent this skill spawns. A reference that adds its own writing spec adds to this contract;
+it never replaces it.
 
 Before executing, read `../../references/native-operating-model.md`, `../../references/artifact-interop.md`, and `../../references/verification.md`.
 

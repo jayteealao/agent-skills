@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.148.0] - 2026-07-30
+
+The contracts existed; the binding was soft. The router — the one file every `/wf` invocation loads — never cited the controlled-language contract, and most citing sites bound with a declarative "follows" rather than a requirement. This release closes both gaps: one MANDATORY block at the router binds every sub-command and sub-agent, and every declarative citation becomes MUST.
+
+### Added
+
+- `SKILL.md` (both trees) gains a **Controlled Language (MANDATORY)** block beside the External Output Boundary: all text the skill writes MUST follow `_ste-procedural.md`; story sections and chat narratives MUST also follow `_story-arc.md`; a reference's own writing spec adds to this contract and never replaces it. This closes coverage for the ~100 reference files that carry no per-file citation — the router mandate binds them.
+
+### Changed
+
+- Every declarative contract citation upgrades to MUST-force (both trees): the 46 story template comments ("MUST follow `_story-arc.md`" / "Language MUST follow `_ste-procedural.md`"), the intake-mode story specs, the observability and ship-plan audit placeholders, `_chat-return.md` (narrative, receipt fields, and user-facing commands each carry MUST), `_question-craft.md`, `_fragment-authoring.md`, `narrative-fragments.md`, the how-to quadrant twins, the diataxis router, and the STE scope statement's arc pointer. Imperative sites (docs.md's MANDATORY block, `_output-boundary.md`, `recap.md`) already bind and stay as they are.
+
 ## [9.147.0] - 2026-07-30
 
 v9.146.0 folded the story-arc rules into `_ste-procedural.md` as section 4 — a scope error the product owner caught the same day: the arc is a workflow convention, not Simplified Technical English, and the STE contract must hold only what ASD-STE100 backs. This release extracts the arc into its own file. Nothing about the rules changes; only where they live.

@@ -9,6 +9,15 @@ argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|re
 Apply the boundary rule in [_output-boundary.md](reference/_output-boundary.md) to every external-facing output
 this operation produces: translate workflow context to product language and leak-check before publishing.
 
+# Controlled Language (MANDATORY)
+Every piece of text this skill writes — artifact sections, chat summaries, PO questions, fragment
+copy, commit and PR text, product copy — MUST follow the controlled-language contract in
+[reference/_ste-procedural.md](reference/_ste-procedural.md). Artifact story sections and
+chat-summary narratives MUST also follow the structure contract in
+[reference/_story-arc.md](reference/_story-arc.md). This rule binds every sub-command and every
+sub-agent this skill spawns. A reference that adds its own writing spec adds to this contract;
+it never replaces it.
+
 You are the **single SDLC dispatcher** for the plugin. `/wf` runs **one SDLC operation per key** — not every key writes a numbered stage artifact, and that is by design (Step 2 already tolerates read-only members via `none`). The dispatch table below is the authoritative roster: ten canonical **stages**, five **standalone/drivers**, two **navigation** members, one **lifecycle-control** member, and three **routers**. `intake` is itself a **mode dispatcher** (plain description → stage 1; mode keyword → compressed entry flow; existing slug + free scope → extension). Your only job is to identify which key the user wants, load its reference body, and follow it verbatim.
 
 > **The dissolve.** The former `/wf-meta` and `/wf-docs` skills are retired — their members are keys here. There is **no `amend`** (corrections are a new slice or a fix) and **no separate augmentation keys** (`shape` decides augmentations; `plan`/`implement`/`verify` apply them). The full retired-surface → new-key mappings live in Resolution rule 3 below.

@@ -426,7 +426,7 @@ next-invocation: "$wf retro <slug>"
 # Ship Run — <slug> @ <version> @ <environment>
 
 ## The Ship
-<!-- STORY SECTION — first, and self-sufficient. Arc per `_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. STE language per `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. MUST follow `_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. Language MUST follow `_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## Pre-flight
 - ship-plan readiness: <ok | acknowledged — with the drift signals + reason if acknowledged>

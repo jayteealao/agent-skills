@@ -7,7 +7,7 @@ this codebase. A question is well-formed only if someone who cannot read the
 code can still pick an answer confidently. Citing sites contribute their own
 topics and round structure; this file owns how each question is written.
 
-Question and option text also follows the word-discipline rules (section 1) in
+Question and option text MUST follow the word-discipline rules (section 1) in
 [_ste-procedural.md](_ste-procedural.md): one term per concept across the whole
 batch, every pronoun with exactly one referent, concrete conditions and
 quantities instead of abstract statements.
