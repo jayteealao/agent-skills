@@ -2,7 +2,7 @@ import { createRequire as __sdlcCreateRequire } from 'module';
 const require = __sdlcCreateRequire(import.meta.url);
 import {
   pageHref
-} from "./chunk-E2KZK4WQ.mjs";
+} from "./chunk-SHCWNU77.mjs";
 import {
   jsYaml
 } from "./chunk-LFGT2BKG.mjs";

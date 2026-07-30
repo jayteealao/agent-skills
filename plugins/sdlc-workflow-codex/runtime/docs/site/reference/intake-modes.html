@@ -64,8 +64,8 @@
 <h3 id="investigate">investigate</h3>
 <pre><code>/wf intake investigate &lt;problem&gt;
 /wf intake &lt;slug&gt; investigate &lt;problem&gt;</code></pre>
-<p><code>investigate</code> sketches solution options for an open design question. It enumerates every genuinely distinct candidate approach grounded in the existing architecture. Up to three approaches are presented as full cards with tradeoffs: scope, blast radius, effort, risk, and reversibility. Further distinct options are recorded compactly. The mode deliberately does not pick a winner; you pick the winner. The mode is read-only: it writes no application code and does no bug diagnosis.</p>
-<p><strong>Authors:</strong> <code>01-investigate.md</code> + <code>00-index.md</code>. <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — you pick an option, then <code>/wf intake</code> or <code>/wf intake fix</code> carries it forward.</p>
+<p><code>investigate</code> sketches solution options for an open design question. It enumerates every genuinely distinct candidate approach grounded in the existing architecture. Up to three approaches are presented as full cards with tradeoffs: scope, blast radius, effort, risk, reversibility, and the decisive unknown that could kill the option. Further distinct options are recorded compactly. The mode deliberately does not pick a winner; you pick the winner. Re-invoke it as <code>investigate &lt;slug&gt; &lt;option&gt;</code> to record the pick: the choice and your reason are stamped into the artifact, and the workflow closes. The mode is read-only apart from that bookkeeping: it writes no application code and does no bug diagnosis.</p>
+<p><strong>Authors:</strong> <code>01-investigate.md</code> + <code>00-index.md</code>. <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — you pick an option (recorded via <code>investigate &lt;slug&gt; &lt;option&gt;</code>), then <code>/wf intake</code> or <code>/wf intake fix</code> with <code>from &lt;slug&gt;</code> carries it forward, seeded from the investigation.</p>
 
 <h3 id="discover">discover</h3>
 <pre><code>/wf intake discover &lt;hypothesis&gt;

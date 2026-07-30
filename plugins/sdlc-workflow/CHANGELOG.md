@@ -7,7 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.144.0] - 2026-07-29
+## [9.145.0] - 2026-07-30
+
+`/wf intake investigate` produced a good option set and then abandoned it: the routing was a hand-typed one-liner, the workflow stayed open forever, no record said which option the user picked or why, and the downstream command re-derived everything three sub-agents had already mapped. This release gives the sketcher a decision lifecycle without changing its identity — it still never picks. Plan: `docs/internal/INVESTIGATE-DECISION-LIFECYCLE-PLAN.md` (built in full, all three PO proposals accepted).
+
+### Added
+
+- **Pick — decision closure** in `intake/investigate.md`: re-invoking as `investigate <slug> <option> [reason]` stamps `chosen-option` / `chosen-at` / `decision-note` into the artifact frontmatter, appends a `## Decision` section (reason + live tripwires), closes the index with the `close.md` field set (`close-reason: option-picked`, `superseded-by: pending`), and prints the routed invocation carrying `from <slug>`. Recording is bookkeeping, not choosing.
+- `intake/_investigate-provenance.md` — shared detect/consume/link-back contract for `intake/default.md` and `intake/fix.md` (each gained a Step-0 provenance check). Detection is an explicit trailing `from <investigate-slug>` token, or an exact option-label match against investigate rows updated in the last 30 days (one confirmation question; fuzzy resemblance never matches). Consumption seeds the shape pass from the chosen option's card and the architecture map — re-verified, not copied. Link-back records `origin-investigate` on the successor, sets `superseded-by` on the investigate index, and applies the implicit pick (`decision-note: implicit`) when the user routed without recording one.
+- **Decisive unknown** per option card: the one assumption that, if false, kills the option, plus the cheapest check. Sub-agent 3 returns it (`decisive_unknown`); "none" must be earned, never defaulted. Routing row 3 becomes an escalation ladder: truth question → `/wf intake <slug> discover <unknown>` (compressed slice on the same workflow, no card write-back); API fact → `study-sources`; product call → the human who owns it.
+- **Honors stated constraints** per option card (`honors_stated_constraints` from sub-agent 3): Step 3's mandatory cross-check now also verifies every option against the user's stated constraints; a violation joins the top risks and loses ties in the presentation-cap selection, but the option is not dropped.
+
+### Changed
+
+- `01-investigate.md`/`00-index.md` frontmatter reconciled: the index now carries `option-count`, `presented-count`, and `demoted-labels`, so cap-demoted options are visible at the registry level.
+- The auto-consult note states its ordering plainly: it fires after Step 3 has written the artifact, so folding the panel's output in edits the just-written file.
+- The intake dispatcher's investigate row, `guides/investigation.html`, and `reference/intake-modes.html` describe the new terminus: pick recorded, workflow closed, successor seeded via `from <slug>`.
+
+
 
 The plugin has always known *where* text goes — the story section first, the structured sections beneath, the boundary between internal and external. It has never said how the sentences themselves must behave, and it showed: the same command named two ways in one runbook, a pronoun pointing at two nouns in a destructive step, an instruction hiding inside a NOTE. This release adopts a controlled language. ASD-STE100 Issue 9 (Simplified Technical English), distilled to the 22 rules a reviewer can mechanically check, becomes one shared contract that every writing surface cites and three audit surfaces enforce.
 

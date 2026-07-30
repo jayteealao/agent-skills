@@ -70,6 +70,7 @@ You are a **workflow orchestrator**, not a problem solver.
    - If it exists and `current-stage` is past intake → WARN: "Intake has already been completed. Running it again will overwrite `01-intake.md`. Proceed?" Ask the user in chat. Only proceed if confirmed.
    - If it does not exist → this is a fresh start. Proceed normally.
 4. **Carry forward** any `open-questions` from the index if resuming.
+5. **Investigate provenance check:** apply `reference/intake/_investigate-provenance.md` — detect an inherited `$wf intake investigate` decision (an explicit trailing `from <investigate-slug>` token, or an exact option-label match against recent investigate rows in `.ai/workflows/INDEX.md`), consume the chosen option's card as planning context (it seeds the restated request, the risk inventory, and the research sub-agent prompts), and link the two workflows (record `origin-investigate` here, set `superseded-by` on the investigate index, and apply the implicit pick if that workflow is still open). No match → continue; that is the common case.
 
 # Step 0.5 — Repo stack fingerprint (MANDATORY — observation only, do NOT prescribe)
 

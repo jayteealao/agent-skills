@@ -38,11 +38,12 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
    - If the argument matches an existing `.ai/workflows/*/00-index.md` with `workflow-type: fix` (new) OR `workflow-type: quick` (legacy — slugs created before v9.18.0) → **resume mode**. Read that index and the lead (`01-fix.md` new, or legacy `01-quick.md` / `01-fix.md` `type: fix-plan` pre-migration — check both). Pick up from the first unwritten planning artifact. If planning is complete, the user likely meant `$wf implement` — tell them and stop.
    - Otherwise → **new `$wf intake fix` workflow**. Derive a slug: `fix-<short-description>` (kebab-case, max 5 words, e.g., `fix-checkout-button-spacing`).
 2. **Collision check:** If `.ai/workflows/<slug>/00-index.md` already exists and `workflow-type` is neither `fix` nor `quick` → WARN: "Workflow `<slug>` already exists with type `<existing-type>`. Choose a different description, or run `$wf recap <slug>`." Stop.
-3. **Branch check:**
+3. **Investigate provenance check:** apply `reference/intake/_investigate-provenance.md` — detect an inherited `$wf intake investigate` decision (an explicit trailing `from <investigate-slug>` token, or an exact option-label match against recent investigate rows in `.ai/workflows/INDEX.md`), consume the chosen option's card as planning context (it seeds `01-fix.md` and the Step 1 sub-agent prompts), and link the two workflows (record `origin-investigate` here, set `superseded-by` on the investigate index, and apply the implicit pick if that workflow is still open). No match → continue; that is the common case.
+4. **Branch check:**
    - Default `branch-strategy: dedicated`, branch `fix/<slug>`. Create off the current base if absent: `git checkout -b fix/<slug>`.
    - If the user passed `branch-strategy: none` or is mid-task on a branch they want to keep → record `branch-strategy: none`; do not switch branches.
-4. **Read project context (lightweight):** `.impeccable.md` if present (design context), `README.md` (top ~100 lines). Do NOT read the full codebase here — the Step 1 sub-agent does targeted exploration.
-5. **Single slice.** This is a single-slice lifecycle: the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, and `best-first-slice`). Downstream stages write **un-suffixed** files (`04-plan.md`, `05-implement.md`, `06-verify.md`).
+5. **Read project context (lightweight):** `.impeccable.md` if present (design context), `README.md` (top ~100 lines). Do NOT read the full codebase here — the Step 1 sub-agent does targeted exploration.
+6. **Single slice.** This is a single-slice lifecycle: the workflow slug doubles as the one slice's `slice-slug` (use `<slug>` for `slice-slug`, `selected-slice`, and `best-first-slice`). Downstream stages write **un-suffixed** files (`04-plan.md`, `05-implement.md`, `06-verify.md`).
 
 # Step 1 — Author the planning artifacts (single pass, parallel research)
 

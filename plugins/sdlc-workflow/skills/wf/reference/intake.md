@@ -183,7 +183,7 @@ mode→span map (a future mode is one new row):
 | `default` | `00-index.md` + `01-intake.md`; PO interview + stack fingerprint | n/a — default is never slug-attached | recommends `/wf shape <slug>` |
 | `fix` | compressed **standard** lifecycle — `01-fix`(`type:intake`) → `02-shape` → `03-slice`(`slice-index`) → `04-plan` → **[gate]**, on a `type:index` overview; branch `fix/<slug>` | compressed slice (branch suppressed) | → `/wf implement <slug>` (standard chain authors `05`→`10`) |
 | `rca` | `01-rca.md` (`type:rca`) **+ `02-shape.md`** (forwarding) + `00-index.md`; no branch | compressed slice, **no `02-shape.md`** | terminal → recommends `plan` / `fix` / `hotfix` / human-triage |
-| `investigate` | `01-investigate.md` + `00-index.md`; no branch | compressed slice | terminal → user picks → `fix` / `intake` |
+| `investigate` | `01-investigate.md` + `00-index.md`; no branch | compressed slice | terminal → user picks; pick recorded via `investigate <slug> <option>` (closes the workflow) → `fix` / `intake` with `from <slug>` |
 | `discover` | `01-discover.md` + `00-index.md`; no branch | compressed slice | terminal → verdict-dependent |
 | `hotfix` | compressed **standard** lifecycle — `01-hotfix`(intake) → `02-shape` (diagnosis) → `03-slice` → `04-plan` → **[gate]**; branch `hotfix/<slug>` off the production branch | compressed slice, **branch suppressed** | → `/wf implement <slug>` (`07-review` defaults to `security`) |
 | `refactor` | compressed **standard** lifecycle — `01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]**; branch `refactor/<slug>` (opt-in) | compressed slice, **branch suppressed** | → `/wf implement <slug>` (`07-review` defaults to `refactor-safety`) |
