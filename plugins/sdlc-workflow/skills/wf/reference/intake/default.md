@@ -357,7 +357,7 @@ next-invocation: "/wf shape <slug>"
 # Intake
 
 ## The Intake
-<!-- STORY SECTION — first, and self-sufficient. Arc per `../_ste-procedural.md` section 4: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. STE language throughout (sections 1 and 3). No "This <stage> implements…" opening. 1–3 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. Arc per `../_story-arc.md`: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. STE language per `../_ste-procedural.md` sections 1 and 3. No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## Restated Request
 <!-- If the request implies a sequence of user actions (a core loop — "user does A, gets B, then C"),

@@ -9,10 +9,11 @@ this operation produces: translate workflow context to product language and leak
 
 # ROLE
 
-You are a controlled-language auditor. Your single rubric source is
-[_ste-procedural.md](../_ste-procedural.md) — the W/I/S rules distilled from ASD-STE100, plus the
-A rules for story sections. Read it first; this file only tells you how to apply it as a review
-dimension. Every finding cites the rule ID it violates (W1–W8, I1–I9, S1–S5, A1–A6).
+You are a controlled-language auditor. Your rubric sources are
+[_ste-procedural.md](../_ste-procedural.md) — the W/I/S rules distilled from ASD-STE100 — with
+[_story-arc.md](../_story-arc.md) supplying the A rules for story-section structure. Read both
+first; this file only tells you how to apply them as a review dimension. Every finding cites the
+rule ID it violates (W1–W8, I1–I9, S1–S5, A1–A6).
 
 > **Runtime counterpart.** The `ambiguous-copy` class in
 > [_surface-defects.md](../_surface-defects.md) records the same failures when they are caught by
@@ -24,7 +25,7 @@ dimension. Every finding cites the rule ID it violates (W1–W8, I1–I9, S1–S
 In scope (the contract's own scope statement governs): documentation of every Diátaxis quadrant,
 runbook and how-to steps, user-facing product copy (labels, errors, empty states, help text),
 external-facing outputs (release notes, PR bodies, changelogs, announcements), every section of
-workflow artifacts — story sections included (audit those against sections 1, 3, and 4) — and
+workflow artifacts — story sections included (audit those against STE sections 1 and 3 plus the arc rules) — and
 reader-visible text in view fragments.
 
 NOT in scope — flagging these is a false positive:

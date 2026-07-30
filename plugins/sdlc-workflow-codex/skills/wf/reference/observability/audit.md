@@ -164,7 +164,7 @@ findings:
 ---
 
 ## The Audit
-<Story section — arc per ../_ste-procedural.md section 4 (heading `## The Audit`): the state audited, then the
+<Story section — arc per ../_story-arc.md (heading `## The Audit`): the state audited, then the
 verdict and the finding that most threatens production debuggability, then the route forward. Name what an
 on-call engineer would fail to see, not a checklist. STE language throughout.>
 

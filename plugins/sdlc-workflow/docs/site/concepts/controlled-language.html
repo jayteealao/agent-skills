@@ -11,9 +11,9 @@
 <main>
 <h1>Controlled language</h1>
 <p class="lede">Read this to understand the writing contract behind the plugin's text. All text
-the workflow writes follows 22 rules distilled from ASD-STE100 (Simplified Technical English),
-plus one workflow-specific section for story sections and chat summaries. One shared file holds
-the rules, every writing surface cites that file, and three audit surfaces enforce it.</p>
+the workflow writes follows 22 rules distilled from ASD-STE100 (Simplified Technical English).
+A separate companion file defines the structure of story sections and chat summaries. Every
+writing surface cites these files, and three audit surfaces enforce them.</p>
 
 <h2>Why the plugin controls its language</h2>
 
@@ -35,9 +35,8 @@ per sentence remove that failure mode at the source.</p>
 <h2>The contract</h2>
 
 <p>The contract lives in one file: <code>skills/wf/reference/_ste-procedural.md</code>. It
-distills Part 1 of ASD-STE100 Issue 9 into 22 rules that a reviewer can check mechanically, and
-adds one workflow-specific section for story sections and chat summaries. Each distilled rule
-keeps its ASD-STE100 number for traceability. The file has four sections:</p>
+distills Part 1 of ASD-STE100 Issue 9 into 22 rules that a reviewer can check mechanically. Each
+rule keeps its ASD-STE100 number for traceability. The rules divide into three sections:</p>
 
 <dl class="cmd-grid">
 <dt><code>W1–W8</code></dt><dd>Word discipline. One term per concept, one meaning per term, verbs
@@ -50,11 +49,15 @@ that stay with their action.</dd>
 <dt><code>S1–S5</code></dt><dd>Warnings and structure. A graded risk word first, the warning
 before the step that it protects, the consequence stated, one topic per paragraph, and identical
 wording for identical operations.</dd>
-<dt><code>A1–A6</code></dt><dd>Story sections and chat summaries. This section is the workflow's
-own extension, not from ASD-STE100. It fixes the story heading, three beats in order — the state
-the stage inherited, the load-bearing decisions with reasons, what the stage enables next plus
-the top open risk — a one-to-three-paragraph cap, and the compressed chat-summary form.</dd>
 </dl>
+
+<p>A companion file, <code>skills/wf/reference/_story-arc.md</code>, holds the arc — six structure
+rules (<code>A1–A6</code>) for story sections and chat summaries. The arc is the workflow's own
+convention, not part of ASD-STE100, so it lives outside the contract file. It fixes the story
+heading, three beats in order — the state the stage inherited, the load-bearing decisions with
+reasons, what the stage enables next plus the top open risk — a one-to-three-paragraph cap, and
+the compressed chat-summary form. The arc defines structure only; the language rules above apply
+to story prose in full.</p>
 
 <h2>Where the contract applies</h2>
 
@@ -64,11 +67,9 @@ included — reader-visible text in view fragments, chat summaries and their rec
 product copy, and external-facing outputs such as release notes and PR bodies. Nothing is
 exempt. Each passage follows the sections that govern its kind of text.</p>
 
-<p>Story sections follow one extra section: the arc. The arc fixes three beats in order — the
-state the stage inherited, the load-bearing decisions with their reasons, and what the stage
-enables next plus the top open risk. The language rules apply in full; only the structure is
-extra. The story section carries the trajectory of the work, and the structured sections
-beneath it stay terse, so one document reads as one voice.</p>
+<p>Story sections follow one extra file: the arc. The story section carries the trajectory of
+the work in three fixed beats, and the structured sections beneath it stay terse, so one
+document reads as one voice under one language contract.</p>
 
 <h2>How the contract is enforced</h2>
 

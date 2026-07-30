@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.147.0] - 2026-07-30
+
+v9.146.0 folded the story-arc rules into `_ste-procedural.md` as section 4 — a scope error the product owner caught the same day: the arc is a workflow convention, not Simplified Technical English, and the STE contract must hold only what ASD-STE100 backs. This release extracts the arc into its own file. Nothing about the rules changes; only where they live.
+
+### Added
+
+- `skills/wf/reference/_story-arc.md` (both trees) — the arc contract, single source: A1 heading table, A2 three beats (origin / road / destination plus top risk), A3 paragraph cap, A4 self-sufficiency, A5 no heading restatement, A6 chat-summary form. Structure only; story prose language stays under `_ste-procedural.md` sections 1 and 3.
+
+### Changed
+
+- `_ste-procedural.md` returns to the 22 distilled rules in three sections. Its scope statement still covers all workflow text and points story sections to `_story-arc.md` for structure.
+- Every citing site re-points from "section 4" to `_story-arc.md`: the 46 story template comments, the intake-mode story specs, `SKILL.md`, `_chat-return.md`, `recap.md`, the observability and ship-plan audit templates, `renderers/_story.mjs`, and the controlled-language doc page. `review/ste-compliance.md` now names both rubric sources.
+
 ## [9.146.0] - 2026-07-30
 
 v9.144.0 adopted the controlled language for procedural text but exempted story sections, which kept their own narrative-voice contract — a two-contract split that never took hold in practice: 30 of the 35 story-section pointers were bare filenames inside template comments, so the voice file never loaded, and the story sections read as ungoverned improvisation with no sense of where the work came from or where it goes. This release makes STE the single contract for everything `/wf` writes and replaces the voice with an arc. The story section survives — first, self-sufficient, `## The <Stage>` — but its shape is now three checkable beats instead of a calibrated essay voice.

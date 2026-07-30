@@ -85,7 +85,7 @@ Read what actually exists — do not infer from filenames.
 
 # Step 2 — Write the recap
 
-Write it under the controlled-language rules in [_ste-procedural.md](_ste-procedural.md): word discipline (section 1) and descriptive structure (S4) throughout, beats in arc order per section 4 — where the work started, the decisions with reasons, where it stands and what remains. No "This stage implements…" openings. The reader should be able to read top to bottom and come away understanding the work — not decode a status table.
+Write it under the controlled-language rules in [_ste-procedural.md](_ste-procedural.md): word discipline (section 1) and descriptive structure (S4) throughout, beats in arc order per [_story-arc.md](_story-arc.md) — where the work started, the decisions with reasons, where it stands and what remains. No "This stage implements…" openings. The reader should be able to read top to bottom and come away understanding the work — not decode a status table.
 
 **Structure — whole-workflow recap:**
 
