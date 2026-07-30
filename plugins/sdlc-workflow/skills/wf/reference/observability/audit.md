@@ -163,9 +163,9 @@ findings:
 ---
 
 ## The Audit
-<Narrative — the story section, per ../_narrative-voice.md (heading `## The Audit`). Lead with the verdict and the
-one finding that most threatens production debuggability, in the Raschka voice: relevance first, why before how,
-the stakes in human terms. Name what an on-call engineer would actually fail to see, not a checklist.>
+<Story section — arc per ../_ste-procedural.md section 4 (heading `## The Audit`): the state audited, then the
+verdict and the finding that most threatens production debuggability, then the route forward. Name what an
+on-call engineer would fail to see, not a checklist. STE language throughout.>
 
 ## Verdict
 <sound | ship-with-caveats | unsound> — <one sentence, tied to the highest-severity open finding>

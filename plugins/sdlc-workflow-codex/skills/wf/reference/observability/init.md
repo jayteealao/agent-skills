@@ -379,9 +379,9 @@ additional-contracts:
 # Observability Plan — <project-name>
 
 ## The Observability Posture
-<Narrative — the story section, per ../_narrative-voice.md. Lead with where the project is today (the honest
-gaps), the path chosen and why, and the one decision that most shapes cost or debuggability. Voice: relevance
-first, why before how, tradeoffs plain. Not a checklist.>
+<Story section — arc per ../_ste-procedural.md section 4: where the project is today (the honest gaps), the
+path chosen and why, and the one decision that most shapes cost or debuggability. Not a checklist. STE
+language throughout.>
 
 ## Wide-event schema
 <the canonical field vocabulary + domain fields + key-normalization rule, language-agnostic.>

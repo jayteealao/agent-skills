@@ -412,7 +412,7 @@ next-invocation: "/wf slice <slug>"
 # Shape
 
 ## The Shape
-<!-- STORY SECTION — first, and self-sufficient. A reader who reads only this section understands what was produced, the load-bearing decisions, and the top risk; structured sections below are drill-down. Voice per `_narrative-voice.md` — no "This shape implements…" openings. 1–4 short paragraphs. The story MUST name the highest-severity intent-risk (RIM) carried from intake and how shape disposed of it (the choice made, or what it was carried to) — this keeps the load-bearing adjudication legible to a PO who reads only the prose. -->
+<!-- STORY SECTION — first, and self-sufficient. Arc per `_ste-procedural.md` section 4: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. STE language throughout (sections 1 and 3). No "This <stage> implements…" opening. 1–3 short paragraphs. The story MUST name the highest-severity intent-risk (RIM) carried from intake and how shape disposed of it (the choice made, or what it was carried to) — this keeps the load-bearing adjudication legible to a PO who reads only the prose. -->
 
 
 ## Problem Statement

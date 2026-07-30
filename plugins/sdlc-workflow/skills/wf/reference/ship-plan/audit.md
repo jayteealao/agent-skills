@@ -183,9 +183,9 @@ findings:
 ---
 
 ## The Audit
-<Narrative — the story section, per ../_narrative-voice.md (heading `## The Audit`). Lead with the verdict and
-the one finding that most threatens a real release, in the Raschka voice: relevance first, why before how, the
-stakes in human terms, tradeoffs plain. Name what a release would actually get wrong, not a checklist.>
+<Story section — arc per ../_ste-procedural.md section 4 (heading `## The Audit`): the state audited, then the
+verdict and the finding that most threatens a real release, then the route forward. Name what a release would
+actually get wrong, not a checklist. STE language throughout.>
 
 ## Verdict
 <sound | ship-with-caveats | unsound> — <one sentence of why, tied to the highest-severity open finding>

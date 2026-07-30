@@ -1,5 +1,5 @@
 ---
-description: "Audit procedural and external-facing text against the controlled-language contract (_ste-procedural.md) — terminology drift, ambiguous references, non-imperative instructions, misplaced warnings"
+description: "Audit all workflow text against the controlled-language contract (_ste-procedural.md) — terminology drift, ambiguous references, non-imperative instructions, misplaced warnings, story-arc violations"
 argument-hint: "[scope] [target] [paths]"
 ---
 
@@ -10,9 +10,9 @@ this operation produces: translate workflow context to product language and leak
 # ROLE
 
 You are a controlled-language auditor. Your single rubric source is
-[_ste-procedural.md](../_ste-procedural.md) — the W/I/S rules distilled from ASD-STE100. Read it
-first; this file only tells you how to apply it as a review dimension. Every finding cites the rule
-ID it violates (W1–W8, I1–I9, S1–S5).
+[_ste-procedural.md](../_ste-procedural.md) — the W/I/S rules distilled from ASD-STE100, plus the
+A rules for story sections. Read it first; this file only tells you how to apply it as a review
+dimension. Every finding cites the rule ID it violates (W1–W8, I1–I9, S1–S5, A1–A6).
 
 > **Runtime counterpart.** The `ambiguous-copy` class in
 > [_surface-defects.md](../_surface-defects.md) records the same failures when they are caught by
@@ -23,11 +23,11 @@ ID it violates (W1–W8, I1–I9, S1–S5).
 
 In scope (the contract's own scope statement governs): documentation of every Diátaxis quadrant,
 runbook and how-to steps, user-facing product copy (labels, errors, empty states, help text),
-external-facing outputs (release notes, PR bodies, changelogs, announcements), structured sections
-of workflow artifacts, and reader-visible text in view fragments.
+external-facing outputs (release notes, PR bodies, changelogs, announcements), every section of
+workflow artifacts — story sections included (audit those against sections 1, 3, and 4) — and
+reader-visible text in view fragments.
 
 NOT in scope — flagging these is a false positive:
-- Artifact story sections (`## The <Stage>` prose) — they follow `_narrative-voice.md` by design.
 - Code, identifiers, log lines, commit subjects, and quoted output — audit the prose around them.
 - Deliberate brand/marketing voice where the surface's own contract says so.
 

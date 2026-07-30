@@ -61,7 +61,7 @@ Runs when Step 0 resolved a branch. This is the read-mostly, branch-scoped count
 
 1. **Build the roster.** From `.ai/workflows/INDEX.md` (or a glob of `.ai/workflows/*/00-index.md`), collect every slug whose `branch:` equals the resolved branch. Include non-closed slugs; note any closed ones in the combined header but don't re-narrate them in depth. If the roster is empty → STOP: *"No workflows are on branch `<branch>`. Run `/wf status` to list workflows."* Record the roster as `branch-slugs:`.
 2. **Per-slug recap.** For each roster slug, run Steps 1–2 (read the trail, compose the whole-workflow recap) and Step 3 (write that slug's `90-recap.md`) — with `recap-scope: branch`, `branch: <branch>`, and `branch-slugs: [...]` added to that artifact's frontmatter so each records it was part of a branch recap. Do NOT recap individual slices in batch mode — whole-workflow scope only.
-3. **Compose the combined branch narrative** — the value batch recap adds over N separate recaps. In the recap voice (`_narrative-voice.md`), tell the story that ties the slugs together:
+3. **Compose the combined branch narrative** — the value batch recap adds over N separate recaps. Per `_ste-procedural.md` sections 1 and 3, tell the story that ties the slugs together:
    - **What this branch is doing** — the shared goal across the slugs (1–3 sentences).
    - **How the slugs relate** — dependencies, ordering, which slug blocks which, what they share.
    - **Where the branch stands** — a roster table (slug · stage · status · what's left) plus a short prose read of overall readiness (are they converging on one PR? which slug is the laggard?).
@@ -85,7 +85,7 @@ Read what actually exists — do not infer from filenames.
 
 # Step 2 — Write the recap
 
-Write it in the voice defined in [_narrative-voice.md](_narrative-voice.md): relevance first, why before how, plain concrete language, tradeoffs stated plainly, no "This stage implements…" openings. The reader should be able to read top to bottom and come away understanding the work — not decode a status table.
+Write it under the controlled-language rules in [_ste-procedural.md](_ste-procedural.md): word discipline (section 1) and descriptive structure (S4) throughout, beats in arc order per section 4 — where the work started, the decisions with reasons, where it stands and what remains. No "This stage implements…" openings. The reader should be able to read top to bottom and come away understanding the work — not decode a status table.
 
 **Structure — whole-workflow recap:**
 

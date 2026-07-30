@@ -374,7 +374,7 @@ refs:
 # Simplify — <scope> <target> @ <run-id>
 
 ## The Triage
-<!-- STORY SECTION — first and self-sufficient. Covers what was produced, load-bearing decisions and counts, top risk. Structured sections below are drill-down, not a substitute. Voice per `_narrative-voice.md` — no "This triage implements…" openings. 1–4 short paragraphs. -->
+<!-- STORY SECTION — first, and self-sufficient. Arc per `_ste-procedural.md` section 4: three beats in order — the state this stage inherited, the load-bearing decisions with reasons and counts, then what this stage enables next plus the top open risk. STE language throughout (sections 1 and 3). No "This <stage> implements…" opening. 1–3 short paragraphs. -->
 
 ## Input
 <what was reviewed and how it was assembled>

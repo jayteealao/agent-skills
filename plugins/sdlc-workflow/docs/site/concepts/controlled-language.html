@@ -10,10 +10,10 @@
 <aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
 <main>
 <h1>Controlled language</h1>
-<p class="lede">Read this to understand the writing contract behind the plugin's text. Procedural
-and external-facing text follows 22 rules distilled from ASD-STE100 (Simplified Technical
-English). One shared file holds the rules, every writing surface cites that file, and three audit
-surfaces enforce it.</p>
+<p class="lede">Read this to understand the writing contract behind the plugin's text. All text
+the workflow writes follows 22 rules distilled from ASD-STE100 (Simplified Technical English),
+plus one workflow-specific section for story sections and chat summaries. One shared file holds
+the rules, every writing surface cites that file, and three audit surfaces enforce it.</p>
 
 <h2>Why the plugin controls its language</h2>
 
@@ -35,8 +35,9 @@ per sentence remove that failure mode at the source.</p>
 <h2>The contract</h2>
 
 <p>The contract lives in one file: <code>skills/wf/reference/_ste-procedural.md</code>. It
-distills Part 1 of ASD-STE100 Issue 9 into 22 rules that a reviewer can check mechanically. Each
-rule keeps its ASD-STE100 number for traceability. The rules divide into three sections:</p>
+distills Part 1 of ASD-STE100 Issue 9 into 22 rules that a reviewer can check mechanically, and
+adds one workflow-specific section for story sections and chat summaries. Each distilled rule
+keeps its ASD-STE100 number for traceability. The file has four sections:</p>
 
 <dl class="cmd-grid">
 <dt><code>W1–W8</code></dt><dd>Word discipline. One term per concept, one meaning per term, verbs
@@ -49,21 +50,25 @@ that stay with their action.</dd>
 <dt><code>S1–S5</code></dt><dd>Warnings and structure. A graded risk word first, the warning
 before the step that it protects, the consequence stated, one topic per paragraph, and identical
 wording for identical operations.</dd>
+<dt><code>A1–A6</code></dt><dd>Story sections and chat summaries. This section is the workflow's
+own extension, not from ASD-STE100. It fixes the story heading, three beats in order — the state
+the stage inherited, the load-bearing decisions with reasons, what the stage enables next plus
+the top open risk — a one-to-three-paragraph cap, and the compressed chat-summary form.</dd>
 </dl>
 
 <h2>Where the contract applies</h2>
 
-<p>The scope divides by kind of text, not by artifact. The contract governs text that a reader
-executes or that leaves the workflow: every document that <code>/wf docs</code> or the diataxis
-skill writes, the structured sections of every workflow artifact, reader-visible text in view
-fragments, chat-return receipt fields, product copy, and external-facing outputs such as release
-notes and PR bodies.</p>
+<p>The contract governs all text the workflow writes: every document that <code>/wf docs</code>
+or the diataxis skill writes, every section of every workflow artifact — the story section
+included — reader-visible text in view fragments, chat summaries and their receipt fields,
+product copy, and external-facing outputs such as release notes and PR bodies. Nothing is
+exempt. Each passage follows the sections that govern its kind of text.</p>
 
-<p>The contract does not govern artifact story sections. Those follow the narrative-voice
-contract, which wins wherever the two conflict. One document can hold both voices: the story
-section reads as prose for a human, and the structured sections beneath it stay terse and
-controlled. The two contracts declare this split in the same place, so no stage has to choose
-between them.</p>
+<p>Story sections follow one extra section: the arc. The arc fixes three beats in order — the
+state the stage inherited, the load-bearing decisions with their reasons, and what the stage
+enables next plus the top open risk. The language rules apply in full; only the structure is
+extra. The story section carries the trajectory of the work, and the structured sections
+beneath it stay terse, so one document reads as one voice.</p>
 
 <h2>How the contract is enforced</h2>
 
@@ -71,7 +76,7 @@ between them.</p>
 
 <ul>
 <li>The <code>ste-compliance</code> review dimension audits text at rest. Every finding cites the
-rule that it violates (W1–W8, I1–I9, S1–S5) and carries the corrected sentence. Severity follows
+rule that it violates (W1–W8, I1–I9, S1–S5, A1–A6) and carries the corrected sentence. Severity follows
 reader consequence: ambiguity that can change what a reader does is HIGH, and register mechanics
 are batched LOW.</li>
 <li>The <code>/wf docs</code> orchestrator audit grades each document against the contract

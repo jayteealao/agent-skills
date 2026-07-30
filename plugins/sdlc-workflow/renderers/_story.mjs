@@ -4,7 +4,7 @@
 // place.
 //
 // Every `/wf` artifact opens with one prose "story" section named after its stage
-// (`## The Plan`, `## The Verification`, …) — see skills/wf/reference/_narrative-voice.md.
+// (`## The Plan`, `## The Verification`, …) — see skills/wf/reference/_ste-procedural.md section 4.
 // In the raw `.md` that section is already first; this helper makes the rendered
 // HTML match, without touching any per-type renderer.
 

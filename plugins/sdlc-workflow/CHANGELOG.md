@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.146.0] - 2026-07-30
+
+v9.144.0 adopted the controlled language for procedural text but exempted story sections, which kept their own narrative-voice contract — a two-contract split that never took hold in practice: 30 of the 35 story-section pointers were bare filenames inside template comments, so the voice file never loaded, and the story sections read as ungoverned improvisation with no sense of where the work came from or where it goes. This release makes STE the single contract for everything `/wf` writes and replaces the voice with an arc. The story section survives — first, self-sufficient, `## The <Stage>` — but its shape is now three checkable beats instead of a calibrated essay voice.
+
+### Added
+
+- `_ste-procedural.md` section 4 — story sections and chat summaries (the arc), the workflow's own extension with no ASD-STE100 source. A1 the heading table (moved from the deleted voice file), A2 three beats in fixed order (origin: the state inherited; road: the load-bearing decisions with reasons and counts; destination: what this stage enables next plus the top open risk), A3 the 1–3 paragraph cap under S4, A4 self-sufficiency, A5 never restate the heading, A6 the compressed 2–5 sentence chat-summary form.
+
+### Changed
+
+- The contract's scope statement inverts: STE governs ALL text the workflow writes — story sections and chat summaries included — with nothing exempt. Each passage follows the sections for its kind of text; section 4 stacks on top of sections 1 and 3 for story prose.
+- All 46 story-section template comments across the stage references (both trees) now cite `_ste-procedural.md` section 4 and name the three beats inline, instead of gesturing at a voice file the model never opened.
+- `SKILL.md`'s chat-summary Narrative rule, `_chat-return.md`'s leaf framing, and `recap.md`'s composition rules re-point from the voice to section 4: the chat narrative is the same three beats, compressed.
+- `review/ste-compliance.md` drops its story-section exemption: story sections are now in scope, audited against sections 1, 3, and 4, and findings can cite A1–A6.
+- The observability and ship-plan audit templates lose their "Raschka voice" placeholders; the doc-site controlled-language page describes the one-contract scope and the arc.
+
+### Removed
+
+- `_narrative-voice.md` (both trees) — the Sebastian Raschka voice calibration, the craft levers, and the exemplar gallery. The heading table and the self-sufficiency and no-heading-restatement rules moved into section 4; the essay voice is gone by product-owner decision.
+
 ## [9.145.0] - 2026-07-30
 
 `/wf intake investigate` produced a good option set and then abandoned it: the routing was a hand-typed one-liner, the workflow stayed open forever, no record said which option the user picked or why, and the downstream command re-derived everything three sub-agents had already mapped. This release gives the sketcher a decision lifecycle without changing its identity — it still never picks. Plan: `docs/internal/INVESTIGATE-DECISION-LIFECYCLE-PLAN.md` (built in full, all three PO proposals accepted).

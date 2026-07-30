@@ -9,11 +9,12 @@ A leaf's own section contributes ONLY its receipt fields and any stage-specific
 content spec.
 
 - **Substance first, then the receipt.** Lead with the **narrative** — a short
-  prose paragraph (2–5 sentences, no bullets, no field labels) in the artifact's
-  story voice, per [_narrative-voice.md](_narrative-voice.md): relevance first,
-  why before how, tradeoffs stated plainly, never a "This <stage> implements…"
-  opening. The router leads the chat summary with this paragraph; the receipt
-  fields sit beneath it.
+  prose paragraph (2–5 sentences, no bullets, no field labels) per
+  [_ste-procedural.md](_ste-procedural.md) section 4 rule A6: the same three
+  beats as the artifact's story section — the state inherited, the decisions
+  with reasons, then what comes next plus the top risk — never a "This <stage>
+  implements…" opening. The router leads the chat summary with this paragraph;
+  the receipt fields sit beneath it.
 - **"Return only" never waives the narrative.** A leaf that says to return ONLY
   a receipt means only those receipt *fields* — the substance narrative above
   them is still mandatory. Always surface what the artifact says (key decisions,
@@ -28,12 +29,12 @@ content spec.
   Nothing new is computed — the line only surfaces what shape/verify already recorded.
   When there is nothing to report, the line reads `Deltas: none` (one word). A stage
   with no fidelity/mechanism/decision surface (e.g. a pure status read) omits the line.
-- **Two contracts, same split as artifacts.** The narrative paragraph follows
-  [_narrative-voice.md](_narrative-voice.md); everything below it — the `Deltas:`
-  line, receipt fields, `Artifacts:` / `Next:` anchors — follows the
-  word-discipline rules (section 1) in [_ste-procedural.md](_ste-procedural.md),
-  and any command or instruction the return gives the user follows section 2:
-  imperative, one instruction per sentence, condition before command.
+- **One contract, split by kind of text.** The narrative paragraph follows
+  section 4 (rule A6) of [_ste-procedural.md](_ste-procedural.md); everything
+  below it — the `Deltas:` line, receipt fields, `Artifacts:` / `Next:`
+  anchors — follows the word-discipline rules (section 1), and any command or
+  instruction the return gives the user follows section 2: imperative, one
+  instruction per sentence, condition before command.
 - **Internal audience.** Workflow artifact paths under `.ai/` ARE allowed in the
   chat return — this is the internal summary, not external-facing copy. Outside
   it, the External Output Boundary ([_output-boundary.md](_output-boundary.md))
