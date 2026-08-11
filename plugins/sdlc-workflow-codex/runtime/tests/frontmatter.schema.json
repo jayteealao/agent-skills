@@ -194,7 +194,7 @@
           "enum": [
             "feature", "fix", "quick", "rca", "investigate",
             "rf", "refactor", "hotfix", "dep-update", "update-deps",
-            "docs", "discover", "standard", "adopt"
+            "docs", "discover", "standard", "adopt", "task", "audit"
           ]
         },
         "public-surface": {},
@@ -693,7 +693,7 @@
         "metric-acceptance-mock-rung": {
           "type": "integer",
           "minimum": 0,
-          "description": "Count of USER-OBSERVABLE AC whose highest evidence-rung is cited-mock / uncited-mock / static (the machine-readable projection of the per-AC evidence-rung labels in the ## Acceptance Criteria Status body). The post-write-verify mockEvidenceGate HARD-BLOCKS result: pass while this is > 0 (INTENT-FIDELITY W5.2/W9.1 + YOLO F5). Absent/0 on a slice with no user-observable-mock AC."
+          "description": "Count of USER-OBSERVABLE AC whose highest evidence-rung is cited-mock / uncited-mock / static / asserted (the machine-readable projection of the per-AC evidence-rung labels in the ## Acceptance Criteria Status body; asserted is the task-workflow rung — EVIDENCE-SCHEMA-CONTRACT §7). The post-write-verify mockEvidenceGate HARD-BLOCKS result: pass while this is > 0 (INTENT-FIDELITY W5.2/W9.1 + YOLO F5 + WORK-WITHOUT-A-HOME T4). Absent/0 on a slice with no user-observable-mock AC."
         },
         "skipped-gating-specs": {
           "type": "array",

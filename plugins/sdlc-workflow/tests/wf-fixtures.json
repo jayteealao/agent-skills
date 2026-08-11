@@ -1,6 +1,6 @@
 {
   "router": "/wf",
-  "description": "Routing-resolution fixtures for the /wf skill (21-key surface after the wf-meta+wf-docs dissolve, plus the observability router that dissolved the standalone setup-wide-logging command). The first positional token selects skills/wf/reference/<key>.md. intake is a mode dispatcher: a mode keyword resolves to intake/<mode>.md, an existing slug + free scope auto-routes to intake/extend.md (extension), an existing slug + mode attaches a compressed slice. status/recap/close are navigation/lifecycle keys; ship-plan, docs, and observability are routers. review owns its own slug-vs-dimension resolution. The former wf-meta and wf-docs skills are dissolved into /wf; the augmentation keys (instrument/experiment/benchmark/profile) are gone \u2014 they are now a shape decision applied by plan/implement/verify.",
+  "description": "Routing-resolution fixtures for the /wf skill (22-key surface: the wf-meta+wf-docs dissolve, the observability router that dissolved the standalone setup-wide-logging command, and the task minimal lifecycle). NOTE: no test or script consumes this file — the fixtures are documentation of intended routing, not regression protection. The first positional token selects skills/wf/reference/<key>.md. intake is a mode dispatcher: a mode keyword resolves to intake/<mode>.md, an existing slug + free scope auto-routes to intake/extend.md (extension), an existing slug + mode attaches a compressed slice. status/recap/close are navigation/lifecycle keys; ship-plan, docs, and observability are routers. review owns its own slug-vs-dimension resolution. The former wf-meta and wf-docs skills are dissolved into /wf; the augmentation keys (instrument/experiment/benchmark/profile) are gone \u2014 they are now a shape decision applied by plan/implement/verify.",
   "fixtures": [
     {
       "id": "wf-intake-default",
@@ -55,6 +55,18 @@
       "purpose": "intake 'refactor' mode \u00e2\u20ac\u201d behavior-preserving entry.",
       "invocation": "/wf intake refactor src/auth/session.ts",
       "expectedReferencePath": "skills/wf/reference/intake/refactor.md"
+    },
+    {
+      "id": "wf-intake-audit-mode",
+      "purpose": "intake 'audit' mode — terminal defect hunt across a named subsystem (no symptom, no hypothesis, no diff). Everything after the keyword is the concern plus optional paths.",
+      "invocation": "/wf intake audit paint-ordering code, GPU and CPU paths",
+      "expectedReferencePath": "skills/wf/reference/intake/audit.md"
+    },
+    {
+      "id": "wf-task-description",
+      "purpose": "task — the minimal-lifecycle key for work whose deliverable is not a code change. A description roots a new task workflow; an existing non-closed slug as the first token would attach a compressed slice instead.",
+      "invocation": "/wf task rotate the leaked Stripe key",
+      "expectedReferencePath": "skills/wf/reference/task.md"
     },
     {
       "id": "wf-intake-slug-mode-compressed-slice",

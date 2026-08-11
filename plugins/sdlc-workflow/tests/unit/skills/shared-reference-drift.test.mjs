@@ -51,6 +51,15 @@ const SHARED = [
     fingerprint: 'presumed dead since',
     citation: /\[_control-file-ownership\.md\]\(([^)]+)\)/,
   },
+  {
+    // WORK-WITHOUT-A-HOME S1 — the accumulating findings-ledger merge law
+    // (stable IDs, surfaced-at preservation, resolve-sweep, runs: append),
+    // extracted from review/_stage.md so intake/audit.md can consume the same
+    // ledger without restating it.
+    file: '_findings-ledger.md',
+    fingerprint: 'absence means cleared',
+    citation: /\[_findings-ledger\.md\]\(([^)]+)\)/,
+  },
 ];
 
 function* walk(dir, exts) {

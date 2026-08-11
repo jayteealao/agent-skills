@@ -825,7 +825,9 @@ For each criterion, record:
 - **evidence**: test output / screenshot path / response capture / console output / "(none — runtime evidence missing)"
 - **evidence-rung**: the HIGHEST rung that produced the recorded evidence for this AC — `live | headless | emulator-or-container | cited-mock | uncited-mock | static | n-a` (`n-a` for `code-only` ACs with no runtime surface).
 
-Per-slice rollup line under this section (`evidence: live 2 / headless 1 / cited-mock 3`). `00-index.md` gets an `evidence-quality:` slug rollup (counts by rung) plus `metric-acceptance-mock-rung` frontmatter = the count of user-observable ACs whose `evidence-rung` is `cited-mock`, `uncited-mock`, or `static`.
+**Task rungs (contract §7).** Task workflows (`workflow-type: task`, standalone or compressed slice) place two further rungs on the same ladder: `attested` — a named external party or human confirmed the outcome, recorded with a citation — sits below `live` and above the mock rungs; `asserted` — a claim of success with no independent read-back — is task-land's `uncited-mock` and cannot close an AC. Re-reading a real, non-runtime system of record after acting (an `ls`, a `curl`, an API query) **is** `live`. The definitions and the gate rule are the contract's (`EVIDENCE-SCHEMA-CONTRACT.md` §7); do not restate them elsewhere.
+
+Per-slice rollup line under this section (`evidence: live 2 / headless 1 / cited-mock 3`). `00-index.md` gets an `evidence-quality:` slug rollup (counts by rung) plus `metric-acceptance-mock-rung` frontmatter = the count of user-observable ACs whose `evidence-rung` is `cited-mock`, `uncited-mock`, `static`, or `asserted`.
 
 The `kind` column makes the AC gate auditable — reviewers can see at a glance which criteria the gate evaluated and which it skipped.
 

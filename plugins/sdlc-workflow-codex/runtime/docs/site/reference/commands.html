@@ -13,10 +13,10 @@
 <p class="lede">This page lists every <code>/wf</code> key: its exact invocation grammar, what it does, and what it writes. Use this page as a lookup table. The guides explain when to use each command.</p>
 
 <h2 id="dispatcher">The dispatcher</h2>
-<p>All plugin operations run through one command: <code>/wf &lt;key&gt; [args…]</code>. The first token must be one of the 21 keys on this page. Everything after the first token passes verbatim to that key. The dispatcher itself has this behavior:</p>
+<p>All plugin operations run through one command: <code>/wf &lt;key&gt; [args…]</code>. The first token must be one of the 22 keys on this page. Everything after the first token passes verbatim to that key. The dispatcher itself has this behavior:</p>
 <ul>
   <li><strong>Empty invocation.</strong> <code>/wf</code> with no arguments renders the key menu and asks which operation you want.</li>
-  <li><strong>Unknown key.</strong> A first token that is not a known key is an error. The dispatcher never silently treats the token as a slug. The dispatcher lists the 21 valid keys. For a retired command name, the dispatcher names the replacement invocation.</li>
+  <li><strong>Unknown key.</strong> A first token that is not a known key is an error. The dispatcher never silently treats the token as a slug. The dispatcher lists the 22 valid keys. For a retired command name, the dispatcher names the replacement invocation.</li>
   <li><strong>Fuzzy slug suggestion.</strong> Exactly six keys have this behavior: <code>shape</code>, <code>slice</code>, <code>plan</code>, <code>implement</code>, <code>verify</code>, and <code>close</code>. For these keys, a slug that matches no row in <code>.ai/workflows/INDEX.md</code> triggers an advisory typo suggestion ("Did you mean <code>&lt;best-match&gt;</code>?"). The suggestion never auto-corrects; you re-invoke with the suggested slug. Every other key resolves its own first token, which can be a PR number, a branch name, a dimension, a mode, or a sub-key. For those keys the suggestion does not fire.</li>
   <li><strong>Git precondition.</strong> Before dispatch, <code>/wf</code> confirms that the project is a git repository. If the project is not a git repository, the dispatcher asks whether to run <code>git init</code>. Artifacts still write without git, but the workflow view does not render until the repo is initialized.</li>
   <li><strong>Chat summary.</strong> Every run ends with a compact summary: a verb-first status line, a short narrative paragraph, an <code>Artifacts:</code> line that lists the paths written (or <code>none</code>), and a concrete <code>Next:</code> command.</li>
@@ -27,7 +27,7 @@
 
 <h3 id="intake"><code>/wf intake</code></h3>
 <pre><code>/wf intake [slug] [mode] &lt;description&gt;</code></pre>
-<p>Intake is the entry point for the whole lifecycle. A plain description runs the default flow: a product-owner interview, a stack fingerprint, and the creation of the workflow. A mode keyword (<code>fix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code>, <code>adopt</code>) routes to an alternative entry flow. An existing slug plus a mode keyword attaches the run as a compressed slice. An existing slug plus free text routes to extension, which adds net-new slices. <code>amend</code> and <code>modernize</code> are maintenance modes that require a slug. The full mode catalog, the resolution order, and the branch conventions are on <a href="intake-modes.html">Intake modes</a>.</p>
+<p>Intake is the entry point for the whole lifecycle. A plain description runs the default flow: a product-owner interview, a stack fingerprint, and the creation of the workflow. A mode keyword (<code>fix</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>audit</code>, <code>hotfix</code>, <code>refactor</code>, <code>update-deps</code>, <code>ideate</code>, <code>adopt</code>) routes to an alternative entry flow. An existing slug plus a mode keyword attaches the run as a compressed slice. An existing slug plus free text routes to extension, which adds net-new slices. <code>amend</code> and <code>modernize</code> are maintenance modes that require a slug. The full mode catalog, the resolution order, and the branch conventions are on <a href="intake-modes.html">Intake modes</a>.</p>
 <p><strong>Writes:</strong> in the default mode, <code>00-index.md</code> and <code>01-intake.md</code>; each other mode has its own artifact set (see the modes page).</p>
 
 <h3 id="shape"><code>/wf shape</code></h3>
@@ -77,7 +77,7 @@
 <p>Retro is the post-mortem stage. It extracts reusable lessons and turns them into concrete improvements to prompts, hooks, repo instructions, tests, and automation. Batch mode retrospects every slug on the branch, one retro each, and skips slugs with nothing to retro. Batch mode also synthesizes the cross-slug lessons that span the whole branch.</p>
 <p><strong>Writes:</strong> <code>10-retro.md</code> (one per slug in batch mode).</p>
 
-<h2 id="other">The other eleven keys</h2>
+<h2 id="other">The other twelve keys</h2>
 <p>The keys below are in alphabetical order. They are standalone commands, drivers, navigation, lifecycle control, and routers.</p>
 
 <h3 id="auto"><code>/wf auto</code></h3>
@@ -132,9 +132,14 @@
 <p>Status is the dashboard and the registry keeper. With no argument, status renders the cross-workflow status table. With a slug, status shows the detail view and the exact next command. With a PR number or a branch, status shows a read-only roster of every slug on that branch. <code>deep</code> runs a reality-drift check against code, git, and dependencies. <code>advise</code> reasons across all open workflows and renders a ranked cross-slug sequencing plan; the plan is read-only and ephemeral. Every status run first reconciles the registry <code>.ai/workflows/INDEX.md</code> against disk.</p>
 <p><strong>Writes:</strong> normally nothing beyond the <code>INDEX.md</code> reconciliation; <code>deep</code> writes a <code>00-sync.md</code> drift report.</p>
 
+<h3 id="task"><code>/wf task</code></h3>
+<pre><code>/wf task &lt;description | task-slug | existing-slug + description&gt;</code></pre>
+<p>Task is the minimal lifecycle for work whose deliverable is not a code change: repo chores, environment and infrastructure operations (rotate a key, set a DNS record), non-code deliverables (an RFC, a license audit), coordination with external parties, and one-shot throwaway execution. Task briefs the work with acceptance criteria that each name how the outcome will be observed, classifies the blast radius (<code>repo-local</code>, <code>local-env</code>, <code>shared-env</code>, <code>external-party</code>, <code>irreversible</code>), and gates before acting: the bottom three classes always stop for explicit human authorization. After executing, task re-observes every outcome — an acceptance criterion whose only evidence is the agent's own claim of success (<code>asserted</code>) cannot close. An existing non-closed slug as the first token attaches the task as a compressed slice instead.</p>
+<p><strong>Writes:</strong> <code>00-index.md</code>, <code>01-task.md</code> (the brief), <code>05-implement.md</code>, <code>06-verify.md</code>; slice mode writes one <code>03-slice-task-&lt;descriptor&gt;.md</code> with the evidence inline.</p>
+
 <h3 id="yolo"><code>/wf yolo</code></h3>
 <pre><code>/wf yolo &lt;slug&gt; [&lt;slice&gt;]</code></pre>
-<p>Yolo is the autonomous sibling of <code>auto</code> (Claude-only, not in the Codex build). Where <code>auto</code> pauses at gates, yolo resolves each gate by a written decision policy and records every decision in the artifact trail. Each decision is classified as implementation-detail or intent-bearing. By policy, an intent-bearing auto-resolution is an escape that should have been a stop, and the closing decision digest names each one explicitly for audit. Sub-agents append heartbeats to <code>.driver-journal.jsonl</code>, so a dead driver is distinguishable from a slow driver. Yolo drives plan → implement → verify → review, stops before handoff, and refuses terminal-analysis workflows.</p>
+<p>Yolo is the autonomous sibling of <code>auto</code> (Claude-only, not in the Codex build). Where <code>auto</code> pauses at gates, yolo resolves each gate by a written decision policy and records every decision in the artifact trail. Each decision is classified as implementation-detail or intent-bearing. By policy, an intent-bearing auto-resolution is an escape that should have been a stop, and the closing decision digest names each one explicitly for audit. Sub-agents append heartbeats to <code>.driver-journal.jsonl</code>, so a dead driver is distinguishable from a slow driver. Yolo drives plan → implement → verify → review, stops before handoff, and refuses terminal-analysis workflows (including audits) and task workflows — a task's authorization gate is a human gate no written policy may resolve.</p>
 <p><strong>Writes:</strong> nothing of its own. The stages it drives write their artifacts; heartbeats go to <code>.ai/workflows/&lt;slug&gt;/.driver-journal.jsonl</code>.</p>
 
 <div class="related">

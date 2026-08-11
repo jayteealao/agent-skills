@@ -423,7 +423,7 @@ async function enforceVerifyResultGate(paths, config) {
       if (typeof mock === "number" && mock > 0) {
         blockVerifyResultGate(
           path.original,
-          `result: pass but metric-acceptance-mock-rung (${mock}) > 0. At least one user-observable AC's highest evidence-rung is cited-mock / uncited-mock / static \u2014 a mock or static analysis does not evidence user-observable behaviour. Climb the constraint-resolution ladder to a live/headless/emulator rung, or take the deferral path (interactive-verification: deferred + a 00-index runtime-evidence-deferrals entry), then set result: partial. Opt out with hooks.mockEvidenceGate: false.`
+          `result: pass but metric-acceptance-mock-rung (${mock}) > 0. At least one user-observable AC's highest evidence-rung is cited-mock / uncited-mock / static / asserted \u2014 a mock, a static analysis, or an unverified claim of success does not evidence user-observable behaviour. Climb the constraint-resolution ladder to a live/headless/emulator rung (for a task AC: re-read the system of record \u2014 live \u2014 or record a cited attestation \u2014 attested), or take the deferral path (interactive-verification: deferred + a 00-index runtime-evidence-deferrals entry), then set result: partial. Opt out with hooks.mockEvidenceGate: false.`
         );
       }
     }

@@ -40,6 +40,11 @@ const SWEPT = [
   'observability/init.md', 'observability/build.md', 'observability/audit.md',
   'slice.md', 'probe.md', 'retro.md',
   'implement.md', 'ship.md', 'ship/announce.md', 'simplify.md',
+  // WORK-WITHOUT-A-HOME W4 — both new surfaces carry objective triggers from birth:
+  // task fires at the authorization gate (shared-env/external-party/irreversible,
+  // credentials/billing/prod data, no rollback); audit fires on zero-findings-on-a-
+  // large-surface, any BLOCKER, needs-runtime-evidence, or a sensitive surface.
+  'task.md', 'intake/audit.md',
 ];
 
 test('sweep — every formerly-weak stage carries an objective-trigger block that auto-invokes', () => {

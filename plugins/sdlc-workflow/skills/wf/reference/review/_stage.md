@@ -19,7 +19,7 @@ This file is the **workflow-stage** half of `/wf review`. `review.md` resolved t
 # CRITICAL — execution discipline
 You are a **review dispatch orchestrator that owns an accumulating findings ledger and its own triage→fix loop**.
 - Do NOT run reviews yourself — **select review commands and dispatch sub-agents**. Each sub-agent runs one command independently and reports findings.
-- The review artifacts **accumulate across invocations**. Before writing, READ the existing `07-review[-<slice>].md` + per-command files (if present) and **MERGE** this run's findings — dedupe against prior findings, preserve prior IDs and `surfaced-at` stamps, and mark findings a re-run of a dimension no longer surfaces as `resolved`. Never overwrite or delete a prior finding.
+- The review artifacts **accumulate across invocations**. Before writing, READ the existing `07-review[-<slice>].md` + per-command files (if present) and **MERGE** this run's findings. The merge law — stable IDs, `surfaced-at` preservation, resolve-sweep, `runs:` append — is single-sourced in [_findings-ledger.md](../_findings-ledger.md); apply it, never restate it. Never overwrite or delete a prior finding.
 - Do NOT improvise fixes while sub-agents are running. The fix loop runs only at Step 4c, AFTER aggregation and AFTER user triage at Step 4b.
 - At Step 4c: every finding marked `Fix` at Step 4b spawns a fix sub-agent that applies the minimal patch. After all fix sub-agents return, record each outcome **onto its finding** (`status: fixed` / `could-not-fix` + `fixed-at`) and refresh `## Fix Status`.
 - Do not auto-loop **within this invocation**: dispatch fix sub-agents once, record outcomes, stop. A further pass is a fresh `/wf review` that merges into the same ledger. **No round counter and no `convergence` state.** Verify-after-fixes requires the user to re-invoke `/wf verify`.
@@ -59,6 +59,8 @@ Then STOP — do not continue to the full review workflow.
    - **Terminal analysis** (`workflow-type: investigate`): produces option sketches and **no `02-shape.md`** — it is not built or reviewed in place. A chosen option is re-intaked via `/wf intake <option>` as a NEW workflow; a bare `investigate` slug has no implement record to review.
    - **Change-mode** (`workflow-type: fix` / `hotfix` / `refactor`): the compressed-lifecycle's **un-suffixed single-slice** standard files (`03-slice.md`, `04-plan.md`, `05-implement.md`, optional `06-verify.md`) + the lead `01-<mode>.md` (`01-fix.md` / `01-hotfix.md` / `01-refactor.md`). Exactly one slice; `selected-slice` is its slug. Review as standard mode with the un-suffixed names. (`review-scope: slug-wide` — one `07-review.md`.) Default rubric by mode: **hotfix** → `security`, **refactor** → `refactor-safety` (`/wf review <slug> <rubric>`); widen only if the change warrants it.
    - **update-deps** (`workflow-type: update-deps`): update-deps self-authors `05-implement.md` / `06-verify.md` (tier-ordered) in its own flow and **routes here** for review. The implement/verify records are the un-suffixed `05-implement.md` / `06-verify.md`; the plan is `04-plan.md`. Review against `01-update-deps.md` (the scan/research brief) + `03-slice.md` (the P0/P1/P2 tiers). `review-scope: slug-wide`.
+   - **Task** (`workflow-type: task`): a task self-authors `05-implement.md`/`06-verify.md` in `/wf task`'s own flow and is not normally reviewed — there is no `03-slice.md`/`04-plan.md` and never will be. STOP cleanly: "This is a task workflow — resume it with `/wf task <slug>`. If the task left a reviewable diff, run ad-hoc `/wf review <dimension>` against it." Never fall through to standard mode.
+   - **Audit** (`workflow-type: audit`): the `07-review*` files here ARE the audit's own accumulating findings ledger, not a change review — the workflow has no implement record and never will. STOP cleanly: "This is an audit workflow — its ledger belongs to `/wf intake audit <slug>`; re-invoking that merges new findings into it." Never fall through to standard mode.
    - **Standard mode**: per-slice files (`03-slice-<slice-slug>.md`, `04-plan-<slice-slug>.md`, `05-implement-<slice-slug>.md`).
 
    In all modes, an implement record (slice or master) must exist. If missing → STOP: "Run `/wf implement <slug>` first."
@@ -336,19 +338,10 @@ a prior finding's `pre-existing` value if the diff has since grown to touch thos
 
 ACCUMULATE — do not overwrite. Before writing, READ your target file below if it already
 exists (plus its sibling `.yaml`). It holds prior findings for THIS dimension with stable
-IDs and `surfaced-at` stamps. MERGE your fresh findings into it:
-  - A fresh finding that matches a prior one (same/overlapping file:line OR same root cause)
-    → KEEP the prior `id` and `surfaced-at`, set `last-seen-at` to now, refresh evidence/
-    severity only if yours is more specific, and keep its prior `status`. If the prior status
-    was `resolved`, flip it back to `open` and note it re-surfaced.
-  - A genuinely new finding → allocate the next ID in this dimension's prefix sequence
-    (max existing +1; never reuse a retired ID), `status: open`, and set
-    `surfaced-at = last-seen-at = now`.
-  - A prior `open` finding you did NOT re-surface this run → set `status: resolved`,
-    `resolved-at: now` (your dimension WAS re-run, so absence means cleared). Keep the row;
-    never delete it.
-  - Leave `deferred` / `dismissed` / `fixed` / `could-not-fix` findings' status untouched
-    unless you re-surface them (then `last-seen-at` only).
+IDs and `surfaced-at` stamps. MERGE your fresh findings into it by the findings-ledger
+merge law: READ `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/_findings-ledger.md` and apply
+its rules 2–5 to this dimension's file (re-surfaced findings keep prior id/surfaced-at;
+net-new get max+1; resolve-sweep what you did not re-surface; triaged statuses persist).
 Get `now` from `date -u +"%Y-%m-%dT%H:%M:%SZ"` via Bash. Emit the FULL merged set (open AND resolved), not just this run's deltas.
 
 IMPORTANT: Write your complete review findings to the file:
@@ -439,20 +432,11 @@ After all sub-agents finish, **MERGE** this run's findings into the existing mas
 
 1. **Read the existing master** `07-review[-<slice-slug>].md` + sibling `.yaml` (if present). Capture every prior finding: `id`, `surfaced-at`, `status`, `dimension`, triage decision. If no prior master, every finding below is net-new.
 2. **Read every `07-review-<slice-slug>-<command>.md`** the sub-agents wrote this run; collect every row with ID, severity, file:line, description. (Sub-agents already merged within their dimension; you reconcile across dimensions and against the master.)
-3. **Cross-dimension dedupe (this run):** two findings are duplicates if:
-   - Same `file:line` (or overlapping line range)
-   - Same root cause, even if different categories (e.g., missing validation flagged as both
-     "correctness" and "injection vector")
-   - One is a symptom and another is the root cause
-   Merge duplicates: keep the highest severity, the most specific evidence (longest snippet, most
-   precise line range), combine category labels (e.g., "Correctness + Security"), keep the most
-   actionable fix. A merged duplicate is ONE finding with one ID.
-4. **Reconcile against the master (cross-run dedupe):**
-   - **Re-surfaced** (matches prior finding by file:line / root cause) → KEEP prior `id` and `surfaced-at`, set `last-seen-at = now`, refresh evidence/severity only if more specific, PRESERVE prior triage `status`. If prior status was `resolved`, flip to `open` and note "re-surfaced {now}".
-   - **Net-new** (no prior match) → assign next ID in that dimension's prefix sequence (max+1; never reuse retired ID), `status: open`, `surfaced-at = last-seen-at = now`.
-5. **Resolve-sweep:** prior master findings whose dimension WAS re-run but NOT in this run's findings → `status: resolved`, `resolved-at = now`. Keep the row. Findings from dimensions NOT re-run → carry forward untouched.
-6. **Sort by severity:** BLOCKER → HIGH → MED → LOW → NIT, then alphabetically by file path within each level. Resolved findings sort last, clearly marked.
-7. **Determine verdict** from OPEN, non-pre-existing findings only (status ∈ open / deferred / could-not-fix AND `pre-existing: false`):
+3. **Merge per the ledger law.** Apply [_findings-ledger.md](../_findings-ledger.md) rules 1–5
+   across this run's findings and against the master: within-run cross-dimension dedupe, the
+   cross-run reconcile (re-surfaced vs net-new), and the resolve-sweep for re-run dimensions.
+4. **Sort by severity:** BLOCKER → HIGH → MED → LOW → NIT, then alphabetically by file path within each level. Resolved findings sort last, clearly marked.
+5. **Determine verdict** from OPEN, non-pre-existing findings only (status ∈ open / deferred / could-not-fix AND `pre-existing: false`):
    - Any OPEN BLOCKER → **Don't Ship**
    - OPEN HIGH only → **Ship with caveats** (if addressable as follow-ups)
    - OPEN MED/LOW/NIT only, or no open findings → **Ship**

@@ -1,14 +1,16 @@
 ---
-description: Entry-point dispatcher for the SDLC lifecycle. Plain `$wf intake <description>` runs the default product-owner intake (stage 1 of 10). A mode keyword routes a compressed/standalone entry flow — `fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt` — most a former `$wf-quick` sub-command, now an intake mode (`adopt` is the reverse-entry mode: it adopts work already done into the lifecycle). Passing an existing slug before a mode attaches the run as a compressed slice. Two slug-required maintenance modes edit an existing workflow without touching built work: `amend` (whitelisted config — branch strategy, base, review scope, title, tags) and `modernize` (additive schema backfill to the current plugin era). With no keyword, intake may propose a mode (suggest-and-confirm) before falling back to the default flow.
-argument-hint: "[slug] [fix|rca|investigate|discover|hotfix|refactor|update-deps|ideate|adopt|amend|modernize] <description> | <description>"
+description: Entry-point dispatcher for the SDLC lifecycle. Plain `$wf intake <description>` runs the default product-owner intake (stage 1 of 10). A mode keyword routes a compressed/standalone entry flow — `fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt` — most a former `$wf-quick` sub-command, now an intake mode (`adopt` is the reverse-entry mode: it adopts work already done into the lifecycle; `audit` is the defect hunt: it scrutinizes a named subsystem with no symptom, hypothesis, or diff). Passing an existing slug before a mode attaches the run as a compressed slice. Two slug-required maintenance modes edit an existing workflow without touching built work: `amend` (whitelisted config — branch strategy, base, review scope, title, tags) and `modernize` (additive schema backfill to the current plugin era). With no keyword, intake may propose a mode (suggest-and-confirm) before falling back to the default flow.
+argument-hint: "[slug] [fix|rca|investigate|discover|audit|hotfix|refactor|update-deps|ideate|adopt|amend|modernize] <description> | <description>"
 ---
 
 You are the **entry dispatcher** for the SDLC plugin, invoked as `$wf intake`. Intake is the
 *front door* of the lifecycle, and it has **modes** — alternative ways a piece of work enters.
-The **default** mode is the full product-owner intake (the canonical stage 1). The eleven mode
-keywords (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`,
-`adopt`, `amend`, `modernize`) are *arguments* to this one key — most were formerly standalone `$wf-quick` sub-commands and are now
-compressed/standalone entry flows. `adopt` is the **reverse-entry** mode: instead of entering with
+The **default** mode is the full product-owner intake (the canonical stage 1). The twelve mode
+keywords (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`,
+`ideate`, `adopt`, `amend`, `modernize`) are *arguments* to this one key — most were formerly standalone `$wf-quick` sub-commands and are now
+compressed/standalone entry flows. `audit` is the **defect-hunt** mode: a read-only terminal that
+scrutinizes a named subsystem for unknown defects (no symptom, no hypothesis, no diff) and owns an
+accumulating findings ledger (see `reference/intake/audit.md`). `adopt` is the **reverse-entry** mode: instead of entering with
 work ahead of you, it adopts a change *already made in the working tree* into the lifecycle and
 lands it at verify (see `reference/intake/adopt.md`). Intake also owns one **keyword-less** mode, **extension**: naming
 an existing on-disk slug followed by free scope text (`$wf intake <existing-slug> <new scope>`)
@@ -33,8 +35,8 @@ flow span the mode dictates.
 
 `$ARGUMENTS` reaches you with the leading `intake` key already stripped by `wf/SKILL.md`.
 Tokenize respecting shell quoting (`"two words"` is one token). The **mode keyword set** is:
-`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`, `adopt`,
-`amend`, `modernize`.
+`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`,
+`adopt`, `amend`, `modernize`.
 
 Two modes carry **shape carve-outs** at opposite ends:
 
@@ -137,7 +139,8 @@ Propose a mode **only when ALL** of these hold — otherwise run `reference/inta
   and
 - (c) it strongly matches exactly **one** of the patterns below.
 
-**Any of the eight former `$wf-quick`-lineage modes may be proposed.** `adopt` is **never** auto-proposed —
+**Any of the eight former `$wf-quick`-lineage modes may be proposed, and so may `audit`** (nine
+proposable modes). `adopt` is **never** auto-proposed —
 and neither are `amend` / `modernize`, which cannot reach branch 4 at all (they require a slug, and a
 slug means branch 0). (`adopt` exclusion
 — adopting an existing diff is an explicit decision the user states with `$wf intake adopt`, never
@@ -153,6 +156,7 @@ something inferred from a task description). Match on the description's *shape o
 | **Yes/no truth question about the system** ("is it true that …", "does X actually …", "why does …") | `discover` |
 | **Open design / approach question** ("how should I …", "what are the options for …", "approaches to …") | `investigate` |
 | **Open-ended improvement brainstorm with no specific defect** ("ideas for X", "brainstorm ways to …", "what could we improve in …") | `ideate` |
+| **Defect hunt across a named subsystem with no specific symptom** ("review/scrutinize/audit X for bugs, wrong assumptions, mistakes", "check the paint-ordering code for errors") | `audit` |
 
 **Discriminators (the near-collisions — when a description spans two patterns it is *not*
 exactly-one-strong-match, so fall to default):**
@@ -162,6 +166,13 @@ exactly-one-strong-match, so fall to default):**
   `investigate`/`ideate` are still open questions. "Messy *and* I'm not sure how" spans two → default.
 - `ideate` vs `investigate` — `ideate` ranks improvement candidates with no target decision;
   `investigate` sketches approaches to a *stated* problem.
+- `audit` vs `rca` — both hunt defects. Propose `rca` when a **specific symptom** is described
+  ("X broke", "Y returns 500"); propose `audit` when the description names a **subsystem** to
+  scrutinize and the defects are unknown — the symptom is what the audit is looking for.
+- `audit` vs `discover` — `discover` adjudicates a **stated hypothesis** (yes/no); `audit` has
+  none and enumerates whatever defects the lenses surface.
+- `audit` vs `investigate` — `investigate` assumes the problem is real and sketches approaches;
+  `audit` decides whether problems exist at all.
 
 Propose **at most one** mode, **once**. Ask the user directly in chat offering the proposed mode
 (recommended) vs "Plain intake (default)". On accept, load that mode reference standalone; on
@@ -199,6 +210,7 @@ mode→span map (a future mode is one new row):
 | `refactor` | compressed **standard** lifecycle — `01-refactor`(intake) → `02-shape` (baseline) → `03-slice` → `04-plan` → **[gate]**; branch `refactor/<slug>` (opt-in) | compressed slice, **branch suppressed** | → `$wf implement <slug>` (`07-review` defaults to `refactor-safety`) |
 | `update-deps` | compressed **standard** lifecycle in-slug — `01-update-deps`(intake) → `02-shape` → `03-slice` → `04-plan` → **[gate]** → **self-authored** `05-implement`/`06-verify`; branch `deps/<slug>` | compressed slice **only** (companion dir suppressed) | → `$wf review <slug>` (self-authors `05`/`06`; skips `$wf implement`+`$wf verify`); audit-only → `$wf close <slug> deferred`; a bare existing run-slug resumes |
 | `ideate` | **terminal analysis** — roots a `type:workflow-index` slug with the `01-ideate` lead only (no build stages) | compressed slice | terminal → user picks; pick recorded via `ideate <slug> <idea-id>` (closes the workflow) → successor `from <slug>` |
+| `audit` | **terminal defect hunt** — roots a `type:workflow-index` slug with `01-audit.md` (the brief) + the `07-review*` accumulating findings ledger; no branch | compressed slice (one-shot, inline findings, no ledger) | terminal → **stays open**; each accepted finding routes to its own command (`fix`/`rca`/`investigate`/`intake`/`probe`/`task`, all `from <slug>`); re-invoking `audit <slug>` merges into the ledger; retire via `$wf close <slug>` |
 | `adopt` | **reverse-entry** — reconstructs `01-adopt`(intake) → `02-shape` → `03-slice` → `04-plan` → **`05-implement`** from the working-tree diff (all `provenance: adopted`), confirm-before-write gate; records the current branch, never creates one | n/a — adopt is standalone-only (never slug-attachable) | → `$wf verify <slug>` (the standard verification chain takes over from stage 6) |
 | `extend` | n/a — extension always attaches to an existing slug | **adds full net-new `03-slice-<new>.md` file(s)** to the named workflow; never a compressed slice; never touches completed work | → `$wf plan <slug> <new-slice>` |
 | `amend` | n/a — slug-required | **maintenance**: edits whitelisted config on `00-index.md` (branch-strategy, branch, base-branch, review-scope, title, tags) + the registry row. No numbered artifact, no slice, never touches built work | → whatever the workflow was already doing |
@@ -229,6 +241,7 @@ Load the resolved reference in full and follow it verbatim. Do not summarize, pa
 | `refactor` | `reference/intake/refactor.md` |
 | `update-deps` | `reference/intake/update-deps.md` |
 | `ideate` | `reference/intake/ideate.md` |
+| `audit` | `reference/intake/audit.md` |
 | `adopt` | `reference/intake/adopt.md` |
 | `extend` *(auto-routed — branch 2)* | `reference/intake/extend.md` |
 | `amend` *(maintenance — branch 0)* | `reference/intake/amend.md` |

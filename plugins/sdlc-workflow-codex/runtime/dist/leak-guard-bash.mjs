@@ -5,7 +5,7 @@ import {
   buildLexicon,
   formatFindings,
   scanText
-} from "./chunk-OEH2BR3U.mjs";
+} from "./chunk-BHJIRDNF.mjs";
 import {
   outputSystemMessage,
   projectRootFromInput,

@@ -32,7 +32,7 @@ filename never lands. The numbers run in lifecycle order:</p>
 <thead><tr><th>File</th><th>Written by</th><th>What it is</th></tr></thead>
 <tbody>
 <tr><td><code>00-index.md</code></td><td>intake; updated by every stage</td><td>The control file. Its frontmatter is the workflow's machine-readable state. See the next section.</td></tr>
-<tr><td><code>01-intake.md</code> / <code>01-&lt;mode&gt;.md</code></td><td>intake</td><td>The entry record. Default mode writes <code>01-intake.md</code>. Other modes write their own variant: <code>01-fix.md</code>, <code>01-hotfix.md</code>, <code>01-refactor.md</code>, <code>01-update-deps.md</code>, <code>01-rca.md</code>, <code>01-investigate.md</code>, <code>01-discover.md</code>, <code>01-ideate.md</code>.</td></tr>
+<tr><td><code>01-intake.md</code> / <code>01-&lt;mode&gt;.md</code></td><td>intake</td><td>The entry record. Default mode writes <code>01-intake.md</code>. Other modes write their own variant: <code>01-fix.md</code>, <code>01-hotfix.md</code>, <code>01-refactor.md</code>, <code>01-update-deps.md</code>, <code>01-rca.md</code>, <code>01-investigate.md</code>, <code>01-discover.md</code>, <code>01-ideate.md</code>, <code>01-audit.md</code> (the audit brief: surface, exclusions, lenses, not-observable set). <code>/wf task</code> writes <code>01-task.md</code> (the task brief: steps, blast radius, rollback lines, observable acceptance criteria).</td></tr>
 <tr><td><code>02-shape.md</code></td><td>shape (synthesized by rca)</td><td>Discovery: goals, acceptance criteria, the Documentation Plan, the add-on plan.</td></tr>
 <tr><td><code>02b-design.md</code></td><td>shape</td><td>The design brief, written when the work has a visual surface.</td></tr>
 <tr><td><code>02c-craft.md</code></td><td>plan (or <code>/wf design</code>)</td><td>The visual contract the implementation builds against.</td></tr>
@@ -41,8 +41,8 @@ filename never lands. The numbers run in lifecycle order:</p>
 <tr><td><code>04b-instrument.md</code>, <code>04c-experiment.md</code></td><td>plan</td><td>Add-on plans (telemetry instrumentation, experiment design), written only when shape decided the work needs them.</td></tr>
 <tr><td><code>05-implement.md</code> + <code>05-implement-&lt;slice&gt;.md</code></td><td>implement</td><td>The implementation record per slice plus the master.</td></tr>
 <tr><td><code>05c-benchmark.md</code></td><td>implement</td><td>Benchmark add-on results, written when shape called for them.</td></tr>
-<tr><td><code>06-verify.md</code> + <code>06-verify-&lt;slice&gt;.md</code></td><td>verify</td><td>Checks, the acceptance-criteria gate, and any runtime-evidence deferrals. Raw evidence lands in the free-form <code>verify-evidence/</code> and <code>probe-evidence/</code> subdirectories.</td></tr>
-<tr><td><code>07-review.md</code> or <code>07-review-&lt;slice&gt;.md</code></td><td>review</td><td>The accumulating review ledger: one master file per workflow (slug-wide scope) or one per slice (per-slice scope), plus one <code>07-review[-&lt;slice&gt;]-&lt;dimension&gt;.md</code> file for each dimension run. <code>/wf design audit</code> and <code>critique</code> write <code>07-design-audit.md</code> / <code>07-design-critique.md</code> in the same band.</td></tr>
+<tr><td><code>06-verify.md</code> + <code>06-verify-&lt;slice&gt;.md</code></td><td>verify (self-authored by update-deps and task)</td><td>Checks, the acceptance-criteria gate, and any runtime-evidence deferrals. Raw evidence lands in the free-form <code>verify-evidence/</code> and <code>probe-evidence/</code> subdirectories. A task workflow's verify records per-criterion evidence rungs, including the task rungs <code>attested</code> (a cited human or third-party confirmation) and <code>asserted</code> (a claim with no read-back — which cannot close a criterion).</td></tr>
+<tr><td><code>07-review.md</code> or <code>07-review-&lt;slice&gt;.md</code></td><td>review; also <code>/wf intake audit</code></td><td>The accumulating review ledger: one master file per workflow (slug-wide scope) or one per slice (per-slice scope), plus one <code>07-review[-&lt;slice&gt;]-&lt;dimension&gt;.md</code> file for each dimension run. An audit workflow reuses this exact family as its findings ledger (one file per lens, refuted candidates preserved). <code>/wf design audit</code> and <code>critique</code> write <code>07-design-audit.md</code> / <code>07-design-critique.md</code> in the same band.</td></tr>
 <tr><td><code>08-handoff.md</code></td><td>handoff</td><td>The PR package: what was aggregated, the readiness check, the PR link.</td></tr>
 <tr><td><code>08b-docs-index.md</code></td><td>docs</td><td>The index of documentation produced for this workflow.</td></tr>
 <tr><td><code>09-ship-run-&lt;run-id&gt;.md</code> + <code>09-ship-runs.md</code></td><td>ship</td><td>One record per release attempt plus the run index. A rollback writes <code>09-rollback-&lt;run-id&gt;.md</code>.</td></tr>
@@ -81,7 +81,8 @@ state that later stages and the drivers depend on:</p>
 <dd>The discriminator that tells every downstream command what kind of workflow this is:
 <code>standard</code>, <code>fix</code>, <code>hotfix</code>, <code>refactor</code>,
 <code>update-deps</code>, <code>rca</code>, <code>investigate</code>, <code>discover</code>,
-and so on. Routing and stage behavior key off this field.</dd>
+<code>task</code>, <code>audit</code>, and so on. Routing and stage behavior key off this
+field.</dd>
 
 <dt><code>review-scope:</code></dt>
 <dd>Either <code>per-slice</code> or <code>slug-wide</code>. This field decides whether review

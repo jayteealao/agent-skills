@@ -58,6 +58,8 @@ There are no flags. `auto` always stops at the review; `handoff`, `ship`, and `r
    - **Multi-slice standard** (roster with per-slice `03-slice-<slice>.md` files) → **suffixed**: `04-plan-<slice>.md`, `05-implement-<slice>.md`, `06-verify-<slice>.md`, `07-review-<slice>.md`.
    - **Change-mode** (`workflow-type: fix | hotfix | refactor`) and **single-scope standard** (one slice, only a `04-plan.md` master, no per-slice plan files) → **un-suffixed**: `04-plan.md`, `05-implement.md`, `06-verify.md`, `07-review.md`. (Note: `05-implement.md`/`06-verify.md` also serve as *master indices* in suffixed mode — in suffixed mode always key off the suffixed per-slice files, never the master.)
    - **`workflow-type: update-deps`** → implement and verify are self-managed by the mode; `auto` does NOT drive them. If the slug is not yet past verify, PAUSE and route the user to `/wf intake update-deps <slug>`.
+   - **`workflow-type: task`** → the task lifecycle is self-managed by `/wf task`, and its blast-radius authorization gate is a human gate a driver must not resolve (a `shared-env`/`external-party`/`irreversible` task stops for a person, always). `auto` drives NOTHING here — PAUSE and route the user to `/wf task <slug>`.
+   - **`workflow-type: audit`** → a terminal defect hunt with no build stages; there is nothing to drive. PAUSE and route the user to `/wf intake audit <slug>` (an accumulating re-run) or to a finding's recorded route in `07-review.md` `## Triage Decisions`.
 5. **Branch posture.** Run `git branch --show-current`. If it differs from `00-index.md.branch` (and `branch` is non-empty), call `AskUserQuestion`:
 
 ```yaml

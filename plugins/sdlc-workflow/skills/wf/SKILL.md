@@ -1,8 +1,8 @@
 ---
 name: wf
-description: The single entry point for the SDLC lifecycle. Runs one SDLC operation per key — a canonical stage (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro), a standalone/driver (design, probe, simplify, auto, yolo), a navigation query (status, recap), lifecycle control (close), or a router (ship-plan, docs, observability) — and writes its artifact (when it has one) to `.ai/workflows/<slug>/`. `intake` also dispatches compressed entry modes (fix, rca, investigate, discover, hotfix, refactor, update-deps, ideate, adopt), two slug-required maintenance modes (amend, modernize), and auto-routes extension (`/wf intake <existing-slug> <new scope>`). `review` is the single review surface (workflow stage AND ad-hoc dimension/sweep). Navigation (`status`/`recap`), lifecycle control (`close`), the ship-plan pipeline (`ship-plan`), and documentation (`docs`) are all keys now — the former `/wf-meta` and `/wf-docs` skills are dissolved into this one command.
+description: The single entry point for the SDLC lifecycle. Runs one SDLC operation per key — a canonical stage (intake → shape → slice → plan → implement → verify → review → handoff → ship → retro), a standalone/driver (design, probe, simplify, auto, yolo), a minimal lifecycle (task — work whose deliverable is not a code change), a navigation query (status, recap), lifecycle control (close), or a router (ship-plan, docs, observability) — and writes its artifact (when it has one) to `.ai/workflows/<slug>/`. `intake` also dispatches compressed entry modes (fix, rca, investigate, discover, audit, hotfix, refactor, update-deps, ideate, adopt), two slug-required maintenance modes (amend, modernize), and auto-routes extension (`/wf intake <existing-slug> <new scope>`). `review` is the single review surface (workflow stage AND ad-hoc dimension/sweep). Navigation (`status`/`recap`), lifecycle control (`close`), the ship-plan pipeline (`ship-plan`), and documentation (`docs`) are all keys now — the former `/wf-meta` and `/wf-docs` skills are dissolved into this one command.
 disable-model-invocation: true
-argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|probe|simplify|auto|yolo|status|recap|close|ship-plan|docs|observability> [args...]"
+argument-hint: "<intake|shape|slice|plan|implement|verify|review|handoff|ship|retro|design|probe|simplify|auto|yolo|task|status|recap|close|ship-plan|docs|observability> [args...]"
 ---
 
 # External Output Boundary (MANDATORY)
@@ -18,7 +18,7 @@ chat-summary narratives MUST also follow the structure contract in
 sub-agent this skill spawns. A reference that adds its own writing spec adds to this contract;
 it never replaces it.
 
-You are the **single SDLC dispatcher** for the plugin. `/wf` runs **one SDLC operation per key** — not every key writes a numbered stage artifact, and that is by design (Step 2 already tolerates read-only members via `none`). The dispatch table below is the authoritative roster: ten canonical **stages**, five **standalone/drivers**, two **navigation** members, one **lifecycle-control** member, and three **routers**. `intake` is itself a **mode dispatcher** (plain description → stage 1; mode keyword → compressed entry flow; existing slug + free scope → extension). Your only job is to identify which key the user wants, load its reference body, and follow it verbatim.
+You are the **single SDLC dispatcher** for the plugin. `/wf` runs **one SDLC operation per key** — not every key writes a numbered stage artifact, and that is by design (Step 2 already tolerates read-only members via `none`). The dispatch table below is the authoritative roster: ten canonical **stages**, five **standalone/drivers**, one **minimal lifecycle** (`task`), two **navigation** members, one **lifecycle-control** member, and three **routers**. `intake` is itself a **mode dispatcher** (plain description → stage 1; mode keyword → compressed entry flow; existing slug + free scope → extension). Your only job is to identify which key the user wants, load its reference body, and follow it verbatim.
 
 > **The dissolve.** The former `/wf-meta` and `/wf-docs` skills are retired — their members are keys here. There is **no `amend`** (corrections are a new slice or a fix) and **no separate augmentation keys** (`shape` decides augmentations; `plan`/`implement`/`verify` apply them). The full retired-surface → new-key mappings live in Resolution rule 3 below.
 
@@ -26,7 +26,7 @@ You are the **single SDLC dispatcher** for the plugin. `/wf` runs **one SDLC ope
 
 # Step 0 — Resolve the sub-command
 
-Parse `$ARGUMENTS`. The first token must be one of the 21 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying operation.
+Parse `$ARGUMENTS`. The first token must be one of the 22 known keys below; the remaining tokens are passed verbatim to the loaded reference as `$ARGUMENTS` for the underlying operation.
 
 **Known sub-command keys** — each resolves to `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<key>.md`:
 
@@ -34,7 +34,7 @@ Parse `$ARGUMENTS`. The first token must be one of the 21 known keys below; the 
 
 | Key | Argument hint | What it does (one line) |
 |---|---|---|
-| `intake`     | `[slug] [mode] <description>` | **Entry dispatcher.** Plain `/wf intake <description>` runs stage 1 of 10. A mode keyword (`fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`) routes a compressed entry flow; `adopt` is the reverse-entry mode (adopts a working-tree diff already made into the lifecycle, landing at verify); an existing slug + a mode attaches a compressed slice; an existing slug + free scope **auto-routes to extension** (adds net-new slices). Two slug-required **maintenance** modes edit an existing workflow without touching built work: `amend` (whitelisted config) and `modernize` (additive schema backfill). See `reference/intake.md`. |
+| `intake`     | `[slug] [mode] <description>` | **Entry dispatcher.** Plain `/wf intake <description>` runs stage 1 of 10. A mode keyword (`fix`, `rca`, `investigate`, `discover`, `audit`, `hotfix`, `refactor`, `update-deps`, `ideate`) routes a compressed entry flow; `adopt` is the reverse-entry mode (adopts a working-tree diff already made into the lifecycle, landing at verify); an existing slug + a mode attaches a compressed slice; an existing slug + free scope **auto-routes to extension** (adds net-new slices). Two slug-required **maintenance** modes edit an existing workflow without touching built work: `amend` (whitelisted config) and `modernize` (additive schema backfill). See `reference/intake.md`. |
 | `shape`      | `[slug] [hint]`           | Feature discovery via product-owner questions; writes 02-shape.md. **Authors the Documentation Plan AND the Augmentation Plan** (`augmentations-needed`) that downstream stages honor. |
 | `slice`      | `<slug>`                  | Decompose the shape into 1–N shippable slices; writes 03-slice.md and per-slice 03-slice-<slug>.md files. |
 | `plan`       | `<slug> [slice]`          | Per-slice implementation plan with parallel reuse scan; writes 04-plan-<slice>.md. **Applies the augmentation plan** — authors 04b-instrument/04c-experiment/05c-benchmark from `shape`'s decision (loading `reference/augment/<type>.md`). |
@@ -55,6 +55,12 @@ Parse `$ARGUMENTS`. The first token must be one of the 21 known keys below; the 
 | `auto`       | `<slug> [<slice>]`        | **End-to-end lifecycle driver.** Drives each stage in-process, pausing only when a stage's own gate fires; stops before handoff. Writes no artifact of its own. See `reference/auto.md`. |
 | `yolo`       | `<slug> [<slice>]`        | **Autonomous lifecycle driver (Claude-only).** The no-human-gates sibling of `auto` — resolves each gate by a written policy via the Workflow tool. Stops before handoff. Not in the Codex build. See `reference/yolo.md`. |
 
+### Minimal lifecycle
+
+| Key | Argument hint | What it does (one line) |
+|---|---|---|
+| `task`       | `<description \| task-slug \| existing-slug + description>` | **Minimal lifecycle for work whose deliverable is not a code change** — repo chores, environment/infra operations, non-code deliverables (RFCs, audits), coordination, one-shot execution. Briefs the work (`01-task.md`) with observable ACs and a mandatory `blast-radius` classification, gates before acting (`shared-env`/`external-party`/`irreversible` always stop for a human), executes, then re-observes — an AC evidenced only by `asserted` cannot close. An existing non-closed slug as the first token attaches the task as a compressed slice. See `reference/task.md`. |
+
 ### Navigation · lifecycle control · routers
 
 | Key | Argument hint | What it does (one line) |
@@ -70,9 +76,9 @@ Parse `$ARGUMENTS`. The first token must be one of the 21 known keys below; the 
 
 **Resolution rules:**
 
-1. If the first positional token matches one of the 21 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`. For `design`, `intake`, `probe`, `auto`, `yolo`, `status`, `recap`, `retro`, `close`, `review`, `ship-plan`, `docs`, and `observability`, the remaining tokens carry a slug (or a router sub-key / dimension) as their own first token, resolved **inside the loaded reference** (its Step 0) by exact existence check — not here.
+1. If the first positional token matches one of the 22 keys, mode is **dispatch** and the remaining tokens become the sub-command's `$ARGUMENTS`. For `design`, `intake`, `probe`, `auto`, `yolo`, `task`, `status`, `recap`, `retro`, `close`, `review`, `ship-plan`, `docs`, and `observability`, the remaining tokens carry a slug (or a router sub-key / dimension / description) as their own first token, resolved **inside the loaded reference** (its Step 0) by exact existence check — not here.
 2. If `$ARGUMENTS` is empty, render the menu above and ask the user which key they want.
-3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, probe, simplify, auto, yolo, status, recap, close, ship-plan, docs, observability."* Then handle the retired surfaces:
+3. If the first token is *not* a known key, **do not** silently treat it as a slug. Tell the user: *"`<token>` is not a known wf key. Pick one of: intake, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, probe, simplify, auto, yolo, task, status, recap, close, ship-plan, docs, observability."* Then handle the retired surfaces:
    - If the token is `quick` or a former `/wf-quick` sub-command: *"`/wf-quick` was retired — `fix`, `rca`, `investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, and `ideate` are now `/wf intake <mode>`; `probe` and `simplify` are `/wf probe` and `/wf simplify`."*
    - If the token is a former `/wf-meta` member (`next`, `sync`, `resume`, `amend`, `extend`, `skip`, `how`, `announce`, `init-ship-plan`, `build-pipeline`): *"`/wf-meta` was dissolved into `/wf`. `status`→`/wf status` (it also absorbs `next` and `sync`); `resume`→`/wf recap`; `skip`→`/wf close <slug> <slice>`; `how`→`/wf recap <slug> <focus>` (explain) or the `deep-research` skill (research); `announce`→`/wf ship <slug> announce`; `init-ship-plan`/`build-pipeline`→`/wf ship-plan init`/`/wf ship-plan build`; `amend`→`/wf intake <slug> amend <what to change>` — an intake maintenance mode that edits a workflow's *recorded config* (branch strategy, branch, base, review scope, title, tags) against a strict whitelist; correcting built *work* is still a new slice via `/wf intake <slug> <scope>` or `/wf intake <slug> fix`, and the ship plan is `/wf ship-plan edit`; `extend`→`/wf intake <slug> <new scope>`."*
    - If the token is a former `/wf-docs` invocation: *"`/wf-docs` is now `/wf docs` — same behavior (orchestrator or a Diátaxis primitive)."*
@@ -92,10 +98,11 @@ After sub-command resolution, before dispatch: if the user passed a positional s
 - `intake` — resolves its first token by exact existence check inside `reference/intake.md` (slug-mode / extension / mode keyword / description), never a typo'd slug.
 - `review` — owns its slug-vs-dimension resolution (`reference/review.md` Step 00): an exact slug is the stage, a known dimension/`sweep` is ad-hoc. A non-matching first token is a dimension or the ad-hoc menu, not a typo.
 - `design`, `probe`, `auto`, `yolo` — each resolves an *optional* slug by exact existence check / single-active inference inside its reference; a non-matching first token is a design command / slug-required STOP / a route-to-intake, handled there.
+- `task` — resolves its first token by exact existence check inside `reference/task.md` (task-slug resume / existing-slug slice-attach / description), never a typo'd slug.
 - `simplify` — its first positional is a scope keyword (`branch`/`commit`/`plan`/`codebase`), not a slug.
 - `ship-plan`, `docs`, `observability` — **routers**: their first token is a sub-key / primitive / path / flag resolved inside the router reference, not a slug.
 
-*Keep this list in sync with the 21-key table — exclude any future key that creates a new slug, takes a non-slug first arg, or resolves its slug by its own existence check. `close` takes an **optional** slug and falls through to single-active inference when none is passed, so Step 0.5 only fires for it when a non-matching slug arg is actually present. `handoff`/`ship`/`status`/`recap`/`retro` are excluded entirely — their first token is polymorphic (slug/PR/branch) and resolved inside the reference (`recap`/`retro` fall through to single-active inference when no first token is passed).*
+*Keep this list in sync with the 22-key table — exclude any future key that creates a new slug, takes a non-slug first arg, or resolves its slug by its own existence check. `close` takes an **optional** slug and falls through to single-active inference when none is passed, so Step 0.5 only fires for it when a non-matching slug arg is actually present. `handoff`/`ship`/`status`/`recap`/`retro` are excluded entirely — their first token is polymorphic (slug/PR/branch) and resolved inside the reference (`recap`/`retro` fall through to single-active inference when no first token is passed).*
 
 **Procedure:**
 

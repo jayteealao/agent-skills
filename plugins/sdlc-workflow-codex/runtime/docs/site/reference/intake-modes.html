@@ -10,7 +10,7 @@
 <aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
 <main>
 <h1>Intake modes</h1>
-<p class="lede">This page lists the thirteen ways work can enter the lifecycle through <code>/wf intake</code>: each mode, how the arguments resolve, what each mode authors, its branch convention, and where each mode ends.</p>
+<p class="lede">This page lists the fourteen ways work can enter the lifecycle through <code>/wf intake</code>: each mode, how the arguments resolve, what each mode authors, its branch convention, and where each mode ends.</p>
 
 <h2 id="resolution">How the arguments resolve</h2>
 <p>Intake resolves its tokens in a fixed order, and the order is user-visible. The same words mean different things when the first token names an existing workflow. The checks run in exactly this sequence:</p>
@@ -73,6 +73,13 @@
 <p><code>discover</code> tests a hypothesis against the codebase: "is X actually the case?" Parallel sub-agents argue for the hypothesis, argue against the hypothesis, and propose counter-hypotheses. The result is a verdict of <code>holds</code>, <code>partial</code>, <code>fails</code>, or <code>inconclusive</code>, with confidence and cited evidence. The mode is read-only.</p>
 <p><strong>Authors:</strong> <code>01-discover.md</code> + <code>00-index.md</code>. <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — the workflow closes at write time (<code>verdict-recorded</code>); a verdict leaves nothing to pick. The artifact records what decision rode on the verdict, and the verdict-dependent routes carry <code>from &lt;slug&gt;</code> — on <code>fails</code>, the ranked counter-hypotheses travel into the follow-on rca as candidate root causes.</p>
 
+<h3 id="audit">audit</h3>
+<pre><code>/wf intake audit &lt;concern&gt; [paths…]
+/wf intake audit &lt;audit-slug&gt;           # accumulating re-run
+/wf intake &lt;slug&gt; audit &lt;concern&gt;       # one-shot compressed slice</code></pre>
+<p><code>audit</code> hunts unknown defects across a named subsystem. It exists for the request every adjacent surface refuses: review existing code for bugs, wrong assumptions, and mistakes when there is no symptom (<code>rca</code> needs one), no stated hypothesis (<code>discover</code> needs one), no decided problem (<code>investigate</code> needs one), and no diff (the review stage needs one). Parallel sub-agents first resolve the concern to a concrete file surface by four search modalities, and the surface is confirmed with you before any lens runs — an audit whose scope was silently guessed cannot be trusted when it reports "no findings". Review's existing rubrics serve as the lenses; the selection is stated with a reason per lens. Every candidate finding faces adversarial refutation before it lands (three refuters for a BLOCKER or HIGH), and refuted candidates are kept with their refutations. Survivors merge into the same accumulating findings ledger the review stage owns: a re-run preserves prior IDs, marks cleared findings <code>resolved</code>, and never overwrites. A finding that static reading cannot settle is recorded as <code>needs-runtime-evidence</code> with the exact experiment named, and routes to <code>/wf probe</code>. The mode is terminal and route-don't-fix: each accepted finding routes to its own follow-up command, and a zero-finding result is valid and legible. The workflow stays open for re-runs until you retire the concern with <code>/wf close</code>.</p>
+<p><strong>Authors:</strong> <code>00-index.md</code> + <code>01-audit.md</code> (the brief: surface, exclusions, lenses, not-observable set) + <code>07-review.md</code> and one <code>07-review-&lt;lens&gt;.md</code> per lens (the ledger). <strong>Branch:</strong> none. <strong>Terminus:</strong> terminal — each finding routes (<code>fix</code>, <code>rca</code>, <code>investigate</code>, full intake, <code>probe</code>, or <code>task</code>, all with <code>from &lt;slug&gt;</code>); re-invoke with the slug to merge new findings into the ledger.</p>
+
 <h3 id="ideate">ideate</h3>
 <pre><code>/wf intake ideate [area]
 /wf intake &lt;slug&gt; ideate [area]</code></pre>
@@ -106,7 +113,7 @@
 <div class="related">
   <h2>Related</h2>
   <ul>
-    <li><a href="commands.html">Commands</a> — the full 21-key catalog that <code>intake</code> belongs to.</li>
+    <li><a href="commands.html">Commands</a> — the full 22-key catalog that <code>intake</code> belongs to.</li>
     <li><a href="../guides/choose-your-entry.html">Choose your entry</a> — which mode fits which situation, in prose.</li>
     <li><a href="../guides/quick-lanes.html">Quick lanes</a> — how fix, hotfix, refactor, and update-deps compress the lifecycle.</li>
     <li><a href="artifacts.html">Artifacts</a> — what each file these modes author actually contains.</li>

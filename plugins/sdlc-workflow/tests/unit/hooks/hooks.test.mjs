@@ -1508,3 +1508,122 @@ test('leak-guard-write scans MultiEdit edits[] against public-doc paths', () => 
     rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// WORK-WITHOUT-A-HOME (task + intake audit) — evidence gate + schema round-trips
+// ---------------------------------------------------------------------------
+
+test('post-write-verify mock-evidence gate message names the asserted rung (contract §7)', () => {
+  const tmp = tempDir();
+  try {
+    // A task 06-verify.md whose only evidence for an AC is the agent's own
+    // claim of success (evidence-rung: asserted). asserted counts into
+    // metric-acceptance-mock-rung, so result: pass rides the SAME hook path
+    // that blocks a mock-evidenced code AC — and the operator message must
+    // name asserted so the fix (re-read the system of record) is legible.
+    const p = join(tmp, '.ai', 'workflows', 'task-demo', '06-verify.md');
+    writeFile(p, md(validVerify({ slug: 'task-demo', 'metric-acceptance-mock-rung': 1 })));
+    const blocked = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/task-demo/06-verify.md' },
+    }, tmp);
+    equal(blocked.status, 2, blocked.stderr);
+    match(blocked.stderr, /asserted/);
+    match(blocked.stderr, /attested/);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('schema round-trips: workflow-type task on type:index, audit on type:workflow-index', () => {
+  const tmp = tempDir();
+  try {
+    // task — a full type:index with workflow-type: task and skipped stages
+    // must survive the post-write-verify schema gate (the W0.5 hard blocker).
+    const taskIndex = join(tmp, '.ai', 'workflows', 'task-demo', '00-index.md');
+    writeFile(taskIndex, md(minimalIndex({
+      slug: 'task-demo',
+      'workflow-type': 'task',
+      'current-stage': 'implement',
+      'branch-strategy': 'none',
+      branch: '',
+      'created-at': '2026-08-11T12:00:00Z',
+      'updated-at': '2026-08-11T12:05:00Z',
+      'review-scope': 'slug-wide',
+      'pr-url': '',
+      'pr-number': null,
+      tags: [],
+      'workflow-files': ['00-index.md', '01-task.md'],
+      progress: {
+        intake: 'complete', shape: 'skipped', slice: 'skipped', plan: 'skipped',
+        implement: 'in-progress', verify: 'not-started', review: 'skipped',
+        handoff: 'skipped', ship: 'skipped',
+      },
+    })));
+    const taskOk = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/task-demo/00-index.md' },
+    }, tmp);
+    equal(taskOk.status, 0, taskOk.stderr);
+
+    // A value outside the enum still fails — the enum is real.
+    writeFile(taskIndex, md(minimalIndex({ slug: 'task-demo', 'workflow-type': 'todo-list' })));
+    const bad = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/task-demo/00-index.md' },
+    }, tmp);
+    equal(bad.status, 2);
+    match(bad.stderr, /frontmatter validation FAILED/);
+
+    // audit — a type:workflow-index root validates under the quick-meta set
+    // (schema/type/slug required; workflow-type: audit rides along).
+    const auditIndex = join(tmp, '.ai', 'workflows', 'audit-demo', '00-index.md');
+    writeFile(auditIndex, md({
+      schema: 'sdlc/v1',
+      type: 'workflow-index',
+      slug: 'audit-demo',
+      'workflow-type': 'audit',
+      status: 'active',
+      'current-stage': 'audit',
+      progress: { audit: 'complete' },
+    }));
+    const auditOk = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/audit-demo/00-index.md' },
+    }, tmp);
+    equal(auditOk.status, 0, auditOk.stderr);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('an audit-written 07-review-<lens>.md validates as review-command', () => {
+  const tmp = tempDir();
+  try {
+    const p = join(tmp, '.ai', 'workflows', 'audit-demo', '07-review-correctness.md');
+    writeFile(p, md({
+      schema: 'sdlc/v1',
+      type: 'review-command',
+      slug: 'audit-demo',
+      'review-scope': 'slug-wide',
+      'slice-slug': '',
+      'review-command': 'correctness',
+      status: 'complete',
+      'updated-at': '2026-08-11T12:00:00Z',
+      'metric-findings-total': 0,
+      'metric-findings-blocker': 0,
+      'metric-findings-high': 0,
+      result: 'clean',
+      fragment: 'none',
+      tags: [],
+      refs: { 'review-master': '07-review.md' },
+    }));
+    const ok = runHook(HOOKS.postWriteVerify, {
+      cwd: tmp,
+      tool_input: { file_path: '.ai/workflows/audit-demo/07-review-correctness.md' },
+    }, tmp);
+    equal(ok.status, 0, ok.stderr);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});

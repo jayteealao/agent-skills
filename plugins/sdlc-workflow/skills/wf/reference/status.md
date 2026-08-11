@@ -55,7 +55,7 @@ Column semantics (all pulled from each workflow's `00-index.md` YAML frontmatter
 |---|---|---|
 | `slug` | `slug` (must equal the directory name) | The lookup key. |
 | `status` | `status` | e.g. `defined`, `shaped`, `sliced`, `planned`, `implementing`, `verifying`, `reviewing`, `handed-off`, `shipped`, `closed`, `abandoned`. |
-| `workflow-type` | `workflow-type` | `compressed`, `fix`, `rca`, `investigate`, `discover`, `hotfix`, `update-deps`, `refactor`, `docs`, `standard`. Use `standard` if missing on legacy indexes. |
+| `workflow-type` | `workflow-type` | The schema enum: `standard`, `feature`, `fix`, `quick`, `rca`, `investigate`, `discover`, `rf`, `refactor`, `hotfix`, `dep-update`, `update-deps`, `docs`, `adopt`, `task`, `audit` — plus `ideate` (workflow-index workflows) and legacy `compressed`. Use `standard` if missing on legacy indexes. |
 | `branch` | `branch` | The git branch (informational; not used for routing). |
 | `updated-at` | `updated-at` | ISO 8601 UTC. |
 

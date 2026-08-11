@@ -1,8 +1,8 @@
 # Compressed-slice contract (shared)
 
 This is the **slug-mode** output contract, shared by the `/wf intake` mode dispatcher
-(`reference/intake.md`), `/wf probe` (`reference/probe.md`), and `/wf simplify`
-(`reference/simplify.md`). When a command resolves to **slug-mode** — its first positional
+(`reference/intake.md`), `/wf probe` (`reference/probe.md`), `/wf simplify`
+(`reference/simplify.md`), and `/wf task` (`reference/task.md`). When a command resolves to **slug-mode** — its first positional
 token is an existing, non-closed workflow slug (`.ai/workflows/<slug>/00-index.md` exists) —
 its output is rerouted to **one compressed slice** on that workflow instead of a standalone
 flow. This contract **overrides** any "create a new workflow", "create a branch", "write a
@@ -12,8 +12,21 @@ sub-agents, body sections, analysis depth) still applies in full — only the *o
 destination* and *index bookkeeping* change.
 
 Throughout, `<op>` is the operation that produced the slice: an intake mode (`fix`, `rca`,
-`investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`), `probe`, or
-`simplify`.
+`investigate`, `discover`, `hotfix`, `refactor`, `update-deps`, `ideate`, `audit`), `probe`,
+`simplify`, or `task`.
+
+## Inline records — a compressed slice spawns no children
+
+A compressed slice carries its records **inline in the artifact body** and never spawns child
+artifacts. This contract promises *exactly one artifact*, and every caller relies on that. Two
+callers this rule binds concretely:
+
+- A slice-mode **task** records its per-AC evidence rows (with `evidence-rung`) in a body
+  table — it writes no `06-verify.md`.
+- A slice-mode **audit** records a single findings table in the body and **does not
+  accumulate** — a slice-mode audit is a one-shot audit, and its body states that. The
+  accumulating ledger (`_findings-ledger.md`) applies only to the standalone audit workflow's
+  `07-review*` family.
 
 ## Slice-slug derivation
 
@@ -34,7 +47,7 @@ schema: sdlc/v1
 type: slice
 slug: <slug>
 slice-slug: <slice-slug>
-slice-type: <op>            # fix | rca | probe | investigate | discover | hotfix | update-deps | refactor | ideate | simplify
+slice-type: <op>            # fix | rca | probe | investigate | discover | hotfix | update-deps | refactor | ideate | simplify | audit | task
 compressed: true
 origin: wf/<op>             # e.g. intake/rca, probe, simplify
 status: defined

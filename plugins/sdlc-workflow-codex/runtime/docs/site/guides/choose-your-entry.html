@@ -101,7 +101,7 @@ all four quick lanes are in <a href="quick-lanes.html">Quick lanes</a>.</p>
 
 <h2>You have a question, not a task</h2>
 
-<p>Three analysis modes are available. All three are terminal: they end in an artifact and a
+<p>Four analysis modes are available. All four are terminal: they end in an artifact and a
 recommendation, never in code:</p>
 
 <dl class="cmd-grid">
@@ -116,13 +116,38 @@ or "is it feasible to…". It produces a feasibility verdict.</dd>
 <dd>Use this mode for open-ended brainstorming with no specific defect or decision in view, for
 example "ideas for improving onboarding". It produces a ranked idea catalog. Each idea you pick
 seeds its own fresh intake.</dd>
+<dt><code>/wf intake audit &lt;concern&gt; [paths…]</code></dt>
+<dd>Use this mode to hunt <em>unknown</em> defects across a named subsystem, for example "audit
+the paint-ordering code for bugs and wrong assumptions". No symptom, no hypothesis, no diff —
+the defects are what the audit is looking for. It resolves the subsystem to a confirmed file
+surface, runs review's rubrics as lenses, refutes each candidate finding before it lands, and
+keeps an accumulating findings ledger you can re-run against. Each accepted finding routes to
+its own follow-up command.</dd>
 </dl>
 
-<p>The three modes are near neighbors. <code>investigate</code> sketches approaches to a
+<p>The four modes are near neighbors. <code>investigate</code> sketches approaches to a
 <em>stated</em> problem. <code>ideate</code> hunts for problems worth having.
-<code>discover</code> answers one sharp question. When your description spans two of these modes,
-intake falls back to the default flow rather than guess.
-<a href="investigation.html">Investigation</a> covers all three in depth.</p>
+<code>discover</code> answers one sharp question. <code>audit</code> hunts defects when nobody
+can yet name one — if you can describe a specific symptom, that is <code>rca</code>, not
+<code>audit</code>. When your description spans two of these modes, intake falls back to the
+default flow rather than guess.
+<a href="investigation.html">Investigation</a> covers them in depth.</p>
+
+<h2>The work is not a code change</h2>
+
+<pre><code>/wf task rotate the leaked Stripe key</code></pre>
+
+<p><code>/wf task</code> is the minimal lifecycle for work whose deliverable is not a code
+change verified by executing software: a repo chore (archive old plan documents), an environment
+or infrastructure operation (rotate a key, add a CI secret, set a DNS record), a non-code
+deliverable (an RFC, a license audit, a runbook), coordination (file an upstream issue, get
+signoff), or a one-shot backfill whose script never merges. Task briefs the work with acceptance
+criteria that each name how the outcome will be <em>observed</em>, classifies the blast radius,
+and gates before acting — anything touching shared infrastructure or an external party stops
+for your explicit authorization, always. After acting, task re-observes: an outcome the agent
+merely claims, with no read-back, cannot close a criterion. Mid-feature, name the slug first
+(<code>/wf task reports-export rotate the API key first</code>) and the task attaches as one
+slice instead of a new workflow.</p>
 
 <h2>The work is already done and sits uncommitted in your tree</h2>
 

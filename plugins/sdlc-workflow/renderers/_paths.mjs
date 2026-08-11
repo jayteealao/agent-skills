@@ -31,11 +31,15 @@ const PHASE_BY_BASENAME = {
   // filename → here. Separate axes — see the file header.)
   // `01-adopt` (/wf intake adopt) is the reverse-entry lead — same `type: intake`,
   // same intake-card placement rule as the change-mode leads above.
+  // `01-task` (/wf task) drives a minimal `type: index` lifecycle — its overview's
+  // intake card links the same fixed STAGE_NAV.intake.dir, so it MUST land at
+  // intake/ (NOT its own dir — that is the terminal-analysis block below).
   '01-fix':                ['intake', null],
   '01-hotfix':             ['intake', null],
   '01-refactor':           ['intake', null],
   '01-update-deps':        ['intake', null],
   '01-adopt':              ['intake', null],
+  '01-task':               ['intake', null],
   // Forwarded / investigative workflows (/wf intake rca|investigate, /wf probe)
   // keep their own named lead dirs. Without these entries resolveViewPath returns
   // null and the orchestrator skips them entirely — the RCA/probe writeup is then
@@ -51,6 +55,10 @@ const PHASE_BY_BASENAME = {
   // discovery + kind branches above — see D5.)
   '01-ideate':             ['ideate', null],
   '01-simplify':           ['simplify', null],
+  // `01-audit` (/wf intake audit) is a terminal analysis lead on a
+  // `type: workflow-index` slug — named dir like rca/investigate/discover/ideate,
+  // NOT intake/ (a workflow-index overview has no fixed intake card).
+  '01-audit':              ['audit', null],
   '02-shape':              ['shape', null],
   '02b-design':            ['design', null],
   '02c-craft':             ['design-brief', null],

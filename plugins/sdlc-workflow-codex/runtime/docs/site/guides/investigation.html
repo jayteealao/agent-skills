@@ -10,7 +10,7 @@
 <aside id="sidebar"><p class="nav-fallback"><a href="../index.html">← Contents</a></p></aside>
 <main>
 <h1>Investigation</h1>
-<p class="lede">Read this page when you need an answer, not a build: a diagnosis, an option map, a theory verdict, an idea catalog, or runtime truth. Six commands cover that ground, and none of them writes a line of application code.</p>
+<p class="lede">Read this page when you need an answer, not a build: a diagnosis, an option map, a theory verdict, an idea catalog, a defect ledger, or runtime truth. Seven commands cover that ground, and none of them writes a line of application code.</p>
 
 <h2 id="the-discipline">The shared discipline: report and route</h2>
 
@@ -18,7 +18,7 @@
 
 <p>This separation is deliberate. Each investigation ends with an artifact and a recommendation. The fix, when there is one, goes through its own lifecycle with its own planning, verification, and review. That keeps the evidence trail honest: the diagnosis is never contaminated by pressure to make the fix look easy, and no code change slips through a side door that bypasses review.</p>
 
-<p>Four of these commands are intake modes: <code>rca</code>, <code>investigate</code>, <code>discover</code>, and <code>ideate</code>. The four modes are <em>terminal</em>: they end in an artifact and a routing decision rather than flow into a build. They create no branch. The other two commands, <code>probe</code> and <code>simplify</code>, are standalone keys with the same read-only posture. All six can also attach to an existing workflow: pass a slug first, and the result lands as a quick-lane slice inside that workflow's directory instead of a new workflow.</p>
+<p>Five of these commands are intake modes: <code>rca</code>, <code>investigate</code>, <code>discover</code>, <code>ideate</code>, and <code>audit</code>. The five modes are <em>terminal</em>: they end in an artifact and a routing decision rather than flow into a build. They create no branch. The other two commands, <code>probe</code> and <code>simplify</code>, are standalone keys with the same read-only posture. All seven can also attach to an existing workflow: pass a slug first, and the result lands as a quick-lane slice inside that workflow's directory instead of a new workflow.</p>
 
 <h2 id="rca">rca — find out why it broke</h2>
 
@@ -64,6 +64,41 @@
 <p>Then comes the adversarial filter, which is mandatory. Every candidate must survive five challenges: is it real, is it already in progress, is the effort justified, is it specific enough to act on right now, and is it a root cause or just a symptom? Culled ideas are recorded with reasons. Survivors are scored by impact and effort and presented as a ranked catalog, and the catalog is the point of the whole exercise: <strong>each surviving idea maps directly to a <code>/wf intake</code> command</strong>. ideate does not start any of them. It hands you a menu; your selection is persisted on the artifact, and a recorded pick (<code>/wf intake ideate &lt;slug&gt; &lt;idea-id&gt;</code>) closes the workflow and prints the successor invocation, seeded with the idea's evidence via <code>from &lt;slug&gt;</code>. To narrow the scan, add a focus area and a count:</p>
 
 <pre><code>/wf intake ideate security 5</code></pre>
+
+<h2 id="audit">audit — hunt the defects nobody has named yet</h2>
+
+<p>audit fills the gap the other four modes leave open. rca needs a symptom; discover needs a
+hypothesis; investigate needs a decided problem; the review stage needs a diff. When the request
+is "scrutinize this subsystem for bugs, wrong assumptions, and mistakes" — and nobody can yet
+name one — that is an audit:</p>
+
+<pre><code>/wf intake audit the paint-ordering code, GPU and CPU paths</code></pre>
+
+<p>The run starts by resolving the concern to a concrete file surface, because a subsystem is
+not a path. Parallel sub-agents enumerate candidates by four different search modalities (entry
+points, call graph, naming, test coverage), the union is presented to you for confirmation
+before any lens runs, and exclusions are recorded with reasons. That confirmation is the
+legibility requirement: an audit whose scope was silently guessed cannot be trusted when it
+reports "no findings", because the reader cannot tell clean from unread.</p>
+
+<p>The lenses are review's own rubrics — audit owns none of its own — and the selection is
+stated with a one-line reason per lens. Every candidate finding then faces adversarial
+refutation before it lands: refuters are prompted to <em>kill</em> the finding, a BLOCKER or
+HIGH gets three refuters with distinct angles, and refuted candidates are kept with their
+refutations rather than silently dropped. Survivors merge into the same accumulating findings
+ledger the review stage owns: a re-run preserves prior IDs, marks cleared findings
+<code>resolved</code>, and never overwrites — so a multi-session audit never re-surfaces the
+same twelve findings from scratch, and you can always tell what was deliberately deferred from
+what was never seen.</p>
+
+<p>Some findings cannot be settled by reading — most sharply, "these two paths disagree at
+runtime". Those are recorded at low confidence as <code>needs-runtime-evidence</code> with the
+exact experiment named, and they route to <code>/wf probe</code>. Everything else routes too:
+a mechanical defect to <code>fix</code>, an unexplained symptom to <code>rca</code>, a
+restructuring question to <code>investigate</code>, and a non-code outcome (rotate the leaked
+key, file the upstream issue) to <code>/wf task</code>. audit fixes nothing, ever. A
+zero-finding run is a valid result, written legibly enough that the next audit knows what was
+covered.</p>
 
 <h2 id="probe">probe — drive the running product against its promises</h2>
 

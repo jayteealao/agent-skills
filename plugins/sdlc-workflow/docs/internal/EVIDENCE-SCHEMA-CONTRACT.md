@@ -1,6 +1,9 @@
 # Evidence Schema Contract — the frozen data contract for the merged verify+hooks release
 
-> Status: **FROZEN 2026-07-12** (reconciliation Step 0). This is the single canonical
+> Status: **FROZEN 2026-07-12** (reconciliation Step 0). **REVISED 2026-08-11 — §7 added**
+> (the `/wf task` rungs: `attested`, `asserted`, and the `live` gloss for non-runtime systems
+> of record; WORK-WITHOUT-A-HOME T4). Per the header rule, this revision is inherited by every
+> plan that writes the field. This is the single canonical
 > definition of the frontmatter fields, enums, gate rules, and hook lints that
 > [INTENT-FIDELITY-HARDENING-PLAN.md](archived/INTENT-FIDELITY-HARDENING-PLAN.md) (W5/W9.1) and
 > [YOLO-EVIDENCE-INTEGRITY-PLAN.md](archived/YOLO-EVIDENCE-INTEGRITY-PLAN.md) (F4/F5) **both**
@@ -136,3 +139,32 @@ Step 3 being one release).
 - **INTENT-FIDELITY, uncontested waves:** W1/W2/W7/W8 (shape spine), W3 limitation-claim citations +
   lint, W9.3 suppression-debt, W9.4 adoption-matrix, W4/W6/W10 (taxonomy/review/human-loop),
   W11 (yolo checkpoints — layer onto Step 1), W12 (meta-loop).
+
+---
+
+## 7. Task rungs — contract revision 2026-08-11 (WORK-WITHOUT-A-HOME T4)
+
+The §1 ladder is entirely about *executing software*. `/wf task` acceptance criteria are about
+*observed outcomes* — an action performed and then independently read back. Three additions, none
+of which changes the meaning of an existing value:
+
+```
+evidence-rung: live | headless | emulator-or-container | cited-mock | uncited-mock | static | n-a
+             | attested | asserted        # §7 — task-workflow rungs
+```
+
+| Value | Meaning | Closes an AC? |
+|---|---|---|
+| `live` (gloss) | **Re-reading the real system of record after acting IS live observation** — `ls` the moved directory, `curl` the DNS record, query the API, read the file back. Non-runtime systems of record count. No new rung; this gloss is the rule. | Yes |
+| `attested` (new) | A **named external party or human** confirmed the outcome, recorded with a citation (vendor email, signoff comment, ticket URL). Weaker than `live` but honest — the only rung available for the coordination class. R2 requires a citation string; it does not validate it (Open question 4). | Yes |
+| `asserted` (new) | The agent claims success with **no independent read-back**. Task-land's `uncited-mock`: presumptively fictional. | **No — cannot close an AC** |
+
+**Gate extension (extends §5, same hook, same mechanism):** a user-observable AC whose highest
+`evidence-rung` is `asserted` counts into `metric-acceptance-mock-rung` alongside
+`cited-mock`/`uncited-mock`/`static`, so the shipped `mockEvidenceGate` in
+`hooks/post-write-verify.mjs` hard-blocks `result: pass` while any such AC exists. "I moved the
+files" with no `ls` afterward fails the gate. No parallel ladder, no second lint.
+
+**Scope:** `attested`/`asserted` are written by task workflows (`workflow-type: task`, standalone
+or compressed slice). Code-change verify flows keep the §1 ladder; a code AC evidenced by
+`attested` is a smell the review stage should flag.

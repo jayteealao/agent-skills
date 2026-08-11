@@ -63,12 +63,19 @@ test('resolveViewPath: compressed change-mode leads all land at intake/', () => 
   // 01-adopt (/wf intake adopt) is the reverse-entry lead — same type:intake,
   // same intake-card placement as the change-mode leads above.
   strictEqual(resolveViewPath('01-adopt.md').viewRel, 'intake/INDEX.html');
+  // 01-task (/wf task) drives a minimal type:index lifecycle — its overview's
+  // intake card links the fixed STAGE_NAV.intake.dir, so the lead MUST land at
+  // intake/ (NOT a named dir — that is the terminal-analysis test below).
+  strictEqual(resolveViewPath('01-task.md').viewRel, 'intake/INDEX.html');
 });
 
 test('resolveViewPath: terminal analysis-mode leads land in their own named dirs', () => {
   // ideate/simplify root in a type:workflow-index slug workflow with a named lead.
   strictEqual(resolveViewPath('01-ideate.md').viewRel, 'ideate/INDEX.html');
   strictEqual(resolveViewPath('01-simplify.md').viewRel, 'simplify/INDEX.html');
+  // 01-audit (/wf intake audit) roots a type:workflow-index slug — named dir
+  // like rca/investigate/discover/ideate, NOT intake/ (no fixed intake card).
+  strictEqual(resolveViewPath('01-audit.md').viewRel, 'audit/INDEX.html');
 });
 
 test('resolveViewPath: slice sub-paths', () => {
