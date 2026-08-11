@@ -1,6 +1,6 @@
 {
   "name": "sdlc-workflow-codex",
-  "version": "9.150.0",
+  "version": "9.151.0",
   "description": "Native Codex SDLC plugin: one handwritten $wf workflow skill (21 sub-commands spanning intake modes fix/rca/investigate/discover/audit/hotfix/refactor/update-deps/ideate, shape, slice, plan, implement, verify, review, handoff, ship, retro, design, docs, probe, simplify, task, status/recap, observability) plus consult, imagery, uiproto, and diataxis — over the same shared runtime, hub, and .ai/ artifacts as the Claude sdlc-workflow plugin. Requires a hooks-GA Codex CLI (verified on 0.143.0) with hooks enabled.",
   "author": {
     "name": "jayte",

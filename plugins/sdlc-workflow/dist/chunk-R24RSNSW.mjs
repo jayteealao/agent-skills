@@ -145,9 +145,14 @@ function resolveViewPath(storageRel, opts = {}) {
   if (kindHint === "project") {
     const stem = rel.replace(/^\.ai\//, "").replace(/\.md$/, "");
     const file = stem.split("/").pop();
+    const kindByFile = {
+      "ship-plan": "ship-plan",
+      "observability": "observability-plan",
+      "observability-build": "observability-build"
+    };
     return {
       viewRel: path.join("project", `${file}.html`),
-      kind: file === "ship-plan" ? "ship-plan" : "project-context"
+      kind: kindByFile[file] ?? "project-context"
     };
   }
   let m = rel.match(HISTORY_RE);
@@ -291,7 +296,7 @@ function breadcrumbFromView(viewRel, slug) {
 }
 
 // renderers/_shell.mjs
-var PLUGIN_VERSION = "9.150.0";
+var PLUGIN_VERSION = "9.151.0";
 function renderShell(params) {
   const {
     title,

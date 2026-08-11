@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.151.0] - 2026-08-11
+
+The v9.150.0 release gate surfaced a v9.132.0 gap: the observability router's project-root artifacts (`.ai/observability.md`, `.ai/observability-build.md`) had schema types but no renderer — and, worse, the render orchestrator never discovered them at all, so `/wf observability init`/`build` output was written but never rendered. This release closes the gap properly instead of leaving the e2e exclusion in place.
+
+### Added
+
+- `renderers/observability-plan.mjs` + `renderers/observability-build.mjs` — titled simple pages on the `ship-plan.mjs` precedent (plan version/project on the plan; realized plan version/backend on the build record).
+- A sunflower pin for the typed project-root kind mapping (`ship-plan`, `observability-plan`, `observability-build`; PRODUCT/DESIGN stay `project-context`).
+
+### Fixed
+
+- `discoverProjectArtifacts` (render-sunflower) now enumerates `.ai/observability.md` and `.ai/observability-build.md` — absent from discovery v9.132.0–v9.150.0, the actual reason the pages never existed.
+- `resolveViewPath`'s project branch maps the two files to their artifact kinds instead of generic `project-context`.
+- The v9.150.0 `NOT_RENDERED` exclusion for the two types is removed — the e2e gate now proves the renderers exist rather than excusing their absence.
+
 ## [9.150.0] - 2026-08-11
 
 Two capabilities for the work that had no home, shipped together because they were each other's missing half: `/wf task` — the 22nd key, a minimal lifecycle for work whose deliverable is not a code change — and `/wf intake audit` — the fourth read-only terminal intake mode, a defect hunt across a named subsystem with no symptom, no hypothesis, and no diff. `task`'s read-only tripwire routes defect hunts to `audit`; shipping either alone would have shipped a documented dead end. The unifying principle is one rule enforced in two rooms: a claim without independent observation closes nothing — `task` enforces it with the `asserted` evidence rung (which cannot close an acceptance criterion), `audit` with an adversarial refutation wave before any finding lands.

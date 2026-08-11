@@ -179,9 +179,16 @@ export function resolveViewPath(storageRel, opts = {}) {
   if (kindHint === 'project') {
     const stem = rel.replace(/^\.ai\//, '').replace(/\.md$/, '');
     const file = stem.split('/').pop();
+    // Typed project-root artifacts keep their artifact kind; everything else
+    // (PRODUCT.md, DESIGN.md) is generic project context.
+    const kindByFile = {
+      'ship-plan': 'ship-plan',
+      'observability': 'observability-plan',
+      'observability-build': 'observability-build',
+    };
     return {
       viewRel: path.join('project', `${file}.html`),
-      kind: file === 'ship-plan' ? 'ship-plan' : 'project-context',
+      kind: kindByFile[file] ?? 'project-context',
     };
   }
 

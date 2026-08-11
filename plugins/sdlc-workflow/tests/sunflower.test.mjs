@@ -78,6 +78,20 @@ test('resolveViewPath: terminal analysis-mode leads land in their own named dirs
   strictEqual(resolveViewPath('01-audit.md').viewRel, 'audit/INDEX.html');
 });
 
+test('resolveViewPath: typed project-root artifacts keep their artifact kind', () => {
+  // ship-plan and the observability pair are typed project artifacts; PRODUCT/
+  // DESIGN stay generic project-context. The observability pair was written but
+  // never discovered/rendered v9.132.0–v9.150.0 — these pins keep the mapping.
+  deepStrictEqual(resolveViewPath('.ai/ship-plan.md', { kind: 'project' }),
+    { viewRel: 'project/ship-plan.html', kind: 'ship-plan' });
+  deepStrictEqual(resolveViewPath('.ai/observability.md', { kind: 'project' }),
+    { viewRel: 'project/observability.html', kind: 'observability-plan' });
+  deepStrictEqual(resolveViewPath('.ai/observability-build.md', { kind: 'project' }),
+    { viewRel: 'project/observability-build.html', kind: 'observability-build' });
+  deepStrictEqual(resolveViewPath('PRODUCT.md', { kind: 'project' }),
+    { viewRel: 'project/PRODUCT.html', kind: 'project-context' });
+});
+
 test('resolveViewPath: slice sub-paths', () => {
   strictEqual(
     resolveViewPath('slices/auth-cache/04-plan.md').viewRel,

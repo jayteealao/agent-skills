@@ -60,12 +60,6 @@ const NOT_RENDERED = new Set([
   'hf-brief', 'hf-plan', 'hf-implement', 'hf-verify',
   'rf-brief', 'rf-baseline', 'rf-plan', 'rf-implement', 'rf-verify',
   'dep-scan', 'dep-research', 'dep-plan', 'dep-implement', 'dep-verify',
-  // Pre-existing gap surfaced 2026-08-11: the v9.132.0 observability router's
-  // project-root artifacts (.ai/observability.md / .ai/observability-build.md)
-  // have schema types but never got a renderer — they degrade to fallbackRender.
-  // Excluded so the gate reads true; the real decision (author a renderer like
-  // ship-plan.mjs, or bless the fallback permanently) is tracked separately.
-  'observability-plan', 'observability-build',
 ]);
 
 /* ───────────────────────── schema-driven fixture generator ───────────────── */
