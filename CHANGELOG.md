@@ -4,6 +4,20 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.179.0 - 2026-08-18
+
+### Added
+- **hermes-tweet v0.1.12**: Added public X/Twitter research, monitoring plans, audits, and approval-gated account workflows for Hermes Agent.
+
+### Fixed
+- Map Claude's root workflow README to the Codex workflow index.
+
+### Marketplace
+- Added `hermes-tweet` to the Claude and Codex marketplaces.
+- Marketplace bumped to v1.179.0 from current master v1.178.1.
+
+---
+
 ## Version 1.140.0 - 2026-07-11
 
 ### Changed
@@ -24,7 +38,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Marketplace
 - Marketplace bumped to v1.139.0.
-
 ---
 
 ## Version 1.10.0 - 2026-03-20

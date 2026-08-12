@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hermes Tweet"
+  short_description: "Route safe X workflows through Hermes Agent"
+  default_prompt: "Use $hermes-tweet to plan or run this X workflow through Hermes Agent with read-first routing and explicit action approval."

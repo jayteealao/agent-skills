@@ -430,7 +430,7 @@ function buildGeneratedSkillContent({
     "",
     "| Claude source path | Codex runtime path |",
     "|---|---|",
-    "| `.claude/README.md` | `.ai/workflows/` |",
+    "| `.claude/README.md` | `.ai/workflows/00-index.md` |",
     "| `.claude/<SESSION_SLUG>/README.md` | `.ai/workflows/<slug>/00-index.md` |",
     "| `.claude/{SESSION_SLUG}/README.md` | `.ai/workflows/<slug>/00-index.md` |",
     "| `.claude/<SESSION_SLUG>/reviews/review-*.md` | `.ai/workflows/<slug>/07-review-*.md` |",
@@ -457,7 +457,7 @@ function transformTextForCodex(text) {
     .replaceAll(".claude/{SESSION_SLUG}/reviews/", ".ai/workflows/<slug>/")
     .replaceAll(".claude/<SESSION_SLUG>/", ".ai/workflows/<slug>/")
     .replaceAll(".claude/{SESSION_SLUG}/", ".ai/workflows/<slug>/")
-    .replaceAll(".claude/README.md", ".ai/workflows/")
+    .replaceAll(".claude/README.md", ".ai/workflows/00-index.md")
     .replaceAll("../README.md", "./00-index.md")
     .replaceAll("SESSION_SLUG", "slug");
 }

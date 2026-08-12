@@ -37,6 +37,7 @@ node scripts/generate-codex-plugin.mjs sdlc-workflow
 |--------|----------|-------------|
 | [sdlc-workflow](./plugins/sdlc-workflow) | workflow | Canonical SDLC workflow with generated Codex adapters |
 | [sdlc-workflow-codex](./plugins/sdlc-workflow-codex) | workflow | Handwritten Codex-native software delivery workflows |
+| [hermes-tweet](./plugins/hermes-tweet) | productivity | Hermes Agent workflows for public X/Twitter research and approval-gated actions |
 
 ## Contributing
 
