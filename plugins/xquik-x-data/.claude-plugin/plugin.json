@@ -1,0 +1,19 @@
+{
+  "name": "xquik-x-data",
+  "version": "0.1.0",
+  "description": "Source-backed planning for Xquik REST, MCP, SDK, Twitter advanced search, exports, monitoring, and approval-gated X workflows.",
+  "author": {
+    "name": "Xquik"
+  },
+  "license": "MIT",
+  "keywords": [
+    "xquik",
+    "x-data",
+    "twitter-api",
+    "mcp",
+    "sdk",
+    "tweet-search",
+    "monitoring",
+    "webhooks"
+  ]
+}

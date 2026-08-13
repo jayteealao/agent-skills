@@ -4,6 +4,17 @@ All notable changes to the agent-skills marketplace will be documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## Version 1.179.0 - 2026-08-18
+
+### Added
+- **xquik-x-data v0.1.0**: Added source-backed Xquik REST, MCP, SDK, search, export, monitoring, and approval-gated workflow planning for Claude Code and Codex.
+
+### Marketplace
+- Added `xquik-x-data` to the Claude and Codex marketplaces.
+- Marketplace bumped to v1.179.0 from current master v1.178.1.
+
+---
+
 ## Version 1.140.0 - 2026-07-11
 
 ### Changed

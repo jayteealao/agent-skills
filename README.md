@@ -35,6 +35,7 @@ node scripts/generate-codex-plugin.mjs sdlc-workflow
 
 | Plugin | Category | Description |
 |--------|----------|-------------|
+| [xquik-x-data](./plugins/xquik-x-data) | research | Source-backed Xquik REST, MCP, SDK, search, export, monitoring, and gated action planning |
 | [sdlc-workflow](./plugins/sdlc-workflow) | workflow | Canonical SDLC workflow with generated Codex adapters |
 | [sdlc-workflow-codex](./plugins/sdlc-workflow-codex) | workflow | Handwritten Codex-native software delivery workflows |
 
