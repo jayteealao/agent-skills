@@ -107,4 +107,4 @@ Produce explanation that:
 - architecture without trade-offs
 - sprawling "everything about X" pages
 
-Do not run a final self-check here. `docs.md` Step 5 dispatches a fresh-context review sub-agent that reviews every generated file.
+Do not run a final self-check here. In orchestrator mode, `docs.md` Step 5 dispatches a fresh-context review sub-agent that reviews every generated file. In a standalone primitive invocation, dispatch one fresh-context sub-agent over the file you wrote, with `docs/review.md` as its rubric — fresh context is the objectivity a self-check lacks.

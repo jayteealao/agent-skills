@@ -167,14 +167,17 @@ machinery**. Apply it by scope:
 - **Single-slug scope** — run it exactly as written for the one slug.
 - **Branch scope (batch)** — split it into two layers, because *artifacts are
   per-slug but side-effects are per-branch*:
-  1. **Per-slug packaging** (the equivalent of T1–T3.7: read artifacts, write the
-     handoff summary + Diátaxis docs, commitlint/public-surface/doc-mirror
-     checks) runs **once per slug in the roster whose action is `package` — dispatch
-     the `package` slugs in parallel** (one sub-agent per slug; each slug's package
-     reads and writes only its own artifacts, so the work is independent). Each
-     writes its own `08-handoff.md` (additive-write + ledger + fingerprint). Skip
-     slugs marked `skip-unchanged` or `not-ready`. The branch-layer side effects
-     stay serialized in layer 2, where they are already quarantined.
+  1. **Per-slug packaging** (the equivalent of T1–T3.7) runs **once per slug in
+     the roster whose action is `package`**. Split it by what it touches: the
+     artifact work (T1 reads + the T2 handoff summary — each slug reads and
+     writes only its own `.ai/workflows/<slug>/` files) **dispatches in
+     parallel**, one sub-agent per slug; the steps that write or commit in the
+     shared working tree (T3 doc generation, T3.5 commitlint, T3.6
+     public-surface regen, T3.7 doc-mirror regen — T3.6/T3.7 create commits)
+     run **serialized, in roster order**, after the parallel wave. Each slug
+     writes its own `08-handoff.md` (additive-write + ledger + fingerprint).
+     Skip slugs marked `skip-unchanged` or `not-ready`. The branch-layer side
+     effects stay serialized in layer 2, where they are already quarantined.
   2. **Branch machinery** (the equivalent of T3.8–T5.3: local pre-push gate, push, create/update the ONE
      PR, watch CI, triage, rebase, final readiness) runs **exactly once**, owned
      by the lead slug. The PR description is generated from the **union** of every

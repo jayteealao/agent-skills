@@ -7,7 +7,7 @@ This is **not a standalone command** — it is the contract-authoring procedure 
 **`plan` owns both design gates.** The brief (`02b-design.md`) is authored upstream at `shape` as plain discovery with the image gate left **unresolved** (no `image-gate` field written). This procedure resolves the two gates the brief deferred:
 
 1. **Image gate** — generate the north-star mock/probes via the `imagery` skill, or record a reasoned skip. Writes the resolved `image-gate` — `pass` or `skipped:<reason>` — to `02c` (there is no `pending` value; the brief simply left it unset).
-2. **Brief-confirm gate** — present the resolved visual direction and get the user's explicit approval (`shape=pass`) before writing the contract.
+2. **Brief-confirm gate** — resolve `shape=pass` from a recorded user-backed direction source before writing the contract: an in-session user response, a user-confirmed PRODUCT.md, or a prior `teach` answer. When no recorded source exists, present the resolved visual direction and get the user's approval.
 
 **Scope**: writing the contract does not itself mutate product code. `implement` applies the contract during the build.
 
@@ -84,7 +84,7 @@ If image generation unavailable: state in one line that the step is skipped beca
 
 Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after confirmation, or `skipped:<reason>`. (`02c` is authoritative; the `02b` brief left the gate unset — you may mirror the resolved value onto `02b` too, but it is not required.)
 
-**Confirm gate.** The "yes to proceed" answer above is the `shape=pass` confirm gate. Do not write the contract until the user approves the direction (or explicitly skips the mock with a reason).
+**Confirm gate.** `shape=pass` is satisfied by the "yes to proceed" answer above, or by a recorded user-backed direction source (a user-confirmed PRODUCT.md, or a prior `teach` answer) — record which source satisfied the gate. Do not write the contract while no user-backed source exists, and never leave the mock neither confirmed nor explicitly skipped with a reason.
 
 > **Optional live prototype (beside the static mock).** For an interactive HTML
 > prototype of the approved direction, you may run `$uiproto <component description>`

@@ -456,9 +456,9 @@ Runs only if Step 4b produced at least one `Fix` decision. Dispatch fix sub-agen
 
 Before dispatching, note the count of findings triaged `Fix` at Step 4b (transient — not persisted to frontmatter). If 0, skip to Step 5.
 
-## Fix dispatch (parallel, worktree-isolated)
+## Fix dispatch (parallel on disjoint files)
 
-Dispatch a fix sub-agent for **every** finding triaged `Fix` **in parallel** — each fix runs in its own git worktree, so concurrent patches cannot collide; the step-3 sanity check is the merge gate. For each finding:
+Dispatch fix sub-agents for the findings triaged `Fix` **in parallel where their target files are disjoint** — fixes that touch the same file run serially, in severity order; the step-3 sanity check is the merge gate. For each finding:
 1. Spawn ONE sub-agent with this prompt:
    ```
    Fix the following review finding in the codebase:
@@ -492,7 +492,7 @@ Dispatch a fix sub-agent for **every** finding triaged `Fix` **in parallel** —
      Self-check: <command> → exit <N>
      A brief summary of what you changed and whether the fix is confirmed.
    ```
-2. As each sub-agent completes, take its patch through step 3 before merging it into the shared tree. **On a patch-overlap conflict** (two fixes touch the same lines), merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only.
+2. As each sub-agent completes, take its patch through step 3 before accepting it. **On a patch-overlap conflict** (two fixes touched the same lines despite the disjoint-files split), accept one, then re-dispatch the other against the updated state — serial for the conflicting pair only.
 3. Read the changed file(s) and sanity-check the patch against **both** the finding and the suggested fix's method ([_fix-loop.md](../_fix-loop.md) rule 5) — `Method: deviated` is never accepted on the subagent's own word; re-read it against what was suggested, and discard a deviation that crosses an explicit prohibition.
 4. **Record the outcome ON the finding** — set `status` and `fixed-at = now` in `## All Findings`, `## Findings (Detailed)`, `## Fix Status`, and the sibling `.yaml`:
    - fixed → `status: fixed` (drops out of OPEN counts and verdict).
@@ -745,7 +745,7 @@ Use when: OPEN blocker or `could-not-fix` findings remain. Re-invocation re-chec
 **Compact recommended before re-invoking** — fix sub-agent chatter and triage UI is noise for the next pass.
 
 **Option C: Escalate to manual implement** → `$wf implement <slug> [<slice>] reviews`
-Use when: Remaining findings need design rethink, cross-cutting refactor, or input the review agent cannot supply — i.e., re-invoking review would surface the same unfixable findings again. Also when the user prefers stage 5's per-finding sequential UI.
+Use when: Remaining findings need design rethink, cross-cutting refactor, or input the review agent cannot supply — i.e., re-invoking review would surface the same unfixable findings again. Also when the user prefers stage 5's per-finding fix UI.
 
 **Option D: Next slice** → `$wf plan <slug> <next-slice>` or `$wf implement <slug> <next-slice>`
 Use when: This slice is approved AND more slices remain. Check `03-slice.md`.

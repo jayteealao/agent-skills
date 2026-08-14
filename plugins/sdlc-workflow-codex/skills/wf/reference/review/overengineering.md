@@ -2,9 +2,6 @@
 description: "Review code for unnecessary complexity, abstractions, and YAGNI violations"
 argument-hint: "[scope] [target] [paths]"
 args:
-  SESSION_SLUG:
-    description: The session identifier. If not provided, uses the most recent session from .ai/workflows/
-    required: false
   SCOPE:
     description: What to review
     required: false

@@ -2,9 +2,6 @@
 description: "Review test quality, coverage, and reliability to ensure changes are well-verified"
 argument-hint: "[scope] [target] [paths]"
 args:
-  SESSION_SLUG:
-    description: The session identifier. If not provided, uses the most recent session from .ai/reviews/README.md
-    required: false
   SCOPE:
     description: What to review
     required: false

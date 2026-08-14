@@ -10,7 +10,12 @@ artifact type without a reader" rule, and the compact-advice trims were left
 as-is; (c) two trims collided with standing guard tests
 (handoff's T4-blocked-by-T3.8 line, yolo's "may not quietly patch product
 code" sentence) and were restored as declared contracts — the tests were
-right, the trim was over-eager. Original draft status: DRAFTED 2026-08-03.
+right, the trim was over-eager; (d) a four-reviewer fresh-eyes pass on
+2026-08-15 confirmed 17 defects in the v9.152.0 build (a plan-fan-out slice
+mis-attribution, a false parallel-independence claim in handoff packaging,
+an incoherent worktree claim in the codex port, five surviving overwrite
+gates behind a vacuous guard regex, and a contradiction/dangling-reference
+sweep) — all fixed in **v9.152.1**. Original draft status: DRAFTED 2026-08-03.
 
 Source audit:
 five parallel reviewer passes over all 144 files of `skills/wf/` (2026-07-30),

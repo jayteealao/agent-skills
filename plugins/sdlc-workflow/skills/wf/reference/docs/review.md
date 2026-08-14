@@ -123,4 +123,4 @@ Avoid vague advice like:
 - add more detail
 - make it nicer
 
-Do not add a self-check pass on top of this rubric. This rubric already runs inside `docs.md` Step 5's fresh-context Explore sub-agent, and the fresh context is the objectivity check.
+Do not add a self-check pass on top of this rubric. In orchestrator mode this rubric runs inside `docs.md` Step 5's fresh-context Explore sub-agent; in a standalone invocation the dispatching session gives this rubric to a fresh-context sub-agent the same way. The fresh context is the objectivity check.

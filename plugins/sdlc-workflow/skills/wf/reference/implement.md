@@ -22,7 +22,7 @@ You are running `wf-implement`, **stage 5 of 10** in the SDLC lifecycle.
 | Produces | `05-implement-<slice-slug>.md` + updates `05-implement.md` master |
 | Next | `/wf verify <slug> <slice-slug>` (default) |
 | Skip-to | `/wf review <slug> <slice-slug>` if verification is trivial |
-| Special | `/wf implement <slug> reviews` — fix review findings one by one |
+| Special | `/wf implement <slug> reviews` — fix review findings in parallel |
 
 > **Auto second opinion (objective triggers).** **Auto-invoke** `/consult codex <question>` (pinning `codex`/`claude` keeps it free) when ANY of: (a) **reviews mode** is about to merge a sub-agent's fix touching auth, data integrity, money, or concurrency; (b) **plan drift is significant** — the adapted approach departs from a named plan step; (c) this run wrote a new suppression (`sdlc-debt:` marker) to get the build green. Routine implementation with none of these: skip. The user may invoke it explicitly with any provider.
 
@@ -191,7 +191,7 @@ When this slice builds UI, the build is held to the design floor in [design/_des
 **Absolute bans** are in `design/_design-context.md` → *Absolute bans*. Introducing one is a defect the review/verify gates bounce.
 
 ## Contract-check pass (mandatory when `02c-craft.md` was present)
-After building against a visual contract, dispatch one **fresh-context check agent** before writing the implementation record — the blind pre-mortem pattern (`shape.md` Step 4), not a self-critique. Give the agent ONLY the contract inputs (`02c-craft.md`, `02b-design.md`, the relevant register reference) and the built surface; it has no memory of your build decisions to defend. Its charter: report every material departure from the mock-fidelity inventory, the anti-goals, and the register rules, each with file:line evidence. Apply fixes for the material defects it reports. Record what the pass caught — and the file:line each fix landed at — in `## Visual Contract Honored`.
+After building against a visual contract, dispatch one **fresh-context check agent** before writing the implementation record — the blind pre-mortem pattern (`shape.md` Step 9), not a self-critique. Give the agent ONLY the contract inputs (`02c-craft.md`, `02b-design.md`, the relevant register reference) and the built surface; it has no memory of your build decisions to defend. Its charter: report every material departure from the mock-fidelity inventory, the anti-goals, and the register rules, each with file:line evidence. Apply fixes for the material defects it reports. Record what the pass caught — and the file:line each fix landed at — in `## Visual Contract Honored`.
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave canonical results only in chat — write the stage file first.
@@ -252,7 +252,7 @@ Use when: The plan was wrong — missed files, wrong assumptions.
 
 **Option D: Blocked** → explain what's blocking.
 
-# Reviews Mode — fix review findings one by one
+# Reviews Mode — fix review findings
 Triggered when: second argument is literally `reviews`. Example: `/wf implement my-slug reviews`
 
 Reads findings from `07-review-<slice-slug>.md`, extracts all BLOCKER and HIGH findings (and optionally MED if the user requests), then fixes them **in parallel** using worktree-isolated sub-agents — the findings are independent by construction; only a patch-overlap conflict forces the conflicting pair back to serial.
@@ -289,9 +289,9 @@ Do this in order for reviews mode:
 
       Return a brief summary of what you changed and whether the fix is confirmed correct.
       ```
-   c. **As each sub-agent completes, verify its fix (the merge gate):** read the changed file(s), confirm the fix addresses the finding, and check for regressions before merging its patch into the shared tree.
-   d. **On a patch-overlap conflict** (two fixes touch the same lines), fall back to serial for the conflicting pair only: merge one, re-dispatch the other against the merged state.
-   e. If a fix failed or was partial: record `COULD NOT FIX: <reason>` on its task, then complete the task.
+   a. **As each sub-agent completes, verify its fix (the merge gate):** read the changed file(s), confirm the fix addresses the finding, and check for regressions before merging its patch into the shared tree.
+   b. **On a patch-overlap conflict** (two fixes touch the same lines), fall back to serial for the conflicting pair only: merge one, re-dispatch the other against the merged state.
+   c. If a fix failed or was partial: record `COULD NOT FIX: <reason>` on its task, then complete the task.
 
 7. **After all findings are processed:**
    a. Mark "Update 07-review-<slice-slug>.md" task `in_progress`. Write/update `05-implement-<slice-slug>.md` with a `## Review Fixes Applied` section listing all findings and resolution status.
@@ -306,7 +306,7 @@ Do this in order for reviews mode:
    d. Update `00-index.md`. Mark task `completed`.
    e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** stage by explicit path, classified exactly as mainline Step 13 (slice code by path, workflow artifacts by path, unknown dirty paths fail closed; `git add -A` / pathless `git add` forbidden). Commit: `fix(<slug>): review fixes for <slice-slug>`. Record commit SHA. Do NOT push. If `branch-strategy` is `none`, skip the commit.
 
-7. **Evaluate adaptive routing:**
+8. **Evaluate adaptive routing:**
 
 **Option A (default): Re-verify** → `/wf verify <slug> <slice-slug>`
 Use when: Fixes were applied.

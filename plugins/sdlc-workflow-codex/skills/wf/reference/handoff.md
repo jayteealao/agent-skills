@@ -163,7 +163,7 @@ After writing files, return per [_chat-return.md](_chat-return.md) — narrative
 
 Do this in order:
 1. **Read branch strategy** from `00-index.md` frontmatter: `branch-strategy`, `branch`, `base-branch`. Also read the optional PR-readiness config keys (silent skip if absent): `public-surface`, `docs-mirror`, `review-bots` — see `## Project-level handoff config` below.
-2. **Work through the handoff sequence** — work each task sequentially, tracking state in the artifact file. All metadata: `{ slug, stage: "handoff", slices: "<comma-separated list of slice-slugs in scope>", mode: "<aggregate|single-slice>" }`.
+2. **Work through the handoff sequence** — the numbered T-steps below, in order, tracking state truthfully in the artifact file: a step that resolves to nothing to run is recorded as skipped with its reason, never as done. Two gates are contracts, not choreography: T4 (push) never runs before T3.8 (the local pre-push gate) passes, and T5.1 (triage) never runs before T5.0 (CI watch) completes. All metadata: `{ slug, stage: "handoff", slices: "<comma-separated list of slice-slugs in scope>", mode: "<aggregate|single-slice>" }`.
    - T1: Read prior artifacts.
    - T2: Write handoff summary.
    - T3: Generate Diátaxis docs.

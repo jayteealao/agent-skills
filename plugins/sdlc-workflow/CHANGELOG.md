@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.152.1] - 2026-08-15
+
+Fresh-eyes review of v9.152.0: four independent reviewers (yolo.js logic, core lifecycle, rubrics/design/trims, codex port) plus targeted self-checks. Seventeen defects confirmed and fixed; no test had caught them because two guard regexes matched only the exact phrasing v9.152.0 deleted.
+
+### Fixed
+
+- **yolo.js plan fan-out slice attribution**: the `done` list filtered results before indexing the `unplanned` roster, so a null result earlier in the batch could attribute a completed plan to the wrong slice. Map-then-filter now preserves alignment.
+- **yolo.js plan fan-out bookkeeping**: the single-writer index agent was told to record plan completion in a `slices[]` per-stage field that does not exist in the roster schema; it now does what plan.md's own Step 7 would have done — register the plan artifacts in `workflow-files`, advance `current-stage`, refresh `updated-at` — and carries a heartbeat like every other dispatched agent.
+- **yolo.js review fan-out dropped the RCA rubric**: with `reviewFanout` now the default, an RCA-forwarded workflow's recommended dimension was scanned nowhere and never hinted to the writer; the fan-out now seeds the scout dimensions with `reviewDimension` and passes the same hint the wrapped path carries.
+- **Stale fan-out defaults documentation**: yolo.md's invocation template and yolo.js's meta phase detail still said "default off / opt-in".
+- **Five surviving overwrite "Proceed?" gates** on additive-write-covered artifacts (intake/default.md, slice.md, retro.md — both trees) are now informational notes; the W5 guard test matched only one phrasing variant and passed vacuously, so it now matches any variant with an explicit allowlist (close.md and the augment artifacts keep their gates — no snapshot covers them).
+- **handoff.md parallel packaging over-claimed**: T3.6/T3.7 commit in the shared working tree, so "each slug's package is independent" was false; the parallel wave now covers only the per-slug artifact work (T1–T2), with tree-mutating steps serialized in roster order.
+- **contract.md defined `shape=pass` two incompatible ways**: the preconditions accepted a user-confirmed PRODUCT.md or prior teach answer while the gate text still demanded an in-session approval; all three sites (plus _design-context.md's matrix row) now state the same three-source rule.
+- **docs primitives pointed at a reviewer that never fires standalone**: the "docs.md Step 5 reviews every generated file" replacement was true only in orchestrator mode; standalone primitive invocations now dispatch one fresh-context sub-agent with docs/review.md instead.
+- **Nine rubrics kept the dead SESSION_SLUG frontmatter arg** (both trees) whose only consumer was the deleted `.claude/<SESSION_SLUG>` machinery; deleted, with a new guard test.
+- **codex review/_stage.md ported the worktree-isolation claim without a mechanism** (codex has no worktree dispatch flag); it now uses the same disjoint-files parallel scheme as codex verify/implement, and codex _fix-loop.md's example names that scheme instead of a worktree requirement no codex stage states.
+- **Contradiction and dangling-reference sweep**: implement.md's "one by one" mode row and heading; the reviews-mode orphan c/d/e sub-lettering and duplicate step 7; the blind pre-mortem cross-reference (shape.md Step 4 → Step 9); review/_stage.md's "sequential UI" escape-hatch line; shape.md's leftover "5 baseline rounds" claim; ship.md's two Step 0.9 consumer lists omitting the new 10.3 row; verify.md's reference to the deleted a–d protocol labels; docs.md's off-by-one sub-step range; codex handoff.md's "work each task sequentially" line now states the truthful-status rule and the two gate contracts. (All in both trees where the twin exists.)
+
 ## [9.152.0] - 2026-08-14
 
 The Claude 5 prompting repair (CLAUDE5-PROMPTING-REPAIR-PLAN.md, all waves W0–W6 plus the W7 consult-timing item): a 144-file audit against Anthropic's "Prompting Claude Fable 5" guide found the corpus clean on reasoning-echo and context-budget but heavy on over-prescription — legacy step machines and fictional worked examples in the review rubrics, serial loops over worktree-isolated independent work, permission questions on reversible actions, and three real safety bugs found in passing. The repair trusts the model with process and keeps the contracts: checklists, schemas, severity definitions, evidence non-negotiables, and every gate the audit verified as guide-compliant stay verbatim.

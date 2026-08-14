@@ -117,11 +117,22 @@ test('W4/W6: no "exactly in order" boilerplate remains under reference/', () => 
 });
 
 // --- W5: overwrite permission questions stay deleted --------------------------
-test('W5: no re-run overwrite "Proceed?" question remains', () => {
-  const hits = mdFiles().filter((f) =>
-    /Running again will overwrite\.? Proceed\?/.test(readFileSync(f, 'utf8'))
-  );
+// Any phrasing variant counts. Allowlist: close.md re-opens a closed record and
+// the augment artifacts have no additive-write snapshot — those gates are real.
+test('W5: no re-run overwrite "Proceed?" question remains on additive-write artifacts', () => {
+  const allowed = new Set(['close.md', 'experiment.md', 'instrument.md']);
+  const hits = mdFiles()
+    .filter((f) => /overwrite[^\n]{0,80}Proceed\?/i.test(readFileSync(f, 'utf8')))
+    .filter((f) => !allowed.has(path.basename(f)));
   assert.deepEqual(hits, [], `overwrite gate back in: ${hits.join(', ')}`);
+});
+
+test('W3: no rubric frontmatter declares the dead SESSION_SLUG arg', () => {
+  const reviewDir = path.join(refRoot, 'review');
+  const hits = readdirSync(reviewDir)
+    .filter((f) => f.endsWith('.md'))
+    .filter((f) => /SESSION_SLUG/.test(readFileSync(path.join(reviewDir, f), 'utf8')));
+  assert.deepEqual(hits, [], `SESSION_SLUG survives in: ${hits.join(', ')}`);
 });
 
 // --- W6: yolo deferral law is a pointer, not a second copy -------------------

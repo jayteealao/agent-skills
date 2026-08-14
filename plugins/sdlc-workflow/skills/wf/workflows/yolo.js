@@ -4,7 +4,7 @@ export const meta = {
   phases: [
     { title: 'Orient', detail: 'read 00-index + roster; resolve scope, file convention, branch posture (create/switch dedicated), resume point' },
     { title: 'Drive', detail: 'sequential plan→implement→verify[→review] per slice, autonomous gates' },
-    { title: 'Review', detail: 'opt-in: parallel per-dimension review + adversarial verify before auto-fix' },
+    { title: 'Review', detail: 'default: parallel per-dimension review + adversarial verify before auto-fix (reviewFanout: false opts out)' },
   ],
 }
 
@@ -1146,7 +1146,17 @@ async function driveReview(sliceArg, idx) {
   phase('Review')
   const base = idx.branch.base || '<base>'
   const diffRange = sliceArg ? 'HEAD' : `${base}...HEAD`
-  const dims = ['correctness', 'security', 'tests', 'performance', 'maintainability']
+  // An RCA-forwarded workflow carries a recommended rubric (idx.reviewDimension) —
+  // honor it in the fan-out exactly as runStage's dimensionHint does on the wrapped path.
+  const dims = [...new Set([
+    ...(idx.reviewDimension ? [idx.reviewDimension] : []),
+    'correctness', 'security', 'tests', 'performance', 'maintainability',
+  ])]
+  const fanoutDimensionHint = idx.reviewDimension
+    ? ` Default review rubric: '${idx.reviewDimension}' — the forwarded RCA recommended a build flavor whose ` +
+      `default dimension is '${idx.reviewDimension}'; honor it in the artifact (the review reference does not ` +
+      `auto-apply it for workflow-type: rca), widening to additional dimensions only if the diff warrants.`
+    : ''
   // 1. Parallel read-only dimension scouts.
   const scouts = await parallel(dims.map(dim => () => agent(
     `READ-ONLY review of slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''} along the '${dim}' dimension ONLY. ` +
@@ -1173,7 +1183,7 @@ async function driveReview(sliceArg, idx) {
     `Execute the SDLC 'review' stage for slug '${slug}'${sliceArg ? `, slice '${sliceArg}'` : ''}, FULLY AUTONOMOUSLY.\n\n` +
     `${EOB}\n\n` +
     `Read ${referenceRoot}/review.md IN FULL and follow it VERBATIM for the artifact write, triage, fix loop, and ` +
-    `accumulating ledger. Review scope is '${idx.reviewScope}'. A parallel per-dimension scan has ALREADY been run ` +
+    `accumulating ledger. Review scope is '${idx.reviewScope}'.${fanoutDimensionHint} A parallel per-dimension scan has ALREADY been run ` +
     `and adversarially verified; record and triage these surviving findings (re-confirm any you doubt, but do not ` +
     `discard the scan): ${JSON.stringify(verified)}.\n\n` +
     `Apply the autonomous triage policy: ${POLICY.review}\n\n` +
@@ -1743,17 +1753,22 @@ if (idx.workflowType === 'update-deps') {
     if (unplanned.length > 1) {
       log(`plan fan-out: planning ${unplanned.length} un-planned slices concurrently (per-slice writes only; the driver is the single 00-index writer)`)
       const planned = await parallel(unplanned.map(s => () => runStage('plan', s.slice, idx, { noIndexWrites: true })))
-      const done = planned.filter(r => r && r.status === 'complete').map((r, i) => r.slice || unplanned[i].slice)
+      const done = planned
+        .map((r, i) => (r && r.status === 'complete' ? (r.slice || unplanned[i].slice) : null))
+        .filter(Boolean)
       if (done.length) {
         await agent(
           `PLAN FAN-OUT BOOKKEEPING for slug '${slug}'. The driver just planned these slices concurrently and ` +
           `each plan subagent wrote ONLY its per-slice 04-plan artifact (index writes were withheld so this step ` +
-          `is the single writer).\n\n${EOB}\n\n` +
-          `In ${projectRoot}/.ai/workflows/${slug}/00-index.md, for EACH of these slices — ${done.join(', ')} — ` +
-          `record the plan stage as done in its slices[] entry (matching the convention already used by completed ` +
-          `stages in this index), and refresh updated-at. Change NOTHING else.` +
+          `is the single writer). Do the index bookkeeping plan.md's own Step 7 would have done:\n\n${EOB}\n\n` +
+          `In ${projectRoot}/.ai/workflows/${slug}/00-index.md: (1) add each fan-out plan artifact — ` +
+          `${done.map(s => `04-plan-${s}.md`).join(', ')} — to \`workflow-files\` (skip any already listed); ` +
+          `(2) set \`current-stage\` to plan if it currently names an earlier stage (never move it backward); ` +
+          `(3) refresh \`updated-at\`. Do NOT add per-stage fields to slices[] entries (the roster schema has ` +
+          `none; the driver re-derives plan completion from the on-disk artifacts). Change NOTHING else.` +
           CONTROL_FILE_RULE +
-          `\n\nReturn { ok, wrote: [<files changed>], note }.`,
+          `\n\nReturn { ok, wrote: [<files changed>], note }.` +
+          heartbeatClause('plan-index-writeback', 'Drive', 'plan', null),
           { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-index-writeback', phase: 'Drive' }
         )
       }

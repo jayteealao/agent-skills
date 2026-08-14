@@ -209,7 +209,7 @@ AskUserQuestion:
 ```
 
 # Step 4 — Generate (orchestrator only)
-Execute the plan. **Generate independent doc actions in parallel** — each action writes its own target file, so dispatch them together and apply steps 1–4 per action; only actions that touch the same file run in sequence. The confirm-before-delete gate in step 5 stays.
+Execute the plan. **Generate independent doc actions in parallel** — each action writes its own target file, so dispatch them together and apply the numbered sub-steps below per action; only actions that touch the same file run in sequence. The confirm-before-delete gate stays.
 
 For each action:
 

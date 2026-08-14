@@ -25,8 +25,8 @@ this file instead of restating them.
    call), that pin must stay. Rationale: read-finding-then-patch is a bounded
    profile; fix sub-agents must not silently inherit the parent session's
    configuration (see [_subagents.md](_subagents.md) effort tiering).
-   Stage-specific flags (e.g. verify's isolated-worktree requirement) are
-   additive requirements defined in the stage file.
+   Stage-specific dispatch rules (e.g. verify's disjoint-files parallel
+   dispatch) are additive requirements defined in the stage file.
 4. **Minimal patch, self-checked by command.** The sub-agent prompt always
    requires: apply the minimal fix for this one issue; do NOT refactor,
    reformat, or broaden scope; then **run a real check command the

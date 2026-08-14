@@ -171,7 +171,7 @@ An inventory item in none of those states is ILLEGAL — the interview may not e
 ambiguity space has an uncovered corner. This gate is what turns "20 questions happened" into
 "the ambiguity space was exhausted or explicitly parked."
 
-After completing all rounds (5 baseline + Round 3b when triggered + any extension rounds), append every answer to `po-answers.md` with timestamp and `stage: shape`.
+After completing the interview (all five themes covered + Round 3b when triggered + any extension rounds), append every answer to `po-answers.md` with timestamp and `stage: shape`.
 
 # Step 3 — Collect research; relay the tooling question to the PO
 

@@ -233,7 +233,7 @@ Prompt the agent with ONE coherent charter that covers the following:
 
    - Navigate or invoke the surface named in the criterion.
    - Perform the user actions described.
-   - Apply the multi-point capture, stability check, perceptual review, and anomaly investigation protocols above.
+   - Apply the evidence-gathering bullets above (moment capture, re-drive stability, perceptual pass, anomaly investigation).
    - Record: criterion id or quoted text, adapter used, evidence paths (all frames), stability result, perceptual notes, anomaly findings, pass/fail.
 4. **Tear down each adapter** per its `Tear down` section. Idempotent — re-runs of verify must not leave the environment dirtier each pass.
 5. **Run existing test suites** that target the same surface (Playwright/Cypress E2E for web, Maestro suites for Android, XCUITest for iOS, etc.) in addition to the per-criterion drives, when they exist. The adapter's `Drive` section names the relevant suite invocations.

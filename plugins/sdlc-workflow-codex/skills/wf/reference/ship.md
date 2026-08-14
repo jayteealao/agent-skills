@@ -107,7 +107,7 @@ You are a **workflow orchestrator**, not a problem solver.
    | **Stakeholder/compliance overrides** | `plan`'s sign-off list | Step 3.3 |
    | **Post-release base push** — go/no-go for `git push origin <base-branch>` | `plan.post-release-version != none` | Step 10.3 |
 
-   Present the derived default for each and ask only for confirmation or override — a batched round of confirmations is one interruption, not several. Record every answer in `po-answers.md` (`stage: ship`, with the `run-id`) and stamp them into the run's frontmatter as `prefetched-answers:`. Steps 1.2 and 3.1–3.3 then **consume** those answers instead of re-asking; their idempotency guards already skip a field that is set.
+   Present the derived default for each and ask only for confirmation or override — a batched round of confirmations is one interruption, not several. Record every answer in `po-answers.md` (`stage: ship`, with the `run-id`) and stamp them into the run's frontmatter as `prefetched-answers:`. Steps 1.2, 3.1–3.3, and 10.3 then **consume** those answers instead of re-asking; their idempotency guards already skip a field that is set.
 
    **What deliberately stays where it is.** A question whose answer genuinely depends on a mid-run outcome cannot be pre-fetched and must not be: the **Go/No-Go** after pre-flight and CI, a **merge-path fallback** after a failed merge, and any **recovery-playbook step** offered on a step-8 failure. Those are decisions about something that has happened; asking them early would be asking the user to guess. This step is only about the ones that were answerable at minute zero.
    If **start fresh**: leave the prior run untouched (or set `failed`); generate a new `run-id`.
@@ -387,7 +387,7 @@ merge-strategy: <rebase | squash | merge | none>
 ship-plan-readiness: <ok | acknowledged | amended-inline>   # ship-plan pre-check verdict (Step 0.4); missing/drift STOP before a run is written
 ship-plan-amended-blocks: [<letter>, ...]   # amended-inline only — blocks the scoped inline edit touched
 ship-plan-version-before-after: "<N>→<M>"   # amended-inline only
-prefetched-answers:                 # Step 0.9 — asked BEFORE the atomic sequence opened; consumed by 1.2 / 3.1–3.3
+prefetched-answers:                 # Step 0.9 — asked BEFORE the atomic sequence opened; consumed by 1.2 / 3.1–3.3 / 10.3
   scope: "<slug|branch — the roster this run ships>"
   version: "<confirmed version>"
   rollout-strategy: "<confirmed strategy>"

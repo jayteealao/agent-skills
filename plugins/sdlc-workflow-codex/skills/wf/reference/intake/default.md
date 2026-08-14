@@ -67,7 +67,7 @@ You are a **workflow orchestrator**, not a problem solver.
      - **No row** → no collision; continue to sub-step 3.
 3. **Check if the workflow already exists** at `.ai/workflows/<slug>/00-index.md` (disk-level fallback; catches the case where INDEX.md is missing or stale).
    - If it exists and `stage-status` is `Awaiting input` on this stage → this is a **resume**. Read the existing `01-intake.md` and `po-answers.md`. Pick up from where the previous run left off instead of starting fresh.
-   - If it exists and `current-stage` is past intake → WARN: "Intake has already been completed. Running it again will overwrite `01-intake.md`. Proceed?" Ask the user in chat. Only proceed if confirmed.
+   - If it exists and `current-stage` is past intake → note the re-run in chat and proceed. [_additive-write.md](../_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
    - If it does not exist → this is a fresh start. Proceed normally.
 4. **Carry forward** any `open-questions` from the index if resuming.
 5. **Provenance check:** apply `reference/intake/_intake-provenance.md` — detect an inherited analysis decision (an explicit trailing `from <source-slug>` token for any Consume-table source, or an exact label match for `investigate`/`ideate` sources), consume the matching row (an investigate option card, an rca diagnosis, a discover verdict, or an ideate idea card seeds the restated request, the risk inventory, and the research sub-agent prompts), and link back (record `origin-<type>` here, set `superseded-by` on a decision-shaped source, and apply the implicit pick/route if the source is still open). No match → continue; that is the common case.

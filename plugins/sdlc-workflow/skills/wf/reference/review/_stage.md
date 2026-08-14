@@ -774,7 +774,7 @@ Use when: OPEN blocker or `could-not-fix` findings remain. Re-invocation re-chec
 **Compact recommended before re-invoking** — tell the user: "Consider `/compact` first — workflow state lives in the artifact files on disk and SessionStart re-reads it automatically after compaction."
 
 **Option C: Escalate to manual implement** → `/wf implement <slug> [<slice>] reviews`
-Use when: Remaining findings need design rethink, cross-cutting refactor, or input the review agent cannot supply — i.e., re-invoking review would surface the same unfixable findings again. Also when the user prefers stage 5's per-finding sequential UI.
+Use when: Remaining findings need design rethink, cross-cutting refactor, or input the review agent cannot supply — i.e., re-invoking review would surface the same unfixable findings again. Also when the user prefers stage 5's per-finding fix UI.
 
 **Option D: Next slice** → `/wf plan <slug> <next-slice>` or `/wf implement <slug> <next-slice>`
 Use when: This slice is approved AND more slices remain. Check `03-slice.md`.
