@@ -2,9 +2,6 @@
 description: "Review code for missed reuse, quality issues, and inefficiencies — the three simplification lenses"
 argument-hint: "[scope] [target] [paths]"
 args:
-  SESSION_SLUG:
-    description: The session identifier. If not provided, uses the most recent session from .ai/README.md
-    required: false
   SCOPE:
     description: What to review
     required: false
@@ -99,258 +96,21 @@ Before scanning for issues:
 
 # WORKFLOW
 
-## Step 0: Infer SESSION_SLUG if not provided
-
-Standard session inference from `.ai/README.md` (last entry).
-
-## Step 1: Load session context
-
-1. Validate `.ai/reviews/<SESSION_SLUG>/` exists (or `.ai/workflows/<slug>/` if in workflow context)
-2. Read context files for requirements and design decisions
-3. Check for spec/plan to understand intent
-
-## Step 2: Determine review scope
-
-From SCOPE, TARGET, PATHS, and session context:
-
-1. **SCOPE** (if not provided)
-   - If work log exists: use most recent work scope
-   - Default to `worktree`
-
-2. **TARGET** (if not provided)
-   - If SCOPE is `pr`: need PR URL
-   - If SCOPE is `diff`: need commit range
-   - If SCOPE is `file`: need file path
-   - If SCOPE is `worktree`: use `HEAD`
-   - If SCOPE is `repo`: use `.`
-
-3. **PATHS** — Review all files in scope, or narrow with globs
-
-## Step 3: Gather changed files and codebase context
-
-Based on SCOPE, collect:
-- Full diff with line numbers
-- Changed file contents
-- **Adjacent files** — files in the same directories as changed files (for reuse detection)
-- **Utility/helper directories** — scan for existing utilities that the new code might duplicate
-
-## Step 4: Run all three lenses
-
-Apply Lens 1 (Reuse), Lens 2 (Quality), and Lens 3 (Efficiency) to the changed code. For each finding:
-
-1. Assign an ID: `CS-{N}` (Code Simplification)
-2. Assign a lens: `Reuse` / `Quality` / `Efficiency`
-3. Rate severity and confidence
-4. Provide evidence (file:line + snippet)
-5. Sketch the simpler alternative (conceptual, 2-5 lines showing the idea)
-
-## Step 5: Write findings to file
-
-Write all findings to `07-review-code-simplification.md` (when dispatched by $wf review) or to `.ai/reviews/<SESSION_SLUG>/reviews/review-code-simplification-{YYYY-MM-DD}.md` (when run standalone). Include a `## Triage Decisions` section with all findings listed as `untriaged`.
-
-**Note:** Triage via asking the user directly in chat happens in $wf review's aggregation phase (Step 4b) for ALL findings across all review skills. To re-triage deferred findings later, run `$wf review <slug> triage`.
-
-## Step 6: Generate review report
-
-Create `.ai/reviews/<SESSION_SLUG>/reviews/review-code-simplification-{YYYY-MM-DD}.md`
-
-## Step 7: Update session README
-
-Standard artifact tracking update.
-
-## Step 8: Output summary
-
-Print summary with findings count and triage results.
+Read the intake, shape, and plan artifacts to learn the intended behavior. Take the diff scope, the target file path, and the output contract from the dispatch prompt in [_stage.md](_stage.md). Hunt for defects with the checklist above. Record each finding with file and line evidence, a severity, and a confidence.
 
 # OUTPUT FORMAT
 
-Create `.ai/reviews/<SESSION_SLUG>/reviews/review-code-simplification-{YYYY-MM-DD}.md`:
+Write the findings file to the path and with the structure that the dispatch prompt in [_stage.md](_stage.md) defines. Apply the merge rules that the dispatch prompt cites. Use this skeleton:
 
 ```markdown
----
-command: $review code-simplification
-session_slug: {SESSION_SLUG}
-date: {YYYY-MM-DD}
-scope: {SCOPE}
-target: {TARGET}
-paths: {PATHS}
-related:
-  session: ../README.md
-  spec: ../spec/spec-crystallize.md (if exists)
-  plan: ../plan/research-plan*.md (if exists)
-  work: ../work/work*.md (if exists)
----
+## Findings
+| ID | Sev | Conf | Status | Pre | Surfaced | File:Line | Issue |
 
-# Code Simplification Review Report
+## Detailed Findings
+### {ID}: {Title} [{SEVERITY}]
 
-**Reviewed:** {SCOPE} / {TARGET}
-**Date:** {YYYY-MM-DD}
-**Reviewer:** Codex
-
----
-
-## 0) Scope and Codebase Context
-
-**What was reviewed:**
-- Scope: {SCOPE}
-- Target: {TARGET}
-- Files: {count} files, {+lines} added, {-lines} removed
-{If PATHS provided:}
-- Focus: {PATHS}
-
-**Existing utilities found:**
-- {utility directory/module} — {what it provides}
-- {utility directory/module} — {what it provides}
-
-**Patterns observed in codebase:**
-- {pattern 1 — e.g., "All date formatting goes through utils/date.ts"}
-- {pattern 2 — e.g., "Error handling uses AppError class hierarchy"}
-
----
-
-## 1) Executive Summary
-
-**Merge Recommendation:** {APPROVE | APPROVE_WITH_COMMENTS | REQUEST_CHANGES | BLOCK}
-
-**Rationale:**
-{2-3 sentences explaining recommendation}
-
-**Simplification Opportunity:**
-- Reuse findings: {count} ({high-level summary})
-- Quality findings: {count} ({high-level summary})
-- Efficiency findings: {count} ({high-level summary})
-
----
-
-## 2) Findings Table
-
-| ID | Sev | Conf | Lens | File:Line | Issue |
-|----|-----|------|------|-----------|-------|
-| CS-1 | HIGH | High | Reuse | `utils.ts:45` | Reimplements existing `formatDate()` |
-| CS-2 | MED | Med | Quality | `handler.ts:20` | Copy-pasted validation in 3 handlers |
-| CS-3 | MED | High | Efficiency | `api.ts:80` | Sequential awaits could be parallel |
-
-**Findings Summary:**
-- BLOCKER: {count}
-- HIGH: {count}
-- MED: {count}
-- LOW: {count}
-- NIT: {count}
-
----
-
-## 3) Findings (Detailed)
-
-### CS-1: Reimplements existing `formatDate()` [HIGH]
-
-**Location:** `src/components/utils.ts:45-55`
-**Lens:** Reuse
-
-**Evidence:**
-```typescript
-// New code (lines 45-55)
-function formatTimestamp(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-```
-
-**Existing utility:**
-```typescript
-// src/utils/date.ts:12 — already exists
-export function formatDate(date: Date, format: string = 'YYYY-MM-DD'): string { ... }
-```
-
-**Simpler alternative:**
-```typescript
-import { formatDate } from '../utils/date';
-// Replace formatTimestamp(date) with formatDate(date)
-```
-
-**Severity:** HIGH | **Confidence:** High
-**Why it matters:** Two date formatters will drift. When one gets a timezone fix, the other won't.
-
----
-
-{... additional findings follow same pattern ...}
-
----
-
-## 4) Triage Decisions
-
-| ID | Sev | User Decision | Notes |
-|----|-----|---------------|-------|
-| CS-1 | HIGH | Fix | Address in next implement pass |
-| CS-2 | MED | Defer | Track as tech debt |
-| CS-3 | MED | Fix | — |
-
-**To fix:** {list IDs}
-**Deferred:** {list IDs}
-**Dismissed:** {list IDs}
-
----
-
-## 5) Recommendations
-
-### Must Fix (user selected)
-{List with finding IDs and what to do}
-
-### Deferred (tech debt)
-{List with finding IDs}
-
-### Dismissed (false positives or intentional)
-{List with finding IDs and reason}
-
----
-
-## 6) False Positives & Context I May Have Missed
-
-**Where I might be wrong:**
-1. {Finding ID}: {Why this might be intentional}
-2. {Finding ID}: {Why the "existing utility" might not apply here}
-
----
-
-*Review completed: {YYYY-MM-DD}*
-*Session: [{SESSION_SLUG}](../README.md)*
-```
-
-# SUMMARY OUTPUT
-
-After creating review and completing triage, print:
-
-```markdown
-# Code Simplification Review Complete
-
-## Review Location
-Saved to: `.ai/reviews/{SESSION_SLUG}/reviews/review-code-simplification-{YYYY-MM-DD}.md`
-
-## Merge Recommendation
-**{APPROVE | APPROVE_WITH_COMMENTS | REQUEST_CHANGES | BLOCK}**
-
-## Findings by Lens
-- Reuse: {count} ({high-level})
-- Quality: {count} ({high-level})
-- Efficiency: {count} ({high-level})
-
-## Triage Results
-- Fix: {count} findings selected for fixing
-- Defer: {count} findings deferred
-- Dismiss: {count} findings dismissed
-- Skipped (LOW/NIT): {count}
-
-## Statistics
-- Files reviewed: {count}
-- Lines changed: +{added} -{removed}
-- Findings: BLOCKER: {X}, HIGH: {X}, MED: {X}, LOW: {X}, NIT: {X}
-
-## Next Steps
-{If findings marked "Fix":}
-Address these findings in `$wf implement` or apply manually:
-- {CS-ID}: {one-line description}
-
-{If no findings to fix:}
-Code is clean — proceed to next stage.
+## Summary
+- Open findings: {N} (resolved this run: {N})
 ```
 
 # WHEN TO USE

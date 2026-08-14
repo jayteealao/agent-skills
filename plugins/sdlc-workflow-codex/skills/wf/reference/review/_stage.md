@@ -25,7 +25,7 @@ You are a **review dispatch orchestrator that owns an accumulating findings ledg
 - Do not auto-loop **within this invocation**: dispatch fix sub-agents once, record outcomes, stop. A further pass is a fresh `$wf review` that merges into the same ledger. **No round counter and no `convergence` state.** Verify-after-fixes requires the user to re-invoke `$wf verify`.
 - Do NOT handoff or ship — those are later stages.
 - Your job: **orient → read existing ledger → gather change stats → select commands → dispatch review sub-agents → merge + dedupe + resolve-sweep → triage → dispatch fix sub-agents → record outcomes → write merged verdict + Fix Status**.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
+- Order matters only where the ledger does: merge before triage, triage before the fix loop, outcomes recorded before the verdict. Reading and dispatch may interleave freely.
 - If you catch yourself reviewing code directly, STOP — spawn a sub-agent. If you catch yourself fixing code outside Step 4c, STOP — the fix loop only runs at Step 4c.
 
 # TRIAGE MODE
@@ -456,9 +456,9 @@ Runs only if Step 4b produced at least one `Fix` decision. Dispatch fix sub-agen
 
 Before dispatching, note the count of findings triaged `Fix` at Step 4b (transient — not persisted to frontmatter). If 0, skip to Step 5.
 
-## Fix dispatch (sequential)
+## Fix dispatch (parallel, worktree-isolated)
 
-For each finding triaged `Fix`, sequentially (one at a time):
+Dispatch a fix sub-agent for **every** finding triaged `Fix` **in parallel** — each fix runs in its own git worktree, so concurrent patches cannot collide; the step-3 sanity check is the merge gate. For each finding:
 1. Spawn ONE sub-agent with this prompt:
    ```
    Fix the following review finding in the codebase:
@@ -492,7 +492,7 @@ For each finding triaged `Fix`, sequentially (one at a time):
      Self-check: <command> → exit <N>
      A brief summary of what you changed and whether the fix is confirmed.
    ```
-2. Wait for the sub-agent to complete.
+2. As each sub-agent completes, take its patch through step 3 before merging it into the shared tree. **On a patch-overlap conflict** (two fixes touch the same lines), merge one, then re-dispatch the other against the merged state — serial for the conflicting pair only.
 3. Read the changed file(s) and sanity-check the patch against **both** the finding and the suggested fix's method ([_fix-loop.md](../_fix-loop.md) rule 5) — `Method: deviated` is never accepted on the subagent's own word; re-read it against what was suggested, and discard a deviation that crosses an explicit prohibition.
 4. **Record the outcome ON the finding** — set `status` and `fixed-at = now` in `## All Findings`, `## Findings (Detailed)`, `## Fix Status`, and the sibling `.yaml`:
    - fixed → `status: fixed` (drops out of OPEN counts and verdict).
@@ -508,7 +508,7 @@ Do **not** re-dispatch reviews this invocation — re-checking the fixed code is
 
 If at least one `Fix` sub-agent successfully modified files: follow the shared commit discipline ([_fix-loop.md](../_fix-loop.md) rule 7) with message `fix(<slug>): review-time fixes for <slice-slug>` (per-slice mode) or `fix(<slug>): review-time fixes` (slug-wide mode), and record the commit SHA in the review artifact's `## Fix Status` section AND in this run's `runs:` frontmatter entry (`fix-commit`).
 
-The fix sub-agents and commit replace the manual `$wf implement <slug> [<slice>] reviews` round-trip for the common case. That mode remains as a manual escape (e.g., `could-not-fix` findings remain, or the user prefers the sequential per-finding fix UI).
+The fix sub-agents and commit replace the manual `$wf implement <slug> [<slice>] reviews` round-trip for the common case. That mode remains as a manual escape (e.g., `could-not-fix` findings remain, or the user prefers the per-finding fix UI).
 
 ---
 

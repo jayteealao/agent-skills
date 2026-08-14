@@ -36,7 +36,7 @@ You are a **scope expander**, not a problem solver.
 - Do NOT change `status: complete` entries in `03-slice.md`.
 - Do NOT write implementation code or plans.
 - Your job is: **orient → extract new scope → interview → write new slice files → update index**.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 ---
 
@@ -142,18 +142,13 @@ Rules:
 
 ---
 
-# Step 3 — Confirm New Slices
+# Step 3 — Confirm New Slices (one confirmation)
 
-Before writing anything, present the proposed new slices for confirmation using AskUserQuestion:
-
-- **header**: "Proposed new slices — confirm before writing"
-- **question**: "This will add the following new slice(s) to workflow `<slug>`: [list each: slug, goal, complexity, depends-on]. Existing slices will not be modified. Proceed?"
-- Options:
-  - `Confirm` / label: "Confirm — create slices", description: "Write the new slice files"
-  - `Revise` / label: "Revise", description: "I want to adjust the slice definitions"
-  - `Cancel` / label: "Cancel", description: "Don't add any new slices"
-
-If Revise, return to Step 2 with the feedback. If Cancel, STOP.
+Extension is additive by contract — it never modifies existing slices — so one confirmation is
+enough. In the final interview round, present the proposed slices in one message: each slug, goal,
+complexity, and depends-on, plus the sentence "Existing slices are not modified." Ask the user to
+confirm. When the user requests changes, apply them and confirm the changed slices in the same
+exchange. When the user declines, STOP.
 
 ---
 

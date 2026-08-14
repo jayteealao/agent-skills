@@ -26,12 +26,10 @@ This command does NOT advance the workflow, run a stage, or change any code. The
 
 # CRITICAL — execution discipline
 You are a **storyteller of the work done**, not a problem solver.
-- Do NOT advance the workflow, fix issues, write code, or start any stage.
-- Do NOT modify any workflow files except `90-recap.md`.
+- Recap is read-only: do not advance the workflow, do not change code, and do not modify any workflow file except `90-recap.md`.
 - Your job is to **read the trail and retell it understandably** — someone who has been away, or has never seen this workflow, should finish the recap knowing what happened and where it stands.
 - Favor **clarity over compression**. This is not a token-minimised sub-agent brief; it is a readable catch-up. Be tight — no filler — but never sacrifice understandability to hit a word count.
-- Follow the numbered steps below **exactly in order**.
-- If you catch yourself about to start working on the project, STOP. Output the recap and nothing else.
+- Read the full trail (Step 1) before you write, and write `90-recap.md` before you return the recap in chat.
 
 # Step 0 — Resolve scope
 

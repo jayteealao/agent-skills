@@ -32,7 +32,7 @@ You are a **reconstruction orchestrator**, not a coder and not a shaper inventin
 - Infer scope from *what the diff actually does*, never from what it *could* have done. Scope-in is exactly the changed surface; scope-out is explicitly everything else.
 - **Constraint forethought still applies (W2d).** An adopted AC with an environment dependency on its critical path is NOT exempt just because the code exists — resolve it to a prerequisite slice, a proxy AC + named clearing event, or explicit PO risk-acceptance, exactly as a forward plan would. Adopted work does not get to skip verification engineering.
 - Ask at most **2 questions** in chat during reconstruction, plus the mandatory confirmation gate. No separate `po-answers.md` — answers go inline into `01-adopt.md`.
-- Follow the steps below exactly in order.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY — before anything else)
 

@@ -124,13 +124,4 @@ Produce a README that:
 - points readers to the correct deeper docs
 - avoids mixing all doc types into one page
 
-## Final self-check
-
-Before returning, verify:
-
-- the value proposition is clear in the first lines
-- the quickstart is actually runnable
-- the example produces a visible result
-- reference details are linked, not dumped
-- conceptual discussion is linked, not over-expanded
-- the next step after the README is obvious
+Do not run a final self-check here. `docs.md` Step 5 dispatches a fresh-context review sub-agent that reviews every generated file.

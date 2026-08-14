@@ -32,9 +32,7 @@ Brand color strategy — pick one:
 - **Full palette** — 3–5 colors, each with a defined role
 - **Drenched** — color owns the surface; the brand is its palette
 
-Committed, Full palette, and Drenched deliberately exceed the ≤10% rule. Unexpected combinations are allowed when the chosen strategy calls for it.
-
-Use OKLCH. Never `#000` or `#fff`. Tint every neutral toward the brand hue (chroma 0.005–0.01 is enough).
+Committed, Full palette, and Drenched deliberately exceed the ≤10% rule. Unexpected combinations are allowed when the chosen strategy calls for it. The shared color laws (OKLCH, tinted neutrals) apply.
 
 ## Layout
 
@@ -49,12 +47,6 @@ Orchestrated page-load sequences are available. Staggered reveals, scroll-driven
 
 Motion is part of the brand voice, so match it to personality: a playful brand can carry real spring `bounce` and overshoot that product UI never would; an austere editorial brand stays restrained and slow. The values should cohere with the type, color, and name — the way Sonner's slightly-slower `ease` reads as elegant. Even at full theatrical ambition, motion stays interruptible and GPU-composited — cinematic is no excuse for dropped frames. See `animate.md` for the mechanics.
 
-## Absolute bans (brand and product both)
+## Bans
 
-- `border-left` or `border-right` > 1px as a decorative colored side stripe — use a full hairline border, a background tint, or a leading glyph instead
-- Purple-blue generic gradients
-- Generic hero metric cards ("10x faster", "500+ customers") without real product proof
-- Nested card-inside-card layouts
-- Bounce or elastic easing in production UI
-- Pure black (`#000`) or pure white (`#fff`) for text or large surface areas
-- Fraunces or Cormorant as the primary display face on a new brand surface
+Apply the ban list in [_design-context.md](_design-context.md).

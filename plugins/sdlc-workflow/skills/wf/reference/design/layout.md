@@ -85,9 +85,10 @@ Two spatial details that read as "off" when they're wrong:
 
 **Broken on mobile**: fix the breakpoint collapse structure — start from the mobile layout and add complexity, not remove it.
 
-## Absolute bans
+## Never
+
+Apply the ban list in [_design-context.md](_design-context.md).
 
 - Fixed pixel widths on containers that need to respond to the viewport
 - Mixing font-size and spacing systems (using `px` values that don't relate to each other)
-- Nested card-inside-card layouts creating excessive depth
 - Layout changes that only move elements without resolving the underlying grid problem

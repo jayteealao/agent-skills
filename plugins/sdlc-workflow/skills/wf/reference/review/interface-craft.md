@@ -148,105 +148,17 @@ Interactive elements need ~40×40px (WCAG target 44×44px). When the visible ele
 
 # WORKFLOW
 
-## Step 1: Inventory craft surfaces in the diff
+Read the intake and plan artifacts for the workflow to learn the intent of the change. Take the review scope and the diff from the dispatch prompt, per [_stage.md](_stage.md). Hunt defects with the checklist in this file. Record `file:line` evidence for every finding.
 
-Search for: `rounded`, `border-radius`, `<img`, `outline`, `box-shadow`, `border:`/`border-`, `tabular`, `font-variant-numeric`, `text-wrap`/`text-balance`/`text-pretty`, `antialiased`, `will-change`, `transition`.
+# OUTPUT
 
-## Step 2: Apply the checklist
-
-Sections 1–10. Mismatched nested radius, tinted image outline, dynamic number without `tabular-nums`, and sub-40px hit areas are findings on sight.
-
-## Step 3: Generate the review report
-
-Create `.claude/<SESSION_SLUG>/reviews/review-interface-craft-<YYYY-MM-DD>.md` with findings.
-
-## Step 4: Update session README
-
-```bash
-echo "- [Interface-Craft Review](reviews/review-interface-craft-$(date +%Y-%m-%d).md)" >> .claude/<SESSION_SLUG>/README.md
-```
-
-# OUTPUT FORMAT
-
-Create `.claude/<SESSION_SLUG>/reviews/review-interface-craft-<YYYY-MM-DD>.md`:
+Write the findings file, the sibling `.yaml`, and the fragment per the output contract in [_stage.md](_stage.md). Use this skeleton for each detailed finding:
 
 ```markdown
----
-command: /wf review interface-craft
-session_slug: <SESSION_SLUG>
-scope: <SCOPE>
-target: <TARGET>
-completed: <YYYY-MM-DD>
----
-
-# Interface-Craft Review
-
-**Scope:** <Description>
-**Reviewer:** Claude Interface-Craft Review Agent
-**Date:** <YYYY-MM-DD>
-
-## Summary
-
-<Overview of polish/detail issues>
-
-**Severity Breakdown:**
-- HIGH: <count> (hit areas)
-- MED: <count> (concentric radius, tinted image outlines, missing tabular-nums, transition: all, shadows-vs-borders)
-- LOW/NIT: <count> (text-wrap, font smoothing, spacing one-offs, will-change)
-
-**Merge Recommendation:** <BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS>
-
----
-
-## Findings
-
-### Finding 1: <Title> [MED]
-
-**Location:** `<file>:<line>`
-
-**Issue:** <the detail done carelessly and the visible effect>
-
-**Fix:**
-```
-<the corrected class/property>
-```
-
----
-```
-
-Group changes by principle and present them as **Before / After** tables — one row per diff, every change listed (not a subset). Omit a principle's table entirely if nothing needed changing (empty tables are noise):
-
-#### Concentric border radius
-| Before | After |
-| --- | --- |
-| `rounded-xl` card + `rounded-xl` inner button (`p-2`) | `rounded-2xl` card, `rounded-lg` inner button |
-
-#### Image outlines
-| Before | After |
-| --- | --- |
-| `outline-slate-700` on image | `outline-black/10 dark:outline-white/10` |
-
-# SUMMARY OUTPUT
-
-```markdown
-# Interface-Craft Review Complete
-
-## Review Location
-Saved to: `.claude/<SESSION_SLUG>/reviews/review-interface-craft-<YYYY-MM-DD>.md`
-
-## Merge Recommendation
-**<BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS>**
-
-## Detail Impact
-- Hit areas / accessibility-adjacent (HIGH): <count>
-- Surface detail — radius / outline / shadow (MED): <count>
-- Numerics / text wrapping / smoothing (LOW–NIT): <count>
-
-## Top Fixes
-1. <file>:<line> — <fix>
-2. <file>:<line> — <fix>
-
-## Next Actions
-1. <Immediate action>
-2. <Follow-up>
+### {ID}: {Title} [{SEVERITY}]
+**Location:** `{file}:{line-range}`
+**Evidence:** {quoted snippet}
+**Issue:** {description}
+**Fix:** {suggestion for HIGH and above}
+**Severity:** {level} | **Confidence:** {High/Med/Low}
 ```

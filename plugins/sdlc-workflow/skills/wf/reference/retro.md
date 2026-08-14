@@ -36,7 +36,7 @@ You are a **workflow orchestrator**, not a problem solver.
 - Do NOT apply the improvements you suggest — only document them.
 - Do NOT reopen implementation or start new work.
 - Your job is to **extract lessons and propose concrete, copy-paste-ready improvements**.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 - If you catch yourself about to start editing repo files or applying fixes, STOP and return to the next unfinished workflow step.
 
@@ -88,22 +88,7 @@ When the workflow trail is large or spans multiple domains, launch parallel sub-
 
 ### Analysis sub-agent 1 — Implementation & Verification Friction
 
-Prompt the agent with ALL of the following:
-
-**Plan-to-implementation drift:**
-- Compare `04-plan-<slice>.md` → `## Step-by-Step Plan` with `05-implement-<slice>.md` → `## Deviations from Plan`
-- Count: steps that went as planned, steps that required adaptation, steps that were skipped, steps that were added
-- For each deviation: was it caused by stale plan assumptions, insufficient exploration, scope creep, or legitimate discovery?
-
-**Verification effectiveness:**
-- Read `06-verify-<slice>.md`. Count: checks run, checks passed, checks failed, acceptance criteria met vs. not met
-- Were there test failures that pointed to real bugs vs. flaky tests vs. test environment issues?
-- Did verification catch issues that should have been caught earlier (during planning or implementation)?
-- Were there acceptance criteria that couldn't be verified? Why?
-
-**Time & iteration analysis:**
-- Check git log for the implementation commits. How many commits? Were there fix-up commits that suggest rework?
-- Were there cycles back to earlier stages (re-plan, re-implement)? What triggered them?
+Charter: read the plan, implement, and verify artifacts plus the git log, and report where the build fought its plan — plan-to-implementation drift with a cause per deviation (stale assumption, thin exploration, scope creep, or legitimate discovery), verification effectiveness (what the checks caught, what should have been caught earlier, what could not be verified and why), and rework signals in the commit history. Every count names the artifact or tool result it came from. The harvest below is CONTRACT — pass it verbatim:
 
 **Deferred-debt harvest (this workflow only):**
 - Collect every intentional-simplification marker this workflow introduced: grep the workflow's commits for `sdlc-debt:` (`git log -p <base-branch>..HEAD | grep -nE 'sdlc-debt:'`) and read each slice's `05-implement-<slice>.md` → `## Anything Deferred` / `## Known Risks / Caveats`.
@@ -112,24 +97,7 @@ Prompt the agent with ALL of the following:
 
 ### Analysis sub-agent 2 — Review & Handoff Quality
 
-Prompt the agent with ALL of the following:
-
-**Review findings analysis:**
-- Glob and read every `07-review-*.md` file in the workflow directory — there is one master review per slice plus per-command sub-reviews (e.g., `07-review-<slice-slug>-<command>.md`). Aggregate findings across all slices.
-- Classify findings: how many were real bugs vs. style nits vs. false positives? Findings carry a `status` (open/resolved/fixed/could-not-fix/dismissed) and a `surfaced-at` stamp — note how many were `resolved` across re-runs vs. still `open` at handoff, and how many passes the frontmatter `runs:` ledger shows the review took.
-- Were BLOCKER/HIGH findings things that should have been caught by tests, linting, or planning?
-- Did the review miss anything that was later found in ship or production?
-
-**Handoff completeness:**
-- Read `08-handoff.md`. Was the PR description clear enough for an external reviewer?
-- Were migration notes, config changes, and rollback instructions accurate?
-- Did the documentation plan from `02-shape.md` get fulfilled? Check if promised docs were actually written.
-
-**Communication gaps:**
-- Read `po-answers.md`. Were there questions that took multiple rounds to resolve?
-- Were there assumptions made without asking that later turned out wrong?
-- Did any stage produce artifacts that the next stage couldn't use directly?
-- Which adoption-matrix `USE` rows never earned their install (installed but zero usage)? Cross-reference `02-shape.md`'s adoption matrix against what shipped — a `USE` dependency with no production import/call is committed-and-abandoned debt worth naming.
+Charter: read every `07-review-*.md` (master per slice plus per-command sub-reviews), `08-handoff.md`, `po-answers.md`, and `02-shape.md`, and report — findings quality (real bugs vs. nits vs. false positives, what stayed `open` at handoff, what tests or planning should have caught, what review missed that ship or production later found); handoff completeness (PR clarity, migration/rollback accuracy, whether the shape's documentation plan was fulfilled); communication friction (multi-round questions, wrong unasked assumptions, artifacts the next stage could not use); and adoption-matrix `USE` rows that never earned their install. Every count names the artifact it came from. The block below is CONTRACT — pass it verbatim:
 
 **Intent drift (transitive fidelity — code vs. intake):**
 - Which intake directives did the shipped code **narrow**, and was each narrowing **ratified**? Cross-reference `02-shape.md`'s `## Intake Fidelity` table and any `07-review-*intent-fidelity*.md` findings against what actually shipped — an unratified narrowing is a lesson, not a footnote.
@@ -138,23 +106,7 @@ Prompt the agent with ALL of the following:
 
 ### Explore sub-agent 3 — Repo Infrastructure Improvement Opportunities
 
-Prompt the agent with ALL of the following:
-
-**CLAUDE.md / AGENTS.md gaps:**
-- Read `CLAUDE.md` and `AGENTS.md` (if they exist). Based on the workflow experience, identify:
-  - Conventions the team follows that aren't documented
-  - Patterns that were discovered during exploration that should be codified
-  - Common mistakes or anti-patterns that should be warned against
-
-**Hook & automation opportunities:**
-- Read `.claude/settings.json` and any `hooks/hooks.json` files
-- Based on review findings and verification failures, are there checks that should be automated as hooks?
-- Were there repetitive manual steps that could be automated (PreToolUse validation, PostToolUse feedback, Stop completeness checks)?
-
-**Test & CI gaps:**
-- Based on verification results, are there test categories that are missing (integration tests, E2E, contract tests)?
-- Were there CI checks that would have caught issues earlier?
-- Are there test helpers or fixtures that should be created to make future testing easier?
+Charter: from this workflow's experience, report the repo improvements that would make the next workflow cheaper — undocumented conventions and discovered patterns that belong in `CLAUDE.md`/`AGENTS.md`; checks worth automating as hooks given the review findings and verification failures; and missing test categories, CI checks, or test helpers the verification results expose. Each recommendation names the finding or failure that motivates it.
 
 Merge all sub-agent findings and deduplicate. Write into `## What Went Well`, `## Friction / Failure Points`, `## Root Causes`, `## Recommended Improvements`, and `## Deferred Debt`.
 
@@ -231,7 +183,7 @@ Extract reusable lessons and turn them into concrete improvements to prompts, ho
 - **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read it and honor it in the output — existence is optional, consumption is required; silent omission is a contract violation.
 
 # Chat return contract
-After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Retro` story voice, then this receipt:
+Apply [_grounded-progress.md](_grounded-progress.md): every count this stage reports (checks run/passed, commits, findings) names the artifact or tool result it came from. After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Retro` story voice, then this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `next: workflow complete` (or options if follow-up is warranted)

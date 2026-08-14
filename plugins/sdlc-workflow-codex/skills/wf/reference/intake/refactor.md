@@ -32,7 +32,7 @@ You are a **refactoring orchestrator**. The singular goal is identical external 
 - **NEVER skip a failing test** with `skip`/`xtest`/`@Ignore`/comments. A test failing after your changes = a regression — fix the refactor, not the test.
 - **NEVER rewrite in one large commit.** Each plan step must leave the codebase working and green.
 - **NEVER assume tests are sufficient.** The baseline (Step 2) records what tests actually cover; gaps are risk.
-- The lifecycle skips no *stage* — each is single-pass. Follow the steps exactly in order.
+- The lifecycle skips no *stage* — each is single-pass. Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:

@@ -58,7 +58,7 @@ You are a **documentation orchestrator**. You are not a writer operating in isol
 - Do NOT modify source code while generating docs. Documentation lives in markdown files.
 - Do NOT delete or overwrite existing documentation without explicitly noting the deletion in the plan and confirming with the user.
 - For `mode: workflow`: read the actual workflow artifacts (`02-shape.md`, `03-slice.md`, `08-handoff.md`) to understand what was built before writing anything.
-- Follow the numbered steps exactly in order.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 1 — Discover (orchestrator only)
 Find all existing documentation in scope.
@@ -206,9 +206,9 @@ If `audit-only: true` → **STOP HERE**. Present the plan in chat. Do not procee
 > 4. Adjust plan (describe changes)
 
 # Step 4 — Generate (orchestrator only)
-Execute the plan in priority order.
+Execute the plan. **Generate independent doc actions in parallel** — each action writes its own target file, so dispatch them together and apply steps 1–4 per action; only actions that touch the same file run in sequence. The confirm-before-delete gate in step 5 stays.
 
-For each action, sequentially:
+For each action:
 
 1. Create a task entry: `"<action-type> <file-path>"`.
 2. **Read required source files** before writing anything — do not write from memory.

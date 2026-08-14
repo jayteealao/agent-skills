@@ -9,7 +9,12 @@ Gather and document the design context for a project. Creates or updates PRODUCT
 
 ## Step 1: Discovery interview
 
-Ask these questions one group at a time. Stop and wait for answers between groups. Don't ask more than 3 questions at once.
+Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Before you ask any question, pre-fill the answers:
+
+1. For each question in the groups below, search the user prompt, PRODUCT.md, DESIGN.md, and the codebase for an answer.
+2. When a source answers a question, record the answer and the source. Do not ask that question.
+3. Ask the unanswered questions in ONE batched round. Then stop and wait for the answers.
+4. When no unanswered questions remain, skip the round and continue to Step 2.
 
 ### Group 1: Register and purpose
 - Is this primarily a **brand** surface (landing page, marketing, campaign, portfolio) or a **product** surface (app, dashboard, tool, authenticated experience)?
@@ -88,7 +93,7 @@ If no design information is available yet, create DESIGN.md with placeholder sec
 
 ## Step 4: Confirm
 
-Present both files to the user for review:
+Present both files to the user for review. List each pre-filled answer with its source in the same message:
 > "I've created PRODUCT.md and DESIGN.md. Please review and confirm — or tell me what to update."
 
 Wait for confirmation. After confirmation, these files are the context anchors for all future /wf design commands.

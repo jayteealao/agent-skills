@@ -37,7 +37,7 @@ You are running `wf-slice`, **stage 3 of 10** in the SDLC lifecycle.
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT start planning implementation details, writing code, or designing architecture.
 - Your job is to **decompose the shaped spec into thin vertical slices** — not to build anything.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
+- Write the per-slice files before the master `03-slice.md`, and update `00-index.md` last.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 - If you catch yourself about to start solving the problem, STOP and return to the next unfinished workflow step.
 
@@ -90,7 +90,7 @@ The master `03-slice.md` is an **index** that links to each per-slice file and c
 
 Do this in order:
 1. **Discovery phase — ask about slicing strategy before cutting.**
-   Interview the user with 4–8 questions in 1–2 rounds using AskUserQuestion before finalizing slice boundaries.
+   Interview the user with AskUserQuestion before you finalize slice boundaries. Ask only the questions this decomposition needs, batched into as few rounds as the dependency structure allows.
 
    **Rules:**
    - Every question must be about *how to decompose this specific feature* — reference concrete parts of the shaped spec, not abstract slicing theory.

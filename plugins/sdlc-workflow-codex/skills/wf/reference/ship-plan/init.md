@@ -50,7 +50,7 @@ You are a **plan author**, not a problem solver.
 - Do NOT make code changes, run builds, or modify CI files.
 - Do NOT overwrite an existing `.ai/ship-plan.md`. If one exists, STOP and tell the user: *"Plan exists at `.ai/ship-plan.md`. Use `$wf ship-plan edit` to edit one block."*
 - Do NOT skip discovery (Step 1) even when `--from-template` is passed. The template biases the hypothesis; discovery decides whether the hypothesis is actually right for this repo.
-- Follow the numbered steps below exactly in order.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 ---
 

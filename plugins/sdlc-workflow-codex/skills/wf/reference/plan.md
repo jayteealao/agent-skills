@@ -62,7 +62,7 @@ You are running `$wf plan`, **stage 4 of 10** in the SDLC lifecycle.
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT write code, edit files, or implement the plan you produce.
 - Your job is to **produce execution-ready plans** by inspecting the repo and prior artifacts — not to execute them.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 - If you catch yourself implementing, STOP and return to the next unfinished workflow step.
 
@@ -77,7 +77,7 @@ You are a **workflow orchestrator**, not a problem solver.
      - If the block is **missing entirely** → STOP. Tell the user: "Step 0.5 stack fingerprint is missing from `00-index.md`. Re-run `$wf intake <slug>` to capture it; planning's verification tooling decisions depend on it." Do NOT attempt to re-detect the stack inside plan — sub-agent 3 below MUST read from `stack:`, not from a fresh repo scan.
      - If `stack.user-confirmed: false` → WARN: "`stack:` was auto-detected but not PO-confirmed. The plan's interactive verification may pick tooling the PO does not want. Re-run intake's Batch B confirmation, or proceed and accept the risk?" Ask the user in chat. If the user proceeds, mark `stack-source: unconfirmed-auto-detect` in the plan's frontmatter so downstream stages know.
      - If `stack.user-confirmed: true` → proceed. Sub-agent 3 and the plan's interactive verification template both consume this confirmed block as their source of truth.
-   - If `current-stage` in the index is already past plan → WARN before overwriting.
+   - If `current-stage` in the index is already past plan → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
    - **Review-scope fallback (skip-to-plan path only, v9.136.0):** if `00-index.md` shows
      `review-scope-confirmed: false` (or the key is present and false — absent means a
      pre-v9.136.0 workflow that was asked at intake), the workflow bypassed `slice` (where the
@@ -132,23 +132,7 @@ Planning is research-intensive. Launch parallel sub-agents to gather information
 
 ### Explore sub-agent 1 — Affected Code Deep Dive
 
-Prompt the agent with ALL of the following. It must report findings for each section:
-
-**Files & modules the slice will touch:**
-- For each file listed in the slice definition's `## Likely Files / Areas to Touch`, read it and report: current size, key exports/classes/functions, recent git activity (`git log -5 --oneline <file>`)
-- Identify which functions/methods will need modification vs. which are new
-- Check for generated or auto-derived files that would be affected (types generated from schemas, ORM models from migrations, route tables from decorators)
-
-**Call graph & dependency chain:**
-- For each module the slice touches, trace **inbound callers** — search for imports/requires of that module across the codebase
-- Trace **outbound dependencies** — what does the module import, call, or instantiate?
-- Identify **shared state** — global variables, singletons, caches, database connections, event buses that the slice code participates in
-- Map the request/data flow through the affected code: entry point → middleware/interceptors → handler → service → repository/store → response
-
-**Existing patterns & conventions in the affected area:**
-- Read 3–5 representative files in the same directory/module. Report: naming conventions (files, functions, variables, CSS classes), error handling pattern (try/catch, Result types, error middleware), dependency injection style, logging approach
-- Check for linting rules, prettier config, or editorconfig that constrain code style
-- Look for README or CONTRIBUTING docs in the affected directory
+Charter (a goal, not a script): read every file in the slice definition's `## Likely Files / Areas to Touch` and report the modification surface — what changes vs. what is new, including generated/auto-derived files; the call graph in and out (inbound callers, outbound dependencies, shared state) and the data flow through the affected path; the conventions and style constraints the affected area already follows; and the integration surfaces around it (events, middleware, configuration, migrations). Every finding cites file:line. The four blocks below are CONTRACT — pass them to the agent verbatim:
 
 **Build-avoidance ladder (climb before proposing any new code):**
 For each capability the slice needs, climb these rungs and record the highest that holds. Scope existence is settled upstream in shape's Round 5; do not re-litigate here. This is the implementation-strategy ladder:
@@ -184,50 +168,13 @@ Pick the highest rung that meets the acceptance criteria; never trade an edge-ca
 - **Cost the wall before choosing (MANDATORY line once the tripwire fires).** Write, under the AC's row: `wall-cost: retire ≈ <effort> | carry = <N> deferred AC across <M> slice(s) riding "<clearing event>"`. The comparison usually decides itself the moment it exists — a ten-line debug-config change against ten deferred criteria stacked over five slices is not a close call, and stacks like that accumulate only because nobody was ever required to put the two numbers side by side. `harness-declined:` is lawful only *after* this line is written.
 - The plan MUST then either **scope the harness that retires the wall** (the force-scope rule's prerequisite-slice/harness option) or record an explicit PO decision not to (`harness-declined: <reason>` under the AC's row). Silence is non-compliant — repeated walls are amortized into infrastructure or declined on the record, never re-paid by default.
 
-**Integration surfaces:**
-- What events, hooks, callbacks, or pub/sub channels does the affected area participate in?
-- What middleware, interceptors, decorators, or higher-order wrappers exist on the affected code path?
-- What configuration (env vars, config files, feature flags) controls the affected behavior?
-- Are there database migrations, schema files, or seed data that would need updating?
-
 ### Explore sub-agent 2 — Second Domain (only if the slice crosses domain boundaries)
 
-Launch ONLY if the slice touches a second distinct domain (e.g., frontend + backend, CLI + library, API + worker, infra + application). Prompt with:
-
-**Domain-specific structure:**
-- Map the second domain's directory structure, entry points, and organizational pattern
-- Identify the public API surface between the two domains (shared types, API contracts, message schemas, event definitions)
-- Read 3–5 representative files in the second domain for conventions
-
-**Cross-domain contract:**
-- How do the two domains communicate? (HTTP API, gRPC, message queue, shared DB, file system, IPC)
-- Where is the contract defined? (OpenAPI spec, protobuf files, TypeScript shared types, JSON schema)
-- What happens if the contract changes? (breaking change propagation, versioning strategy, backward compatibility requirements)
+Launch ONLY if the slice touches a second distinct domain (e.g., frontend + backend, CLI + library, API + worker, infra + application). Charter: map the second domain's structure and conventions, the public API surface between the two domains, how they communicate, where the cross-domain contract is defined, and what a contract change propagates to (breaking changes, versioning, backward compatibility). Findings cite file:line.
 
 ### Explore sub-agent 3 — Test & Verification Infrastructure
 
-Prompt the agent with ALL of the following:
-
-**Test framework & configuration:**
-- Identify the test framework(s) in use (Jest, Vitest, pytest, Go testing, etc.) and their configuration files
-- Find test configuration: timeouts, parallelism settings, coverage thresholds, custom matchers/assertions
-
-**Existing test coverage for the affected area:**
-- Find all test files that cover the modules the slice will touch (search for imports of affected modules in test files)
-- Classify each test file: unit, integration, E2E, snapshot, contract
-- Run the existing tests for the affected area if possible (`npm test -- --grep <pattern>`, `pytest -k <pattern>`, etc.) — report pass/fail/skip counts
-- Identify **gaps**: which functions/branches in the affected area have NO test coverage?
-
-**Test helpers & infrastructure:**
-- List test factories, fixtures, builders, and mock utilities (file paths and what they provide)
-- Identify test database setup/teardown patterns (in-memory DB, docker containers, test transactions, seed data)
-- Check for test environment configuration (`.env.test`, test config files, CI-specific test settings)
-- Look for shared test utilities that the new tests should reuse rather than reinvent
-
-**Test patterns in use:**
-- What assertion style is used? (expect/assert, BDD given/when/then, table-driven tests)
-- How are mocks/stubs created? (jest.mock, sinon, dependency injection, test doubles)
-- How are async operations tested? (async/await, done callbacks, fake timers, test servers)
+Charter: report the test infrastructure this slice's verification will stand on — the framework(s) and their configuration; existing coverage of the modules the slice touches (run the affected tests when possible and report pass/fail/skip counts) and the uncovered gaps; the helpers, factories, fixtures, and mock utilities new tests should reuse rather than reinvent; and the assertion, mocking, and async-testing patterns in use. Findings cite file paths. The block below is CONTRACT — pass it to the agent verbatim:
 
 **Interactive & visual verification tooling:**
 
@@ -253,35 +200,9 @@ Anti-pattern to avoid: rerunning the shape's "what driver should we use?" questi
 
 Do NOT skip because the slice "feels small." Small slices frequently touch versioned dependencies or security-sensitive areas. When in doubt: launch it.
 
-Prompt the agent with ALL of the following:
+Charter: report the external knowledge this slice's plan depends on — the touched dependencies' current vs. latest versions, deprecations, and breaking changes; official-doc recommended patterns vs. what the codebase does; CVEs, known bugs, and required mitigations; ecosystem consensus and anti-patterns for this capability; and known gotchas, performance traps, and limitations the plan steps must account for. Every claim names its source. The rule below is CONTRACT — pass it to the agent verbatim:
 
-**Dependency freshness:**
-- Check the project's package manifest for versions of dependencies the slice touches
-- Web search for the **latest stable version** of each — note if the project is behind and whether upgrading matters for this slice
-- Check for **deprecation notices** or **breaking changes** between the project's version and current
-
-**API & library patterns:**
-- Web search for official documentation of each dependency/API the slice interacts with
-- Verify that patterns in the codebase match the library's **recommended approach** for the project's version
-- Check for **migration guides** if the slice involves upgrading or if the current version is approaching EOL
-
-**Security & known issues:**
-- Web search for recent CVEs or security advisories affecting dependencies the slice touches
-- Check GitHub issues on relevant dependency repos for known bugs that could affect this slice
-- Note any advisories that require specific mitigations in the plan
-
-**Implementation best practices:**
 - **Build-avoidance check (ladder rungs 1–2):** before endorsing any new dependency or hand-rolled implementation, search the language standard library and platform/framework docs for a built-in — a native input type, a stdlib function, a framework primitive, a platform API. Report the built-in when one exists; only fall through when it genuinely does not meet the acceptance criteria.
-- Web search for established patterns and community consensus on implementing this slice's specific capability — official docs, framework guides, opinionated style guides
-- Search for known anti-patterns and common mistakes — official docs, Stack Overflow, engineering blogs, community posts
-- Note any RFCs, platform specs, or framework conventions that prescribe the correct approach
-- Identify whether the approach implied by the plan is idiomatic, legacy, or an anti-pattern in the current ecosystem
-
-**Known gotchas & performance pitfalls:**
-- Web search for common performance issues (re-renders, N+1 queries, layout thrash, bundle size, memory leaks, cold-start latency, lock contention)
-- Search for community reports of surprising behavior, subtle bugs, or edge cases in the libraries and APIs this slice uses
-- Look for "lessons learned" or postmortem posts — these surface non-obvious failure modes acceptance criteria often miss
-- Note any known limitations or required workarounds the plan steps should account for
 
 Merge ALL sub-agent findings into the plan under `## Current State`, `## Likely Files / Areas to Touch`, and `## Freshness Research`. Best practices and gotcha findings should directly shape the implementation steps.
 
@@ -378,26 +299,13 @@ Steps:
 
 Steps:
 1. **Read the existing `04-plan-<slice-slug>.md`** in full.
-2. **Re-inspect the codebase** using Explore sub-agents. Compare current state to what the plan assumed — look for:
-   - Files that moved, were renamed, or were deleted since the plan was written
-   - New code that appeared (e.g., a sibling slice was implemented) that affects this plan
-   - Dependency version changes, new deprecations, or API drift
-3. **Read the slice definition** (`03-slice-<slice-slug>.md`) and shaped spec (`02-shape.md`). Check for:
-   - Plan steps that don't align with acceptance criteria
-   - Missing steps that the acceptance criteria require
-   - Ordering issues (dependencies that should come earlier)
-   - Overengineering (steps that go beyond the spec; new code where the build-avoidance ladder shows a stdlib, native-platform, or reuse option was available)
-   - Missing test/verification coverage for acceptance criteria
-4. **Read sibling plans** (`04-plan-<other>.md`). Check for:
-   - New conflicts (e.g., sibling plan now touches the same files)
-   - Integration gaps not visible before
-   - Duplicated work between plans
-5. **Produce a review summary** listing issues found (if any) with severity.
-6. **Fix the issues** found — edit the plan sections that need changing (body stays current truth).
-7. **Snapshot + ledger entry** per [_additive-write.md](_additive-write.md): `trigger: manual` (self-review), `because: "auto-review — {count} issues found"`, `changed:` what moved. Bump `revision-count`.
-8. If NO issues were found, this is a **no-op re-run**: leave the file byte-for-byte unchanged, write no snapshot and no ledger entry, and report "Auto-review: no issues found. Plan is current." in the chat return.
-9. **Update the master `04-plan.md`** if anything changed.
-10. Write the updated `04-plan-<slice-slug>.md`.
+2. **Dispatch ONE fresh-context review sub-agent** (the same sub-agent policy Review-All uses per slice — a reviewer with no memory of authoring the plan beats a self-critique). It reads the plan, `03-slice-<slice-slug>.md`, `02-shape.md`, and the sibling plans, re-inspects the codebase for the slice's scope, and returns issues with severity: drift from current code (moved/renamed/deleted files, new sibling code, dependency/API drift), misalignment with acceptance criteria (missing or extra steps, ordering, missing verification coverage), overengineering the build-avoidance ladder rules out, and cross-plan conflicts or duplication.
+3. **Produce a review summary** from the sub-agent's findings (if any) with severity.
+4. **Fix the issues** — edit the plan sections that need changing (body stays current truth).
+5. **Snapshot + ledger entry** per [_additive-write.md](_additive-write.md): `trigger: manual` (self-review), `because: "auto-review — {count} issues found"`, `changed:` what moved. Bump `revision-count`.
+6. If NO issues were found, this is a **no-op re-run**: leave the file byte-for-byte unchanged, write no snapshot and no ledger entry, and report "Auto-review: no issues found. Plan is current." in the chat return.
+7. **Update the master `04-plan.md`** if anything changed.
+8. Write the updated `04-plan-<slice-slug>.md`.
 
 ## Sub-mode: Review-All (self-review, all slices)
 **Trigger:** `$wf plan <slug> all` (plans already exist for all slices)

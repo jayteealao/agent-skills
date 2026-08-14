@@ -107,11 +107,4 @@ Produce explanation that:
 - architecture without trade-offs
 - sprawling "everything about X" pages
 
-## Final self-check
-
-Before returning, verify:
-
-- the page answers a why or about question
-- it connects ideas instead of listing steps
-- opinion is clearly presented as perspective, not disguised as fact
-- task execution details are linked, not embedded
+Do not run a final self-check here. `docs.md` Step 5 dispatches a fresh-context Explore sub-agent that reviews every generated file.

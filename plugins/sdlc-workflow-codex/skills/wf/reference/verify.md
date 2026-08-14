@@ -45,10 +45,10 @@ You are running `$wf verify`, **stage 6 of 10** in the SDLC lifecycle.
 # CRITICAL — execution discipline
 You are a **workflow orchestrator that owns its own triage→fix loop**.
 - Run checks and compare results against acceptance criteria. Do NOT improvise fixes while checks are running.
-- After all checks and the user-observable AC gate finish (Step 7.5), own a **single-round, user-gated fix loop** (Step 7.6): triage every failure in chat as a short numbered list (Fix / Skip / Escalate); `Fix` choices spawn sub-agents that apply the minimal patch; re-run only affected checks once, then finalize.
+- After all checks and the user-observable AC gate finish (Step 7.5), own a **single-round, user-gated fix loop** (Step 7.6): mechanical classes (lint / format / marker-syntax) auto-fix without a question; triage every other failure in chat as a short numbered list (Fix / Skip / Escalate); `Fix` choices spawn parallel sub-agents that apply the minimal patch; re-run only affected checks once, then finalize.
 - ONE round only. If anything still fails, write `convergence: escalated` and route to re-invoke `$wf verify` or `$wf implement` — **do not loop again in this invocation**.
 - Do NOT review, handoff, or ship — those are later stages.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps. The fix loop runs only in Step 7.6, never before checks complete.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely. The fix loop runs only in Step 7.6, never before checks complete.
 - Your only output is the workflow artifacts, the dispatched fix sub-agents, and the compact chat summary defined below.
 - If you catch yourself about to start fixing code outside Step 7.6, STOP and return to the next unfinished step.
 
@@ -69,7 +69,7 @@ You are a **workflow orchestrator that owns its own triage→fix loop**.
    - **Change-mode** (`fix` / `hotfix` / `refactor`): the un-suffixed `05-implement.md` must exist. Acceptance criteria source is `03-slice.md` + `01-<mode>.md` (refactor: also the `02-shape.md` baseline).
    - **Standard mode**: `05-implement-<slice-slug>.md` must exist.
    - All modes: if implement record shows `Status: Awaiting input` → STOP.
-   - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → WARN: "This has already been verified. Running again will overwrite. Proceed?"
+   - If `06-verify-<slice-slug>.md` (or `06-verify.md` in compressed mode) already exists → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
    - **Stack gate (do NOT silently re-detect):** Inspect the `stack:` block in `00-index.md` and `stack-source` in `04-plan-<slice-slug>.md` (standard/forwarded modes).
      - If `stack:` is **missing entirely** → STOP: "Stack fingerprint missing from `00-index.md`. Sub-agent 3 needs the PO-confirmed stack to pick adapters. Re-run `$wf intake <slug>` first." Verify must NOT re-detect — detection alone is insufficient evidence of intent.
      - If `stack.user-confirmed: false` → **HARD GATE — do not proceed silently.** Ask the user in chat: "stack: was auto-detected but the PO never confirmed it. Adapter selection may be wrong. (1) Stop and re-run intake Batch B to confirm the stack first. (2) Proceed with unconfirmed stack — result stamped weak-provenance and review/ship may refuse it." Stop → STOP. Proceed → set `stack-source: unconfirmed-auto-detect` in the verify slice frontmatter AND `## Caveats`. Never auto-proceed.
@@ -124,10 +124,10 @@ Prompt the agent with ALL of the following:
 - Report: success/failure, build warnings, output artifact verification
 
 **Default performance gate (MANDATORY — runs on every slice, even without the `benchmark` augmentation):**
-- **Bundle size (web):** If a build was produced, compare the output artifact size against the base branch: `git stash && npm run build && du -sh dist/ && git stash pop && npm run build && du -sh dist/`. A size increase ≥ 20% in any chunk is a HIGH issue. Record `metric-bundle-size-delta-pct`.
-- **Build time delta:** Record the wall-clock time of the current build vs. the base branch build (from git stash comparison above if run, otherwise from CI cache statistics). A build time increase ≥ 30% is a WARN.
+- **Bundle size (web):** If a build was produced, compare the output artifact size against the base branch via a **temporary worktree** — never a stash: `git worktree add <tmp-dir> <base-branch>`, build in the worktree, `du -sh` both outputs, then `git worktree remove <tmp-dir>`. The working tree's in-progress state stays untouched. A size increase ≥ 20% in any chunk is a HIGH issue. Record `metric-bundle-size-delta-pct`.
+- **Build time delta:** Record the wall-clock time of the current build vs. the base branch build (from the worktree comparison above if run, otherwise from CI cache statistics). A build time increase ≥ 30% is a WARN.
 - **Startup time (service/CLI):** If the adapter is `service` or `cli`, measure cold-start time (`time curl -s localhost:<port>/health` after a fresh start). A cold-start increase ≥ 15% vs. the base branch is a HIGH issue.
-- Skip the base-branch comparison if `git stash` would destroy in-progress work (check `git stash list` first; if non-empty, record `metric-bundle-size-delta-pct: skipped — stash non-empty` and proceed). In that case, still record the absolute artifact size.
+- If the worktree comparison is impossible (for example `git worktree` unavailable), record `metric-bundle-size-delta-pct: skipped — <reason>` and still record the absolute artifact size.
 - This gate is **separate from** the `benchmark` augmentation. The augmentation adds detailed profiling; this gate adds a lightweight size/startup floor that runs every time.
 
 **Security scanning (MANDATORY — runs on every slice):**
@@ -209,14 +209,9 @@ While `first-light: null`, every AC depending on that integration caps at `parti
 
 **Mitigation-wiring is traceable — "the code exists" is not evidence.** Any mitigation the shape *mandates* (fallback, escape hatch, kill switch) must be evidenced by an AC that **exercises the wired path** — fault injection, a forced fallback, a flag flip — with the mitigation actually firing. Mitigation ACs are **code-only-forbidden**: their `kind` is `user-observable` and their evidence is the mitigation firing, never a static read that the branch is present.
 
-Prompt the agent with ALL of the following:
+Prompt the agent with ONE coherent charter that covers the following:
 
-0. **Read product context before driving (MANDATORY — Gap 11 fix).** Before matching adapters or driving any criterion, build a mental model of product conventions so that observations can be held against them:
-   - Read `PRODUCT-CONTEXT.md` or `docs/product-conventions.md` at repo root if either exists.
-   - Read `02b-design.md`, `02c-craft.md`, `07-design-audit.md`, `07-design-critique.md` if present — extract any prescriptive UI/UX norms.
-   - Search / list files in the repository for the 3 most similar existing components to the surface being verified (by component name or route). Read them for visual and interaction conventions.
-   - Read the git log for the top 5 files this slice modified (`git log --oneline -10 -- <file>`) to understand the component's history and prior reviewers' concerns.
-   - Synthesize a one-paragraph "product conventions" note. Hold all observations during the drive against these conventions — not just against the criterion text. Record divergences from convention under `## Friction Notes` even when the criterion is technically met.
+0. **Read product context before driving (MANDATORY).** Read `PRODUCT-CONTEXT.md` or `docs/product-conventions.md` at repo root, and `02b-design.md` / `02c-craft.md` / `07-design-audit.md` / `07-design-critique.md`, when present; skim the most similar existing components and their recent git history. Synthesize a one-paragraph "product conventions" note and hold every observation against it, not just the criterion text. Record divergences under `## Friction Notes` even when the criterion is technically met.
 
 1. **Match adapters — constrained by confirmed stack.** Run every adapter's detection signal against the repo. Then **intersect the matches with `stack.platforms`** from `00-index.md`:
    - If `stack.user-confirmed: true` → the effective adapter set is `matched-adapters ∩ stack.platforms`. If detection finds a platform NOT in `stack.platforms` (e.g., an incidental `package.json` in an Android repo), exclude it — the PO did not confirm that surface as in-scope. Record the exclusion under `## Caveats` so the report explains why the adapter was skipped.
@@ -225,21 +220,16 @@ Prompt the agent with ALL of the following:
    - Multi-match (e.g., web + service) is common and must be driven when both are in `stack.platforms`. Record the final adapter keys under `adapters-used:` in the verify report.
 2. **Bootstrap each matched adapter** per its `Bootstrap` section. If any bootstrap step fails after the adapter's documented resolution attempts, report `bootstrap-failure: { adapter, step, exit-code, output-tail, remediation }` and do NOT proceed past bootstrap for that adapter. The user-observable AC gate (Step 6.5) will then refuse `result: pass` and require either an `interactive-verification: deferred` annotation or a remediation pass via `$wf probe`.
 
-2b. **Capture longitudinal baseline before driving (MANDATORY — Gap 3 fix).** Before driving any criterion on the current branch, capture before-state screenshots for each surface named in the AC:
-   - Check whether a prior evidence run exists at `.ai/workflows/<slug>/verify-evidence/<slice-slug>-run-*/`. If prior evidence exists, read those screenshots as the before-state — no git stash needed.
-   - If no prior evidence exists, stash current changes (`git stash --include-untracked`), boot the adapter against the base branch, screenshot each named surface, then restore (`git stash pop`). Store these as `baseline-<surface>.png` in the evidence directory.
-   - If stashing would destroy in-progress work (check `git stash list` first), skip the baseline capture and record `longitudinal-baseline-compared: skipped — stash non-empty`.
-   - During the drive phase, compare each criterion's post-drive screenshot against its baseline. Report visual deltas (layout changes, missing elements, new elements, color or typography shifts) under `## Longitudinal Delta` for each criterion. A delta is informational — it is only a finding if it contradicts the criterion or product conventions.
+2b. **Capture longitudinal baseline before driving (MANDATORY).** Before driving any criterion, capture before-state screenshots:
+   - If a prior evidence run exists at `.ai/workflows/<slug>/verify-evidence/<slice-slug>-run-*/`, use those as the before-state.
+   - Otherwise, create a **temporary worktree at the base branch** (`git worktree add <tmp-dir> <base-branch>`), boot the adapter against it, screenshot each named surface, then remove the worktree (`git worktree remove <tmp-dir>`). Store as `baseline-<surface>.png`. Never stash — the working tree's in-progress state stays untouched.
+   - Compare each post-drive screenshot against its baseline. Report visual deltas (layout, missing/new elements, color or typography shifts) under `## Longitudinal Delta`. A delta is a finding only if it contradicts the criterion or product conventions.
 
-3. **For each user-observable AC**, follow the adapter's `Drive` and `Observe` recipes, with these mandatory extensions:
-
-   **a. Multi-point evidence capture (Gap 12 fix):** Do not capture only the final settled state. For each criterion drive, capture evidence at three distinct moments: the initial response immediately after triggering the action, the transition or loading state while the system is processing, and the final settled state after the action completes. Name files to reflect the moment (`-initial`, `-transition`, `-final` or equivalent). Report on each frame: was a loading indicator shown? Did transitions complete cleanly? Was there any blank, broken, or inconsistent intermediate state?
-
-   **b. Stability check (Gap 4 fix):** After the first drive produces a result, re-drive the same criterion at least twice more without resetting state. If any re-drive produces a different outcome — different visual state, different console output, different response — flag the criterion as `stability: flaky`. Flaky criteria are HIGH issues indicating race conditions or state leakage. Record `stability-check-flaky-count: <N>`.
-
-   **c. Perceptual review pass (Gap 2 fix):** After determining pass/fail against the criterion text, make a second independent pass on the final screenshot. Ask: *independent of the criterion, what do I notice about this screen?* Report on: visual hierarchy, spacing consistency, font rendering, element alignment, truncated text, color divergences, anything that would make a first-time user pause. Record under `## Friction Notes` (informational unless they contradict product conventions from step 0).
-
-   **d. Anomaly investigation mandate (Gap 9 fix):** When reading evidence (screenshot, response body, console output), if anything appears unexpected — a console error, a network request to an unexpected endpoint, an element present/absent unexpectedly — pivot: open DevTools console (via CDP or MCP browser tools), read the network tab, inspect the DOM. Report as a sub-finding. Never filter an anomaly as "probably unrelated" — record and let the reviewer decide.
+3. **For each user-observable AC**, follow the adapter's `Drive` and `Observe` recipes, and gather evidence a reviewer can trust:
+   - **Capture the moments that show the behavior** — initial response, transition/loading state, final settled state — named `-initial` / `-transition` / `-final`. Report any blank or broken intermediate state.
+   - **Re-drive the criterion at least twice more** without resetting state. A differing re-drive is `stability: flaky` — a HIGH issue. Record `stability-check-flaky-count: <N>`.
+   - **Make one perceptual pass on the final state**: independent of the criterion, what would a first-time user notice? Record under `## Friction Notes` (informational unless it contradicts product conventions from step 0).
+   - **Investigate every anomaly** (console error, unexpected network request, missing or extraneous element) to a sub-finding — DevTools console, network tab, DOM. Never filter an anomaly as "probably unrelated"; record it and let the reviewer decide.
 
    - Navigate or invoke the surface named in the criterion.
    - Perform the user actions described.
@@ -248,21 +238,11 @@ Prompt the agent with ALL of the following:
 4. **Tear down each adapter** per its `Tear down` section. Idempotent — re-runs of verify must not leave the environment dirtier each pass.
 5. **Run existing test suites** that target the same surface (Playwright/Cypress E2E for web, Maestro suites for Android, XCUITest for iOS, etc.) in addition to the per-criterion drives, when they exist. The adapter's `Drive` section names the relevant suite invocations.
 
-6. **Free exploration (MANDATORY — Gap 1 fix).** After verifying all AC, set aside the criteria list and navigate the surface as a first-time user. Cover every interactive element, at least one adjacent flow, and try reaching the same outcome via a different path. Note anything that surprises, feels incomplete, or breaks — even if every AC passes. Record under `## Free Exploration Notes` (informational; does not affect `result:`, but reviewer-visible). A finding that directly contradicts any AC becomes a standard issue.
+6. **Free exploration (MANDATORY).** After verifying all AC, set aside the criteria list and navigate the surface as a first-time user. Cover every interactive element, at least one adjacent flow, and try reaching the same outcome via a different path. Note anything that surprises, feels incomplete, or breaks — even if every AC passes. Record under `## Free Exploration Notes` (informational; does not affect `result:`, but reviewer-visible). A finding that directly contradicts any AC becomes a standard issue.
 
-7. **Adversarial micro-tests (MANDATORY — Gaps 5 & 10 fix).** After free exploration, run this fixed test set regardless of whether AC specify these scenarios:
-   - **Empty submission:** Submit with no input. Crash or unhandled error = BLOCKER; graceful validation = informational.
-   - **Extreme input:** Paste a very large input into each text field. Crash or UI breakage = HIGH; clean truncation/rejection = informational.
-   - **Rapid repeat:** Trigger the primary action multiple times rapidly. Record duplicate submissions, debouncing, or UI breakage.
-   - **Mid-flow interruption:** Navigate away mid-flow then back. Record whether state is preserved, cleared gracefully, or broken.
-   - **Network failure:** Trigger offline or degraded-network during the primary action. Crash or blank screen = HIGH; graceful error = informational.
-   Record under `## Adversarial Tests`. BLOCKER and HIGH findings enter the main issue list; informational findings stay in the adversarial section.
+7. **Adversarial micro-tests (MANDATORY).** After free exploration, probe the failure modes the primary action surface **invites** — empty, extreme, repeated, interrupted, degraded — where applicable to that surface (a read-only dashboard invites no empty-submission test; a form invites them all): empty submission, oversized input, rapid repeat, mid-flow interruption (navigate away and back), and simulated network failure. A crash or unhandled error is a BLOCKER; UI breakage is HIGH; graceful handling is informational. Record all results under `## Adversarial Tests`; name any mode skipped as inapplicable and why. BLOCKER and HIGH findings enter the main issue list.
 
-8. **Failure mode probes (MANDATORY — Gap 10 fix).** For each user-observable AC, after the happy path, probe boundary conditions AC never specify:
-   - **Slow response:** Enable Fast 3G throttling and re-drive. Record loading states, timeout handling, and final result correctness.
-   - **Concurrent session:** Open the same surface in a second session and perform the same action simultaneously. Record state collisions, double-writes, or UI desync.
-   - **Session expiry:** If auth is in scope, invalidate the session mid-flow and re-drive. Record graceful handling vs. crash/blank screen.
-   Record under `## Failure Mode Probes`. Unhandled error states are HIGH issues.
+8. **Failure mode probes (MANDATORY).** For each user-observable AC whose surface invites them, probe boundary conditions after the happy path: slow response (network throttling), concurrent session (a second independent session acting simultaneously), and session expiry (when auth is in scope). Record under `## Failure Mode Probes`; unhandled error states are HIGH issues.
 
 The `runtime-adapters.md` `Evidence protocol` and `Accessibility checks` sections apply across all platforms; do not duplicate them here.
 
@@ -285,7 +265,7 @@ After driving each user-observable criterion, run an a11y scan on the surface ju
 - `metric-a11y-violations-new: <N>` — new WCAG AA violations in slice-modified UI components
 - `stack-source: <confirmed|unconfirmed-auto-detect>` — inherited from `00-index.md` `stack.user-confirmed` and `04-plan-<slice-slug>.md` `stack-source`. Downstream stages (review, handoff, ship) may refuse to proceed on `unconfirmed-auto-detect` without explicit override.
 - `adapters-excluded-by-stack: [<key>, ...]` — adapters whose detection signals matched but were filtered out because they were not in `stack.platforms`. Empty list when stack was unconfirmed (no intersection performed).
-- `longitudinal-baseline-compared: <true | false | skipped — stash non-empty>` — whether a before/after screenshot comparison was performed
+- `longitudinal-baseline-compared: <true | false | skipped — <reason>>` — whether a before/after screenshot comparison was performed
 - `stability-check-flaky-count: <N>` — criteria that produced different results across the 3 stability drives; >0 is a HIGH issue
 - `friction-notes: [<string>, ...]` — observations from the perceptual review and product-convention audit; informational, not issues
 - `free-exploration-findings: [<string>, ...]` — unexpected observations from the open-ended exploration step; findings that contradict AC become standard issues
@@ -360,7 +340,7 @@ Merge all sub-agent results. For each check, record: command run, pass/fail, rel
 - **Re-verify writes back; the index never contradicts a slice.** When a re-invocation changes a per-slice outcome (e.g. `fail` → `pass` after a fix round, or a deferral clears), update that per-slice `06-verify-<slice-slug>.md`'s `result` and `updated-at` **in place**, then re-derive the master `06-verify.md` rollup from the per-slice files. The verify-index MUST NOT report `pass` (or "re-verified" / "all-slices-passing") for a slice whose own per-slice file still says `result: fail` — that stale-artifact contradiction hides a real failure behind a green rollup. Rule of order: change the slice file first, then the index; never the index alone.
 
 # Chat return contract
-After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Verification` story voice, then this receipt:
+Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn. After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Verification` story voice, then this receipt:
 - `slug: <slug>`
 - `wrote: <path>`
 - `result: <pass | fail | partial | blocked-runtime-evidence-missing>`
@@ -371,17 +351,13 @@ After writing files, return per [_chat-return.md](_chat-return.md) — narrative
 Do this in order:
 1. Confirm the selected slice.
 2. Determine the relevant verification commands from the repo.
-3. **Build a work-tracking checklist** from acceptance criteria in `03-slice-<slice-slug>.md`. List each check and AC criterion. Work sequentially through each.
-4. **Run checks.** For each check:
-   a. Run or evaluate the check (using parallel sub-agents if multi-concern): lint, typecheck, tests, build, smoke tests, manual checks.
-   b. Record the result. If the check failed, note the failure. Do NOT fix yet — the user-gated fix loop runs once in Step 7.6 after all checks finish and the AC gate has partitioned issues.
-5. **Verify acceptance criteria.** For each AC criterion:
-   a. Compare results with the criterion from `03-slice-<slice-slug>.md` and `02-shape.md`.
-   b. Record: met / not met / partial, with evidence or reason.
+3. **Track the stage's units in a work-tracking checklist** — one item per check (lint, typecheck, tests, build, …) and one per acceptance criterion from `03-slice-<slice-slug>.md`, plus the artifact write. Keep statuses truthful as results land.
+4. **Run checks** (parallel sub-agents if multi-concern): lint, typecheck, tests, build, smoke tests, manual checks. Record a failed check as `FAILED: <output summary>` on its item. Do NOT fix yet — the user-gated fix loop runs once in Step 7.6 after all checks finish and the AC gate has partitioned issues.
+5. **Verify acceptance criteria.** Compare results with each criterion from `03-slice-<slice-slug>.md` and `02-shape.md`. Record an unmet criterion as `NOT MET: <reason>` on its item.
 6. If verification reveals gaps caused by external dependency behavior or standards drift, run a freshness pass and record it.
 7. **Evaluate adaptive routing** (see below) and write ALL viable options into `## Recommended Next Stage`.
 7.5. **Apply the user-observable AC gate** (see "User-observable AC gate" section below). Partition AC into `code-only` vs `user-observable`. For every `user-observable` AC, require a matching entry in `interactive-verification-results` (from sub-agent 3). If any user-observable AC has no matching entry AND no `interactive-verification: deferred` annotation, the per-slice verify file MUST be written with `result: blocked-runtime-evidence-missing` (NOT `pass`) and the missing AC listed in `## Issues Found`. The gate is the load-bearing change that closes the "verified but actually broken" leak.
-7.6. **Single-round verify-owned fix loop** (see "Verify-owned fix loop" section below). Snapshot the issue list as `metric-issues-found-initial`. Triage each failing check and each unmet user-observable AC in chat, presenting options as a short numbered list. For every `Fix` decision, spawn a sub-agent that applies the minimal patch. Re-run only the affected checks once. Record `fix-rounds-run`, `convergence`, and the resulting `metric-issues-found-final`. ONE round only — if anything still fails, finalize with `convergence: escalated` and route the user to re-invoke verify (or to `$wf implement` as a manual escape).
+7.6. **Single-round verify-owned fix loop** (see "Verify-owned fix loop" section below). Snapshot the issue list as `metric-issues-found-initial`. Auto-fix mechanical classes; triage each remaining failing check and unmet user-observable AC in chat, presenting options as a short numbered list. For every `Fix` decision, spawn parallel sub-agents that apply the minimal patch. Re-run only the affected checks once. Record `fix-rounds-run`, `convergence`, and the resulting `metric-issues-found-final`. ONE round only — if anything still fails, finalize with `convergence: escalated` and route the user to re-invoke verify (or to `$wf implement` as a manual escape).
 8. **Write `06-verify-<slice-slug>.md`** (per-slice file, see template below).
 9. **Write/update `06-verify.md`** (master index with links to all per-slice verify files).
 10. Update `00-index.md` accordingly and add files to `workflow-files`. **Then promote the slice's roster status** — in `03-slice.md`'s `slices:` entry for this slice, `result: pass` sets `status: complete`; any other result (`fail`, `partial`, `blocked-runtime-evidence-missing`) leaves it at `status: in-progress`. A deferral-only `partial` is **not** complete — the AC still owes runtime evidence, and `/wf ship` blocks on it. Set only this slice's entry; do not touch siblings, do not renumber, and never move an entry that `close.md` set to `skipped`.
@@ -582,18 +558,20 @@ Record the count as `metric-issues-found-initial`. If the count is **zero**, set
 
 ## Triage protocol
 
-For each issue, ask the user in chat as a short numbered list. Batch up to 4 issues per message. Each issue:
+**Mechanical classes auto-fix — no question.** An issue whose class is `lint`, `format`, or `marker-syntax` is reversible, in-tree, and mechanical: triage it `Fix` yourself, without asking, and report what was auto-fixed — with diffs — in the round summary. Anything unclassified, scope-changing, or behavior-changing still asks.
+
+For each remaining issue, ask the user in chat as a short numbered list. Batch up to 4 issues per message. Each issue:
 - Identify: issue type, one-line summary, file:line or check name.
 - Options:
   1. Fix — Spawn a sub-agent to apply the minimal patch in this run.
   2. Skip — Leave as-is; surfaces in the verify artifact under Issues Found.
   3. Escalate — Out of scope for verify — route to `$wf implement` or back to plan.
 
-Triage is **always required** — verify never silently auto-fixes. If the user picks `Skip` for everything, the loop ends with `convergence: not-needed` and the failures stay recorded.
+Triage of non-mechanical issues is **always required** — outside the mechanical carve-out above, verify never silently auto-fixes. If the user picks `Skip` for everything, the loop ends with `convergence: not-needed` and the failures stay recorded.
 
 ## Fix dispatch (single round)
 
-For each issue triaged `Fix`, sequentially (one at a time):
+Dispatch a fix sub-agent for **every** issue triaged `Fix` **in parallel** (one batch of sub-agent dispatches) when their target files are disjoint — the sanity-check in step 2 is the merge gate; issues whose target files overlap run serially against each other. For each issue:
 1. Spawn ONE sub-agent with this prompt:
    ```
    Fix the following verify-stage issue in the codebase:
@@ -628,7 +606,7 @@ For each issue triaged `Fix`, sequentially (one at a time):
      A brief summary of what you changed, including the regression test
      path (or the one-line exemption reason).
    ```
-2. When the sub-agent returns: read the changed file(s); sanity-check the patch against **both** the issue and the suggested fix's method ([_fix-loop.md](_fix-loop.md) rule 5). A `Method: deviated` return is never accepted on the subagent's own say-so — re-read the patch against what was suggested and decide deliberately; when the suggestion carried an explicit prohibition, a deviation touching it is discarded, not accepted. If correct, accept. If wrong, discard and record `COULD NOT FIX`.
+2. As each sub-agent returns: read the changed file(s); sanity-check the patch against **both** the issue and the suggested fix's method ([_fix-loop.md](_fix-loop.md) rule 5). A `Method: deviated` return is never accepted on the subagent's own say-so — re-read the patch against what was suggested and decide deliberately; when the suggestion carried an explicit prohibition, a deviation touching it is discarded, not accepted. If correct, accept. **If two patches collide on the same lines**, accept one, then re-dispatch the other against the patched state — serial for the conflicting pair only. If wrong, discard and record `COULD NOT FIX`.
 
 ## Re-check (single round)
 
@@ -749,7 +727,7 @@ cross-slice-regressions-found: <N>             # sibling slices that newly fail 
 metric-bundle-size-delta-pct: <N | "skipped">  # % change in output artifact size vs. base branch; HIGH if ≥ 20%
 ac-staleness-checked: <true | false>
 ac-stale-count: <N>                            # AC entries referencing external APIs/schemas that have changed
-longitudinal-baseline-compared: <true | false | "skipped — stash non-empty">
+longitudinal-baseline-compared: <true | false | "skipped — <reason>">
 stability-check-flaky-count: <N>               # criteria that differed across 3 stability drives; >0 is HIGH
 adversarial-tests-run: <N>
 adversarial-tests-failed: <N>                  # BLOCKER/HIGH adversarial findings
@@ -844,7 +822,7 @@ The `kind` column is what makes the user-observable AC gate auditable. A reviewe
 - Per-violation: `<rule-id>`: `<element>` — `<description>`
 
 ## Performance Gate
-- **Bundle size delta:** `<+N% | -N% | skipped — stash non-empty>` (HIGH if ≥ +20%)
+- **Bundle size delta:** `<+N% | -N% | skipped — <reason>>` (HIGH if ≥ +20%)
 - **Build time delta:** `<+N% | -N% | not-measured>`
 - **Cold-start delta (service/CLI only):** `<+N% | -N% | not-applicable>`
 

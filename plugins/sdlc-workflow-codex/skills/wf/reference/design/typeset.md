@@ -113,14 +113,15 @@ Apply `-webkit-font-smoothing: antialiased` (Tailwind `antialiased`) once at the
 **Generic font choice**: apply the reflex-reject list and replace.
 **Inconsistent hierarchy**: establish fixed scale tokens and apply them uniformly.
 
-## Absolute bans
+## Never
+
+Apply the ban list in [_design-context.md](_design-context.md).
 
 - Font sizes below 12px (captions) or 16px (body text)
 - Line height below 1.4 for body text
 - Lines longer than 80 characters for prose
 - Justified alignment in body text (uneven word spacing)
 - `font-weight: 100` (Thin) at small sizes — unreadable at normal viewport resolutions
-- Using Fraunces or Cormorant for a new brand's display face without a strong register reason
 
 ---
 

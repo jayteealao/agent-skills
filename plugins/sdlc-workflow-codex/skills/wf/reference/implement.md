@@ -53,7 +53,7 @@ You are a **workflow orchestrator** running the implementation stage.
 - Read prior workflow artifacts (index, shape, slice, plan) FIRST — do not skip.
 - Do NOT verify, review, or ship — those are later stages.
 - Implement **only** the selected slice as described in the plan. Do not broaden scope.
-- Follow the numbered steps below **exactly in order**.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - Your only output is the code changes, the workflow artifacts, and the compact chat summary defined below.
 - If you catch yourself about to skip ahead to verification or review, STOP and return to the next unfinished step.
 
@@ -74,7 +74,7 @@ You are a **workflow orchestrator** running the implementation stage.
    - **Compressed mode**: `01-fix.md` must exist (or legacy `01-quick.md` for pre-v9.18.0 slugs — check both). If missing → STOP. "Run `$wf intake fix <slug>` first or use a different workflow type."
    - **Standard / forwarded / change-mode**: A plan must exist: either `04-plan-<slice-slug>.md` or `04-plan.md` (change-mode always uses un-suffixed). If missing → STOP. "Run `$wf plan <slug> <slice-slug>` first."
    - If the source plan/quick artifact shows `Status: Awaiting input` → STOP.
-   - Check if `05-implement-<slice-slug>.md` (or `05-implement.md` in compressed mode) already exists → WARN: "This has already been implemented. Running again will overwrite. Proceed?"
+   - Check if `05-implement-<slice-slug>.md` (or `05-implement.md` in compressed mode) already exists → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
 7. **Read the source context by mode:**
    - **Compressed mode**:
      - `01-quick.md` — single source for brief, shape, slice, and plan. Read end-to-end.
@@ -190,17 +190,8 @@ When this slice builds UI — whether against a `02c-craft.md` visual contract, 
 
 **Absolute bans** are in `design/_design-context.md` → *Absolute bans*. Introducing one is a defect the review/verify gates bounce.
 
-## Critique-and-fix pass (mandatory when `02c-craft.md` was present)
-After building against a visual contract, run at least one critique-and-fix pass before writing the implementation record:
-
-1. Check against the contract's `## Mock fidelity inventory` — what was lost?
-2. Check against anti-goals in `02b-design.md` and `## Anti-patterns to avoid` — what should not be there?
-3. Check against the relevant register reference (`brand.md` or `product.md`) — any violations?
-4. Slop test: would someone say "AI made this"? Fix the generic moves.
-5. Component states: all required states from the contract implemented?
-6. Responsive behavior at the contract's breakpoints.
-
-Apply fixes. Repeat until no material defects remain. Record what the pass caught in `## Visual Contract Honored`.
+## Contract-check pass (mandatory when `02c-craft.md` was present)
+After building against a visual contract, dispatch one **fresh-context check agent** before writing the implementation record — the blind pre-mortem pattern (`shape.md` Step 4), not a self-critique. Give the agent ONLY the contract inputs (`02c-craft.md`, `02b-design.md`, the relevant register reference) and the built surface; it has no memory of your build decisions to defend. Its charter: report every material departure from the mock-fidelity inventory, the anti-goals, and the register rules, each with file:line evidence. Apply fixes for the material defects it reports. Record what the pass caught — and the file:line each fix landed at — in `## Visual Contract Honored`.
 
 # Workflow rules
 - Store artifacts under `.ai/workflows/<slug>/`. Maintain `00-index.md` as the control file. Never leave canonical results only in chat — write the stage file first.
@@ -223,16 +214,13 @@ After writing files, return per [_chat-return.md](_chat-return.md) — narrative
 
 Do this in order:
 1. **Ensure correct branch** (branch check must have been completed in Step 0.11).
-2. **Create a work-tracking plan from the plan steps.** Read `04-plan-<slice-slug>.md` → `## Step-by-Step Plan`. Track progress sequentially — complete each step fully before moving to the next. Work sequentially unless the user explicitly asked for parallel execution.
+2. **Track the stage's units in a work-tracking checklist.** One item per plan step from `04-plan-<slice-slug>.md` → `## Step-by-Step Plan`, plus the artifact write and the atomic commit. Keep statuses truthful as you work; record a blocked step as blocked with its reason.
 3. Re-check the current code before editing (Explore sub-agents if needed). Pay attention to files sibling slice implementations may have changed.
 4. If the implementation depends on evolving external APIs, libraries, or patterns, run a freshness pass before editing.
-5. **Implement the selected slice.** Work through each plan step using your native file-editing tools. For each step:
-   a. Do the work for that step.
-   b. Verify the change before moving to the next step.
-   c. If blocked or failed: note the blocker and use the error handling guidance below.
+5. **Implement the selected slice**, step by step with your native file-editing tools, keeping the checklist truthful. If blocked or failed: note the blocker and use the error handling guidance below.
 6. Update tests, docs, types, configs, or migrations only where required for this slice.
 7. Summarize the exact change set.
-8. **Write `05-implement-<slice-slug>.md`** (per-slice file, see template below).
+8. **Write `05-implement-<slice-slug>.md`** (per-slice file, see template below). Ground the record per [_grounded-progress.md](_grounded-progress.md): every `## Verification Seams Built` and `## Visual Contract Honored` entry cites a file:line you **re-opened after editing**, not memory of your own edits.
 9. **Write/update `05-implement.md`** (master index, see template below).
 10. **Update cross-links** in `03-slice-<slice-slug>.md` and `04-plan-<slice-slug>.md` to point to the new implementation file.
 11. **Evaluate adaptive routing** and write ALL viable options into `## Recommended Next Stage`.
@@ -242,7 +230,7 @@ Do this in order:
 
     **Change-modes** (`fix` / `hotfix` / `refactor` and any single-scope workflow) write an un-suffixed one-slice `03-slice.md` — the same rule applies to its single entry. A workflow with no `03-slice.md` at all (a forwarded `rca`) has no roster to update; skip silently.
 13. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):**
-    - Stage ALL changed files (code changes + workflow artifacts) with `git add`.
+    - **Stage by explicit path, classified** (the same discipline as `ship.md` Step 1.1): (a) code files this slice changed — stage each by path; (b) workflow artifacts under `.ai/workflows/<slug>/` — stage by path; (c) any OTHER dirty path is NOT yours — fail closed and ask before staging it. `git add -A`, `git add .`, and any pathless `git add` are **forbidden**: concurrent sessions leave unrelated work in this tree, and a sweep commits it.
     - Commit: `feat(<slug>): implement <slice-slug>` — include a brief summary of what the slice does.
     - Do NOT push. Pushing happens at handoff.
     - Record the commit SHA in the per-slice frontmatter (`commit-sha` field).
@@ -267,7 +255,7 @@ Use when: The plan was wrong — missed files, wrong assumptions.
 # Reviews Mode — fix review findings one by one
 Triggered when: second argument is literally `reviews`. Example: `$wf implement my-slug reviews`
 
-Reads findings from `07-review-<slice-slug>.md`, extracts all BLOCKER and HIGH findings (and optionally MED if the user requests), then fixes them **one at a time, sequentially**.
+Reads findings from `07-review-<slice-slug>.md`, extracts all BLOCKER and HIGH findings (and optionally MED if the user requests), then fixes them **in parallel** using sub-agents — the findings are independent by construction; only a patch-overlap conflict forces the conflicting pair back to serial.
 
 Do this in order for reviews mode:
 1. **Resolve the slice-slug.** If a slice-slug was passed as a third argument (e.g., `$wf implement my-slug auth-flow reviews`), use it. Otherwise use `selected-slice-or-focus` from `00-index.md`. If neither is set, ask the user.
@@ -279,10 +267,10 @@ Do this in order for reviews mode:
    1. [{ID}] {SEVERITY} — {title} @ {file}:{line}
    2. [{ID}] {SEVERITY} — {title} @ {file}:{line}
    ...
-   Starting sequential fixes...
+   Starting parallel fixes...
    ```
-5. **For each finding, sequentially (one at a time):**
-   a. Spawn a single sub-agent with this prompt:
+5. **Dispatch ALL finding fixes in parallel, one sub-agent per finding** (one batch of dispatches) when their target files are disjoint; findings touching the same files run serially against each other.
+   a. For each sub-agent, use this prompt:
       ```
       Fix the following review finding in the codebase:
 
@@ -301,10 +289,9 @@ Do this in order for reviews mode:
 
       Return a brief summary of what you changed and whether the fix is confirmed correct.
       ```
-   b. **Wait for the sub-agent to complete.**
-   c. **Verify the fix:** Read the changed file(s). Confirm the fix addresses the finding and check for regressions.
-   d. If the fix failed or was partial, note the outcome before moving to the next finding.
-   e. Do NOT proceed to the next finding until the current one is verified.
+   b. **As each sub-agent completes, verify its fix (the merge gate):** read the changed file(s), confirm the fix addresses the finding, and check for regressions.
+   c. **On a patch-overlap conflict** (two fixes touch the same lines), fall back to serial for the conflicting pair only: keep one, re-dispatch the other against the patched state.
+   d. If a fix failed or was partial, record `COULD NOT FIX: <reason>` for it.
 
 6. **After all findings are processed:**
    a. Write/update `05-implement-<slice-slug>.md` with a `## Review Fixes Applied` section listing all findings and resolution status.
@@ -317,7 +304,7 @@ Do this in order for reviews mode:
       | {ID} | {sev} | {command} | fixed / could-not-fix | {fixed-at} | {SHA or —} | {notes} |
       ```
    d. Update `00-index.md`.
-   e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** Stage all changed files and commit: `fix(<slug>): review fixes for <slice-slug>`. Record commit SHA. Do NOT push. If `branch-strategy` is `none`, skip.
+   e. **Atomic commit (if `branch-strategy` is `dedicated` or `shared`):** stage by explicit path, classified exactly as mainline Step 13 (slice code by path, workflow artifacts by path, unknown dirty paths fail closed; `git add -A` / pathless `git add` forbidden). Commit: `fix(<slug>): review fixes for <slice-slug>`. Record commit SHA. Do NOT push. If `branch-strategy` is `none`, skip the commit.
 
 7. **Evaluate adaptive routing:**
 

@@ -44,7 +44,7 @@ Product: semantic-first and almost always Restrained. Accent color is reserved f
 - Tinted backgrounds: replace pure gray (`#f5f5f5`) with warm neutrals (`oklch(97% 0.01 60)`) or cool tints (`oklch(97% 0.01 250)`)
 - Colored sections: subtle background colors to separate areas
 - Cards and surfaces: slight tint for warmth
-- Gradients: subtle, intentional — not generic purple-blue
+- Gradients: subtle, intentional
 
 ### Borders and Accents
 
@@ -54,9 +54,7 @@ Use OKLCH for all color. Apply color to borders and frames as:
 - **Focus rings**: colored focus indicators matching brand
 - **Underlines**: colored underlines for active state or emphasis
 
-**ABSOLUTE BAN**: `border-left` or `border-right` > 1px as a decorative colored accent stripe. This is a design anti-pattern. A colored side-stripe is an attempt to mark a card as "active" or "highlighted" while avoiding the cost of a real visual solution.
-
-**Instead**: use a full hairline perimeter border + surface tint for "active". Use a leading glyph, icon, or numbered prefix for categorization. Use a full-bleed background color change for state.
+Apply the ban list in [_design-context.md](_design-context.md).
 
 **Depth is not a color job.** For *elevation*, prefer a layered transparent `box-shadow` over a colored border — a shadow adapts to any background, a solid border doesn't (see `polish.md`). And give image edges a **pure** black (`rgba(0,0,0,0.1)`) or **pure** white (`rgba(255,255,255,0.1)`) outline — never a tinted near-black from the palette or the accent: a tinted outline picks up the surface color underneath and reads as dirt on the edge.
 
@@ -89,8 +87,5 @@ Use OKLCH for all color. Apply color to borders and frames as:
 - Every color in the rainbow (2–4 beyond neutrals is the limit)
 - Color applied randomly without semantic meaning
 - Gray text on colored backgrounds (use a darker shade or transparent overlay instead)
-- Pure `#000` or `#fff` for large surface areas
 - WCAG contrast violations
 - Color as the only state indicator (pair with shape, label, or icon)
-- Purple-blue gradients (AI slop aesthetic)
-- `border-left` / `border-right` colored accent stripes (absolute ban — see above)

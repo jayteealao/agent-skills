@@ -94,7 +94,6 @@ Easing:
 - `ease-in` for exits (slow start, fast finish — gets out of the way)
 - `ease-in-out` for reversible transitions
 - Custom cubic-bezier for signature brand motion
-- **Never** `bounce` or `elastic` easing in production UI — it reads as cheap and unpolished
 - **Never `ease-in` on an entrance or interaction** — it delays the exact frame the user is watching most and feels sluggish (`ease-out` at 200ms *feels* faster than `ease-in` at the same 200ms). Reserve `ease-in` strictly for exits that get out of the way.
 
 The built-in CSS easings are too weak for deliberate motion — reach for strong custom curves:
@@ -210,8 +209,10 @@ This handles all users who opt out of motion. Design the animated experience fir
 - Check for dropped frames on target devices before shipping complex animations
 
 ## Never
+
+Apply the ban list in [_design-context.md](_design-context.md).
+
 - `animation-duration: 0` as the default (design for motion, reduce via media query)
-- `bounce` or `elastic` easing
 - Animating layout properties (`width`, `height`, `margin`)
 - Loading animations that block interaction
 - Infinite background animations on the main content thread

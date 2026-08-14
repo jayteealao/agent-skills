@@ -47,7 +47,7 @@ You are a **router**, not a problem-solver.
 - Do NOT read files outside the scope's diff/path set (branch = branch diff, commit = commit diff, plan = the named plan file only, codebase = the named path subtree only).
 - Your only output is the run artifact and a compact chat summary of recommended downstream commands.
 - If you catch yourself about to make a code edit, STOP. Route the finding; do not execute it yourself.
-- Follow the numbered steps below exactly in order.
+- Resolve the scope before dispatch, complete triage before routing, and write the run artifact last.
 
 ---
 
@@ -162,14 +162,7 @@ Review for hacky patterns:
 7. **Unnecessary comments**: comments explaining WHAT (well-named identifiers do that), narrating the change, or referencing the task/caller — delete; keep only non-obvious WHY (hidden constraints, subtle invariants, workarounds).
 
 ### Plan-scope adaptation
-For `plan` scope: re-purpose:
-1. Steps that re-derive what an earlier step already established.
-2. Over-detailed parameter lists where the plan should pick one shape.
-3. Repeated checklist items that should be one abstraction.
-4. Leaky steps that expose internals the plan should hide behind a single abstraction.
-5. Magic strings/literals where the plan should reference a constant or convention.
-6. (n/a for plan)
-7. Plan prose that narrates the change rather than describing intent.
+For `plan` scope: hunt the same defect classes in the plan's prose and structure instead of code.
 
 ## Agent 3 — Efficiency Review
 
@@ -184,14 +177,7 @@ Review for efficiency:
 7. **Overly broad operations**: reading entire files when only a portion is needed, loading all items when filtering for one.
 
 ### Plan-scope adaptation
-For `plan` scope: re-purpose:
-1. Steps that re-do work an earlier step already accomplished.
-2. Steps marked sequential when they could be parallel (and the workflow supports it).
-3. Steps that add blocking work to hot paths the plan claims to optimise.
-4. Steps that update state every iteration without change-detection.
-5. Steps that pre-check before acting where the underlying API already handles the error.
-6. Steps that load/process more than needed (e.g., "read the entire file" when only one section is used).
-7. (covered by #6)
+For `plan` scope: hunt the same efficiency classes in the plan's steps instead of code.
 
 ---
 

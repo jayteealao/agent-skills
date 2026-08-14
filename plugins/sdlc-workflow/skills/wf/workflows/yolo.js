@@ -34,8 +34,8 @@ export const meta = {
 //   referenceRoot absolute path to skills/wf/reference (where plan.md … live)
 //   slug          the workflow slug to drive
 //   slice         (optional) one slice → slice mode; absent → slug mode
-//   reviewFanout  (optional, default false) Phase-3 parallel-dimension review
-//   planFanout    (optional, default false) plan all slices concurrently first
+//   reviewFanout  (optional, default true) Phase-3 parallel-dimension review; pass false to opt out
+//   planFanout    (optional, default true) plan all slices concurrently first; pass false to opt out
 // args may arrive as a JSON object or — depending on how the caller encodes the
 // Workflow invocation — as a JSON string. Tolerate both so a stringified payload
 // doesn't silently fail the object check (the Workflow runtime can hand a
@@ -185,38 +185,15 @@ const POLICY = {
     `fixable issue: apply the minimal patch and run that single fix round, recording outcomes in ` +
     `"## Verify-Owned Fixes". If the reference warns the slice was already verified and asks to overwrite, ` +
     `proceed (re-running is intended).\n\n` +
-    `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence — this RESTATES verify.md's deferral law (§"Climb the ` +
-    `constraint-resolution ladder", §"Escape hatch"); it does NOT relax it. A deferral is lawful ONLY over a ` +
-    `PROBED incapability, never a bare excuse:\n` +
-    `  1. CLIMB THE LADDER FIRST. "No device / no display / no creds / no service" is the START of a ` +
-    `constraint-resolution climb (runtime-adapters.md), not a defer-reason. Execute any tool bootstrap the plan's ` +
-    `## Verification Strategy authorized, record the highest rung that produced evidence, and defer ONLY the ` +
-    `residual no rung can reach. Headless/emulator/container rungs are real evidence; reach for them before ` +
-    `deferring (headless runtimes boot by default — see runtime-adapters.md).\n` +
-    `  2. ATTEMPT BEFORE DECLARE. "The environment cannot produce X" is writable ONLY after you EXECUTE a ` +
-    `capability probe THIS run and record its literal command + one-line output tail — e.g. \`firebase ` +
-    `projects:list\`, \`adb devices\`, an env-var check for a keyed service, one spec run past the guard for a ` +
-    `credential-gated suite. A defer-reason with no recorded probe is INVALID. The defer-reason must also ` +
-    `enumerate the rungs tried (bare phrases — "no emulator", "no creds", "deferred to user", "decidable by ` +
-    `static reasoning" — are rejected).\n` +
-    `  3. NEVER INHERIT A PRIOR DEFERRAL. A defer-reason from a prior artifact, prior slice, or prior run is a ` +
-    `CLAIM to re-test, not a fact. Re-run its probe fresh in THIS run: if the wall no longer stands, produce the ` +
-    `evidence now; if it still stands, attach THIS run's probe receipt. Copying forward a stale wall (the Crumb ` +
-    `stale-creds incident) is the failure this guard exists to stop.\n` +
-    `  4. A SKIPPED OR GUARD-EXITED SPEC IS NOT EVIDENCE for the AC it gates. Treat that AC as un-evidenced: climb ` +
-    `to another rung, or defer with a probe receipt, or write result: blocked-runtime-evidence-missing naming the ` +
-    `unmet precondition. An all-skipped sweep (0 specs executed) is blocked-runtime-evidence-missing, NEVER a ` +
-    `deferral.\n` +
-    `  5. ENVIRONMENT CLAIMS ARE PROBE RESULTS, AND PROVISIONING MUST PERSIST. "No device attached", "port ` +
-    `already held", "no emulator on this host" are claims exactly like a missing credential — writable only with ` +
-    `the literal probe command + output tail (\`adb devices\`, the port query, the emulator list), and re-executed ` +
-    `FRESH by the next verify rather than inherited (rule 3 applies to environment facts too). Before declaring ` +
-    `an environment wall, check whether the repo already ships provisioning for it (scripts/, plan-named setup) ` +
-    `and RUN it. Capability you create inside this run (an emulator/AVD, seeded data, an env file) counts ONLY if ` +
-    `it persists beyond your subagent context — provision via the repo's own script (or write one and record its ` +
-    `path); a capability provisioned only ephemerally does not exist for later stages and its wall will falsely ` +
-    `re-stand.\n` +
-    `When a deferral is lawful under 1–5, apply verify.md's escape hatch for that AC: set ` +
+    `DEFER-DON'T-CANCEL for UN-PRODUCIBLE runtime evidence — verify.md's deferral law (§"Climb the ` +
+    `constraint-resolution ladder", §"Escape hatch") is the single normative statement; apply it EXACTLY as ` +
+    `written there, with no relaxation. In particular: a deferral is lawful ONLY over a PROBED incapability ` +
+    `(literal probe command + one-line output tail, executed THIS run); climb the constraint-resolution ladder ` +
+    `(runtime-adapters.md) before deferring; never inherit a prior deferral or environment claim — re-probe it ` +
+    `fresh; a skipped or guard-exited spec is not evidence (an all-skipped sweep is ` +
+    `blocked-runtime-evidence-missing, never a deferral); and capability you provision must persist via a repo ` +
+    `script or it does not exist for later stages.\n` +
+    `When a deferral is lawful under that law, apply verify.md's escape hatch for that AC: set ` +
     `'interactive-verification: deferred' + 'interactive-verification-defer-reason: "<rungs tried + probe receipt ` +
     `+ the residual that survives them>"' in the per-slice verify frontmatter, register the deferral in ` +
     `00-index.md runtime-evidence-deferrals (slice, reason, deferred-at, cleared-by: null), and record it under ` +
@@ -233,10 +210,8 @@ const POLICY = {
     `convergence: converged (or not-needed if no fix was required), NOT escalated.\n\n` +
     `ONE WRITER PER FACT (deferral emission). A deferral is recorded EXACTLY ONCE, in terminal.deferrals[], ` +
     `complete with its probe receipt. Do NOT also copy it into residual[] — residual[] carries only what is ` +
-    `NOT a deferral (could-not-fix notes, out-of-scope observations). Emitting the same AC twice, receipted in ` +
-    `one array and bare in the other, is what made a compliant slice look non-compliant and cost two whole runs ` +
-    `to a false stop. If you are unsure whether an entry is a deferral, it belongs in deferrals[] with a probe ` +
-    `or it is not a deferral at all.\n\n` +
+    `NOT a deferral (could-not-fix notes, out-of-scope observations). If you are unsure whether an entry is a ` +
+    `deferral, it belongs in deferrals[] with a probe or it is not a deferral at all.\n\n` +
     `FAIL IS NOT A DEFERRAL, AND SURVIVES INTO THE RUN REPORT. If you drove an AC and the behavior was wrong, ` +
     `that AC is result: fail (substantive) — record it as a FAILURE, never in deferrals[], never in the index's ` +
     `runtime-evidence-deferrals. The driver reports your recorded fail/deferral split verbatim; an AC you call a ` +
@@ -271,12 +246,10 @@ const POLICY = {
     `migration the bump forces, never mix a security update with a major migration in one commit, never hand-edit ` +
     `lockfiles (use the package manager's own command). A run that updates some packages and blocks others is a ` +
     `legitimate result: partial, not a hard-stop.\n\n` +
-    `Then self-author 06-verify.md by running the FULL suite + build against the updated state. Apply the SAME ` +
-    `runtime-evidence deferral LAW as the verify policy: a deferral is lawful ONLY over a PROBED incapability — ` +
-    `climb the constraint-resolution ladder (runtime-adapters.md) first; the defer-reason must enumerate the ` +
-    `rungs tried and include the literal capability-probe command + output tail executed THIS run; never inherit a ` +
-    `prior run's defer-reason (re-probe it fresh); and a skipped/guard-exited spec is not evidence for the AC it ` +
-    `gates (an all-skipped sweep is blocked-runtime-evidence-missing, never a deferral). For a lawfully deferred ` +
+    `Then self-author 06-verify.md by running the FULL suite + build against the updated state. Apply verify.md's ` +
+    `deferral law EXACTLY as written (§"Climb the constraint-resolution ladder", §"Escape hatch" — probed ` +
+    `incapability only, ladder first, fresh probes never inherited, skipped/guard-exited specs are not evidence, ` +
+    `an all-skipped sweep is blocked-runtime-evidence-missing). For a lawfully deferred ` +
     `AC record it in 00-index.md runtime-evidence-deferrals, write result: partial (NOT ` +
     `blocked-runtime-evidence-missing), keep substantiveResidual false. Record each deferral EXACTLY ONCE, in ` +
     `terminal.deferrals[] with its probe — never a second bare copy in residual[] (residual[] carries blocked/held ` +
@@ -788,6 +761,12 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
       : ''
   // F3 — open prior deferrals become a RE-CHALLENGE block (verify only): re-probe, never inherit.
   const reChallenge = stage === 'verify' ? reChallengeClause(idx.priorDeferrals) : ''
+  // Plan fan-out: the driver is the single 00-index writer; concurrent plan
+  // subagents write ONLY their own per-slice artifact.
+  const noIndexClause = extra.noIndexWrites
+    ? ` INDEX WRITES WITHHELD: do NOT edit 00-index.md or the global INDEX.md in this run — the driver records ` +
+      `your stage completion itself (single-writer). Write only your own stage artifact(s).`
+    : ''
   const dimensionHint =
     stage === 'review' && idx.reviewDimension
       ? ` Default review rubric: '${idx.reviewDimension}' — the forwarded RCA recommended a build flavor whose ` +
@@ -806,8 +785,15 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     `Read ${referenceRoot}/${stage}.md IN FULL and follow it VERBATIM to do the stage's real work and write its ` +
     `artifact(s) under ${projectRoot}/.ai/workflows/${slug}/ — with ONE override: wherever the reference tells you ` +
     `to ask the user (AskUserQuestion) or pause for a human, DO NOT. Resolve it yourself by this policy:\n\n` +
-    `${POLICY[stage]}${roundClause}${probeClause}${reChallenge}${scopeHint}\n\n` +
+    `${POLICY[stage]}${roundClause}${probeClause}${reChallenge}${scopeHint}${noIndexClause}\n\n` +
     `Operating rules:\n` +
+    `- GROUNDED PROGRESS (${referenceRoot}/_grounded-progress.md): before reporting progress or terminal state, ` +
+    `audit each claim against a tool result from THIS run. Report only work you can point to evidence for; if ` +
+    `something is not yet verified, say so; a failing check is reported as failing with its output; every count ` +
+    `you return derives from an artifact or tool result you opened this run, never from memory of your own edits.\n` +
+    `- EARLY-STOP GUARD (${referenceRoot}/_autonomy-guards.md): before ending, check your last paragraph — if it ` +
+    `is a plan, a question, or a promise about work you have not done, do that work now; end only when the stage ` +
+    `contract is complete or the policy hard-stopped you.\n` +
     `- Your mandate is ONLY the '${stage}' stage for ${sliceArg ? `slice '${sliceArg}'` : `slug '${slug}'`}. Do ` +
     `NOT run other stages, do NOT claim completion of other slices or of the whole workflow, and do NOT recommend ` +
     `routes beyond what this stage's reference itself returns.\n` +
@@ -1148,13 +1134,13 @@ async function classifyDecisions(res, idx) {
   return res
 }
 
-// driveReview() — default: wrap review.md in ONE subagent (it fans out the
-// dimensions internally per the reference, and produces the accumulating
-// ledger). Opt-in (args.reviewFanout): hoist the dimension scan to the workflow
-// for true parallelism + adversarial verify, then delegate the WRITE/triage/fix/
-// ledger back to a wrapped review.md subagent given the pre-verified findings.
+// driveReview() — default (reviewFanout, on unless args pass false): hoist the
+// dimension scan to the workflow for true parallelism + adversarial verify, then
+// delegate the WRITE/triage/fix/ledger back to a wrapped review.md subagent given
+// the pre-verified findings. Opt-out (args.reviewFanout === false): wrap review.md
+// in ONE subagent (it fans out the dimensions internally per the reference).
 async function driveReview(sliceArg, idx) {
-  if (OPT.reviewFanout !== true) {
+  if (OPT.reviewFanout === false) {
     return await runStage('review', sliceArg, idx)
   }
   phase('Review')
@@ -1747,14 +1733,33 @@ if (idx.workflowType === 'update-deps') {
 } else {
   // ---- Slug mode — sequential over the roster (mirrors /wf auto). --------
   // Cross-slice IMPLEMENT serializes on the shared tree (the governing
-  // principle: serialize anything that writes code). Optional read-only plan
-  // fan-out is opt-in (args.planFanout) — it races the shared 00-index.md, so
-  // it stays off until artifact-parity vs the sequential path is validated.
-  if (OPT.planFanout === true) {
-    log('plan fan-out (opt-in): planning all un-planned slices concurrently — note: races 00-index.md writes')
-    await parallel(idx.slices.filter(s => (s.stages || {}).plan !== 'done').map(s => () => runStage('plan', s.slice, idx)))
-    idx = await orient()                          // re-snapshot so driveChain sees the new plans as done
-    if (!idx || !idx.ok) return { ok: false, stopped: true, reason: (idx && idx.blockReason) || 're-orient after plan fan-out failed', route: idx && idx.route }
+  // principle: serialize anything that writes code). Plan fan-out is ON by
+  // default (pass planFanout: false to opt out): plan subagents write ONLY
+  // their per-slice 04-plan file, and the DRIVER records plan completion in
+  // 00-index.md as the single writer — the old 00-index write race is closed
+  // by construction, not by retry.
+  if (OPT.planFanout !== false) {
+    const unplanned = idx.slices.filter(s => (s.stages || {}).plan !== 'done' && s.status !== 'skipped')
+    if (unplanned.length > 1) {
+      log(`plan fan-out: planning ${unplanned.length} un-planned slices concurrently (per-slice writes only; the driver is the single 00-index writer)`)
+      const planned = await parallel(unplanned.map(s => () => runStage('plan', s.slice, idx, { noIndexWrites: true })))
+      const done = planned.filter(r => r && r.status === 'complete').map((r, i) => r.slice || unplanned[i].slice)
+      if (done.length) {
+        await agent(
+          `PLAN FAN-OUT BOOKKEEPING for slug '${slug}'. The driver just planned these slices concurrently and ` +
+          `each plan subagent wrote ONLY its per-slice 04-plan artifact (index writes were withheld so this step ` +
+          `is the single writer).\n\n${EOB}\n\n` +
+          `In ${projectRoot}/.ai/workflows/${slug}/00-index.md, for EACH of these slices — ${done.join(', ')} — ` +
+          `record the plan stage as done in its slices[] entry (matching the convention already used by completed ` +
+          `stages in this index), and refresh updated-at. Change NOTHING else.` +
+          CONTROL_FILE_RULE +
+          `\n\nReturn { ok, wrote: [<files changed>], note }.`,
+          { schema: { type: 'object', required: ['ok'], properties: { ok: { type: 'boolean' }, wrote: { type: 'array', items: { type: 'string' } }, note: { type: 'string' } } }, label: 'plan-index-writeback', phase: 'Drive' }
+        )
+      }
+      idx = await orient()                          // re-snapshot so driveChain sees the new plans as done
+      if (!idx || !idx.ok) return { ok: false, stopped: true, reason: (idx && idx.blockReason) || 're-orient after plan fan-out failed', route: idx && idx.route }
+    }
   }
 
   const reviewPer = idx.reviewScope === 'per-slice'

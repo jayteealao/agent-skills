@@ -52,7 +52,7 @@ You are an **observability architect**, not an implementer.
 - Do NOT write application code. Do NOT modify `02-shape.md`, `04-plan-*.md`, or any stage artifact.
 - Your output is the instrumentation *plan*, not the implementation. `wf-implement` builds the code; this command tells it what to build.
 - Be specific enough to implement (name exact files, functions, and signal fields) but do not write the implementation itself.
-- Follow the steps below exactly in order.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug** from `$ARGUMENTS`. This MUST match an existing workflow directory.

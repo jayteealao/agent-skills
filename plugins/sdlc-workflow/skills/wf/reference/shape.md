@@ -31,7 +31,7 @@ You are running `wf-shape`, **stage 2 of 10** in the SDLC lifecycle.
 You are a **workflow orchestrator**, not a problem solver.
 - Do NOT design, architect, implement, or code the solution.
 - Your job is to produce a **mini-spec with acceptance criteria** — not to build anything.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 - If you catch yourself solving the problem, STOP and return to the next unfinished step.
 
@@ -53,7 +53,7 @@ You are a **workflow orchestrator**, not a problem solver.
 3. **Check prerequisites:**
    - `01-intake.md` must exist. If missing → STOP: "Run `/wf intake` first."
    - If `01-intake.md` shows `Status: Awaiting input` → STOP. Tell the user to resolve open intake questions first.
-   - If `current-stage` is already past shape → WARN: "Stage 2 (shape) is complete. Running again will overwrite `02-shape.md`. Proceed?" Use AskUserQuestion if available, otherwise ask in chat.
+   - If `current-stage` is already past shape → note the re-run in chat and proceed. [_additive-write.md](_additive-write.md) snapshots the prior revision and appends the `revisions:` ledger; no permission question is needed.
 4. Read `01-intake.md` and `po-answers.md`.
 5. Carry forward `selected-slice-or-focus` and `open-questions` from the index.
 
@@ -71,42 +71,12 @@ CVEs, and better patterns before implementation begins. Add more agents for cros
 
 ### Explore sub-agent 1 — Codebase Architecture & Integration Surface
 
-Prompt the agent with ALL of the following; it must report findings for each section:
+Charter (a goal, not a script — the agent decides how to hunt): map the codebase surface this work touches — the module structure and entry points that reach it; the conventions the affected area already follows (naming, error handling, dependency wiring, configuration, logging); the integration surfaces in and out (callers, callees, events, middleware); the primary data flow with its models and serialization boundaries; and the test structure, with the coverage gaps relevant to this work. Every finding cites file:line.
 
 **Start from intake's map — do not re-derive.** If `01-intake.md` carries an `## Affected Areas
 (preliminary)` section (intake's bounded Explore pass), open the sub-agent prompt with it verbatim
 and the instruction: *"Start from this preliminary map; verify and deepen it — do not re-derive
 what it already establishes."*
-
-**Directory & module structure:**
-- Map the top-level directory structure and identify the organizational pattern (monorepo, feature folders, layer-based, domain-driven)
-- Identify entry points (main/index/app/server files) and trace how the request reaches the area this work will touch
-- List key modules/packages/namespaces and their public API surfaces (exports, exposed functions, classes, types)
-
-**Existing patterns & conventions:**
-- Naming conventions (files, functions, variables, CSS classes, DB columns) — look at 3-5 representative files in the affected area
-- Error handling patterns (try/catch style, Result types, error middleware, custom error classes)
-- Dependency injection or service location patterns (constructors, providers, containers, global singletons)
-- Configuration patterns (env vars, config files, feature flags, secrets management)
-- Logging/observability patterns (structured logging, log levels, tracing, metrics)
-
-**Integration surfaces:**
-- What code **calls into** the affected area? (callers, consumers — grep imports/requires of affected modules)
-- What does the affected area **call out to**? (external services, databases, message queues, caches)
-- What events, hooks, callbacks, or pub/sub channels does the affected area participate in?
-- What middleware, interceptors, or decorators wrap the affected code path?
-
-**Data flow:**
-- Trace the primary data flow: input source → validation → transformation → persistence → response
-- Data models/schemas/types involved (DB schemas, API request/response types, domain models)
-- Serialization boundaries (JSON parse/stringify, protobuf, ORM hydration)
-
-**Test structure:**
-- Test framework in use (Jest, Vitest, pytest, Go testing, etc.)
-- Where tests live relative to source (`__tests__/`, centralized `tests/`, `*_test.go`, etc.)
-- Test helpers, factories, fixtures, and mocks — list file paths
-- Testing convention (unit per module? integration per feature? E2E per user flow?)
-- Areas with thin or missing coverage relevant to this work
 
 **Interactive & visual verification tooling (REPORTING ONLY — the PO question belongs to the orchestrator, Step 3):**
 
@@ -123,43 +93,12 @@ Drive this block from the `stack:` fingerprint in `00-index.md` and [runtime-ada
 
 ### Explore sub-agent 2 — External Dependencies & Freshness
 
-Prompt the agent with ALL of the following:
+Charter: report the external picture this work depends on — the touched dependencies' current vs. latest versions with deprecations and breaking changes; the official-doc recommended patterns vs. what the codebase does; security advisories and CVEs affecting the touched dependencies; known bugs, gotchas, anti-patterns, and performance traps for this feature type; and any RFCs, platform guidelines, or accessibility standards that prescribe behavior for it. Every claim names its source; findings that should shape acceptance criteria or edge cases are flagged explicitly for the synthesizer.
 
 **Start from intake's freshness pass — verify and extend, do not repeat.** If `01-intake.md`
 carries `## Freshness Research` entries, open the sub-agent prompt with their takeaways verbatim
 and the instruction: *"These are intake's freshness findings; verify they still hold and extend
 into what they did not cover — do not re-research what they already establish."*
-
-**Dependency versions & compatibility:**
-- Check the package manifest (package.json, requirements.txt, go.mod, Cargo.toml, etc.) for versions of dependencies this work touches
-- Web search for the **latest stable version** of each — note if the project is behind and whether upgrading is needed or risky
-- Check for **deprecation notices** or **breaking changes** between the project's version and the latest
-
-**Library documentation & patterns:**
-- Web search official documentation for each dependency/API this work interacts with
-- Verify patterns in the codebase match the library's **recommended approach** for the project's version
-- Check for **migration guides** if the work involves upgrading or the current version is approaching EOL
-
-**Security advisories:**
-- Web search for recent CVEs or security advisories affecting the dependencies this work touches
-- Check GitHub security advisories for relevant repositories
-- Note any advisories that affect the approach or require specific mitigations
-
-**Ecosystem context:**
-- Check GitHub issues and PRs on relevant dependency repos for known bugs that could affect this work
-- Check for community-recommended alternatives or complementary libraries the shaped spec should consider
-- Search for relevant blog posts, release announcements, or RFC documents that affect architectural decisions
-
-**Implementation best practices:**
-- Web search for established patterns and community consensus on implementing this feature type — official guides, framework docs, opinionated style guides
-- Search for known anti-patterns and common mistakes — official docs, web.dev, engineering blogs, dev community posts (dev.to, css-tricks, Stack Overflow)
-- Note any RFCs, W3C specs, platform guidelines, or accessibility standards that prescribe behavior for this feature type
-- Identify whether the approach is considered idiomatic, legacy, or controversial in the current ecosystem
-
-**Known gotchas & performance pitfalls:**
-- Web search for common performance traps for this feature type (unnecessary re-renders, N+1 queries, layout thrash, bundle size, memory leaks, cold-start latency)
-- Search for community "lessons learned", "what I wish I knew", or postmortems — these surface non-obvious failure modes
-- Note known limitations, quirks, or required workarounds the spec should account for before acceptance criteria are written
 
 Merge all sub-agent findings into the stage file under `## Affected Areas`, `## Dependencies / Sequencing Notes`, and `## Freshness Research`. Best practices and gotcha findings must directly inform acceptance criteria and edge cases — surface them to the synthesizer.
 
@@ -188,7 +127,7 @@ rounds or late-arriving research surface new ambiguities.
 
 ## Step 2.2 — Interview rules
 
-- Ask 20 baseline questions across 5 rounds of 4 using AskUserQuestion. 20 is a floor, not a ceiling — after Round 5, apply the extension rule below.
+- Ask 20 baseline questions using AskUserQuestion, batched into as few rounds as the dependency structure allows (a question that builds on an earlier answer waits for that answer; independent questions share a round). The five themes below organize coverage, not round boundaries. 20 is a floor, not a ceiling — after the themes are covered, apply the extension rule below.
 - **Question accountability:** every question names (in the artifact's `## Questions Asked This Stage` record) the `AMB-n` item(s) it closes or confirms. **Assumption-confirmation questions are first-class closers** — pre-fill your understanding and ask the PO to confirm or revise; a confirmed assumption closes its inventory item.
 - When genuine open ambiguities are fewer than the remaining budget, spend the remaining questions confirming assumptions and probing the consequences of earlier answers ("you chose X in Round 2 — that implies Y in the empty state; confirm?") — **never invented decoys**. Padding = a question that closes or confirms no inventory item; the floor is satisfied by closing and confirming, not inventing.
 - Every question must be about *this specific feature* — reference it by name, use concrete details from the intake brief. No generic process questions.

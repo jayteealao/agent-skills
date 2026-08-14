@@ -31,7 +31,7 @@ You are a **workflow orchestrator**, not a problem solver.
 - Do NOT modify `.ai/ship-plan.md` — to edit the plan, run `$wf ship-plan edit`. Runs follow the plan as a contract.
 - Your job: **read the plan, generate or resume a run, execute the 13 idempotent steps, write the run artifact**.
 - Each step is independently re-runnable. Re-running step N when N already completed is a **no-op + note**, not a duplicate side-effect.
-- Follow the numbered steps below exactly in order. Do not skip, reorder, or combine steps.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY)
 
@@ -105,8 +105,9 @@ You are a **workflow orchestrator**, not a problem solver.
    | **Rollout strategy** | `plan.rollout-strategy` | Step 3.1 |
    | **Release window** — timing, blackout, on-call | freeform | Step 3.2 |
    | **Stakeholder/compliance overrides** | `plan`'s sign-off list | Step 3.3 |
+   | **Post-release base push** — go/no-go for `git push origin <base-branch>` | `plan.post-release-version != none` | Step 10.3 |
 
-   Present the derived default for each and ask only for confirmation or override — a batched round of five confirmations is one interruption, not five. Record every answer in `po-answers.md` (`stage: ship`, with the `run-id`) and stamp them into the run's frontmatter as `prefetched-answers:`. Steps 1.2 and 3.1–3.3 then **consume** those answers instead of re-asking; their idempotency guards already skip a field that is set.
+   Present the derived default for each and ask only for confirmation or override — a batched round of confirmations is one interruption, not several. Record every answer in `po-answers.md` (`stage: ship`, with the `run-id`) and stamp them into the run's frontmatter as `prefetched-answers:`. Steps 1.2 and 3.1–3.3 then **consume** those answers instead of re-asking; their idempotency guards already skip a field that is set.
 
    **What deliberately stays where it is.** A question whose answer genuinely depends on a mid-run outcome cannot be pre-fetched and must not be: the **Go/No-Go** after pre-flight and CI, a **merge-path fallback** after a failed merge, and any **recovery-playbook step** offered on a step-8 failure. Those are decisions about something that has happened; asking them early would be asking the user to guess. This step is only about the ones that were answerable at minute zero.
    If **start fresh**: leave the prior run untouched (or set `failed`); generate a new `run-id`.
@@ -312,7 +313,7 @@ Idempotency: read each `version-source-of-truth` file — if already at the post
 10.1 Compute next dev version per `plan.post-release-version-cmd`.
 10.2 Apply to every `version-source-of-truth` file. Commit: `git commit -am "build: bump to <next-dev-version>"`.
 
-10.3 Push: `git push origin <base-branch>`. Record `post-release-bump-sha: <git rev-parse HEAD>`.
+10.3 Push: `git push origin <base-branch>` — **gated exactly like the Step 6 merge**: pushing to the base branch is an irreversible external action, so it requires the user's go. Consume the answer from Step 0.9's `prefetched-answers:` (the batched round asks it up front, so it costs no extra stop); ask here only when that round did not run or a pre-flight outcome invalidated the answer. On the go, push and record `post-release-bump-sha: <git rev-parse HEAD>`.
 
 ## Step 11 — Update `09-ship-runs.md` index
 

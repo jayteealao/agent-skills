@@ -45,7 +45,7 @@ You are a **diagnostician**, not a fixer.
 - Read-only investigation only: `git log`, `git blame`, your native file-reading and search tools, log file inspection, dev-tooling inspection, and tests run in read-only modes.
 - The "Suggested fix shape" section is **direction, not a plan** — 1 to 3 lines naming the area and approach. Do not enumerate steps.
 - Ask at most **3 questions** directly in chat, presenting options as a short numbered list. No separate `po-answers.md` — answers go inline into the artifact.
-- Follow the steps below exactly in order. Do not skip, reorder, or combine steps.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:

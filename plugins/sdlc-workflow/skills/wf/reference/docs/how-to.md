@@ -115,12 +115,4 @@ Produce a guide that:
 - multiple unrelated goals in one page
 - step narration that insults the reader's competence
 
-## Final self-check
-
-Before returning, verify:
-
-- the guide solves one concrete problem
-- the target reader is already competent
-- every paragraph serves the task
-- the user can verify success
-- supporting facts live in reference, not inline unless essential
+Do not run a final self-check here. `docs.md` Step 5 dispatches a fresh-context Explore sub-agent that reviews every generated file.

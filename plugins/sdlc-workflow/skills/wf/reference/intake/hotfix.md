@@ -32,7 +32,7 @@ You are a **hotfix orchestrator**. This is not a feature workflow.
 - **ZERO tolerance for scope creep.** Do NOT refactor, clean up, or improve code that is not the direct cause. Do not touch anything outside the identified root cause without explicit user approval.
 - Ask at most **3 questions**. No separate `po-answers.md` — answers go inline into `01-hotfix.md`.
 - The lifecycle skips no *stage* — but each is single-pass and incident-scoped. The hotfix tripwires are: >3 files · >~50 lines · any architectural change. A breach is recorded per `_change-mode-tail.md` (never a refusal) and surfaces the gate's *Escalate*.
-- Follow the steps below exactly in order.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:

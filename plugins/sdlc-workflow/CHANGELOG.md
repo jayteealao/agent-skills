@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.152.0] - 2026-08-14
+
+The Claude 5 prompting repair (CLAUDE5-PROMPTING-REPAIR-PLAN.md, all waves W0–W6 plus the W7 consult-timing item): a 144-file audit against Anthropic's "Prompting Claude Fable 5" guide found the corpus clean on reasoning-echo and context-budget but heavy on over-prescription — legacy step machines and fictional worked examples in the review rubrics, serial loops over worktree-isolated independent work, permission questions on reversible actions, and three real safety bugs found in passing. The repair trusts the model with process and keeps the contracts: checklists, schemas, severity definitions, evidence non-negotiables, and every gate the audit verified as guide-compliant stay verbatim.
+
+### Added
+
+- `reference/_grounded-progress.md` — the guide's grounded-progress clause as a single-source fragment: audit every claim against a tool result from this run; counts derive from artifacts opened this run, never memory. Wired into yolo's `runStage` wrapper (every stage inherits it), `auto.md`, `implement.md`, and `retro.md`.
+- `reference/_autonomy-guards.md` — early-stop guard (do the described work before ending the turn) and release valve (never ask a question the prompt, artifacts, or codebase already answer; record the answer and its source). Referenced from yolo, auto, verify, handoff, and the design interviews.
+- `review/logging.md` and `review/observability.md` gained the `NON-NEGOTIABLES` file:line evidence section the other rubrics already carried.
+- Guard test `tests/unit/skills/claude5-prompting-repair.test.mjs` — 16 invariants pinning every wave's acceptance line (single-source fragments, fan-out defaults, no stash in verify, staging bans, gated base push, ban-list single source, dead boilerplate stays dead).
+
+### Changed
+
+- **Review rubrics stripped to their contracts** (34 files, ~37,400 → ~16,900 lines, −55%): `# WORKFLOW` step machines replaced with four STE sentences; `### … Scan` sub-procedures, grep recipe blocks, fictional example reports, invented composite scores, and "False Positives Welcome" self-critique sections deleted. Checklists, severity anchors, and evidence rules kept in full.
+- **Serial loops unblocked**: verify's fix dispatch, implement's reviews mode, and review `_stage.md`'s fix loop now dispatch all triaged fixes in parallel (worktree-isolated, sanity-check as the merge gate, conflicting-pair serial fallback); handoff batch mode packages slugs in parallel; docs generates independent doc actions in parallel; yolo's `reviewFanout` and `planFanout` default ON, with the plan fan-out's `00-index.md` race closed by construction — plan subagents write per-slice files only and the driver is the single index writer.
+- **Reversible actions stopped asking**: the four re-run overwrite "Proceed?" gates (shape/plan/implement/verify) are informational notes — `_additive-write.md` already snapshots and ledgers; verify triage auto-fixes mechanical classes (lint/format/marker-syntax, reported with diffs) and `_fix-loop.md` rule 2 carries the same carve-out; auto switches branches and runs the mid-build read-only discover without asking; the design interviews (setup/teach/shape/contract) pre-fill every source-answerable question and ask only the residue in one batched round; intake/extend keeps one confirmation instead of two.
+- **Over-prescription trims**: "exactly in order, do not skip" boilerplate (27 files) replaced with one ordering rule; shape/plan/retro/ideate/discover sub-agent prompt enumerations collapsed to charters with the contract blocks (build-avoidance ladder, reuse scan, deferral tripwire, stack tooling, debt harvest, intent drift) kept verbatim; verify's nine "(Gap N fix)" patches consolidated into one coherent charter whose micro-tests derive from what the surface invites; task-tracker choreography in implement/verify/handoff reduced to "track the units; keep statuses truthful" (handoff keeps T4-blocked-by-T3.8 and triage-after-CI-watch as declared contracts); the yolo deferral law now has one normative statement (verify.md's law + the policy-table row) with yolo.md prose and `yolo.js` POLICY shrunk to pointers plus the fields to emit; implement's six-point self-critique and the docs primitives' "Final self-check" blocks replaced by fresh-context verifiers (the blind pre-mortem pattern); plan's single-slice auto-review now uses a fresh review sub-agent; shape's fixed "5 rounds of 4" relaxed to dependency-structure batching (the 20-question floor and coverage gate stay — locked PO directives); design contract's auto-consult fires concurrently with the mock-fidelity inventory.
+
+### Fixed
+
+- **verify.md stash cycles** (bundle-size comparison and longitudinal baseline): `git stash`/`git stash pop` replaced with temporary worktrees at the base branch; the `git stash list` guard — which tested the wrong condition — is deleted. No stash command remains in verify.
+- **implement.md sweep staging**: "Stage ALL changed files" replaced with explicit-path staging classified like `ship.md` Step 1.1 (slice code by path, workflow artifacts by path, unknown paths fail closed); `git add -A` and pathless `git add` forbidden by name.
+- **ship.md step 10.3**: the post-release `git push origin <base-branch>` was ungated; it now consumes a go/no-go from Step 0.9's batched question round, gated exactly like the Step 6 merge.
+- **19 rubrics** carried a dead `.claude/<SESSION_SLUG>/` output path contradicting `_stage.md`'s `.ai/workflows/{slug}/07-review-…` contract — deleted, along with the `SESSION_SLUG` frontmatter args that existed only to build it.
+- **Design ban-list drift**: `_design-context.md` is now actually the single source; the restated (and drifted) copies in brand/product/colorize/layout/typeset/polish/animate are pointer lines, with the two genuine drift items (side-stripe and bounce rationales) promoted into the canonical list.
+
 ## [9.151.0] - 2026-08-11
 
 The v9.150.0 release gate surfaced a v9.132.0 gap: the observability router's project-root artifacts (`.ai/observability.md`, `.ai/observability-build.md`) had schema types but no renderer — and, worse, the render orchestrator never discovered them at all, so `/wf observability init`/`build` output was written but never rendered. This release closes the gap properly instead of leaving the e2e exclusion in place.

@@ -164,124 +164,19 @@ Motion should match the component's personality and the rest of the product — 
 
 # WORKFLOW
 
-## Step 1: Inventory the motion in the diff
+Read the intake and plan artifacts for the workflow to learn the intent of the change. Take the review scope and the diff from the dispatch prompt, per [_stage.md](_stage.md). Hunt defects with the checklist in this file. Record `file:line` evidence for every finding.
 
-Search for animation primitives:
-- `transition`, `transition-property`, `animation`, `@keyframes`, `cubic-bezier`, `@starting-style`
-- `transform`, `translate`, `scale`, `rotate`, `opacity`, `filter: blur`
-- Library: `motion.`, `<motion`, `animate(`, `useSpring`, `whileTap`, `whileHover`, `AnimatePresence`, `useReducedMotion`
+# OUTPUT
 
-## Step 2: Classify each animation
-
-For each, record: where it fires, how often a user sees it, its purpose, its easing, its duration, whether it's interruptible, and which properties it animates.
-
-## Step 3: Measure against the rubric
-
-Apply sections 1–9. A `transition: all`, an `ease-in` on UI, a `scale(0)` entrance, or a layout-property animation is a finding on sight.
-
-## Step 4: Check gesture handlers and reduced-motion
-
-For any pointer/touch-driven transform: velocity, damping, pointer capture, multi-touch. For all movement: `prefers-reduced-motion`.
-
-## Step 5: Generate the review report
-
-Create `.ai/workflows/<SESSION_SLUG>/reviews/review-motion-<YYYY-MM-DD>.md` with findings.
-
-## Step 6: Update session README
-
-Add a link entry to `.ai/workflows/<SESSION_SLUG>/README.md` for the generated review file.
-
-# OUTPUT FORMAT
-
-Create `.ai/workflows/<SESSION_SLUG>/reviews/review-motion-<YYYY-MM-DD>.md`:
+Write the findings file, the sibling `.yaml`, and the fragment per the output contract in [_stage.md](_stage.md). Use this skeleton for each detailed finding:
 
 ```markdown
----
-skill: $review motion
-session_slug: <SESSION_SLUG>
-scope: <SCOPE>
-target: <TARGET>
-completed: <YYYY-MM-DD>
----
-
-# Motion Review
-
-**Scope:** <Description>
-**Reviewer:** Codex Motion Review Agent
-**Date:** <YYYY-MM-DD>
-
-## Summary
-
-<Overview of motion-feel issues>
-
-**Severity Breakdown:**
-- BLOCKER: <count>
-- HIGH: <count> (ease-in on UI, animation on keyboard/high-frequency action, layout-property animation)
-- MED: <count> (scale(0) entries, non-interruptible keyframes, >300ms UI, missing reduced-motion)
-- LOW/NIT: <count>
-
-**Merge Recommendation:** <BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS>
-
----
-
-## Findings
-
-### Finding 1: <Title> [HIGH]
-
-**Location:** `<file>:<line>`
-
-**Issue:**
-<What feels wrong and why — the user-perceived effect, not just the property>
-
-**Evidence:**
-```css
-<the offending property/value>
-```
-
-**Fix:**
-```css
-<the corrected property/value, with the exact curve/duration from the tables>
-```
-
-**Why it matters:** <perceived-performance / feel / accessibility effect>
-
----
-```
-
-Within findings, a compact **Before / After / Why** table is an effective way to present multiple small motion fixes at once:
-
-| Before | After | Why |
-| --- | --- | --- |
-| `transition: all 300ms` | `transition: transform 200ms ease-out` | `all` animates unintended properties off-GPU |
-| `transform: scale(0)` | `transform: scale(0.95); opacity: 0` | Nothing appears from nothing |
-| `ease-in` on dropdown | `ease-out` + custom curve | `ease-in` delays the moment the user watches most |
-| `transform-origin: center` on popover | `var(--radix-popover-content-transform-origin)` | Popovers scale from their trigger (modals exempt) |
-
-# SUMMARY OUTPUT
-
-```markdown
-# Motion Review Complete
-
-## Review Location
-Saved to: `.ai/workflows/<SESSION_SLUG>/reviews/review-motion-<YYYY-MM-DD>.md`
-
-## Merge Recommendation
-**<BLOCK | REQUEST_CHANGES | APPROVE_WITH_COMMENTS>**
-
-## Feel Impact
-- Feel-breaking regressions (BLOCKER/HIGH): <count> — <one-line each>
-- Should-be-deleted / should-be-reduced motion: <count>
-- Performance (off-GPU, recalc storms): <count>
-- Interruptibility & timing: <count>
-- Accessibility (reduced-motion, hover gating): <count>
-
-## Top Fixes
-1. <file>:<line> — <fix> (<curve/duration>)
-2. <file>:<line> — <fix>
-
-## Next Actions
-1. <Immediate action>
-2. <Follow-up>
+### {ID}: {Title} [{SEVERITY}]
+**Location:** `{file}:{line-range}`
+**Evidence:** {quoted snippet}
+**Issue:** {description}
+**Fix:** {suggestion for HIGH and above}
+**Severity:** {level} | **Confidence:** {High/Med/Low}
 ```
 
 # WHEN FEEL IS UNCERTAIN

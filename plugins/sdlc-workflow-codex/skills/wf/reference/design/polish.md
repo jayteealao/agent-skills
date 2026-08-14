@@ -113,9 +113,11 @@ Run through the surface looking for:
 - Anything that doesn't match across similar components
 
 ## Never
+
+Apply the ban list in [_design-context.md](_design-context.md).
+
 - Micro-polish without macro-structure (fixing hover states on a broken layout)
 - Adding decorative detail to elements that should be invisible (scrollbars, dividers, container borders)
-- Bounce or elastic easing in production transitions
 - Polishing for visual complexity rather than functional completeness
 
 ---

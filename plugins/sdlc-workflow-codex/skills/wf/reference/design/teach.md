@@ -19,7 +19,16 @@ Read PRODUCT.md and DESIGN.md (if they exist). Identify:
 
 ## Step 2: Targeted questions (only for missing/incomplete sections)
 
-Ask only about what's missing. Don't re-ask about complete sections. Present questions as a short numbered list, 1–3 at a time. Stop and wait for answers. Examples:
+Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Ask only about what's missing. Don't re-ask about complete sections.
+
+Before you ask any question, pre-fill the answers:
+
+1. For each missing or incomplete section, search the user prompt, PRODUCT.md, DESIGN.md, and the codebase for an answer.
+2. When a source answers a question, record the answer and the source. Do not ask that question.
+3. Ask the unanswered questions in ONE batched round, presented as a short numbered list. Then stop and wait for the answers.
+4. When no unanswered questions remain, skip the round and continue to Step 3.
+
+Example questions:
 
 For missing register:
 > "Is this primarily a **brand** surface (landing page, marketing) or a **product** surface (app, dashboard, tool)?"
@@ -91,13 +100,13 @@ brand | product
 
 ## Step 4: Confirm
 
-Present the updated files and ask the user directly in chat:
+Present the updated files and ask the user directly in chat. List each pre-filled answer with its source in the same message:
 > "Here's the updated context. Does this accurately represent the project? Anything to correct?"
 
 After confirmation, these files are the anchors for all future $wf design commands in this project.
 
 ## Notes
 
-- Never synthesize values the user didn't provide — if something is unknown, mark it `[TODO: add X]`
+- Never synthesize values that no source provides — if something is unknown, mark it `[TODO: add X]`. A pre-filled answer with a recorded source is not synthesis.
 - If the user wants to skip a section entirely, mark it `<!-- intentionally omitted -->` rather than removing the heading
 - Commit these files to the repository — they're project-level context, not personal configuration

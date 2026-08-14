@@ -43,7 +43,7 @@ You are an **opportunity discoverer and adversarial filter**, not a problem solv
 - This is a **terminal analysis mode**, not a build lifecycle: it roots a lightweight `type: workflow-index` slug workflow whose **only** artifact is the `01-ideate.md` lead. Do NOT author build stage files (`02-shape.md`, `03-slice.md`, `04-plan.md`, `05-implement.md`, …) — ideation is not a build lifecycle.
 - Do NOT make code changes.
 - Your job is: **scan → generate candidates → challenge them → rank survivors → present → write artifact**.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - If you catch yourself starting to implement an idea, STOP. This command discovers work; it does not do it.
 
 ---
@@ -72,165 +72,57 @@ Launch exploration sub-agents in parallel. Each sub-agent gets a specific lens a
 
 **Model for every dispatched lens agent:** `haiku`. REQUIRED on every `Task` call. Each lens reads code + emits structured findings against a rubric (complexity, performance, security, DX, gaps, architecture). The adversarial filtering step that comes later does the judgment work; the per-lens fan-out is bounded extraction. Haiku is the right tier.
 
----
+Prompt each lens agent with its goal below plus this shared evidence rule: every finding cites
+`file:line` (or a file range) from this codebase, states the problem, states why it matters, and
+carries an effort estimate (xs/s/m/l/xl). Generic advice with no citation is not a finding.
 
 ## Lens 1 — Code Quality & Technical Debt
 
-Prompt the agent with ALL of the following. It must report findings for each section, with file paths and line-range evidence:
-
-**Complexity hotspots:**
-- Find files with the highest cyclomatic complexity (long functions, deeply nested conditionals, many branches)
-- Identify functions/methods over 50 lines. Report path, approximate line range, and what makes them complex.
-- Find files that have been modified most frequently in recent git history (`git log --oneline --follow -- <file>` for candidates). High churn + high complexity = highest-risk area.
-
-**Test coverage gaps:**
-- Find source files with no corresponding test file. List them.
-- Find test files that are suspiciously short compared to the file they cover (ratio of test lines to source lines < 0.2).
-- Look for TODO/FIXME/HACK comments in test files — these often mark untested behaviors.
-
-**Code rot indicators:**
-- Find TODO/FIXME/HACK/DEPRECATED comments in source files. List file, line, content.
-- Find dead code: exported functions/classes with no imports elsewhere. Use Grep to check import counts.
-- Find duplicated logic: two or more functions with near-identical names and similar lengths in different modules.
-
-**Outdated patterns:**
-- Check `package.json`, `requirements.txt`, `go.mod`, or equivalent for dependencies significantly behind their latest stable version.
-- Look for usage of deprecated APIs (common patterns: `componentWillMount`, `ReactDOM.render`, `.then()` without `.catch()`, callback-style async in a codebase that's moved to async/await, etc.)
-
-**Output format:**
-Return a list of specific, evidence-grounded findings. For each finding include: file path, approximate line, what the problem is, why it matters, estimated effort (xs/s/m/l/xl).
-
----
+Goal: find the code most likely to break or resist change. Hunt:
+- complexity hotspots — long functions, deep nesting, files with both high churn and high complexity
+- test-coverage gaps — source files with no test, or a test far thinner than the code it covers
+- code rot — TODO/FIXME/HACK/DEPRECATED markers, dead code, duplicated logic across modules
+- outdated patterns — dependencies far behind stable, deprecated API usage
 
 ## Lens 2 — Performance & Scalability
 
-Prompt the agent with ALL of the following:
-
-**Database and query patterns:**
-- Find ORM calls inside loops (N+1 query risk). Look for `findOne`/`findById`/`where` inside `for`, `forEach`, `map`, `reduce`.
-- Find queries without pagination on endpoints that return collections. Look for `findAll()`, `.all()`, list endpoints without `limit`/`offset`/`cursor`.
-- Find missing indexes: database migration files that create foreign keys without corresponding index creation.
-
-**Caching opportunities:**
-- Find expensive computations that run on every request with the same inputs (deterministic functions called in hot paths without memoization).
-- Find external API calls (HTTP clients, cloud SDK calls) not wrapped in any caching layer.
-- Find session/user data fetched repeatedly across a request lifecycle without request-scoped caching.
-
-**Algorithmic issues:**
-- Find sorting, filtering, or aggregation operations on large unconstrained collections.
-- Find nested loops (`for` inside `for`, nested `.map()` chains) on potentially large data sets.
-
-**Scale bottlenecks:**
-- Find synchronous operations blocking the event loop in async-first runtimes (Node.js `fs.readFileSync`, Python `time.sleep` in async context, etc.).
-- Find hardcoded limits or thresholds that would break at 10× current scale.
-
-**Output format:** Specific findings with file paths, evidence, why it matters at scale, effort estimate.
-
----
+Goal: find work that fails at scale. State why each finding matters at 10× current load. Hunt:
+- query patterns — N+1 lookups in loops, unpaginated collection endpoints, missing indexes
+- caching gaps — repeated deterministic computation, uncached external calls, per-request refetching
+- algorithmic hotspots — sorting/filtering/nested iteration over unconstrained collections
+- blocking work — synchronous operations inside async-first runtimes, limits that break at scale
 
 ## Lens 3 — Security & Privacy
 
-Prompt the agent with ALL of the following:
-
-**Input handling:**
-- Find user-controlled inputs used in SQL strings, shell commands, file paths, or HTML output without sanitization.
-- Find endpoints that accept file uploads without type validation.
-- Find deserialization of untrusted data (JSON.parse, pickle.loads, yaml.load without Loader) without schema validation.
-
-**Authentication & authorization:**
-- Find endpoints or routes with no authentication middleware. Compare guarded vs. unguarded routes.
-- Find authorization checks that only verify authentication (is the user logged in?) but not authorization (is this user allowed to access this resource?).
-- Find hardcoded credentials, API keys, tokens, or passwords in source files or config files tracked by git.
-
-**Data handling:**
-- Find logging statements that include user data, emails, passwords, tokens, or PII fields.
-- Find user data stored in localStorage, sessionStorage, URL parameters, or cookies without security flags.
-- Find fields named `password`, `token`, `secret`, `key`, `ssn`, `credit_card`, `dob` that might be returned in API responses without redaction.
-
-**Dependency vulnerabilities:**
-- Check `package-lock.json`, `yarn.lock`, or `requirements.txt` for any known high-severity CVEs (web search for each dependency version if needed).
-
-**Output format:** Specific findings with file paths, severity (critical/high/medium), evidence, effort estimate.
-
----
+Goal: find exposure. Grade each finding critical / high / medium. Hunt:
+- input handling — user input reaching SQL, shell, paths, or HTML unsanitized; unvalidated uploads and deserialization
+- auth — unauthenticated routes, authentication-only checks where authorization is required, hardcoded credentials in tracked files
+- data handling — PII or secrets in logs, insecure client-side storage, unredacted sensitive fields in responses
+- dependencies — pinned versions with known high-severity CVEs
 
 ## Lens 4 — Developer Experience
 
-Prompt the agent with ALL of the following:
-
-**Setup friction:**
-- Read README.md and CONTRIBUTING.md. How many steps does "getting started" take? Are any steps likely to fail silently?
-- Find environment variables referenced in source code. Are they all documented? Do they have sensible defaults?
-- Is there a local development setup script? Does it handle common failure modes?
-
-**Error message quality:**
-- Find `throw new Error(...)` or `raise Exception(...)` with generic messages ("something went wrong", "internal error", "unexpected").
-- Find places where error objects are caught and swallowed without logging or re-throwing.
-- Find API error responses without an error code or reference ID (making debugging harder for callers).
-
-**API ergonomics (internal or external):**
-- Find functions/methods with more than 4 positional parameters (should be an options object).
-- Find inconsistent naming: some functions `getUser`/`fetchUser`/`loadUser` doing the same thing.
-- Find breaking changes in public APIs that have no version guard or deprecation warning.
-
-**Documentation gaps:**
-- Find exported functions/classes/methods with no JSDoc/docstring/type annotation.
-- Find features mentioned in README that don't have corresponding implementation, or implementation that isn't in the README.
-
-**Output format:** Specific findings with file paths, what the friction is, who it affects, effort estimate.
-
----
+Goal: find friction. Name who each friction affects. Hunt:
+- setup friction — getting-started steps that fail silently, undocumented environment variables
+- error quality — generic messages, swallowed errors, API errors with no code or reference ID
+- API ergonomics — parameter sprawl, inconsistent naming for one operation, unguarded breaking changes
+- documentation drift — undocumented exports, README features the code does not match
 
 ## Lens 5 — Feature Completeness & User-Facing Gaps
 
-Prompt the agent with ALL of the following:
-
-**Error state coverage:**
-- Find UI components or API handlers that handle the happy path but have no error state (loading/error/empty state missing).
-- Find form submissions with no validation feedback to the user.
-- Find operations that can fail silently from the user's perspective.
-
-**Accessibility gaps (if frontend exists):**
-- Find interactive elements (`button`, `a`, custom click handlers) without accessible names (`aria-label`, visible text, `title`).
-- Find images without `alt` attributes.
-- Find form inputs without associated `label` elements.
-- Find color-only communication (red/green status indicators without icon or text).
-
-**Edge cases in existing features:**
-- Read any existing shape or intake artifacts (`.ai/workflows/*/02-shape.md`) and look for acceptance criteria that have no corresponding test.
-- Find features that work for the single-item case but likely break on empty collections or large collections.
-
-**Workflow completeness:**
-- Look for "TODO: implement" comments adjacent to stub functions that still return hardcoded or placeholder values.
-- Find configuration options documented in README that don't have implementation.
-
-**Output format:** Specific findings with file paths, what the gap is, user impact, effort estimate.
-
----
+Goal: find what users hit that the happy path hides. Name the user impact of each gap. Hunt:
+- state coverage — missing loading/error/empty states, forms with no validation feedback, silent failures
+- accessibility — unlabeled interactive elements, missing alt text, inputs with no label, color-only signals
+- edge cases — acceptance criteria in `.ai/workflows/*/02-shape.md` with no covering test, features that break on empty or large collections
+- stubs — "TODO: implement" placeholders, documented configuration with no implementation
 
 ## Lens 6 — Architecture & Design Patterns
 
-Prompt the agent with ALL of the following:
-
-**Structural issues:**
-- Map the top-level directory structure. Are there modules that have grown too large and should be split?
-- Find circular dependencies (module A imports B, B imports A or a transitive path back to A).
-- Find business logic in presentation layer (React components doing database queries, controllers doing complex business rules).
-
-**Missing abstractions:**
-- Find the same pattern repeated 3+ times across different files (copy-paste code blocks that should be a shared utility).
-- Find external service integrations (Stripe, SendGrid, AWS) directly in business logic without an adapter/interface layer.
-
-**Over-engineering:**
-- Find abstractions with only one implementation that add indirection without flexibility.
-- Find configuration systems more complex than the features they configure.
-- Find premature generalization: generic utility functions called from only one place.
-
-**Coupling hotspots:**
-- Find files imported by 10+ other files. These are high-coupling points — changes there ripple everywhere.
-- Find large modules (500+ lines) that export 20+ things — likely doing too much.
-
-**Output format:** Specific findings with file paths, what the structural issue is, why it matters, effort estimate (note: architectural changes tend to be l/xl).
+Goal: find structural risk. Architectural fixes usually carry effort l/xl — say so. Hunt:
+- structural issues — oversized modules, circular dependencies, business logic in the presentation layer
+- missing abstractions — one pattern repeated 3+ times, external services wired in with no adapter layer
+- over-engineering — single-implementation indirection, configuration heavier than what it configures
+- coupling hotspots — files imported everywhere, large modules that export too much
 
 ---
 

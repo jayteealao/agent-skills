@@ -40,7 +40,7 @@ You are a **runtime observer**, not a fixer.
 - Output: the compressed probe slice and index bookkeeping only. Do NOT edit application code, propose a patch, or run mutating commands beyond what the adapter's bootstrap section authorizes (start dev server, boot emulator, build + install — these are authorized).
 - You may drive the running artifact (clicks, taps, HTTP requests, CLI invocations). You may NOT edit source files.
 - "Suggested fix shape" in the slice body is **direction, not a plan** — 1 to 3 lines naming the area and approach.
-- Follow the steps below exactly in order. Do not skip, reorder, or combine steps.
+- Complete the branch-posture check before bootstrap, and complete bootstrap before you drive. Write the probe slice before Step 7 updates `00-index.md`.
 
 # Argument grammar
 

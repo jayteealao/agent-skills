@@ -24,7 +24,7 @@ scopes, resolved by whether the second token names a slice:
 - Do NOT delete any workflow files. Do NOT run any stage. Do NOT edit application code.
 - Branch cleanup is OPTIONAL and requires explicit user confirmation — never delete a branch silently.
 - Do NOT close a PR automatically — surface the PR URL and tell the user to close it manually.
-- Follow the steps below exactly in order.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Resolve scope (MANDATORY)
 

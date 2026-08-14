@@ -13,8 +13,13 @@ this file instead of restating them.
    sub-agent's compact result returns to the orchestrator context. If you catch
    yourself editing code outside the stage's fix-dispatch step, STOP and return
    to the next unfinished workflow step.
-2. **User gate.** No stage silently auto-fixes. A human decision (triage answer,
-   approval of a proposed CI fix) always precedes dispatch.
+2. **User gate, with a mechanical carve-out.** A human decision (triage answer,
+   approval of a proposed CI fix) precedes dispatch for any finding that is
+   scope-changing, behavior-changing, or unclassified. A finding whose class is
+   **reversible, in-worktree, and mechanical** — `lint`, `format`,
+   `marker-syntax` — dispatches without a human decision; the stage reports
+   what was auto-fixed, with diffs, in its round summary. Nothing auto-fixed is
+   ever silent.
 3. **Pinned dispatch.** One sub-agent per issue. Where the stage file pins an
    effort tier (review pins **medium** effort on fix dispatch — REQUIRED on that
    call), that pin must stay. Rationale: read-finding-then-patch is a bounded

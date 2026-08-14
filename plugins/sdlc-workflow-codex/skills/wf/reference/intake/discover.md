@@ -32,7 +32,7 @@ You are a **hypothesis adjudicator**, not a fixer, explainer, or planner.
 - The verdict must be **convergent**: exactly one of `holds`, `partial`, `fails`, or `inconclusive`. Do not hedge across all four; pick one and justify it with cited evidence.
 - The artifact must include both supporting AND contradicting evidence. A "holds" verdict with no AGAINST section is suspect — search until you find counter-evidence or explicitly record that none exists.
 - Ask at most **3 questions** directly in chat, presenting the options as a short numbered list. No separate `po-answers.md` — answers go inline into the artifact.
-- Follow the steps below exactly in order. Do not skip, reorder, or combine steps.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:
@@ -62,50 +62,34 @@ Launch all three sub-agents simultaneously as parallel read-only `explorer` chil
 
 **Effort tier for every child:** **low** — each does targeted code reading + structured-output extraction (FOR / AGAINST / counter-hypotheses), the bounded-rubric profile the low tier handles cleanly. **Exception:** when Step 1 question 3 says a large decision rides on the verdict (a major refactor, an architecture choice, a plan's premise), raise the tier to **medium** — "dig harder" is a judgment instruction, and the tier must match it. State the chosen tier on every spawn.
 
+Each sub-agent receives the same two inputs: the verbatim hypothesis from Step 1 and the starting
+area from Step 1 question 2. Every returned item cites `file:line` with a snippet of 5 lines or
+fewer.
+
 ### Explore sub-agent 1 — Evidence FOR
 
-Prompt with ALL of the following:
-- The hypothesis: `<verbatim hypothesis from Step 1>`.
-- The starting area from question 2.
-- Your job is to find code that **supports** the hypothesis. Read implementations, follow call chains, look at tests that exercise the claimed behavior.
-- For each piece of supporting evidence: cite `file:line` and quote a relevant snippet (≤5 lines). Note whether it is direct (the code literally does what the hypothesis claims) or indirect (it is consistent with the hypothesis but does not prove it).
-- Do NOT search for contradicting evidence — that is sub-agent 2's job. Stay focused on building the strongest possible case FOR.
-
-Return as structured text:
-- `direct_support`: list of `{file:line, snippet, why_it_supports}` — code that literally enacts the hypothesis.
-- `indirect_support`: list of `{file:line, snippet, why_consistent}` — code that is compatible with the hypothesis but does not prove it.
-- `tests_that_pin_the_behavior`: list of `{file:line, test_name, what_it_asserts}` — passing tests that would break if the hypothesis were false.
-- `strength_assessment`: one paragraph — how strong is the case FOR, in your own judgment?
+Charter: build the strongest possible case that the hypothesis holds — read implementations,
+follow call chains, and find tests that pin the claimed behavior. Do not search for contradicting
+evidence; that is sub-agent 2's job. Return structured text with four keys: `direct_support`,
+`indirect_support`, `tests_that_pin_the_behavior`, and a one-paragraph `strength_assessment`.
+Label each item direct (the code enacts the claim) or indirect (consistent but not proof).
 
 ### Explore sub-agent 2 — Evidence AGAINST
 
-Prompt with ALL of the following:
-- The hypothesis: `<verbatim hypothesis from Step 1>`.
-- The starting area from question 2.
-- Your job is to **falsify** the hypothesis. Actively search for code that contradicts it, paths that bypass it, comments that suggest historical drift, or git history showing the hypothesis was true but no longer is.
-- For each piece of contradicting evidence: cite `file:line`, quote the snippet, and explain *why* it contradicts the hypothesis. Be precise — "this function does X instead of what the hypothesis claims".
-- Look especially for: dead code that suggests an old implementation, configuration flags that change behavior at runtime, branches in logic that the hypothesis ignores, edge cases the hypothesis doesn't cover.
-- Run `git log --oneline -20` on the relevant files — recent refactors may have invalidated assumptions the hypothesis relies on.
-
-Return as structured text:
-- `direct_contradictions`: list of `{file:line, snippet, why_it_contradicts}` — code that proves the hypothesis is wrong.
-- `partial_contradictions`: list of `{file:line, snippet, what_part_fails}` — code that shows the hypothesis is wrong in some cases but holds in others.
-- `historical_drift_signals`: list of `{commit_sha_or_file:line, observation}` — signs the hypothesis was true once but the code has moved on.
-- `strength_assessment`: one paragraph — how strong is the case AGAINST, in your own judgment?
+Charter: falsify the hypothesis — search for contradicting code, bypass paths, runtime flags and
+branches the claim ignores, and recent git history that invalidated it. Return structured text
+with four keys: `direct_contradictions`, `partial_contradictions`, `historical_drift_signals`
+(cite a commit sha or `file:line`), and a one-paragraph `strength_assessment`. For each item,
+state precisely why it contradicts the claim ("this function does X instead").
 
 ### Explore sub-agent 3 — Counter-hypotheses
 
-Prompt with ALL of the following:
-- The hypothesis: `<verbatim hypothesis from Step 1>`.
-- The starting area from question 2.
-- Your job is to propose **alternative explanations** that fit the same observable behavior. Not "the hypothesis is wrong because X" (that is sub-agent 2) — but "if the hypothesis were false, what would actually be happening instead?"
-- Aim for 1 to 3 alternatives, ranked by how well each fits what you can read in the code.
-- For each alternative: state it as a claim parallel to the original hypothesis, cite 1 to 3 supporting `file:line` references, and explain how it differs in observable behavior from the original.
-- If you cannot find any plausible alternatives, say so explicitly — that itself is a useful signal that the hypothesis is likely correct.
-
-Return as structured text:
-- `alternative_hypotheses`: list of `{statement, supporting_evidence: [{file:line, snippet}], differs_from_original_by: <one line>, plausibility: high|medium|low}`.
-- `no_alternatives_found`: boolean — if you genuinely couldn't think of any alternative, true; otherwise false.
+Charter: propose 1 to 3 alternative explanations that fit the same observable behavior, ranked by
+plausibility — not "the claim is wrong" (sub-agent 2's job) but "what is happening instead".
+Return structured text with two keys: `alternative_hypotheses` (each entry: statement, supporting
+`file:line` evidence, how it differs observably from the original, plausibility high|medium|low)
+and boolean `no_alternatives_found`. When no plausible alternative exists, set
+`no_alternatives_found: true` — that absence is itself a signal the hypothesis is likely correct.
 
 # Step 3 — Synthesize and write `01-discover.md`
 

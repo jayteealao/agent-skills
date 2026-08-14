@@ -8,13 +8,18 @@ Author the **design brief**: a structured artifact that guides UI implementation
 
 Most AI-generated UIs fail not because of bad code, but because of skipped thinking. They jump to "here's a card grid" without asking "what is the user trying to accomplish?" Shape inverts that: understand deeply first, so implementation is precise.
 
-A sparse prompt is not a brief. Do **not** synthesize a complete brief for confirmation on the first response. Discovery requires at least one user-answer round.
+A sparse prompt is not a brief. Do **not** invent answers that no source provides. When at least one discovery question has no source answer, discovery requires one user-answer round. When every question is pre-filled from a recorded source, write the brief without a round.
 
 ## Phase 1: Discovery Interview
 
 Do NOT write any code or make any design decisions during this phase. Your only job is to understand the feature deeply enough to make excellent design decisions later.
 
-This is a required interaction. Ask questions in conversation, adapting based on answers. Don't dump them all at once — have a natural dialogue. Ask 2–3 questions per round, then stop and wait for answers.
+Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Before you ask any question, pre-fill the answers:
+
+1. For each question in the rounds below, search the user prompt, PRODUCT.md, DESIGN.md, and the codebase for an answer.
+2. When a source answers a question, record the answer and the source in the brief. Do not ask that question.
+3. Ask the unanswered questions in ONE batched round. Then stop and wait for the answers.
+4. When no unanswered questions remain, skip the round and continue to Phase 2.
 
 ### Round 1 — Purpose and context
 - What is this feature for? What problem does it solve?

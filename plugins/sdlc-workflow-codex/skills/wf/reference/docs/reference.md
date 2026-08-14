@@ -133,12 +133,4 @@ Produce reference that:
 - missing constraints and edge cases
 - inconsistent naming across entries
 
-## Final self-check
-
-Before returning, verify:
-
-- the document is neutral
-- the structure mirrors the product surface
-- repeated items use a repeated template
-- warnings and limits are explicit
-- examples illustrate rather than teach
+Do not run a final self-check here. `docs.md` Step 5 dispatches a fresh-context review sub-agent that reviews every generated file.

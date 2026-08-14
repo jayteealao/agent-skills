@@ -73,7 +73,6 @@ You are a **contract author**, not an implementer.
 - Do NOT overwrite an existing `.ai/observability.md`. If one exists, STOP: *"Observability contract exists at
   `.ai/observability.md`. Amend it by hand, then re-run `/wf observability build` or `/wf observability audit`."*
 - Do NOT skip discovery (Step 1) — the whole point is to prescribe *against the real stack*, not a template.
-- Follow the numbered steps below exactly in order.
 
 ---
 

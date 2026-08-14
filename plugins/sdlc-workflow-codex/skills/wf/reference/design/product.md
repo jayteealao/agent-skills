@@ -42,7 +42,9 @@ Every interactive component has: default, hover, focus, active, disabled, loadin
 
 150–250 ms on most transitions. Users are in flow — don't make them wait for choreography. Motion conveys state, not decoration: state change, feedback, loading, reveal — nothing else. No orchestrated page-load sequences.
 
-## Product bans (on top of shared absolute bans)
+## Product bans
+
+Apply the ban list in [_design-context.md](_design-context.md). These product bans add to that list:
 
 - Decorative motion that doesn't convey state
 - Inconsistent component vocabulary across screens (if the "save" button looks different in two places, one is wrong)
@@ -56,11 +58,3 @@ Every interactive component has: default, hover, focus, active, disabled, loadin
 - Standard navigation patterns without reinterpretation
 - Tight density where data demands it
 - Same visual solution across repeated surfaces (don't vary the table design across screens)
-
-## Absolute bans (brand and product both)
-
-- `border-left` or `border-right` > 1px as a decorative colored side stripe — use a full hairline border, a background tint, or a leading glyph instead
-- Purple-blue generic gradients
-- Pure black (`#000`) or pure white (`#fff`) for text or large surface areas
-- Nested card-inside-card layouts
-- Bounce or elastic easing in production UI

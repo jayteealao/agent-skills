@@ -35,7 +35,7 @@ If the first token matches an existing slug whose `workflow-type` IS `task`, tha
 - **The gate is not optional above `local-env`.** A `shared-env`, `external-party`, or `irreversible` task stops for explicit human authorization even when every other signal says proceed. The non-interactive default for those classes is STOP with the missing authorization recorded — never proceed (the auto driver refuses `task` slugs entirely).
 - **`task` is not a todo list.** One task = one outcome. More than one independent outcome → enumerate them and have the user pick one, or escalate to a feature.
 - `current-stage` stays inside the standard enum — `implement` while working, `verify` while checking. Never a bespoke label.
-- Follow the steps below exactly in order.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode:**

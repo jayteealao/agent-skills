@@ -123,11 +123,4 @@ Avoid vague advice like:
 - add more detail
 - make it nicer
 
-## Final self-check
-
-Before returning, verify:
-
-- you judged the page by purpose, not title
-- you identified the right audience
-- your fixes are concrete and actionable
-- you recommended splitting when one page is overloaded
+Do not add a self-check pass on top of this rubric. This rubric already runs inside `docs.md` Step 5's fresh-context review sub-agent, and the fresh context is the objectivity check.

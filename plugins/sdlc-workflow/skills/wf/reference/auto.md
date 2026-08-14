@@ -60,19 +60,7 @@ There are no flags. `auto` always stops at the review; `handoff`, `ship`, and `r
    - **`workflow-type: update-deps`** → implement and verify are self-managed by the mode; `auto` does NOT drive them. If the slug is not yet past verify, PAUSE and route the user to `/wf intake update-deps <slug>`.
    - **`workflow-type: task`** → the task lifecycle is self-managed by `/wf task`, and its blast-radius authorization gate is a human gate a driver must not resolve (a `shared-env`/`external-party`/`irreversible` task stops for a person, always). `auto` drives NOTHING here — PAUSE and route the user to `/wf task <slug>`.
    - **`workflow-type: audit`** → a terminal defect hunt with no build stages; there is nothing to drive. PAUSE and route the user to `/wf intake audit <slug>` (an accumulating re-run) or to a finding's recorded route in `07-review.md` `## Triage Decisions`.
-5. **Branch posture.** Run `git branch --show-current`. If it differs from `00-index.md.branch` (and `branch` is non-empty), call `AskUserQuestion`:
-
-```yaml
-question: "Working tree is on `<current-branch>`, but workflow `<slug>` is on `<slug-branch>`. `/wf auto` will run implement/verify against the checked-out tree. How should it proceed?"
-header: "Branch posture"
-options:
-  - { label: "Switch to <slug-branch> (Recommended)", description: "Run `git switch <slug-branch>`. Refuses if uncommitted changes would be lost." }
-  - { label: "Run on <current-branch>",                description: "Drive against whatever is checked out. Only correct if you know why you are here." }
-  - { label: "Abort",                                  description: "Stop. No stages run." }
-multiSelect: false
-```
-
-If **switch**: attempt `git switch <slug-branch>`; on a git refusal (uncommitted changes), surface the error and STOP — do not stash or force. If **run-on-current**: proceed and note the divergence in the final summary. If **abort**: emit `wf auto aborted: branch mismatch.` and STOP.
+5. **Branch posture.** Run `git branch --show-current`. If it differs from `00-index.md.branch` (and `branch` is non-empty), run `git switch <slug-branch>` without asking — the switch is reversible, and the release valve in [_autonomy-guards.md](_autonomy-guards.md) applies. Record the switch in the Step 3 hand-back. On a git refusal (uncommitted changes would be lost), surface the error and STOP — do not stash or force.
 
 # Step 1 — The driver loop
 
@@ -80,7 +68,7 @@ Repeat until the mode's endpoint is reached **or** a gate pauses the chain:
 
 1. **Select the next stage** (selection rule below).
 2. **Announce it** in one chat line: `auto → <stage> <slug> [<slice>]`. (Internal narration; the External Output Boundary still governs anything that reaches an external surface — it should not.)
-3. **Run the stage in-process.** Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<stage>.md` in full and execute it verbatim against `<slug>` (and the slice for per-slice stages), passing the same `$ARGUMENTS` the manual command would. The stage does its own work, writes its own artifact, and updates `00-index.md`. Do not summarize or shortcut it.
+3. **Run the stage in-process.** Read `${CLAUDE_PLUGIN_ROOT}/skills/wf/reference/<stage>.md` in full and execute it verbatim against `<slug>` (and the slice for per-slice stages), passing the same `$ARGUMENTS` the manual command would. The stage does its own work, writes its own artifact, and updates `00-index.md`. Do not summarize or shortcut it. Apply the grounded-progress rule in [_grounded-progress.md](_grounded-progress.md) to every progress claim the drive emits.
 4. **Evaluate the gate** by reading the artifact the stage just wrote (Gate table below). **PROCEED** → loop. **PAUSE** → stop the chain and run Step 2 (residual durability), then Step 3 (hand back).
 5. **Re-read `00-index.md`** at the top of each iteration so `current-stage`, `progress`, and `selected-slice` reflect what the last stage wrote.
 
@@ -132,7 +120,7 @@ Notes that bind the table:
 - **Intent-bearing decisions are asked at the gate.** A delegated stage under `auto` ASKS an intent-bearing decision (per [_decision-classes.md](_decision-classes.md)) at its gate — the human is present — rather than batching it into the stage's autonomous block; only implementation-detail decisions are auto-resolved and recorded.
 - **One fix pass per stage, then hand back.** `verify` enforces a single fix round per invocation by design; `review` accumulates findings across runs and runs its fix loop once per invocation. `auto` does **not** auto-re-invoke either for another pass — that is a deliberate user decision. When a stage PAUSEs (verify `escalated`, or `review` leaving open blockers), `auto` PAUSEs and recommends the re-invocation in the summary.
 - **A clean `review` is the endpoint, not a PROCEED into handoff.** `auto` stops there and recommends `/wf handoff <slug>`.
-- **Mid-build discover checkpoint.** When the workflow carries a `severity: high` RIM (risk/assumption/mitigation recorded in `00-index.md`) and the **visible-milestone** slice — the one whose completion first makes that risk observable — lands a clean `verify`, `auto` does not silently drive on. Because the human is present, it **ASKS** (`AskUserQuestion`) whether to run a read-only `/wf discover <hypothesis derived from the RIM>` to interrogate the high-severity risk before more is built on it — offering *run discover now* / *skip and continue*. Discover is analysis the user acts on, not a build step, so `auto` never runs it unattended; it just surfaces the investigation the risk has been asking for at the first slice where the evidence to run it exists — rather than letting it land days late.
+- **Mid-build discover checkpoint.** When the workflow carries a `severity: high` RIM (risk/assumption/mitigation recorded in `00-index.md`) and the **visible-milestone** slice — the one whose completion first makes that risk observable — lands a clean `verify`, `auto` does not silently drive on. It **runs** the read-only `/wf discover <hypothesis derived from the RIM>` without asking (the analysis is read-only; the release valve in [_autonomy-guards.md](_autonomy-guards.md) applies), then surfaces the result in the hand-back. Acting on the finding stays the user's decision — `auto` never builds on it unattended.
 
 # Step 2 — Residual durability (on PAUSE or at the endpoint)
 
@@ -167,7 +155,7 @@ Next: <the routing command — see below>
 Rules:
 - **Always emit**, even on an early PAUSE. The narrative explains *why* it stopped — never end silently.
 - **Internal audience.** `.ai/` paths are allowed in this chat block; the External Output Boundary still governs anything written to a PR, commit, or other external surface.
-- **Honesty.** Report what actually ran and what failed. If `auto` ran three stages then paused at verify, say so — do not imply the workflow is further along than the artifacts show.
+- **Honesty.** Report what actually ran and what failed. If `auto` ran three stages then paused at verify, say so — do not imply the workflow is further along than the artifacts show. Apply [_grounded-progress.md](_grounded-progress.md): every count and claim in this summary must be readable from an artifact or tool result the driver actually opened **this run**, never from memory of the drive. Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn.
 
 # Worked shapes (for grounding, not a script)
 

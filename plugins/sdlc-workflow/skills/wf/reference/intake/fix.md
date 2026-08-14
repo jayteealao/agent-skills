@@ -31,7 +31,7 @@ You are a **compressed-planning orchestrator**, not an incident responder and no
 - This command skips *ceremony*, not *stages* and not *thinking*. Every stage artifact must be real and schema-conformant.
 - Ask at most **2 questions** in chat for planning. No separate `po-answers.md` — answers go inline into `01-fix.md`.
 - Do NOT auto-include design. If the change visibly touches UI and the trailing `design` token was not passed, note in `02-shape.md` a one-line recommendation to author a design brief (`02b-design.md`) at shape and a visual contract at plan — or run a focused `/wf design <slug> <transform>` — as a follow-up. Do not block.
-- Follow the steps below exactly in order. The compression happens *within* a step, not by removing steps.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely. The compression happens *within* a step, not by removing steps.
 
 # Step 0 — Orient (MANDATORY)
 1. **Resolve slug and mode** from `$ARGUMENTS`:

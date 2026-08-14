@@ -41,7 +41,7 @@ You are a **workflow orchestrator**, not a problem solver.
 - You DO wait. CI must reach a terminal state and bot reviews must get their settle window before you decide readiness. Snapshotting "pending" and stopping is a contract violation (see T5.0/T5.3).
 - Do NOT ship, merge, or deploy — that is a later stage.
 - Your job is to **summarise the completed work into a reviewer-friendly handoff package, push the branch, and create a pull request**.
-- Follow the numbered steps below **exactly in order**. Do not skip, reorder, or combine steps.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - Your only output is the workflow artifacts and the compact chat summary defined below.
 - If you catch yourself about to start editing code or merging, STOP and return to the next unfinished workflow step.
 
@@ -149,6 +149,8 @@ You are a **workflow orchestrator**, not a problem solver.
 - **Conditional inputs are mandatory when present.** If a file in this command's *Conditional inputs* row exists on disk, read it and honor it in the output — silent omission is a contract violation.
 
 # Chat return contract
+
+Apply the early-stop guard in [_autonomy-guards.md](_autonomy-guards.md) before ending the turn.
 After writing files, return per [_chat-return.md](_chat-return.md) — narrative lead in the artifact's `## The Handoff` story voice, then this receipt:
 - `scope: <slug|branch>` and, in batch mode, the roster report (one row per slug: package / skip-unchanged / not-ready)
 - `slug: <slug>` (lead slug in batch mode)
@@ -167,9 +169,12 @@ machinery**. Apply it by scope:
   per-slug but side-effects are per-branch*:
   1. **Per-slug packaging** (the equivalent of T1–T3.7: read artifacts, write the
      handoff summary + Diátaxis docs, commitlint/public-surface/doc-mirror
-     checks) runs **once per slug in the roster whose action is `package`**. Each
+     checks) runs **once per slug in the roster whose action is `package` — dispatch
+     the `package` slugs in parallel** (one sub-agent per slug; each slug's package
+     reads and writes only its own artifacts, so the work is independent). Each
      writes its own `08-handoff.md` (additive-write + ledger + fingerprint). Skip
-     slugs marked `skip-unchanged` or `not-ready`.
+     slugs marked `skip-unchanged` or `not-ready`. The branch-layer side effects
+     stay serialized in layer 2, where they are already quarantined.
   2. **Branch machinery** (the equivalent of T3.8–T5.3: local pre-push gate, push, create/update the ONE
      PR, watch CI, triage, rebase, final readiness) runs **exactly once**, owned
      by the lead slug. The PR description is generated from the **union** of every
@@ -185,24 +190,10 @@ machinery**. Apply it by scope:
 
 Do this in order:
 1. **Read branch strategy** from `00-index.md` frontmatter: `branch-strategy`, `branch`, `base-branch`. Also read the optional PR-readiness config keys (silent skip if absent): `public-surface`, `docs-mirror`, `review-bots` — see `## Project-level handoff config` below.
-2. **Create task list.** Use TaskCreate for the handoff sequence. All metadata: `{ slug, stage: "handoff", slices: "<comma-separated list of slice-slugs in scope>", mode: "<aggregate|single-slice>", scope: "<slug|branch>", lead: "<lead-slug>" }`. In batch mode, T1–T3.7 are run per packaged slug (the packaging layer); T3.8–T5.3 are created once, owned by the lead (the local pre-push gate runs against the whole working tree, not per slug).
-   - T1: `subject: "Read prior artifacts"`, `activeForm: "Reading workflow artifacts"`.
-   - T2: `subject: "Write handoff summary"`, `activeForm: "Writing handoff summary"`, `addBlockedBy: ["T1"]`.
-   - T3: `subject: "Generate Diátaxis docs"`, `activeForm: "Generating documentation"`, `addBlockedBy: ["T2"]`. If `docs-needed: false`, this task will be deleted in step 5.
-   - T3.5: `subject: "Commitlint pass"`, `activeForm: "Linting commit messages"`, `addBlockedBy: ["T3"]`. If no commitlint config is detected, will be deleted in step 5b.
-   - T3.6: `subject: "Public-surface drift check"`, `activeForm: "Checking public-surface drift"`, `addBlockedBy: ["T3.5"]`. If `00-index.md` has no `public-surface:` block, will be deleted in step 5c.
-   - T3.7: `subject: "Doc-mirror regen"`, `activeForm: "Regenerating doc mirrors"`, `addBlockedBy: ["T3.6"]`. If `00-index.md` has no `docs-mirror:` block, will be deleted in step 5d.
-   - T3.8: `subject: "Local pre-push gate"`, `activeForm: "Running local pre-push checks"`, `addBlockedBy: ["T3.7"]`. The repo's own PR gates, run **locally before the push**. Deleted in step 5e when the gate resolves to nothing to run (no config and nothing detectable, the user declined, or `branch-strategy` never pushes).
-   - T4: `subject: "Push branch to remote"`, `activeForm: "Pushing branch"`, `addBlockedBy: ["T3.8"]`. If `branch-strategy` is not `dedicated` or `shared`, will be deleted.
-   - T5: `subject: "Create or update pull request"`, `activeForm: "Creating/updating PR"`, `addBlockedBy: ["T4"]`. If `branch-strategy` is not `dedicated`, will be deleted.
-   - T5.0: `subject: "Watch CI to green + settle reviews"`, `activeForm: "Watching CI and settling reviews"`, `addBlockedBy: ["T5"]`. If `branch-strategy` is not `dedicated` or no PR exists, will be deleted in step 7a. **Must run before triage so CI results and bot comments have actually landed.**
-   - T5.1: `subject: "PR comment triage"`, `activeForm: "Triaging PR comments"`, `addBlockedBy: ["T5.0"]`. If `branch-strategy` is not `dedicated` or no PR exists, will be deleted in step 7b.
-   - T5.2: `subject: "Rebase onto base"`, `activeForm: "Rebasing onto base"`, `addBlockedBy: ["T5.1"]`. If `branch-strategy` is not `dedicated`, will be deleted (shared branches cannot be force-pushed).
-   - T5.3: `subject: "Final readiness re-watch"`, `activeForm: "Re-watching CI and finalizing readiness"`, `addBlockedBy: ["T5.2"]`. If `branch-strategy` is not `dedicated`, will be deleted.
-   - T6: `subject: "Write 08-handoff.md"`, `activeForm: "Writing handoff artifact"`, `addBlockedBy: ["T5.3"]`.
-3. Mark T1 `in_progress`. Read all prior artifacts needed for the summary. Mark T1 `completed`.
-4. Mark T2 `in_progress`. Summarize the problem, solution, affected areas, verification evidence, risks, and follow-ups in reviewer-friendly language. Mark T2 `completed`.
-5. Mark T3 `in_progress`. **Documentation generation (Diátaxis):**
+2. **Track the handoff sequence in the task tracker.** One task per numbered step below, keeping the step labels used throughout this reference (T1 read artifacts · T2 summary · T3 Diátaxis docs · T3.5 commitlint · T3.6 public-surface drift · T3.7 doc-mirror regen · T3.8 local pre-push gate · T4 push · T5 PR · T5.0 CI watch · T5.1 comment triage · T5.2 rebase · T5.3 final re-watch · T6 write 08-handoff.md). Keep statuses truthful; a step that resolves to nothing to run is deleted, not marked done. In batch mode, T1–T3.7 are run per packaged slug (the packaging layer); T3.8–T5.3 are created once, owned by the lead (the local pre-push gate runs against the whole working tree, not per slug). Do not pre-declare a dependency graph — the numbered steps below ARE the sequence. The gates themselves stay declared, because they are contracts, not choreography: T4: `subject: "Push branch to remote"` carries `addBlockedBy: ["T3.8"]` (the push never jumps the local pre-push gate), and T5.1 (triage) waits on T5.0 (CI watch) so triage reads results that actually landed.
+3. Read all prior artifacts needed for the summary (T1).
+4. Summarize the problem, solution, affected areas, verification evidence, risks, and follow-ups in reviewer-friendly language (T2).
+5. **Documentation generation (Diátaxis) (T3):**
    a. Read `02-shape.md` and check the `## Documentation Plan` section and `docs-needed` / `docs-types` frontmatter.
    b. If `docs-needed: true`, for each identified doc type, load the matching primitive reference from the `wf-docs` skill and follow it verbatim.
 

@@ -16,11 +16,13 @@ This is **not a standalone command** — it is the contract-authoring procedure 
 The visual contract requires a **confirmed visual direction** and a resolved image gate. Cannot write `02c-craft.md` until all of these are true:
 
 1. PRODUCT context loaded (PRODUCT.md valid, ≥200 chars, no `[TODO]` markers).
-2. **Direction source.** *Plan path:* `02b-design.md` exists (authored at `shape`) and its direction is **confirmed by the user** at this step, OR the user supplied an already-confirmed brief. *Transform path (`/wf design <slug> <transform>`, no brief):* there is **no `02b` to require** — the transform's own reference (e.g. `colorize.md`) plus `PRODUCT.md`/`DESIGN.md` are the direction source; confirm the transform's focused direction instead.
+2. **Direction source.** *Plan path:* `02b-design.md` exists (authored at `shape`) and its direction is **confirmed** by one of the `shape=pass` sources below. *Transform path (`/wf design <slug> <transform>`, no brief):* there is **no `02b` to require** — the transform's own reference (e.g. `colorize.md`) plus `PRODUCT.md`/`DESIGN.md` are the direction source; confirm the transform's focused direction instead.
 3. Visual-direction decision recorded: probes generated and the user chose a direction, OR skipped with a stated reason.
 4. North-star mock decision recorded (Step 3 below).
 
-**`shape=pass`** requires a user response approving the direction. PRODUCT.md and `teach` do not count. A self-authored direction without user confirmation does not pass the gate.
+**`shape=pass`** requires a direction the user confirmed. Three sources satisfy the gate: a user response in this session, a user-confirmed PRODUCT.md, or a prior `teach` answer from the user. Record which source satisfied the gate. A self-authored direction with no user-confirmed source does not pass the gate.
+
+Apply the Release valve in [../_autonomy-guards.md](../_autonomy-guards.md). Pre-fill every question that the user prompt, PRODUCT.md, DESIGN.md, or the codebase already answers, and record each pre-filled answer with its source. Ask only the unanswered questions, in ONE batched round.
 
 Invalid image-skip reasons: "the implementation will be semantic HTML/CSS/SVG", "a raster mock won't be used directly", "the product is fictional." Probes and mocks are direction artifacts, not implementation assets.
 
@@ -91,14 +93,16 @@ Record the resolved `image-gate` in `02c-craft.md`'s frontmatter: `pass` after c
 > prompt to external engines (Stitch / an LLM), gated by `externalDispatch.enabled`
 > — offer it, never run it automatically.
 
-> **Auto second opinion.** Before writing the contract, **auto-invoke** `/consult codex
-> <critique this design direction — does it satisfy the brief, and what visual or
-> interaction risks does it carry?>` (pinning `codex`/`claude` keeps it free) whenever
-> the direction chose among competing options, introduces a new interaction pattern or
-> primary surface, or the brief left a visual-direction gate open — a read-only panel
-> that gives the approved direction an independent design eye before the contract locks
-> it in. Fire it rather than offering it; skip only a trivial, single-option surface.
-> The user may invoke it explicitly with any provider.
+> **Auto second opinion.** When the direction chose among competing options, introduces
+> a new interaction pattern or primary surface, or the brief left a visual-direction
+> gate open, **auto-invoke** `/consult codex <critique this design direction — does it
+> satisfy the brief, and what visual or interaction risks does it carry?>` (pinning
+> `codex`/`claude` keeps it free). Dispatch the consult **concurrently with the Step 4
+> mock fidelity inventory** — start both in the same message; do not wait for one
+> before you start the other. The consult is a read-only panel that gives the approved
+> direction an independent design eye. Read the panel result before Step 5 writes the
+> contract. Fire it rather than offering it; skip it only for a trivial, single-option
+> surface. The user may invoke it explicitly with any provider.
 
 ## Step 4: Mock fidelity inventory
 

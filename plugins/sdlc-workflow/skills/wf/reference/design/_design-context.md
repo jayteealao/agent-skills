@@ -87,11 +87,11 @@ Never converge on the same choices across projects. Vary.
 
 ## Absolute bans (both registers)
 
-- `border-left` or `border-right` > 1px as a decorative colored accent stripe — use full hairline border, background tint, or leading glyph instead.
+- `border-left` or `border-right` > 1px as a decorative colored accent stripe. A side stripe marks a card as active or highlighted without a real visual solution. Use a full hairline border, a background tint, or a leading glyph instead.
 - Purple-blue generic gradients.
 - Generic hero metric cards ("10x faster", "500+ customers") without real product proof.
 - Nested card-inside-card layouts.
-- Bounce or elastic easing in production UI.
+- Bounce or elastic easing in production UI. It reads as cheap and unpolished.
 - Pure `#000` or `#fff` for text or large areas.
 - Fraunces or Cormorant as the primary display face on a new brand surface.
 

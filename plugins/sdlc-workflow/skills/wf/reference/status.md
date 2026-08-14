@@ -26,7 +26,7 @@ You are a **dashboard + router + registry keeper**, not a problem solver.
 - Do NOT run stages, fix issues, or advance workflows.
 - The **only** files you may write are `.ai/workflows/INDEX.md` (Step -1 reconcile) and, in `deep`
   mode, `.ai/workflows/<slug>/00-sync.md` + the `updated-at` bookkeeping touch. Nothing else.
-- Follow the numbered steps below **exactly in order**.
+- Respect the stated order only where a step consumes an earlier step's output or crosses a gate; reading and research may interleave freely.
 - If you catch yourself about to modify a stage file or run a stage, STOP.
 
 # Step -1 — Reconcile the global registry (`.ai/workflows/INDEX.md`) — always, first

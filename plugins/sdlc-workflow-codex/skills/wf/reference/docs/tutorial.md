@@ -126,13 +126,4 @@ Produce a tutorial that:
 - hidden prerequisites
 - steps without observable outcomes
 
-## Final self-check
-
-Before returning, verify:
-
-- the tutorial has one achievable goal
-- every step has a reason to exist
-- the learner gets a result early
-- the likely failure points are anticipated
-- explanation is ruthlessly trimmed
-- the ending points to the next appropriate docs
+Do not run a final self-check here. `docs.md` Step 5 dispatches a fresh-context review sub-agent that reviews every generated file.
