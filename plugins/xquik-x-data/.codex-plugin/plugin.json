@@ -1,0 +1,39 @@
+{
+  "name": "xquik-x-data",
+  "version": "0.1.0-codex.1",
+  "description": "Source-backed planning for Xquik REST, MCP, SDK, Twitter advanced search, exports, monitoring, and approval-gated X workflows.",
+  "author": {
+    "name": "Xquik",
+    "url": "https://github.com/Xquik-dev"
+  },
+  "license": "MIT",
+  "keywords": [
+    "xquik",
+    "twitter-api",
+    "mcp",
+    "sdk",
+    "tweet-search",
+    "monitoring",
+    "webhooks"
+  ],
+  "skills": "./skills/",
+  "homepage": "https://docs.xquik.com",
+  "repository": "https://github.com/Xquik-dev/x-twitter-scraper",
+  "interface": {
+    "displayName": "Xquik X Data",
+    "shortDescription": "Plan current Xquik REST, MCP, SDK, and export workflows",
+    "longDescription": "Plan source-backed X/Twitter advanced search, profile lookup, trends, exports, monitoring, webhooks, SDK integrations, and approval-gated account workflows with Xquik REST or remote MCP.",
+    "developerName": "Xquik",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "websiteURL": "https://docs.xquik.com",
+    "defaultPrompt": [
+      "Plan a bounded Twitter advanced search with Xquik.",
+      "Choose the right Xquik SDK or MCP setup for this application.",
+      "Prepare an approval-gated X monitoring workflow."
+    ]
+  }
+}

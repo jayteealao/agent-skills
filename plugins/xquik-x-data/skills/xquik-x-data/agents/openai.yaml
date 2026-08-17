@@ -1,0 +1,4 @@
+interface:
+  display_name: "Xquik X Data"
+  short_description: "Plan safe Xquik REST and MCP workflows"
+  default_prompt: "Use $xquik-x-data to select and plan the narrowest current Xquik REST, MCP, SDK, export, monitoring, or approval-gated account workflow."
