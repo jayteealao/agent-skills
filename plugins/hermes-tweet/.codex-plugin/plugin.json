@@ -1,6 +1,6 @@
 {
   "name": "hermes-tweet",
-  "version": "0.1.12-codex.1",
+  "version": "0.1.12",
   "description": "Hermes Agent workflows for public X/Twitter research, monitoring, audits, and approval-gated account actions.",
   "author": {
     "name": "Xquik",
